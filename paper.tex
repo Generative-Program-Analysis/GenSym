@@ -171,28 +171,29 @@
 
 1. Revisit abstract compilation (generates textual program and closures) 
 
+2. Generalize the idea to staged abstract interpreter.
+We implement staged abstract interpreter within a big-step abstract semantics 
+(abstract definitional interpreter) using Scala with LMS framework.  
 Show that abstract compilation can be understood as an instance of staged 
 abstract interpreter.
 
-2. From a performance perspective, closure is still not an efficient enough representation.
+Extension: can we do it with small-step semantics? or staging a transition system?
 
-We implement staged abstract interpreter in a big-step semantics (abstract definitional interpreter) 
-using Scala with LMS framework.  
+3. Improve performance (closure is still not an efficient enough representation).
+
 Show it generates sound and high-performance low-level analysis code with 
 various precisions and sensitivities, for instances, k-CFA, pushdown or m-CFA. 
 
 Store/set operations (join, update) is also expensive, generating efficient store implementation\cite{liang2014fast}.
 
-Extension: can we do it with small-step semantics? or staging a transition system?
-
-3. Modular analysis for free? 
+4. Modular analysis for free? 
 
 Motivation: one of the challenges of modern static analysis is program usually depends on
 large libraries programs\cite{toman_et_al:LIPIcs:2017:7121}. 
 Can we analyze programs and libraries separately without losing precision? So that we can 
 reduce part of the overhead of repeatedly analyzing libraries for different programs.
 Similarly, some static analyzers compute summary for a function or a module, that can be reused
-later(Facebook Infer). But to my knowledge, they are mostly context-insensitive or imprecise.
+later (like Facebook Infer). But to my knowledge, they are mostly context-insensitive or imprecise.
 
 Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis, because 
 it need the last k calling contexts as abstraction. But can we analyze programs (libraries) separately 
@@ -206,7 +207,9 @@ waiting for the rest $(n-m)$ programs.
 
 Not sure how much improvement of performance.
 
-4. Show the evaluation result on benchmark programs.
+5. Show the evaluation result on benchmark programs (TODO: collect benchmark programs). 
+Compare with normal abstract interpreter, 
+abstract compilation\cite{Boucher:1996:ACN:647473.727587}, and OAAM \cite{Johnson:2013:OAA:2500365.2500604}.
 
 \section{Background}
 
