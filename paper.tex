@@ -174,26 +174,34 @@
 Show that abstract compilation can be understood as an instance of staged 
 abstract interpreter.
 
-2. But closure is still not an efficient enough representation.
+2. From a performance perspective, closure is still not an efficient enough representation.
 
 We implement staged abstract interpreter in a big-step semantics (abstract definitional interpreter) 
 using Scala with LMS framework.  
 Show it generates sound and high-performance low-level analysis code with 
 various precisions and sensitivities, for instances, k-CFA, pushdown or m-CFA. 
 
-Store/set operations (join, update) is expensive. Generate efficient store implementation\cite{liang2014fast}.
+Store/set operations (join, update) is also expensive, generating efficient store implementation\cite{liang2014fast}.
 
 Extension: can we do it with small-step semantics? or staging a transition system?
 
 3. Modular analysis for free? 
 
-For example, k-CFA (k > 0) is naturally a kind of whole program analysis, because 
-it need the last k calling contexts. But can we analyze programs (or libraries) separately 
+Motivation: one of the challenges of modern static analysis is program usually depends on
+large libraries programs\cite{toman_et_al:LIPIcs:2017:7121}. 
+Can we analyze programs and libraries separately without losing precision? So that we can 
+reduce part of the overhead of repeatedly analyzing libraries for different programs.
+Similarly, some static analyzers compute summary for a function or a module, that can be reused
+later(Facebook Infer). But to my knowledge, they are mostly context-insensitive or imprecise.
+
+Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis, because 
+it need the last k calling contexts as abstraction. But can we analyze programs (libraries) separately 
 which generate the specialized analysis and leave the k calling contexts as dynamic parameters, 
 and then install these contexts when we have the whole program.
 
-Another perspective, programs are data for an abstract interpreter, if we have $n$ programs, then there 
-are $n$ stages. Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
+Another perspective: programs are data for an abstract interpreter, so if we have $n$ programs, 
+then there can be $n$ stages. 
+Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
 waiting for the rest $(n-m)$ programs.
 
 Not sure how much improvement of performance.
