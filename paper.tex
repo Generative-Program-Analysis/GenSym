@@ -167,23 +167,38 @@
 
 \section{Introduction}
 
-\textbf{Contribution(Proposed)}.
+\textbf{Outline(Proposed)}.
 
-Show that abstract compilation can be understood as an instance of staged abstract interpreter.
+1. Revisit abstract compilation (generates textual program and closures) 
+
+Show that abstract compilation can be understood as an instance of staged 
+abstract interpreter.
+
+2. But closure is still not an efficient enough representation.
 
 We implement staged abstract interpreter in a big-step semantics (abstract definitional interpreter) 
-using Scala with LMS framework. Show it generates sound and high-performance analysis code with 
-various precisions and sensitivities, for examples, k-CFA, pushdown or m-CFA. 
-Generate efficient store implementation.
+using Scala with LMS framework.  
+Show it generates sound and high-performance low-level analysis code with 
+various precisions and sensitivities, for instances, k-CFA, pushdown or m-CFA. 
 
-Show the evaluation result on benchmark programs.
+Store/set operations (join, update) is expensive. Generate efficient store implementation\cite{liang2014fast}.
 
-Can we do it with small-step semantics? or staging a transition system?
+Extension: can we do it with small-step semantics? or staging a transition system?
 
-Modular analysis? For example, k-CFA (k > 0) is a naturally global program analysis, because 
-it need the last k calling contexts. But can we analyze programs (libraries) separately 
+3. Modular analysis for free? 
+
+For example, k-CFA (k > 0) is a naturally global program analysis, because 
+it need the last k calling contexts. But can we analyze programs (or libraries) separately 
 which generate the specialized analysis and leave the k calling contexts as dynamic parameters, 
 and then install these contexts when we have the whole program.
+
+For another example, programs are data for an abstract interpreter, if we have $n$ programs, then there 
+are $n$ stages. Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
+waiting for the rest $(n-m)$ programs.
+
+Not sure how much improvement of performance.
+
+4. Show the evaluation result on benchmark programs.
 
 \section{Background}
 
@@ -211,7 +226,7 @@ can be loaded and executed by \texttt{eval} or similar mechanisms. The second
 one is using closure as a representation of specialized analysis. 
 A closure is a function that remembers the environment where it defined. So the 
 abstract compiler generates higer-order functions on-the-fly rather than textual 
-program, then the functions can be executed immediately in a higher-order language.
+program, then the functions can be applied immediately in a higher-order host language.
 
 \citeauthor{Johnson:2013:OAA:2500365.2500604} in their work also adopt the 
 idea closure generation for optimizing small-step abstracting abstract machine
