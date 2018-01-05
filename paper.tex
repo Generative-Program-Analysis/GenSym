@@ -165,24 +165,63 @@
 %% environment and commands, and keywords command.
 \maketitle
 
-
 \section{Introduction}
 
-Text of paper \ldots
+\textbf{Contribution(Proposed)}.
+
+Show that abstract compilation can be understood as an instance of staged abstract interpreter.
+
+We implement staged abstract interpreter in a big-step semantics (abstract definitional interpreter) 
+using Scala with LMS framework. Show it generates sound and high-performance analysis code with 
+various precisions and sensitivities, for examples, k-CFA, pushdown or m-CFA. 
+Generate efficient store implementation.
+
+Show the evaluation result on benchmark programs.
+
+Can we do it with small-step semantics? or staging a transition system?
+
+Modular analysis? For example, k-CFA (k > 0) is a naturally global program analysis, because 
+it need the last k calling contexts. But can we analyze programs (libraries) separately 
+which generate the specialized analysis and leave the k calling contexts as dynamic parameters, 
+and then install these contexts when we have the whole program.
+
+\section{Background}
+
+\subsection{Abstracting Abstract Machine}
+
+\subsection{Staged Interpreter}
+
+\section{Abstract Compilation, Revisited}
+
+\section{Staged Abstracting Abstract Machine}
+
+\section{Evaluation}
 
 \section{Related Work}
 
-\textbf{Abstract Compilation}. \citeauthor{Boucher:1996:ACN:647473.727587} present a closure generation 
-technique to optimize the monovariant flow analysis \textit{0}-CFA for programs in continuation-passing style
-\cite{Boucher:1996:ACN:647473.727587}.  
+\textbf{Abstract Compilation}. The idea in this paper was closely inspired by 
+abstract compilation \cite{Boucher:1996:ACN:647473.727587}.
+\citeauthor{Boucher:1996:ACN:647473.727587} presented abstract compilation
+techniques as an efficient implementation of the monovariant flow analysis 
+\textit{0}-CFA for programs in continuation-passing style. The key idea is to 
+reduce the interpretation overhead on traversing the syntax tree by partial evaluation.
+Specifically, they proposed two kinds of abstract compilers to achieve this. 
+The first one is to generate specialized analysis as a textual program, then 
+can be loaded and executed by \texttt{eval} or similar mechanisms. The second 
+one is using closure as a representation of specialized analysis. 
+A closure is a function that remembers the environment where it defined. So the 
+abstract compiler generates higer-order functions on-the-fly rather than textual 
+program, then the functions can be executed immediately in a higher-order language.
 
-\citeauthor{Johnson:2013:OAA:2500365.2500604} in their work also adopt the idea closure generation 
-for an small-step abstracting abstract machine \cite{Johnson:2013:OAA:2500365.2500604}.
+\citeauthor{Johnson:2013:OAA:2500365.2500604} in their work also adopt the 
+idea closure generation for optimizing small-step abstracting abstract machine
+\cite{Johnson:2013:OAA:2500365.2500604}.
 
 \textbf{Abstracting Abstract Machine}. Abstracting Definitional Interpreter \cite{darais2017abstracting}
 
 Collapsing Towers of Interpreters\cite{Amin:2017:CTI:3177123.3158140}
 
+\section{Conclusion}
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
