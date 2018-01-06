@@ -1,3 +1,6 @@
 [submodule "sai-lms"]
 	path = code
 	url = git@github.com:Kraks/sai-lms.git
+[submodule "abscomp-racket"]
+	path = abscomp-racket
+	url = git@github.com:Kraks/abscomp.git
