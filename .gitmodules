@@ -1,0 +1,3 @@
+[submodule "sai-lms"]
+	path = code
+	url = git@github.com:Kraks/sai-lms.git
