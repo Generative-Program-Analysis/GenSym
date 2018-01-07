@@ -195,9 +195,10 @@ reduce part of the overhead of repeatedly analyzing libraries for different prog
 Similarly, some static analyzers compute summary for a function or a module, that can be reused
 later (like Facebook Infer). But to my knowledge, they are mostly context-insensitive or imprecise.
 
-Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis, because 
-it need the last k calling contexts as abstraction. But can we analyze programs (libraries) separately 
-which generate the specialized analysis and leave the k calling contexts as dynamic parameters, 
+Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis,
+because it is interpreter and need the last k calling contexts as abstraction. 
+But can we analyze programs (libraries) separately which generate the specialized 
+analysis and leave the k calling contexts as dynamic parameters, 
 and then install these contexts when we have the whole program.
 
 Another perspective: programs are data for an abstract interpreter, so if we have $n$ programs, 
