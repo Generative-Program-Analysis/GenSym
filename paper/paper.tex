@@ -173,7 +173,8 @@
 
 2. Generalize the idea to staged abstract interpreter.
 We implement staged abstract interpreter within a big-step abstract semantics 
-(abstract definitional interpreter) using Scala with LMS framework.  
+(abstract definitional interpreter) using Scala with LMS framework.
+(ADI in Racket: \url{https://github.com/plum-umd/ abstracting-definitional-interpreters/}).
 Show that abstract compilation can be understood as an instance of staged 
 abstract interpreter.
 
@@ -193,16 +194,18 @@ large libraries programs\cite{toman_et_al:LIPIcs:2017:7121}.
 Can we analyze programs and libraries separately without losing precision? So that we can 
 reduce part of the overhead of repeatedly analyzing libraries for different programs.
 Similarly, some static analyzers compute summary for a function or a module, that can be reused
-later (like Facebook Infer). But to my knowledge, they are mostly context-insensitive or imprecise.
+later (like Facebook Infer). But to my knowledge, they are mostly too conservative (context-insensitive) 
+or unsound, which both lead to imprecision.
 
 Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis,
-because it is interprocedural and need the last k calling contexts as abstraction. 
+because it is interprocedural and need the last k calling contexts to distinguish
+different call sites.
 But can we analyze programs (libraries) separately which generate the specialized 
-analysis and leave the k calling contexts as dynamic parameters, 
+analysis and leave the unavailable programs (for the moment) as dynamic parameters, 
 and then install these contexts when we have the whole program.
 
 Another perspective: programs are data for an abstract interpreter, so if we have $n$ programs, 
-then there can be $n$ stages. 
+then maybe there can be $n$ stages. 
 Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
 waiting for the rest $(n-m)$ programs.
 
