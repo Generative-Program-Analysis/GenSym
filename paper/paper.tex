@@ -206,7 +206,8 @@ Another perspective: programs are data for an abstract interpreter, so if we hav
 then maybe there can be $n$ stages. 
 Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
 waiting for the rest $(n-m)$ programs.
-The abstract interpreter itself might be a partial abstract interpreter.
+These $(n-m)$ programs might be (abstract) arguments for the first $n$ programs, and
+the abstract interpreter itself might be a partial abstract interpreter.
 
 Not sure how much improvement of performance.
 
