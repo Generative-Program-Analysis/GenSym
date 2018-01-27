@@ -53,7 +53,6 @@
 \usepackage{subcaption} %% For complex figures with subfigures/subcaptions
                         %% http://ctan.org/pkg/subcaption
 
-
 \begin{document}
 
 %% Title information
@@ -167,25 +166,55 @@
 
 \section{Introduction}
 
-\textbf{Outline(Proposed)}.
 
-1. Revisit abstract compilation (generates textual program and closures) 
+\section{Abstract Compilation, Revisited}
 
-2. Generalize the idea to staged abstract interpreter.
-We implement staged abstract interpreter within a big-step abstract semantics 
-(abstract definitional interpreter) using Scala with LMS framework.
-(ADI in Racket: \url{https://github.com/plum-umd/ abstracting-definitional-interpreters/}).
+\cite{Boucher:1996:ACN:647473.727587}'s work is esentially a partial evaluated
+CE abstract interpreter written in a big-step semantics for CPS. The analysis
+it can perform is monovariant. We reproduce their abstractly complied analysis
+by adding explicit staging annotation to CE abstract interpreter.
 Show that abstract compilation can be understood as an instance of staged 
 abstract interpreter.
 
-3. Improve performance (closure is still not an efficient enough representation).
+\subsection{CPS Syntax and Concrete Interpreter}
 
-Show it generates sound and high-performance low-level analysis code with 
-various precisions and sensitivities, for instances, k-CFA, pushdown or m-CFA. 
+\subsection{Abstract Semantics}
+
+\subsection{Staged Abstract CE Interpreter}
+
+\section{Staged Abstract Interpreter}
+
+Generalize the idea to staged CESK abstract machine for direct style (or ANF), 
+which has fully power for instantiating different analyses.
+
+Olivier Danvy shows the relation between small-step CEK machine and big-step
+CEK machine by applying a lightweight fix-point promotion. And it is well-known
+that a staged interpreter (big-step abstract machine) is a compiler. 
+Then a nature question is to ask what is the relation of their abstract 
+counterparts.
+
+We may show: 1) staged small-step abstract interpreter (classical AAM),
+2) staged big-step abstract interpreter (ADI), 3) staged small-step abstract
+interpreter is equivalent to staging a fix-point promoted big-step abstract 
+interpreter, 4) soundness after staging.
+
+Question: 1) Pushdown analysis can be obtained if the abstract interpreter is
+written in a definitional way. Does pushdown property still exists after 
+staging? 2) Pushdown analysis can be complicated in a small-step setting 
+\cite{vardoulakis2010cfa2, earl2012introspective, gilray2016pushdown}. 
+The Pushdown for Free (P4F for short) \cite{gilray2016pushdown} is probably the most 
+simple solution. What is the relation between a staged P4F and a staged 
+abstract defintional interpreter? 
+
+(ADI in Racket: \url{https://github.com/plum-umd/ abstracting-definitional-interpreters/}).
+
+\section{Improving Performance}
+
+We may show how to generate more efficient code (rather closure).
 
 Store/set operations (join, update) are also expensive, generating efficient store implementation\cite{liang2014fast}.
 
-4. Modular analysis for free? 
+\section{Modular Analysis for Free?}
 
 Motivation: one of the challenges of modern static analysis is program usually depends on
 large libraries programs\cite{toman_et_al:LIPIcs:2017:7121}. 
@@ -211,29 +240,18 @@ the abstract interpreter itself might be a partial abstract interpreter.
 
 Not sure how much improvement of performance.
 
-5. Show the evaluation result on benchmark programs. 
+\section{Evaluation}
+
+Show the evaluation result on benchmark programs.
+
 Compare with normal abstract interpreter, 
 abstract compilation\cite{Boucher:1996:ACN:647473.727587}, and OAAM \cite{Johnson:2013:OAA:2500365.2500604}.
 Benchmarks and other reference implementations: \url{https://github.com/ilyasergey/reachability}.
 
-6. Discussion
-
-Big-step vs small-step
+\section{Discussion}
 
 Futamura projection for abstract interpreter. Is there a second or third Futamura projection for
 abstract interpreter?
-
-\section{Background}
-
-\subsection{Abstracting Abstract Machine}
-
-\subsection{Staged Interpreter}
-
-\section{Abstract Compilation, Revisited}
-
-\section{Staged Abstract Interpreter}
-
-\section{Evaluation}
 
 \section{Related Work}
 
