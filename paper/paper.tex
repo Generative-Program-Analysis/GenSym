@@ -170,8 +170,15 @@
 \section{Abstract Compilation, Revisited}
 
 \cite{Boucher:1996:ACN:647473.727587}'s work is esentially a partial evaluated
-CE abstract interpreter written in a big-step semantics for CPS. The analysis
-it can perform is monovariant. We reproduce their abstractly complied analysis
+CE (\textit{Control-Environment}) abstract interpreter written in a big-step semantics for CPS.
+After the partial evluation, the \textit{Control} part of abstract interpreter
+has been eliminated. 
+The analysis it can perform is monovariant, sepcifically, 0-CFA.
+Since the target language is written a continuation-passing style, so there is
+no explict continuation component when constructing the abstract interpreter
+(like CEK machine).
+
+We reproduce their abstractly complied analysis
 by adding explicit staging annotation to CE abstract interpreter.
 Show that abstract compilation can be understood as an instance of staged 
 abstract interpreter.
