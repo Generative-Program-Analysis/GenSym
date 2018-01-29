@@ -128,7 +128,7 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-  We present Staged Abstract Interpreter
+  It is well known that a staged interpreter is a compiler. A nature question is to ask that what would be for a staged abstract interpreter and how to do that.
 \end{abstract}
 
 %% 2012 ACM Computing Classification System (CSS) concepts
@@ -166,33 +166,44 @@
 
 \section{Introduction}
 
-
 \section{Abstract Compilation, Revisited}
 
-\cite{Boucher:1996:ACN:647473.727587}'s work is esentially a partial evaluated
-CE (\textit{Control-Environment}) abstract interpreter written in a big-step semantics for CPS.
-After the partial evluation, the \textit{Control} part of abstract interpreter
-has been eliminated. 
-The analysis it can perform is monovariant, sepcifically, 0-CFA.
+\citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation as a new
+implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
+Their work is esentially a partial evaluated CE (\textit{Control-Environment}) abstract
+interpreter written in a big-step semantics for programs written in continuation-passing style.
+The analysis it can perform is a monovariant control flow analysis, sepcifically, Shiver's original
+formulation of 0-CFA \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007}.
+After the partial evaluation on input program, the \textit{control} part of abstract interpreter
+is disappeared, instead, the compiled analysis is a closure (higher-order function) and
+only takes an environment as argument,
+and the overhead of traversing the abstract syntax tree of source program also has been eliminated.
 Since the target language is written a continuation-passing style, so there is
-no explict continuation component when constructing the abstract interpreter
-(like CEK machine).
+no explict evaluation context component when constructing the abstract interpreter
+(rather than a CEK machine).
 
-We reproduce their abstractly complied analysis
-by adding explicit staging annotation to CE abstract interpreter.
+In this section, we firstly review their work of closure generation, and reproduce abstractly complied analysis
+by adding explicit staging annotation to the CE abstract interpreter.
 Show that abstract compilation can be understood as an instance of staged 
 abstract interpreter.
 
-\subsection{CPS Syntax and Concrete Interpreter}
+\subsection{Syntax and Concrete Semantics}
+Continuation-passing style (CPS) is a widely used intermediate representation in compilation and analysis for functional
+languages.
 
 \subsection{Abstract Semantics}
 
+\subsection{Closure Generation}
+
 \subsection{Staged Abstract CE Interpreter}
+
+(Fianally, we should briefly summarize the difference between them: staging vs partial evaluation; code generation; engineering effort; performance)
 
 \section{Staged Abstract Interpreter}
 
 Generalize the idea to staged CESK abstract machine for direct style (or ANF), 
-which has fully power for instantiating different analyses.
+which has fully power for instantiating different analyses. We need to show that
+it not merely reproduces abstract compilation by staged computation.
 
 Olivier Danvy shows the relation between small-step CEK machine and big-step
 CEK machine by applying a lightweight fix-point promotion. And it is well-known
@@ -219,7 +230,8 @@ abstract defintional interpreter?
 
 We may show how to generate more efficient code (rather closure).
 
-Store/set operations (join, update) are also expensive, generating efficient store implementation\cite{liang2014fast}.
+Store/set operations (join, update) are also expensive, generating efficient store
+implementation\cite{liang2014fast}.
 
 \section{Modular Analysis for Free?}
 
