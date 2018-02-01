@@ -128,7 +128,29 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-  It is well known that a staged interpreter is a compiler. A nature question is to ask that what would be for a staged abstract interpreter and how to do that.
+  It is well known that a staged interpreter is a compiler. A nature question is to ask 
+  that what would be a staged abstract interpreter and how to obtain it in a mechanized 
+  approach.
+
+  In this paper, we systematically study the family of staged abstract interpreters, including 
+  \citeauthor{Boucher:1996:ACN:647473.727587}'s Abstract Compilation, staged small-step 
+  Abstracting Abstract Machines (AAM) and staged Abstracting Definitional Interpreters (ADI).
+  To understand their relations, we firstly study the relations of their unstaged counterparts:
+  we show how to obtain a abstracting definitional interpreter by a series of transformations
+  from a small-step abstracting abstract machine. A key insight we show is how the pushdown 
+  property of 
+  analysis been obtained when transforming from small-step AAM to ADI, as well as how it 
+  been lost in another direction.
+  (TODO: pushdown for staged abstract interpreter?)
+
+  We show staged abstract interpreters have practical applications rather than just theoretical merit.
+  The time consumed of a analysis can be decreased by staging (TODO: to what degree). We evaluate
+  the improvement of performance on benchmark programs.
+  Another application of staged abstract interpreter is to transform whole-program analysis
+  to modular analysis without losing precison. The generated code can be viewed as a 
+  partially analyzed result, which also can be composed and used latter with other modulars
+  in the program. 
+  
 \end{abstract}
 
 %% 2012 ACM Computing Classification System (CSS) concepts
@@ -155,7 +177,7 @@
 
 %% Keywords
 %% comma separated list
-\keywords{generic programming, abstract interpretation, static analysis}  %% \keywords are mandatory in final camera-ready submission
+\keywords{staged computation, abstract interpretation, static analysis}  %% \keywords are mandatory in final camera-ready submission
 
 
 %% \maketitle
