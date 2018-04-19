@@ -1,6 +1,6 @@
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-%\documentclass[acmsmall,review,anonymous]{acmart}
-\documentclass[sigplan,anonymous,review]{acmart}
+\documentclass[acmsmall,review,anonymous]{acmart}
+%\documentclass[sigplan,anonymous,review]{acmart}
 \settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
 %\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true}
@@ -176,11 +176,9 @@
 \ccsdesc[300]{Social and professional topics~History of programming languages}
 %% End of generated code
 
-
 %% Keywords
 %% comma separated list
 \keywords{staged computation, abstract interpretation, static analysis}  %% \keywords are mandatory in final camera-ready submission
-
 
 %% \maketitle
 %% Note: \maketitle command must come after title commands, author
@@ -210,17 +208,29 @@ Since the target language is written a continuation-passing style, so there is
 no explict evaluation context component when constructing the abstract interpreter
 (rather than a CEK machine).
 
-In this section, we firstly review their work of closure generation, and reproduce abstractly complied analysis
-by adding explicit staging annotation to the CE abstract interpreter.
-Show that abstract compilation can be understood as an instance of staged 
+In this section, we firstly review their work of closure generation,
+and reproduce their result by adding stage annotations to 0-CFA.
+Show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be understood as an instance of staged 
 abstract interpreter.
 
 (Fianally, we should briefly summarize the difference between them:
 staging vs partial evaluation; code generation; engineering effort; performance)
 
+(Specific -> General vs General vs Specific)
+
 \section{Staged Abstract Interpreter}
 
+\subsection{Abstract Interpreter}
+
 \subsection{what not to do when writing an abstract interpreter for staging}
+
+General insights when staging a static analysis algorithm.
+
+Big-step vs small-step
+
+operational vs denotational
+
+\subsection{Adding Stage Annotations}
 
 \section{Heterogeneous Staging}
 
@@ -254,8 +264,6 @@ Probably we can analyze first $m$ programs, and generate a residual abstract int
 waiting for the rest $(n-m)$ programs.
 These $(n-m)$ programs might be (abstract) arguments for the first $n$ programs, and
 the abstract interpreter itself might be a partial abstract interpreter.
-
-Not sure how much improvement of performance.
 
 \section{Evaluation}
 
