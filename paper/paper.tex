@@ -190,7 +190,11 @@
 
 \section{Background}
 
-\subsection{Staged Interpreter}
+\subsection{Interpreters}
+
+\subsection{From Interpreters to Staged Interpreters}
+
+\subsection{From Interpreters to Abstract Interpreters}
 
 \section{Abstract Compilation, Revisited}
 
@@ -224,22 +228,23 @@ staging vs partial evaluation; code generation; engineering effort; performance)
 
 \subsection{what not to do when writing an abstract interpreter for staging}
 
-General insights when staging a static analysis algorithm.
-
 Big-step vs small-step
 
 operational vs denotational
 
-\subsection{Adding Stage Annotations}
+General insights for staging other static analysis algorithm.
 
-\section{Heterogeneous Staging}
+\subsection{Adding Stage Annotations is Easy}
+
+\section{Optimizations}
 
 Staging to GPU?
 
-We may show how to generate more efficient code (rather closure).
+Staging inside data structures.
 
-Store/set operations (join, update) are also expensive, generating efficient store
-implementation\cite{liang2014fast}.
+Jones-optimal specialization.
+
+Store/set operations (join, update) are also expensive, generating efficient store implementation\cite{liang2014fast}.
 
 \section{Compositional Analysis for Free}
 
