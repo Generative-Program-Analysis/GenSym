@@ -9,6 +9,7 @@ import scala.util.parsing.combinator._
 
 trait SchemeTokenParser extends RegexParsers {
   override def skipWhitespace = true
+  override protected val whiteSpace = """(\s|;.*)+""".r
 
   def LPAREN = "[\\(\\{\\[]".r
   def RPAREN = "[\\)\\}\\]]".r

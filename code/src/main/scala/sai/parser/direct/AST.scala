@@ -10,7 +10,7 @@ case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr
 case class App(e1: Expr, e2: Expr) extends Expr
 case class Lam(x: String, body: Expr) extends Expr
 case class PrimOp(op: String, e1: Expr, e2: Expr) extends Expr
-case class Let(x: String, e: Expr, body: Expr) extends Expr
+case class Let(x: String, e: Expr, body: Expr) extends Expr // TODO: multiple bindings
 case class Letrec(bds: List[Bind], body: Expr) extends Expr
 
 sealed trait Value
