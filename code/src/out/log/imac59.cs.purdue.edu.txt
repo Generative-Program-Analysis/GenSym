@@ -1,0 +1,171 @@
+----- CLANG -----
+
+query_t1gram2.check.c ../data/1gram_a.csv
+c: cc -std=c99 -O3
+
+real	0m2.279s
+user	0m1.830s
+sys	0m0.441s
+
+
+query_t1gram2.hand2.c ../data/1gram_a.csv
+c: cc -std=c99 -O3
+
+real	0m1.690s
+user	0m1.234s
+sys	0m0.447s
+
+
+----- GCC -----
+
+query_t1gram2.check.c ../data/1gram_a.csv
+c: gcc-4.9 -std=c99 -O3
+
+real	0m1.759s
+user	0m1.306s
+sys	0m0.443s
+
+
+query_t1gram2.hand2.c ../data/1gram_a.csv
+c: gcc-4.9 -std=c99 -O3
+
+real	0m1.676s
+user	0m1.223s
+sys	0m0.448s
+
+
+----- ICC -----
+
+query_t1gram2.check.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m1.797s
+user	0m1.343s
+sys	0m0.449s
+
+
+query_t1gram2.hand2.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m1.801s
+user	0m1.345s
+sys	0m0.447s
+
+
+----- ICC with flags ----
+
+query_t1gram2.check.c ../data/1gram_a.csv
+c: icl -fno-alias -xHost -std=c99 -O3
+
+real	0m1.775s
+user	0m1.325s
+sys	0m0.447s
+
+
+query_t1gram2.hand2.c ../data/1gram_a.csv
+c: icl -fno-alias -xHost -std=c99 -O3
+
+real	0m1.762s
+user	0m1.306s
+sys	0m0.449s
+
+
+
+
+----- regular benchall output (using ICC) -----
+
+query_t1gram2.check.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m1.799s
+user	0m1.341s
+sys	0m0.451s
+
+
+query_t1gram2n.check.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m3.917s
+user	0m3.462s
+sys	0m0.447s
+
+
+query_t1gram2h.check.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m2.715s
+user	0m2.263s
+sys	0m0.445s
+
+
+query_t1gram2.hand.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m15.056s
+user	0m14.619s
+sys	0m0.435s
+
+
+query_t1gram2.hand2.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m1.780s
+user	0m1.327s
+sys	0m0.449s
+
+
+query_t1gram2.check.scala ../data/1gram_a.csv
+scala
+
+real	0m12.186s
+user	0m11.840s
+sys	0m0.886s
+
+
+query_t1gram2.hand0.scala ../data/1gram_a.csv
+scala
+
+real	0m11.610s
+user	0m11.252s
+sys	0m0.860s
+
+
+query_t1gram2.hand.scala ../data/1gram_a.csv
+scala
+
+real	0m8.512s
+user	0m8.207s
+sys	0m0.695s
+
+
+query_t1gram4.check.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m3.905s
+user	0m3.453s
+sys	0m0.447s
+
+
+query_t1gram4.check.scala ../data/1gram_a.csv
+scala
+
+real	0m32.979s
+user	0m31.866s
+sys	0m2.396s
+
+
+query_t1gram4h.check.c ../data/1gram_a.csv
+c: icl -std=c99 -O3
+
+real	0m2.708s
+user	0m2.258s
+sys	0m0.447s
+
+
+query_t1gram4h.check.scala ../data/1gram_a.csv
+scala
+
+real	0m12.334s
+user	0m12.065s
+sys	0m0.886s
+

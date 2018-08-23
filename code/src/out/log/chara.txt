@@ -1,0 +1,96 @@
+
+
+query_t1gram2.check.c ../data/1gram_a.csv
+c
+
+real	0m2.365s
+user	0m1.956s
+sys	0m0.401s
+
+
+query_t1gram2n.check.c ../data/1gram_a.csv
+c
+
+real	0m6.302s
+user	0m5.848s
+sys	0m0.438s
+
+
+query_t1gram2h.check.c ../data/1gram_a.csv
+c
+
+real	0m3.872s
+user	0m3.460s
+sys	0m0.403s
+
+
+query_t1gram2.hand.c ../data/1gram_a.csv
+c
+
+real	0m16.815s
+user	0m16.118s
+sys	0m0.681s
+
+
+query_t1gram2.hand2.c ../data/1gram_a.csv
+c
+
+real	0m2.621s
+user	0m2.214s
+sys	0m0.401s
+
+
+query_t1gram2.check.scala ../data/1gram_a.csv
+scala
+
+real	0m30.921s
+user	0m30.840s
+sys	0m3.149s
+
+
+query_t1gram2.hand0.scala ../data/1gram_a.csv
+scala
+
+real	0m32.329s
+user	0m31.831s
+sys	0m2.082s
+
+
+query_t1gram2.hand.scala ../data/1gram_a.csv
+scala
+
+real	0m24.315s
+user	0m23.456s
+sys	0m1.900s
+
+
+query_t1gram4.check.c ../data/1gram_a.csv
+c
+
+real	0m6.276s
+user	0m5.847s
+sys	0m0.416s
+
+
+query_t1gram4.check.scala ../data/1gram_a.csv
+scala
+
+real	1m12.054s
+user	1m10.631s
+sys	0m5.703s
+
+
+query_t1gram4h.check.c ../data/1gram_a.csv
+c
+
+real	0m3.882s
+user	0m3.459s
+sys	0m0.411s
+
+
+query_t1gram4h.check.scala ../data/1gram_a.csv
+scala
+
+real	0m29.792s
+user	0m29.657s
+sys	0m2.293s

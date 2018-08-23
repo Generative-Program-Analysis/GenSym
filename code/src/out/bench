@@ -1,0 +1,64 @@
+#!/bin/bash
+set -e
+
+if [ "$#" -ne "2" ] && [ "$#" -ne "3" ]; then
+    echo "usage: bench <scala or c check file> <data file> [<bench log>]"
+    exit
+fi
+
+if [ -z "$CC" ]; then
+    CC="cc"
+fi
+
+if [ -z "$CFLAGS" ]; then
+    CFLAGS="-std=c99 -O3"
+fi
+
+curdir=${PWD##*/} 
+if [ "$curdir" != "out" ]; then
+    echo "error: script should be run from 'out' directory"
+    exit
+fi
+
+fn="$1"
+ext="${fn##*.}"
+data="$2"
+
+if [ -z "$3" ]; then
+    if [ -z "$HOSTNAME" ]; then
+        hostname=`hostname`
+    else
+        hostname="$HOSTNAME"
+    fi
+    benchlog="log/$hostname.txt"
+else
+    benchlog="$3"
+fi
+
+echo "$@"
+echo "logging to $benchlog"
+echo >>$benchlog
+echo >>$benchlog
+echo "$@" >>$benchlog
+
+if [ "$ext" == "scala" ]; then
+    echo "scala" >>$benchlog
+    cat ../test/scala/lms/tutorial/scannerlib.scala $fn query.scala >run.scala
+    scalac run.scala
+    cmd="scala -cp src/out scala.lms.tutorial.query src/data/$data"
+fi
+
+if [ "$ext" == "c" ]; then
+    echo "c: $CC $CFLAGS" >>$benchlog
+    $CC $CFLAGS $fn
+    cmd="./src/out/a.out src/data/$data"
+fi
+
+if [ -z "$cmd" ]; then
+    echo "unknown program extension '$ext', expected 'scala' or 'c'"
+    exit
+fi
+
+cd ../..
+{ time ($cmd) } 2>>src/out/$benchlog
+cd src/out
