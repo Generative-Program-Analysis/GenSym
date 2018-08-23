@@ -70,6 +70,7 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
   }
 
   // This verison uses foldLeft
+  /*
   def analysisAbsApp(args: List[Expr], fs: Rep[ImmSet[Lam]], store: Rep[MapT]): Rep[MapT] = {
     fs.foldLeft[MapT](store)(fun {
                          (store: Rep[MapT], f: Rep[Lam]) => {
@@ -78,9 +79,9 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
                          }
                        })
   }
+  */
   
   // This version uses while loop
-  /*
   def analysisAbsApp(args: List[Expr], fs: Rep[ImmSet[Lam]], store: Rep[MapT]): Rep[MapT] = {
     var s = store
     var these = fs
@@ -92,7 +93,6 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
     }
     s
   }
-  */
 
   def analysisArg(args: List[Expr], store: Rep[MapT]): Rep[MapT] = {
     args match {

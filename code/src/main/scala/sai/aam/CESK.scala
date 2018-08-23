@@ -2,9 +2,7 @@ package sai.aam
 
 import sai.parser.direct._
 
-/** Small-Step and Big-Step CESK Machine
-  */
-
+/* Concrete small-step and big-step CESK machines */
 
 object CESK {
   type Addr = Int

@@ -14,10 +14,11 @@ object GenerateCode {
 object Main {
   def run[R](n: Int, block: => R): Double = {
     assert(n >= 10)
-    val dropN = (n * 0.1).toInt //Drop top 10% and worest 10%
+    val dropN = (n * 0.0).toInt //Drop top 10% and worest 10%
     var tsum: List[Double] = Nil
     for (i <- 1 to n) {
-      val (result, t) = Utils.time { block }
+      val (result, t) = Utils.time(block)
+      //if (i == 1) { println(result) }
       tsum = t::tsum
     }
     tsum.sorted.drop(dropN).take(n - dropN*2).sum / (n - dropN*2).toDouble
@@ -41,7 +42,7 @@ object Main {
   }
 
   def compare(e: Expr) {
-    val n = 200
+    val n = 10000
     val ex4 = StagedZeroCFATest.specialize(e)
     val t3 = run(n, { ex4.eval() })
     println(s"0CFA Staged average time: $t3")
