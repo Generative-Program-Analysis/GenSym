@@ -9,7 +9,7 @@ import sai.parser._
   * Boucher and Feeley (1996): http://www.iro.umontreal.ca/~feeley/papers/BoucherFeeleyCC96.pdf
   */
 
-object SimpleCPSSchemeParser extends SimpleSchemeTokenParser {
+object SimpleCPSSchemeParser extends SchemeTokenParser {
   def op: Parser[Op] = PRIMOP ^^ { Op(_) }
 
   def lit: Parser[Lit] = INT10 ^^ { Lit(_) }
@@ -26,16 +26,16 @@ object SimpleCPSSchemeParser extends SimpleSchemeTokenParser {
     case vars ~ expr => Lam(vars, expr)
   }
 
-  def binding: Parser[Binding] = LPAREN ~> IDENT ~ lam <~ RPAREN ^^ {
-    case ident ~ lam => Binding(ident, lam)
+  def bind: Parser[Bind] = LPAREN ~> IDENT ~ lam <~ RPAREN ^^ {
+    case ident ~ lam => Bind(ident, lam)
   }
 
-  def letrec: Parser[Letrec] = LPAREN ~> LETREC ~> (LPAREN ~> binding.+ <~ RPAREN) ~ call <~ RPAREN ^^ {
-    case bindings ~ body => Letrec(bindings, body)
+  def letrec: Parser[Letrec] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ call <~ RPAREN ^^ {
+    case binds ~ body => Letrec(binds, body)
   }
 
-  def let: Parser[App] = LPAREN ~> LET ~> (LPAREN ~> binding.+ <~ RPAREN) ~ call <~ RPAREN ^^ {
-    case bindings ~ body => App(Lam(bindings.map(_.name), body), bindings.map(_.value))
+  def let: Parser[App] = LPAREN ~> LET ~> (LPAREN ~> bind.+ <~ RPAREN) ~ call <~ RPAREN ^^ {
+    case binds ~ body => App(Lam(binds.map(_.name), body), binds.map(_.value))
   }
 
   def call: Parser[Expr] = app | letrec | let

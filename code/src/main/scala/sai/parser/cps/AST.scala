@@ -3,7 +3,7 @@ package sai.parser.cps
 /** Simple CPS Scheme Language
   */
 
-case class Binding(name: String, value: Expr)
+case class Bind(name: String, value: Expr)
 
 sealed abstract class Expr
 
@@ -31,4 +31,4 @@ case class Lam(vars: List[String], body: Expr) extends Expr {
   }
 }
 
-case class Letrec(bindings: List[Binding], body: Expr) extends Expr
+case class Letrec(binds: List[Bind], body: Expr) extends Expr

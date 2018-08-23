@@ -16,7 +16,7 @@ object ACZeroCFA extends CFACommon {
       case Letrec(bds, body) =>
         val C1 = compCall(body)
         val C2 = compArgs(bds.map(_.value))
-        (s: Store) => C1(C2(s.update(bds.map(_.name), bds.map((b: Binding) => Set(b.value.asInstanceOf[Lam])))))
+        (s: Store) => C1(C2(s.update(bds.map(_.name), bds.map((b: Bind) => Set(b.value.asInstanceOf[Lam])))))
       case App(f, args) =>
         val C1 = compApp(f, args)
         val C2 = compArgs(args)

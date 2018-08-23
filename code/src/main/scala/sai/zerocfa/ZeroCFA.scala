@@ -30,7 +30,7 @@ object ZeroCFA extends CFACommon {
     if (debug) println(s"analysisCall call[$call]")
     call match {
       case Letrec(bds, body) =>
-        val newStore = store.update(bds.map(_.name), bds.map((b: Binding) => Set(b.value.asInstanceOf[Lam])))
+        val newStore = store.update(bds.map(_.name), bds.map((b: Bind) => Set(b.value.asInstanceOf[Lam])))
         val newNewStore = analysisArgs(bds.map(_.value), newStore)
         analysisCall(body, newNewStore)
       case App(f, args) => analysisApp(f, args, analysisArgs(args, store))
