@@ -1,7 +1,7 @@
 package sai
 
-import sai.zerocfa._
-import sai.parser.cps._
+import sai.cps.zerocfa._
+import sai.cps.parser._
 import sai.utils._
 
 object GenerateCode {

@@ -7,7 +7,7 @@ import scala.reflect.SourceContext
 
 import sai.utils._
 import sai.common._
-import sai.parser.direct._
+import sai.direct.parser._
 
 /** Staged Small-Step CESK Machine
   Assume the (C,E,S,K)

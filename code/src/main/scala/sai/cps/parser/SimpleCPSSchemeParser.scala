@@ -1,8 +1,7 @@
-package sai.parser.cps
+package sai.cps.parser
 
 import scala.util.parsing.combinator._
-
-import sai.parser._
+import sai.common.parser._
 
 /** Syntax reference:
   * TSPL 4th: https://www.scheme.com/tspl4/grammar.html

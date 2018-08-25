@@ -1,4 +1,4 @@
-package sai.parser.direct
+package sai.direct.parser
 
 sealed trait Expr
 

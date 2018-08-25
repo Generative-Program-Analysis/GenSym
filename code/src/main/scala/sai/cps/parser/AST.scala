@@ -1,4 +1,4 @@
-package sai.parser.cps
+package sai.cps.parser
 
 /** Simple CPS Scheme Language
   */

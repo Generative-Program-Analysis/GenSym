@@ -1,4 +1,4 @@
-package sai.parser
+package sai.common.parser
 
 import scala.util.parsing.combinator._
 

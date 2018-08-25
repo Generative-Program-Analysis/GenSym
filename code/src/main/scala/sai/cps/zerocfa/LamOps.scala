@@ -1,11 +1,11 @@
-package sai.zerocfa
+package sai.cps.zerocfa
 
 import scala.lms.common._
 import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
 
-import sai.parser.cps._
+import sai.cps.parser._
 
 trait LamOps extends Base with ListOps with StringOps with Variables {
   implicit def repToLamOps(l: Rep[Lam]) = new LamOpsCls(l)

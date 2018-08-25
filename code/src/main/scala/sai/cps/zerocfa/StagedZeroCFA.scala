@@ -1,4 +1,4 @@
-package sai.zerocfa
+package sai.cps.zerocfa
 
 import scala.lms.common._
 import scala.lms.tutorial._
@@ -8,7 +8,7 @@ import scala.lms.internal.GenericNestedCodegen
 import scala.collection.immutable.{Set => ImmSet}
 
 import sai.utils.Utils
-import sai.parser.cps._
+import sai.cps.parser._
 import sai.common._
 
 trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunctionsRecursiveExp with ImmSetOpsExp {

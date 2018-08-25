@@ -1,6 +1,6 @@
-package sai.zerocfa
+package sai.cps.zerocfa
 
-import sai.parser.cps._
+import sai.cps.parser._
 
 /**
   Abstract Compilation of 0CFA

@@ -1,4 +1,4 @@
-package sai.parser.cps
+package sai.cps.parser
 
 object Examples {
   def example1 = App(Lam(List("x", "k"),
