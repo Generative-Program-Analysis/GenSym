@@ -1,4 +1,4 @@
-package sai.aam
+package sai.direct.core.aam
 
 // Big-step, denotational, continuation-passing style interpreter
 

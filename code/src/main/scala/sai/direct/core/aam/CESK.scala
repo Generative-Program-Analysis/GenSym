@@ -1,6 +1,6 @@
-package sai.aam
+package sai.direct.core.aam
 
-import sai.direct.parser._
+import sai.direct.core.parser._
 
 /* Concrete small-step and big-step CESK machines */
 

@@ -1,4 +1,4 @@
-package sai.aam
+package sai.direct.core.aam
 
 import scala.lms.common._
 import scala.lms.tutorial._
@@ -7,7 +7,7 @@ import scala.reflect.SourceContext
 
 import sai.utils._
 import sai.common._
-import sai.direct.parser._
+import sai.direct.core.parser._
 
 /** Staged Small-Step CESK Machine
   Assume the (C,E,S,K)

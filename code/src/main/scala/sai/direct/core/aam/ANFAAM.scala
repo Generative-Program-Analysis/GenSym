@@ -1,6 +1,6 @@
-package sai.aam
+package sai.direct.core.aam
 
-import sai.direct.parser._
+import sai.direct.core.parser._
 
 object ANFCESK {
   type Addr = Int

@@ -1,6 +1,6 @@
-package sai.aam
+package sai.direct.core
 
-import sai.direct.parser._
+import sai.direct.core.parser._
 
 /* Small-Step Abstracting Abstract Machine
  * TODO: Add support of numbers, `let`, and `letrec`
