@@ -227,6 +227,7 @@ object BigStepCES {
         case CloV(Lam(x, body), _ρ) ⇒ interp(body, _ρ + (x → α), e2s + (α → e2v))
         case _ ⇒ throw new RuntimeException("Not a function")
       }
+    case _ ⇒ throw new RuntimeException("Not a valid program")
   }
 
   def eval(e: Expr): (Storable, Store) = interp(e, Map(), Map())
