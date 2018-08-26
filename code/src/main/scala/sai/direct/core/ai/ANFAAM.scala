@@ -1,4 +1,4 @@
-package sai.direct.core.aam
+package sai.direct.core.ai
 
 import sai.direct.core.parser._
 
@@ -123,7 +123,7 @@ object SmallStep {
         val newBStore = bstore.update(baddr, aeval(ae, env, bstore))
         List(State(e, newEnv, newBStore, kstore, kaddr, newTime))
 
-      case State(Letrec(bds, body), env, bstore, kstore, kaddr, time) =>
+      case State(Lrc(bds, body), env, bstore, kstore, kaddr, time) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         List(State(body, newEnv, newBStore, kstore, kaddr, time))
@@ -171,7 +171,7 @@ object SmallStepUBStack {
         val newEnv = env + (x -> baddr)
         val newStore = bstore.update(baddr, aeval(ae, env, bstore))
         List(State(e, newEnv, newStore, konts, newTime))
-      case State(Letrec(bds, body), env, bstore, konts, time) =>
+      case State(Lrc(bds, body), env, bstore, konts, time) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         List(State(body, newEnv, newBStore, konts, time))
@@ -216,7 +216,7 @@ object SmallStepP4F {
         val newEnv = env + (x -> baddr)
         val newBStore = bstore.update(baddr, aeval(ae, env, bstore))
         List(State(e, newEnv, newBStore, kstore, kaddr, newTime))
-      case State(Letrec(bds, body), env, bstore, kstore, kaddr, time) =>
+      case State(Lrc(bds, body), env, bstore, kstore, kaddr, time) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         List(State(body, newEnv, newBStore, kstore, kaddr, time))
@@ -262,7 +262,7 @@ object FusedUBStack {
           val newEnv = env + (x -> baddr)
           val newStore = bstore.update(baddr, aeval(ae, env, bstore))
           List(State(e, newEnv, newStore, konts, newTime))
-        case State(Letrec(bds, body), env, bstore, konts, time) =>
+        case State(Lrc(bds, body), env, bstore, konts, time) =>
           val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
           val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
           List(State(body, newEnv, newBStore, konts, newTime))
@@ -305,7 +305,7 @@ object DisentangledBigStepUBStack {
           val newStore = bstore.update(baddr, aeval(ae, env, bstore))
           val newState = State(e, newEnv, newStore, konts, newTime)
           drive_step(newState::tl, seen + hd)
-        case State(Letrec(bds, body), env, bstore, konts, time) =>
+        case State(Lrc(bds, body), env, bstore, konts, time) =>
           val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
           val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
           val newState = State(body, newEnv, newBStore, konts, newTime)
@@ -351,7 +351,7 @@ object DisentangledBigStepUBStack1 {
         val newStore = bstore.update(baddr, aeval(ae, env, bstore))
         val newState = State(e, newEnv, newStore, konts, newTime)
         collect(newState::todo, seen + state)
-      case State(Letrec(bds, body), env, bstore, konts, time) =>
+      case State(Lrc(bds, body), env, bstore, konts, time) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         val newState = State(body, newEnv, newBStore, konts, time)
@@ -422,7 +422,7 @@ object RefuncBigStepUBStackFirstTry {
         //TODO cache?
         aval(e, newEnv, newStore, newTime, cache, continue)
 
-      case Letrec(bds, body) =>
+      case Lrc(bds, body) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         aval(body, newEnv, newBStore, newTime, cache, continue)
@@ -504,7 +504,7 @@ object RefuncBigStepUBStackSecondTry {
             continue(vs, accStore, acctime, accInCache, newOutCache)
           })
 
-      case Letrec(bds, body) =>
+      case Lrc(bds, body) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { 
           assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) 
         })
@@ -608,7 +608,7 @@ object RefuncBigStep {
           val newStore = bstore.update(baddr, aeval(ae, env, bstore))
           val newState = State(e, newEnv, newStore, newTime, k)
           abseval(newState::tl, seen + hd)
-        case State(Letrec(bds, body), env, bstore, time, k) =>
+        case State(Lrc(bds, body), env, bstore, time, k) =>
           val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
           val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
           val newState = State(body, newEnv, newBStore, time, k)
@@ -664,7 +664,7 @@ object RefuncBigStepInterp {
         val newEnv = env + (x -> baddr)
         val newStore = bstore.update(baddr, aeval(ae, env, bstore))
         abseval(e, newEnv, newStore, newTime, k)
-      case Letrec(bds, body) =>
+      case Lrc(bds, body) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         abseval(body, newEnv, newBStore, newTime, k)
@@ -724,7 +724,7 @@ object RefuncBigStepInterp1 {
         val newEnv = env + (x -> baddr)
         val newStore = bstore.update(baddr, aeval(ae, env, bstore))
         abseval(e, newEnv, newStore, newTime, newSeen, k)
-      case Letrec(bds, body) =>
+      case Lrc(bds, body) =>
         val newEnv = bds.foldLeft(env)((accenv: Env, bd: Bind) => { assert(isAtomic(bd.e)); accenv + (bd.x -> allocBind(bd.x, newTime)) })
         val newBStore = bds.foldLeft(bstore)((accbst: BStore, bd: Bind) => { accbst.update(allocBind(bd.x, newTime), aeval(bd.e, newEnv, accbst)) })
         abseval(body, newEnv, newBStore, newTime, newSeen, k)
@@ -789,7 +789,7 @@ object ANFAAMTest {
                       (let ([y1 (f1 y)]) y1))])
            (let ([res (f1 1)])
               res))"""
-    val mutrec = Letrec(List(Bind("f1", Lam("x", Let("x1", App(Var("f2"), Var("x")), Var("x1")))),
+    val mutrec = Lrc(List(Bind("f1", Lam("x", Let("x1", App(Var("f2"), Var("x")), Var("x1")))),
                              Bind("f2", Lam("y", Let("y1", App(Var("f1"), Var("y")), Var("y1"))))),
                         Let("res", App(Var("f1"), Num(1)),
                             Var("res")))

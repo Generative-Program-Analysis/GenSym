@@ -1,4 +1,4 @@
-package sai.direct.core.aam
+package sai.direct.core.concrete
 
 import scala.lms.common._
 import scala.lms.tutorial._

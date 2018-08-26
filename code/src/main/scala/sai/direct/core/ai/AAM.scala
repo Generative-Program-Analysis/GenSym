@@ -1,4 +1,4 @@
-package sai.direct.core
+package sai.direct.core.ai
 
 import sai.direct.core.parser._
 
