@@ -1,6 +1,6 @@
 package sai.direct.core.parser
 
-sealed trait Expr
+trait Expr
 
 case class Var(x: String) extends Expr
 case class App(e1: Expr, e2: Expr) extends Expr
@@ -12,5 +12,5 @@ case class Lrc(bds: List[Bind], body: Expr) extends Expr
 
 case class Num(i: Int) extends Expr
 case class If0(cnd: Expr, thn: Expr, els: Expr) extends Expr
-case class PrimOp(op: Symbol, e1: Expr, e2: Expr) extends Expr
+case class AOp(op: Symbol, e1: Expr, e2: Expr) extends Expr
 
