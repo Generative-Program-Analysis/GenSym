@@ -31,6 +31,7 @@ object CESK {
 
   def inject(e: Expr): State = State(e, Map(), Map(), Halt)
 
+  /* evalArith assumes that arguments are provided from right to left. */
   def evalArith(op: Symbol, vs: List[NumV]): NumV = op match {
     case '+ ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j+i) }
     case '- ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j-i) }
@@ -122,25 +123,61 @@ object SmallStepCESK {
 
 object RefuncBigStepCESK {
   /* A refunctionalized CPS interpreter. */
-  type Cont = (Storable, Store) => Storable
+  type Cont = (Storable, Store) ⇒ (Storable, Store)
   case class State(e: Expr, env: Env, store: Store, k: Cont)
 
-  def interp(s: State): Storable = s match {
-    case State(Var(x), env, store, k) => k(store(env(x)), store)
-    case State(λ: Lam, env, store, k) => k(CloV(λ, env), store)
-    case State(App(e1, e2), env, store, k) =>
-      interp(State(e1, env, store, (e1v: Storable, e1store: Store) => {
-        val e1clos = e1v.asInstanceOf[CloV]
-        interp(State(e2, env, e1store, (e2v: Storable, e2store: Store) => {
-          val addr = alloc(e2store)
-          interp(State(e1clos.λ.body, e1clos.ρ+ (e1clos.λ.x -> addr), e2store + (addr -> e2v), k))
-        }))
-      }))
+  def interp(e: Expr, ρ: Env, σ: Store, κ: Cont): (Storable, Store) = e match {
+    case Lit(i) ⇒ κ(NumV(i), σ)
+    case Var(x) ⇒ κ(σ(ρ(x)), σ)
+    case Lam(x, body) ⇒ κ(CloV(Lam(x, body), ρ), σ)
+    case Let(x, rhs, body) ⇒
+      interp(rhs, ρ, σ, (rhsv, rhss) ⇒ {
+               val α = alloc(rhss)
+               interp(body, ρ + (x → α), rhss + (α → rhsv), κ)
+             })
+    case Lrc(bds, body) ⇒
+      val Bind(x, e) = bds.head
+      val (_ρ, _σ, αs) = bds.foldRight (ρ, σ, List[Addr]()) { case (Bind(x, _), (ρ_*, σ_*, αs_*)) ⇒
+        val α = alloc(σ_*)
+        (ρ_* + (x → α), σ_* + (α → NotAValue), α::αs_*)
+      }
+      def rec(bds: List[Bind], αs: List[Addr])(v: Storable, σ: Store): (Storable, Store) =
+        (bds, αs) match {
+          case (Nil, α::Nil) ⇒ interp(body, _ρ, σ + (α → v), κ)
+          case (Bind(x, e)::bds, α::αs) ⇒
+            interp(e, _ρ, σ + (α → v), rec(bds, αs))
+        }
+      interp(e, _ρ, _σ, rec(bds.tail, αs))
+    case AOp(op, e1, e2) ⇒
+      // TODO: multiple oprands
+      interp(e1, ρ, σ, (e1v, e1s) ⇒ e1v match {
+               case e1v: NumV ⇒
+                 interp(e2, ρ, e1s, (e2v, e2s) ⇒ e2v match {
+                          case e2v: NumV ⇒ κ(evalArith(op, e2v::e1v::Nil), e2s)
+                          case _ ⇒ throw new RuntimeException("Right-hand side is not a number")
+                        })
+               case _ ⇒ throw new RuntimeException("Left-hand side is not a number")
+             })
+    case If0(cnd, thn, els) ⇒
+      interp(cnd, ρ, σ, (cndv, cnds) ⇒ cndv match{
+               case NumV(i) ⇒
+                 if (i == 0) interp(thn, ρ, cnds, κ)
+                 else interp(els, ρ, cnds, κ)
+               case _ ⇒ throw new RuntimeException("Condition is not a number")
+             })
+    case App(e1, e2) ⇒
+      interp(e1, ρ, σ, (e1v, e1s) ⇒ e1v match {
+               case CloV(Lam(x, body), _ρ) ⇒
+                 interp(e2, ρ, e1s, (e2v, e2s) ⇒ {
+                          val α = alloc(e2s)
+                          interp(body, _ρ + (x → α), e2s + (α → e2v), κ)
+                        })
+               case _ ⇒ throw new RuntimeException("Not a function")
+             })
+    case _ ⇒ throw new RuntimeException("Not a valid program")
   }
 
-  def inject(e: Expr): State = State(e, Map(), Map(), (s: Storable, store: Store) => s)
-
-  def eval(e: Expr): Storable = interp(inject(e))
+  def eval(e: Expr): (Storable, Store) = interp(e, Map(), Map(), (v, σ) ⇒ (v, σ))
 }
 
 object BigStepCESK {
@@ -172,5 +209,12 @@ object CESKTest {
                      App(Var("fact"), Lit(10)))
     assert(SmallStepCESK.eval(fact5).e == NumV(120))
     assert(SmallStepCESK.eval(fact10).e == NumV(3628800))
+
+    //val err1 = Lrc(List(Bind("x", Var("x"))), Var("x"))
+    //SmallStepCESK.eval(err1)
+
+    assert(RefuncBigStepCESK.eval(fact5)._1 == NumV(120))
+    assert(RefuncBigStepCESK.eval(fact10)._1 == NumV(3628800))
+
   }
 }
