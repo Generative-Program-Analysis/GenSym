@@ -29,8 +29,6 @@ object CESK {
 
   def isValue(e: Expr): Boolean = e.isInstanceOf[NumV] | e.isInstanceOf[Lam]
 
-  def inject(e: Expr): State = State(e, Map(), Map(), Halt)
-
   /* evalArith assumes that arguments are provided from right to left. */
   def evalArith(op: Symbol, vs: List[NumV]): NumV = op match {
     case '+ ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j+i) }
@@ -42,7 +40,7 @@ object CESK {
 import CESK._
 
 object SmallStepCESK {
-  /* Single step function */
+  /* A small-step CESK state machine */
   def step(s: State): State = s match {
     case State(Lit(i), ρ, σ, κ) ⇒
       State(NumV(i), ρ, σ, κ)
@@ -117,6 +115,8 @@ object SmallStepCESK {
     case _ ⇒ drive(step(s))
   }
 
+  def inject(e: Expr): State = State(e, Map(), Map(), Halt)
+
   /* Top-level evaluation function */
   def eval(e: Expr): State = drive(inject(e))
 }
@@ -180,20 +180,56 @@ object RefuncBigStepCESK {
   def eval(e: Expr): (Storable, Store) = interp(e, Map(), Map(), (v, σ) ⇒ (v, σ))
 }
 
-object BigStepCESK {
+object BigStepCES {
   /* A big-step interpreter written in direct-style. */
-  def interp(e: Expr, env: Env, store: Store): (Storable, Store) = e match {
-    case Var(x) => (store(env(x)), store)
-    case lam: Lam => (CloV(lam, env), store)
-    case App(e1, e2) =>
-      val (e1v, e1store) = interp(e1, env, store)
-      val (e2v, e2store) = interp(e2, env, e1store)
-      val addr = alloc(e2store)
-      val e1clos = e1v.asInstanceOf[CloV]
-      interp(e1clos.λ.body, e1clos.ρ + (e1clos.λ.x -> addr), e2store + (addr -> e2v))
+  def interp(e: Expr, ρ: Env, σ: Store): (Storable, Store) = e match {
+    case Lit(i) ⇒ (NumV(i), σ)
+    case Var(x) ⇒ (σ(ρ(x)), σ)
+    case Lam(x, body) ⇒ (CloV(Lam(x, body), ρ), σ)
+    case Let(x, rhs, body) ⇒
+      val (rhsv, rhss) = interp(rhs, ρ, σ)
+      val α = alloc(rhss)
+      interp(body, ρ + (x → α), rhss + (α → rhsv))
+    case Lrc(bds, body) ⇒
+      val (_ρ, _σ, αs) = bds.foldRight (ρ, σ, List[Addr]()) { case (Bind(x, _), (ρ_*, σ_*, αs_*)) ⇒
+        val α = alloc(σ_*)
+        (ρ_* + (x → α), σ_* + (α → NotAValue), α::αs_*)
+      }
+      val σ_* = (bds zip αs).foldLeft (_σ) { case (σ, (Bind(x, e), α)) ⇒
+        val (ev, es) = interp(e, _ρ, σ)
+        es + (α → ev)
+      }
+      interp(body, _ρ, σ_*)
+    case AOp(op, e1, e2) ⇒
+      val (e1v, e1s) = interp(e1, ρ, σ)
+      e1v match {
+        case e1v: NumV ⇒
+          val (e2v, e2s) = interp(e2, ρ, e1s)
+          e2v match {
+            case e2v: NumV ⇒ (evalArith(op, e2v::e1v::Nil), e2s)
+            case _ ⇒ throw new RuntimeException("Left-hand side is not a number")
+          }
+        case _ ⇒ throw new RuntimeException("Left-hand side is not a number")
+      }
+    case If0(cnd, thn, els) ⇒
+      val (cndv, cnds) = interp(cnd, ρ, σ)
+      cndv match {
+        case NumV(i) ⇒
+          if (i == 0) interp(thn, ρ, cnds)
+          else interp(els, ρ, cnds)
+        case _ ⇒ throw new RuntimeException("Condition is not a number")
+      }
+    case App(e1, e2) ⇒
+      val (e1v, e1s) = interp(e1, ρ, σ)
+      val (e2v, e2s) = interp(e2, ρ, e1s)
+      val α = alloc(e2s)
+      e1v match {
+        case CloV(Lam(x, body), _ρ) ⇒ interp(body, _ρ + (x → α), e2s + (α → e2v))
+        case _ ⇒ throw new RuntimeException("Not a function")
+      }
   }
 
-  def eval(e: Expr): Storable = interp(e, Map(), Map())._1
+  def eval(e: Expr): (Storable, Store) = interp(e, Map(), Map())
 }
 
 object CESKTest {
@@ -216,5 +252,11 @@ object CESKTest {
     assert(RefuncBigStepCESK.eval(fact5)._1 == NumV(120))
     assert(RefuncBigStepCESK.eval(fact10)._1 == NumV(3628800))
 
+    assert(RefuncBigStepCESK.eval(fact10)._2 == SmallStepCESK.eval(fact10).σ)
+
+    assert(BigStepCES.eval(fact5) == RefuncBigStepCESK.eval(fact5))
+    assert(BigStepCES.eval(fact10) == RefuncBigStepCESK.eval(fact10))
+
+    //TODO: Add test of mutual recursive function
   }
 }
