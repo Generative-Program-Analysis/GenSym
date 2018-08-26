@@ -103,12 +103,12 @@ object ANFAAM {
                                      Store[KAddr, Cont](Map(Halt -> Set())), Halt, List())
 
   def aeval(e: Expr, env: Env, bstore: BStore): Set[Storable] = e match {
-    case Num(i) => Set(NumV(i))
+    case Lit(i) => Set(NumV(i))
     case Var(x) => bstore(env(x)).toSet
     case lam@Lam(x, body) => Set(Clos(lam, env))
   }
 
-  def isAtomic(e: Expr): Boolean = e.isInstanceOf[Var] || e.isInstanceOf[Lam] || e.isInstanceOf[Num]
+  def isAtomic(e: Expr): Boolean = e.isInstanceOf[Var] || e.isInstanceOf[Lam] || e.isInstanceOf[Lit]
 }
 
 import ANFAAM._
@@ -760,8 +760,8 @@ object ANFAAMTest {
   def main(args: Array[String]) {
     val id = Lam("x", Var("x"))
     val e1 = Let("id", id,
-                 Let("y", App(id, Num(1)),
-                     Let("z", App(id, Num(2)),
+                 Let("y", App(id, Lit(1)),
+                     Let("z", App(id, Lit(2)),
                          Var("y"))))
     println(SmallStep.analyze(e1).map(s => s.bstore).mkString("\n"))
     println("=============================")
@@ -791,7 +791,7 @@ object ANFAAMTest {
               res))"""
     val mutrec = Lrc(List(Bind("f1", Lam("x", Let("x1", App(Var("f2"), Var("x")), Var("x1")))),
                              Bind("f2", Lam("y", Let("y1", App(Var("f1"), Var("y")), Var("y1"))))),
-                        Let("res", App(Var("f1"), Num(1)),
+                        Let("res", App(Var("f1"), Lit(1)),
                             Var("res")))
     val mutrec_ss = SmallStep.analyze(mutrec)
     println(mutrec_ss.size)

@@ -32,8 +32,9 @@ object CESK {
   def inject(e: Expr): State = State(e, Map(), Map(), Halt)
 
   def evalArith(op: Symbol, vs: List[NumV]): NumV = op match {
-    case '+ ⇒ vs.foldRight (NumV(0)) { case (NumV(i), NumV(j)) ⇒ NumV(j+i) }
-    case '* ⇒ vs.foldRight (NumV(1)) { case (NumV(i), NumV(j)) ⇒ NumV(j*i) }
+    case '+ ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j+i) }
+    case '- ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j-i) }
+    case '* ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j*i) }
   }
 }
 
@@ -42,9 +43,11 @@ import CESK._
 object SmallStepCESK {
   /* Single step function */
   def step(s: State): State = s match {
+    case State(Lit(i), ρ, σ, κ) ⇒
+      State(NumV(i), ρ, σ, κ)
     case State(Var(x), ρ, σ, κ) ⇒ σ(ρ(x)) match {
       case CloV(λ, _ρ) ⇒ State(λ, _ρ, σ, κ)
-      case NumV(i) ⇒ State(Num(i), ρ, σ, κ)
+      case NumV(i) ⇒ State(NumV(i), ρ, σ, κ)
       case NotAValue => throw new RuntimeException(s"Variable not defined: $x")
     }
 
@@ -159,12 +162,15 @@ object BigStepCESK {
 object CESKTest {
   def main(args: Array[String]) {
     val e1 = App(Lam("id", App(App(Var("id"), Var("id")), App(Var("id"), Var("id")))), Lam("x", Var("x")))
-    val big_e1 = BigStepCESK.eval(e1)
-    val sml_e1 = SmallStepCESK.eval(e1)
-    assert(big_e1 == sml_e1)
-
-    println("-----------------------------------")
-
-    val refunc_e1 = RefuncBigStepCESK.eval(e1)
+    val fact = Lam("n",
+                   If0(Var("n"),
+                       Lit(1),
+                       AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
+    val fact5 = Lrc(List(Bind("fact", fact)),
+                    App(Var("fact"), Lit(5)))
+    val fact10 = Lrc(List(Bind("fact", fact)),
+                     App(Var("fact"), Lit(10)))
+    assert(SmallStepCESK.eval(fact5).e == NumV(120))
+    assert(SmallStepCESK.eval(fact10).e == NumV(3628800))
   }
 }
