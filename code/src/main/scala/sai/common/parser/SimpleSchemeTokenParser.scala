@@ -19,6 +19,7 @@ trait SchemeTokenParser extends RegexParsers {
   def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^][a-zA-Z0-9!$%*/:<=>?~_^.+-@]*""".r
 
   def IF: Parser[String] = "if"
+  def IF0: Parser[String] = "if0"
   def COND: Parser[String] = "cond"
 
   def LET: Parser[String] = "let"
