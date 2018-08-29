@@ -7,23 +7,23 @@ import sai.cps.parser.Op
 trait SimpleDirectCoreSchemeParserTrait extends SchemeTokenParser {
   def variable: Parser[Var] = IDENT ^^ { Var(_) }
 
-  def app: Parser[App] = LPAREN ~> expr ~ expr ~> RPAREN ^^ {
+  def app: Parser[App] = LPAREN ~> expr ~ expr <~ RPAREN ^^ {
     case e1 ~ e2 => App(e1, e2)
   }
 
-  def lam: Parser[Lam] = LPAREN ~> LAMBDA ~> IDENT ~ expr <~ RPAREN ^^ {
+  def lam: Parser[Lam] = LPAREN ~> LAMBDA ~> (LPAREN ~> IDENT <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case arg ~ body => Lam(arg, body)
   }
 
-  def bind : Parser[Bind] = LPAREN ~> IDENT ~ expr <~ RPAREN ^^ {
+  def bind: Parser[Bind] = LPAREN ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Bind(id, e)
   }
 
-  def let : Parser[Expr] = LPAREN ~> LET ~> IDENT ~ expr ~ expr <~ RPAREN ^^ {
+  def let: Parser[Expr] = LPAREN ~> LET ~> (LPAREN ~> (LPAREN ~> IDENT ~ expr <~ RPAREN) <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case id ~ e ~ body => Let(id, e, body)
   }
 
-  def letrec : Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+  def letrec: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case binds ~ body => Lrc(binds, body)
   }
 
@@ -34,10 +34,10 @@ trait SimpleDirectCoreSchemeParserTrait extends SchemeTokenParser {
   }
 
   def aop: Parser[AOp] = LPAREN ~> PRIMOP ~ expr ~ expr <~ RPAREN ^^ {
-    case op ~ e1 ~ e2 => AOp(op, e1, e2)
+    case op ~ e1 ~ e2 => AOp(Symbol(op), e1, e2)
   }
 
-  def expr: Parser[Expr] = lit | aop | app | if0 | lam | let | variable
+  def expr: Parser[Expr] = lit | aop | app | if0 | lam | let | letrec | variable
 }
 
 object SimpleDirectCoreSchemeParser extends SimpleDirectCoreSchemeParserTrait {
@@ -46,5 +46,11 @@ object SimpleDirectCoreSchemeParser extends SimpleDirectCoreSchemeParserTrait {
   def apply[T](pattern: Parser[T], input: String): Option[T] = parse(pattern, input) match {
     case Success(matched, _) => Some(matched)
     case _ => None
+  }
+}
+
+object TestSimpleDirectCoreSchemeParser {
+  def main(args: Array[String]) = {
+    println(SimpleDirectCoreSchemeParser(args(0)));
   }
 }

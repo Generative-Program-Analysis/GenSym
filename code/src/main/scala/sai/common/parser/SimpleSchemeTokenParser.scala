@@ -36,7 +36,7 @@ trait SchemeTokenParser extends RegexParsers {
   def TRUE: Parser[Boolean] = "#t" ^^ { _ => true }
   def FALSE: Parser[Boolean] = "#f" ^^ { _ => false }
 
-  def DIGIT10: Parser[String] = """[0-9]""".r
+  def DIGIT10: Parser[String] = """[0-9]+""".r
   def INT10: Parser[Int] = DIGIT10.+ ^^ { _.mkString.toInt }
 
   def PRIMOP: Parser[String] = "+" | "-" | "*" | "/" | "=" | "eq?"
