@@ -19,6 +19,7 @@ trait SchemeTokenParser extends RegexParsers {
   def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^][a-zA-Z0-9!$%*/:<=>?~_^.+-@]*""".r
 
   def IF: Parser[String] = "if"
+  def IF0: Parser[String] = "if0"
   def COND: Parser[String] = "cond"
 
   def LET: Parser[String] = "let"
@@ -35,7 +36,7 @@ trait SchemeTokenParser extends RegexParsers {
   def TRUE: Parser[Boolean] = "#t" ^^ { _ => true }
   def FALSE: Parser[Boolean] = "#f" ^^ { _ => false }
 
-  def DIGIT10: Parser[String] = """[0-9]""".r
+  def DIGIT10: Parser[String] = """[0-9]+""".r
   def INT10: Parser[Int] = DIGIT10.+ ^^ { _.mkString.toInt }
 
   def PRIMOP: Parser[String] = "+" | "-" | "*" | "/" | "=" | "eq?"
