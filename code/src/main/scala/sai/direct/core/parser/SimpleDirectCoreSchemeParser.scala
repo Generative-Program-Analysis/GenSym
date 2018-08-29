@@ -2,7 +2,6 @@ package sai.direct.core.parser
 
 import scala.util.parsing.combinator._
 import sai.common.parser._
-import sai.cps.parser.Op
 
 trait SimpleDirectCoreSchemeParserTrait extends SchemeTokenParser {
   def variable: Parser[Var] = IDENT ^^ { Var(_) }
@@ -45,12 +44,32 @@ object SimpleDirectCoreSchemeParser extends SimpleDirectCoreSchemeParserTrait {
 
   def apply[T](pattern: Parser[T], input: String): Option[T] = parse(pattern, input) match {
     case Success(matched, _) => Some(matched)
-    case _ => None
+    case e => println(e); None
   }
 }
 
 object TestSimpleDirectCoreSchemeParser {
   def main(args: Array[String]) = {
-    println(SimpleDirectCoreSchemeParser(args(0)));
+    assert(SimpleDirectCoreSchemeParser(SimpleDirectCoreSchemeParser.lit, "2") ==
+             Some(Lit(2)))
+    assert(SimpleDirectCoreSchemeParser(SimpleDirectCoreSchemeParser.if0, "(if0 a b c)") ==
+             Some(If0(Var("a"), Var("b"), Var("c"))))
+    assert(SimpleDirectCoreSchemeParser(SimpleDirectCoreSchemeParser.if0, "(if0 1 2 3)") ==
+             Some(If0(Lit(1), Lit(2), Lit(3))))
+    assert(SimpleDirectCoreSchemeParser("(+ 1 2)") == Some(AOp('+, Lit(1), Lit(2))))
+
+    val fact5 = "(letrec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 5))"
+    assert(SimpleDirectCoreSchemeParser(fact5).get ==
+           Lrc(List(Bind("fact",
+                         Lam("n",If0(Var("n"),
+                                   Lit(1),
+                                   AOp('*,
+                                       Var("n"),
+                                       App(Var("fact"),
+                                           AOp('-,Var("n"),Lit(1)))))))),
+               App(Var("fact"),Lit(5))))
+
+
+    //println(SimpleDirectCoreSchemeParser(args(0)))
   }
 }

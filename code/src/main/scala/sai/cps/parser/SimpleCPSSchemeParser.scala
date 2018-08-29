@@ -12,7 +12,7 @@ trait SimpleCPSSchemeParserTrait extends SchemeTokenParser {
   def op: Parser[Op] = PRIMOP ^^ { Op(_) }
 
   def lit: Parser[Lit] = INT10 ^^ { Lit(_) }
-  
+
   def bool: Parser[Bool] = (TRUE | FALSE) ^^ { Bool(_) }
 
   def variable: Parser[Var] = IDENT ^^ { Var(_) }
