@@ -29,11 +29,11 @@ case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
 
   def *(other: Interval): Interval = other match {
     case Interval(lb_, ub_) ⇒
-      val lb1ub1 = lb  * ub
+      val lb1lb2 = lb  * lb_
       val lb1ub2 = lb  * ub_
-      val lb2ub1 = lb_ * ub
-      val lb2ub2 = lb_ * ub_
-      val arr = List[Double](lb1ub1, lb1ub2, lb2ub1, lb2ub2)
+      val ub1lb2 = ub  * lb_
+      val ub1ub2 = ub  * ub_
+      val arr = List[Double](lb1lb2, lb1ub2, ub1lb2, ub1ub2)
       Interval(arr.reduce(math.min(_, _)), arr.reduce(math.max(_, _)))
   }
 
@@ -43,4 +43,13 @@ case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
     case Interval(0, ub_) ⇒ Interval(1/ub_, `+∞`)
     case Interval(lb_, ub_) if lb_ < 0 && 0 < ub_ ⇒ ⊤
   })
+}
+
+object IntervalTest {
+  def main(args: Array[String]) {
+    assert((Interval(1,2) * Interval(2,3)) + Interval(5, 7)
+             == Interval(7, 13))
+    assert(Interval(79.5, 80.5) / (Interval(1.795, 1.805) * Interval(1.795, 1.805))
+             == Interval(24.401286055202153, 24.98428783141037))
+  }
 }
