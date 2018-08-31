@@ -29,10 +29,10 @@ case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
 
   def *(other: Interval): Interval = other match {
     case Interval(lb_, ub_) ⇒
-      val lb1lb2 = lb  * lb_
-      val lb1ub2 = lb  * ub_
-      val ub1lb2 = ub  * lb_
-      val ub1ub2 = ub  * ub_
+      val lb1lb2 = lb * lb_
+      val lb1ub2 = lb * ub_
+      val ub1lb2 = ub * lb_
+      val ub1ub2 = ub * ub_
       val arr = List[Double](lb1lb2, lb1ub2, ub1lb2, ub1ub2)
       Interval(arr.reduce(math.min(_, _)), arr.reduce(math.max(_, _)))
   }
