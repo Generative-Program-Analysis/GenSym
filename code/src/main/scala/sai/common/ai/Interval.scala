@@ -38,9 +38,9 @@ case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
   }
 
   def /(other: Interval): Interval = this * (other match {
+    case Interval(lb_, ub_) if !(lb_ <= 0 && 0 <= ub_) ⇒ Interval(1/ub_, 1/lb_)
     case Interval(lb_, 0) ⇒ Interval(`-∞`, 1/lb_)
     case Interval(0, ub_) ⇒ Interval(1/ub_, `+∞`)
-    case Interval(lb_, ub_) if lb_ <= 0 && 0 <= ub_ ⇒ ⊤
-    case Interval(lb_, ub_) ⇒ Interval(1/ub_, 1/lb_)
+    case Interval(lb_, ub_) if lb_ < 0 && 0 < ub_ ⇒ ⊤
   })
 }
