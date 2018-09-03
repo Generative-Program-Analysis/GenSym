@@ -46,6 +46,8 @@ case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
 }
 
 object IntervalTest {
+  import Interval._
+
   def main(args: Array[String]) {
     assert((Interval(1,2) * Interval(2,3)) + Interval(5, 7)
              == Interval(7, 13))
