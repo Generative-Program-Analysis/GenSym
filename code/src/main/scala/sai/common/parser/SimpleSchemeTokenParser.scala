@@ -21,6 +21,7 @@ trait SchemeTokenParser extends RegexParsers {
   def IF: Parser[String] = "if"
   def IF0: Parser[String] = "if0"
   def COND: Parser[String] = "cond"
+  def ELSE: Parser[String] = "else"
 
   def LET: Parser[String] = "let"
   def LETSTAR: Parser[String] = "let*"
