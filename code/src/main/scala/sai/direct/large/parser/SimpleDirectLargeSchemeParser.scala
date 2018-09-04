@@ -45,7 +45,7 @@ trait SimpleDirectLargeSchemeParserTrait extends SchemeTokenParser {
     case branches => Cond(branches)
   }
 
-  def expr: Parser[Expr] = intlit | boollit | app | variable | lam | let | letrec | ifthel | cond
+  def expr: Parser[Expr] = intlit | boollit | variable | lam | let | letrec | ifthel | cond | app
 
   def define: Parser[Define] = LPAREN ~> DEF ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Define(id, e)
@@ -68,5 +68,7 @@ object SimpleDirectLargeSchemeParser extends SimpleDirectLargeSchemeParserTrait 
 object TestSimpleDirectCoreSchemeParser {
   def main(args: Array[String]) = {
     println(SimpleDirectLargeSchemeParser("2"))
+    println(SimpleDirectLargeSchemeParser("(add 3 4 5)"))
+    println(SimpleDirectLargeSchemeParser("(if #t a b)"))
   }
 }
