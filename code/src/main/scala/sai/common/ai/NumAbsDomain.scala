@@ -3,10 +3,10 @@ package sai.common.ai
 trait NumAbsDomain {
   type AD
 
-  def +(other: AD): AD
-  def -(other: AD): AD
-  def *(other: AD): AD
-  def /(other: AD): AD
+  def +(that: AD): AD
+  def -(that: AD): AD
+  def *(that: AD): AD
+  def /(that: AD): AD
 }
 
 object NumAbsValTest {

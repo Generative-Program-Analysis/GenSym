@@ -1,5 +1,6 @@
 package sai.common.ai
 
+import scala.math._
 import scala.language.implicitConversions
 
 object Lattice {
@@ -42,23 +43,77 @@ object Lattice {
       }
   }
 
+  implicit def LSign(s: Sign) = new Lattice[Sign] {
+    import Sign._
+
+    lazy val bot: Sign = ⊥
+    lazy val top: Sign = ⊤
+    def ⊑(that: Sign): Boolean = (s, that) match {
+      case (⊥, _) ⇒ true
+      case (_, ⊤) ⇒ true
+      case (_, _) ⇒ false
+    }
+    def ⊔(that: Sign): Sign = (s, that) match {
+      case (⊥, s) ⇒ s
+      case (s, ⊥) ⇒ s
+      case (_, _) ⇒ ⊤
+    }
+    def ⊓(that: Sign): Sign = (s, that) match {
+      case (⊤, s) ⇒ s
+      case (s, ⊤) ⇒ s
+      case (_, _) ⇒ ⊥
+    }
+  }
+
+  implicit def LInterval(i: Interval) = new Lattice[Interval] {
+    import Interval._
+
+    lazy val bot: Interval = ⊥
+    lazy val top: Interval = ⊤
+    def ⊑(that: Interval): Boolean = (i, that) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ lb1 >= lb2 && ub1 <= ub2
+    }
+    def ⊔(that: Interval): Interval = (i, that) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(min(lb1, lb2), max(ub1, ub2))
+    }
+    def ⊓(that: Interval): Interval = (i, that) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(max(lb1, lb2), min(ub1, ub2))
+    }
+  }
 }
 
 object LatticeTest {
   def main(args: Array[String]) {
     import    Lattice._
-    println("lattice test")
+
+    // Test sets as lattices
     val s1 = Set[Int](1,2,3)
     val s2 = Set[Int](3,4,5)
     val s3 = Set[Int](2,3,4,5)
     val s4 = Set[Int](6)
     println(s1 ⊔ s2)
     println(s1 ⊓ s2)
+
+    // Test pairs as lattices
     println((s1, s2) ⊔ (s3, s4))
 
+    // Test maps as lattices
     val m1 = Map(1 → s1, 2 → s2)
     val m2 = Map(1 → s3, 4 → s4)
     println(m1 ⊔ m2)
     println(m1 ⊓ m2)
+
+    // Test signs as lattices
+    assert(Sign.zero ⊑ Sign.top)
+    assert(!(Sign.zero ⊑ Sign.bot))
+    assert(Sign.zero ⊔ Sign.pos == Sign.top)
+
+    // Test intervals as lattices
+    assert(Interval(5, 10) ⊑ Interval(3, 11))
+    assert(Interval(5, 10) ⊑ Interval(3, 10))
+    assert(!(Interval(5, 10) ⊑ Interval(6, 10)))
+    assert(Interval(5, 10) ⊔ Interval(3, 11) == Interval(3, 11))
+    assert(Interval(5, 10) ⊓ Interval(3, 11) == Interval(5, 10))
+    assert(Interval(5, 10) ⊑ (Interval(5, 10) ⊓ Interval(3, 11)))
   }
 }
