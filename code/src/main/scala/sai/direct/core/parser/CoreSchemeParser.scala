@@ -3,7 +3,7 @@ package sai.direct.core.parser
 import scala.util.parsing.combinator._
 import sai.common.parser._
 
-trait SimpleDirectCoreSchemeParserTrait extends SchemeTokenParser {
+trait CoreSchemeParserTrait extends SchemeTokenParser {
   def variable: Parser[Var] = IDENT ^^ { Var(_) }
 
   def app: Parser[App] = LPAREN ~> expr ~ expr <~ RPAREN ^^ {
@@ -39,7 +39,7 @@ trait SimpleDirectCoreSchemeParserTrait extends SchemeTokenParser {
   def expr: Parser[Expr] = lit | aop | app | if0 | lam | let | letrec | variable
 }
 
-object SimpleDirectCoreSchemeParser extends SimpleDirectCoreSchemeParserTrait {
+object CoreSchemeParser extends CoreSchemeParserTrait {
   def apply(input: String): Option[Expr] = apply(expr, input)
 
   def apply[T](pattern: Parser[T], input: String): Option[T] = parse(pattern, input) match {
@@ -48,18 +48,18 @@ object SimpleDirectCoreSchemeParser extends SimpleDirectCoreSchemeParserTrait {
   }
 }
 
-object TestSimpleDirectCoreSchemeParser {
+object TestCoreSchemeParser {
   def main(args: Array[String]) = {
-    assert(SimpleDirectCoreSchemeParser(SimpleDirectCoreSchemeParser.lit, "2") ==
+    assert(CoreSchemeParser(CoreSchemeParser.lit, "2") ==
              Some(Lit(2)))
-    assert(SimpleDirectCoreSchemeParser(SimpleDirectCoreSchemeParser.if0, "(if0 a b c)") ==
+    assert(CoreSchemeParser(CoreSchemeParser.if0, "(if0 a b c)") ==
              Some(If0(Var("a"), Var("b"), Var("c"))))
-    assert(SimpleDirectCoreSchemeParser(SimpleDirectCoreSchemeParser.if0, "(if0 1 2 3)") ==
+    assert(CoreSchemeParser(CoreSchemeParser.if0, "(if0 1 2 3)") ==
              Some(If0(Lit(1), Lit(2), Lit(3))))
-    assert(SimpleDirectCoreSchemeParser("(+ 1 2)") == Some(AOp('+, Lit(1), Lit(2))))
+    assert(CoreSchemeParser("(+ 1 2)") == Some(AOp('+, Lit(1), Lit(2))))
 
     val fact5 = "(letrec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 5))"
-    assert(SimpleDirectCoreSchemeParser(fact5).get ==
+    assert(CoreSchemeParser(fact5).get ==
            Lrc(List(Bind("fact",
                          Lam("n",If0(Var("n"),
                                    Lit(1),
@@ -68,8 +68,5 @@ object TestSimpleDirectCoreSchemeParser {
                                        App(Var("fact"),
                                            AOp('-,Var("n"),Lit(1)))))))),
                App(Var("fact"),Lit(5))))
-
-
-    //println(SimpleDirectCoreSchemeParser(args(0)))
   }
 }

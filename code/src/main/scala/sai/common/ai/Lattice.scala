@@ -13,7 +13,7 @@ object Lattice {
 
   implicit def LPowerSet[T](s: Set[T]): Lattice[Set[T]] = new Lattice[Set[T]] {
     lazy val bot: Set[T] = Set[T]()
-    lazy val top: Set[T] = throw new Exception("No representation of top power set")
+    lazy val top: Set[T] = throw new RuntimeException("No representation of top power set")
     def ⊑(that: Set[T]): Boolean = s subsetOf that
     def ⊔(that: Set[T]): Set[T] = s union that
     def ⊓(that: Set[T]): Set[T] = s intersect that
@@ -29,7 +29,7 @@ object Lattice {
 
   implicit def LMap[K, V <% Lattice[V]](m: Map[K, V]) = new Lattice[Map[K, V]] {
     lazy val bot: Map[K, V] = Map[K, V]()
-    lazy val top: Map[K, V] = throw new Exception("No representation of top map")
+    lazy val top: Map[K, V] = throw new RuntimeException("No representation of top map")
     def ⊑(that: Map[K, V]): Boolean = {
       for ((k, v) ← m) { if (!(v ⊑ that.getOrElse(k, v.bot))) return false }
       true

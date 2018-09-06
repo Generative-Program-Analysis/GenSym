@@ -3,7 +3,7 @@ package sai.direct.large.parser
 import scala.util.parsing.combinator._
 import sai.common.parser._
 
-trait SimpleDirectLargeSchemeParserTrait extends SchemeTokenParser {
+trait LargeSchemeParserTrait extends SchemeTokenParser {
   def variable: Parser[Var] = IDENT ^^ { Var(_) }
   def app: Parser[App] = LPAREN ~> expr ~ expr.* <~ RPAREN ^^ {
     case e ~ param => App(e, param)
@@ -56,7 +56,7 @@ trait SimpleDirectLargeSchemeParserTrait extends SchemeTokenParser {
 }
 
 
-object SimpleDirectLargeSchemeParser extends SimpleDirectLargeSchemeParserTrait {
+object LargeSchemeParser extends LargeSchemeParserTrait {
   def apply(input: String): Option[List[Toplevel]] = apply(toptoplevel, input)
 
   def apply[T](pattern: Parser[T], input: String): Option[T] = parse(pattern, input) match {
@@ -65,10 +65,10 @@ object SimpleDirectLargeSchemeParser extends SimpleDirectLargeSchemeParserTrait 
   }
 }
 
-object TestSimpleDirectCoreSchemeParser {
+object TestSimpleDirectLargeSchemeParser {
   def main(args: Array[String]) = {
-    println(SimpleDirectLargeSchemeParser("2"))
-    println(SimpleDirectLargeSchemeParser("(add 3 4 5)"))
-    println(SimpleDirectLargeSchemeParser("(if #t a b)"))
+    println(LargeSchemeParser("2"))
+    println(LargeSchemeParser("(add 3 4 5)"))
+    println(LargeSchemeParser("(if #t a b)"))
   }
 }

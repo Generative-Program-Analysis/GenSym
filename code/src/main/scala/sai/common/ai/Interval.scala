@@ -1,20 +1,21 @@
-package sai.common.ai.domain.interval
+package sai.common.ai
 
 import scala.math._
 import scala.Double.{NegativeInfinity, PositiveInfinity}
 
-import sai.common.ai._
-
 object Interval {
-  val `+∞` = Double.PositiveInfinity
-  val `-∞` = Double.NegativeInfinity
+  private val `+∞` = Double.PositiveInfinity
+  private val `-∞` = Double.NegativeInfinity
   val ⊤ = Interval(`-∞`, `+∞`)
   val ⊥ = Interval(Double.NaN, Double.NaN)
   val bot = ⊥
   val top = ⊤
 }
 
+/* Note: lower bound and upper bound are both closed. */
 case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
+  require(lb <= ub)
+
   import Interval._
   override type AD = Interval
   override def toString: String = s"[$lb, $ub]"
@@ -43,15 +44,4 @@ case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
     case Interval(0, ub_) ⇒ Interval(1/ub_, `+∞`)
     case Interval(lb_, ub_) if lb_ < 0 && 0 < ub_ ⇒ ⊤
   })
-}
-
-object IntervalTest {
-  import Interval._
-
-  def main(args: Array[String]) {
-    assert((Interval(1,2) * Interval(2,3)) + Interval(5, 7)
-             == Interval(7, 13))
-    assert(Interval(79.5, 80.5) / (Interval(1.795, 1.805) * Interval(1.795, 1.805))
-             == Interval(24.401286055202153, 24.98428783141037))
-  }
 }

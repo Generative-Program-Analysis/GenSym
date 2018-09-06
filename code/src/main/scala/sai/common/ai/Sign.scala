@@ -1,6 +1,4 @@
-package sai.common.ai.domain.sign
-
-import sai.common.ai._
+package sai.common.ai
 
 abstract class Sign extends NumAbsDomain {
   type AD = Sign
