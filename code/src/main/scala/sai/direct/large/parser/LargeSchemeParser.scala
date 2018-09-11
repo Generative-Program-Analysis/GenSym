@@ -17,8 +17,12 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case id ~ e => Bind(id, e)
   }
 
-  def let: Parser[Expr] = LPAREN ~> LET ~> (LPAREN ~> (LPAREN ~> IDENT ~ expr <~ RPAREN) <~ RPAREN) ~ expr <~ RPAREN ^^ {
-    case id ~ e ~ body => Let(id, e, body)
+  def let: Parser[Let] = LPAREN ~> LET ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case binds ~ body => Let(binds, body)
+  }
+
+  def letstar: Parser[LetStar] = LPAREN ~> LETSTAR ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case binds ~ body => LetStar(binds, body)
   }
 
   def letrec: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
@@ -45,7 +49,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case branches => Cond(branches)
   }
 
-  def expr: Parser[Expr] = intlit | boollit | variable | lam | let | letrec | ifthel | cond | app
+  def expr: Parser[Expr] = intlit | boollit | variable | lam | let | letstar | letrec | ifthel | cond | app
 
   def define: Parser[Define] = LPAREN ~> DEF ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Define(id, e)
@@ -67,8 +71,6 @@ object LargeSchemeParser extends LargeSchemeParserTrait {
 
 object TestSimpleDirectLargeSchemeParser {
   def main(args: Array[String]) = {
-    println(LargeSchemeParser("2"))
-    println(LargeSchemeParser("(add 3 4 5)"))
-    println(LargeSchemeParser("(if #t a b)"))
+    println(LargeSchemeParser(args(0)))
   }
 }
