@@ -5,6 +5,7 @@ import sai.common.parser._
 
 trait LargeSchemeParserTrait extends SchemeTokenParser {
   def variable: Parser[Var] = IDENT ^^ { Var(_) }
+
   def app: Parser[App] = LPAREN ~> expr ~ expr.* <~ RPAREN ^^ {
     case e ~ param => App(e, param)
   }
@@ -21,6 +22,10 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case binds ~ body => Let(binds, body)
   }
 
+  // def letfun: Parser[Let] = LPAREN ~> LET ~> IDENT ~ (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+  //   case ident ~ binds ~ body => Let(Bind(ident, Lam(
+  // }
+
   def letstar: Parser[LetStar] = LPAREN ~> LETSTAR ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case binds ~ body => LetStar(binds, body)
   }
@@ -33,6 +38,14 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
 
   def boollit: Parser[BoolLit] = (TRUE | FALSE) ^^ { BoolLit(_) }
 
+  def listsugar: Parser[App] = LISTLPAREN ~> expr.* <~ RPAREN ^^ {
+    case elements => App(Var("list"), elements)
+  }
+
+  def vecsugar: Parser[App] = VECLPAREN ~> expr.* <~ RPAREN ^^ {
+    case elements => App(Var("vector"), elements)
+  }
+
   def ifthel: Parser[If] = LPAREN ~> IF ~> expr ~ expr ~ expr <~ RPAREN ^^ {
     case cond ~ thn ~ els => If(cond, thn, els)
   }
@@ -44,12 +57,12 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   def condElseBranch: Parser[CondBranch] = LPAREN ~> ELSE ~> expr <~ RPAREN ^^ {
     case thn => CondBranch(BoolLit(true), thn)
   }
-  
+
   def cond: Parser[Cond] = LPAREN ~> COND ~> (condElseBranch | condBranch).* <~ RPAREN ^^ {
     case branches => Cond(branches)
   }
 
-  def expr: Parser[Expr] = intlit | boollit | variable | lam | let | letstar | letrec | ifthel | cond | app
+  def expr: Parser[Expr] = intlit | boollit | listsugar | vecsugar | variable | lam | let | letstar | letrec | ifthel | cond | app
 
   def define: Parser[Define] = LPAREN ~> DEF ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Define(id, e)
