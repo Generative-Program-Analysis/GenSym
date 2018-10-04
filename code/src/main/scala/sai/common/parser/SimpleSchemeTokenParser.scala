@@ -15,7 +15,7 @@ trait SchemeTokenParser extends RegexParsers {
   def RPAREN = "[\\)\\}\\]]".r
 
   def LISTLPAREN = "'("
-  def VECLPAREM = "#("
+  def VECLPAREN = "#("
   
   def DEF: Parser[String] = "define"
   def LAMBDA: Parser[String] = "lambda"
