@@ -14,6 +14,8 @@ trait SchemeTokenParser extends RegexParsers {
   def LPAREN = "[\\(\\{\\[]".r
   def RPAREN = "[\\)\\}\\]]".r
 
+  def QUOTE = "'"
+
   def LISTLPAREN = "'("
   def VECLPAREN = "#("
   

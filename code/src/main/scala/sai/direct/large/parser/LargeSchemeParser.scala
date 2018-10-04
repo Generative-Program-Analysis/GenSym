@@ -18,19 +18,22 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case id ~ e => Bind(id, e)
   }
 
+  def lets: Parser[Expr] = let | letproc | letstar | letrec
+
   def let: Parser[Let] = LPAREN ~> LET ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case binds ~ body => Let(binds, body)
   }
 
-  def letproc: Parser[Let] = LPAREN ~> LET ~> IDENT ~ (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+  def letproc: Parser[Lrc] = LPAREN ~> LET ~> IDENT ~ (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case ident ~ binds ~ body => 
       val args = binds map { case Bind(id, _) => id }
       val initvals = binds map { case Bind(_, initv) => initv }
-      Let(List(Bind(ident, Lam(args, body))), App(Var(ident), initvals))
+      Lrc(List(Bind(ident, Lam(args, body))), App(Var(ident), initvals))
   }
 
-  def letstar: Parser[LetStar] = LPAREN ~> LETSTAR ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
-    case binds ~ body => LetStar(binds, body)
+  def letstar: Parser[Let] = LPAREN ~> LETSTAR ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case binds ~ body => 
+      binds.dropRight(1).foldRight (Let(List(binds.last), body)) { case (bd, e) => Let(List(bd), e) }
   }
 
   def letrec: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
@@ -65,7 +68,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case branches => Cond(branches)
   }
 
-  def expr: Parser[Expr] = intlit | boollit | listsugar | vecsugar | variable | lam | let | letproc | letstar | letrec | ifthel | cond | app
+  def expr: Parser[Expr] = intlit | boollit | listsugar | vecsugar | variable | lam | lets | ifthel | cond | app
 
   def define: Parser[Define] = LPAREN ~> DEF ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Define(id, e)

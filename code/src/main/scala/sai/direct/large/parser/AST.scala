@@ -9,7 +9,6 @@ case class Lam(param: List[String], body: Expr) extends Expr
 
 case class Bind(x: String, e: Expr)
 case class Let(bds: List[Bind], body: Expr) extends Expr
-case class LetStar(bds: List[Bind], body: Expr) extends Expr
 case class Lrc(bds: List[Bind], body: Expr) extends Expr
 
 case class IntLit(x: Int) extends Expr
