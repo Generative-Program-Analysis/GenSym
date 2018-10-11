@@ -43,6 +43,12 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   def intlit: Parser[IntLit] = INT10 ^^ { IntLit(_) }
 
   def boollit: Parser[BoolLit] = (TRUE | FALSE) ^^ { BoolLit(_) }
+  
+  def stringlit: Parser[App] = STRINGLIT ^^ {
+    case str =>
+      val elements: List[IntLit] = str.toCharArray map { (c: Char) => IntLit(c.asInstanceOf[Int]) } toList;
+      App(Var("vector"), elements)
+  }
 
   def listsugar: Parser[App] = LISTLPAREN ~> expr.* <~ RPAREN ^^ {
     case elements => App(Var("list"), elements)
@@ -52,6 +58,8 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case elements => App(Var("vector"), elements)
   }
 
+  def literals = intlit | boollit | stringlit | listsugar | vecsugar
+
   def ifthel: Parser[If] = LPAREN ~> IF ~> expr ~ expr ~ expr <~ RPAREN ^^ {
     case cond ~ thn ~ els => If(cond, thn, els)
   }
@@ -60,15 +68,35 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case cond ~ thn => CondBranch(cond, thn)
   }
 
+  def condProcBranch: Parser[CondBranch] = LPAREN ~> expr ~ (RARROW ~> expr) <~ RPAREN ^^ {
+    case cond ~ proc => CondBranch(cond, App(proc, List(cond)))
+  }
+
   def condElseBranch: Parser[CondBranch] = LPAREN ~> ELSE ~> expr <~ RPAREN ^^ {
     case thn => CondBranch(BoolLit(true), thn)
   }
 
-  def cond: Parser[Cond] = LPAREN ~> COND ~> (condElseBranch | condBranch).* <~ RPAREN ^^ {
+  def condBranches = condElseBranch | condBranch | condProcBranch
+
+  def cond: Parser[Cond] = LPAREN ~> COND ~> condBranches.* <~ RPAREN ^^ {
     case branches => Cond(branches)
   }
 
-  def expr: Parser[Expr] = intlit | boollit | listsugar | vecsugar | variable | lam | lets | ifthel | cond | app
+  def caseBranch: Parser[CaseBranch] = LPAREN ~> (LPAREN ~> expr.* <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case cases ~ thn => CaseBranch(cases, thn)
+  }
+
+  def caseElseBranch: Parser[CaseBranch] = LPAREN ~> ELSE ~> expr <~ RPAREN ^^ {
+    case thn => CaseBranch(List(), thn)
+  }
+
+  def cas: Parser[Case] = LPAREN ~> CASE ~> expr ~ (caseElseBranch | caseBranch).* <~ RPAREN ^^ {
+    case ev ~ branches => Case(ev, branches)
+  }
+
+  def dispatch = ifthel | cond | cas
+
+  def expr: Parser[Expr] = literals | variable | lam | lets | dispatch | app
 
   def define: Parser[Define] = LPAREN ~> DEF ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Define(id, e)

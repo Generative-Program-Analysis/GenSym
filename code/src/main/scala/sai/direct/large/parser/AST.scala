@@ -18,4 +18,7 @@ case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr
 case class CondBranch(cnd: Expr, thn: Expr)
 case class Cond(branches: List[CondBranch]) extends Expr
 
+case class CaseBranch(cases: List[Expr], thn: Expr)
+case class Case(e: Expr, branches: List[CaseBranch]) extends Expr
+
 case class Define(x: String, e: Expr) extends Toplevel
