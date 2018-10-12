@@ -22,11 +22,14 @@ trait SchemeTokenParser extends RegexParsers {
   def DEF: Parser[String] = "define"
   def LAMBDA: Parser[String] = "lambda"
   def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^][a-zA-Z0-9!$%*/:<=>?~_^.+-@]*""".r
+  def STRINGLIT: Parser[String] = "\"(\\\"|[^\"])*\"".r
 
   def IF: Parser[String] = "if"
   def IF0: Parser[String] = "if0"
   def COND: Parser[String] = "cond"
+  def RARROW: Parser[String] = "=>"
   def ELSE: Parser[String] = "else"
+  def CASE: Parser[String] = "case"
 
   def LET: Parser[String] = "let"
   def LETSTAR: Parser[String] = "let*"
