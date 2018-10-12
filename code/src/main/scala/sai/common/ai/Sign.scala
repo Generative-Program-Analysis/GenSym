@@ -13,10 +13,22 @@ object Sign {
 }
 
 case object ⊤ extends Sign {
-  def +(s: Sign): Sign = ⊤
-  def -(s: Sign): Sign = ⊤
-  def *(s: Sign): Sign = ⊤
-  def /(s: Sign): Sign = ⊤
+  def +(s: Sign): Sign = s match {
+    case ⊥ ⇒ ⊥
+    case _ ⇒ ⊤
+  }
+  def -(s: Sign): Sign = s match {
+    case ⊥ ⇒ ⊥
+    case _ ⇒ ⊤
+  }
+  def *(s: Sign): Sign = s match {
+    case ⊥ ⇒ ⊥
+    case _ ⇒ ⊤
+  }
+  def /(s: Sign): Sign = s match {
+    case ⊥ ⇒ ⊥
+    case _ ⇒ ⊤
+  }
 }
 
 case object ⊥ extends Sign {

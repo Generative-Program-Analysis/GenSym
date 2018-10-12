@@ -3,6 +3,13 @@ package sai.common.ai
 import scala.math._
 import scala.language.implicitConversions
 
+object DisUnion {
+  type ¬[A] = A ⇒ Nothing
+  type ∨[A, B] = ¬[¬[A] with ¬[B]]
+  type ¬¬[A] = ¬[¬[A]]
+  type |∨|[A, B] = { type λ[X] = ¬¬[X] <:< (A ∨ B) }
+}
+
 object Lattice {
   trait Lattice[L] {
     val bot: L
@@ -80,6 +87,36 @@ object Lattice {
       case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(max(lb1, lb2), min(ub1, ub2))
     }
   }
+
+  /*
+  import DisUnion._
+  implicit def LDisUnion[A <% Lattice[A], B <% Lattice[B], T: (A|∨|B) #λ](u: T): Lattice[T] = new Lattice[T] {
+    lazy val bot: T = u match {
+      case a: A ⇒ a.bot.asInstanceOf[T]
+      case b: B ⇒ b.bot.asInstanceOf[T]
+    }
+    lazy val top: T = u match {
+      case a: A ⇒ a.top.asInstanceOf[T]
+      case b: B ⇒ b.top.asInstanceOf[T]
+    }
+    def ⊑(that: T): Boolean = (u, that) match {
+      case (a1: A, a2: A) ⇒ a1 ⊑ a2
+      case (b1: B, b2: B) ⇒ b1 ⊑ b2
+      case (_, _) ⇒ throw new RuntimeException("Different disjoint union types")
+    }
+    def ⊔(that: T): T = (u, that) match {
+      case (a1: A, a2: A) ⇒ (a1 ⊔ a2).asInstanceOf[T]
+      case (b1: B, b2: B) ⇒ (b1 ⊔ b2).asInstanceOf[T]
+      case (_, _) ⇒ throw new RuntimeException("Different disjoint union types")
+    }
+    def ⊓(that: T): T = (u, that) match {
+      case (a1: A, a2: A) ⇒ (a1 ⊓ a2).asInstanceOf[T]
+      case (b1: B, b2: B) ⇒ (b1 ⊓ b2).asInstanceOf[T]
+      case (_, _) ⇒ throw new RuntimeException("Different disjoint union types")
+    }
+  }
+  */
+
 }
 
 object LatticeTest {
@@ -115,5 +152,6 @@ object LatticeTest {
     assert(Interval(5, 10) ⊔ Interval(3, 11) == Interval(3, 11))
     assert(Interval(5, 10) ⊓ Interval(3, 11) == Interval(5, 10))
     assert(Interval(5, 10) ⊑ (Interval(5, 10) ⊓ Interval(3, 11)))
+
   }
 }
