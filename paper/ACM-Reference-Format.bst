@@ -1456,14 +1456,16 @@ FUNCTION { format.articleno.numpages }
   %%     numpages, pages                -> "pages-value"
   %%     numpages                       -> "numpages-value"
   %%     pages                          -> "pages-value"
+  %%
+  %% We no longer issue warninig when missing articleno, but having numpages
 
   articleno empty.or.unknown eid empty.or.unknown and
     {
-      numpages empty.or.unknown
-        { }
-        { "numpages field, but no articleno or eid field, in "
-          cite$ * warning$ }
-      if$
+%%      numpages empty.or.unknown
+%%        { }
+%%        { "numpages field, but no articleno or eid field, in "
+%%          cite$ * warning$ }
+%%      if$
       ""
     }
     {
@@ -2331,7 +2333,6 @@ FUNCTION { misc }
     { "\bibinfo{howpublished}{" howpublished "}" * * output }
   if$
   "" output.nonnull.dot.space
-  output.day.month.year
   calc.format.page.count output
   fin.block
   output.issue.doi.coden.isxn.lccn.url.eprint.note
