@@ -7,12 +7,12 @@ import sai.direct.core.parser._
 object CESK {
   type Addr = Int
   type Env = Map[String, Addr]
-  type Store = Map[Addr, Storable]
+  type Store = Map[Addr, Value]
 
-  abstract class Storable
-  object NotAValue extends Storable
-  case class NumV(i: Int) extends Storable with Expr
-  case class CloV(λ: Lam, ρ: Env) extends Storable
+  abstract class Value
+  object NotAValue extends Value
+  case class NumV(i: Int) extends Value with Expr
+  case class CloV(λ: Lam, ρ: Env) extends Value
 
   abstract class Kont
   object Halt extends Kont
@@ -123,10 +123,10 @@ object SmallStepCESK {
 
 object RefuncBigStepCESK {
   /* A refunctionalized CPS interpreter. */
-  type Cont = (Storable, Store) ⇒ (Storable, Store)
+  type Cont = (Value, Store) ⇒ (Value, Store)
   case class State(e: Expr, env: Env, store: Store, k: Cont)
 
-  def interp(e: Expr, ρ: Env, σ: Store, κ: Cont): (Storable, Store) = e match {
+  def interp(e: Expr, ρ: Env, σ: Store, κ: Cont): (Value, Store) = e match {
     case Lit(i) ⇒ κ(NumV(i), σ)
     case Var(x) ⇒ κ(σ(ρ(x)), σ)
     case Lam(x, body) ⇒ κ(CloV(Lam(x, body), ρ), σ)
@@ -141,7 +141,7 @@ object RefuncBigStepCESK {
         val α = alloc(σ_*)
         (ρ_* + (x → α), σ_* + (α → NotAValue), α::αs_*)
       }
-      def rec(bds: List[Bind], αs: List[Addr])(v: Storable, σ: Store): (Storable, Store) =
+      def rec(bds: List[Bind], αs: List[Addr])(v: Value, σ: Store): (Value, Store) =
         (bds, αs) match {
           case (Nil, α::Nil) ⇒ interp(body, _ρ, σ + (α → v), κ)
           case (Bind(x, e)::bds, α::αs) ⇒
@@ -177,12 +177,12 @@ object RefuncBigStepCESK {
     case _ ⇒ throw new RuntimeException("Not a valid program")
   }
 
-  def eval(e: Expr): (Storable, Store) = interp(e, Map(), Map(), (v, σ) ⇒ (v, σ))
+  def eval(e: Expr): (Value, Store) = interp(e, Map(), Map(), (v, σ) ⇒ (v, σ))
 }
 
 object BigStepCES {
   /* A big-step interpreter written in direct-style. */
-  def interp(e: Expr, ρ: Env, σ: Store): (Storable, Store) = e match {
+  def interp(e: Expr, ρ: Env, σ: Store): (Value, Store) = e match {
     case Lit(i) ⇒ (NumV(i), σ)
     case Var(x) ⇒ (σ(ρ(x)), σ)
     case Lam(x, body) ⇒ (CloV(Lam(x, body), ρ), σ)
@@ -230,7 +230,7 @@ object BigStepCES {
     case _ ⇒ throw new RuntimeException("Not a valid program")
   }
 
-  def eval(e: Expr): (Storable, Store) = interp(e, Map(), Map())
+  def eval(e: Expr): (Value, Store) = interp(e, Map(), Map())
 }
 
 object CESKTest {
