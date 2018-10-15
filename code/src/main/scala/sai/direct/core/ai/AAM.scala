@@ -54,12 +54,12 @@ object AAM {
   type KStore = Store[Addr, ℙ[Kont]]
 
   def allocBind(x: Var, time: Time): BAddr = BAddr(x, time)
-  def allocKont(tgtExpr: Expr, tgtEnv: Env, tgtStore: BStore, time: Time): KAddr =
+  def allocKont(tgtExpr: Expr, time: Time): KAddr =
     KAddr(tgtExpr, time)
 
   val k: Int = 0
 
-  case class State(e: Control, ρ: Env, bσ: BStore, kσ: KStore, κ: Addr, τ: Time) {
+  case class State(e: Control, ρ: Env, bσ: BStore, kσ: KStore, κ: KAddr, τ: Time) {
     def tick: Time = (e :: τ) take k
   }
 
@@ -70,7 +70,7 @@ object AAM {
     val τ_* = s.tick
     s match {
       case State(Lit(i), ρ, bσ, kσ, κ, τ) ⇒
-        Set(State(NumV(i), ρ, bσ, kσ, κ, τ_*))
+        ℙ(State(NumV(i), ρ, bσ, kσ, κ, τ_*))
       case State(Var(x), ρ, bσ, kσ, κ, τ) ⇒
         for (v ← bσ(ρ(x))) yield v match {
           case NumV(i) ⇒ State(NumV(i), ρ, bσ, kσ, κ, τ_*)
@@ -78,7 +78,16 @@ object AAM {
           case CloV(λ, _ρ) ⇒ State(λ, _ρ, bσ, kσ, κ, τ_*)
         }
       case State(Let(x, e, body), ρ, bσ, kσ, κ, τ) ⇒
-        ???
+        val κ_* = allocKont(e, τ_*)
+        val kσ_* = kσ.update(κ_* → ℙ(KLet(x, body, ρ, κ)))
+        ℙ(State(e, ρ, bσ, kσ_*, κ_*, τ))
+      case State(NumV(i), ρ, bσ, kσ, κ, τ) ⇒
+        for (cont ← kσ(κ)) yield cont match {
+          case KLet(x, e, ρ_*, κ_*) ⇒
+            val α = allocBind(x, τ_*)
+            val bσ_* = bσ.update(α → ℙ(NumV(i)))
+            State(e, ρ_*, bσ_*, kσ, κ_*, τ_*)
+        }
     }
   }
 
