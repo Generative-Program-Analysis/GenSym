@@ -9,6 +9,7 @@ case class App(e1: Expr, e2: Expr) extends Expr
 case class Lam(x: String, body: Expr) extends Expr
 
 case class Bind(x: String, e: Expr)
+@deprecated("Let should be desugared to application.", "1.0")
 case class Let(x: String, e: Expr, body: Expr) extends Expr
 case class Lrc(bds: List[Bind], body: Expr) extends Expr
 

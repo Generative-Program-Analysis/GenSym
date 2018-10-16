@@ -18,7 +18,6 @@ object CESK {
   object Halt extends Kont
   case class KArg(e: Expr, ρ: Env, κ: Kont) extends Kont
   case class KApp(lam: Lam, ρ: Env, κ: Kont) extends Kont
-  case class KLet(x: String, e: Expr, ρ: Env, κ: Kont) extends Kont
   case class KLrc(as: List[Addr], bds: List[Bind], e: Expr, ρ: Env, κ: Kont) extends Kont
   case class KIf0(thn: Expr, els: Expr, ρ: Env, κ: Kont) extends Kont
   case class KAOp(op: Symbol, vs: List[NumV], es: List[Expr], ρ: Env, κ: Kont) extends Kont
@@ -50,15 +49,6 @@ object SmallStepCESK {
       case NotAValue => throw new RuntimeException(s"Variable not defined: $x")
     }
 
-    case State(Let(x, e, body), ρ, σ, κ) ⇒
-      State(e, ρ, σ, KLet(x, body, ρ, κ))
-    case State(NumV(i), ρ, σ, KLet(x, body, _ρ, κ)) ⇒
-      val α = alloc(σ)
-      State(body, _ρ + (x → α), σ + (α → NumV(i)), κ)
-    case State(λ: Lam, ρ, σ, KLet(x, body, _ρ, κ)) ⇒
-      val α = alloc(σ)
-      State(body, _ρ + (x → α), σ + (α → CloV(λ, ρ)), κ)
-
     case State(Lrc(bds, body), ρ, σ, κ) ⇒
       val Bind(x, e) = bds.head
       val (_ρ, _σ, αs) = bds.foldRight (ρ, σ, List[Addr]()) { case (Bind(x, _), (ρ_*, σ_*, αs_*)) ⇒
@@ -84,7 +74,7 @@ object SmallStepCESK {
     case State(AOp(op, e1, e2), ρ, σ, κ) ⇒
       State(e1, ρ, σ, KAOp(op, List(), List(e2), ρ, κ))
     case State(NumV(i), ρ, σ, KAOp(op, vs, Nil, _ρ, κ)) ⇒
-      State(evalArith(op, NumV(i)::vs), ρ, σ, κ)
+      State(evalArith(op, NumV(i)::vs), _ρ, σ, κ)
     case State(NumV(i), ρ, σ, KAOp(op, vs, e::es, _ρ, κ)) ⇒
       State(e, _ρ, σ, KAOp(op, NumV(i)::vs, es, _ρ, κ))
 
@@ -130,11 +120,6 @@ object RefuncBigStepCESK {
     case Lit(i) ⇒ κ(NumV(i), σ)
     case Var(x) ⇒ κ(σ(ρ(x)), σ)
     case Lam(x, body) ⇒ κ(CloV(Lam(x, body), ρ), σ)
-    case Let(x, rhs, body) ⇒
-      interp(rhs, ρ, σ, (rhsv, rhss) ⇒ {
-               val α = alloc(rhss)
-               interp(body, ρ + (x → α), rhss + (α → rhsv), κ)
-             })
     case Lrc(bds, body) ⇒
       val Bind(x, e) = bds.head
       val (_ρ, _σ, αs) = bds.foldRight (ρ, σ, List[Addr]()) { case (Bind(x, _), (ρ_*, σ_*, αs_*)) ⇒
@@ -186,10 +171,6 @@ object BigStepCES {
     case Lit(i) ⇒ (NumV(i), σ)
     case Var(x) ⇒ (σ(ρ(x)), σ)
     case Lam(x, body) ⇒ (CloV(Lam(x, body), ρ), σ)
-    case Let(x, rhs, body) ⇒
-      val (rhsv, rhss) = interp(rhs, ρ, σ)
-      val α = alloc(rhss)
-      interp(body, ρ + (x → α), rhss + (α → rhsv))
     case Lrc(bds, body) ⇒
       val (_ρ, _σ, αs) = bds.foldRight (ρ, σ, List[Addr]()) { case (Bind(x, _), (ρ_*, σ_*, αs_*)) ⇒
         val α = alloc(σ_*)

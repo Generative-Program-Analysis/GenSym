@@ -20,7 +20,8 @@ trait CoreSchemeParserTrait extends SchemeTokenParser {
   }
 
   implicit def let: Parser[Expr] = LPAREN ~> LET ~> (LPAREN ~> (LPAREN ~> IDENT ~ expr <~ RPAREN) <~ RPAREN) ~ expr <~ RPAREN ^^ {
-    case id ~ e ~ body => Let(id, e, body)
+    //case id ~ e ~ body => Let(id, e, body)
+    case id ~ e ~ body => App(Lam(id, body), e)
   }
 
   implicit def letrec: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
