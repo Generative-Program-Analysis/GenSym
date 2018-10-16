@@ -151,6 +151,10 @@ object AAM {
         val κ_* = allocKont(e1, ρ, τ_*)
         val kσ_* = kσ + (κ_* → ℙ(KAOp(op, List(), List(e2), ρ, κ)))
         ℙ(State(e1, ρ, bσ, kσ_*, κ_*, τ_*))
+      case State(App(e1, e2), ρ, bσ, kσ, κ, τ) ⇒
+        val κ_* = allocKont(e1, ρ, τ_*)
+        val kσ_* = kσ + (κ_* → ℙ(KArg(e2, ρ, κ)))
+        ℙ(State(e1, ρ, bσ, kσ_*, κ_*, τ_*))
     }
   }
 
@@ -168,5 +172,19 @@ object AAM {
   def inject(e: Expr): State = State(e, ρ0, bσ0, kσ0, κ0, τ0)
 
   def analyze(e: Expr): Set[State] = drive(List(inject(e)), Set())
+}
 
+object SSAAMTest {
+  def main(args: Array[String]) {
+    val e1 = App(Lam("id", App(App(Var("id"), Var("id")), App(Var("id"), Var("id")))), Lam("x", Var("x")))
+    val fact = Lam("n",
+                   If0(Var("n"),
+                       Lit(1),
+                       AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
+    val fact5 = Lrc(List(Bind("fact", fact)),
+                    App(Var("fact"), Lit(5)))
+    val fact10 = Lrc(List(Bind("fact", fact)),
+                     App(Var("fact"), Lit(10)))
+    println(AAM.analyze(fact5).size)
+  }
 }
