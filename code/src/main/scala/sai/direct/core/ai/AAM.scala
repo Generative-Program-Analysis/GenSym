@@ -181,6 +181,10 @@ object SSAAM {
   def analyze(e: Expr): Set[State] = drive(List(inject(e)), Set())
 }
 
+object PDAAM {
+  //TODO
+}
+
 object ADI {
   import AAM._
 
@@ -274,8 +278,9 @@ object ADI {
           val Ans(cndvss, cndcache) = aeval(cnd, ρ, σ, τ_*, cache_*)
           val (VS(cndvs, cndτ, cndσ), cndcache_*) = choices[VS](cndvss, cndcache)
           //TODO: actually check whether cnd is 0
-          val thnans = aeval(thn, ρ, cndσ, cndτ, cndcache_*)
-          val elsans = aeval(els, ρ, cndσ, cndτ, cndcache_*)
+          //FIXME: Why adding reset?
+          val thnans = reset { aeval(thn, ρ, cndσ, cndτ, cndcache_*) }
+          val elsans = reset { aeval(els, ρ, cndσ, cndτ, cndcache_*) }
           thnans ++ elsans
       }
     }
@@ -287,11 +292,14 @@ object ADI {
       if (anscache.out == anscache.in) Ans(vss, anscache)
       else iter(Cache(anscache.out, Store[Config, ℙ[VS]](Map())))
     }
-    iter(Cache.cache0)
+    iter(Cache.cache0).vss
   }
 }
 
 object SSAAMTest {
+  import sai.common.parser.Read._
+  import sai.direct.core.parser.CoreSchemeParser._
+
   def main(args: Array[String]) {
     val e1 = App(Lam("id", App(App(Var("id"), Var("id")), App(Var("id"), Var("id")))), Lam("x", Var("x")))
     val e2 = App(Lam("id", Var("id")), Lit(1))
@@ -299,12 +307,21 @@ object SSAAMTest {
                    If0(Var("n"),
                        Lit(1),
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
-    val fact5 = Lrc(List(Bind("fact", fact)),
-                    App(Var("fact"), Lit(5)))
-    val fact10 = Lrc(List(Bind("fact", fact)),
-                     App(Var("fact"), Lit(10)))
-    println(fact5.toLet)
+    val rec = "(letrec ([f (lambda (x) x)]) (f f))".read[Expr].get
+
+    val subto0 = "(letrec ([f (lambda (x) (if0 x x (f (- x 1))))]) (f 3))".read[Expr].get
+    println(subto0)
+    println(ADI.analyze(subto0).mkString("\n"))
+    println("————————————————————————————————————")
+
+    val fact5 = "(letrec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 5))".read[Expr].get
     println(fact5)
-    //println(SSAAM.analyze(e2).size)
+    println(ADI.analyze(fact5).mkString("\n"))
+    println("————————————————————————————————————")
+
+    val fact100 = "(letrec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 100))".read[Expr].get
+    println(fact100)
+    println(ADI.analyze(fact100).mkString("\n"))
   }
 }
+

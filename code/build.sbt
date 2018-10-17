@@ -1,4 +1,4 @@
-name := "lms-tutorials"
+name := "SAI"
 
 organization := "org.scala-lang.lms"
 
