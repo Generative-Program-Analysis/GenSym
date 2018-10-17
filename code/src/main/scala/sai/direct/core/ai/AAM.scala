@@ -1,5 +1,6 @@
 package sai.direct.core.ai
 
+import scala.util.continuations._
 import scala.language.implicitConversions
 
 import sai.common.ai._
@@ -74,7 +75,15 @@ object AAM {
     case _ ⇒ false
   }
 
+  def ρ0 = Map[Var, BAddr]()
+  def bσ0 = Store[BAddr, ℙ[AbsValue]](Map())
+  def τ0 = List[Control]()
+}
+
+object SSAAM {
+  import AAM._
   def step(s: State): ℙ[State] = {
+    println(s)
     val τ_* = s.tick
     s match {
       case State(Lit(i), ρ, bσ, kσ, κ, τ) ⇒
@@ -85,6 +94,7 @@ object AAM {
           case NumVTop     ⇒ State(NumVTop, ρ, bσ, kσ, κ, τ_*)
           case CloV(λ, _ρ) ⇒ State(λ, _ρ, bσ, kσ, κ, τ_*)
         }
+
       case State(n, ρ, bσ, kσ, κ, τ) if isNum(n) ⇒
         val n_* = n.asInstanceOf[AbsValue]
         (for (cont ← kσ(κ)) yield cont match {
@@ -164,19 +174,127 @@ object AAM {
     case hd::tl ⇒ drive(step(hd).toList ++ tl, seen + hd)
   }
 
-  def ρ0 = Map[Var, BAddr]()
-  def bσ0 = Store[BAddr, ℙ[AbsValue]](Map())
   def κ0 = HaltAddr
   def kσ0 = Store[KAddr, ℙ[Kont]](Map()) + (κ0 → ℙ())
-  def τ0 = List[Control]()
   def inject(e: Expr): State = State(e, ρ0, bσ0, kσ0, κ0, τ0)
 
   def analyze(e: Expr): Set[State] = drive(List(inject(e)), Set())
 }
 
+object ADI {
+  import AAM._
+
+  case class Config(e: Expr, ρ: Env, σ: BStore, τ: Time) {
+    def tick: Time = (e :: τ) take k
+  }
+
+  case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
+    def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
+    def inContains(cfg: Config): Boolean = in.contains(cfg)
+    def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
+    def outContains(cfg: Config): Boolean = out.contains(cfg)
+    def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
+    def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
+    def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
+    def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
+  }
+
+  object Cache {
+    def cache0 = Cache(Store[Config, ℙ[VS]](Map()), Store[Config, ℙ[VS]](Map()))
+  }
+
+  case class VS(vals: ℙ[AbsValue], τ: Time, σ: BStore)
+  case class Ans(vss: ℙ[VS], cache: Cache) {
+    def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
+  }
+
+  def nd[T](ts: Iterable[T], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
+    if (ts.isEmpty) acc
+    else nd(ts.tail, acc ++ k(ts.head, acc.cache), k)
+  }
+
+  def choices[T](ts: Iterable[T], cache: Cache): (T, Cache) @cps[Ans] = shift {
+    f: (((T, Cache)) ⇒ Ans) ⇒ nd(ts, Ans(ℙ(), cache), f)
+  }
+
+  def aeval(e: Expr, ρ: Env, σ: BStore, τ: Time, cache: Cache): Ans @cps[Ans] = {
+    val config = Config(e, ρ, σ, τ)
+    if (cache.outContains(config))
+      Ans(cache.outGet(config), cache)
+    else {
+      val τ_* = config.tick
+      val cache_* = cache.outUpdateFromIn(config)
+      e match {
+        case Lit(i) ⇒
+          val vs = ℙ(VS(ℙ(NumV(i)), τ_*, σ))
+          Ans(vs, cache_*.outUpdate(config, vs))
+        case Var(x) ⇒
+          val vs = ℙ(VS(σ(ρ(x)), τ_*, σ))
+          Ans(vs, cache_*.outUpdate(config, vs))
+        case Lam(x, e) ⇒
+          val vs = ℙ(VS(ℙ(CloV(Lam(x, e), ρ)), τ_*, σ))
+          Ans(vs, cache_*.outUpdate(config, vs))
+        case App(e1, e2) ⇒
+          val Ans(e1vss, e1cache) = aeval(e1, ρ, σ, τ_*, cache_*)
+          val (VS(e1vs, e1τ, e1σ), e1cache_*) = choices[VS](e1vss, e1cache)
+          val (CloV(Lam(x, body), λρ), clscache) = choices[AbsValue](e1vs, e1cache_*)
+          val Ans(e2vss, e2cache) = aeval(e2, ρ, σ, e1τ, clscache)
+          val (VS(e2vs, e2τ, e2σ), e2cache_*) = choices[VS](e2vss, e2cache)
+          val α = allocBind(x, e2τ)
+          val ρ_* = λρ + (x → α)
+          val σ_* = e2σ + (α → e2vs)
+          val Ans(ret, retcache) = aeval(body, ρ_*, σ_*, e2τ, e2cache_*)
+          Ans(ret, retcache.outUpdate(config, ret))
+        case Void() ⇒
+          val vs = ℙ(VS(ℙ(), τ_*, σ))
+          Ans(vs, cache_*.outUpdate(config, vs))
+        case Set_!(x, e) ⇒
+          val Ans(evss, ecache) = aeval(e, ρ, σ, τ_*, cache_*)
+          val (VS(evs, eτ, eσ), ecache_*) = choices[VS](evss, ecache)
+          val eσ_* = eσ + (ρ(x) → evs)
+          val vs = ℙ(VS(ℙ(), eτ, eσ_*))
+          Ans(vs, ecache_*.outUpdate(config, vs))
+        case Begin(e::Nil) ⇒
+          val Ans(evss, ecache) = aeval(e, ρ, σ, τ_*, cache_*)
+          val (VS(evs, eτ, eσ), ecache_*) = choices[VS](evss, ecache)
+          val vs = ℙ(VS(evs, eτ, eσ))
+          Ans(vs, ecache_*.outUpdate(config, vs))
+        case Begin(e::es) ⇒
+          val Ans(evss, ecache) = aeval(e, ρ, σ, τ_*, cache_*)
+          val (VS(_, eτ, eσ), ecache_*) = choices[VS](evss, ecache)
+          aeval(Begin(es), ρ, eσ, eτ, ecache_*)
+        case AOp(op, e1, e2) ⇒
+          val Ans(e1vss, e1cache) = aeval(e1, ρ, σ, τ_*, cache_*)
+          val (VS(e1vs, e1τ, e1σ), e1cache_*) = choices[VS](e1vss, e1cache)
+          val Ans(e2vss, e2cache) = aeval(e2, ρ, e1σ, e1τ, e1cache_*)
+          val (VS(e2vs, e2τ, e2σ), e2cache_*) = choices[VS](e2vss, e2cache)
+          val vs = ℙ(VS(ℙ(NumVTop), e2τ, e2σ))
+          Ans(vs, e2cache_*.outUpdate(config, vs))
+        case If0(cnd, thn, els) ⇒
+          val Ans(cndvss, cndcache) = aeval(cnd, ρ, σ, τ_*, cache_*)
+          val (VS(cndvs, cndτ, cndσ), cndcache_*) = choices[VS](cndvss, cndcache)
+          //TODO: actually check whether cnd is 0
+          val thnans = aeval(thn, ρ, cndσ, cndτ, cndcache_*)
+          val elsans = aeval(els, ρ, cndσ, cndτ, cndcache_*)
+          thnans ++ elsans
+      }
+    }
+  }
+
+  def analyze(e: Expr, ρ: Env = ρ0, σ: BStore = bσ0) = {
+    def iter(cache: Cache): Ans = {
+      val Ans(vss, anscache) = reset { aeval(e, ρ, σ, τ0, cache) }
+      if (anscache.out == anscache.in) Ans(vss, anscache)
+      else iter(Cache(anscache.out, Store[Config, ℙ[VS]](Map())))
+    }
+    iter(Cache.cache0)
+  }
+}
+
 object SSAAMTest {
   def main(args: Array[String]) {
     val e1 = App(Lam("id", App(App(Var("id"), Var("id")), App(Var("id"), Var("id")))), Lam("x", Var("x")))
+    val e2 = App(Lam("id", Var("id")), Lit(1))
     val fact = Lam("n",
                    If0(Var("n"),
                        Lit(1),
@@ -185,6 +303,8 @@ object SSAAMTest {
                     App(Var("fact"), Lit(5)))
     val fact10 = Lrc(List(Bind("fact", fact)),
                      App(Var("fact"), Lit(10)))
-    println(AAM.analyze(fact5).size)
+    println(fact5.toLet)
+    println(fact5)
+    //println(SSAAM.analyze(e2).size)
   }
 }

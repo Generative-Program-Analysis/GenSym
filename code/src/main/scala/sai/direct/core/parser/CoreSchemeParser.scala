@@ -19,13 +19,12 @@ trait CoreSchemeParserTrait extends SchemeTokenParser {
     case id ~ e => Bind(id, e)
   }
 
-  implicit def let: Parser[Expr] = LPAREN ~> LET ~> (LPAREN ~> (LPAREN ~> IDENT ~ expr <~ RPAREN) <~ RPAREN) ~ expr <~ RPAREN ^^ {
-    //case id ~ e ~ body => Let(id, e, body)
-    case id ~ e ~ body => App(Lam(id, body), e)
+  implicit def let: Parser[App] = LPAREN ~> LET ~> (LPAREN ~> (LPAREN ~> IDENT ~ expr <~ RPAREN) <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case id ~ e ~ body => Let(id, e, body).toApp
   }
 
-  implicit def letrec: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
-    case binds ~ body => Lrc(binds, body)
+  implicit def letrec: Parser[App] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case binds ~ body => Lrc(binds, body).toLet.asInstanceOf[Let].toApp
   }
 
   implicit def lit: Parser[Lit] = INT10 ^^ { Lit(_) }
