@@ -1,12 +1,18 @@
 It is well known that a staged interpreter is a compiler, which provides performance improvement
-by eliminate the overhead of traversing the abstract syntax tree.
+by specializing the interpreter to a given program.
 
-In this paper, we study staged \textit{abstract} interpreters.
+In this paper, we study \textit{abstract} interpreters with multi-stage programming, i.e., the 
+staged abstract interpreters. 
+By staging an abstract interpreter respect to a program, we obtain a compiled and faster analysis.
+By appying the idea to \textit{open} programs, we obtain a modular analysis that generates sound
+partial analysis results which can be composed and reused later without losing precision, though 
+the original abstract interpreter is a whole-program analysis algorithm.
 
-We show staged abstract interpreters have practical applications rather than just theoretical merit.
-The time consumed of a analysis can be decreased by staging (TODO: to what degree). We evaluate
-the improvement of performance on benchmark programs.
-Another application of staged abstract interpreter is to transform whole-program analysis
-to modular analysis without losing precison. The generated code can be viewed as a 
-partially analyzed result, which also can be composed and used latter with other modulars
-in the program. 
+We show several case studies using the idea of staged abstract interpreters, including 
+\citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation of Shiver's 0-CFA, pushdown
+control-flow analysis with context/path/flow-sensitivity and store-widening, and a numerical
+analysis on a imperative language.
+
+We also evaluate the improvement of performance on benchmark programs for a subset of Scheme.
+The result shows ...
+
