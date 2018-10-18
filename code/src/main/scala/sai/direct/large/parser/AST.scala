@@ -28,8 +28,10 @@ case class BoolLit(x: Boolean) extends Expr
 case class CharLit(x: Char) extends Expr
 case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr
 
-case class CondBranch(cnd: Expr, thn: Expr)
-case class Cond(branches: List[CondBranch]) extends Expr
+trait CondBrTrait
+case class CondBr(cnd: Expr, thn: Expr) extends CondBrTrait
+case class CondProcBr(cnd: Expr, thn: Lam) extends CondBrTrait
+case class Cond(branches: List[CondBrTrait]) extends Expr
 
 case class CaseBranch(cases: List[Expr], thn: Expr)
 case class Case(e: Expr, branches: List[CaseBranch]) extends Expr
