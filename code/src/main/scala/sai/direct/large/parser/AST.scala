@@ -17,10 +17,9 @@ case class Let(bds: List[Bind], body: Expr) extends Expr {
   }
 }
 case class Lrc(bds: List[Bind], body: Expr) extends Expr {
-//  def toLet: Expr = bds.foldRight[Expr](Begin(bds.map(_.toSet) ++ List(body))) {
-//    case (Bind(x, e), body) => Let(x, Void(), body)
-//  }
-//  def toApp: App = toLet.asInstanceOf[Let].toApp
+  def toApp: App =
+    Let(bds.map { case Bind(x, _) => Bind(x, Void()) },
+      Begin(bds.map(_.toSet) ++ List(body))).toApp
 }
 
 case class IntLit(x: Int) extends Expr

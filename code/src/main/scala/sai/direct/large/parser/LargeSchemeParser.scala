@@ -18,15 +18,15 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case id ~ e => Bind(id, e)
   }
 
-  implicit def lets: Parser[Expr] = let | letproc | letstar | letrec
+  implicit def lets: Parser[Expr] = let | letstar | letrec | letproc
 
   implicit def let: Parser[App] = LPAREN ~> LET ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case binds ~ body => Let(binds, body).toApp
   }
 
-  implicit def letproc: Parser[Lrc] = LPAREN ~> LET ~> IDENT ~ (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+  implicit def letproc: Parser[App] = LPAREN ~> LET ~> IDENT ~ (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case ident ~ binds ~ body =>
-      Lrc(List(Bind(ident, Lam(binds.map(_.x), body))), App(Var(ident), binds.map(_.e)))
+      Lrc(List(Bind(ident, Lam(binds.map(_.x), body))), App(Var(ident), binds.map(_.e))).toApp
   }
 
   implicit def letstar: Parser[App] = LPAREN ~> LETSTAR ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
@@ -34,9 +34,8 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
       binds.dropRight(1).foldRight (Let(List(binds.last), body).toApp) { case (bd, e) => Let(List(bd), e).toApp }
   }
 
-  implicit def letrec: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
-    //FIXME: transform Lrc to Let/Begin/Set
-    case binds ~ body => Lrc(binds, body)
+  implicit def letrec: Parser[App] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case binds ~ body => Lrc(binds, body).toApp
   }
 
   implicit def intlit: Parser[IntLit] = INT10 ^^ { IntLit(_) }
@@ -105,8 +104,8 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   }
 
   // rule is causing infinite recursion
-  implicit def implicit_begin: Parser[Begin] = expr.* ^^ {
-    case exps => Begin(exps)
+  implicit def implicit_begin: Parser[Begin] = expr ~ expr.+ ^^ {
+    case exp ~ exps => Begin(exp :: exps)
   }
 
   implicit def imp_structure: Parser[Expr] = void | define | set | begin
@@ -126,6 +125,48 @@ object LargeSchemeParser extends LargeSchemeParserTrait {
 
 object TestSimpleDirectLargeSchemeParser {
   def main(args: Array[String]) = {
-    println(LargeSchemeParser(args(0)))
+    if (!args.isEmpty) {
+      println(LargeSchemeParser(args(0)))
+    } else {
+      testall()
+    }
+  }
+
+  def testall() = {
+    val tests: List[() => Unit] = List(test1, test2)
+    tests foreach { _() }
+  }
+
+  // Test 1: Letrec to set!
+  def test1() = {
+    val actual = LargeSchemeParser("(letrec ([a 3] [b a]) (add a b))")
+    val expected = Some(
+      App(
+        Lam(List("a", "b"),
+          Begin(
+            List(
+              Set_!("a",IntLit(3)),
+              Set_!("b",Var("a")),
+              App(Var("add"),List(Var("a"), Var("b")))
+            )
+          )
+        ),
+      List(Void(), Void()))
+    )
+    assert(actual == expected)
+  }
+
+  // Test 2: Test implicit 
+  def test2() = {
+    val actual = LargeSchemeParser("(add a b) (add a b)")
+    val expected = Some(
+      Begin(List(
+        App(Var("add"), List(Var("a"), Var("b"))),
+        App(Var("add"), List(Var("a"), Var("b")))
+      ))
+    )
+
+    println(actual)
+    assert(actual == expected)
   }
 }
