@@ -1,0 +1,12 @@
+It is well known that a staged interpreter is a compiler, which provides performance improvement
+by eliminate the overhead of traversing the abstract syntax tree.
+
+In this paper, we study staged \textit{abstract} interpreters.
+
+We show staged abstract interpreters have practical applications rather than just theoretical merit.
+The time consumed of a analysis can be decreased by staging (TODO: to what degree). We evaluate
+the improvement of performance on benchmark programs.
+Another application of staged abstract interpreter is to transform whole-program analysis
+to modular analysis without losing precison. The generated code can be viewed as a 
+partially analyzed result, which also can be composed and used latter with other modulars
+in the program. 

@@ -1,0 +1,41 @@
+\section{Case Study}
+
+\subsection{Abstract Compilation, Revisited}
+
+\citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation as a new
+implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
+Their work is esentially a partial evaluated CE (\textit{Control-Environment}) abstract
+interpreter written in a big-step semantics for programs written in continuation-passing style.
+The analysis it can perform is a monovariant control flow analysis, sepcifically, Shiver's original
+formulation of 0-CFA \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007}.
+After the partial evaluation on input program, the \textit{control} part of abstract interpreter
+is disappeared, instead, the compiled analysis is a closure (higher-order function) and
+only takes an environment as argument,
+and the overhead of traversing the abstract syntax tree of source program also has been eliminated.
+Since the target language is written a continuation-passing style, so there is
+no explict evaluation context component when constructing the abstract interpreter
+(rather than a CEK machine).
+
+In this section, we firstly review their work of closure generation,
+and reproduce their result by adding stage annotations to 0-CFA.
+Show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be understood as an instance of staged 
+abstract interpreter.
+
+(Fianally, we should briefly summarize the difference between them:
+staging vs partial evaluation; code generation; engineering effort; performance)
+
+(Specific -> General vs General vs Specific)
+
+\subsection{Control Flow Analysis}
+
+context/path/flow-sensitive
+
+store-widening
+
+using different $k$ for $k$-CFA
+
+\subsection{Scale to Imperative Languages}
+
+Assignments, Loops, Exceptions
+
+Options: Numerical Analysis, Data-flow analysis, taint analysis

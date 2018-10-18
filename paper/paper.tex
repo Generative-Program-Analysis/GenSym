@@ -9,14 +9,14 @@
 %% For final camera-ready submission, w/ required CCS and ACM Reference
 %\documentclass[sigplan]{acmart}\settopmatter{}
 
-
 %% Conference information
 %% Supplied to authors by publisher for camera-ready submission;
 %% use defaults for review submission.
-\acmConference[PL'18]{ACM SIGPLAN Conference on Programming Languages}{January 01--03, 2018}{New York, NY, USA}
-\acmYear{2018}
-\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
-\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
+%\acmConference[Submitted to PLDI'18]{ACM SIGPLAN Conference on Programming Language Design and Implementation}{June 18--22, 2018}{Philadelphia, PA, USA}
+\acmConference[Submitted to PLDI]{}{June 2019}{Phoenix, Arizona}
+\acmYear{2019}
+%\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
+%\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
 \startPage{1}
 
 %% Copyright information
@@ -66,11 +66,11 @@
 \title[Short Title]{Staged Abstract Interpreters}         %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
-\titlenote{with title note}             %% \titlenote is optional;
+%\titlenote{with title note}             %% \titlenote is optional;
                                         %% can be repeated if necessary;
                                         %% contents suppressed with 'anonymous'
 \subtitle{Fast and Compositional Whole-Program Analysis for Free}                     %% \subtitle is optional
-\subtitlenote{with subtitle note}       %% \subtitlenote is optional;
+%\subtitlenote{with subtitle note}       %% \subtitlenote is optional;
                                         %% can be repeated if necessary;
                                         %% contents suppressed with 'anonymous'
 
@@ -135,28 +135,7 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-  It is well known that a staged interpreter is a compiler. A nature question is to ask 
-  that what would be if we can stage an abstract interpreter and how to obtain it by a mechanized 
-  approach.
-
-  In this paper, we systematically study the family of staged abstract interpreters, including 
-  \citeauthor{Boucher:1996:ACN:647473.727587}'s Abstract Compilation, staged small-step 
-  Abstracting Abstract Machines (AAM) and staged Abstracting Definitional Interpreters (ADI).
-  To understand their relations, we firstly study the relations of their unstaged counterparts:
-  we show how to obtain a abstracting definitional interpreter by a series of transformations
-  from a small-step abstracting abstract machine. A key insight we show is how the pushdown 
-  control flow property of 
-  analysis been obtained when transforming from small-step AAM to ADI, as well as how it 
-  been lost in another direction.
-  (TODO: pushdown for staged abstract interpreter?)
-
-  We show staged abstract interpreters have practical applications rather than just theoretical merit.
-  The time consumed of a analysis can be decreased by staging (TODO: to what degree). We evaluate
-  the improvement of performance on benchmark programs.
-  Another application of staged abstract interpreter is to transform whole-program analysis
-  to modular analysis without losing precison. The generated code can be viewed as a 
-  partially analyzed result, which also can be composed and used latter with other modulars
-  in the program. 
+  \input{abstract}
 \end{abstract}
 
 
@@ -193,139 +172,14 @@
 %% environment and commands, and keywords command.
 \maketitle
 
-\section{Introduction}
-
-\section{Background}
-
-\subsection{Interpreters}
-
-\subsection{From Interpreters to Staged Interpreters}
-
-\subsection{From Interpreters to Abstract Interpreters}
-
-\section{Abstract Compilation, Revisited}
-
-\citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation as a new
-implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
-Their work is esentially a partial evaluated CE (\textit{Control-Environment}) abstract
-interpreter written in a big-step semantics for programs written in continuation-passing style.
-The analysis it can perform is a monovariant control flow analysis, sepcifically, Shiver's original
-formulation of 0-CFA \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007}.
-After the partial evaluation on input program, the \textit{control} part of abstract interpreter
-is disappeared, instead, the compiled analysis is a closure (higher-order function) and
-only takes an environment as argument,
-and the overhead of traversing the abstract syntax tree of source program also has been eliminated.
-Since the target language is written a continuation-passing style, so there is
-no explict evaluation context component when constructing the abstract interpreter
-(rather than a CEK machine).
-
-In this section, we firstly review their work of closure generation,
-and reproduce their result by adding stage annotations to 0-CFA.
-Show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be understood as an instance of staged 
-abstract interpreter.
-
-(Fianally, we should briefly summarize the difference between them:
-staging vs partial evaluation; code generation; engineering effort; performance)
-
-(Specific -> General vs General vs Specific)
-
-\section{Staged Abstract Interpreter}
-
-\subsection{Abstract Interpreter}
-
-\subsection{what not to do when writing an abstract interpreter for staging}
-
-Big-step vs small-step
-
-operational vs denotational
-
-General insights for staging other static analysis algorithm.
-
-\subsection{Adding Stage Annotations is Easy}
-
-\section{Optimizations}
-
-Staging to GPU?
-
-Staging inside data structures.
-
-Jones-optimal specialization.
-
-Store/set operations (join, update) are also expensive, generating efficient store implementation\cite{liang2014fast}.
-
-\section{Compositional Analysis for Free}
-
-Motivation: one of the challenges of modern static analysis is program usually depends on
-large libraries programs\cite{toman_et_al:LIPIcs:2017:7121}. 
-Can we analyze programs and libraries separately without losing precision? So that we can 
-reduce part of the overhead of repeatedly analyzing libraries for different programs.
-Similarly, some static analyzers compute summary for a function or a module, that can be reused
-later (like Facebook Infer). But to my knowledge, they are mostly too conservative (context-insensitive) 
-or unsound, which both lead to imprecision.
-
-Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis,
-because it is interprocedural and need the last k calling contexts to distinguish
-different call sites.
-But can we analyze programs (libraries) separately which generate the specialized 
-analysis and leave the unavailable programs (for the moment) as dynamic parameters, 
-and then install these contexts when we have the whole program.
-
-Another perspective: programs are data for an abstract interpreter, so if we have $n$ programs, 
-then maybe there can be $n$ stages. 
-Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
-waiting for the rest $(n-m)$ programs.
-These $(n-m)$ programs might be (abstract) arguments for the first $n$ programs, and
-the abstract interpreter itself might be a partial abstract interpreter.
-
-\section{Evaluation}
-
-Show the evaluation result on benchmark programs.
-
-Compare with normal abstract interpreter, 
-abstract compilation\cite{Boucher:1996:ACN:647473.727587}, and OAAM \cite{Johnson:2013:OAA:2500365.2500604}.
-Benchmarks and other reference implementations: \url{https://github.com/ilyasergey/reachability}.
-
-\section{Discussion}
-
-Futamura projection for abstract interpreter. Is there a second or third Futamura projection for
-abstract interpreter?
-
-\section{Related Work}
-
-\textbf{Abstract Compilation}. The idea in this paper is closely inspired by 
-abstract compilation \cite{Boucher:1996:ACN:647473.727587}.
-\citeauthor{Boucher:1996:ACN:647473.727587} presented abstract compilation
-techniques as an efficient implementation of the monovariant flow analysis 
-\textit{0}-CFA for programs in continuation-passing style. The key idea is to 
-reduce the interpretation overhead on traversing the syntax tree by partial evaluation.
-Specifically, they proposed two kinds of abstract compilers to achieve this. 
-The first one is to generate specialized analysis as a textual program, then 
-can be loaded and executed by \texttt{eval} or similar mechanisms. The second 
-one is using closure as a representation of specialized analysis. 
-A closure is a function that remembers the environment where it defined. So the 
-abstract compiler generates higer-order functions on-the-fly rather than textual 
-program, then the functions can be applied immediately in a higher-order host language.
-
-\citeauthor{Johnson:2013:OAA:2500365.2500604} in their work also adopt the 
-idea closure generation for optimizing small-step abstracting abstract machine
-\cite{Johnson:2013:OAA:2500365.2500604}. The source program is firstly compiled
-to intermediate form called "abstract bytecode", which are actually higher-order functions, 
-and then executed on a abstract abstract machine.
-
-\citeauthor{damian1999partial}'s work on partial evaluation for program analysis \cite{damian1999partial}.
-
-\citeauthor{amtoft1999partial}'s work on partial evaluation for constraint-based 
-control flow analysis \cite{amtoft1999partial}.
-
-\citeauthor{hardekopf2011flow} apply staging to flow-sensitive pointer analysis \cite{hardekopf2011flow}. 
-They firstly stage the program code to obtain a sparse representation, then conduct
-the flow-sensitive analysis. 
-
-\textbf{Abstracting Abstract Machine}. Abstracting Definitional Interpreter \cite{darais2017abstracting}
-
-Collapsing Towers of Interpreters\cite{Amin:2017:CTI:3177123.3158140}
-
-\section{Conclusion}
+\input{10_intro}
+\input{20_bg}
+\input{30_sai}
+\input{40_comp}
+\input{50_cases}
+\input{60_eval}
+\input{70_related}
+\input{80_concl}
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
