@@ -286,7 +286,7 @@ object ADI {
     }
   }
 
-  def analyze(e: Expr, ρ: Env = ρ0, σ: BStore = bσ0) = {
+  def analyze(e: Expr, ρ: Env = ρ0, σ: BStore = bσ0): ℙ[VS] = {
     def iter(cache: Cache): Ans = {
       val Ans(vss, anscache) = reset { aeval(e, ρ, σ, τ0, cache) }
       if (anscache.out == anscache.in) Ans(vss, anscache)
@@ -301,12 +301,6 @@ object SSAAMTest {
   import sai.direct.core.parser.CoreSchemeParser._
 
   def main(args: Array[String]) {
-    val e1 = App(Lam("id", App(App(Var("id"), Var("id")), App(Var("id"), Var("id")))), Lam("x", Var("x")))
-    val e2 = App(Lam("id", Var("id")), Lit(1))
-    val fact = Lam("n",
-                   If0(Var("n"),
-                       Lit(1),
-                       AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val rec = "(letrec ([f (lambda (x) x)]) (f f))".read[Expr].get
 
     val subto0 = "(letrec ([f (lambda (x) (if0 x x (f (- x 1))))]) (f 3))".read[Expr].get
