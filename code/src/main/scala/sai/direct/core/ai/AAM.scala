@@ -267,6 +267,7 @@ object ADI {
           val Ans(evss, ecache) = aeval(e, ρ, σ, τ_*, cache_*)
           val (VS(_, eτ, eσ), ecache_*) = choices[VS](evss, ecache)
           aeval(Begin(es), ρ, eσ, eτ, ecache_*)
+          //TODO: update the cache
         case AOp(op, e1, e2) ⇒
           val Ans(e1vss, e1cache) = aeval(e1, ρ, σ, τ_*, cache_*)
           val (VS(e1vs, e1τ, e1σ), e1cache_*) = choices[VS](e1vss, e1cache)

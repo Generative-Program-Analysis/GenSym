@@ -12,3 +12,22 @@ bridging the gap between designing sound analyses and implementing efficient ana
 summaries of libraries so that we can reuse them.
 
 \subsection{Contributions}
+
+\begin{itemize}
+\item Starting from a definitional abstract interpreter for a higher-order functional language,
+  we show how to turn it into a staged abstract interpreter by adding stage annotations with 
+  Lightweight Modular Staging (LMS) framework. We later extend the abstract interpreter to support
+  imperative language features, such as states, loops and exceptions.
+\item We elaborate the idea that the staged abstract interpreter not only improves the performance 
+  but also the scalability, which are two major issues in static analysis, if we apply it on open
+  programs. TODO: more on this point.
+\item To evaluate the generality of the idea, we conduct several case studies. 
+  First we revisited Abstract Compilation (TODO: cite), which is a closure generation technique applied 
+  on 0-CFA and can be understood as an instance of staged abstract interpreter. 
+  Second, we demonstrate existing control-flow analysis techniques, such as context/flow/path-sensitive 
+  analysis and store-widening can be integrated with staged abstract interpreters.
+  Finally, we show it also can be applied to numerical analysis in an imperative language.
+  (Optional: taint/information flow analysis?)
+\item We also emprically evaluate the performance improved of staged abstract interpreter with the 
+  unstaged version and other existing optimizations on benchmarks.
+\end{itemize}

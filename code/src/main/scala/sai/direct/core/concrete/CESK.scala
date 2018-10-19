@@ -114,7 +114,6 @@ object SmallStepCESK {
 object RefuncBigStepCESK {
   /* A refunctionalized CPS interpreter. */
   type Cont = (Value, Store) ⇒ (Value, Store)
-  case class State(e: Expr, env: Env, store: Store, k: Cont)
 
   def interp(e: Expr, ρ: Env, σ: Store, κ: Cont): (Value, Store) = e match {
     case Lit(i) ⇒ κ(NumV(i), σ)
