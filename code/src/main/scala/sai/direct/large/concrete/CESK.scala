@@ -49,29 +49,21 @@ object BigStepCES {
     case Var(x) => (sigma(env(x)), sigma)
     case l@Lam(_, _) => (CloV(l, env), sigma)
     case If(cnd, thn, els) =>
-      val (ev, es) = interp(cnd, env, sigma)
-      ev match {
-        case BoolV(true) => interp(thn, env, es)
-        case BoolV(false) => interp(els, env, es)
-      }
-
+      val (BoolV(b), es) = interp(cnd, env, sigma)
+      interp(if (b) thn else els, env, es)
     case Cond(branches) => ???
     case Case(e, branches) => ???
     case App(e, param) =>
+      //TODO: @Yuxuan, support primitive operations, such as arithmetics, list and vector.
       val (ev, es) = interp(e, env, sigma)
       val (appv, es_) = interpListOfExprs(param, env, es)
-
       val (es__, addrs): (Store, List[Addr]) = appv.foldRight (es_, List[Addr]()) {
         case (v, (es, addrs)) =>
           val addr = alloc(es)
           (es + (addr -> v), addr::addrs)
       }
-
-      ev match {
-        case CloV(Lam(args, lbody), cenv) =>
-          interp(lbody, cenv ++ (args zip addrs), es__)
-      }
-
+      val CloV(Lam(args, lbody), cenv) = ev
+      interp(lbody, cenv ++ (args zip addrs), es__)
     case Void() => (VoidV(), sigma)
     case Set_!(x, e) =>
       val (ev, es) = interp(e, env, sigma)
