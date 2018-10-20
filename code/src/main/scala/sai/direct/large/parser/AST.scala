@@ -38,5 +38,4 @@ case class Case(e: Expr, branches: List[CaseBranch]) extends Expr
 case class Void() extends Expr
 case class Set_!(x: String, e: Expr) extends Expr
 case class Begin(es: List[Expr]) extends Expr
-
 case class Define(x: String, e: Expr) extends Expr
