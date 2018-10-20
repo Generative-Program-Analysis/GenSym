@@ -3,7 +3,7 @@
 \subsection{Motivation}
 
 1. we know how to stage an interpreter, natural to ask how to stage an abstract interpreter, given 
-the structural similarity of interpreters and abstract interpreters.
+the structural similarity of interpreters and abstract interpreters. Futamura projection \cite{Futamura1999}
 
 2. precise whole-program analysis can be very slow, how to optimize it systematically/mechanically?
 bridging the gap between designing sound analyses and implementing efficient analyses.
@@ -16,7 +16,8 @@ summaries of libraries so that we can reuse them.
 \begin{itemize}
 \item Starting from a definitional abstract interpreter for a higher-order functional language,
   we show how to turn it into a staged abstract interpreter by adding stage annotations with 
-  Lightweight Modular Staging (LMS) framework. We later extend the abstract interpreter to support
+  Lightweight Modular Staging (LMS) framework, a library-based approach to code generation. 
+  We later extend the abstract interpreter to support
   imperative language features, such as states, loops and exceptions.
 \item We elaborate the idea that the staged abstract interpreter not only improves the performance 
   but also the scalability, which are two major issues in static analysis, if we apply it on open
@@ -28,6 +29,6 @@ summaries of libraries so that we can reuse them.
   analysis and store-widening can be integrated with staged abstract interpreters.
   Finally, we show it also can be applied to numerical analysis in an imperative language.
   (Optional: taint/information flow analysis?)
-\item We also emprically evaluate the performance improved of staged abstract interpreter with the 
+\item We also emprically evaluate the performance improved of staged abstract interpreter with the
   unstaged version and other existing optimizations on benchmarks.
 \end{itemize}
