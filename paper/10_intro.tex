@@ -2,11 +2,22 @@
 
 \subsection{Motivation}
 
-1. we know how to stage an interpreter, natural to ask how to stage an abstract interpreter, given 
-the structural similarity of interpreters and abstract interpreters. Futamura projection \cite{Futamura1999}
+1. we know how to stage an interpreter, intellectually it is natural to ask what would be an staged abstract interpreter,
+and how to stage an abstract interpreter, given the structural similarity of interpreters and abstract interpreters. 
+Futamura projection \cite{Futamura1999}
 
-2. precise whole-program analysis can be very slow, how to optimize it systematically/mechanically?
+2. Multi-stage programming is widely used in high performance computation.
+Precise whole-program analysis can be very slow, how to optimize it systematically/mechanically?
 bridging the gap between designing sound analyses and implementing efficient analyses.
+
+When staging a concrete interpreter, the programmers need to distinguish static and dynamic values
+--- the given program is classified as static because it is known at compile-time, and the inputs to that program 
+are dynamic. However, when staging an abstract interpreter, this distinction not exists anymore. 
+Because an abstract interpreter treats all the inputs as some form of abstract values, which usually are 
+top elements in their abstract domains and are statically known. Then what is the point of staging?
+A surprising by-product of thinking about this question is to realize that we can apply the staged
+abstract interpreter on \textit{open} programs, and the free variables representing other parts of 
+the program (e.g., libraries) are dynamic input, then we obtain a modular analysis, mechanically.
 
 3. analyzing modern programs with large libraries are expensive, we need to a way to create
 summaries of libraries so that we can reuse them.

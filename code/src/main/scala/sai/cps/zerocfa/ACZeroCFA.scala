@@ -6,7 +6,7 @@ import sai.cps.parser._
   Abstract Compilation of 0CFA
   */
 object ACZeroCFA extends CFACommon {
-  type CompiledAnalysis = Store => Store
+  type CompiledAnalysis = Store ⇒ Store
 
   def compProgram(prog: Expr): CompiledAnalysis = compCall(prog)
 
@@ -16,42 +16,41 @@ object ACZeroCFA extends CFACommon {
       case Letrec(bds, body) =>
         val C1 = compCall(body)
         val C2 = compArgs(bds.map(_.value))
-        (s: Store) => C1(C2(s.update(bds.map(_.name), bds.map((b: Bind) => Set(b.value.asInstanceOf[Lam])))))
+        (σ: Store) => C1(C2(σ.update(bds.map(_.name), bds.map(b => Set(b.value.asInstanceOf[Lam])))))
       case App(f, args) =>
         val C1 = compApp(f, args)
         val C2 = compArgs(args)
-        (s: Store) => C1(C2(s))
+        (σ: Store) => C1(C2(σ))
     }
   }
 
   def compApp(f: Expr, args: List[Expr]): CompiledAnalysis = {
     if (debug) println(s"compApp f[$f]")
     f match {
-      case Var(name) => (s: Store) => analysisAbsApp(s.lookup(name), args, s)
+      case Var(x) => (σ: Store) => analysisAbsApp(σ.lookup(x), args, σ)
       case Op(_) => compArgs(args)
       case Lam(vars, body) =>
         val C = compCall(body)
-        (s: Store) => C(s.update(vars, args.map(s.lookup(_))))
+        (σ: Store) => C(σ.update(vars, args.map(primEval(_, σ))))
     }
   }
 
   def compArgs(args: List[Expr]): CompiledAnalysis = {
     if (debug) println(s"compArg args[$args]")
     args match {
-      case Nil => (s: Store) => s
+      case Nil => (σ: Store) => σ
       case (arg@Lam(vars, body))::rest =>
         val C1 = compCall(body)
         val C2 = compArgs(rest)
-        (s: Store) => C2(C1(s))
-      case _::rest =>
-        compArgs(rest)
+        (σ: Store) => C2(C1(σ))
+      case _::rest => compArgs(rest)
     }
   }
 
   def analyze(compiled: CompiledAnalysis): Store = {
-    def iter(store: Store): Store = {
-      val newStore = compiled(store)
-      if (store == newStore) store else iter(newStore)
+    def iter(σ: Store): Store = {
+      val σ_* = compiled(σ)
+      if (σ == σ_*) σ else iter(σ_*)
     }
     iter(Store.mtStore)
   }

@@ -7,7 +7,7 @@ import sai.utils._
 object GenerateCode {
   def main(args: Array[String]) {
     StagedZeroCFATest.printSpecializedCode(Examples.example4_expr)
-    StagedIterZeroCFATest.printSpecializedCode(Examples.example4_expr)
+    //StagedIterZeroCFATest.printSpecializedCode(Examples.example4_expr)
   }
 }
 

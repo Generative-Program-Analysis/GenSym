@@ -80,7 +80,7 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
                        })
   }
   */
-  
+
   // This version uses while loop
   def analysisAbsApp(args: List[Expr], fs: Rep[ImmSet[Lam]], store: Rep[MapT]): Rep[MapT] = {
     var s = store

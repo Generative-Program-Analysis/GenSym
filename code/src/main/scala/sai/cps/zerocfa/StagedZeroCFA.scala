@@ -12,103 +12,95 @@ import sai.cps.parser._
 import sai.common._
 
 trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunctionsRecursiveExp with ImmSetOpsExp {
-  type MapT = Map[String, ImmSet[Lam]]
+  type Addr = String
+  type MapT = Map[Addr, ImmSet[Lam]]
 
-  implicit def MapTyp: Typ[MapT] = manifestTyp
+  type Ans = Rep[ImmSet[Lam]]
+  type Store = Rep[Map[Addr, ImmSet[Lam]]]
+  //TODO: The store doesn't have to be staged, the addresses are known at stage-time.
+  //      Try Store = Map[Addr, Rep[ImmSet[Lam]]]
 
-  def lift[T:Typ](lst: List[T]): Rep[List[T]] = List[T](lst.map((s) => unit[T](s)):_*)
+  implicit def StoreTyp: Typ[Store] = manifestTyp
+
+  //def lift[T:Typ](lst: List[T]): Rep[List[T]] = List[T](lst.map(lift(_)):_*)
+
   def lift[T:Typ](x: T) = unit[T](x)
 
-  def lookup(map: Rep[MapT], addr: String): Rep[ImmSet[Lam]] = {
-    map.getOrElse(addr, ImmSet[Lam]())
+  def primEval(e: Expr, σ: Store): Ans = e match {
+    case Lit(_) ⇒ ImmSet[Lam]()
+    case Var(x) ⇒ lookup(x, σ)
+    case l: Lam ⇒ ImmSet[Lam](lift(l))
   }
 
-  def lookup(map: Rep[MapT], addr: Expr): Rep[ImmSet[Lam]] = {
-    addr match {
-      case Lit(_) => ImmSet[Lam]()
-      case Var(name) => lookup(map, name)
-      case l@Lam(v, body) => ImmSet[Lam](lift(l))
-    }
+  def lookup(α: Addr, σ: Store): Ans = σ.getOrElse(α, ImmSet[Lam]())
+  def update(σ: Store, α: Rep[Addr], d: Rep[ImmSet[Lam]]): Store = {
+    val oldd = σ.getOrElse(α, ImmSet[Lam]())
+    σ ++ Map(α → (d ++ oldd))
   }
-
-  def update(map: Rep[MapT], addr: Rep[String], d: Rep[ImmSet[Lam]]): Rep[MapT] = {
-    val oldd = map.getOrElse(addr, ImmSet[Lam]())
-    map ++ Map((addr, d ++ oldd))
-  }
-
-  def update(map: Rep[MapT], addrs: Rep[List[String]], ds: List[Rep[ImmSet[Lam]]]): Rep[MapT] = {
+  def update(σ: Store, αs: Rep[List[Addr]], ds: List[Rep[ImmSet[Lam]]]): Store = {
     //if (addrs.isEmpty && ds.isEmpty) { map }
     //TODO: addrs is type Rep, if uses addrs.isEmpty we need to stage the function
-    if (ds.isEmpty) { map }
-    else {
-      val newStore = update(map, addrs.head, ds.head)
-      update(newStore, addrs.tail, ds.tail)
-    }
+    if (ds.isEmpty) σ
+    else update(update(σ, αs.head, ds.head), αs.tail, ds.tail)
   }
 
-  def analysisProgram(prog: Expr, store: Rep[MapT]): Rep[MapT] = analysisCall(prog, store)
+  def analysisProgram(prog: Expr, σ: Store): Store = analysisCall(prog, σ)
 
-  def analysisCall(call: Expr, store: Rep[MapT]): Rep[MapT] = {
-    call match {
-      case App(f, args) => analysisApp(f, args, analysisArg(args, store))
-      case Letrec(bds, body) =>
-        val newStore = update(store, lift(bds.map(_.name)), bds.map((b) => ImmSet(lift(b.value.asInstanceOf[Lam]))))
-        val newNewStore = analysisArg(bds.map(_.value), newStore)
-        analysisCall(body, newNewStore)
-    }
+  def analysisCall(call: Expr, σ: Store): Store = call match {
+    case App(f, args) ⇒ analysisApp(f, args, analysisArg(args, σ))
+    case Letrec(bds, body) ⇒
+      val σ_* = update(σ, lift(bds.map(_.name)), bds.map((b) => ImmSet(lift(b.value.asInstanceOf[Lam]))))
+      val σ_** = analysisArg(bds.map(_.value), σ_*)
+      analysisCall(body, σ_**)
   }
 
-  def analysisApp(f: Expr, args: List[Expr], store: Rep[MapT]): Rep[MapT] = {
+  def analysisApp(f: Expr, args: List[Expr], σ: Store): Store = {
     f match {
-      case Var(name) => analysisAbsApp(args)(lookup(store, name), store)
-      case Op(_) => analysisArg(args, store)
+      case Var(x) => analysisAbsApp(args)(lookup(x, σ), σ)
+      case Op(_) => analysisArg(args, σ)
       case Lam(vars, body) =>
-        val newArgs: List[Rep[ImmSet[Lam]]] = args.map(lookup(store, _))
-        val newStore = update(store, lift(vars), newArgs)
-        analysisCall(body, newStore)
+        val new_args = args.map(primEval(_, σ))
+        val σ_* = update(σ, lift(vars), new_args)
+        analysisCall(body, σ_*)
     }
   }
 
-  def analysisAbsApp(args: List[Expr]): Rep[((ImmSet[Lam], MapT)) => MapT] = {
-    fun { (fs: Rep[ImmSet[Lam]], store: Rep[MapT]) =>
-      if (fs.isEmpty) store
+  def analysisAbsApp(args: List[Expr]): Rep[((ImmSet[Lam], MapT)) => MapT] =
+    fun { (fs: Rep[ImmSet[Lam]], σ: Store) ⇒
+      if (fs.isEmpty) σ
       else {
         val f = fs.head
         val rest = fs.tail
-        val newArgs: List[Rep[ImmSet[Lam]]] = args.map((a: Expr) => lookup(store, a))
-        val newStore = update(store, f.vars, newArgs)
-        analysisAbsApp(args)(rest, newStore)
+        val new_args = args.map(primEval(_, σ))
+        val σ_* = update(σ, f.vars, new_args)
+        analysisAbsApp(args)(rest, σ_*)
       }
     }
+
+  def analysisArg(args: List[Expr], σ: Store): Store = args match {
+    case Nil => σ
+    case arg::rest =>
+      val σ_* : Store = arg match {
+        case Lam(vars, body) => analysisCall(body, σ)
+        case _ => σ
+      }
+      analysisArg(rest, σ_*)
   }
 
-  def analysisArg(args: List[Expr], store: Rep[MapT]): Rep[MapT] = {
-    args match {
-      case Nil => store
-      case arg::rest =>
-        val newStore: Rep[MapT] = arg match {
-          case Lam(vars, body) => analysisCall(body, store)
-          case _ => store
-        }
-        analysisArg(rest, newStore)
-    }
-  }
-
-  def analysis(prog: Expr): Rep[MapT] = {
-    def iter: Rep[MapT => MapT] = fun { store =>
-      val newStore = analysisProgram(prog, store)
-      if (store == newStore) store else iter(newStore)
+  def analysis(prog: Expr): Store = {
+    def iter: Rep[MapT => MapT] = fun { σ =>
+      val σ_* = analysisProgram(prog, σ)
+      if (σ == σ_*) σ else iter(σ_*)
     }
     iter(Map[String, ImmSet[Lam]]())
   }
 }
 
-abstract class StagedZeroCFADriver extends DslDriver[Unit, Map[String, ImmSet[Lam]]] 
-  with StagedZeroCFA { q =>
+abstract class StagedZeroCFADriver extends DslDriver[Unit, Map[String, ImmSet[Lam]]] with StagedZeroCFA { q =>
   override val codegen = new DslGen with ScalaGenLamOps with ScalaGenImmSetOps with
       ScalaGenMapOps with MyScalaGenTupledFunctions with ScalaGenListOps {
-      val IR: q.type = q
-    }
+    val IR: q.type = q
+  }
 }
 
 object StagedZeroCFATest extends TutorialFunSuite {
