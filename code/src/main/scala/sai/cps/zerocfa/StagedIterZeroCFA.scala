@@ -1,42 +1,40 @@
 package sai.cps.zerocfa
 
-import scala.lms.common._
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
 import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
-
-import scala.collection.immutable.{Set => ImmSet}
 
 import sai.utils.Utils
 import sai.cps.parser._
 import sai.common._
 
-trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunctionsRecursiveExp with ImmSetOpsExp {
-  type MapT = Map[String, ImmSet[Lam]]
+trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunctionsRecursiveExp with SetOpsExp {
+  type MapT = Map[String, Set[Lam]]
 
   implicit def MapTyp: Typ[MapT] = manifestTyp
 
   def lift[T:Typ](lst: List[T]): Rep[List[T]] = List[T](lst.map((s) => unit[T](s)):_*)
   def lift[T:Typ](x: T) = unit[T](x)
 
-  def lookup(map: Rep[MapT], addr: String): Rep[ImmSet[Lam]] = {
-    map.getOrElse(addr, ImmSet[Lam]())
+  def lookup(map: Rep[MapT], addr: String): Rep[Set[Lam]] = {
+    map.getOrElse(addr, Set[Lam]())
   }
 
-  def lookup(map: Rep[MapT], addr: Expr): Rep[ImmSet[Lam]] = {
+  def lookup(map: Rep[MapT], addr: Expr): Rep[Set[Lam]] = {
     addr match {
-      case Lit(_) => ImmSet[Lam]()
+      case Lit(_) => Set[Lam]()
       case Var(name) => lookup(map, name)
-      case l@Lam(v, body) => ImmSet[Lam](lift(l))
+      case l@Lam(v, body) => Set[Lam](lift(l))
     }
   }
 
-  def update(map: Rep[MapT], addr: Rep[String], d: Rep[ImmSet[Lam]]): Rep[MapT] = {
-    val oldd = map.getOrElse(addr, ImmSet[Lam]())
+  def update(map: Rep[MapT], addr: Rep[String], d: Rep[Set[Lam]]): Rep[MapT] = {
+    val oldd = map.getOrElse(addr, Set[Lam]())
     map ++ Map((addr, d ++ oldd))
   }
 
-  def update(map: Rep[MapT], addrs: Rep[List[String]], ds: List[Rep[ImmSet[Lam]]]): Rep[MapT] = {
+  def update(map: Rep[MapT], addrs: Rep[List[String]], ds: List[Rep[Set[Lam]]]): Rep[MapT] = {
     //if (addrs.isEmpty && ds.isEmpty) { map }
     //TODO: addrs is type Rep, if uses addrs.isEmpty we need to stage the function
     if (ds.isEmpty) { map }
@@ -52,7 +50,7 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
     call match {
       case App(f, args) => analysisApp(f, args, analysisArg(args, store))
       case Letrec(bds, body) =>
-        val newStore = update(store, lift(bds.map(_.name)), bds.map((b) => ImmSet(lift(b.value.asInstanceOf[Lam]))))
+        val newStore = update(store, lift(bds.map(_.name)), bds.map((b) => Set(lift(b.value.asInstanceOf[Lam]))))
         val newNewStore = analysisArg(bds.map(_.value), newStore)
         analysisCall(body, newNewStore)
     }
@@ -63,7 +61,7 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
       case Var(name) => analysisAbsApp(args, lookup(store, name), store)
       case Op(_) => analysisArg(args, store)
       case Lam(vars, body) =>
-        val newArgs: List[Rep[ImmSet[Lam]]] = args.map(lookup(store, _))
+        val newArgs: List[Rep[Set[Lam]]] = args.map(lookup(store, _))
         val newStore = update(store, lift(vars), newArgs)
         analysisCall(body, newStore)
     }
@@ -71,10 +69,10 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
 
   // This verison uses foldLeft
   /*
-  def analysisAbsApp(args: List[Expr], fs: Rep[ImmSet[Lam]], store: Rep[MapT]): Rep[MapT] = {
+  def analysisAbsApp(args: List[Expr], fs: Rep[Set[Lam]], store: Rep[MapT]): Rep[MapT] = {
     fs.foldLeft[MapT](store)(fun {
                          (store: Rep[MapT], f: Rep[Lam]) => {
-                           val newArgs: List[Rep[ImmSet[Lam]]] = args.map((a: Expr) => lookup(store, a))
+                           val newArgs: List[Rep[Set[Lam]]] = args.map((a: Expr) => lookup(store, a))
                            update(store, f.vars, newArgs)
                          }
                        })
@@ -82,10 +80,10 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
   */
 
   // This version uses while loop
-  def analysisAbsApp(args: List[Expr], fs: Rep[ImmSet[Lam]], store: Rep[MapT]): Rep[MapT] = {
+  def analysisAbsApp(args: List[Expr], fs: Rep[Set[Lam]], store: Rep[MapT]): Rep[MapT] = {
     var s = store
     var these = fs
-    val newArgs: List[Rep[ImmSet[Lam]]] = args.map((a: Expr) => lookup(store, a))
+    val newArgs: List[Rep[Set[Lam]]] = args.map((a: Expr) => lookup(store, a))
     //TODO
     while (! readVar(these).isEmpty) {
       s = update(s, readVar(these).head.vars, newArgs)
@@ -111,13 +109,13 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
       val newStore = analysisProgram(prog, store)
       if (store == newStore) store else iter(newStore)
     }
-    iter(Map[String, ImmSet[Lam]]())
+    iter(Map[String, Set[Lam]]())
   }
 }
 
-abstract class StagedIterZeroCFADriver extends DslDriver[Unit, Map[String, ImmSet[Lam]]] 
+abstract class StagedIterZeroCFADriver extends DslDriver[Unit, Map[String, Set[Lam]]] 
   with StagedIterZeroCFA { q =>
-  override val codegen = new DslGen with ScalaGenLamOps with ScalaGenImmSetOps with
+  override val codegen = new DslGen with ScalaGenLamOps with ScalaGenSetOps with
       ScalaGenMapOps with MyScalaGenTupledFunctions with ScalaGenListOps {
       val IR: q.type = q
     }
@@ -126,9 +124,9 @@ abstract class StagedIterZeroCFADriver extends DslDriver[Unit, Map[String, ImmSe
 object StagedIterZeroCFATest extends TutorialFunSuite {
   val under = "not applicable"
 
-  def specialize(prog: Expr): DslDriver[Unit, Map[String, ImmSet[Lam]]] =
+  def specialize(prog: Expr): DslDriver[Unit, Map[String, Set[Lam]]] =
     new StagedIterZeroCFADriver {
-      def snippet(unit: Rep[Unit]): Rep[Map[String, ImmSet[Lam]]] = analysis(prog)
+      def snippet(unit: Rep[Unit]): Rep[Map[String, Set[Lam]]] = analysis(prog)
     }
 
   def printSpecializedCode(e: Expr) {

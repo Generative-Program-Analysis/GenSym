@@ -1,9 +1,10 @@
 package sai.direct.core.concrete
 
-import scala.lms.common._
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
 import scala.lms.tutorial._
 import scala.lms.internal.GenericNestedCodegen
 import scala.reflect.SourceContext
+import scala.language.implicitConversions
 
 import sai.utils._
 import sai.common._
@@ -45,7 +46,7 @@ trait ScalaGenLamOps extends GenericNestedCodegen with ScalaGenEffect {
   }
 }
 
-trait StagedCESKExp extends DslExp with LamOpsExp with ImmSetOpsExp with MapOpsExp with TupledFunctionsRecursiveExp {
+trait StagedCESKExp extends DslExp with LamOpsExp with SetOpsExp with MapOpsExp with TupledFunctionsRecursiveExp {
   def lift[T:Typ](x: T) = unit[T](x)
 
   type Addr = Int

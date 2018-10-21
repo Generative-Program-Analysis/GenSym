@@ -2,21 +2,26 @@ package sai.cps.zerocfa
 
 import sai.cps.parser._
 
+object BasicTypes {
+  type Addr = String
+  type Ans = Set[Lam]
+  type Cache = Map[Addr, Ans]
+}
+
+import BasicTypes._
+
 object SetExtractor {
   def unapplySeq[T](s: Set[T]): Option[Seq[T]] = Some(s.toSeq)
 }
 
-case class Store(map: Map[String, Set[Lam]]) {
-  def lookup(α: String): Set[Lam] = map.getOrElse(α, Set[Lam]())
-
-  def update(α: String, d: Set[Lam]): Store = {
+case class Store(map: Cache) {
+  def lookup(α: Addr): Ans = map.getOrElse(α, Set[Lam]())
+  def update(α: Addr, d: Ans): Store = {
     val oldd = map.getOrElse(α, Set[Lam]())
     Store(map ++ Map(α → (d ++ oldd)))
   }
-
-  def update(α: String, v: Lam): Store = update(α, Set(v))
-
-  def update(αs: List[String], ds: List[Set[Lam]]): Store =
+  def update(α: Addr, v: Lam): Store = update(α, Set(v))
+  def update(αs: List[Addr], ds: List[Ans]): Store =
     (αs zip ds).foldLeft (this) {
       case (σ, (α, v)) => σ.update(α, v)
     }
@@ -60,11 +65,11 @@ object ZeroCFA extends CFACommon {
   def analysisCall(call: Expr, σ: Store): Store = {
     if (debug) println(s"analysisCall call[$call]")
     call match {
+      case App(f, args) => analysisApp(f, args, analysisArgs(args, σ))
       case Letrec(bds, body) =>
         val σ_* = σ.update(bds.map(_.name), bds.map(b => Set(b.value.asInstanceOf[Lam])))
         val σ_** = analysisArgs(bds.map(_.value), σ_*)
         analysisCall(body, σ_**)
-      case App(f, args) => analysisApp(f, args, analysisArgs(args, σ))
     }
   }
 
