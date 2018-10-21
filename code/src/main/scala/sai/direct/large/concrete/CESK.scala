@@ -66,8 +66,8 @@ object BigStepCES {
             case CondBr(_, thn) => interp(thn, env, es)
             case CondProcBr(_, proc) =>
               val addr = alloc(es)
-              val param = proc match { case Lam(List(p), _) => p }
-              interp(proc, env + (param -> addr), es + (addr -> ev))
+              val Lam(List(param), body) = proc
+              interp(body, env + (param -> addr), es + (addr -> ev))
           }
       }
   }
@@ -181,5 +181,11 @@ object CESKTest {
         CondBr(IntLit(2), IntLit(104)),
         CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
       == NumV(104))
+
+    assert(BigStepCES.eval(
+      Cond(List(
+        CondBr(BoolLit(false), IntLit(103)),
+        CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
+      == NumV(7))
   }
 }

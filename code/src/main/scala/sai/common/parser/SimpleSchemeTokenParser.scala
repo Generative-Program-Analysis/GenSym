@@ -18,11 +18,11 @@ trait SchemeTokenParser extends RegexParsers {
 
   def LISTLPAREN = "'("
   def VECLPAREN = "#("
-  
-  def LAMBDA: Parser[String] = "lambda"
-  def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^][a-zA-Z0-9!$%*/:<=>?~_^.+-@]*""".r
 
-  def DEF: Parser[String] = "define"  
+  def LAMBDA: Parser[String] = "lambda"
+  def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^.+-@][a-zA-Z0-9!$%*/:<=>?~_^.+-@]*""".r
+
+  def DEF: Parser[String] = "define"
   def VOID: Parser[String] = "void"
   def BEGIN: Parser[String] = "begin"
   def SET: Parser[String] = "set!"

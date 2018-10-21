@@ -133,7 +133,7 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def testall() = {
-    val tests: List[() => Unit] = List(test1, test2)
+    val tests: List[() => Unit] = List(test1, test3)
     tests foreach { _() }
   }
 
@@ -156,7 +156,7 @@ object TestSimpleDirectLargeSchemeParser {
     assert(actual == expected)
   }
 
-  // Test 2: Test implicit 
+  // Test 2: Test implicit
   def test2() = {
     val actual = LargeSchemeParser("(add a b) (add a b)")
     val expected = Some(
@@ -164,6 +164,16 @@ object TestSimpleDirectLargeSchemeParser {
         App(Var("add"), List(Var("a"), Var("b"))),
         App(Var("add"), List(Var("a"), Var("b")))
       ))
+    )
+    assert(actual == expected)
+  }
+
+  def test3() = {
+    val actual = LargeSchemeParser("(+ (- a b) (* (/ 2 3) 4))")
+    val expected = Some(
+      App(Var("+"), List(
+        App(Var("-"), List(Var("a"), Var("b"))),
+        App(Var("*"), List(App(Var("/"), List(IntLit(2), IntLit(3))), IntLit(4)))))
     )
 
     println(actual)
