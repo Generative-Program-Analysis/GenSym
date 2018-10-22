@@ -130,7 +130,6 @@ object BigStepCES {
       interpCaseBranches(ev, branches, env, es)
 
     case App(e, param) =>
-      //TODO: @Yuxuan, support primitive operations, such as arithmetics, list and vector.
       val (ev, es) = interp(e, env, sigma)
       val (appv, es_) = interpListOfExprs(param, env, es)
       val (es__, addrs): (Store, List[Addr]) = appv.foldRight (es_, List[Addr]()) {

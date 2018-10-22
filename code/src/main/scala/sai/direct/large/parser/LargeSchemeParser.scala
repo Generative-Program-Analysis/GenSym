@@ -93,7 +93,9 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case id ~ e => Define(id, e)
   }
 
-  //TODO: (define (f arg1 arg2) body) → (define f (lambda (arg1 arg2) body))
+  implicit def definefunc: Parser[Define] = LPAREN ~> DEF ~> (LPAREN ~> IDENT.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case idents ~ e => Define(idents.head, Lam(idents.tail, e))
+  }
 
   implicit def set: Parser[Set_!] = LPAREN ~> SET ~> IDENT ~ expr <~ RPAREN ^^ {
     case id ~ e => Set_!(id, e)
@@ -108,7 +110,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case exp ~ exps => Begin(exp :: exps)
   }
 
-  implicit def imp_structure: Parser[Expr] = void | define | set | begin
+  implicit def imp_structure: Parser[Expr] = void | define | definefunc | set | begin
 
   def expr: Parser[Expr] = literals | variable | lam | lets | dispatch | imp_structure | app
 }
@@ -133,7 +135,7 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def testall() = {
-    val tests: List[() => Unit] = List(test1, test3)
+    val tests: List[() => Unit] = List(test1, test3, test4)
     tests foreach { _() }
   }
 
@@ -175,8 +177,12 @@ object TestSimpleDirectLargeSchemeParser {
         App(Var("-"), List(Var("a"), Var("b"))),
         App(Var("*"), List(App(Var("/"), List(IntLit(2), IntLit(3))), IntLit(4)))))
     )
+    assert(actual == expected)
+  }
 
-    println(actual)
+  def test4() = {
+    val actual = LargeSchemeParser("(define (f a b) (+ a b))")
+    val expected = Some(Define("f", Lam(List("a", "b"), App(Var("+"), List(Var("a"), Var("b"))))))
     assert(actual == expected)
   }
 }
