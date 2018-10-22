@@ -11,17 +11,30 @@ object GenerateCode {
   }
 }
 
+case class Timing(ts: List[Double]) {
+  val mean: Double = ts.sum/ts.size
+  val sorted_ts: List[Double] = ts.sorted
+  val ub: Double = sorted_ts.head
+  val lb: Double = sorted_ts.last
+  val perc25 = sorted_ts((sorted_ts.size / 4).toInt)
+  val perc50 = sorted_ts((sorted_ts.size / 2).toInt)
+  val perc75 = sorted_ts(((sorted_ts.size / 4) * 3).toInt)
+  val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt)
+  override def toString: String = s"Mean: ${mean}, UB: ${ub}, LB: ${lb}, 25/50/75/95: ${perc25}/${perc50}/${perc75}/${perc95}"
+}
+
 object Main {
-  def run[R](n: Int, block: => R): Double = {
-    assert(n >= 10)
-    val dropN = (n * 0.1).toInt //Drop top 10% and worest 10%
+  def run[R](n: Int, block: => R): Timing = {
+    /* warm up*/
+    //for (i <- 1 to n) block
     var tsum: List[Double] = Nil
     for (i <- 1 to n) {
       val (result, t) = Utils.time(block)
-      //if (i == 1) { println(result) }
       tsum = t::tsum
     }
-    tsum.sorted.drop(dropN).take(n - dropN*2).sum / (n - dropN*2).toDouble
+    val dropN = (0.1 * n).toInt
+    val dropTs = tsum.sorted.drop(dropN).take(n - dropN*2)
+    Timing(dropTs)
   }
 
   def verify(e: Expr) {
@@ -32,7 +45,7 @@ object Main {
 
      val ex4 = StagedZeroCFATest.specialize(e)
      ex4.precompile
-     val s3 = ex4.eval()
+     val s3 = ex4.eval(())
 
      val ex4while = StagedIterZeroCFATest.specializeAnalysis(e)
      val s4 = ex4while(Map())
@@ -43,7 +56,7 @@ object Main {
   }
 
   def compare(e: Expr) {
-    val n = 100
+    val n = 500
     /*
     val ex4fold = new SnippetEx4Fold()
     val t5 = run(n, { ex4fold() })
@@ -51,20 +64,20 @@ object Main {
      */
 
     val t1 = run(n, { ZeroCFA.analyze(e) })
-    println(s"0CFA average time: $t1")
+    println(s"0CFA time - $t1")
 
     val ex4ac = ACZeroCFA.compProgram(e)
     val t2 = run(n, { ACZeroCFA.analyze(ex4ac) })
-    println(s"0CFA AC average time: $t2")
+    println(s"0CFA AC time - $t2")
   
     val ex4 = StagedZeroCFATest.specialize(e)
     ex4.precompile
-    val t3 = run(n, { ex4.eval() })
-    println(s"0CFA Staged average time: $t3")
+    val t3 = run(n, { ex4.eval(()) })
+    println(s"0CFA Staged time - $t3")
 
     val ex4while = StagedIterZeroCFATest.specializeAnalysis(e)
     val t4 = run(n, { ex4while(Map()) })
-    println(s"0CFA Staged (while) average time: $t4")
+    println(s"0CFA Staged (while) time - $t4")
   
   }
 
