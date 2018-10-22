@@ -15,6 +15,7 @@ object CESK {
   case class ListV(l: List[Value]) extends Value with Expr
   case class VectorV(v: Vector[Value]) extends Value with Expr
   case class CloV(λ: Lam, ρ: Env) extends Value
+  case class PrimV(f: List[Value] => Value) extends Value
   case class VoidV() extends Value
 
   def alloc(σ: Store): Addr = σ.keys.size + 1
@@ -132,13 +133,17 @@ object BigStepCES {
     case App(e, param) =>
       val (ev, es) = interp(e, env, sigma)
       val (appv, es_) = interpListOfExprs(param, env, es)
-      val (es__, addrs): (Store, List[Addr]) = appv.foldRight (es_, List[Addr]()) {
-        case (v, (es, addrs)) =>
-          val addr = alloc(es)
-          (es + (addr -> v), addr::addrs)
+
+      ev match {
+        case PrimV(f) => (f(appv), es_)
+        case CloV(Lam(args, lbody), cenv) =>
+          val (es__, addrs): (Store, List[Addr]) = appv.foldRight (es_, List[Addr]()) {
+            case (v, (es, addrs)) =>
+              val addr = alloc(es)
+              (es + (addr -> v), addr::addrs)
+          }
+          interp(lbody, cenv ++ (args zip addrs), es__)
       }
-      val CloV(Lam(args, lbody), cenv) = ev
-      interp(lbody, cenv ++ (args zip addrs), es__)
     case Void() => (VoidV(), sigma)
     case Set_!(x, e) =>
       val (ev, es) = interp(e, env, sigma)
@@ -146,16 +151,48 @@ object BigStepCES {
     case Begin(l) => interpSeq(l, env, sigma)
     case Define(x: String, e: Expr) => ??? //TODO (yuxuan): Find a way to implement these imperative features
   }
-  def eval(e: Expr): (Value, Store) = interp(e, Map(), Map())
+
+  def plus = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 + v2) } })
+  def minus = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 - v2) } })
+  def mul = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 * v2) } })
+  def div = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 / v2) } })
+  def listdec = PrimV({ ListV(_) })
+  def vecdec = PrimV({ (l: List[Value]) => VectorV(Vector() ++ l) })
+  def car = PrimV({ case List(ListV(l)) => l.head })
+  def cdr = PrimV({ case List(ListV(l)) => ListV(l.tail) })
+
+  val initEnv = Map(
+    "+" -> 1,
+    "-" -> 2,
+    "*" -> 3,
+    "/" -> 4,
+    "list" -> 5,
+    "vector" -> 6,
+    "car" -> 7,
+    "cdr" -> 8
+  )
+
+  val initStore = Map(
+    1 -> plus,
+    2 -> minus,
+    3 -> mul,
+    4 -> div,
+    5 -> listdec,
+    6 -> vecdec,
+    7 -> car,
+    8 -> cdr
+  )
+
+  def eval(e: Expr): (Value, Store) = interp(e, initEnv, initStore)
 }
 
 object CESKTest {
   def main(args: Array[String]) = {
-    assert(BigStepCES.eval(IntLit(1)) == (NumV(1), Map()))
+    assert(BigStepCES.eval(IntLit(1))._1 == NumV(1))
 
     assert(BigStepCES.eval(
-      App(Lam(List("x", "y"), Var("y")), List(IntLit(3), IntLit(4))))
-      == (NumV(4), Map(1 -> NumV(4), 2 -> NumV(3))))
+      App(Lam(List("x", "y"), Var("y")), List(IntLit(3), IntLit(4))))._1
+      == NumV(4))
 
     assert(BigStepCES.eval(
       Case(
@@ -186,5 +223,16 @@ object CESKTest {
         CondBr(BoolLit(false), IntLit(103)),
         CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
       == NumV(7))
+
+    assert(BigStepCES.eval(
+      App(Var("+"), List(IntLit(2), IntLit(3))))._1 == NumV(5))
+
+    assert(BigStepCES.eval(
+      App(Var("car"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
+      == NumV(5))
+
+    assert(BigStepCES.eval(
+      App(Var("cdr"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
+      == ListV(List(NumV(6), NumV(7))))
   }
 }
