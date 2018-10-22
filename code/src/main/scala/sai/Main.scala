@@ -4,6 +4,8 @@ import sai.cps.zerocfa._
 import sai.cps.parser._
 import sai.utils._
 
+// Note: http://www.larcenists.org/benchmarksAboutR6.html
+
 object GenerateCode {
   def main(args: Array[String]) {
     StagedZeroCFATest.printSpecializedCode(Examples.example1)
@@ -16,11 +18,12 @@ case class Timing(ts: List[Double]) {
   val sorted_ts: List[Double] = ts.sorted
   val ub: Double = sorted_ts.head
   val lb: Double = sorted_ts.last
+  val perc05 = sorted_ts((sorted_ts.size / 20).toInt)
   val perc25 = sorted_ts((sorted_ts.size / 4).toInt)
   val perc50 = sorted_ts((sorted_ts.size / 2).toInt)
   val perc75 = sorted_ts(((sorted_ts.size / 4) * 3).toInt)
   val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt)
-  override def toString: String = s"Mean: ${mean}, UB: ${ub}, LB: ${lb}, 25/50/75/95: ${perc25}/${perc50}/${perc75}/${perc95}"
+  override def toString: String = s"Mean: ${mean}, 0/5/25/50/75/95/100: ${ub}/${perc05}/${perc25}/${perc50}/${perc75}/${perc95}/${lb}"
 }
 
 object Main {
@@ -32,7 +35,7 @@ object Main {
       val (result, t) = Utils.time(block)
       tsum = t::tsum
     }
-    val dropN = (0.1 * n).toInt
+    val dropN = (0.0 * n).toInt
     val dropTs = tsum.sorted.drop(dropN).take(n - dropN*2)
     Timing(dropTs)
   }
@@ -61,8 +64,7 @@ object Main {
     val ex4fold = new SnippetEx4Fold()
     val t5 = run(n, { ex4fold() })
     println(s"0CFA Staged (fold) average time: $t5")
-     */
-
+    */
     val t1 = run(n, { ZeroCFA.analyze(e) })
     println(s"0CFA time - $t1")
 
@@ -74,11 +76,10 @@ object Main {
     ex4.precompile
     val t3 = run(n, { ex4.eval(()) })
     println(s"0CFA Staged time - $t3")
-
+  
     val ex4while = StagedIterZeroCFATest.specializeAnalysis(e)
     val t4 = run(n, { ex4while(Map()) })
     println(s"0CFA Staged (while) time - $t4")
-  
   }
 
   def main(args: Array[String]) {
