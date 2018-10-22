@@ -1,9 +1,9 @@
 package sai.cps.zerocfa
 
-import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
 import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
 
 import sai.utils.Utils
 import sai.cps.parser._
@@ -113,7 +113,7 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
   }
 }
 
-abstract class StagedIterZeroCFADriver extends DslDriver[Unit, Map[String, Set[Lam]]] 
+abstract class StagedIterZeroCFADriver extends DslDriver[Map[String, Set[Lam]], Map[String, Set[Lam]]] 
   with StagedIterZeroCFA { q =>
   override val codegen = new DslGen with ScalaGenLamOps with ScalaGenSetOps with
       ScalaGenMapOps with MyScalaGenTupledFunctions with ScalaGenListOps {
@@ -124,10 +124,23 @@ abstract class StagedIterZeroCFADriver extends DslDriver[Unit, Map[String, Set[L
 object StagedIterZeroCFATest extends TutorialFunSuite {
   val under = "not applicable"
 
-  def specialize(prog: Expr): DslDriver[Unit, Map[String, Set[Lam]]] =
+  def specialize(prog: Expr): DslDriver[Map[String, Set[Lam]], Map[String, Set[Lam]]] =
     new StagedIterZeroCFADriver {
-      def snippet(unit: Rep[Unit]): Rep[Map[String, Set[Lam]]] = analysis(prog)
+      def snippet(map0: Rep[Map[String, Set[Lam]]]): Rep[Map[String, Set[Lam]]] =
+        //analyze(prog)
+        analysisProgram(prog, map0)
     }
+
+  def specializeAnalysis(prog: Expr): Map[String, Set[Lam]] => Map[String, Set[Lam]] = {
+    val code = specialize(prog); code.precompile
+    (σ0) => {
+      def iter(σ: Map[String, Set[Lam]]): Map[String, Set[Lam]] = {
+        val σ_* = code.eval(σ)
+        if (σ == σ_*) σ else iter(σ_*)
+      }
+      iter(σ0)
+    }
+  }
 
   def printSpecializedCode(e: Expr) {
     val code = specialize(e)
