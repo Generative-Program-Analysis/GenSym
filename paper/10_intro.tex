@@ -2,13 +2,21 @@
 
 \subsection{Motivation}
 
-1. we know how to stage an interpreter, intellectually it is natural to ask what would be an staged abstract interpreter,
-and how to stage an abstract interpreter, given the structural similarity of interpreters and abstract interpreters. 
-Futamura projection \cite{Futamura1999}
+1. Futamura projection \cite{Futamura1999} shows that staging an interpreter yields a compiler.
+literature on this approach, creating DSL.
+
+Recent research uncovers a systematic approach to construct abstract interpreters from concrete interpreters.
+Given the structural similarity between abstract and concrete interpreters, intellectually it is natural to 
+wonder what would be a staged abstract interpreter, and how to stage an abstract interpreter 
+having considered their functional dissimilarity.
 
 2. Multi-stage programming is widely used in high performance computation.
 Precise whole-program analysis can be very slow, how to optimize it systematically/mechanically?
-bridging the gap between designing sound analyses and implementing efficient analyses.
+bring existing high-performance computation facilities, in the form of meta-programming, into
+semantic artifacts of abstract interpretation, i.e., abstract interpreters.
+and bridging the gap between designing sound analyses and implementing efficient analyses.
+without changing the abstract interpreter, just type
+
 partial evaluation on program analyzers is not a new idea, remove the interpretive overhead of repetively 
 traversing the abstract syntax tree.
 we revisit this approach from a more recent perspective by combining general abstract interpreters
@@ -23,9 +31,11 @@ A surprising by-product of thinking about this question is to realize that we ca
 abstract interpreter on \textit{open} programs, and the free variables representing other parts of 
 the program (e.g., libraries) are dynamic input, then we obtain a modular analysis, mechanically.
 
-3. analyzing modern programs with large libraries are expensive, repetitively analyze the part of library,
-modularity as in compilers, we need to a way to create summaries of libraries so that we can reuse them,
-remove redundant analyzing of libraries.
+3. analyzing modern programs with large libraries are expensive. 
+why? 1. precise analysis usually required whole-program analysis; 2. to do wp analysis, need to 
+repetitively analyze the parts of library.
+As modularity in compilers, we need to a way to separately analyze programs, and create summaries of analyzed 
+part so that we can reuse them, remove redundant analyzing of libraries.
 
 \subsection{Contributions}
 

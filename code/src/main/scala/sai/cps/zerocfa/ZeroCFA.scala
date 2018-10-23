@@ -89,12 +89,8 @@ object ZeroCFA extends CFACommon {
     if (debug) println(s"analysisArg args[$args]")
     args match {
       case Nil => σ
-      case arg::rest =>
-        val σ_* = arg match {
-          case Lam(vars, body) => analysisCall(body, σ)
-          case _ => σ
-        }
-        analysisArgs(rest, σ_*)
+      case Lam(vars, body)::rest => analysisArgs(rest, analysisCall(body, σ))
+      case _::rest => analysisArgs(rest, σ)
     }
   }
 }

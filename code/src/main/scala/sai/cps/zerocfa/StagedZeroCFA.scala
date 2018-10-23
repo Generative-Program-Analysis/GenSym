@@ -16,6 +16,10 @@ import BasicTypes._
  0CFA AC average time: 132463.2875
  0CFA Staged (with precompiled) average time: 75982.7375
  54.6% faster than unopt, 42.6% faster than AC
+ -----------------------------------------------
+ 0CFA time - #: 500, Mean: 469726.998, 0/5/25/50/75/95/100: 126457.0/129778.0/162299.0/183759.0/387371.0/1574363.0/3.8219527E7
+ 0CFA AC time - #: 500, Mean: 163236.018, 0/5/25/50/75/95/100: 104389.0/107165.0/130640.0/146222.0/163850.0/286668.0/907706.0
+ 0CFA Staged time - #: 500, Mean: 154590.39, 0/5/25/50/75/95/100: 100771.0/102149.0/107035.0/111119.0/122820.0/174272.0/1.6202133E7
  */
 
 trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunctionsRecursiveExp with SetOpsExp {
@@ -23,8 +27,6 @@ trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunc
 
   //TODO: The store doesn't have to be staged, the addresses are known at stage-time.
   //      Try Store = Map[Addr, Rep[Set[Lam]]]
-
-  //implicit def StoreTyp: Typ[Store] = manifestTyp
 
   implicit def lift[T:Typ](lst: List[T]): Rep[List[T]] = List[T](lst.map(lift(_)):_*)
   def lift[T:Typ](x: T) = unit[T](x)
@@ -78,17 +80,17 @@ trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunc
   def analysisProgram(prog: Expr, σ: RStore): RStore = analysisCall(prog, σ)
 
   def analysisCall(call: Expr, σ: RStore): RStore = call match {
-    case App(f, args) ⇒ analysisApp(f, args, analysisArg(args, σ))
+    case App(f, args) ⇒ analysisApp(f, args, analysisArgs(args, σ))
     case Letrec(bds, body) ⇒
       val σ_* = σ.update(bds.map(_.name), bds.map(b => Set(lift(b.value.asInstanceOf[Lam]))))
-      val σ_** = analysisArg(bds.map(_.value), σ_*)
+      val σ_** = analysisArgs(bds.map(_.value), σ_*)
       analysisCall(body, σ_**)
   }
 
   def analysisApp(f: Expr, args: List[Expr], σ: RStore): RStore = f match {
     //case Var(x) => analysisAbsApp(args, σ(x), σ)
     case Var(x) => RStore(analysisAbsApp(args)(σ.map, σ(x)))
-    case Op(_) => analysisArg(args, σ)
+    case Op(_) => analysisArgs(args, σ)
     case Lam(vars, body) =>
       val σ_* = σ.update(vars, args.map(primEval(_, σ)))
       analysisCall(body, σ_*)
@@ -105,14 +107,10 @@ trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunc
       }
     }
 
-  def analysisArg(args: List[Expr], σ: RStore): RStore = args match {
+  def analysisArgs(args: List[Expr], σ: RStore): RStore = args match {
     case Nil => σ
-    case arg::rest =>
-      val σ_* = arg match {
-        case Lam(vars, body) => analysisCall(body, σ)
-        case _ => σ
-      }
-      analysisArg(rest, σ_*)
+    case Lam(vars, body)::rest => analysisArgs(rest, analysisCall(body, σ))
+    case _::rest => analysisArgs(rest, σ)
   }
 
   //Note: staging this loop function improves perforamnce.

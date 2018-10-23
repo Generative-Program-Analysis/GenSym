@@ -1,6 +1,6 @@
 \section{Case Study}
 
-\subsection{Abstract Compilation, Revisited}
+\subsection{Abstract Compilation a la Staging}
 
 \citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation as a new
 implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
@@ -20,6 +20,8 @@ In this section, we firstly review their work of closure generation,
 and reproduce their result by adding stage annotations to 0-CFA.
 Show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be understood as an instance of staged 
 abstract interpreter.
+
+Advantages: (almost?) no need to modify the analysis code; staging the store data structure
 
 (Fianally, we should briefly summarize the difference between them:
 staging vs partial evaluation; code generation; engineering effort; performance)
