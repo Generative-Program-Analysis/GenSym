@@ -77,11 +77,8 @@ object BigStepCES {
     case Nil => (false, sigma)
     case c::cs =>
       val (ev, es) = interp(c, env, sigma)
-      if (ev == v) {
-        (true, es)
-      } else {
-        interpAndCompare(v, cs, env, es)
-      }
+      if (ev == v) (true, es)
+      else interpAndCompare(v, cs, env, es)
   }
 
   def interpCaseBranches(
@@ -93,17 +90,12 @@ object BigStepCES {
     case Nil => (VoidV(), sigma)
     case e::el =>
       e.cases match {
-        case Nil =>
-          // Case is always true
+        case Nil => // Case is always true
           interp(e.thn, env, sigma)
-        case _ =>
-          // compare v with all exprs in the case
+        case _ => // compare v with all exprs in the case
           val (eq, es) = interpAndCompare(v, e.cases, env, sigma)
-          if (eq) {
-            interp(e.thn, env, es)
-          } else {
-            interpCaseBranches(v, el, env, es)
-          }
+          if (eq) interp(e.thn, env, es)
+          else interpCaseBranches(v, el, env, es)
       }
   }
 
@@ -125,14 +117,14 @@ object BigStepCES {
       val (ev, es) = interp(e, env, sigma)
       interpCaseBranches(ev, branches, env, es)
 
-    case App(e, param) =>
+    case App(e, params) =>
       val (ev, es) = interp(e, env, sigma)
-      val (appv, es_) = interpListOfExprs(param, env, es)
+      val (appvs, es_) = interpListOfExprs(params, env, es)
 
       ev match {
-        case PrimV(f) => (f(appv), es_)
+        case PrimV(f) => (f(appvs), es_)
         case CloV(Lam(args, lbody), cenv) =>
-          val (es__, addrs): (Store, List[Addr]) = appv.foldRight (es_, List[Addr]()) {
+          val (es__, addrs): (Store, List[Addr]) = appvs.foldRight (es_, List[Addr]()) {
             case (v, (es, addrs)) =>
               val addr = alloc(es)
               (es + (addr -> v), addr::addrs)
