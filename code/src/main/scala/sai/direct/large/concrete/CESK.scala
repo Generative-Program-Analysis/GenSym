@@ -54,21 +54,16 @@ object BigStepCES {
   ): (Value, Store) = branches match {
     case Nil => (VoidV(), sigma)
     case e::el =>
-      // obtain conditions
-      val cnd = e match {
-        case CondBr(cnd, _) => cnd
-        case CondProcBr(cnd, _) => cnd
-      }
-      val (ev, es) = interp(cnd, env, sigma)
-      ev match {
-        case BoolV(false) => interpCondBranches(el, env, es)
+      val (cndv, cnds) = interp(e.cnd, env, sigma)
+      cndv match {
+        case BoolV(false) => interpCondBranches(el, env, cnds)
         case _ =>
           e match {
-            case CondBr(_, thn) => interp(thn, env, es)
-            case CondProcBr(_, proc) =>
-              val addr = alloc(es)
-              val Lam(List(param), body) = proc
-              interp(body, env + (param -> addr), es + (addr -> ev))
+            case CondBr(_, thn) => interp(thn, env, cnds)
+            case CondProcBr(_, thn) =>
+              val addr = alloc(cnds)
+              val (CloV(Lam(List(param), body), env_*), thns) = interp(thn, env, cnds)
+              interp(body, env_* + (param -> addr), thns + (addr -> cndv))
           }
       }
   }

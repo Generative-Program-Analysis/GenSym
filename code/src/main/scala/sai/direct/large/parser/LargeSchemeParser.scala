@@ -67,7 +67,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   implicit def condElseBranch: Parser[CondBr] = LPAREN ~> ELSE ~> expr <~ RPAREN ^^ {
     case thn => CondBr(BoolLit(true), thn)
   }
-  implicit def condProcBranch: Parser[CondProcBr] = LPAREN ~> expr ~ (RARROW ~> lam) <~ RPAREN ^^ {
+  implicit def condProcBranch: Parser[CondProcBr] = LPAREN ~> expr ~ (RARROW ~> expr) <~ RPAREN ^^ {
     case cond ~ proc => CondProcBr(cond, proc)
   }
   implicit def condBranches = condElseBranch | condBranch | condProcBranch
