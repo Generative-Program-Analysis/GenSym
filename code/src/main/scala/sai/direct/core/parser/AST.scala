@@ -20,6 +20,7 @@ case class Lrc(bds: List[Bind], body: Expr) extends Expr {
   }
   def toApp: App = toLet.asInstanceOf[Let].toApp
 }
+case class Rec(x: String, e: Expr, body: Expr) extends Expr
 
 case class Lit(i: Int) extends Expr
 case class If0(cnd: Expr, thn: Expr, els: Expr) extends Expr

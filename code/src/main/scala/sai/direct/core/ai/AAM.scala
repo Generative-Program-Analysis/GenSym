@@ -249,6 +249,15 @@ object ADI {
           val σ_* = e2σ + (α → e2vs)
           val Ans(ret, retcache) = aeval(body, ρ_*, σ_*, e2τ, e2cache_*)
           Ans(ret, retcache.outUpdate(config, ret))
+        case Rec(x, f, e) ⇒
+          val α = allocBind(x, τ_*)
+          val ρ_* = ρ + (x → α)
+          val σ_* = σ + (α → ℙ())
+          val Ans(fvss, fcache) = aeval(f, ρ_*, σ_*, τ_*, cache_*)
+          val (VS(fvs, fτ, fσ), fcache_*) = choices[VS](fvss, fcache)
+          val σ_** = fσ + (α → fvs)
+          val Ans(evss, ecache) = aeval(e, ρ_*, σ_**, fτ, fcache_*)
+          Ans(evss, ecache.outUpdate(config, evss))
         case Void() ⇒
           val vs = ℙ(VS(ℙ(), τ_*, σ))
           Ans(vs, cache_*.outUpdate(config, vs))
@@ -267,7 +276,7 @@ object ADI {
           val Ans(evss, ecache) = aeval(e, ρ, σ, τ_*, cache_*)
           val (VS(_, eτ, eσ), ecache_*) = choices[VS](evss, ecache)
           val Ans(bgv, bgcache) = aeval(Begin(es), ρ, eσ, eτ, ecache_*)
-          //TODO: is there unnecessary cache update for imtermediate config?
+          //FIXME: is there unnecessary cache update for imtermediate config?
           Ans(bgv, bgcache.outUpdate(config, bgv))
         case AOp(op, e1, e2) ⇒
           val Ans(e1vss, e1cache) = aeval(e1, ρ, σ, τ_*, cache_*)

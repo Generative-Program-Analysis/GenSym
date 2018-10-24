@@ -23,8 +23,16 @@ trait CoreSchemeParserTrait extends SchemeTokenParser {
     case id ~ e ~ body => Let(id, e, body).toApp
   }
 
+  implicit def rec: Parser[Rec] = LPAREN ~> REC ~> (LPAREN ~> (LPAREN ~> IDENT ~ expr <~ RPAREN) <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case id ~ e ~ body => Rec(id, e, body)
+  }
+
   implicit def letrec: Parser[App] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
     case binds ~ body => Lrc(binds, body).toLet.asInstanceOf[Let].toApp
+  }
+
+  implicit def letrec_ori: Parser[Lrc] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ expr <~ RPAREN ^^ {
+    case binds ~ body => Lrc(binds, body)
   }
 
   implicit def lit: Parser[Lit] = INT10 ^^ { Lit(_) }
@@ -37,7 +45,7 @@ trait CoreSchemeParserTrait extends SchemeTokenParser {
     case op ~ e1 ~ e2 => AOp(Symbol(op), e1, e2)
   }
 
-  def expr: Parser[Expr] = lit | aop | app | if0 | lam | let | letrec | variable
+  def expr: Parser[Expr] = lit | aop | app | if0 | lam | let | letrec | variable | rec
 }
 
 object CoreSchemeParser extends CoreSchemeParserTrait {
@@ -71,8 +79,27 @@ object TestCoreSchemeParser {
     assert("(+ 1 2)".read[AOp] == Some(AOp('+, Lit(1), Lit(2))))
     assert("(+ 1 2)".read[Expr] == Some(AOp('+, Lit(1), Lit(2))))
 
+    val fact5rec = "(rec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 5))"
+    assert(fact5rec.read[Expr].get ==
+             Rec("fact",
+                 Lam("n",If0(Var("n"),
+                           Lit(1),
+                           AOp('*,
+                               Var("n"),
+                               App(Var("fact"),
+                                   AOp('-,Var("n"),Lit(1)))))),
+                 App(Var("fact"),Lit(5))))
+
     val fact5 = "(letrec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 5))"
     assert(fact5.read[Expr].get ==
+             App(Lam("fact",
+                     Begin(List(Set_!("fact",
+                                      Lam("n", If0(Var("n"),
+                                                   Lit(1),
+                                                   AOp('*,Var("n"),App(Var("fact"),AOp('-,Var("n"),Lit(1))))))),
+                                App(Var("fact"),Lit(5))))),
+                 Void()))
+    assert(fact5.read[Lrc].get ==
              Lrc(List(Bind("fact",
                            Lam("n",If0(Var("n"),
                                        Lit(1),

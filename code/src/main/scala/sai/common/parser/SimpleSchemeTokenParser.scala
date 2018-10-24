@@ -35,6 +35,7 @@ trait SchemeTokenParser extends RegexParsers {
   def CASE: Parser[String] = "case"
 
   def LET: Parser[String] = "let"
+  def REC: Parser[String] = "rec"
   def LETSTAR: Parser[String] = "let*"
   def LETREC: Parser[String] = "letrec"
 
