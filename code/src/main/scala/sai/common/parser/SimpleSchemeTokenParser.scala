@@ -20,7 +20,7 @@ trait SchemeTokenParser extends RegexParsers {
   def VECLPAREN = "#("
 
   def LAMBDA: Parser[String] = "lambda"
-  def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^.+-@][a-zA-Z0-9!$%*/:<=>?~_^.+-@]*""".r
+  def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^.+\-@][a-zA-Z0-9!$%*/:<=>?~_^.+\-@]*""".r
 
   def DEF: Parser[String] = "define"
   def VOID: Parser[String] = "void"
