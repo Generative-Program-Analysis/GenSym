@@ -327,6 +327,11 @@ object AbsIntTest {
     val fact100 = "(letrec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 100))".read[Expr].get
     println(fact100)
     println(ADI.analyze(fact100).mkString("\n"))
+    println("————————————————————————————————————")
+
+    val fact5rec = "(rec ([fact (lambda (n) (if0 n 1 (* n (fact (- n 1)))))]) (fact 5))".read[Expr].get
+    println(fact5rec)
+    println(ADI.analyze(fact5rec).mkString("\n"))
   }
 }
 

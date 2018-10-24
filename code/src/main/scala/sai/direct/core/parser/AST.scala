@@ -15,6 +15,7 @@ case class Let(x: String, e: Expr, body: Expr) extends Expr {
   def toApp: App = App(Lam(x, body), e)
 }
 case class Lrc(bds: List[Bind], body: Expr) extends Expr {
+  require(bds.nonEmpty)
   def toLet: Expr = bds.foldRight[Expr](Begin(bds.map(_.toSet) ++ List(body))) {
     case (Bind(x, e), body) ⇒ Let(x, Void(), body)
   }
