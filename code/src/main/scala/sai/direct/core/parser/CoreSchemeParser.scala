@@ -72,8 +72,16 @@ object TestCoreSchemeParser {
 
   def main(args: Array[String]) = {
     assert("1".read[Var] == None)
+    assert("@".read[Var] == Some(Var("@")))
+    assert("?".read[Var] == Some(Var("?")))
+    assert("!".read[Var] == Some(Var("!")))
+    assert("empty?".read[Var] == Some(Var("empty?")))
+
     assert("a".read[Lit] == None)
     assert("2".read[Lit] == Some(Lit(2)))
+    assert("00000".read[Lit] == Some(Lit(0)))
+    assert("000002".read[Lit] == Some(Lit(2)))
+
     assert("(if0 a b c)".read[If0] == Some(If0(Var("a"), Var("b"), Var("c"))))
     assert("(if0 1 2 3)".read[If0] == Some(If0(Lit(1), Lit(2), Lit(3))))
     assert("(+ 1 2)".read[AOp] == Some(AOp('+, Lit(1), Lit(2))))
