@@ -266,8 +266,9 @@ object ADI {
         case Begin(e::es) ⇒
           val Ans(evss, ecache) = aeval(e, ρ, σ, τ_*, cache_*)
           val (VS(_, eτ, eσ), ecache_*) = choices[VS](evss, ecache)
-          aeval(Begin(es), ρ, eσ, eτ, ecache_*)
-          //TODO: update the cache
+          val Ans(bgv, bgcache) = aeval(Begin(es), ρ, eσ, eτ, ecache_*)
+          //TODO: is there unnecessary cache update for imtermediate config?
+          Ans(bgv, bgcache.outUpdate(config, bgv))
         case AOp(op, e1, e2) ⇒
           val Ans(e1vss, e1cache) = aeval(e1, ρ, σ, τ_*, cache_*)
           val (VS(e1vs, e1τ, e1σ), e1cache_*) = choices[VS](e1vss, e1cache)
@@ -297,7 +298,7 @@ object ADI {
   }
 }
 
-object SSAAMTest {
+object AbsIntTest {
   import sai.common.parser.Read._
   import sai.direct.core.parser.CoreSchemeParser._
 
