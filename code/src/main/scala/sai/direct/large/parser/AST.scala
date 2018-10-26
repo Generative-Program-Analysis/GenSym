@@ -2,7 +2,7 @@ package sai.direct.large.parser
 
 trait Expr
 
-case class Symbol(x: String) extends Expr
+case class Sym(x: String) extends Expr
 case class Var(x: String) extends Expr
 case class App(e1: Expr, param: List[Expr]) extends Expr
 case class Lam(param: List[String], body: Expr) extends Expr
@@ -57,7 +57,7 @@ object PrintExpr {
   }
 
   def exprToString(e: Expr): String = e match {
-    case Symbol(x) => "'" + x
+    case Sym(x) => "'" + x
     case Var(x) => x
     case App(x, l) =>
       "(" + exprToString(x) +

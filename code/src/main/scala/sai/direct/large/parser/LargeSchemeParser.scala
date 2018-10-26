@@ -6,8 +6,8 @@ import sai.common.parser._
 trait LargeSchemeParserTrait extends SchemeTokenParser {
   implicit def variable: Parser[Var] = IDENT ^^ { Var(_) }
 
-  implicit def symbol: Parser[Symbol] = SYMBOL ^^ {
-    case word => Symbol(word.tail)
+  implicit def symbol: Parser[Sym] = SYMBOL ^^ {
+    case word => Sym(word.tail)
   }
 
   implicit def app: Parser[App] = LPAREN ~> expr ~ expr.* <~ RPAREN ^^ {
@@ -144,7 +144,7 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def test0() = {
-    assert(LargeSchemeParser("'xxxx") == Some(Symbol("xxxx")))
+    assert(LargeSchemeParser("'xxxx") == Some(Sym("xxxx")))
   }
 
   // Test 1: Letrec to set!
@@ -204,7 +204,7 @@ object TestSimpleDirectLargeSchemeParser {
     val expected = Some(Cond(List(
       CondBr(App(Var("positive?"),List(IntLit(-5))),App(Var("error"),List(IntLit(1)))),
       CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List(IntLit(2)))),
-      CondBr(App(Var("positive?"),List(IntLit(5))),Symbol("here")))))
+      CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here")))))
     assert(actual == expected)
   }
 }
