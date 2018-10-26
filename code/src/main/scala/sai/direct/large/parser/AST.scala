@@ -43,37 +43,30 @@ case class Define(x: String, e: Expr) extends Expr
 
 object SExpPrinter {
   def exprToString(e: Expr): String = e match {
-    case Sym(x) => "'" + x
     case Var(x) => x
-    case App(x, l) =>
-      "(" + exprToString(x) +
-      (l match {
-        case Nil => ""
-        case _ => " " + l.map(exprToString).mkString(" ")
-      }) + ")"
-
-    case Lam(params, body) =>
-      "(lambda (" + params.mkString(" ") + ") " + exprToString(body) + ")"
-    case IntLit(x) => x.toString
-    case BoolLit(x) => if (x) "#t" else "#f"
-    case CharLit(x) => "#" + x
-    case If(c, t, e) =>
-      "(if " + exprToString(c) + " " + exprToString(t) + " " + exprToString(e) + ")"
-    case Void() => "void"
-    case Set_!(x, e) => "(set! " + x + " " + exprToString(e) + ")"
-    case Begin(es) => "(begin " + es.map(exprToString).mkString(" ") + ")"
+    case Void() => "void" //FIXME: `(void)` or `void`? because `void` is just a function, not producing a void value.
+    case Sym(x) => "'" + x
+    case CharLit(x)   => "#\\" + x
+    case IntLit(x)    => x.toString
+    case BoolLit(x)   => if (x) "#t" else "#f"
+    case Set_!(x, e)  => "(set! " + x + " " + exprToString(e) + ")"
     case Define(x, e) => "(define " + x + " " + exprToString(e) + ")"
+    case App(x, l)    => "(" + (x::l).map(exprToString).mkString(" ") + ")"
+    case Begin(es)    => "(begin " + es.map(exprToString).mkString(" ") + ")"
+    case If(c, t, e)  => "(if " + (c::t::e::Nil).map(exprToString).mkString(" ") + ")"
+    case Lam(params, body) => "(lambda (" + params.mkString(" ") + ") " + exprToString(body) + ")"
   }
 
-  def apply(e: Expr): Unit = {
-    println(exprToString(e))
-  }
+  def apply(e: Expr): Unit = println(exprToString(e))
 
   def main(args: Array[String]) = {
-    SExpPrinter(
-      App(Lam(List("x", "y"), App(Var("+"), List(Var("x"), Var("y")))),
-        List(IntLit(1), IntLit(3))))
+    assert(SExpPrinter.exprToString(CharLit('a')) == "#\\a")
 
-    SExpPrinter(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t"))))
+    assert(SExpPrinter.exprToString(App(Lam(List("x", "y"), 
+      App(Var("+"), List(Var("x"), Var("y")))), List(IntLit(1), IntLit(3)))) ==
+      "((lambda (x y) (+ x y)) 1 3)")
+
+    assert(SExpPrinter.exprToString(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t")))) ==
+      "(if #f a (lambda (t) t))")
   }
 }
