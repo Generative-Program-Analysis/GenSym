@@ -14,9 +14,10 @@ object CESK {
   case class BoolV(b: Boolean) extends Value with Expr
   case class ListV(l: List[Value]) extends Value with Expr
   case class VectorV(v: Vector[Value]) extends Value with Expr
-  case class CloV(λ: Lam, ρ: Env) extends Value
-  case class PrimV(f: List[Value] => Value) extends Value
-  case class VoidV() extends Value
+  case class CloV(λ: Lam, ρ: Env) extends Value with Expr
+  case class PrimV(f: List[Value] => Value) extends Value with Expr
+  case class VoidV() extends Value with Expr
+  case class SymbolV(s: String) extends Value with Expr
 
   def alloc(σ: Store): Addr = σ.keys.size + 1
 }
@@ -100,6 +101,7 @@ object BigStepCES {
   }
 
   def interp(e: Expr, env: Env, sigma: Store): (Value, Store) = e match {
+    case Symbol(x) => (SymbolV(x), sigma)
     case IntLit(x) => (NumV(x), sigma)
     case BoolLit(x) => (BoolV(x), sigma)
     case CharLit(x) => (CharV(x), sigma)
