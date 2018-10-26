@@ -66,16 +66,16 @@ object LargeSchemeASTDesugar {
 object TestLargeSchemeDesugar {
   def main(args: Array[String]) = {
     assert(LargeSchemeASTDesugar(IntLit(1)) == IntLit(1))
-    PrintExpr(LargeSchemeASTDesugar(
+    SExpPrinter(LargeSchemeASTDesugar(
       Begin(List(Define("x", IntLit(2)), Set_!("x", IntLit(3)), Var("x")))))
-    PrintExpr(LargeSchemeASTDesugar(
+    SExpPrinter(LargeSchemeASTDesugar(
       Cond(List(
         CondBr(
           App(Var("positive?"),List(IntLit(-5))),
           App(Var("error"),List())),
         CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List())),
         CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here"))))))
-    PrintExpr(LargeSchemeASTDesugar(
+    SExpPrinter(LargeSchemeASTDesugar(
       Case(IntLit(3), List(
         CaseBranch(List(IntLit(3), IntLit(4), IntLit(5)), BoolLit(true)),
         CaseBranch(List(App(Lam(List(), IntLit(7)), List()), IntLit(6)), BoolLit(false))))))

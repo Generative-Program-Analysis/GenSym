@@ -41,21 +41,7 @@ case class Set_!(x: String, e: Expr) extends Expr
 case class Begin(es: List[Expr]) extends Expr
 case class Define(x: String, e: Expr) extends Expr
 
-object PrintExpr {
-
-  def concatList(l: List[Expr]): String = l match {
-    case Nil => ""
-    case x :: Nil => exprToString(x)
-    case x :: xs =>
-      exprToString(x) + " " + concatList(xs)
-  }
-
-  def concatStrings(l: List[String], delimiter: String): String = l match {
-    case Nil => ""
-    case x :: Nil => x
-    case x :: xs => x + delimiter + concatStrings(xs, delimiter)
-  }
-
+object SExpPrinter {
   def exprToString(e: Expr): String = e match {
     case Sym(x) => "'" + x
     case Var(x) => x
@@ -63,11 +49,11 @@ object PrintExpr {
       "(" + exprToString(x) +
       (l match {
         case Nil => ""
-        case _ => " " + concatList(l)
+        case _ => " " + l.map(exprToString).mkString(" ")
       }) + ")"
 
     case Lam(params, body) =>
-      "(lambda (" + concatStrings(params, " ") + ") " + exprToString(body) + ")"
+      "(lambda (" + params.mkString(" ") + ") " + exprToString(body) + ")"
     case IntLit(x) => x.toString
     case BoolLit(x) => if (x) "#t" else "#f"
     case CharLit(x) => "#" + x
@@ -75,7 +61,7 @@ object PrintExpr {
       "(if " + exprToString(c) + " " + exprToString(t) + " " + exprToString(e) + ")"
     case Void() => "void"
     case Set_!(x, e) => "(set! " + x + " " + exprToString(e) + ")"
-    case Begin(es) => "(begin " + concatStrings(es map exprToString, " ") + ")"
+    case Begin(es) => "(begin " + es.map(exprToString).mkString(" ") + ")"
     case Define(x, e) => "(define " + x + " " + exprToString(e) + ")"
   }
 
@@ -84,10 +70,10 @@ object PrintExpr {
   }
 
   def main(args: Array[String]) = {
-    PrintExpr(
+    SExpPrinter(
       App(Lam(List("x", "y"), App(Var("+"), List(Var("x"), Var("y")))),
         List(IntLit(1), IntLit(3))))
 
-    PrintExpr(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t"))))
+    SExpPrinter(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t"))))
   }
 }
