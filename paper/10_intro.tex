@@ -10,26 +10,35 @@ Given the structural similarity between abstract and concrete interpreters, inte
 wonder what would be a staged abstract interpreter, and how to stage an abstract interpreter 
 having considered their functional dissimilarity.
 
-2. Multi-stage programming is widely used in high performance computation.
-Precise whole-program analysis can be very slow, how to optimize it systematically/mechanically?
-bring existing high-performance computation facilities, in the form of meta-programming, into
-semantic artifacts of abstract interpretation, i.e., abstract interpreters.
-and bridging the gap between designing sound analyses and implementing efficient analyses.
-without changing the abstract interpreter, just type
-
-partial evaluation on program analyzers is not a new idea, remove the interpretive overhead of repetively 
-traversing the abstract syntax tree.
-we revisit this approach from a more recent perspective by combining general abstract interpreters
-and multi-stage programming.
+(TODO: more intro on MSP)
+Multi-stage programming has been widely used to improve the performance in many applications, 
+such as optimizing compilers and domain-specific languages \cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:journals/tecs/SujeethBLRCOO14, DBLP:conf/gpce/SujeethGBLROO13, DBLP:journals/jfp/CaretteKS09},
+numerical computation \cite{PGL-038, DBLP:conf/pepm/AktemurKKS13}, 
+generic programming \cite{DBLP:journals/pacmpl/Yallop17}, 
+data processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14, DBLP:conf/popl/KiselyovBPS17}, 
+query compilation of databases \cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18},
+and etc.
+Specializing static analyses by partial evaluation had been emerged in 90s \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587}, 
+and indeed it is able to effectively remove the interpretive overhead of repetively traversing the abstract syntax tree.
+However, it is still worth to revisit the idea from a modern perspective based on meta-programming for general abstract interpreters.
+Practically, precise whole-program analyses can be very slow due to the inherent complexity of the algorithm and the large scale of the analyzed programs (TODO: cite); 
+particularly, we would like a systematic approach to optimize program analyzers and meanwhile minimally modifying the analyzer programs.
+In this paper, we show how to achieve this goal by bring existing high-performance computing facilities, in the form of generative
+programming, to abstract interpretation semantic artifacts, i.e., abstract interpreters. We use LMS framework, which enables
+multi-stage programming by just changing the types of ther analyzer program, and we thus bridge the gap between designing sound 
+program analyses and implementing efficient analyzers.
 
 When staging a concrete interpreter, the programmers need to distinguish static and dynamic values
---- the given program is classified as static because it is known at compile-time, and the inputs to that program 
-are dynamic. However, when staging an abstract interpreter, this distinction not exists anymore. 
-Because an abstract interpreter treats all the inputs as some form of abstract values, which usually are 
-top elements in their abstract domains and are statically known. Then what is the point of staging?
+--- the given program to be executed by the interpreter is classified as static because it is known 
+at compile-time, and the inputs to that program are dynamic. 
+However, when staging an abstract interpreter, this distinction not exists anymore.  
+Because the abstract interpreter instantiates all the inputs as some form of abstract values, which are usually
+top elements in their abstract domains and are statically known. 
+Then what is the point of staging if no such distinction?
 A surprising by-product of thinking about this question is to realize that we can apply the staged
 abstract interpreter on \textit{open} programs, and the free variables representing other parts of 
 the program (e.g., libraries) are dynamic input, then we obtain a modular analysis, mechanically.
+(TODO: unknown context)
 
 3. analyzing modern programs with large libraries are expensive. 
 why? 1. precise analysis usually required whole-program analysis; 2. to do wp analysis, need to 
@@ -41,20 +50,24 @@ part so that we can reuse them, remove redundant analyzing of libraries.
 
 \begin{itemize}
 \item Starting from a definitional abstract interpreter for a higher-order functional language,
-  we show how to turn it into a staged abstract interpreter by adding stage annotations with 
+  which the syntax and semantics are described in section \ref{bg_lang},
+  we show how to turn it into a staged abstract interpreter by adding stage annotations within
   Lightweight Modular Staging (LMS) framework, a library-based approach to code generation. 
-  We later extend the abstract interpreter to support
-  imperative language features, such as states, loops and exceptions.
-\item We elaborate the idea that the staged abstract interpreter not only improves the performance 
-  but also the scalability, which are two major issues in static analysis, if we apply it on open
+  We later extend the staged abstract interpreter to support imperative language features 
+  (section \ref{cases_imp}), such as states, loops and exceptions.
+\item We elaborate the idea that the staged abstract interpreter not only improves the \textit{performance}
+  but also the \textit{scalability}, which are two major issues in static analysis, if we apply it on open
   programs. TODO: more on this point.
-\item To evaluate the generality of the idea, we conduct several case studies. 
-  First we revisited Abstract Compilation (TODO: cite), which is a closure generation technique applied 
-  on 0-CFA and can be understood as an instance of staged abstract interpreter. 
-  Second, we demonstrate existing control-flow analysis techniques, such as context/flow/path-sensitive 
-  analysis and store-widening can be integrated with staged abstract interpreters.
-  Finally, we show it also can be applied to numerical analysis in an imperative language.
+\item To evaluate the generality and applicability of the idea, we conduct three case studies in section \ref{cases_study}. 
+  First we revisited Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
+  technique applied on 0-CFA. We show that it can be understood and easily implemented as an instance of 
+  staged abstract interpreter. 
+  Second, we demonstrate sophisticated control-flow analysis techniques, such as adaptive context/flow/path-sensitive 
+  analysis and store-widening can be integrated with staged abstract interpreters without losing any precision.
+  Finally, we show that in an imperative language, the idea can be applied onto an abstract interpreter with
+  an abstract domain that performs numerical analysis.
   (Optional: taint/information flow analysis?)
-\item We also emprically evaluate the performance improved of staged abstract interpreter with the
-  unstaged version and other existing optimizations on benchmarks.
+\item We also emprically evaluate the performance improved by staging an big-step abstract interpreter 
+  for control-flow analysis. We compare against with the unstaged version, a small-step version (unstaged), 
+  and an optimizing small-step version.
 \end{itemize}
