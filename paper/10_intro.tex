@@ -6,20 +6,20 @@ Futamura projection \cite{Futamura1999, futamura1971partial} reveals the close r
 compilers and interpreters, 
 and the first Futamura projection specifically shows that specializing an interpreter yields a compiler. 
 Multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} is a popular way to write 
-multi-stage programs that specializes and generates programs; the generated program then can be executed 
-at next stage. 
+generic programs that and generates specialized and efficient programs; 
+the generated program then can be executed at next stage. 
 As an approach to partial evaluation, MSP requires explicit staging annotations from the implementers.
-The staging annotations controls which part should be specialized, and are considered as manual 
-binding-time analysis. On the other hand, partial evaluation \cite{DBLP:books/daglib/0072559} can be 
-considered as a two-stage (static or dynamic) instance of MSP but analyzing binding-time automatically.
+The staging annotations controls which part of the program should be specialized, and are considered 
+as manual binding-time analysis. On the other hand, partial evaluation \cite{DBLP:books/daglib/0072559} 
+can be considered as a two-stage (static or dynamic) instance of MSP but analyzing binding-time automatically.
 
 Recent research uncovers a systematic approach to construct sound abstract interpreters 
 from concrete interpreters \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Given the structural similarity between concrete and abstract interpreters, intellectually 
 it is natural to wonder what would be a staged abstract interpreter, and how to effectively 
 specializing an abstract interpreter having considered their functional dissimilarity. 
-In this paper, we study the application of the first Futamura projection on abstract interpreters, 
-and the approach to construct efficient abstract interpreters by applying multi-stage programming.
+This paper studies the application of the first Futamura projection on abstract interpreters, 
+and the approach to construct efficient abstract interpreters by multi-stage programming.
 
 Multi-stage programming has been widely used to improve the performance in many domains, 
 such as optimizing compilers and domain-specific languages \cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:conf/snapl/RompfBLSJAOSKDK15,
@@ -40,13 +40,21 @@ can be very slow due to the inherent complexity of the algorithm and the large s
 of the analyzed programs \cite{toman_et_al:LIPIcs:2017:7121} \todo{other cite?};
 particularly, we would like a systematic approach to optimize program 
 analyzers and meanwhile minimally modifying the analyzer programs.
-In the present paper, we show how to achieve this goal by bring existing 
+In the present work, we show how to achieve this goal by bring existing 
 high-performance computing facilities, in the style of multi-stage generative
 programming, to abstract interpretation semantic artifacts, i.e., 
-abstract interpreters. We show the use LMS framework, that enables 
-multi-stage programming by just changing the types of the analyzer 
-program, and we thus bridge the gap between designing sound program 
-analyses and implementing efficient program analyzers.
+abstract interpreters. 
+
+The slogan of multi-stage programming is "abstraction without regret". 
+Of course, all interpreters are metalinguistic abstractions, but some interpreters are more abstract 
+than others \todo{maybe rephrase}. 
+One technical challenge is to deal with the non-determinisism, fixed-point and abstract domains in 
+abstract interpreters when staging is introduced. The abstract interpreter, as a semantic artifact, 
+should be written in a style that is easy for people to communicate the formulation, but also be friendly
+to specialization and generating efficient code. \todo{We discuss the form of abstract interpreters for staging}
+We show the use LMS framework, that enables multi-stage programming by just changing the types 
+of the analyzer program, and we thus bridge the gap between designing sound program analyses 
+and implementing efficient program analyzers.
 
 When staging a concrete interpreter, the programmers need to distinguish 
 static and dynamic values --- the given program to be executed by the 
@@ -60,17 +68,21 @@ A surprising by-product of thinking about this question is to realize that
 we can apply the staged abstract interpreter on \textit{open} programs, and
 the free variables representing other parts of the program (e.g., libraries) 
 are dynamic input, therefore we obtain a modular analysis through staging, 
-mechanically. \todo{unknown context}
+mechanically. 
 
-The use of staged abstract interpreters on open programs 
-This addresses 
-3. analyzing modern programs with large libraries are expensive. 
-why? 1. precise analysis usually required whole-program analysis; 2. to do whole-program analysis, need to 
-repetitively analyze the parts of library.
-As modularity in compilers, we need to a way to separately analyze programs, and create summaries of analyzed 
-part so that we can reuse them, remove redundant analyzing of libraries.
+The use of staged abstract interpreters on open programs improves the scalability.
+One challenge in static analysis of modern software is that the programs are usually 
+shipped with large library code, for example, it is observed that analyzing a simple
+"Hello World" program in Java depends on additional 3,000 classes in the library \cite{DBLP:conf/oopsla/KulkarniMZN16}.
+Soundly and precisely analyzing these libraries sometimes are expensive and unnecessary repeatedly.
+When applying the staged abstract interpreter on libraries, we leave the unknown 
+calling context as dynamic value and generate partial analyzing result which is 
+repsented as a residul program. The partial analyzing result can be resued and composed
+with the analyzing result of application code later. \todo{we show this can be applied 
+to context/path/flow-sensitive even with different sensitivity parameters.}
+It has been observed library code requires less precision \todo{cite}.
 
-Many optimization of static analysis are ad-hoc.
+% Many optimization of static analysis are ad-hoc.
 
 \subsection{Contributions}
 
