@@ -4,15 +4,15 @@ by specializing the interpreter to a given program.
 In this paper, we study \textit{abstract} interpreters combined with multi-stage programming, i.e., the 
 staged abstract interpreters. 
 By staging the abstract interpreter with respect to a program, we obtain a specialized analysis that runs faster.
-By appying the staged abstract interpreter with \textit{open} programs and considering the free variables as dynamic inputs, 
+By applying the staged abstract interpreter with \textit{open} programs and considering the free variables as dynamic inputs, 
 we obtain a modular analysis that generates sound partial analysis results which can be composed 
 and reused later without losing precision, though the original abstract interpreter is a whole-program 
 analysis algorithm.
 
 Using the idea of staged abstract interpreters, we show several case studies, including 
-\citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation of Shiver's 0-CFA, pushdown
+\citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation of  0-CFA, pushdown
 control-flow analysis with context/path/flow-sensitivity and store-widening, and a numerical
-analysis on a imperative language.
+analysis on an imperative language.
 
 We also empirically evaluate the improvement of performance on benchmark programs for a subset of Scheme.
 The result shows ...
