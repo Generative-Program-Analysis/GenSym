@@ -28,16 +28,35 @@ staging vs partial evaluation; code generation; engineering effort; performance)
 
 (Specific -> General vs General vs Specific)
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \subsection{Control Flow Analysis}
 
-context/path/flow-sensitive
+\subsubsection{context/path/flow-sensitive}
 
-store-widening
+\subsubsection{Store-widening}
+
+\subsubsection{Mixed Sensitivity}
 
 using different $k$ for $k$-CFA
 
-\subsection{Scale to Imperative Languages} \label{cases_imp}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Numerical Analysis in Imperative Languages} \label{cases_imp}
+
+Beyond control-flow analysis, staging data structures used in the abstract interpreter, such as abstract domain.
+It has been shown that specializing abstract domains with respect to the structure of analyzed program significantly 
+improves the performance: a recent example is online decomposition of polyhedra \cite{DBLP:conf/popl/SinghPV17}.
+In this section, we present a similar idea for interval abstract domain using an \textit{offline} fashion by staging.
+
+\subsubsection{Scaling to Imperative Languages}
 
 Assignments, Loops, Exceptions
 
-Options: Numerical Analysis, Data-flow analysis, taint analysis
+\subsubsection{Specializing Interval Domains}
+
+Intervals, Numerical Analysis
+
+Options: Data-flow analysis, taint analysis
