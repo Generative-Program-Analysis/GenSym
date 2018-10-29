@@ -24,6 +24,15 @@ trait SADI extends DslExp with MapOpsExp with SetOpsExp with TupledFunctionsRecu
   //TODO: staged store
   //TODO: Expr toString function
 
+  case class Store[K: Typ, V: Typ : Lattice](map: Rep[Map[K, V]]) {
+    def apply(k: Rep[K]): Rep[V] = map(k)
+    def getOrElse(k: Rep[K], dft: Rep[V]): Rep[V] = map.getOrElse(k, dft)
+    def update(k: Rep[K], v: Rep[V]): Store[K, V] = {
+      ???
+    }
+  }
+
+  /*
   case class Store[K, V <% Lattice[V]](map: Rep[Map[K, V]]) {
     def apply(k: K): V = map(k)
     def getOrElse(k: K, dft: V): V = map.getOrElse(k, dft)
@@ -36,6 +45,9 @@ trait SADI extends DslExp with MapOpsExp with SetOpsExp with TupledFunctionsRecu
     def +(kv: (K, V)): Store[K, V] = update(kv._1, kv._2)
     def ⊔(that: Store[K, V]): Store[K, V] = Store[K, V](this.map ⊔ that.map)
   }
+   */
+
+  /*
 
   type ℙ[A] = Rep[Set[A]]
   type Store = Store
@@ -111,4 +123,5 @@ trait SADI extends DslExp with MapOpsExp with SetOpsExp with TupledFunctionsRecu
     }
     iter(Cache.cache0).vss
   }
+  */
 }

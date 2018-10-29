@@ -40,7 +40,7 @@ object AAM {
   case class KIf0(thn: Expr, els: Expr, ρ: Env, κ: KAddr) extends Kont
   case class KAOp(op: Symbol, vs: List[AbsValue], es: List[Expr], ρ: Env, κ: KAddr) extends Kont
 
-  case class Store[K, V <% Lattice[V]](map: Map[K, V]) {
+  case class Store[K, V: Lattice](map: Map[K, V]) {
     def apply(k: K): V = map(k)
     def getOrElse(k: K, dft: V): V = map.getOrElse(k, dft)
     def update(k: K, d: V): Store[K, V] = {
