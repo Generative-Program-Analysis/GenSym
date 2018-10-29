@@ -15,3 +15,9 @@ monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17}.
 \subsection{Multi-Stage Programming}
 
 general idea; LMS framework in scala. MetaOCaml?
+
+Other notable implementations of MSP exist in ML family, for examples, MetaML \cite{DBLP:conf/pepm/TahaS97} 
+and MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
+Compared with the LMS approach in Scala, MetaML/MetaOCaml use term-level annotations such as brackets, 
+escape, and run. Notwithstanding, we use LMS in this paper, the idea of staging an abstract interpreter
+still applies with other MSP implementations.

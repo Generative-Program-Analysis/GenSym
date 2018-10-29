@@ -4,30 +4,30 @@
 abstract compilation \cite{Boucher:1996:ACN:647473.727587}.
 \citeauthor{Boucher:1996:ACN:647473.727587} presented abstract compilation
 techniques as an efficient implementation of the monovariant flow analysis 
-\textit{0}-CFA for programs in continuation-passing style. The key idea is to 
-reduce the interpretation overhead on traversing the syntax tree by partial evaluation.
-Specifically, they proposed two kinds of abstract compilers to achieve this. 
+(\textit{0}-CFA) for programs written in continuation-passing style. 
+The key idea is to remove the interpretation overhead on traversing the syntax 
+tree by partial evaluation. Specifically, they proposed two similar kinds of abstract compilation techniques.
 The first one is to generate specialized analysis as a textual program, then 
-can be loaded and executed by \texttt{eval} or similar mechanisms. The second 
-one is using closure as a representation of specialized analysis. 
-A closure is a function that remembers the environment where it defined. So the 
-abstract compiler generates higer-order functions on-the-fly rather than textual 
-program, then the functions can be applied immediately in a higher-order host language.
+can be loaded and executed by \texttt{eval} or other similar mechanisms. 
+The second one is using closure, i.e., a function that remembers its environment, 
+as a representation of specialized analysis. 
+So compiling the analysis generates higer-order functions on-the-fly with respect to the analyzed program,
+then the generated closure can be applied immediately in the higher-order host language.
 
-\citeauthor{Johnson:2013:OAA:2500365.2500604} in their work also adopt the 
-idea closure generation for optimizing small-step abstracting abstract machine
-\cite{Johnson:2013:OAA:2500365.2500604}. The source program is firstly compiled
-to intermediate form called "abstract bytecode", which are actually higher-order functions, 
-and then executed on a abstract abstract machine.
+\citeauthor{Johnson:2013:OAA:2500365.2500604} adapt the idea closure generation 
+for optimizing small-step abstract interpreter in state-transition style \cite{Johnson:2013:OAA:2500365.2500604}.
+The analyzed program is firstly compiled to a intermediate representation called 
+"abstract bytecode", which are actually higher-order functions, and then be executed 
+on a abstract abstract machine for that IR.
 
-Abstract compilation for analyzing logic programs\cite{DBLP:conf/flops/AmatoS01}
+%\citeauthor{DBLP:conf/flops/AmatoS01} apply abstract compilation for non par-sharing and freeness analysis in logic programs \cite{DBLP:conf/flops/AmatoS01}.
 
 \citeauthor{damian1999partial}'s work on partial evaluation for program analysis \cite{damian1999partial}.
 
 \citeauthor{amtoft1999partial}'s work on partial evaluation for constraint-based 
 control flow analysis \cite{amtoft1999partial}.
 
-\citeauthor{hardekopf2011flow} apply staging to flow-sensitive pointer analysis \cite{hardekopf2011flow}. 
+\citeauthor{DBLP:conf/cgo/HardekopfL11} apply staging to flow-sensitive pointer analysis \cite{DBLP:conf/cgo/HardekopfL11}. 
 They firstly stage the program code to obtain a sparse representation, then conduct
 the flow-sensitive analysis. 
 
@@ -44,8 +44,11 @@ Polyhedra, online decomposition
 Cousot \& Cousot \cite{DBLP:conf/cc/CousotC02}, 
 Compositional shape analysis \cite{DBLP:conf/popl/CalcagnoDOY09}
 
-\textbf{Multi-Stage Programming}.
+\textbf{Meta-Programming}.
 
-Collapsing Towers of Interpreters\cite{Amin:2017:CTI:3177123.3158140}
+Partial evaluation. 
+Reflexive language \cite{DBLP:conf/gpce/Asai14}
+Collapsing Towers of Interpreters \cite{Amin:2017:CTI:3177123.3158140}
 
-TODO: compare to other staging approach (e.g., MetaOCaml)
+Multi-stage programming. MetaML, MetaOCaml, Mint, LMS
+
