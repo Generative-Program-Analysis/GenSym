@@ -4,42 +4,56 @@
 
 \citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation as a new
 implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
-Their work is esentially a partial evaluated CE (\textit{Control-Environment}) abstract
-interpreter written in a big-step semantics for programs written in continuation-passing style.
-The analysis it can perform is a monovariant control flow analysis, sepcifically, Shiver's original
-formulation of 0-CFA \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007}.
-After the partial evaluation on input program, the \textit{control} part of abstract interpreter
-is disappeared, instead, the compiled analysis is a closure (higher-order function) and
-only takes an environment as argument,
-and the overhead of traversing the abstract syntax tree of source program also has been eliminated.
-Since the target language is written a continuation-passing style, so there is
-no explict evaluation context component when constructing the abstract interpreter
-(rather than a CEK machine).
+The idea is inspired by partial evaluation and similar with the presented paper -- the program can be known 
+at compile-time therefore the overhead if interpretation can be eliminated. The compiled analysis
+can be represented by text or closures (higher-order functions).
+Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} show how to compile a monovariant control-flow 
+analysis \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007} 
+for continuation-passing style (CPS) programs. Since the analyzed program is in CPS, the analyzer 
+is essentially a big-step CE (\textit{Control-Environment}) abstract interpreter.
+After specializing the analyzer with respect to the input program, the \textit{control} part of 
+abstract interpreter is eliminated, instead, the compiled analysis is a closure which takes an 
+environment as argument. Therefore the overhead of traversing the abstract syntax tree of input 
+program also has been eliminated.
 
-In this section, we firstly review their work of closure generation,
-and reproduce their result by adding stage annotations to 0-CFA.
-Show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be understood as an instance of staged 
-abstract interpreter.
+In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be 
+understood and implemented as an instance of staging abstract interpreters.
+We firstly revisit abstract compilation in the style of closure generation,
+and then reproduce their result by adding stage annotations to the unstaged 0-CFA algorithm.
+The generated program of our approach improves approximately the same extent of speed (roughly a factor of 2),
+but without changing a single line of the analyzer program (with the use of LMS), 
+while closure generation requires more engineering effort, such as a whole-program 
+conversion on the analyzer. Moreover, our approach is able to not only remove the interpretive
+overhead, but also specialize the data structures used in the analysis, for example, the store
+that maps variables to sets of lambda.
 
-Advantages: (almost?) no need to modify the analysis code; staging the store data structure
+\subsubsection{Closure Generation}
 
-(Fianally, we should briefly summarize the difference between them:
-staging vs partial evaluation; code generation; engineering effort; performance)
+\subsubsection{Staged 0-CFA}
 
-(Specific -> General vs General vs Specific)
+\subsubsection{Specializing the Data Structure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\subsection{Control Flow Analysis}
+\subsection{Control-flow Analysis}
 
-\subsubsection{context/path/flow-sensitive}
+The target language we presented in section \ref{bg_lang} is essentially a higher-order functional language.
+One fundamental analysis task for functional programs is the control-flow analysis, i,e., determining
+which functions will possibly be applied at each call-site. 
+Though, in the previous section, we discussed abstraction compilation and staging on a monovariant 
+control-flow analysis for programs written in continuation-passing style; 
+in this section, based on the staged abstract interpreter we presented in section \ref{sai}, 
+we further discuss staging control-flow analysis for direct style languages in depth, 
+especially polyvariant analyses.
 
-\subsubsection{Store-widening}
+\subsubsection{Context/Path/Flow-Sensitivity}
 
 \subsubsection{Mixed Sensitivity}
 
 using different $k$ for $k$-CFA
+
+\subsubsection{Store-widening}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

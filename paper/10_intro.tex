@@ -29,7 +29,7 @@ generic programming \cite{DBLP:journals/pacmpl/Yallop17},
 data processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14, DBLP:conf/popl/KiselyovBPS17}, 
 query compilation in databases \cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18},
 and etc.
-Likewise, specializing static analyses by partial evaluation had been emerged in 90s 
+Likewise, specializing static analyses by partial evaluation had been emerged in 1990s 
 \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587, ashley:practical}, 
 and indeed it is able to effectively remove the interpretive overhead of 
 repeatedly traversing the abstract syntax tree. However, it is still worth 
@@ -46,7 +46,7 @@ programming, to abstract interpretation semantic artifacts, i.e.,
 abstract interpreters. 
 
 The slogan of multi-stage programming is "abstraction without regret". 
-Of course, all interpreters are metalinguistic abstractions, but some interpreters are more abstract 
+Of course, all interpreters are metalinguistic abstractions, but some interpreters are more "abstract"
 than others \todo{maybe rephrase}. 
 One technical challenge is to deal with the non-determinisism, fixed-point iterations and abstract 
 domains in abstract interpreters when staging is introduced. The abstract interpreter, as a semantic artifact, 
@@ -95,10 +95,10 @@ staged polymorphism, decide when to compile an analysis.
   Lightweight Modular Staging (LMS) framework, a library-based approach to code generation. 
   We later extend the staged abstract interpreter to support imperative language features 
   (section \ref{cases_imp}), such as states, loops and exceptions.
-\item We elaborate the idea that the staged abstract interpreter not only improves the \textit{performance}
+\item We elaborate the idea that the staged abstract interpreter not only improves the \textit{efficiency}
   but also the \textit{scalability}, which are two major issues in static analysis, if we apply it on open
   programs. \todo{more on this point.}
-\item To evaluate the generality and applicability of the idea, we conduct three case studies in section \ref{cases_study}. 
+\item To demonstrate the feasibility and applicability of the proposed approach, we conduct three case studies in section \ref{cases_study}. 
   First we revisited Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
   technique applied on 0-CFA. We show that it can be understood and easily implemented as an instance of 
   staged abstract interpreter. 
