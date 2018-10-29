@@ -16,8 +16,8 @@ can be considered as a two-stage (static or dynamic) instance of MSP but analyzi
 Recent research uncovers a systematic approach to construct sound abstract interpreters 
 from concrete interpreters \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Given the structural similarity between concrete and abstract interpreters, intellectually 
-it is natural to wonder what would be a staged abstract interpreter, and how to effectively 
-specializing an abstract interpreter having considered their functional dissimilarity. 
+it is natural to raise the question whether it is possible to stage an abstract interpreter, and how 
+to effectively specialize an abstract interpreter having considered their functional dissimilarity. 
 This paper studies the application of the first Futamura projection on abstract interpreters, 
 and the approach to construct efficient abstract interpreters by multi-stage programming.
 
@@ -48,8 +48,8 @@ abstract interpreters.
 The slogan of multi-stage programming is "abstraction without regret". 
 Of course, all interpreters are metalinguistic abstractions, but some interpreters are more abstract 
 than others \todo{maybe rephrase}. 
-One technical challenge is to deal with the non-determinisism, fixed-point and abstract domains in 
-abstract interpreters when staging is introduced. The abstract interpreter, as a semantic artifact, 
+One technical challenge is to deal with the non-determinisism, fixed-point iterations and abstract 
+domains in abstract interpreters when staging is introduced. The abstract interpreter, as a semantic artifact, 
 should be written in a style that is easy for people to communicate the formulation, but also be friendly
 to specialization and generating efficient code. \todo{We discuss the form of abstract interpreters for staging}
 We show the use LMS framework, that enables multi-stage programming by just changing the types 
@@ -72,16 +72,18 @@ mechanically.
 
 The use of staged abstract interpreters on open programs improves the scalability.
 One challenge in static analysis of modern software is that the programs are usually 
-shipped with large library code, for example, it is observed that analyzing a simple
+shipped with large library code, for example, it has been shown that analyzing a simple
 "Hello World" program in Java depends on additional 3,000 classes in the library \cite{DBLP:conf/oopsla/KulkarniMZN16}.
 Soundly and precisely analyzing these libraries sometimes are expensive and unnecessary repeatedly.
 When applying the staged abstract interpreter on libraries, we leave the unknown 
 calling context as dynamic value and generate partial analyzing result which is 
 repsented as a residul program. The partial analyzing result can be resued and composed
-with the analyzing result of application code later. \todo{we show this can be applied 
-to context/path/flow-sensitive even with different sensitivity parameters.}
-It has been observed library code requires less precision \todo{cite}.
+with the analyzing result of application code when available later. 
+It has been observed that partially applying context-sensitivity on selected portion of the program could
+improve the precision and efficiency \cite{zipper2018, Kastrinis:2013:HCP:2491956.2462191}. 
+We show that staging abstract interpreters as an approach to effectively implement hybird context-sensitivity\todo{}.
 
+staged polymorphism, decide when to compile an analysis.  
 % Many optimization of static analysis are ad-hoc.
 
 \subsection{Contributions}
@@ -105,7 +107,7 @@ It has been observed library code requires less precision \todo{cite}.
   Finally, we show that in an imperative language, the idea can be applied onto an abstract interpreter with
   an abstract domain that performs numerical analysis.
   (Optional: taint/information flow analysis?)
-\item We also empirically evaluate the performance improved by staging an big-step abstract interpreter 
+\item We also empirically evaluate the speed improved by staging an big-step abstract interpreter 
   for control-flow analysis. We compare against with the unstaged version, a small-step version (unstaged), 
   and an optimizing small-step version.
 \end{itemize}
