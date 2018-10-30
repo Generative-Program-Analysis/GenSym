@@ -4,8 +4,9 @@ import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
+import scala.language.implicitConversions
 
-trait MapOps extends Base with Variables with SetOps {
+trait MapOps extends Variables with SetOps {
   implicit def mapTyp[K:Typ, V:Typ]: Typ[Map[K,V]]
 
   object Map {
@@ -31,7 +32,13 @@ trait MapOps extends Base with Variables with SetOps {
 
     def keySet()(implicit pos: SourceContext) = map_keyset(m)
 
-    def foldLeft[B:Typ](z: Rep[B])(f: Rep[(B, (K,V)) => B])(implicit pos: SourceContext) = map_foldleft(m, z, f)
+    def foldLeft[B:Typ](z: Rep[B])(f: (Rep[B], (Rep[K],Rep[V])) => Rep[B])(implicit pos: SourceContext) = map_foldleft(m, z, f)
+
+    def foreach(f: (Rep[K], Rep[V]) => Rep[Unit])(implicit pos: SourceContext) = map_foreach(m, f)
+
+    def filter(f: (Rep[K], Rep[V]) => Rep[Boolean])(implicit pos: SourceContext) = map_filter(m, f)
+
+    //TODO: for yield
   }
 
   def map_apply[K:Typ,V:Typ](m: Rep[Map[K,V]], k: Rep[K])(implicit pos: SourceContext): Rep[V]
@@ -52,7 +59,11 @@ trait MapOps extends Base with Variables with SetOps {
 
   def map_keyset[K:Typ,V:Typ](m: Rep[Map[K,V]])(implicit pos: SourceContext): Rep[Set[K]]
 
-  def map_foldleft[K:Typ,V:Typ,B:Typ](m: Rep[Map[K,V]], z: Rep[B], f: Rep[(B, (K,V)) => B])(implicit pos: SourceContext): Rep[B]
+  def map_foldleft[K:Typ,V:Typ,B:Typ](m: Rep[Map[K,V]], z: Rep[B], f: (Rep[B], (Rep[K],Rep[V])) => Rep[B])(implicit pos: SourceContext): Rep[B]
+
+  def map_foreach[K:Typ,V:Typ](m: Rep[Map[K,V]], block: (Rep[K], Rep[V])=>Rep[Unit])(implicit pos: SourceContext): Rep[Unit]
+
+  def map_filter[K:Typ,V:Typ](m: Rep[Map[K,V]], block: (Rep[K], Rep[V])=>Rep[Boolean])(implicit pos: SourceContext): Rep[Map[K,V]]
 }
 
 trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsExp with SetOpsExp {
@@ -61,6 +72,8 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     implicit val ManifestTyp(v) = typ[V]
     manifestTyp
   }
+
+  //TODO: syms, boundSyms, symsFreq, mirror
 
   case class MapApply[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K]) extends Def[V]
 
@@ -80,7 +93,12 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 
   case class MapKeySet[K:Typ,V:Typ](m: Exp[Map[K,V]]) extends Def[Set[K]]
 
-  case class MapFoldLeft[K:Typ,V:Typ,B:Typ](m: Exp[Map[K,V]], z: Exp[B], f: Exp[(B, (K,V)) => B])(implicit pos: SourceContext) extends Def[B]
+  case class MapFoldLeft[K:Typ,V:Typ,B:Typ](m: Exp[Map[K,V]], z: Exp[B], 
+    acc: Sym[B], k: Sym[K], v: Sym[V], block: Block[B])(implicit pos: SourceContext) extends Def[B]
+
+  case class MapForeach[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Sym[K], v: Sym[V], block: Block[Unit]) extends Def[Unit]
+
+  case class MapFilter[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Sym[K], v: Sym[V], block: Block[Boolean]) extends Def[Map[K,V]]
 
   def map_apply[K:Typ,V:Typ](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = MapApply(m, k)
 
@@ -101,7 +119,27 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 
   def map_keyset[K:Typ,V:Typ](m: Exp[Map[K,V]])(implicit pos: SourceContext) = MapKeySet(m)
 
-  def map_foldleft[K:Typ,V:Typ,B:Typ](m: Exp[Map[K,V]], z: Exp[B], f: Exp[(B, (K,V)) => B])(implicit pos: SourceContext) = MapFoldLeft(m, z, f)
+  def map_foldleft[K:Typ,V:Typ,B:Typ](m: Exp[Map[K,V]], z: Exp[B], f: (Exp[B],(Exp[K],Exp[V])) => Exp[B])(implicit pos: SourceContext) = {
+    val acc = fresh[B]
+    val k = fresh[K]
+    val v = fresh[V]
+    val b = reifyEffects(f(acc, (k, v)))
+    reflectEffect(MapFoldLeft(m, z, acc, k, v, b), summarizeEffects(b).star)
+  }
+
+  def map_foreach[K:Typ,V:Typ](m: Exp[Map[K,V]], f: (Exp[K], Exp[V])=>Exp[Unit])(implicit pos: SourceContext) = {
+    val k = fresh[K]
+    val v = fresh[V]
+    val b = reifyEffects(f(k, v))
+    reflectEffect(MapForeach(m, k, v, b), summarizeEffects(b).star)
+  }
+
+  def map_filter[K:Typ,V:Typ](m: Exp[Map[K,V]], f: (Exp[K], Exp[V])=>Exp[Boolean])(implicit pos: SourceContext) = {
+    val k = fresh[K]
+    val v = fresh[V]
+    val b = reifyEffects(f(k, v))
+    reflectEffect(MapFilter(m, k, v, b), summarizeEffects(b).star)
+  }
 }
 
 trait BaseGenMapOps extends GenericNestedCodegen {
@@ -123,7 +161,21 @@ trait ScalaGenMapOps extends BaseGenMapOps with ScalaGenEffect with ScalaGenSetO
     case MapConcat(m1, m2) => emitValDef(sym, src"$m1 ++ $m2")
     case MapEqual(m1, m2) => emitValDef(sym, src"$m1 == $m2")
     case MapKeySet(m) => emitValDef(sym, src"$m.keySet")
-    case MapFoldLeft(m, z, f) => emitValDef(sym, src"$m.foldLeft($z)($f)")
+    case MapFoldLeft(m, z, acc, k, v, blk) => 
+      gen"""val $sym = $m.foldLeft ($z) { case ($acc, ($k, $v)) =>
+            |${nestedBlock(blk)}
+            |$blk
+            |}"""
+    case MapForeach(m, k, v, blk) =>
+      gen"""val $sym = $m.foreach { case ($k, $v) =>
+            |${nestedBlock(blk)}
+            |$blk
+            |}"""
+    case MapFilter(m, k, v, blk) =>
+      gen"""val $sym = $m.filter { case ($k, $v) =>
+            |${nestedBlock(blk)}
+            |$blk
+            |}"""
     case _ => super.emitNode(sym, rhs)
   }
 }

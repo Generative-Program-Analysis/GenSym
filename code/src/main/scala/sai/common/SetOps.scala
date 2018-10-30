@@ -24,7 +24,7 @@ trait SetOps extends Base with Variables {
     def intersect(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_intersect(s, s1)
     def union(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_union(s, s1)
     def subsetOf(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_subsetof(s, s1)
-    def foldLeft[B:Typ](z: Rep[B])(f: Rep[((B, A)) => B])(implicit pos: SourceContext) = set_foldLeft(s, z, f)
+    def foldLeft[B:Typ](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = set_foldLeft(s, z, f)
   }
 
   def set_new[A:Typ](xs: Seq[Rep[A]])(implicit pos: SourceContext): Rep[Set[A]]
@@ -43,7 +43,7 @@ trait SetOps extends Base with Variables {
 
   def set_subsetof[A:Typ](s1: Rep[Set[A]], s2: Rep[Set[A]])(implicit pos: SourceContext): Rep[Boolean]
 
-  def set_foldLeft[A:Typ,B:Typ](s: Rep[Set[A]], z: Rep[B], f: Rep[((B, A)) => B])(implicit pos: SourceContext): Rep[B]
+  def set_foldLeft[A:Typ,B:Typ](s: Rep[Set[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
 }
 
 trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp {
@@ -51,6 +51,8 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
     implicit val ManifestTyp(m) = typ[T]
     manifestTyp
   }
+
+  //TODO: syms, boundSyms, symsFreq, mirror
 
   case class SetNew[A:Typ](xs: Seq[Exp[A]], mA: Typ[A]) extends Def[Set[A]]
 
@@ -68,7 +70,7 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
 
   case class SetSubsetOf[A:Typ](s1: Exp[Set[A]], s2: Exp[Set[A]]) extends Def[Boolean]
 
-  case class SetFoldLeft[A:Typ,B:Typ](s: Exp[Set[A]], z: Exp[B], f: Exp[((B, A)) => B]) extends Def[B]
+  case class SetFoldLeft[A:Typ,B:Typ](s: Exp[Set[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
 
   def set_new[A:Typ](xs: Seq[Exp[A]])(implicit pos: SourceContext) = SetNew(xs, typ[A])
 
@@ -86,8 +88,12 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
 
   def set_subsetof[A:Typ](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetSubsetOf(s1, s2)
 
-  def set_foldLeft[A:Typ,B:Typ](s: Exp[Set[A]], z: Exp[B], f: Exp[((B, A)) => B])(implicit pos: SourceContext) =
-    SetFoldLeft(s, z, f)
+  def set_foldLeft[A:Typ,B:Typ](s: Exp[Set[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = {
+    val acc = fresh[B]
+    val x = fresh[A]
+    val b = reifyEffects(f(acc, x))
+    reflectEffect(SetFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
+  }
 }
 
 trait BaseGenSetOps extends GenericNestedCodegen {
@@ -108,7 +114,11 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
     case SetIntersect(s1, s2) => emitValDef(sym, src"$s1.intersect($s2)")
     case SetUnion(s1, s2) => emitValDef(sym, src"$s1.union($s2)")
     case SetSubsetOf(s1, s2) => emitValDef(sym, src"$s1.subsetOf($s2)")
-    case SetFoldLeft(s, z, f) => emitValDef(sym, src"$s.foldLeft($z)($f)")
+    case SetFoldLeft(s, z, acc, x, blk) => 
+      gen"""val $sym = $s.foldLeft ($z) { case ($acc, $x) =>
+            |${nestedBlock(blk)}
+            |$blk
+            |}"""
     case _ => super.emitNode(sym, rhs)
   }
 }

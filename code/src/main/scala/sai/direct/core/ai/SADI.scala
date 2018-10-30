@@ -16,6 +16,39 @@ import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
 trait SADI extends DslExp with MapOpsExp with SetOpsExp with TupledFunctionsRecursiveExp {
   import AAM._
 
+  trait RepLattice[A] extends GenericLattice[A, Rep]
+  object RepLattice {
+    def apply[L](implicit l: RepLattice[L]): RepLattice[L] = l
+  }
+  implicit class RepLatticeOps[L: RepLattice](l: Rep[L]) {
+    lazy val bot: Rep[L] = RepLattice[L].bot
+    lazy val top: Rep[L] = RepLattice[L].top
+    def ⊑(that: Rep[L]): Rep[Boolean] = RepLattice[L].⊑(l, that)
+    def ⊔(that: Rep[L]): Rep[L] = RepLattice[L].⊔(l, that)
+    def ⊓(that: Rep[L]): Rep[L] = RepLattice[L].⊓(l, that)
+  }
+  implicit def RepSetLattice[T:Typ]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
+    lazy val bot: Rep[Set[T]] = Set[T]()
+    lazy val top: Rep[Set[T]] = throw new RuntimeException("No representation of top power set")
+    def ⊑(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Boolean] = l1 subsetOf l2
+    def ⊔(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 union l2
+    def ⊓(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 intersect l2
+  }
+  implicit def RepMapLattice[K:Typ, V:Typ:RepLattice]: RepLattice[Map[K, V]] = new RepLattice[Map[K, V]] {
+    lazy val bot: Rep[Map[K, V]] = Map[K, V]()
+    lazy val top: Rep[Map[K, V]] = throw new RuntimeException("No representation of top map")
+    def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = {
+      m1.foreach { case (k,v) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
+      true
+    }
+    def ⊔(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
+      m2.foldLeft (m1) { case (m, (k, v)) ⇒ m + ((k, m.getOrElse(k, v.bot) ⊔ v)) }
+    def ⊓(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
+      (m1.keySet intersect m2.keySet).foldLeft (Map[K, V]())
+        { case (m_*, k) ⇒ m_* + ((k, m1(k) ⊓ m2(k))) }
+  }
+
+  //implicit def lift[T:Typ](st: Set[T]): Rep[Set[T]] = Set[T](st.map(lift(_)):_*)
   def lift[T:Typ](x: T) = unit[T](x)
 
   //TODO: structural type of Rep

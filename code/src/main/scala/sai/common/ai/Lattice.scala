@@ -1,6 +1,7 @@
 package sai.common.ai
 
 import scala.math._
+import scala.language.higherKinds
 import scala.language.implicitConversions
 
 object DisUnion {
@@ -11,16 +12,20 @@ object DisUnion {
 }
 
 object Lattice {
-  trait Lattice[L] {
-    val bot: L
-    val top: L
-    def ⊑(l1: L, l2: L): Boolean
-    def ⊔(l1: L, l2: L): L
-    def ⊓(l1: L, l2: L): L
+  trait GenericLattice[E, R[_]] {
+    val bot: R[E]
+    val top: R[E]
+    def ⊑(l1: R[E], l2: R[E]): R[Boolean]
+    def ⊔(l1: R[E], l2: R[E]): R[E]
+    def ⊓(l1: R[E], l2: R[E]): R[E]
   }
+
+  type NoRep[A] = A
+  trait Lattice[A] extends GenericLattice[A, NoRep]
   object Lattice {
     def apply[L](implicit l: Lattice[L]): Lattice[L] = l
   }
+
   implicit class LatticeOps[L: Lattice](l: L) {
     lazy val bot: L = Lattice[L].bot
     lazy val top: L = Lattice[L].top
@@ -29,7 +34,7 @@ object Lattice {
     def ⊓(that: L): L = Lattice[L].⊓(l, that)
   }
 
-  implicit def PowerSetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
+  implicit def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
     lazy val bot: Set[T] = Set[T]()
     lazy val top: Set[T] = throw new RuntimeException("No representation of top power set")
     def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf l2
@@ -49,7 +54,7 @@ object Lattice {
     lazy val bot: Map[K, V] = Map[K, V]()
     lazy val top: Map[K, V] = throw new RuntimeException("No representation of top map")
     def ⊑(m1: Map[K, V], m2: Map[K, V]): Boolean = {
-      for ((k, v) ← m1) { if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
+      m1.foreach { case (k,v) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
       true
     }
     def ⊔(m1: Map[K, V], m2: Map[K, V]): Map[K, V] =
@@ -114,8 +119,10 @@ object Lattice {
     val m2 = Map(1 → s3, 4 → s4)
     println(m1 ⊔ m2)
     println(m1 ⊓ m2)
+    assert(Map(1 → Set(1,2,3), 2 → Set(2,3,4)) ⊑ Map(1 → Set(1,2,3,4), 2 → Set(2,3,4,5)))
+    assert(!(Map(1 → Set(1,2,3), 2 → Set(2,3,4)) ⊑ Map(1 → Set(1,3,4), 2 → Set(2,3,4,5))))
 
-    // Test signs as lattices
+    // FIXME: Test signs as lattices
     //assert(!(Sign.top ⊑ Sign.zero))
     //assert(!(Sign.zero ⊑ Sign.bot))
     //assert(Sign.zero ⊔ Sign.pos == Sign.top)
