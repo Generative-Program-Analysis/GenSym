@@ -1,6 +1,6 @@
 package sai.direct.core.concrete
 
-import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps => _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 import scala.lms.tutorial._
 import scala.lms.internal.GenericNestedCodegen
 import scala.reflect.SourceContext

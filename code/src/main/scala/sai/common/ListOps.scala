@@ -4,7 +4,6 @@ import java.io.PrintWriter
 import scala.lms.internal.GenericNestedCodegen
 import scala.reflect.SourceContext
 import scala.lms.common._
-import scala.language.implicitConversions
 
 trait ListOps extends Variables {
 

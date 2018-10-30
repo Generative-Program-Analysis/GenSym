@@ -3,7 +3,7 @@ package sai.cps.zerocfa
 import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
-import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 import sai.utils.Utils
 import sai.cps.parser._
@@ -113,12 +113,10 @@ trait StagedIterZeroCFA extends DslExp with LamOpsExp with MapOpsExp with Tupled
   }
 }
 
-abstract class StagedIterZeroCFADriver extends DslDriver[Map[String, Set[Lam]], Map[String, Set[Lam]]] 
-  with StagedIterZeroCFA { q =>
-  override val codegen = new DslGen with ScalaGenLamOps with ScalaGenSetOps with
-      ScalaGenMapOps with MyScalaGenTupledFunctions with ScalaGenListOps {
-      val IR: q.type = q
-    }
+abstract class StagedIterZeroCFADriver extends DslDriver[Map[String, Set[Lam]], Map[String, Set[Lam]]] with StagedIterZeroCFA { q =>
+  override val codegen = new DslGen with ScalaGenLamOps with ScalaGenSetOps with ScalaGenMapOps with MyScalaGenTupledFunctions with ScalaGenListOps {
+    val IR: q.type = q
+  }
 }
 
 object StagedIterZeroCFATest extends TutorialFunSuite {
