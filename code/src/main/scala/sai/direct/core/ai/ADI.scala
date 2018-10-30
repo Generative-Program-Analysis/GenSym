@@ -11,6 +11,7 @@ object ADI {
   import AAM._
 
   case class Config(e: Expr, ρ: Env, σ: BStore, τ: Time) {
+    val k: Int = 0
     def tick: Time = (e :: τ) take k
   }
 

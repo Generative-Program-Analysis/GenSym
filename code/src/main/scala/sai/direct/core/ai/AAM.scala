@@ -13,19 +13,19 @@ object AAM {
   val ℙ = Set
   type ℙ[T] = Set[T]
 
-  type Var = String
+  type Id = String
   type Time = List[Control]
 
   trait BAddr
   case class IAddr(i: Int) extends BAddr
-  case class CtxBAddr(x: Var, time: Time) extends BAddr
+  case class CtxBAddr(x: Id, time: Time) extends BAddr
 
   trait KAddr
   case class CtxKAddr(callsite: Expr, time: Time) extends KAddr
   case class P4FKAddr(callsite: Expr, tgtEnv: Env) extends KAddr
   case object HaltAddr extends KAddr
 
-  type Env = Map[Var, BAddr]
+  type Env = Map[Id, BAddr]
 
   trait AbsValue
   case class  CloV(λ: Lam, ρ: Env) extends AbsValue
@@ -43,9 +43,9 @@ object AAM {
   case class Store[K, V: Lattice](map: Map[K, V]) {
     def apply(k: K): V = map(k)
     def getOrElse(k: K, dft: V): V = map.getOrElse(k, dft)
-    def update(k: K, d: V): Store[K, V] = {
-      val oldd = map.getOrElse(k, d.bot)
-      Store[K, V](map + (k → (oldd ⊔ d)))
+    def update(k: K, v: V): Store[K, V] = {
+      val oldv = map.getOrElse(k, v.bot)
+      Store[K, V](map + (k → (oldv ⊔ v)))
     }
     def update(kv: (K, V)): Store[K, V] = update(kv._1, kv._2)
     def contains(k: K): Boolean = map.contains(k)
@@ -56,7 +56,7 @@ object AAM {
   type BStore = Store[BAddr, ℙ[AbsValue]]
   type KStore = Store[KAddr, ℙ[Kont]]
 
-  def allocBind(x: Var, time: Time): BAddr = CtxBAddr(x, time)
+  def allocBind(x: Id, time: Time): BAddr = CtxBAddr(x, time)
   def allocKont(tgtExpr: Expr, tgtEnv: Env, time: Time): KAddr = CtxKAddr(tgtExpr, time)
 
   val k: Int = 0
@@ -75,7 +75,7 @@ object AAM {
     case _ ⇒ false
   }
 
-  def ρ0 = Map[Var, BAddr]()
+  def ρ0 = Map[Id, BAddr]()
   def bσ0 = Store[BAddr, ℙ[AbsValue]](Map())
   def τ0 = List[Control]()
 }

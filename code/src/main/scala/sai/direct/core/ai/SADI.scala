@@ -11,9 +11,9 @@ import sai.common._
 import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
-import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, _}
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
-trait SADI extends DslExp with MapOpsExp with SetOpsExp with TupledFunctionsRecursiveExp {
+trait SADI extends DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupledFunctionsRecursiveExp {
   import AAM._
 
   trait RepLattice[A] extends GenericLattice[A, Rep]
@@ -48,64 +48,52 @@ trait SADI extends DslExp with MapOpsExp with SetOpsExp with TupledFunctionsRecu
         { case (m_*, k) ⇒ m_* + ((k, m1(k) ⊓ m2(k))) }
   }
 
-  //implicit def lift[T:Typ](st: Set[T]): Rep[Set[T]] = Set[T](st.map(lift(_)):_*)
   def lift[T:Typ](x: T) = unit[T](x)
+  //implicit def lift[T:Typ](st: Set[T]): Rep[Set[T]] = Set[T](st.map(lift):_*)
 
-  //TODO: structural type of Rep
   //TODO: adjustable size for staged map?
-  //TODO: instantiate emtpy Map()
-  //TODO: staged store
-  //TODO: Expr toString function
+  //TODO: Staging support for Expr, toString
 
-  case class Store[K: Typ, V: Typ : Lattice](map: Rep[Map[K, V]]) {
+  case class Store[K: Typ, V: Typ : RepLattice](map: Rep[Map[K, V]]) {
     def apply(k: Rep[K]): Rep[V] = map(k)
     def getOrElse(k: Rep[K], dft: Rep[V]): Rep[V] = map.getOrElse(k, dft)
     def update(k: Rep[K], v: Rep[V]): Store[K, V] = {
-      ???
+      val oldv = map.getOrElse(k, v.bot)
+      Store[K,V](map + (k → (oldv ⊔ v)))
     }
+    def update(kv: (Rep[K], Rep[V])): Store[K,V] = update(kv._1, kv._2)
+    def contains(k: Rep[K]): Rep[Boolean] = map.contains(k)
+    def +(kv: (Rep[K], Rep[V])): Store[K,V] = update(kv._1, kv._2)
+    def ⊔(that: Store[K,V]): Store[K,V] = Store[K,V](this.map ⊔ that.map)
   }
 
-  /*
-  case class Store[K, V <% Lattice[V]](map: Rep[Map[K, V]]) {
-    def apply(k: K): V = map(k)
-    def getOrElse(k: K, dft: V): V = map.getOrElse(k, dft)
-    def update(k: K, d: V): Store[K, V] = {
-      val oldd = map.getOrElse(k, d.bot)
-      Store[K, V](map + (k → (oldd ⊔ d)))
-    }
-    def update(kv: (K, V)): Store[K, V] = update(kv._1, kv._2)
-    def contains(k: K): Boolean = map.contains(k)
-    def +(kv: (K, V)): Store[K, V] = update(kv._1, kv._2)
-    def ⊔(that: Store[K, V]): Store[K, V] = Store[K, V](this.map ⊔ that.map)
-  }
-   */
-
-  /*
-
-  type ℙ[A] = Rep[Set[A]]
-  type Store = Store
+  type ℙ[A] = Set[A]
+  type Env = Rep[Map[Id, BAddr]]
   type BStore = Store[BAddr, ℙ[AbsValue]]
+  type Time = List[Rep[Expr]]
 
   case class Config(e: Expr, ρ: Env, σ: BStore, τ: Time) {
-    def tick: Time = (e :: τ) take k
+    val k: Int = 0
+    def tick: Time = ??? //(e :: τ).take(k)
   }
 
-  case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
-    def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
-    def inContains(cfg: Config): Boolean = in.contains(cfg)
-    def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
-    def outContains(cfg: Config): Boolean = out.contains(cfg)
-    def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
-    def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
-    def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
-    def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
-  }
+  case class VS(vals: ℙ[AbsValue], τ: Time, σ: BStore)
 
+  /*
+   case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
+   def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
+   def inContains(cfg: Config): Boolean = in.contains(cfg)
+   def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
+   def outContains(cfg: Config): Boolean = out.contains(cfg)
+   def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
+   def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
+   def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
+   def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
+   }
   object Cache {
     def cache0 = Cache(Store[Config, ℙ[VS]](Map[Config, ℙ[VS]]()), Store[Config, ℙ[VS]](Map()))
   }
 
-  case class VS(vals: ℙ[AbsValue], τ: Time, σ: BStore)
   case class Ans(vss: ℙ[VS], cache: Cache) {
     def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
   }
