@@ -13,7 +13,35 @@ import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
-trait SADI extends DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupledFunctionsRecursiveExp {
+// A: a dummy class for staging
+
+case class A(i: Int)
+
+trait AOps extends Base with Variables {
+  implicit def repToAOps(a: Rep[A]) = new AOpsCls(a)
+  class AOpsCls(a: Rep[A]) {
+    def i = a_i(a)
+  }
+  def a_i(a: Rep[A])(implicit pos: SourceContext): Rep[Int]
+}
+trait AOpsExp extends BaseExp with AOps with VariablesExp {
+  implicit def ATyp: Typ[A] = manifestTyp
+  case class AI(a: Exp[A]) extends Def[Int]
+  def a_i(a: Exp[A])(implicit pos: SourceContext): Exp[Int] = AI(a)
+}
+
+//////////////////////////////////////////////////////////////////////
+
+/*
+trait BAddrOps extends Base with Variables {
+  implicit def repToAOps(α: Rep[BAddr]) = new BAddrOpsCls(α)
+  class BAddrOpsCls(α: Rep[BAddr]) {}
+}
+trait BAddrOpsExp extends BaseExp with BAddrOps {
+}
+*/
+
+trait SADI extends DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupledFunctionsRecursiveExp with AOpsExp with TupleOpsExp {
   import AAM._
 
   trait RepLattice[A] extends GenericLattice[A, Rep]
@@ -70,32 +98,56 @@ trait SADI extends DslExp with MapOpsExp with SetOpsExp with ListOpsExp with Tup
   type ℙ[A] = Set[A]
   type Env = Rep[Map[Id, BAddr]]
   type BStore = Store[BAddr, ℙ[AbsValue]]
-  type Time = List[Rep[Expr]]
+  type Time = List[Expr] //probably unstaged because k and expr are all known at compile-time
 
   case class Config(e: Expr, ρ: Env, σ: BStore, τ: Time) {
-    val k: Int = 0
-    def tick: Time = ??? //(e :: τ).take(k)
+    val k: Int = 0 //TODO: make it Rep[Int]?
+    def tick: Time = (e :: τ).take(k)
   }
 
-  case class VS(vals: ℙ[AbsValue], τ: Time, σ: BStore)
+  // Result from one computation path
+  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: BStore)
 
-  /*
-   case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
-   def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
-   def inContains(cfg: Config): Boolean = in.contains(cfg)
-   def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
-   def outContains(cfg: Config): Boolean = out.contains(cfg)
-   def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
-   def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
-   def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
-   def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
-   }
-  object Cache {
-    def cache0 = Cache(Store[Config, ℙ[VS]](Map[Config, ℙ[VS]]()), Store[Config, ℙ[VS]](Map()))
-  }
-
+  // Final result that groups multiple multiple VS
   case class Ans(vss: ℙ[VS], cache: Cache) {
     def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
+  }
+
+  type EnvTyp = Map[Id, BAddr]
+  type BStoreTyp = Map[BAddr, Set[AbsValue]]
+  type VSTyp = (Set[AbsValue], Time, BStoreTyp)
+  type CacheMap = Map[(Expr, Time), Rep[Map[(EnvTyp, BStoreTyp), Set[VSTyp]]]]
+
+  implicit def BAddrTyp: Typ[BAddr] = manifestTyp
+  implicit def AbsValueTyp: Typ[AbsValue] = manifestTyp
+  implicit def ExprTyp: Typ[Expr] = manifestTyp
+
+  case class Cache(in:  CacheMap, out: CacheMap) {
+    def inGet(cfg: Config): Rep[ℙ[VSTyp]] = {
+      val m: Rep[Map[(EnvTyp, BStoreTyp), Set[VSTyp]]] = in.getOrElse((cfg.e, cfg.τ), Map[(EnvTyp, BStoreTyp), Set[VSTyp]]())
+      val k: Rep[(EnvTyp, BStoreTyp)] = ???
+      //m.getOrElse(???, ???)
+      ???
+    }
+    def ⊔(that: Cache): Cache = ???
+  }
+
+  //Map[(Expr, Time), Rep[Map[(Env, BStore), (Set[AbsValue])]]]
+
+  /*
+  case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
+    def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
+    def inContains(cfg: Config): Boolean = in.contains(cfg)
+    def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
+    def outContains(cfg: Config): Boolean = out.contains(cfg)
+    def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
+    def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
+    def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
+    def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
+  }
+
+  object Cache {
+    def cache0 = Cache(Store[Config, ℙ[VS]](Map[Config, ℙ[VS]]()), Store[Config, ℙ[VS]](Map()))
   }
 
   def nd[T](ts: Iterable[T], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
