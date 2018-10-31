@@ -71,6 +71,9 @@ object TestCoreSchemeParser {
   import CoreSchemeParser._
 
   def main(args: Array[String]) = {
+    assert("""(+ ;; comment
+               1
+               2)""".read[Expr] == Some(AOp('+,Lit(1),Lit(2))))
     assert("1".read[Var] == None)
     assert("@".read[Var] == Some(Var("@")))
     assert("?".read[Var] == Some(Var("?")))
