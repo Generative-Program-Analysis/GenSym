@@ -112,10 +112,10 @@ trait SADI extends DslExp
   }
 
   // Result from one computation path
-  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: RepStore)
+  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: RepStore) //TODO
 
   // Final result that groups multiple multiple VS
-  case class Ans(vss: ℙ[VS], cache: Cache) {
+  case class Ans(vss: Rep[ℙ[VSTyp]], cache: Cache) {
     def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
   }
 
@@ -161,6 +161,7 @@ trait SADI extends DslExp
     def inContains(cfg: Config): Rep[Boolean] = contains(in, cfg)
     def outGet(cfg: Config): Rep[ℙ[VSTyp]] = get(out, cfg)
     def outContains(cfg: Config): Rep[Boolean] = contains(out, cfg)
+    //FIXME: have to use different name? outUpdate.
     def outUpdate(cfg: Config, vss: Rep[ℙ[VSTyp]]): Cache = Cache(in, update(out, cfg, vss))
     def outUpdateSingle(cfg: Config, vs: Rep[VSTyp]): Cache = outUpdate(cfg, Set[VSTyp](vs))
     def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
@@ -173,7 +174,18 @@ trait SADI extends DslExp
     def cache0 = Cache(cacheMap0, cacheMap0)
   }
 
+
   /*
+   def nd(acc: Ans, k: ((Int, Cache) => Ans)): Rep[(ℙ[Int]) => Ans] =
+   fun { (ts: Rep[ℙ[Int]]) =>
+   ???
+   }
+
+   def nd[T:Typ](ts: Rep[ℙ[T]], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
+    if (ts.isEmpty) acc
+    else nd(ts.tail, acc ++ k(ts.head, acc.cache), k)
+   }
+
   def nd[T](ts: Iterable[T], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
     if (ts.isEmpty) acc
     else nd(ts.tail, acc ++ k(ts.head, acc.cache), k)

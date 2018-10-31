@@ -98,7 +98,8 @@ trait StagedZeroCFA extends DslExp with LamOpsExp with MapOpsExp with TupledFunc
 
   //TODO: Refactor analysisAbsApp
   def analysisAbsApp(args: List[Expr]): Rep[((Map[String, Set[Lam]], Set[Lam])) => Map[String, Set[Lam]]] =
-    fun { (σ, fs) =>
+    //fun { (σ, fs) =>
+    fun { (σ: Rep[Map[String, Set[Lam]]] , fs: Rep[Set[Lam]]) =>
       if (fs.isEmpty) σ
       else {
         val new_args = args.map(primEval(_, RStore(σ))) //TODO: this is repeative
