@@ -41,7 +41,13 @@ trait BAddrOpsExp extends BaseExp with BAddrOps {
 }
 */
 
-trait SADI extends DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupledFunctionsRecursiveExp with AOpsExp with TupleOpsExp {
+trait SADI extends DslExp
+    with MapOpsExp
+    with SetOpsExp
+    with ListOpsExp
+    with AOpsExp
+    with TupleOpsExp
+    with TupledFunctionsRecursiveExp {
   import AAM._
 
   trait RepLattice[A] extends GenericLattice[A, Rep]
@@ -96,60 +102,78 @@ trait SADI extends DslExp with MapOpsExp with SetOpsExp with ListOpsExp with Tup
   }
 
   type ℙ[A] = Set[A]
-  type Env = Rep[Map[Id, BAddr]]
-  type BStore = Store[BAddr, ℙ[AbsValue]]
+  type RepEnv = Rep[Env]
+  type RepStore = Store[BAddr, ℙ[AbsValue]]
   type Time = List[Expr] //probably unstaged because k and expr are all known at compile-time
 
-  case class Config(e: Expr, ρ: Env, σ: BStore, τ: Time) {
+  case class Config(e: Expr, ρ: RepEnv, σ: RepStore, τ: Time) {
     val k: Int = 0 //TODO: make it Rep[Int]?
     def tick: Time = (e :: τ).take(k)
   }
 
   // Result from one computation path
-  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: BStore)
+  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: RepStore)
 
   // Final result that groups multiple multiple VS
   case class Ans(vss: ℙ[VS], cache: Cache) {
     def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
   }
 
-  type EnvTyp = Map[Id, BAddr]
-  type BStoreTyp = Map[BAddr, Set[AbsValue]]
-  type VSTyp = (Set[AbsValue], Time, BStoreTyp)
-  type CacheMap = Map[(Expr, Time), Rep[Map[(EnvTyp, BStoreTyp), Set[VSTyp]]]]
+  type StoreMap = Map[BAddr, ℙ[AbsValue]]
+  type VSTyp = (Set[AbsValue], Time, StoreMap) //TODO: Update to VS
+  type StcCfg = (Expr, Time)
+  type DynCfg = (Env, StoreMap)
+  type SubMap = Map[DynCfg, ℙ[VSTyp]]
+  type CacheMap = Map[StcCfg, Rep[SubMap]]
 
   implicit def BAddrTyp: Typ[BAddr] = manifestTyp
   implicit def AbsValueTyp: Typ[AbsValue] = manifestTyp
   implicit def ExprTyp: Typ[Expr] = manifestTyp
 
-  case class Cache(in:  CacheMap, out: CacheMap) {
-    def inGet(cfg: Config): Rep[ℙ[VSTyp]] = {
-      val m: Rep[Map[(EnvTyp, BStoreTyp), Set[VSTyp]]] = in.getOrElse((cfg.e, cfg.τ), Map[(EnvTyp, BStoreTyp), Set[VSTyp]]())
-      val k: Rep[(EnvTyp, BStoreTyp)] = ???
-      //m.getOrElse(???, ???)
-      ???
+  case class Cache(in: CacheMap, out: CacheMap) {
+    private def get(cache: CacheMap, cfg: Config): Rep[ℙ[VSTyp]] = {
+      val m: Rep[SubMap] = cache.getOrElse((cfg.e, cfg.τ), Map[(Env, StoreMap), Set[VSTyp]]())
+      val k: Rep[DynCfg] = (cfg.ρ, cfg.σ.map)
+      m.getOrElse(k, Set[VSTyp]())
     }
-    def ⊔(that: Cache): Cache = ???
-  }
-
-  //Map[(Expr, Time), Rep[Map[(Env, BStore), (Set[AbsValue])]]]
-
-  /*
-  case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
-    def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
-    def inContains(cfg: Config): Boolean = in.contains(cfg)
-    def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
-    def outContains(cfg: Config): Boolean = out.contains(cfg)
-    def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
-    def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
+    private def contains(cache: CacheMap, cfg: Config): Rep[Boolean] = {
+      val m: Rep[SubMap] = cache.getOrElse((cfg.e, cfg.τ), Map[(Env, StoreMap), Set[VSTyp]]())
+      m.contains((cfg.ρ, cfg.σ.map))
+    }
+    private def update(cache: CacheMap, cfg: Config, vss: Rep[ℙ[VSTyp]]): CacheMap = {
+      val m: Rep[SubMap] = cache.getOrElse((cfg.e, cfg.τ), Map[(Env, StoreMap), Set[VSTyp]]())
+      val k: Rep[DynCfg] = (cfg.ρ, cfg.σ.map)
+      val oldv: Rep[ℙ[VSTyp]] = m.getOrElse(k, Set[VSTyp]())
+      val m_* = m + (k → (vss ++ oldv))
+      cache + ((cfg.e, cfg.τ) → m_*)
+    }
+    private def join(c1: CacheMap, c2: CacheMap): CacheMap = {
+      c2.foldLeft (c1) { case (m, (et, submap2)) ⇒
+        val submap1 = m.getOrElse(et, Map[(Env, StoreMap), Set[VSTyp]]())
+        val submap_* = submap2.foldLeft (submap1) { case (sm, (k, v)) ⇒
+          val oldv = sm.getOrElse(k, Set[VSTyp]())
+          sm + (k → (oldv ++ v))
+        }
+        m + (et → submap_*)
+      }
+    }
+    def inGet(cfg: Config): Rep[ℙ[VSTyp]] = get(in, cfg)
+    def inContains(cfg: Config): Rep[Boolean] = contains(in, cfg)
+    def outGet(cfg: Config): Rep[ℙ[VSTyp]] = get(out, cfg)
+    def outContains(cfg: Config): Rep[Boolean] = contains(out, cfg)
+    def outUpdate(cfg: Config, vss: Rep[ℙ[VSTyp]]): Cache = Cache(in, update(out, cfg, vss))
+    def outUpdateSingle(cfg: Config, vs: Rep[VSTyp]): Cache = outUpdate(cfg, Set[VSTyp](vs))
     def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
-    def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
+    def ⊔(that: Cache): Cache = Cache(join(in, that.in), join(out, that.out))
   }
 
   object Cache {
-    def cache0 = Cache(Store[Config, ℙ[VS]](Map[Config, ℙ[VS]]()), Store[Config, ℙ[VS]](Map()))
+    def submap0: Rep[SubMap] = Map[DynCfg, ℙ[VSTyp]]()
+    def cacheMap0: CacheMap = collection.immutable.Map[StcCfg, Rep[SubMap]]()
+    def cache0 = Cache(cacheMap0, cacheMap0)
   }
 
+  /*
   def nd[T](ts: Iterable[T], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
     if (ts.isEmpty) acc
     else nd(ts.tail, acc ++ k(ts.head, acc.cache), k)
