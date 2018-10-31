@@ -15,7 +15,7 @@ trait SchemeTokenParser extends RegexParsers {
   def RPAREN = "[\\)\\}\\]]".r
 
   def QUOTE = "'"
-  def SYMBOL = """\'[^ \(\{\[\)\}\]]+""".r
+  def SYMBOL = """\'[^ \t\n\(\{\[\)\}\]]+""".r
 
   def LISTLPAREN = "'("
   def VECLPAREN = "#("
@@ -40,8 +40,8 @@ trait SchemeTokenParser extends RegexParsers {
   def LETSTAR: Parser[String] = "let*"
   def LETREC: Parser[String] = "letrec"
 
-  def TRUE: Parser[Boolean] = "#t" ^^ { _ => true }
-  def FALSE: Parser[Boolean] = "#f" ^^ { _ => false }
+  def TRUE: Parser[Boolean] = ("#t"|"#T") ^^ { _ => true }
+  def FALSE: Parser[Boolean] = ("#f"|"#F") ^^ { _ => false }
 
   def DIGIT10: Parser[String] = """\-?[0-9]+""".r
   def INT10: Parser[Int] = DIGIT10 ^^ { _.mkString.toInt }

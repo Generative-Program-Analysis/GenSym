@@ -1,6 +1,7 @@
 package sai.direct.large.parser
 
 import scala.util.parsing.combinator._
+import scala.io.Source
 import sai.common.parser._
 
 trait LargeSchemeParserTrait extends SchemeTokenParser {
@@ -139,7 +140,7 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def testall() = {
-    val tests: List[() => Unit] = List(test0, test1, test2, test3, test4, test5)
+    val tests: List[() => Unit] = List(test0, test1, test2, test3, test4, test5, testToplas98, testBool)
     tests foreach { _() }
   }
 
@@ -206,5 +207,22 @@ object TestSimpleDirectLargeSchemeParser {
       CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List(IntLit(2)))),
       CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here")))))
     assert(actual == expected)
+  }
+
+  def testToplas98() = {
+    val fileName = "benchmarks/toplas98/lattice-processed.scm"
+    val program = Source.fromFile(fileName).mkString
+    println(LargeSchemeParser(program))
+  }
+
+  def testBool() = {
+    val t = "#t"
+    val T = "#T"
+    val f = "#f"
+    val F = "#F"
+    assert(LargeSchemeParser(t) == Some(BoolLit(true)))
+    assert(LargeSchemeParser(T) == Some(BoolLit(true)))
+    assert(LargeSchemeParser(f) == Some(BoolLit(false)))
+    assert(LargeSchemeParser(F) == Some(BoolLit(false)))
   }
 }
