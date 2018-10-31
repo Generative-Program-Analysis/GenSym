@@ -106,11 +106,6 @@ trait SADI extends DslExp
   type RepStore = Store[BAddr, ℙ[AbsValue]]
   type Time = List[Expr] //probably unstaged because k and expr are all known at compile-time
 
-  case class Config(e: Expr, ρ: RepEnv, σ: RepStore, τ: Time) {
-    val k: Int = 0 //TODO: make it Rep[Int]?
-    def tick: Time = (e :: τ).take(k)
-  }
-
   // Result from one computation path
   case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: RepStore) //TODO
 
@@ -126,30 +121,36 @@ trait SADI extends DslExp
   type SubMap = Map[DynCfg, ℙ[VSTyp]]
   type CacheMap = Map[StcCfg, Rep[SubMap]]
 
+  case class Config(e: Expr, ρ: RepEnv, σ: RepStore, τ: Time) {
+    val k: Int = 0 //TODO: make it Rep[Int]?
+    def tick: Time = (e :: τ).take(k)
+    def stc: (Expr, Time) = (e, τ)
+    def dyn: (RepEnv, Rep[StoreMap]) = (ρ, σ.map)
+  }
+
   implicit def BAddrTyp: Typ[BAddr] = manifestTyp
   implicit def AbsValueTyp: Typ[AbsValue] = manifestTyp
   implicit def ExprTyp: Typ[Expr] = manifestTyp
 
   case class Cache(in: CacheMap, out: CacheMap) {
+    private def submap_∅ : Rep[SubMap] = Map[DynCfg, ℙ[VSTyp]]()
     private def get(cache: CacheMap, cfg: Config): Rep[ℙ[VSTyp]] = {
-      val m: Rep[SubMap] = cache.getOrElse((cfg.e, cfg.τ), Map[(Env, StoreMap), Set[VSTyp]]())
-      val k: Rep[DynCfg] = (cfg.ρ, cfg.σ.map)
-      m.getOrElse(k, Set[VSTyp]())
+      val m: Rep[SubMap] = cache.getOrElse(cfg.stc, submap_∅)
+      m.getOrElse(cfg.dyn, Set[VSTyp]())
     }
     private def contains(cache: CacheMap, cfg: Config): Rep[Boolean] = {
-      val m: Rep[SubMap] = cache.getOrElse((cfg.e, cfg.τ), Map[(Env, StoreMap), Set[VSTyp]]())
-      m.contains((cfg.ρ, cfg.σ.map))
+      val m: Rep[SubMap] = cache.getOrElse(cfg.stc, submap_∅)
+      m.contains(cfg.dyn)
     }
     private def update(cache: CacheMap, cfg: Config, vss: Rep[ℙ[VSTyp]]): CacheMap = {
-      val m: Rep[SubMap] = cache.getOrElse((cfg.e, cfg.τ), Map[(Env, StoreMap), Set[VSTyp]]())
-      val k: Rep[DynCfg] = (cfg.ρ, cfg.σ.map)
-      val oldv: Rep[ℙ[VSTyp]] = m.getOrElse(k, Set[VSTyp]())
-      val m_* = m + (k → (vss ++ oldv))
-      cache + ((cfg.e, cfg.τ) → m_*)
+      val m: Rep[SubMap] = cache.getOrElse(cfg.stc, submap_∅)
+      val oldv: Rep[ℙ[VSTyp]] = m.getOrElse(cfg.dyn, Set[VSTyp]())
+      val m_* = m + (cfg.dyn, (vss ++ oldv))
+      cache + (cfg.stc → m_*)
     }
     private def join(c1: CacheMap, c2: CacheMap): CacheMap = {
       c2.foldLeft (c1) { case (m, (et, submap2)) ⇒
-        val submap1 = m.getOrElse(et, Map[(Env, StoreMap), Set[VSTyp]]())
+        val submap1 = m.getOrElse(et, submap_∅)
         val submap_* = submap2.foldLeft (submap1) { case (sm, (k, v)) ⇒
           val oldv = sm.getOrElse(k, Set[VSTyp]())
           sm + (k → (oldv ++ v))
@@ -169,8 +170,7 @@ trait SADI extends DslExp
   }
 
   object Cache {
-    def submap0: Rep[SubMap] = Map[DynCfg, ℙ[VSTyp]]()
-    def cacheMap0: CacheMap = collection.immutable.Map[StcCfg, Rep[SubMap]]()
+    private def cacheMap0: CacheMap = collection.immutable.Map[StcCfg, Rep[SubMap]]()
     def cache0 = Cache(cacheMap0, cacheMap0)
   }
 
