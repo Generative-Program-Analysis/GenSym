@@ -7,23 +7,34 @@ import sai.common.ai._
 import sai.common.ai.Lattice._
 import sai.direct.core.parser._
 
-object ADI {
-  import AAM._
+import AAM._
 
+trait CacheTrait[K,V,R[_],C<:CacheTrait[K,V,R,C]] {
+  def inGet(k: K): R[ℙ[V]]
+  def outGet(k: K): R[ℙ[V]]
+  def inContains(k: K): R[Boolean]
+  def outContains(k: K): R[Boolean]
+  def outUpdate(k: K, vs: R[ℙ[V]]): C
+  //def outUpdateSingle(k: K, v: R[V]): C
+  def outUpdateFromIn(k: K): C
+  def ⊔(that: C): C
+}
+
+object ADI {
   case class Config(e: Expr, ρ: Env, σ: BStore, τ: Time) {
     val k: Int = 0
     def tick: Time = (e :: τ) take k
   }
 
-  case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) {
+  case class Cache(in: Store[Config, ℙ[VS]], out: Store[Config, ℙ[VS]]) extends CacheTrait[Config,VS,NoRep,Cache] {
     def inGet(cfg: Config): ℙ[VS] = in.getOrElse(cfg, ℙ())
     def inContains(cfg: Config): Boolean = in.contains(cfg)
     def outGet(cfg: Config): ℙ[VS] = out.getOrElse(cfg, ℙ())
     def outContains(cfg: Config): Boolean = out.contains(cfg)
     def outUpdate(cfg: Config, vss: ℙ[VS]): Cache = Cache(in, out.update(cfg, vss))
-    def outUpdate(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
+    //def outUpdateSingle(cfg: Config, vs: VS): Cache = Cache(in, out.update(cfg, ℙ(vs)))
     def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
-    def ⊔ (that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
+    def ⊔(that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
   }
 
   object Cache {
@@ -125,7 +136,6 @@ object ADI {
 }
 
 object ADI2 {
-  import AAM._
   import ADI._
   def aeval(e: Expr, ρ: Env, σ: BStore, τ: Time, cache: Cache): Ans @cps[Ans] = {
     val config = Config(e, ρ, σ, τ)
