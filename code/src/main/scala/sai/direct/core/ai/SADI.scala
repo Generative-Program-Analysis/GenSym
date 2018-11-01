@@ -115,19 +115,23 @@ trait SADI extends DslExp
   type StcCfg = (Expr, Time)
   type DynCfg = (Env, StoreMap)
   type SubMap = Map[DynCfg, ℙ[VSTyp]]
-  type CacheMap = Map[StcCfg, Rep[SubMap]]
+  //type CacheMap = Map[StcCfg, Rep[SubMap]]
+  type CacheMap = Rep[Map[StcCfg, SubMap]]
 
   case class Config(e: Expr, ρ: RepEnv, σ: RepStore, τ: Time) {
     val k: Int = 0 //TODO: make it Rep[Int]?
     def tick: Time = (e :: τ).take(k)
-    def stc: (Expr, Time) = (e, τ)
+    //def stc: (Expr, Time) = (e, τ)
+    def stc: (Rep[Expr], Rep[Time]) = (lift(e), lift(τ))
     def dyn: (RepEnv, Rep[StoreMap]) = (ρ, σ.map)
+    def tpl: (Rep[Expr], RepEnv, Rep[StoreMap], Rep[Time]) = (lift(e), ρ, σ.map, lift(τ))
   }
 
   implicit def BAddrTyp: Typ[BAddr] = manifestTyp
   implicit def AbsValueTyp: Typ[AbsValue] = manifestTyp
   implicit def ExprTyp: Typ[Expr] = manifestTyp
 
+  // If the whole map is Rep, then can we just use one-level map?
   case class Cache(in: CacheMap, out: CacheMap) {
     private def submap_∅ : Rep[SubMap] = Map[DynCfg, ℙ[VSTyp]]()
     private def get(cache: CacheMap, cfg: Config): Rep[ℙ[VSTyp]] = {
@@ -142,7 +146,7 @@ trait SADI extends DslExp
       val m: Rep[SubMap] = cache.getOrElse(cfg.stc, submap_∅)
       val oldv: Rep[ℙ[VSTyp]] = m.getOrElse(cfg.dyn, Set[VSTyp]())
       val m_* = m + (cfg.dyn, (vss ++ oldv))
-      cache + (cfg.stc → m_*)
+      cache + (cfg.stc, m_*)
     }
     private def join(c1: CacheMap, c2: CacheMap): CacheMap = {
       c2.foldLeft (c1) { case (m, (et, submap2)) ⇒
@@ -166,7 +170,8 @@ trait SADI extends DslExp
   }
 
   object Cache {
-    private def cacheMap0: CacheMap = collection.immutable.Map[StcCfg, Rep[SubMap]]()
+    //private def cacheMap0: CacheMap = collection.immutable.Map[StcCfg, Rep[SubMap]]()
+    private def cacheMap0: CacheMap = Map[StcCfg, SubMap]()
     def cache0 = Cache(cacheMap0, cacheMap0)
   }
 
