@@ -5,7 +5,7 @@ import scala.language.implicitConversions
 import scala.language.higherKinds
 
 import sai.common.ai._
-import sai.common.ai.Lattice._
+import sai.common.ai.Lattices._
 import sai.direct.core.parser._
 
 import sai.common._
@@ -222,20 +222,20 @@ trait SADI extends DslExp
         vs
       case Lam(x, e) ⇒ ???
         //ℙ[AbsValue](CloV(Lam(x,e), ρ))
-          //ℙ[VSTyp]( (ℙ[AbsValue](CloV(Lam(x,e), ρ)), τ_*, σ.map) )
-          //Ans(ℙ(VS(ℙ(CloV(Lam(x, e), ρ)), τ_*, σ)), cache)
+        //ℙ[VSTyp]( (ℙ[AbsValue](CloV(Lam(x,e), ρ)), τ_*, σ.map) )
+        //Ans(ℙ(VS(ℙ(CloV(Lam(x, e), ρ)), τ_*, σ)), cache)
       case App(e1, e2) ⇒ ???
-          /*
-           val Ans(e1vss, e1cache) = aeval_top(e1, ρ, σ, τ_*, cache)
-           val (VS(e1vs, e1τ, e1σ), e1cache_*) = choices[VS](e1vss, e1cache)
-           val (CloV(Lam(x, body), λρ), clscache) = choices[AbsValue](e1vs, e1cache_*)
-           val Ans(e2vss, e2cache) = aeval_top(e2, ρ, σ, e1τ, clscache)
-           val (VS(e2vs, e2τ, e2σ), e2cache_*) = choices[VS](e2vss, e2cache)
-           val α = allocBind(x, e2τ)
-           val ρ_* = λρ + (x → α)
-           val σ_* = e2σ + (α → e2vs)
-           aeval_top(body, ρ_*, σ_*, e2τ, e2cache_*)
-           */
+        /*
+          val Ans(e1vss, e1cache) = aeval_top(e1, ρ, σ, τ_*, cache)
+          val (VS(e1vs, e1τ, e1σ), e1cache_*) = choices[VS](e1vss, e1cache)
+          val (CloV(Lam(x, body), λρ), clscache) = choices[AbsValue](e1vs, e1cache_*)
+          val Ans(e2vss, e2cache) = aeval_top(e2, ρ, σ, e1τ, clscache)
+          val (VS(e2vs, e2τ, e2σ), e2cache_*) = choices[VS](e2vss, e2cache)
+          val α = allocBind(x, e2τ)
+          val ρ_* = λρ + (x → α)
+          val σ_* = e2σ + (α → e2vs)
+          aeval_top(body, ρ_*, σ_*, e2τ, e2cache_*)
+          */
     }
   }
 

@@ -11,7 +11,7 @@ object DisUnion {
   type |∨|[A, B] = { type λ[X] = ¬¬[X] <:< (A ∨ B) }
 }
 
-object Lattice {
+object Lattices {
   trait GenericLattice[E, R[_]] {
     val bot: R[E]
     val top: R[E]
