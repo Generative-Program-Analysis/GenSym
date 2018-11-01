@@ -107,13 +107,9 @@ trait SADI extends DslExp
   type Time = List[Expr] //probably unstaged because k and expr are all known at compile-time
 
   // Result from one computation path
-  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: RepStore) //TODO
+  case class VS(vals: Rep[ℙ[AbsValue]], τ: Rep[Time], σ: RepStore) //TODO: currently not using
 
   // Final result that groups multiple multiple VS
-  case class Ans(vss: Rep[ℙ[VSTyp]], cache: Cache) {
-    def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
-  }
-
   type StoreMap = Map[BAddr, ℙ[AbsValue]]
   type VSTyp = (Set[AbsValue], Time, StoreMap) //TODO: Update to VS
   type StcCfg = (Expr, Time)
@@ -174,26 +170,26 @@ trait SADI extends DslExp
     def cache0 = Cache(cacheMap0, cacheMap0)
   }
 
+  /*
+  case class Ans(vss: Rep[ℙ[VSTyp]], cache: Cache) {
+    def ++(ans: Ans) = Ans(vss ++ ans.vss, cache ⊔ ans.cache)
+  }
+   */
+  type Ans = (ℙ[VSTyp], Map[StcCfg, SubMap], Map[StcCfg, SubMap])
+
+  def nd[T](implicit ev: Typ[T]): Rep[((ℙ[T], Ans, ((T, Map[StcCfg, SubMap], Map[StcCfg, SubMap]))=>Ans)) => Ans] =
+    fun { (ts, acc, k) =>
+      if (ts.isEmpty) acc
+      else {
+        val acc_* = k(ts.head, acc._2, acc._3)
+        nd[T](ev)(ts.tail, (acc._1 ++ acc_*._1, acc._2 ++ acc_*._2, acc._3 ++ acc_*._3), k)
+      }
+    }
 
   /*
-   def nd(acc: Ans, k: ((Int, Cache) => Ans)): Rep[(ℙ[Int]) => Ans] =
-   fun { (ts: Rep[ℙ[Int]]) =>
-   ???
+   def choices[T](implicit ev: Typ[T])(ts: [T], cache: Cache): (T, Cache) @cps[Ans] = shift {
+   f: (((T, Cache)) ⇒ Ans) ⇒ nd(ts, Ans(ℙ(), cache), f)
    }
-
-   def nd[T:Typ](ts: Rep[ℙ[T]], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
-    if (ts.isEmpty) acc
-    else nd(ts.tail, acc ++ k(ts.head, acc.cache), k)
-   }
-
-  def nd[T](ts: Iterable[T], acc: Ans, k: ((T, Cache)) ⇒ Ans): Ans = {
-    if (ts.isEmpty) acc
-    else nd(ts.tail, acc ++ k(ts.head, acc.cache), k)
-  }
-
-  def choices[T](ts: Iterable[T], cache: Cache): (T, Cache) @cps[Ans] = shift {
-    f: (((T, Cache)) ⇒ Ans) ⇒ nd(ts, Ans(ℙ(), cache), f)
-  }
 
   def aeval(e: Expr, ρ: Env, σ: BStore, τ: Time, cache: Cache): Ans @cps[Ans] = {
     val config = Config(e, ρ, σ, τ)
