@@ -1,19 +1,137 @@
+\newcommand{\TLang}{$L_\lambda$}
+
 \section{Background}
 
-\subsection{The Language} \label{bg_lang}
+In this section, we first described the language we will model and analyze, and present a unstaged concrete 
+interpreter for it. Then, starting from this unstaged concrete interpreter, we proceed in two directions:
+by abstracting it we obtain an unstaged abstract interpreter; by staging it we obtain a staged concrete
+interpreter.
 
-syntax, higher-order functional, variables, lambda, app, fix, let, arith, if0
+\subsection{The Target Language} \label{bg_lang}
 
-concrete interpreter.
+As higher-order functions had been widely introduced in mainstream programming languages \todo{cite}, in this paper, 
+we target a tiny higher-order functional language \TLang, which is based on direct-style lambda-calculus, 
+and with the support of numbers, arithmetics, recursions and conditionals.
+In section \ref{cases_imp}, we will see adding more imperative features to the language.
+Since we are mostly interested in analyzing the dynamic behavior of the program, the static semantics and
+type system will be omitted. We also assume all the input programs are well-typed.
+The abstract syntax is described below:
+
+\begin{lstlisting}
+abstract class Expr
+case class Lit(i: Int)
+case class Var(x: String)
+case class Lam(x: String, e: Expr)
+case class App(e1: Expr, e2: Expr)
+case class AOp(op: String, e1: Expr, e2: Expr)
+case class Rec(x: String, e: Expr, body: Expr)
+case class If0(cnd: Expr, thn: Expr, els: Expr)
+\end{lstlisting}
+
+We give the concrete semantics of \TLang by showing a big-step definitional interpreter for it.
+But before doing that, let's first see a general interface for interpreters, whether concrete or abstract, 
+staged or unstaged. The trait \texttt{Semantics} first declares several abstract type members, such as \texttt{Ident},
+\texttt{Addr} and etc., which will be instantiated concretely later. The abstract types \texttt{Env} and \texttt{Store}
+are required to conform their specifications, \texttt{EnvSpec} and \texttt{StoreSpec}, which define 
+the operations such as lookup and update on them, nevertheless the detail of them are omitted.  
+The store component is necessary when modeling side effects such as mutations. 
+The trait also requires the implementators provide the initial values of environment and store.
+
+%TODO: talk about alloc here?
+
+\begin{lstlisting}
+trait Semantics[R[_]] {
+  type Ident;    type Addr;   type Value;    type Ans
+  type Env <: EnvSpec[R, Ident, Addr, Env]
+  type Store <: StoreSpec[R, Addr, Value, Store]
+  val $\rho$0: Env;     val $\sigma$0: Store
+  def alloc(x: Ident, $\sigma$: Store): R[Addr]
+  type EvalFun = (Expr, Env, Store) => Ans
+  def eval(ev: EvalFun)(e: Expr, $\rho$: Env, $\sigma$: Store): Ans
+  def fix(ev: EvalFun => EvalFun): EvalFun = 
+    (e, $\rho$, $\sigma$) =>  ev(fix(ev))(e, $\rho$, $\sigma$)
+  def eval_top(e: Expr): Ans = fix(eval)(e, $\rho$0, $\sigma$0)
+}
+\end{lstlisting}
+
+The evaluator \texttt{eval} is a open-recursive function that takes one and three arguments: the first
+one \texttt{ev} represents the recursive function itself; the rest three are the AST representing program 
+will be executed, the environment that maps from identifiers to addresses, and the store that maps addresses to values.
+The interpreters that take control, environment and store components also can be obtained by 
+refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03, Wei:2018:RAA:3243631.3236800} a small-step CESK 
+machine \cite{DBLP:conf/popl/FelleisenF87}.
+We provide a function \texttt{fix} to close the recursion by providing the result of \texttt{fix(ev)} 
+to argument \texttt{ev}. Finally, a default implementation for the top-level evaluation function \texttt{eval\_top} is defined.
+As we will see later, the open-recursion style is beneficial when implementing abstract interpreter and 
+staged abstract interpreter \todo{cite adi}.
+
+Readers may notice an additional notation \texttt{[R[\_]]} afterward the trait definition,
+which indicates \texttt{Semantics} takes a type parameter \texttt{R}, where \texttt{R} represents
+a higher-kinded type and will used to specify the binding-time, i.e., staged or not. 
+For the moment, \texttt{R} will be instantiated unstaged --- an identity type constructor: 
+\texttt{type NoRep[A] = A}. \todo{where talk about stage poly?}
+
+Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
+Since the interpreter is concrete, the address space is infinite thus type \texttt{Int} is used here.
+The final returned type \texttt{Ans} is a pair of \texttt{Value} and \texttt{Store}, where
+the values are either closure or numbers.
+
+\begin{lstlisting}
+trait Concrete[R[_]] extends Semantics[R] {
+  type Ident = String;         type Addr = Int
+  type Ans = (Value, Store);   abstract class Value
+  case class CloV($\lambda$: Lam, $\rho$: Env) extends Value
+  case class NumV(i: Int) extends Value
+}
+\end{lstlisting}
+
+Then we define evaluation function that dispatches differently for different expression.
+Note that an allocation function is used when we need to update the store: 
+in the concrete case, function \texttt{alloc} always returns a fresh address of the store.
+
+\begin{lstlisting}
+object NoRepConcreteEval extends Concrete[NoRep] {
+  def alloc(x: Ident, $\sigma$: Store): Addr = $\sigma$.size + 1
+  def eval(ev: EvalFun)(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = 
+    e match {
+      case Lit(i) => (NumV(i), $\sigma$)
+      case Var(x) => ($\sigma$($\rho$(x)), $\sigma$)
+      case Lam(x, e) => (CloV(Lam(x,e), $\rho$), $\sigma$)
+      case App(e1, e2) =>
+        val (CloV(Lam(x,e), $\lambda\rho$), e1$\sigma$) = ev(e1, $\rho$, $\sigma$)
+        val (e2v, e2$\sigma$) = ev(e2, $\rho$, e1$\sigma$)
+        val $\alpha$ = alloc(x, e2$\sigma$)
+        ev(e, $\lambda\rho$ + (x -> $\alpha$), e2$\sigma$ + ($\alpha$ -> e2v))
+      case If0(cnd, thn, els) => ...
+      case AOp(op, e1, e2) => ...
+      case Rec(x, e, body) => ...
+    }
+}
+\end{lstlisting}
 
 \subsection{From Interpreter to Abstract Interpreter}
 
-big-step abstract interpreter using delimited control operators \cite{Wei:2018:RAA:3243631.3236800}.
+\begin{lstlisting}
+trait Abstract[R[_]] extends Semantics[R] {
+  type Ident = String;         case class Addr(x: Ident)
+  type Ans = (Value, Store);   type Value = Set[AbsValue]
+  abstract class AbsValue
+  case class CloV($\lambda$: Lam, $\rho$: Env) extends AbsValue
+  case class NumV() extends AbsValue
+}
+\end{lstlisting}
 
-monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17}.
+Address just record the variable name, more sensitivity in section ...
 
-\subsection{Multi-Stage Programming}
+other big-step abstract interpreter, 
+big-step abstract interpreter using delimited control operators \cite{Wei:2018:RAA:3243631.3236800},
+monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17},
+arrow-based abstract interpreter \cite{Keidel:2018:CSP:3243631.3236767}.
 
+\subsection{From Interpreter to Staged Interpreter}
+
+\subsubsection{Multi-Stage Programming}
+\todo{example, power?}
 general idea; LMS framework in scala. MetaOCaml?
 
 Other notable implementations of MSP exist in ML family, for examples, MetaML \cite{DBLP:conf/pepm/TahaS97} 
@@ -21,3 +139,5 @@ and MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
 Compared with the LMS approach in Scala, MetaML/MetaOCaml use term-level annotations such as brackets, 
 escape, and run. Notwithstanding, we use LMS in this paper, the idea of staging an abstract interpreter
 still applies with other MSP implementations.
+
+\subsubsection{Staged Interpreters} 

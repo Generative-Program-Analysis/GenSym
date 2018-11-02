@@ -11,4 +11,6 @@ clean:
 	rm -rf *.log
 	rm -rf *.pdf
 	rm -rf *.dvi
+	rm -rf *.cut
+	rm -rf *.out
 

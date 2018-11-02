@@ -18,6 +18,7 @@
   this,throw,trait,try,type,%
   val,var,%
   with,while,%
+  object,
   let,skip,assert,then,fst,snd,root,idx,sum,prod,exists,forall,%
   yield%
   },%
@@ -36,7 +37,7 @@
 %  basewidth={0.5em, 0.40em},%
   aboveskip=2pt,%\smallskipamount,
   belowskip=1pt,%\negsmallskipamount,
-  lineskip=-3pt,
+  lineskip=-1pt,
   basewidth={0.58em, 0.45em},%
 %  backgroundcolor=\color{listingbg},
   basicstyle=\footnotesize\ttfamily,
@@ -60,7 +61,8 @@
 \definecolor{listingbg}{RGB}{240, 240, 240}
 
 \newcommand{\commentstyle}[1]{\color{ccomment}\itshape{#1}}
-\newcommand{\keywordstyle}[1]{\color{ckeyword}\bfseries{#1}}
+%\newcommand{\keywordstyle}[1]{\color{ckeyword}\bfseries{#1}}
+\newcommand{\keywordstyle}[1]{\color{ckeyword}{#1}}
 \newcommand{\stringstyle}[1]{\color{cstring}\bfseries{#1}}
 
 \lstnewenvironment{listing}{\lstset{language=Scala}}{}
