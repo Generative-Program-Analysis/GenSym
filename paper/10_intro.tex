@@ -1,19 +1,21 @@
 \section{Introduction}
 
-\subsection{Motivation}
+% \subsection{Motivation}
 
-Futamura projection \cite{Futamura1999, futamura1971partial} reveals the close relation between 
-compilers and interpreters, 
-and the first Futamura projection specifically shows that specializing an interpreter yields a compiler. 
+Futamura projections \cite{Futamura1999, futamura1971partial} reveal the close connection between 
+compilers and interpreters. 
+The first Futamura projection specifically shows that specializing an interpreter yields a compiler. \note{TR: not true!!}
 Multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} is a popular way to write 
-generic programs that and generates specialized and efficient programs; 
+generic programs that and generates specialized and efficient programs;  \note{TR: connection from Futamura to MSP doesn't flow well}
 the generated program then can be executed at next stage. 
 As an approach to partial evaluation, MSP requires explicit staging annotations from the implementers.
 The staging annotations controls which part of the program should be specialized, and are considered 
 as manual binding-time analysis. On the other hand, partial evaluation \cite{DBLP:books/daglib/0072559} 
-can be considered as a two-stage (static or dynamic) instance of MSP but analyzing binding-time automatically.
+can be considered as a two-stage (static or dynamic) instance of MSP but analyzing binding-time automatically. 
+\note{TR: are last two sentences relevant? perhaps rephrase in the direction of ``here's who to implement
+the futamura projection idea in practice''}
 
-Recent research uncovers a systematic approach to construct sound abstract interpreters 
+Recent research \note{TR: Cousot was already systematic. Both Futamura and Cousot are results from the 1970s -- build a connection?} uncovers a systematic approach to construct sound abstract interpreters 
 from concrete interpreters \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Given the structural similarity between concrete and abstract interpreters, intellectually 
 it is natural to raise the question whether it is possible to stage an abstract interpreter, and how 
@@ -28,13 +30,13 @@ numerical computation \cite{PGL-038, DBLP:conf/pepm/AktemurKKS13},
 generic programming \cite{DBLP:journals/pacmpl/Yallop17}, 
 data processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14, DBLP:conf/popl/KiselyovBPS17}, 
 query compilation in databases \cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18},
-and etc.
+etc.
 Likewise, specializing static analyses by partial evaluation had been emerged in 1990s 
 \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587, ashley:practical}, 
 and indeed it is able to effectively remove the interpretive overhead of 
 repeatedly traversing the abstract syntax tree. However, it is still worth 
 to investigate the idea deeper from a modern perspective based on meta-programming 
-for general abstract interpreters.
+for general abstract interpreters. \note{TR: sounds weak, what is new?}
 Practically, precise whole-program analyses formulated as abstract interpretation 
 can be very slow due to the inherent complexity of the algorithm and the large scale 
 of the analyzed programs \cite{toman_et_al:LIPIcs:2017:7121} \todo{other cite?};
@@ -54,23 +56,28 @@ should be written in a style that is easy for people to communicate the formulat
 to specialization and generating efficient code. \todo{We discuss the form of abstract interpreters for staging}
 We show the use LMS framework, that enables multi-stage programming by just changing the types 
 of the analyzer program, and we thus bridge the gap between designing sound program analyses 
-and implementing efficient program analyzers.
+and implementing efficient program analyzers. \note{TR: a lot of back and forth here, where is story going?}
 
 When staging a concrete interpreter, the programmers need to distinguish 
 static and dynamic values --- the given program to be executed by the 
 interpreter is classified as static because it is known at compile-time, 
 and the inputs to that program are dynamic.  However, when staging an 
-abstract interpreter, this distinction not exists anymore. Because the 
+abstract interpreter, this distinction does not exist anymore. Because the 
 abstract interpreter instantiates all the inputs as some form of abstract 
 values, which are usually top elements in their abstract domains and are 
-also statically known. Then what is the point of staging if no such distinction?
+also statically known. 
+Then what is the point of staging if there is no such distinction?
+\note{TR: I don't understand this. The program
+structure is static, the abstract values are still dynamic, no? They 
+change in every iteration of the fixpoint algorithm}
 A surprising by-product of thinking about this question is to realize that 
 we can apply the staged abstract interpreter on \textit{open} programs, and
 the free variables representing other parts of the program (e.g., libraries) 
 are dynamic input, therefore we obtain a modular analysis through staging, 
 mechanically. 
 
-The use of staged abstract interpreters on open programs improves the scalability.
+The use of staged abstract interpreters on open programs improves the scalability. 
+\note{TR: why is it a big deal. On Closed programs we obtain a constant factor, but modular analysis has different asymptotics}
 One challenge in static analysis of modern software is that the programs are usually 
 shipped with large library code, for example, it has been shown that analyzing a simple
 "Hello World" program in Java depends on additional 3,000 classes in the library \cite{DBLP:conf/oopsla/KulkarniMZN16}.
@@ -90,24 +97,24 @@ staged polymorphism, decide when to compile an analysis.
 
 \begin{itemize}
 \item Starting from a definitional abstract interpreter for a higher-order functional language,
-  which the syntax and semantics are described in section \ref{bg_lang},
-  we show how to turn it into a staged abstract interpreter by adding stage annotations within
-  Lightweight Modular Staging (LMS) framework, a library-based approach to code generation. 
+  whose syntax and semantics are described in section \ref{bg_lang},
+  we show how to turn it into a staged abstract interpreter by adding stage annotations with
+  the Lightweight Modular Staging (LMS) framework. %, a library-based approach to code generation. 
   We later extend the staged abstract interpreter to support imperative language features 
   (section \ref{cases_imp}), such as states, loops and exceptions.
-\item We elaborate the idea that the staged abstract interpreter not only improves the \textit{efficiency}
+\item We demonstrate that the staged abstract interpreter not only improves the \textit{efficiency}
   but also the \textit{scalability}, which are two major issues in static analysis, if we apply it on open
   programs. \todo{more on this point.}
 \item To demonstrate the feasibility and applicability of the proposed approach, we conduct three case studies in section \ref{cases_study}. 
-  First we revisited Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
+  First we revisit Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
   technique applied on 0-CFA. We show that it can be understood and easily implemented as an instance of 
-  staged abstract interpreter. 
+  our staged abstract interpreter. 
   Second, we demonstrate sophisticated control-flow analysis techniques, such as adaptive context/flow/path-sensitive 
   analysis and store-widening can be integrated with staged abstract interpreters without losing any precision.
-  Finally, we show that in an imperative language, the idea can be applied onto an abstract interpreter with
+  Finally, we show that in an imperative language, the idea can be applied to an abstract interpreter with
   an abstract domain that performs numerical analysis.
-  (Optional: taint/information flow analysis?)
-\item We also empirically evaluate the speed improved by staging an big-step abstract interpreter 
+  % (Optional: taint/information flow analysis?)
+\item We empirically evaluate the performance improvement by staging an big-step abstract interpreter 
   for control-flow analysis. We compare against with the unstaged version, a small-step version (unstaged), 
   and an optimizing small-step version.
 \end{itemize}
