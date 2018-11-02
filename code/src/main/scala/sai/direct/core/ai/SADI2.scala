@@ -15,9 +15,9 @@ import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 object Semantics {
-  type NoRep[T] = T
+  type NoRep[+T] = T
 
-  trait EnvSpec[R[_], K, V, E <: EnvSpec[R,K,V,E]] {
+  trait EnvSpec[R[+_], K, V, E <: EnvSpec[R,K,V,E]] {
     def apply(k: R[K]): R[V]
     def +(kv: (R[K], R[V])): E
   }
@@ -32,16 +32,26 @@ object Semantics {
     def ⊔(that: S): S
   }
 
-  trait Sem[R[_]] {
+  trait CacheSpec[R[_], K, V, C <: CacheSpec[R,K,V,C]] {
+    def inGet(k: R[K]): R[V]
+    def outGet(k: R[K]): R[V]
+    def inContains(k: R[K]): R[Boolean]
+    def outContains(k: R[K]): R[Boolean]
+    def outUpdate(k: R[K], v: R[V]): C
+    //def outUpdateSingle(k: K, v: R[V]): C
+    def outUpdateFromIn(k: R[K]): C
+    def ⊔(that: C): C
+  }
+
+  trait Sem {
+    type R[+T]
     type Addr
     type Ident
     //type Contour
     type Value
-    type Env //<: EnvSpec[R,Ident,Addr,Env] // FIXME: this cause an error, incompatible type
-    type Store // <: StoreSpec[R,Addr,Value,Store] FIXME: incompatible type
+    type Env <: EnvSpec[R,Ident,Addr,Env]
+    type Store <: StoreSpec[R,Addr,Value,Store]
     type Ans
-
-    type Env0[Ident, Addr]
 
     val ρ0: Env
     val σ0: Store
@@ -53,7 +63,7 @@ object Semantics {
     def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
   }
 
-  trait Concrete[R[_]] extends Sem[R] {
+  trait Concrete extends Sem {
     type Ident = String
     type Addr = Int
     abstract class Value
@@ -62,7 +72,7 @@ object Semantics {
     type Ans = (Value, Store)
   }
 
-  trait Abstract[R[_]] extends Sem[R] {
+  trait Abstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
     //type Contour = List[Expr]
@@ -74,7 +84,7 @@ object Semantics {
   }
 
   //TODO: Make sure this is path-sensitive (not flow-sensitive).
-  trait PathSenAbstract[R[_]] extends Sem[R] {
+  trait PathSenAbstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
     //type Contour = List[Expr]
@@ -93,7 +103,8 @@ object UnStaged {
 
   /*************************** CONCRETE ****************************/
 
-  object NoRepConSem extends Concrete[NoRep] {
+  object NoRepConSem extends Concrete {
+    type R[+T] = NoRep[T]
     case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
       def apply(k: Ident): Addr = map(k)
       def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
@@ -125,7 +136,8 @@ object UnStaged {
 
   /*************************** ABSTRACT ****************************/
 
-  object NoRepAbsSem extends Abstract[NoRep] {
+  object NoRepAbsSem extends Abstract {
+    type R[+T] = NoRep[T]
     case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
       def apply(k: Ident): Addr = map(k)
       def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
@@ -163,7 +175,8 @@ object UnStaged {
     val σ0: Store = Store(Map[Addr,Value]())
   }
 
-  object NoRepAbsSem2 extends PathSenAbstract[NoRep] with Sem[NoRep] {
+  object NoRepAbsSem2 extends PathSenAbstract with Sem {
+    type R[+T] = NoRep[T]
     case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
       def apply(k: Ident): Addr = map(k)
       def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
@@ -201,16 +214,43 @@ object UnStaged {
 
     val ρ0: Env = Env(Map[Ident,Addr]())
     val σ0: Store = Store(Map[Addr,Value]())
-    override def eval_top(e: Expr): Ans = ??? //TODO: Cache
-  }
 
+    type Config = (Expr, Env, Store)
+
+    case class Cache(in: Map[Config, Ans], out: Map[Config, Ans]) extends CacheSpec[NoRep,Config,Ans,Cache] {
+      def inGet(cfg: Config): Ans = in.getOrElse(cfg, Set())
+      def inContains(cfg: Config): Boolean = in.contains(cfg)
+      def outGet(cfg: Config):Ans = out.getOrElse(cfg, Set())
+      def outContains(cfg: Config): Boolean = out.contains(cfg)
+      def outUpdate(cfg: Config, vss: Ans): Cache = {
+        val oldv: Ans = out.getOrElse(cfg, Set())
+        Cache(in, out + (cfg -> (oldv ⊔ vss)))
+      }
+      def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
+      def ⊔(that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
+    }
+
+    def eval_cache(ev: EvalFun)(e: Expr, ρ: Env, σ: Store, cache: Cache): (Ans, Cache) = {
+      val config = (e, ρ, σ)
+      if (cache.outContains(config)) {
+        (cache.outGet(config), cache)
+      } else {
+        val cache_* = cache.outUpdateFromIn(config)
+        val ans = ev(e, ρ, σ) //TODO:
+        (ans, cache_*.outUpdate(config, ans))
+      }
+    }
+
+    override def eval_top(e: Expr): Ans = ???
+  }
 }
 
 trait Staged extends Dsl {
 
-  trait RepConSem extends Concrete[Rep]
+  trait RepConSem extends Concrete
       with DslExp with MapOpsExp with SetOpsExp
       with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp {
+    type R[+T] = Rep[T]
 
     case class Env(map: Rep[Map[Ident, Addr]]) extends EnvSpec[Rep,Ident,Addr,Env] {
       def apply(k: Rep[Ident]): Rep[Addr] = map(k)
@@ -231,10 +271,9 @@ trait Staged extends Dsl {
     }
 
     val σ0: Store = Store(Map[Addr, Value]())
-    //def alloc(x: Ident, σ: Store): Rep[Addr] = ??? //FIXME σ.map.size+1
+    def alloc(x: Ident, σ: Store): Rep[Addr] = σ.map.size+1
     //def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = ???
   }
-
 
 }
 

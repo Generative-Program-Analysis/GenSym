@@ -10,8 +10,8 @@ interpreter.
 \subsection{The Target Language} \label{bg_lang}
 
 As higher-order functions had been widely introduced in mainstream programming languages \todo{cite}, in this paper, 
-we target a tiny higher-order functional language \TLang, which is based on direct-style lambda-calculus, 
-and with the support of numbers, arithmetics, recursions and conditionals.
+we target a tiny higher-order functional language \TLang, which is based on direct-style lambda-calculus
+with the support of numbers, arithmetics, recursions and conditionals.
 In section \ref{cases_imp}, we will see adding more imperative features to the language.
 Since we are mostly interested in analyzing the dynamic behavior of the program, the static semantics and
 type system will be omitted. We also assume all the input programs are well-typed.
@@ -40,7 +40,8 @@ The trait also requires the implementators provide the initial values of environ
 %TODO: talk about alloc here?
 
 \begin{lstlisting}
-trait Semantics[R[_]] {
+trait Semantics {
+  type R[+T]
   type Ident;    type Addr;   type Value;    type Ans
   type Env <: EnvSpec[R, Ident, Addr, Env]
   type Store <: StoreSpec[R, Addr, Value, Store]
@@ -65,11 +66,11 @@ to argument \texttt{ev}. Finally, a default implementation for the top-level eva
 As we will see later, the open-recursion style is beneficial when implementing abstract interpreter and 
 staged abstract interpreter \todo{cite adi}.
 
-Readers may notice an additional notation \texttt{[R[\_]]} afterward the trait definition,
-which indicates \texttt{Semantics} takes a type parameter \texttt{R}, where \texttt{R} represents
-a higher-kinded type and will used to specify the binding-time, i.e., staged or not. 
-For the moment, \texttt{R} will be instantiated unstaged --- an identity type constructor: 
-\texttt{type NoRep[A] = A}. \todo{where talk about stage poly?}
+Readers may notice an additional abstract type \texttt{R[+T]} is defined in the trait,
+which means \texttt{R} represents a higher-kinded type and will used to specify the binding-time, 
+i.e., staged or not. Since the LMS framework we are using allows us to specify binding-time purely
+based on types, the unstaged higher-kinded type can be simply instantiated as an identity type constructor: 
+\texttt{type NoRep[+T] = T}. \todo{where talk about stage poly?}
 
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
 Since the interpreter is concrete, the address space is infinite thus type \texttt{Int} is used here.
@@ -77,7 +78,7 @@ The final returned type \texttt{Ans} is a pair of \texttt{Value} and \texttt{Sto
 the values are either closure or numbers.
 
 \begin{lstlisting}
-trait Concrete[R[_]] extends Semantics[R] {
+trait Concrete extends Semantics {
   type Ident = String;         type Addr = Int
   type Ans = (Value, Store);   abstract class Value
   case class CloV($\lambda$: Lam, $\rho$: Env) extends Value
@@ -90,7 +91,8 @@ Note that an allocation function is used when we need to update the store:
 in the concrete case, function \texttt{alloc} always returns a fresh address of the store.
 
 \begin{lstlisting}
-object NoRepConcreteEval extends Concrete[NoRep] {
+object NoRepConcreteEval extends Concrete {
+  type R[+T] = NoRep[T]
   def alloc(x: Ident, $\sigma$: Store): Addr = $\sigma$.size + 1
   def eval(ev: EvalFun)(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = 
     e match {
@@ -112,7 +114,7 @@ object NoRepConcreteEval extends Concrete[NoRep] {
 \subsection{From Interpreter to Abstract Interpreter}
 
 \begin{lstlisting}
-trait Abstract[R[_]] extends Semantics[R] {
+trait Abstract extends Semantics {
   type Ident = String;         case class Addr(x: Ident)
   type Ans = (Value, Store);   type Value = Set[AbsValue]
   abstract class AbsValue
