@@ -20,7 +20,8 @@ object Lattices {
     def ⊓(l1: R[E], l2: R[E]): R[E]
   }
 
-  type NoRep[A] = A
+  type NoRep[+A] = A
+
   trait Lattice[A] extends GenericLattice[A, NoRep]
   object Lattice {
     def apply[L](implicit l: Lattice[L]): Lattice[L] = l
