@@ -16,6 +16,7 @@ import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _
 
 // A: a dummy class for staging
 
+/*
 case class A(i: Int)
 
 trait AOps extends Base with Variables {
@@ -30,6 +31,7 @@ trait AOpsExp extends BaseExp with AOps with VariablesExp {
   case class AI(a: Exp[A]) extends Def[Int]
   def a_i(a: Exp[A])(implicit pos: SourceContext): Exp[Int] = AI(a)
 }
+ */
 
 //////////////////////////////////////////////////////////////////////
 
@@ -46,7 +48,6 @@ trait SADI extends DslExp
     with MapOpsExp
     with SetOpsExp
     with ListOpsExp
-    with AOpsExp
     with TupleOpsExp
     with TupledFunctionsRecursiveExp {
   import AAM._

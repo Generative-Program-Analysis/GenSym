@@ -37,20 +37,20 @@ object Semantics {
     type Ident
     //type Contour
     type Value
-    type Env     // <: EnvTrait[R,Ident,Addr,Env] // FIXME: this cause an error, incompatible type
-    type Store  // <: StoreTrait[R,Addr,Value,Store] FIXME: incompatible type
+    type Env <: EnvTrait[R,Ident,Addr,Env] // FIXME: this cause an error, incompatible type
+    type Store   // <: StoreTrait[R,Addr,Value,Store] FIXME: incompatible type
     type Ans
+
+    val ρ0: Env
+    val σ0: Store
     def alloc(x: Ident, σ: Store): R[Addr]
-    type EvalFun = (Expr, Env, Store) ⇒ Ans
-    def fix(ev: EvalFun => EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = ev(fix(ev))(e, ρ, σ)
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans
-    def eval_top(e: Expr): Ans
+
+    type EvalFun = (Expr, Env, Store) ⇒ Ans
+    def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
+    def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
   }
-}
 
-import Semantics._
-
-package concreteinterp {
   trait Concrete[R[_]] extends Sem[R] {
     type Ident = String
     type Addr = Int
@@ -58,6 +58,33 @@ package concreteinterp {
     type Value = CloV
     type Ans = (Value, Store)
   }
+
+  trait Abstract[R[_]] extends Sem[R] {
+    type Ident = String
+    case class Addr(x: Ident)
+    //type Contour = List[Expr]
+    case class CloV(λ: Lam, ρ: Env)
+    type Value = Set[CloV]
+    type Ans = (Value, Store)
+  }
+
+  //TODO: Make sure this is path-sensitive (not flow-sensitive).
+  trait PathSenAbstract[R[_]] extends Sem[R] {
+    type Ident = String
+    case class Addr(x: Ident)
+    //type Contour = List[Expr]
+    case class CloV(λ: Lam, ρ: Env)
+    type Value = Set[CloV]
+    type Ans = Set[(Value, Store)]
+  }
+
+}
+
+import Semantics._
+
+object UnStaged {
+
+  /*************************** CONCRETE ****************************/
 
   object NRConSem extends Concrete[NR] {
     case class Env(map: Map[Ident, Addr]) extends EnvTrait[NR,Ident,Addr,Env] {
@@ -86,45 +113,9 @@ package concreteinterp {
         val α = alloc(x, e2σ)
         ev(e, λρ + (x → α), e2σ + (α → e2v))
     }
-    def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
   }
 
-  trait RepConcrete extends Dsl {
-    trait RepConSem extends Concrete[Rep] with DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp {
-      case class Env(map: Rep[Map[Ident, Addr]]) extends EnvTrait[Rep,Ident,Addr,Env] {
-        def apply(k: Rep[Ident]): Rep[Addr] = map(k)
-        def +(kv: (Rep[Ident], Rep[Addr])): Env = Env(map + (kv._1, kv._2))
-      }
-      val ρ0: Env = Env(Map[Ident,Addr]())
-
-      implicit def AbsValueTyp: Typ[Value] = manifestTyp
-
-      case class Store(map: Rep[Map[Addr, Value]]) extends StoreTrait[Rep,Addr,Value,Store] {
-        def apply(k: Rep[Addr]): Rep[Value] = map(k)
-        def update(k: Rep[Addr], v: Rep[Value]): Store = Store(map + (k → v))
-        def getOrElse(k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
-        def +(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
-        def update(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
-        def contains(k: Rep[Addr]): Rep[Boolean] = map.contains(k)
-        def ⊔(that: Store): Store = throw new RuntimeException("Not implemented")
-      }
-
-      val σ0: Store = Store(Map[Addr, Value]())
-      //def alloc(x: Ident, σ: Store): Rep[Addr] = σ.map.size + 1
-    }
-  }
-
-}
-
-package abstractinterp {
-  trait Abstract[R[_]] extends Sem[R] {
-    type Ident = String
-    case class Addr(x: Ident)
-    //type Contour = List[Expr]
-    case class CloV(λ: Lam, ρ: Env)
-    type Value = Set[CloV]
-    type Ans = (Value, Store)
-  }
+  /*************************** ABSTRACT ****************************/
 
   object NRAbsSem extends Abstract[NR] {
     case class Env(map: Map[Ident, Addr]) extends EnvTrait[NR,Ident,Addr,Env] {
@@ -162,19 +153,83 @@ package abstractinterp {
 
     val ρ0: Env = Env(Map[Ident,Addr]())
     val σ0: Store = Store(Map[Addr,Value]())
-    def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
+  }
+
+  object NRAbsSem2 extends PathSenAbstract[NR] {
+    case class Env(map: Map[Ident, Addr]) extends EnvTrait[NR,Ident,Addr,Env] {
+      def apply(k: Ident): Addr = map(k)
+      def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
+    }
+    case class Store(map: Map[Addr, Value]) extends StoreTrait[NR,Addr,Value,Store] {
+      def apply(k: Addr): Value = map(k)
+      def update(k: Addr, v: Value): Store = {
+        val oldv: Value = map.getOrElse(k, v.bot)
+        Store(map + (k → (oldv ⊔ v)))
+      }
+      def getOrElse(k: Addr, dft: Value): Value = map.getOrElse(k, dft)
+      def +(kv: (Addr, Value)): Store = update(kv._1, kv._2)
+      def update(kv: (Addr, Value)): Store = update(kv._1, kv._2)
+      def contains(k: Addr): Boolean = map.contains(k)
+      def ⊔(that: Store): Store = Store(this.map ⊔ that.map)
+    }
+
+    def alloc(x: Ident, σ: Store): Addr = Addr(x)
+    def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
+      case Var(x) ⇒ Set((σ(ρ(x)), σ))
+      case Lam(x, e) ⇒ Set((Set[CloV](CloV(Lam(x,e), ρ)), σ))
+      case App(e1, e2) ⇒
+        val result: Set[Ans] =
+          for ((e1vs, e1σ) <- ev(e1, ρ, σ);
+               CloV(Lam(x, e), λρ) <- e1vs;
+               (e2vs, e2σ) <- ev(e2, ρ, e1σ)) yield {
+            val α = alloc(x, e2σ)
+            val ρ_* = λρ + (x → α)
+            val σ_* = e2σ + (α → e2vs)
+            ev(e, ρ_*, σ_*)
+          }
+        result.flatten
+    }
+
+    val ρ0: Env = Env(Map[Ident,Addr]())
+    val σ0: Store = Store(Map[Addr,Value]())
   }
 
 }
 
+trait Staged extends Dsl {
+
+  trait RepConSem extends Concrete[Rep] with DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp {
+    case class Env(map: Rep[Map[Ident, Addr]]) extends EnvTrait[Rep,Ident,Addr,Env] {
+      def apply(k: Rep[Ident]): Rep[Addr] = map(k)
+      def +(kv: (Rep[Ident], Rep[Addr])): Env = Env(map + (kv._1, kv._2))
+    }
+    val ρ0: Env = Env(Map[Ident,Addr]())
+
+    implicit def AbsValueTyp: Typ[Value] = manifestTyp
+
+    case class Store(map: Rep[Map[Addr, Value]]) extends StoreTrait[Rep,Addr,Value,Store] {
+      def apply(k: Rep[Addr]): Rep[Value] = map(k)
+      def update(k: Rep[Addr], v: Rep[Value]): Store = Store(map + (k → v))
+      def getOrElse(k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
+      def +(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
+      def update(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
+      def contains(k: Rep[Addr]): Rep[Boolean] = map.contains(k)
+      def ⊔(that: Store): Store = throw new RuntimeException("Not implemented")
+    }
+
+    val σ0: Store = Store(Map[Addr, Value]())
+    //def alloc(x: Ident, σ: Store): Rep[Addr] = ??? //FIXME σ.map.size+1
+    //def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = ???
+  }
+
+}
+
+
 object SADI2 {
-  import concreteinterp._
-  //import abstractinterp._
   def main(args: Array[String]) {
     val omega = App(Lam("x", App(Var("x"), Var("x"))), Lam("x", App(Var("x"), Var("x"))))
-    //val ai1 = NRAbsSem()
-    // NRConSem.eval_top(omega) /* Stack overflow */
-    // ai1.eval_top(omega) /* Stack overflow */
+    //NRConSem.eval_top(omega) /* Stack overflow */
+    // NRAbsSem.eval_top(omega) /* Stack overflow */
   }
 
 }
