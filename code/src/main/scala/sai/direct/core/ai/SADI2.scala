@@ -17,7 +17,7 @@ import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _
 object Semantics {
   type NR[T] = T
 
-  trait EnvTrait[R[_],K,V,E<:EnvTrait[R,K,V,E]] {
+  trait EnvTrait[R[_], K, V, E <: EnvTrait[R,K,V,E]] {
     def apply(k: R[K]): R[V]
     def +(kv: (R[K], R[V])): E
   }
@@ -38,7 +38,7 @@ object Semantics {
     //type Contour
     type Value
     type Env <: EnvTrait[R,Ident,Addr,Env] // FIXME: this cause an error, incompatible type
-    type Store   // <: StoreTrait[R,Addr,Value,Store] FIXME: incompatible type
+    type Store // <: StoreTrait[R,Addr,Value,Store] FIXME: incompatible type
     type Ans
 
     val ρ0: Env
@@ -198,7 +198,10 @@ object UnStaged {
 
 trait Staged extends Dsl {
 
-  trait RepConSem extends Concrete[Rep] with DslExp with MapOpsExp with SetOpsExp with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp {
+  trait RepConSem extends Concrete[Rep]
+      with DslExp with MapOpsExp with SetOpsExp
+      with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp {
+
     case class Env(map: Rep[Map[Ident, Addr]]) extends EnvTrait[Rep,Ident,Addr,Env] {
       def apply(k: Rep[Ident]): Rep[Addr] = map(k)
       def +(kv: (Rep[Ident], Rep[Addr])): Env = Env(map + (kv._1, kv._2))
@@ -221,6 +224,7 @@ trait Staged extends Dsl {
     //def alloc(x: Ident, σ: Store): Rep[Addr] = ??? //FIXME σ.map.size+1
     //def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = ???
   }
+
 
 }
 
