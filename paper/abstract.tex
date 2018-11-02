@@ -1,19 +1,43 @@
-It is well known that a staged interpreter is a compiler, which provides performance improvement
-by specializing the interpreter to a given program.
+It is well known that a staged interpreter is a compiler: specializing the interpreter to a given program
+produces an equivalent program that runs faster.
+It is even more widely known that an abstract interpreter is a program analyzer: tweaking the 
+interpreter to run on a domain of abstract values produces a sound static analysis.
 
-In this paper, we study \textit{abstract} interpreters combined with multi-stage programming, i.e., the 
-staged abstract interpreters. 
-By staging the abstract interpreter with respect to a program, we obtain a specialized analysis that runs faster.
-By applying the staged abstract interpreter with \textit{open} programs and considering the free variables as dynamic inputs, 
+What happens when we combine these two ideas, and apply staging to an \emph{abstract} interpreter? 
+We obtain a sound static analysis, specialized for a given program, that runs faster.
+%
+More surprisingly, we show that by applying the staged abstract interpreter to \textit{open} programs and considering the free variables as dynamic inputs, 
 we obtain a modular analysis that generates sound partial analysis results which can be composed 
-and reused later without losing precision, though the original abstract interpreter is a whole-program 
+and reused later without losing precision, even though the original abstract interpreter is a whole-program 
 analysis algorithm.
 
-Using the idea of staged abstract interpreters, we show several case studies, including 
-\citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation of  0-CFA, pushdown
+Based on the idea of staged abstract interpreters, we show several case studies, including 
+\citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation of 0-CFA, pushdown
 control-flow analysis with context/path/flow-sensitivity and store-widening, and a numerical
 analysis on an imperative language.
 
-We also empirically evaluate the improvement of performance on control-flow analysis of benchmark programs.
-The result shows an average speedup of Nx when staging to Scala for a monovariant analysis, and Mx for polyvariant analysis.
+We empirically evaluate the performance improvements on control-flow analysis of benchmark programs.
+The results show an average speedup of Nx with staging for a monovariant analysis, and Mx for 
+a polyvariant analysis.
+
+
+
+% It is well known that a staged interpreter is a compiler, which provides performance improvement
+% by specializing the interpreter to a given program.
+
+% In this paper, we study \textit{abstract} interpreters combined with multi-stage programming, i.e., the 
+% staged abstract interpreters. 
+% By staging the abstract interpreter with respect to a program, we obtain a specialized analysis that runs faster.
+% By applying the staged abstract interpreter with \textit{open} programs and considering the free variables as dynamic inputs, 
+% we obtain a modular analysis that generates sound partial analysis results which can be composed 
+% and reused later without losing precision, though the original abstract interpreter is a whole-program 
+% analysis algorithm.
+
+% Using the idea of staged abstract interpreters, we show several case studies, including 
+% \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation of  0-CFA, pushdown
+% control-flow analysis with context/path/flow-sensitivity and store-widening, and a numerical
+% analysis on an imperative language.
+
+% We also empirically evaluate the improvement of performance on control-flow analysis of benchmark programs.
+% The result shows an average speedup of Nx when staging to Scala for a monovariant analysis, and Mx for polyvariant analysis.
 
