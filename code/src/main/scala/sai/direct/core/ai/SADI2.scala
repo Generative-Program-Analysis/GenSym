@@ -5,7 +5,7 @@ import scala.util.continuations._
 import scala.language.higherKinds
 
 import sai.common.ai._
-import sai.common.ai.Lattices._
+import sai.common.ai.Lattices.{NoRep => _, _}
 import sai.direct.core.parser._
 
 import sai.common._
@@ -15,14 +15,14 @@ import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 object Semantics {
-  type NR[T] = T
+  type NoRep[T] = T
 
-  trait EnvTrait[R[_], K, V, E <: EnvTrait[R,K,V,E]] {
+  trait EnvSpec[R[_], K, V, E <: EnvSpec[R,K,V,E]] {
     def apply(k: R[K]): R[V]
     def +(kv: (R[K], R[V])): E
   }
 
-  trait StoreTrait[R[_], K, V, S <: StoreTrait[R,K,V,S]] {
+  trait StoreSpec[R[_], K, V, S <: StoreSpec[R,K,V,S]] {
     def apply(k: R[K]): R[V]
     def getOrElse(k: R[K], dft: R[V]): R[V]
     def +(kv: (R[K], R[V])): S
@@ -37,9 +37,11 @@ object Semantics {
     type Ident
     //type Contour
     type Value
-    type Env <: EnvTrait[R,Ident,Addr,Env] // FIXME: this cause an error, incompatible type
-    type Store // <: StoreTrait[R,Addr,Value,Store] FIXME: incompatible type
+    type Env //<: EnvSpec[R,Ident,Addr,Env] // FIXME: this cause an error, incompatible type
+    type Store // <: StoreSpec[R,Addr,Value,Store] FIXME: incompatible type
     type Ans
+
+    type Env0[Ident, Addr]
 
     val ρ0: Env
     val σ0: Store
@@ -54,8 +56,9 @@ object Semantics {
   trait Concrete[R[_]] extends Sem[R] {
     type Ident = String
     type Addr = Int
-    case class CloV(λ: Lam, ρ: Env)
-    type Value = CloV
+    abstract class Value
+    case class CloV(λ: Lam, ρ: Env) extends Value
+    case class NumV(i: Int) extends Value
     type Ans = (Value, Store)
   }
 
@@ -63,8 +66,10 @@ object Semantics {
     type Ident = String
     case class Addr(x: Ident)
     //type Contour = List[Expr]
-    case class CloV(λ: Lam, ρ: Env)
-    type Value = Set[CloV]
+    abstract class AbsValue
+    case class CloV(λ: Lam, ρ: Env) extends AbsValue
+    case class NumV() extends AbsValue
+    type Value = Set[AbsValue]
     type Ans = (Value, Store)
   }
 
@@ -73,8 +78,10 @@ object Semantics {
     type Ident = String
     case class Addr(x: Ident)
     //type Contour = List[Expr]
-    case class CloV(λ: Lam, ρ: Env)
-    type Value = Set[CloV]
+    abstract class AbsValue
+    case class CloV(λ: Lam, ρ: Env) extends AbsValue
+    case class NumV() extends AbsValue
+    type Value = Set[AbsValue]
     type Ans = Set[(Value, Store)]
   }
 
@@ -86,13 +93,13 @@ object UnStaged {
 
   /*************************** CONCRETE ****************************/
 
-  object NRConSem extends Concrete[NR] {
-    case class Env(map: Map[Ident, Addr]) extends EnvTrait[NR,Ident,Addr,Env] {
+  object NoRepConSem extends Concrete[NoRep] {
+    case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
       def apply(k: Ident): Addr = map(k)
       def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
     }
     val ρ0: Env = Env(Map[Ident,Addr]())
-    case class Store(map: Map[Addr, Value]) extends StoreTrait[NR,Addr,Value,Store] {
+    case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
       def apply(k: Addr): Value = map(k)
       def update(k: Addr, v: Value): Store = Store(map + (k → v))
       def getOrElse(k: Addr, dft: Value): Value = map.getOrElse(k, dft)
@@ -105,6 +112,7 @@ object UnStaged {
 
     def alloc(x: Ident, σ: Store): Addr = σ.map.size + 1
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
+      case Lit(i) => (NumV(i), σ)
       case Var(x) => (σ(ρ(x)), σ)
       case Lam(x, e) => (CloV(Lam(x,e), ρ), σ)
       case App(e1, e2) =>
@@ -117,12 +125,12 @@ object UnStaged {
 
   /*************************** ABSTRACT ****************************/
 
-  object NRAbsSem extends Abstract[NR] {
-    case class Env(map: Map[Ident, Addr]) extends EnvTrait[NR,Ident,Addr,Env] {
+  object NoRepAbsSem extends Abstract[NoRep] {
+    case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
       def apply(k: Ident): Addr = map(k)
       def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
     }
-    case class Store(map: Map[Addr, Value]) extends StoreTrait[NR,Addr,Value,Store] {
+    case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
       def apply(k: Addr): Value = map(k)
       def update(k: Addr, v: Value): Store = {
         val oldv: Value = map.getOrElse(k, v.bot)
@@ -138,7 +146,7 @@ object UnStaged {
     def alloc(x: Ident, σ: Store): Addr = Addr(x)
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
       case Var(x) ⇒ (σ(ρ(x)), σ)
-      case Lam(x, e) ⇒ (Set[CloV](CloV(Lam(x,e), ρ)), σ)
+      case Lam(x, e) ⇒ (Set(CloV(Lam(x,e), ρ)), σ)
       case App(e1, e2) ⇒
         val (e1vs, e1σ) = ev(e1, ρ, σ)
         val (e2vs, e2σ) = ev(e2, ρ, e1σ)
@@ -155,12 +163,12 @@ object UnStaged {
     val σ0: Store = Store(Map[Addr,Value]())
   }
 
-  object NRAbsSem2 extends PathSenAbstract[NR] {
-    case class Env(map: Map[Ident, Addr]) extends EnvTrait[NR,Ident,Addr,Env] {
+  object NoRepAbsSem2 extends PathSenAbstract[NoRep] with Sem[NoRep] {
+    case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
       def apply(k: Ident): Addr = map(k)
       def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
     }
-    case class Store(map: Map[Addr, Value]) extends StoreTrait[NR,Addr,Value,Store] {
+    case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
       def apply(k: Addr): Value = map(k)
       def update(k: Addr, v: Value): Store = {
         val oldv: Value = map.getOrElse(k, v.bot)
@@ -175,9 +183,10 @@ object UnStaged {
 
     def alloc(x: Ident, σ: Store): Addr = Addr(x)
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
-      case Var(x) ⇒ Set((σ(ρ(x)), σ))
-      case Lam(x, e) ⇒ Set((Set[CloV](CloV(Lam(x,e), ρ)), σ))
-      case App(e1, e2) ⇒
+      case Lit(i) => Set((Set(NumV()), σ))
+      case Var(x) => Set((σ(ρ(x)), σ))
+      case Lam(x, e) => Set((Set(CloV(Lam(x,e), ρ)), σ))
+      case App(e1, e2) =>
         val result: Set[Ans] =
           for ((e1vs, e1σ) <- ev(e1, ρ, σ);
                CloV(Lam(x, e), λρ) <- e1vs;
@@ -192,6 +201,7 @@ object UnStaged {
 
     val ρ0: Env = Env(Map[Ident,Addr]())
     val σ0: Store = Store(Map[Addr,Value]())
+    override def eval_top(e: Expr): Ans = ??? //TODO: Cache
   }
 
 }
@@ -202,7 +212,7 @@ trait Staged extends Dsl {
       with DslExp with MapOpsExp with SetOpsExp
       with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp {
 
-    case class Env(map: Rep[Map[Ident, Addr]]) extends EnvTrait[Rep,Ident,Addr,Env] {
+    case class Env(map: Rep[Map[Ident, Addr]]) extends EnvSpec[Rep,Ident,Addr,Env] {
       def apply(k: Rep[Ident]): Rep[Addr] = map(k)
       def +(kv: (Rep[Ident], Rep[Addr])): Env = Env(map + (kv._1, kv._2))
     }
@@ -210,7 +220,7 @@ trait Staged extends Dsl {
 
     implicit def AbsValueTyp: Typ[Value] = manifestTyp
 
-    case class Store(map: Rep[Map[Addr, Value]]) extends StoreTrait[Rep,Addr,Value,Store] {
+    case class Store(map: Rep[Map[Addr, Value]]) extends StoreSpec[Rep,Addr,Value,Store] {
       def apply(k: Rep[Addr]): Rep[Value] = map(k)
       def update(k: Rep[Addr], v: Rep[Value]): Store = Store(map + (k → v))
       def getOrElse(k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
@@ -232,8 +242,8 @@ trait Staged extends Dsl {
 object SADI2 {
   def main(args: Array[String]) {
     val omega = App(Lam("x", App(Var("x"), Var("x"))), Lam("x", App(Var("x"), Var("x"))))
-    //NRConSem.eval_top(omega) /* Stack overflow */
-    // NRAbsSem.eval_top(omega) /* Stack overflow */
+    //NoRepConSem.eval_top(omega) /* Stack overflow */
+    //NoRepAbsSem.eval_top(omega) /* Stack overflow */
   }
 
 }
