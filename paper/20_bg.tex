@@ -28,7 +28,7 @@ case class Rec(x: String, e: Expr, body: Expr)
 case class If0(cnd: Expr, thn: Expr, els: Expr)
 \end{lstlisting}
 
-We give the concrete semantics of \TLang by showing a big-step definitional interpreter for it.
+We give the concrete semantics of \TLang by showing a big-step operational interpreter for it.
 But before doing that, let's first see a general interface for interpreters, whether concrete or abstract, 
 staged or unstaged. The trait \texttt{Semantics} first declares several abstract type members, such as \texttt{Ident},
 \texttt{Addr} and etc., which will be instantiated concretely later. The abstract types \texttt{Env} and \texttt{Store}
@@ -70,12 +70,13 @@ Readers may notice an additional abstract type \texttt{R[+T]} is defined in the 
 which means \texttt{R} represents a higher-kinded type and will used to specify the binding-time, 
 i.e., staged or not. Since the LMS framework we are using allows us to specify binding-time purely
 based on types, the unstaged higher-kinded type can be simply instantiated as an identity type constructor: 
-\texttt{type NoRep[+T] = T}. \todo{where talk about stage poly?}
+\texttt{type NoRep[+T] = T}. In section \ref{stagedinterp}, \texttt{R} will be instantiated 
+as a staging annotation. \todo{where talk about stage poly?}
 
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
-Since the interpreter is concrete, the address space is infinite thus type \texttt{Int} is used here.
-The final returned type \texttt{Ans} is a pair of \texttt{Value} and \texttt{Store}, where
-the values are either closure or numbers.
+Since the interpreter is concrete, the address space is infinite thus type \texttt{Int} is used for \texttt{Addr}.
+The final returned type by the interpreter \texttt{Ans} is a pair of \texttt{Value} and \texttt{Store}, 
+where the values are either closure or numbers.
 
 \begin{lstlisting}
 trait Concrete extends Semantics {
@@ -87,10 +88,12 @@ trait Concrete extends Semantics {
 \end{lstlisting}
 
 Then we define evaluation function that dispatches differently for different expression.
+As we mentioned before, the type \texttt{R} is concretize as \texttt{NoRep}.
 Note that an allocation function is used when we need to update the store: 
-in the concrete case, function \texttt{alloc} always returns a fresh address of the store.
+in the concrete case, \texttt{alloc} always returns a fresh address of the store.
 
 \begin{lstlisting}
+//TODO: maybe not show all the code
 object NoRepConcreteEval extends Concrete {
   type R[+T] = NoRep[T]
   def alloc(x: Ident, $\sigma$: Store): Addr = $\sigma$.size + 1
@@ -104,9 +107,18 @@ object NoRepConcreteEval extends Concrete {
         val (e2v, e2$\sigma$) = ev(e2, $\rho$, e1$\sigma$)
         val $\alpha$ = alloc(x, e2$\sigma$)
         ev(e, $\lambda\rho$ + (x -> $\alpha$), e2$\sigma$ + ($\alpha$ -> e2v))
-      case If0(cnd, thn, els) => ...
-      case AOp(op, e1, e2) => ...
-      case Rec(x, e, body) => ...
+      case AOp(op, e1, e2) =>
+        val (e1v: NumV, e1$\sigma$) = ev(e1, $\rho$, $\sigma$)
+        val (e2v: NumV, e2$\sigma$) = ev(e2, $\rho$, e1$\sigma$)
+        (evalArith(op, e1v, e2v), e2$\sigma$)
+      case Rec(x, f, body) => 
+        val $\alpha$ = alloc(x, $\sigma$);  val $\rho$_* = $\rho$ + (x -> $\sigma$)
+        val (fv, f$\sigma$) = ev(f, $\rho$_*, $\sigma$)
+        val $\sigma$_* = f$\sigma$ + ($\alpha$ -> fv);  ev(body, $\rho$_*, $\sigma$_*)
+      case If0(cnd, thn, els) =>
+        val (cndv: NumV, cnd$\sigma$) = ev(cnd, $\rho$, $\sigma$)
+        if (cndv.i == 0) ev(thn, $\rho$, cnd$\sigma$)
+        else ev(els, $\rho$, cnd$\sigma$)
     }
 }
 \end{lstlisting}
@@ -130,11 +142,18 @@ big-step abstract interpreter using delimited control operators \cite{Wei:2018:R
 monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17},
 arrow-based abstract interpreter \cite{Keidel:2018:CSP:3243631.3236767}.
 
-\subsection{From Interpreter to Staged Interpreter}
+\subsection{From Interpreter to Staged Interpreter} \label{stagedinterp}
 
 \subsubsection{Multi-Stage Programming}
-\todo{example, power?}
-general idea; LMS framework in scala. MetaOCaml?
+\begin{lstlisting}
+val power5 = new DslDriver[Int, Int] {
+  def power(b: Rep[Int], x: Int): Rep[Int] =
+    if (x == 0) 1 else b * power(b, x-1)
+  def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
+}
+\end{lstlisting}
+
+Talk about power example. general idea; LMS framework in scala. MetaOCaml?
 
 Other notable implementations of MSP exist in ML family, for examples, MetaML \cite{DBLP:conf/pepm/TahaS97} 
 and MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
