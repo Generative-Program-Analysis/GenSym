@@ -22,21 +22,31 @@ object Semantics {
     def +(m: R[E], kv: (R[K], R[V])): R[E]
   }
   object EnvSpec {
-    def apply[R[+_],K,V,E](implicit env: EnvSpec[R,K,V,E]): EnvSpec[R,K,V,E] = env
+    def apply[R[+_],K,V,E](implicit ρ: EnvSpec[R,K,V,E]): EnvSpec[R,K,V,E] = ρ
   }
-  implicit class EnvOps[R[+_],K,V,E:({type λ[ε] = EnvSpec[R,K,V,ε]})#λ](env: R[E]) {
-    def get(k: R[K]): R[V] = EnvSpec[R,K,V,E].get(env, k)
-    def +(kv: (R[K], R[V])): R[E] = EnvSpec[R,K,V,E].+(env, kv)
+  implicit class EnvOps[R[+_],K,V,E:({type λ[ε] = EnvSpec[R,K,V,ε]})#λ](ρ: R[E]) {
+    def apply(k: R[K]): R[V] = EnvSpec[R,K,V,E].get(ρ, k)
+    def +(kv: (R[K], R[V])): R[E] = EnvSpec[R,K,V,E].+(ρ, kv)
   }
 
-  trait StoreSpec[R[_], K, V, S <: StoreSpec[R,K,V,S]] {
-    def apply(k: R[K]): R[V]
-    def getOrElse(k: R[K], dft: R[V]): R[V]
-    def +(kv: (R[K], R[V])): S
-    def update(kv: (R[K], R[V])): S
-    def update(k: R[K], v: R[V]): S
-    def contains(k: R[K]): R[Boolean]
-    def ⊔(that: S): S
+  trait StoreSpec[R[_], K, V, S] {  //<: StoreSpec[R,K,V,S]] {
+    def get(s: R[S], k: R[K]): R[V]
+    def getOrElse(s: R[S], k: R[K], dft: R[V]): R[V]
+    def update(s: R[S], k: R[K], v: R[V]): R[S]
+    def contains(s: R[S], k: R[K]): R[Boolean]
+    def ⊔(s1: R[S], s2: R[S]): R[S]
+  }
+  object StoreSpec {
+    def apply[R[+_],K,V,S](implicit σ: StoreSpec[R,K,V,S]): StoreSpec[R,K,V,S] = σ
+  }
+  implicit class StoreOps[R[+_],K,V,S:({type λ[σ] = StoreSpec[R,K,V,σ]})#λ](σ: R[S]) {
+    def apply(k: R[K]): R[V] = StoreSpec[R,K,V,S].get(σ, k)
+    def getOrElse(k: R[K], dft: R[V]): R[V] = StoreSpec[R,K,V,S].getOrElse(σ, k, dft)
+    def +(kv: (R[K], R[V])): R[S] = StoreSpec[R,K,V,S].update(σ, kv._1, kv._2)
+    def update(kv: (R[K], R[V])): R[S] = StoreSpec[R,K,V,S].update(σ, kv._1, kv._2)
+    def update(k: R[K], v: R[V]): R[S] = StoreSpec[R,K,V,S].update(σ, k, v)
+    def contains(k: R[K]): R[Boolean] = StoreSpec[R,K,V,S].contains(σ, k)
+    def ⊔(that: R[S]): R[S] = StoreSpec[R,K,V,S].⊔(σ, that)
   }
 
   trait CacheSpec[R[_], K, V, C <: CacheSpec[R,K,V,C]] {
@@ -54,43 +64,46 @@ object Semantics {
     type R[+T]
     type Addr
     type Ident
-    //type Contour
     type Value
     type Env
     implicit val envImp: EnvSpec[R, Ident, Addr, Env]
-    type Store <: StoreSpec[R,Addr,Value,Store]
+    type Store
+    implicit val storeImp: StoreSpec[R, Addr, Value, Store]
     type Ans
+    //type Contour
 
     val ρ0: R[Env]
-    val σ0: Store
-    def alloc(x: R[Ident], σ: Store): R[Addr]
-    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: Store): Ans
+    val σ0: R[Store]
+    def alloc(x: R[Ident], σ: R[Store]): R[Addr]
 
-    type EvalFun = (Expr, R[Env], Store) ⇒ Ans
+    type EvalFun = (Expr, R[Env], R[Store]) ⇒ R[Ans]
+    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): R[Ans]
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
-    def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
+    def eval_top(e: Expr): R[Ans] = fix(eval)(e, ρ0, σ0)
   }
 
   trait Concrete extends Sem {
     type Ident = String
     type Addr = Int
     type Env = Map[Ident, Addr]
+    type Store = Map[Addr, Value]
     abstract class Value
     case class NumV(i: Int) extends Value //TODO
     //case class CloV(λ: Lam, ρ: Env) extends Value //TODO: where put this?
-    type Ans = (R[Value], Store)
+    type Ans = (Value, Store)
   }
 
   trait Abstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
     type Env = Map[Ident, Addr]
+    type Store = Map[Addr, Value]
     //type Contour = List[Expr]
     abstract class AbsValue
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
     case class NumV() extends AbsValue
     type Value = Set[AbsValue]
-    type Ans = (R[Value], Store)
+    type Ans = (Value, Store)
   }
 
   //TODO: Make sure this is path-sensitive (not flow-sensitive).
@@ -98,6 +111,7 @@ object Semantics {
     type Ident = String
     case class Addr(x: Ident)
     type Env = Map[Ident, Addr]
+    type Store = Map[Addr, Value]
     //type Contour = List[Expr]
     abstract class AbsValue
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
@@ -116,22 +130,22 @@ object UnStaged {
 
   object NoRepConSem extends Concrete {
     case class CloV(λ: Lam, ρ: Env) extends Value
+
     type R[+T] = NoRep[T]
     implicit val envImp: EnvSpec[R,Ident,Addr,Env] = new EnvSpec[R,Ident,Addr,Env] {
       def get(m: Env, k: Ident): Addr = m(k)
       def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
     val ρ0: Env = Map[Ident,Addr]()
-    case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
-      def apply(k: Addr): Value = map(k)
-      def update(k: Addr, v: Value): Store = Store(map + (k → v))
-      def getOrElse(k: Addr, dft: Value): Value = map.getOrElse(k, dft)
-      def +(kv: (Addr, Value)): Store = update(kv._1, kv._2)
-      def update(kv: (Addr, Value)): Store = update(kv._1, kv._2)
-      def contains(k: Addr): Boolean = map.contains(k)
-      def ⊔(that: Store): Store = throw new RuntimeException("Not implemented")
+
+    implicit val storeImp: StoreSpec[R,Addr,Value,Store] = new StoreSpec[R,Addr,Value,Store] {
+      def get(map: Store, k: Addr): Value = map(k)
+      def getOrElse(map: Store, k: Addr, dft: Value): Value = map.getOrElse(k, dft)
+      def update(map: Store, k: Addr, v: Value): Store = map + (k → v)
+      def contains(map: Store, k: Addr): Boolean = map.contains(k)
+      def ⊔(s1: Store, s2: Store): Store = throw new RuntimeException("Not implemented")
     }
-    val σ0: Store = Store(Map[Addr,Value]())
+    val σ0: Store = Map[Addr,Value]()
 
     def evalArith(op: Symbol, vs: List[NumV]): NumV = op match {
       case '+ ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j+i) }
@@ -139,7 +153,7 @@ object UnStaged {
       case '* ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j*i) }
     }
 
-    def alloc(x: Ident, σ: Store): Addr = σ.map.size + 1
+    def alloc(x: Ident, σ: Store): Addr = σ.size + 1
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
       case Lit(i) => (NumV(i), σ)
       case Var(x) => (σ(ρ(x)), σ)
@@ -171,24 +185,22 @@ object UnStaged {
 
   object NoRepAbsSem extends Abstract {
     type R[+T] = NoRep[T]
+
     implicit val envImp: EnvSpec[R,Ident,Addr,Env] = new EnvSpec[R,Ident,Addr,Env] {
       def get(m: Env, k: Ident): Addr = m(k)
       def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
     val ρ0: Env = Map[Ident,Addr]()
-    case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
-      def apply(k: Addr): Value = map(k)
-      def update(k: Addr, v: Value): Store = {
-        val oldv: Value = map.getOrElse(k, v.bot)
-        Store(map + (k → (oldv ⊔ v)))
-      }
-      def getOrElse(k: Addr, dft: Value): Value = map.getOrElse(k, dft)
-      def +(kv: (Addr, Value)): Store = update(kv._1, kv._2)
-      def update(kv: (Addr, Value)): Store = update(kv._1, kv._2)
-      def contains(k: Addr): Boolean = map.contains(k)
-      def ⊔(that: Store): Store = Store(this.map ⊔ that.map)
+
+    implicit val storeImp: StoreSpec[R,Addr,Value,Store] = new StoreSpec[R,Addr,Value,Store] {
+      def get(map: Store, k: Addr): Value = map(k)
+      def getOrElse(map: Store, k: Addr, dft: Value): Value = map.getOrElse(k, dft)
+      def update(map: Store, k: Addr, v: Value): Store =
+        map + (k → (map.getOrElse(k, v.bot) ⊔ v))
+      def contains(map: Store, k: Addr): Boolean = map.contains(k)
+      def ⊔(s1: Store, s2: Store): Store = s1 ⊔ s2
     }
-    val σ0: Store = Store(Map[Addr,Value]())
+    val σ0: Store = Map[Addr,Value]()
 
     def alloc(x: Ident, σ: Store): Addr = Addr(x)
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
@@ -214,18 +226,15 @@ object UnStaged {
       def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
     val ρ0: Env = Map[Ident,Addr]()
-    case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
-      def apply(k: Addr): Value = map(k)
-      def update(k: Addr, v: Value): Store = {
-        val oldv: Value = map.getOrElse(k, v.bot)
-        Store(map + (k → (oldv ⊔ v)))
-      }
-      def getOrElse(k: Addr, dft: Value): Value = map.getOrElse(k, dft)
-      def +(kv: (Addr, Value)): Store = update(kv._1, kv._2)
-      def update(kv: (Addr, Value)): Store = update(kv._1, kv._2)
-      def contains(k: Addr): Boolean = map.contains(k)
-      def ⊔(that: Store): Store = Store(this.map ⊔ that.map)
+    implicit val storeImp: StoreSpec[R,Addr,Value,Store] = new StoreSpec[R,Addr,Value,Store] {
+      def get(map: Store, k: Addr): Value = map(k)
+      def getOrElse(map: Store, k: Addr, dft: Value): Value = map.getOrElse(k, dft)
+      def update(map: Store, k: Addr, v: Value): Store =
+        map + (k → (map.getOrElse(k, v.bot) ⊔ v))
+      def contains(map: Store, k: Addr): Boolean = map.contains(k)
+      def ⊔(s1: Store, s2: Store): Store = s1 ⊔ s2
     }
+    val σ0: Store = Map[Addr,Value]()
 
     def alloc(x: Ident, σ: Store): Addr = Addr(x)
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
@@ -245,7 +254,6 @@ object UnStaged {
         result.flatten
     }
 
-    val σ0: Store = Store(Map[Addr,Value]())
 
     type Config = (Expr, Env, Store)
 
@@ -299,14 +307,16 @@ trait LamOpsExp extends BaseExp with LamOps with ListOpsExp with StringOpsExp wi
 trait CloVOps extends Base with Concrete with LamOps with MapOps with Variables {
   implicit def repToCloVOps(c: Rep[CloV]) = new CloVOpsCls(c)
   case class CloV(λ: Lam, ρ: Rep[Env]) extends Value
+  /*
   object CloV {
     def apply(lam: Lam, env: Rep[Env])(implicit pos: SourceContext) = clov_new(lam, env)
   }
+   */
   class CloVOpsCls(c: Rep[CloV]) {
     def λ: Rep[Lam] = clov_lam(c)
     def ρ: Rep[Env] = clov_env(c)
   }
-  def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
+  //def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
   def clov_lam(c: Rep[CloV])(implicit pos: SourceContext): Rep[Lam]
   def clov_env(c: Rep[CloV])(implicit pos: SourceContext): Rep[Env]
 }
@@ -314,22 +324,18 @@ trait CloVOps extends Base with Concrete with LamOps with MapOps with Variables 
 trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp with Concrete with MapOpsExp with VariablesExp {
   implicit def CloVTyp: Typ[CloV] = manifestTyp
 
-  case class CloVNew(λ: Lam, ρ: Rep[Env]) extends Def[CloV]
+  //case class CloVNew(λ: Lam, ρ: Rep[Env]) extends Def[CloV]
   case class CloVLam(c: Exp[CloV]) extends Def[Lam]
   case class CloVEnv(c: Exp[CloV]) extends Def[Env]
 
-  def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = Const(CloV(λ, ρ))
+  //def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = Const(CloV(λ, ρ))
   def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = c match {
     case Const(CloV(λ, _)) => Const(λ)
-    case _ =>
-      println("clov_lam non-const branch")
-      CloVLam(c)
+    case _ => ??? // CloVLam(c)
   }
   def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = c match {
     case Const(CloV(_, ρ)) => ρ
-    case _ =>
-      println("clov_env non-const branch")
-      CloVEnv(c)
+    case _ => ??? // CloVEnv(c)
   }
 }
 
@@ -339,7 +345,7 @@ trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
     case LamVar(lam) => emitValDef(sym, src"$lam.vars")
-    case CloVNew(λ, ρ) => emitValDef(sym, src"CloV($λ, $ρ)")
+    //case CloVNew(λ, ρ) => emitValDef(sym, src"CloV($λ, $ρ)")
     case CloVLam(c) => emitValDef(sym, src"$c.λ")
     case CloVEnv(c) => emitValDef(sym, src"$c.ρ")
     case _ => super.emitNode(sym, rhs)
@@ -361,6 +367,8 @@ trait StagedInterp extends Dsl with Concrete
   //TODO: NumVOps, NumVOpsExp
 
   type R[+T] = Rep[T]
+  implicit def AbsValueTyp: Typ[Value] = manifestTyp
+  implicit def NumVTyp: Typ[NumV] = manifestTyp
 
   implicit val envImp: EnvSpec[Rep,Ident,Addr,Env] = new EnvSpec[Rep,Ident,Addr,Env] {
     def get(m: Rep[Env], k: Rep[Ident]): Rep[Addr] = m(k)
@@ -368,29 +376,28 @@ trait StagedInterp extends Dsl with Concrete
   }
   val ρ0: Rep[Env] = Map[Ident,Addr]()
 
-  implicit def AbsValueTyp: Typ[Value] = manifestTyp
-  implicit def NumVTyp: Typ[NumV] = manifestTyp
-
-  case class Store(map: Rep[Map[Addr, Value]]) extends StoreSpec[Rep,Addr,Value,Store] {
-    def apply(k: Rep[Addr]): Rep[Value] = map(k)
-    def update(k: Rep[Addr], v: Rep[Value]): Store = Store(map + (k → v))
-    def getOrElse(k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
-    def +(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
-    def update(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
-    def contains(k: Rep[Addr]): Rep[Boolean] = map.contains(k)
-    def ⊔(that: Store): Store = throw new RuntimeException("Not implemented")
+  implicit val storeImp: StoreSpec[Rep,Addr,Value,Store] = new StoreSpec[Rep,Addr,Value,Store] {
+    def get(map: Rep[Store], k: Rep[Addr]): Rep[Value] = map(k)
+    def getOrElse(map: Rep[Store], k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
+    def update(map: Rep[Store], k: Rep[Addr], v: Rep[Value]): Rep[Store] = map + (k → v)
+    def contains(map: Rep[Store], k: Rep[Addr]): Rep[Boolean] = map.contains(k)
+    def ⊔(s1: Rep[Store], s2: Rep[Store]): Rep[Store] = s1 ⊔ s2
   }
 
-  val σ0: Store = Store(Map[Addr, Value]())
-  def alloc(x: Rep[Ident], σ: Store): Rep[Addr] = σ.map.size+1
-  def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Store): Ans = e match {
+  val σ0: Rep[Store] = Map[Addr, Value]()
+  def alloc(x: Rep[Ident], σ: Rep[Store]): Rep[Addr] = σ.size+1
+  def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[Ans] = e match {
     case Lit(i) => (unit(NumV(i)), σ)
     case Var(x) => (σ(ρ(x)), σ)
-    case Lam(x, e) => (CloV(Lam(x, e), ρ), σ)
+    case Lam(x, e) => (unit(CloV(Lam(x, e), ρ)), σ)
     case App(e1, e2) =>
-      val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
-      val (e2v, e2σ) = ev(e2, ρ, e1σ)
-      val Const(Lam(x, body)) = clo.λ //TODO: implicit Const to T?
+      val ans1 = ev(e1, ρ, σ)  // val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ) //FIXME, better way to write, pattern matching?
+      val clo = ans1._1.asInstanceOf[Rep[CloV]]
+      val e1σ = ans1._2
+      val ans2 = ev(e2, ρ, e1σ) // val (e2v, e2σ) = ev(e2, ρ, e1σ) //FIXME
+      val e2v = ans2._1
+      val e2σ = ans2._2
+      val Const(Lam(x, body)) = clo.λ
       val α = alloc(x, e2σ)
       ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
   }
