@@ -149,7 +149,19 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def testall() = {
-    val tests: List[() => Unit] = List(test0, test1, test2, test3, test4, test5, testToplas98, testBool)
+    val tests: List[() => Unit] =
+      List(
+        test0,
+        test1,
+        test2,
+        test3,
+        test4,
+        test5,
+        testToplas98,
+        testProgWithComments,
+        testBool
+      )
+
     tests foreach { _() }
   }
 
@@ -223,7 +235,17 @@ object TestSimpleDirectLargeSchemeParser {
   def testToplas98() = {
     val fileName = "benchmarks/toplas98/boyer.sch"
     val program = Source.fromFile(fileName).mkString
-    println(LargeSchemeParser(program))
+    //println(LargeSchemeParser(program))
+  }
+
+  def testProgWithComments() = {
+    val fileName1 = "benchmarks/toplas98/lattice.scm"
+    val fileName2 = "benchmarks/toplas98/lattice-processed.scm"
+    val program1 = Source.fromFile(fileName1).mkString
+    val program2 = Source.fromFile(fileName2).mkString
+
+    assert(LargeSchemeParser(program1) == LargeSchemeParser(program2))
+    println("testProgWithComments passed")
   }
 
   def testBool() = {
