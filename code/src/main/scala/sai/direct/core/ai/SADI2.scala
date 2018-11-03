@@ -17,9 +17,16 @@ import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps ⇒ _, L
 object Semantics {
   type NoRep[+T] = T
 
-  trait EnvSpec[R[+_], K, V, E <: EnvSpec[R,K,V,E]] {
-    def apply(k: R[K]): R[V]
-    def +(kv: (R[K], R[V])): E
+  trait EnvSpec[R[+_],K,V,E] { //TODO: can this also be F-bound poly? <: EnvSpec[R,K,V,E]
+    def get(m: R[E], k: R[K]): R[V]
+    def +(m: R[E], kv: (R[K], R[V])): R[E]
+  }
+  object EnvSpec {
+    def apply[R[+_],K,V,E](implicit env: EnvSpec[R,K,V,E]): EnvSpec[R,K,V,E] = env
+  }
+  implicit class EnvOps[R[+_],K,V,E:({type λ[ε] = EnvSpec[R,K,V,ε]})#λ](env: R[E]) {
+    def get(k: R[K]): R[V] = EnvSpec[R,K,V,E].get(env, k)
+    def +(kv: (R[K], R[V])): R[E] = EnvSpec[R,K,V,E].+(env, kv)
   }
 
   trait StoreSpec[R[_], K, V, S <: StoreSpec[R,K,V,S]] {
@@ -49,67 +56,34 @@ object Semantics {
     type Ident
     //type Contour
     type Value
-    type Env <: EnvSpec[R,Ident,Addr,Env]
+    type Env
+    implicit val envImp: EnvSpec[R, Ident, Addr, Env]
     type Store <: StoreSpec[R,Addr,Value,Store]
     type Ans
 
-    val ρ0: Env
+    val ρ0: R[Env]
     val σ0: Store
     def alloc(x: R[Ident], σ: Store): R[Addr]
-    def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans
+    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: Store): Ans
 
-    type EvalFun = (Expr, Env, Store) ⇒ Ans
+    type EvalFun = (Expr, R[Env], Store) ⇒ Ans
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
     def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
-  }
-
-  //TODO: can this also be F-bound poly?
-  trait EnvLike[R[+_],K,V,E] {
-    def bala(m: E, k: R[K]): R[V]
-    def +(m: E, kv: (R[K], R[V])): E
-  }
-  object EnvLike {
-    def apply[R[+_],K,V,E](implicit env: EnvLike[R,K,V,E]): EnvLike[R,K,V,E] = env
-  }
-  implicit class EnvOps[R[+_],K,V,E:({type λ[ε] = EnvLike[R,K,V,ε]})#λ](env: E) {
-    def bala(k: R[K]): R[V] = EnvLike[R,K,V,E].bala(env, k)
-  }
-
-  trait Test {
-    type R[+T]
-    type Ident = String
-    type Addr = Int
-    type Env //<% EnvLike[R,Ident,Addr,Env]
-    implicit val envImp: EnvLike[R, Ident, Addr, Env]
-  }
-  trait Test2 extends Test {
-    type R[+T] = NoRep[T]
-    type Env = Map[Ident, Addr]
-    implicit val envImp: EnvLike[NoRep,Ident,Addr,Env] = new EnvLike[NoRep,Ident,Addr,Env] {
-      def bala(m: Env, k: Ident): Addr = m(k)
-      def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
-    }
-
-    type NoRepEnv[E] = EnvLike[NoRep, Ident, Addr, E]
-    def f[E: NoRepEnv](m: E): Addr = {
-      m.bala("String")
-    }
-    val m: Env = Map[Ident, Addr]()
-    f(m)
   }
 
   trait Concrete extends Sem {
     type Ident = String
     type Addr = Int
+    type Env = Map[Ident, Addr]
     abstract class Value
-    case class CloV(λ: Lam, ρ: Env) extends Value
-    case class NumV(i: Int) extends Value
+    case class NumV(i: Int) extends Value //TODO
     type Ans = (R[Value], Store)
   }
 
   trait Abstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
+    type Env = Map[Ident, Addr]
     //type Contour = List[Expr]
     abstract class AbsValue
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
@@ -122,6 +96,7 @@ object Semantics {
   trait PathSenAbstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
+    type Env = Map[Ident, Addr]
     //type Contour = List[Expr]
     abstract class AbsValue
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
@@ -139,12 +114,13 @@ object UnStaged {
   /*************************** CONCRETE ****************************/
 
   object NoRepConSem extends Concrete {
+    case class CloV(λ: Lam, ρ: Env) extends Value
     type R[+T] = NoRep[T]
-    case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
-      def apply(k: Ident): Addr = map(k)
-      def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
+    implicit val envImp: EnvSpec[R,Ident,Addr,Env] = new EnvSpec[R,Ident,Addr,Env] {
+      def get(m: Env, k: Ident): Addr = m(k)
+      def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
-    val ρ0: Env = Env(Map[Ident,Addr]())
+    val ρ0: Env = Map[Ident,Addr]()
     case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
       def apply(k: Addr): Value = map(k)
       def update(k: Addr, v: Value): Store = Store(map + (k → v))
@@ -168,10 +144,10 @@ object UnStaged {
       case Var(x) => (σ(ρ(x)), σ)
       case Lam(x, e) => (CloV(Lam(x,e), ρ), σ)
       case App(e1, e2) =>
-        val (CloV(Lam(x,e), λρ), e1σ) = ev(e1, ρ, σ)
+        val (clo: CloV, e1σ) = ev(e1, ρ, σ)
         val (e2v, e2σ) = ev(e2, ρ, e1σ)
-        val α = alloc(x, e2σ)
-        ev(e, λρ + (x → α), e2σ + (α → e2v))
+        val α = alloc(clo.λ.x, e2σ)
+        ev(e, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
       case Rec(x, f, body) =>
         val α = alloc(x, σ)
         val ρ_* = ρ + (x → α)
@@ -194,10 +170,11 @@ object UnStaged {
 
   object NoRepAbsSem extends Abstract {
     type R[+T] = NoRep[T]
-    case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
-      def apply(k: Ident): Addr = map(k)
-      def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
+    implicit val envImp: EnvSpec[R,Ident,Addr,Env] = new EnvSpec[R,Ident,Addr,Env] {
+      def get(m: Env, k: Ident): Addr = m(k)
+      def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
+    val ρ0: Env = Map[Ident,Addr]()
     case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
       def apply(k: Addr): Value = map(k)
       def update(k: Addr, v: Value): Store = {
@@ -210,6 +187,7 @@ object UnStaged {
       def contains(k: Addr): Boolean = map.contains(k)
       def ⊔(that: Store): Store = Store(this.map ⊔ that.map)
     }
+    val σ0: Store = Store(Map[Addr,Value]())
 
     def alloc(x: Ident, σ: Store): Addr = Addr(x)
     def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
@@ -226,17 +204,15 @@ object UnStaged {
         }
         result.reduceLeft[Ans] { case ((v1,s1), (v2,s2)) => (v1++v2, s1⊔s2) }
     }
-
-    val ρ0: Env = Env(Map[Ident,Addr]())
-    val σ0: Store = Store(Map[Addr,Value]())
   }
 
   object NoRepAbsSem2 extends PathSenAbstract {
     type R[+T] = NoRep[T]
-    case class Env(map: Map[Ident, Addr]) extends EnvSpec[NoRep,Ident,Addr,Env] {
-      def apply(k: Ident): Addr = map(k)
-      def +(kv: (Ident,Addr)): Env = Env(map + (kv._1 → kv._2))
+    implicit val envImp: EnvSpec[R,Ident,Addr,Env] = new EnvSpec[R,Ident,Addr,Env] {
+      def get(m: Env, k: Ident): Addr = m(k)
+      def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
+    val ρ0: Env = Map[Ident,Addr]()
     case class Store(map: Map[Addr, Value]) extends StoreSpec[NoRep,Addr,Value,Store] {
       def apply(k: Addr): Value = map(k)
       def update(k: Addr, v: Value): Store = {
@@ -268,7 +244,6 @@ object UnStaged {
         result.flatten
     }
 
-    val ρ0: Env = Env(Map[Ident,Addr]())
     val σ0: Store = Store(Map[Addr,Value]())
 
     type Config = (Expr, Env, Store)
@@ -301,26 +276,11 @@ object UnStaged {
   }
 }
 
-trait Staged extends Dsl {
+trait StagedInterp extends Dsl {
   val power5 = new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] =
       if (x == 0) 1 else b * power(b, x-1)
     def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
-  }
-
-  trait Test3 extends Test with DslExp with MapOpsExp {
-    type R[+T] = Rep[T]
-    type Env = Rep[Map[Ident, Addr]]
-    implicit val envImp: EnvLike[Rep,Ident,Addr,Env] = new EnvLike[Rep,Ident,Addr,Env] {
-      def bala(m: Env, k: Rep[Ident]): Rep[Addr] = m(k)
-      def +(m: Env, kv: (Rep[Ident], Rep[Addr])): Env = m + (kv._1 -> kv._2)
-    }
-    type RepEnv[E] = EnvLike[Rep, Ident, Addr, E]
-    def f[E: RepEnv](m: E): Rep[Addr] = {
-      m.bala("String")
-    }
-    val m: Env = Map[Ident, Addr]()
-    f(m)
   }
 
   /***************************************************/
@@ -339,23 +299,33 @@ trait Staged extends Dsl {
     def lam_var(l: Exp[Lam])(implicit pos: SourceContext): Exp[String] = LamVar(l)
   }
 
+
   trait CloVOps extends Base with Concrete with LamOps {
     implicit def repToCloVOps(c: Rep[CloV]) = new CloVOps(c)
+    case class CloV(λ: Lam, ρ: Env) extends Value
+    object CloV {
+      def apply(lam: Rep[Lam], env: Rep[Env])(implicit pos: SourceContext) = clov_new(lam, env)
+    }
     class CloVOps(c: Rep[CloV]) {
       def λ: Rep[Lam] = clov_lam(c)
       def ρ: Rep[Env] = clov_env(c)
     }
+    def clov_new(λ: Rep[Lam], ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
     def clov_lam(c: Rep[CloV])(implicit pos: SourceContext): Rep[Lam]
     def clov_env(c: Rep[CloV])(implicit pos: SourceContext): Rep[Env]
   }
 
   trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp {
     implicit def CloVTyp: Typ[CloV] = manifestTyp
+    case class CloVNew(λ: Exp[Lam], ρ: Rep[Env]) extends Def[CloV]
     case class CloVLam(c: Exp[CloV]) extends Def[Lam]
     case class CloVEnv(c: Exp[CloV]) extends Def[Env]
+    def clov_new(λ: Rep[Lam], ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = CloVNew(λ, ρ)
     def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = CloVLam(c)
     def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = ??? //CloVEnv(c)
   }
+
+  //TODO: NumVOps, NumVOpsExp
 
   object RepConSem extends Concrete
       with DslExp with MapOpsExp with SetOpsExp
@@ -363,14 +333,11 @@ trait Staged extends Dsl {
       with LamOpsExp with CloVOpsExp {
     type R[+T] = Rep[T]
 
-    //TODO: use a type class ?
-    case class Env(map: Rep[Map[Ident, Addr]]) extends EnvSpec[Rep,Ident,Addr,Env] {
-      def apply(k: Rep[Ident]): Rep[Addr] = map(k)
-      def +(kv: (Rep[Ident], Rep[Addr])): Env = Env(map + (kv._1, kv._2))
+    implicit val envImp: EnvSpec[Rep,Ident,Addr,Env] = new EnvSpec[Rep,Ident,Addr,Env] {
+      def get(m: Rep[Env], k: Rep[Ident]): Rep[Addr] = m(k)
+      def +(m: Rep[Env], kv: (Rep[Ident], Rep[Addr])): Rep[Env] = m + (kv._1 -> kv._2)
     }
-     val ρ0: Env = Env(Map[Ident,Addr]())
-    //type Env = Rep[Map[Ident, Addr]]
-    //val ρ0: Env = Map[Ident,Addr]()
+    val ρ0: Rep[Env] = Map[Ident,Addr]()
 
     implicit def AbsValueTyp: Typ[Value] = manifestTyp
     implicit def NumVTyp: Typ[NumV] = manifestTyp
@@ -387,18 +354,15 @@ trait Staged extends Dsl {
 
     val σ0: Store = Store(Map[Addr, Value]())
     def alloc(x: Rep[Ident], σ: Store): Rep[Addr] = σ.map.size+1
-    def eval(ev: EvalFun)(e: Expr, ρ: Env, σ: Store): Ans = e match {
+    def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Store): Ans = e match {
       case Lit(i) => (unit(NumV(i)), σ)
       case Var(x) => (σ(ρ(x)), σ)
-      case Lam(x, e) => (unit(CloV(Lam(x,e), ρ)), σ)
+      case Lam(x, e) => (CloV(unit(Lam(x, e)), ρ), σ)
       case App(e1, e2) =>
-        //val (CloV(Lam(x,e), λρ), e1σ) = ev(e1, ρ, σ)
         val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
         val (e2v, e2σ) = ev(e2, ρ, e1σ)
         val α = alloc(clo.λ.x, e2σ)
-        // clo.ρ : Rep[Env],
-        //ev(e, clo.ρ + ((clo.λ.x, α)), e2σ + (α → e2v))
-        ???
+        ev(e, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
     }
   }
 
@@ -408,6 +372,7 @@ trait Staged extends Dsl {
 
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
       case LamVar(lam) => emitValDef(sym, src"$lam.vars")
+      case CloVNew(λ, ρ) => emitValDef(sym, src"CloV($λ, $ρ)")
       case CloVLam(c) => emitValDef(sym, src"$c.λ")
       case CloVEnv(c) => emitValDef(sym, src"$c.ρ")
       case _ => super.emitNode(sym, rhs)
@@ -415,7 +380,6 @@ trait Staged extends Dsl {
   }
 
 }
-
 
 object SADI2 {
   import UnStaged._
