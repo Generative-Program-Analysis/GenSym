@@ -46,7 +46,7 @@ trait Semantics {
   type Env <: EnvSpec[R, Ident, Addr, Env]
   type Store <: StoreSpec[R, Addr, Value, Store]
   val $\rho$0: Env;     val $\sigma$0: Store
-  def alloc(x: Ident, $\sigma$: Store): R[Addr]
+  def alloc(x: R[Ident], $\sigma$: Store): R[Addr]
   type EvalFun = (Expr, Env, Store) => Ans
   def eval(ev: EvalFun)(e: Expr, $\rho$: Env, $\sigma$: Store): Ans
   def fix(ev: EvalFun => EvalFun): EvalFun = 
