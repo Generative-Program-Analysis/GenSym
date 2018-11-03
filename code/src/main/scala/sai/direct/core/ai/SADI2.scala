@@ -76,10 +76,10 @@ object Semantics {
     val σ0: R[Store]
     def alloc(x: R[Ident], σ: R[Store]): R[Addr]
 
-    type EvalFun = (Expr, R[Env], R[Store]) ⇒ R[Ans]
-    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): R[Ans]
+    type EvalFun = (Expr, R[Env], R[Store]) ⇒ Ans
+    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
-    def eval_top(e: Expr): R[Ans] = fix(eval)(e, ρ0, σ0)
+    def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
   }
 
   trait Concrete extends Sem {
@@ -89,8 +89,8 @@ object Semantics {
     type Store = Map[Addr, Value]
     abstract class Value
     case class NumV(i: Int) extends Value //TODO
+    type Ans = (R[Value], R[Store])
     //case class CloV(λ: Lam, ρ: Env) extends Value //TODO: where put this?
-    type Ans = (Value, Store)
   }
 
   trait Abstract extends Sem {
@@ -103,7 +103,7 @@ object Semantics {
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
     case class NumV() extends AbsValue
     type Value = Set[AbsValue]
-    type Ans = (Value, Store)
+    type Ans = (R[Value], R[Store])
   }
 
   //TODO: Make sure this is path-sensitive (not flow-sensitive).
@@ -117,7 +117,7 @@ object Semantics {
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
     case class NumV() extends AbsValue
     type Value = Set[AbsValue]
-    type Ans = Set[(Value, Store)]
+    type Ans = R[Set[(Value, Store)]]
   }
 
 }
@@ -386,17 +386,13 @@ trait StagedInterp extends Dsl with Concrete
 
   val σ0: Rep[Store] = Map[Addr, Value]()
   def alloc(x: Rep[Ident], σ: Rep[Store]): Rep[Addr] = σ.size+1
-  def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[Ans] = e match {
+  def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Ans = e match {
     case Lit(i) => (unit(NumV(i)), σ)
     case Var(x) => (σ(ρ(x)), σ)
     case Lam(x, e) => (unit(CloV(Lam(x, e), ρ)), σ)
     case App(e1, e2) =>
-      val ans1 = ev(e1, ρ, σ)  // val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ) //FIXME, better way to write, pattern matching?
-      val clo = ans1._1.asInstanceOf[Rep[CloV]]
-      val e1σ = ans1._2
-      val ans2 = ev(e2, ρ, e1σ) // val (e2v, e2σ) = ev(e2, ρ, e1σ) //FIXME
-      val e2v = ans2._1
-      val e2σ = ans2._2
+      val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ) 
+      val (e2v, e2σ) = ev(e2, ρ, e1σ)
       val Const(Lam(x, body)) = clo.λ
       val α = alloc(x, e2σ)
       ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
