@@ -77,6 +77,7 @@ object Semantics {
     type Env = Map[Ident, Addr]
     abstract class Value
     case class NumV(i: Int) extends Value //TODO
+    //case class CloV(λ: Lam, ρ: Env) extends Value //TODO: where put this?
     type Ans = (R[Value], Store)
   }
 
@@ -389,12 +390,9 @@ trait StagedInterp extends Dsl with Concrete
     case App(e1, e2) =>
       val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
       val (e2v, e2σ) = ev(e2, ρ, e1σ)
-      //val α = alloc(clo.λ.x, e2σ)
-      clo.λ match {
-        case Const(Lam(x, body)) =>
-          val α = alloc(x, e2σ)
-          ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
-      }
+      val Const(Lam(x, body)) = clo.λ //TODO: implicit Const to T?
+      val α = alloc(x, e2σ)
+      ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
   }
 }
 
@@ -405,9 +403,19 @@ abstract class StagedInterpDriver extends DslDriver[Unit, Unit] with StagedInter
   }
 }
 
-object SADI2 {
+object SADI2 extends TutorialFunSuite {
   import UnStaged._
+  val under = "not applicable"
+  def specializeConcrete(prog: Expr): DslDriver[Unit, Unit] =
+    new StagedInterpDriver {
+      def snippet(unit: Rep[Unit]): Rep[Unit] = {
+        val ans = eval_top(prog)
+        println(ans._1)
+      }
+    }
+
   def main(args: Array[String]) {
+    val id = App(Lam("x", Var("x")), Lit(42))
     val omega = App(Lam("x", App(Var("x"), Var("x"))), Lam("x", App(Var("x"), Var("x"))))
     val fact = Lam("n",
                    If0(Var("n"),
@@ -415,9 +423,14 @@ object SADI2 {
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
     val fact10 = Rec("fact", fact, App(Var("fact"), Lit(10)))
-    println(NoRepConSem.eval_top(fact5))
+    //println(NoRepConSem.eval_top(fact5))
     //NoRepConSem.eval_top(omega) /* Stack overflow */
     //NoRepAbsSem.eval_top(omega) /* Stack overflow */
+
+    val code = specializeConcrete(id)
+    println(code.code)
+    code.precompile
+    //println(code.eval(()))
   }
 
 }
