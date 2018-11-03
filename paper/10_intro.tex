@@ -43,7 +43,7 @@ can be very slow due to the inherent complexity of the algorithm and the large s
 of the analyzed programs \cite{toman_et_al:LIPIcs:2017:7121} \todo{other cite?};
 particularly, we would like a systematic approach to optimize program 
 analyzers and meanwhile minimally modifying the analyzer programs.
-In the present work, we show how to achieve this goal by bring existing 
+In the present work, we show how to achieve this goal by bringing existing 
 high-performance computing facilities, in the style of multi-stage generative
 programming, to abstract interpretation semantic artifacts, i.e., 
 abstract interpreters. 
@@ -55,7 +55,7 @@ One technical challenge is to deal with the non-determinisism, fixed-point itera
 domains in abstract interpreters when staging is introduced. The abstract interpreter, as a semantic artifact, 
 should be written in a style that is easy for people to communicate the formulation, but also be friendly
 to specialization and generating efficient code. \todo{We discuss the form of abstract interpreters for staging}
-We show the use LMS framework, that enables multi-stage programming by just changing the types 
+We show the usage of the LMS framework, that enables multi-stage programming by just changing the types 
 of the analyzer program, and we thus bridge the gap between designing sound program analyses 
 and implementing efficient program analyzers. \note{TR: a lot of back and forth here, where is story going?}
 
