@@ -5,11 +5,9 @@ import scala.io.Source
 import sai.common.parser._
 
 trait LargeSchemeParserTrait extends SchemeTokenParser {
-  implicit def variable: Parser[Var] = IDENT ^^ { Var(_) }
+  def id[T](x: T) = x
 
-  implicit def symbol: Parser[Sym] = SYMBOL ^^ {
-    case word => Sym(word.tail)
-  }
+  implicit def variable: Parser[Var] = IDENT ^^ { Var(_) }
 
   implicit def app: Parser[App] = LPAREN ~> expr ~ expr.* <~ RPAREN ^^ {
     case e ~ param => App(e, param)
@@ -59,7 +57,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   implicit def vecsugar: Parser[App] = VECLPAREN ~> expr.* <~ RPAREN ^^ {
     case elements => App(Var("vector"), elements)
   }
-  implicit def literals = intlit | charlit | boollit | stringlit | listsugar | vecsugar
+  implicit def literals = intlit | charlit | boollit | stringlit | vecsugar
 
 
   implicit def ifthel: Parser[If] = LPAREN ~> IF ~> expr ~ expr ~ expr <~ RPAREN ^^ {
@@ -117,7 +115,18 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
 
   implicit def imp_structure: Parser[Expr] = void | define | definefunc | set | begin
 
-  def expr: Parser[Expr] = literals | symbol | variable | lam | lets | dispatch | imp_structure | app
+  implicit def quasiquote: Parser[Expr] = QUASIQUOTE ~> quasiterm ^^ id
+
+  implicit def symbol: Parser[Sym] = SYMBOL ^^ { Sym(_) }
+
+  implicit def list: Parser[App] = LPAREN ~> quasiterm.* <~ RPAREN ^^ {
+    case terms => App(Var("list"), terms)
+  }
+  implicit def unquote: Parser[Expr] = UNQUOTE ~> expr ^^ id
+
+  implicit def quasiterm = literals | unquote | list | symbol
+
+  def expr: Parser[Expr] = literals | quasiquote | variable | lam | lets | dispatch | imp_structure | app
 }
 
 
@@ -146,6 +155,8 @@ object TestSimpleDirectLargeSchemeParser {
 
   def test0() = {
     assert(LargeSchemeParser("'xxxx") == Some(Sym("xxxx")))
+    assert(LargeSchemeParser("'(a 1 ,(a b))")
+      == Some(App(Var("list"),List(Sym("a"), IntLit(1), App(Var("a"),List(Var("b")))))))
   }
 
   // Test 1: Letrec to set!
@@ -210,7 +221,7 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def testToplas98() = {
-    val fileName = "benchmarks/toplas98/lattice-processed.scm"
+    val fileName = "benchmarks/toplas98/boyer.sch"
     val program = Source.fromFile(fileName).mkString
     println(LargeSchemeParser(program))
   }

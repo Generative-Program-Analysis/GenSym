@@ -14,11 +14,12 @@ trait SchemeTokenParser extends RegexParsers {
   def LPAREN = "[\\(\\{\\[]".r
   def RPAREN = "[\\)\\}\\]]".r
 
-  def QUOTE = "'"
-  def SYMBOL = """\'[^ \t\n\(\{\[\)\}\]]+""".r
+  def QUASIQUOTE: Parser[String] = "`" | "'"
+  def UNQUOTE: Parser[String] = ","
+  def SYMBOL: Parser[String] = """[^ \t\n\(\{\[\)\}\]]+""".r
 
-  def LISTLPAREN = "'("
-  def VECLPAREN = "#("
+  def LISTLPAREN: Parser[String] = "'("
+  def VECLPAREN: Parser[String] = "#("
 
   def LAMBDA: Parser[String] = "lambda"
   def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^.+\-@][a-zA-Z0-9!$%*/:<=>?~_^.+\-@]*""".r
