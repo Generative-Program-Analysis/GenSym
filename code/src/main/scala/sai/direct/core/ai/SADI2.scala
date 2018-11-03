@@ -147,7 +147,7 @@ object UnStaged {
         val (clo: CloV, e1σ) = ev(e1, ρ, σ)
         val (e2v, e2σ) = ev(e2, ρ, e1σ)
         val α = alloc(clo.λ.x, e2σ)
-        ev(e, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+        ev(clo.λ.body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
       case Rec(x, f, body) =>
         val α = alloc(x, σ)
         val ρ_* = ρ + (x → α)
@@ -289,40 +289,51 @@ trait StagedInterp extends Dsl {
     implicit def repToLamOps(l: Rep[Lam]) = new LamOpsCls(l)
     class LamOpsCls(l: Rep[Lam]) {
       def x = lam_var(l)
+      def body = lam_body(l)
     }
     def lam_var(l: Rep[Lam])(implicit pos: SourceContext): Rep[String]
+    def lam_body(l: Rep[Lam])(implicit pos: SourceContext): Rep[Expr]
   }
 
   trait LamOpsExp extends BaseExp with LamOps with ListOpsExp with StringOpsExp with VariablesExp {
     implicit def LamTyp: Typ[Lam] = manifestTyp
     case class LamVar(l: Exp[Lam]) extends Def[String]
+    case class LamBody(l: Exp[Lam]) extends Def[Expr]
     def lam_var(l: Exp[Lam])(implicit pos: SourceContext): Exp[String] = LamVar(l)
+    def lam_body(l: Exp[Lam])(implicit pos: SourceContext): Exp[Expr] = LamBody(l) //FIXME
   }
-
 
   trait CloVOps extends Base with Concrete with LamOps {
     implicit def repToCloVOps(c: Rep[CloV]) = new CloVOps(c)
-    case class CloV(λ: Lam, ρ: Env) extends Value
+    case class CloV(λ: Lam, ρ: Rep[Env]) extends Value
     object CloV {
-      def apply(lam: Rep[Lam], env: Rep[Env])(implicit pos: SourceContext) = clov_new(lam, env)
+      def apply(lam: Lam, env: Rep[Env])(implicit pos: SourceContext) = clov_new(lam, env)
     }
     class CloVOps(c: Rep[CloV]) {
       def λ: Rep[Lam] = clov_lam(c)
       def ρ: Rep[Env] = clov_env(c)
     }
-    def clov_new(λ: Rep[Lam], ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
+    def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
     def clov_lam(c: Rep[CloV])(implicit pos: SourceContext): Rep[Lam]
     def clov_env(c: Rep[CloV])(implicit pos: SourceContext): Rep[Env]
   }
 
-  trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp {
+  trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp with Concrete {
     implicit def CloVTyp: Typ[CloV] = manifestTyp
-    case class CloVNew(λ: Exp[Lam], ρ: Rep[Env]) extends Def[CloV]
+
+    case class CloVNew(λ: Lam, ρ: Rep[Env]) extends Def[CloV]
     case class CloVLam(c: Exp[CloV]) extends Def[Lam]
     case class CloVEnv(c: Exp[CloV]) extends Def[Env]
-    def clov_new(λ: Rep[Lam], ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = CloVNew(λ, ρ)
-    def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = CloVLam(c)
-    def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = ??? //CloVEnv(c)
+
+    def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = Const(CloV(λ, ρ))
+    def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = c match {
+      case Const(CloV(λ, _)) => Const(λ)
+      case _ => CloVLam(c)
+    }
+    def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = c match {
+      case Const(CloV(_, ρ)) => ??? //Const(ρ)
+      case _ => ??? //CloVEnv(c)
+    }
   }
 
   //TODO: NumVOps, NumVOpsExp
@@ -357,12 +368,16 @@ trait StagedInterp extends Dsl {
     def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Store): Ans = e match {
       case Lit(i) => (unit(NumV(i)), σ)
       case Var(x) => (σ(ρ(x)), σ)
-      case Lam(x, e) => (CloV(unit(Lam(x, e)), ρ), σ)
+      case Lam(x, e) => (CloV(Lam(x, e), ρ), σ)
       case App(e1, e2) =>
         val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
         val (e2v, e2σ) = ev(e2, ρ, e1σ)
-        val α = alloc(clo.λ.x, e2σ)
-        ev(e, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+        //val α = alloc(clo.λ.x, e2σ)
+        clo.λ match {
+          case Const(Lam(x, body)) =>
+            val α = alloc(x, e2σ)
+            ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+        }
     }
   }
 
