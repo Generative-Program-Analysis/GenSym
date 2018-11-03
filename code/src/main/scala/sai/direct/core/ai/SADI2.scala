@@ -63,39 +63,39 @@ object Semantics {
     def eval_top(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
   }
 
-  trait Test extends Sem {
-    type R[+T] = NoRep[T]
-    //TODO: can this also be F-bound poly?
+  //TODO: can this also be F-bound poly?
+  trait EnvLike[R[+_],K,V,E] {
+    def bala(m: E, k: R[K]): R[V]
+    def +(m: E, kv: (R[K], R[V])): E
+  }
+  object EnvLike {
+    def apply[R[+_],K,V,E](implicit env: EnvLike[R,K,V,E]): EnvLike[R,K,V,E] = env
+  }
+  implicit class EnvOps[R[+_],K,V,E:({type λ[ε] = EnvLike[R,K,V,ε]})#λ](env: E) {
+    def bala(k: R[K]): R[V] = EnvLike[R,K,V,E].bala(env, k)
+  }
+
+  trait Test {
+    type R[+T]
     type Ident = String
     type Addr = Int
-
-    trait EnvLike[R[+_],K,V,E] {
-      def bala(m: E, k: R[K]): R[V]
-      def +(m: E, kv: (R[K], R[V])): E
-    }
-    object EnvLike {
-      def apply[R[+_],K,V,E](implicit env: EnvLike[R,K,V,E]): EnvLike[R,K,V,E] = env
-    }
-    implicit class EnvOps[R[+_],K,V,E:({type λ[ε] = EnvLike[R,K,V,ε]})#λ](env: E) {
-      def bala(k: R[K]): R[V] = EnvLike[R,K,V,E].bala(env, k)
-    }
-
-    //trait OhMyEnv[E] extends EnvLike[NoRep,Ident,Addr,E]
-
-    type Env1 = Map[Ident, Addr]
-    //implicit def EnvImp: EnvLike[NoRep,Ident,Addr,Env1] = new EnvLike[NoRep,Ident,Addr,Env1] {
-    implicit def EnvImp: EnvLike[NoRep,Ident,Addr,Env1] = new EnvLike[NoRep,Ident,Addr,Env1] {
-      def bala(m: Env1, k: Ident): Addr = m(k)
-      def +(m: Env1, kv: (Ident, Addr)): Env1 = m + (kv._1 -> kv._2)
+    type Env //<% EnvLike[R,Ident,Addr,Env]
+    implicit val envImp: EnvLike[R, Ident, Addr, Env]
+  }
+  trait Test2 extends Test {
+    type R[+T] = NoRep[T]
+    type Env = Map[Ident, Addr]
+    implicit val envImp: EnvLike[NoRep,Ident,Addr,Env] = new EnvLike[NoRep,Ident,Addr,Env] {
+      def bala(m: Env, k: Ident): Addr = m(k)
+      def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
 
     type NoRepEnv[E] = EnvLike[NoRep, Ident, Addr, E]
     def f[E: NoRepEnv](m: E): Addr = {
       m.bala("String")
     }
-    val m: Env1 = Map[Ident, Addr]()
+    val m: Env = Map[Ident, Addr]()
     f(m)
-    //val k: Addr = m.bala("SSS")
   }
 
   trait Concrete extends Sem {
@@ -307,6 +307,23 @@ trait Staged extends Dsl {
       if (x == 0) 1 else b * power(b, x-1)
     def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
   }
+
+  trait Test3 extends Test with DslExp with MapOpsExp {
+    type R[+T] = Rep[T]
+    type Env = Rep[Map[Ident, Addr]]
+    implicit val envImp: EnvLike[Rep,Ident,Addr,Env] = new EnvLike[Rep,Ident,Addr,Env] {
+      def bala(m: Env, k: Rep[Ident]): Rep[Addr] = m(k)
+      def +(m: Env, kv: (Rep[Ident], Rep[Addr])): Env = m + (kv._1 -> kv._2)
+    }
+    type RepEnv[E] = EnvLike[Rep, Ident, Addr, E]
+    def f[E: RepEnv](m: E): Rep[Addr] = {
+      m.bala("String")
+    }
+    val m: Env = Map[Ident, Addr]()
+    f(m)
+  }
+
+  /***************************************************/
 
   trait LamOps extends Base with StringOps with Variables {
     implicit def repToLamOps(l: Rep[Lam]) = new LamOpsCls(l)
