@@ -276,7 +276,79 @@ object UnStaged {
   }
 }
 
-trait StagedInterp extends Dsl {
+trait LamOps extends Base with StringOps with Variables {
+  implicit def repToLamOps(l: Rep[Lam]) = new LamOpsCls(l)
+  class LamOpsCls(l: Rep[Lam]) {
+    def x = lam_var(l)
+    def body = lam_body(l)
+  }
+  def lam_var(l: Rep[Lam])(implicit pos: SourceContext): Rep[String]
+  def lam_body(l: Rep[Lam])(implicit pos: SourceContext): Rep[Expr]
+}
+
+trait LamOpsExp extends BaseExp with LamOps with ListOpsExp with StringOpsExp with VariablesExp {
+  implicit def LamTyp: Typ[Lam] = manifestTyp
+  implicit def ExprTyp: Typ[Expr] = manifestTyp
+  case class LamVar(l: Exp[Lam]) extends Def[String]
+  case class LamBody(l: Exp[Lam]) extends Def[Expr]
+  def lam_var(l: Exp[Lam])(implicit pos: SourceContext): Exp[String] = LamVar(l)
+  def lam_body(l: Exp[Lam])(implicit pos: SourceContext): Exp[Expr] = LamBody(l)
+}
+
+trait CloVOps extends Base with Concrete with LamOps with MapOps with Variables {
+  implicit def repToCloVOps(c: Rep[CloV]) = new CloVOpsCls(c)
+  case class CloV(λ: Lam, ρ: Rep[Env]) extends Value
+  object CloV {
+    def apply(lam: Lam, env: Rep[Env])(implicit pos: SourceContext) = clov_new(lam, env)
+  }
+  class CloVOpsCls(c: Rep[CloV]) {
+    def λ: Rep[Lam] = clov_lam(c)
+    def ρ: Rep[Env] = clov_env(c)
+  }
+  def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
+  def clov_lam(c: Rep[CloV])(implicit pos: SourceContext): Rep[Lam]
+  def clov_env(c: Rep[CloV])(implicit pos: SourceContext): Rep[Env]
+}
+
+trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp with Concrete with MapOpsExp with VariablesExp {
+  implicit def CloVTyp: Typ[CloV] = manifestTyp
+
+  case class CloVNew(λ: Lam, ρ: Rep[Env]) extends Def[CloV]
+  case class CloVLam(c: Exp[CloV]) extends Def[Lam]
+  case class CloVEnv(c: Exp[CloV]) extends Def[Env]
+
+  def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = Const(CloV(λ, ρ))
+  def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = c match {
+    case Const(CloV(λ, _)) => Const(λ)
+    case _ =>
+      println("clov_lam non-const branch")
+      CloVLam(c)
+  }
+  def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = c match {
+    case Const(CloV(_, ρ)) => ρ
+    case _ =>
+      println("clov_env non-const branch")
+      CloVEnv(c)
+  }
+}
+
+trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
+  val IR: LamOpsExp with CloVOpsExp
+  import IR._
+
+  override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+    case LamVar(lam) => emitValDef(sym, src"$lam.vars")
+    case CloVNew(λ, ρ) => emitValDef(sym, src"CloV($λ, $ρ)")
+    case CloVLam(c) => emitValDef(sym, src"$c.λ")
+    case CloVEnv(c) => emitValDef(sym, src"$c.ρ")
+    case _ => super.emitNode(sym, rhs)
+  }
+}
+
+trait StagedInterp extends Dsl with Concrete
+    with DslExp with MapOpsExp with SetOpsExp
+    with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp
+    with LamOpsExp with CloVOpsExp {
   val power5 = new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] =
       if (x == 0) 1 else b * power(b, x-1)
@@ -285,115 +357,52 @@ trait StagedInterp extends Dsl {
 
   /***************************************************/
 
-  trait LamOps extends Base with StringOps with Variables {
-    implicit def repToLamOps(l: Rep[Lam]) = new LamOpsCls(l)
-    class LamOpsCls(l: Rep[Lam]) {
-      def x = lam_var(l)
-      def body = lam_body(l)
-    }
-    def lam_var(l: Rep[Lam])(implicit pos: SourceContext): Rep[String]
-    def lam_body(l: Rep[Lam])(implicit pos: SourceContext): Rep[Expr]
-  }
-
-  trait LamOpsExp extends BaseExp with LamOps with ListOpsExp with StringOpsExp with VariablesExp {
-    implicit def LamTyp: Typ[Lam] = manifestTyp
-    case class LamVar(l: Exp[Lam]) extends Def[String]
-    case class LamBody(l: Exp[Lam]) extends Def[Expr]
-    def lam_var(l: Exp[Lam])(implicit pos: SourceContext): Exp[String] = LamVar(l)
-    def lam_body(l: Exp[Lam])(implicit pos: SourceContext): Exp[Expr] = LamBody(l) //FIXME
-  }
-
-  trait CloVOps extends Base with Concrete with LamOps {
-    implicit def repToCloVOps(c: Rep[CloV]) = new CloVOps(c)
-    case class CloV(λ: Lam, ρ: Rep[Env]) extends Value
-    object CloV {
-      def apply(lam: Lam, env: Rep[Env])(implicit pos: SourceContext) = clov_new(lam, env)
-    }
-    class CloVOps(c: Rep[CloV]) {
-      def λ: Rep[Lam] = clov_lam(c)
-      def ρ: Rep[Env] = clov_env(c)
-    }
-    def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Rep[CloV]
-    def clov_lam(c: Rep[CloV])(implicit pos: SourceContext): Rep[Lam]
-    def clov_env(c: Rep[CloV])(implicit pos: SourceContext): Rep[Env]
-  }
-
-  trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp with Concrete {
-    implicit def CloVTyp: Typ[CloV] = manifestTyp
-
-    case class CloVNew(λ: Lam, ρ: Rep[Env]) extends Def[CloV]
-    case class CloVLam(c: Exp[CloV]) extends Def[Lam]
-    case class CloVEnv(c: Exp[CloV]) extends Def[Env]
-
-    def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = Const(CloV(λ, ρ))
-    def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = c match {
-      case Const(CloV(λ, _)) => Const(λ)
-      case _ => CloVLam(c)
-    }
-    def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = c match {
-      case Const(CloV(_, ρ)) => ??? //Const(ρ)
-      case _ => ??? //CloVEnv(c)
-    }
-  }
-
   //TODO: NumVOps, NumVOpsExp
 
-  object RepConSem extends Concrete
-      with DslExp with MapOpsExp with SetOpsExp
-      with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp
-      with LamOpsExp with CloVOpsExp {
-    type R[+T] = Rep[T]
+  type R[+T] = Rep[T]
 
-    implicit val envImp: EnvSpec[Rep,Ident,Addr,Env] = new EnvSpec[Rep,Ident,Addr,Env] {
-      def get(m: Rep[Env], k: Rep[Ident]): Rep[Addr] = m(k)
-      def +(m: Rep[Env], kv: (Rep[Ident], Rep[Addr])): Rep[Env] = m + (kv._1 -> kv._2)
-    }
-    val ρ0: Rep[Env] = Map[Ident,Addr]()
+  implicit val envImp: EnvSpec[Rep,Ident,Addr,Env] = new EnvSpec[Rep,Ident,Addr,Env] {
+    def get(m: Rep[Env], k: Rep[Ident]): Rep[Addr] = m(k)
+    def +(m: Rep[Env], kv: (Rep[Ident], Rep[Addr])): Rep[Env] = m + (kv._1 -> kv._2)
+  }
+  val ρ0: Rep[Env] = Map[Ident,Addr]()
 
-    implicit def AbsValueTyp: Typ[Value] = manifestTyp
-    implicit def NumVTyp: Typ[NumV] = manifestTyp
+  implicit def AbsValueTyp: Typ[Value] = manifestTyp
+  implicit def NumVTyp: Typ[NumV] = manifestTyp
 
-    case class Store(map: Rep[Map[Addr, Value]]) extends StoreSpec[Rep,Addr,Value,Store] {
-      def apply(k: Rep[Addr]): Rep[Value] = map(k)
-      def update(k: Rep[Addr], v: Rep[Value]): Store = Store(map + (k → v))
-      def getOrElse(k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
-      def +(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
-      def update(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
-      def contains(k: Rep[Addr]): Rep[Boolean] = map.contains(k)
-      def ⊔(that: Store): Store = throw new RuntimeException("Not implemented")
-    }
-
-    val σ0: Store = Store(Map[Addr, Value]())
-    def alloc(x: Rep[Ident], σ: Store): Rep[Addr] = σ.map.size+1
-    def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Store): Ans = e match {
-      case Lit(i) => (unit(NumV(i)), σ)
-      case Var(x) => (σ(ρ(x)), σ)
-      case Lam(x, e) => (CloV(Lam(x, e), ρ), σ)
-      case App(e1, e2) =>
-        val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
-        val (e2v, e2σ) = ev(e2, ρ, e1σ)
-        //val α = alloc(clo.λ.x, e2σ)
-        clo.λ match {
-          case Const(Lam(x, body)) =>
-            val α = alloc(x, e2σ)
-            ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
-        }
-    }
+  case class Store(map: Rep[Map[Addr, Value]]) extends StoreSpec[Rep,Addr,Value,Store] {
+    def apply(k: Rep[Addr]): Rep[Value] = map(k)
+    def update(k: Rep[Addr], v: Rep[Value]): Store = Store(map + (k → v))
+    def getOrElse(k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
+    def +(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
+    def update(kv: (Rep[Addr], Rep[Value])): Store = update(kv._1, kv._2)
+    def contains(k: Rep[Addr]): Rep[Boolean] = map.contains(k)
+    def ⊔(that: Store): Store = throw new RuntimeException("Not implemented")
   }
 
-  trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
-    val IR: LamOpsExp with CloVOpsExp
-    import IR._
-
-    override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-      case LamVar(lam) => emitValDef(sym, src"$lam.vars")
-      case CloVNew(λ, ρ) => emitValDef(sym, src"CloV($λ, $ρ)")
-      case CloVLam(c) => emitValDef(sym, src"$c.λ")
-      case CloVEnv(c) => emitValDef(sym, src"$c.ρ")
-      case _ => super.emitNode(sym, rhs)
-    }
+  val σ0: Store = Store(Map[Addr, Value]())
+  def alloc(x: Rep[Ident], σ: Store): Rep[Addr] = σ.map.size+1
+  def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Store): Ans = e match {
+    case Lit(i) => (unit(NumV(i)), σ)
+    case Var(x) => (σ(ρ(x)), σ)
+    case Lam(x, e) => (CloV(Lam(x, e), ρ), σ)
+    case App(e1, e2) =>
+      val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
+      val (e2v, e2σ) = ev(e2, ρ, e1σ)
+      //val α = alloc(clo.λ.x, e2σ)
+      clo.λ match {
+        case Const(Lam(x, body)) =>
+          val α = alloc(x, e2σ)
+          ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+      }
   }
+}
 
+abstract class StagedInterpDriver extends DslDriver[Unit, Unit] with StagedInterp { q =>
+  override val codegen = new DslGen with ScalaGenSetOps with ScalaGenListOps with ScalaGenMapOps
+      with ScalaGenConcInterp with MyScalaGenTupledFunctions {
+    val IR: q.type = q
+  }
 }
 
 object SADI2 {
