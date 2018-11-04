@@ -13,10 +13,11 @@ As an approach to partial evaluation, MSP requires explicit staging annotations 
 The staging annotations controls which part of the program should be specialized, and are considered 
 as manual binding-time analysis. On the other hand, partial evaluation \cite{DBLP:books/daglib/0072559} 
 can be considered as a two-stage (static or dynamic) instance of MSP but analyzing binding-time automatically. 
-\note{TR: are last two sentences relevant? perhaps rephrase in the direction of ``here's who to implement
+\note{TR: are last two sentences relevant? perhaps rephrase in the direction of ``here's how to implement
 the futamura projection idea in practice''}
 
-Recent research \note{TR: Cousot was already systematic. Both Futamura and Cousot are results from the 1970s -- build a connection?} uncovers a systematic approach to construct sound abstract interpreters 
+Recent research \note{TR: Cousot was already systematic. Both Futamura and Cousot are results from the 1970s, but have
+profited from more recent results (MSP and AAM)  -- build a connection?} uncovers a systematic approach to construct sound abstract interpreters 
 from concrete interpreters \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Given the structural similarity between concrete and abstract interpreters, intellectually 
 it is natural to raise the question whether it is possible to stage an abstract interpreter, and how 
@@ -47,6 +48,9 @@ In the present work, we show how to achieve this goal by bringing existing
 high-performance computing facilities, in the style of multi-stage generative
 programming, to abstract interpretation semantic artifacts, i.e., 
 abstract interpreters. 
+
+\note{TR: insert a commuting diagram here? concrete vs abstract,
+general (interpreter) vs specialized (compiler). can combine both dimensions.}
 
 The slogan of multi-stage programming is "abstraction without regret". 
 Of course, all interpreters are metalinguistic abstractions, but some interpreters are more "abstract"
