@@ -88,8 +88,8 @@ object Semantics {
     type Env = Map[Ident, Addr]
     type Store = Map[Addr, Value]
     abstract class Value
-    case class NumV(i: Int) extends Value //TODO
     type Ans = (R[Value], R[Store])
+    //case class NumV(i: Int) extends Value
     //case class CloV(λ: Lam, ρ: Env) extends Value //TODO: where put this?
   }
 
@@ -129,6 +129,7 @@ object UnStaged {
   /*************************** CONCRETE ****************************/
 
   object NoRepConSem extends Concrete {
+    case class NumV(i: Int) extends Value
     case class CloV(λ: Lam, ρ: Env) extends Value
 
     type R[+T] = NoRep[T]
@@ -169,7 +170,7 @@ object UnStaged {
         val (fv, fσ) = ev(f, ρ_*, σ)
         val σ_* = fσ + (α → fv)
         ev(body, ρ_*, σ_*)
-      case Let(x, e, body) => ev(App(Lam(x,body),e), ρ, σ)
+      case Let(x, e, body) => ev(App(Lam(x, body), e), ρ, σ)
       case If0(cnd, thn, els) =>
         val (cndv:NumV, cndσ) = ev(cnd, ρ, σ)
         if (cndv.i == 0) ev(thn, ρ, cndσ)
@@ -331,16 +332,31 @@ trait CloVOpsExp extends BaseExp with CloVOps with LamOpsExp with Concrete with 
   //def clov_new(λ: Lam, ρ: Rep[Env])(implicit pos: SourceContext): Exp[CloV] = Const(CloV(λ, ρ))
   def clov_lam(c: Exp[CloV])(implicit pos: SourceContext): Exp[Lam] = c match {
     case Const(CloV(λ, _)) => Const(λ)
-    case _ => ??? // CloVLam(c)
+    case _ => CloVLam(c)
   }
   def clov_env(c: Exp[CloV])(implicit pos: SourceContext): Exp[Env] = c match {
     case Const(CloV(_, ρ)) => ρ
-    case _ => ??? // CloVEnv(c)
+    case _ => CloVEnv(c)
   }
 }
 
+trait NumVOps extends Base with Concrete with PrimitiveOps {
+  implicit def repToNumVOps(n: Rep[NumV]) = new NumVOpsCls(n)
+  case class NumV(i: Rep[Int]) extends Value
+  class NumVOpsCls(n: Rep[NumV]) {
+    def i: Rep[Int] = numv_i(n)
+  }
+  def numv_i(n: Rep[NumV])(implicit pos: SourceContext): Rep[Int]
+}
+
+trait NumVOpsExp extends BaseExp with Concrete with PrimitiveOpsExp with NumVOps {
+  implicit def NumVTyp: Typ[NumV] = manifestTyp
+  case class NumVI(n: Exp[NumV]) extends Def[Int]
+  def numv_i(n: Exp[NumV])(implicit pos: SourceContext): Exp[Int] = NumVI(n)
+}
+
 trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
-  val IR: LamOpsExp with CloVOpsExp
+  val IR: LamOpsExp with CloVOpsExp with NumVOpsExp
   import IR._
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
@@ -353,9 +369,9 @@ trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
 }
 
 trait StagedInterp extends Dsl with Concrete
-    with DslExp with MapOpsExp with SetOpsExp
+    with DslExp with MapOpsExp with SetOpsExp with StringOpsExp
     with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp
-    with LamOpsExp with CloVOpsExp {
+    with LamOpsExp with CloVOpsExp with NumVOpsExp {
   val power5 = new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] =
       if (x == 0) 1 else b * power(b, x-1)
@@ -368,7 +384,7 @@ trait StagedInterp extends Dsl with Concrete
 
   type R[+T] = Rep[T]
   implicit def AbsValueTyp: Typ[Value] = manifestTyp
-  implicit def NumVTyp: Typ[NumV] = manifestTyp
+  //implicit def NumVTyp: Typ[NumV] = manifestTyp
 
   implicit val envImp: EnvSpec[Rep,Ident,Addr,Env] = new EnvSpec[Rep,Ident,Addr,Env] {
     def get(m: Rep[Env], k: Rep[Ident]): Rep[Addr] = m(k)
@@ -384,18 +400,42 @@ trait StagedInterp extends Dsl with Concrete
     def ⊔(s1: Rep[Store], s2: Rep[Store]): Rep[Store] = s1 ⊔ s2
   }
 
+  def lift[T:Typ](x: T): Rep[T] = unit[T](x)
+  def fall[T:Typ](c: Rep[T]): T = c match { case Const(x) => x }
+
+  def evalArith(op: Symbol, v1: Rep[NumV], v2: Rep[NumV]): Rep[NumV] = op match {
+    case '+ ⇒ lift(NumV(v1.i + v2.i))
+    case '- ⇒ lift(NumV(v1.i - v2.i))
+    case '* ⇒ lift(NumV(v1.i * v2.i))
+  }
+
   val σ0: Rep[Store] = Map[Addr, Value]()
   def alloc(x: Rep[Ident], σ: Rep[Store]): Rep[Addr] = σ.size+1
   def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Ans = e match {
-    case Lit(i) => (unit(NumV(i)), σ)
+    case Lit(i) => (lift(NumV(i)), σ) //FIXME: get rid of `lift`
     case Var(x) => (σ(ρ(x)), σ)
-    case Lam(x, e) => (unit(CloV(Lam(x, e), ρ)), σ)
+    case Lam(x, e) => (lift(CloV(Lam(x, e), ρ)), σ)
     case App(e1, e2) =>
-      val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ) 
+      val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
       val (e2v, e2σ) = ev(e2, ρ, e1σ)
-      val Const(Lam(x, body)) = clo.λ
+      val Lam(x, body) = fall[Lam](clo.λ) //TODO: implicit convert to Lam?
       val α = alloc(x, e2σ)
       ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+    case Rec(x, f, body) =>
+      val α = alloc(x, σ)
+      val ρ_* = ρ + (lift(x) → α)
+      val (fv, fσ) = ev(f, ρ_*, σ)
+      val σ_* = fσ + (α → fv)
+      ev(body, ρ_*, σ_*)
+    case Let(x, e, body) => ev(App(Lam(x, body), e), ρ, σ)
+    case If0(cnd, thn, els) =>
+      val (cndv: Rep[NumV], cndσ) = ev(cnd, ρ, σ)
+      if (cndv.i == 0) ev(thn, ρ, σ)
+      else ev(els, ρ, σ)
+    case AOp(op, e1, e2) =>
+      val (e1v: Rep[NumV], e1σ) = ev(e1, ρ, σ)
+      val (e2v: Rep[NumV], e2σ) = ev(e1, ρ, e1σ)
+      (evalArith(op, e1v, e2v), e2σ)
   }
 }
 
@@ -430,9 +470,9 @@ object SADI2 extends TutorialFunSuite {
     //NoRepConSem.eval_top(omega) /* Stack overflow */
     //NoRepAbsSem.eval_top(omega) /* Stack overflow */
 
-    val code = specializeConcrete(id)
+    val code = specializeConcrete(fact5)
     println(code.code)
-    code.precompile
+    //code.precompile
     //println(code.eval(()))
   }
 
