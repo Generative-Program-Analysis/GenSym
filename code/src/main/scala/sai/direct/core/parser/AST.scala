@@ -11,7 +11,7 @@ case class Var(x: String) extends Expr {
 }
 case class App(e1: Expr, e2: Expr) extends Expr
 case class Lam(x: String, body: Expr) extends Expr {
-  override def toString: String = path + "Lam(\"" + x + "\", $body)"
+  override def toString: String = path + "Lam(\"" + x + "\"," +  body + ")"
 }
 
 case class Bind(x: String, e: Expr) {

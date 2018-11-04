@@ -4,6 +4,7 @@ import scala.util.continuations._
 import scala.language.implicitConversions
 import scala.language.higherKinds
 
+import sai.utils._
 import sai.common.ai._
 import sai.common.ai.Lattices.{NoRep => _, _}
 import sai.direct.core.parser._
@@ -158,10 +159,10 @@ object UnStaged {
     }
     val σ0: Store = Map[Addr,Value]()
 
-    def evalArith(op: Symbol, vs: List[NumV]): NumV = op match {
-      case '+ ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j+i) }
-      case '- ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j-i) }
-      case '* ⇒ vs.reduceRight[NumV] { case (NumV(i), NumV(j)) ⇒ NumV(j*i) }
+    def evalArith(op: Symbol, e1v: NumV, e2v: NumV): NumV = op match {
+      case '+ ⇒ NumV(e1v.i + e2v.i)
+      case '- ⇒ NumV(e1v.i - e2v.i)
+      case '* ⇒ NumV(e1v.i * e2v.i)
     }
 
     def alloc(x: Ident, σ: Store): Addr = σ.size + 1
@@ -188,7 +189,7 @@ object UnStaged {
       case AOp(op, e1, e2) =>
         val (e1v:NumV, e1σ) = ev(e1, ρ, σ)
         val (e2v:NumV, e2σ) = ev(e2, ρ, e1σ)
-        (evalArith(op, e2v::e1v::Nil), e2σ)
+        (evalArith(op, e1v, e2v), e2σ)
     }
   }
 
@@ -365,7 +366,7 @@ trait NumVOpsExp extends BaseExp with Concrete with PrimitiveOpsExp with NumVOps
   def numv_i(n: Exp[NumV])(implicit pos: SourceContext): Exp[Int] = NumVI(n)
 }
 
-trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
+trait ScalaGenConcInterp extends GenericNestedCodegen {
   val IR: LamOpsExp with CloVOpsExp with NumVOpsExp
   import IR._
 
@@ -379,20 +380,16 @@ trait ScalaGenConcInterp extends GenericNestedCodegen with ScalaGenEffect {
 }
 
 trait StagedInterp extends Dsl with Concrete
-    with DslExp with MapOpsExp with SetOpsExp with StringOpsExp
+    with DslExp with MapOpsExp with SetOpsExp with StringOpsExp with UncheckedOpsExp
     with ListOpsExp with TupleOpsExp with TupledFunctionsRecursiveExp
     with LamOpsExp with CloVOpsExp with NumVOpsExp {
-  val power5 = new DslDriver[Int, Int] {
-    def power(b: Rep[Int], x: Int): Rep[Int] =
+  def power(b: Rep[Int], x: Int): Rep[Int] =
       if (x == 0) 1 else b * power(b, x-1)
-    def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
-  }
 
   /***************************************************/
 
   type R[+T] = Rep[T]
   implicit def AbsValueTyp: Typ[Value] = manifestTyp
-  //implicit def NumVTyp: Typ[NumV] = manifestTyp
 
   implicit val envImp: EnvSpec[Rep,Ident,Addr,Env] = new EnvSpec[Rep,Ident,Addr,Env] {
     def get(m: Rep[Env], k: Rep[Ident]): Rep[Addr] = m(k)
@@ -426,9 +423,15 @@ trait StagedInterp extends Dsl with Concrete
     case App(e1, e2) =>
       val (clo: Rep[CloV], e1σ) = ev(e1, ρ, σ)
       val (e2v, e2σ) = ev(e2, ρ, e1σ)
-      val Lam(x, body) = fall[Lam](clo.λ) //TODO: implicit convert to Lam?
-      val α = alloc(x, e2σ)
-      ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+      clo.λ match {
+        case Const(Lam(x, body)) =>
+          //FIXME
+          //val Lam(x, body) = fall[Lam](clo.λ)
+          val α = alloc(x, e2σ)
+          ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+        case λ =>
+          (unchecked(s"apply(${λ})"), σ)
+      }
     case Rec(x, f, body) =>
       val α = alloc(x, σ)
       val ρ_* = ρ + (lift(x) → α)
@@ -448,15 +451,81 @@ trait StagedInterp extends Dsl with Concrete
 }
 
 abstract class StagedInterpDriver extends DslDriver[Unit, Unit] with StagedInterp { q =>
-  override val codegen = new DslGen with ScalaGenSetOps with ScalaGenListOps with ScalaGenMapOps
-      with ScalaGenConcInterp with MyScalaGenTupledFunctions {
+  override val codegen = new DslGen with ScalaGenSetOps with ScalaGenListOps
+      with ScalaGenMapOps with ScalaGenConcInterp with MyScalaGenTupledFunctions
+      with ScalaGenUncheckedOps
+  {
     val IR: q.type = q
+  }
+}
+
+object Fixpoint {
+  def fib(x: Int): Int = if (x == 0) 0
+                         else if (x < 2) 1
+                         else fib(x-1) + fib(x-2)
+
+  object Memo {
+    var cache = List[(Int, Int)]()
+    def apply(f: Int => Int): Int => Int = {
+      def eval(xs: List[(Int, Int)], x: Int): Int = xs match {
+        case Nil =>
+          val r = f(x)
+          cache = (x, r)::cache
+          r
+        case (a,b)::xs =>
+          if (x == a) b else eval(xs, x)
+      }
+      x => eval(cache, x)
+    }
+  }
+  def mfib = Memo(fib)
+
+  def Fib(f: Int => Int)(x: Int): Int =
+    if (x == 0) 0
+    else if (x < 2) 1
+    else f(x-1) + f(x-2)
+  def fix(F: (Int=>Int)=>(Int=>Int))(x: Int): Int = F(fix(F))(x)
+  def fixFib(x: Int): Int = fix(Fib)(x)
+
+  object MemoFix {
+    var cache = List[(Int, Int)]()
+    def apply(F: (Int=>Int)=>(Int=>Int))(xx: Int): Int = {
+      def eval(xs: List[(Int, Int)], x: Int): Int = xs match {
+        case Nil =>
+          val r = F(ff)(x)
+          cache = (x, r)::cache
+          r
+        case (a,b)::tl =>
+          if (x == a) b
+          else eval(tl, x)
+      }
+      def ff(x: Int) = eval(cache, x)
+      ff(xx)
+    }
+  }
+  def mFixFib(x: Int): Int = MemoFix(Fib)(x)
+
+  //TODO: the co-inductive one
+
+  def main(args: Array[String]) {
+    println(Utils.time { fib(40) })
+    println(Utils.time { mfib(40) })
+    println(Utils.time { mfib(40) })
+    println(Utils.time { fixFib(40) })
+    println(Utils.time { mFixFib(40) })
   }
 }
 
 object SADI2 extends TutorialFunSuite {
   import UnStaged._
   val under = "not applicable"
+
+  def specializePower(x: Int): DslDriver[Int, Int] =
+    new DslDriver[Int, Int] with StagedInterp { q =>
+      val IR: q.type = q
+      def snippet(b: Rep[Int]): Rep[Int] = power(b, x)
+    }
+
   def specializeConcrete(prog: Expr): DslDriver[Unit, Unit] =
     new StagedInterpDriver {
       def snippet(unit: Rep[Unit]): Rep[Unit] = {
@@ -474,14 +543,17 @@ object SADI2 extends TutorialFunSuite {
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
     val fact10 = Rec("fact", fact, App(Var("fact"), Lit(10)))
+    val rec = Rec("id", Lam("x", Var("x")), Var("id"))
     //println(NoRepConSem.eval_top(fact5))
     //NoRepConSem.eval_top(omega) /* Stack overflow */
     //NoRepAbsSem.eval_top(omega) /* Stack overflow */
 
-    val code = specializeConcrete(fact5)
+    val code = specializeConcrete(rec)
     println(code.code)
     //code.precompile
     //println(code.eval(()))
-  }
 
+    val power5 = specializePower(5)
+    println(power5.code)
+  }
 }
