@@ -58,7 +58,7 @@ trait Semantics {
 The evaluator \texttt{eval} is a open-recursive function that takes one and three arguments: the first
 one \texttt{ev} represents the recursive function itself; the rest three are the AST representing program 
 will be executed, the environment that maps from identifiers to addresses, and the store that maps addresses to values.
-The interpreters that take control, environment and store components also can be obtained by 
+This environment-and-store-passing style big-interpreter also can be obtained by 
 refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03, Wei:2018:RAA:3243631.3236800} a small-step CESK 
 machine \cite{DBLP:conf/popl/FelleisenF87}.
 We provide a function \texttt{fix} to close the recursion by providing the result of \texttt{fix(ev)} 

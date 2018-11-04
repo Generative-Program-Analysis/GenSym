@@ -29,7 +29,7 @@ object Semantics {
     def +(kv: (R[K], R[V])): R[E] = EnvSpec[R,K,V,E].+(ρ, kv)
   }
 
-  trait StoreSpec[R[_], K, V, S] {  //<: StoreSpec[R,K,V,S]] {
+  trait StoreSpec[R[+_], K, V, S] {  //<: StoreSpec[R,K,V,S]] {
     def get(s: R[S], k: R[K]): R[V]
     def getOrElse(s: R[S], k: R[K], dft: R[V]): R[V]
     def update(s: R[S], k: R[K], v: R[V]): R[S]
@@ -49,15 +49,25 @@ object Semantics {
     def ⊔(that: R[S]): R[S] = StoreSpec[R,K,V,S].⊔(σ, that)
   }
 
-  trait CacheSpec[R[_], K, V, C <: CacheSpec[R,K,V,C]] {
-    def inGet(k: R[K]): R[V]
-    def outGet(k: R[K]): R[V]
-    def inContains(k: R[K]): R[Boolean]
-    def outContains(k: R[K]): R[Boolean]
-    def outUpdate(k: R[K], v: R[V]): C
-    //def outUpdateSingle(k: K, v: R[V]): C
-    def outUpdateFromIn(k: R[K]): C
-    def ⊔(that: C): C
+  trait CacheSpec[R[+_], K, V, C] { // <: CacheSpec[R,K,V,C]
+    def inGet(c: R[C], k: R[K]): R[V]
+    def outGet(c: R[C], k: R[K]): R[V]
+    def inContains(c: R[C], k: R[K]): R[Boolean]
+    def outContains(c: R[C], k: R[K]): R[Boolean]
+    def outUpdate(c: R[C], k: R[K], v: R[V]): R[C]
+    def ⊔(c1: R[C], c2: R[C]): R[C]
+  }
+  object CacheSpec {
+    def apply[R[+_],K,V,C](implicit c: CacheSpec[R,K,V,C]): CacheSpec[R,K,V,C] = c
+  }
+  implicit class CacheOps[R[+_],K,V,C:({type λ[c] = CacheSpec[R,K,V,c]})#λ](c: R[C]) {
+    def inGet(k: R[K]): R[V] = CacheSpec[R,K,V,C].inGet(c, k)
+    def inContains(k: R[K]): R[Boolean] = CacheSpec[R,K,V,C].inContains(c, k)
+    def outGet(k: R[K]): R[V] = CacheSpec[R,K,V,C].outGet(c, k)
+    def outContains(k: R[K]): R[Boolean] = CacheSpec[R,K,V,C].outContains(c, k)
+    def outUpdate(k: R[K], v: R[V]): R[C] = CacheSpec[R,K,V,C].outUpdate(c, k, v)
+    def outUpdateFromIn(c: R[C], k: R[K]): R[C] = CacheSpec[R,K,V,C].outUpdate(c, k, CacheSpec[R,K,V,C].inGet(c, k))
+    def ⊔(c1: R[C], c2: R[C]): R[C] = CacheSpec[R,K,V,C].⊔(c1, c2)
   }
 
   trait Sem {
@@ -258,7 +268,7 @@ object UnStaged {
 
     type Config = (Expr, Env, Store)
 
-    case class Cache(in: Map[Config, Ans], out: Map[Config, Ans]) extends CacheSpec[NoRep,Config,Ans,Cache] {
+    case class Cache(in: Map[Config, Ans], out: Map[Config, Ans]) { //extends CacheSpec[NoRep,Config,Ans,Cache] {
       def inGet(cfg: Config): Ans = in.getOrElse(cfg, Set())
       def inContains(cfg: Config): Boolean = in.contains(cfg)
       def outGet(cfg: Config):Ans = out.getOrElse(cfg, Set())
@@ -380,8 +390,6 @@ trait StagedInterp extends Dsl with Concrete
 
   /***************************************************/
 
-  //TODO: NumVOps, NumVOpsExp
-
   type R[+T] = Rep[T]
   implicit def AbsValueTyp: Typ[Value] = manifestTyp
   //implicit def NumVTyp: Typ[NumV] = manifestTyp
@@ -412,7 +420,7 @@ trait StagedInterp extends Dsl with Concrete
   val σ0: Rep[Store] = Map[Addr, Value]()
   def alloc(x: Rep[Ident], σ: Rep[Store]): Rep[Addr] = σ.size+1
   def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Ans = e match {
-    case Lit(i) => (lift(NumV(i)), σ) //FIXME: get rid of `lift`
+    case Lit(i) => (lift(NumV(i)), σ) //TODO: get rid of `lift`
     case Var(x) => (σ(ρ(x)), σ)
     case Lam(x, e) => (lift(CloV(Lam(x, e), ρ)), σ)
     case App(e1, e2) =>
