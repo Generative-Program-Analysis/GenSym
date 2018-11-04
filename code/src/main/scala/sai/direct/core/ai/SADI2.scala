@@ -464,21 +464,19 @@ object Fixpoint {
                          else if (x < 2) 1
                          else fib(x-1) + fib(x-2)
 
-  object Memo {
-    var cache = List[(Int, Int)]()
-    def apply(f: Int => Int): Int => Int = {
-      def eval(xs: List[(Int, Int)], x: Int): Int = xs match {
+  case class Memo[A,B]() {
+    var cache = List[(A, B)]()
+    def fix(f: A => B): A => B = {
+      def eval(xs: List[(A, B)], x: A): B = xs match {
         case Nil =>
           val r = f(x)
-          cache = (x, r)::cache
-          r
-        case (a,b)::xs =>
-          if (x == a) b else eval(xs, x)
+          cache = (x, r)::cache; r
+        case (a,b)::xs => if (x == a) b else eval(xs, x)
       }
       x => eval(cache, x)
     }
   }
-  def mfib = Memo(fib)
+  def mfib = Memo().fix(fib)
 
   def Fib(f: Int => Int)(x: Int): Int =
     if (x == 0) 0
@@ -493,11 +491,8 @@ object Fixpoint {
       def eval(xs: List[(A, B)], x: A): B = xs match {
         case Nil =>
           val r = F(ff)(x)
-          cache = (x, r)::cache
-          r
-        case (a,b)::tl =>
-          if (x == a) b
-          else eval(tl, x)
+          cache = (x, r)::cache; r
+        case (a,b)::tl => if (x == a) b else eval(tl, x)
       }
       def ff(x: A) = eval(cache, x)
       ff(xx)
