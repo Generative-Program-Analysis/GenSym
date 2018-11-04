@@ -487,10 +487,10 @@ object Fixpoint {
   def fix(F: (Int=>Int)=>(Int=>Int))(x: Int): Int = F(fix(F))(x)
   def fixFib(x: Int): Int = fix(Fib)(x)
 
-  object MemoFix {
-    var cache = List[(Int, Int)]()
-    def apply(F: (Int=>Int)=>(Int=>Int))(xx: Int): Int = {
-      def eval(xs: List[(Int, Int)], x: Int): Int = xs match {
+  case class MemoFix[A,B]() {
+    var cache = List[(A, B)]()
+    def fix(F: (A=>B)=>(A=>B))(xx: A): B = {
+      def eval(xs: List[(A, B)], x: A): B = xs match {
         case Nil =>
           val r = F(ff)(x)
           cache = (x, r)::cache
@@ -499,11 +499,11 @@ object Fixpoint {
           if (x == a) b
           else eval(tl, x)
       }
-      def ff(x: Int) = eval(cache, x)
+      def ff(x: A) = eval(cache, x)
       ff(xx)
     }
   }
-  def mFixFib(x: Int): Int = MemoFix(Fib)(x)
+  def mFixFib(x: Int): Int = MemoFix().fix(Fib)(x)
 
   //TODO: the co-inductive one
 
