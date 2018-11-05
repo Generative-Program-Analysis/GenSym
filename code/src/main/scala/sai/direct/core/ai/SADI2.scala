@@ -33,21 +33,21 @@ object Semantics {
   trait StoreSpec[R[+_], K, V, S] {  //<: StoreSpec[R,K,V,S]] {
     def get(s: R[S], k: R[K]): R[V]
     def getOrElse(s: R[S], k: R[K], dft: R[V]): R[V]
-    def update(s: R[S], k: R[K], v: R[V]): R[S]
     def contains(s: R[S], k: R[K]): R[Boolean]
-    def ⊔(s1: R[S], s2: R[S]): R[S]
+    def |+|(s: R[S], k: R[K], v: R[V]): R[S]
+    def |⊔|(s1: R[S], s2: R[S]): R[S]
   }
   object StoreSpec {
     def apply[R[+_],K,V,S](implicit σ: StoreSpec[R,K,V,S]): StoreSpec[R,K,V,S] = σ
   }
+  // Note: When raw Map is used, the implmented `get`, `getOrElse` and `contains` of this type class
+  // won't be dispatched due to the same names.
   implicit class StoreOps[R[+_],K,V,S:({type λ[σ] = StoreSpec[R,K,V,σ]})#λ](σ: R[S]) {
-    def apply(k: R[K]): R[V] = StoreSpec[R,K,V,S].get(σ, k)
+    def get(k: R[K]): R[V] = StoreSpec[R,K,V,S].get(σ, k)
     def getOrElse(k: R[K], dft: R[V]): R[V] = StoreSpec[R,K,V,S].getOrElse(σ, k, dft)
-    def +(kv: (R[K], R[V])): R[S] = StoreSpec[R,K,V,S].update(σ, kv._1, kv._2)
-    def update(kv: (R[K], R[V])): R[S] = StoreSpec[R,K,V,S].update(σ, kv._1, kv._2)
-    def update(k: R[K], v: R[V]): R[S] = StoreSpec[R,K,V,S].update(σ, k, v)
     def contains(k: R[K]): R[Boolean] = StoreSpec[R,K,V,S].contains(σ, k)
-    def ⊔(that: R[S]): R[S] = StoreSpec[R,K,V,S].⊔(σ, that)
+    def |+|(kv: (R[K], R[V])): R[S] = StoreSpec[R,K,V,S].|+|(σ, kv._1, kv._2)
+    def |⊔|(that: R[S]): R[S] = StoreSpec[R,K,V,S].|⊔|(σ, that)
   }
 
   trait CacheSpec[R[+_], K, V, C] { // <: CacheSpec[R,K,V,C]
@@ -107,13 +107,13 @@ object Semantics {
   trait Abstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
-    type Env = Map[Ident, Addr]
-    type Store = Map[Addr, Value]
     //type Contour = List[Expr]
     abstract class AbsValue
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
     case class NumV() extends AbsValue
     type Value = Set[AbsValue]
+    type Env = Map[Ident, Addr]
+    type Store = Map[Addr, Value]
     type Ans = (R[Value], R[Store])
   }
 
@@ -121,13 +121,12 @@ object Semantics {
   trait PathSenAbstract extends Sem {
     type Ident = String
     case class Addr(x: Ident)
-    type Env = Map[Ident, Addr]
-    type Store = Map[Addr, Value]
     //type Contour = List[Expr]
     abstract class AbsValue
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
     case class NumV() extends AbsValue
     type Value = Set[AbsValue]
+    type Env = Map[Ident, Addr]
     type Ans = R[Set[(Value, Store)]]
   }
 
@@ -153,9 +152,9 @@ object UnStaged {
     implicit val storeImp: StoreSpec[R,Addr,Value,Store] = new StoreSpec[R,Addr,Value,Store] {
       def get(map: Store, k: Addr): Value = map(k)
       def getOrElse(map: Store, k: Addr, dft: Value): Value = map.getOrElse(k, dft)
-      def update(map: Store, k: Addr, v: Value): Store = map + (k → v)
       def contains(map: Store, k: Addr): Boolean = map.contains(k)
-      def ⊔(s1: Store, s2: Store): Store = throw new RuntimeException("Not implemented")
+      def |+|(map: Store, k: Addr, v: Value): Store = map + (k → v)
+      def |⊔|(s1: Store, s2: Store): Store = throw new RuntimeException("Not implemented")
     }
     val σ0: Store = Map[Addr,Value]()
 
@@ -174,12 +173,12 @@ object UnStaged {
         val (clo: CloV, e1σ) = ev(e1, ρ, σ)
         val (e2v, e2σ) = ev(e2, ρ, e1σ)
         val α = alloc(clo.λ.x, e2σ)
-        ev(clo.λ.body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+        ev(clo.λ.body, clo.ρ + (clo.λ.x → α), e2σ |+| (α → e2v))
       case Rec(x, f, body) =>
         val α = alloc(x, σ)
         val ρ_* = ρ + (x → α)
         val (fv, fσ) = ev(f, ρ_*, σ)
-        val σ_* = fσ + (α → fv)
+        val σ_* = fσ |+| (α → fv)
         ev(body, ρ_*, σ_*)
       case Let(x, e, body) => ev(App(Lam(x, body), e), ρ, σ)
       case If0(cnd, thn, els) =>
@@ -204,13 +203,12 @@ object UnStaged {
     }
     val ρ0: Env = Map[Ident,Addr]()
 
-    implicit val storeImp: StoreSpec[R,Addr,Value,Store] = new StoreSpec[R,Addr,Value,Store] {
+    implicit val storeImp: StoreSpec[NoRep,Addr,Value,Store] = new StoreSpec[NoRep,Addr,Value,Store] {
       def get(map: Store, k: Addr): Value = map(k)
       def getOrElse(map: Store, k: Addr, dft: Value): Value = map.getOrElse(k, dft)
-      def update(map: Store, k: Addr, v: Value): Store =
-        map + (k → (map.getOrElse(k, v.bot) ⊔ v))
       def contains(map: Store, k: Addr): Boolean = map.contains(k)
-      def ⊔(s1: Store, s2: Store): Store = s1 ⊔ s2
+      def |+|(map: Store, k: Addr, v: Value): Store = map + (k → (map.getOrElse(k, v.bot) ⊔ v))
+      def |⊔|(s1: Store, s2: Store): Store = s1 ⊔ s2
     }
     val σ0: Store = Map[Addr,Value]()
 
@@ -224,27 +222,30 @@ object UnStaged {
         val result = for (CloV(Lam(x,e), λρ) <- e1vs; e2v <- e2vs) yield {
           val α = alloc(x, e2σ)
           val ρ_* = λρ + (x → α)
-          val σ_* = e2σ + (α → Set(e2v))
+          val σ_* = e2σ |+|(α → Set(e2v))
           ev(e, ρ_*, σ_*)
         }
-        result.reduceLeft[Ans] { case ((v1,s1), (v2,s2)) => (v1++v2, s1⊔s2) }
+        result.reduceLeft[Ans] { case ((v1,s1), (v2,s2)) => (v1++v2, s1 |⊔| s2) }
     }
   }
 
   object NoRepAbsSem2 extends PathSenAbstract {
     type R[+T] = NoRep[T]
+
     implicit val envImp: EnvSpec[R,Ident,Addr,Env] = new EnvSpec[R,Ident,Addr,Env] {
       def get(m: Env, k: Ident): Addr = m(k)
       def +(m: Env, kv: (Ident, Addr)): Env = m + (kv._1 -> kv._2)
     }
     val ρ0: Env = Map[Ident,Addr]()
-    implicit val storeImp: StoreSpec[R,Addr,Value,Store] = new StoreSpec[R,Addr,Value,Store] {
+
+    type Store = Map[Addr, Value]
+
+    implicit val storeImp: StoreSpec[NoRep,Addr,Value,Store] = new StoreSpec[NoRep,Addr,Value,Store] {
       def get(map: Store, k: Addr): Value = map(k)
       def getOrElse(map: Store, k: Addr, dft: Value): Value = map.getOrElse(k, dft)
-      def update(map: Store, k: Addr, v: Value): Store =
-        map + (k → (map.getOrElse(k, v.bot) ⊔ v))
       def contains(map: Store, k: Addr): Boolean = map.contains(k)
-      def ⊔(s1: Store, s2: Store): Store = s1 ⊔ s2
+      def |+|(map: Store, k: Addr, v: Value): Store = map + (k → (map.getOrElse(k, v.bot) ⊔ v))
+      def |⊔|(s1: Store, s2: Store): Store = s1 ⊔ s2 //TODO: double check this works
     }
     val σ0: Store = Map[Addr,Value]()
 
@@ -260,40 +261,36 @@ object UnStaged {
                (e2vs, e2σ) <- ev(e2, ρ, e1σ)) yield {
             val α = alloc(x, e2σ)
             val ρ_* = λρ + (x → α)
-            val σ_* = e2σ + (α → e2vs)
+            val σ_* = StoreSpec[NoRep,Addr,Value,Store].|+|(e2σ, α, e2vs) //FIXME
+            //val σ_* = e2σ |+| (α → e2vs) //FIXME
             ev(e, ρ_*, σ_*)
           }
         result.flatten
     }
 
-
     type Config = (Expr, Env, Store)
 
-    case class Cache(in: Map[Config, Ans], out: Map[Config, Ans]) { //extends CacheSpec[NoRep,Config,Ans,Cache] {
-      def inGet(cfg: Config): Ans = in.getOrElse(cfg, Set())
-      def inContains(cfg: Config): Boolean = in.contains(cfg)
-      def outGet(cfg: Config):Ans = out.getOrElse(cfg, Set())
-      def outContains(cfg: Config): Boolean = out.contains(cfg)
-      def outUpdate(cfg: Config, vss: Ans): Cache = {
-        val oldv: Ans = out.getOrElse(cfg, Set())
-        Cache(in, out + (cfg -> (oldv ⊔ vss)))
+    case class CacheFix(F: EvalFun => EvalFun) {
+      var in = Map[Config, Ans]()
+      var out = Map[Config, Ans]()
+      def f(e: Expr, ρ: Env, σ: Store): Ans = {
+        val cfg: Config = (e, ρ, σ)
+        if (out.contains(cfg)) out(cfg)
+        else {
+          val r0 = in.getOrElse(cfg, Set())
+          out = out + (cfg → r0)
+          val r = F(f)(e, ρ, σ)
+          out = out + (cfg → (r0 ++ r))
+          r
+        }
       }
-      def outUpdateFromIn(cfg: Config): Cache = outUpdate(cfg, inGet(cfg))
-      def ⊔(that: Cache): Cache = Cache(in ⊔ that.in, out ⊔ that.out)
-    }
-
-    def eval_cache(ev: EvalFun)(e: Expr, ρ: Env, σ: Store, cache: Cache): (Ans, Cache) = {
-      val config = (e, ρ, σ)
-      if (cache.outContains(config)) {
-        (cache.outGet(config), cache)
-      } else {
-        val cache_* = cache.outUpdateFromIn(config)
-        val ans = ev(e, ρ, σ) //TODO:
-        (ans, cache_*.outUpdate(config, ans))
+      def fix(e: Expr, ρ: Env, σ: Store): Ans = {
+        in = out; out = Map[Config, Ans](); f(e, ρ, σ)
+        if (in == out) out((e, ρ, σ)) else fix(e, ρ, σ)
       }
     }
 
-    override def eval_top(e: Expr): Ans = ???
+    override def eval_top(e: Expr): Ans = CacheFix(eval).fix(e, ρ0, σ0)
   }
 }
 
@@ -388,6 +385,38 @@ trait StagedInterp extends Dsl with Concrete
 
   /***************************************************/
 
+  trait RepLattice[A] extends GenericLattice[A, Rep]
+  object RepLattice {
+    def apply[L](implicit l: RepLattice[L]): RepLattice[L] = l
+  }
+  implicit class RepLatticeOps[L: RepLattice](l: Rep[L]) {
+    lazy val bot: Rep[L] = RepLattice[L].bot
+    lazy val top: Rep[L] = RepLattice[L].top
+    def ⊑(that: Rep[L]): Rep[Boolean] = RepLattice[L].⊑(l, that)
+    def ⊔(that: Rep[L]): Rep[L] = RepLattice[L].⊔(l, that)
+    def ⊓(that: Rep[L]): Rep[L] = RepLattice[L].⊓(l, that)
+  }
+  implicit def RepSetLattice[T:Typ]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
+    lazy val bot: Rep[Set[T]] = Set[T]()
+    lazy val top: Rep[Set[T]] = throw new RuntimeException("No representation of top power set")
+    def ⊑(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Boolean] = l1 subsetOf l2
+    def ⊔(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 union l2
+    def ⊓(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 intersect l2
+  }
+  implicit def RepMapLattice[K:Typ, V:Typ:RepLattice]: RepLattice[Map[K, V]] = new RepLattice[Map[K, V]] {
+    lazy val bot: Rep[Map[K, V]] = Map[K, V]()
+    lazy val top: Rep[Map[K, V]] = throw new RuntimeException("No representation of top map")
+    def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = {
+      m1.foreach { case (k,v) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
+      true
+    }
+    def ⊔(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
+      m2.foldLeft (m1) { case (m, (k, v)) ⇒ m + ((k, m.getOrElse(k, v.bot) ⊔ v)) }
+    def ⊓(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
+      (m1.keySet intersect m2.keySet).foldLeft (Map[K, V]())
+    { case (m_*, k) ⇒ m_* + ((k, m1(k) ⊓ m2(k))) }
+  }
+
   type R[+T] = Rep[T]
   implicit def AbsValueTyp: Typ[Value] = manifestTyp
 
@@ -400,10 +429,11 @@ trait StagedInterp extends Dsl with Concrete
   implicit val storeImp: StoreSpec[Rep,Addr,Value,Store] = new StoreSpec[Rep,Addr,Value,Store] {
     def get(map: Rep[Store], k: Rep[Addr]): Rep[Value] = map(k)
     def getOrElse(map: Rep[Store], k: Rep[Addr], dft: Rep[Value]): Rep[Value] = map.getOrElse(k, dft)
-    def update(map: Rep[Store], k: Rep[Addr], v: Rep[Value]): Rep[Store] = map + (k → v)
+    def |+|(map: Rep[Store], k: Rep[Addr], v: Rep[Value]): Rep[Store] = map + (k → v)
     def contains(map: Rep[Store], k: Rep[Addr]): Rep[Boolean] = map.contains(k)
-    def ⊔(s1: Rep[Store], s2: Rep[Store]): Rep[Store] = s1 ⊔ s2
+    def |⊔|(s1: Rep[Store], s2: Rep[Store]): Rep[Store] = throw new RuntimeException("Not implemented")
   }
+  val σ0: Rep[Store] = Map[Addr, Value]()
 
   def lift[T:Typ](x: T): Rep[T] = unit[T](x)
   def fall[T:Typ](c: Rep[T]): T = c match { case Const(x) => x }
@@ -414,7 +444,6 @@ trait StagedInterp extends Dsl with Concrete
     case '* ⇒ lift(NumV(v1.i * v2.i))
   }
 
-  val σ0: Rep[Store] = Map[Addr, Value]()
   def alloc(x: Rep[Ident], σ: Rep[Store]): Rep[Addr] = σ.size+1
   def eval(ev: EvalFun)(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Ans = e match {
     case Lit(i) => (lift(NumV(i)), σ) //TODO: get rid of `lift`
@@ -428,7 +457,7 @@ trait StagedInterp extends Dsl with Concrete
           //FIXME
           //val Lam(x, body) = fall[Lam](clo.λ)
           val α = alloc(x, e2σ)
-          ev(body, clo.ρ + (clo.λ.x → α), e2σ + (α → e2v))
+          ev(body, clo.ρ + (clo.λ.x → α), e2σ |+| (α → e2v))
         case λ =>
           (unchecked(s"apply(${λ})"), σ)
       }
@@ -436,7 +465,7 @@ trait StagedInterp extends Dsl with Concrete
       val α = alloc(x, σ)
       val ρ_* = ρ + (lift(x) → α)
       val (fv, fσ) = ev(f, ρ_*, σ)
-      val σ_* = fσ + (α → fv)
+      val σ_* = fσ |+| (α → fv)
       ev(body, ρ_*, σ_*)
     case Let(x, e, body) => ev(App(Lam(x, body), e), ρ, σ)
     case If0(cnd, thn, els) =>
@@ -500,8 +529,6 @@ object Fixpoint {
   }
   def mFixFib(x: Int): Int = MemoFix().fix(Fib)(x)
 
-  //TODO: the co-inductive one
-
   def main(args: Array[String]) {
     println(Utils.time { fib(40) })
     println(Utils.time { mfib(40) })
@@ -542,13 +569,14 @@ object SADI2 extends TutorialFunSuite {
     //println(NoRepConSem.eval_top(fact5))
     //NoRepConSem.eval_top(omega) /* Stack overflow */
     //NoRepAbsSem.eval_top(omega) /* Stack overflow */
+    println(NoRepAbsSem2.eval_top(omega)) /* Stack overflow */
 
-    val code = specializeConcrete(rec)
-    println(code.code)
+    //val code = specializeConcrete(rec)
+    //println(code.code)
     //code.precompile
     //println(code.eval(()))
 
-    val power5 = specializePower(5)
-    println(power5.code)
+    //val power5 = specializePower(5)
+    //println(power5.code)
   }
 }
