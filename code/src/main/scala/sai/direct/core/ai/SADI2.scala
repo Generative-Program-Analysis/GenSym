@@ -50,27 +50,6 @@ object Semantics {
     def |⊔|(that: R[S]): R[S] = StoreSpec[R,K,V,S].|⊔|(σ, that)
   }
 
-  trait CacheSpec[R[+_], K, V, C] { // <: CacheSpec[R,K,V,C]
-    def inGet(c: R[C], k: R[K]): R[V]
-    def outGet(c: R[C], k: R[K]): R[V]
-    def inContains(c: R[C], k: R[K]): R[Boolean]
-    def outContains(c: R[C], k: R[K]): R[Boolean]
-    def outUpdate(c: R[C], k: R[K], v: R[V]): R[C]
-    def ⊔(c1: R[C], c2: R[C]): R[C]
-  }
-  object CacheSpec {
-    def apply[R[+_],K,V,C](implicit c: CacheSpec[R,K,V,C]): CacheSpec[R,K,V,C] = c
-  }
-  implicit class CacheOps[R[+_],K,V,C:({type λ[c] = CacheSpec[R,K,V,c]})#λ](c: R[C]) {
-    def inGet(k: R[K]): R[V] = CacheSpec[R,K,V,C].inGet(c, k)
-    def inContains(k: R[K]): R[Boolean] = CacheSpec[R,K,V,C].inContains(c, k)
-    def outGet(k: R[K]): R[V] = CacheSpec[R,K,V,C].outGet(c, k)
-    def outContains(k: R[K]): R[Boolean] = CacheSpec[R,K,V,C].outContains(c, k)
-    def outUpdate(k: R[K], v: R[V]): R[C] = CacheSpec[R,K,V,C].outUpdate(c, k, v)
-    def outUpdateFromIn(c: R[C], k: R[K]): R[C] = CacheSpec[R,K,V,C].outUpdate(c, k, CacheSpec[R,K,V,C].inGet(c, k))
-    def ⊔(c1: R[C], c2: R[C]): R[C] = CacheSpec[R,K,V,C].⊔(c1, c2)
-  }
-
   trait Sem {
     type R[+T]
     type Addr
@@ -78,7 +57,7 @@ object Semantics {
     type Value
     type Env
     implicit val envImp: EnvSpec[R, Ident, Addr, Env]
-    type Store
+    type Store //<: StoreSpec[R, Addr, Value, Store]
     implicit val storeImp: StoreSpec[R, Addr, Value, Store]
     type Ans
     //type Contour
@@ -222,11 +201,34 @@ object UnStaged {
         val result = for (CloV(Lam(x,e), λρ) <- e1vs; e2v <- e2vs) yield {
           val α = alloc(x, e2σ)
           val ρ_* = λρ + (x → α)
-          val σ_* = e2σ |+|(α → Set(e2v))
+          val σ_* = e2σ |+| (α → Set(e2v))
           ev(e, ρ_*, σ_*)
         }
         result.reduceLeft[Ans] { case ((v1,s1), (v2,s2)) => (v1++v2, s1 |⊔| s2) }
     }
+
+    type Config = (Expr, Env, Store)
+    case class CacheFix(F: EvalFun => EvalFun) {
+      var in = Map[Config, Ans]()
+      var out = Map[Config, Ans]()
+      def f(e: Expr, ρ: Env, σ: Store): Ans = {
+        val cfg: Config = (e, ρ, σ)
+        if (out.contains(cfg)) out(cfg)
+        else {
+          val r0: Ans = in.getOrElse(cfg, (Set[AbsValue](), σ0))
+          out = out + (cfg → r0)
+          val r: Ans = F(f)(e, ρ, σ)
+          out = out + (cfg → ((r0._1 ++ r._1, r0._2 |⊔| r._2)))
+          r
+        }
+      }
+      def fix(e: Expr, ρ: Env, σ: Store): Ans = {
+        in = out; out = Map[Config, Ans](); f(e, ρ, σ)
+        if (in == out) out((e, ρ, σ)) else fix(e, ρ, σ)
+      }
+    }
+
+    override def eval_top(e: Expr): Ans = CacheFix(eval).fix(e, ρ0, σ0)
   }
 
   object NoRepAbsSem2 extends PathSenAbstract {
@@ -255,6 +257,7 @@ object UnStaged {
       case Var(x) => Set((σ(ρ(x)), σ))
       case Lam(x, e) => Set((Set(CloV(Lam(x,e), ρ)), σ))
       case App(e1, e2) =>
+        //val xx = σ |⊔| σ
         val result: Set[Ans] =
           for ((e1vs, e1σ) <- ev(e1, ρ, σ);
                CloV(Lam(x, e), λρ) <- e1vs;
@@ -568,8 +571,8 @@ object SADI2 extends TutorialFunSuite {
     val rec = Rec("id", Lam("x", Var("x")), Var("id"))
     //println(NoRepConSem.eval_top(fact5))
     //NoRepConSem.eval_top(omega) /* Stack overflow */
-    //NoRepAbsSem.eval_top(omega) /* Stack overflow */
-    println(NoRepAbsSem2.eval_top(omega)) /* Stack overflow */
+    println(NoRepAbsSem.eval_top(omega)) //TODO: verify the result
+    println(NoRepAbsSem2.eval_top(omega)) //TODO: verify the result
 
     //val code = specializeConcrete(rec)
     //println(code.code)
