@@ -102,16 +102,16 @@ staged polymorphism, decide when to compile an analysis.
 
 \begin{itemize}
 \item Starting from a definitional abstract interpreter for a higher-order functional language,
-  whose syntax and semantics are described in section \ref{bg_lang},
+  whose syntax and semantics are described in Section~\ref{bg_lang},
   we show how to turn it into a staged abstract interpreter (SAI) by adding stage annotations. 
   The design and implementation of SAI using Scala and Lightweight Modular Staging (LMS) framework is 
-  described in section \ref{sai}.
+  described in Section~\ref{sai}.
   We later extend the staged abstract interpreter to support imperative language features 
-  (section \ref{cases_imp}), such as states, loops and exceptions.
+  (Section~\ref{cases_imp}), such as states, loops and exceptions.
 \item We demonstrate that the staged abstract interpreter not only improves the \textit{efficiency}
   but also the \textit{scalability}, which are two major issues in static analysis, if we apply it on open
   programs. \todo{more on this point.}
-\item To demonstrate the feasibility and applicability of the proposed approach, we conduct three case studies in section \ref{cases_study}. 
+\item To demonstrate the feasibility and applicability of the proposed approach, we conduct three case studies in Section~\ref{cases_study}. 
   First we revisit Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
   technique applied on 0-CFA. We show that it can be understood and easily implemented as an instance of 
   our staged abstract interpreter. 

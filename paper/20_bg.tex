@@ -12,7 +12,7 @@ interpreter.
 As higher-order functions had been widely introduced in mainstream programming languages \todo{cite}, in this paper, 
 we target a tiny higher-order functional language \TLang, which is based on direct-style lambda-calculus
 with the support of numbers, arithmetics, recursions and conditionals.
-In section \ref{cases_imp}, we will see adding more imperative features to the language.
+In Section~\ref{cases_imp}, we will see adding more imperative features to the language.
 Since we are mostly interested in analyzing the dynamic behavior of the program, the static semantics and
 type system will be omitted. We also assume all the input programs are well-typed.
 The abstract syntax is described below:
@@ -70,7 +70,7 @@ Readers may notice an additional abstract type \texttt{R[+T]} is defined in the 
 which means \texttt{R} represents a higher-kinded type and will used to specify the binding-time, 
 i.e., staged or not. Since the LMS framework we are using allows us to specify binding-time purely
 based on types, the unstaged higher-kinded type can be simply instantiated as an identity type constructor: 
-\texttt{type NoRep[+T] = T}. In section \ref{stagedinterp}, \texttt{R} will be instantiated 
+\texttt{type NoRep[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
 as a staging annotation. \todo{where talk about stage poly?}
 
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
@@ -135,7 +135,7 @@ trait Abstract extends Semantics {
 }
 \end{lstlisting}
 
-Address just record the variable name, more sensitivity in section ...
+Address just record the variable name, more sensitivity in Section ...
 
 other big-step abstract interpreter, 
 big-step abstract interpreter using delimited control operators \cite{Wei:2018:RAA:3243631.3236800},
