@@ -51,14 +51,12 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
       val elements: List[CharLit] = str.toCharArray map { CharLit(_) } toList;
       App(Var("vector"), elements.drop(1).dropRight(1))
   }
-  implicit def listsugar: Parser[App] = LISTLPAREN ~> expr.* <~ RPAREN ^^ {
-    case elements => App(Var("list"), elements)
-  }
+
   implicit def vecsugar: Parser[App] = VECLPAREN ~> expr.* <~ RPAREN ^^ {
     case elements => App(Var("vector"), elements)
   }
-  implicit def literals = intlit | charlit | boollit | stringlit | vecsugar
 
+  implicit def literals = intlit | charlit | boollit | stringlit | vecsugar
 
   implicit def ifthel: Parser[If] = LPAREN ~> IF ~> expr ~ expr ~ expr <~ RPAREN ^^ {
     case cond ~ thn ~ els => If(cond, thn, els)
@@ -127,11 +125,13 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   implicit def quasiterm = literals | unquote | list | symbol
 
   def expr: Parser[Expr] = literals | quasiquote | variable | lam | lets | dispatch | imp_structure | app
+
+  def program = implicit_begin
 }
 
 
 object LargeSchemeParser extends LargeSchemeParserTrait {
-  def apply(input: String): Option[Expr] = apply(implicit_begin, input)
+  def apply(input: String): Option[Expr] = apply(program, input)
 
   def apply[T](pattern: Parser[T], input: String): Option[T] = parse(pattern, input) match {
     case Success(matched, _) => Some(matched)
@@ -141,10 +141,14 @@ object LargeSchemeParser extends LargeSchemeParserTrait {
 
 object TestSimpleDirectLargeSchemeParser {
   def main(args: Array[String]) = {
-    if (!args.isEmpty) {
-      println(LargeSchemeParser(args(0)))
-    } else {
+    if (args.isEmpty) {
       testall()
+    } else {
+      if (args(0) == "-f") {
+        println(LargeSchemeParser(Source.fromFile(args(1)).mkString))
+      } else {
+        println(LargeSchemeParser(args(0)))
+      }
     }
   }
 
@@ -239,8 +243,8 @@ object TestSimpleDirectLargeSchemeParser {
   }
 
   def testProgWithComments() = {
-    val fileName1 = "benchmarks/toplas98/lattice.scm"
-    val fileName2 = "benchmarks/toplas98/lattice-processed.scm"
+    val fileName1 = "benchmarks/toplas98/nbody.sch"
+    val fileName2 = "benchmarks/toplas98/nbody-processed.sch"
     val program1 = Source.fromFile(fileName1).mkString
     val program2 = Source.fromFile(fileName2).mkString
 
