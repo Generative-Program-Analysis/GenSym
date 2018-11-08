@@ -39,7 +39,7 @@ object eval {
     type T[A]
     def valueT: T[Value]
     def lift(v: Value): R[Value]
-    def base_apply(fun: R[Value], args: List[R[Value]], env: Env): R[Value]
+    def apply_closure(fun: R[Value], args: List[R[Value]], env: Env): R[Value]
     def isTrue(v: R[Value]): R[Boolean]
     def ifThenElse[A:T](cnd: R[Boolean], thn: => R[A], els: => R[A]): R[A]
     def makeFun(f: R[Value] => R[Value]): R[Value]
@@ -62,21 +62,19 @@ object UnstagedEval {
         CompClo(arg => r.eval(arg))
       case v => v
     }
-    def base_apply(fun: Value, args: List[Value], env: Env) = base_apply_norep(fun, args, env)
+    def apply_closure(fun: Value, args: List[Value], env: Env) = apply_closure_norep(fun, args, env)
     def isTrue(v: Value) = Bool(false) != v
     def ifThenElse[A:T](cnd: Boolean, thn: => A, els: => A): A = if (cnd) thn else els
     def makeFun(f: Value => Value) = CompClo(f)
   }
 
-  def base_apply_norep(fun: Value, args: List[Value], env: Env) = fun match {
+  def apply_closure_norep(fun: Value, args: List[Value], env: Env) = fun match {
     //case Clo(param, body, cenv) => base_eval[NoRep](body, cenv + (param -> args(0)))
     case CompClo(f) => f(args(0))
     case Prim(p) => apply_primitive(p, args)
   }
 
-  def base_evlist[R[_]:Ops](exps: List[Term], env: Env): List[R[Value]] = {
-    exps.map(e => base_eval[R](e, env))
-  }
+  def base_evlist[R[_]:Ops](exps: List[Term], env: Env): List[R[Value]] = exps.map(e => base_eval[R](e, env))
 
   def top_eval[R[_]:Ops](exp: Term): R[Value] = base_eval[R](exp, Map())
   
@@ -86,15 +84,15 @@ object UnstagedEval {
       case e@Lit(n) => lift(e)
       case e@Bool(b) => lift(e)
       case e@Prim(p) => lift(e)
-      case Var(s) => env.get(s) match {
-        case Some(Code(v)) => v.asInstanceOf[R[Value]]
-        case Some(v) => lift(v)
-      }
       case e@Lam(x, body) => lift(Clo(e, env))
+      case Var(s) => env(s) match {
+        case Code(v) => v.asInstanceOf[R[Value]]
+        case v => lift(v)
+      }
       case App(fun, args) => 
         val fv = base_eval[R](fun, env)
         val argvs = base_evlist[R](args, env)
-        base_apply(fv, argvs, env)
+        apply_closure(fv, argvs, env)
       case If(cnd, thn, els) => 
         val vc = base_eval[R](cnd, env)
         ifThenElse(isTrue(vc),
@@ -108,7 +106,7 @@ import UnstagedEval._
 
 trait EvalDsl extends Dsl with UncheckedOps {
   implicit def valTyp: Typ[Value]
-  def base_apply_rep(f: Rep[Value], args: List[Rep[Value]], env: Env): Rep[Value]
+  def apply_closure_rep(f: Rep[Value], args: List[Rep[Value]], env: Env): Rep[Value]
   implicit object OpsRep extends scala.Serializable with Ops[Rep] {
     type T[A] = Typ[A]
     def valueT = typ[Value]
@@ -117,8 +115,7 @@ trait EvalDsl extends Dsl with UncheckedOps {
         makeFun(arg => base_eval[Rep](body, env + (x -> Code(arg))))
       case v => unit(v)
     }
-    def base_apply(f: Rep[Value], args: List[Rep[Value]], env: Env) =
-      base_apply_rep(f, args, env)
+    def apply_closure(f: Rep[Value], args: List[Rep[Value]], env: Env) = apply_closure_rep(f, args, env)
     def isTrue(v: Rep[Value]): Rep[Boolean] = unit[Value](Bool(false))!=v
     def ifThenElse[A:T](cnd: Rep[Boolean], thn: => Rep[A], els: => Rep[A]): Rep[A] = if (cnd) thn else els
     def makeFun(f: Rep[Value] => Rep[Value]) = unchecked("CompClo(", fun(f), ")")
@@ -130,7 +127,7 @@ trait EvalDsl extends Dsl with UncheckedOps {
 trait EvalDslExp extends EvalDsl with DslExp with UncheckedOpsExp {
   implicit def valTyp: Typ[Value] = manifestTyp
   case class BaseApplyRep(f: Rep[Value], args: List[Rep[Value]], env: Env) extends Def[Value]
-  def base_apply_rep(f: Rep[Value], args: List[Rep[Value]], env: Env): Rep[Value] =
+  def apply_closure_rep(f: Rep[Value], args: List[Rep[Value]], env: Env): Rep[Value] =
     reflectEffect(BaseApplyRep(f, args, env))
 }
 
@@ -147,7 +144,7 @@ trait EvalDslGen extends ScalaGenFunctions with ScalaGenIfThenElse with ScalaGen
   }
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
     case BaseApplyRep(f, args, env) =>
-      emitValDef(sym, "base_apply_norep("+quote(f)+", List("+args.map(quote).mkString(", ")+"), "+env_quote(env)+")")
+      emitValDef(sym, "apply_closure_norep("+quote(f)+", List("+args.map(quote).mkString(", ")+"), "+env_quote(env)+")")
     case _ => super.emitNode(sym, rhs)
   }
 }
