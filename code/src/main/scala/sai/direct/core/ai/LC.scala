@@ -16,7 +16,7 @@ import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOps => _, SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 object LamCal {
-  trait Symantics {
+  trait Semantics {
     type R[+_]
     type Ident = String
     type Addr
@@ -64,7 +64,7 @@ object LamCal {
     def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = fix(eval)(e, ρ, σ)
   }
 
-  object ConcSym extends Symantics {
+  object ConcSem extends Semantics {
     type R[+T] = T
     type Addr = Int
     sealed trait Value
@@ -98,7 +98,8 @@ object LamCal {
     }
   }
 
-  trait RepConcSymOps extends Symantics with Dsl with MapOps with UncheckedOps with TupleOps {
+  trait LMSOps extends Dsl with MapOps with UncheckedOps with TupleOps
+  trait RepConcSemOps extends Semantics with LMSOps {
     type R[+T] = Rep[T]
     type Addr = Int
     type Env = Map[Ident, Addr]
@@ -135,8 +136,8 @@ object LamCal {
     }
   }
 
-  trait RepConcSymExp extends RepConcSymOps
-      with DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp {
+  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp
+  trait RepConcSemExp extends RepConcSemOps with LMSOpsExp {
     implicit def valueTyp: Typ[Value] = manifestTyp
     case class ApplyClosure(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
     def apply_closure(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Ans = {
@@ -144,8 +145,8 @@ object LamCal {
     }
   }
 
-  trait RepConcSymGen extends GenericNestedCodegen {
-    val IR: RepConcSymExp
+  trait RepConcSemGen extends GenericNestedCodegen {
+    val IR: RepConcSemExp
     import IR._
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
       case ApplyClosure(f, arg, σ) => emitValDef(sym, "apply_closure_norep(" + quote(f) + "," + quote(arg) + "," + quote(σ) + ")")
@@ -171,8 +172,8 @@ object LamCal {
     }
   }
 
-  trait RepConcSymDriver extends DslDriver[Unit, Unit] with RepConcSymExp { q =>
-    override val codegen = new DslGen with ScalaGenMapOps with MyScalaGenTupleOps with RepConcSymGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps {
+  trait RepConcSemDriver extends DslDriver[Unit, Unit] with RepConcSemExp { q =>
+    override val codegen = new DslGen with ScalaGenMapOps with MyScalaGenTupleOps with RepConcSemGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps {
       val IR: q.type = q
       override def remap[A](m: Typ[A]): String = {
         if (m.toString.endsWith("$Value")) "Value"
@@ -204,7 +205,7 @@ object SADI5 {
   import LamCal._
   def main(args: Array[String]) {
     def specialize(p: Expr): DslDriver[Unit, Unit] =
-      new RepConcSymDriver {
+      new RepConcSemDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
           println(v); println(s)
@@ -220,7 +221,7 @@ object SADI5 {
     val code = specialize(fact5)
     println(code.code)
     code.eval(())
-    //println(ConcSym.eval_top(id4))
-    println(ConcSym.eval_top(fact5))
+    //println(ConcSem.eval_top(id4))
+    println(ConcSem.eval_top(fact5))
   }
 }
