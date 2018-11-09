@@ -19,6 +19,9 @@ object Lattices {
     def ⊔(l1: R[E], l2: R[E]): R[E]
     def ⊓(l1: R[E], l2: R[E]): R[E]
   }
+  object GenericLattice {
+    def apply[E, R[_]](implicit l: GenericLattice[E,R]): GenericLattice[E,R] = l
+  }
 
   type NoRep[+A] = A
 
