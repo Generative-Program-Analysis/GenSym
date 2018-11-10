@@ -1,0 +1,70 @@
+\subsection{From Interpreter to Staged Interpreter} \label{stagedinterp}
+
+\textbf{Multi-Stage Programming in LMS.}
+
+\begin{lstlisting}
+val power5 = new DslDriver[Int, Int] {
+  def power(b: Rep[Int], x: Int): Rep[Int] =
+    if (x == 0) 1 else b * power(b, x-1)
+  def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
+}
+\end{lstlisting}
+
+Lightweight modular staging (LMS) \todo{cite} is a library-based multi-stage programming framework 
+that enables type-safe dynamic code generation. Different from the traditional approach of using
+syntactic quasi-quotation, it solely relies on types to distinguish between binding times.
+
+In the example shown above, \texttt{power} is a staged function that takes 2 arguments where 
+\texttt{b} is declared as \texttt{Rep[Int]} meaning that \texttt{b} is a representation of type 
+\texttt{Int} whose underlying value will be available at the next stage. Meanwhile the actual 
+computation result of the \texttt{power} function  will be available at the next stage as well. 
+Thus the return value of \texttt{power} is also of type \texttt{Rep[Int]}. The generated code for
+\texttt{power5} consists of a function that takes only one argument that corresponds to its 
+representation \texttt{b} from the previous stage.
+
+\textbf{Staged Concrete Interpreter.} 
+
+We share the same concrete type instantiation, i.e. trait \texttt{Concrete}, with the unstaged version,
+but reimplemented the staged version for the concrete operations.
+
+\begin{lstlisting}
+trait RepConcInterpOps extends Concrete with LMSOps {
+  type R[+T] = Rep[T]
+  implicit def valueTyp: Typ[Value]
+  val $\rho$0: Rep[Env] = Map[Ident,Addr]()
+  val $\sigma$0: Rep[Store] = Map[Addr,Value]()
+  def get($\rho$: Rep[Env], x: Ident): Rep[Addr] = $\rho$(x)
+  def put($\rho$: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = 
+    $\rho$ + (unit(x) -> a)
+  def get($\sigma$: Rep[Store], a: Rep[Addr]): Rep[Value] = $\sigma$(a)
+  def put($\sigma$: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = 
+    $\sigma$ + (a -> v)
+  def alloc($\sigma$: Rep[Store], x: Ident): Rep[Addr] = $\sigma$.size + 1
+  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
+    val Lam(x, e) = $\lambda$
+    val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = 
+      (as: Rep[(Value, Store)]) => {
+        val arg = as._1; val $\sigma$ = as._2
+        val $\alpha$ = alloc($\sigma$, x)
+        ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, arg))
+      }
+    unchecked("CompiledClo(", fun(f), ",", $\lambda$, ",", $\rho$, ")")
+  }
+  def num(i: Lit): Rep[Value] = {
+    unchecked("NumV(", i.i, ")")
+  }
+  def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
+    val i = unchecked[Int](cnd, ".asInstanceOf[NumV].i")
+    (if (i == 0) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
+  }
+  def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
+    val v1i = unchecked(v1, ".asInstanceOf[NumV].i")
+    val v2i = unchecked(v2, ".asInstanceOf[NumV].i")
+    unchecked("NumV(", v1i, op.toString.drop(1), v2i, ")")
+  }
+}
+\end{lstlisting}
+
+\textbf{Code Generation.}
+
+code generation, runtime code

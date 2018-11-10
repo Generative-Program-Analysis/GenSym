@@ -1,0 +1,170 @@
+\subsection{An Unstaged Concrete Interpreter} \label{bg_lang}
+
+As higher-order functions had been widely introduced in mainstream programming languages (such as Python and Java \todo{cite}), 
+in this paper, we consider a tiny higher-order functional language \TLang, which is based on direct-style $\lambda$-calculus
+with numbers, arithmetics, recursions and conditionals.
+In Section~\ref{cases_imp}, we will see adding more imperative features to the language.
+Since we are mostly interested in analyzing the dynamic behavior of the program, the static semantics and
+type system will be omitted. We also assume the input programs are well-typed and variables are distinct.
+The abstract syntax is described below:
+
+\begin{lstlisting}
+abstract class Expr
+case class Lit(i: Int)
+case class Var(x: String)
+case class Lam(x: String, e: Expr)
+case class App(e1: Expr, e2: Expr)
+case class AOp(op: String, e1: Expr, e2: Expr)
+case class Rec(x: String, e: Expr, body: Expr)
+case class If0(cnd: Expr, thn: Expr, els: Expr)
+\end{lstlisting}
+
+We give the concrete semantics of \TLang by showing a big-step operational-style interpreter for it.
+The interpreter is a recursive function that takes the program AST, environment and store, and returns 
+the evaluated value and the accompanied store. The environment will be a mapping from identifiers to addresses,
+and the store is a mapping from addresses to values. The store simulates the heap and is useful when modeling 
+recursion and mutation.
+This environment-and-store-passing style big-step interpreter also can be obtained by 
+refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03, Wei:2018:RAA:3243631.3236800} a small-step CESK 
+machine \cite{DBLP:conf/popl/FelleisenF87}.
+
+\textbf{Generic Interface.} Before showing the actual implementation of the concrete semantics, let's first see 
+a generic interface for the interpreters, which will be used later for both unstaged/staged and concrete/abstract scenarios.
+The trait \texttt{Semantics} first declares several abstract type members, such as \texttt{Addr},
+\texttt{Value}, \texttt{Env}, \texttt{Store} and returned type \texttt{Ans}. 
+Initial values for environments and stores, and few abstract methods that manipulate environments and stores are also declared.
+
+\begin{lstlisting}
+trait Semantics {
+  type R[+_]
+  type Ident = String;  type Addr;  type Value;  type Env
+  type Store;  type Ans = (R[Value], R[Store])
+  def get($\rho$: R[Env], x: Ident): R[Addr]
+  def put($\rho$: R[Env], x: Ident, a: R[Addr]): R[Env]
+  def get($\sigma$: R[Store], a: R[Addr]): R[Value]
+  def put($\sigma$: R[Store], a: R[Addr], v: R[Value]): R[Store]
+  def alloc($\sigma$: R[Store], x: Ident): R[Addr]
+  val $\rho$0: R[Env]; val $\sigma$0: R[Store]
+  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: R[Env]): R[Value]
+  def num(i: Lit): R[Value]
+  def apply_closure(ev: EvalFun)
+    (f: R[Value], arg: R[Value], $\sigma$: R[Store]): Ans
+  def branch0(cnd: R[Value], thn: => Ans, els: => Ans): Ans
+  def prim_eval(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
+}  // to be continued
+\end{lstlisting}
+
+The actual semantics of the interpreter is also abstract now, such as lifting literal terms to values 
+(\texttt{close}, \texttt{num}), applying a closure (\texttt{apply\_closure}), branching (\texttt{branch0},
+and arithmetics (\texttt{prim\_eval}). But, just based on these abstract methods, a general interpreter 
+can be defined:
+
+\begin{lstlisting}
+trait Semantics {  // continued
+  type EvalFun = (Expr, R[Env], R[Store]) => Ans
+  def eval(ev: EvalFun)(e: Expr, $\rho$: R[Env], $\sigma$: R[Store]): Ans = 
+    e match {
+      case Lit(i) => (num(Lit(i)), $\sigma$)
+      case Var(x) => (get($\sigma$, get($\rho$, x)), $\sigma$)
+      case Lam(x, e) => (close(ev)(Lam(x, e), $\rho$), $\sigma$)
+      case App(e1, e2) =>
+        val (e1v, e1$\sigma$) = ev(e1, $\rho$, $\sigma$)
+        val (e2v, e2$\sigma$) = ev(e2, $\rho$, e1$\sigma$)
+        apply_closure(ev)(e1v, e2v, e2$\sigma$)
+      case Rec(x, f, body) =>
+        val $\alpha$ = alloc($\sigma$, x)
+        val $\rho$_* = put($\rho$, x, $\alpha$)
+        val (fv, f$\sigma$) = ev(f, $\rho$_*, $\sigma$)
+        val $\sigma$_* = put(f$\sigma$, $\alpha$, fv)
+        ev(body, $\rho$_*, $\sigma$_*)
+      case If0(cnd, thn, els) =>
+        val (cndv, cnd$\sigma$) = ev(cnd, $\rho$, $\sigma$)
+        branch0(cndv, ev(thn, $\rho$, cnd$\sigma$), ev(els, $\rho$, cnd$\sigma$))
+      case AOp(op, e1, e2) =>
+        val (e1v, e1$\sigma$) = ev(e1, $\rho$, $\sigma$)
+        val (e2v, e2$\sigma$) = ev(e2, $\rho$, e1$\sigma$)
+        (prim_eval(op, e1v, e2v), e2$\sigma$)
+    }
+  def fix(ev: EvalFun => EvalFun): EvalFun = 
+    (e, $\rho$, $\sigma$) => ev(fix(ev))(e, $\rho$, $\sigma$)
+  def eval_top(e: Expr): Ans = eval_top(e, $\rho$0, $\sigma$0)
+  def eval_top(e: Expr, $\rho$: R[Env], $\sigma$: R[Store]): Ans = 
+    fix(eval)(e, $\rho$, $\sigma$)
+}
+\end{lstlisting}
+
+The implementation of the interpreter is straightforward.
+It is worth to note that the interpreter is written in open-recursive style -- 
+it can not refer to itself directly, instead, \texttt{eval} takes an additional 
+parameter \texttt{ev} referring to itself; this allows us to instrument the interpreter
+from outside. Accordingly, the function \texttt{close} for lifting lambda term to closure values
+is also written in this style.
+We define a default implementation \texttt{fix} to close the recursion by recursively use the result 
+of \texttt{fix(ev)} for \texttt{ev}. 
+Finally, the top-level evaluation function \texttt{eval\_top} is defined.
+
+\textbf{Stage Polymorphism.}
+Readers may notice an abstract higher-kinded type \texttt{R[+T]} is defined in the trait, that is a
+type-level function and will be used to specify the binding-time, i.e., staged or not; the annotation 
+\texttt{+} indicates type parameter \texttt{T} is covariant.
+The LMS framework we use here allows us to specify binding-time purely based on types.
+All occurrences of type \texttt{Env}, \texttt{Store}, etc. are wrapped with \texttt{R} 
+essentially because they may potentially being dynamic when staging is introduced.
+Obviously, the unstaged higher-kinded type then can be simply instantiated as an identity type function: 
+\texttt{type R[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
+as a staging annotation. \todo{where talk about stage poly?}
+
+\textbf{Concrete Instantiation.}
+Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
+Since the interpreter is concrete, for the propose that properly models the heap, the type \texttt{Int} 
+is used for addresses space \texttt{Addr}. The environment and store are just ordinary \texttt{Map} in Scala.
+The values can be either a tagged number \texttt{NumV} or a closure \texttt{CloV} that contains a lambda term
+and an environment.
+
+\begin{lstlisting}
+trait Concrete extends Semantics {
+  type Addr = Int;   sealed trait Value
+  case class CloV($\lambda$: Lam, $\rho$: Env) extends Value
+  case class NumV(i: Int) extends Value
+  type Env = Map[Ident, Addr];  type Store = Map[Addr, Value]
+}
+\end{lstlisting}
+
+The we implement the components that define the semantics. 
+As we mentioned before, the type \texttt{R} is concretize as an identity type function, thus
+all types are just ordinary types.
+
+\begin{lstlisting}
+object ConcInterp extends Concrete {
+  type R[+T] = T
+  val $\rho$0 = Map[Ident,Addr]();  val $\sigma$0 = Map[Addr,Value]()
+  def get($\rho$: Env, x: Ident): Addr = $\rho$(x)
+  def put($\rho$: Env, x: Ident, a: Addr): Env = $\rho$ + (x -> a)
+  def get($\sigma$: Store, a: Addr): Value = $\sigma$(a)
+  def put($\sigma$: Store, a: Addr, v: Value): Store = $\sigma$ + (a -> v)
+  def alloc($\sigma$: Store, x: Ident): Addr = $\sigma$.size + 1
+  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Env): Value = CloV($\lambda$, $\rho$)
+  def num(i: Lit): Value = NumV(i.i)
+  def apply_closure(ev: EvalFun)
+    (f: Value, arg: Value, $\sigma$: Store): Ans = f match {
+      case CloV(Lam(x, e), $\rho$) =>
+        val $\alpha$ = alloc($\sigma$, x); val $\rho$_* = put($\rho$, x, $\alpha$)
+        val $\sigma$_* = put($\sigma$, $\alpha$, arg); ev(e, $\rho$_*, $\sigma$_*)
+    }
+  def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = 
+    cnd match { case NumV(i) => if (i == 0) thn else els }
+  def prim_eval(op: Symbol, v1: Value, v2: Value): Value = 
+    (op, v1, v2) match {
+      case ('+, NumV(a), NumV(b)) => NumV(a + b)
+      ...
+    }
+}
+\end{lstlisting}
+
+\texttt{get} and \texttt{put} directly manipulate the map of environment and store. 
+An allocation function is used when we need to update the store: 
+in the concrete case, \texttt{alloc} always returns a fresh address of the store.
+\texttt{close} and \texttt{num} lift syntactic literals to values.
+\texttt{apply\_closure} takes the function value, argument value and the latest store,
+then extends the environment and store after allocating a fresh address, and continue
+evaluates the body \texttt{e} of the lambda term.
