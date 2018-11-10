@@ -26,9 +26,6 @@ object AbsLamCal {
     type Value = Set[AbsValue]
     type Env = Map[Ident, Addr]
     type Store = Map[Addr, Value]
-    override def fix(ev: EvalFun => EvalFun): EvalFun = {
-      ???
-    }
   }
 
   //note: context-insensitive, path-insensitive, flow-insensitive
@@ -63,30 +60,26 @@ object AbsLamCal {
     }
     def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
     type Config = (Expr, R[Env], R[Store])
-    object CacheFix {
-      var in = Map[Config, Ans]()
-      var out = Map[Config, Ans]()
-    }
-    case class CacheFix(F: EvalFun => EvalFun) {
-      import CacheFix._
-      def f(e: Expr, ρ: Env, σ: Store): Ans = {
+
+    case class CacheFix(evev: EvalFun => EvalFun) {
+      var in = Map[Config, Ans](); var out = Map[Config, Ans]()
+      def cached_ev(e: Expr, ρ: Env, σ: Store): Ans = {
         val cfg: Config = (e, ρ, σ)
         if (out.contains(cfg)) out(cfg)
         else {
-          val (v0,σ0): Ans = in.getOrElse(cfg, (Lattice[Value].bot, Lattice[Store].bot))
-          out = out + (cfg -> (v0,σ0))
-          val (v1,σ1): Ans = F(f)(e, ρ, σ)
-          out = out + (cfg -> (Lattice[Value].⊔(v0, v1), Lattice[Store].⊔(σ0, σ1)))
-          (v1, σ1)
+          val ans0: Ans = in.getOrElse(cfg, Lattice[(Value, Store)].bot)
+          out = out + (cfg -> ans0)
+          val ans1: Ans = evev(cached_ev)(e, ρ, σ)
+          out = out + (cfg -> Lattice[(Value, Store)].⊔(ans0, ans1))
+          ans1
         }
       }
       def iter(e: Expr, ρ: Env, σ: Store): Ans = {
-        in = out; out = Map[Config, Ans](); f(e, ρ, σ)
+        in = out; out = Map[Config, Ans](); cached_ev(e, ρ, σ)
         if (in == out) out((e, ρ, σ)) else iter(e, ρ, σ)
       }
     }
-    override def eval_top(e: Expr, ρ: Env, σ: Store): Ans =
-      CacheFix(eval).iter(e, ρ, σ)
+    override def eval_top(e: Expr, ρ: Env, σ: Store): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
   trait RepAbsInterpOps extends Abstract with LMSOps {
@@ -121,6 +114,13 @@ object AbsLamCal {
         (m1.keySet intersect m2.keySet).foldLeft (Map[K, V]())
           { case (m_*, k) ⇒ m_* + ((k, m1(k) ⊓ m2(k))) }
     }
+    implicit def RepProductLattice[A:Typ:RepLattice, B:Typ:RepLattice]: RepLattice[(A, B)] = new RepLattice[(A, B)] {
+      lazy val bot: Rep[(A, B)] = (RepLattice[A].bot, RepLattice[B].bot)
+      lazy val top: Rep[(A, B)] = (RepLattice[A].top, RepLattice[B].top)
+      def ⊑(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[Boolean] = RepLattice[A].⊑(l1._1, l2._1) && RepLattice[B].⊑(l1._2, l2._2)
+      def ⊔(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] = (RepLattice[A].⊔(l1._1, l2._1), RepLattice[B].⊔(l1._2, l2._2))
+      def ⊓(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] = (RepLattice[A].⊓(l1._1, l2._1), RepLattice[B].⊓(l1._2, l2._2))
+    }
 
     type R[+T] = Rep[T]
     implicit def absValueTyp: Typ[AbsValue]
@@ -129,9 +129,9 @@ object AbsLamCal {
     val σ0: Rep[Store] = Map[Addr, Value]()
     def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(x)
     def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = ρ + (unit(x) → a)
-    def get(σ: Rep[Store], a: Rep[Addr]): Rep[Value] = σ.getOrElse(a, RepSetLattice[AbsValue].bot)
+    def get(σ: Rep[Store], a: Rep[Addr]): Rep[Value] = σ.getOrElse(a, RepLattice[Value].bot)
     def put(σ: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = {
-      val oldv = get(σ, a); σ + (a → RepSetLattice[AbsValue].⊔(v, oldv))
+      val oldv = get(σ, a); σ + (a → RepLattice[Value].⊔(v, oldv))
     }
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = unchecked[Addr]("Addr(\"", x, "\")")
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
@@ -147,42 +147,56 @@ object AbsLamCal {
     def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val thnans = thn
       val elsans = els
-      (RepSetLattice[AbsValue].⊔(thn._1, els._1), RepMapLattice[Addr,Value].⊔(thn._2, els._2))
+      (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
     }
     def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set(NumV())")
+
     type Config = (Expr, Env, Store)
-    implicit val exprTyp: Typ[Expr]
-    object CacheFix {
+    implicit def exprTyp: Typ[Expr]
+    case class CacheFix(evev: EvalFun => EvalFun) {
+      import CacheFix._
       var in: Rep[Map[Config, (Value,Store)]] = Map[Config, (Value,Store)]()
       var out: Rep[Map[Config, (Value,Store)]] = Map[Config, (Value,Store)]()
-    }
-    case class CacheFix(F: EvalFun => EvalFun) {
-      import CacheFix._
-      def f(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-        System.out.println(s"calling f on $e")
+      def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
+        System.out.println(s"calling cached_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        (if (out.contains(cfg)) out(cfg)
+        if (out.contains(cfg)) out(cfg)
         else {
-          val (v0,σ0): Ans = in.getOrElse(cfg, (RepSetLattice[AbsValue].bot, RepMapLattice[Addr,Value].bot))
-          out = out + (cfg -> (v0,σ0))
-          val (v1,σ1): Ans = F(f)(e, ρ, σ)
-          out = out + (cfg -> (RepSetLattice[AbsValue].⊔(v0, v1), RepMapLattice[Addr,Value].⊔(σ0, σ1)))
-          (v1, σ1)
-        }).asInstanceOf[Rep[(Value,Store)]]
+          val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
+          out = out + (cfg -> ans0)
+          val ans1: Ans = evev(cached_ev)(e, ρ, σ)
+          out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
+          ans1
+        }
       }
-      def iter(e: Expr): Ans = {
-        System.out.println(s"calling iter on $e")
-        in = out; out = Map[Config, (Value,Store)](); f(e, ρ0, σ0)
-        (if (in == out) out((unit(e), ρ0, σ0)) else iter(e)).asInstanceOf[Rep[(Value,Store)]]
+      /*
+      def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
+        val g: Rep[Unit => (Value,Store)] = fun { (u: Rep[Unit]) =>
+          System.out.println(s"calling g $e")
+          in = out; out = Map[Config, (Value,Store)]();
+          cached_ev(e, ρ, σ)
+          if (in == out) out((unit(e), ρ, σ)) else iter(e, ρ, σ)
+        }
+        g(())
       }
+       */
     }
-    override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e)
+    def fake_eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
+      case Lit(i) => (num(Lit(i)), σ)
+      case Var(x) => (get(σ, get(ρ, x)), σ)
+      case Lam(x, e) => (close(ev)(Lam(x, e), ρ), σ)
+      case App(e1, e2) =>
+        val (e1v, e1σ) = ev(e1, ρ, σ)
+        val (e2v, e2σ) = ev(e2, ρ, e1σ)
+        apply_closure(ev)(e1v, e2v, e2σ)
+    }
+    override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(fake_eval).cached_ev(e, ρ, σ)
   }
 
   trait RepAbsInterpOpsExp extends RepAbsInterpOps with LMSOpsExp {
-    implicit val exprTyp: Typ[Expr] = manifestTyp
-    implicit def absValueTyp: Typ[AbsValue] = manifestTyp
+    implicit def exprTyp: Typ[Expr] = manifestTyp
     implicit def addrTyp: Typ[Addr] = manifestTyp
+    implicit def absValueTyp: Typ[AbsValue] = manifestTyp
     case class ApplyClosures(fs: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
     def apply_closure(ev: EvalFun)(fs: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Ans = {
       reflectEffect(ApplyClosures(fs, arg, σ))
@@ -252,9 +266,11 @@ object AbsLamCalTest {
       new RepAbsInterpDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
-          println(v); println(s)
+          ()
+          //println(v); println(s)
         }
       }
+    val lam = Lam("x", App(Var("x"), Var("x")))
     // ((λ (x) ((x x) x)) (λ (y) y))
     val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))
     val fact = Lam("n",
@@ -262,9 +278,13 @@ object AbsLamCalTest {
                        Lit(1),
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
+    val omega = App(lam, lam)
 
     println(AbsInterp.eval_top(id4))
-    val code = specialize(id4)
+    println(AbsInterp.eval_top(fact5))
+    println(AbsInterp.eval_top(omega))
+
+    val code = specialize(lam)
     println(code.code)
     //code.eval(())
   }

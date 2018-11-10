@@ -126,7 +126,7 @@ object LamCal {
     }
     def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val i = unchecked[Int](cnd, ".asInstanceOf[NumV].i")
-      (if (i == 0) thn else els).asInstanceOf[Rep[(Value,Store)]]
+      (if (i == 0) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
     }
     def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
       val v1i = unchecked(v1, ".asInstanceOf[NumV].i")
@@ -164,9 +164,9 @@ object LamCal {
 
     override def remap[A](m: Typ[A]) = m.runtimeClass.getSimpleName match {
       case "Tuple2" => m.runtimeClass.getSimpleName + "[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
-      case "Tuple3" => IR.structName(m)
-      case "Tuple4" => IR.structName(m)
-      case "Tuple5" => IR.structName(m)
+      case "Tuple3" => m.runtimeClass.getSimpleName + "[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      case "Tuple4" => m.runtimeClass.getSimpleName + "[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      case "Tuple5" => m.runtimeClass.getSimpleName + "[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
       case _ => super.remap(m)
     }
   }
