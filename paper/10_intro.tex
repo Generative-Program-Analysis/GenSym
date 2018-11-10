@@ -4,26 +4,51 @@
 
 Futamura projections \cite{Futamura1999, futamura1971partial} reveal the close connection between 
 compilers and interpreters. 
-The first Futamura projection specifically shows that specializing an interpreter with respect to the input program yields 
-an equivalent executable.
-Multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} is a popular way to write 
-generic programs that and generates specialized and efficient programs;  \note{TR: connection from Futamura to MSP doesn't flow well}
-the generated program then can be executed at next stage. 
-As an approach to partial evaluation, MSP requires explicit staging annotations from the implementers.
-The staging annotations controls which part of the program should be specialized, and are considered 
-as manual binding-time analysis. On the other hand, partial evaluation \cite{DBLP:books/daglib/0072559} 
-can be considered as a two-stage (static or dynamic) instance of MSP but analyzing binding-time automatically. 
-\note{TR: are last two sentences relevant? perhaps rephrase in the direction of ``here's how to implement
-the futamura projection idea in practice''}
+The first Futamura projection specifically shows that specializing an interpreter with respect to the input 
+program yields an equivalent executable.
+Partial evaluation \cite{DBLP:books/daglib/0072559} was the first proposed approach to Futamura projection,
+which first identifies the binding-time of variables in the program, i.e., they can be known statically or dynamically, 
+and then specializes the program with respect to the given input of program.
+However, a precise binding-time analysis (BTA) is hard generally. As an alternative and practical approach to 
+specialization and partial evaluation, multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} 
+requires the stage annotations (i.e., binding-time annotations) from the programmers, these staging annotations 
+control which part of the input program should be specialized.
+As a simple example, we consider a power function: 
+\begin{lstlisting}
+def power(b: Int, e: Int): Int = 
+  if (e == 0) 1 else e * power(b, e-1)
+\end{lstlisting}
+If \texttt{e} is statically known, say 5, then we can specialize \texttt{power} with respect to \texttt{e = 5} and 
+generate a new specialized function as following:
+\begin{lstlisting}
+def power5(b: Int) = b * b * b * b * b
+\end{lstlisting}
 
-Recent research \note{TR: Cousot was already systematic. Both Futamura and Cousot are results from the 1970s, but have
-profited from more recent results (MSP and AAM)  -- build a connection?} uncovers a systematic approach to construct sound abstract interpreters 
-from concrete interpreters \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
+Abstract interpretation \cite{DBLP:conf/popl/CousotC77} as a semantic approach to construct sound static analysis 
+by approximation is almost as old as Futamura projection.
+Some recent progress such as Abstracting Abstract Machines uncovers a methodology to derive sound abstract interpreters 
+from their concrete counterparts \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
+\note{TR: Cousot was already systematic. Both Futamura and Cousot are results from the 1970s, but have
+profited from more recent results (MSP and AAM) -- build a connection?} 
 Given the structural similarity between concrete and abstract interpreters, intellectually 
 it is natural to raise the question whether it is possible to stage an abstract interpreter, and how 
 to effectively specialize an abstract interpreter having considered their functional dissimilarity. 
 This paper studies the application of the first Futamura projection on abstract interpreters, 
 and the approach to construct efficient abstract interpreters by multi-stage programming.
+
+\begin{figure}[h]
+  \begin{tikzpicture}
+  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+  {
+    \begin{smallmatrix} \text{unstaged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} \\
+      \begin{smallmatrix} \text{unstaged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} \\ };
+  \path[-stealth]
+    (m-1-1) edge node [above, font=\scriptsize] {$\updownarrows$} (m-1-2)
+    (m-2-1) edge node [left, font=\scriptsize] {$\alpha$} (m-1-1)
+    (m-2-1) edge node [above, font=\scriptsize] {$\updownarrows$} (m-2-2)
+    (m-2-2) edge node [right, font=\scriptsize] {$\alpha$} (m-1-2);
+  \end{tikzpicture}
+\end{figure}
 
 Multi-stage programming has been widely used to improve the performance in many domains, 
 such as optimizing compilers and domain-specific languages \cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:conf/snapl/RompfBLSJAOSKDK15,
@@ -36,32 +61,35 @@ etc.
 Likewise, specializing static analyses by partial evaluation had been emerged in late 90s 
 \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587, ashley:practical}, 
 and indeed it is able to effectively remove the interpretive overhead of 
-repeatedly traversing the abstract syntax tree. However, it is still worth 
-to investigate the idea deeper from a modern perspective based on meta-programming 
-for general abstract interpreters. \note{TR: sounds weak, what is new?}
-Practically, precise whole-program analyses formulated as abstract interpretation 
-can be very slow due to the inherent complexity of the algorithm and the large scale 
-of the analyzed programs \cite{toman_et_al:LIPIcs:2017:7121} \todo{other cite?};
-particularly, we would like a systematic approach to optimize program 
-analyzers and meanwhile minimally modifying the analyzer programs.
-In the present work, we show how to achieve this goal by bringing existing 
-high-performance computing facilities, in the style of multi-stage generative
-programming, to abstract interpretation semantic artifacts, i.e., 
-abstract interpreters. 
+repeatedly traversing the abstract syntax tree. 
+However, despite of the previous work are mostly focus on one particular analysis,
+it is worth to investigate the idea from a modern perspective based on meta-programming,
+especially for a general abstract interpreter that models direct-style $\lambda$-calculus, imperative 
+features such as mutation, and different abstract domains.
+One technical challenge is the binding-time engineering when non-determinism, 
+fixed-point iterations, different abstract domains and staging are introduced at the same time.
+In this paper, we present an end-to-end design and implementation of staging an abstract interpreter,
+that means ont only the abstract interpreter, but also the data structure of abstract domains, 
+abstract environment and heap, and the fixpoint iteration are staged.
 
-\note{TR: insert a commuting diagram here? concrete vs abstract,
-general (interpreter) vs specialized (compiler). can combine both dimensions.}
+On the other hand, the abstract interpreter, as a semantic artifact, should be written in a 
+style that is easy for people to communicate the formulation and abstraction, but also can be implemented 
+efficiently. As the solgan of multi-stage programming said, "abstraction without regret",
+we draw connection between abstract formulation and efficient implementation \todo{wording},
+just like the connection between interpreters and compilers drawn by Futamura projection.
+Particularly, we show a systematic way of adding stage annotations to the abstract interpreter
+without changing the code of interpreter skeleton that is shared between four concrete or abstract,
+unstaged or staged interpreters. We use LMS framework for staging, which allows only use types to 
+annotate the binding-time. Therefore, the proposed approach bridges the gap between designing sound 
+static analysis and implementing efficient program analyzer.
 
-The slogan of multi-stage programming is "abstraction without regret". 
-Of course, all interpreters are metalinguistic abstractions, but some interpreters are more "abstract"
-than others \todo{maybe rephrase}. 
-One technical challenge is to deal with the non-determinisism, fixed-point iterations and abstract 
-domains in abstract interpreters when staging is introduced. The abstract interpreter, as a semantic artifact, 
-should be written in a style that is easy for people to communicate the formulation, but also be friendly
-to specialization and generating efficient code. \todo{We discuss the form of abstract interpreters for staging}
-We show the usage of the LMS framework, that enables multi-stage programming by just changing the types 
-of the analyzer program, and we thus bridge the gap between designing sound program analyses 
-and implementing efficient program analyzers. \note{TR: a lot of back and forth here, where is story going?}
+%Of course, all interpreters are metalinguistic abstractions, but some interpreters are more "abstract" than others \todo{maybe rephrase}. 
+%Particularly, we also would like a systematic approach to optimize program analyzers and meanwhile minimally modifying the analyzer programs.
+
+
+From the performance-wise, precise whole-program analyses formulated as abstract 
+interpretation can be very slow due to the inherent complexity of the algorithm and the large scale 
+of the analyzed programs \cite{toman_et_al:LIPIcs:2017:7121}. \todo{where put this}
 
 When staging a concrete interpreter, the programmers need to distinguish 
 static and dynamic values --- the given program to be executed by the 
@@ -96,6 +124,7 @@ improve the precision and efficiency \cite{zipper2018, Kastrinis:2013:HCP:249195
 We show that staging abstract interpreters as an approach to effectively implement hybird context-sensitivity\todo{}.
 
 staged polymorphism, decide when to compile an analysis.  
+end-to-end staging: abstract interpreter, abstract domain, environment/store structure, fixpoint iteration.
 % Many optimization of static analysis are ad-hoc.
 
 \subsection{Contributions}
