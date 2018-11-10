@@ -40,7 +40,8 @@ object Lattices {
 
   implicit def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
     lazy val bot: Set[T] = Set[T]()
-    lazy val top: Set[T] = throw new RuntimeException("No representation of top power set")
+    //lazy val top: Set[T] = throw new RuntimeException("No representation of top power set")
+    lazy val top: Set[T] = throw new NotImplementedError()
     def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf l2
     def ⊔(l1: Set[T], l2: Set[T]): Set[T] = l1 union l2
     def ⊓(l1: Set[T], l2: Set[T]): Set[T] = l1 intersect l2

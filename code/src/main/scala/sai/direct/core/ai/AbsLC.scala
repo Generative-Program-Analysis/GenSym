@@ -37,7 +37,8 @@ object AbsLamCal {
     def put(ρ: Env, x: Ident, a: Addr): Env = ρ + (x → a)
     def get(σ: Store, a: Addr): Value = σ.getOrElse(a, Lattice[Value].bot)
     def put(σ: Store, a: Addr, v: Value): Store = {
-      val oldv = get(σ, a); σ + (a → Lattice[Value].⊔(v, oldv))
+      //val oldv = get(σ, a); σ + (a → Lattice[Value].⊔(v, oldv))
+      val oldv = get(σ, a); σ + (a → (v ⊔ oldv))
     }
     def alloc(σ: Store, x: Ident): Addr = Addr(x)
     def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
@@ -54,9 +55,8 @@ object AbsLamCal {
       (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
     }
     def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = {
-      val thnans = thn
-      val elsans = els
-      (GenericLattice[Value,R].⊔(thn._1, els._1), Lattice[Store].⊔(thn._2, els._2))
+      thn ⊔ els //FIXME
+      //(GenericLattice[Value,R].⊔(thn._1, els._1), Lattice[Store].⊔(thn._2, els._2))
     }
     def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
     type Config = (Expr, R[Env], R[Store])
