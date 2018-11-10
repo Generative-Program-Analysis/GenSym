@@ -94,6 +94,22 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
     val b = reifyEffects(f(acc, x))
     reflectEffect(SetFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
   }
+
+  override def syms(e: Any): List[Sym[Any]] = e match {
+    case SetFoldLeft(s, z, acc, x, b) => syms(s) ::: syms(z) ::: syms(b)
+    case _ => super.syms(e)
+  }
+
+  override def boundSyms(e: Any): List[Sym[Any]] = e match {
+    case SetFoldLeft(s, z, acc, x, b) => acc :: x :: effectSyms(b)
+    case _ => super.boundSyms(e)
+  }
+
+  override def symsFreq(e: Any): List[(Sym[Any], Double)] = e match {
+    case SetFoldLeft(s, z, acc, x, b) => freqNormal(s) ::: freqNormal(z) ::: freqNormal(b)
+    case _ => super.symsFreq(e)
+  }  
+
 }
 
 trait BaseGenSetOps extends GenericNestedCodegen {

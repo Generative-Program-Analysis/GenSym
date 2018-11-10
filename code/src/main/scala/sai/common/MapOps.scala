@@ -140,6 +140,27 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     val b = reifyEffects(f(k, v))
     reflectEffect(MapFilter(m, k, v, b), summarizeEffects(b).star)
   }
+
+  override def syms(e: Any): List[Sym[Any]] = e match {
+    case MapFoldLeft(m, z, acc, k, v, b) => syms(m) ::: syms(z) ::: syms(b)
+    case MapForeach(m, k, v, b) => syms(m) ::: syms(b)
+    case MapFilter(m, k, v, b) => syms(m) ::: syms(b)
+    case _ => super.syms(e)
+  }
+
+  override def boundSyms(e: Any): List[Sym[Any]] = e match {
+    case MapFoldLeft(m, z, acc, k, v, b) => acc::k::v::effectSyms(b)
+    case MapForeach(m, k, v, b) => k::v::effectSyms(b)
+    case MapFilter(m, k, v, b) => k::v::effectSyms(b)
+    case _ => super.boundSyms(e)
+  }
+
+  override def symsFreq(e: Any): List[(Sym[Any], Double)] = e match {
+    case MapFoldLeft(m, z, acc, k, v, b) => freqNormal(m) ::: freqNormal(z) ::: freqNormal(b)
+    case MapForeach(m, k, v, b) => freqNormal(m) ::: freqNormal(b)
+    case MapFilter(m, k, v, b) => freqNormal(m) ::: freqNormal(b)
+    case _ => super.symsFreq(e)
+  }  
 }
 
 trait BaseGenMapOps extends GenericNestedCodegen {
