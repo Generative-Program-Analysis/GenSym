@@ -1,33 +1,39 @@
 \subsection{From Interpreter to Abstract Interpreter}
 
-Based on the generic interface we presented, now we will describe how to instantiate an abstract interpreter.
-To keep the simplicity, we intened to use simply abstract domain, and just establish a context-insensitive, 
-path-insensitive, and flow-insensitive analysis in this section -- it is coarse but enough to lay a foundation for 
-the staged abstract interpreter we will present later.
-In Section \note{X}, we will see how to regain 
-context-/path-/flow-sensitivity for control-flow analysis; in Section \note{Y}, we will see how to 
-instantiate an interval abstract domain for numerical analysis.
-
-Following the idea of AAM, store widened
+Based on the generic interface we presented in Section~\ref{bg_lang}, now we describe the instantiation of an
+abstract interpreter.
+To keep the simplicity, we intend to use simply abstract domains, and just establish a 
+context-/path-/flow-insensitive, store-widened analysis in this section --- indeed, it is coarse 
+but enough to setup a foundation for the staged abstract interpreter we will present later.
+However, in Section \note{X}, we will see how to regain context-/path-/flow-sensitivity 
+for pushdown control-flow analysis; in Section \note{Y}, we will see how to instantiate 
+an interval abstract domain for numerical analysis.
 
 \textbf{Abstract Instantiation.}
-We use powerset as our abstract domain, the concrete closures directly becomes elements in the powerset, numbers
-are abstracted to a single abstract number element \texttt{NumV}
+Our instantiation roughly follows the Abstracting Abstract Machines methodology 
+\cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12} that transforms the concrete semantics 
+to abstract semantics. The store now maps addresses to sets of abstract values, meaning that an address points
+to all possible values may occur at runtime, where the abstract value is either a closure or 
+a single abstract number element \texttt{NumV}. The address space is also
+constrained to be finite, in the monovariant setting, we simply use variable names for it.
 
 \begin{lstlisting}
 trait Abstract extends Semantics {
-  case class Addr(x: Ident); sealed trait AbsValue
+  case class Addr(x: Ident);  sealed trait AbsValue
   case class CloV($\lambda$: Lam, $\rho$: Env) extends AbsValue
   case class NumV() extends AbsValue
   type Value = Set[AbsValue]
-  type Env = Map[Ident, Addr]; type Store = Map[Addr, Value]
+  type Env = Map[Ident, Addr];  type Store = Map[Addr, Value]
 }
 \end{lstlisting}
 
 \textbf{Stage Polymorphic Lattices.}
-We use type class in Scala, also works as stage polymorphic.
+To effectively reuse the code between unstaged and staged part, we also make the lattice structure to
+be stage polymorphic. A lattice type class parameterizes over an element type \texttt{E} and defines
+five operations for \texttt{R[E]}, such as meet, join, and ordering relation; again, \texttt{R} 
+is the higher-kinded type indicating the binding-time.
 \begin{lstlisting}
-trait Lattice[E, R[_]] {
+trait Lattice[E, R[+_]] {
   val bot: R[E];  val top: R[E]
   def $\sqsubseteq$(l1: R[E], l2: R[E]): R[Boolean]
   def $\sqcup$(l1: R[E], l2: R[E]): R[E]
@@ -35,7 +41,8 @@ trait Lattice[E, R[_]] {
 }
 \end{lstlisting}
 
-For example, the abstract domain we use here, power set can be implemented as:
+For example, here we use powerset as the abstract domain, and the unstaged lattice 
+of powerset can be easily implemented as follows:
 
 \begin{lstlisting}
 implicit def SetLattice[T]: Lattice[Set[T], NoRep] = 
@@ -48,10 +55,22 @@ implicit def SetLattice[T]: Lattice[Set[T], NoRep] =
   }
 \end{lstlisting}
 
-tuples, maps can be lifted to lattice element-wise or point-wise, the code for them are elided.
+The ordering relation is to ask whether one set is a subset of the other, 
+join is to union the two set, and meet is to intersect the two sets.
+Accordingly, other structures used in the rest of the paper such as tuples 
+(products) and maps can be lifted to lattices element-wise or point-wise.
+The code for them are elided.
+
+\textbf{Operations Implementation.}
+
+The @get@ and @put@ operation on abstract stores slightly changed according to
+the abstract semantics: @get@ uses bottom element in the @Value@ lattice if the queried
+address not exists; @put@ performs the update by joining with the existing values.
+@alloc@ simply invokes the @Addr@ constructor.
+\texttt{close} and \texttt{num} lift syntactic literals to a singleton set that
+contains one \texttt{CloV} or \texttt{NumV} object.
 
 \todo{conditional, should use different store}
-
 \begin{lstlisting}
 object AbsInterp extends Abstract {
   type R[+T] = T
@@ -65,20 +84,16 @@ object AbsInterp extends Abstract {
   def alloc($\sigma$: Store, x: Ident): Addr = Addr(x)
   def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Env): Value = Set(CloV($\lambda$, $\rho$))
   def num(i: Lit): Value = Set(NumV())
-  def apply_closure(ev: EvalFun)(f: Value, arg: Value, $\sigma$: Store): Ans = {
-    var $\sigma$0 = $\sigma$
-    val vs = for (CloV(Lam(x, e), $\rho$) <- f) yield {
-      val $\alpha$ = alloc($\sigma$0, x)
-      val $\rho$_* = put($\rho$, x, $\alpha$)
-      val $\sigma$_* = put($\sigma$0, $\alpha$, arg)
-      val (v, v$\sigma$) = ev(e, $\rho$_*, $\sigma$_*)
-      $\sigma$0 = v$\sigma$; v
-    }
-    (vs.reduce(Lattice[Value].$\sqcup$(_,_)), $\sigma$0)
+  def apply_closure(ev: EvalFun)
+    (f: Value, arg: Value, $\sigma$: Store): Ans = { var $\sigma$_* = $\sigma$
+      val vs = for (CloV(Lam(x, e), $\rho$) <- f) yield {
+        val $\alpha$ = alloc($\sigma$_*, x)
+        val (v, v$\sigma$) = ev(e, put($\rho$, x, $\alpha$), put($\sigma$_*, $\alpha$, arg))
+        $\sigma$_* = v$\sigma$; v
+      }
+    (vs.reduce(Lattice[Value].$\sqcup$), $\sigma$_*)
   }
-  def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = {
-    thn $\sqcup$ els //TODO!
-  }
+  def branch0(cnd: Value, thn: =>Ans, els: =>Ans): Ans = thn $\sqcup$ els //TODO!
   def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
 } // to be continued
 \end{lstlisting}
