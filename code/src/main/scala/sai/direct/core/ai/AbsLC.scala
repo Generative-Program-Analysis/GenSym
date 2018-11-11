@@ -52,7 +52,7 @@ object AbsLamCal {
         val (v, vσ) = ev(e, ρ_*, σ_*)
         σ0 = vσ; v
       }
-      (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
+      (vs.reduce(Lattice[Value].⊔), σ0)
     }
     def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = {
       thn ⊔ els //FIXME
