@@ -141,14 +141,15 @@ object BigStepCES {
     case Define(x: String, e: Expr) => ??? //TODO (yuxuan): Find a way to implement these imperative features
   }
 
-  def plus = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 + v2) } })
-  def minus = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 - v2) } })
-  def mul = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 * v2) } })
-  def div = PrimV({ (l: List[Value]) => l.tail.foldRight(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 / v2) } })
+  def plus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 + v2) } })
+  def minus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 - v2) } })
+  def mul = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 * v2) } })
+  def div = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 / v2) } })
   def listdec = PrimV({ ListV(_) })
   def vecdec = PrimV({ (l: List[Value]) => VectorV(Vector() ++ l) })
   def car = PrimV({ case List(ListV(l)) => l.head })
   def cdr = PrimV({ case List(ListV(l)) => ListV(l.tail) })
+  def eq = PrimV({ case List(a, b) => BoolV(a == b) })
 
   val initEnv = Map(
     "+" -> 1,
@@ -158,7 +159,8 @@ object BigStepCES {
     "list" -> 5,
     "vector" -> 6,
     "car" -> 7,
-    "cdr" -> 8
+    "cdr" -> 8,
+    "eq?" -> 9
   )
 
   val initStore = Map(
@@ -169,7 +171,8 @@ object BigStepCES {
     5 -> listdec,
     6 -> vecdec,
     7 -> car,
-    8 -> cdr
+    8 -> cdr,
+    9 -> eq
   )
 
   def eval(e: Expr): (Value, Store) = interp(e, initEnv, initStore)
@@ -215,6 +218,27 @@ object CESKTest {
 
     assert(BigStepCES.eval(
       App(Var("+"), List(IntLit(2), IntLit(3))))._1 == NumV(5))
+
+    assert(BigStepCES.eval(
+      App(Var("+"), List(IntLit(2), IntLit(3), IntLit(4), IntLit(5))))._1 == NumV(14))
+
+    assert(BigStepCES.eval(
+      App(Var("-"), List(IntLit(7), IntLit(3))))._1 == NumV(4))
+
+    assert(BigStepCES.eval(
+      App(Var("-"), List(IntLit(7), IntLit(3), IntLit(2), IntLit(1))))._1 == NumV(1))
+
+    assert(BigStepCES.eval(
+      App(Var("*"), List(IntLit(7), IntLit(3))))._1 == NumV(21))
+
+    assert(BigStepCES.eval(
+      App(Var("*"), List(IntLit(7), IntLit(6), IntLit(5), IntLit(2))))._1 == NumV(420))
+
+    assert(BigStepCES.eval(
+      App(Var("/"), List(IntLit(64), IntLit(2), IntLit(4))))._1 == NumV(8))
+
+    assert(BigStepCES.eval(
+      App(Var("/"), List(IntLit(64), IntLit(8))))._1 == NumV(8))
 
     assert(BigStepCES.eval(
       App(Var("car"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1

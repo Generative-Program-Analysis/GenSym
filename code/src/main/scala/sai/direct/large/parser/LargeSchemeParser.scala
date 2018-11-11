@@ -220,6 +220,7 @@ object TestSimpleDirectLargeSchemeParser {
   def test4() = {
     val actual = LargeSchemeParser("(define (f a b) (+ a b))")
     val expected = Some(Define("f", Lam(List("a", "b"), App(Var("+"), List(Var("a"), Var("b"))))))
+    println(actual)
     assert(actual == expected)
   }
 
