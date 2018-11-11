@@ -67,9 +67,9 @@ types such as @Env@ and @Store@ become @Rep[Env]@ and @Rep[Store]@. \todo{NumV}
 The interesting thing is how we handle closures and function applications when staging is involved.
 In the unstaged version, function @close@ is used to lift a literal lambda term to a closure, 
 however, what we desire is the a \textit{compiled} closure, i.e., the syntactic term of the body expression should be
-eliminated and specialized.
+eliminated and specialized away.
 The specialization of the interpreter with respect to the body of the lambda term proceed under the
-assumptions that the argument and latest store will be provided later. \note{to denotational style?}
+assumptions that the argument and latest store will be provided later. \note{to denotational style?, back to HO?}
 We will see this is an important observation that enables us to specialize an abstract interpreter modularly.
 In the end of @close@, we create a @CompiledClo@ object that contains a staged function, which both will be
 exhibited in the generated code.

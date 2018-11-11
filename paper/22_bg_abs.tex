@@ -9,6 +9,11 @@ However, in Section \note{X}, we will see how to regain context-/path-/flow-sens
 for pushdown control-flow analysis; in Section \note{Y}, we will see how to instantiate 
 an interval abstract domain for numerical analysis.
 
+\todo{maybe put to related work} other big-step abstract interpreter, 
+big-step abstract interpreter using delimited control operators \cite{Wei:2018:RAA:3243631.3236800},
+monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17},
+arrow-based abstract interpreter \cite{Keidel:2018:CSP:3243631.3236767}.
+
 \paragraph{Abstract Instantiation.}
 Our instantiation roughly follows the Abstracting Abstract Machines methodology 
 \cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12} that transforms the concrete semantics 
@@ -98,36 +103,43 @@ object AbsInterp extends Abstract {
 \end{lstlisting}
 
 \paragraph{Fixpoint Iteration.}
-The interpreter may not terminate
-co-inductive caching/truncated depth-first evaluation \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800, Rosendahl:AbsIntPL}
+We described the abstract semantics modularly in the last section, however, the abstract 
+interpreter may not terminate for some input program. In this section, we use a memoization
+technique to ensure its termination. This technique is also called co-inductive caching algorithm
+\cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800} or truncated depth-first evaluation 
+\cite{Rosendahl:AbsIntPL} and widely used in different analysis.
+
+The idea is to set up two caches called @in@ and @out@, which are both mapping from the arguments of interpreter 
+(@Config@) to the returned value of interpreter (@Ans@). The @in@ contains what we already computed from the last
+iteration, the @out@ cache is what we computed after this iteration joined with the previous one.
+When starting a new iteration, the @in@ is set to be the result of last iteration, i.e., @out@; the @out@ is set
+to be empty. In the iteration, we first ask whether @out@ contains what we want, if yes then it is returned;
+otherwise, we retrieve what we have from @in@, compute the result for this time, and put the joined result back to @out@.
+Note that we also instrument the recursive call by putting @cached_ev@ to @evev@.
+After one iteration, if @in == out@, then there is no more information can be gained, thus the iteration should 
+end and we have reached the fixed point.
 
 \begin{lstlisting}
-object AbsInterp extends Abstract { // continued
-  case class CacheFix(evev: EvalFun => EvalFun) {
-    var in = Map[Config, Ans](); var out = Map[Config, Ans]()
-    def cached_ev(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = {
-      val cfg: Config = (e, $\rho$, $\sigma$)
-      if (out.contains(cfg)) out(cfg)
-      else {
-        val ans0: Ans = in.getOrElse(cfg, Lattice[(Value, Store)].bot)
-        out = out + (cfg -> ans0)
-        val ans1: Ans = evev(cached_ev)(e, $\rho$, $\sigma$)
-        out = out + (cfg -> Lattice[(Value, Store)].$\sqcup$(ans0, ans1))
-        ans1
-      }
-    }
-    def iter(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = {
-      in = out; out = Map[Config, Ans](); cached_ev(e, $\rho$, $\sigma$)
-      if (in == out) out((e, $\rho$, $\sigma$)) else iter(e, $\rho$, $\sigma$)
+case class CacheFix(evev: EvalFun => EvalFun) {
+  var in = Map[Config, Ans](); var out = Map[Config, Ans]()
+  def cached_ev(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = {
+    val cfg: Config = (e, $\rho$, $\sigma$)
+    if (out.contains(cfg)) out(cfg)
+    else {
+      val ans0 = in.getOrElse(cfg, Lattice[(Value, Store)].bot)
+      out = out + (cfg -> ans0)
+      val ans1 = evev(cached_ev)(e, $\rho$, $\sigma$)
+      out = out + (cfg -> (ans0 $\sqcup$ ans1));  ans1
     }
   }
-  override def eval_top(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = 
-    CacheFix(eval).iter(e, $\rho$, $\sigma$)
+  def iter(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = {
+    in = out; out = Map[Config, Ans](); cached_ev(e, $\rho$, $\sigma$)
+    if (in == out) out((e, $\rho$, $\sigma$)) else iter(e, $\rho$, $\sigma$)
+  }
 }
+override def eval_top(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = 
+  CacheFix(eval).iter(e, $\rho$, $\sigma$)
 \end{lstlisting}
 
-other big-step abstract interpreter, 
-big-step abstract interpreter using delimited control operators \cite{Wei:2018:RAA:3243631.3236800},
-monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17},
-arrow-based abstract interpreter \cite{Keidel:2018:CSP:3243631.3236767}.
-
+Finally, we override the definition of @eval_top@ by instantiating @CacheFix@ with @eval@ and start 
+the first iteration.
