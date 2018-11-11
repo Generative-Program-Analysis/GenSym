@@ -114,8 +114,10 @@ object LamCal {
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = σ.size + 1
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
       val Lam(x, e) = λ
+      //val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = {
+      //case (arg: Rep[Value], σ: Rep[Store]) =>
       val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = (as: Rep[(Value, Store)]) => {
-        val arg = as._1; val σ = as._2
+        val arg = as._1; val σ = as._2;
         val α = alloc(σ, x)
         ev(e, put(ρ, x, α), put(σ, α, arg))
       }
@@ -148,7 +150,8 @@ object LamCal {
     val IR: RepConcInterpOpsExp 
     import IR._
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-      case ApplyClosure(f, arg, σ) => emitValDef(sym, "apply_closure_norep(" + quote(f) + "," + quote(arg) + "," + quote(σ) + ")")
+      //case ApplyClosure(f, arg, σ) => emitValDef(sym, "apply_closure_norep(" + quote(f) + "," + quote(arg) + "," + quote(σ) + ")")
+      case ApplyClosure(f, arg, σ) => emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(" + quote(arg) + "," + quote(σ) + ")")
       case Struct(tag, elems) =>
         //TODO: merge back to LMS
         registerStruct(structName(sym.tp), elems)
@@ -172,8 +175,8 @@ object LamCal {
   }
 
   trait RepConcSemDriver extends DslDriver[Unit, Unit] with RepConcInterpOpsExp { q =>
-    override val codegen = new DslGen with ScalaGenMapOps with MyScalaGenTupleOps 
-      with RepConcSemGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps 
+    override val codegen = new DslGen with ScalaGenMapOps with MyScalaGenTupleOps
+      with RepConcSemGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps
       with ScalaGenSetOps {
       val IR: q.type = q
       override def remap[A](m: Typ[A]): String = {
@@ -189,9 +192,11 @@ object LamCal {
     trait Value
     case class NumV(i: Int) extends Value
     case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
+/*
     def apply_closure_norep(f: Value, arg: Value, σ: Map[Int,Value]) = f match {
       case CompiledClo(fun, λ, ρ) => fun(arg, σ)
     }
+*/
   }
   import RTSupport._
         """
