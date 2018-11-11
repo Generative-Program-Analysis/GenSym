@@ -28,7 +28,8 @@ This environment-and-store-passing style big-step interpreter also can be obtain
 refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03, Wei:2018:RAA:3243631.3236800} a small-step CESK 
 machine \cite{DBLP:conf/popl/FelleisenF87}.
 
-\textbf{Generic Interface.} Before showing the actual implementation of the concrete semantics, let's first see 
+\paragraph{Generic Interface.} 
+Before showing the actual implementation of the concrete semantics, let's first see 
 a generic interface for the interpreters, which will be used later for both unstaged/staged and concrete/abstract scenarios.
 The trait \texttt{Semantics} first declares several abstract type members, such as \texttt{Addr},
 \texttt{Value}, \texttt{Env}, \texttt{Store} and returned type \texttt{Ans}. 
@@ -103,7 +104,7 @@ We define a default implementation \texttt{fix} to close the recursion by recurs
 of \texttt{fix(ev)} for \texttt{ev}. 
 Finally, the top-level evaluation function \texttt{eval\_top} is defined.
 
-\textbf{Stage Polymorphism.}
+\paragraph{Stage Polymorphism.}
 Readers may notice an abstract higher-kinded type \texttt{R[+T]} is defined in the trait, that is a
 type-level function and will be used to specify the binding-time, i.e., staged or not; the annotation 
 \texttt{+} indicates type parameter \texttt{T} is covariant.
@@ -114,7 +115,7 @@ Obviously, the unstaged higher-kinded type then can be simply instantiated as an
 \texttt{type R[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
 as a staging annotation. \todo{where talk about stage poly?}
 
-\textbf{Concrete Instantiation.}
+\paragraph{Concrete Instantiation.}
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
 Since the interpreter is concrete, for the propose that properly models the heap, the type \texttt{Int} 
 is used for addresses space \texttt{Addr}. The environment and store are just ordinary \texttt{Map} in Scala.
@@ -154,8 +155,8 @@ object ConcInterp extends Concrete {
   def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = 
     cnd match { case NumV(i) => if (i == 0) thn else els }
   def prim_eval(op: Symbol, v1: Value, v2: Value): Value = 
-    (op, v1, v2) match {
-      case ('+, NumV(a), NumV(b)) => NumV(a + b)
+    op match {
+      case '+ => v1.asInstanceOf[NumV].i + v2.asInstanceOf[NumV].i
       ...
     }
 }

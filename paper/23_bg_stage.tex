@@ -1,6 +1,17 @@
 \subsection{From Interpreter to Staged Interpreter} \label{stagedinterp}
 
-\textbf{Multi-Stage Programming in LMS.}
+\paragraph{Multi-Stage Programming in LMS.}
+Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a multi-stage programming framework implemented 
+as a Scala library that enables dynamic code generation in a type-safe manner.
+Different from the syntactic approach such as MetaOCaml \cite{DBLP:conf/flops/Kiselyov14} that uses quotations, 
+LMS distinguishes binding-time solely based on types.
+LMS provides a type constructor @Rep[T]@ where @T@ can be an arbitrary type, indicating an expression will be 
+known at next stage. All operations act on a @Rep@ expression will be resulted in the generated code. However,
+we need to provide intermediate representation and code generation support for type @T@ to LMS. 
+Fortunately, the LMS framework already provides
+such support for primitive types and commonly used data structure such as arrays and maps; implementing such support
+for custom class is also straightforward. Let's go back and see how LMS can be used to specialize the power function
+we mentioned in Section 1.
 
 \begin{lstlisting}
 val power5 = new DslDriver[Int, Int] {
@@ -10,27 +21,22 @@ val power5 = new DslDriver[Int, Int] {
 }
 \end{lstlisting}
 
-Lightweight modular staging (LMS) \todo{cite} is a library-based multi-stage programming framework 
-that enables type-safe dynamic code generation. Different from the traditional approach of using
-syntactic quasi-quotation, it solely relies on types to distinguish between binding times.
+In the code shown above, \texttt{power} takes 2 arguments where \texttt{b} is declared as \texttt{Rep[Int]} type 
+meaning that \texttt{b} is a representation of \texttt{Int} but whose value will be available at the next stage. 
+Meanwhile, the result of the @power@ function will be available at the next stage as will, thus the return value 
+of \texttt{power} is also of type \texttt{Rep[Int]}. 
+Then we specialize @power@ in function @snippet@ by providing @x@ to @5@.
+The generated code for \texttt{power5} is a function that takes only one argument which corresponds to @b@,
+and body of this function multiples @b@ five times.
 
-In the example shown above, \texttt{power} is a staged function that takes 2 arguments where 
-\texttt{b} is declared as \texttt{Rep[Int]} meaning that \texttt{b} is a representation of type 
-\texttt{Int} whose underlying value will be available at the next stage. Meanwhile the actual 
-computation result of the \texttt{power} function  will be available at the next stage as well. 
-Thus the return value of \texttt{power} is also of type \texttt{Rep[Int]}. The generated code for
-\texttt{power5} consists of a function that takes only one argument that corresponds to its 
-representation \texttt{b} from the previous stage.
-
-\textbf{Staged Concrete Interpreter.} 
-
-We share the same concrete type instantiation, i.e. trait \texttt{Concrete}, with the unstaged version,
-but reimplemented the staged version for the concrete operations.
+\paragraph{Staged Concrete Interpreter.} In the staging part, we share the same concrete type instantiation, 
+i.e. trait \texttt{Concrete}, but we reimplement the staged version for the concrete operations.
+Meanwhile, @RepConcInterpOps@ also extends from @LMSOps@ which provides necessary supports for the 
+staged version of primitive types and data structures.
 
 \begin{lstlisting}
 trait RepConcInterpOps extends Concrete with LMSOps {
   type R[+T] = Rep[T]
-  implicit def valueTyp: Typ[Value]
   val $\rho$0: Rep[Env] = Map[Ident,Addr]()
   val $\sigma$0: Rep[Store] = Map[Addr,Value]()
   def get($\rho$: Rep[Env], x: Ident): Rep[Addr] = $\rho$(x)
@@ -40,31 +46,74 @@ trait RepConcInterpOps extends Concrete with LMSOps {
   def put($\sigma$: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = 
     $\sigma$ + (a -> v)
   def alloc($\sigma$: Rep[Store], x: Ident): Rep[Addr] = $\sigma$.size + 1
-  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
-    val Lam(x, e) = $\lambda$
-    val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = 
-      (as: Rep[(Value, Store)]) => {
-        val arg = as._1; val $\sigma$ = as._2
-        val $\alpha$ = alloc($\sigma$, x)
-        ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, arg))
-      }
-    unchecked("CompiledClo(", fun(f), ",", $\lambda$, ",", $\rho$, ")")
-  }
-  def num(i: Lit): Rep[Value] = {
-    unchecked("NumV(", i.i, ")")
-  }
+  def num(i: Lit): Rep[Value] = NumV(i)
   def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-    val i = unchecked[Int](cnd, ".asInstanceOf[NumV].i")
-    (if (i == 0) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
+    //FIXME: the cast is ugly, patten match?
+    val i = cnd.asInstanceOf[Rep[NumV]].i
+    if (i == 0) thn else els
   }
-  def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    val v1i = unchecked(v1, ".asInstanceOf[NumV].i")
-    val v2i = unchecked(v2, ".asInstanceOf[NumV].i")
-    unchecked("NumV(", v1i, op.toString.drop(1), v2i, ")")
-  }
+  def prim_eval(op: Symbol, 
+    v1: Rep[Value], v2: Rep[Value]): Rep[Value] = op match {
+      case '+ => v1.asInstanceOf[Rep[NumV]].i + 
+                 v2.asInstanceOf[Rep[NumV]].i
+      ...
+    }
+  ...
 }
 \end{lstlisting}
 
-\textbf{Code Generation.}
+The first notable change is the abstract type member @R@ is assigned to be @Rep@, and accordingly the affected 
+types such as @Env@ and @Store@ become @Rep[Env]@ and @Rep[Store]@. \todo{NumV}
+The interesting thing is how we handle closures and function applications when staging is involved.
+In the unstaged version, function @close@ is used to lift a literal lambda term to a closure, 
+however, what we desire is the a \textit{compiled} closure, i.e., the syntactic term of the body expression should be
+eliminated and specialized.
+The specialization of the interpreter with respect to the body of the lambda term proceed under the
+assumptions that the argument and latest store will be provided later. \note{to denotational style?}
+We will see this is an important observation that enables us to specialize an abstract interpreter modularly.
+In the end of @close@, we create a @CompiledClo@ object that contains a staged function, which both will be
+exhibited in the generated code.
 
-code generation, runtime code
+\begin{lstlisting}
+def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
+  val Lam(x, e) = $\lambda$
+  val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = { 
+    case (arg: Rep[Value],$\sigma$: Rep[Store]) =>
+      val $\alpha$ = alloc($\sigma$, x)
+      ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, arg)) 
+  }
+  CompiledClo(fun(f))
+}
+\end{lstlisting}
+
+Then, @apply_closure@ takes three arguments the function value, argument value and the latest store, 
+which are both of @Rep@ type. It means basically these is nothing we can do at current stage --- 
+so we create a new node @ApplyClosure@ that contains these arguments in the intermediate representation graph,
+and in the code generation phase we can emit the code that does the application. \todo{reflectEffect}.
+
+\begin{lstlisting}
+case class ApplyClosure(f: Rep[Value], 
+  arg: Rep[Value], $\sigma$: Rep[Store]) extends Def[(Value, Store)]
+def apply_closure(ev: EvalFun)
+  (f: Rep[Value], arg: Rep[Value], $\sigma$: Rep[Store]): Ans = {
+    reflectEffect(ApplyClosure(f, arg, $\sigma$))
+  }
+\end{lstlisting}
+
+\paragraph{Code Generation.}
+When generating code for the next stage, values like @CompiledClo@ and @NumV@ are kept as what it is because
+they are intended to be existed in the next stage; however, we need to treat @ApplyClosure@ a little bit 
+differently.
+
+\begin{lstlisting}
+  case ApplyClosure(f, arg, $\sigma$) => 
+    emitValDef(sym, quote(f) + 
+                    ".asInstanceOf[CompiledClo].f(" + 
+                    quote(arg) + "," + 
+                    quote($\sigma$) + ")")
+\end{lstlisting}
+
+Concretely, as shown in the code above, when an @ApplyClosure@ is matched when emitting code, we just 
+emit a function application where the function value is extracted from the @CompiledClo@
+(we assume the object program is well-typed so that we can safely cast it to @CompiledClo@), 
+and argument and store are the rest fields in @ApplyClosure@.
