@@ -144,10 +144,17 @@ object BigStepCES {
   def minus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 - v2) } })
   def mul = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 * v2) } })
   def div = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 / v2) } })
+  def greater = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a > b) })
+  def greatereq = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a >= b) })
+  def less = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a < b) })
+  def lesseq = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a <= b) })
   def listdec = PrimV({ ListV(_) })
+  def listcons = PrimV({ case List(v, ListV(l)) => ListV(v :: l) })
   def vecdec = PrimV({ (l: List[Value]) => VectorV(Vector() ++ l) })
+
   def car = PrimV({ case List(ListV(l)) => l.head })
   def cdr = PrimV({ case List(ListV(l)) => ListV(l.tail) })
+
   def eq = PrimV({ case List(a, b) => BoolV(a == b) })
   def mod = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 % v2) } })
 
@@ -161,7 +168,12 @@ object BigStepCES {
     "car" -> 7,
     "cdr" -> 8,
     "eq?" -> 9,
-    "%" -> 10
+    "%" -> 10,
+    ">" -> 11,
+    ">=" -> 12,
+    "<" -> 13,
+    "<=" -> 14,
+    "cons" -> 15
   )
 
   val initStore = Map(
@@ -174,7 +186,12 @@ object BigStepCES {
     7 -> car,
     8 -> cdr,
     9 -> eq,
-    10 -> mod
+    10 -> mod,
+    11 -> greater,
+    12 -> greatereq,
+    13 -> less,
+    14 -> lesseq,
+    15 -> listcons
   )
 
   def eval(e: Expr): (Value, Store) = interp(e, initEnv, initStore)

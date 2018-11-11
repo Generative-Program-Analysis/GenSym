@@ -44,7 +44,7 @@ case class Define(x: String, e: Expr) extends Expr
 object SExpPrinter {
   def exprToString(e: Expr): String = e match {
     case Var(x) => x
-    case Void() => "void" //FIXME: `(void)` or `void`? because `void` is just a function, not producing a void value.
+    case Void() => "(void)"
     case Sym(x) => "'" + x
     case CharLit(x)   => "#\\" + x
     case IntLit(x)    => x.toString
@@ -62,7 +62,7 @@ object SExpPrinter {
   def main(args: Array[String]) = {
     assert(SExpPrinter.exprToString(CharLit('a')) == "#\\a")
 
-    assert(SExpPrinter.exprToString(App(Lam(List("x", "y"), 
+    assert(SExpPrinter.exprToString(App(Lam(List("x", "y"),
       App(Var("+"), List(Var("x"), Var("y")))), List(IntLit(1), IntLit(3)))) ==
       "((lambda (x y) (+ x y)) 1 3)")
 
