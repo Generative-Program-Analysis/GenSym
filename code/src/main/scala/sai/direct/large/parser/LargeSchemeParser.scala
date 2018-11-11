@@ -2,6 +2,7 @@ package sai.direct.large.parser
 
 import scala.util.parsing.combinator._
 import scala.io.Source
+import sai.utils.TestTrait
 import sai.common.parser._
 
 trait LargeSchemeParserTrait extends SchemeTokenParser {
@@ -139,128 +140,118 @@ object LargeSchemeParser extends LargeSchemeParserTrait {
   }
 }
 
-object TestSimpleDirectLargeSchemeParser {
+object TestSimpleDirectLargeSchemeParser extends TestTrait {
   def main(args: Array[String]) = {
     if (args.isEmpty) {
-      testall()
+      runtest()
     } else {
       if (args(0) == "-f") {
         println(LargeSchemeParser(Source.fromFile(args(1)).mkString))
+      } else if (args(0) == "-t") {
+        runtest(args(1))
       } else {
         println(LargeSchemeParser(args(0)))
       }
     }
   }
 
-  def testall() = {
-    val tests: List[() => Unit] =
-      List(
-        test0,
-        test1,
-        test2,
-        test3,
-        test4,
-        test5,
-        testToplas98,
-        testProgWithComments,
-        testBool
-      )
+  override def testall() = {
+    test("quasiquote") {
+      assert(LargeSchemeParser("'xxxx") == Some(Sym("xxxx")))
+      assert(LargeSchemeParser("'(a 1 ,(a b))")
+        == Some(App(Var("list"),List(Sym("a"), IntLit(1), App(Var("a"),List(Var("b")))))))
+    }
 
-    tests foreach { _() }
-  }
-
-  def test0() = {
-    assert(LargeSchemeParser("'xxxx") == Some(Sym("xxxx")))
-    assert(LargeSchemeParser("'(a 1 ,(a b))")
-      == Some(App(Var("list"),List(Sym("a"), IntLit(1), App(Var("a"),List(Var("b")))))))
-  }
-
-  // Test 1: Letrec to set!
-  def test1() = {
-    val actual = LargeSchemeParser("(letrec ([a 3] [b a]) (add a b))")
-    val expected = Some(
-      App(
-        Lam(List("a", "b"),
-          Begin(
-            List(
-              Set_!("a",IntLit(3)),
-              Set_!("b",Var("a")),
-              App(Var("add"),List(Var("a"), Var("b")))
+    test("letrec_to_set") {
+      val actual = LargeSchemeParser("(letrec ([a 3] [b a]) (add a b))")
+      val expected = Some(
+        App(
+          Lam(List("a", "b"),
+            Begin(
+              List(
+                Set_!("a",IntLit(3)),
+                Set_!("b",Var("a")),
+                App(Var("add"),List(Var("a"), Var("b")))
+              )
             )
-          )
-        ),
-      List(Void(), Void()))
-    )
-    assert(actual == expected)
-  }
+          ),
+        List(Void(), Void())))
+      assert(actual == expected)
+    }
 
-  // Test 2: Test implicit
-  def test2() = {
-    val actual = LargeSchemeParser("(add a b) (add a b)")
-    println(actual)
-    val expected = Some(
-      Begin(List(
-        App(Var("add"), List(Var("a"), Var("b"))),
-        App(Var("add"), List(Var("a"), Var("b")))
-      ))
-    )
-    assert(actual == expected)
-  }
+    test("implicit") {
+      val actual = LargeSchemeParser("(add a b) (add a b)")
+      val expected = Some(
+        Begin(List(
+          App(Var("add"), List(Var("a"), Var("b"))),
+          App(Var("add"), List(Var("a"), Var("b")))
+        ))
+      )
+      assert(actual == expected)
+    }
 
-  def test3() = {
-    val actual = LargeSchemeParser("(+ (- a b) (* (/ 2 3) 4))")
-    val expected = Some(
-      App(Var("+"), List(
-        App(Var("-"), List(Var("a"), Var("b"))),
-        App(Var("*"), List(App(Var("/"), List(IntLit(2), IntLit(3))), IntLit(4)))))
-    )
-    assert(actual == expected)
-  }
+    test("arith") {
+      val actual = LargeSchemeParser("(+ (- a b) (* (/ 2 3) 4))")
+      val expected = Some(
+        App(Var("+"), List(
+          App(Var("-"), List(Var("a"), Var("b"))),
+          App(Var("*"), List(App(Var("/"), List(IntLit(2), IntLit(3))), IntLit(4)))))
+      )
+      assert(actual == expected)
+    }
 
-  def test4() = {
-    val actual = LargeSchemeParser("(define (f a b) (+ a b))")
-    val expected = Some(Define("f", Lam(List("a", "b"), App(Var("+"), List(Var("a"), Var("b"))))))
-    println(actual)
-    assert(actual == expected)
-  }
+    test("define_proc") {
+      val actual = LargeSchemeParser("(define (f a b) (+ a b))")
+      val expected = Some(Define("f", Lam(List("a", "b"), App(Var("+"), List(Var("a"), Var("b"))))))
+      assert(actual == expected)
+    }
 
-  def test5() = {
-    val actual = LargeSchemeParser(
-    """(cond
-         [(positive? -5) (error 1)]
-         [(zero? -5) (error 2)]
-         [(positive? 5) 'here])""")
-    val expected = Some(Cond(List(
-      CondBr(App(Var("positive?"),List(IntLit(-5))),App(Var("error"),List(IntLit(1)))),
-      CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List(IntLit(2)))),
-      CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here")))))
-    assert(actual == expected)
-  }
+    test("cond") {
+      val actual = LargeSchemeParser(
+        """(cond
+            [(positive? -5) (error 1)]
+            [(zero? -5) (error 2)]
+            [(positive? 5) 'here])""")
+      val expected = Some(Cond(List(
+        CondBr(App(Var("positive?"),List(IntLit(-5))),App(Var("error"),List(IntLit(1)))),
+        CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List(IntLit(2)))),
+        CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here")))))
+      assert(actual == expected)
+    }
 
-  def testToplas98() = {
-    val fileName = "benchmarks/toplas98/boyer.sch"
-    val program = Source.fromFile(fileName).mkString
-    //println(LargeSchemeParser(program))
-  }
+    test("toplas98_boyer") {
+      val fileName = "benchmarks/toplas98/boyer.sch"
+      val program = Source.fromFile(fileName).mkString
+      assert(LargeSchemeParser(program) != None)
+    }
 
-  def testProgWithComments() = {
-    val fileName1 = "benchmarks/toplas98/nbody.sch"
-    val fileName2 = "benchmarks/toplas98/nbody-processed.sch"
-    val program1 = Source.fromFile(fileName1).mkString
-    val program2 = Source.fromFile(fileName2).mkString
+    test("toplas98_nbody_comments") {
+      val fileName1 = "benchmarks/toplas98/nbody.sch"
+      val fileName2 = "benchmarks/toplas98/nbody-processed.sch"
+      val program1 = Source.fromFile(fileName1).mkString
+      val program2 = Source.fromFile(fileName2).mkString
 
-    assert(LargeSchemeParser(program1) == LargeSchemeParser(program2))
-    println("testProgWithComments passed")
-  }
+      assert(LargeSchemeParser(program1) == LargeSchemeParser(program2))
+    }
 
-  def testBool() = {
-    val t = "#t"
-    val T = "#T"
-    val f = "#f"
-    val F = "#F"
-    assert(LargeSchemeParser(t) == Some(BoolLit(true)))
-    assert(LargeSchemeParser(T) == Some(BoolLit(true)))
-    assert(LargeSchemeParser(f) == Some(BoolLit(false)))
-    assert(LargeSchemeParser(F) == Some(BoolLit(false)))
+    test("toplas98_lattice_comments") {
+      val fileName1 = "benchmarks/toplas98/lattice.scm"
+      val fileName2 = "benchmarks/toplas98/lattice-processed.scm"
+      val program1 = Source.fromFile(fileName1).mkString
+      val program2 = Source.fromFile(fileName2).mkString
+
+      assert(LargeSchemeParser(program1) == LargeSchemeParser(program2))
+    }
+
+    test("bool") {
+      val t = "#t"
+      val T = "#T"
+      val f = "#f"
+      val F = "#F"
+      assert(LargeSchemeParser(t) == Some(BoolLit(true)))
+      assert(LargeSchemeParser(T) == Some(BoolLit(true)))
+      assert(LargeSchemeParser(f) == Some(BoolLit(false)))
+      assert(LargeSchemeParser(F) == Some(BoolLit(false)))
+    }
   }
 }

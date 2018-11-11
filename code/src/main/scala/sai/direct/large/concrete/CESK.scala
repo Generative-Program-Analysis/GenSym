@@ -137,8 +137,6 @@ object BigStepCES {
     case Set_!(x, e) =>
       val (ev, es) = interp(e, env, sigma)
       (VoidV(), es + (env(x) -> ev))
-    case Begin(l) => interpSeq(l, env, sigma)
-    case Define(x: String, e: Expr) => ??? //TODO (yuxuan): Find a way to implement these imperative features
   }
 
   def plus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 + v2) } })
@@ -150,6 +148,7 @@ object BigStepCES {
   def car = PrimV({ case List(ListV(l)) => l.head })
   def cdr = PrimV({ case List(ListV(l)) => ListV(l.tail) })
   def eq = PrimV({ case List(a, b) => BoolV(a == b) })
+  def mod = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 % v2) } })
 
   val initEnv = Map(
     "+" -> 1,
@@ -160,7 +159,8 @@ object BigStepCES {
     "vector" -> 6,
     "car" -> 7,
     "cdr" -> 8,
-    "eq?" -> 9
+    "eq?" -> 9,
+    "%" -> 10
   )
 
   val initStore = Map(
@@ -172,7 +172,8 @@ object BigStepCES {
     6 -> vecdec,
     7 -> car,
     8 -> cdr,
-    9 -> eq
+    9 -> eq,
+    10 -> mod
   )
 
   def eval(e: Expr): (Value, Store) = interp(e, initEnv, initStore)
