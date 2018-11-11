@@ -1,6 +1,7 @@
 package sai.direct.large.concrete
 
 import sai.direct.large.parser._
+import sai.utils._
 
 object CESK {
   type Addr = Int
@@ -179,74 +180,100 @@ object BigStepCES {
   def eval(e: Expr): (Value, Store) = interp(e, initEnv, initStore)
 }
 
-object CESKTest {
+object CESKTest extends TestTrait {
+  def testall() = {
+    test("intlit") {
+      assert(BigStepCES.eval(IntLit(1))._1 == NumV(1))
+    }
+
+    test("lam_app") {
+      assert(BigStepCES.eval(
+        App(Lam(List("x", "y"), Var("y")), List(IntLit(3), IntLit(4))))._1
+        == NumV(4))
+    }
+
+    test("control_case") {
+      assert(BigStepCES.eval(
+        Case(
+          IntLit(3),
+          List(
+            CaseBranch(List(IntLit(1), BoolLit(true)), BoolLit(false)),
+            CaseBranch(List(IntLit(3), IntLit(4)), BoolLit(true)))))._1
+        == BoolV(true))
+    }
+
+    test("control_case_2") {
+      assert(BigStepCES.eval(
+        Case(
+          IntLit(3),
+          List(
+            CaseBranch(List(IntLit(1), BoolLit(true)), BoolLit(false)),
+            CaseBranch(List(IntLit(7), IntLit(4)), BoolLit(true)),
+            CaseBranch(List(), IntLit(42)))))._1
+        == NumV(42))
+    }
+
+    test("control_cond") {
+      assert(BigStepCES.eval(
+        Cond(List(
+          CondBr(BoolLit(false), IntLit(103)),
+          CondBr(IntLit(2), IntLit(104)),
+          CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
+        == NumV(104))
+    }
+
+    test("control_cond_2") {
+      assert(BigStepCES.eval(
+        Cond(List(
+          CondBr(BoolLit(false), IntLit(103)),
+          CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
+        == NumV(7))
+    }
+
+    test("prim_plus") {
+      assert(BigStepCES.eval(
+        App(Var("+"), List(IntLit(2), IntLit(3))))._1 == NumV(5))
+
+      assert(BigStepCES.eval(
+        App(Var("+"), List(IntLit(2), IntLit(3), IntLit(4), IntLit(5))))._1 == NumV(14))
+    }
+
+    test("prim_minus") {
+      assert(BigStepCES.eval(
+        App(Var("-"), List(IntLit(7), IntLit(3))))._1 == NumV(4))
+
+      assert(BigStepCES.eval(
+        App(Var("-"), List(IntLit(7), IntLit(3), IntLit(2), IntLit(1))))._1 == NumV(1))
+    }
+
+    test("prim_mul") {
+      assert(BigStepCES.eval(
+        App(Var("*"), List(IntLit(7), IntLit(3))))._1 == NumV(21))
+
+      assert(BigStepCES.eval(
+        App(Var("*"), List(IntLit(7), IntLit(6), IntLit(5), IntLit(2))))._1 == NumV(420))
+    }
+
+    test("prim_div") {
+      assert(BigStepCES.eval(
+        App(Var("/"), List(IntLit(64), IntLit(2), IntLit(4))))._1 == NumV(8))
+
+      assert(BigStepCES.eval(
+        App(Var("/"), List(IntLit(64), IntLit(8))))._1 == NumV(8))
+    }
+
+    test("prim_list") {
+      assert(BigStepCES.eval(
+        App(Var("car"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
+        == NumV(5))
+
+      assert(BigStepCES.eval(
+        App(Var("cdr"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
+        == ListV(List(NumV(6), NumV(7))))
+    }
+  }
   def main(args: Array[String]) = {
-    assert(BigStepCES.eval(IntLit(1))._1 == NumV(1))
-
-    assert(BigStepCES.eval(
-      App(Lam(List("x", "y"), Var("y")), List(IntLit(3), IntLit(4))))._1
-      == NumV(4))
-
-    assert(BigStepCES.eval(
-      Case(
-        IntLit(3),
-        List(
-          CaseBranch(List(IntLit(1), BoolLit(true)), BoolLit(false)),
-          CaseBranch(List(IntLit(3), IntLit(4)), BoolLit(true)))))._1
-      == BoolV(true))
-
-    assert(BigStepCES.eval(
-      Case(
-        IntLit(3),
-        List(
-          CaseBranch(List(IntLit(1), BoolLit(true)), BoolLit(false)),
-          CaseBranch(List(IntLit(7), IntLit(4)), BoolLit(true)),
-          CaseBranch(List(), IntLit(42)))))._1
-      == NumV(42))
-
-    assert(BigStepCES.eval(
-      Cond(List(
-        CondBr(BoolLit(false), IntLit(103)),
-        CondBr(IntLit(2), IntLit(104)),
-        CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
-      == NumV(104))
-
-    assert(BigStepCES.eval(
-      Cond(List(
-        CondBr(BoolLit(false), IntLit(103)),
-        CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
-      == NumV(7))
-
-    assert(BigStepCES.eval(
-      App(Var("+"), List(IntLit(2), IntLit(3))))._1 == NumV(5))
-
-    assert(BigStepCES.eval(
-      App(Var("+"), List(IntLit(2), IntLit(3), IntLit(4), IntLit(5))))._1 == NumV(14))
-
-    assert(BigStepCES.eval(
-      App(Var("-"), List(IntLit(7), IntLit(3))))._1 == NumV(4))
-
-    assert(BigStepCES.eval(
-      App(Var("-"), List(IntLit(7), IntLit(3), IntLit(2), IntLit(1))))._1 == NumV(1))
-
-    assert(BigStepCES.eval(
-      App(Var("*"), List(IntLit(7), IntLit(3))))._1 == NumV(21))
-
-    assert(BigStepCES.eval(
-      App(Var("*"), List(IntLit(7), IntLit(6), IntLit(5), IntLit(2))))._1 == NumV(420))
-
-    assert(BigStepCES.eval(
-      App(Var("/"), List(IntLit(64), IntLit(2), IntLit(4))))._1 == NumV(8))
-
-    assert(BigStepCES.eval(
-      App(Var("/"), List(IntLit(64), IntLit(8))))._1 == NumV(8))
-
-    assert(BigStepCES.eval(
-      App(Var("car"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
-      == NumV(5))
-
-    assert(BigStepCES.eval(
-      App(Var("cdr"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
-      == ListV(List(NumV(6), NumV(7))))
+    val filter = if (args.isEmpty) "" else args(0)
+    runtest(filter)
   }
 }
