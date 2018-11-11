@@ -13,7 +13,7 @@ object LargeSchemeInterpreter {
 
   def main(args: Array[String]) = {
     if (!args.isEmpty) {
-      println(apply(args(0)))
+      println(apply(args(0))._1)
     }
   }
 }

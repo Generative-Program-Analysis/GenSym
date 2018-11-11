@@ -21,10 +21,11 @@ trait SchemeTokenParser extends RegexParsers {
   def LISTLPAREN: Parser[String] = "'("
   def VECLPAREN: Parser[String] = "#("
 
+  def keyword = LAMBDA | DEF | VOID | BEGIN | SET | IF | IF0 | COND | ELSE | CASE | LET | LETSTAR | LETREC
   def LAMBDA: Parser[String] = "lambda"
   def IDENT: Parser[String] = """[a-zA-Z!$%*/:<=>?~_^.+\-@][a-zA-Z0-9!$%*/:<=>?~_^.+\-@]*""".r
 
-  def DEF: Parser[String] = "define"
+  def DEF: Parser[String] = "define\\s".r
   def VOID: Parser[String] = "void"
   def BEGIN: Parser[String] = "begin"
   def SET: Parser[String] = "set!"
