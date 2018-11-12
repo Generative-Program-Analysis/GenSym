@@ -13,9 +13,9 @@ and the code that optimizes should be separated. Thus it is also an advantage of
 for abstract interpreters: the designer of analysis has no need to rewrite the analysis, and 
 the performance improvement comes almost for free, without any sacrifice of soundness or precision.
 
-\paragraph{Staged Lattices.} The lattice definition we introduced in Section~\ref{unstaged_abs}
-leaves space to be stage polymorphic, now we still use powerset as an example to present its 
-staged version. 
+\paragraph{Staged Lattices.} In Section~\ref{unstaged_abs}, we exploited the higher-kinded type @R@
+to leave space for staging lattices, now we instantiate @R@ to @Rep@ and still use powerset as an 
+example to present its staged version. 
 
 \begin{lstlisting}
 trait RepLattice[A] extends Lattice[A, Rep]
@@ -40,7 +40,12 @@ such as @union@ and @intersect@ will be mapped to a node in IR graph and emitted
 the generated code. Again, other structures such as maps and tuples are also implemented
 in a similar way.
 
-\paragraph{Staged Abstract Semantics.} 
+\paragraph{Staged Abstract Semantics.} We have seen how to obtain a staged concrete semantics
+based on types, now we take the same approach to obtain a staged abstract semantics.
+\todo{what are static, what are dynamic?}
+The basic operations largely kept same as the unstaged version, except the types are changed to @Rep@.
+Besides, when we update the environment, the identifier @x@ is known statically, but the map of environment
+has type @Rep[Map[Ident,Addr]]@, so we apply @lift@ to @x@ to make it as a next-stage value.
 
 \begin{lstlisting}
 trait RepAbsInterpOps extends Abstract with LMSOps {
@@ -49,22 +54,13 @@ trait RepAbsInterpOps extends Abstract with LMSOps {
   val $\sigma$0: Rep[Store] = Map[Addr, Value]()
   def get($\rho$: Rep[Env], x: Ident): Rep[Addr] = $\rho$(x)
   def put($\rho$: Rep[Env], x: Ident, a: Rep[Addr]): 
-    Rep[Env] = $\rho$ + (unit(x) -> a)
+    Rep[Env] = $\rho$ + (lift(x) -> a)
   def get($\sigma$: Rep[Store], a: Rep[Addr]): Rep[Value] = 
     $\sigma$.getOrElse(a, RepLattice[Value].bot)
   def put($\sigma$: Rep[Store], a: Rep[Addr], v: Rep[Value]): 
     Rep[Store] = $\sigma$ + (a -> RepLattice[Value].$\sqcup$(v, get($\sigma$, a)))
   def alloc($\sigma$: Rep[Store], x: Ident): Rep[Addr] = Addr(x)
   def num(i: Lit): Rep[Value] = Set(NumV())
-  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
-    val Lam(x, e) = $\lambda$
-    val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = 
-      (as: Rep[(Value,Store)]) => {
-        val args = as._1; val $\sigma$ = as._2; val $\alpha$ = alloc($\sigma$, x)
-        ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, args))
-      }
-    Set[AbsValue](CompiledClo(fun(f)))
-  }
   def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans =
     thn $\sqcup$ els
   def prim_eval(op: Symbol, 
@@ -74,9 +70,53 @@ trait RepAbsInterpOps extends Abstract with LMSOps {
 }
 \end{lstlisting}
 
-\paragraph{Staged Fixpoint Iteration.} staged fixed point iteration with memoization 
+Once more, the way we handle closures is as same as the staged concrete interpreter:
+the recursive call to @ev@ with the body expression @e@ is compiled and specialized, 
+the wrapper function @f@ and will be a field value of @CompiledClo@ and be generated
+for the next stage. At the end, we return a singleton set.
 
-\paragraph{Specialized Data Structures.}
+\begin{lstlisting}
+def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
+  val Lam(x, e) = $\lambda$
+  val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = {
+    case (args: Rep[Value], $\sigma$: Rep[Store]) =>
+      val args = as._1; val $\sigma$ = as._2; val $\alpha$ = alloc($\sigma$, x)
+      ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, args))
+    }
+  Set[AbsValue](CompiledClo(fun(f)))
+}
+def apply_closure(ev: EvalFun)
+  (f: Rep[Value], arg: Rep[Value], $\sigma$: Rep[Store]): Ans = {
+    reflectEffect(ApplyClosure(f, arg, $\sigma$))
+  }
+\end{lstlisting}
+
+When generating code for application, we can not directly apply the callee.
+Instead, we emit code that calls a next-stage function @apply_closures_norep@ 
+which non-deterministically applies multiple target closure with the argument
+and latest store, and finally returns the joined value and a single store.
+
+\begin{lstlisting}
+case ApplyClosures(fs, arg, $\sigma$) =>
+  emitValDef(sym, "apply_closures_norep(" + 
+                  quote(fs) + "," + quote(arg) + 
+                  "," + quote($\sigma$) + ")")
+\end{lstlisting}
+
+\paragraph{Staged Fixpoint Iteration.} 
+\todo{staged fixed point iteration with memoization}
+
+\subsection{Specialized Data Structures}
+
+Now we already obtained a working version of staged abstract interpter that is able to 
+specialize an analysis. However, we treat the data structures such as @Map@s as black-boxes,
+which means any operations on a @Map@ becomes code in the next stage.
+But, as we identified before \todo{where}, the keys of environment are identifiers in the program,
+which are completely known statically. This leaves us a chance to further specialize the 
+data structures. Particularly, if we are specializing a monovariant analysis, the address space 
+is equivalent to the identifiers, then the environment component can be entirely eliminated, 
+and the store is a partially specialized map.
+\todo{maps to arrays}
 
 \subsection{Discussion}
 what not to do when writing an abstract interpreter for staging?

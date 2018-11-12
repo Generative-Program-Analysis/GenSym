@@ -32,7 +32,7 @@ and the body of this function multiples @b@ five times.
 \paragraph{Staged Concrete Semantics.} In the staging part, we share the same concrete type instantiation, 
 i.e. trait \texttt{Concrete}, but we reimplement the staged version for the concrete operations.
 Meanwhile, @RepConcInterpOps@ also extends from @LMSOps@ which provides necessary supports for the 
-staged version of primitive types and data structures.
+staged version of primitive types and data structures. \todo{what are static, what are dyanmic?}
 
 \begin{lstlisting}
 trait RepConcInterpOps extends Concrete with LMSOps {
@@ -46,7 +46,7 @@ trait RepConcInterpOps extends Concrete with LMSOps {
   def put($\sigma$: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = 
     $\sigma$ + (a -> v)
   def alloc($\sigma$: Rep[Store], x: Ident): Rep[Addr] = $\sigma$.size + 1
-  def num(i: Lit): Rep[Value] = NumV(i)
+  def num(i: Lit): Rep[Value] = lift(NumV(i))
   def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     //FIXME: the cast is ugly, patten match?
     val i = cnd.asInstanceOf[Rep[NumV]].i
@@ -63,10 +63,13 @@ trait RepConcInterpOps extends Concrete with LMSOps {
 \end{lstlisting}
 
 The first notable change is the abstract type member @R@ is assigned to be @Rep@, and accordingly the affected 
-types such as @Env@ and @Store@ become @Rep[Env]@ and @Rep[Store]@. \todo{NumV}
+types such as @Env@ and @Store@ become @Rep[Env]@ and @Rep[Store]@. For @num@, we use @lift@ function which is a
+built-in in LMS that lifts a current-stage value to next stage.
 The interesting thing is how we handle closures and function applications when staging is involved.
-In the unstaged version, function @close@ is used to lift a literal lambda term to a closure, 
-however, what we desire is the a \textit{compiled} closure, i.e., the syntactic term of the body expression should be
+In the unstaged version, function @close@ is used to lift a literal lambda term to a closure, which
+is a pair of the syntactic lambda term and the enclosing environment.
+However, what we desire is the a \textit{compiled} closure, instead of a lifted @CloV@ value like 
+what we did for @NumV@ --- in other words, the syntactic term of the lambda expression should be 
 eliminated and specialized away.
 The specialization of the interpreter with respect to the body of the lambda term proceed under the
 assumptions that the argument and latest store will be provided later. \note{to denotational style?, back to HO?}

@@ -136,6 +136,8 @@ object AbsLamCal {
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = unchecked[Addr]("Addr(\"", x, "\")")
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
       val Lam(x, e) = λ
+      //val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = {
+       // case (args: Rep[Value], σ: Rep[Store]) =>
       val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = (as: Rep[(Value,Store)]) => {
         val args = as._1; val σ = as._2
         val α = alloc(σ, x)

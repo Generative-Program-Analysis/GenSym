@@ -114,8 +114,10 @@ object LamCal {
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = σ.size + 1
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
       val Lam(x, e) = λ
+      // TODO: runtime error when using pattern matching
+      // scala.MatchError: UnboxedTuple(List(Sym(7), Sym(8))) (of class scala.lms.common.TupledFunctionsExp$UnboxedTuple)
       //val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = {
-      //case (arg: Rep[Value], σ: Rep[Store]) =>
+      //  case (arg: Rep[Value], σ: Rep[Store]) =>
       val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = (as: Rep[(Value, Store)]) => {
         val arg = as._1; val σ = as._2;
         val α = alloc(σ, x)

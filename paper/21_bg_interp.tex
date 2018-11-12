@@ -30,7 +30,8 @@ machine \cite{DBLP:conf/popl/FelleisenF87}.
 
 \paragraph{Generic Interface.} 
 Before showing the actual implementation of the concrete semantics, let's first see 
-a generic interface for the interpreters, which will be used later for both unstaged/staged and concrete/abstract scenarios.
+a generic interface for the interpreters, which is semantics-agnostic and can be 
+"interpreted" by either concrete or abstract, unstaged or staged semantics by our choice.
 The trait \texttt{Semantics} first declares several abstract type members, such as \texttt{Addr},
 \texttt{Value}, \texttt{Env}, \texttt{Store} and returned type \texttt{Ans}. 
 Initial values for environments and stores, and few abstract methods that manipulate environments and stores are also declared.
