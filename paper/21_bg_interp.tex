@@ -55,10 +55,12 @@ trait Semantics {
 }  // to be continued
 \end{lstlisting}
 
-The actual semantics of the interpreter is also abstract now, such as lifting literal terms to values 
-(\texttt{close}, \texttt{num}), applying a closure (\texttt{apply\_closure}), branching (\texttt{branch0},
-and arithmetics (\texttt{prim\_eval}). But, just based on these abstract methods, a general interpreter 
-can be defined:
+The actual semantics and operations of the interpreter is left to be implemented later, 
+such as lifting literal terms to values (\texttt{close}, \texttt{num}), 
+applying a closure (\texttt{apply\_closure}), branching (\texttt{branch0}),
+and arithmetics (\texttt{prim\_eval}). We can choose to implement them concrete or abstract,
+unstaged or staged.
+But, just based on these abstract operations, an expressive generic interpreter can be defined:
 
 \begin{lstlisting}
 trait Semantics {  // continued
@@ -94,7 +96,7 @@ trait Semantics {  // continued
 }
 \end{lstlisting}
 
-The implementation of the interpreter is straightforward.
+The implementation of the skeleton interpreter traverses the abstract syntax tree and should be straightforward.
 It is worth to note that the interpreter is written in open-recursive style -- 
 it can not refer to itself directly, instead, \texttt{eval} takes an additional 
 parameter \texttt{ev} referring to itself; this allows us to instrument the interpreter

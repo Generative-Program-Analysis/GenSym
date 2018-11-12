@@ -1,12 +1,12 @@
-\subsection{From Interpreter to Abstract Interpreter}
+\subsection{From Interpreter to Abstract Interpreter} \label{unstaged_abs}
 
-Based on the generic interface we presented in Section~\ref{bg_lang}, now we describe the instantiation of an
-abstract interpreter.
+Based on the generic interface we presented in Section~\ref{bg_lang}, 
+now we describe the instantiation of an abstract interpreter.
 To keep the simplicity, we intend to use simply abstract domains, and just establish a 
-context-/path-/flow-insensitive, store-widened analysis in this section --- indeed, it is coarse 
-but enough to setup a foundation for the staged abstract interpreter we will present later.
-However, in Section \note{X}, we will see how to regain context-/path-/flow-sensitivity 
-for pushdown control-flow analysis; in Section \note{Y}, we will see how to instantiate 
+context-/path-/flow-insensitive, store-widened analysis in this section --- indeed, it is coarse
+but simple enough to setup a foundation for the staged abstract interpreter we will present later.
+However, in Section~\ref{cfa}, we will see how to regain context-/path-/flow-sensitivity 
+for pushdown control-flow analysis; in Section~\ref{cases_imp}, we will see how to instantiate 
 an interval abstract domain for numerical analysis.
 
 \todo{maybe put to related work} other big-step abstract interpreter, 
@@ -66,15 +66,15 @@ Accordingly, other structures used in the rest of the paper such as tuples
 (products) and maps can be lifted to lattices element-wise or point-wise.
 The code for them are elided.
 
-\paragraph{Operations Implementation.}
-The @get@ and @put@ operation on abstract stores slightly changed according to
-the abstract semantics: @get@ uses bottom element in the @Value@ lattice if the queried
-address not exists; @put@ performs the update by joining with the existing values.
+\paragraph{Abstract Semantics.}
+The operations @get@ and @put@ on abstract stores are slightly changed according to
+the abstract semantics: @get@ uses the bottom element in the @Value@ lattice if the 
+queried address not exists; @put@ performs the update by joining with the existing values.
 @alloc@ simply invokes the @Addr@ constructor.
-\texttt{close} and \texttt{num} lift syntactic literals to a singleton set that
-contains one \texttt{CloV} or \texttt{NumV} object.
+\texttt{close} and \texttt{num} lift syntactic literals to our abstract domain, i.e., 
+a singleton set that contains only one \texttt{CloV} or \texttt{NumV} object.
 
-\todo{conditional, should use different store}
+\todo{conditional, use different store?}
 \begin{lstlisting}
 object AbsInterp extends Abstract {
   type R[+T] = T
@@ -89,25 +89,38 @@ object AbsInterp extends Abstract {
   def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Env): Value = Set(CloV($\lambda$, $\rho$))
   def num(i: Lit): Value = Set(NumV())
   def apply_closure(ev: EvalFun)
-    (f: Value, arg: Value, $\sigma$: Store): Ans = { var $\sigma$_* = $\sigma$
-      val vs = for (CloV(Lam(x, e), $\rho$) <- f) yield {
+    (fs: Value, arg: Value, $\sigma$: Store): Ans = { var $\sigma$_* = $\sigma$
+      val vs = for (CloV(Lam(x, e), $\rho$) <- fs) yield {
         val $\alpha$ = alloc($\sigma$_*, x)
         val (v, v$\sigma$) = ev(e, put($\rho$, x, $\alpha$), put($\sigma$_*, $\alpha$, arg))
         $\sigma$_* = v$\sigma$; v
       }
     (vs.reduce(Lattice[Value].$\sqcup$), $\sigma$_*)
   }
-  def branch0(cnd: Value, thn: =>Ans, els: =>Ans): Ans = thn $\sqcup$ els //TODO!
-  def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
+  def branch0(cnd: Value, thn: =>Ans, els: =>Ans): Ans = 
+    thn $\sqcup$ els
+  def prim_eval(op: Symbol, v1: Value, v2: Value): Value = 
+    Set(NumV())
 } // to be continued
 \end{lstlisting}
+
+For branching, @branch0@ simply joins the answer from two branches. For arithmetics, @prim_eval@ simply 
+returns the top abstract number element.
+It is worth to note that @apply_closure@ is where we handle the non-determinism of applications.
+The non-determinism happens because of the abstract store maps addresses to sets of abstract values;
+when dereferencing an address from the store, we need to explore all possible values to achieve a sound 
+analysis. In the case of @apply_closure@, the first argument @fs@ may contains multiple target closures,
+so we have a @for@ comprehension over all closures, apply them respectively and form a set result values @vs@;
+meanwhile, every time when we evaluate into the body expression @e@ we use the latest store $\sigma$@_*@
+which is updated iteratively. Thus it is a store-widened analysis.
+
 
 \paragraph{Fixpoint Iteration.}
 We described the abstract semantics modularly in the last section, however, the abstract 
 interpreter may not terminate for some input program. In this section, we use a memoization
-technique to ensure its termination. This technique is also called co-inductive caching algorithm
+technique to ensure its termination. This technique is also widely used in the name of co-inductive caching algorithm
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800} or truncated depth-first evaluation 
-\cite{Rosendahl:AbsIntPL} and widely used in different analysis.
+\cite{Rosendahl:AbsIntPL}.
 
 The idea is to set up two caches called @in@ and @out@, which are both mapping from the arguments of interpreter 
 (@Config@) to the returned value of interpreter (@Ans@). The @in@ contains what we already computed from the last

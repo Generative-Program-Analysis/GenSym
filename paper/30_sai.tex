@@ -1,8 +1,86 @@
 \section{Staging Abstract Interpreters} \label{sai}
 
+In the previous section, we have seen an unstaged abstract interpreter and a staged concrete interpreter, 
+now we begin describing the implementation of their confluence -- a staged abstract interpreter. 
+Unsurprisingly, the staged abstract interpreter has the same abstract semantics with the unstaged version
+we presented in Section~\ref{unstaged_abs}.
+
 \subsection{From Abstract Interpreter to Staged Abstract Interpreter}
 
-\subsection{what not to do when writing an abstract interpreter for staging}
+In this section, we present a principled approach to derive staged abstract interpreter
+from its unstaged version. One guiding principle of our approach is the code of abstract semantics
+and the code that optimizes should be separated. Thus it is also an advantage of doing staging 
+for abstract interpreters: the designer of analysis has no need to rewrite the analysis, and 
+the performance improvement comes almost for free, without any sacrifice of soundness or precision.
+
+\paragraph{Staged Lattices.} The lattice definition we introduced in Section~\ref{unstaged_abs}
+leaves space to be stage polymorphic, now we still use powerset as an example to present its 
+staged version. 
+
+\begin{lstlisting}
+trait RepLattice[A] extends Lattice[A, Rep]
+implicit def RepSetLattice[T:Typ]: RepLattice[Set[T]] = 
+  new RepLattice[Set[T]] {
+    lazy val bot: Rep[Set[T]] = Set[T]()
+    lazy val top: Rep[Set[T]] = throw new NotImplementedError()
+    def $\sqsubseteq$(l1: Rep[Set[T]], l2: Rep[Set[T]]): 
+      Rep[Boolean] = l1 subsetOf l2
+    def $\sqcup$(l1: Rep[Set[T]], l2: Rep[Set[T]]): 
+      Rep[Set[T]] = l1 union l2
+    def $\sqcap$(l1: Rep[Set[T]], l2: Rep[Set[T]]): 
+      Rep[Set[T]] = l1 intersect l2
+  }
+\end{lstlisting}
+
+The type parameter @T:Typ@ of @RepLattice@ requires the element of sets
+is also can be staged, otherwise without knowing how to stage the elements in the set
+we can not stage the set as well.
+The methods defined operate on type @Rep[Set[T]]@, thus the underlying implementation
+such as @union@ and @intersect@ will be mapped to a node in IR graph and emitted in 
+the generated code. Again, other structures such as maps and tuples are also implemented
+in a similar way.
+
+\paragraph{Staged Abstract Semantics.} 
+
+\begin{lstlisting}
+trait RepAbsInterpOps extends Abstract with LMSOps {
+  type R[+T] = Rep[T]
+  val $\rho$0: Rep[Env] = Map[Ident, Addr]()
+  val $\sigma$0: Rep[Store] = Map[Addr, Value]()
+  def get($\rho$: Rep[Env], x: Ident): Rep[Addr] = $\rho$(x)
+  def put($\rho$: Rep[Env], x: Ident, a: Rep[Addr]): 
+    Rep[Env] = $\rho$ + (unit(x) -> a)
+  def get($\sigma$: Rep[Store], a: Rep[Addr]): Rep[Value] = 
+    $\sigma$.getOrElse(a, RepLattice[Value].bot)
+  def put($\sigma$: Rep[Store], a: Rep[Addr], v: Rep[Value]): 
+    Rep[Store] = $\sigma$ + (a -> RepLattice[Value].$\sqcup$(v, get($\sigma$, a)))
+  def alloc($\sigma$: Rep[Store], x: Ident): Rep[Addr] = Addr(x)
+  def num(i: Lit): Rep[Value] = Set(NumV())
+  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
+    val Lam(x, e) = $\lambda$
+    val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = 
+      (as: Rep[(Value,Store)]) => {
+        val args = as._1; val $\sigma$ = as._2; val $\alpha$ = alloc($\sigma$, x)
+        ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, args))
+      }
+    Set[AbsValue](CompiledClo(fun(f)))
+  }
+  def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans =
+    thn $\sqcup$ els
+  def prim_eval(op: Symbol, 
+                v1: Rep[Value], v2: Rep[Value]): Rep[Value] = 
+    Set(NumV())
+  ...
+}
+\end{lstlisting}
+
+\paragraph{Staged Fixpoint Iteration.} staged fixed point iteration with memoization 
+
+\paragraph{Specialized Data Structures.}
+
+\subsection{Discussion}
+what not to do when writing an abstract interpreter for staging?
+what kind of abstract interpreter is friendly for staging/specialization?
 
 Stage an abstract abstract machine yields another small-step abstract machine
 
@@ -15,8 +93,6 @@ Operational vs denotational
 General insights for staging other static analysis algorithm.
 
 \cite{10.1007/3-540-61580-6_11}
-
-\subsection{Stage Annotations}
 
 Jones-optimal specialization?
 Futamura projection?

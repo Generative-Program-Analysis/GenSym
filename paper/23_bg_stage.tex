@@ -27,9 +27,9 @@ Meanwhile, the result of the @power@ function will be available at the next stag
 of \texttt{power} is also of type \texttt{Rep[Int]}. 
 Then we specialize @power@ in function @snippet@ by providing @x@ to @5@.
 The generated code for \texttt{power5} is a function that takes only one argument which corresponds to @b@,
-and body of this function multiples @b@ five times.
+and the body of this function multiples @b@ five times.
 
-\paragraph{Staged Concrete Interpreter.} In the staging part, we share the same concrete type instantiation, 
+\paragraph{Staged Concrete Semantics.} In the staging part, we share the same concrete type instantiation, 
 i.e. trait \texttt{Concrete}, but we reimplement the staged version for the concrete operations.
 Meanwhile, @RepConcInterpOps@ also extends from @LMSOps@ which provides necessary supports for the 
 staged version of primitive types and data structures.
