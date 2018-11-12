@@ -173,7 +173,25 @@ object LargeSchemeInterpreter extends TestTrait {
       ))
     }
 
-    test("algebra") {
+    test("power_imp") {
+      assert(CESK.NumV(243) == apply(
+        """
+        (define (do_n_times n f)
+          (if (eq? n 0)
+            (void)
+            (begin (f) (do_n_times (- n 1) f))))
+
+        (define (pow a b)
+          (define s 1)
+          (do_n_times b (lambda () (set! s (* s a))))
+          s)
+
+        (pow 3 5)
+        """
+      ))
+    }
+
+    test("power_rec") {
       assert(CESK.NumV(243) == apply(
         """
         (letrec

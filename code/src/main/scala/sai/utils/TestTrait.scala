@@ -1,5 +1,7 @@
 package sai.utils
 
+import java.lang._
+
 trait TestTrait {
   var testNameFilter = ""
   def test(name: String)(f: => Unit) = {
@@ -10,7 +12,7 @@ trait TestTrait {
         f
         println("[\u001B[92mPASSED\u001B[39m]")
       } catch {
-        case _ => println("[\u001B[91mFAILED\u001B[39m]")
+        case e: AssertionError => println("[\u001B[91mFAILED\u001B[39m]")
       }
     }
   }
