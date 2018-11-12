@@ -13,6 +13,10 @@ trait TestTrait {
         println("[\u001B[92mPASSED\u001B[39m]")
       } catch {
         case e: AssertionError => println("[\u001B[91mFAILED\u001B[39m]")
+        case e: Exception =>
+          println("[\u001B[91mFATAL\u001B[39m]\u001B[91m")
+          e.printStackTrace()
+          print("\u001B[39m")
       }
     }
   }
