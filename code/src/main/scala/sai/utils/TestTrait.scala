@@ -3,12 +3,12 @@ package sai.utils
 import java.lang._
 
 trait TestTrait {
-  var testNameFilter = ""
-  var tests = 0
-  var passed = 0
-  var failed = 0
-  var fatal = 0
-  var omitted = 0
+  protected var testNameFilter = ""
+  private var tests = 0
+  private var passed = 0
+  private var failed = 0
+  private var fatal = 0
+  private var omitted = 0
   def test(name: String)(f: => Unit) = {
     if (testNameFilter == "" || testNameFilter == name) {
       val dots = "." * (32 - name.length)
@@ -17,14 +17,14 @@ trait TestTrait {
       try {
         f
         passed += 1
-        println("[\u001B[92mPASSED\u001B[39m]")
+        println("\u001B[92m✔\u001B[39m")
       } catch {
         case e: AssertionError =>
           failed += 1
-          println("[\u001B[91mFAILED\u001B[39m]")
+          println("\u001B[91m✗ Assertion Failed\u001B[39m")
         case e: Throwable =>
           fatal += 1
-          println("[\u001B[91mFATAL\u001B[39m]\u001B[91m")
+          println("\u001B[91m✗ Exception Thrown\u001B[39m\u001B[91m")
           e.printStackTrace()
           print("\u001B[39m")
       }
