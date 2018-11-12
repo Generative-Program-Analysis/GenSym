@@ -171,7 +171,6 @@ object AbsLamCal {
           ans1
         }
       }
-      /*
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
         val g: Rep[Unit => (Value,Store)] = fun { (u: Rep[Unit]) =>
           System.out.println(s"calling g $e")
@@ -181,7 +180,6 @@ object AbsLamCal {
         }
         g(())
       }
-       */
     }
     def fake_eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
       case Lit(i) => (num(Lit(i)), σ)
@@ -268,8 +266,7 @@ object AbsLamCalTest {
       new RepAbsInterpDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
-          ()
-          //println(v); println(s)
+          println(v); println(s)
         }
       }
     val lam = Lam("x", App(Var("x"), Var("x")))
@@ -286,7 +283,7 @@ object AbsLamCalTest {
     println(AbsInterp.eval_top(fact5))
     println(AbsInterp.eval_top(omega))
 
-    val code = specialize(lam)
+    val code = specialize(omega)
     println(code.code)
     //code.eval(())
   }
