@@ -147,38 +147,39 @@ object AbsLamCal {
       }
       unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
     }
-    def num(i: Lit): Rep[Value] = unchecked[Value]("Set(NumV())")
+    def num(i: Lit): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
     def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val thnans = thn
       val elsans = els
       (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
     }
-    def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set(NumV())")
+    def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
 
     type Config = (Expr, Env, Store)
     implicit def exprTyp: Typ[Expr]
     case class CacheFix(evev: EvalFun => EvalFun) {
-      import CacheFix._
       var in = Map[Config, (Value,Store)]()
       var out = Map[Config, (Value,Store)]()
+
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        if (out.contains(cfg)) { out(cfg) } //FIXME: should generate if
+        //if (out.contains(cfg)) { out(cfg) } //FIXME: the generated code doesn't work; hack using getOrElse
+        if (out.contains(cfg)) { out.getOrElse(cfg, RepLattice[(Value,Store)].bot) }
         else {
           val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
           out = out + (cfg -> ans0)
           val ans1: Ans = evev(cached_ev)(e, ρ, σ)
-          out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans1, ans1))
+          out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
           ans1
         }
       }
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
-        def g: Rep[Unit => (Value,Store)] = fun { () =>
-          in = out; out = Map[Config, (Value,Store)]();
+        def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
+          in = out; out = Map[Config, (Value,Store)]()
           cached_ev(e, ρ, σ)
-          if (in === out) out((unit(e), ρ, σ)) else g()
+          if (in === out) out((unit(e), ρ, σ)) else iter_aux()
         }
-        g()
+        iter_aux()
       }
     }
     override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
@@ -270,11 +271,11 @@ object AbsLamCalTest {
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
     val omega = App(lam, lam)
 
-    println(AbsInterp.eval_top(id4))
+    //println(AbsInterp.eval_top(id4))
+    //println(AbsInterp.eval_top(omega))
     println(AbsInterp.eval_top(fact5))
-    println(AbsInterp.eval_top(omega))
 
-    val code = specialize(omega)
+    val code = specialize(fact5)
     println(code.code)
     code.eval(())
   }
