@@ -1,6 +1,6 @@
-\subsection{An Unstaged Concrete Interpreter} \label{bg_lang}
+\subsection{Abstract Syntax} \label{bg_lang}
 
-As higher-order functions had been widely introduced in mainstream programming languages (such as Python and Java \todo{cite}), 
+As higher-order functions had been widely introduced to mainstream programming languages (such as Python and Java \todo{cite}), 
 in this paper, we consider a tiny higher-order functional language \TLang, which is based on direct-style $\lambda$-calculus
 with numbers, arithmetics, recursions and conditionals.
 In Section~\ref{cases_imp}, we will see adding more imperative features to the language.
@@ -28,7 +28,7 @@ This environment-and-store-passing style big-step interpreter also can be obtain
 refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03, Wei:2018:RAA:3243631.3236800} a small-step CESK 
 machine \cite{DBLP:conf/popl/FelleisenF87}.
 
-\paragraph{Generic Interface.} 
+\subsection{Generic Interface} 
 Before showing the actual implementation of the concrete semantics, let's first see 
 a generic interface for the interpreters, which is semantics-agnostic and can be 
 "interpreted" by either concrete or abstract, unstaged or staged semantics by our choice.
@@ -98,12 +98,12 @@ trait Semantics {  // continued
 \end{lstlisting}
 
 The implementation of the skeleton interpreter traverses the abstract syntax tree and should be straightforward.
-It is worth to note that the interpreter is written in open-recursive style -- 
+It is worth noting that the interpreter is written in open-recursive style -- 
 it can not refer to itself directly, instead, \texttt{eval} takes an additional 
 parameter \texttt{ev} referring to itself; this allows us to instrument the interpreter
 from outside. Accordingly, the function \texttt{close} for lifting lambda term to closure values
 is also written in this style.
-We define a default implementation \texttt{fix} to close the recursion by recursively use the result 
+We define a default implementation \texttt{fix} to close the recursion by recursively using the result 
 of \texttt{fix(ev)} for \texttt{ev}. 
 Finally, the top-level evaluation function \texttt{eval\_top} is defined.
 
@@ -113,15 +113,15 @@ type-level function and will be used to specify the binding-time, i.e., staged o
 \texttt{+} indicates type parameter \texttt{T} is covariant.
 The LMS framework we use here allows us to specify binding-time purely based on types.
 All occurrences of type \texttt{Env}, \texttt{Store}, etc. are wrapped with \texttt{R} 
-essentially because they may potentially being dynamic when staging is introduced.
+essentially because they may potentially be dynamic when staging is introduced.
 Obviously, the unstaged higher-kinded type then can be simply instantiated as an identity type function: 
 \texttt{type R[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
 as a staging annotation. \todo{where talk about stage poly?}
 
-\paragraph{Concrete Instantiation.}
+\subsection{Concrete Instantiation}
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
 Since the interpreter is concrete, for the propose that properly models the heap, the type \texttt{Int} 
-is used for addresses space \texttt{Addr}. The environment and store are just ordinary \texttt{Map} in Scala.
+is used for address space \texttt{Addr}. The environment and store are just ordinary \texttt{Map} in Scala.
 The values can be either a tagged number \texttt{NumV} or a closure \texttt{CloV} that contains a lambda term
 and an environment.
 
@@ -171,4 +171,4 @@ in the concrete case, \texttt{alloc} always returns a fresh address of the store
 \texttt{close} and \texttt{num} lift syntactic literals to values.
 \texttt{apply\_closure} takes the function value, argument value and the latest store,
 then extends the environment and store after allocating a fresh address, and continue
-evaluates the body \texttt{e} of the lambda term.
+evaluating the body \texttt{e} of the lambda term.

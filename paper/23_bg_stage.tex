@@ -1,12 +1,12 @@
-\subsection{From Interpreter to Staged Interpreter} \label{stagedinterp}
+\section{From Interpreters to Staged Interpreters} \label{stagedinterp}
 
-\paragraph{Multi-Stage Programming in LMS.}
+\subsection{Multi-Stage Programming in LMS}
 Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a multi-stage programming framework implemented 
 as a Scala library that enables dynamic code generation in a type-safe manner.
 Different from the syntactic approach such as MetaOCaml \cite{DBLP:conf/flops/Kiselyov14} that uses quotations, 
 LMS distinguishes binding-time solely based on types.
 LMS provides a type constructor @Rep[T]@ where @T@ can be an arbitrary type, indicating an expression will be 
-known at next stage. All operations act on a @Rep@ expression will be resulted in the generated code. However,
+known at next stage. All operations acting on a @Rep@ expression will be resulted in the generated code. However,
 we need to provide intermediate representation and code generation support for type @T@ to LMS. 
 Fortunately, the LMS framework already provides
 such support for primitive types and commonly used data structure such as arrays and maps; implementing such support
@@ -14,7 +14,7 @@ for custom class is also straightforward. Let's go back and see how LMS can be u
 we mentioned in Section 1.
 
 \begin{lstlisting}
-val power5 = new DslDriver[Int, Int] {
+.. = new DslDriver[Int, Int] {
   def power(b: Rep[Int], x: Int): Rep[Int] =
     if (x == 0) 1 else b * power(b, x-1)
   def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
@@ -23,13 +23,14 @@ val power5 = new DslDriver[Int, Int] {
 
 In the code shown above, \texttt{power} takes 2 arguments where \texttt{b} is declared as \texttt{Rep[Int]} type 
 meaning that \texttt{b} is a representation of \texttt{Int} but whose value will be available at the next stage. 
-Meanwhile, the result of the @power@ function will be available at the next stage as will, thus the return value 
+Meanwhile, the result of the @power@ function will be available at the next stage as well, thus the return value 
 of \texttt{power} is also of type \texttt{Rep[Int]}. 
 Then we specialize @power@ in function @snippet@ by providing @x@ to @5@.
 The generated code for \texttt{power5} is a function that takes only one argument which corresponds to @b@,
 and the body of this function multiples @b@ five times.
 
-\paragraph{Staged Concrete Semantics.} In the staging part, we share the same concrete type instantiation, 
+\subsection{Staged Concrete Semantics} 
+In the staging part, we share the same concrete type instantiation, 
 i.e. trait \texttt{Concrete}, but we reimplement the staged version for the concrete operations.
 Meanwhile, @RepConcInterpOps@ also extends from @LMSOps@ which provides necessary supports for the 
 staged version of primitive types and data structures. \todo{what are static, what are dyanmic?}
@@ -68,13 +69,13 @@ built-in in LMS that lifts a current-stage value to next stage.
 The interesting thing is how we handle closures and function applications when staging is involved.
 In the unstaged version, function @close@ is used to lift a literal lambda term to a closure, which
 is a pair of the syntactic lambda term and the enclosing environment.
-However, what we desire is the a \textit{compiled} closure, instead of a lifted @CloV@ value like 
+However, what we desire is a \textit{compiled} closure, instead of a lifted @CloV@ value like 
 what we did for @NumV@ --- in other words, the syntactic term of the lambda expression should be 
 eliminated and specialized away.
 The specialization of the interpreter with respect to the body of the lambda term proceed under the
 assumptions that the argument and latest store will be provided later. \note{to denotational style?, back to HO?}
 We will see this is an important observation that enables us to specialize an abstract interpreter modularly.
-In the end of @close@, we create a @CompiledClo@ object that contains a staged function, which both will be
+In the end of @close@, we create a @CompiledClo@ object that contains a staged function, which all will be
 exhibited in the generated code.
 
 \begin{lstlisting}
@@ -90,7 +91,7 @@ def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
 \end{lstlisting}
 
 Then, @apply_closure@ takes three arguments the function value, argument value and the latest store, 
-which are both of @Rep@ type. It means basically these is nothing we can do at current stage --- 
+which are both of @Rep@ type. It means basically there is nothing we can do at current stage --- 
 so we create a new node @ApplyClosure@ that contains these arguments in the intermediate representation graph,
 and in the code generation phase we can emit the code that does the application. \todo{reflectEffect}.
 
@@ -104,7 +105,7 @@ def apply_closure(ev: EvalFun)
 \end{lstlisting}
 
 \paragraph{Code Generation.}
-When generating code for the next stage, values like @CompiledClo@ and @NumV@ are kept as what it is because
+When generating code for the next stage, values like @CompiledClo@ and @NumV@ are kept as what they are because
 they are intended to be existed in the next stage; however, we need to treat @ApplyClosure@ a little bit 
 differently.
 

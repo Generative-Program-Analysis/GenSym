@@ -11,15 +11,15 @@ which first identifies the binding-time of variables in the program, i.e., they 
 and then specializes the program with respect to the given input of program.
 However, precisely analyzing binding-time for an arbitray program is hard in general. As an alternative and programmatic
 approach to specialization and partial evaluation, multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} 
-requires the stage annotations (i.e., binding-time annotations) from the programmers, these staging annotations 
+requires the stage annotations (i.e., binding-time annotations) from the programmers. These staging annotations 
 control which part of the input program should be specialized.
 As a simple example, we consider a power function: 
 \begin{lstlisting}
 def power(b: Int, e: Int): Int = 
   if (e == 0) 1 else e * power(b, e-1)
 \end{lstlisting}
-If \texttt{e} is statically known, say 5, then we can specialize \texttt{power} with respect to \texttt{e = 5} and 
-generate a new specialized function as following:
+If \texttt{e} is identified as statically known by the programmer, say 5, then we can specialize \texttt{power} 
+with respect to \texttt{e = 5} and generate a new specialized function as following:
 \begin{lstlisting}
 def power5(b: Int) = b * b * b * b * b
 \end{lstlisting}
@@ -60,19 +60,21 @@ generic programming \cite{DBLP:journals/pacmpl/Yallop17, Ofenbeck:2017:SGP:31360
 data processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14, DBLP:conf/popl/KiselyovBPS17}, 
 query compilation in databases \cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18},
 etc.
-Likewise, specializing static analyses by partial evaluation had been emerged in late 90s 
+Likewise, specializing static analyses by partial evaluation emerged in late 90s 
 \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587, ashley:practical}, 
 and indeed it is able to effectively remove the interpretive overhead of 
 repeatedly traversing the abstract syntax tree. 
-However, despite of the previous work are mostly focus on one particular analysis,
+However, despite of the previous works mostly focused on one particular analysis,
+or required to rewrite the analyzer,
 it is worth to investigate the idea from a modern perspective based on meta-programming,
 especially for a general abstract interpreter that models direct-style $\lambda$-calculus, imperative 
 features such as mutation, and different abstract domains.
 One technical challenge is the binding-time engineering when non-determinism, 
 fixed-point iterations, different abstract domains and staging are introduced at the same time.
 In this paper, we present an end-to-end design and implementation of staging an abstract interpreter,
-that means ont only the abstract interpreter, but also the data structure of abstract domains, 
-abstract environment and heap, and the fixpoint iteration are staged.
+that means not only the interpreter that traverses the abstract syntax tree, 
+but also the data structure of abstract domains, abstract environment and heap, 
+and the fixpoint iteration are staged.
 
 On the other hand, the abstract interpreter, as a semantic artifact, should be written in a 
 style that is easy for people to communicate the formulation and abstraction, but also can be implemented 
@@ -108,7 +110,7 @@ change in every iteration of the fixpoint algorithm}
 A surprising by-product of thinking about this question is to realize that 
 we can apply the staged abstract interpreter on \textit{open} programs, and
 the free variables representing other parts of the program (e.g., libraries) 
-are dynamic input, therefore we obtain a modular analysis through staging, 
+are dynamic inputs, therefore we obtain a modular analysis through staging, 
 mechanically. 
 
 The use of staged abstract interpreters on open programs improves the scalability. 
@@ -116,7 +118,7 @@ The use of staged abstract interpreters on open programs improves the scalabilit
 One challenge in static analysis of modern software is that the programs are usually 
 shipped with large library code, for example, it has been shown that analyzing a simple
 "Hello World" program in Java depends on additional 3,000 classes in the library \cite{DBLP:conf/oopsla/KulkarniMZN16}.
-Soundly and precisely analyzing these libraries sometimes are expensive and unnecessary repeatedly.
+Soundly and precisely analyzing these libraries sometimes are expensive and unnecessarily repeated.
 When applying the staged abstract interpreter on libraries, we leave the unknown 
 calling context as dynamic value and generate partial analyzing result which is 
 repsented as a residul program. The partial analyzing result can be resued and composed
@@ -135,15 +137,15 @@ end-to-end staging: abstract interpreter, abstract domain, environment/store str
 \item Starting from a definitional abstract interpreter for a higher-order functional language,
   whose syntax and semantics are described in Section~\ref{bg_lang},
   we show how to turn it into a staged abstract interpreter (SAI) by adding stage annotations. 
-  The design and implementation of SAI using Scala and Lightweight Modular Staging (LMS) framework is 
-  described in Section~\ref{sai}.
+  The design and implementation of SAI using Scala and Lightweight Modular Staging (LMS) framework 
+  are described in Section~\ref{sai}.
   We later extend the staged abstract interpreter to support imperative language features 
   (Section~\ref{cases_imp}), such as states, loops and exceptions.
 \item We demonstrate that the staged abstract interpreter not only improves the \textit{efficiency}
   but also the \textit{scalability}, which are two major issues in static analysis, if we apply it on open
   programs. \todo{more on this point.}
 \item To demonstrate the feasibility and applicability of the proposed approach, we conduct three case studies in Section~\ref{cases_study}. 
-  First we revisit Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
+  First, we revisit Abstract Compilation \cite{Boucher:1996:ACN:647473.727587}, which is a closure generation 
   technique applied on 0-CFA. We show that it can be understood and easily implemented as an instance of 
   our staged abstract interpreter. 
   Second, we demonstrate sophisticated control-flow analysis techniques, such as adaptive context/flow/path-sensitive 

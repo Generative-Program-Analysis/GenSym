@@ -1,4 +1,4 @@
-\subsection{From Interpreter to Abstract Interpreter} \label{unstaged_abs}
+\section{From Interpreters to Abstract Interpreters} \label{unstaged_abs}
 
 Based on the generic interface we presented in Section~\ref{bg_lang}, 
 now we describe the instantiation of an abstract interpreter.
@@ -32,7 +32,7 @@ trait Abstract extends Semantics {
 }
 \end{lstlisting}
 
-\paragraph{Stage Polymorphic Lattices.}
+\subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
 To effectively reuse the code between unstaged and staged part, we also make the lattice structure to
 be stage polymorphic. A lattice type class parameterizes over an element type \texttt{E} and defines
 five operations for \texttt{R[E]}, such as meet, join, and ordering relation; again, \texttt{R} 
@@ -66,7 +66,7 @@ Accordingly, other structures used in the rest of the paper such as tuples
 (products) and maps can be lifted to lattices element-wise or point-wise.
 The code for them are elided.
 
-\paragraph{Abstract Semantics.}
+\subsection{Abstract Semantics}
 The operations @get@ and @put@ on abstract stores are slightly changed according to
 the abstract semantics: @get@ uses the bottom element in the @Value@ lattice if the 
 queried address not exists; @put@ performs the update by joining with the existing values.
@@ -115,7 +115,7 @@ meanwhile, every time when we evaluate into the body expression @e@ we use the l
 which is updated iteratively. Thus it is a store-widened analysis.
 
 
-\paragraph{Fixpoint Iteration.}
+\subsection{Fixpoint Iteration}
 We described the abstract semantics modularly in the last section, however, the abstract 
 interpreter may not terminate for some input program. In this section, we use a memoization
 technique to ensure its termination. This technique is also widely used in the name of co-inductive caching algorithm
@@ -154,5 +154,5 @@ override def eval_top(e: Expr, $\rho$: Env, $\sigma$: Store): Ans =
   CacheFix(eval).iter(e, $\rho$, $\sigma$)
 \end{lstlisting}
 
-Finally, we override the definition of @eval_top@ by instantiating @CacheFix@ with @eval@ and start 
+Finally, we override the definition of @eval_top@ by instantiating @CacheFix@ with @eval@ and starting 
 the first iteration.

@@ -1,19 +1,17 @@
-\section{Staging Abstract Interpreters} \label{sai}
+\section{From Abstract Interpreters to Staged Abstract Interpreters} \label{sai}
 
 In the previous section, we have seen an unstaged abstract interpreter and a staged concrete interpreter, 
 now we begin describing the implementation of their confluence -- a staged abstract interpreter. 
-Unsurprisingly, the staged abstract interpreter has the same abstract semantics with the unstaged version
-we presented in Section~\ref{unstaged_abs}.
-
-\subsection{From Abstract Interpreter to Staged Abstract Interpreter}
-
-In this section, we present a principled approach to derive staged abstract interpreter
+We present a principled approach to derive staged abstract interpreter
 from its unstaged version. One guiding principle of our approach is the code of abstract semantics
 and the code that optimizes should be separated. Thus it is also an advantage of doing staging 
 for abstract interpreters: the designer of analysis has no need to rewrite the analysis, and 
 the performance improvement comes almost for free, without any sacrifice of soundness or precision.
+Unsurprisingly, the staged abstract interpreter we present in this section has the same abstract 
+semantics with the unstaged version we presented in Section~\ref{unstaged_abs}.
 
-\paragraph{Staged Lattices.} In Section~\ref{unstaged_abs}, we exploited the higher-kinded type @R@
+\subsection{Staged Lattices} 
+In Section~\ref{stagedpoly_lat}, we exploited the higher-kinded type @R@
 to leave space for staging lattices, now we instantiate @R@ to @Rep@ and still use powerset as an 
 example to present its staged version. 
 
@@ -40,7 +38,8 @@ such as @union@ and @intersect@ will be mapped to a node in IR graph and emitted
 the generated code. Again, other structures such as maps and tuples are also implemented
 in a similar way.
 
-\paragraph{Staged Abstract Semantics.} We have seen how to obtain a staged concrete semantics
+\subsection{Staged Abstract Semantics} 
+We have seen how to obtain a staged concrete semantics
 based on types, now we take the same approach to obtain a staged abstract semantics.
 \todo{what are static, what are dynamic?}
 The basic operations largely kept same as the unstaged version, except the types are changed to @Rep@.
@@ -103,7 +102,7 @@ case ApplyClosures(fs, arg, $\sigma$) =>
                   "," + quote($\sigma$) + ")")
 \end{lstlisting}
 
-\paragraph{Staged Fixpoint Iteration.} 
+\subsection{Staged Fixpoint Iteration.} 
 \todo{staged fixed point iteration with memoization}
 
 \subsection{Specialized Data Structures}
@@ -136,5 +135,4 @@ General insights for staging other static analysis algorithm.
 
 Jones-optimal specialization?
 Futamura projection?
-
-\subsection{Lattice-theoretic Interpretation}
+Lattice-theoretic Interpretation
