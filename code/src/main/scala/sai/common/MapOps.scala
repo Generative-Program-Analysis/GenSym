@@ -14,6 +14,7 @@ trait MapOps extends Variables with SetOps {
   }
 
   implicit def repMapToMapOps[K:Typ, V:Typ](m: Rep[Map[K,V]]) = new MapOpsCls(m)
+  //implicit def varMapToMapOps[K:Typ, V:Typ](m: Var[Map[K,V]]) = new MapOpsCls(readVar(m))
 
   class MapOpsCls[K:Typ,V:Typ](m: Rep[Map[K,V]]) {
     def apply(k: Rep[K])(implicit pos: SourceContext) = map_apply(m, k)
@@ -28,7 +29,7 @@ trait MapOps extends Variables with SetOps {
 
     def ++(m1: Rep[Map[K,V]])(implicit pos: SourceContext) = map_concat(m, m1)
 
-    def ==(m1: Rep[Map[K,V]])(implicit pos: SourceContext) = map_equal(m, m1)
+    def ===(m1: Rep[Map[K,V]])(implicit pos: SourceContext) = map_equal(m, m1)
 
     def keySet()(implicit pos: SourceContext) = map_keyset(m)
 
