@@ -163,7 +163,7 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        if (out.contains(cfg)) out(cfg)
+        if (out.contains(cfg)) { out(cfg) } //FIXME: should generate if
         else {
           val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
           out = out + (cfg -> ans0)
