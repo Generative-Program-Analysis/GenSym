@@ -10,7 +10,9 @@ object CESK {
 
   abstract class Value
   object NotAValue extends Value
-  case class NumV(i: Int) extends Value with Expr
+
+  case class IntV(i: Int) extends Value with Expr
+  case class FloatV(d: Double) extends Value with Expr
   case class CharV(c: Char) extends Value with Expr
   case class BoolV(b: Boolean) extends Value with Expr
   case class ListV(l: List[Value]) extends Value with Expr
@@ -103,7 +105,8 @@ object BigStepCES {
 
   def interp(e: Expr, env: Env, sigma: Store): (Value, Store) = e match {
     case Sym(x) => (SymV(x), sigma)
-    case IntLit(x) => (NumV(x), sigma)
+    case IntLit(x) => (IntV(x), sigma)
+    case FloatLit(x) => (FloatV(x), sigma)
     case BoolLit(x) => (BoolV(x), sigma)
     case CharLit(x) => (CharV(x), sigma)
     case Var(x) => (sigma(env(x)), sigma)
@@ -140,14 +143,66 @@ object BigStepCES {
       (VoidV(), es + (env(x) -> ev))
   }
 
-  def plus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 + v2) } })
-  def minus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) { case (NumV(v1), NumV(v2)) => NumV(v1 - v2) } })
-  def mul = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 * v2) } })
-  def div = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 / v2) } })
-  def greater = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a > b) })
-  def greatereq = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a >= b) })
-  def less = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a < b) })
-  def lesseq = PrimV({ case List(NumV(a), NumV(b)) => BoolV(a <= b) })
+  def plus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) {
+      case (IntV(v1), IntV(v2)) => IntV(v1 + v2)
+      case (IntV(v1), FloatV(v2)) => FloatV(v1 + v2)
+      case (FloatV(v1), IntV(v2)) => FloatV(v1 + v2)
+      case (FloatV(v1), FloatV(v2)) => FloatV(v1 + v2)
+    }
+  })
+
+  def minus = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) {
+      case (IntV(v1), IntV(v2)) => IntV(v1 - v2)
+      case (IntV(v1), FloatV(v2)) => FloatV(v1 - v2)
+      case (FloatV(v1), IntV(v2)) => FloatV(v1 - v2)
+      case (FloatV(v1), FloatV(v2)) => FloatV(v1 - v2)
+    }
+  })
+
+  def mul = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) {
+      case (IntV(v1), IntV(v2)) => IntV(v1 * v2)
+      case (IntV(v1), FloatV(v2)) => FloatV(v1 * v2)
+      case (FloatV(v1), IntV(v2)) => FloatV(v1 * v2)
+      case (FloatV(v1), FloatV(v2)) => FloatV(v1 * v2)
+    }
+  })
+
+  def div = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head) {
+      case (IntV(v1), IntV(v2)) => IntV(v1 / v2)
+      case (IntV(v1), FloatV(v2)) => FloatV(v1 / v2)
+      case (FloatV(v1), IntV(v2)) => FloatV(v1 / v2)
+      case (FloatV(v1), FloatV(v2)) => FloatV(v1 / v2)
+    }
+  })
+
+  def greater = PrimV({
+    case List(IntV(v1), IntV(v2)) => BoolV(v1 > v2)
+    case List(IntV(v1), FloatV(v2)) => BoolV(v1 > v2)
+    case List(FloatV(v1), IntV(v2)) => BoolV(v1 > v2)
+    case List(FloatV(v1), FloatV(v2)) => BoolV(v1 > v2)
+  })
+
+  def greatereq = PrimV({
+    case List(IntV(v1), IntV(v2)) => BoolV(v1 >= v2)
+    case List(IntV(v1), FloatV(v2)) => BoolV(v1 >= v2)
+    case List(FloatV(v1), IntV(v2)) => BoolV(v1 >= v2)
+    case List(FloatV(v1), FloatV(v2)) => BoolV(v1 >= v2)
+  })
+
+  def less = PrimV({
+    case List(IntV(a), IntV(b)) => BoolV(a < b)
+    case List(IntV(v1), FloatV(v2)) => BoolV(v1 < v2)
+    case List(FloatV(v1), IntV(v2)) => BoolV(v1 < v2)
+    case List(FloatV(v1), FloatV(v2)) => BoolV(v1 < v2)
+  })
+
+  def lesseq = PrimV({
+    case List(IntV(a), IntV(b)) => BoolV(a <= b)
+    case List(IntV(v1), FloatV(v2)) => BoolV(v1 <= v2)
+    case List(FloatV(v1), IntV(v2)) => BoolV(v1 <= v2)
+    case List(FloatV(v1), FloatV(v2)) => BoolV(v1 <= v2)
+  })
+
   def listdec = PrimV({ ListV(_) })
   def listcons = PrimV({ case List(v, ListV(l)) => ListV(v :: l) })
   def vecdec = PrimV({ (l: List[Value]) => VectorV(Vector() ++ l) })
@@ -156,7 +211,7 @@ object BigStepCES {
   def cdr = PrimV({ case List(ListV(l)) => ListV(l.tail) })
 
   def eq = PrimV({ case List(a, b) => BoolV(a == b) })
-  def mod = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (NumV(v1), NumV(v2)) => NumV(v1 % v2) } })
+  def mod = PrimV({ (l: List[Value]) => l.tail.foldLeft(l.head)  { case (IntV(v1), IntV(v2)) => IntV(v1 % v2) } })
 
   val initEnv = Map(
     "+" -> 1,
@@ -200,13 +255,13 @@ object BigStepCES {
 object CESKTest extends TestTrait {
   def testall() = {
     test("intlit") {
-      assert(BigStepCES.eval(IntLit(1))._1 == NumV(1))
+      assert(BigStepCES.eval(IntLit(1))._1 == IntV(1))
     }
 
     test("lam_app") {
       assert(BigStepCES.eval(
         App(Lam(List("x", "y"), Var("y")), List(IntLit(3), IntLit(4))))._1
-        == NumV(4))
+        == IntV(4))
     }
 
     test("control_case") {
@@ -227,7 +282,7 @@ object CESKTest extends TestTrait {
             CaseBranch(List(IntLit(1), BoolLit(true)), BoolLit(false)),
             CaseBranch(List(IntLit(7), IntLit(4)), BoolLit(true)),
             CaseBranch(List(), IntLit(42)))))._1
-        == NumV(42))
+        == IntV(42))
     }
 
     test("control_cond") {
@@ -236,7 +291,7 @@ object CESKTest extends TestTrait {
           CondBr(BoolLit(false), IntLit(103)),
           CondBr(IntLit(2), IntLit(104)),
           CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
-        == NumV(104))
+        == IntV(104))
     }
 
     test("control_cond_2") {
@@ -244,49 +299,63 @@ object CESKTest extends TestTrait {
         Cond(List(
           CondBr(BoolLit(false), IntLit(103)),
           CondProcBr(IntLit(7), Lam(List("x"), Var("x"))))))._1
-        == NumV(7))
+        == IntV(7))
     }
 
     test("prim_plus") {
       assert(BigStepCES.eval(
-        App(Var("+"), List(IntLit(2), IntLit(3))))._1 == NumV(5))
+        App(Var("+"), List(IntLit(2), IntLit(3))))._1 == IntV(5))
 
       assert(BigStepCES.eval(
-        App(Var("+"), List(IntLit(2), IntLit(3), IntLit(4), IntLit(5))))._1 == NumV(14))
+        App(Var("+"), List(IntLit(2), IntLit(3), IntLit(4), IntLit(5))))._1 == IntV(14))
     }
 
     test("prim_minus") {
       assert(BigStepCES.eval(
-        App(Var("-"), List(IntLit(7), IntLit(3))))._1 == NumV(4))
+        App(Var("-"), List(IntLit(7), IntLit(3))))._1 == IntV(4))
 
       assert(BigStepCES.eval(
-        App(Var("-"), List(IntLit(7), IntLit(3), IntLit(2), IntLit(1))))._1 == NumV(1))
+        App(Var("-"), List(IntLit(7), IntLit(3), IntLit(2), IntLit(1))))._1 == IntV(1))
     }
 
     test("prim_mul") {
       assert(BigStepCES.eval(
-        App(Var("*"), List(IntLit(7), IntLit(3))))._1 == NumV(21))
+        App(Var("*"), List(IntLit(7), IntLit(3))))._1 == IntV(21))
 
       assert(BigStepCES.eval(
-        App(Var("*"), List(IntLit(7), IntLit(6), IntLit(5), IntLit(2))))._1 == NumV(420))
+        App(Var("*"), List(IntLit(7), IntLit(6), IntLit(5), IntLit(2))))._1 == IntV(420))
     }
 
     test("prim_div") {
       assert(BigStepCES.eval(
-        App(Var("/"), List(IntLit(64), IntLit(2), IntLit(4))))._1 == NumV(8))
+        App(Var("/"), List(IntLit(64), IntLit(2), IntLit(4))))._1 == IntV(8))
 
       assert(BigStepCES.eval(
-        App(Var("/"), List(IntLit(64), IntLit(8))))._1 == NumV(8))
+        App(Var("/"), List(IntLit(64), IntLit(8))))._1 == IntV(8))
     }
 
     test("prim_list") {
       assert(BigStepCES.eval(
         App(Var("car"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
-        == NumV(5))
+        == IntV(5))
 
       assert(BigStepCES.eval(
         App(Var("cdr"), List(App(Var("list"), List(IntLit(5), IntLit(6), IntLit(7))))))._1
-        == ListV(List(NumV(6), NumV(7))))
+        == ListV(List(IntV(6), IntV(7))))
+    }
+
+    testOmit("float_int_interop") {
+      assert(BigStepCES.eval(
+        App(Var("+"), List(IntLit(1), FloatLit(1.5))))._1
+        == FloatV(2.5))
+
+      assert(BigStepCES.eval(
+        App(Var("-"), List(IntLit(2), FloatLit(3.25))))._1
+        == FloatV(-1.25))
+
+      assert(BigStepCES.eval(
+        App(Var("+"), List(IntLit(1), FloatLit(4.1), IntLit(2), FloatLit(1.5))))._1
+        == FloatV(8.6))
     }
   }
   def main(args: Array[String]) = {

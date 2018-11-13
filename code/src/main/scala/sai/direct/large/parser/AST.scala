@@ -24,6 +24,7 @@ case class Lrc(bds: List[Bind], body: Expr) extends Expr {
 }
 
 case class IntLit(x: Int) extends Expr
+case class FloatLit(x: Double) extends Expr
 case class BoolLit(x: Boolean) extends Expr
 case class CharLit(x: Char) extends Expr
 case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr
@@ -48,6 +49,7 @@ object SExpPrinter {
     case Sym(x) => "'" + x
     case CharLit(x)   => "#\\" + x
     case IntLit(x)    => x.toString
+    case FloatLit(x)  => x.toString
     case BoolLit(x)   => if (x) "#t" else "#f"
     case Set_!(x, e)  => "(set! " + x + " " + exprToString(e) + ")"
     case Define(x, e) => "(define " + x + " " + exprToString(e) + ")"

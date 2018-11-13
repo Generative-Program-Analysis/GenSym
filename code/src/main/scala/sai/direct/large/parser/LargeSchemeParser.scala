@@ -43,6 +43,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   }
 
   implicit def intlit: Parser[IntLit] = INT10 ^^ { IntLit(_) }
+  implicit def floatlit: Parser[FloatLit] = FLOAT ^^ { FloatLit(_) }
   implicit def boollit: Parser[BoolLit] = (TRUE | FALSE) ^^ { BoolLit(_) }
   implicit def charlit: Parser[CharLit] = CHARLIT ^^ {
     case s => CharLit(s.charAt(2))
@@ -57,7 +58,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case elements => App(Var("vector"), elements)
   }
 
-  implicit def literals = intlit | charlit | boollit | stringlit | vecsugar
+  implicit def literals = floatlit | intlit | charlit | boollit | stringlit | vecsugar
 
   implicit def ifthel: Parser[If] = LPAREN ~> IF ~> expr ~ expr ~ expr <~ RPAREN ^^ {
     case cond ~ thn ~ els => If(cond, thn, els)
@@ -129,7 +130,6 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
 
   def program = implicit_begin
 }
-
 
 object LargeSchemeParser extends LargeSchemeParserTrait {
   def apply(input: String): Option[Expr] = apply(program, input)
@@ -252,6 +252,12 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
       assert(LargeSchemeParser(T) == Some(BoolLit(true)))
       assert(LargeSchemeParser(f) == Some(BoolLit(false)))
       assert(LargeSchemeParser(F) == Some(BoolLit(false)))
+    }
+
+    test("float") {
+      assert(LargeSchemeParser("3.14") == Some(FloatLit(3.14)))
+      assert(LargeSchemeParser("-3.14") == Some(FloatLit(-3.14)))
+      assert(LargeSchemeParser("0.00000") == Some(FloatLit(0.0)))
     }
   }
 }

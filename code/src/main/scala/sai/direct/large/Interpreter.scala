@@ -28,7 +28,7 @@ object LargeSchemeInterpreter extends TestTrait {
 
   def testall() = {
     test("factorial") {
-      assert(CESK.NumV(40320) == apply(
+      assert(CESK.IntV(40320) == apply(
         """
         (letrec
           ([factorial
@@ -42,7 +42,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("imperative") {
-      assert(CESK.NumV(-2) == apply(
+      assert(CESK.IntV(-2) == apply(
         """
         (define a 1)
         (if (eq? a 1) (set! a -2) (void))
@@ -52,7 +52,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("euclid_imp") {
-      assert(CESK.NumV(8) == apply(
+      assert(CESK.IntV(8) == apply(
         """
         (define x 56)
         (define y 24)
@@ -66,17 +66,14 @@ object LargeSchemeInterpreter extends TestTrait {
                   (set! x y)
                   (set! y r)
                   (set! r (% x y))
-                  (loop_body)
-                )
-              )
-            )])
+                  (loop_body))))])
           (loop_body))
         """
       ))
     }
 
     test("euclid_rec") {
-      assert(CESK.NumV(8) == apply(
+      assert(CESK.IntV(8) == apply(
         """
         (letrec
           ([gcd
@@ -90,7 +87,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("define_euclid_rec") {
-      assert(CESK.NumV(8) == apply(
+      assert(CESK.IntV(8) == apply(
         """
         (define
           (gcd a b)
@@ -103,7 +100,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("fibonacci_slow_rec") {
-      assert(CESK.NumV(89) == apply(
+      assert(CESK.IntV(89) == apply(
         """
         (define
           (fib n)
@@ -116,7 +113,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("fibonacci_fast_imp") {
-      assert(CESK.NumV(1346269) == apply(
+      assert(CESK.IntV(1346269) == apply(
         """
         (define curr 1)
         (define prev 1)
@@ -165,7 +162,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("define_proc_rec") {
-      assert(CESK.NumV(243) == apply(
+      assert(CESK.IntV(243) == apply(
         """
         (define (pow a b) (if (eq? b 0) 1 (* a (pow a (- b 1)))))
         (pow 3 5)
@@ -174,7 +171,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("power_imp") {
-      assert(CESK.NumV(243) == apply(
+      assert(CESK.IntV(243) == apply(
         """
         (define (do_n_times n f)
           (if (eq? n 0)
@@ -192,7 +189,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("power_rec") {
-      assert(CESK.NumV(243) == apply(
+      assert(CESK.IntV(243) == apply(
         """
         (letrec
           ([pow (lambda (a b) (if (eq? b 0) 1 (* a (pow a (- b 1)))))])
@@ -202,7 +199,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("sum_list") {
-      assert(CESK.NumV(328569) == apply(
+      assert(CESK.IntV(328569) == apply(
         """
         (define (sum l) (if (eq? l '()) 0 (+ (car l) (sum (cdr l)))))
         (sum '(783 123 213 12 321 321321 3123 31 2321 321))
@@ -211,7 +208,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("hof_filter") {
-      assert(CESK.ListV(List(CESK.NumV(13), CESK.NumV(21), CESK.NumV(11), CESK.NumV(10))) == apply(
+      assert(CESK.ListV(List(CESK.IntV(13), CESK.IntV(21), CESK.IntV(11), CESK.IntV(10))) == apply(
         """
         (define nil '())
         (define (nil? l) (eq? l nil))
@@ -228,7 +225,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("hof_map") {
-      assert(CESK.ListV(List(CESK.NumV(3), CESK.NumV(4), CESK.NumV(5))) == apply(
+      assert(CESK.ListV(List(CESK.IntV(3), CESK.IntV(4), CESK.IntV(5))) == apply(
         """
         (define nil '())
         (define (nil? l) (eq? l nil))
@@ -245,7 +242,7 @@ object LargeSchemeInterpreter extends TestTrait {
     }
 
     test("hof_foldl") {
-      assert(CESK.NumV(328569) == apply("""
+      assert(CESK.IntV(328569) == apply("""
         (define nil '())
         (define (nil? l) (eq? l nil))
         (define (foldl f z l)
@@ -259,5 +256,20 @@ object LargeSchemeInterpreter extends TestTrait {
       ))
     }
 
+    test("quasiquote") {
+      assert(CESK.ListV(List(CESK.SymV("+"), CESK.IntV(1), CESK.IntV(2))) == apply("""
+        (car '((+ 1 2) hello))
+      """))
+
+      // unquote
+      assert(CESK.IntV(3) == apply("""
+        (car '(,(+ 1 2) hello))
+      """))
+
+      // symbol
+      assert(CESK.SymV("hello") == apply("""
+        (car (cdr '(,(+ 1 2) hello)))
+      """))
+    }
   }
 }

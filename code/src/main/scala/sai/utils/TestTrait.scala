@@ -33,6 +33,16 @@ trait TestTrait {
     }
   }
 
+  def doNothing(f: => Unit) = Unit
+
+  def testOmit(name: String) =
+    if (name == testNameFilter) {
+      test(name) _
+    } else {
+      omitted += 1
+      doNothing _
+    }
+
   def runtest(filter: String = "") = {
     testNameFilter = filter
     tests = 0
