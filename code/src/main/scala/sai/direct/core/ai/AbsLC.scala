@@ -102,7 +102,9 @@ object AbsLamCal {
       def ⊓(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 intersect l2
     }
     implicit def RepMapLattice[K:Typ, V:Typ:RepLattice]: RepLattice[Map[K, V]] = new RepLattice[Map[K, V]] {
-      lazy val bot: Rep[Map[K, V]] = Map[K, V]()
+      lazy val bot: Rep[Map[K, V]] = {
+        Map.empty[K, V]
+      }
       lazy val top: Rep[Map[K, V]] = throw new RuntimeException("No representation of top map")
       def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = {
         m1.foreach { case (k,v) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
@@ -157,44 +159,29 @@ object AbsLamCal {
     implicit def exprTyp: Typ[Expr]
     case class CacheFix(evev: EvalFun => EvalFun) {
       import CacheFix._
-      //var in: Var[Map[Config, (Value,Store)]] = Map[Config, (Value,Store)]()
-      //var out: Var[Map[Config, (Value,Store)]] = Map[Config, (Value,Store)]()
       var in = Map[Config, (Value,Store)]()
       var out = Map[Config, (Value,Store)]()
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-        System.out.println(s"calling cached_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        if (readVar(out).contains(cfg)) readVar(out).apply(cfg)
+        if (out.contains(cfg)) out(cfg)
         else {
-          val ans0: Ans = readVar(in).getOrElse(cfg, RepLattice[(Value, Store)].bot)
-          out = readVar(out) + (cfg -> ans0)
+          val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
+          out = out + (cfg -> ans0)
           val ans1: Ans = evev(cached_ev)(e, ρ, σ)
-          out = readVar(out) + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
+          out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans1, ans1))
           ans1
         }
       }
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
         def g: Rep[Unit => (Value,Store)] = fun { (u: Rep[Unit]) =>
-          System.out.println(s"calling g $e")
-          //in = readVar(out); out = Map[Config, (Value,Store)]();
+          in = out; out = Map[Config, (Value,Store)]();
           cached_ev(e, ρ, σ)
-          g(())
-          //if (readVar(in) === readVar(out)) readVar(out).apply((unit(e), ρ, σ))
-          //else g(())
+          if (in === out) out((unit(e), ρ, σ)) else g()
         }
-        g(())
+        g()
       }
     }
-    def fake_eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
-      case Lit(i) => (num(Lit(i)), σ)
-      case Var(x) => (get(σ, get(ρ, x)), σ)
-      case Lam(x, e) => (close(ev)(Lam(x, e), ρ), σ)
-      case App(e1, e2) =>
-        val (e1v, e1σ) = ev(e1, ρ, σ)
-        val (e2v, e2σ) = ev(e2, ρ, e1σ)
-        apply_closure(ev)(e1v, e2v, e2σ)
-    }
-    override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(fake_eval).iter(e, ρ, σ)
+    override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
   trait RepAbsInterpOpsExp extends RepAbsInterpOps with LMSOpsExp {
@@ -289,6 +276,6 @@ object AbsLamCalTest {
 
     val code = specialize(omega)
     println(code.code)
-    //code.eval(())
+    code.eval(())
   }
 }
