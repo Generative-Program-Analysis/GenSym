@@ -101,7 +101,7 @@ object LamCal {
     }
   }
 
-  trait LMSOps extends Dsl with MapOps with UncheckedOps with TupleOps with SetOps
+  trait LMSOps extends Dsl with MapOps with UncheckedOps with TupleOps with SetOps with TupledFunctions
   trait RepConcInterpOps extends Concrete with LMSOps {
     type R[+T] = Rep[T]
     implicit def valueTyp: Typ[Value]
@@ -139,7 +139,7 @@ object LamCal {
     }
   }
 
-  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp
+  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp with TupledFunctionsRecursiveExp
   trait RepConcInterpOpsExp extends RepConcInterpOps with LMSOpsExp {
     implicit def valueTyp: Typ[Value] = manifestTyp
     case class ApplyClosure(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]

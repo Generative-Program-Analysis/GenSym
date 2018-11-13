@@ -51,12 +51,18 @@ trait MyScalaGenTupledFunctions extends ScalaGenFunctions with GenericGenUnboxed
       val res = remap(m.typeArguments.last)
       //val targsUnboxed = targs.flatMap(t => unwrapTupleStr(t))
       val targsUnboxed = targs.map(t => unwrapTupleStr(t))
-      val size = targs.map(s => topLevelTupleSize(s)).foldLeft(0)(_ + _)
-      //println(s"targsUnboxed.length: ${targsUnboxed.length}")
-      //println(s"targsUnboxed: ${targsUnboxed.mkString(",")}")
-      val sep = if (targsUnboxed.length > 0) "," else ""
-      //"scala.Function" + (targsUnboxed.length) + "[" + targsUnboxed.mkString(",") + sep + res + "]"
-      s"scala.Function${size}[" + targsUnboxed.mkString(",") + sep + res + "]"
+      if (targsUnboxed.head == "Unit") { //FIXME: GW hack
+        val size = targs.map(s => topLevelTupleSize(s)).foldLeft(0)(_ + _)
+        val sep = if (targsUnboxed.tail.length > 0) "," else ""
+        s"scala.Function${size-1}[" + targsUnboxed.tail.mkString(",") + sep + res + "]"
+      } else {
+        val size = targs.map(s => topLevelTupleSize(s)).foldLeft(0)(_ + _)
+        //println(s"targsUnboxed.length: ${targsUnboxed.length}")
+        //println(s"targsUnboxed: ${targsUnboxed.mkString(",")}")
+        val sep = if (targsUnboxed.length > 0) "," else ""
+        //"scala.Function" + (targsUnboxed.length) + "[" + targsUnboxed.mkString(",") + sep + res + "]"
+        s"scala.Function${size}[" + targsUnboxed.mkString(",") + sep + res + "]"
+      }
 
     case _ => super.remap(m)
   }

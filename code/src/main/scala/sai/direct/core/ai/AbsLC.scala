@@ -173,7 +173,7 @@ object AbsLamCal {
         }
       }
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
-        def g: Rep[Unit => (Value,Store)] = fun { (u: Rep[Unit]) =>
+        def g: Rep[Unit => (Value,Store)] = fun { () =>
           in = out; out = Map[Config, (Value,Store)]();
           cached_ev(e, ρ, σ)
           if (in === out) out((unit(e), ρ, σ)) else g()

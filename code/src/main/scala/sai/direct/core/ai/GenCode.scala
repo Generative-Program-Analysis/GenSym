@@ -19,12 +19,13 @@ object RTSupport {
   }
 }
 import RTSupport._
+
 /*****************************************
- Emitting Generated Code                  
+ Emitting Generated Code
  *******************************************/
 class Snippet extends ((Unit)=>(Unit)) {
   def apply(x2:Unit): Unit = {
-    var x6 = null.asInstanceOf[scala.Function1[Unit,Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]]]]
+    var x6 = null.asInstanceOf[scala.Function0[Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]]]]
     val x3 = Map[Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]], Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]]]()
     var x5: scala.collection.immutable.Map[Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]], Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]]] = x3
     var x4: scala.collection.immutable.Map[Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]], Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]]] = x3
@@ -37,7 +38,7 @@ class Snippet extends ((Unit)=>(Unit)) {
     val x14 = Map.empty[Addr, scala.collection.immutable.Set[AbsValue]]
     val x15 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x13,x14)
     val x22 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lam("x",App(Var("x"),Var("x"))),x0,x1)
-    val x31 = {(x32:scala.collection.immutable.Set[AbsValue],x33:scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]) => 
+    val x31 = {(x32:scala.collection.immutable.Set[AbsValue],x33:scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]) =>
       val x36 = Addr("x")
       val x42 = x5
       val x37 = x0 + ("x" -> x36)
@@ -150,7 +151,7 @@ class Snippet extends ((Unit)=>(Unit)) {
 
       x136
     }
-    val x155 = {(x156:scala.collection.immutable.Set[AbsValue],x157:scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]) => 
+    val x155 = {(x156:scala.collection.immutable.Set[AbsValue],x157:scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]) =>
       val x160 = Addr("x")
       val x166 = x5
       val x161 = x0 + ("x" -> x160)
@@ -256,7 +257,7 @@ class Snippet extends ((Unit)=>(Unit)) {
       val x250 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x248,x249)
       x250: Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]]
     }
-    x6 = {(u: Unit) => 
+    x6 = {() =>
       val x7 = x5
       x4 = x7
       x5 = x3
@@ -358,7 +359,7 @@ class Snippet extends ((Unit)=>(Unit)) {
   }
 }
 /*****************************************
- End of Generated Code                  
+ End of Generated Code
  *******************************************/
 
 

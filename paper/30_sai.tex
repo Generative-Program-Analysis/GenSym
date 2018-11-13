@@ -117,19 +117,46 @@ is equivalent to the identifiers, then the environment component can be entirely
 and the store is a partially specialized map.
 \todo{maps to arrays}
 
+\subsection{Modular Analysis for Free}
+
+Motivation: one of the challenges of modern static analysis is program usually depends on
+large libraries programs\cite{toman_et_al:LIPIcs:2017:7121}. 
+Can we analyze programs and libraries separately without losing precision? So that we can 
+reduce part of the overhead of repeatedly analyzing libraries for different programs.
+Similarly, some static analyzers compute summary for a function or a module, that can be reused
+later (like Facebook Infer). But to my knowledge, they are mostly too conservative (context-insensitive) 
+or unsound, which both lead to imprecision.
+
+Application: for example, k-CFA (k > 0) is naturally a kind of whole program analysis,
+because it is interprocedural and need the last k calling contexts to distinguish
+different call sites.
+But can we analyze programs (libraries) separately which generate the specialized 
+analysis and leave the unavailable programs (for the moment) as dynamic parameters, 
+and then install these contexts when we have the whole program.
+
+Another perspective: programs are data for an abstract interpreter, so if we have $n$ programs, 
+then maybe there can be $n$ stages. 
+Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
+waiting for the rest $(n-m)$ programs.
+These $(n-m)$ programs might be (abstract) arguments for the first $n$ programs, and
+the abstract interpreter itself might be a partial abstract interpreter.
+
 \subsection{Discussion}
+Review a little bit what we have done?
 what not to do when writing an abstract interpreter for staging?
 what kind of abstract interpreter is friendly for staging/specialization?
 
 Stage an abstract abstract machine yields another small-step abstract machine
 
-Big-step vs small-step
+\paragraph{Big-step vs Small-step.}
 
 direct-style vs CPS
 
 Operational vs denotational
 
 General insights for staging other static analysis algorithm.
+
+\paragraph{Soudness.}
 
 \cite{10.1007/3-540-61580-6_11}
 
