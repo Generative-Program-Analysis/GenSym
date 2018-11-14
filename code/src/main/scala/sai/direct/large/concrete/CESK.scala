@@ -307,6 +307,9 @@ object CESKTest extends TestTrait {
         App(Var("+"), List(IntLit(2), IntLit(3))))._1 == IntV(5))
 
       assert(BigStepCES.eval(
+        App(Var("+"), List(FloatLit(0.5), FloatLit(0.5))))._1 == FloatV(1.0))
+
+      assert(BigStepCES.eval(
         App(Var("+"), List(IntLit(2), IntLit(3), IntLit(4), IntLit(5))))._1 == IntV(14))
     }
 
