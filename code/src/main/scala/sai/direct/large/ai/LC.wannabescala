@@ -129,32 +129,53 @@ object LamCal {
     def put(σ: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = σ + (a → v)
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = σ.size + 1
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
-      val Lam(x, e) = λ
+      val Lam(args, e) = λ
       // TODO: runtime error when using pattern matching
       // scala.MatchError: UnboxedTuple(List(Sym(7), Sym(8))) (of class scala.lms.common.TupledFunctionsExp$UnboxedTuple)
       //val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = {
       //  case (arg: Rep[Value], σ: Rep[Store]) =>
-      val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = (as: Rep[(Value, Store)]) => {
-        val arg = as._1; val σ = as._2;
-        val α = alloc(σ, x)
-        ev(e, put(ρ, x, α), put(σ, α, arg))
+      val f: Rep[(List[Value],Store)]=>Rep[(List[Value],Store)] = (as: Rep[(List[Value], Store)]) => {
+        val argvs = as._1; val σ = as._2;
+        val (ρ_*, σ_*) = (args zip argvs) foldLeft((ρ, σ)) {
+          case ((ρ_, σ_), (argn, argv)) =>
+            val α = alloc(σ_, argn)
+            (put(ρ_, argn, α), put(σ_, α, argv))
+        }
+        ev(e, ρ_*, σ_*)
       }
       unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
     }
-    def num(i: Lit): Rep[Value] = {
-      unchecked("NumV(", i.i, ")")
+    def int(i: Lit): Rep[Value] = {
+      unchecked("IntV(", i.i, ")")
     }
-    def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-      val i = unchecked[Int](cnd, ".asInstanceOf[NumV].i")
-      (if (i == 0) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
+
+    def bool(b: BoolLit): Rep[Value] = {
+      unchecked("BoolV(", b.b, ")")
+    }
+
+    def float(f: FloatLit): Rep[Value] = {
+      unchecked("FloatV(", f.f, ")")
+    }
+
+    def char(c: CharLit): Value = CharV(c.x) = {
+      unchecked("CharV(", c.c, ")")
+    }
+
+    def void(): Rep[Value} = {
+      unchecked("VoidV()")
+    }
+
+    def branch(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
+      val b = unchecked[Bool](cnd, ".asInstanceOf[BoolV].b")
+      (if (b) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
     }
   }
 
   trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp with TupledFunctionsRecursiveExp
   trait RepConcInterpOpsExp extends RepConcInterpOps with LMSOpsExp {
     implicit def valueTyp: Typ[Value] = manifestTyp
-    case class ApplyClosure(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
-    def apply_closure(ev: EvalFun)(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Ans = {
+    case class ApplyClosure(f: Rep[Value], arg: List[Rep[Value]], σ: Rep[Store]) extends Def[(Value, Store)]
+    def apply_closure(ev: EvalFun)(f: Rep[Value], arg: List[Rep[Value]], σ: Rep[Store]): Ans = {
       reflectEffect(ApplyClosure(f, arg, σ))
     }
   }
@@ -164,8 +185,11 @@ object LamCal {
     import IR._
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
       //case ApplyClosure(f, arg, σ) => emitValDef(sym, "apply_closure_norep(" + quote(f) + "," + quote(arg) + "," + quote(σ) + ")")
-      case ApplyClosure(f, arg, σ) => emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(" + quote(arg) + "," + quote(σ) + ")")
+      case ApplyClosure(f, args, σ) =>
+        val argsstr = args.map(quote).mkString(", ")
+        emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(" + argsstr + "," + quote(σ) + ")")
       case Struct(tag, elems) =>
+        //
         //TODO: merge back to LMS
         registerStruct(structName(sym.tp), elems)
         val typeName = sym.tp.runtimeClass.getSimpleName + "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
@@ -203,8 +227,16 @@ object LamCal {
   import sai.direct.core.parser._
   object RTSupport {
     trait Value
-    case class NumV(i: Int) extends Value
-    case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
+    case class IntV(i: Int) extends Value
+    case class FloatV(d: Double) extends Value
+    case class CharV(c: Char) extends Value
+    case class BoolV(b: Boolean) extends Value
+    case class ListV(l: List[Value]) extends Value
+    case class VectorV(v: Vector[Value]) extends Value
+    case class PrimV(f: List[Value] => Value) extends Value
+    case class VoidV() extends Value
+    case class SymV(s: String) extends Value
+    case class CompiledClo(f: (List[Value], Map[Int,Value]) => (List[Value], Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
 /*
     def apply_closure_norep(f: Value, arg: Value, σ: Map[Int,Value]) = f match {
       case CompiledClo(fun, λ, ρ) => fun(arg, σ)
