@@ -1,11 +1,12 @@
 package sai.direct.large.parser
 
 trait Expr
+trait SmallExpr
 
-case class Sym(x: String) extends Expr
-case class Var(x: String) extends Expr
-case class App(e1: Expr, param: List[Expr]) extends Expr
-case class Lam(param: List[String], body: Expr) extends Expr
+case class Sym(x: String) extends Expr with SmallExpr
+case class Var(x: String) extends Expr with SmallExpr
+case class App(e1: Expr, param: List[Expr]) extends Expr with SmallExpr
+case class Lam(param: List[String], body: Expr) extends Expr with SmallExpr
 
 case class Bind(x: String, e: Expr) {
   def toSet: Set_! = Set_!(x, e)
@@ -23,11 +24,11 @@ case class Lrc(bds: List[Bind], body: Expr) extends Expr {
       Begin(bds.map(_.toSet) ++ List(body))).toApp
 }
 
-case class IntLit(x: Int) extends Expr
-case class FloatLit(x: Double) extends Expr
-case class BoolLit(x: Boolean) extends Expr
-case class CharLit(x: Char) extends Expr
-case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr
+case class IntLit(x: Int) extends Expr with SmallExpr
+case class FloatLit(x: Double) extends Expr with SmallExpr
+case class BoolLit(x: Boolean) extends Expr with SmallExpr
+case class CharLit(x: Char) extends Expr with SmallExpr
+case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr with SmallExpr
 
 trait CondBrTrait { val cnd: Expr; val thn: Expr }
 case class CondBr(cnd: Expr, thn: Expr) extends CondBrTrait
@@ -37,8 +38,8 @@ case class Cond(branches: List[CondBrTrait]) extends Expr
 case class CaseBranch(cases: List[Expr], thn: Expr)
 case class Case(e: Expr, branches: List[CaseBranch]) extends Expr
 
-case class Void() extends Expr
-case class Set_!(x: String, e: Expr) extends Expr
+case class Void() extends Expr with SmallExpr
+case class Set_!(x: String, e: Expr) extends Expr with SmallExpr
 case class Begin(es: List[Expr]) extends Expr
 case class Define(x: String, e: Expr) extends Expr
 
