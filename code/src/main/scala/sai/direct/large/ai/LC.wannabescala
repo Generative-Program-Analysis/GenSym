@@ -51,8 +51,8 @@ object LamCal {
       case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
       case App(e1, args) =>
         val (e1v, e1σ) = ev(e1, ρ, σ)
-        val (σf, lrv) = args foldRight((e1σ, List[R[Value]]())) {
-          case (arg, (σ, lrv)) =>
+        val (σf, lrv) = args foldLeft((e1σ, List[R[Value]]())) {
+          case ((σ, lrv), arg) =>
             val (pv, pσ) = ev(arg, ρ, σ)
             (pσ, lrv :+ pv)
         }
@@ -105,8 +105,8 @@ object LamCal {
     def apply_closure(ev: EvalFun)(f: Value, argvs: List[Value], σ: Store): Ans = f match {
       // TODO: What about PrimV? Load them into initial context?
       case CloV(Lam(args, e), ρ) =>
-        val (ρ_*, σ_*) = (args zip argvs) foldRight((ρ, σ)) {
-          case ((argn, argv), (ρ_, σ_)) =>
+        val (ρ_*, σ_*) = (args zip argvs) foldLeft((ρ, σ)) {
+          case ((ρ_, σ_), (argn, argv)) =>
             val α = alloc(σ_, argn)
             (put(ρ_, argn, α), put(σ_, α, argv))
         }

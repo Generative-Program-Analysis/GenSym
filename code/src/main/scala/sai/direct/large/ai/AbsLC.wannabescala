@@ -1,4 +1,4 @@
-package sai.direct.core.ai
+package sai.direct.large.ai
 
 import scala.util.continuations._
 import scala.language.implicitConversions
@@ -21,8 +21,17 @@ object AbsLamCal {
   trait Abstract extends Semantics {
     case class Addr(x: Ident)
     sealed trait AbsValue
+    case class PrimV(f: List[Value] => Value) extends Value
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
     case class NumV() extends AbsValue
+    case class IntV() extends AbsValue
+    case class FloatV() extends AbsValue
+    case class CharV() extends AbsValue
+    case class BoolV() extends AbsValue
+    case class ListV() extends AbsValue
+    case class VectorV() extends AbsValue
+    case class VoidV() extends AbsValue
+    case class SymV() extends AbsValue
     type Value = Set[AbsValue]
     type Env = Map[Ident, Addr]
     type Store = Map[Addr, Value]
@@ -42,7 +51,11 @@ object AbsLamCal {
     }
     def alloc(σ: Store, x: Ident): Addr = Addr(x)
     def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
-    def num(i: Lit): Value = Set(NumV())
+    def int(i: Lit): Value = Set(IntV())
+    def bool(b: BoolLit): Value = Set(BoolV())
+    def float(f: FloatLit): Value = Set(FloatV())
+    def char(c: CharLit): Value = Set(CharV())
+    def void(): Value = Set(VoidV())
     def apply_closure(ev: EvalFun)(f: Value, arg: Value, σ: Store): Ans = {
       var σ0 = σ
       val vs = for (CloV(Lam(x, e), ρ) <- f) yield {
@@ -54,7 +67,7 @@ object AbsLamCal {
       }
       (vs.reduce(Lattice[Value].⊔), σ0)
     }
-    def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = {
+    def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = {
       thn ⊔ els //FIXME
       //(GenericLattice[Value,R].⊔(thn._1, els._1), Lattice[Store].⊔(thn._2, els._2))
     }
