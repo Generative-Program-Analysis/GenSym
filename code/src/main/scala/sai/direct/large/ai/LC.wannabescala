@@ -35,36 +35,54 @@ object LamCal {
     def bool(b: BoolLit): R[Value]
     def float(f: FloatLit): R[Value]
     def char(c: CharLit): R[Value]
-    def apply_closure(ev: EvalFun)(f: R[Value], arg: R[Value], σ: R[Store]): Ans
-    def branch0(cnd: R[Value], thn: => Ans, els: => Ans): Ans
+    def void(): R[Value]
+    def apply_closure(ev: EvalFun)(f: R[Value], args: List[R[Value]], σ: R[Store]): Ans
+    def branch(cnd: R[Value], thn: => Ans, els: => Ans): Ans
     val ρ0: R[Env]; val σ0: R[Store]
-    type EvalFun = (Expr, R[Env], R[Store]) => Ans
+    type EvalFun = (SmallExpr, R[Env], R[Store]) => Ans
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
-    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
+    def eval(ev: EvalFun)(e: SmallExpr, ρ: R[Env], σ: R[Store]): Ans = e match {
+      case Sym(_) => (sym(e), σ)
+      case Var(x) => (get(σ, get(ρ, x)), σ)
       case IntLit(_) => (int(e), σ)
       case FloatLit(_) => (float(e), σ)
       case BoolLit(_) => (bool(e), σ)
       case CharLit(_) => (char(e), σ)
-      case Sym(_) => (sym(e), σ)
-      case Var(x) => (get(σ, get(ρ, x)), σ)
-      case Lam(x, e) => (close(ev)(Lam(x, e), ρ), σ) // FIXME: List of args
-      case App(e1, e2) => // FIXME: List of args
+      case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
+      case App(e1, args) =>
         val (e1v, e1σ) = ev(e1, ρ, σ)
-        val (e2v, e2σ) = ev(e2, ρ, e1σ)
-        apply_closure(ev)(e1v, e2v, e2σ)
-      case If0(cnd, thn, els) => // FIXME:
+        val (σf, lrv) = args foldRight((e1σ, List[R[Value]]())) {
+          case (arg, (σ, lrv)) =>
+            val (pv, pσ) = ev(arg, ρ, σ)
+            (pσ, lrv :+ pv)
+        }
+        apply_closure(ev)(e1v, lrv, σf)
+      case If(cnd, thn, els) =>
         val (cndv, cndσ) = ev(cnd, ρ, σ)
-        branch0(cndv, ev(thn, ρ, cndσ), ev(els, ρ, cndσ))
+        branch(cndv, ev(thn, ρ, cndσ), ev(els, ρ, cndσ))
+      case Void() => (void(), σ)
+      case Set_!(x, e) =>
+        val (v, σ_) = ev(e, ρ, σ)
+        (void(), put(σ_, get(ρ, x), v))
     }
-    def eval_top(e: Expr): Ans = eval_top(e, ρ0, σ0)
-    def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = fix(eval)(e, ρ, σ)
+    def eval_top(e: SmallExpr): Ans = eval_top(e, ρ0, σ0)
+    def eval_top(e: SmallExpr, ρ: R[Env], σ: R[Store]): Ans = fix(eval)(e, ρ, σ)
   }
 
   trait Concrete extends Semantics {
     type Addr = Int
     sealed trait Value
+    case class IntV(i: Int) extends Value
+    case class FloatV(d: Double) extends Value
+    case class CharV(c: Char) extends Value
+    case class BoolV(b: Boolean) extends Value
+    case class ListV(l: List[Value]) extends Value
+    case class VectorV(v: Vector[Value]) extends Value
     case class CloV(λ: Lam, ρ: Env) extends Value
-    case class NumV(i: Int) extends Value
+    case class PrimV(f: List[Value] => Value) extends Value
+    case class VoidV() extends Value
+    case class SymV(s: String) extends Value
+
     type Env = Map[Ident, Addr]
     type Store = Map[Addr, Value]
   }
@@ -79,16 +97,23 @@ object LamCal {
     def put(σ: Store, a: Addr, v: Value): Store = σ + (a → v)
     def alloc(σ: Store, x: Ident): Addr = σ.size + 1
     def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
-    def num(i: Lit): Value = NumV(i.i)
-    def apply_closure(ev: EvalFun)(f: Value, arg: Value, σ: Store): Ans = f match {
-      case CloV(Lam(x, e), ρ) =>
-        val α = alloc(σ, x)
-        val ρ_* = put(ρ, x, α)
-        val σ_* = put(σ, α, arg)
+    def int(i: IntLit): Value = IntV(i.x)
+    def bool(b: BoolLit): Value = BoolV(b.x)
+    def float(f: FloatLit): Value = FloatV(f.x)
+    def char(c: CharLit): Value = CharV(c.x)
+    def void(): Value = VoidV()
+    def apply_closure(ev: EvalFun)(f: Value, argvs: List[Value], σ: Store): Ans = f match {
+      // TODO: What about PrimV? Load them into initial context?
+      case CloV(Lam(args, e), ρ) =>
+        val (ρ_*, σ_*) = (args zip argvs) foldRight((ρ, σ)) {
+          case ((argn, argv), (ρ_, σ_)) =>
+            val α = alloc(σ_, argn)
+            (put(ρ_, argn, α), put(σ_, α, argv))
+        }
         ev(e, ρ_*, σ_*)
     }
-    def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = cnd match {
-      case NumV(i) => if (i == 0) thn else els
+    def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = cnd match {
+      case BoolV(b) => if (b) thn else els
     }
   }
 
@@ -198,7 +223,7 @@ object LamCal {
 object SADI5 {
   import LamCal._
   def main(args: Array[String]) {
-    def specialize(p: Expr): DslDriver[Unit, Unit] =
+    def specialize(p: SmallExpr): DslDriver[Unit, Unit] =
       new RepConcSemDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
