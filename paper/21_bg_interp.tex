@@ -118,7 +118,7 @@ Obviously, the unstaged higher-kinded type then can be simply instantiated as an
 \texttt{type R[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
 as a staging annotation. \todo{where talk about stage poly?}
 
-\subsection{Concrete Instantiation}
+\subsection{Concrete Instantiation} \label{unstaged_conc}
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
 Since the interpreter is concrete, for the propose that properly models the heap, the type \texttt{Int} 
 is used for address space \texttt{Addr}. The environment and store are just ordinary \texttt{Map} in Scala.
