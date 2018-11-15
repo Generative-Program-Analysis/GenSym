@@ -91,9 +91,11 @@ def apply_closure(ev: EvalFun)
 \end{lstlisting}
 
 When generating code for application, we can not directly apply the callee.
-Instead, we emit code that calls a next-stage function @apply_closures_norep@ 
-which non-deterministically applies multiple target closure with the argument
+Instead, we emit code that calls a next-stage function @apply_closures_norep@.
+Function @apply_closures_norep@ does the same job as its unstaged version,
+which non-deterministically applies multiple target closures with the argument
 and latest store, and finally returns the joined value and a single store.
+We provide the definition of @apply_closures_norep@ in the runtime supporting code.
 
 \begin{lstlisting}
 case ApplyClosures(fs, arg, $\sigma$) =>
@@ -102,12 +104,51 @@ case ApplyClosures(fs, arg, $\sigma$) =>
                   "," + quote($\sigma$) + ")")
 \end{lstlisting}
 
-\subsection{Staged Fixpoint Iteration.} 
-\todo{staged fixed point iteration with memoization}
+\subsection{Staged Fixpoint Iteration} 
+
+Our fixed-point iteration relies two caches @in@ and @out@, but the iteration 
+can not be done at the current stage.
+Because the @in@ and @out@ are both next-stage values, thus the test of whether 
+@in@ and @out@ are equal is a generated expression to the next stage, and we can only 
+know the comparison result at the next stage. 
+In other words, we do not know how many iterations we need to reach the fixed-point.
+To achieve this, we need to stage a
+function --- @iter_aux@ is generated as a recursive function of type @Rep[Unit => (Value,Store)]@
+and will be invoked at the next stage.
+
+\begin{lstlisting}
+def iter(e: Expr, $\rho$: Rep[Env], $\sigma$: Rep[Store]): 
+Rep[(Value,Store)] = {
+  def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
+    in = out; out = Map[Config, (Value,Store)]()
+    cached_ev(e, $\rho$, $\sigma$)
+    if (in === out) out((unit(e), $\rho$, $\sigma$)) else iter_aux()
+  }
+  iter_aux() // generated code that invokes iter_aux()
+}
+\end{lstlisting}
+
+However, the instrumented evaluation function that uses @in@ cache and updates @out@ cache
+can be completely eliminated by staging. Each recursive call to @cached_ev@ will also be specialized
+if it is applied on subexpressions of the analyzed program.
+
+\begin{lstlisting}
+def cached_ev(e: Expr, $\rho$: Rep[Env], $\sigma$: Rep[Store]): 
+Rep[(Value, Store)] = {
+  val cfg: Rep[Config] = (unit(e), $\rho$, $\sigma$)
+  if (out.contains(cfg)) { out(cfg) }
+  else {
+    val ans0 = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
+    out = out + (cfg -> ans0)
+    val ans1 = evev(cached_ev)(e, $\rho$, $\sigma$)
+    out = out + (cfg -> (ans0 $\sqcup$ ans1)); ans1
+  }
+}
+\end{lstlisting}
 
 \subsection{Specialized Data Structures}
 
-Now we already obtained a working version of staged abstract interpter that is able to 
+Now we already obtained an end-to-end staged abstract interpreter that is able to 
 specialize an analysis. However, we treat the data structures such as @Map@s as black-boxes,
 which means any operations on a @Map@ becomes code in the next stage.
 But, as we identified before \todo{where}, the keys of environment are identifiers in the program,

@@ -14,7 +14,7 @@ for custom class is also straightforward. Let's go back and see how LMS can be u
 we mentioned in Section 1.
 
 \begin{lstlisting}
-.. = new DslDriver[Int, Int] {
+new DslDriver[Int, Int] {
   def power(b: Rep[Int], x: Int): Rep[Int] =
     if (x == 0) 1 else b * power(b, x-1)
   def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
