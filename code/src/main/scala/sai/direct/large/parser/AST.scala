@@ -53,7 +53,9 @@ case class CaseBranch(cases: List[Expr], thn: Expr)
 case class Case(e: Expr, branches: List[CaseBranch]) extends Expr
 
 case class Void() extends Expr with SmallExpr
-case class Set_!(x: String, e: Expr) extends Expr with SmallExpr
+case class Set_!(x: String, e: Expr) extends Expr with SmallExpr {
+  override def toString: String = "Set_!(\"" + x + "\", " + e + ")"
+}
 case class Begin(es: List[Expr]) extends Expr
 case class Define(x: String, e: Expr) extends Expr
 

@@ -1,5 +1,7 @@
 package sai.direct.large.ai
 
+import sai.direct.large.parser._
+
 import scala.util.continuations._
 import scala.language.implicitConversions
 import scala.language.higherKinds
@@ -24,6 +26,7 @@ object LamCal {
     type Env
     type Store
     type Ans = (R[Value], R[Store])
+    val primops = Set("+", "-", "*", "/", "%", "eq?", ">", "<", ">=", "<=")
     def get(ρ: R[Env], x: Ident): R[Addr]
     def put(ρ: R[Env], x: Ident, a: R[Addr]): R[Env]
     def get(σ: R[Store], a: R[Addr]): R[Value]
@@ -37,6 +40,7 @@ object LamCal {
     def char(c: CharLit): R[Value]
     def void(): R[Value]
     def apply_closure(ev: EvalFun)(f: R[Value], args: List[R[Value]], σ: R[Store]): Ans
+    def prim_eval(op: String, v1: R[Value], v2: R[Value]): R[Value]
     def branch(cnd: R[Value], thn: => Ans, els: => Ans): Ans
     val ρ0: R[Env]; val σ0: R[Store]
     type EvalFun = (Expr, R[Env], R[Store]) => Ans
@@ -49,6 +53,10 @@ object LamCal {
       case BoolLit(b) => (bool(BoolLit(b)), σ)
       case CharLit(c) => (char(CharLit(c)), σ)
       case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
+      case App(Var(op), List(e1, e2)) if (primops(op)) =>
+        val (e1v, e1σ) = ev(e1, ρ, σ)
+        val (e2v, e2σ) = ev(e2, ρ, e1σ)
+        (prim_eval(op, e1v, e2v), e2σ)
       case App(e1, args) =>
         val (e1v, e1σ) = ev(e1, ρ, σ)
         val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((e1σ, List[R[Value]]()))) {
@@ -113,6 +121,18 @@ object LamCal {
         }
         ev(e, ρ_*, σ_*)
     }
+    def prim_eval(op: String, v1: Value, v2: Value): Value = (op, v1, v2) match {
+      case ("+", IntV(n1), IntV(n2)) => IntV(n1 + n2)
+      case ("-", IntV(n1), IntV(n2)) => IntV(n1 - n2)
+      case ("*", IntV(n1), IntV(n2)) => IntV(n1 * n2)
+      case ("/", IntV(n1), IntV(n2)) => IntV(n1 / n2)
+      case ("%", IntV(n1), IntV(n2)) => IntV(n1 % n2)
+      case ("eq?", v1, v2) => BoolV(v1 == v2)
+      case (">", IntV(n1), IntV(n2)) => BoolV(n1 > n2)
+      case ("<", IntV(n1), IntV(n2)) => BoolV(n1 < n2)
+      case (">=", IntV(n1), IntV(n2)) => BoolV(n1 >= n2)
+      case ("<=", IntV(n1), IntV(n2)) => BoolV(n1 <= n2)
+    }
     def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = cnd match {
       case BoolV(b) => if (b) thn else els
     }
@@ -148,6 +168,15 @@ object LamCal {
         ev(e, ρ_*, σ_*)
       }
       unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+    }
+
+    def prim_eval(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = op match {
+      case "eq?" =>
+        unchecked("BoolV(", v1, " == ", v2, ")")
+      case _ =>
+        val v1i = unchecked(v1, ".asInstanceOf[IntV].i")
+        val v2i = unchecked(v2, ".asInstanceOf[IntV].i")
+        unchecked("IntV(", v1i, op, v2i, ")")
     }
 
     def sym(s: Sym): Rep[Value] = {
@@ -273,18 +302,19 @@ object SADI5 {
       }
 
     val id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
-    /*
-    val fact = Lam("n",
-                   If0(Var("n"),
-                       Lit(1),
-                       AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
-    val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
-    */
-    val code = specialize(id4)
+    val oneplusone = App(Var("+"), List(IntLit(1), IntLit(1)))
+
+    val prog = "(define (fact n) (if (eq? n 0) 1 (* n (fact (- n 1))))) (fact 5)"
+    val ast = LargeSchemeParser(prog) match {
+      case Some(expr) =>
+        LargeSchemeASTDesugar(expr)
+    }
+
+    val code = specialize(ast)
     println(code.code)
     code.eval(())
     //println(ConcInterp.eval_top(id4))
-    println(ConcInterp.eval_top(id4))
+    println(ConcInterp.eval_top(ast))
 
   }
 }
