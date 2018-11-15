@@ -196,7 +196,7 @@ object LamCal {
       //case ApplyClosure(f, arg, σ) => emitValDef(sym, "apply_closure_norep(" + quote(f) + "," + quote(arg) + "," + quote(σ) + ")")
       case ApplyClosure(f, args, σ) =>
         val argsstr = args.map(quote).mkString(", ")
-        emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(" + argsstr + "," + quote(σ) + ")")
+        emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(List(" + argsstr + ")," + quote(σ) + ")")
       case Struct(tag, elems) =>
         //
         //TODO: merge back to LMS
@@ -233,7 +233,7 @@ object LamCal {
                                        className: String,
                                        stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
         val prelude = """
-  import sai.direct.core.parser._
+  import sai.direct.large.parser._
   object RTSupport {
     trait Value
     case class IntV(i: Int) extends Value
@@ -271,19 +271,20 @@ object SADI5 {
           println(v); println(s)
         }
       }
-  /*
-    val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))
+
+    val id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
+    /*
     val fact = Lam("n",
                    If0(Var("n"),
                        Lit(1),
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
-
-    val code = specialize(fact5)
+    */
+    val code = specialize(id4)
     println(code.code)
     code.eval(())
     //println(ConcInterp.eval_top(id4))
-    println(ConcInterp.eval_top(fact5))
-  */
+    println(ConcInterp.eval_top(id4))
+
   }
 }

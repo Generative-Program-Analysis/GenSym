@@ -134,8 +134,8 @@ object AbsLamCal {
     implicit def addrTyp: Typ[Addr]
     val ρ0: Rep[Env] = Map[Ident, Addr]()
     val σ0: Rep[Store] = Map[Addr, Value]()
-    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(h(x))
-    def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = (unit(x) → a)
+    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(x)
+    def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = ρ + (unit(x) → a)
     def get(σ: Rep[Store], a: Rep[Addr]): Rep[Value] = σ.getOrElse(a, RepLattice[Value].bot)
     def put(σ: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = {
       val oldv = get(σ, a); σ + (a → RepLattice[Value].⊔(v, oldv))

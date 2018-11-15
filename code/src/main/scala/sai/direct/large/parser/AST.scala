@@ -3,12 +3,24 @@ package sai.direct.large.parser
 trait Expr
 trait SmallExpr
 
-case class Sym(x: String) extends Expr with SmallExpr
-case class Var(x: String) extends Expr with SmallExpr
+case class Sym(x: String) extends Expr with SmallExpr {
+  override def toString: String = "Sym(\"" + x + "\")"
+}
+
+case class Var(x: String) extends Expr with SmallExpr {
+  override def toString: String = "Var(\"" + x + "\")"
+}
 case class App(e1: Expr, param: List[Expr]) extends Expr with SmallExpr
-case class Lam(param: List[String], body: Expr) extends Expr with SmallExpr
+case class Lam(param: List[String], body: Expr) extends Expr with SmallExpr {
+
+  override def toString: String = {
+    val list = param map { s => "\"" + s + "\"" } mkString (", ")
+    "Lam(List(" + list + "), " + body + ")"
+  }
+}
 
 case class Bind(x: String, e: Expr) {
+  override def toString: String = "Bind(\"" + x + "\" " + e + ")"
   def toSet: Set_! = Set_!(x, e)
 }
 case class Let(bds: List[Bind], body: Expr) extends Expr {
@@ -27,7 +39,9 @@ case class Lrc(bds: List[Bind], body: Expr) extends Expr {
 case class IntLit(x: Int) extends Expr with SmallExpr
 case class FloatLit(x: Double) extends Expr with SmallExpr
 case class BoolLit(x: Boolean) extends Expr with SmallExpr
-case class CharLit(x: Char) extends Expr with SmallExpr
+case class CharLit(x: Char) extends Expr with SmallExpr {
+  override def toString: String = "CharLit('" + x + "')"
+}
 case class If(cnd: Expr, thn: Expr, els: Expr) extends Expr with SmallExpr
 
 trait CondBrTrait { val cnd: Expr; val thn: Expr }
