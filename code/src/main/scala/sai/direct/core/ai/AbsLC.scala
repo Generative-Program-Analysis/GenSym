@@ -125,12 +125,17 @@ object AbsLamCal {
     }
 
     type R[+T] = Rep[T]
+
+    //val h = new scala.collection.mutable.HashMap[String, Int]()
+    //var next: Int = 0
+    //h(x) = next; next += 1; \rho  += a
+
     implicit def absValueTyp: Typ[AbsValue]
     implicit def addrTyp: Typ[Addr]
     val ρ0: Rep[Env] = Map[Ident, Addr]()
     val σ0: Rep[Store] = Map[Addr, Value]()
-    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(x)
-    def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = ρ + (unit(x) → a)
+    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(h(x))
+    def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = (unit(x) → a)
     def get(σ: Rep[Store], a: Rep[Addr]): Rep[Value] = σ.getOrElse(a, RepLattice[Value].bot)
     def put(σ: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = {
       val oldv = get(σ, a); σ + (a → RepLattice[Value].⊔(v, oldv))
@@ -162,9 +167,9 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
 
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
+        println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        //if (out.contains(cfg)) { out(cfg) } //FIXME: the generated code doesn't work; hack using getOrElse
-        if (out.contains(cfg)) { out.getOrElse(cfg, RepLattice[(Value,Store)].bot) }
+        if (out.contains(cfg)) { out(cfg) }
         else {
           val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
           out = out + (cfg -> ans0)
@@ -175,6 +180,7 @@ object AbsLamCal {
       }
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
         def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
+          println(s"Start iteration ${e}")
           in = out; out = Map[Config, (Value,Store)]()
           cached_ev(e, ρ, σ)
           if (in === out) out((unit(e), ρ, σ)) else iter_aux()

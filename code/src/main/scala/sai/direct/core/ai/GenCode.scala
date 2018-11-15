@@ -19,9 +19,8 @@ object RTSupport {
   }
 }
 import RTSupport._
-
 /*****************************************
- Emitting Generated Code
+ Emitting Generated Code                  
  *******************************************/
 class Snippet extends ((Unit)=>(Unit)) {
   def apply(x2:Unit): Unit = {
@@ -32,19 +31,21 @@ class Snippet extends ((Unit)=>(Unit)) {
     val x0 = Map[java.lang.String, Addr]()
     val x1 = Map[Addr, scala.collection.immutable.Set[AbsValue]]()
     val x10 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Rec("fact",Lam("n",If0(Var("n"),Lit(1),AOp('*,Var("n"),App(Var("fact"),AOp('-,Var("n"),Lit(1)))))),App(Var("fact"),Lit(5))),x0,x1)
+
     val x11 = x3.contains(x10)
-    val x12 = collection.immutable.Set[AbsValue]()
-    val x13 = Map.empty[Addr, scala.collection.immutable.Set[AbsValue]]
-    val x14 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x12,x13)
-    val x15 = x3.getOrElse(x10, x14)
-    x6 = {() =>
+    val x12 = x3(x10)
+    val x13 = collection.immutable.Set[AbsValue]()
+    val x14 = Map.empty[Addr, scala.collection.immutable.Set[AbsValue]]
+    val x15 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x13,x14)
+
+    x6 = {() => 
       val x7 = x5
       x4 = x7
       x5 = x3
       val x845 = if (x11) {
-        x15
+        x12
       } else {
-        val x16 = x7.getOrElse(x10, x14)
+        val x16 = x7.getOrElse(x10, x15)
         val x17 = x16._1
         val x18 = x16._2
         val x19 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x17,x18)
@@ -55,32 +56,32 @@ class Snippet extends ((Unit)=>(Unit)) {
         val x24 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lam("n",If0(Var("n"),Lit(1),AOp('*,Var("n"),App(Var("fact"),AOp('-,Var("n"),Lit(1)))))),x23,x1)
         val x25 = x20.contains(x24)
         val x741 = if (x25) {
-          val x26 = x20.getOrElse(x24, x14)
+          val x26 = x20(x24)
           x26
         } else {
-          val x27 = x7.getOrElse(x24, x14)
+          val x27 = x7.getOrElse(x24, x15)
           val x28 = x27._1
           val x29 = x27._2
           val x30 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x28,x29)
           val x31 = x20 + (x24 -> x30)
           x5 = x31
-          val x33 = {(x34:scala.collection.immutable.Set[AbsValue],x35:scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]) =>
+          val x33 = {(x34:scala.collection.immutable.Set[AbsValue],x35:scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]) => 
             val x38 = Addr("n")
             val x44 = x5
             val x39 = x23 + ("n" -> x38)
             val x37 = x35
             val x36 = x34
-            val x40 = x37.getOrElse(x38, x12)
+            val x40 = x37.getOrElse(x38, x13)
             val x41 = x36.union(x40)
             val x42 = x37 + (x38 -> x41)
             val x43 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](If0(Var("n"),Lit(1),AOp('*,Var("n"),App(Var("fact"),AOp('-,Var("n"),Lit(1))))),x39,x42)
             val x45 = x44.contains(x43)
             val x722 = if (x45) {
-              val x46 = x44.getOrElse(x43, x14)
+              val x46 = x44(x43)
               x46
             } else {
               val x47 = x4
-              val x48 = x47.getOrElse(x43, x14)
+              val x48 = x47.getOrElse(x43, x15)
               val x49 = x48._1
               val x50 = x48._2
               val x51 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x49,x50)
@@ -89,21 +90,21 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x54 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x42)
               val x55 = x52.contains(x54)
               val x78 = if (x55) {
-                val x56 = x52.getOrElse(x54, x14)
+                val x56 = x52(x54)
                 x56
               } else {
-                val x57 = x47.getOrElse(x54, x14)
+                val x57 = x47.getOrElse(x54, x15)
                 val x58 = x57._1
                 val x59 = x57._2
                 val x60 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x58,x59)
                 val x61 = x52 + (x54 -> x60)
                 x5 = x61
                 val x63 = x39("n")
-                val x64 = x42.getOrElse(x63, x12)
+                val x64 = x42.getOrElse(x63, x13)
                 val x65 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x64,x42)
                 val x66 = x58.union(x64)
                 val x73 = x42.foldLeft (x59) { case (x67, (x68, x69)) =>
-                  val x70 = x67.getOrElse(x68, x12)
+                  val x70 = x67.getOrElse(x68, x13)
                   val x71 = x70.union(x69)
                   val x72 = x67 + (x68 -> x71)
 
@@ -119,10 +120,10 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x81 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lit(1),x39,x80)
               val x83 = x82.contains(x81)
               val x105 = if (x83) {
-                val x84 = x82.getOrElse(x81, x14)
+                val x84 = x82(x81)
                 x84
               } else {
-                val x85 = x47.getOrElse(x81, x14)
+                val x85 = x47.getOrElse(x81, x15)
                 val x86 = x85._1
                 val x87 = x85._2
                 val x88 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x86,x87)
@@ -132,7 +133,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x92 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x91,x80)
                 val x93 = x86.union(x91)
                 val x100 = x80.foldLeft (x87) { case (x94, (x95, x96)) =>
-                  val x97 = x94.getOrElse(x95, x12)
+                  val x97 = x94.getOrElse(x95, x13)
                   val x98 = x97.union(x96)
                   val x99 = x94 + (x95 -> x98)
 
@@ -147,10 +148,10 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x108 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](AOp('*,Var("n"),App(Var("fact"),AOp('-,Var("n"),Lit(1)))),x39,x80)
               val x110 = x109.contains(x108)
               val x297 = if (x110) {
-                val x111 = x109.getOrElse(x108, x14)
+                val x111 = x109(x108)
                 x111
               } else {
-                val x112 = x47.getOrElse(x108, x14)
+                val x112 = x47.getOrElse(x108, x15)
                 val x113 = x112._1
                 val x114 = x112._2
                 val x115 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x113,x114)
@@ -159,21 +160,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x118 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x80)
                 val x119 = x116.contains(x118)
                 val x141 = if (x119) {
-                  val x120 = x116.getOrElse(x118, x14)
+                  val x120 = x116(x118)
                   x120
                 } else {
-                  val x121 = x47.getOrElse(x118, x14)
+                  val x121 = x47.getOrElse(x118, x15)
                   val x122 = x121._1
                   val x123 = x121._2
                   val x124 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x122,x123)
                   val x125 = x116 + (x118 -> x124)
                   x5 = x125
                   val x63 = x39("n")
-                  val x127 = x80.getOrElse(x63, x12)
+                  val x127 = x80.getOrElse(x63, x13)
                   val x128 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x127,x80)
                   val x129 = x122.union(x127)
                   val x136 = x80.foldLeft (x123) { case (x130, (x131, x132)) =>
-                    val x133 = x130.getOrElse(x131, x12)
+                    val x133 = x130.getOrElse(x131, x13)
                     val x134 = x133.union(x132)
                     val x135 = x130 + (x131 -> x134)
 
@@ -189,10 +190,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x144 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](App(Var("fact"),AOp('-,Var("n"),Lit(1))),x39,x143)
                 val x146 = x145.contains(x144)
                 val x279 = if (x146) {
-                  val x147 = x145.getOrElse(x144, x14)
+                  val x147 = x145(x144)
                   x147
                 } else {
-                  val x148 = x47.getOrElse(x144, x14)
+                  val x148 = x47.getOrElse(x144, x15)
                   val x149 = x148._1
                   val x150 = x148._2
                   val x151 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x149,x150)
@@ -201,21 +202,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x154 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("fact"),x39,x143)
                   val x155 = x152.contains(x154)
                   val x178 = if (x155) {
-                    val x156 = x152.getOrElse(x154, x14)
+                    val x156 = x152(x154)
                     x156
                   } else {
-                    val x157 = x47.getOrElse(x154, x14)
+                    val x157 = x47.getOrElse(x154, x15)
                     val x158 = x157._1
                     val x159 = x157._2
                     val x160 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x158,x159)
                     val x161 = x152 + (x154 -> x160)
                     x5 = x161
                     val x163 = x39("fact")
-                    val x164 = x143.getOrElse(x163, x12)
+                    val x164 = x143.getOrElse(x163, x13)
                     val x165 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x164,x143)
                     val x166 = x158.union(x164)
                     val x173 = x143.foldLeft (x159) { case (x167, (x168, x169)) =>
-                      val x170 = x167.getOrElse(x168, x12)
+                      val x170 = x167.getOrElse(x168, x13)
                       val x171 = x170.union(x169)
                       val x172 = x167 + (x168 -> x171)
 
@@ -231,10 +232,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x181 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](AOp('-,Var("n"),Lit(1)),x39,x180)
                   val x183 = x182.contains(x181)
                   val x259 = if (x183) {
-                    val x184 = x182.getOrElse(x181, x14)
+                    val x184 = x182(x181)
                     x184
                   } else {
-                    val x185 = x47.getOrElse(x181, x14)
+                    val x185 = x47.getOrElse(x181, x15)
                     val x186 = x185._1
                     val x187 = x185._2
                     val x188 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x186,x187)
@@ -243,21 +244,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x191 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x180)
                     val x192 = x189.contains(x191)
                     val x214 = if (x192) {
-                      val x193 = x189.getOrElse(x191, x14)
+                      val x193 = x189(x191)
                       x193
                     } else {
-                      val x194 = x47.getOrElse(x191, x14)
+                      val x194 = x47.getOrElse(x191, x15)
                       val x195 = x194._1
                       val x196 = x194._2
                       val x197 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x195,x196)
                       val x198 = x189 + (x191 -> x197)
                       x5 = x198
                       val x63 = x39("n")
-                      val x200 = x180.getOrElse(x63, x12)
+                      val x200 = x180.getOrElse(x63, x13)
                       val x201 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x200,x180)
                       val x202 = x195.union(x200)
                       val x209 = x180.foldLeft (x196) { case (x203, (x204, x205)) =>
-                        val x206 = x203.getOrElse(x204, x12)
+                        val x206 = x203.getOrElse(x204, x13)
                         val x207 = x206.union(x205)
                         val x208 = x203 + (x204 -> x207)
 
@@ -273,10 +274,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x217 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lit(1),x39,x216)
                     val x219 = x218.contains(x217)
                     val x241 = if (x219) {
-                      val x220 = x218.getOrElse(x217, x14)
+                      val x220 = x218(x217)
                       x220
                     } else {
-                      val x221 = x47.getOrElse(x217, x14)
+                      val x221 = x47.getOrElse(x217, x15)
                       val x222 = x221._1
                       val x223 = x221._2
                       val x224 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x222,x223)
@@ -286,7 +287,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                       val x228 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x227,x216)
                       val x229 = x222.union(x227)
                       val x236 = x216.foldLeft (x223) { case (x230, (x231, x232)) =>
-                        val x233 = x230.getOrElse(x231, x12)
+                        val x233 = x230.getOrElse(x231, x13)
                         val x234 = x233.union(x232)
                         val x235 = x230 + (x231 -> x234)
 
@@ -303,7 +304,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x246 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x244,x243)
                     val x247 = x186.union(x244)
                     val x254 = x243.foldLeft (x187) { case (x248, (x249, x250)) =>
-                      val x251 = x248.getOrElse(x249, x12)
+                      val x251 = x248.getOrElse(x249, x13)
                       val x252 = x251.union(x250)
                       val x253 = x248 + (x249 -> x252)
 
@@ -324,7 +325,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x266 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x263,x264)
                   val x267 = x149.union(x263)
                   val x274 = x264.foldLeft (x150) { case (x268, (x269, x270)) =>
-                    val x271 = x268.getOrElse(x269, x12)
+                    val x271 = x268.getOrElse(x269, x13)
                     val x272 = x271.union(x270)
                     val x273 = x268 + (x269 -> x272)
 
@@ -341,7 +342,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x284 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x282,x281)
                 val x285 = x113.union(x282)
                 val x292 = x281.foldLeft (x114) { case (x286, (x287, x288)) =>
-                  val x289 = x286.getOrElse(x287, x12)
+                  val x289 = x286.getOrElse(x287, x13)
                   val x290 = x289.union(x288)
                   val x291 = x286 + (x287 -> x290)
 
@@ -355,10 +356,10 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x300 = x5
               val x301 = x300.contains(x81)
               val x319 = if (x301) {
-                val x302 = x300.getOrElse(x81, x14)
+                val x302 = x300(x81)
                 x302
               } else {
-                val x85 = x47.getOrElse(x81, x14)
+                val x85 = x47.getOrElse(x81, x15)
                 val x86 = x85._1
                 val x87 = x85._2
                 val x88 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x86,x87)
@@ -368,7 +369,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x306 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x305,x80)
                 val x307 = x86.union(x305)
                 val x314 = x80.foldLeft (x87) { case (x308, (x309, x310)) =>
-                  val x311 = x308.getOrElse(x309, x12)
+                  val x311 = x308.getOrElse(x309, x13)
                   val x312 = x311.union(x310)
                   val x313 = x308 + (x309 -> x312)
 
@@ -382,10 +383,10 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x322 = x5
               val x323 = x322.contains(x108)
               val x497 = if (x323) {
-                val x324 = x322.getOrElse(x108, x14)
+                val x324 = x322(x108)
                 x324
               } else {
-                val x112 = x47.getOrElse(x108, x14)
+                val x112 = x47.getOrElse(x108, x15)
                 val x113 = x112._1
                 val x114 = x112._2
                 val x115 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x113,x114)
@@ -394,13 +395,13 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x118 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x80)
                 val x327 = x325.contains(x118)
                 val x342 = if (x327) {
-                  val x328 = x325.getOrElse(x118, x14)
+                  val x328 = x325(x118)
                   x328
                 } else {
                   val x63 = x39("n")
-                  val x127 = x80.getOrElse(x63, x12)
+                  val x127 = x80.getOrElse(x63, x13)
                   val x128 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x127,x80)
-                  val x121 = x47.getOrElse(x118, x14)
+                  val x121 = x47.getOrElse(x118, x15)
                   val x122 = x121._1
                   val x123 = x121._2
                   val x124 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x122,x123)
@@ -408,7 +409,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                   x5 = x329
                   val x129 = x122.union(x127)
                   val x337 = x80.foldLeft (x123) { case (x331, (x332, x333)) =>
-                    val x334 = x331.getOrElse(x332, x12)
+                    val x334 = x331.getOrElse(x332, x13)
                     val x335 = x334.union(x333)
                     val x336 = x331 + (x332 -> x335)
 
@@ -424,10 +425,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x345 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](App(Var("fact"),AOp('-,Var("n"),Lit(1))),x39,x344)
                 val x347 = x346.contains(x345)
                 val x479 = if (x347) {
-                  val x348 = x346.getOrElse(x345, x14)
+                  val x348 = x346(x345)
                   x348
                 } else {
-                  val x349 = x47.getOrElse(x345, x14)
+                  val x349 = x47.getOrElse(x345, x15)
                   val x350 = x349._1
                   val x351 = x349._2
                   val x352 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x350,x351)
@@ -436,21 +437,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x355 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("fact"),x39,x344)
                   val x356 = x353.contains(x355)
                   val x378 = if (x356) {
-                    val x357 = x353.getOrElse(x355, x14)
+                    val x357 = x353(x355)
                     x357
                   } else {
-                    val x358 = x47.getOrElse(x355, x14)
+                    val x358 = x47.getOrElse(x355, x15)
                     val x359 = x358._1
                     val x360 = x358._2
                     val x361 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x359,x360)
                     val x362 = x353 + (x355 -> x361)
                     x5 = x362
                     val x163 = x39("fact")
-                    val x364 = x344.getOrElse(x163, x12)
+                    val x364 = x344.getOrElse(x163, x13)
                     val x365 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x364,x344)
                     val x366 = x359.union(x364)
                     val x373 = x344.foldLeft (x360) { case (x367, (x368, x369)) =>
-                      val x370 = x367.getOrElse(x368, x12)
+                      val x370 = x367.getOrElse(x368, x13)
                       val x371 = x370.union(x369)
                       val x372 = x367 + (x368 -> x371)
 
@@ -466,10 +467,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x381 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](AOp('-,Var("n"),Lit(1)),x39,x380)
                   val x383 = x382.contains(x381)
                   val x459 = if (x383) {
-                    val x384 = x382.getOrElse(x381, x14)
+                    val x384 = x382(x381)
                     x384
                   } else {
-                    val x385 = x47.getOrElse(x381, x14)
+                    val x385 = x47.getOrElse(x381, x15)
                     val x386 = x385._1
                     val x387 = x385._2
                     val x388 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x386,x387)
@@ -478,21 +479,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x391 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x380)
                     val x392 = x389.contains(x391)
                     val x414 = if (x392) {
-                      val x393 = x389.getOrElse(x391, x14)
+                      val x393 = x389(x391)
                       x393
                     } else {
-                      val x394 = x47.getOrElse(x391, x14)
+                      val x394 = x47.getOrElse(x391, x15)
                       val x395 = x394._1
                       val x396 = x394._2
                       val x397 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x395,x396)
                       val x398 = x389 + (x391 -> x397)
                       x5 = x398
                       val x63 = x39("n")
-                      val x400 = x380.getOrElse(x63, x12)
+                      val x400 = x380.getOrElse(x63, x13)
                       val x401 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x400,x380)
                       val x402 = x395.union(x400)
                       val x409 = x380.foldLeft (x396) { case (x403, (x404, x405)) =>
-                        val x406 = x403.getOrElse(x404, x12)
+                        val x406 = x403.getOrElse(x404, x13)
                         val x407 = x406.union(x405)
                         val x408 = x403 + (x404 -> x407)
 
@@ -508,10 +509,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x417 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lit(1),x39,x416)
                     val x419 = x418.contains(x417)
                     val x441 = if (x419) {
-                      val x420 = x418.getOrElse(x417, x14)
+                      val x420 = x418(x417)
                       x420
                     } else {
-                      val x421 = x47.getOrElse(x417, x14)
+                      val x421 = x47.getOrElse(x417, x15)
                       val x422 = x421._1
                       val x423 = x421._2
                       val x424 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x422,x423)
@@ -521,7 +522,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                       val x428 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x427,x416)
                       val x429 = x422.union(x427)
                       val x436 = x416.foldLeft (x423) { case (x430, (x431, x432)) =>
-                        val x433 = x430.getOrElse(x431, x12)
+                        val x433 = x430.getOrElse(x431, x13)
                         val x434 = x433.union(x432)
                         val x435 = x430 + (x431 -> x434)
 
@@ -538,7 +539,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x446 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x444,x443)
                     val x447 = x386.union(x444)
                     val x454 = x443.foldLeft (x387) { case (x448, (x449, x450)) =>
-                      val x451 = x448.getOrElse(x449, x12)
+                      val x451 = x448.getOrElse(x449, x13)
                       val x452 = x451.union(x450)
                       val x453 = x448 + (x449 -> x452)
 
@@ -559,7 +560,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x466 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x463,x464)
                   val x467 = x350.union(x463)
                   val x474 = x464.foldLeft (x351) { case (x468, (x469, x470)) =>
-                    val x471 = x468.getOrElse(x469, x12)
+                    val x471 = x468.getOrElse(x469, x13)
                     val x472 = x471.union(x470)
                     val x473 = x468 + (x469 -> x472)
 
@@ -576,7 +577,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x484 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x482,x481)
                 val x485 = x113.union(x482)
                 val x492 = x481.foldLeft (x114) { case (x486, (x487, x488)) =>
-                  val x489 = x486.getOrElse(x487, x12)
+                  val x489 = x486.getOrElse(x487, x13)
                   val x490 = x489.union(x488)
                   val x491 = x486 + (x487 -> x490)
 
@@ -590,10 +591,10 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x501 = x5
               val x502 = x501.contains(x81)
               val x520 = if (x502) {
-                val x503 = x501.getOrElse(x81, x14)
+                val x503 = x501(x81)
                 x503
               } else {
-                val x85 = x47.getOrElse(x81, x14)
+                val x85 = x47.getOrElse(x81, x15)
                 val x86 = x85._1
                 val x87 = x85._2
                 val x88 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x86,x87)
@@ -603,7 +604,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x507 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x506,x80)
                 val x508 = x86.union(x506)
                 val x515 = x80.foldLeft (x87) { case (x509, (x510, x511)) =>
-                  val x512 = x509.getOrElse(x510, x12)
+                  val x512 = x509.getOrElse(x510, x13)
                   val x513 = x512.union(x511)
                   val x514 = x509 + (x510 -> x513)
 
@@ -617,10 +618,10 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x523 = x5
               val x524 = x523.contains(x108)
               val x698 = if (x524) {
-                val x525 = x523.getOrElse(x108, x14)
+                val x525 = x523(x108)
                 x525
               } else {
-                val x112 = x47.getOrElse(x108, x14)
+                val x112 = x47.getOrElse(x108, x15)
                 val x113 = x112._1
                 val x114 = x112._2
                 val x115 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x113,x114)
@@ -629,13 +630,13 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x118 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x80)
                 val x528 = x526.contains(x118)
                 val x543 = if (x528) {
-                  val x529 = x526.getOrElse(x118, x14)
+                  val x529 = x526(x118)
                   x529
                 } else {
                   val x63 = x39("n")
-                  val x127 = x80.getOrElse(x63, x12)
+                  val x127 = x80.getOrElse(x63, x13)
                   val x128 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x127,x80)
-                  val x121 = x47.getOrElse(x118, x14)
+                  val x121 = x47.getOrElse(x118, x15)
                   val x122 = x121._1
                   val x123 = x121._2
                   val x124 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x122,x123)
@@ -643,7 +644,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                   x5 = x530
                   val x129 = x122.union(x127)
                   val x538 = x80.foldLeft (x123) { case (x532, (x533, x534)) =>
-                    val x535 = x532.getOrElse(x533, x12)
+                    val x535 = x532.getOrElse(x533, x13)
                     val x536 = x535.union(x534)
                     val x537 = x532 + (x533 -> x536)
 
@@ -659,10 +660,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x546 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](App(Var("fact"),AOp('-,Var("n"),Lit(1))),x39,x545)
                 val x548 = x547.contains(x546)
                 val x680 = if (x548) {
-                  val x549 = x547.getOrElse(x546, x14)
+                  val x549 = x547(x546)
                   x549
                 } else {
-                  val x550 = x47.getOrElse(x546, x14)
+                  val x550 = x47.getOrElse(x546, x15)
                   val x551 = x550._1
                   val x552 = x550._2
                   val x553 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x551,x552)
@@ -671,21 +672,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x556 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("fact"),x39,x545)
                   val x557 = x554.contains(x556)
                   val x579 = if (x557) {
-                    val x558 = x554.getOrElse(x556, x14)
+                    val x558 = x554(x556)
                     x558
                   } else {
-                    val x559 = x47.getOrElse(x556, x14)
+                    val x559 = x47.getOrElse(x556, x15)
                     val x560 = x559._1
                     val x561 = x559._2
                     val x562 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x560,x561)
                     val x563 = x554 + (x556 -> x562)
                     x5 = x563
                     val x163 = x39("fact")
-                    val x565 = x545.getOrElse(x163, x12)
+                    val x565 = x545.getOrElse(x163, x13)
                     val x566 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x565,x545)
                     val x567 = x560.union(x565)
                     val x574 = x545.foldLeft (x561) { case (x568, (x569, x570)) =>
-                      val x571 = x568.getOrElse(x569, x12)
+                      val x571 = x568.getOrElse(x569, x13)
                       val x572 = x571.union(x570)
                       val x573 = x568 + (x569 -> x572)
 
@@ -701,10 +702,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x582 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](AOp('-,Var("n"),Lit(1)),x39,x581)
                   val x584 = x583.contains(x582)
                   val x660 = if (x584) {
-                    val x585 = x583.getOrElse(x582, x14)
+                    val x585 = x583(x582)
                     x585
                   } else {
-                    val x586 = x47.getOrElse(x582, x14)
+                    val x586 = x47.getOrElse(x582, x15)
                     val x587 = x586._1
                     val x588 = x586._2
                     val x589 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x587,x588)
@@ -713,21 +714,21 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x592 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("n"),x39,x581)
                     val x593 = x590.contains(x592)
                     val x615 = if (x593) {
-                      val x594 = x590.getOrElse(x592, x14)
+                      val x594 = x590(x592)
                       x594
                     } else {
-                      val x595 = x47.getOrElse(x592, x14)
+                      val x595 = x47.getOrElse(x592, x15)
                       val x596 = x595._1
                       val x597 = x595._2
                       val x598 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x596,x597)
                       val x599 = x590 + (x592 -> x598)
                       x5 = x599
                       val x63 = x39("n")
-                      val x601 = x581.getOrElse(x63, x12)
+                      val x601 = x581.getOrElse(x63, x13)
                       val x602 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x601,x581)
                       val x603 = x596.union(x601)
                       val x610 = x581.foldLeft (x597) { case (x604, (x605, x606)) =>
-                        val x607 = x604.getOrElse(x605, x12)
+                        val x607 = x604.getOrElse(x605, x13)
                         val x608 = x607.union(x606)
                         val x609 = x604 + (x605 -> x608)
 
@@ -743,10 +744,10 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x618 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lit(1),x39,x617)
                     val x620 = x619.contains(x618)
                     val x642 = if (x620) {
-                      val x621 = x619.getOrElse(x618, x14)
+                      val x621 = x619(x618)
                       x621
                     } else {
-                      val x622 = x47.getOrElse(x618, x14)
+                      val x622 = x47.getOrElse(x618, x15)
                       val x623 = x622._1
                       val x624 = x622._2
                       val x625 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x623,x624)
@@ -756,7 +757,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                       val x629 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x628,x617)
                       val x630 = x623.union(x628)
                       val x637 = x617.foldLeft (x624) { case (x631, (x632, x633)) =>
-                        val x634 = x631.getOrElse(x632, x12)
+                        val x634 = x631.getOrElse(x632, x13)
                         val x635 = x634.union(x633)
                         val x636 = x631 + (x632 -> x635)
 
@@ -773,7 +774,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                     val x647 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x645,x644)
                     val x648 = x587.union(x645)
                     val x655 = x644.foldLeft (x588) { case (x649, (x650, x651)) =>
-                      val x652 = x649.getOrElse(x650, x12)
+                      val x652 = x649.getOrElse(x650, x13)
                       val x653 = x652.union(x651)
                       val x654 = x649 + (x650 -> x653)
 
@@ -794,7 +795,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                   val x667 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x664,x665)
                   val x668 = x551.union(x664)
                   val x675 = x665.foldLeft (x552) { case (x669, (x670, x671)) =>
-                    val x672 = x669.getOrElse(x670, x12)
+                    val x672 = x669.getOrElse(x670, x13)
                     val x673 = x672.union(x671)
                     val x674 = x669 + (x670 -> x673)
 
@@ -811,7 +812,7 @@ class Snippet extends ((Unit)=>(Unit)) {
                 val x685 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x683,x682)
                 val x686 = x113.union(x683)
                 val x693 = x682.foldLeft (x114) { case (x687, (x688, x689)) =>
-                  val x690 = x687.getOrElse(x688, x12)
+                  val x690 = x687.getOrElse(x688, x13)
                   val x691 = x690.union(x689)
                   val x692 = x687 + (x688 -> x691)
 
@@ -829,7 +830,7 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x522 = x520._2
               val x700 = x698._2
               val x707 = x700.foldLeft (x522) { case (x701, (x702, x703)) =>
-                val x704 = x701.getOrElse(x702, x12)
+                val x704 = x701.getOrElse(x702, x13)
                 val x705 = x704.union(x703)
                 val x706 = x701 + (x702 -> x705)
 
@@ -838,7 +839,7 @@ class Snippet extends ((Unit)=>(Unit)) {
               val x709 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x500,x707)
               val x710 = x49.union(x500)
               val x717 = x707.foldLeft (x50) { case (x711, (x712, x713)) =>
-                val x714 = x711.getOrElse(x712, x12)
+                val x714 = x711.getOrElse(x712, x13)
                 val x715 = x714.union(x713)
                 val x716 = x711 + (x712 -> x715)
 
@@ -858,7 +859,7 @@ class Snippet extends ((Unit)=>(Unit)) {
           val x728 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x727,x1)
           val x729 = x28.union(x727)
           val x736 = x1.foldLeft (x29) { case (x730, (x731, x732)) =>
-            val x733 = x730.getOrElse(x731, x12)
+            val x733 = x730.getOrElse(x731, x13)
             val x734 = x733.union(x732)
             val x735 = x730 + (x731 -> x734)
 
@@ -872,16 +873,16 @@ class Snippet extends ((Unit)=>(Unit)) {
         val x748 = x5
         val x743 = x741._2
         val x742 = x741._1
-        val x744 = x743.getOrElse(x22, x12)
+        val x744 = x743.getOrElse(x22, x13)
         val x745 = x742.union(x744)
         val x746 = x743 + (x22 -> x745)
         val x747 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](App(Var("fact"),Lit(5)),x23,x746)
         val x749 = x748.contains(x747)
         val x828 = if (x749) {
-          val x750 = x748.getOrElse(x747, x14)
+          val x750 = x748(x747)
           x750
         } else {
-          val x751 = x7.getOrElse(x747, x14)
+          val x751 = x7.getOrElse(x747, x15)
           val x752 = x751._1
           val x753 = x751._2
           val x754 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x752,x753)
@@ -890,21 +891,21 @@ class Snippet extends ((Unit)=>(Unit)) {
           val x757 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Var("fact"),x23,x746)
           val x758 = x755.contains(x757)
           val x781 = if (x758) {
-            val x759 = x755.getOrElse(x757, x14)
+            val x759 = x755(x757)
             x759
           } else {
-            val x760 = x7.getOrElse(x757, x14)
+            val x760 = x7.getOrElse(x757, x15)
             val x761 = x760._1
             val x762 = x760._2
             val x763 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x761,x762)
             val x764 = x755 + (x757 -> x763)
             x5 = x764
             val x766 = x23("fact")
-            val x767 = x746.getOrElse(x766, x12)
+            val x767 = x746.getOrElse(x766, x13)
             val x768 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x767,x746)
             val x769 = x761.union(x767)
             val x776 = x746.foldLeft (x762) { case (x770, (x771, x772)) =>
-              val x773 = x770.getOrElse(x771, x12)
+              val x773 = x770.getOrElse(x771, x13)
               val x774 = x773.union(x772)
               val x775 = x770 + (x771 -> x774)
 
@@ -920,10 +921,10 @@ class Snippet extends ((Unit)=>(Unit)) {
           val x784 = new Tuple3[sai.direct.core.parser.Expr,scala.collection.immutable.Map[java.lang.String, Addr],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](Lit(5),x23,x783)
           val x786 = x785.contains(x784)
           val x808 = if (x786) {
-            val x787 = x785.getOrElse(x784, x14)
+            val x787 = x785(x784)
             x787
           } else {
-            val x788 = x7.getOrElse(x784, x14)
+            val x788 = x7.getOrElse(x784, x15)
             val x789 = x788._1
             val x790 = x788._2
             val x791 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x789,x790)
@@ -933,7 +934,7 @@ class Snippet extends ((Unit)=>(Unit)) {
             val x795 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x794,x783)
             val x796 = x789.union(x794)
             val x803 = x783.foldLeft (x790) { case (x797, (x798, x799)) =>
-              val x800 = x797.getOrElse(x798, x12)
+              val x800 = x797.getOrElse(x798, x13)
               val x801 = x800.union(x799)
               val x802 = x797 + (x798 -> x801)
 
@@ -954,7 +955,7 @@ class Snippet extends ((Unit)=>(Unit)) {
           val x815 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x812,x813)
           val x816 = x752.union(x812)
           val x823 = x813.foldLeft (x753) { case (x817, (x818, x819)) =>
-            val x820 = x817.getOrElse(x818, x12)
+            val x820 = x817.getOrElse(x818, x13)
             val x821 = x820.union(x819)
             val x822 = x817 + (x818 -> x821)
 
@@ -971,7 +972,7 @@ class Snippet extends ((Unit)=>(Unit)) {
         val x832 = new Tuple2[scala.collection.immutable.Set[AbsValue],scala.collection.immutable.Map[Addr, scala.collection.immutable.Set[AbsValue]]](x829,x830)
         val x833 = x17.union(x829)
         val x840 = x830.foldLeft (x18) { case (x834, (x835, x836)) =>
-          val x837 = x834.getOrElse(x835, x12)
+          val x837 = x834.getOrElse(x835, x13)
           val x838 = x837.union(x836)
           val x839 = x834 + (x835 -> x838)
 
@@ -1002,8 +1003,9 @@ class Snippet extends ((Unit)=>(Unit)) {
   }
 }
 /*****************************************
- End of Generated Code
+ End of Generated Code                  
  *******************************************/
+
 
 object GenCode {
   def main(args: Array[String]) {
