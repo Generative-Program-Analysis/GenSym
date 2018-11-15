@@ -339,7 +339,7 @@ object SADI5 {
         (loop_body))
       """
     )
-    println("staged: " + evalStaged(euclid_imp))
-    println("unstaged: " + evalUnstaged(euclid_imp))
+    println("staged: " + evalStaged(euclid))
+    println("unstaged: " + evalUnstaged(euclid))
   }
 }

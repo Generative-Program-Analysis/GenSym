@@ -196,7 +196,7 @@ object AbsLamCal {
       if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) {
         unchecked[Value]("Set[AbsValue](BoolV())")
       } else {
-        unchecked[Value]("Set[AbsValue](NumV())")
+        unchecked[Value]("Set[AbsValue](IntV())")
       }
 
     type Config = (Expr, Env, Store)
@@ -262,7 +262,7 @@ object AbsLamCal {
   trait RepAbsInterpDriver extends DslDriver[Unit, Unit] with RepAbsInterpOpsExp { q =>
     override val codegen = new DslGen with ScalaGenMapOps with MyScalaGenTupleOps
         with RepAbsInterpGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps
-        with ScalaGenSetOps {
+        with ScalaGenSetOps with ScalaGenListOps {
       val IR: q.type = q
       override def remap[A](m: Typ[A]): String = {
         if (m.toString.endsWith("$Value")) "Value"
@@ -279,20 +279,19 @@ import sai.common.ai.Lattices._
 object RTSupport {
   case class Addr(x: String)
   trait AbsValue
-  case class IntV(i: Int) extends AbsValue
-  case class FloatV(d: Double) extends AbsValue
-  case class CharV(c: Char) extends AbsValue
-  case class BoolV(b: Boolean) extends AbsValue
-  case class ListV(l: List[Value]) extends AbsValue
-  case class VectorV(v: Vector[Value]) extends AbsValue
-  case class PrimV(f: List[Value] => Value) extends AbsValue
+  case class IntV() extends AbsValue
+  case class FloatV() extends AbsValue
+  case class CharV() extends AbsValue
+  case class BoolV() extends AbsValue
+  case class ListV() extends AbsValue
+  case class VectorV() extends AbsValue
   case class VoidV() extends AbsValue
-  case class SymV(s: String) extends AbsValue
+  case class SymV() extends AbsValue
   type Value = Set[AbsValue]
   case class CompiledClo(f: (List[Value], Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Lam, ρ: Map[String,Addr]) extends AbsValue {
     def canEqual(a: Any) = a.isInstanceOf[CompiledClo]
     override def equals(that: Any): Boolean = that match {
-      case that: CompiledClo => that.canEqual(this) && this.hashCode == that.hashCode
+      case that: CompiledClo => that.canEqual(this) && this.hashCode == that.hashCode && this.λ == that.λ && this.ρ == that.ρ
       case _ => false
     }
     override def hashCode: Int = {
@@ -323,32 +322,69 @@ import RTSupport._
 
 object AbsLamCalTest {
   import AbsLamCal._
-  def main(args: Array[String]) {
-    def specialize(p: Expr): DslDriver[Unit, Unit] =
-      new RepAbsInterpDriver {
-        def snippet(unit: Rep[Unit]): Rep[Unit] = {
-          val (v, s) = eval_top(p)
-          println(v); println(s)
-        }
-      }
-  /*
-    val lam = Lam("x", App(Var("x"), Var("x")))
-    // ((λ (x) ((x x) x)) (λ (y) y))
-    val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))
-    val fact = Lam("n",
-                   If0(Var("n"),
-                       Lit(1),
-                       AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
-    val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
-    val omega = App(lam, lam)
 
-    //println(AbsInterp.eval_top(id4))
-    //println(AbsInterp.eval_top(omega))
-    println(AbsInterp.eval_top(fact5))
+  def specialize(p: Expr): DslDriver[Unit, Unit] =
+  new RepAbsInterpDriver {
+    def snippet(unit: Rep[Unit]): Rep[Unit] = {
+      val (v, s) = eval_top(p)
+      println(v); println(s)
+    }
+  }
 
-    val code = specialize(fact5)
+  def getAST(prog: String) = {
+    LargeSchemeParser(prog) match {
+      case Some(expr) => LargeSchemeASTDesugar(expr)
+    }
+  }
+
+  def evalUnstaged(prog: Expr) = {
+    AbsInterp.eval_top(prog)
+  }
+
+  def evalStaged(prog: Expr) = {
+    val code = specialize(prog)
     println(code.code)
-    //code.eval(())
-  */
+    code.eval(())
+  }
+
+  def main(args: Array[String]) {
+    val id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
+    val oneplusone = App(Var("+"), List(IntLit(1), IntLit(1)))
+    val fact5 = getAST("(define (fact n) (if (eq? n 0) 1 (* n (fact (- n 1))))) (fact 5)")
+    val euclid = getAST(
+      """
+      (letrec
+        ([gcd
+          (lambda (a b)
+            (if (eq? b 0)
+              a
+              (gcd b (% a b))))])
+        (gcd 24 56))
+      """)
+    val euclid_imp = getAST(
+      """
+      (define x 24)
+      (define y 56)
+      (if (<= x y)
+        (let ([temp x])
+          (set! x y)
+          (set! y temp))
+        (void))
+      (define r (% x y))
+      (letrec
+        ([loop_body
+          (lambda ()
+            (if (eq? r 0)
+              y
+              (begin
+                (set! x y)
+                (set! y r)
+                (set! r (% x y))
+                (loop_body))))])
+        (loop_body))
+      """
+    )
+    println("staged: " + evalStaged(euclid_imp))
+    println("unstaged: " + evalUnstaged(euclid_imp))
   }
 }
