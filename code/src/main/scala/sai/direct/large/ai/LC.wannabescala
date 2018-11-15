@@ -174,9 +174,9 @@ object LamCal {
   trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp with TupledFunctionsRecursiveExp
   trait RepConcInterpOpsExp extends RepConcInterpOps with LMSOpsExp {
     implicit def valueTyp: Typ[Value] = manifestTyp
-    case class ApplyClosure(f: Rep[Value], arg: List[Rep[Value]], σ: Rep[Store]) extends Def[(Value, Store)]
-    def apply_closure(ev: EvalFun)(f: Rep[Value], arg: List[Rep[Value]], σ: Rep[Store]): Ans = {
-      reflectEffect(ApplyClosure(f, arg, σ))
+    case class ApplyClosure(f: Rep[Value], args: List[Rep[Value]], σ: Rep[Store]) extends Def[(Value, Store)]
+    def apply_closure(ev: EvalFun)(f: Rep[Value], args: List[Rep[Value]], σ: Rep[Store]): Ans = {
+      reflectEffect(ApplyClosure(f, args, σ))
     }
   }
 
