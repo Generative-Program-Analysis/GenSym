@@ -7,7 +7,7 @@ import scala.language.higherKinds
 import sai.utils._
 import sai.common.ai._
 import sai.common.ai.Lattices.{NoRep => _, _}
-import sai.direct.core.parser._
+import sai.direct.large.parser._
 
 import sai.common._
 import scala.lms.tutorial._
@@ -21,9 +21,7 @@ object AbsLamCal {
   trait Abstract extends Semantics {
     case class Addr(x: Ident)
     sealed trait AbsValue
-    case class PrimV(f: List[Value] => Value) extends Value
     case class CloV(λ: Lam, ρ: Env) extends AbsValue
-    case class NumV() extends AbsValue
     case class IntV() extends AbsValue
     case class FloatV() extends AbsValue
     case class CharV() extends AbsValue
@@ -32,6 +30,7 @@ object AbsLamCal {
     case class VectorV() extends AbsValue
     case class VoidV() extends AbsValue
     case class SymV() extends AbsValue
+
     type Value = Set[AbsValue]
     type Env = Map[Ident, Addr]
     type Store = Map[Addr, Value]
@@ -51,27 +50,36 @@ object AbsLamCal {
     }
     def alloc(σ: Store, x: Ident): Addr = Addr(x)
     def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
-    def int(i: Lit): Value = Set(IntV())
+    def sym(s: Sym): Value = Set(SymV())
+    def int(i: IntLit): Value = Set(IntV())
     def bool(b: BoolLit): Value = Set(BoolV())
     def float(f: FloatLit): Value = Set(FloatV())
     def char(c: CharLit): Value = Set(CharV())
     def void(): Value = Set(VoidV())
-    def apply_closure(ev: EvalFun)(f: Value, arg: Value, σ: Store): Ans = {
+    def apply_closure(ev: EvalFun)(f: Value, argvs: List[Value], σ: Store): Ans = {
       var σ0 = σ
-      val vs = for (CloV(Lam(x, e), ρ) <- f) yield {
-        val α = alloc(σ0, x)   //note: use the same store?
-        val ρ_* = put(ρ, x, α)
-        val σ_* = put(σ0, α, arg)
+      val vs = for (CloV(Lam(argns, e), ρ) <- f) yield {
+        val (ρ_*, σ_*): (Env, Store) = ((argns zip argvs) foldLeft((ρ, σ0))) {
+          case ((ρ_, σ_), (argn, argv)) =>
+            val α = alloc(σ_, argn)
+            (put(ρ_, argn, α), put(σ_, α, argv))
+        }
         val (v, vσ) = ev(e, ρ_*, σ_*)
         σ0 = vσ; v
       }
       (vs.reduce(Lattice[Value].⊔), σ0)
     }
+
     def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = {
       thn ⊔ els //FIXME
       //(GenericLattice[Value,R].⊔(thn._1, els._1), Lattice[Store].⊔(thn._2, els._2))
     }
-    def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
+
+    def prim_eval(op: String, v1: Value, v2: Value): Value = op match {
+      case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%")(op)) => Set(IntV())
+      case op if (scala.collection.immutable.Set("eq?", ">", "<", ">=", "<=")(op)) => Set(BoolV())
+    }
+
     type Config = (Expr, R[Env], R[Store])
 
     case class CacheFix(evev: EvalFun => EvalFun) {
@@ -138,6 +146,11 @@ object AbsLamCal {
     }
 
     type R[+T] = Rep[T]
+
+    //val h = new scala.collection.mutable.HashMap[String, Int]()
+    //var next: Int = 0
+    //h(x) = next; next += 1; \rho  += a
+
     implicit def absValueTyp: Typ[AbsValue]
     implicit def addrTyp: Typ[Addr]
     val ρ0: Rep[Env] = Map[Ident, Addr]()
@@ -150,23 +163,41 @@ object AbsLamCal {
     }
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = unchecked[Addr]("Addr(\"", x, "\")")
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
-      val Lam(x, e) = λ
+      val Lam(argns, e) = λ
       //val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = {
       // case (args: Rep[Value], σ: Rep[Store]) =>
-      val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = (as: Rep[(Value,Store)]) => {
-        val args = as._1; val σ = as._2
-        val α = alloc(σ, x)
-        ev(e, put(ρ, x, α), put(σ, α, args))
+      val f: Rep[(List[Value], Store)]=>Rep[(Value,Store)] = (as: Rep[(List[Value],Store)]) => {
+        val argvs = as._1; val σ = as._2
+        def aux(argns: List[Ident], argvs: Rep[List[Value]], ρ: Rep[Env], σ: Rep[Store]): (Rep[Env], Rep[Store]) = argns match {
+          case Nil => (ρ, σ)
+          case x :: xs =>
+            val α = alloc(σ, x)
+            aux(xs, argvs.tail, put(ρ, x, α), put(σ, α, argvs.head))
+        }
+        val (ρ_*, σ_*) = aux(argns, argvs, ρ, σ)
+        ev(e, ρ_*, σ_*)
       }
       unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
     }
-    def num(i: Lit): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
-    def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
+    def sym(s: Sym): Rep[Value] = unchecked[Value]("Set[AbsValue](SymV())")
+    def int(i: IntLit): Rep[Value] = unchecked[Value]("Set[AbsValue](IntV())")
+    def bool(b: BoolLit): Rep[Value] = unchecked[Value]("Set[AbsValue](BoolV())")
+    def float(f: FloatLit): Rep[Value] = unchecked[Value]("Set[AbsValue](FloatV())")
+    def char(c: CharLit): Rep[Value] = unchecked[Value]("Set[AbsValue](CharV())")
+    def void(): Rep[Value] = unchecked[Value]("Set[AbsValue](VoidV())")
+
+    def branch(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val thnans = thn
       val elsans = els
       (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
     }
-    def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
+
+    def prim_eval(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
+      if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) {
+        unchecked[Value]("Set[AbsValue](BoolV())")
+      } else {
+        unchecked[Value]("Set[AbsValue](NumV())")
+      }
 
     type Config = (Expr, Env, Store)
     implicit def exprTyp: Typ[Expr]
@@ -175,9 +206,11 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
 
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
+        println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        //if (out.contains(cfg)) { out(cfg) } //FIXME: the generated code doesn't work; hack using getOrElse
-        if (out.contains(cfg)) { out.getOrElse(cfg, RepLattice[(Value,Store)].bot) }
+        if (out.contains(cfg)) {
+          out(cfg)
+        }
         else {
           val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
           out = out + (cfg -> ans0)
@@ -188,7 +221,9 @@ object AbsLamCal {
       }
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
         def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
-          in = out; out = Map[Config, (Value,Store)]()
+          println(s"Start iteration ${e}")
+          in = out;
+          out = Map[Config, (Value,Store)]()
           cached_ev(e, ρ, σ)
           if (in === out) out((unit(e), ρ, σ)) else iter_aux()
         }
@@ -202,9 +237,9 @@ object AbsLamCal {
     implicit def exprTyp: Typ[Expr] = manifestTyp
     implicit def addrTyp: Typ[Addr] = manifestTyp
     implicit def absValueTyp: Typ[AbsValue] = manifestTyp
-    case class ApplyClosures(fs: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
-    def apply_closure(ev: EvalFun)(fs: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Ans = {
-      reflectEffect(ApplyClosures(fs, arg, σ))
+    case class ApplyClosures(fs: Rep[Value], arg: List[Rep[Value]], σ: Rep[Store]) extends Def[(Value, Store)]
+    def apply_closure(ev: EvalFun)(fs: Rep[Value], args: List[Rep[Value]], σ: Rep[Store]): Ans = {
+      reflectEffect(ApplyClosures(fs, args, σ))
     }
   }
 
@@ -212,8 +247,9 @@ object AbsLamCal {
     val IR: RepAbsInterpOpsExp
     import IR._
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-      case ApplyClosures(fs, arg, σ) =>
-        emitValDef(sym, "apply_closures_norep(" + quote(fs) + "," + quote(arg) + "," + quote(σ) + ")")
+      case ApplyClosures(fs, args, σ) =>
+        val argsstr = args.map(quote).mkString(", ")
+        emitValDef(sym, "apply_closures_norep(" + quote(fs) + ", List(" + argsstr + "), " + quote(σ) + ")")
       case Struct(tag, elems) =>
         //TODO: merge back to LMS
         registerStruct(structName(sym.tp), elems)
@@ -238,18 +274,39 @@ object AbsLamCal {
                                        className: String,
                                        stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
         val prelude = """
-import sai.direct.core.parser._
+import sai.direct.large.parser._
 import sai.common.ai.Lattices._
 object RTSupport {
   case class Addr(x: String)
   trait AbsValue
-  case class NumV() extends AbsValue
-  case class CompiledClo(f: (Value, Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Lam, ρ: Map[String,Addr]) extends AbsValue
+  case class IntV(i: Int) extends AbsValue
+  case class FloatV(d: Double) extends AbsValue
+  case class CharV(c: Char) extends AbsValue
+  case class BoolV(b: Boolean) extends AbsValue
+  case class ListV(l: List[Value]) extends AbsValue
+  case class VectorV(v: Vector[Value]) extends AbsValue
+  case class PrimV(f: List[Value] => Value) extends AbsValue
+  case class VoidV() extends AbsValue
+  case class SymV(s: String) extends AbsValue
   type Value = Set[AbsValue]
-  def apply_closures_norep(f: Value, arg: Value, σ: Map[Addr,Value]) = {
+  case class CompiledClo(f: (List[Value], Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Lam, ρ: Map[String,Addr]) extends AbsValue {
+    def canEqual(a: Any) = a.isInstanceOf[CompiledClo]
+    override def equals(that: Any): Boolean = that match {
+      case that: CompiledClo => that.canEqual(this) && this.hashCode == that.hashCode
+      case _ => false
+    }
+    override def hashCode: Int = {
+      val prime = 31
+      var result = 1
+      result = prime * result + λ.hashCode
+      result = prime * result + ρ.hashCode
+      result
+    }
+  }
+  def apply_closures_norep(f: Value, args: List[Value], σ: Map[Addr,Value]) = {
     var σ0 = σ
     val vs: Set[Value] = for (CompiledClo(fun, λ, ρ) <- f) yield {
-      val (v, vσ) = fun(arg, σ0)
+      val (v, vσ) = fun(args, σ0)
       σ0 = vσ; v
     }
     (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
@@ -274,6 +331,7 @@ object AbsLamCalTest {
           println(v); println(s)
         }
       }
+  /*
     val lam = Lam("x", App(Var("x"), Var("x")))
     // ((λ (x) ((x x) x)) (λ (y) y))
     val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))
@@ -290,6 +348,7 @@ object AbsLamCalTest {
 
     val code = specialize(fact5)
     println(code.code)
-    code.eval(())
+    //code.eval(())
+  */
   }
 }

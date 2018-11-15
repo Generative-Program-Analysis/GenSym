@@ -87,7 +87,6 @@ object LamCal {
     case class ListV(l: List[Value]) extends Value
     case class VectorV(v: Vector[Value]) extends Value
     case class CloV(λ: Lam, ρ: Env) extends Value
-    case class PrimV(f: List[Value] => Value) extends Value
     case class VoidV() extends Value
     case class SymV(s: String) extends Value
 
@@ -121,6 +120,11 @@ object LamCal {
         }
         ev(e, ρ_*, σ_*)
     }
+
+    def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = cnd match {
+      case BoolV(b) => if (b) thn else els
+    }
+
     def prim_eval(op: String, v1: Value, v2: Value): Value = (op, v1, v2) match {
       case ("+", IntV(n1), IntV(n2)) => IntV(n1 + n2)
       case ("-", IntV(n1), IntV(n2)) => IntV(n1 - n2)
@@ -132,9 +136,6 @@ object LamCal {
       case ("<", IntV(n1), IntV(n2)) => BoolV(n1 < n2)
       case (">=", IntV(n1), IntV(n2)) => BoolV(n1 >= n2)
       case ("<=", IntV(n1), IntV(n2)) => BoolV(n1 <= n2)
-    }
-    def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = cnd match {
-      case BoolV(b) => if (b) thn else els
     }
   }
 
@@ -156,18 +157,29 @@ object LamCal {
       //val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = {
       //  case (arg: Rep[Value], σ: Rep[Store]) =>
       val f: Rep[(List[Value],Store)]=>Rep[(Value,Store)] = (as: Rep[(List[Value], Store)]) => {
-        val argvs = tuple2_get1[List[Value]](as); val σ = tuple2_get2[Store](as);
-        def aux(args: List[Ident], argvs: Rep[List[Value]], ρ: Rep[Env], σ: Rep[Store]): (Rep[Env], Rep[Store]) = {
-          if (args.isEmpty) (ρ, σ)
-          else {
-            val alpha = alloc(σ, args.head)
-            aux(args.tail, argvs.tail, put(ρ, args.head, alpha), put(σ, alpha, argvs.head))
-          }
+        val argvs = as._1; val σ = as._2;
+        def aux(argns: List[Ident], argvs: Rep[List[Value]], ρ: Rep[Env], σ: Rep[Store]): (Rep[Env], Rep[Store]) = argns match {
+          case Nil => (ρ, σ)
+          case x :: xs =>
+            val α = alloc(σ, x)
+            aux(xs, argvs.tail, put(ρ, x, α), put(σ, α, argvs.head))
         }
         val (ρ_*, σ_*) = aux(args, argvs, ρ, σ)
         ev(e, ρ_*, σ_*)
       }
       unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+    }
+
+    def sym(s: Sym): Rep[Value] = unchecked("SymV(", s.x, ")")
+    def int(i: IntLit): Rep[Value] = unchecked("IntV(", i.x, ")")
+    def bool(b: BoolLit): Rep[Value] = unchecked("BoolV(", b.x, ")")
+    def float(f: FloatLit): Rep[Value] = unchecked("FloatV(", f.x, ")")
+    def char(c: CharLit): Rep[Value] = unchecked("CharV(", c.x, ")")
+    def void(): Rep[Value] = unchecked("VoidV()")
+
+    def branch(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
+      val b = unchecked[Boolean](cnd, ".asInstanceOf[BoolV].b")
+      (if (b) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
     }
 
     def prim_eval(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = op match {
@@ -176,36 +188,11 @@ object LamCal {
       case _ =>
         val v1i = unchecked(v1, ".asInstanceOf[IntV].i")
         val v2i = unchecked(v2, ".asInstanceOf[IntV].i")
-        unchecked("IntV(", v1i, op, v2i, ")")
-    }
-
-    def sym(s: Sym): Rep[Value] = {
-      unchecked("SymV(", s.x, ")")
-    }
-
-    def int(i: IntLit): Rep[Value] = {
-      unchecked("IntV(", i.x, ")")
-    }
-
-    def bool(b: BoolLit): Rep[Value] = {
-      unchecked("BoolV(", b.x, ")")
-    }
-
-    def float(f: FloatLit): Rep[Value] = {
-      unchecked("FloatV(", f.x, ")")
-    }
-
-    def char(c: CharLit): Rep[Value] = {
-      unchecked("CharV(", c.x, ")")
-    }
-
-    def void(): Rep[Value] = {
-      unchecked("VoidV()")
-    }
-
-    def branch(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-      val b = unchecked[Boolean](cnd, ".asInstanceOf[BoolV].b")
-      (if (b) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
+        if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) {
+          unchecked("BoolV(", v1i, op, v2i, ")")
+        } else {
+          unchecked("IntV(", v1i, op, v2i, ")")
+        }
     }
   }
 
@@ -227,7 +214,6 @@ object LamCal {
         val argsstr = args.map(quote).mkString(", ")
         emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(List(" + argsstr + ")," + quote(σ) + ")")
       case Struct(tag, elems) =>
-        //
         //TODO: merge back to LMS
         registerStruct(structName(sym.tp), elems)
         val typeName = sym.tp.runtimeClass.getSimpleName + "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
@@ -332,8 +318,13 @@ object SADI5 {
       """)
     val euclid_imp = getAST(
       """
-      (define x 56)
-      (define y 24)
+      (define x 24)
+      (define y 56)
+      (if (<= x y)
+        (let ([temp x])
+          (set! x y)
+          (set! y temp))
+        (void))
       (define r (% x y))
       (letrec
         ([loop_body
