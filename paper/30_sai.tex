@@ -112,9 +112,8 @@ Because the @in@ and @out@ are both next-stage values, thus the test of whether
 @in@ and @out@ are equal is a generated expression to the next stage, and we can only 
 know the comparison result at the next stage. 
 In other words, we do not know how many iterations we need to reach the fixed-point.
-To achieve this, we need to stage a
-function --- @iter_aux@ is generated as a recursive function of type @Rep[Unit => (Value,Store)]@
-and will be invoked at the next stage.
+To achieve this, we need to stage a function value --- @iter_aux@ is generated as a 
+recursive function of type @Rep[Unit => (Value,Store)]@ and will be invoked at the next stage.
 
 \begin{lstlisting}
 def iter(e: Expr, $\rho$: Rep[Env], $\sigma$: Rep[Store]): 
@@ -146,7 +145,7 @@ Rep[(Value, Store)] = {
 }
 \end{lstlisting}
 
-\subsection{Specialized Data Structures}
+\subsection{Specialized Data Structures} \label{staged_ds}
 
 Now we already obtained an end-to-end staged abstract interpreter that is able to 
 specialize an analysis. However, we treat the data structures such as @Map@s as black-boxes,
@@ -183,24 +182,31 @@ These $(n-m)$ programs might be (abstract) arguments for the first $n$ programs,
 the abstract interpreter itself might be a partial abstract interpreter.
 
 \subsection{Discussion}
-Review a little bit what we have done?
-what not to do when writing an abstract interpreter for staging?
-what kind of abstract interpreter is friendly for staging/specialization?
-
-Stage an abstract abstract machine yields another small-step abstract machine
+%We have presented all of our four different interpreters as shown in Figure~\ref{confluence}.
+In the literature of partial evaluation, \citeauthor{10.1007/3-540-61580-6_11} gave several
+advice on what to do and not to do when specializing a concrete interpreter \cite{10.1007/3-540-61580-6_11}. 
+We borrow these advice to abstract interpreters and discuss decisions we made to achieve this 
+and examine some alternatives.
 
 \paragraph{Big-step vs Small-step.}
+What we implemented is a big-step, compositional \todo{or semi-compositional} abstract interpreter, 
+where the "compositional" means every recursive call of our abstract interpreter is applied with proper 
+substructures of the current syntactic parameters. 
+The compositionality ensures the specialization can be done by unfolding, as well as the termination of specialization procedure.
+Nevertheless, it is also possible to specialize a small-step, operational abstract semantics --- \citeauthor{Johnson:2013:OAA:2500365.2500604}
+showed this in abstract compilation \cite{Boucher:1996:ACN:647473.727587} style as one of their optimization 
+to Abstract Abstract Machines \cite{Johnson:2013:OAA:2500365.2500604}. 
+However, the generated abstract bytecodes still requires another small-step abstract machine 
+to execute, which is an additional engineering efforts.
+Another alternative approach for efficient specialization is to write the abstract interpreter 
+in a big-step, monadic style \cite{DBLP:journals/pacmpl/DaraisLNH17}.
 
-direct-style vs CPS
+% direct-style vs CPS
 
-Operational vs denotational
+\paragraph{Correctness and Soundness.}
+Based on the assumption that LMS preserves the semantics during staging, and indeed it is 
+in our application, 
+we are confident that the staged abstract interpreter does the same analysis compared 
+with the unstaged one. Moreover, the optimization done by staging does not compromise
+and soundness.
 
-General insights for staging other static analysis algorithm.
-
-\paragraph{Soudness.}
-
-\cite{10.1007/3-540-61580-6_11}
-
-Jones-optimal specialization?
-Futamura projection?
-Lattice-theoretic Interpretation
