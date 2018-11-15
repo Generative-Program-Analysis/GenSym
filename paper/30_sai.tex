@@ -191,12 +191,12 @@ and examine some alternatives.
 \paragraph{Big-step vs Small-step.}
 What we implemented is a big-step, compositional \todo{or semi-compositional} abstract interpreter, 
 where the "compositional" means every recursive call of our abstract interpreter is applied with proper 
-substructures of the current syntactic parameters. 
+substructures of the current syntactic parameters \cite{10.1007/3-540-61580-6_11}.
 The compositionality ensures the specialization can be done by unfolding, as well as the termination of specialization procedure.
 Nevertheless, it is also possible to specialize a small-step, operational abstract semantics --- \citeauthor{Johnson:2013:OAA:2500365.2500604}
-showed this in abstract compilation \cite{Boucher:1996:ACN:647473.727587} style as one of their optimization 
-to Abstract Abstract Machines \cite{Johnson:2013:OAA:2500365.2500604}. 
-However, the generated abstract bytecodes still requires another small-step abstract machine 
+showed this in abstract compilation \cite{Boucher:1996:ACN:647473.727587} style as one of their optimizations
+of Abstract Abstract Machines \cite{Johnson:2013:OAA:2500365.2500604}. 
+However, the generated abstract bytecode still requires another small-step abstract machine 
 to execute, which is an additional engineering efforts.
 Another alternative approach for efficient specialization is to write the abstract interpreter 
 in a big-step, monadic style \cite{DBLP:journals/pacmpl/DaraisLNH17}.
