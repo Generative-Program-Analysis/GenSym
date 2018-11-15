@@ -39,19 +39,19 @@ object LamCal {
     def apply_closure(ev: EvalFun)(f: R[Value], args: List[R[Value]], σ: R[Store]): Ans
     def branch(cnd: R[Value], thn: => Ans, els: => Ans): Ans
     val ρ0: R[Env]; val σ0: R[Store]
-    type EvalFun = (SmallExpr, R[Env], R[Store]) => Ans
+    type EvalFun = (Expr, R[Env], R[Store]) => Ans
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
-    def eval(ev: EvalFun)(e: SmallExpr, ρ: R[Env], σ: R[Store]): Ans = e match {
-      case Sym(_) => (sym(e), σ)
+    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
+      case Sym(s) => (sym(Sym(s)), σ)
       case Var(x) => (get(σ, get(ρ, x)), σ)
-      case IntLit(_) => (int(e), σ)
-      case FloatLit(_) => (float(e), σ)
-      case BoolLit(_) => (bool(e), σ)
-      case CharLit(_) => (char(e), σ)
+      case IntLit(i) => (int(IntLit(i)), σ)
+      case FloatLit(f) => (float(FloatLit(f)), σ)
+      case BoolLit(b) => (bool(BoolLit(b)), σ)
+      case CharLit(c) => (char(CharLit(c)), σ)
       case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
       case App(e1, args) =>
         val (e1v, e1σ) = ev(e1, ρ, σ)
-        val (σf, lrv) = args foldLeft((e1σ, List[R[Value]]())) {
+        val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((e1σ, List[R[Value]]()))) {
           case ((σ, lrv), arg) =>
             val (pv, pσ) = ev(arg, ρ, σ)
             (pσ, lrv :+ pv)
@@ -65,8 +65,8 @@ object LamCal {
         val (v, σ_) = ev(e, ρ, σ)
         (void(), put(σ_, get(ρ, x), v))
     }
-    def eval_top(e: SmallExpr): Ans = eval_top(e, ρ0, σ0)
-    def eval_top(e: SmallExpr, ρ: R[Env], σ: R[Store]): Ans = fix(eval)(e, ρ, σ)
+    def eval_top(e: Expr): Ans = eval_top(e, ρ0, σ0)
+    def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = fix(eval)(e, ρ, σ)
   }
 
   trait Concrete extends Semantics {
@@ -97,6 +97,7 @@ object LamCal {
     def put(σ: Store, a: Addr, v: Value): Store = σ + (a → v)
     def alloc(σ: Store, x: Ident): Addr = σ.size + 1
     def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
+    def sym(s: Sym): Value = SymV(s.x)
     def int(i: IntLit): Value = IntV(i.x)
     def bool(b: BoolLit): Value = BoolV(b.x)
     def float(f: FloatLit): Value = FloatV(f.x)
@@ -105,7 +106,7 @@ object LamCal {
     def apply_closure(ev: EvalFun)(f: Value, argvs: List[Value], σ: Store): Ans = f match {
       // TODO: What about PrimV? Load them into initial context?
       case CloV(Lam(args, e), ρ) =>
-        val (ρ_*, σ_*) = (args zip argvs) foldLeft((ρ, σ)) {
+        val (ρ_*, σ_*): (Env, Store) = ((args zip argvs) foldLeft((ρ, σ))) {
           case ((ρ_, σ_), (argn, argv)) =>
             val α = alloc(σ_, argn)
             (put(ρ_, argn, α), put(σ_, α, argv))
@@ -117,7 +118,7 @@ object LamCal {
     }
   }
 
-  trait LMSOps extends Dsl with MapOps with UncheckedOps with TupleOps with SetOps with TupledFunctions
+  trait LMSOps extends Dsl with MapOps with UncheckedOps with TupleOps with SetOps with TupledFunctions with ListOps
   trait RepConcInterpOps extends Concrete with LMSOps {
     type R[+T] = Rep[T]
     implicit def valueTyp: Typ[Value]
@@ -134,44 +135,52 @@ object LamCal {
       // scala.MatchError: UnboxedTuple(List(Sym(7), Sym(8))) (of class scala.lms.common.TupledFunctionsExp$UnboxedTuple)
       //val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = {
       //  case (arg: Rep[Value], σ: Rep[Store]) =>
-      val f: Rep[(List[Value],Store)]=>Rep[(List[Value],Store)] = (as: Rep[(List[Value], Store)]) => {
-        val argvs = as._1; val σ = as._2;
-        val (ρ_*, σ_*) = (args zip argvs) foldLeft((ρ, σ)) {
-          case ((ρ_, σ_), (argn, argv)) =>
-            val α = alloc(σ_, argn)
-            (put(ρ_, argn, α), put(σ_, α, argv))
+      val f: Rep[(List[Value],Store)]=>Rep[(Value,Store)] = (as: Rep[(List[Value], Store)]) => {
+        val argvs = tuple2_get1[List[Value]](as); val σ = tuple2_get2[Store](as);
+        def aux(args: List[Ident], argvs: Rep[List[Value]], ρ: Rep[Env], σ: Rep[Store]): (Rep[Env], Rep[Store]) = {
+          if (args.isEmpty) (ρ, σ)
+          else {
+            val alpha = alloc(σ, args.head)
+            aux(args.tail, argvs.tail, put(ρ, args.head, alpha), put(σ, alpha, argvs.head))
+          }
         }
+        val (ρ_*, σ_*) = aux(args, argvs, ρ, σ)
         ev(e, ρ_*, σ_*)
       }
       unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
     }
-    def int(i: Lit): Rep[Value] = {
-      unchecked("IntV(", i.i, ")")
+
+    def sym(s: Sym): Rep[Value] = {
+      unchecked("SymV(", s.x, ")")
+    }
+
+    def int(i: IntLit): Rep[Value] = {
+      unchecked("IntV(", i.x, ")")
     }
 
     def bool(b: BoolLit): Rep[Value] = {
-      unchecked("BoolV(", b.b, ")")
+      unchecked("BoolV(", b.x, ")")
     }
 
     def float(f: FloatLit): Rep[Value] = {
-      unchecked("FloatV(", f.f, ")")
+      unchecked("FloatV(", f.x, ")")
     }
 
-    def char(c: CharLit): Value = CharV(c.x) = {
-      unchecked("CharV(", c.c, ")")
+    def char(c: CharLit): Rep[Value] = {
+      unchecked("CharV(", c.x, ")")
     }
 
-    def void(): Rep[Value} = {
+    def void(): Rep[Value] = {
       unchecked("VoidV()")
     }
 
     def branch(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-      val b = unchecked[Bool](cnd, ".asInstanceOf[BoolV].b")
+      val b = unchecked[Boolean](cnd, ".asInstanceOf[BoolV].b")
       (if (b) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
     }
   }
 
-  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp with TupledFunctionsRecursiveExp
+  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp with TupledFunctionsRecursiveExp with ListOpsExp
   trait RepConcInterpOpsExp extends RepConcInterpOps with LMSOpsExp {
     implicit def valueTyp: Typ[Value] = manifestTyp
     case class ApplyClosure(f: Rep[Value], args: List[Rep[Value]], σ: Rep[Store]) extends Def[(Value, Store)]
@@ -214,7 +223,7 @@ object LamCal {
   trait RepConcSemDriver extends DslDriver[Unit, Unit] with RepConcInterpOpsExp { q =>
     override val codegen = new DslGen with ScalaGenMapOps with MyScalaGenTupleOps
       with RepConcSemGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps
-      with ScalaGenSetOps {
+      with ScalaGenSetOps with ScalaGenListOps {
       val IR: q.type = q
       override def remap[A](m: Typ[A]): String = {
         if (m.toString.endsWith("$Value")) "Value"
@@ -255,13 +264,14 @@ object LamCal {
 object SADI5 {
   import LamCal._
   def main(args: Array[String]) {
-    def specialize(p: SmallExpr): DslDriver[Unit, Unit] =
+  def specialize(p: Expr): DslDriver[Unit, Unit] =
       new RepConcSemDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
           println(v); println(s)
         }
       }
+  /*
     val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))
     val fact = Lam("n",
                    If0(Var("n"),
@@ -274,5 +284,6 @@ object SADI5 {
     code.eval(())
     //println(ConcInterp.eval_top(id4))
     println(ConcInterp.eval_top(fact5))
+  */
   }
 }

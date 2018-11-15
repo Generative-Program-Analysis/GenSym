@@ -16,8 +16,9 @@ trait ListOps extends Variables {
   implicit def varToListOps[T:Typ](x: Var[List[T]]) = new ListOpsCls(readVar(x)) // FIXME: dep on var is not nice
   implicit def repToListOps[T:Typ](a: Rep[List[T]]) = new ListOpsCls(a)
   implicit def listToListOps[T:Typ](a: List[T]) = new ListOpsCls(unit(a))
-  
+
   class ListOpsCls[A:Typ](l: Rep[List[A]]) {
+    def zip[B:Typ](rhs: Rep[List[B]]) = list_zip(l, rhs)
     def map[B:Typ](f: Rep[A] => Rep[B]) = list_map(l,f)
     def flatMap[B : Typ](f: Rep[A] => Rep[List[B]]) = list_flatMap(l,f)
     def filter(f: Rep[A] => Rep[Boolean]) = list_filter(l, f)
@@ -32,10 +33,12 @@ trait ListOps extends Variables {
     def toArray = list_toarray(l)
     def toSeq = list_toseq(l)
     def take(i: Rep[Int]) = list_take(l, i)
+    def foldLeft[B:Typ](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = list_foldLeft(l, z, f)
   }
-  
+
   def list_new[A:Typ](xs: Seq[Rep[A]])(implicit pos: SourceContext): Rep[List[A]]
-  def list_fromseq[A:Typ](xs: Rep[Seq[A]])(implicit pos: SourceContext): Rep[List[A]]  
+  def list_fromseq[A:Typ](xs: Rep[Seq[A]])(implicit pos: SourceContext): Rep[List[A]]
+  def list_zip[A: Typ, B: Typ](lhs: Rep[List[A]], rhs: Rep[List[B]])(implicit pos: SourceContext): Rep[List[(A, B)]]
   def list_map[A:Typ,B:Typ](l: Rep[List[A]], f: Rep[A] => Rep[B])(implicit pos: SourceContext): Rep[List[B]]
   def list_flatMap[A : Typ, B : Typ](xs: Rep[List[A]], f: Rep[A] => Rep[List[B]])(implicit pos: SourceContext): Rep[List[B]]
   def list_filter[A : Typ](l: Rep[List[A]], f: Rep[A] => Rep[Boolean])(implicit pos: SourceContext): Rep[List[A]]
@@ -51,9 +54,10 @@ trait ListOps extends Variables {
   def list_tail[A:Typ](xs: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]]
   def list_isEmpty[A:Typ](xs: Rep[List[A]])(implicit pos: SourceContext): Rep[Boolean]
   def list_take[A:Typ](xs: Rep[List[A]], i: Rep[Int])(implicit pos: SourceContext): Rep[List[A]]
+  def list_foldLeft[A:Typ,B:Typ](s: Rep[List[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
 }
 
-trait ListOpsExp extends ListOps with EffectExp with VariablesExp with BooleanOpsExp with ArrayOpsExp with StringOpsExp {
+trait ListOpsExp extends ListOps with EffectExp with VariablesExp with BooleanOpsExp with ArrayOpsExp with StringOpsExp with TupleOpsExp {
   implicit def listTyp[T:Typ]: Typ[List[T]] = {
     implicit val ManifestTyp(m) = typ[T]
     manifestTyp
@@ -62,6 +66,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp with BooleanOp
     def mA = typ[A]
   }
   case class ListFromSeq[A:Typ](xs: Rep[Seq[A]]) extends Def[List[A]]
+  case class ListZip[A: Typ, B: Typ](lhs: Rep[List[A]], rhs: Rep[List[B]]) extends Def[List[(A, B)]]
   case class ListMap[A:Typ,B:Typ](l: Exp[List[A]], x: Sym[A], block: Block[B]) extends Def[List[B]]
   case class ListFlatMap[A:Typ, B:Typ](l: Exp[List[A]], x: Sym[A], block: Block[List[B]]) extends Def[List[B]]
   case class ListFilter[A : Typ](l: Exp[List[A]], x: Sym[A], block: Block[Boolean]) extends Def[List[A]]
@@ -77,9 +82,12 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp with BooleanOp
   case class ListTail[A:Typ](xs: Rep[List[A]]) extends Def[List[A]]
   case class ListIsEmpty[A:Typ](xs: Rep[List[A]]) extends Def[Boolean]
   case class ListTake[A:Typ](xs: Rep[List[A]], i: Rep[Int]) extends Def[List[A]]
-  
+  case class ListFoldLeft[A:Typ,B:Typ](s: Exp[List[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
+
   def list_new[A:Typ](xs: Seq[Rep[A]])(implicit pos: SourceContext) = ListNew(xs)
   def list_fromseq[A:Typ](xs: Rep[Seq[A]])(implicit pos: SourceContext) = ListFromSeq(xs)
+
+  def list_zip[A: Typ, B: Typ](lhs: Rep[List[A]], rhs: Rep[List[B]])(implicit pos: SourceContext) = ListZip(lhs, rhs)
   def list_map[A:Typ,B:Typ](l: Exp[List[A]], f: Exp[A] => Exp[B])(implicit pos: SourceContext) = {
     val a = fresh[A]
     val b = reifyEffects(f(a))
@@ -111,12 +119,18 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp with BooleanOp
   def list_tail[A:Typ](xs: Rep[List[A]])(implicit pos: SourceContext) = ListTail(xs)
   def list_isEmpty[A:Typ](xs: Rep[List[A]])(implicit pos: SourceContext) = ListIsEmpty(xs)
   def list_take[A:Typ](xs: Rep[List[A]], i: Rep[Int])(implicit pos: SourceContext) = ListTake(xs, i)
-  
+  def list_foldLeft[A:Typ,B:Typ](s: Exp[List[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = {
+    val acc = fresh[B]
+    val x = fresh[A]
+    val b = reifyEffects(f(acc, x))
+    reflectEffect(ListFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
+  }
+
   override def mirror[A:Typ](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
     case e@ListNew(xs) => list_new(f(xs))(e.mA,pos)
     case _ => super.mirror(e,f)
   }).asInstanceOf[Exp[A]] // why??
-  
+
   override def syms(e: Any): List[Sym[Any]] = e match {
     case ListMap(a, x, body) => syms(a):::syms(body)
     case ListFlatMap(a, _, body) => syms(a) ::: syms(body)
@@ -139,7 +153,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp with BooleanOp
     case ListFilter(a, _, body) => freqNormal(a) ::: freqHot(body)
     case ListSortBy(a, x, body) => freqNormal(a):::freqHot(body)
     case _ => super.symsFreq(e)
-  }  
+  }
 }
 
 trait ListOpsExpOpt extends ListOpsExp {
@@ -171,27 +185,28 @@ trait ScalaGenListOps extends BaseGenListOps with ScalaGenEffect {
     case ListFromSeq(xs) => emitValDef(sym, src"List($xs: _*)")
     case ListMkString(xs) => emitValDef(sym, src"$xs.mkString")
     case ListMkString2(xs,s) => emitValDef(sym, src"$xs.mkString($s)")
-    case ListMap(l,x,blk) => 
-      gen"""val $sym = $l.map { $x => 
+    case ListZip(xs, ys) => emitValDef(sym, src"$xs.zip($ys)")
+    case ListMap(l,x,blk) =>
+      gen"""val $sym = $l.map { $x =>
            |${nestedBlock(blk)}
            |$blk
            |}"""
     case ListFlatMap(l, x, b) =>
-      gen"""val $sym = $l.flatMap { $x => 
+      gen"""val $sym = $l.flatMap { $x =>
            |${nestedBlock(b)}
            |$b
            |}"""
     case ListFilter(l, x, b) =>
-      gen"""val $sym = $l.filter { $x => 
+      gen"""val $sym = $l.filter { $x =>
            |${nestedBlock(b)}
            |$b
            |}"""
     case ListSortBy(l,x,blk) =>
-      gen"""val $sym = $l.sortBy { $x => 
+      gen"""val $sym = $l.sortBy { $x =>
            |${nestedBlock(blk)}
            |$blk
            |}"""
-    case ListPrepend(l,e) => emitValDef(sym, src"$e :: $l")    
+    case ListPrepend(l,e) => emitValDef(sym, src"$e :: $l")
     case ListToArray(l) => emitValDef(sym, src"$l.toArray")
     case ListToSeq(l) => emitValDef(sym, src"$l.toSeq")
     case ListTake(l, i) => emitValDef(sym, src"$l.take($i)")
@@ -209,10 +224,9 @@ trait CLikeGenListOps extends BaseGenListOps with CLikeGenBase {
         case _ => super.emitNode(sym, rhs)
       }
     }
-*/    
+*/
 }
 
 trait CudaGenListOps extends CudaGenEffect with CLikeGenListOps
 trait OpenCLGenListOps extends OpenCLGenEffect with CLikeGenListOps
 trait CGenListOps extends CGenEffect with CLikeGenListOps
-

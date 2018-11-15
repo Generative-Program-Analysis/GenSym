@@ -3,7 +3,7 @@ package sai.cps.zerocfa
 import scala.lms.tutorial._
 import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
-import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
+import scala.lms.common.{SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 import sai.utils.Utils
 import sai.cps.parser._
