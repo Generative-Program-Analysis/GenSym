@@ -169,7 +169,9 @@ object AbsLamCal {
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
         println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        if (out.contains(cfg)) { out(cfg) }
+        if (out.contains(cfg)) {
+          out(cfg)
+        }
         else {
           val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
           out = out + (cfg -> ans0)
@@ -181,7 +183,8 @@ object AbsLamCal {
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
         def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
           println(s"Start iteration ${e}")
-          in = out; out = Map[Config, (Value,Store)]()
+          in = out;
+          out = Map[Config, (Value,Store)]()
           cached_ev(e, ρ, σ)
           if (in === out) out((unit(e), ρ, σ)) else iter_aux()
         }
@@ -237,8 +240,21 @@ object RTSupport {
   case class Addr(x: String)
   trait AbsValue
   case class NumV() extends AbsValue
-  case class CompiledClo(f: (Value, Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Lam, ρ: Map[String,Addr]) extends AbsValue
   type Value = Set[AbsValue]
+  case class CompiledClo(f: (Value, Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Lam, ρ: Map[String,Addr]) extends AbsValue {
+    def canEqual(a: Any) = a.isInstanceOf[CompiledClo]
+    override def equals(that: Any): Boolean = that match {
+      case that: CompiledClo => that.canEqual(this) && this.hashCode == that.hashCode
+      case _ => false
+    }
+    override def hashCode: Int = {
+      val prime = 31
+      var result = 1
+      result = prime * result + λ.hashCode
+      result = prime * result + ρ.hashCode
+      result
+    }
+  }
   def apply_closures_norep(f: Value, arg: Value, σ: Map[Addr,Value]) = {
     var σ0 = σ
     val vs: Set[Value] = for (CompiledClo(fun, λ, ρ) <- f) yield {
@@ -283,6 +299,6 @@ object AbsLamCalTest {
 
     val code = specialize(fact5)
     println(code.code)
-    code.eval(())
+    //code.eval(())
   }
 }
