@@ -245,7 +245,7 @@ object LamCal {
     case class PrimV(f: List[Value] => Value) extends Value
     case class VoidV() extends Value
     case class SymV(s: String) extends Value
-    case class CompiledClo(f: (List[Value], Map[Int,Value]) => (List[Value], Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
+    case class CompiledClo(f: (List[Value], Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
 /*
     def apply_closure_norep(f: Value, arg: Value, σ: Map[Int,Value]) = f match {
       case CompiledClo(fun, λ, ρ) => fun(arg, σ)
