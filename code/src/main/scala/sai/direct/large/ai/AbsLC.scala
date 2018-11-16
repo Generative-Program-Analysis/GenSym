@@ -65,9 +65,9 @@ object AbsLamCal {
             (put(ρ_, argn, α), put(σ_, α, argv))
         }
         val (v, vσ) = ev(e, ρ_*, σ_*)
-        σ0 = vσ; v
+        σ0 = vσ ⊔ σ_*; v
       }
-      (vs.reduce(Lattice[Value].⊔), σ0)
+      (vs.foldLeft(Lattice[Value].bot)(Lattice[Value].⊔), σ0)
     }
 
     def branch(cnd: Value, thn: => Ans, els: => Ans): Ans = {
@@ -106,7 +106,7 @@ object AbsLamCal {
         if (in == out) out((e, ρ, σ)) else iter(e, ρ, σ)
       }
     }
-    override def eval_top(e: Expr, ρ: Env, σ: Store): Ans = CacheFix(eval).iter(e, ρ, σ)
+    override def eval_top(e: Expr, ρ: Env, σ: Store): Ans = CacheFix(eval).cached_ev(e, ρ, σ)
   }
 
   trait RepAbsInterpOps extends Abstract with LMSOps {
@@ -220,7 +220,6 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
 
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-        println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
         if (out.contains(cfg)) {
           out(cfg)
@@ -235,7 +234,6 @@ object AbsLamCal {
       }
       def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
         def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
-          println(s"Start iteration ${e}")
           in = out;
           out = Map[Config, (Value,Store)]()
           cached_ev(e, ρ, σ)
@@ -320,7 +318,7 @@ object RTSupport {
     var σ0 = σ
     val vs: Set[Value] = for (CompiledClo(fun, λ, ρ) <- f) yield {
       val (v, vσ) = fun(args, σ0)
-      σ0 = vσ; v
+      σ0 = vσ ⊔ σ0 ; v
     }
     (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
   }
@@ -334,7 +332,7 @@ import RTSupport._
   }
 }
 
-object AbsLamCalTest {
+trait AbsLamCalTrait {
   import AbsLamCal._
 
   def specialize(p: Expr): DslDriver[Unit, Unit] =
@@ -360,7 +358,9 @@ object AbsLamCalTest {
     println(code.code)
     code.eval(())
   }
+}
 
+object AbsLamCalTest extends AbsLamCalTrait {
   def main(args: Array[String]) {
     val id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
     val oneplusone = App(Var("+"), List(IntLit(1), IntLit(1)))

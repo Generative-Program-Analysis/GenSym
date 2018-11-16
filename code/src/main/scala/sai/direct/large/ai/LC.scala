@@ -45,36 +45,38 @@ object LamCal {
     val ρ0: R[Env]; val σ0: R[Store]
     type EvalFun = (Expr, R[Env], R[Store]) => Ans
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
-    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
-      case Sym(s) => (sym(Sym(s)), σ)
-      case Var(x) => (get(σ, get(ρ, x)), σ)
-      case IntLit(i) => (int(IntLit(i)), σ)
-      case FloatLit(f) => (float(FloatLit(f)), σ)
-      case BoolLit(b) => (bool(BoolLit(b)), σ)
-      case CharLit(c) => (char(CharLit(c)), σ)
-      case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
-      case App(Var(op), args) if (primops(op)) =>
-        val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((σ, List[R[Value]]()))) {
-          case ((σ, lrv), arg) =>
-            val (pv, pσ) = ev(arg, ρ, σ)
-            (pσ, lrv :+ pv)
-        }
-        (prim_eval(op, lrv), σf)
-      case App(e1, args) =>
-        val (e1v, e1σ) = ev(e1, ρ, σ)
-        val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((e1σ, List[R[Value]]()))) {
-          case ((σ, lrv), arg) =>
-            val (pv, pσ) = ev(arg, ρ, σ)
-            (pσ, lrv :+ pv)
-        }
-        apply_closure(ev)(e1v, lrv, σf)
-      case If(cnd, thn, els) =>
-        val (cndv, cndσ) = ev(cnd, ρ, σ)
-        branch(cndv, ev(thn, ρ, cndσ), ev(els, ρ, cndσ))
-      case Void() => (void(), σ)
-      case Set_!(x, e) =>
-        val (v, σ_) = ev(e, ρ, σ)
-        (void(), put(σ_, get(ρ, x), v))
+    def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = {
+      e match {
+        case Sym(s) => (sym(Sym(s)), σ)
+        case Var(x) => (get(σ, get(ρ, x)), σ)
+        case IntLit(i) => (int(IntLit(i)), σ)
+        case FloatLit(f) => (float(FloatLit(f)), σ)
+        case BoolLit(b) => (bool(BoolLit(b)), σ)
+        case CharLit(c) => (char(CharLit(c)), σ)
+        case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
+        case App(Var(op), args) if (primops(op)) =>
+          val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((σ, List[R[Value]]()))) {
+            case ((σ, lrv), arg) =>
+              val (pv, pσ) = ev(arg, ρ, σ)
+              (pσ, lrv :+ pv)
+          }
+          (prim_eval(op, lrv), σf)
+        case App(e1, args) =>
+          val (e1v, e1σ) = ev(e1, ρ, σ)
+          val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((e1σ, List[R[Value]]()))) {
+            case ((σ___, lrv), arg) =>
+              val (pv, pσ) = ev(arg, ρ, σ___)
+              (pσ, lrv :+ pv)
+          }
+          apply_closure(ev)(e1v, lrv, σf)
+        case If(cnd, thn, els) =>
+          val (cndv, cndσ) = ev(cnd, ρ, σ)
+          branch(cndv, ev(thn, ρ, cndσ), ev(els, ρ, cndσ))
+        case Void() => (void(), σ)
+        case Set_!(x, e) =>
+          val (v, σ_) = ev(e, ρ, σ)
+          (void(), put(σ_, get(ρ, x), v))
+      }
     }
     def eval_top(e: Expr): Ans = eval_top(e, ρ0, σ0)
     def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = fix(eval)(e, ρ, σ)
@@ -343,7 +345,52 @@ object SADI5 {
         (loop_body))
       """
     )
-    println("staged: " + evalStaged(euclid))
-    println("unstaged: " + evalUnstaged(euclid))
+
+    val church = getAST("""
+      (define plus
+        (lambda (p1)
+          (lambda (p2)
+            (lambda (pf)
+        (lambda (x) ((p1 pf) ((p2 pf) x)))))))
+
+      (define mult
+        (lambda (m1)
+          (lambda (m2)
+            (lambda (mf) (m2 (m1 mf))))))
+
+      (define pred
+        (lambda (n)
+          (lambda (rf)
+            (lambda (rx)
+        (((n (lambda (g) (lambda (h) (h (g rf)))))
+          (lambda (ignored) rx))
+        (lambda (id) id))))))
+
+      (define sub
+        (lambda (s1)
+          (lambda (s2)
+            ((s2 pred) s1))))
+
+
+      (define church0 (lambda (f0) (lambda (x0) x0)))
+      (define church1 (lambda (f1) (lambda (x1) (f1 x1))))
+      (define church2 (lambda (f2) (lambda (x2) (f2 (f2 x2)))))
+      (define church3 (lambda (f3) (lambda (x3) (f3 (f3 (f3 x3))))))
+      (define church0? (lambda (z) ((z (lambda (zx) #f)) #t)))
+      (define church=?
+        (lambda (e1)
+          (lambda (e2)
+            (if (church0? e1)
+          (church0? e2)
+          (if (church0? e2)
+              #f
+              ((church=? ((sub e1) church1)) ((sub e2) church1)))))))
+
+      ;; multiplication distributes over addition
+      ((church=? ((mult church2) ((plus church1) church3)))
+      ((plus ((mult church2) church1)) ((mult church2) church3)))
+      """)
+    println("staged: " + evalStaged(church))
+    println("unstaged: " + evalUnstaged(church))
   }
 }

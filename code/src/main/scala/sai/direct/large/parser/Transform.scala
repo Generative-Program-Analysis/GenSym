@@ -55,7 +55,7 @@ object LargeSchemeASTDesugar {
     case If(cnd, thn, els) => If(apply(cnd), apply(thn), apply(els))
     case Cond(branches) => desugarCondBranches(branches)
     case Case(e, branches) =>
-      newIdentLet(e) { v => desugarCaseBranches(v, branches) }
+      newIdentLet(apply(e)) { v => desugarCaseBranches(v, branches) }
     case Set_!(x, e) => Set_!(x, apply(e))
     case Begin(es) => desugarSequence(es)
     case Define(x, s) => Define(x, apply(s))
@@ -82,5 +82,7 @@ object TestLargeSchemeDesugar {
 
     val Some(ast) = LargeSchemeParser("(define (pow a b) (if (eq? b 0) 1 (* a (pow a (- b 1))))) (pow 3 5)")
     SExpPrinter(LargeSchemeASTDesugar(ast))
+    val Some(begin_in_begin) = LargeSchemeParser("(begin (begin a b) c d)")
+    SExpPrinter(LargeSchemeASTDesugar(begin_in_begin))
   }
 }
