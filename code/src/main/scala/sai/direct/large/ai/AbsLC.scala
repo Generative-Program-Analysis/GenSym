@@ -76,14 +76,14 @@ object AbsLamCal {
     }
 
     def prim_eval(op: String, lv: List[Value]): Value = op match {
-      case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%")(op)) => Set(IntV())
+      case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length")(op)) => Set(IntV())
       case op if (scala.collection.immutable.Set("eq?", ">", "<", ">=", "<=")(op)) => Set(BoolV())
       case op if (scala.collection.immutable.Set("list", "cons", "cdr")(op)) => Set(ListV())
       case op if ((scala.collection.immutable.Set("car", "vector-ref"))(op)) =>
         Set(BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())
-      case op if ((scala.collection.immutable.Set("vector", "make-vector"))(op)) =>
+      case op if ((scala.collection.immutable.Set("read", "vector", "make-vector", "number->string"))(op)) =>
         Set(VectorV())
-      case op if (scala.collection.immutable.Set("display", "write", "newline")(op)) => Set(VoidV())
+      case op if (scala.collection.immutable.Set("vector-set!", "display", "write", "newline")(op)) => Set(VoidV())
     }
 
     type Config = (Expr, R[Env], R[Store])
@@ -199,7 +199,7 @@ object AbsLamCal {
     }
 
     def prim_eval(op: String, lv: List[Rep[Value]]): Rep[Value] = op match {
-      case op if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) =>
+      case op if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<=", "vector-length"))(op)) =>
         unchecked[Value]("Set[AbsValue](BoolV())")
       case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%"))(op)) =>
         unchecked[Value]("Set[AbsValue](IntV())")
@@ -207,9 +207,9 @@ object AbsLamCal {
         unchecked[Value]("Set[AbsValue](ListV())")
       case op if ((scala.collection.immutable.Set("car", "vector-ref"))(op)) =>
         unchecked[Value]("Set[AbsValue](BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())")
-      case op if ((scala.collection.immutable.Set("vector", "make-vector"))(op)) =>
+      case op if ((scala.collection.immutable.Set("read", "vector", "make-vector", "number->string"))(op)) =>
         unchecked[Value]("Set[AbsValue](VectorV())")
-      case op if ((scala.collection.immutable.Set("display", "write", "newline"))(op)) =>
+      case op if ((scala.collection.immutable.Set("display", "write", "newline", "vector-set!"))(op)) =>
         unchecked[Value]("Set[AbsValue](VoidV())")
     }
 
