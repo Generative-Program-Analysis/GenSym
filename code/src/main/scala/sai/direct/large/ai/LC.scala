@@ -28,7 +28,7 @@ object LamCal {
     type Env
     type Store
     type Ans = (R[Value], R[Store])
-    val primops = Set("+", "-", "*", "/", "%", "eq?", ">", "<", ">=", "<=", "list", "cons", "car", "cdr", "vector", "make-vector", "vector-set!", "vector-ref", "vector-length", "display", "write", "newline", "read", "number->string")
+    val primops = Set("+", "-", "*", "/", "%", "eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "list", "cons", "car", "caar", "cadr", "caddr", "cdr", "cddr", "vector", "make-vector", "set-cdr!", "error", "vector-set!", "vector-ref", "vector-length", "display", "write", "newline", "read", "number->string")
     def get(ρ: R[Env], x: Ident): R[Addr]
     def put(ρ: R[Env], x: Ident, a: R[Addr]): R[Env]
     def get(σ: R[Store], a: R[Addr]): R[Value]

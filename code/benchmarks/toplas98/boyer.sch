@@ -9,7 +9,7 @@
         [else (assq k (cdr l))]))
 (define (member v l)
   (cond [(null? l) #f]
-        [(equal? v (car l)) l]
+        [(eq? v (car l)) l]
         [else (member v (cdr l))]))
 
 (define *namelist* '())      ; top-level name/plst chain 
@@ -137,7 +137,7 @@
                     (apply-subst-lst alist (cdr lst))))))
 
 (define (falsep x lst)
-  (or (equal? x (quote (f)))
+  (or (eq? x (quote (f)))
       (member x lst)))
 
 (define (one-way-unify term1 term2)
@@ -148,7 +148,7 @@
   (cond ((not (pair? term2))
          (cond ((begin (set! temp-temp (assq term2 unify-subst))
                        temp-temp)
-                (equal? term1 (cdr temp-temp)))
+                (eq? term1 (cdr temp-temp)))
                (else (set! unify-subst (cons (cons term2 term1)
                                              unify-subst))
                      #t)))
@@ -624,7 +624,7 @@
               0 n)))
 
 (define (trans-of-implies1 n)
-  (cond ((equal? n 1)
+  (cond ((eq? n 1)
          (list (quote implies)
                0 1))
         (else (list (quote and)
@@ -634,7 +634,7 @@
                     (trans-of-implies1 (- n 1))))))
 
 (define (truep x lst)
-  (or (equal? x (quote (t)))
+  (or (eq? x (quote (t)))
       (member x lst)))
 
 ;;; make sure you've run (setup) then call:  (test)

@@ -15,6 +15,7 @@ trait SchemeTokenParser extends RegexParsers {
   def RPAREN = "[\\)\\}\\]]".r
 
   def QUASIQUOTE: Parser[String] = "`" | "'"
+  def QUOTE: Parser[String] = "quote"
   def UNQUOTE: Parser[String] = ","
   def SYMBOL: Parser[String] = """[^ \t\n\(\{\[\)\}\]]+""".r
 

@@ -117,6 +117,8 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
 
   implicit def quasiquote: Parser[Expr] = QUASIQUOTE ~> quasiterm ^^ id
 
+  implicit def quote: Parser[Expr] = LPAREN ~> QUOTE ~> quasiterm <~ RPAREN ^^ id
+
   implicit def symbol: Parser[Sym] = SYMBOL ^^ { Sym(_) }
 
   implicit def list: Parser[App] = LPAREN ~> quasiterm.* <~ RPAREN ^^ {
@@ -126,7 +128,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
 
   implicit def quasiterm = literals | unquote | list | symbol
 
-  def expr: Parser[Expr] = literals | quasiquote | variable | lam | lets | dispatch | imp_structure | app
+  def expr: Parser[Expr] = literals | quasiquote | quote | variable | lam | lets | dispatch | imp_structure | app
 
   def program = implicit_begin
 }

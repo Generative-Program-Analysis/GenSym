@@ -10,7 +10,7 @@ object Evaluation extends AbsLamCalTrait {
   def main(args: Array[String]) = {
     val prog = boyer
     println(prog)
-//    println("staged: " + evalStaged(prog))
+    println("staged: " + evalStaged(prog))
     println("unstaged: " + evalUnstaged(prog))
   }
 }

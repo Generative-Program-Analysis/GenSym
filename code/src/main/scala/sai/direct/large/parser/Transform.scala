@@ -36,8 +36,20 @@ object LargeSchemeASTDesugar {
         }
     }
 
-  def desugarSequence(seq: List[Expr]): Expr =
+  def foldDefine(seq: List[Expr]): (List[String], List[Expr]) =
     seq match {
+      case Nil => (List(), List())
+      case x :: xs =>
+        val (ls, le) = foldDefine(xs)
+        x match {
+          case Define(n, v) => (n :: ls, Set_!(n, v) :: le)
+          case _ => (ls, x :: le)
+        }
+    }
+
+  def desugarSequence(seq: List[Expr]): Expr = {
+    val (ls, le) = foldDefine(seq)
+    val body = le match {
       case Nil => Void()
       case x :: Nil => apply(x)
       case x :: xs =>
@@ -48,6 +60,11 @@ object LargeSchemeASTDesugar {
             newIdentLet(apply(x)) { _ => desugarSequence(xs) }
         }
     }
+    ls.foldLeft(body) {
+      case (b, name) =>
+        App(Lam(List(name), b), List(Void()))
+    }
+  }
 
   def apply(expr: Expr): Expr = expr match {
     case App(e1, param) => App(apply(e1), param map apply)
