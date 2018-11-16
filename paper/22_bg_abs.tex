@@ -93,7 +93,7 @@ object AbsInterp extends Abstract {
       val vs = for (CloV(Lam(x, e), $\rho$) <- fs) yield {
         val $\alpha$ = alloc($\sigma$_*, x)
         val (v, v$\sigma$) = ev(e, put($\rho$, x, $\alpha$), put($\sigma$_*, $\alpha$, arg))
-        $\sigma$_* = v$\sigma$; v
+        $\sigma$_* = v$\sigma$ $\sqcup$ $\sigma$_*; v
       }
     (vs.reduce(Lattice[Value].$\sqcup$), $\sigma$_*)
   }

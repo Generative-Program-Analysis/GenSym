@@ -137,36 +137,141 @@ we desire.
 The target language we presented in Section~\ref{bg_lang} is essentially a higher-order functional language.
 One fundamental analysis task for functional programs is the control-flow analysis, i,e., determining
 which functions will possibly be applied at each call-site. 
-The abstract interpreter we used in Section~\ref{unstaged_abs} and Section~\ref{sai} is already 
-a store-widened 0-CFA-like abstraction; in last section, we also reviewed AC with 0-CFA.
+The abstract interpreter we used in Section~\ref{unstaged_abs} and Section~\ref{sai} is a store-widened 
+0-CFA-like abstraction, moreover it is also a pushdown control-flow analysis; 
+in last section, we also reviewed AC with finite-state 0-CFA.
 In this section, based on the existing staged abstract interpreter, we further
 develop the staging techniques with control-flow analyses, including recoverying a more precise store model;
-different polyvariant analsis, and using staging as a implementation stategy for mixed sensitivity.
+context-sensitive analsis, and using staging as a implementation stategy for mixed sensitivity.
 
 \subsubsection{A More Precise Store Model}
 
-\subsubsection{Context/Path/Flow-Sensitivity}
+The store-widened analysis we implemented in Section~\ref{sai} uses a single store to approximate
+the runtime store. It can be efficently computed in polynomial time together with 0-CFA-like abstraction, 
+but sometimes we may desire a 
+more precise result that distinguish the final values and stores for different closure targets. 
+To achieve this goal,
+we need to tweak our abstract interpreter and type instantiation. The answer type @Ans@ is changed to
+a set of @VS@s where a @VS@ is a pair of sets of abstract values (such as closures or abstract numbers)
+and a store. 
 
-\subsubsection{Mixed Sensitivity}
+\begin{lstlisting}
+type VS = (Set[AbsValue], Store)
+type Ans = R[Set[VS]]
+\end{lstlisting}
 
-using different $k$ for $k$-CFA
+Note that the type @Ans@ uses our stage polymorphic type @R@, meaning that under staging the type @Ans@
+represents a next stage value. Then, our generic interpreter is also changed when handling function 
+applications.
+
+\begin{lstlisting}
+case App(e1, e2) =>
+  val e1ans = ev(e1, $\rho$, $\sigma$)
+  val e1vs  = choices(e1ans)
+  val e2ans = ev(e2, $\rho$, e1vs.$\sigma$)
+  val e2vs  = choices(e2ans)
+  apply_closure(ev)(e1vs.v, e2vs.v, e2vs.$\sigma$)
+\end{lstlisting}
+
+The idea is to handle the application is to explore all possible closures from @e1@ and meanwhile
+use the latest store.
+What @choices@ does is similar to McCarthy's @amb@ operator ~\cite{MCCARTHY196333}: it non-deterministically return an
+element of type @VS@ from its argument, e.g., @e1ans@, to its right-hand side receiver, i.e., @e1vs@.
+The function @choices@ internally uses delimited control operator @shift@ to capture the continuation,
+which is the code block after its call site. 
+This allows us to perform nesting depth-first evaluation for function application but still writing 
+the program in direct-style \cite{Wei:2018:RAA:3243631.3236800}. 
+Again, we can stage this part as we did for the naive abstract interpreter.
+
+\subsubsection{Context-Sensitivity}
+
+We add k-CFA-like context-sensitivity to the analysis by introducing an abstract time stamp, 
+whose concrete instantiation is a finite list of expression that track $k$ recent calling context.
+The definition of abstract addresses is changed to a tuple of identifiers and the time it get allocated,
+meaning that this address points to some values under such calling context.
+If $k$ is 0, we obtain a monovariant analysis as demonstrated before; if $k > 0$, a higher precision
+analysis is obtained.
+
+\begin{lstlisting}
+type Time = List[Expr]
+\end{lstlisting}
+
+Every time when we call the @eval@ function, we refresh the time stamp by calling function @tick@,
+which returns a new time stamp. Here we adopt a $k$-CFA-like allocation strategy, therefore
+the @tick@ function can be implemented as appending the current expression being evaluated to the exiting
+calling context, and then taking the first $k$ elements from the list.
+
+\begin{lstlisting}
+def tick(e: Expr, $\tau$: R[Time]): R[Time] = (e :: $\tau$).take(k)
+def eval(ev: EvalFun)
+  (e: Expr, $\rho$: R[Env], $\sigma$: R[Store], $\tau$: R[Time]): Ans = {
+    val $\tau$_* = tick(e, $\tau$)
+    e match {
+      case Lit(i) => ...
+      ...
+    }
+  }
+\end{lstlisting}
+
+Accordingly, the type of return value is accompanied with the time stamp. For recursive call of @ev@,
+which would also return the latest time stamp, and that time stamp will be used for the afterward evaluation.
+
+\begin{lstlisting}
+type VST = (Value, Store, Time)
+type Ans = R[Set[VST]]
+\end{lstlisting}
+
+Using other allocation strategies to achieve different sensitivities is possible \cite{DBLP:conf/icfp/Gilray0M16} 
+and will be staged under our framework.
+ 
+%\subsubsection{Mixed Sensitivity}
+
+%using different $k$ for $k$-CFA
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{Numerical Analysis in Imperative Languages} \label{cases_imp}
 
-Beyond control-flow analysis, staging data structures used in the abstract interpreter, such as abstract domain.
+Now we consider in a first-order imperative language, we may care more about the data-flow because the control-flow
+is relatively easy to obtain. In this section, we show the staging of other abstract domains, particularly an 
+interval domain for numbers.
 It has been shown that specializing abstract domains with respect to the structure of analyzed program significantly 
 improves the performance: a recent example is online decomposition of polyhedra \cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143}.
-In this section, we present a similar idea for interval abstract domain using an \textit{offline} fashion by staging.
+In this section, we first show how to support imperative language features to the abstract interpreter, 
+and present a similar idea for interval domain but show the specialization is feasible by systematically staging.
 
 \subsubsection{Scaling to Imperative Languages}
 
-Assignments, Loops, Exceptions
+To evaluates an assignment, we first evaluate its right-hand side, and then put the value to the slot where
+the address of @v@ points to.
+For simplicity, we elect to make the value of the assignment be the value of its right-hand side.
 
-\subsubsection{Specializing Interval Domains}
+\begin{lstlisting}
+case Assign(x, e) =>
+  val (v, $\sigma$_*) = ev(e, $\rho$, $\sigma$)
+  (v, put($\sigma$_*, get($\rho$, x), v))
+\end{lstlisting}
 
-Intervals, Numerical Analysis
+without introducing new language value members.
 
-Options: Data-flow analysis, taint analysis
+\begin{lstlisting}
+case While(t, e) =>
+  val (tv, t$\sigma$) = ev(t, $\rho$, $\sigma$)
+  if (notZero(tv)) 
+\end{lstlisting}
+
+\subsubsection{Staged Interval}
+
+\begin{lstlisting}
+case class Interval(lb: Rep[Double], ub: Rep[Double]) {
+  def +(that: Interval): Interval = that match {
+    case Interval(lb_, ub_) => Interval(lb + lb_, ub + ub_)
+  }
+  def -(that: Interval): Interval = that match {
+    case Interval(lb_, ub_) => Interval(lb - lb_, ub_ - ub) 
+  }
+  ...
+}
+\end{lstlisting}
+
