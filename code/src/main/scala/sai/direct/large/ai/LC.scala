@@ -26,7 +26,7 @@ object LamCal {
     type Env
     type Store
     type Ans = (R[Value], R[Store])
-    val primops = Set("+", "-", "*", "/", "%", "eq?", ">", "<", ">=", "<=")
+    val primops = Set("+", "-", "*", "/", "%", "eq?", ">", "<", ">=", "<=", "list", "cons", "car", "cdr", "vector", "make-vector", "vector-set!", "vector-ref", "display", "write", "newline")
     def get(ρ: R[Env], x: Ident): R[Addr]
     def put(ρ: R[Env], x: Ident, a: R[Addr]): R[Env]
     def get(σ: R[Store], a: R[Addr]): R[Value]
@@ -40,7 +40,7 @@ object LamCal {
     def char(c: CharLit): R[Value]
     def void(): R[Value]
     def apply_closure(ev: EvalFun)(f: R[Value], args: List[R[Value]], σ: R[Store]): Ans
-    def prim_eval(op: String, v1: R[Value], v2: R[Value]): R[Value]
+    def prim_eval(op: String, lv: List[R[Value]]): R[Value]
     def branch(cnd: R[Value], thn: => Ans, els: => Ans): Ans
     val ρ0: R[Env]; val σ0: R[Store]
     type EvalFun = (Expr, R[Env], R[Store]) => Ans
@@ -53,10 +53,13 @@ object LamCal {
       case BoolLit(b) => (bool(BoolLit(b)), σ)
       case CharLit(c) => (char(CharLit(c)), σ)
       case Lam(args, e) => (close(ev)(Lam(args, e), ρ), σ)
-      case App(Var(op), List(e1, e2)) if (primops(op)) =>
-        val (e1v, e1σ) = ev(e1, ρ, σ)
-        val (e2v, e2σ) = ev(e2, ρ, e1σ)
-        (prim_eval(op, e1v, e2v), e2σ)
+      case App(Var(op), args) if (primops(op)) =>
+        val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((σ, List[R[Value]]()))) {
+          case ((σ, lrv), arg) =>
+            val (pv, pσ) = ev(arg, ρ, σ)
+            (pσ, lrv :+ pv)
+        }
+        (prim_eval(op, lrv), σf)
       case App(e1, args) =>
         val (e1v, e1σ) = ev(e1, ρ, σ)
         val (σf, lrv): (R[Store], List[R[Value]]) = (args foldLeft((e1σ, List[R[Value]]()))) {
@@ -125,17 +128,17 @@ object LamCal {
       case BoolV(b) => if (b) thn else els
     }
 
-    def prim_eval(op: String, v1: Value, v2: Value): Value = (op, v1, v2) match {
-      case ("+", IntV(n1), IntV(n2)) => IntV(n1 + n2)
-      case ("-", IntV(n1), IntV(n2)) => IntV(n1 - n2)
-      case ("*", IntV(n1), IntV(n2)) => IntV(n1 * n2)
-      case ("/", IntV(n1), IntV(n2)) => IntV(n1 / n2)
-      case ("%", IntV(n1), IntV(n2)) => IntV(n1 % n2)
-      case ("eq?", v1, v2) => BoolV(v1 == v2)
-      case (">", IntV(n1), IntV(n2)) => BoolV(n1 > n2)
-      case ("<", IntV(n1), IntV(n2)) => BoolV(n1 < n2)
-      case (">=", IntV(n1), IntV(n2)) => BoolV(n1 >= n2)
-      case ("<=", IntV(n1), IntV(n2)) => BoolV(n1 <= n2)
+    def prim_eval(op: String, lv: List[Value]): Value = (op, lv) match {
+      case ("+", List(IntV(n1), IntV(n2))) => IntV(n1 + n2)
+      case ("-", List(IntV(n1), IntV(n2))) => IntV(n1 - n2)
+      case ("*", List(IntV(n1), IntV(n2))) => IntV(n1 * n2)
+      case ("/", List(IntV(n1), IntV(n2))) => IntV(n1 / n2)
+      case ("%", List(IntV(n1), IntV(n2))) => IntV(n1 % n2)
+      case ("eq?", List(v1, v2)) => BoolV(v1 == v2)
+      case (">", List(IntV(n1), IntV(n2))) => BoolV(n1 > n2)
+      case ("<", List(IntV(n1), IntV(n2))) => BoolV(n1 < n2)
+      case (">=", List(IntV(n1), IntV(n2))) => BoolV(n1 >= n2)
+      case ("<=", List(IntV(n1), IntV(n2))) => BoolV(n1 <= n2)
     }
   }
 
@@ -182,17 +185,18 @@ object LamCal {
       (if (b) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
     }
 
-    def prim_eval(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = op match {
+    def prim_eval(op: String, lv: List[Rep[Value]]): Rep[Value] = op match {
       case "eq?" =>
-        unchecked("BoolV(", v1, " == ", v2, ")")
-      case _ =>
-        val v1i = unchecked(v1, ".asInstanceOf[IntV].i")
-        val v2i = unchecked(v2, ".asInstanceOf[IntV].i")
-        if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) {
-          unchecked("BoolV(", v1i, op, v2i, ")")
-        } else {
-          unchecked("IntV(", v1i, op, v2i, ")")
-        }
+        unchecked("BoolV(", lv(0), " == ", lv(1), ")")
+      case op if ((scala.collection.immutable.Set(">", "<", ">=", "<="))(op)) =>
+        val v1i = unchecked(lv(0), ".asInstanceOf[IntV].i")
+        val v2i = unchecked(lv(1), ".asInstanceOf[IntV].i")
+        unchecked("BoolV(", v1i, op, v2i, ")")
+      case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%"))(op)) =>
+        val v1i = unchecked(lv(0), ".asInstanceOf[IntV].i")
+        val v2i = unchecked(lv(1), ".asInstanceOf[IntV].i")
+        unchecked("IntV(", v1i, op, v2i, ")")
+
     }
   }
 

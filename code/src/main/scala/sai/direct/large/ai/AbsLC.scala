@@ -75,9 +75,15 @@ object AbsLamCal {
       //(GenericLattice[Value,R].⊔(thn._1, els._1), Lattice[Store].⊔(thn._2, els._2))
     }
 
-    def prim_eval(op: String, v1: Value, v2: Value): Value = op match {
+    def prim_eval(op: String, lv: List[Value]): Value = op match {
       case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%")(op)) => Set(IntV())
       case op if (scala.collection.immutable.Set("eq?", ">", "<", ">=", "<=")(op)) => Set(BoolV())
+      case op if (scala.collection.immutable.Set("list", "cons", "cdr")(op)) => Set(ListV())
+      case op if ((scala.collection.immutable.Set("car", "vector-ref"))(op)) =>
+        Set(BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())
+      case op if ((scala.collection.immutable.Set("vector", "make-vector"))(op)) =>
+        Set(VectorV())
+      case op if (scala.collection.immutable.Set("display", "write", "newline")(op)) => Set(VoidV())
     }
 
     type Config = (Expr, R[Env], R[Store])
@@ -192,12 +198,20 @@ object AbsLamCal {
       (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
     }
 
-    def prim_eval(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
-      if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) {
+    def prim_eval(op: String, lv: List[Rep[Value]]): Rep[Value] = op match {
+      case op if ((scala.collection.immutable.Set("eq?", ">", "<", ">=", "<="))(op)) =>
         unchecked[Value]("Set[AbsValue](BoolV())")
-      } else {
+      case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%"))(op)) =>
         unchecked[Value]("Set[AbsValue](IntV())")
-      }
+      case op if ((scala.collection.immutable.Set("list", "cons", "cdr"))(op)) =>
+        unchecked[Value]("Set[AbsValue](ListV())")
+      case op if ((scala.collection.immutable.Set("car", "vector-ref"))(op)) =>
+        unchecked[Value]("Set[AbsValue](BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())")
+      case op if ((scala.collection.immutable.Set("vector", "make-vector"))(op)) =>
+        unchecked[Value]("Set[AbsValue](VectorV())")
+      case op if ((scala.collection.immutable.Set("display", "write", "newline"))(op)) =>
+        unchecked[Value]("Set[AbsValue](VoidV())")
+    }
 
     type Config = (Expr, Env, Store)
     implicit def exprTyp: Typ[Expr]
