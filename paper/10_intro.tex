@@ -135,9 +135,11 @@ represented as a residual program. The partial analyzing result can be reused an
 analyzing result of application code when available later. Therefore we mechanically obtain a modular
 analysis through staging, even though the original algorithm is formulated as a whole-program analysis.
 
+\iffalse
 It has been observed that partially applying context-sensitivity on selected portion of the program could
 improve the precision and efficiency \cite{zipper2018, Kastrinis:2013:HCP:2491956.2462191}.
 We show that staging abstract interpreters as an approach to effectively implement hybird context-sensitivity\todo{}.
+\fi
 
 % Many optimization of static analysis are ad-hoc.
 
@@ -153,9 +155,9 @@ This paper makes the following contributions:
     Our design allows one can derive these four different kinds of interpreters by mechanically changing
     the underlying semantics or stage annotations.
     %We later extend the staged abstract interpreter to support imperative language features (Section~\ref{cases_imp}), such as states and loops.
-  \item We demonstrate that the staged abstract interpreter not only improves the \textit{efficiency}
-    but also the \textit{scalability}, which are two major issues in static analysis, if we apply it on open
-    programs. \todo{Section X}.
+  \item As shown in Section~\ref{sai}, we demonstrate that if we apply the abstract interpreters on open 
+    programs, it not only improves the \textit{efficiency} but also the \textit{scalability}, 
+    which are two major issues in static analysis.
   \item To demonstrate the applicability and usefulness of the proposed approach, we conduct three case studies 
     Section~\ref{cases_study}: 
     \subitem (1) We revisit Abstract Compilation \cite{Boucher:1996:ACN:647473.727587} in Section~\ref{cs_ac}, 
