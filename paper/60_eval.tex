@@ -1,16 +1,39 @@
 \section{Evaluation} \label{evaluation}
 
+We have designed, implemented and evaluated a prototype abstract interpreter for Scheme.
+In order to compare results, our prototype includes both staged and unstaged versions of
+the abstract interpreter doing the same control flow analysis.
+
+Our evaluations have shown that the staged abstract interpreter performs well in general.
+Particularly in some interesting cases that are considered to be the worst case scenario
+in the control flow analysis, the staged version outperforms the unstaged abstract 
+interpreter by a wide margin. 
+
+However, there also exists some programs where the unstaged abstract interpreter yields 
+results faster than the unstaged interpreter.
+
 \subsection{Benchmarks}
 
-We have designed, implemented and evaluated a prototype abstract interpreter for Scheme.
-Our prototype includes both staged and unstaged versions of the abstract interpreter for comparison 
-purposes.
+Our evaluation is based on a suite of benchmark tests. Considering that our abstract 
+interpreters are implemented in Scala which will be affected by JVM warm up times, programs
+tend to run faster after a number of runs. In order to minimize the influence of JVM, 
+we ran all experiments 10 times and take the statistical mean and median values of 
+the running times.
 
-We ran our prototype abstract interpreter on a suite of benchmark scheme programs that are also used 
-in \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical}. 
-
+%on a suite of benchmark scheme programs that are also used in \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical}. 
+We used the following benchmark programs:
+\begin{itemize}
+    \item \textbf{fib:} a program that recursively calculates the $n$-th fibonacci number in
+        exponential time.
+    \item \textbf{church:} a program introduced by \todo{cite Dimitrios Vardoulakis and Olin Shivers. CFA2: a Context-Free approach
+        to Control-Flow analysis. Logical Methods in Computer Science,
+        7(2), 2011.} to test distributivity of multiplication for numbers in Church Encoding \todo{ cite }
+\end{itemize}
 
 \subsection{Performance}
+We performed our 
+For each benchmark program, we ran our prototype abstract interpreters, both unstaged and staged.
+
 
 \subsubsection{Baselines}
 Small-step AAM
