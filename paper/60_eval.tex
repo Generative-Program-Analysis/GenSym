@@ -31,8 +31,13 @@ We used the following benchmark programs:
 \end{itemize}
 
 \subsection{Performance}
-We performed our 
+All of our evaluation benchmarks were performed on an Ubuntu 16.04 LTS (Linux 4.4.0) machine 
+with 4 Intel(R) Xeon(R) Platinum 8168 CPUs running at 2.7GHz with a total of 3 TiB of RAM.
+Although we were using an environment with 96 cores and 192 threads, we used only
+one single thread for all the benchmark programs we run.
+
 For each benchmark program, we ran our prototype abstract interpreters, both unstaged and staged.
+\todo{Figure show data.}
 
 
 \subsubsection{Baselines}
