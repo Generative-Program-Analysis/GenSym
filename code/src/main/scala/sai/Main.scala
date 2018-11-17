@@ -23,7 +23,7 @@ case class Timing(ts: List[Double]) {
   val perc50 = sorted_ts((sorted_ts.size / 2).toInt)
   val perc75 = sorted_ts(((sorted_ts.size / 4) * 3).toInt)
   val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt - 1)
-  override def toString: String = s"#: ${ts.size}, Mean: ${mean}, 0/5/25/50/75/95/100: ${ub}/${perc05}/${perc25}/${perc50}/${perc75}/${perc95}/${lb}"
+  override def toString: String = s"#: ${ts.size}, Mean: ${mean}, Median: ${perc50}"
 }
 
 object Main {
