@@ -271,6 +271,10 @@ case While(t, e) =>
 
 \subsubsection{Staged Interval}
 
+Interval domain is a relative simple domain which consists of two numeric fields, an upper bound 
+and a lower bound. Here we annotate the upper bound and lower bound fields to be of type @Rep[Double]@.
+The operations such as @+@ of two intervals produce a new 
+
 \begin{lstlisting}
 case class Interval(lb: Rep[Double], ub: Rep[Double]) {
   def +(that: Interval): Interval = that match {
