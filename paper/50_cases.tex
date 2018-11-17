@@ -11,15 +11,15 @@ widely applicable to different analyses.
 \citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation (AC) as a new
 implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
 The idea is inspired by partial evaluation similar to the present paper -- the program can be known 
-statically therefore the overhead of interpretation can be eliminated. 
+statically, the overhead of interpretation can be eliminated. 
 In AC, the compiled analysis can be represented by either text or closures (higher-order functions);
-the closures can be executed immediately however the textual program need to be compiled and loaded first.
+though the closures can be executed immediately, the textual programs need to be compiled and loaded first.
 
 Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} show how to compile a monovariant control-flow 
 analysis \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007} 
 for continuation-passing style (CPS) programs. Since the analyzed program is written in CPS, the analyzer 
 is essentially a big-step control-environment abstract interpreter.
-Closure generation compiles the analysis as a closure which takes an environment as argument.
+Closure generation compiles the analysis as a closure taking an environment argument.
 The overhead of traversing the abstract syntax tree of input program also has been eliminated.
 
 In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be 

@@ -116,7 +116,8 @@ All occurrences of type \texttt{Env}, \texttt{Store}, etc. are wrapped with \tex
 essentially because they may potentially be dynamic when staging is introduced.
 Obviously, the unstaged higher-kinded type then can be simply instantiated as an identity type function: 
 \texttt{type R[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
-as a staging annotation. \todo{Finally tagless, poly embedding}
+as a staging annotation. 
+%\todo{Finally tagless, poly embedding}
 
 \subsection{Concrete Instantiation} \label{unstaged_conc}
 Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
