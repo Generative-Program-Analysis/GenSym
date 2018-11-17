@@ -178,7 +178,7 @@ object AbsLamCal {
           case Nil => (ρ, σ)
           case x :: xs =>
             val α = alloc(σ, x)
-            aux(xs, argvs.tail, put(ρ, x, α), put(σ, α, unchecked[Value]("Set[AbsValue](IntV())")))
+            aux(xs, argvs.tail, put(ρ, x, α), put(σ, α, argvs.head))
         }
         val (ρ_*, σ_*) = aux(argns, argvs, ρ, σ)
         ev(e, ρ_*, σ_*)
