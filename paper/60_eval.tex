@@ -12,38 +12,32 @@ machine with 4 Intel Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM.
 Although the machine has 96 cores and 192 threads in total,
 the abstract interpreters only use one thread to run all the benchmark programs.
 
-Our evaluations have shown that the staged abstract interpreter performs well in some
-interesting cases that are considered to be the worst case scenario in the control flow
-analysis, the staged version outperforms the unstaged abstract interpreter by a wide
-margin (up to 3x performance gain).
+Our evaluations shows that the staged abstract interpreter performs well in some
+cases that are considered to be the worst scenarios for traditional $k$-CFA.
+The staged version outperforms the unstaged abstract interpreter by a significant
+margin (up to ~230\% performance gain) on these difficult ones.
 
 \subsection{Benchmarks}
+The benchmark programs we used are collected from previous papers \cite{Johnson:2013:OAA:2500365.2500604,
+ashley:practical, DBLP:journals/corr/abs-1102-3676} and exisiting artifacts \footnote{https://github.com/ilyasergey/reachability}.
 
-Our evaluation is based on a suite of benchmark tests. Considering that our abstract 
-interpreters are implemented in Scala which will be affected by JVM warm up times, programs
-tend to run faster after a number of runs. In order to minimize the influence of JVM, 
-we ran all experiments 10 times and take the statistical mean and median values of 
-the running times.
-
-%on a suite of benchmark scheme programs that are also used in \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical}. 
 We used the following benchmark programs:
 \begin{itemize}
-    \item \textbf{fib:} a program that recursively calculates the $n$-th fibonacci number in
-        exponential time.
-    \item \textbf{church:} a program introduced by \todo{cite Dimitrios Vardoulakis and Olin Shivers. CFA2: a Context-Free approach
-        to Control-Flow analysis. Logical Methods in Computer Science,
-        7(2), 2011.} to test distributivity of multiplication for numbers in Church Encoding \todo{ cite }
-    \item \textbf{kcfa3/kcfa-worst-case-n:} Benchmark programs that are supposed to
-      be tough cases for CFA.
-    \item \textbf{fermat:} Fermat and Solovay-Strassen primality testing in Scheme by
-      Matthew Might.
-    \item \textbf{rsa:} The RSA public key encryption algorithm in Scheme.
+    \item \textbf{fib}: Calculates the $n$-th fibonacci number.
+    \item \textbf{rsa}: The RSA public key encryption algorithm.
+    \item \textbf{kcfa3}: A difficult benchmark for $k$-CFA.
+    \item \textbf{church}: Church numerals with additions and mutiplications.
+    \item \textbf{fermat}: Fermat and Solovay-Strassen primality testing.
+    \item \textbf{kcfa-worst-case-}\textit{n}: 
+      Benchmark programs that are supposed to be tough cases for $k$-CFA; 
+      the number $n$ indicates the depth of nesting lambda terms.
 \end{itemize}
 
 \subsection{Performance}
 
-For each benchmark program, we ran our prototype abstract interpreters, both unstaged and staged.
-\todo{Figure show data.}
+Considering that our abstract interpreters are implemented in Scala which will be 
+affected by the JIT warm up times, we run all experiments 10 times and reprot
+the statistical median values of the running times.
 
 \begin{figure}[h]
 \begin{tabular}{@{}llll@{}}
@@ -63,12 +57,14 @@ For each benchmark program, we ran our prototype abstract interpreters, both uns
 \end{figure}
 
 Figure~\ref{evaluation_result} shows the benchmark evaluation results. The "unstaged" and "staged" columns
-show the median time to finish the abstract interpretation (in milliseconds). The "$\Delta_{median}$"
-column shows the performance change from the unstaged abstract interpreter to the staged version.\\
+show the median time to finish the analysis (in milliseconds). The "$\Delta$ of median"
+column shows the performance change from the unstaged abstract interpreter to the staged version.
 
-However, there also exists some programs where the unstaged abstract interpreter yields 
-results faster than the unstaged interpreter.
-From the data shown above, we observed that 
-However, in general, the unstaged abstract interpreter yields results faster
-than the unstaged interpreter.
+As we can see from the table, the staged version significantly outperforms the unstaged especially 
+for the difficult ones.
+However, for some benchmarks, we observe degraded performance. 
+We conjecture this happens due to the large size of the generated code is unoptimized -- 
+as what we test here is a simple implementation almost identical to what we described in the previous sections,
+we believe the performance still can be improved if more engineering effort is taken, 
+such as optimizing code generation and avoiding code duplication.
 
