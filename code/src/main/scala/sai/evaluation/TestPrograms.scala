@@ -10,6 +10,25 @@ object TestPrograms {
     }
   }
 
+  def sat = getAST(Source.fromFile("benchmarks/sat.scm").mkString)
+
+  def kcfa = getAST(Source.fromFile("benchmarks/kcfa-worst-case-16.scm").mkString)
+
+  def fermat = getAST(Source.fromFile("benchmarks/fermat.scm").mkString)
+
+  def rsa = getAST(Source.fromFile("benchmarks/rsa.scm").mkString)
+
+  def blur = getAST(Source.fromFile("benchmarks/blur.scm").mkString)
+
+  def fib = getAST("""
+    (define
+      (fib n)
+        (if (eq? n 0) 1
+          (if (eq? n 1) 1
+            (+ (fib (- n 1)) (fib(- n 2))))))
+    (fib 10)
+  """)
+
   def id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
   def oneplusone = App(Var("+"), List(IntLit(1), IntLit(1)))
   def fact5 = getAST("(define (fact n) (if (eq? n 0) 1 (* n (fact (- n 1))))) (fact 5)")

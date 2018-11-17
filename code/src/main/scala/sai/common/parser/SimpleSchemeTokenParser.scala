@@ -47,7 +47,7 @@ trait SchemeTokenParser extends RegexParsers {
   def FALSE: Parser[Boolean] = ("#f"|"#F") ^^ { _ => false }
 
   def DIGIT10: Parser[String] = """\-?[0-9]+""".r
-  def DECIMAL: Parser[String] = """\-?[0-9]+\.[0-9]+""".r
+  def DECIMAL: Parser[String] = """(\+|\-)?[0-9]+\.[0-9]+""".r
   def INT10: Parser[Int] = DIGIT10 ^^ { _.mkString.toInt }
   def FLOAT: Parser[Double] = DECIMAL ^^ { _.mkString.toDouble }
   def STRINGLIT: Parser[String] = """"(\\"|[^"])*\"""".r

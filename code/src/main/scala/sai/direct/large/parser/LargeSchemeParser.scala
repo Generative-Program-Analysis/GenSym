@@ -41,7 +41,9 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   implicit def letrec: Parser[App] = LPAREN ~> LETREC ~> (LPAREN ~> bind.+ <~ RPAREN) ~ implicit_begin <~ RPAREN ^^ {
     case binds ~ body => Lrc(binds, body).toApp
   }
-
+  implicit def complex: Parser[App] = floatlit ~ floatlit <~ "i" ^^ {
+    case r ~ i => App(Var("vector"), List(r, i))
+  }
   implicit def intlit: Parser[IntLit] = INT10 ^^ { IntLit(_) }
   implicit def floatlit: Parser[FloatLit] = FLOAT ^^ { FloatLit(_) }
   implicit def boollit: Parser[BoolLit] = (TRUE | FALSE) ^^ { BoolLit(_) }
@@ -58,7 +60,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
     case elements => App(Var("vector"), elements)
   }
 
-  implicit def literals = floatlit | intlit | charlit | boollit | stringlit | vecsugar
+  implicit def literals = complex | floatlit | intlit | charlit | boollit | stringlit | vecsugar
 
   implicit def ifthel: Parser[If] = LPAREN ~> IF ~> expr ~ expr ~ expr <~ RPAREN ^^ {
     case cond ~ thn ~ els => If(cond, thn, els)
@@ -260,6 +262,11 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
       assert(LargeSchemeParser("3.14") == Some(FloatLit(3.14)))
       assert(LargeSchemeParser("-3.14") == Some(FloatLit(-3.14)))
       assert(LargeSchemeParser("0.00000") == Some(FloatLit(0.0)))
+    }
+
+    test("complex") {
+      assert(LargeSchemeParser("3.14+2.7i") == Some(App(Var("vector"), List(FloatLit(3.14), FloatLit(2.7)))))
+      assert(LargeSchemeParser("-3.14-2.7i") == Some(App(Var("vector"), List(FloatLit(-3.14), FloatLit(-2.7)))))
     }
   }
 }

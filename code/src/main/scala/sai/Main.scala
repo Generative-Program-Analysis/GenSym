@@ -22,7 +22,7 @@ case class Timing(ts: List[Double]) {
   val perc25 = sorted_ts((sorted_ts.size / 4).toInt)
   val perc50 = sorted_ts((sorted_ts.size / 2).toInt)
   val perc75 = sorted_ts(((sorted_ts.size / 4) * 3).toInt)
-  val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt)
+  val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt - 1)
   override def toString: String = s"#: ${ts.size}, Mean: ${mean}, 0/5/25/50/75/95/100: ${ub}/${perc05}/${perc25}/${perc50}/${perc75}/${perc95}/${lb}"
 }
 
@@ -71,12 +71,12 @@ object Main {
     val ex4ac = ACZeroCFA.compProgram(e)
     val t2 = run(n, { ACZeroCFA.analyze(ex4ac) })
     println(s"0CFA AC time - $t2")
-  
+
     val ex4 = StagedZeroCFATest.specialize(e)
     ex4.precompile
     val t3 = run(n, { ex4.eval(()) })
     println(s"0CFA Staged time - $t3")
-  
+
     val ex4while = StagedIterZeroCFATest.specializeAnalysis(e)
     val t4 = run(n, { ex4while(Map()) })
     println(s"0CFA Staged (while) time - $t4")
