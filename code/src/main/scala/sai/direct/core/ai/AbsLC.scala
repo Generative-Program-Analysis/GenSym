@@ -159,39 +159,6 @@ object AbsLamCal {
       (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
     }
     def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
-
-    type Config = (Expr, Env, Store)
-    implicit def exprTyp: Typ[Expr]
-    case class CacheFix(evev: EvalFun => EvalFun) {
-      var in = Map[Config, (Value,Store)]()
-      var out = Map[Config, (Value,Store)]()
-
-      def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-        println(s"calling cachev_ev $e")
-        val cfg: Rep[Config] = (unit(e), ρ, σ)
-        if (out.contains(cfg)) {
-          out(cfg)
-        }
-        else {
-          val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
-          out = out + (cfg -> ans0)
-          val ans1: Ans = evev(cached_ev)(e, ρ, σ)
-          out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
-          ans1
-        }
-      }
-      def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
-        def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
-          println(s"Start iteration ${e}")
-          in = out;
-          out = Map[Config, (Value,Store)]()
-          cached_ev(e, ρ, σ)
-          if (in === out) out((unit(e), ρ, σ)) else iter_aux()
-        }
-        iter_aux()
-      }
-    }
-    override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
   trait RepAbsInterpOpsExp extends RepAbsInterpOps with LMSOpsExp {
@@ -278,6 +245,38 @@ object AbsLamCalTest {
   def main(args: Array[String]) {
     def specialize(p: Expr): DslDriver[Unit, Unit] =
       new RepAbsInterpDriver {
+        type Config = (Expr, Env, Store)
+        case class CacheFix(evev: EvalFun => EvalFun) {
+          var in = Map[Config, (Value,Store)]()
+          var out = Map[Config, (Value,Store)]()
+
+          def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
+            println(s"calling cachev_ev $e")
+            val cfg: Rep[Config] = (unit(e), ρ, σ)
+            if (out.contains(cfg)) {
+              out(cfg)
+            }
+            else {
+              val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
+              out = out + (cfg -> ans0)
+              val ans1: Ans = evev(cached_ev)(e, ρ, σ)
+              out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
+              ans1
+            }
+          }
+          def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
+            def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
+              println(s"Start iteration ${e}")
+              in = out;
+              out = Map[Config, (Value,Store)]()
+              cached_ev(e, ρ, σ)
+              if (in === out) out((unit(e), ρ, σ)) else iter_aux()
+            }
+            iter_aux()
+          }
+        }
+        override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
+
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
           println(v); println(s)
@@ -299,6 +298,6 @@ object AbsLamCalTest {
 
     val code = specialize(fact5)
     println(code.code)
-    //code.eval(())
+    code.eval(())
   }
 }

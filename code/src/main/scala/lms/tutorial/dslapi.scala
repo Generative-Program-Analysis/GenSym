@@ -84,8 +84,9 @@ trait DslExp extends Dsl with PrimitiveOpsExpOpt with NumericOpsExpOpt with Bool
   // TODO: should this be in LMS?
   override def isPrimitiveType[T](m: Typ[T]) = (m == manifest[String]) || super.isPrimitiveType(m)
 }
+
 trait DslGen extends ScalaGenNumericOps
-    with ScalaGenPrimitiveOps with ScalaGenBooleanOps with ScalaGenIfThenElse
+    with ScalaGenPrimitiveOps with ScalaGenBooleanOps with MyScalaGenIfThenElse
     with ScalaGenEqual with ScalaGenRangeOps with ScalaGenOrderingOps
     with ScalaGenMiscOps with ScalaGenArrayOps with ScalaGenStringOps
     with ScalaGenSeqOps with ScalaGenFunctions with ScalaGenWhile

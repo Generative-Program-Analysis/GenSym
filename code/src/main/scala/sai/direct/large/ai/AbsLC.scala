@@ -183,7 +183,7 @@ object AbsLamCal {
         val (ρ_*, σ_*) = aux(argns, argvs, ρ, σ)
         ev(e, ρ_*, σ_*)
       }
-      unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
+      unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ.hashCode, ",", ρ.hashCode, "))")
     }
     def sym(s: Sym): Rep[Value] = unchecked[Value]("Set[AbsValue](SymV())")
     def int(i: IntLit): Rep[Value] = unchecked[Value]("Set[AbsValue](IntV())")
@@ -300,29 +300,29 @@ object RTSupport {
   case class VoidV() extends AbsValue
   case class SymV() extends AbsValue
   type Value = Set[AbsValue]
-  case class CompiledClo(f: (List[Value], Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Lam, ρ: Map[String,Addr]) extends AbsValue {
+  case class CompiledClo(f: (List[Value], Map[Addr,Value]) => (Value, Map[Addr,Value]), λ: Int, ρ: Int) extends AbsValue {
     def canEqual(a: Any) = a.isInstanceOf[CompiledClo]
     override def equals(that: Any): Boolean = that match {
-      case that: CompiledClo => that.canEqual(this) && this.hashCode == that.hashCode && this.λ == that.λ && this.ρ == that.ρ
+      case that: CompiledClo => that.canEqual(this) && this.λ == that.λ && this.ρ == that.ρ //this.hashCode == that.hashCode
       case _ => false
     }
     override def hashCode: Int = {
       val prime = 31
       var result = 1
-      result = prime * result + λ.hashCode
-      result = prime * result + ρ.hashCode
+      result = prime * result + λ //.hashCode
+      result = prime * result + ρ //.hashCode
       result
     }
   }
   def apply_closures_norep(f: Value, args: List[Value], σ: Map[Addr,Value]) = {
     val (σ0, vs) = f.foldLeft((σ, Set[Value]())) {
-      case ((σ0, vs), CompiledClo(fun, λ, ρ)) =>
+      case ((σ0, vs), CompiledClo(fun, _, _)) =>
         val (v, vσ) = fun(args, σ0)
         (vσ ⊔ σ0, vs + v)
       case ((σ0, vs), _) =>
         (σ0, vs)
     }
-    (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
+    (vs.foldLeft(Lattice[Value].bot)(Lattice[Value].⊔), σ0)
   }
 }
 import RTSupport._
