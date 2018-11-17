@@ -7,11 +7,10 @@ import sai.direct.large.ai._
 import sai.evaluation.TestPrograms._
 import sai.direct.large.parser._
 
-object Evaluation3 extends AbsLamCalTrait {
+object Evaluation4 extends AbsLamCalTrait {
 
   def main(args: Array[String]) {
     val prog = church
-    println(prog)
     compare(prog)
   }
 
