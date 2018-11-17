@@ -368,44 +368,9 @@ trait AbsLamCalTrait {
 }
 
 object AbsLamCalTest extends AbsLamCalTrait {
+  import sai.evaluation.TestPrograms._
   def main(args: Array[String]) {
-    val id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
-    val oneplusone = App(Var("+"), List(IntLit(1), IntLit(1)))
-    val fact5 = getAST("(define (fact n) (if (eq? n 0) 1 (* n (fact (- n 1))))) (fact 5)")
-    val euclid = getAST(
-      """
-      (letrec
-        ([gcd
-          (lambda (a b)
-            (if (eq? b 0)
-              a
-              (gcd b (% a b))))])
-        (gcd 24 56))
-      """)
-    val euclid_imp = getAST(
-      """
-      (define x 24)
-      (define y 56)
-      (if (<= x y)
-        (let ([temp x])
-          (set! x y)
-          (set! y temp))
-        (void))
-      (define r (% x y))
-      (letrec
-        ([loop_body
-          (lambda ()
-            (if (eq? r 0)
-              y
-              (begin
-                (set! x y)
-                (set! y r)
-                (set! r (% x y))
-                (loop_body))))])
-        (loop_body))
-      """
-    )
-    println("staged: " + evalStaged(euclid_imp))
-    println("unstaged: " + evalUnstaged(euclid_imp))
+    println("staged: " + evalStaged(euclid))
+    println("unstaged: " + evalUnstaged(euclid))
   }
 }
