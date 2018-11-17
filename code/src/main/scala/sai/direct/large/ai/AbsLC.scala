@@ -161,7 +161,7 @@ object AbsLamCal {
     implicit def addrTyp: Typ[Addr]
     val ρ0: Rep[Env] = Map[Ident, Addr]()
     val σ0: Rep[Store] = Map[Addr, Value]()
-    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ.getOrElse(x, unit(Addr("__somerandomthingthatdoesntexist")))
+    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ.getOrElse(x, unchecked[Addr]("Addr(\"__somerandomthingthatdoesntexist\")"))
     def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = ρ + (unit(x) → a)
     def get(σ: Rep[Store], a: Rep[Addr]): Rep[Value] = σ.getOrElse(a, RepLattice[Value].bot)
     def put(σ: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = {
@@ -315,10 +315,12 @@ object RTSupport {
     }
   }
   def apply_closures_norep(f: Value, args: List[Value], σ: Map[Addr,Value]) = {
-    var σ0 = σ
-    val vs: Set[Value] = for (CompiledClo(fun, λ, ρ) <- f) yield {
-      val (v, vσ) = fun(args, σ0)
-      σ0 = vσ ⊔ σ0 ; v
+    val (σ0, vs) = f.foldLeft((σ, Set[Value]())) {
+      case ((σ0, vs), CompiledClo(fun, λ, ρ)) =>
+        val (v, vσ) = fun(args, σ0)
+        (vσ ⊔ σ0, vs + v)
+      case ((σ0, vs), _) =>
+        (σ0, vs)
     }
     (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
   }
@@ -355,7 +357,12 @@ trait AbsLamCalTrait {
 
   def evalStaged(prog: Expr) = {
     val code = specialize(prog)
+    code.precompile
+    println("finished precompile")
     println(code.code)
+    val writer = new java.io.PrintWriter(new java.io.File("CodeGen.scala.ignore"))
+    writer.write(code.code)
+    writer.close()
     code.eval(())
   }
 }

@@ -8,7 +8,7 @@ import sai.evaluation.TestPrograms._
 
 object Evaluation extends AbsLamCalTrait {
   def main(args: Array[String]) = {
-    val prog = boyer
+    val prog = church
     println(prog)
     println("staged: " + evalStaged(prog))
     println("unstaged: " + evalUnstaged(prog))
