@@ -10,7 +10,7 @@ import sai.direct.large.parser._
 object Evaluation extends AbsLamCalTrait {
 
   def main(args: Array[String]) {
-    val prog = blur
+    val prog = kcfa256
     println(prog)
     compare(prog)
   }
