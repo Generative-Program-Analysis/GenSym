@@ -1,7 +1,7 @@
 \section{Evaluation} \label{evaluation}
 
 To evaluate the performance can be improved through staging, we use the abstract
-interpreter demonstrated in the paper to analyze some Scheme programs. We implement
+interpreter demonstrated in the paper to analyze some Scheme programs. We first implement
 a desugaring transformation for a large subset of scheme that transforms into the
 small language we used in the paper.
 We use the same generic interface with a 0-CFA-like abstraction, and the unstage abstract
@@ -11,6 +11,11 @@ All of our evaluation benchmarks were performed on an Ubuntu 16.04 LTS (Linux ke
 machine with 4 Intel Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM.
 Although the machine has 96 cores and 192 threads in total,
 the abstract interpreters only use one thread to run all the benchmark programs.
+
+Our evaluations have shown that the staged abstract interpreter performs well in some
+interesting cases that are considered to be the worst case scenario in the control flow
+analysis, the staged version outperforms the unstaged abstract interpreter by a wide
+margin (up to 3x performance gain).
 
 \subsection{Benchmarks}
 
@@ -28,6 +33,11 @@ We used the following benchmark programs:
     \item \textbf{church:} a program introduced by \todo{cite Dimitrios Vardoulakis and Olin Shivers. CFA2: a Context-Free approach
         to Control-Flow analysis. Logical Methods in Computer Science,
         7(2), 2011.} to test distributivity of multiplication for numbers in Church Encoding \todo{ cite }
+    \item \textbf{kcfa3/kcfa-worst-case-n:} Benchmark programs that are supposed to
+      be tough cases for CFA.
+    \item \textbf{fermat:} Fermat and Solovay-Strassen primality testing in Scheme by
+      Matthew Might.
+    \item \textbf{rsa:} The RSA public key encryption algorithm in Scheme.
 \end{itemize}
 
 \subsection{Performance}
@@ -35,11 +45,30 @@ We used the following benchmark programs:
 For each benchmark program, we ran our prototype abstract interpreters, both unstaged and staged.
 \todo{Figure show data.}
 
-Our evaluations have shown that the staged abstract interpreter performs well in general.
-Particularly in some interesting cases that are considered to be the worst case scenario
-in the control-flow analysis, the staged version outperforms the unstaged abstract 
-interpreter by a wide margin. 
+\begin{figure}[h]
+\begin{tabular}{@{}llll@{}}
+\toprule
+    Program            & unstaged   & staged     & $\Delta$ of median \\ \midrule
+    fib                & 1.020      & 2.046      & -50.14\%          \\
+    rsa                & 35.928     & 145.306    & -75.27\%          \\
+    kcfa3              & 2.934      & 5.671      & -48.27\%          \\
+    church             & 884.800    & 545.736    & +62.13\%          \\
+    fermat             & 15.673     & 68.790     & -77.22\%          \\
+    kcfa-worst-16      & 320.689    & 301.564    & +6.34\%           \\
+    kcfa-worst-32      & 3,685.615  & 1,854.461  & +98.74\%          \\
+    kcfa-worst-64      & 49,422.666 & 14,849.725 & +232.82\%         \\
+    \bottomrule
+\end{tabular}
+\caption{Evaluation result.} \label{evaluation_result}
+\end{figure}
+
+Figure~\ref{evaluation_result} shows the benchmark evaluation results. The "unstaged" and "staged" columns
+show the median time to finish the abstract interpretation (in milliseconds). The "$\Delta_{median}$"
+column shows the performance change from the unstaged abstract interpreter to the staged version.\\
 
 However, there also exists some programs where the unstaged abstract interpreter yields 
 results faster than the unstaged interpreter.
+From the data shown above, we observed that 
+However, in general, the unstaged abstract interpreter yields results faster
+than the unstaged interpreter.
 

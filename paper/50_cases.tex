@@ -83,8 +83,8 @@ def analyzeCall(call: Expr, $\sigma$: Rep[Store]): Rep[Store] =
       val $\sigma$_** = analyzeArgs(bds.map(_.value), $\sigma$_*)
       analyzeCall(body, $\sigma$_**)
   }
-def analyzeApp(f: Expr, args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] = 
-  f match {
+def analyzeApp(f: Expr, args: List[Expr], $\sigma$: Rep[Store]): 
+  Rep[Store] = f match {
     case Var(x) => analyzeAbsApp(args, $\sigma$(x), $\sigma$)
     case Op(_) => analyzeArgs(args, $\sigma$)
     case Lam(vars, body) =>
@@ -94,7 +94,8 @@ def analyzeApp(f: Expr, args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
 def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] = 
   args match {
     case Nil => $\sigma$
-    case Lam(vars, body)::rest => analyzeArgs(rest, analyzeCall(body, $\sigma$))
+    case Lam(vars, body)::rest => 
+      analyzeArgs(rest, analyzeCall(body, $\sigma$))
     case _::rest => analyzeArgs(rest, $\sigma$)
   }
   \end{lstlisting}
@@ -279,9 +280,6 @@ The operations such as @+@ of two intervals produce a new
 case class Interval(lb: Rep[Double], ub: Rep[Double]) {
   def +(that: Interval): Interval = that match {
     case Interval(lb_, ub_) => Interval(lb + lb_, ub + ub_)
-  }
-  def -(that: Interval): Interval = that match {
-    case Interval(lb_, ub_) => Interval(lb - lb_, ub_ - ub) 
   }
   ...
 }
