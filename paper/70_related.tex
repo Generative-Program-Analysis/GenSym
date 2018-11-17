@@ -46,23 +46,19 @@ The big-step abstract interpreters we presented in this paper are also inspired 
 which are later adopted for big-step abstract interpreters \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800}.
 \citet{DBLP:conf/cc/CousotC02} also proposed an abstract interpretation framework for modular analysis.
 \citet{DBLP:conf/popl/CalcagnoDOY09} developed compositional shape analysis by using bi-abduction.
-The big-step abstract interpreter we presented in this paper is inspired by \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800}.
+The big-step abstract interpreter we presented in this paper is inspired by \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800}. 
+\citet{Keidel:2018:CSP:3243631.3236767} demonstrate a similar implementation of definitional abstract interpreter using arrows.
 
-\todo{maybe put to related work} other big-step abstract interpreter, 
-big-step abstract interpreter using delimited control operators \cite{Wei:2018:RAA:3243631.3236800},
-monadic big-step abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17},
-arrow-based abstract interpreter \cite{Keidel:2018:CSP:3243631.3236767}.
-
-\textbf{Meta-Programming}.
-
-Partial evaluation. 
-Reflexive language \cite{DBLP:conf/gpce/Asai14}
-Collapsing Towers of Interpreters \cite{Amin:2017:CTI:3177123.3158140}
-
-The Lightweight Modular Staging framework in Scala
+\paragraph{Meta-Programming}
+The Lightweight Modular Staging framework relies on types as stage annotations, and the staging
+procedure is modular.
 Other notable implementations of MSP exist in ML family, for examples, MetaML \cite{DBLP:conf/pepm/TahaS97} 
 and MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
 Compared with the LMS approach in Scala, MetaML/MetaOCaml use term-level annotations such as brackets, 
 escape, and run. Notwithstanding, we use LMS in this paper, the idea of staging an abstract interpreter
 still applies with other MSP implementations.
-
+Partial evaluation as an automatic technique is studied comprehensively
+\cite{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.
+Futamura projections reveals close relations between interpreters and compilers \cite{Futamura1999, futamura1971partial}.
+\citet{DBLP:conf/gpce/Asai14} studies the compilation of reflective language using MSP and MetaOCaml.
+\citeauthor{Amin:2017:CTI:3177123.3158140} shows how to collapse a tower of concrete interpreters by MSP and LMS framework.
