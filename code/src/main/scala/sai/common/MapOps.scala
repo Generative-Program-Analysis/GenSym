@@ -71,7 +71,9 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 
   def map_empty[K:Typ,V:Typ](implicit pos: SourceContext) = MapEmpty(typ[K], typ[V])
   def map_apply[K:Typ,V:Typ](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = MapApply(m, k)
-  def map_contains[K:Typ,V:Typ](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = MapContains(m, k)
+  def map_contains[K:Typ,V:Typ](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = m match {
+    case _ => MapContains(m, k)
+  }
   def map_new[K:Typ,V:Typ](kv: Seq[(Exp[K],Exp[V])])(implicit pos: SourceContext) = MapNew(kv, typ[K], typ[V])
   def map_size[K:Typ,V:Typ](m: Exp[Map[K,V]])(implicit pos: SourceContext) = MapSize(m)
   def map_getorelse[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K], default: Exp[V])(implicit pos: SourceContext) =
