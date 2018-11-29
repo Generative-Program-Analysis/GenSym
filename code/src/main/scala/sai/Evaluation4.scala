@@ -7,11 +7,16 @@ import sai.direct.large.ai._
 import sai.evaluation.TestPrograms._
 import sai.direct.large.parser._
 
-object Evaluation4 extends AbsLamCalTrait {
+object Evaluation extends AbsLamCalTrait {
 
   def main(args: Array[String]) {
-    val prog = church
-    compare(prog)
+    val progs = List(
+      fib,
+      euclid,
+      euclid_imp
+    )
+
+    progs foreach { compare(_) }
   }
 
   def run[R](n: Int, block: => R): Timing = {
