@@ -1,17 +1,20 @@
 \section{From Interpreters to Staged Interpreters} \label{stagedinterp}
 
 \subsection{Multi-Stage Programming in LMS}
-Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a multi-stage programming framework implemented 
-as a Scala library that enables dynamic code generation in a type-safe manner.
-Different from the syntactic approach in MetaOCaml \cite{DBLP:conf/flops/Kiselyov14} that uses quotations, 
-LMS distinguishes binding-time solely based on types.
-LMS provides a type constructor @Rep[T]@ where @T@ can be an arbitrary type, indicating an expression will be 
-known at next stage. All operations acting on a @Rep[T]@ expression will be residualized in the generated code. However,
-we need to provide intermediate representation and code generation support for type @T@ to LMS. 
-Fortunately, the LMS framework already provides
-such support for primitive types and commonly used data structure such as arrays and maps; implementing such support
-for custom class is also straightforward. Let's go back and see how LMS can be used to specialize the power function
-we mentioned in Section 1.
+
+Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
+multi-stage programming framework implemented as a Scala library that enables
+dynamic code generation in a type-safe manner. Different from the syntactic
+approach in MetaOCaml \cite{DBLP:conf/flops/Kiselyov14} that uses quotations,
+LMS distinguishes binding-time solely based on types. LMS provides a type
+constructor @Rep[T]@ where @T@ can be an arbitrary type, indicating an
+expression will be known at next stage. All operations acting on a @Rep[T]@
+expression will be residualized in the generated code. However, we need to
+provide intermediate representation and code generation support for type @T@ to
+LMS. Fortunately, the LMS framework already provides such support for primitive
+types and commonly used data structure such as arrays and maps; implementing
+such support for custom class is also straightforward. Let's go back and see how
+LMS can be used to specialize the power function we mentioned in Section 1.
 
 \begin{lstlisting}
 new DslDriver[Int, Int] {
@@ -21,24 +24,27 @@ new DslDriver[Int, Int] {
 }
 \end{lstlisting}
 
-In the code shown above, \texttt{power} takes two arguments where \texttt{b} is declared as \texttt{Rep[Int]} type 
-meaning that \texttt{b} is a representation of \texttt{Int} but whose value will be available at the next stage. 
-Meanwhile, the result of the @power@ function will be available at the next stage as well, thus the return value 
-of \texttt{power} is also of type \texttt{Rep[Int]}. 
-Then we specialize @power@ in function @snippet@ by providing @x@ to @5@.
-The generated code for \texttt{power5} is a function that takes only one argument which corresponds to @b@,
-and the body of this function multiples @b@ five times.
+In the code shown above, \texttt{power} takes two arguments where \texttt{b} is
+declared as \texttt{Rep[Int]} type meaning that \texttt{b} is a representation
+of \texttt{Int} but whose value will be available at the next stage. Meanwhile,
+the result of the @power@ function will be available at the next stage as well,
+thus the return value of \texttt{power} is also of type \texttt{Rep[Int]}. Then
+we specialize @power@ in function @snippet@ by providing @x@ to @5@. The
+generated code for \texttt{power5} is a function that takes only one argument
+which corresponds to @b@, and the body of this function multiplies @b@ five
+times.
 
-\subsection{Staged Concrete Semantics} 
-In the staging part, we share the same concrete type instantiation, 
-i.e. trait \texttt{Concrete}, but we reimplement the staged version for the concrete operations
-in trait @RepConcInterpOps@.
-Meanwhile, it is also extended from @LMSOps@ which provides necessary supports for the 
-staged version of primitive types and data structures.
-To stage the interpreter, we first identifies the syntactic input is known statically, 
-and the interpreter returns a pair of values and store, which both becomes dynamic values.
-Thus the staged stores propogate the binding-time to environments, because they share the same
-address component. 
+\subsection{Staged Concrete Semantics}
+
+In the staging part, we share the same concrete type instantiation, i.e., trait
+\texttt{Concrete}, but we reimplement the staged version for the concrete
+operations in trait @RepConcInterpOps@. Meanwhile, it is also extended from
+@LMSOps@ which provides necessary support for the staged version of primitive
+types and data structures. To stage the interpreter, we first identify the
+syntactic input that is known statically, and the interpreter returns a pair of
+values and store, which both becomes dynamic values. Thus the staged stores
+propagate the binding-time to environments, because they share the same address
+component.
 
 \begin{lstlisting}
 trait RepConcInterpOps extends Concrete with LMSOps {
@@ -68,20 +74,23 @@ trait RepConcInterpOps extends Concrete with LMSOps {
 }
 \end{lstlisting}
 
-The first notable change is that the abstract type member @R@ is assigned to be @Rep@, and accordingly the affected 
-types such as @Env@ and @Store@ become @Rep[Env]@ and @Rep[Store]@. For @num@, we use the @lift@ function which is a
-built-in in LMS that lifts a current-stage value to next stage.
-The interesting point is how we handle closures and function applications when staging is involved.
-In the unstaged version, function @close@ is used to lift a literal lambda term to a closure, which
-is a pair of the syntactic lambda term and the enclosing environment.
-However, what we desire is a \textit{compiled} closure, instead of a lifted @CloV@ value like 
-what we did for @NumV@ --- in other words, the syntactic term of the lambda expression should be 
-eliminated and specialized away.
-The specialization of the interpreter with respect to the body of the lambda term proceeds under the
-assumptions that the argument and latest store will be provided later. 
+The first notable change is that the abstract type member @R@ is assigned to be
+@Rep@, and accordingly the affected types such as @Env@ and @Store@ become
+@Rep[Env]@ and @Rep[Store]@. For @num@, we use the @lift@ function which is a
+built-in in LMS that lifts a current-stage value to next stage. The interesting
+point is how we handle closures and function applications when staging is
+involved. In the unstaged version, function @close@ is used to lift a literal
+lambda term to a closure, which is a pair of the syntactic lambda term and the
+enclosing environment. However, what we desire is a \textit{compiled} closure,
+instead of a lifted @CloV@ value like what we did for @NumV@ --- in other words,
+the syntactic term of the lambda expression should be eliminated and specialized
+away. The specialization of the interpreter with respect to the body of the
+lambda term proceeds under the assumptions that the argument and latest store
+will be provided later.
 %\note{to denotational style?, back to HO?}
-We will see this is an important observation that enables us to specialize an abstract interpreter in a modular way.
-At the end of function @close@, we create a @CompiledClo@ object that contains a staged function, which all will be
+We will see this is an important observation that enables us to specialize an
+abstract interpreter in a modular way. At the end of function @close@, we create
+a @CompiledClo@ object that contains a staged function, which all will be
 emitted in the generated code.
 
 \begin{lstlisting}
@@ -96,11 +105,13 @@ def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
 }
 \end{lstlisting}
 
-Next, @apply_closure@ takes three arguments: the function value, argument value and the latest store, 
-which are both of @Rep@ type. This means basically there is nothing we can do at the current stage --- 
-so we create a new node @ApplyClosure@ that contains these arguments in the intermediate representation graph,
-and in the code generation phase we can emit the code that performs the application. The additional @reflectEffect@
-is a function in LMS that handles side effects.
+Next, @apply_closure@ takes three arguments: the function value, argument value
+and the latest store, which are all of @Rep@ type. This means basically there
+is nothing we can do at the current stage --- so we create a new node
+@ApplyClosure@ that contains these arguments in the intermediate representation
+graph, and in the code generation phase we can emit the code that performs the
+application. The additional @reflectEffect@ is a function in LMS that handles
+side effects.
 
 \begin{lstlisting}
 case class ApplyClosure(f: Rep[Value], 
@@ -111,9 +122,11 @@ def apply_closure(ev: EvalFun)
   }
 \end{lstlisting}
 
-\paragraph{Code Generation.}
-When generating code for the next stage, values like @CompiledClo@ and @NumV@ are kept as they are because
-they are intended exist in the next stage; however, we need to treat @ApplyClosure@ a little differently.
+\paragraph{Code Generation}
+
+When generating code for the next stage, values like @CompiledClo@ and @NumV@
+are kept as they are because they are intended exist in the next stage; however,
+we need to treat @ApplyClosure@ a little differently.
 
 \begin{lstlisting}
   case ApplyClosure(f, arg, $\sigma$) => 
@@ -123,7 +136,8 @@ they are intended exist in the next stage; however, we need to treat @ApplyClosu
                     quote($\sigma$) + ")")
 \end{lstlisting}
 
-Concretely, as shown in the code above, when emitting code for @ApplyClosure@, we just 
-emit a function application where the function value is extracted from the @CompiledClo@ object
-(we assume the input program is well-typed so that we can safely cast it to @CompiledClo@).
-Argument and store are the remaining rest fields in @ApplyClosure@.
+Concretely, as shown in the code above, when emitting code for @ApplyClosure@,
+we just emit a function application where the function value is extracted from
+the @CompiledClo@ object (we assume the input program is well-typed so that we
+can safely cast it to @CompiledClo@). Argument and a store are the remaining rest
+fields in @ApplyClosure@.

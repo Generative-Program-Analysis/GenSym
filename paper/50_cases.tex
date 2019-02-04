@@ -1,37 +1,41 @@
 \section{Case Study} \label{cases_study}
 
-In Section~\ref{sai}, we have shown that staging an abstract interpreter is feasible and can be 
-systematic after correctly identifying the binding-times, despite the fact that the abstract 
-interpreter is intended to be imprecise and easy to implement. 
-In this section, we conduct several case studies to show that this approach is also useful and
-widely applicable to different analyses.
+In Section~\ref{sai}, we have shown that staging an abstract interpreter is
+feasible and can be systematic after correctly identifying the binding-times,
+despite the fact that the abstract interpreter is intended to be imprecise and
+easy to implement. In this section, we conduct several case studies to show that
+this approach is also useful and widely applicable to different analyses.
 
 \subsection{Abstract Compilation a la Staging} \label{cs_ac}
 
-\citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation (AC) as a new
-implementation technique for abstract interpretation based static analysis \cite{Boucher:1996:ACN:647473.727587}.
-The idea is inspired by partial evaluation similar to the present paper -- the program can be known 
-statically, the overhead of interpretation can be eliminated. 
-In AC, the compiled analysis can be represented by either text or closures (higher-order functions);
-though the closures can be executed immediately, the textual programs need to be compiled and loaded first.
+\citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation (AC)
+as a new implementation technique for abstract interpretation based static
+analysis \cite{Boucher:1996:ACN:647473.727587}. The idea is inspired by partial
+evaluation similar to the present paper -- the program can be known statically,
+the overhead of interpretation can be eliminated. In AC, the compiled analysis
+can be represented by either text or closures (higher-order functions); though
+the closures can be executed immediately, the textual programs need to be
+compiled and loaded first.
 
-Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} show how to compile a monovariant control-flow 
-analysis \cite{Shivers:1991:SSC:115865.115884, Shivers:1988:CFA:53990.54007} 
-for continuation-passing style (CPS) programs. Since the analyzed program is written in CPS, the analyzer 
-is essentially a big-step control-environment abstract interpreter.
-Closure generation compiles the analysis as a closure taking an environment argument.
-The overhead of traversing the abstract syntax tree of input program also has been eliminated.
+Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} show how to compile a
+monovariant control-flow analysis \cite{Shivers:1991:SSC:115865.115884,
+Shivers:1988:CFA:53990.54007} for continuation-passing style (CPS) programs.
+Since the analyzed program is written in CPS, the analyzer is essentially a
+big-step control-environment abstract interpreter. Closure generation compiles
+the analysis as a closure taking an environment argument. The overhead of
+traversing the abstract syntax tree of input program also has been eliminated.
 
-In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation can be 
-understood and implemented as an instance of staging abstract interpreters.
-We first revisit the original implementation of abstract compilation of 0-CFA,
-and then reproduce their result by simply adding stage annotations.
-The generated program of our approach improves approximately the same extent of speed,
-but without changing a single line of the analyzer program (with the use of LMS).
-However, closure generation requires more engineering effort, specifically a whole-program 
-conversion on the analyzer. Moreover, as shown in Section~\ref{staged_ds}, 
-our approach is able to not only remove the interpretive overhead, but also specialize 
-the data structures used in the analysis, for example, the environment that maps variables to sets of lambda.
+In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s
+abstract compilation can be understood and implemented as an instance of staging
+abstract interpreters. We first revisit the original implementation of abstract
+compilation of 0-CFA, and then reproduce their result by simply adding stage
+annotations. The generated program of our approach improves approximately the
+same extent of speed, but without changing a single line of the analyzer program
+(with the use of LMS). However, closure generation requires more engineering
+effort, specifically a whole-program conversion on the analyzer. Moreover, as
+shown in Section~\ref{staged_ds}, our approach is able to not only remove the
+interpretive overhead, but also specialize the data structures used in the
+analysis, for example, the environment that maps variables to sets of lambda.
 
 \begin{figure*}
   \centering
@@ -107,67 +111,70 @@ def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
 
 \subsubsection{Closure Generation}
 
-The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA for a CPS language consisting
-of lambda terms, applications, @letrec@ and primtive operators. The analyses for different syntactic 
-constructs are decomposed into different functions, such as @analyzeCall@ and @analyzeApp@.
-The idea of closure generation is to rewrite these functions. Where previously they may take both static
-arguments and dynamic arguments, after the rewrite only the static arguments is taken.
-In this case, the static arguments are syntactic terms;
-the dynamic arguments are stores.
-After written in AC style, functions like @compCall@ (compiled version of @analyzeCall@) return a value of type
-@CompAnalysis@, i.e., a closure that takes a store and returns a store.
-The result of multiple calls on such functions, for example,
-@compCall@ and @compArgs@, can be composed.
-The generated closure only takes stores, because the input program
-is specialized into the closure. The code is shown in Figure~\ref{compare_ac_sai} (left).
+The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA
+for a CPS language consisting of lambda terms, applications, @letrec@ and
+primtive operators. The analyses for different syntactic constructs are
+decomposed into different functions, such as @analyzeCall@ and @analyzeApp@. The
+idea of closure generation is to rewrite these functions. Where previously they
+may take both static arguments and dynamic arguments, after the rewrite only the
+static arguments is taken. In this case, the static arguments are syntactic
+terms; the dynamic arguments are stores. After written in AC style, functions
+like @compCall@ (compiled version of @analyzeCall@) return a value of type
+@CompAnalysis@, i.e., a closure that takes a store and returns a store. The
+result of multiple calls on such functions, for example, @compCall@ and
+@compArgs@, can be composed. The generated closure only takes stores, because
+the input program is specialized into the closure. The code is shown in
+Figure~\ref{compare_ac_sai} (left).
 
 \subsubsection{Staged 0-CFA}
 
-On the other side, our approach does exactly the same thing through staging: the syntactic terms are static, and 
-stores are dynamic, therefore the generated code just looks-up and updates the store.
-Figure~\ref{compare_ac_sai} (right) shows the code written with LMS. In fact, the only changes are
-the type of @Store@ is replaced with @Rep[Store]@ indicating that the values of type @Store@  will be known
-at the next stage. Indeed, additional engineering efforts are required to make this happen, 
-including: the staged version @Map@ which is already included in LMS; implicit @lift@ function that transform a
-current-stage constant value to next stage; next-stage representation of the syntactic terms, i.e., proper @toString@
-functions of AST structs. We consider these efforts relatively small, and they do not interfere the actual analysis
-we desire.
+On the other side, our approach does exactly the same thing through staging: the
+syntactic terms are static, and stores are dynamic, therefore the generated code
+just looks-up and updates the store. Figure~\ref{compare_ac_sai} (right) shows
+the code written with LMS. In fact, the only changes are the type of @Store@ is
+replaced with @Rep[Store]@ indicating that the values of type @Store@ will be
+known at the next stage. Indeed, additional engineering efforts are required to
+make this happen, including: the staged version @Map@ which is already included
+in LMS; implicit @lift@ function that transform a current-stage constant value
+to next stage; next-stage representation of the syntactic terms, i.e., proper
+@toString@ functions of AST structs. We consider these efforts relatively small,
+and they do not interfere the actual analysis we desire.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{Control-flow Analysis} \label{cfa}
 
-The target language we presented in Section~\ref{bg_lang} is essentially a higher-order functional language.
-One fundamental analysis task for functional programs is control-flow analysis, i,e., determining
-which functions will possibly be applied at each call-site. 
-The abstract interpreter we used in Section~\ref{unstaged_abs} and Section~\ref{sai} is a store-widened 
-0-CFA-like abstraction, moreover it is also a pushdown control-flow analysis; 
-in the last section, we also reviewed AC with finite-state 0-CFA.
-In this section, based on the existing staged abstract interpreter, we further
-develop the staging techniques with control-flow analyses, including recoverying a more precise store model and
-adding context-sensitivity to the analysis.
-%, and using staging as an implementation stategy for mixed sensitivity.
+The target language we presented in Section~\ref{bg_lang} is essentially a
+higher-order functional language. One fundamental analysis task for functional
+programs is control-flow analysis, i,e., determining which functions will
+possibly be applied at each call-site. The abstract interpreter we used in
+Section~\ref{unstaged_abs} and Section~\ref{sai} is a store-widened 0-CFA-like
+abstraction, moreover it is also a pushdown control-flow analysis; in the last
+section, we also reviewed AC with finite-state 0-CFA. In this section, based on
+the existing staged abstract interpreter, we further develop the staging
+techniques with control-flow analyses, including recoverying a more precise
+store model and adding context-sensitivity to the analysis.
 
 \subsubsection{A More Precise Store Model}
 
-The store-widened analysis we implemented in Section~\ref{sai} uses a single store to approximate
-the runtime store. It can be efficently computed in polynomial time together with 0-CFA-like abstraction, 
-but sometimes we may desire a 
-more precise result that distinguishes the final values and stores for different closure targets. 
-To achieve this goal,
-we need to tweak our abstract interpreter and type instantiation. The answer type @Ans@ is changed to
-a set of @VS@s where a @VS@ is a pair of sets of abstract values (such as closures or abstract numbers)
-and a store.
+The store-widened analysis we implemented in Section~\ref{sai} uses a single
+store to approximate the runtime store. It can be efficently computed in
+polynomial time together with 0-CFA-like abstraction, but sometimes we may
+desire a more precise result that distinguishes the final values and stores for
+different closure targets. To achieve this goal, we need to tweak our abstract
+interpreter and type instantiation. The answer type @Ans@ is changed to a set of
+@VS@s where a @VS@ is a pair of sets of abstract values (such as closures or
+abstract numbers) and a store.
 
 \begin{lstlisting}
 type VS = (Set[AbsValue], Store)
 type Ans = R[Set[VS]]
 \end{lstlisting}
 
-Note that the type @Ans@ uses our stage polymorphic type @R@, meaning that under staging the type @Ans@
-represents a next stage value. Then, our generic interpreter is also changed when handling function 
-applications.
+Note that the type @Ans@ uses our stage polymorphic type @R@, meaning that under
+staging the type @Ans@ represents a next stage value. Then, our generic
+interpreter is also changed when handling function applications.
 
 \begin{lstlisting}
 case App(e1, e2) =>
@@ -178,33 +185,36 @@ case App(e1, e2) =>
   apply_closure(ev)(e1vs.v, e2vs.v, e2vs.$\sigma$)
 \end{lstlisting}
 
-The idea to handle the application is to explore all possible closures from @e1@ and meanwhile
-use the latest store.
-What @choices@ does is similar to McCarthy's @amb@ operator ~\cite{MCCARTHY196333}: it non-deterministically returns an
-element of type @VS@ from its argument, e.g., @e1ans@, to its right-hand side receiver, i.e., @e1vs@.
-The function @choices@ internally uses the delimited control operator @shift@ to capture the continuation,
-which is the code block after its call site. 
-This allows us to perform nesting depth-first evaluation for function application while still writing 
-the program in direct-style \cite{Wei:2018:RAA:3243631.3236800}. 
-Again, we can stage this part as we did for the naive abstract interpreter.
+The idea to handle the application is to explore all possible closures from @e1@
+and meanwhile use the latest store. What @choices@ does is similar to McCarthy's
+@amb@ operator ~\cite{MCCARTHY196333}: it non-deterministically returns an
+element of type @VS@ from its argument, e.g., @e1ans@, to its right-hand side
+receiver, i.e., @e1vs@. The function @choices@ internally uses the delimited
+control operator @shift@ to capture the continuation, which is the code block
+after its call site. This allows us to perform nesting depth-first evaluation
+for function application while still writing the program in direct-style
+\cite{Wei:2018:RAA:3243631.3236800}. Again, we can stage this part as we did for
+the naive abstract interpreter.
 
 \subsubsection{Context-Sensitivity}
 
-We add k-CFA-like context-sensitivity to the analysis by introducing an abstract timestamp, 
-whose concrete instantiation is a finite list of expressions that track $k$ recent calling contexts.
-The definition of abstract addresses is changed to a tuple of identifiers and the time it get allocated,
-meaning that this address points to some values under such calling context.
-If $k$ is 0, we obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain
-a family of analysis with increasing precision.
+We add k-CFA-like context-sensitivity to the analysis by introducing an abstract
+timestamp, whose concrete instantiation is a finite list of expressions that
+track $k$ recent calling contexts. The definition of abstract addresses is
+changed to a tuple of identifiers and the time it get allocated, meaning that
+this address points to some values under such calling context. If $k$ is 0, we
+obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain a
+family of analysis with increasing precision.
 
 \begin{lstlisting}
 type Time = List[Expr]
 \end{lstlisting}
 
-Every time when we call the @eval@ function, we refresh the timestamp by calling function @tick@,
-which returns a new timestamp. Here we adopt a $k$-CFA-like allocation strategy, therefore
-the @tick@ function can be implemented as appending the current expression being evaluated to the existing
-calling context, and then taking the first $k$ elements from the list.
+Every time when we call the @eval@ function, we refresh the timestamp by calling
+function @tick@, which returns a new timestamp. Here we adopt a $k$-CFA-like
+allocation strategy, therefore the @tick@ function can be implemented as
+appending the current expression being evaluated to the existing calling
+context, and then taking the first $k$ elements from the list.
 
 \begin{lstlisting}
 def tick(e: Expr, $\tau$: R[Time]): R[Time] = (e :: $\tau$).takewhile
@@ -218,16 +228,17 @@ def eval(ev: EvalFun)
   }
 \end{lstlisting}
 
-Accordingly, the type of return value is accompanied by the timestamp. For a recursive call of @ev@,
-which would also return the latest timestamp, and that timestamp will be used for the evaluation afterward.
+Accordingly, the type of return value is accompanied by the timestamp. For a
+recursive call of @ev@, which would also return the latest timestamp, and that
+timestamp will be used for the evaluation afterward.
 
 \begin{lstlisting}
 type VST = (Value, Store, Time)
 type Ans = R[Set[VST]]
 \end{lstlisting}
 
-Using other allocation strategies to achieve different sensitivities is also possible \cite{DBLP:conf/icfp/Gilray0M16} 
-and can be staged under our framework.
+Using other allocation strategies to achieve different sensitivities is also
+possible \cite{DBLP:conf/icfp/Gilray0M16} and can be staged under our framework.
  
 %\subsubsection{Mixed Sensitivity}
 
@@ -238,19 +249,22 @@ and can be staged under our framework.
 
 \subsection{Numerical Analysis in Imperative Languages} \label{cases_imp}
 
-Now we consider in a first-order imperative language, we may care more about the data-flow because the control-flow
-is relatively easy to obtain. In this section, we show the staging of other abstract domains, particularly an 
-interval domain for numbers.
-It has been shown that specializing abstract domains with respect to the structure of analyzed program significantly 
-improves the performance: a recent example is online decomposition of polyhedra \cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143}.
-In this section, we first show how to support imperative language features in the generic abstract interpreter.
-Then we present a similar idea for the interval domain and show that the specialization is feasible by staging systematically.
+Now we consider in a first-order imperative language, we may care more about the
+data-flow because the control-flow is relatively easy to obtain. In this
+section, we show the staging of other abstract domains, particularly an interval
+domain for numbers. It has been shown that specializing abstract domains with
+respect to the structure of analyzed program significantly improves the
+performance: a recent example is online decomposition of polyhedra
+\cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143}. In this
+section, we first show how to support imperative language features in the
+generic abstract interpreter. Then we present a similar idea for the interval
+domain and show that the specialization is feasible by staging systematically.
 
 \subsubsection{Scaling to Imperative Languages}
 
-To evaluates an assignment, we first evaluate its right-hand side, and then put the value
-into the slot where the address of @v@ points to.
-For simplicity, we elect to make the value of the assignment be an @void()@ value.
+To evaluates an assignment, we first evaluate its right-hand side, and then put
+the value into the slot where the address of @v@ points to. For simplicity, we
+elect to make the value of the assignment be an @void()@ value.
 
 \begin{lstlisting}
 case Assign(x, e) =>
@@ -258,11 +272,12 @@ case Assign(x, e) =>
   (void(), put($\sigma$_*, get($\rho$, x), v))
 \end{lstlisting}
 
-To evaluates a @while@ loop statement, we evaluate the condition first.
-Then similar to how we treat @branch0@, we have a generic @branch@ function but works on boolean
-values. For the @true@ branch, we recursively call @ev@ on a newly constructed expression
-@Seq(e, While(t, e))@ meaning that first evaluates @e@ and the repeat the loop.
-Otherwise, for the other branch, we simply return a void value and current store.
+To evaluates a @while@ loop statement, we evaluate the condition first. Then
+similar to how we treat @branch0@, we have a generic @branch@ function but works
+on boolean values. For the @true@ branch, we recursively call @ev@ on a newly
+constructed expression @Seq(e, While(t, e))@ meaning that first evaluates @e@
+and the repeat the loop. Otherwise, for the other branch, we simply return a
+void value and current store.
 
 \begin{lstlisting}
 case While(t, e) =>
@@ -272,9 +287,10 @@ case While(t, e) =>
 
 \subsubsection{Staged Interval}
 
-Interval domain is a relative simple domain which consists of two numeric fields, an upper bound 
-and a lower bound. Here we annotate the upper bound and lower bound fields to be of type @Rep[Double]@.
-The operations such as @+@ of two intervals produce a new 
+Interval domain is a relative simple domain which consists of two numeric
+fields, an upper bound and a lower bound. Here we annotate the upper bound and
+lower bound fields to be of type @Rep[Double]@. The operations such as @+@ of
+two intervals produce a new
 
 \begin{lstlisting}
 case class Interval(lb: Rep[Double], ub: Rep[Double]) {

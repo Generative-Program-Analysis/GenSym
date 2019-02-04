@@ -1,11 +1,12 @@
 \subsection{Abstract Syntax} \label{bg_lang}
 
-We consider a tiny higher-order functional language \TLang, which is based on direct-style $\lambda$-calculus
-with numbers, arithmetics, recursions and conditionals.
-In Section~\ref{cases_imp}, we will add more imperative features to the language.
-Since we are mostly interested in analyzing the dynamic behavior of the program, we disguised any static semantics and
-type system. We also assume that input programs are well-typed and variables are distinct.
-The abstract syntax is as follows:
+We consider a tiny higher-order functional language \TLang, which is based on
+direct-style $\lambda$-calculus with numbers, arithmetics, recursions and
+conditionals. In Section~\ref{cases_imp}, we will add more imperative features
+to the language. Since we are mostly interested in analyzing the dynamic
+behavior of the program, we disguised any static semantics and type system. We
+also assume that input programs are well-typed and variables are distinct. The
+abstract syntax is as follows:
 
 \begin{lstlisting}
 abstract class Expr
@@ -18,23 +19,27 @@ case class Rec(x: String, e: Expr, body: Expr)
 case class If0(cnd: Expr, thn: Expr, els: Expr)
 \end{lstlisting}
 
-We give the concrete semantics of \TLang by showing a big-step definitional interpreter.
-The interpreter is a recursive function that takes the program AST, environment and store, and returns 
-the evaluated value and the accompanied store. The environment is a mapping from identifiers to addresses,
-and the store is a mapping from addresses to values. 
-We use the store to model recursion and mutation in concrete semantics; it is also useful for polyvariant analysis.
-This environment-and-store-passing style big-step interpreter is standard and can also be obtained by 
-refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03, Wei:2018:RAA:3243631.3236800} a small-step CESK 
-machine \cite{DBLP:conf/popl/FelleisenF87}.
+We give the concrete semantics of \TLang by showing a big-step definitional
+interpreter. The interpreter is a recursive function that takes the program AST,
+environment and store, and returns the evaluated value and the accompanied
+store. The environment is a mapping from identifiers to addresses, and the store
+is a mapping from addresses to values. We use the store to model recursion and
+mutation in concrete semantics; it is also useful for polyvariant analysis. This
+environment-and-store-passing style big-step interpreter is standard and can
+also be obtained by refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03,
+Wei:2018:RAA:3243631.3236800} a small-step CESK machine
+\cite{DBLP:conf/popl/FelleisenF87}.
 
-\subsection{Generic Interface} 
-Before showing the actual implementation of the concrete semantics, let us first consider
-a generic interface for the interpreters, which is semantics-agnostic and can be 
-"interpreted" by either concrete or abstract, unstaged or staged semantics of our choice.
-The trait \texttt{Semantics} first declares several abstract type members, such as \texttt{Addr},
-\texttt{Value}, \texttt{Env}, \texttt{Store} and returned type \texttt{Ans}. 
-It also declares initial values for environments and stores, and few abstract methods that 
-manipulate environments and stores such as @put@ and @get@.
+\subsection{Generic Interface}
+
+Before showing the actual implementation of the concrete semantics, let us first
+consider a generic interface for the interpreters, which is semantics-agnostic
+and can be "interpreted" by either concrete or abstract, unstaged or staged
+semantics of our choice. The trait \texttt{Semantics} first declares several
+abstract type members, such as \texttt{Addr}, \texttt{Value}, \texttt{Env},
+\texttt{Store} and returned type \texttt{Ans}. It also declares initial values
+for environments and stores, and few abstract methods that manipulate
+environments and stores such as @put@ and @get@.
 
 \begin{lstlisting}
 trait Semantics {
@@ -56,12 +61,13 @@ trait Semantics {
 }  // to be continued
 \end{lstlisting}
 
-The actual semantics and operations of the interpreter are left to be implemented later, 
-these cinclude operations such as lifting literal terms to values (\texttt{close}, \texttt{num}), 
-applying a closure (\texttt{apply\_closure}), branching (\texttt{branch0}),
-and arithmetics (\texttt{prim\_eval}). We can choose to implement them in a way that is concrete or abstract,
-unstaged or staged.
-But, just based on these abstract operations, an expressive generic interpreter can be defined:
+The actual semantics and operations of the interpreter are left to be
+implemented later, these include operations such as lifting literal terms to
+values (\texttt{close}, \texttt{num}), applying a closure
+(\texttt{apply\_closure}), branching (\texttt{branch0}), and arithmetics
+(\texttt{prim\_eval}). We can choose to implement them in a way that is concrete
+or abstract, unstaged or staged. But, just based on these abstract operations,
+an expressive generic interpreter can be defined:
 
 \begin{lstlisting}
 trait Semantics {  // continued
@@ -97,34 +103,40 @@ trait Semantics {  // continued
 }
 \end{lstlisting}
 
-The implementation of the skeleton interpreter traverses the abstract syntax tree and should be straightforward to understand.
-It is worth noting that the interpreter is written in open-recursive style -- 
-it can not refer to itself directly, instead, \texttt{eval} takes an additional 
-parameter \texttt{ev} referring to itself; this allows us to instrument the interpreter
-from the outside. Accordingly, the function \texttt{close} for lifting lambda term to closure values
-is also written in this style.
-We define a default implementation \texttt{fix} to close the recursion by recursively using the result 
-of \texttt{fix(ev)} for \texttt{ev}. 
-Finally, the top-level evaluation function \texttt{eval\_top} is defined.
+The implementation of the skeleton interpreter traverses the abstract syntax
+tree and should be straightforward to understand. It is worth noting that the
+interpreter is written in open-recursive style -- it can not refer to itself
+directly, instead, \texttt{eval} takes an additional parameter \texttt{ev}
+referring to itself; this allows us to instrument the interpreter from the
+outside. Accordingly, the function \texttt{close} for lifting lambda term to
+closure values is also written in this style. We define a default implementation
+\texttt{fix} to close the recursion by recursively using the result of
+\texttt{fix(ev)} for \texttt{ev}. Finally, the top-level evaluation function
+\texttt{eval\_top} is defined.
 
-\paragraph{Stage Polymorphism.}
-Readers may notice that an abstract higher-kinded type \texttt{R[+T]} is defined in the trait, i.e. a
-type-level function whici will be used to specify the binding-time, i.e., staged or not; the annotation 
-\texttt{+} indicates that the type parameter \texttt{T} is covariant.
-The LMS framework we use here allows us to specify binding-times purely based on types.
-All occurrences of type \texttt{Env}, \texttt{Store}, etc. are wrapped with \texttt{R} 
-essentially because they may potentially be dynamic when staging is introduced.
-Obviously, the unstaged higher-kinded type then can be simply instantiated as an identity type function: 
-\texttt{type R[+T] = T}. In Section~\ref{stagedinterp}, \texttt{R} will be instantiated 
-as a staging annotation. 
-%\todo{Finally tagless, poly embedding}
+\paragraph{Stage Polymorphism}
+
+Readers may notice that an abstract higher-kinded type \texttt{R[+T]} is defined
+in the trait, i.e. a type-level function which will be used to specify the
+binding-time, i.e., staged or not; the annotation \texttt{+} indicates that the
+type parameter \texttt{T} is covariant. The LMS framework we use here allows us
+to specify binding-times purely based on types. All occurrences of type
+\texttt{Env}, \texttt{Store}, etc. are wrapped with \texttt{R} essentially
+because they may potentially be dynamic when staging is introduced. Obviously,
+the unstaged higher-kinded type then can be simply instantiated as an identity
+type function: \texttt{type R[+T] = T}. In Section~\ref{stagedinterp},
+\texttt{R} will be instantiated as a staging annotation.
+
+\todo{Finally tagless, poly embedding}
 
 \subsection{Concrete Instantiation} \label{unstaged_conc}
-Now we can instantiate a concrete interpreter. We first concretize the abstract types as follows.
-Since the interpreter is concrete, for the propose that properly models the heap, the type \texttt{Int} 
-is used for address space \texttt{Addr}. The environment and store are just ordinary \texttt{Map}s in Scala.
-A value can be either a tagged number \texttt{NumV} or a closure \texttt{CloV} that contains a lambda term
-and an environment.
+
+Now we can instantiate a concrete interpreter. We first concretize the abstract
+types as follows. Since the interpreter is concrete, for the purpose that
+properly models the heap, the type \texttt{Int} is used for address space
+\texttt{Addr}. The environment and store are just ordinary \texttt{Map}s in
+Scala. A value can be either a tagged number \texttt{NumV} or a closure
+\texttt{CloV} that contains a lambda term and an environment.
 
 \begin{lstlisting}
 trait Concrete extends Semantics {
@@ -135,9 +147,9 @@ trait Concrete extends Semantics {
 }
 \end{lstlisting}
 
-we proceed to implement the components that define the semantics. 
-As mentioned before, type \texttt{R} is concretized as an identity type function, thus
-all types are just ordinary types.
+We proceed to implement the components that define the semantics. As mentioned
+before, type \texttt{R} is concretized as an identity type function, thus all
+types are just ordinary types.
 
 \begin{lstlisting}
 object ConcInterp extends Concrete {
@@ -166,10 +178,10 @@ object ConcInterp extends Concrete {
 }
 \end{lstlisting}
 
-Finally, \texttt{get} and \texttt{put} directly manipulate the map of environment and store. 
-An allocation function is used when we need to update the store: 
-in the concrete case, \texttt{alloc} always returns a fresh address of the store.
-\texttt{close} and \texttt{num} lift syntactic literals to values.
-\texttt{apply\_closure} takes the function value, argument value and the latest store,
-then extends the environment and store after allocating a fresh address, and continue
-evaluating the body \texttt{e} of the lambda term.
+Finally, \texttt{get} and \texttt{put} directly manipulate the map of
+environment and store. An allocation function is used when we need to update the
+store: in the concrete case, \texttt{alloc} always returns a fresh address of
+the store. \texttt{close} and \texttt{num} lift syntactic literals to values.
+\texttt{apply\_closure} takes the function value, argument value and the latest
+store, then extends the environment and store after allocating a fresh address,
+and continue evaluating the body \texttt{e} of the lambda term.

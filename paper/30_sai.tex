@@ -1,19 +1,22 @@
 \section{From Abstract Interpreters to Staged Abstract Interpreters} \label{sai}
 
-In the previous sections, we have seen an unstaged abstract interpreter and a staged concrete interpreter, 
-now we begin describing the implementation of their confluence -- a staged abstract interpreter. 
-We present a principled approach to derive staged abstract interpreter
-from its unstaged version. One guiding principle of our approach is that the code of the abstract semantics
-and the code that optimizes should be separated. This it is an advantage of using staging 
-for abstract interpreters: the designer of the analysis has no need to rewrite the analysis, and 
-the performance improvement comes almost for free, without any sacrifice of soundness or precision.
-Unsurprisingly, the staged abstract interpreter we present in this section has the same abstract 
-semantics as the unstaged version we presented in Section~\ref{unstaged_abs}.
+In the previous sections, we have seen an unstaged abstract interpreter and a
+staged concrete interpreter, now we begin describing the implementation of their
+confluence -- a staged abstract interpreter. We present a principled approach to
+derive staged abstract interpreter from its unstaged version. One guiding
+principle of our approach is that the code of the abstract semantics and the
+code that optimizes should be separated. This it is an advantage of using
+staging for abstract interpreters: the designer of the analysis has no need to
+rewrite the analysis, and the performance improvement comes almost for free,
+without any sacrifice of soundness or precision. Unsurprisingly, the staged
+abstract interpreter we present in this section has the same abstract semantics
+as the unstaged version we presented in Section~\ref{unstaged_abs}.
 
-\subsection{Staged Lattices} 
-In Section~\ref{stagedpoly_lat}, we exploited the higher-kinded type @R@
-to leave space for staging lattices, now we instantiate the type @R@ to @Rep@ and 
-still use powersets as an example to present its staged version. 
+\subsection{Staged Lattices}
+
+In Section~\ref{stagedpoly_lat}, we exploited the higher-kinded type @R@ to
+leave space for staging lattices, now we instantiate the type @R@ to @Rep@ and
+still use powersets as an example to present its staged version.
 
 \begin{lstlisting}
 trait RepLattice[A] extends Lattice[A, Rep]
@@ -31,19 +34,22 @@ implicit def RepSetLattice[T:Typ]: RepLattice[Set[T]] =
 \end{lstlisting}
 
 The type parameter @T:Typ@ of @RepLattice@ requires that the elements of sets
-is can also be staged. Otherwise, without knowing how to stage the elements in the set,
-we can not stage the set either.
-The methods defined operate on type @Rep[Set[T]]@, thus the underlying implementation
-such as @union@ and @intersect@ will be mapped to a node in the IR graph during staging and 
-eventually emitted in the generated code. 
-Again, other structures such as maps and tuples are implemented in a similar way.
+can also be staged. Otherwise, without knowing how to stage the elements in the
+set, we can not stage the set either. The methods defined operate on type
+@Rep[Set[T]]@, thus the underlying implementation such as @union@ and
+@intersect@ will be mapped to a node in the IR graph during staging and
+eventually emitted in the generated code. Again, other structures such as maps
+and tuples are implemented in a similar way.
 
-\subsection{Staged Abstract Semantics} 
-We have seen how to obtain a staged concrete semantics based on types, 
-now we take the same approach to obtain a staged abstract semantics.
-The basic operations are largely kept the same as in the unstaged version, except the types are changed to @Rep@.
-Besides, when we update the environment, the identifier @x@ is known statically, but the environment map
-has type @Rep[Map[Ident,Addr]]@, so we apply @lift@ to @x@ to turn it as a next-stage value.
+\subsection{Staged Abstract Semantics}
+
+We have seen how to obtain a staged concrete semantics based on types, now we
+take the same approach to obtain a staged abstract semantics. The basic
+operations are largely kept the same as in the unstaged version, except the
+types are changed to @Rep@. Besides, when we update the environment, the
+identifier @x@ is known statically, but the environment map has type
+@Rep[Map[Ident,Addr]]@, so we apply @lift@ to @x@ to turn it as a next-stage
+value.
 
 \begin{lstlisting}
 trait RepAbsInterpOps extends Abstract with LMSOps {
@@ -68,10 +74,11 @@ trait RepAbsInterpOps extends Abstract with LMSOps {
 }
 \end{lstlisting}
 
-Once more, the way we handle closures is the same as in the staged concrete interpreter:
-the recursive call to @ev@ with the body expression @e@ is compiled and specialized, 
-the wrapper function @f@ will be a field value in a @CompiledClo@ object and be generated
-for the next stage. At the end, we return a singleton set:
+Once more, the way we handle closures is the same as in the staged concrete
+interpreter: the recursive call to @ev@ with the body expression @e@ is compiled
+and specialized, the wrapper function @f@ will be a field value in a
+@CompiledClo@ object and be generated for the next stage. At the end, we return
+a singleton set:
 
 \begin{lstlisting}
 def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
@@ -91,10 +98,10 @@ def apply_closure(ev: EvalFun)
 
 When generating code for an application, we can not directly apply the callee.
 Instead, we emit code that calls a next-stage function @apply_closures_norep@.
-As its unstaged counterpart, function @apply_closures_norep@ 
-non-deterministically applies multiple target closures with the argument
-and latest store, and finally returns the joined value and a single store.
-We provide the definition of @apply_closures_norep@ in the runtime supporting code.
+As its unstaged counterpart, function @apply_closures_norep@
+non-deterministically applies multiple target closures with the argument and
+latest store, and finally returns the joined value and a single store. We
+provide the definition of @apply_closures_norep@ in the runtime supporting code.
 
 \begin{lstlisting}
 case ApplyClosures(fs, arg, $\sigma$) =>
@@ -105,14 +112,14 @@ case ApplyClosures(fs, arg, $\sigma$) =>
 
 \subsection{Staged Fixpoint Iteration} 
 
-Our fixed-point iteration again relies on two caches @in@ and @out@, but the iteration 
-no longer be done at the current stage.
-Because the @in@ and @out@ are both next-stage values, the test of whether 
-@in@ and @out@ are equal is a generated expression in the next stage, and we can only 
-know the comparison result at the next stage. 
-In other words, we do not know how many iterations we need to reach the fixed-point.
-To achieve this, we need to stage a function value --- @iter_aux@ is generated as a 
-recursive function of type @Rep[Unit => (Value,Store)]@ and will be invoked at the next stage.
+Our fixed-point iteration again relies on two caches @in@ and @out@, but the
+iteration no longer be done at the current stage. Because the @in@ and @out@ are
+both next-stage values, the test of whether @in@ and @out@ are equal is a
+generated expression in the next stage, and we can only know the comparison
+result at the next stage. In other words, we do not know how many iterations we
+need to reach the fixed-point. To achieve this, we need to stage a function
+value --- @iter_aux@ is generated as a recursive function of type @Rep[Unit => (Value,Store)]@ 
+and will be invoked at the next stage.
 
 \begin{lstlisting}
 def iter(e: Expr, $\rho$: Rep[Env], $\sigma$: Rep[Store]): 
@@ -126,9 +133,10 @@ Rep[(Value,Store)] = {
 }
 \end{lstlisting}
 
-However, the instrumented evaluation function that uses the @in@ cache and updates the @out@ cache
-can be completely eliminated by staging. Each recursive call to @cached_ev@ will also be specialized
-if it is applied on subexpressions of the analyzed program.
+However, the instrumented evaluation function that uses the @in@ cache and
+updates the @out@ cache can be completely eliminated by staging. Each recursive
+call to @cached_ev@ will also be specialized if it is applied on subexpressions
+of the analyzed program.
 
 \begin{lstlisting}
 def cached_ev(e: Expr, $\rho$: Rep[Env], $\sigma$: Rep[Store]): 
@@ -146,79 +154,89 @@ Rep[(Value, Store)] = {
 
 \subsection{Specialized Data Structures} \label{staged_ds}
 
-Now we have already obtained an end-to-end staged abstract interpreter that is able to 
-specialize an analysis. However, we treat the data structures such as @Map@s as black-boxes,
-which means any operations on a @Map@ becomes code in the next stage.
-But, as we identified when introducing the generic interface, the keys of any environment maps are 
-identifiers in the program, which are completely known statically. 
-This leaves us a chance to further specialize the data structures. 
-Assume the @Map[K,V]@ is implemented as a hash map, if the keys $K$ are known, then the indices can be computed
-statically. Thus the specialized map would be an array @Array[Rep[V]]@ whose elements 
-are next-stage values; all the accesses to the array is determined during staging.
+Now we have already obtained an end-to-end staged abstract interpreter that is
+able to specialize an analysis. However, we treat the data structures such as
+@Map@s as black-boxes, which means any operations on a @Map@ become code in the
+next stage. But, as we identified when introducing the generic interface, the
+keys of any environment maps are identifiers in the program, which are
+completely known statically. This leaves us a chance to further specialize the
+data structures. Assume the @Map[K,V]@ is implemented as a hash map, if the keys
+$K$ are known, then the indices can be computed statically. Thus the specialized
+map would be an array @Array[Rep[V]]@ whose elements are next-stage values; all
+the accesses to the array is determined during staging.
 
-Particularly, if we are specializing a monovariant analysis, the address space 
-is equivalent to the identifiers, then the environment component can be entirely eliminated, 
-and the store is a specialized map as array of @Rep[Value]@ elements.
+Particularly, if we are specializing a monovariant analysis, the address space
+is equivalent to the identifiers, then the environment component can be entirely
+eliminated, and the store is a specialized map as array of @Rep[Value]@
+elements.
 
 \subsection{Modular Analysis for Free}
 
 One of the challenges of modern static analysis is program usually depends on
-large libraries programs~\cite{toman_et_al:LIPIcs:2017:7121}. 
-Can we analyze programs and libraries separately and reuse the result without losing precision? 
-Then we can reduce part of the overhead of repeatedly analyzing libraries for different programs.
-Indeed, some static analyzers compute summary for a function or a module, which can be reused
-later, however they are mostly too conservative or unsound, which both lead to imprecision.
+large libraries programs~\cite{toman_et_al:LIPIcs:2017:7121}. Can we analyze
+programs and libraries separately and reuse the result without losing precision?
+Then we can reduce part of the overhead of repeatedly analyzing libraries for
+different programs. Indeed, some static analyzers compute summary for a function
+or a module, which can be reused later, however they are mostly too conservative
+or unsound, which both lead to imprecision.
 
-The specialization of abstract interpreter provides a chance to obtain such partial analysis 
-result in a mechanized way, but still keeps the analysis sound.
-As we see when compiling the closures, we can specialize the abstract interpreter
-with respect the body expression of the lambda term without knowing the actual argument.
-The programs with some unknown variables are open programs, which is exactly the case 
-if we want to analyze programs in a modular way.
+The specialization of abstract interpreter provides a chance to obtain such
+partial analysis result in a mechanized way, but still keeps the analysis sound.
+As we see when compiling the closures, we can specialize the abstract
+interpreter with respect the body expression of the lambda term without knowing
+the actual argument. The programs with some unknown variables are open programs,
+which is exactly the case if we want to analyze programs in a modular way.
 
-For a concrete analysis, for example, $k$-CFA ($k$ > 0) is naturally a whole-program analysis,
-because it is inter-procedural and needs the last $k$ calling contexts to distinguish
-different call sites, where the calling contexts are dynamic values.
-However, it is possible to analyze programs (libraries) separately through specializing an abstract interpreter 
-that generates the analysis as the next-stage program and leave the unavailable programs and calling contexts 
-as dynamic parameters, and then install these contexts when we have the whole program.
+For a concrete analysis, for example, $k$-CFA ($k$ > 0) is naturally a
+whole-program analysis, because it is inter-procedural and needs the last $k$
+calling contexts to distinguish different call sites, where the calling contexts
+are dynamic values. However, it is possible to analyze programs (libraries)
+separately through specializing an abstract interpreter that generates the
+analysis as the next-stage program and leave the unavailable programs and
+calling contexts as dynamic parameters, and then install these contexts when we
+have the whole program.
 
 \iffalse
-Another perspective: programs are data for an abstract interpreter, so if we have $n$ programs, 
-then maybe there can be $n$ stages. 
-Probably we can analyze first $m$ programs, and generate a residual abstract interpreter
-waiting for the rest $(n-m)$ programs.
-These $(n-m)$ programs might be (abstract) arguments for the first $n$ programs, and
-the abstract interpreter itself might be a partial abstract interpreter.
+Another perspective: programs are data for an abstract interpreter, so if we
+have $n$ programs, then maybe there can be $n$ stages. Probably we can analyze
+first $m$ programs, and generate a residual abstract interpreter waiting for the
+rest $(n-m)$ programs. These $(n-m)$ programs might be (abstract) arguments for
+the first $n$ programs, and the abstract interpreter itself might be a partial
+abstract interpreter.
 \fi
 
 \subsection{Discussion}
-%We have presented all of our four different interpreters as shown in Figure~\ref{confluence}.
-In the literature of partial evaluation, \citeauthor{10.1007/3-540-61580-6_11} provided guidelines
-on what to do and not to do when specializing a concrete interpreter \cite{10.1007/3-540-61580-6_11}. 
-We borrow these guidelines and extend them to abstract interpreters. We discuss decisions we made to 
-achieve this and examine some alternatives.
 
-\paragraph{Big-step vs Small-step.}
-What we implemented is a big-step, compositional abstract interpreter, 
-where "compositional" means that every recursive call of our abstract interpreter is applied to proper 
-substructures of the current syntactic parameters \cite{10.1007/3-540-61580-6_11}.
-This compositionality ensures that specialization can be done by unfolding,
-as well as that the specialization procedure terminates.
-Nevertheless, it is also possible to specialize a small-step operational abstract semantics ---
-\citeauthor{Johnson:2013:OAA:2500365.2500604}
-showed this in abstract compilation \cite{Boucher:1996:ACN:647473.727587} style as one of their optimizations
-of Abstract Abstract Machines \cite{Johnson:2013:OAA:2500365.2500604}. 
-However, the generated abstract bytecode still requires another small-step abstract machine 
-to execute, which is an additional engineering efforts.
-Another alternative approach for efficient specialization is to write the abstract interpreter 
-in a big-step, monadic style \cite{DBLP:journals/pacmpl/DaraisLNH17}.
+In the literature of partial evaluation, \citeauthor{10.1007/3-540-61580-6_11}
+provided guidelines on what to do and not to do when specializing a concrete
+interpreter \cite{10.1007/3-540-61580-6_11}. We borrow these guidelines and
+extend them to abstract interpreters. We discuss decisions we made to achieve
+this and examine some alternatives.
+
+\paragraph{Big-step vs Small-step}
+
+What we implemented is a big-step, compositional abstract interpreter, where
+"compositional" means that every recursive call of our abstract interpreter is
+applied to proper substructures of the current syntactic parameters
+\cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
+specialization can be done by unfolding, as well as that the specialization
+procedure terminates. Nevertheless, it is also possible to specialize a
+small-step operational abstract semantics ---
+\citeauthor{Johnson:2013:OAA:2500365.2500604} showed this in abstract
+compilation \cite{Boucher:1996:ACN:647473.727587} style as one of their
+optimizations of Abstract Abstract Machines
+\cite{Johnson:2013:OAA:2500365.2500604}. However, the generated abstract
+bytecode still requires another small-step abstract machine to execute, which is
+an additional engineering efforts. Another alternative approach for efficient
+specialization is to write the abstract interpreter in a big-step, monadic style
+\cite{DBLP:journals/pacmpl/DaraisLNH17}.
 
 % direct-style vs CPS
 
-\paragraph{Correctness and Soundness.}
-Based on the assumption that LMS preserves the semantics during staging,
-we are confident that the staged abstract interpreter does the same analysis compared 
-with the unstaged one. Moreover, the optimization done by staging does not compromise
-any soundness.
+\paragraph{Correctness and Soundness}
+
+Based on the assumption that LMS preserves the semantics during staging, we are
+confident that the staged abstract interpreter does the same analysis compared
+with the unstaged one. Moreover, the optimization done by staging does not
+compromise any soundness.
 

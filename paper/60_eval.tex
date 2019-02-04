@@ -1,27 +1,31 @@
 \section{Evaluation} \label{evaluation}
 
-To evaluate the performance can be improved through staging, we use the abstract
-interpreter demonstrated in the paper to analyze some Scheme programs. We first implement
-a desugaring transformation for a large subset of scheme that transforms into the
-small language we used in the paper.
-We use the same generic interface with a 0-CFA-like abstraction, and the unstage abstract
-interpreter forms the baseline.
+To evaluate whether the performance can be improved through staging, we use the
+abstract interpreter demonstrated in the paper to analyze some Scheme programs.
+We first implement a desugaring transformation for a large subset of Scheme that
+transforms into the small language we used in the paper. We use the same generic
+interface with a 0-CFA-like abstraction, and the unstage abstract interpreter
+forms the baseline.
 
-All of our evaluation benchmarks were performed on an Ubuntu 16.04 LTS (Linux kernel 4.4.0)
-machine with 4 Intel Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM.
-Although the machine has 96 cores and 192 threads in total,
-the abstract interpreters only use one thread to run all the benchmark programs.
+All of our evaluation benchmarks were performed on an Ubuntu 16.04 LTS (Linux
+kernel 4.4.0) machine with 4 Intel Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of
+RAM. Although the machine has 96 cores and 192 threads in total, the abstract
+interpreters only use one thread to run all the benchmark programs.
 
 Our evaluations show that the staged abstract interpreter performs well in some
-cases that are considered to be the worst scenarios for traditional $k$-CFA.
-The staged version outperforms the unstaged abstract interpreter by a significant
+cases that are considered to be the worst scenarios for traditional $k$-CFA. The
+staged version outperforms the unstaged abstract interpreter by a significant
 margin (up to ~230\% performance gain) on these difficult ones.
 
 \subsection{Benchmarks}
-The benchmark programs we used are collected from previous papers \cite{Johnson:2013:OAA:2500365.2500604,
-ashley:practical, DBLP:journals/corr/abs-1102-3676} and exisiting artifacts \footnote{https://github.com/ilyasergey/reachability}.
+
+The benchmark programs we used are collected from previous papers
+\cite{Johnson:2013:OAA:2500365.2500604, ashley:practical,
+DBLP:journals/corr/abs-1102-3676} and exisiting artifacts
+\footnote{https://github.com/ilyasergey/reachability}.
 
 We used the following benchmark programs:
+
 \begin{itemize}
     \item \textbf{fib}: Calculates the $n$-th fibonacci number.
     \item \textbf{rsa}: The RSA public key encryption algorithm.
@@ -56,15 +60,17 @@ the statistical median values of the running times.
 \caption{Evaluation result.} \label{evaluation_result}
 \end{figure}
 
-Figure~\ref{evaluation_result} shows the benchmark evaluation results. The "unstaged" and "staged" columns
-show the median time to finish the analysis (in milliseconds). The "$\Delta$ of median"
-column shows the performance change from the unstaged abstract interpreter to the staged version.
+Figure~\ref{evaluation_result} shows the benchmark evaluation results. The
+"unstaged" and "staged" columns show the median time to finish the analysis (in
+milliseconds). The "$\Delta$ of median" column shows the performance change from
+the unstaged abstract interpreter to the staged version.
 
-As we can see from the table, the staged version significantly outperforms the unstaged especially 
-for the difficult ones.
-However, for some benchmarks, we observe degraded performance. 
-We conjecture this happens due to the large size of the generated code is unoptimized -- 
-as what we test here is a simple implementation almost identical to what we described in the previous sections,
-we believe the performance still can be improved if more engineering effort is taken, 
-such as optimizing code generation and avoiding code duplication.
+As we can see from the table, the staged version significantly outperforms the
+unstaged especially for the difficult ones. However, for some benchmarks, we
+observe degraded performance. We conjecture this happens due to the fact that
+the large size of the generated code is unoptimized -- as what we test here is a
+simple implementation almost identical to what we described in the previous
+sections, we believe the performance still can be improved if more engineering
+effort is taken, such as optimizing code generation and avoiding code
+duplication.
 

@@ -1,22 +1,25 @@
 \section{From Interpreters to Abstract Interpreters} \label{unstaged_abs}
 
-Based on the generic interface we presented in Section~\ref{bg_lang}, 
-we now describe the instantiation of an abstract interpreter.
-To keep the presentation simple, we use simple abstract domains, and just establish a 
-context-/path-/flow-insensitive, store-widened analysis in this section --- indeed, it is coarse
-but simple enough to setup a foundation for the staged abstract interpreter we will present later.
-In Section~\ref{cfa}, we will see how to regain context-/path-/flow-sensitivity 
-for pushdown control-flow analysis; in Section~\ref{cases_imp}, we will see how to instantiate 
-an interval abstract domain for numerical analysis.
+Based on the generic interface we presented in Section~\ref{bg_lang}, we now
+describe the instantiation of an abstract interpreter. To keep the presentation
+simple, we use simple abstract domains, and just establish a
+context-/path-/flow-insensitive, store-widened analysis in this section ---
+indeed, it is coarse but simple enough to setup a foundation for the staged
+abstract interpreter we will present later. In Section~\ref{cfa}, we will see
+how to regain context-/path-/flow-sensitivity \todo{path/flow} for pushdown
+control-flow analysis; in Section~\ref{cases_imp}, we will see how to
+instantiate an interval abstract domain for numerical analysis.
 
-\paragraph{Abstract Instantiation.}
-Our instantiation roughly follows the Abstracting Abstract Machines methodology 
-\cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12} that transforms the concrete semantics 
-to abstract semantics. The store now maps addresses to sets of abstract values, meaning that an address points
-to all possible values that may occur at runtime, where the abstract value is either a closure or 
-a single abstract number \texttt{NumV}, which stands for the top element of the number lattice. 
-The address space is also constrained to be finite, in the monovariant setting, we simply use variable names 
-for address.
+\paragraph{Abstract Instantiation}
+
+Our instantiation roughly follows the Abstracting Abstract Machines methodology
+\cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12} that transforms the
+concrete semantics to abstract semantics. The store now maps addresses to sets
+of abstract values, meaning that an address points to all possible values that
+may occur at runtime, where the abstract value is either a closure or a single
+abstract number \texttt{NumV}, which stands for the top element of the number
+lattice. The address space is also constrained to be finite, in the monovariant
+setting, we simply use variable names for address.
 
 \begin{lstlisting}
 trait Abstract extends Semantics {
@@ -29,10 +32,13 @@ trait Abstract extends Semantics {
 \end{lstlisting}
 
 \subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
-To effectively reuse the code between unstaged and staged variants, we also make the lattice structure
-stage polymorphic. A lattice type class parameterizes over an element type \texttt{E} and defines
-five operations for \texttt{R[E]}, such as meet, join, and ordering relation; again, \texttt{R} 
-is the higher-kinded type indicating the binding-time.
+
+To effectively reuse the code between unstaged and staged variants, we also make
+the lattice structure stage polymorphic. A lattice type class parameterizes over
+an element type \texttt{E} and defines five operations for \texttt{R[E]}, such
+as meet, join, and ordering relation; again, \texttt{R} is the higher-kinded
+type indicating the binding-time.
+
 \begin{lstlisting}
 trait Lattice[E, R[+_]] {
   val bot: R[E];  val top: R[E]
@@ -42,8 +48,8 @@ trait Lattice[E, R[+_]] {
 }
 \end{lstlisting}
 
-For example, here we use powersets as the abstract domain, and the unstaged lattice 
-of powersets can be easily implemented as follows:
+For example, here we use powersets as the abstract domain, and the unstaged
+lattice of powersets can be easily implemented as follows:
 
 \begin{lstlisting}
 implicit def SetLattice[T]: Lattice[Set[T], NoRep] = 
@@ -63,12 +69,14 @@ Accordingly, other structures used in the rest of the paper such as tuples
 The code for them are elided.
 
 \subsection{Abstract Semantics}
-The operations @get@ and @put@ on abstract stores are slightly changed according to
-the abstract semantics: @get@ uses the bottom element in the @Value@ lattice if the 
-queried address does not exist; @put@ performs the update by joining with the existing values.
-function @alloc@ simply invokes the @Addr@ constructor.
-\texttt{close} and \texttt{num} lift syntactic literals to our abstract domain, i.e., 
-a singleton set that contains only one \texttt{CloV} or \texttt{NumV} object.
+
+The operations @get@ and @put@ on abstract stores are slightly changed according
+to the abstract semantics: @get@ uses the bottom element in the @Value@ lattice
+if the queried address does not exist; @put@ performs the update by joining with
+the existing values. function @alloc@ simply invokes the @Addr@ constructor.
+\texttt{close} and \texttt{num} lift syntactic literals to our abstract domain,
+i.e., a singleton set that contains only one \texttt{CloV} or \texttt{NumV}
+object.
 
 \begin{lstlisting}
 object AbsInterp extends Abstract {
@@ -99,34 +107,40 @@ object AbsInterp extends Abstract {
 } // to be continued
 \end{lstlisting}
 
-For branching, @branch0@ joins the answers from two branches since we are doing a path-insensitive analysis. 
-For arithmetics, @prim_eval@ returns the top abstract number element.
-It is worth noting that @apply_closure@ is where we handle the non-determinism of applications.
-The non-determinism happens because the abstract store maps addresses to sets of abstract values;
-when dereferencing an address from the store, we need to explore all possible values to achieve a sound 
-analysis. In the case of @apply_closure@, the first argument @fs@ may contains multiple target closures,
-so we use a @for@ comprehension over all closures, apply them respectively and form a set result values @vs@;
-meanwhile, every time when evaluating the body expression @e@ we use the latest store $\sigma$@_*@
-which is updated iteratively during the loop. Thus this is a store-widened analysis.
+For branching, @branch0@ joins the answers from two branches since we are doing
+a path-insensitive analysis. For arithmetics, @prim_eval@ returns the top
+abstract number element. It is worth noting that @apply_closure@ is where we
+handle the non-determinism of applications. The non-determinism happens because
+the abstract store maps addresses to sets of abstract values; when dereferencing
+an address from the store, we need to explore all possible values to achieve a
+sound analysis. In the case of @apply_closure@, the first argument @fs@ may
+contain multiple target closures, so we use a @for@ comprehension over all
+closures, apply them respectively and form a set result values @vs@; meanwhile,
+every time when evaluating the body expression @e@ we use the latest store
+$\sigma$@_*@ which is updated iteratively during the loop. Thus this is a
+store-widened analysis.
 
 \subsection{Fixpoint Iteration}
-We described the abstract semantics modularly in the last section, however, the abstract 
-interpreter may not terminate for some input program. In this section, we use a memoization
-technique to ensure its termination. This technique is also widely used under the name of co-inductive caching algorithm
-\cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800} or truncated depth-first evaluation 
-\cite{Rosendahl:AbsIntPL}.
 
-The idea is to set up two caches called @in@ and @out@, which are both mapping from the arguments of the interpreter 
-(@Config@) to the result values of the interpreter (@Ans@). The @in@ cache contains what we already have 
-computed from the last
-iteration, the @out@ cache is what we will have computed after this iteration joined with the previous one.
-When starting a new iteration, @in@ is set to be the result of the last iteration, i.e., @out@; @out@ is set
-to be empty. In the iteration, we first check whether @out@ contains what we want, if yes then it is returned;
-otherwise, we retrieve what we have from @in@, compute the result for this iteration, 
-and put the joined result back into @out@.
-Note that we also instrument the recursive call by putting @cached_ev@ into @evev@.
-After one iteration, if @in == out@, then there is no more information to be gained, thus the iteration should 
-end and we have reached the fixed point.
+We described the abstract semantics modularly in the last section, however, the
+abstract interpreter may not terminate for some input program. In this section,
+we use a memoization technique to ensure its termination. This technique is also
+widely used under the name of co-inductive caching algorithm
+\cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800} or
+truncated depth-first evaluation \cite{Rosendahl:AbsIntPL}.
+
+The idea is to set up two caches called @in@ and @out@, which are both mapping
+from the arguments of the interpreter (@Config@) to the result values of the
+interpreter (@Ans@). The @in@ cache contains what we already have computed from
+the last iteration, the @out@ cache is what we will have computed after this
+iteration joined with the previous one. When starting a new iteration, @in@ is
+set to be the result of the last iteration, i.e., @out@; @out@ is set to be
+empty. In the iteration, we first check whether @out@ contains what we want, if
+yes then it is returned; otherwise, we retrieve what we have from @in@, compute
+the result for this iteration, and put the joined result back into @out@. Note
+that we also instrument the recursive call by putting @cached_ev@ into @evev@.
+After one iteration, if @in == out@, then there is no more information to be
+gained, thus the iteration should end and we have reached the fixed point.
 
 \begin{lstlisting}
 case class CacheFix(evev: EvalFun => EvalFun) {
@@ -150,5 +164,5 @@ override def eval_top(e: Expr, $\rho$: Env, $\sigma$: Store): Ans =
   CacheFix(eval).iter(e, $\rho$, $\sigma$)
 \end{lstlisting}
 
-Finally, we override the definition of @eval_top@ by instantiating @CacheFix@ with @eval@ and starting 
-the first iteration.
+Finally, we override the definition of @eval_top@ by instantiating @CacheFix@
+with @eval@ and starting the first iteration.
