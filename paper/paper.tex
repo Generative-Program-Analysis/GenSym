@@ -1,7 +1,7 @@
-\documentclass[sigplan,nonacm]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%\documentclass[sigplan,nonacm]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-%\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
 %\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
@@ -214,10 +214,14 @@ Purdue University
 %% environment and commands, and keywords command.
 \maketitle
 
+\iffalse
+
 \renewcommand\thefootnotecopyrightpermission{}
 \footnotetextcopyrightpermission{
 Preprint, November 2018.\\ Copyright held by the authors.}
 \fancyhead[RO,LE]{Preprint, November 2018}
+
+\fi
 
 \input{10_intro}
 \input{20_bg}
