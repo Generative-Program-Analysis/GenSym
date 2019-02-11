@@ -1,7 +1,7 @@
 %\documentclass[sigplan,nonacm]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
 %\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
@@ -11,14 +11,16 @@
 %% For final camera-ready submission, w/ required CCS and ACM Reference
 %\documentclass[sigplan]{acmart}\settopmatter{}
 
-%% Conference information
+%% Journal information
 %% Supplied to authors by publisher for camera-ready submission;
 %% use defaults for review submission.
-%\acmConference[Submitted to PLDI'18]{ACM SIGPLAN Conference on Programming Language Design and Implementation}{June 18--22, 2018}{Philadelphia, PA, USA}
-\acmConference[Submitted to PLDI]{}{June 2019}{Phoenix, Arizona}
+\acmJournal{PACMPL}
+\acmVolume{1}
+\acmNumber{CONF} % CONF = POPL or ICFP or OOPSLA
+\acmArticle{1}
 \acmYear{2019}
-%\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
-%\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
+\acmMonth{1}
+\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
 \startPage{1}
 
 %% Copyright information
@@ -34,7 +36,7 @@
 %% Bibliography style
 \bibliographystyle{ACM-Reference-Format}
 %% Citation style
-%\citestyle{acmauthoryear}  %% For author/year citations
+\citestyle{acmauthoryear}  %% For author/year citations
 %\citestyle{acmnumeric}     %% For numeric citations
 %\setcitestyle{nosort}      %% With 'acmnumeric', to disable automatic
                             %% sorting of references within a single citation;
