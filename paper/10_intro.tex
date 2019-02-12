@@ -12,9 +12,10 @@ relies on the dynamic part. However, given an arbitrary program, precisely
 analyzing its binding-time is hard in general. As an alternative and pragmatic
 approach to specialization and partial evaluation, multi-stage programming (MSP
 for short) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the stage
-annotations (i.e., binding-time annotations) to be explict from the programmers.
+annotations (i.e., binding-time annotations) to be explicit from the programmers.
 These staging annotations identify which part of the inputs should be
-specialized. As a classical example, we consider the power function:
+specialized. As a classical example, we consider the power function to introduce
+the idea of MSP:
 
 \begin{lstlisting}
 def power(b: Rep[Int], e: Int): Int = 
@@ -22,7 +23,7 @@ def power(b: Rep[Int], e: Int): Int =
 \end{lstlisting}
 
 If the programmer identifies that @b@ will be known in the future stage (as shown
-in its type @Rep[Int]@ -- a representation of @Int@) and @e@ is known in the
+on its type @Rep[Int]@ -- a representation of @Int@) and @e@ is known in the
 current stage, say 5, then we can specialize the function @power@ with
 respect to @e = 5@ and generate a specialized function that runs faster:
 
@@ -34,20 +35,26 @@ Roughly at the same time when Futamura projections was visioned in 1970s,
 \citeauthor{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
 lattice-based semantic approach to construct sound static analysis, by
 approximation of fixpoints \cite{DBLP:conf/popl/CousotC77}.
-Some recent progress such as Abstracting Abstract Machines (AAM)
-uncovers a methodology to derive sound abstract interpreters from their concrete
-counterparts and has been applied to different variants of definitional
+Recent progress such as Abstracting Abstract Machines (AAM) uncovers a
+methodology to derive sound abstract interpreters from their concrete
+counterparts, and it has been applied to different variants of definitional
 interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
-DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}. Given the structural
-similarity between concrete and abstract interpreters, intellectually it is
-natural to raise the question whether it is possible to specialize an abstract
-interpreter, and how can we effectively do that having considered their
-different functionalities. This paper studies the confluence of two old ideas
---- Futamura projection and abstract interpretation, but from the perspective of
-their recent realizations --- multi-stage programming and definitional abstract
-interpreters. To be specific, we present the application of the first Futamura
-projection on abstract interpreters, and the approach of constructing optimizing
-abstract interpreters by multi-stage programming.
+  DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
+Given the structural similarity between concrete and abstract interpreters,
+intellectually it is natural to raise the question whether it is possible to
+specialize an abstract interpreter, and how can we effectively do that having
+considered their different functionalities.
+
+This paper studies the confluence of two old ideas --- Futamura projection and
+abstract interpretation, but from the perspective of their recent realizations
+--- multi-stage programming and definitional abstract interpreters.
+To be specific, we present the application of the first Futamura projection on
+definitional abstract interpreters, which intersects as staged abstract interpreters.
+By borrowing the ideas from \note{monadic interpreters} and embedded
+domain-specific languages, we develop an approach to fulfill four different
+semantics (Figure~\ref{confluence}) in a unified framework.
+
+% FIXME: and the approach of constructing optimizing abstract interpreters by multi-stage programming.
 
 \begin{figure}[h]
   \begin{tikzpicture}
@@ -65,6 +72,12 @@ abstract interpreters by multi-stage programming.
   \label{confluence}
 \end{figure}
 
+\note{besides the intellectual merit of the confluence diagram, practical
+problem: can we speed up a static analyzer without pervasive changes of the
+abstract semantics, even without changing a single line of the abstract
+interpreter?}
+
+\todo{Move some into related work}
 Multi-stage programming has been widely used to improve the performance in many
 domains, such as optimizing compilers or domain-specific languages
 \cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:conf/snapl/RompfBLSJAOSKDK15,

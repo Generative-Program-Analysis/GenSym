@@ -10,13 +10,13 @@ abstract syntax is as follows:
 
 \begin{lstlisting}
 abstract class Expr
-case class Lit(i: Int)
-case class Var(x: String)
-case class Lam(x: String, e: Expr)
-case class App(e1: Expr, e2: Expr)
-case class AOp(op: String, e1: Expr, e2: Expr)
-case class Rec(x: String, e: Expr, body: Expr)
-case class If0(cnd: Expr, thn: Expr, els: Expr)
+case class Lit(i: Int)                         // numbers
+case class Var(x: String)                      // variables
+case class Lam(x: String, e: Expr)             // lambda abstractions
+case class App(e1: Expr, e2: Expr)             // applications
+case class AOp(op: String, e1: Expr, e2: Expr) // primitive operations
+case class Rec(x: String, rhs: Expr, e: Expr)  // recursive bindings
+case class If0(e1: Expr, e2: Expr, e3: Expr)   // conditionals
 \end{lstlisting}
 
 We give the concrete semantics of \TLang by showing a big-step definitional
