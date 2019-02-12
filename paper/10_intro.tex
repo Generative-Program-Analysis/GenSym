@@ -51,7 +51,7 @@ DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Now we have seen two orthogonal transformations of interpreters: by
 speclization, we can refactor interpreters to compilers; by abstraction, we can
 refactor interpreters to static analyzers. As an intellectual quest, it is
-natural to ask, starting from an interpreter, can we derive sound abstract
+natural to ask --- starting from an interpreter, can we derive sound abstract
 interpreters but it works like a compiler and generates fast analysis code?
 
 %artifacts of concrete semantics can be refactored to abstract interpreters.
@@ -85,6 +85,9 @@ semantics (Figure~\ref{confluence}) in a unified framework. \todo{explain four s
 Besides the intellectual merit of the confluence diagram, this paper contributes
 to a practical problem in static analysis: can we speed up a static analyzer
 without any intrusive changes and soundness compromises?
+\todo{specializing analysis wrt program is not new; first staging; we argue that
+staging is less intrusive compared with AC (ie, closure generation), in
+fact,LMS-based staging only requires type annotations }
 
 \todo{Move some into related work}
 Multi-stage programming has been widely used to improve the performance in many
