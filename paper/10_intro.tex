@@ -31,28 +31,38 @@ respect to @e = 5@ and generate a specialized function that runs faster:
 def power5(b: Int) = b * b * b * b * b
 \end{lstlisting}
 
+\todo{example of interpreter -> compiler, mix}
+
 Roughly at the same time when Futamura projections was visioned in 1970s,
 \citeauthor{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
 lattice-based semantic approach to construct sound static analysis, by
-approximation of fixpoints \cite{DBLP:conf/popl/CousotC77}.
-Recent progress such as Abstracting Abstract Machines (AAM) uncovers a
-methodology to derive sound abstract interpreters from their concrete
-counterparts, and it has been applied to different variants of definitional
-interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
-  DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
-Given the structural similarity between concrete and abstract interpreters,
-intellectually it is natural to raise the question whether it is possible to
-specialize an abstract interpreter, and how can we effectively do that having
-considered their different functionalities.
+approximation of fixpoints \cite{DBLP:conf/popl/CousotC77}. However,
+constructing sound abstract interpreters was considered abstruse and complicated
+for a long time.
+Recent progress such as Abstracting Abstract Machines (AAM)
+uncovers a systematic method to derive sound abstract interpreters from their
+concrete counterparts, where the soundness can be easily established by
+examining the transformation of semantics.
+The AAM approach also has been been applied to different variants of
+definitional interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
+DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
+\todo{CEK example?}
 
-This paper studies the confluence of two old ideas --- Futamura projection and
+Now we have seen two orthogonal transformations of interpreters: by
+speclization, we can refactor interpreters to compilers; by abstraction, we can
+refactor interpreters to static analyzers. As an intellectual quest, it is
+natural to ask, starting from an interpreter, can we derive sound abstract
+interpreters but it works like a compiler and generates fast analysis code?
+
+%artifacts of concrete semantics can be refactored to abstract interpreters.
+In this paper, we study the confluence of two old ideas --- Futamura projection and
 abstract interpretation, but from the perspective of their recent realizations
 --- multi-stage programming and definitional abstract interpreters.
 To be specific, we present the application of the first Futamura projection on
 definitional abstract interpreters, which intersects as staged abstract interpreters.
 By borrowing the ideas from \note{monadic interpreters} and embedded
 domain-specific languages, we develop an approach to fulfill four different
-semantics (Figure~\ref{confluence}) in a unified framework.
+semantics (Figure~\ref{confluence}) in a unified framework. \todo{explain four sem}
 
 % FIXME: and the approach of constructing optimizing abstract interpreters by multi-stage programming.
 
@@ -72,10 +82,9 @@ semantics (Figure~\ref{confluence}) in a unified framework.
   \label{confluence}
 \end{figure}
 
-\note{besides the intellectual merit of the confluence diagram, practical
-problem: can we speed up a static analyzer without pervasive changes of the
-abstract semantics, even without changing a single line of the abstract
-interpreter?}
+Besides the intellectual merit of the confluence diagram, this paper contributes
+to a practical problem in static analysis: can we speed up a static analyzer
+without any intrusive changes and soundness compromises?
 
 \todo{Move some into related work}
 Multi-stage programming has been widely used to improve the performance in many
