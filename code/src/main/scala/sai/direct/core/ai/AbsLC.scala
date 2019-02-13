@@ -28,7 +28,7 @@ object AbsLamCal {
     type Store = Map[Addr, Value]
   }
 
-  //note: context-insensitive, path-insensitive, flow-insensitive
+  //TODO: context-insensitive, path-insensitive, flow-insensitive
   object AbsInterp extends Abstract {
     type R[+T] = T
     val ρ0 = Map[Ident, Addr]()
@@ -37,7 +37,6 @@ object AbsLamCal {
     def put(ρ: Env, x: Ident, a: Addr): Env = ρ + (x → a)
     def get(σ: Store, a: Addr): Value = σ.getOrElse(a, Lattice[Value].bot)
     def put(σ: Store, a: Addr, v: Value): Store = {
-      //val oldv = get(σ, a); σ + (a → Lattice[Value].⊔(v, oldv))
       val oldv = get(σ, a); σ + (a → (v ⊔ oldv))
     }
     def alloc(σ: Store, x: Ident): Addr = Addr(x)
@@ -54,15 +53,14 @@ object AbsLamCal {
       }
       (vs.reduce(Lattice[Value].⊔), σ0)
     }
-    def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = {
-      thn ⊔ els //FIXME
-      //(GenericLattice[Value,R].⊔(thn._1, els._1), Lattice[Store].⊔(thn._2, els._2))
-    }
+    def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = { thn ⊔ els }
     def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
+
     type Config = (Expr, R[Env], R[Store])
 
     case class CacheFix(evev: EvalFun => EvalFun) {
       var in = Map[Config, Ans](); var out = Map[Config, Ans]()
+
       def cached_ev(e: Expr, ρ: Env, σ: Store): Ans = {
         val cfg: Config = (e, ρ, σ)
         if (out.contains(cfg)) out(cfg)
@@ -74,11 +72,14 @@ object AbsLamCal {
           ans1
         }
       }
+
       def iter(e: Expr, ρ: Env, σ: Store): Ans = {
+        println(s"Start iteration ${e}")
         in = out; out = Map[Config, Ans](); cached_ev(e, ρ, σ)
         if (in == out) out((e, ρ, σ)) else iter(e, ρ, σ)
       }
     }
+
     override def eval_top(e: Expr, ρ: Env, σ: Store): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
@@ -126,12 +127,10 @@ object AbsLamCal {
 
     type R[+T] = Rep[T]
 
-    //val h = new scala.collection.mutable.HashMap[String, Int]()
-    //var next: Int = 0
-    //h(x) = next; next += 1; \rho  += a
-
+    implicit def exprTyp: Typ[Expr]
     implicit def absValueTyp: Typ[AbsValue]
     implicit def addrTyp: Typ[Addr]
+
     val ρ0: Rep[Env] = Map[Ident, Addr]()
     val σ0: Rep[Store] = Map[Addr, Value]()
     def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(x)
@@ -143,13 +142,12 @@ object AbsLamCal {
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = unchecked[Addr]("Addr(\"", x, "\")")
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
       val Lam(x, e) = λ
-      //val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = {
-      // case (args: Rep[Value], σ: Rep[Store]) =>
       val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = (as: Rep[(Value,Store)]) => {
         val args = as._1; val σ = as._2
         val α = alloc(σ, x)
         ev(e, put(ρ, x, α), put(σ, α, args))
       }
+      //unchecked[Value](s"Set[AbsValue](CompiledClo(${fun(f)}, $λ, $ρ))")
       unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
     }
     def num(i: Lit): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
@@ -159,6 +157,38 @@ object AbsLamCal {
       (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
     }
     def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
+
+    type Config = (Expr, Env, Store)
+    case class CacheFix(evev: EvalFun => EvalFun) {
+      var in = Map[Config, (Value,Store)]()
+      var out = Map[Config, (Value,Store)]()
+
+      def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
+        //println(s"calling cachev_ev $e")
+        val cfg: Rep[Config] = (unit(e), ρ, σ)
+        if (out.contains(cfg)) {
+          out(cfg)
+        }
+        else {
+          val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
+          out = out + (cfg -> ans0)
+          val ans1: Ans = evev(cached_ev)(e, ρ, σ)
+          out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
+          ans1
+        }
+      }
+      def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
+        def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
+          println(s"Start iteration ${e}")
+          in = out;
+          out = Map[Config, (Value,Store)]()
+          cached_ev(e, ρ, σ)
+          if (in === out) out((unit(e), ρ, σ)) else iter_aux()
+        }
+        iter_aux()
+      }
+    }
+    override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
   trait RepAbsInterpOpsExp extends RepAbsInterpOps with LMSOpsExp {
@@ -240,48 +270,18 @@ import RTSupport._
   }
 }
 
-object AbsLamCalTest {
+object AbstractLC {
   import AbsLamCal._
+
   def main(args: Array[String]) {
     def specialize(p: Expr): DslDriver[Unit, Unit] =
       new RepAbsInterpDriver {
-        type Config = (Expr, Env, Store)
-        case class CacheFix(evev: EvalFun => EvalFun) {
-          var in = Map[Config, (Value,Store)]()
-          var out = Map[Config, (Value,Store)]()
-
-          def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-            println(s"calling cachev_ev $e")
-            val cfg: Rep[Config] = (unit(e), ρ, σ)
-            if (out.contains(cfg)) {
-              out(cfg)
-            }
-            else {
-              val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
-              out = out + (cfg -> ans0)
-              val ans1: Ans = evev(cached_ev)(e, ρ, σ)
-              out = out + (cfg -> RepLattice[(Value, Store)].⊔(ans0, ans1))
-              ans1
-            }
-          }
-          def iter(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value,Store)] = {
-            def iter_aux: Rep[Unit => (Value,Store)] = fun { () =>
-              println(s"Start iteration ${e}")
-              in = out;
-              out = Map[Config, (Value,Store)]()
-              cached_ev(e, ρ, σ)
-              if (in === out) out((unit(e), ρ, σ)) else iter_aux()
-            }
-            iter_aux()
-          }
-        }
-        override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
-
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
           val (v, s) = eval_top(p)
           println(v); println(s)
         }
       }
+
     val lam = Lam("x", App(Var("x"), Var("x")))
     // ((λ (x) ((x x) x)) (λ (y) y))
     val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))

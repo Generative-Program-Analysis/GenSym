@@ -149,7 +149,7 @@ object Monadics {
   /****************************************************/
 
   type Id[T] = T
-  val IdMonad: Monad[Id] = new Monad[Id] {
+  implicit val IdMonad: Monad[Id] = new Monad[Id] {
     def unit[A](a: A): A = a
     def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = f(ma)
   }
@@ -166,7 +166,7 @@ object Monadics {
   case class Success[T](a: T) extends ErrMsg[T]
   case class Error[T](msg: String) extends ErrMsg[T]
 
-  val errMonad: Monad[ErrMsg] = new Monad[ErrMsg] {
+  implicit val errMonad: Monad[ErrMsg] = new Monad[ErrMsg] {
     def unit[A](a: A) = Success(a)
     def flatMap[A, B](m: ErrMsg[A])(f: A => ErrMsg[B]) = m match {
       case Success(a) => f(a)
@@ -182,7 +182,7 @@ object Monadics {
   /****************************************************/
 
   type IntState[T] = Int => (T, Int)
-  val intStateMonad: Monad[IntState] = new Monad[IntState] {
+  implicit val intStateMonad: Monad[IntState] = new Monad[IntState] {
     def unit[A](a: A) = s => (a, s)
     def flatMap[A, B](m: IntState[A])(f: A => IntState[B]) = s => {
       val (a, s1) = m(s)
@@ -198,7 +198,7 @@ object Monadics {
 
   /****************************************************/
 
-  val ndMonad: Monad[List] = new Monad[List] {
+  implicit val ndMonad: Monad[List] = new Monad[List] {
     def unit[A](a: A) = List(a)
     def flatMap[A, B](m: List[A])(f: A => List[B]) =
       for (a <- m; b <- f(a)) yield b

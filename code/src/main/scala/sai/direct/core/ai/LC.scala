@@ -16,6 +16,7 @@ import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOps => _, SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 object LamCal {
+
   trait Semantics {
     type R[+_]
     type Ident = String
@@ -24,6 +25,7 @@ object LamCal {
     type Env
     type Store
     type Ans = (R[Value], R[Store])
+
     def get(ρ: R[Env], x: Ident): R[Addr]
     def put(ρ: R[Env], x: Ident, a: R[Addr]): R[Env]
     def get(σ: R[Store], a: R[Addr]): R[Value]
@@ -34,9 +36,11 @@ object LamCal {
     def apply_closure(ev: EvalFun)(f: R[Value], arg: R[Value], σ: R[Store]): Ans
     def branch0(cnd: R[Value], thn: => Ans, els: => Ans): Ans
     def prim_eval(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
+
     val ρ0: R[Env]; val σ0: R[Store]
     type EvalFun = (Expr, R[Env], R[Store]) => Ans
     def fix(ev: EvalFun => EvalFun): EvalFun = (e, ρ, σ) => ev(fix(ev))(e, ρ, σ)
+
     def eval(ev: EvalFun)(e: Expr, ρ: R[Env], σ: R[Store]): Ans = e match {
       case Lit(i) => (num(Lit(i)), σ)
       case Var(x) => (get(σ, get(ρ, x)), σ)
@@ -125,9 +129,7 @@ object LamCal {
       }
       unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
     }
-    def num(i: Lit): Rep[Value] = {
-      unchecked("NumV(", i.i, ")")
-    }
+    def num(i: Lit): Rep[Value] = { unchecked("NumV(", i.i, ")") }
     def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val i = unchecked[Int](cnd, ".asInstanceOf[NumV].i")
       (if (i == 0) thn else els).asInstanceOf[Rep[(Value,Store)]] //FIXME: Why?
@@ -139,7 +141,9 @@ object LamCal {
     }
   }
 
-  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp with SetOpsExp with TupledFunctionsRecursiveExp
+  trait LMSOpsExp extends DslExp with MapOpsExp with UncheckedOpsExp with TupleOpsExp
+      with SetOpsExp with TupledFunctionsRecursiveExp
+
   trait RepConcInterpOpsExp extends RepConcInterpOps with LMSOpsExp {
     implicit def valueTyp: Typ[Value] = manifestTyp
     case class ApplyClosure(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
@@ -149,11 +153,12 @@ object LamCal {
   }
 
   trait RepConcSemGen extends GenericNestedCodegen {
-    val IR: RepConcInterpOpsExp 
+    val IR: RepConcInterpOpsExp
     import IR._
+
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-      //case ApplyClosure(f, arg, σ) => emitValDef(sym, "apply_closure_norep(" + quote(f) + "," + quote(arg) + "," + quote(σ) + ")")
-      case ApplyClosure(f, arg, σ) => emitValDef(sym, quote(f) + ".asInstanceOf[CompiledClo].f(" + quote(arg) + "," + quote(σ) + ")")
+      case ApplyClosure(f, arg, σ) =>
+        emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)})")
       case Struct(tag, elems) =>
         //TODO: merge back to LMS
         registerStruct(structName(sym.tp), elems)
@@ -194,11 +199,6 @@ object LamCal {
     trait Value
     case class NumV(i: Int) extends Value
     case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
-/*
-    def apply_closure_norep(f: Value, arg: Value, σ: Map[Int,Value]) = f match {
-      case CompiledClo(fun, λ, ρ) => fun(arg, σ)
-    }
-*/
   }
   import RTSupport._
         """
@@ -209,7 +209,7 @@ object LamCal {
   }
 }
 
-object SADI5 {
+object ConcreteLC {
   import LamCal._
   def main(args: Array[String]) {
     def specialize(p: Expr): DslDriver[Unit, Unit] =
@@ -219,6 +219,7 @@ object SADI5 {
           println(v); println(s)
         }
       }
+
     val id4 = App(Lam("x", App(App(Var("x"), Var("x")), Var("x"))), Lam("y", Var("y")))
     val fact = Lam("n",
                    If0(Var("n"),
