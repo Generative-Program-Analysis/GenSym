@@ -28,6 +28,9 @@ object Lang {
 
   case class Fail() extends Term
   case class Amb(e1: Term, e2: Term) extends Term
+
+  case class Tick() extends Term
+  case class Fetch() extends Term
 }
 
 object Monadics {
@@ -284,10 +287,28 @@ object Monadics {
     def mod(f: S => S): State[S, Unit] = State(s => ((), f(s)))
   }
 
-  trait ReaderStateSemantics extends Semantics {
-    type Store
+  trait ReaderStateSemantics extends ReaderSemantics {
+    type Store = Int
     implicit val m: MonadReader[M, Env] with MonadState[M, Store]
     import m._
+
+    override def interp(e: Term): M[Value] = e match {
+      case Tick() => for {
+        _ <- mod(_ + 1)
+        t <- get
+        i <- num(t)
+      } yield i
+      case Fetch() => for {
+        t <- get
+        i <- num(t)
+      } yield i
+      case _ => super.interp(e)
+    }
+  }
+
+  case class ReaderStateInterp() extends Concrete with ReaderStateSemantics {
+    type M[T] = Reader[Env, T] with State[Store, T]
+    implicit val m = ??? //TODO: monad transformer
   }
 
   /*
