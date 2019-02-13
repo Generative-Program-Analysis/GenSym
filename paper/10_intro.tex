@@ -28,7 +28,7 @@ current stage, say 5, then we can specialize the function @power@ with
 respect to @e = 5@ and generate a specialized function that runs faster:
 
 \begin{lstlisting}
-def power5(b: Int) = b * b * b * b * b
+def power5(b: Int) = b * b * b * b * b * 1
 \end{lstlisting}
 
 \todo{example of interpreter -> compiler, mix}
@@ -54,15 +54,20 @@ refactor interpreters to static analyzers. As an intellectual quest, it is
 natural to ask --- starting from an interpreter, can we derive sound abstract
 interpreters but it works like a compiler and generates fast analysis code?
 
-%artifacts of concrete semantics can be refactored to abstract interpreters.
-In this paper, we study the confluence of two old ideas --- Futamura projection and
-abstract interpretation, but from the perspective of their recent realizations
---- multi-stage programming and definitional abstract interpreters.
+In this paper, we study the confluence of two old ideas --- Futamura projection
+and abstract interpretation, but from the perspective of their recent
+realizations --- multi-stage programming and definitional abstract interpreters.
 To be specific, we present the application of the first Futamura projection on
-definitional abstract interpreters, which intersects as staged abstract interpreters.
-By borrowing the ideas from \note{monadic interpreters} and embedded
-domain-specific languages, we develop an approach to fulfill four different
-semantics (Figure~\ref{confluence}) in a unified framework. \todo{explain four sem}
+definitional abstract interpreters, which intersects as staged abstract
+interpreters. By borrowing the ideas from \note{monadic interpreters}
+\cite{DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17,
+Sergey:2013:MAI:2491956.2491979} and embedded domain-specific languages
+\cite{DBLP:conf/snapl/RompfBLSJAOSKDK15, DBLP:journals/jfp/CaretteKS09,
+DBLP:conf/icfp/GibbonsW14}, we develop an approach to fulfill four different
+semantics (Figure~\ref{confluence}) in a unified framework. The four semantics
+share one same generic interpreter and some abstract types; by instantiating the
+abstract types differently, the interpreter behaves as a concrete interpreter,
+an abstracter interperter, or their staged versions, respectively.
 
 % FIXME: and the approach of constructing optimizing abstract interpreters by multi-stage programming.
 
