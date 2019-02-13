@@ -252,7 +252,7 @@ object Monadics {
     }
   }
 
-  case class Reader[T, A](run: T => A)
+  case class Reader[R, A](run: R => A)
   def ReaderMonad[R] = new MonadReader[({type λ[α] = Reader[R, α]})#λ, R] {
     def unit[A](a: A): Reader[R, A] = Reader(_ => a)
     def flatMap[A, B](ra: Reader[R, A])(f: A => Reader[R, B]): Reader[R, B] =
@@ -266,6 +266,12 @@ object Monadics {
     type M[T] = Reader[Env, T]
     implicit val m = ReaderMonad[Env]
   }
+
+  class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
+
+  }
+
+  /****************************************************/
 
   trait MonadState[F[_], S] extends Monad[F] {
     def get: F[S]
