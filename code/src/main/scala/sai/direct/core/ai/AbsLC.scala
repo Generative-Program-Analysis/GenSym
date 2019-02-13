@@ -254,10 +254,11 @@ object RTSupport {
   }
   def apply_closures_norep(f: Value, arg: Value, σ: Map[Addr,Value]) = {
     var σ0 = σ
-    val vs: Set[Value] = for (CompiledClo(fun, λ, ρ) <- f) yield {
-      val (v, vσ) = fun(arg, σ0)
-      σ0 = vσ; v
-    }
+    val vs: Set[Value] =
+      for (CompiledClo(fun, λ, ρ) <- f) yield {
+        val (v, vσ) = fun(arg, σ0)
+        σ0 = vσ; v
+      }
     (vs.reduce(Lattice[Value].⊔(_,_)), σ0)
   }
 }
