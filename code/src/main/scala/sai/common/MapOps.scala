@@ -20,6 +20,7 @@ trait MapOps extends Variables with SetOps {
   class MapOpsCls[K:Typ,V:Typ](m: Rep[Map[K,V]]) {
     def apply(k: Rep[K])(implicit pos: SourceContext) = map_apply(m, k)
     def contains(k: Rep[K])(implicit pos: SourceContext) = map_contains(m, k)
+    def get(k: Rep[K])(implicit pos: SourceContext) = map_get(m, k)
     def getOrElse(k: Rep[K], default: Rep[V])(implicit pos: SourceContext) = map_getorelse(m, k, default)
     def size()(implicit pos: SourceContext) = map_size(m)
     def +(kv: (Rep[K],Rep[V]))(implicit pos: SourceContext) = map_add(m, kv)
@@ -37,6 +38,7 @@ trait MapOps extends Variables with SetOps {
   def map_contains[K:Typ,V:Typ](m: Rep[Map[K,V]], k: Rep[K])(implicit pos: SourceContext): Rep[Boolean]
   def map_new[K:Typ,V:Typ](kv: Seq[(Rep[K],Rep[V])])(implicit pos: SourceContext): Rep[Map[K, V]]
   def map_size[K:Typ,V:Typ](m: Rep[Map[K,V]])(implicit pos: SourceContext): Rep[Int]
+  def map_get[K:Typ,V:Typ](m: Rep[Map[K,V]], k: Rep[K])(implicit pos: SourceContext): Rep[V]
   def map_getorelse[K:Typ,V:Typ](m: Rep[Map[K,V]], k: Rep[K], default: Rep[V])(implicit pos: SourceContext): Rep[V]
   def map_add[K:Typ,V:Typ](m: Rep[Map[K,V]], kv: (Rep[K],Rep[V]))(implicit pos: SourceContext): Rep[Map[K,V]]
   def map_concat[K:Typ,V:Typ](m1: Rep[Map[K,V]], m2: Rep[Map[K,V]])(implicit pos: SourceContext): Rep[Map[K,V]]
@@ -59,6 +61,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
   case class MapContains[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K]) extends Def[Boolean]
   case class MapNew[K:Typ,V:Typ](kv: Seq[(Exp[K],Exp[V])], mK: Typ[K], mV: Typ[V]) extends Def[Map[K,V]]
   case class MapSize[K:Typ,V:Typ](m: Exp[Map[K,V]]) extends Def[Int]
+  case class MapGet[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K]) extends Def[V]
   case class MapGetOrElse[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K], v: Exp[V]) extends Def[V]
   case class MapAdd[K:Typ,V:Typ](m: Exp[Map[K,V]], kv: (Exp[K],Exp[V])) extends Def[Map[K,V]]
   case class MapConcat[K:Typ,V:Typ](m1: Exp[Map[K,V]], m2: Exp[Map[K,V]]) extends Def[Map[K,V]]
@@ -76,6 +79,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
   }
   def map_new[K:Typ,V:Typ](kv: Seq[(Exp[K],Exp[V])])(implicit pos: SourceContext) = MapNew(kv, typ[K], typ[V])
   def map_size[K:Typ,V:Typ](m: Exp[Map[K,V]])(implicit pos: SourceContext) = MapSize(m)
+  def map_get[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K])(implicit pos: SourceContext) = MapGet(m, k)
   def map_getorelse[K:Typ,V:Typ](m: Exp[Map[K,V]], k: Exp[K], default: Exp[V])(implicit pos: SourceContext) =
     MapGetOrElse(m, k, default)
   def map_add[K:Typ,V:Typ](m: Exp[Map[K,V]], kv: (Rep[K],Rep[V]))(implicit pos: SourceContext) = MapAdd(m, kv)
@@ -144,6 +148,7 @@ trait ScalaGenMapOps extends BaseGenMapOps with ScalaGenEffect with ScalaGenSetO
     case MapContains(m, k) => emitValDef(sym, src"$m.contains($k)")
     case MapApply(m, k) => emitValDef(sym, src"$m($k)")
     case MapSize(m) => emitValDef(sym, src"$m.size")
+    case MapGet(m, k) => emitValDef(sym, src"$m.get($k)")
     case MapGetOrElse(m, k, d) => emitValDef(sym, src"$m.getOrElse($k, $d)")
     case MapAdd(m, kv) => emitValDef(sym, src"$m + (${kv._1} -> ${kv._2})")
     case MapConcat(m1, m2) => emitValDef(sym, src"$m1 ++ $m2")

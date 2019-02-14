@@ -253,7 +253,7 @@ object Monadics {
   }
 
   case class Reader[R, A](run: R => A)
-  def ReaderMonad[R] = new MonadReader[({type λ[α] = Reader[R, α]})#λ, R] {
+  def ReaderMonad[R] = new MonadReader[Reader[R, ?], R] {
     def unit[A](a: A): Reader[R, A] = Reader(_ => a)
     def flatMap[A, B](ra: Reader[R, A])(f: A => Reader[R, B]): Reader[R, B] =
       Reader(r => f(ra.run(r)).run(r))
@@ -268,8 +268,43 @@ object Monadics {
   }
 
   class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
-
+    //TODO
   }
+
+  trait MonadTrans[T[_[_], _]] {
+    def liftM[M[_]: Monad, A](a: M[A]): T[M, A]
+    implicit def apply[M[_]: Monad]: Monad[T[M, ?]]
+  }
+
+  case class IdT[F[_]: Monad, A](run: F[A])
+  object IdT {// extends MonadTrans[IdT] {
+    def liftM[M[_]: Monad, A](a: M[A]): IdT[M, A] = IdT[M, A](a)
+    def apply[M[_]: Monad, A](implicit m: IdT[M, A]): IdT[M, A] = m
+    //implicit def apply[M[_]: Monad]: Monad[IdT[M, ?]] = IdTMonad[M]
+  }
+  def IdTMonad[F[_]: Monad] = new Monad[IdT[F, ?]] {
+    def flatMap[A, B](fa: IdT[F, A])(f: A => IdT[F, B]): IdT[F, B] =
+      IdT(fa.run.flatMap(a => f(a).run))
+    def unit[A](a: A): IdT[F, A] = IdT(Monad[F].unit(a))
+  }
+
+  /*
+  case class IdT[F[_]: Monad, A](run: F[A]) {
+    def flatMap[B](f: A => IdT[F, B]): IdT[F, B] = IdT[F, B](run.flatMap(a => f(a).run))
+    def map[B](f: A => B): IdT[F, B] = IdT[F, B](run.map(f))
+    def unit[A](a: A): IdT[F, A] = IdT(Monad[F].unit(a))
+  }
+   */
+
+  //IdT Id example
+  implicit val m: Monad[IdT[Id, ?]] = IdTMonad[Id]
+  def id2M(x: Int): IdT[Id, Int] = IdT[Id, Int](x)
+  val z = for {
+    a <- id2M(1)
+    b <- id2M(3)
+  } yield a + b
+  //IdT[Id]
+  //IdT.liftM[Id, Int](1)
 
   /****************************************************/
 
@@ -284,7 +319,7 @@ object Monadics {
   }
 
   case class State[S, A](run: S => (A, S))
-  def StateMonad[S] = new MonadState[({type λ[α] = State[S, α]})#λ, S] {
+  def stateMonad[S] = new MonadState[State[S, ?], S] {
     def unit[A](a: A): State[S, A] = State(s => (a, s))
     def flatMap[A, B](sa: State[S, A])(f: A => State[S, B]): State[S, B] =
       State(s => { val (a, s1) = sa.run(s); val (b, s2) = f(a).run(s1); (b, s2) })
@@ -317,12 +352,6 @@ object Monadics {
     implicit val m = ??? //TODO: monad transformer
   }
 
-  /*
-  trait MonadTrans[F[_[_], _]] {
-    def liftM[G[_]: Monad, A](a: G[A]): F[G, A]
-    implicit def apply[G[_]: Monad]: Monad[F[G, ?]]
-  }
-   */
 
   /****************************************************/
 
