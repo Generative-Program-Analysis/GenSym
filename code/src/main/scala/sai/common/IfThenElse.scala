@@ -25,12 +25,8 @@ trait MyScalaGenIfThenElse extends ScalaGenEffect with BaseGenIfThenElse {
       stream.println("}")
 
       stream.println("val " + if_sym + " = if (" + quote(c) + ") {")
-      //emitBlock(a)
-      //stream.println(quote(getBlockResult(a)))
       stream.println(then_sym + "()")
       stream.println("} else {")
-      //emitBlock(b)
-      //stream.println(quote(getBlockResult(b)))
       stream.println(else_sym + "()")
       stream.println("}")
     case _ => super.emitNode(sym, rhs)

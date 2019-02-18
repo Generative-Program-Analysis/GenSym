@@ -36,9 +36,7 @@ object AbsLamCal {
     def get(ρ: Env, x: Ident): Addr = ρ(x)
     def put(ρ: Env, x: Ident, a: Addr): Env = ρ + (x → a)
     def get(σ: Store, a: Addr): Value = σ.getOrElse(a, Lattice[Value].bot)
-    def put(σ: Store, a: Addr, v: Value): Store = {
-      val oldv = get(σ, a); σ + (a → (v ⊔ oldv))
-    }
+    def put(σ: Store, a: Addr, v: Value): Store = { val oldv = get(σ, a); σ + (a → (v ⊔ oldv)) }
     def alloc(σ: Store, x: Ident): Addr = Addr(x)
     def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
     def num(i: Lit): Value = Set(NumV())
@@ -53,7 +51,9 @@ object AbsLamCal {
       }
       (vs.reduce(Lattice[Value].⊔), σ0)
     }
-    def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = { thn ⊔ els }
+    def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = {
+      thn ⊔ els
+    }
     def prim_eval(op: Symbol, v1: Value, v2: Value): Value = Set(NumV())
 
     type Config = (Expr, R[Env], R[Store])
@@ -149,14 +149,13 @@ object AbsLamCal {
         val α = alloc(σ, x)
         ev(e, put(ρ, x, α), put(σ, α, args))
       }
-      //unchecked[Value](s"Set[AbsValue](CompiledClo(${fun(f)}, $λ, $ρ))")
       unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
     }
     def num(i: Lit): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
     def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val thnans = thn
       val elsans = els
-      (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
+      (RepLattice[Value].⊔(thnans._1, elsans._1), RepLattice[Store].⊔(thnans._2, elsans._2))
     }
     def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
 
@@ -166,11 +165,9 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
 
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-        //println(s"calling cachev_ev $e")
+        println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
-        if (out.contains(cfg)) {
-          out(cfg)
-        }
+        if (out.contains(cfg)) { out(cfg) }
         else {
           val ans0: Ans = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
           out = out + (cfg -> ans0)
@@ -190,6 +187,7 @@ object AbsLamCal {
         iter_aux()
       }
     }
+
     override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
@@ -241,7 +239,7 @@ object AbsLamCal {
     import IR._
     override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
       case ApplyClosures(fs, arg, σ) =>
-        emitValDef(sym, "apply_closures_norep(" + quote(fs) + "," + quote(arg) + "," + quote(σ) + ")")
+        emitValDef(sym, s"apply_closures_norep(${quote(fs)}, ${quote(arg)}, ${quote(σ)})")
       case Struct(tag, elems) =>
         //TODO: merge back to LMS
         registerStruct(structName(sym.tp), elems)
@@ -256,18 +254,20 @@ object AbsLamCal {
         with RepAbsInterpGen with MyScalaGenTupledFunctions with ScalaGenUncheckedOps
         with ScalaGenSetOps {
       val IR: q.type = q
+
       override def remap[A](m: Typ[A]): String = {
         if (m.toString.endsWith("$Value")) "Value"
         else if (m.toString.endsWith("$AbsValue")) "AbsValue"
         else if (m.toString.endsWith("$Addr")) "Addr"
         else super.remap(m)
       }
+
       override def emitSource[A : Typ](args: List[Sym[_]], body: Block[A],
                                        className: String,
                                        stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
         val prelude = """
 import sai.direct.core.parser._
-//import sai.common.ai.Lattices._
+import sai.common.ai.Lattices._
 object RTSupport {
   case class Addr(x: String)
   trait AbsValue
@@ -335,5 +335,15 @@ object AbstractLC {
     val code = specialize(fact5)
     println(code.code)
     code.eval(())
+
+    val p1 = Let("x", Lit(1),
+                 AOp('+,
+                     If0(Var("x"),
+                             Lit(2),
+                             Lit(3)),
+                     Lit(4)))
+    //val code = specialize(p1)
+    //println(code.code)
+    //code.eval(())
   }
 }

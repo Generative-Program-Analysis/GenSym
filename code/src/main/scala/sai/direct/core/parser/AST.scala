@@ -19,6 +19,7 @@ case class Bind(x: String, e: Expr) {
 }
 case class Let(x: String, e: Expr, body: Expr) extends Expr {
   def toApp: App = App(Lam(x, body), e)
+  override def toString = "Let(\"" + x + "\"," + e + "," + body + ")"
 }
 case class Lrc(bds: List[Bind], body: Expr) extends Expr {
   require(bds.nonEmpty)
