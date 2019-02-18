@@ -27,14 +27,14 @@ DBLP:journals/corr/abs-1102-3676} and exisiting artifacts
 We used the following benchmark programs:
 
 \begin{itemize}
-    \item \textbf{fib}: Calculates the $n$-th fibonacci number.
-    \item \textbf{rsa}: The RSA public key encryption algorithm.
-    \item \textbf{kcfa3}: A difficult benchmark for $k$-CFA.
-    \item \textbf{church}: Church numerals with additions and mutiplications.
-    \item \textbf{fermat}: Fermat and Solovay-Strassen primality testing.
-    \item \textbf{kcfa-worst-case-}\textit{n}: 
-      Benchmark programs that are supposed to be tough cases for $k$-CFA; 
-      the number $n$ indicates the depth of nesting lambda terms.
+  %\item \textbf{fib}: Calculates the $n$-th fibonacci number.
+  \item \textbf{rsa}: The RSA public key encryption algorithm.
+  \item \textbf{kcfa3}: A difficult benchmark for $k$-CFA.
+  \item \textbf{church}: Church numerals with additions and mutiplications.
+  \item \textbf{fermat}: Fermat and Solovay-Strassen primality testing.
+  \item \textbf{kcfa-worst-case-}\textit{n}: 
+    Benchmark programs that are supposed to be tough cases for $k$-CFA; 
+    the number $n$ indicates the depth of nesting lambda terms.
 \end{itemize}
 
 \subsection{Performance}
@@ -49,7 +49,7 @@ the statistical median values of the running times.
 \begin{tabular}{@{}llll@{}}
 \toprule
     Program            & unstaged   & staged     & $\Delta$ of median \\ \midrule
-    fib                & 1.020      & 2.046      & -50.14\%          \\
+  % fib                & 1.020      & 2.046      & -50.14\%          \\
     rsa                & 35.928     & 145.306    & -75.27\%          \\
     kcfa3              & 2.934      & 5.671      & -48.27\%          \\
     church             & 884.800    & 545.736    & +62.13\%          \\
