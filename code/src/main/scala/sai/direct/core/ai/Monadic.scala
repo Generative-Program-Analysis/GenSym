@@ -4,6 +4,8 @@ import scala.util.continuations._
 import scala.language.implicitConversions
 import scala.language.higherKinds
 
+import simulacrum._
+
 import sai.utils._
 import sai.common.ai._
 import sai.common.ai.Lattices.{NoRep => _, _}
@@ -36,18 +38,6 @@ object Lang {
 object Monadics {
   import Lang._
 
-  /*
-   trait M[+A] {
-   def unit[A](a: A): M[A]
-   def flatMap[B](f: A => M[B]): M[B]
-   def map[B](f: A => B): M[B]
-   }
-
-   object M {
-   def apply[A](implicit v: M[A]): M[A] = v
-   }
-   */
-
   trait Functor[F[_]] {
     def map[A, B](fa: F[A])(f: A => B): F[B]
   }
@@ -66,10 +56,10 @@ object Monadics {
 
   //trait Monad[M[_]] extends Applicative[M] with Bind[M] {
   trait Monad[M[_]] {
-    def unit[A](a: A): M[A]
+    def pure[A](a: A): M[A]
     def flatMap[A, B](ma: M[A])(f: A => M[B]): M[B]
 
-    def map[A,B](ma: M[A])(f: A => B): M[B] = flatMap(ma)(a => unit(f(a)))
+    def map[A,B](ma: M[A])(f: A => B): M[B] = flatMap(ma)(a => pure(f(a)))
     def map2[A,B,C](ma: M[A], mb: M[B])(f: (A, B) => C): M[C] =
       flatMap(ma)(a => map(mb)(b => f(a, b)))
   }
@@ -122,27 +112,27 @@ object Monadics {
 
     type Env = Map[Name, Value]
 
-    def num(i: Int): M[Value] = Monad[M].unit(Num(i))
+    def num(i: Int): M[Value] = Monad[M].pure(Num(i))
 
     def close(lam: Lam, env: Env): M[Value] = lam match {
-      case Lam(x, e) => Monad[M].unit(Fun(v => interp(e, extend(env, x, v))))
+      case Lam(x, e) => Monad[M].pure(Fun(v => interp(e, extend(env, x, v))))
     }
 
     def lookup(x: Name, env: Env): M[Value] = env.get(x) match {
-      case Some(v) => Monad[M].unit(v)
-      case None => Monad[M].unit(Wrong)
+      case Some(v) => Monad[M].pure(v)
+      case None => Monad[M].pure(Wrong)
     }
 
     def extend(env: Env, x: Name, v: Value) = env + (x -> v)
 
     def add(v1: Value, v2: Value): M[Value] = (v1, v2) match {
-      case (Num(x), Num(y)) => Monad[M].unit(Num(x + y))
-      case _ => Monad[M].unit(Wrong)
+      case (Num(x), Num(y)) => Monad[M].pure(Num(x + y))
+      case _ => Monad[M].pure(Wrong)
     }
 
     def apply(v1: Value, v2: Value): M[Value] = (v1, v2) match {
       case (Fun(k), a) => k(a)
-      case _ => Monad[M].unit(Wrong)
+      case _ => Monad[M].pure(Wrong)
     }
   }
 
@@ -150,7 +140,7 @@ object Monadics {
 
   type Id[T] = T
   implicit val IdMonad: Monad[Id] = new Monad[Id] {
-    def unit[A](a: A): A = a
+    def pure[A](a: A): A = a
     def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = f(ma)
   }
 
@@ -167,7 +157,7 @@ object Monadics {
   case class Error[T](msg: String) extends ErrMsg[T]
 
   implicit val errMonad: Monad[ErrMsg] = new Monad[ErrMsg] {
-    def unit[A](a: A) = Success(a)
+    def pure[A](a: A) = Success(a)
     def flatMap[A, B](m: ErrMsg[A])(f: A => ErrMsg[B]) = m match {
       case Success(a) => f(a)
       case Error(msg) => Error(msg)
@@ -183,7 +173,7 @@ object Monadics {
 
   type IntState[T] = Int => (T, Int)
   implicit val intStateMonad: Monad[IntState] = new Monad[IntState] {
-    def unit[A](a: A) = s => (a, s)
+    def pure[A](a: A) = s => (a, s)
     def flatMap[A, B](m: IntState[A])(f: A => IntState[B]) = s => {
       val (a, s1) = m(s)
       val (b, s2) = f(a)(s1)
@@ -199,7 +189,7 @@ object Monadics {
   /****************************************************/
 
   implicit val ndMonad: Monad[List] = new Monad[List] {
-    def unit[A](a: A) = List(a)
+    def pure[A](a: A) = List(a)
     def flatMap[A, B](m: List[A])(f: A => List[B]) =
       for (a <- m; b <- f(a)) yield b
   }
@@ -254,7 +244,7 @@ object Monadics {
 
   case class Reader[R, A](run: R => A)
   def ReaderMonad[R] = new MonadReader[Reader[R, ?], R] {
-    def unit[A](a: A): Reader[R, A] = Reader(_ => a)
+    def pure[A](a: A): Reader[R, A] = Reader(_ => a)
     def flatMap[A, B](ra: Reader[R, A])(f: A => Reader[R, B]): Reader[R, B] =
       Reader(r => f(ra.run(r)).run(r))
     def ask: Reader[R, R] = Reader(r => r)
@@ -267,44 +257,59 @@ object Monadics {
     implicit val m = ReaderMonad[Env]
   }
 
-  class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
-    //TODO
-  }
-
   trait MonadTrans[T[_[_], _]] {
     def liftM[M[_]: Monad, A](a: M[A]): T[M, A]
     implicit def apply[M[_]: Monad]: Monad[T[M, ?]]
   }
 
   case class IdT[F[_]: Monad, A](run: F[A])
+
   object IdT {// extends MonadTrans[IdT] {
     def liftM[M[_]: Monad, A](a: M[A]): IdT[M, A] = IdT[M, A](a)
     def apply[M[_]: Monad, A](implicit m: IdT[M, A]): IdT[M, A] = m
-    //implicit def apply[M[_]: Monad]: Monad[IdT[M, ?]] = IdTMonad[M]
+    implicit def apply[M[_]: Monad]: Monad[IdT[M, ?]] = IdTMonad[M]
   }
+
   def IdTMonad[F[_]: Monad] = new Monad[IdT[F, ?]] {
     def flatMap[A, B](fa: IdT[F, A])(f: A => IdT[F, B]): IdT[F, B] =
       IdT(fa.run.flatMap(a => f(a).run))
-    def unit[A](a: A): IdT[F, A] = IdT(Monad[F].unit(a))
+    def pure[A](a: A): IdT[F, A] = IdT(Monad[F].pure(a))
   }
-
-  /*
-  case class IdT[F[_]: Monad, A](run: F[A]) {
-    def flatMap[B](f: A => IdT[F, B]): IdT[F, B] = IdT[F, B](run.flatMap(a => f(a).run))
-    def map[B](f: A => B): IdT[F, B] = IdT[F, B](run.map(f))
-    def unit[A](a: A): IdT[F, A] = IdT(Monad[F].unit(a))
-  }
-   */
 
   //IdT Id example
-  implicit val m: Monad[IdT[Id, ?]] = IdTMonad[Id]
-  def id2M(x: Int): IdT[Id, Int] = IdT[Id, Int](x)
-  val z = for {
-    a <- id2M(1)
-    b <- id2M(3)
-  } yield a + b
-  //IdT[Id]
-  //IdT.liftM[Id, Int](1)
+  /*
+   implicit val m: Monad[IdT[Id, ?]] = IdTMonad[Id] // IdT[Id]
+   def id2M(x: Int): IdT[Id, Int] = IdT[Id, Int](x)
+   //val three: IdT[Id, Int] = Monad[IdT[Id, ?]].pure(3)
+   val a = new MonadOps[IdT[Id, ?], Int](id2M(3))
+   val b = new MonadOps[IdT[Id, ?], Int](id2M(4))
+   val z = for {x <- a; y <- b } yield x + y
+   IdT.liftM[Id, Int](1)
+   */
+
+  case class StandardInterp2() extends Concrete with Semantics {
+    type M[T] = IdT[Id, T]
+    implicit val m = IdTMonad[Id]
+  }
+
+  case class ReaderT[M[_]: Monad, R, A](run: R => M[A])
+  object ReaderT {
+    def apply[M[_]: Monad, R, A](implicit m: ReaderT[M, R, A]): ReaderT[M, R, A] = m
+    implicit def apply[M[_]: Monad, R]: Monad[ReaderT[M, R, ?]] = ReaderTMonad[M, R]
+  }
+  def ReaderTMonad[M[_]: Monad, R] = new MonadReader[ReaderT[M, R, ?], R] {
+    def pure[A](a: A): ReaderT[M, R, A] = ReaderT(_ => Monad[M].pure(a))
+    def flatMap[A, B](ra: ReaderT[M, R, A])(f: A => ReaderT[M, R, B]): ReaderT[M, R, B] =
+      ReaderT(r => ra.run(r).flatMap(a => f(a).run(r)))
+    def ask: ReaderT[M, R, R] = ReaderT(r => Monad[M].pure(r))
+    def local[A](f: R => R)(fa: ReaderT[M, R, A]): ReaderT[M, R, A] =
+      ReaderT(r => fa.run(f(r)))
+  }
+
+  case class ReaderInterp2() extends Concrete with ReaderSemantics {
+    type M[T] = ReaderT[Id, Env, T]
+    implicit val m = ReaderTMonad[Id, Env]
+  }
 
   /****************************************************/
 
@@ -320,19 +325,36 @@ object Monadics {
 
   case class State[S, A](run: S => (A, S))
   def stateMonad[S] = new MonadState[State[S, ?], S] {
-    def unit[A](a: A): State[S, A] = State(s => (a, s))
+    def pure[A](a: A): State[S, A] = State(s => (a, s))
     def flatMap[A, B](sa: State[S, A])(f: A => State[S, B]): State[S, B] =
-      State(s => { val (a, s1) = sa.run(s); val (b, s2) = f(a).run(s1); (b, s2) })
+      State(s => { val (a, s1) = sa.run(s); f(a).run(s1) })
     def get: State[S, S] = State(s => (s, s))
     def put(s: S): State[S, Unit] = State(_ => ((), s))
     def mod(f: S => S): State[S, Unit] = State(s => ((), f(s)))
   }
 
-  trait ReaderStateSemantics extends ReaderSemantics {
-    type Store = Int
-    implicit val m: MonadReader[M, Env] with MonadState[M, Store]
-    import m._
+  case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)])
+  object StateT {
+    def apply[M[_]: Monad, S, A](implicit m: StateT[M, S, A]): StateT[M, S, A] = m
+    implicit def apply[M[_]: Monad, S]: Monad[StateT[M, S, ?]] = StateTMonad[M, S]
+  }
+  def StateTMonad[M[_]: Monad, S] = new MonadState[StateT[M, S, ?], S] {
+    def pure[A](a: A): StateT[M,S,A] = StateT(s => Monad[M].pure((a, s)))
+    def flatMap[A, B](sa: StateT[M,S,A])(f: A => StateT[M,S,B]): StateT[M,S,B] =
+      StateT(s => sa.run(s).flatMap { case (a, s1) => f(a).run(s1) })
+    def get: StateT[M,S,S] = StateT(s => Monad[M].pure((s, s)))
+    def put(s: S): StateT[M,S,Unit] = StateT(s => Monad[M].pure(((), s)))
+    def mod(f: S => S): StateT[M,S,Unit] = StateT(s => Monad[M].pure(((), f(s))))
+  }
 
+  /*
+  case class ReaderStateInterp() extends ReaderSemantics {
+    type Store = Int
+    type M[T] = ReaderT[StateT[Id, Store, ?], Env, T]
+    implicit val s = StateTMonad[Id, Store]
+    implicit val m = ReaderTMonad[StateT[Id, Store, ?], Env]
+    import m._
+    import s._
     override def interp(e: Term): M[Value] = e match {
       case Tick() => for {
         _ <- mod(_ + 1)
@@ -346,11 +368,7 @@ object Monadics {
       case _ => super.interp(e)
     }
   }
-
-  case class ReaderStateInterp() extends Concrete with ReaderStateSemantics {
-    type M[T] = Reader[Env, T] with State[Store, T]
-    implicit val m = ??? //TODO: monad transformer
-  }
+   */
 
 
   /****************************************************/
@@ -359,6 +377,9 @@ object Monadics {
     val term1 = App(Lam("x", Add(Var("x"), Var("x"))),
                     (Add(Con(10), Con(11))))
     val interp1 = StandardInterp()
+    println(interp1.interp(term1, Map()))
+
+    val interp11 = StandardInterp()
     println(interp1.interp(term1, Map()))
 
     val readerInterp = ReaderInterp()
