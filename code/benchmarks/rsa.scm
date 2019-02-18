@@ -28,9 +28,6 @@
           (modulo (* base (modulo-power base (- exp 1) n)) n)
           (modulo (square (modulo-power base (/ exp 2) n)) n))))
 
-
-
-
 ;; RSA routines.
 
 ; A legal public exponent e is between

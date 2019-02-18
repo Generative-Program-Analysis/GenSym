@@ -41,11 +41,10 @@ object AbsLamCal {
     type R[+T] = T
     val ρ0 = Map[Ident, Addr]()
     val σ0 = Map[Addr, Value]()
-    def get(ρ: Env, x: Ident): Addr = ρ.getOrElse(x, Addr("__somerandomthingthatdoesntexist"))
+    def get(ρ: Env, x: Ident): Addr = ρ(x) //ρ.getOrElse(x, Addr("__somerandomthingthatdoesntexist"))
     def put(ρ: Env, x: Ident, a: Addr): Env = ρ + (x → a)
     def get(σ: Store, a: Addr): Value = σ.getOrElse(a, Lattice[Value].bot)
     def put(σ: Store, a: Addr, v: Value): Store = {
-      //val oldv = get(σ, a); σ + (a → Lattice[Value].⊔(v, oldv))
       val oldv = get(σ, a); σ + (a → (v ⊔ oldv))
     }
     def alloc(σ: Store, x: Ident): Addr = Addr(x)
@@ -77,7 +76,7 @@ object AbsLamCal {
 
     def prim_eval(op: String, lv: List[Value]): Value = op match {
       case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length")(op)) => Set(IntV())
-      case op if (scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=")(op)) => Set(BoolV())
+      case op if (scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "=")(op)) => Set(BoolV())
       case op if (scala.collection.immutable.Set("list", "cons", "cdr", "cadr")(op)) => Set(ListV())
       case op if ((scala.collection.immutable.Set("car", "caar", "caddr", "vector-ref"))(op)) =>
         Set(BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())
@@ -159,9 +158,10 @@ object AbsLamCal {
 
     implicit def absValueTyp: Typ[AbsValue]
     implicit def addrTyp: Typ[Addr]
+
     val ρ0: Rep[Env] = Map[Ident, Addr]()
     val σ0: Rep[Store] = Map[Addr, Value]()
-    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ.getOrElse(x, unchecked[Addr]("Addr(\"__somerandomthingthatdoesntexist\")"))
+    def get(ρ: Rep[Env], x: Ident): Rep[Addr] = ρ(x) //ρ.getOrElse(x, unchecked[Addr]("Addr(\"__somerandomthingthatdoesntexist\")"))
     def put(ρ: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = ρ + (unit(x) → a)
     def get(σ: Rep[Store], a: Rep[Addr]): Rep[Value] = σ.getOrElse(a, RepLattice[Value].bot)
     def put(σ: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = {
@@ -195,13 +195,13 @@ object AbsLamCal {
     def branch(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
       val thnans = thn
       val elsans = els
-      (RepLattice[Value].⊔(thn._1, els._1), RepLattice[Store].⊔(thn._2, els._2))
+      (RepLattice[Value].⊔(thnans._1, elsans._1), RepLattice[Store].⊔(thnans._2, elsans._2))
     }
 
     def prim_eval(op: String, lv: List[Rep[Value]]): Rep[Value] = op match {
-      case op if ((scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "vector-length"))(op)) =>
+      case op if ((scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "="))(op)) =>
         unchecked[Value]("Set[AbsValue](BoolV())")
-      case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%"))(op)) =>
+      case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length"))(op)) =>
         unchecked[Value]("Set[AbsValue](IntV())")
       case op if ((scala.collection.immutable.Set("list", "cons", "cadr", "cdr"))(op)) =>
         unchecked[Value]("Set[AbsValue](ListV())")
@@ -220,6 +220,7 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
 
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
+        println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
         if (out.contains(cfg)) {
           out(cfg)
@@ -341,7 +342,8 @@ trait AbsLamCalTrait {
   new RepAbsInterpDriver {
     def snippet(unit: Rep[Unit]): Rep[Unit] = {
       val (v, s) = eval_top(p)
-      println(v); println(s)
+      //println(v); println(s)
+      ()
     }
   }
 

@@ -13,19 +13,6 @@ object GenerateCode {
   }
 }
 
-case class Timing(ts: List[Double]) {
-  val mean: Double = ts.sum/ts.size
-  val sorted_ts: List[Double] = ts.sorted
-  val ub: Double = sorted_ts.head
-  val lb: Double = sorted_ts.last
-  val perc05 = sorted_ts((sorted_ts.size / 20).toInt)
-  val perc25 = sorted_ts((sorted_ts.size / 4).toInt)
-  val perc50 = sorted_ts((sorted_ts.size / 2).toInt)
-  val perc75 = sorted_ts(((sorted_ts.size / 4) * 3).toInt)
-  val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt - 1)
-  override def toString: String = s"#: ${ts.size}, Mean: ${mean}, Median: ${perc50}"
-}
-
 object Main {
   def run[R](n: Int, block: => R): Timing = {
     /* warm up*/

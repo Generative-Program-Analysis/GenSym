@@ -12,9 +12,9 @@ object TestPrograms {
 
   def sat = getAST(Source.fromFile("benchmarks/sat.scm").mkString)
 
-  def kcfa = getAST(Source.fromFile("benchmarks/kcfa-worst-case-16.scm").mkString)
-
   def kcfa3 = getAST(Source.fromFile("benchmarks/kcfa3.scm").mkString)
+
+  def kcfa16 = getAST(Source.fromFile("benchmarks/kcfa-worst-case-16.scm").mkString)
 
   def kcfa32 = getAST(Source.fromFile("benchmarks/kcfa-worst-case-32.scm").mkString)
 
