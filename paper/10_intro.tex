@@ -67,9 +67,9 @@ DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Now we have seen two orthogonal transformations of interpreters: by
 speclization, we can refactor interpreters to compilers; by abstraction, we can
 refactor interpreters to static analyzers. As an intellectual quest, it is
-natural to ask --- starting from an interpreter, \textbf{can we derive sound abstract
-interpreters but it works like a compiler and generates fast analysis code?}
-Similar to the concrete interpreter, for an abstract interpreter
+natural to ask --- starting from an interpreter, \textbf{can we derive a sound
+abstract interpreter but it works like a compiler and generates fast analysis
+code?} Similar to the concrete interpreter, for an abstract interpreter
 $\widehat{\texttt{eval}}$ that takes a program, an abstract environment and
 returns abstract values, shown as the following:
 
@@ -77,9 +77,9 @@ returns abstract values, shown as the following:
 def $\widehat{\texttt{eval}}$(e: Expr)($\rho$: $\widehat{\texttt{Env}}$): $\widehat{\texttt{Value}}$ = ...
 \end{lstlisting}
 
-We would like to have a specialized abstract interpreter
-$\widehat{\texttt{eval}}_{\texttt{e0}}$ given a program $e_0$ statically, but
-leave the abstract environment $\rho$ dynamic.
+Given a program $e_0$ statically, We would like to have a specialized abstract
+interpreter $\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
+\widehat{\texttt{Value}}$, but leave the abstract environment $\rho$ dynamic.
 
 \begin{figure}[h]
   \begin{tikzpicture}
@@ -115,27 +115,29 @@ an abstracter interperter, or their staged versions, respectively.
 % FIXME: and the approach of constructing optimizing abstract interpreters by multi-stage programming.
 
 Besides the intellectual merit of the confluence diagram, this paper contributes
-to a practical problem in static analysis: \textbf{can we speed up a static analyzer
-without any intrusive changes and soundness compromises?} Static analysis is
-known as a trade-off game between precision and efficiency, we argue that
-applying meta-programming (particularly, multi-stage programming) with abstract
-interpreters is an effective approach to improve the latter one while fix the
-former one. Specialization removes the overhead of abstractions introduced by
-high-level programming, but not changes the meaning of the program -- in this
-case, the abstract semantics implemented by the analyzer.
-Indeed, specializing analysis with respect to a program by partial evaluation
-is not new \cite{damian1999partial, amtoft1999partial,
-  Boucher:1996:ACN:647473.727587, ashley:practical}, despite the fact that these
-work are ad-hoc on a particular analysis or requiring significant changes to
-the analysis. For example, abstract compilation \cite{Boucher:1996:ACN:647473.727587}
-requires the whole analyzer to be rewritten as closure generation from. In this
-paper, we show a systematic approach to meta-programming achieves the
-performance goal with less intrusive changes; in fact, a case study
-(Section~\ref{cs_ac}) that compared with abstract compilation shows, by
-utilizing type-directed binding-time annotations, the analyzer program does not
-need any changes.
+to a practical problem in static analysis: \textbf{can we speed up a static
+analyzer without any intrusive changes and soundness compromises?} Static
+analysis is known as a trade-off game between precision and efficiency, we argue
+that applying meta-programming (particularly, multi-stage programming) with
+abstract interpreters is an effective approach to improve the latter one while
+fix the former one. Specialization removes the overhead of abstractions
+introduced by high-level programming, but not changes the meaning of the program
+-- in this case, the abstract semantics implemented by the analyzer. Indeed,
+specializing analysis with respect to a program by partial evaluation
+\cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587,
+ashley:practical} is not a new idea, despite the fact that most of the previous
+work are ad-hoc on a particular analysis or requiring significant changes to the
+analysis. For example, abstract compilation
+\cite{Boucher:1996:ACN:647473.727587} requires the whole analyzer to be
+rewritten as closure generation from. In this paper, we show a systematic
+approach to meta-programming achieves the performance goal with less intrusive
+changes; in fact, a case study (Section~\ref{cs_ac}) comparing with abstract
+compilation shows, by utilizing type-based stage annotations, the analyzer
+program does not need any changes.
 
-\todo{modular analysis}
+\todo{modular analysis: a whole-program abstract
+  interpreter can be run on different components of program separately, we
+  achieve this by meta-programming mechnically}
 
 \iffalse
 Likewise, specializing static analyses by partial evaluation emerged in late 90s
@@ -228,50 +230,44 @@ context-sensitivity\todo{}.
   deep embedding, four different interpretations.
 }
 
-\subsection{Contributions}
-
-This paper makes the following contributions:
+\paragraph{Contributions and Outline}
 
 \begin{itemize}
-  \item Starting from a generic definition of an interpreter for a higher-order
-    functional language, whose syntax and semantics are described in
-    Section~\ref{bg_lang}, we show its concrete interpreter
-    (Section~\ref{unstaged_conc}), staged concrete interpreter
-    (Section~\ref{stagedinterp}), abstract interpreter (Section~\ref{unstaged_abs})
-    and staged abstract interpreter (Section~\ref{sai}). Our design allows to
-    derive these four different kinds of interpreters by mechanically changing the
-    underlying semantics or stage annotations.
-    %We later extend the staged abstract interpreter to support imperative
-    %language features (Section~\ref{cases_imp}), such as states and loops.
+  \item We present a unified implementation framework that naturally extends the
+    first Futamura projection to abstract interpreters. Starting from a generic
+    interface of the interpreter for a tiny functional language
+    (Section~\ref{generic_if}), we first show the instantiation of concrete
+    interpretation in Section~\ref{unstaged_conc}. Then we lift it to the staged
+    version by adding stage annotations to the semantic operations
+    (Section~\ref{stagedinterp}); and to the abstract interpreter by applying
+    abstraction to the environment, store, and values. Finally, we show the
+    combination of the two transformations, dubbed \textit{staged abstract
+    interpreters}, can be easily obtained (Section~\ref{sai}).
     
-  \item As shown in Section~\ref{sai}, we demonstrate that if we apply the
-    abstract interpreters on open programs, it not only improves the
-    \textit{efficiency} but also the \textit{scalability}, which are two major
-    issues in static analysis.
+  \item \todo{modular analysis} As shown in Section~\ref{sai}, we demonstrate
+    that if we apply the abstract interpreters on open programs, it not only
+    improves the \textit{efficiency} but also the \textit{scalability}, which are
+    two major issues in static analysis.
     
-  \item To demonstrate the applicability and usefulness of the proposed
-    approach, we conduct three case studies in Section~\ref{cases_study}:
+  \item In Section~\ref{cases_study}, we conduct three case studies to
+    demonstrate the applicability and usefulness of the proposed approach to
+    specialize analyses.
+    (1) We first revisit the Abstract Compilation (AC)
+    \cite{Boucher:1996:ACN:647473.727587} technique in Section~\ref{cs_ac}.
+    Our approach and AC are able to achieve the same goal, however, as we show,
+    one of the advantage of staging through types is it does not require
+    whole-analyzer refactoring.
+    (2) We extend the staged abstract interpreter shown in Section~\ref{sai} to
+    two variants of control-flow analysis: context-sensitive pushdown
+    control-flow analysis and \todo{precise-store?}.
+    (3) In Section~\ref{cases_imp}, we plug a \note{staged numerical domain}
+    \todo{widening} into the staged abstract interpreter, demonstrating that a
+    numerical analysis on imperative languages can be also implemented and
+    speeded-up in this manner.
     
-    \subitem (1) We revisit Abstract Compilation \cite{Boucher:1996:ACN:647473.727587} in Section~\ref{cs_ac}, 
-    which was originally a closure generation technique applied on 0-CFA.
-    We show that abstract compilation can be understood and easily implemented
-    as an instance of our staged abstract interpreter. But unlike abstract
-    compilation, our approach does not require the implementers to rewrite the
-    analysis.
+  \item Based on the instantiation of control-flow analysis, we empirically
+    evaluate the performance improvement by staging and specialization
+    (Section~\ref{evaluation}). We compare the both context-insensitive and
+    \note{context-sensitive} analysis.
     
-    \subitem (2) We demonstrate pushdown control-flow analysis techniques
-    (Section~\ref{cfa}), such as context-sensitive analysis and more precise
-    stores can be integrated to staged abstract interpreters without losing any
-    precision. 
-    
-    \subitem (3) We show that in an imperative language
-    (Section~\ref{cases_imp}), by using an interval domain as abstract domain
-    (as well as staged), the staged abstract interpreter performs numerical 
-    analysis.
-    
-    % (Optional: taint/information flow analysis?)
-  \item We empirically evaluate the performance improvement by staging a
-    big-step abstract interpreter for control-flow analysis
-    (Section~\ref{evaluation}). We compare our staged abstract interpreter with the
-    unstaged version.
 \end{itemize}
