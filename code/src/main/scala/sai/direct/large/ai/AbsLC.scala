@@ -220,7 +220,7 @@ object AbsLamCal {
       var out = Map[Config, (Value,Store)]()
 
       def cached_ev(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Rep[(Value, Store)] = {
-        println(s"calling cachev_ev $e")
+        //println(s"calling cachev_ev $e")
         val cfg: Rep[Config] = (unit(e), ρ, σ)
         if (out.contains(cfg)) {
           out(cfg)
