@@ -31,7 +31,23 @@ respect to @e = 5@ and generate a specialized function that runs faster:
 def power5(b: Int) = b * b * b * b * b * 1
 \end{lstlisting}
 
-\todo{example of interpreter -> compiler, mix}
+Now consider that we have an interpreter @eval@ for some language as following:
+
+\begin{lstlisting}
+def eval(e: Expr)(arg: Input): Value = ...
+\end{lstlisting}
+
+where $e$ is the program of type @Expr@ and @arg@ is the input to program $e$,
+and @eval@ produces a value.
+Semantically, the interpreter satisfies $ \texttt{eval}(e)(arg) = [\![ e ]\!] arg$ for all
+programs and inputs. Given a program $e_0$, by applying the first Futamura
+projection, we may obtain a specialized interpreter
+$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$, and by definition of the interpreter, 
+$\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $. If we generalize the
+argument @arg@ to an environment (as well as a companion heap object, if for the
+interest of using assginments) that contains values mapped from free variables
+in $e$, the interpreter is a standard environment/store-passing interpreter,
+where the specialization through MSP is also applicable.
 
 Roughly at the same time when Futamura projections was visioned in 1970s,
 \citeauthor{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
@@ -51,8 +67,35 @@ DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 Now we have seen two orthogonal transformations of interpreters: by
 speclization, we can refactor interpreters to compilers; by abstraction, we can
 refactor interpreters to static analyzers. As an intellectual quest, it is
-natural to ask --- starting from an interpreter, can we derive sound abstract
-interpreters but it works like a compiler and generates fast analysis code?
+natural to ask --- starting from an interpreter, \textbf{can we derive sound abstract
+interpreters but it works like a compiler and generates fast analysis code?}
+Similar to the concrete interpreter, for an abstract interpreter
+$\widehat{\texttt{eval}}$ that takes a program, an abstract environment and
+returns abstract values, shown as the following:
+
+\begin{lstlisting}
+def $\widehat{\texttt{eval}}$(e: Expr)($\rho$: $\widehat{\texttt{Env}}$): $\widehat{\texttt{Value}}$ = ...
+\end{lstlisting}
+
+We would like to have a specialized abstract interpreter
+$\widehat{\texttt{eval}}_{\texttt{e0}}$ given a program $e_0$ statically, but
+leave the abstract environment $\rho$ dynamic.
+
+\begin{figure}[h]
+  \begin{tikzpicture}
+  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+  {
+    \begin{smallmatrix} \text{unstaged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} \\
+      \begin{smallmatrix} \text{unstaged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} \\ };
+  \path[-stealth]
+    (m-1-1) edge node [above, font=\scriptsize] {$\updownarrows$} (m-1-2)
+    (m-2-1) edge node [left, font=\scriptsize] {$\alpha$} (m-1-1)
+    (m-2-1) edge node [below, font=\scriptsize] {$\updownarrows$} (m-2-2)
+    (m-2-2) edge node [right, font=\scriptsize] {$\alpha$} (m-1-2);
+  \end{tikzpicture}
+  \caption{The confluence of specialization and approximation.}
+  \label{confluence}
+\end{figure}
 
 In this paper, we study the confluence of two old ideas --- Futamura projection
 and abstract interpretation, but from the perspective of their recent
@@ -71,45 +114,32 @@ an abstracter interperter, or their staged versions, respectively.
 
 % FIXME: and the approach of constructing optimizing abstract interpreters by multi-stage programming.
 
-\begin{figure}[h]
-  \begin{tikzpicture}
-  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
-  {
-    \begin{smallmatrix} \text{unstaged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} \\
-      \begin{smallmatrix} \text{unstaged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} \\ };
-  \path[-stealth]
-    (m-1-1) edge node [above, font=\scriptsize] {$\updownarrows$} (m-1-2)
-    (m-2-1) edge node [left, font=\scriptsize] {$\alpha$} (m-1-1)
-    (m-2-1) edge node [below, font=\scriptsize] {$\updownarrows$} (m-2-2)
-    (m-2-2) edge node [right, font=\scriptsize] {$\alpha$} (m-1-2);
-  \end{tikzpicture}
-  \caption{The confluence of staging and approximation.}
-  \label{confluence}
-\end{figure}
-
 Besides the intellectual merit of the confluence diagram, this paper contributes
-to a practical problem in static analysis: can we speed up a static analyzer
-without any intrusive changes and soundness compromises?
-\todo{specializing analysis wrt program is not new; first staging; we argue that
-staging is less intrusive compared with AC (ie, closure generation), in
-fact,LMS-based staging only requires type annotations, static analysis trade-off
-between precision and efficiency, we argue that mp is an approach to improve the
-latter one while fix the former one}
+to a practical problem in static analysis: \textbf{can we speed up a static analyzer
+without any intrusive changes and soundness compromises?} Static analysis is
+known as a trade-off game between precision and efficiency, we argue that
+applying meta-programming (particularly, multi-stage programming) with abstract
+interpreters is an effective approach to improve the latter one while fix the
+former one. Specialization removes the overhead of abstractions introduced by
+high-level programming, but not changes the meaning of the program -- in this
+case, the abstract semantics implemented by the analyzer.
+Indeed, specializing analysis with respect to a program by partial evaluation
+is not new \cite{damian1999partial, amtoft1999partial,
+  Boucher:1996:ACN:647473.727587, ashley:practical}, despite the fact that these
+work are ad-hoc on a particular analysis or requiring significant changes to
+the analysis. For example, abstract compilation \cite{Boucher:1996:ACN:647473.727587}
+requires the whole analyzer to be rewritten as closure generation from. In this
+paper, we show a systematic approach to meta-programming achieves the
+performance goal with less intrusive changes; in fact, a case study
+(Section~\ref{cs_ac}) that compared with abstract compilation shows, by
+utilizing type-directed binding-time annotations, the analyzer program does not
+need any changes.
 
-\todo{Move some into related work}
-Multi-stage programming has been widely used to improve the performance in many
-domains, such as optimizing compilers or domain-specific languages
-\cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:conf/snapl/RompfBLSJAOSKDK15,
-DBLP:journals/tecs/SujeethBLRCOO14, DBLP:conf/gpce/SujeethGBLROO13,
-DBLP:journals/jfp/CaretteKS09}, numerical computation \cite{PGL-038,
-DBLP:conf/pepm/AktemurKKS13}, generic programming
-\cite{DBLP:journals/pacmpl/Yallop17, Ofenbeck:2017:SGP:3136040.3136060}, data
-processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14,
-DBLP:conf/popl/KiselyovBPS17}, query compilation in databases
-\cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18}, etc.
+\todo{modular analysis}
+
+\iffalse
 Likewise, specializing static analyses by partial evaluation emerged in late 90s
-\cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587,
-ashley:practical}, and indeed it is able to effectively remove the interpretive
+, and indeed it is able to effectively remove the interpretive
 overhead of repeatedly traversing the abstract syntax tree. However, these
 previous works focused mostly on one particular analysis, or required to
 completely rewrite the analyzer. Hence, it is worth to investigate the idea from
@@ -144,7 +174,6 @@ implementing efficient program analyzer.
 %Particularly, we also would like a systematic approach to optimize program
 %analyzers and meanwhile minimally modifying the analyzer programs.
 
-\iffalse
 When staging a concrete interpreter, the programmers need to distinguish static
 and dynamic values --- the given program to be executed by the interpreter is
 classified as static because it is known at compile-time, and the inputs to that
