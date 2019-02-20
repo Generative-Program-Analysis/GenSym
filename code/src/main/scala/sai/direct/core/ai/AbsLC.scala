@@ -191,38 +191,6 @@ object AbsLamCal {
     override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
   }
 
-  /*
-  trait PureRepAbsInterpOps extends RepAbsLattices {
-    type R[+T] = Rep[T]
-    type Config = (Expr, Env, Store)
-    type Cache = Map[Config, (Value, Store)]
-    type Ans = (R[Value], R[Store], R[Cache], R[Cache])
-
-    implicit def exprTyp: Typ[Expr]
-    implicit def absValueTyp: Typ[AbsValue]
-    implicit def addrTyp: Typ[Addr]
-
-    def eval(e: Expr, ρ: Rep[Env], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Ans = {
-      val cfg: Rep[Config] = (unit(e), ρ, σ)
-      (if (out.contains(cfg)) {
-        val vs = out.get(cfg) //FIXME: out(cfg) doesn't work
-        (vs._1, vs._2, in, out)
-      }
-      else {
-        val ans0 = in.getOrElse(cfg, RepLattice[(Value, Store)].bot)
-        val nout = out + (cfg -> ans0)
-        e match {
-          case Lit(i) =>
-            val ans1 = (num(e.asInstanceOf[Lit]), σ)
-            (ans1._1, ans1._2, in, nout + (cfg -> RepLattice[(Value,Store)].⊔(ans0, ans1)))
-        }
-      }).asInstanceOf[Rep[(Value, Store, Cache, Cache)]]
-    }
-    val cache0: Rep[Cache] = Map[Config, (Value, Store)]()
-
-    //override def eval_top(e: Expr, ρ: Rep[Env], σ: Rep[Store]): Ans = eval(e, ρ, σ, cache0, cache0)
-  }
-   */
 
   trait RepAbsInterpOpsExp extends ImpureRepAbsInterpOps with LMSOpsExp {
     implicit def exprTyp: Typ[Expr] = manifestTyp
