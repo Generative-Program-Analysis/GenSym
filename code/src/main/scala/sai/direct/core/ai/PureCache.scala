@@ -101,7 +101,8 @@ object PureCache {
       val oldv = get(σ, a); σ + (a → RepLattice[Value].⊔(v, oldv))
     }
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = unchecked[Addr]("Addr(\"", x, "\")")
-
+  
+    /*
     def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
       val Lam(x, e) = λ
       val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = (as: Rep[(Value,Store)]) => {
@@ -111,6 +112,7 @@ object PureCache {
       }
       unchecked[Value]("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
     }
+    */
 
     def num(i: Lit): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
     def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {

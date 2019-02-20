@@ -75,14 +75,17 @@ object AbsLamCal {
     }
 
     def prim_eval(op: String, lv: List[Value]): Value = op match {
-      case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length")(op)) => Set(IntV())
-      case op if (scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "=")(op)) => Set(BoolV())
-      case op if (scala.collection.immutable.Set("list", "cons", "cdr", "cadr")(op)) => Set(ListV())
-      case op if ((scala.collection.immutable.Set("car", "caar", "caddr", "vector-ref"))(op)) =>
+      case op if (scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "=", "odd?", "fl>")(op)) => Set(BoolV())
+      case op if (scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length", "remainder", "gcd", "modulo", "quotient")(op)) => Set(IntV())
+      case op if (scala.collection.immutable.Set("list", "cons", "cdr", "cadr", "caddr", "cadddr")(op)) => Set(ListV())
+      case op if (scala.collection.immutable.Set("make-rectangular")(op)) => Set(ListV())
+      case op if ((scala.collection.immutable.Set("car", "caar", "vector-ref"))(op)) =>
         Set(BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())
-      case op if ((scala.collection.immutable.Set("read", "vector", "make-vector", "number->string"))(op)) =>
+      case op if ((scala.collection.immutable.Set("read", "vector", "make-vector", "number->string", "name"))(op)) =>
         Set(VectorV())
       case op if (scala.collection.immutable.Set("vector-set!", "display", "write", "newline", "set-cdr!", "error")(op)) => Set(VoidV())
+      case op if (scala.collection.immutable.Set("memq")(op)) => Set(ListV(), BoolV())
+      case op if (scala.collection.immutable.Set("->fl", "fl*", "fl+", "real-part", "imag-part")(op)) => Set(FloatV())
     }
 
     type Config = (Expr, R[Env], R[Store])
@@ -199,18 +202,25 @@ object AbsLamCal {
     }
 
     def prim_eval(op: String, lv: List[Rep[Value]]): Rep[Value] = op match {
-      case op if ((scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "="))(op)) =>
+      case op if ((scala.collection.immutable.Set("eq?", "null?", "pair?", "and", "or", "not", ">", "<", ">=", "<=", "=", "odd?", "fl>"))(op)) =>
         unchecked[Value]("Set[AbsValue](BoolV())")
-      case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length"))(op)) =>
+      case op if ((scala.collection.immutable.Set("+", "-", "*", "/", "%", "vector-length", "remainder", "gcd", "modulo", "quotient"))(op)) =>
         unchecked[Value]("Set[AbsValue](IntV())")
-      case op if ((scala.collection.immutable.Set("list", "cons", "cadr", "cdr"))(op)) =>
+      case op if ((scala.collection.immutable.Set("list", "cons", "cadr", "caddr", "cdr", "cadddr"))(op)) =>
         unchecked[Value]("Set[AbsValue](ListV())")
-      case op if ((scala.collection.immutable.Set("car", "caar", "caddr", "vector-ref"))(op)) =>
+      case op if (scala.collection.immutable.Set("make-rectangular")(op)) =>
+        unchecked[Value]("Set[AbsValue](ListV())")
+      case op if ((scala.collection.immutable.Set("car", "caar", "vector-ref"))(op)) => 
         unchecked[Value]("Set[AbsValue](BoolV(), IntV(), FloatV(), CharV(), ListV(), VectorV(), SymV())")
-      case op if ((scala.collection.immutable.Set("read", "vector", "make-vector", "number->string"))(op)) =>
+      case op if ((scala.collection.immutable.Set("read", "vector", "make-vector", "number->string", "name"))(op)) =>
         unchecked[Value]("Set[AbsValue](VectorV())")
       case op if ((scala.collection.immutable.Set("display", "write", "newline", "vector-set!", "set-cdr!", "error"))(op)) =>
         unchecked[Value]("Set[AbsValue](VoidV())")
+      case op if (scala.collection.immutable.Set("memq")(op)) => 
+        unchecked[Value]("Set[AbsValue](ListV(), BoolV())")
+      case op if (scala.collection.immutable.Set("->fl", "fl*", "fl+", "real-part", "imag-part")(op)) =>
+        unchecked[Value]("Set[AbsValue](FloatV())")
+
     }
 
     type Config = (Expr, Env, Store)

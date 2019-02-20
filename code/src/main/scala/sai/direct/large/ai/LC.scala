@@ -29,10 +29,11 @@ object LamCal {
     type Store
     type Ans = (R[Value], R[Store])
     val primops = Set("+", "-", "*", "/", "%", "eq?", "null?", "pair?", "and", 
-      "or", "not", ">", "<", ">=", "<=", "=", "list", "cons", "car", "caar", "cadr", 
+      "or", "not", ">", "<", ">=", "<=", "=", "list", "cons", "car", "caar", "cadr", "cadddr",
       "caddr", "cdr", "cddr", "vector", "make-vector", "set-cdr!", "error", 
       "vector-set!", "vector-ref", "vector-length", "display", "write", "newline", 
-      "read", "number->string")
+      "read", "number->string", "remainder", "memq", "gcd", "modulo", "quotient", "odd?",
+      "make-rectangular", "->fl", "fl*", "fl+", "real-part", "imag-part", "fl>", "name")
     def get(ρ: R[Env], x: Ident): R[Addr]
     def put(ρ: R[Env], x: Ident, a: R[Addr]): R[Env]
     def get(σ: R[Store], a: R[Addr]): R[Value]

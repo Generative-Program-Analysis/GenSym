@@ -4,6 +4,11 @@
 ;	equal
 ;	uncomparable
 ; return a new comparison routine that applies to sequences.
+
+(define (map f xs)
+  (if (null? xs) '()
+      (cons (f (car xs)) (map f (cdr xs)))))
+
 (define lexico
     (lambda (base)
 	(define lex-fixed
@@ -92,8 +97,6 @@
 				ac))
 			(cdr lst)))))
 	(select-a '() lst)))
-
-
 
 ; This version of map-and tail-recurses on the last test.
 (define map-and

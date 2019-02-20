@@ -53,9 +53,6 @@
 (define (decrypt c d n)
   (modulo-power c d n))
 
-
-
-
 ;; RSA example.
 
 (define p 41)       ; A "large" prime.

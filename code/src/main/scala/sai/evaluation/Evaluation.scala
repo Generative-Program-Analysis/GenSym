@@ -12,8 +12,7 @@ object Evaluation extends AbsLamCalTrait {
 
   def main(args: Array[String]) {
     val progs = List(
-      graphs
-      //rsa
+      boyer
       //euclid,
       //euclid_imp
       //kcfa32
@@ -41,7 +40,7 @@ object Evaluation extends AbsLamCalTrait {
     val t5 = run(n, { ex4fold() })
     println(s"0CFA Staged (fold) average time: $t5")
     */
-    val t1 =  run(10, { evalUnstaged(e) })
+    val t1 =  run(20, { evalUnstaged(e) })
     println(s"Unstaged time - ${t1}")
 
     val code = specialize(e)
@@ -52,7 +51,7 @@ object Evaluation extends AbsLamCalTrait {
     writer.close()
     println("Start running compiled version")
 
-    val t2 = run(10, { code.eval(()) })
+    val t2 = run(20, { code.eval(()) })
 
     println("-------------------------------------------")
     println(s"Unstaged time - ${t1}")
