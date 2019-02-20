@@ -2,11 +2,12 @@
 
 \section{Preliminaries}
 
-In this section, we first describe the abstract syntax of the language we will analyze, then present a
-generic interface for interpreters, and instantiate an unstaged concrete interpreter.
-Then, starting from this unstaged concrete interpreter, we proceed in two directions:
-by abstracting it we obtain an unstaged abstract interpreter (Section~\ref{unstaged_abs}); 
-by staging it we obtain a staged concrete interpreter (Section~\ref{stagedinterp}).
+In this section, we first describe the abstract syntax of the language we will
+analyze, then present the generic interface shared between the four different
+interpreters. We first instantiate the interpreter to the concrete one; then we
+proceed in two directions: by staging it we obtain a staged concrete interpreter
+(Section~\ref{stagedinterp}), by abstracting it we obtain an unstaged abstract
+interpreter (Section~\ref{unstaged_abs});
 
 \input{21_bg_interp}
 \input{23_bg_stage}

@@ -1,12 +1,13 @@
 \subsection{Abstract Syntax} \label{bg_lang}
 
-We consider a tiny higher-order functional language \TLang, which is based on
-direct-style $\lambda$-calculus with numbers, arithmetics, recursions and
-conditionals. In Section~\ref{cases_imp}, we will add more imperative features
-to the language. Since we are mostly interested in analyzing the dynamic
-behavior of the program, we disguised any static semantics and type system. We
-also assume that input programs are well-typed and variables are distinct. The
-abstract syntax is as follows:
+We consider a call-by-value $\lambda$-calculus in direct-style, but extended
+with numbers, arithmetics, recursions and conditionals. Other effectful features
+such as assignments also can be supported easily; in Section~\ref{cases_imp}, we
+will add more imperative features to the language. Since we are mostly
+interested in analyzing the dynamic behaviors of the program, we disguised any
+static semantics and type system. We also assume that input programs are
+well-typed and all variables are distinct. The abstract syntax is shown as
+follows:
 
 \begin{lstlisting}
 abstract class Expr

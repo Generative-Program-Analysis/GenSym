@@ -108,11 +108,12 @@ Sergey:2013:MAI:2491956.2491979} and embedded domain-specific languages
 \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15, DBLP:journals/jfp/CaretteKS09,
 DBLP:conf/icfp/GibbonsW14}, we develop an approach to fulfill four different
 semantics (Figure~\ref{confluence}) in a unified framework. The four semantics
-share one same generic interpreter and some abstract types; by instantiating the
-abstract types differently, the interpreter behaves as a concrete interpreter,
-an abstracter interperter, or their staged versions, respectively.
-
-% FIXME: and the approach of constructing optimizing abstract interpreters by multi-stage programming.
+share one same generic interpreter. However, by instantiating the interpreter
+differently, it can behave as a concrete interpreter, an abstracter interperter,
+or their staged versions, respectively. The key idea to enable this flexibility
+is to use abstract type members \note{or type parameters} abstract over concrete/abstract components
+(e.g., concrete values or abstract values) of the interpreter, as well as the
+binding-time (e.g., static or dyanmic).
 
 Besides the intellectual merit of the confluence diagram, this paper contributes
 to a practical problem in static analysis: \textbf{can we speed up a static
