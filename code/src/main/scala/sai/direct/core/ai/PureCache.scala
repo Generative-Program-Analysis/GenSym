@@ -16,11 +16,13 @@ import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOps => _, SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
 object NAbsLC {
-  trait EnvLike[R[_], E, K, V] {
+  trait EnvLike[R[_], K, V, E] {
+    val ρ0: R[E]
     def get(env: R[E], k: V): R[V]
     def put(env: R[E], k: K, v: R[V]): R[E]
   }
-  trait StoreLike[R[_], S, K, V] {
+  trait StoreLike[R[_], K, V, E] {
+    val σ0: R[S]
     def get(store: R[S], k: V): R[V]
     def put(store: R[S], k: K, v: R[V]): R[S]
   }
@@ -29,9 +31,15 @@ object NAbsLC {
     type Ident = String
     type Addr
     type Value
-    type Env
-    implicit object EnvOps extends EnvLike[R, Env, Ident, Addr]
+    type Env[_, _]
+    type Store[_, _]
+    type Ans
+
+    def eval(e: Expr, ρ: Env, σ: Store): Ans = {
+      //σ
+    }
   }
+
 }
 
 object PureCache {
