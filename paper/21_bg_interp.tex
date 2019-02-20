@@ -11,13 +11,13 @@ follows:
 
 \begin{lstlisting}
 abstract class Expr
-case class Lit(i: Int)                         // numbers
-case class Var(x: String)                      // variables
-case class Lam(x: String, e: Expr)             // lambda abstractions
-case class App(e1: Expr, e2: Expr)             // applications
-case class AOp(op: String, e1: Expr, e2: Expr) // primitive operations
-case class Rec(x: String, rhs: Expr, e: Expr)  // recursive bindings
-case class If0(e1: Expr, e2: Expr, e3: Expr)   // conditionals
+case class Lit(i: Int) extends Expr                         // numbers
+case class Var(x: String) extends Expr                      // variables
+case class Lam(x: String, e: Expr) extends Expr             // abstractions
+case class App(e1: Expr, e2: Expr) extends Expr             // applications
+case class If0(e1: Expr, e2: Expr, e3: Expr) extends Expr   // conditionals
+case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
+case class AOp(op: String, e1: Expr, e2: Expr) extends Expr // primitives
 \end{lstlisting}
 
 We give the concrete semantics of \TLang by showing a big-step definitional

@@ -15,6 +15,25 @@ import scala.reflect.SourceContext
 import scala.lms.internal.GenericNestedCodegen
 import scala.lms.common.{SetOps => _, SetOpsExp ⇒ _, ScalaGenSetOps ⇒ _, ListOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _, _}
 
+object NAbsLC {
+  trait EnvLike[R[_], E, K, V] {
+    def get(env: R[E], k: V): R[V]
+    def put(env: R[E], k: K, v: R[V]): R[E]
+  }
+  trait StoreLike[R[_], S, K, V] {
+    def get(store: R[S], k: V): R[V]
+    def put(store: R[S], k: K, v: R[V]): R[S]
+  }
+
+  trait Semantics[R[_]] {
+    type Ident = String
+    type Addr
+    type Value
+    type Env
+    implicit object EnvOps extends EnvLike[R, Env, Ident, Addr]
+  }
+}
+
 object PureCache {
 
   trait LMSOps extends Dsl with MapOps with UncheckedOps with TupleOps with SetOps with TupledFunctions
@@ -56,9 +75,12 @@ object PureCache {
     implicit def RepProductLattice[A:Typ:RepLattice, B:Typ:RepLattice]: RepLattice[(A, B)] = new RepLattice[(A, B)] {
       lazy val bot: Rep[(A, B)] = (RepLattice[A].bot, RepLattice[B].bot)
       lazy val top: Rep[(A, B)] = (RepLattice[A].top, RepLattice[B].top)
-      def ⊑(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[Boolean] = RepLattice[A].⊑(l1._1, l2._1) && RepLattice[B].⊑(l1._2, l2._2)
-      def ⊔(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] = (RepLattice[A].⊔(l1._1, l2._1), RepLattice[B].⊔(l1._2, l2._2))
-      def ⊓(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] = (RepLattice[A].⊓(l1._1, l2._1), RepLattice[B].⊓(l1._2, l2._2))
+      def ⊑(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[Boolean] =
+        RepLattice[A].⊑(l1._1, l2._1) && RepLattice[B].⊑(l1._2, l2._2)
+      def ⊔(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] =
+        (RepLattice[A].⊔(l1._1, l2._1), RepLattice[B].⊔(l1._2, l2._2))
+      def ⊓(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] =
+        (RepLattice[A].⊓(l1._1, l2._1), RepLattice[B].⊓(l1._2, l2._2))
     }
   }
 
@@ -101,9 +123,8 @@ object PureCache {
       val oldv = get(σ, a); σ + (a → RepLattice[Value].⊔(v, oldv))
     }
     def alloc(σ: Rep[Store], x: Ident): Rep[Addr] = unchecked[Addr]("Addr(\"", x, "\")")
-  
     /*
-    def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+    def close(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
       val Lam(x, e) = λ
       val f: Rep[(Value, Store)]=>Rep[(Value,Store)] = (as: Rep[(Value,Store)]) => {
         val args = as._1; val σ = as._2
@@ -120,7 +141,8 @@ object PureCache {
       val elsans = els
       thnans ⊔ elsans
     }
-    def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked[Value]("Set[AbsValue](NumV())")
+    def prim_eval(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
+      unchecked[Value]("Set[AbsValue](NumV())")
 
 
     /*
