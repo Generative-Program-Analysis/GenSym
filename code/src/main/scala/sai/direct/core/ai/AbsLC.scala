@@ -189,6 +189,8 @@ object AbsLamCal {
     }
 
     override def eval_top(e: Expr, ρ: R[Env], σ: R[Store]): Ans = CacheFix(eval).iter(e, ρ, σ)
+
+    def eval_top_nocache(e: Expr): Ans = fix(eval)(e, ρ0, σ0)
   }
 
 
@@ -281,7 +283,8 @@ object AbstractLC {
     def specialize(p: Expr): DslDriver[Unit, Unit] =
       new RepAbsInterpDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
-          val (v, s) = eval_top(p)
+          //val (v, s) = eval_top(p)
+          val (v, s) = eval_top_nocache(p)
           println(v); println(s)
         }
       }
@@ -298,9 +301,9 @@ object AbstractLC {
 
     //println(AbsInterp.eval_top(id4))
     //println(AbsInterp.eval_top(omega))
-    println(AbsInterp.eval_top(fact5))
+    //println(AbsInterp.eval_top(fact5))
 
-    val code = specialize(fact5)
+    val code = specialize(omega)
     println(code.code)
     code.eval(())
 

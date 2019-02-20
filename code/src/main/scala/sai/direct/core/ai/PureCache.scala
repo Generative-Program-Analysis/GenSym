@@ -21,7 +21,7 @@ object NAbsLC {
     def get(env: R[E], k: V): R[V]
     def put(env: R[E], k: K, v: R[V]): R[E]
   }
-  trait StoreLike[R[_], K, V, E] {
+  trait StoreLike[R[_], K, V, S] {
     val σ0: R[S]
     def get(store: R[S], k: V): R[V]
     def put(store: R[S], k: K, v: R[V]): R[S]
@@ -31,12 +31,13 @@ object NAbsLC {
     type Ident = String
     type Addr
     type Value
-    type Env[_, _]
-    type Store[_, _]
+    type Env
+    type Store
     type Ans
 
     def eval(e: Expr, ρ: Env, σ: Store): Ans = {
       //σ
+      ???
     }
   }
 

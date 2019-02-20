@@ -14,11 +14,11 @@ approach to specialization and partial evaluation, multi-stage programming (MSP
 for short) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the stage
 annotations (i.e., binding-time annotations) to be explicit from the programmers.
 These staging annotations identify which part of the inputs should be
-specialized. As a classical example, we consider the power function to introduce
+specialized. As a classical example, we use the power function to introduce
 the idea of MSP:
 
 \begin{lstlisting}
-def power(b: Rep[Int], e: Int): Int = 
+def power(b: Rep[Int], e: Int): Rep[Int] = 
   if (e == 0) 1 else e * power(b, e-1)
 \end{lstlisting}
 
