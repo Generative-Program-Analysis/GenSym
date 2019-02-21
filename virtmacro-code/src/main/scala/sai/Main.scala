@@ -14,6 +14,10 @@ import cats.arrow.FunctionK
 import cats.syntax.applicative._
 
 import scala.virtualization.lms.common._
+import scala.virtualization.lms.common.{
+  SetOps => _, SetOpsExp => _, ScalaGenSetOps => _,
+  ListOps => _, ListOpsExp => _, ScalaGenListOps => _,
+  _}
 import org.scala_lang.virtualized.virtualize
 import org.scala_lang.virtualized.SourceContext
 
@@ -212,7 +216,10 @@ object EnvStoreInterpreter {
   def run(e: Expr): (Store, Value) = eval(e).run(ρ0).runF(σ0)
 }
 
-object StagedEnvStoreInterpreter {}
+trait S_CES /* StagedEnvStoreInterpreter */ extends Dsl {
+
+}
+
 object AbsEnvStoreInterpreter {
 
 }
