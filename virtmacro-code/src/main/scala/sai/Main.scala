@@ -1,5 +1,7 @@
 package sai
 
+import scala.language.implicitConversions
+
 import cats._
 import cats.{Id, ~>}
 import cats.implicits._
@@ -10,65 +12,13 @@ import cats.free.Free
 import cats.free.Free.liftF
 import cats.arrow.FunctionK
 import cats.syntax.applicative._
-import scala.collection.mutable
 
-object DSL {
-  /* An DSL example using free monads */
-  sealed trait KVStoreA[A]
-  case class Put[T](key: String, value: T) extends KVStoreA[Unit]
-  case class Get[T](key: String) extends KVStoreA[Option[T]]
-  case class Del(key: String) extends KVStoreA[Unit]
+import scala.virtualization.lms.common._
+import org.scala_lang.virtualized.virtualize
+import org.scala_lang.virtualized.SourceContext
 
-  type KVStore[A] = Free[KVStoreA, A]
-
-  def put[T](key: String, value: T): KVStore[Unit] =
-    liftF[KVStoreA, Unit](Put[T](key, value))
-  def get[T](key: String): KVStore[Option[T]] =
-    liftF[KVStoreA, Option[T]](Get[T](key))
-  def del(key: String): KVStore[Unit] =
-    liftF(Del(key))
-  def update[T](key: String, f: T => T): KVStore[Unit] =
-    for {
-      v <- get[T](key)
-      _ <- v.map(v => put[T](key, f(v))).getOrElse(Free.pure(()))
-    } yield ()
-
-  def impureCompiler: KVStoreA ~> Id = new (KVStoreA ~> Id) {
-    val kvs = mutable.Map.empty[String, Any]
-    def apply[A](fa: KVStoreA[A]): Id[A] =
-      fa match {
-        case Put(key, value) =>
-          kvs(key) = value
-          ()
-        case Get(key) =>
-          kvs.get(key).map(_.asInstanceOf[A])
-        case Del(key) =>
-          kvs.remove(key)
-          ()
-      }
-  }
-
-  type KVStoreState[A] = State[Map[String, Any], A]
-  def pureCompiler: KVStoreA ~> KVStoreState = new (KVStoreA ~> KVStoreState) {
-    def apply[A](fa: KVStoreA[A]): KVStoreState[A] = fa match {
-      case Put(key, value) => State.modify(_.updated(key, value))
-      case Get(key) => State.inspect(_.get(key).map(_.asInstanceOf[A]))
-      case Del(key) => State.modify(_ - key)
-    }
-  }
-
-  def program: KVStore[Option[Int]] =
-    for {
-      _ <- put("wild-cats", 1)
-      _ <- update[Int]("wild-cats", (_ + 12))
-      _ <- put("tame-cats", 2)
-      n <- get[Int]("wild-cats")
-      _ <- del("tame-cats")
-    } yield n
-
-  val result0: Option[Int] = program.foldMap(impureCompiler)
-  val result1: (Map[String, Any], Option[Int]) = program.foldMap(pureCompiler).run(Map.empty).value
-}
+import sai.lms._
+import sai.examples._
 
 object PCFLang {
   sealed trait Expr
@@ -181,9 +131,10 @@ object EnvStoreInterpreter {
   type StateT[T] = IndexedStateT[Id, Store, Store, T]
   val StateT = IndexedStateT
 
-  type Ans = ReaderT[StateT, Env, Value]
+  type AnsT[T] = ReaderT[StateT, Env, T]
+  type Ans = AnsT[Value]
 
-  def alloc(x: String): ReaderT[StateT, Env, Addr] = for { σ <- get } yield σ.size + 1
+  def alloc(x: String): AnsT[Addr] = for { σ <- get } yield σ.size + 1
 
   def ap_clo(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
@@ -194,15 +145,15 @@ object EnvStoreInterpreter {
     } yield rt
   }
 
-  def ext_env(xv: (String, Addr)): ReaderT[StateT, Env, Env] = for { ρ <- ask } yield ρ + xv
+  def ext_env(xv: (String, Addr)): AnsT[Env] = for { ρ <- ask } yield ρ + xv
 
-  def update_store(av: (Addr, Value)): ReaderT[StateT, Env, Unit] = for {
+  def update_store(av: (Addr, Value)): AnsT[Unit] = for {
     _ <- ReaderT.lift(StateT.modify[Id, Store, Store](σ => σ + av))
   } yield ()
 
-  def ask: ReaderT[StateT, Env, Env] = ReaderT.ask[StateT, Env]
+  def ask: AnsT[Env] = ReaderT.ask[StateT, Env]
 
-  def get: ReaderT[StateT, Env, Store] = ReaderT.lift(StateT.get[Id, Store])
+  def get: AnsT[Store] = ReaderT.lift(StateT.get[Id, Store])
 
   def branch0(test: Value, thn: Expr, els: Expr): Ans =
     if (test == IntV(0)) eval(thn) else eval(els)
@@ -261,10 +212,7 @@ object EnvStoreInterpreter {
   def run(e: Expr): (Store, Value) = eval(e).run(ρ0).runF(σ0)
 }
 
-object StagedEnvStoreInterpreter {
-
-}
-
+object StagedEnvStoreInterpreter {}
 object AbsEnvStoreInterpreter {
 
 }
@@ -276,7 +224,8 @@ object Main {
     import PCFLang._
     //import EnvInterpreter._
     //println(eval(p1).run(Map()))
-    import EnvStoreInterpreter._
-    println(run(fact5))
+    //import EnvStoreInterpreter._
+    //println(run(fact5))
+    SPower.test
   }
 }

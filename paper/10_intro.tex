@@ -103,7 +103,7 @@ realizations --- multi-stage programming and definitional abstract interpreters.
 To be specific, we present the application of the first Futamura projection on
 definitional abstract interpreters, which intersects as staged abstract
 interpreters. By borrowing the ideas from \note{monadic interpreters}
-\cite{DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17,
+\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17,
 Sergey:2013:MAI:2491956.2491979} and embedded domain-specific languages
 \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15, DBLP:journals/jfp/CaretteKS09,
 DBLP:conf/icfp/GibbonsW14}, we develop an approach to fulfill four different
@@ -118,10 +118,10 @@ binding-time (e.g., static or dyanmic).
 Besides the intellectual merit of the confluence diagram, this paper contributes
 to a practical problem in static analysis: \textbf{can we speed up a static
 analyzer without any intrusive changes and soundness compromises?} Static
-analysis is known as a trade-off game between precision and efficiency, we argue
-that applying meta-programming (particularly, multi-stage programming) with
+analysis is known as a trade-off game between \textit{precision} and \textit{efficiency}, we argue
+that applying meta-programming (multi-stage programming, in particular) with
 abstract interpreters is an effective approach to improve the latter one while
-fix the former one. Specialization removes the overhead of abstractions
+the former one is untouched. Specialization removes the overhead of abstractions
 introduced by high-level programming, but not changes the meaning of the program
 -- in this case, the abstract semantics implemented by the analyzer. Indeed,
 specializing analysis with respect to a program by partial evaluation
@@ -234,7 +234,7 @@ context-sensitivity\todo{}.
 \paragraph{Contributions and Outline}
 
 \begin{itemize}
-  \item We present a unified implementation framework that naturally extends the
+  \item We progressively present a unifying construction that naturally extends the
     first Futamura projection to abstract interpreters. Starting from a generic
     interface of the interpreter for a tiny functional language
     (Section~\ref{generic_if}), we first show the instantiation of concrete
@@ -243,7 +243,7 @@ context-sensitivity\todo{}.
     (Section~\ref{stagedinterp}); and to the abstract interpreter by applying
     abstraction to the environment, store, and values. Finally, we show the
     combination of the two transformations, dubbed \textit{staged abstract
-    interpreters}, can be easily obtained (Section~\ref{sai}).
+    interpreters}, can be easily derived (Section~\ref{sai}).
     
   \item \todo{modular analysis} As shown in Section~\ref{sai}, we demonstrate
     that if we apply the abstract interpreters on open programs, it not only
