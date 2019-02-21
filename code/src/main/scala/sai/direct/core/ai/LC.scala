@@ -227,9 +227,9 @@ object ConcreteLC {
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
 
-    val code = specialize(fact5)
-    println(code.code)
-    code.eval(())
+    //val code = specialize(fact5)
+    //println(code.code)
+    //code.eval(())
     //println(ConcInterp.eval_top(id4))
     println(ConcInterp.eval_top(fact5))
   }

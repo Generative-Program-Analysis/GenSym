@@ -93,6 +93,12 @@ object PCFLang {
                Let("y", Lit(2),
                    Let("f", Lam("z", Aop('+, Var("z"), Var("y"))),
                        App(Var("f"), Var("x")))))
+
+  val fact = Lam("n",
+                 If0(Var("n"),
+                     Lit(1),
+                     Aop('*, Var("n"), App(Var("fact"), Aop('-, Var("n"), Lit(1))))))
+  val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
 }
 
 object Misc {
@@ -172,31 +178,31 @@ object EnvStoreInterpreter {
   type ReaderT[F[_], A, B] = Kleisli[F, A, B]
   val ReaderT = Kleisli
 
-  type State[T] = IndexedStateT[Id, Store, Store, T]
+  type StateT[T] = IndexedStateT[Id, Store, Store, T]
   val StateT = IndexedStateT
 
-  type Ans = ReaderT[State, Env, Value]
+  type Ans = ReaderT[StateT, Env, Value]
 
-  def alloc(x: String): ReaderT[State, Env, Addr] = for { σ <- get } yield σ.size + 1
+  def alloc(x: String): ReaderT[StateT, Env, Addr] = for { σ <- get } yield σ.size + 1
 
   def ap_clo(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
-      _ <- global_store(α → arg)
-      ρ <- local_env(x → α)
-      rt <- eval(e).local[Env](_ => ρ)
+      _ <- update_store(α → arg)
+      ρ <- ext_env(x → α)
+      rt <- local_env(e, ρ)
     } yield rt
   }
 
-  def local_env(xv: (String, Addr)): ReaderT[State, Env, Env] = for { ρ <- ask } yield ρ + xv
+  def ext_env(xv: (String, Addr)): ReaderT[StateT, Env, Env] = for { ρ <- ask } yield ρ + xv
 
-  def global_store(av: (Addr, Value)): ReaderT[State, Env, Unit] = for {
+  def update_store(av: (Addr, Value)): ReaderT[StateT, Env, Unit] = for {
     _ <- ReaderT.lift(StateT.modify[Id, Store, Store](σ => σ + av))
   } yield ()
 
-  def ask: ReaderT[State, Env, Env] = ReaderT.ask[State, Env]
+  def ask: ReaderT[StateT, Env, Env] = ReaderT.ask[StateT, Env]
 
-  def get: ReaderT[State, Env, Store] = ReaderT.lift(StateT.get[Id, Store])
+  def get: ReaderT[StateT, Env, Store] = ReaderT.lift(StateT.get[Id, Store])
 
   def branch0(test: Value, thn: Expr, els: Expr): Ans =
     if (test == IntV(0)) eval(thn) else eval(els)
@@ -207,6 +213,10 @@ object EnvStoreInterpreter {
     case ('*, IntV(x), IntV(y)) => IntV(x * y)
     case ('/, IntV(x), IntV(y)) => IntV(x / y)
   }
+
+  def local_env(e: Expr, ρ: Env): Ans = for {
+    rt <- eval(e).local[Env](_ => ρ)
+  } yield rt
 
   def eval(e: Expr): Ans = e match {
     case Lit(i) => ReaderT.pure(IntV(i))
@@ -225,9 +235,9 @@ object EnvStoreInterpreter {
     case Let(x, rhs, e) => for {
       v <- eval(rhs)
       α <- alloc(x)
-      _ <- global_store(α → v)
-      ρ <- local_env(x → α)
-      rt <- eval(e).local[Env](_ => ρ)
+      _ <- update_store(α → v)
+      ρ <- ext_env(x → α)
+      rt <- local_env(e, ρ)
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
@@ -239,20 +249,34 @@ object EnvStoreInterpreter {
     } yield prim(op, v1, v2)
     case Rec(x, rhs, e) => for {
       α <- alloc(x)
-      ρ <- local_env(x → α)
-      v <- eval(rhs).local[Env](_ => ρ)
-      _ <- global_store(α → v)
-      rt <- eval(e).local[Env](_ => ρ)
+      ρ <- ext_env(x → α)
+      v <- local_env(rhs, ρ)
+      _ <- update_store(α → v)
+      rt <- local_env(e, ρ)
     } yield rt
   }
 
+  val ρ0: Env = Map()
+  val σ0: Store = Map()
+  def run(e: Expr): (Store, Value) = eval(e).run(ρ0).runF(σ0)
 }
+
+object StagedEnvStoreInterpreter {
+
+}
+
+object AbsEnvStoreInterpreter {
+
+}
+
 object Main {
   def main(args: Array[String]): Unit = {
     //println("Hello")
     //println(DSL.result1)
     import PCFLang._
-    import EnvInterpreter._
+    //import EnvInterpreter._
     //println(eval(p1).run(Map()))
+    import EnvStoreInterpreter._
+    println(run(fact5))
   }
 }
