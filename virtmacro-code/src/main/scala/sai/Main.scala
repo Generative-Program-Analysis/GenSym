@@ -163,6 +163,7 @@ object EnvStoreInterpreter {
   /* An environment-and-store interpreter using Reader Monad and State Monad */
   import PCFLang._
   import PCFLang.Values._
+
   type Ident = String
   type Addr = Int
   type Env = Map[Ident, Addr]
@@ -170,20 +171,13 @@ object EnvStoreInterpreter {
 
   type ReaderT[F[_], A, B] = Kleisli[F, A, B]
   val ReaderT = Kleisli
-  //import ReaderT._
 
   type State[T] = IndexedStateT[Id, Store, Store, T]
   val StateT = IndexedStateT
-  //import IndexedStateT._
+
   type Ans = ReaderT[State, Env, Value]
 
-  def local_env(xv: (String, Addr)): ReaderT[State, Env, Env] = for {
-    ρ <- ReaderT.ask[State, Env]
-  } yield ρ + xv
-
-  def alloc(x: String): ReaderT[State, Env, Addr] = for {
-    σ <- ReaderT.lift(IndexedStateT.get[Id, Store])
-  } yield σ.size + 1
+  def alloc(x: String): ReaderT[State, Env, Addr] = for { σ <- get } yield σ.size + 1
 
   def ap_clo(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
@@ -194,9 +188,15 @@ object EnvStoreInterpreter {
     } yield rt
   }
 
+  def local_env(xv: (String, Addr)): ReaderT[State, Env, Env] = for { ρ <- ask } yield ρ + xv
+
   def global_store(av: (Addr, Value)): ReaderT[State, Env, Unit] = for {
-    _ <- ReaderT.lift(IndexedStateT.modify[Id, Store, Store](σ => σ + av))
+    _ <- ReaderT.lift(StateT.modify[Id, Store, Store](σ => σ + av))
   } yield ()
+
+  def ask: ReaderT[State, Env, Env] = ReaderT.ask[State, Env]
+
+  def get: ReaderT[State, Env, Store] = ReaderT.lift(StateT.get[Id, Store])
 
   def branch0(test: Value, thn: Expr, els: Expr): Ans =
     if (test == IntV(0)) eval(thn) else eval(els)
@@ -211,11 +211,11 @@ object EnvStoreInterpreter {
   def eval(e: Expr): Ans = e match {
     case Lit(i) => ReaderT.pure(IntV(i))
     case Var(x) => for {
-      ρ <- ReaderT.ask[State, Env]
-      σ <- ReaderT.lift(IndexedStateT.get[Id, Store])
+      ρ <- ask
+      σ <- get
     } yield σ(ρ(x))
     case Lam(x, e) => for {
-      ρ <- ReaderT.ask[State, Env]
+      ρ <- ask
     } yield CloV(Lam(x, e), ρ)
     case App(e1, e2) => for {
       v1 <- eval(e1)
