@@ -380,11 +380,11 @@ trait StagedCESGen extends GenericNestedCodegen {
       //This fixes code generation for tuples, such as Tuple2MapIntValueValue
       //TODO: merge back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
-      val typeName = sym.tp.runtimeClass.getSimpleName + "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      val typeName = sym.tp.runtimeClass.getSimpleName +
+        "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
       emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
     case _ => super.emitNode(sym, rhs)
   }
-
 }
 
 trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
@@ -429,6 +429,7 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
+    SPower.test
     import PCFLang._
     //import EnvInterpreter._
     //println(eval(p1).run(Map()))
@@ -438,7 +439,7 @@ object Main {
 
     val code = specialize(fact5)
     println(code.code)
-    println(code.eval(()))
+    //code.eval(())
 
     //val s = new Snippet()
     //println(s(()))

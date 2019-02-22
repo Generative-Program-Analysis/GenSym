@@ -23,15 +23,20 @@ def power(b: Rep[Int], e: Int): Rep[Int] =
 \end{lstlisting}
 
 If the programmer identifies that @b@ will be known in the future stage (as shown
-on its type @Rep[Int]@ -- a representation of @Int@) and @e@ is known in the
+on its type @Rep[Int]@ -- a representation of @Int@) and @e@ is known at the
 current stage, say 5, then we can specialize the function @power@ with
-respect to @e = 5@ and generate a specialized function that runs faster:
+respect to @e = 5@, and generate a specialized function where the overhead of
+recursion is eliminated. The following is the generated code:
 
 \begin{lstlisting}
-def power5(b: Int) = b * b * b * b * b * 1
+def power5(b: Int) = {
+  val x1 = x0 * x0; val x2 = x0 * x1; val x3 = x0 * x2; val x4 = x0 * x3
+  x4
+}
 \end{lstlisting}
 
-Now consider that we have an interpreter @eval@ for some language as following:
+Now to concretely illustrate the idea of Futamura projection, consider that we
+have an interpreter @eval@ of some language as following:
 
 \begin{lstlisting}
 def eval(e: Expr)(arg: Input): Value = ...
@@ -102,33 +107,35 @@ and abstract interpretation, but from the perspective of their recent
 realizations --- multi-stage programming and definitional abstract interpreters.
 To be specific, we present the application of the first Futamura projection on
 definitional abstract interpreters, which intersects as staged abstract
-interpreters. By borrowing the ideas from \note{monadic interpreters}
-\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17,
-Sergey:2013:MAI:2491956.2491979} and embedded domain-specific languages
-\cite{DBLP:conf/snapl/RompfBLSJAOSKDK15, DBLP:journals/jfp/CaretteKS09,
-DBLP:conf/icfp/GibbonsW14}, we develop an approach to fulfill four different
-semantics (Figure~\ref{confluence}) in a unified framework. The four semantics
-share one same generic interpreter. However, by instantiating the interpreter
-differently, it can behave as a concrete interpreter, an abstracter interperter,
-or their staged versions, respectively. The key idea to enable this flexibility
-is to use abstract type members \note{or type parameters} abstract over concrete/abstract components
-(e.g., concrete values or abstract values) of the interpreter, as well as the
-binding-time (e.g., static or dyanmic).
+interpreters. By borrowing the ideas from monadic interpreters
+\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95,
+DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979} and embedded
+domain-specific languages \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15,
+DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14}, we develop an
+approach to fulfill four different semantics (Figure~\ref{confluence}) in a
+unified framework. The four semantics share one same generic interpreter.
+However, by instantiating the interpreter differently, it can behave as a
+concrete interpreter, an abstracter interperter, or their code-generator
+versions, respectively. The key idea that enables this flexibility is to use
+abstract type members abstract over concrete/abstract components (e.g., concrete
+values or abstract values), as well as the binding-time of them (e.g., static or
+dyanmic). By staging, the overhead caused by the monadic layers is eliminated in
+the generated code.
 
-Besides the intellectual merit of the confluence diagram, this paper contributes
-to a practical problem in static analysis: \textbf{can we speed up a static
-analyzer without any intrusive changes and soundness compromises?} Static
-analysis is known as a trade-off game between \textit{precision} and \textit{efficiency}, we argue
-that applying meta-programming (multi-stage programming, in particular) with
-abstract interpreters is an effective approach to improve the latter one while
-the former one is untouched. Specialization removes the overhead of abstractions
-introduced by high-level programming, but not changes the meaning of the program
--- in this case, the abstract semantics implemented by the analyzer. Indeed,
-specializing analysis with respect to a program by partial evaluation
-\cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587,
-ashley:practical} is not a new idea, despite the fact that most of the previous
-work are ad-hoc on a particular analysis or requiring significant changes to the
-analysis. For example, abstract compilation
+Besides the intellectual merit shown in the confluence diagram, this paper
+contributes to a practical problem in static analysis: \textbf{can we speed up a
+static analyzer without any intrusive changes and soundness compromises?} Static
+analysis is known as a trade-off game between \textit{precision} and
+\textit{efficiency}, we argue that applying meta-programming (multi-stage
+programming, in particular) with abstract interpreters is an effective approach
+to improve the latter one while the former one is untouched. Specialization
+removes the overhead of abstractions introduced by high-level programming, but
+not changes the meaning of the program -- in this case, the abstract semantics
+implemented by the analyzer. Indeed, specializing analysis with respect to a
+program by partial evaluation \cite{damian1999partial, amtoft1999partial,
+Boucher:1996:ACN:647473.727587, ashley:practical} is not a new idea, despite the
+fact that most of the previous work are ad-hoc on a particular analysis or
+requiring significant changes to the analysis. For example, abstract compilation
 \cite{Boucher:1996:ACN:647473.727587} requires the whole analyzer to be
 rewritten as closure generation from. In this paper, we show a systematic
 approach to meta-programming achieves the performance goal with less intrusive
