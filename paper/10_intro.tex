@@ -70,25 +70,24 @@ DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 % \todo{CEK example?}
 
 Now we have seen two orthogonal transformations of interpreters: by
-speclization, we can refactor interpreters to compilers; by abstraction, we can
-refactor interpreters to static analyzers. As an intellectual quest, it is
-natural to ask --- starting from an interpreter, \textbf{can we derive a sound
-abstract interpreter but it works like a compiler and generates fast analysis
-code?} Similar to the concrete interpreter, for an abstract interpreter
-$\widehat{\texttt{eval}}$ that takes a program, an abstract environment and
-returns abstract values, shown as the following:
-
-\begin{lstlisting}
-def $\widehat{\texttt{eval}}$(e: Expr)($\rho$: $\widehat{\texttt{Env}}$): $\widehat{\texttt{Value}}$ = ...
-\end{lstlisting}
-
-Given a program $e_0$ statically, We would like to have a specialized abstract
-interpreter $\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
-\widehat{\texttt{Value}}$, but leave the abstract environment $\rho$ dynamic.
+speclization, we can refactor interpreters to code generators; by abstraction,
+we can refactor interpreters to static analyzers. As an intellectual quest, it
+is natural to ask --- starting from an interpreter, \textbf{can we derive a
+sound abstract interpreter but it works like a code generator which produces fast
+analysis code?} Conceptually, it is similar to the concrete setting: for an
+abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
+\widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
+environment and returns abstract values, we would like to specialize it with
+repsect to a program $e_0$ and produce an code generator
+$\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
+\widehat{\texttt{Value}}$, such that $
+\widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
+\widehat{\texttt{eval}}(e_0)(\widehat{\rho})$, but the staged one leaves the
+abstract environment $\widehat{\rho}$ dynamic.
 
 \begin{figure}[h]
   \begin{tikzpicture}
-  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+  \matrix (m) [matrix of math nodes,row sep=3em,column sep=3em,minimum width=2em]
   {
     \begin{smallmatrix} \text{unstaged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} \\
       \begin{smallmatrix} \text{unstaged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} \\ };
