@@ -5,16 +5,17 @@
 Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
 multi-stage programming framework implemented as a Scala library that enables
 dynamic code generation in a type-safe manner. Different from the syntactic
-approach in MetaOCaml \cite{DBLP:conf/flops/Kiselyov14} that uses quotations,
-LMS distinguishes binding-time solely based on types. LMS provides a type
-constructor @Rep[T]@ where @T@ can be an arbitrary type, indicating an
-expression will be known at next stage. All operations acting on a @Rep[T]@
-expression will be residualized in the generated code. However, we need to
-provide intermediate representation and code generation support for type @T@ to
-LMS. Fortunately, the LMS framework already provides such support for primitive
-types and commonly used data structure such as arrays and maps; implementing
-such support for custom class is also straightforward. Let's go back and see how
-LMS can be used to specialize the power function we mentioned in Section 1.
+approach in MetaOCaml \cite{DBLP:conf/flops/Kiselyov14,
+DBLP:conf/gpce/CalcagnoTHL03} that uses quotations, LMS distinguishes
+binding-time solely based on types. LMS provides a type constructor @Rep[T]@
+where @T@ can be an arbitrary type, indicating an expression will be known at
+next stage. All operations acting on a @Rep[T]@ expression will be residualized
+in the generated code. However, we need to provide intermediate representation
+and code generation support for type @T@ to LMS. Fortunately, the LMS framework
+already provides such support for primitive types and commonly used data
+structure such as arrays and maps; implementing such support for custom class is
+also straightforward. Let's go back and see how LMS can be used to specialize
+the power function we mentioned in Section 1.
 
 \begin{lstlisting}
 new DslDriver[Int, Int] {
