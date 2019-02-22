@@ -291,8 +291,8 @@ trait StagedCESOps extends SAIDsl {
 
   def branch0(test: Rep[Value], thn: Expr, els: Expr): Ans = {
     val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
-    unchecked("if (", i, "==", "0)", eval(thn), "else", eval(els))
-    //if (i == 0) eval(thn) else eval(els)
+    //unchecked("if (", i, "==", "0)", eval(thn), "else", eval(els))
+    if (i == 0) eval(thn) else eval(els)
   }
 
   def close(λ: Lam, ρ: Env): Rep[Value] = {
