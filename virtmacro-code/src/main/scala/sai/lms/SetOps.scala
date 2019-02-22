@@ -9,7 +9,7 @@ import org.scala_lang.virtualized.SourceContext
 /* LMS support for immutable Sets. */
 
 trait SetOps extends Base with Variables {
-  implicit def setTyp[T:Manifest]: Manifest[Set[T]]
+  //implicit def setTyp[T:Manifest]: Manifest[Set[T]]
 
   object Set {
     def apply[A:Manifest](xs: Rep[A]*)(implicit pos: SourceContext) = set_new[A](xs)
@@ -40,9 +40,11 @@ trait SetOps extends Base with Variables {
 }
 
 trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp {
+  /*
   implicit def setTyp[T:Manifest]: Manifest[Set[T]] = {
     manifest[Set[T]]
   }
+  */
 
   //TODO: syms, boundSyms, symsFreq, mirror
 

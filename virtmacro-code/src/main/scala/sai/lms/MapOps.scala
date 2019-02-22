@@ -7,8 +7,8 @@ import org.scala_lang.virtualized.virtualize
 import org.scala_lang.virtualized.SourceContext
 
 /* LMS support for immutable Maps. */
-trait MapOps extends Variables with SetOps {
-  implicit def mapTyp[K:Manifest, V:Manifest]: Manifest[Map[K,V]]
+trait MapOps extends Variables {
+  //implicit def mapTyp[K:Manifest, V:Manifest]: Manifest[Map[K,V]]
 
   object Map {
     def apply[K:Manifest, V:Manifest](kv: (Rep[K],Rep[V])*)(implicit pos: SourceContext) = map_new[K,V](kv)
@@ -51,9 +51,11 @@ trait MapOps extends Variables with SetOps {
 }
 
 trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsExp with SetOpsExp {
+  /*
   implicit def mapTyp[K:Manifest,V:Manifest]: Manifest[Map[K,V]] = {
     manifest[Map[K,V]]
   }
+   */
 
   case class MapEmpty[K:Manifest,V:Manifest](mk: Manifest[K], mv: Manifest[V]) extends Def[Map[K,V]]
   case class MapApply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k: Exp[K]) extends Def[V]

@@ -1,14 +1,17 @@
 package sai
 package lms
 
-import org.scala_lang.virtualized.virtualize
-import org.scala_lang.virtualized.SourceContext
-
-import scala.virtualization.lms.common._
-
 import java.nio._
 import java.nio.file._
 import java.io._
+
+import org.scala_lang.virtualized.virtualize
+import org.scala_lang.virtualized.SourceContext
+import scala.virtualization.lms.common.{
+  ListOps ⇒ _, ListOpsExp ⇒ _, ScalaGenListOps ⇒ _,
+  _}
+
+import sai.lms._
 
 /** This file is adapted from LMS-tutorial.
   * https://github.com/scala-lms/tutorials/blob/master/src/test/scala/lms/tutorial/dslapi.scala
@@ -109,7 +112,7 @@ trait DslExp extends Dsl with PrimitiveOpsExpOpt with NumericOpsExpOpt with Bool
 }
 
 trait DslGen extends ScalaGenNumericOps
-    with ScalaGenPrimitiveOps with ScalaGenBooleanOps // with MyScalaGenIfThenElse
+    with ScalaGenPrimitiveOps with ScalaGenBooleanOps with SAI_ScalaGenIfThenElse
     with ScalaGenEqual with ScalaGenRangeOps with ScalaGenOrderingOps
     with ScalaGenMiscOps with ScalaGenArrayOps with ScalaGenStringOps
     with ScalaGenSeqOps with ScalaGenFunctions with ScalaGenWhile
