@@ -268,16 +268,16 @@ trait StagedCESOps extends SAIDsl {
   //TODO: use liftF instead of lift
 
   def ask: AnsT[Env] = ReaderT.ask[StateT, Env]
-
-  def get: AnsT[Store] = ReaderT.lift(StateT.get[Id, Store])
-
-  def alloc(x: String): AnsT[Rep[Addr]] = for { σ <- get } yield σ.size + 1
-
   def ext_env(x: Rep[String], a: Rep[Addr]): AnsT[Env] = for { ρ <- ask } yield ρ + (x → a)
 
-  def update_store(a: Rep[Addr], v: Rep[Value]): AnsT[Unit] = for {
-    _ <- ReaderT.lift(StateT.modify[Id, Store, Store](σ => σ + (a → v)))
-  } yield ()
+  //TODO: unify alloc
+  def alloc(σ: Store, x: String): Rep[Addr] = ???
+  def alloc(x: String): AnsT[Rep[Addr]] = for { σ <- get } yield σ.size + 1
+
+  def get: AnsT[Store] = ReaderT.lift(StateT.get[Id, Store])
+  def put(σ: Store): AnsT[Unit] = ReaderT.lift(StateT.set[Id, Store, Store](σ))
+  def update_store(a: Rep[Addr], v: Rep[Value]): AnsT[Unit] =
+    ReaderT.lift(StateT.modify[Id, Store, Store](σ => σ + (a → v)))
 
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
     val v1n = unchecked(v1, ".asInstanceOf[IntV].i")
@@ -291,8 +291,14 @@ trait StagedCESOps extends SAIDsl {
 
   def branch0(test: Rep[Value], thn: Expr, els: Expr): Ans = {
     val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
-    //unchecked("if (", i, "==", "0)", eval(thn), "else", eval(els))
-    if (i == 0) eval(thn) else eval(els)
+    for {
+      σ <- get
+      ρ <- ask
+      val res: Rep[(Store0, Value)] =
+        if (i == 0) eval(thn).run(ρ).runF(σ)
+        else eval(els).run(ρ).runF(σ)
+      _ <- put(res._1)
+    } yield res._2
   }
 
   def close(λ: Lam, ρ: Env): Rep[Value] = {
@@ -305,6 +311,7 @@ trait StagedCESOps extends SAIDsl {
       }
     unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
   }
+
   def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans
 
   def eval(e: Expr): Ans = e match {
@@ -358,7 +365,7 @@ trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
   def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans = for {
     σ <- get
     val res: Rep[(Store0, Value)] = reflectEffect(ApClo(fun, arg, σ))
-    _ <- ReaderT.lift(StateT.set[Id, Store, Store](res._1))
+    _ <- put(res._1)
   } yield res._2
 }
 
@@ -397,8 +404,7 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
     override def emitSource[A : Manifest](args: List[Sym[_]], body: Block[A], className: String,
                                           stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
       val prelude = """
-  package sai
-  import PCFLang._
+  import sai.PCFLang._
   sealed trait Value
   case class IntV(i: Int) extends Value
   case class CompiledClo(f: (Map[Int,Value], Value) => (Map[Int,Value], Value), λ: Lam, ρ: Map[String,Int]) extends Value
@@ -432,7 +438,7 @@ object Main {
 
     val code = specialize(fact5)
     println(code.code)
-    //println(code.eval(()))
+    println(code.eval(()))
 
     //val s = new Snippet()
     //println(s(()))
