@@ -19,6 +19,14 @@ object NDTest {
       _ <- StateT.stateTMonadState[Store, NondetT].modify(s => s + (x -> y))
     } yield x + y
 
+    val b: Ans = for {
+      s <- StateT.stateTMonadState[Store, NondetT].get
+      x <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(4,5,6)))
+      y <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(1,2,3)))
+      _ <- StateT.stateTMonadState[Store, NondetT].modify(s => s + (x -> y))
+    } yield x * y
+
     println(a.run(Map()))
+
   }
 }
