@@ -202,7 +202,7 @@ trait StagedCESOps extends SAIDsl {
   def ask_env: AnsT[Env] = ReaderT.ask[StateT, Env]
   def ext_env(x: Rep[String], a: Addr): AnsT[Env] = for { ρ <- ask_env } yield ρ + (x → a)
 
-  def alloc_aux(σ: Store, x: String): Rep[Addr0] = σ.size + 1
+  def alloc(σ: Store, x: String): Rep[Addr0] = σ.size + 1
   def alloc(x: String): AnsT[Addr] = for { σ <- get_store } yield σ.size + 1
 
   def put_store(σ: Store): AnsT[Unit] = MonadTrans[ReaderT].liftM[StateT, Unit](State.put(σ))
@@ -237,7 +237,7 @@ trait StagedCESOps extends SAIDsl {
     val f: Rep[(Store0, Value)] => Rep[(Store0, Value)] = {
       case as: Rep[(Store0, Value)] =>
         val σ = as._1; val v = as._2
-        val α = alloc_aux(σ, x)
+        val α = alloc(σ, x)
         eval(e).run(ρ + (unit(x) → α)).run(σ + (α → v))
     }
     unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
@@ -355,6 +355,8 @@ object AbsInterpreter {
   case object IntTop extends AbsValue
   case class CloV[Env](lam: Lam, env: Env) extends AbsValue
 
+  type Value = Set[AbsValue]
+
   type Ident = String
   case class Addr(x: String)
   type Env = Map[Ident, Addr]
@@ -368,25 +370,91 @@ object AbsInterpreter {
   type AnsT[T] = ReaderT[StateNondetT, T]
   type Ans = AnsT[Value]
 
+  def ask_env: AnsT[Env] = ReaderT.ask[StateNondetT, Env]
+  def ext_env(x: String, a: Addr): AnsT[Env] = for { ρ <- ask_env } yield ρ + (x → a)
+  def local_env(e: Expr, ρ: Env): Ans = for {
+    rt <- eval(e).local[Env](_ => ρ)
+  } yield rt
+
+  def get_store: AnsT[Store] =
+    MonadTrans[ReaderT].liftMU(StateT.stateTMonadState[Store, NondetT].get)
+  def put_store(σ: Store): AnsT[Unit] =
+    MonadTrans[ReaderT].liftMU(StateT.stateTMonadState[Store, NondetT].put(σ))
+  def update_store(a: Addr, v: Value): AnsT[Unit] =
+    MonadTrans[ReaderT].liftMU(StateT.stateTMonadState[Store, NondetT].modify(σ => σ + (a → (σ.getOrElse(a, Set()) ++ v))))
+
+  def alloc(σ: Store, x: String): Addr = Addr(x)
+  def alloc(x: String): AnsT[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
-    case ('+, IntV(x), IntV(y)) => IntV(x + y)
-    case ('-, IntV(x), IntV(y)) => IntV(x - y)
-    case ('*, IntV(x), IntV(y)) => IntV(x * y)
-    case ('/, IntV(x), IntV(y)) => IntV(x / y)
+    case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
 
-  def num(i: Int): Ans = IntTop.asInstanceOf[Value].pure[AnsT]
+  // TODO: check separate stores! use listTMonadPlus.alt
+  def branch0(test: Value, thn: Expr, els: Expr): Ans = for {
+    v1 <- eval(thn)
+    v2 <- eval(els)
+  } yield v1 ++ v2
+
+  def ap_clo(fun: Value, arg: Value): Ans = {
+
+    for {
+      CloV(Lam(x, e), ρ: Env) <- fun
+      //α <- alloc(x)
+    } yield ???
+
+    ???
+  }
+
+  def num(i: Int): Ans = Set[AbsValue](IntTop).pure[AnsT]
+  def close(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
 
   def eval(e: Expr): Ans = e match {
     case Lit(i) => num(i)
-    case Amb(e1, e2) =>
-    ???
-    case Aop(op, e1, e2) => ???
+    case Var(x) => for {
+      ρ <- ask_env
+      σ <- get_store
+    } yield σ(ρ(x))
+    case Lam(x, e) => for {
+      ρ <- ask_env
+    } yield close(Lam(x, e), ρ)
+    case App(e1, e2) => for {
+      v1 <- eval(e1)
+      v2 <- eval(e2)
+      rt <- ap_clo(v1, v2)
+    } yield rt
+    case Let(x, rhs, e) => for {
+      v <- eval(rhs)
+      α <- alloc(x)
+      _ <- update_store(α, v)
+      ρ <- ext_env(x, α)
+      rt <- local_env(e, ρ)
+    } yield rt
+    case If0(e1, e2, e3) => for {
+      cnd <- eval(e1)
+      rt <- branch0(cnd, e2, e3)
+    } yield rt
+    case Aop(op, e1, e2) => for {
+      v1 <- eval(e1)
+      v2 <- eval(e2)
+    } yield prim(op, v1, v2)
+    case Rec(x, rhs, e) => for {
+      α <- alloc(x)
+      ρ <- ext_env(x, α)
+      v <- local_env(rhs, ρ)
+      _ <- update_store(α, v)
+      rt <- local_env(e, ρ)
+    } yield rt
+    case Amb(e1, e2) => for {
+      v1 <- eval(e1)
+      v2 <- eval(e2)
+    } yield v1 ++ v2
   }
 }
 
 object Main {
   import PCFLang._
+
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
     @virtualize
@@ -398,11 +466,13 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    val code = specialize(fact5)
-    println(code.code)
-    code.eval(())
+    //val code = specialize(fact5)
+    //println(code.code)
+    //code.eval(())
 
     //val s = new Snippet()
     //println(s(()))
+
+    examples.NDTest.test
   }
 }
