@@ -25,7 +25,7 @@ object PCFLang {
   case class Aop(op: Symbol, e1: Expr, e2: Expr) extends CExpr
 
   object Values {
-    sealed trait Value
+    trait Value
     case class IntV(i: Int) extends Value
     case class CloV[Env](lam: Lam, e: Env) extends Value
   }

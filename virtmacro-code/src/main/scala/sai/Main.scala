@@ -16,7 +16,7 @@ import org.scala_lang.virtualized.SourceContext
 import sai.lms._
 import sai.examples._
 
-object EnvInterpreter1 {
+object EnvInterpreter {
   /* An environment interpreter using Reader Monad */
   import PCFLang._
   import PCFLang.Values._
@@ -345,6 +345,43 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
       stream.println(prelude)
       super.emitSource(args, body, className, stream)
     }
+  }
+}
+
+object AbsInterpreter {
+  import PCFLang._
+
+  trait AbsValue
+  case object IntTop extends AbsValue
+  case class CloV[Env](lam: Lam, env: Env) extends AbsValue
+
+  type Ident = String
+  case class Addr(x: String)
+  type Env = Map[Ident, Addr]
+  type Store = Map[Addr, Value]
+
+  type ReaderT[F[_], B] = Kleisli[F, Env, B]
+  type StateT[F[_], B] = IndexedStateT[F, Store, Store, B]
+  type NondetT[T] = ListT[Id, T]
+
+  type StateNondetT[T] = StateT[NondetT, T]
+  type AnsT[T] = ReaderT[StateNondetT, T]
+  type Ans = AnsT[Value]
+
+  def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
+    case ('+, IntV(x), IntV(y)) => IntV(x + y)
+    case ('-, IntV(x), IntV(y)) => IntV(x - y)
+    case ('*, IntV(x), IntV(y)) => IntV(x * y)
+    case ('/, IntV(x), IntV(y)) => IntV(x / y)
+  }
+
+  def num(i: Int): Ans = IntTop.asInstanceOf[Value].pure[AnsT]
+
+  def eval(e: Expr): Ans = e match {
+    case Lit(i) => num(i)
+    case Amb(e1, e2) =>
+    ???
+    case Aop(op, e1, e2) => ???
   }
 }
 
