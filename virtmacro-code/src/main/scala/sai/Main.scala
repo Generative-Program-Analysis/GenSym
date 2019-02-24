@@ -455,7 +455,6 @@ object AbsInterpreterWOCache {
 }
 
 object AbsInterpreter {
-  //TODO: does it have to be open recursion?
   import PCFLang._
 
   trait AbsValue
@@ -475,7 +474,7 @@ object AbsInterpreter {
   type StoreT[F[_], B] = StateT[F, Store, B]
   type NondetT[F[_], B] = ListT[F, B]
   type InCacheT[F[_], B] = Kleisli[F, Cache, B]
-  type OutCacheT[F[_], B] = IndexedStateT[F, Cache, Cache, B]
+  type OutCacheT[F[_], B] = StateT[F, Cache, B]
 
   type OutCacheM[T] = OutCacheT[Id, T]
   type InOutCacheM[T] = InCacheT[OutCacheM, T]
