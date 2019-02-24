@@ -15,6 +15,7 @@ import org.scala_lang.virtualized.SourceContext
 
 import sai.lms._
 import sai.examples._
+import sai.lattices.Lattices._
 
 object EnvInterpreter {
   /* An environment interpreter using Reader Monad */
@@ -485,7 +486,8 @@ object AbsInterpreter {
   def put_store(σ: Store): AnsM[Unit] =
     MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].put(σ))
   def update_store(a: Addr, v: Value): AnsM[Unit] = {
-    MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].modify(σ => σ + (a → (σ.getOrElse(a, Set()) ++ v))))
+    MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].modify(σ =>
+                             σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
   }
 
   def alloc(σ: Store, x: String): Addr = Addr(x)
@@ -541,7 +543,7 @@ object AbsInterpreter {
         MonadTrans[NondetT].liftM[InOutCacheM, Unit](
           MonadTrans[InCacheT].liftM[OutCacheM, Unit](
             StateT.stateTMonadState[Cache, Id].modify(c =>
-              c + (cfg → (c.getOrElse(cfg, Set[(Store, Value)]((Map(), Set()))) ++ Set(sv)))
+              c + (cfg → (c.getOrElse(cfg, Lattice[Set[(Store, Value)]].bot) ⊔ Set(sv)))
             )))))
 
   def put_out_cache(out: Cache): AnsM[Unit] =
@@ -564,7 +566,7 @@ object AbsInterpreter {
         _ <- put_store(s)
       } yield v
     } else {
-      val ans_in: Set[(Store, Value)] = in.getOrElse(cfg, Set())
+      val ans_in = in.getOrElse(cfg, Lattice[Set[(Store, Value)]].bot)
       val out_* = out + (cfg → ans_in)
       for {
         _ <- put_out_cache(out_*)
@@ -621,7 +623,7 @@ object AbsInterpreter {
   val σ0: Store = Map()
   val cache0: Cache = Map()
 
-  def run_wo_cache(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e).run(ρ0).run(σ0).run.run(cache0).run(cache0)
+  def run_wo_cache(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
   def run(e: Expr): (Cache, List[(Store, Value)]) = fix_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
