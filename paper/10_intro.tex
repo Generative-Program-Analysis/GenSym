@@ -50,14 +50,14 @@ projection, we may obtain a specialized interpreter
 $\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$, and by definition of the interpreter, 
 $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $. If we generalize the
 argument @arg@ to an environment (as well as a companion heap object, if for the
-interest of using assginments) that contains values mapped from free variables
+interest of using assignments) that contains values mapped from free variables
 in $e$, the interpreter is a standard environment/store-passing interpreter,
 where the specialization through MSP is also applicable.
 
 Roughly at the same time when Futamura projections was visioned in 1970s,
 \citeauthor{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
 lattice-based semantic approach to construct sound static analysis, by
-approximation of fixpoints \cite{DBLP:conf/popl/CousotC77}. However,
+approximation of fix-points \cite{DBLP:conf/popl/CousotC77}. However,
 constructing sound abstract interpreters was considered abstruse and complicated
 for a long time.
 Recent progress such as Abstracting Abstract Machines (AAM)
@@ -70,7 +70,7 @@ DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 % \todo{CEK example?}
 
 Now we have seen two orthogonal transformations of interpreters: by
-specliazation, we can refactor interpreters to code generators; by approximation,
+specialization, we can refactor interpreters to code generators; by approximation,
 we can refactor interpreters to static analyzers. As an intellectual quest, it
 is natural to ask --- starting from an interpreter, \textbf{can we derive a
 sound abstract interpreter but it works like a code generator which produces fast
@@ -78,12 +78,12 @@ analysis code?} Conceptually, it is similar to the concrete setting: for an
 abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
 \widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
 environment and returns abstract values, we would like to specialize it with
-repsect to a program $e_0$ and produce a compiled analysis
+respect to a program $e_0$ and produce a compiled analysis
 $\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
 \widehat{\texttt{Value}}$, such that $
 \widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
 \widehat{\texttt{eval}}(e_0)(\widehat{\rho})$, but the compiled one leaves the
-abstract environment $\widehat{\rho}$ dynamic.
+abstract environment $\widehat{\rho}$ as remaining input.
 
 \begin{figure}[h]
   \begin{tikzpicture}
@@ -114,11 +114,11 @@ DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14}, we develop an
 approach to fulfill four different semantics (Figure~\ref{confluence}) in a
 unified framework. The four semantics share one same generic interpreter.
 However, by instantiating the interpreter differently, it can behave as a
-concrete interpreter, an abstracter interperter, or their code-generator
+concrete interpreter, an abstracter interpreter, or their code-generator
 versions, respectively. The key idea that enables this flexibility is to use
 abstract type members abstract over concrete/abstract components (e.g., concrete
 values or abstract values), as well as the binding-time of them (e.g., static or
-dyanmic). By staging, the overhead caused by the monadic layers is eliminated in
+dynamic). By staging, the overhead caused by the monadic layers is eliminated in
 the generated code.
 
 Besides the intellectual merit shown in the confluence diagram, this paper
