@@ -597,7 +597,7 @@ object AbsInterpreter {
   val cache0: Cache = Map()
 
   //def run(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e).run(ρ0).run(σ0).run.run(cache0).run(cache0)
-  def run(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
+  def run(e: Expr): (Cache, List[(Store, Value)]) = fix_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
 object Main {
@@ -619,8 +619,13 @@ object Main {
 
     //val s = new Snippet()
     //println(s(()))
-    examples.NDTest.test
+    //examples.NDTest.test
     //examples.NDTest.test2
+
+    val lam = Lam("x", App(Var("x"), Var("x")))
+    val omega = App(lam, lam)
+
+    AbsInterpreter.run(omega)
   }
 
 }
