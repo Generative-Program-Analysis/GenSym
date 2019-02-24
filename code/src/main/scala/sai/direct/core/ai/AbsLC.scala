@@ -283,8 +283,8 @@ object AbstractLC {
     def specialize(p: Expr): DslDriver[Unit, Unit] =
       new RepAbsInterpDriver {
         def snippet(unit: Rep[Unit]): Rep[Unit] = {
-          //val (v, s) = eval_top(p)
-          val (v, s) = eval_top_nocache(p)
+          val (v, s) = eval_top(p)
+          //val (v, s) = eval_top_nocache(p)
           println(v); println(s)
         }
       }
@@ -299,13 +299,13 @@ object AbstractLC {
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
     val omega = App(lam, lam)
 
-    //println(AbsInterp.eval_top(id4))
-    //println(AbsInterp.eval_top(omega))
-    //println(AbsInterp.eval_top(fact5))
+    println(AbsInterp.eval_top(id4))
+    println(AbsInterp.eval_top(omega))
+    println(AbsInterp.eval_top(fact5))
 
-    val code = specialize(omega)
-    println(code.code)
-    code.eval(())
+    //val code = specialize(omega)
+    //println(code.code)
+    //code.eval(())
 
     val p1 = Let("x", Lit(1),
                  AOp('+,

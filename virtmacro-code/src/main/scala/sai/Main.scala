@@ -484,8 +484,9 @@ object AbsInterpreter {
     MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].get)
   def put_store(σ: Store): AnsM[Unit] =
     MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].put(σ))
-  def update_store(a: Addr, v: Value): AnsM[Unit] =
+  def update_store(a: Addr, v: Value): AnsM[Unit] = {
     MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].modify(σ => σ + (a → (σ.getOrElse(a, Set()) ++ v))))
+  }
 
   def alloc(σ: Store, x: String): Addr = Addr(x)
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
@@ -522,10 +523,34 @@ object AbsInterpreter {
   type EvalFun = Expr => Ans
   def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
 
-  def ask_in_cache: AnsM[Cache] = ???
-  def get_out_cache: AnsM[Cache] = ???
-  def update_out_cache(cfg: Config, sv: (Store,Value)): AnsM[Unit] = ???
-  def put_out_cache(out: Cache): AnsM[Unit] = ???
+  def ask_in_cache: AnsM[Cache] = MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Cache](
+    MonadTrans[StoreT].liftM[NdInOutCacheM, Cache](
+      MonadTrans[NondetT].liftM[InOutCacheM, Cache](
+        Kleisli.ask[OutCacheM, Cache]
+      )))
+
+  def get_out_cache: AnsM[Cache] = MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Cache](
+    MonadTrans[StoreT].liftM[NdInOutCacheM, Cache](
+      MonadTrans[NondetT].liftM[InOutCacheM, Cache](
+        MonadTrans[InCacheT].liftM[OutCacheM, Cache](
+          StateT.stateTMonadState[Cache, Id].get
+        ))))
+  def update_out_cache(cfg: Config, sv: (Store,Value)): AnsM[Unit] =
+    MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Unit](
+      MonadTrans[StoreT].liftM[NdInOutCacheM, Unit](
+        MonadTrans[NondetT].liftM[InOutCacheM, Unit](
+          MonadTrans[InCacheT].liftM[OutCacheM, Unit](
+            StateT.stateTMonadState[Cache, Id].modify(c =>
+              c + (cfg → (c.getOrElse(cfg, Set[(Store, Value)]((Map(), Set()))) ++ Set(sv)))
+            )))))
+
+  def put_out_cache(out: Cache): AnsM[Unit] =
+    MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Unit](
+      MonadTrans[StoreT].liftM[NdInOutCacheM, Unit](
+        MonadTrans[NondetT].liftM[InOutCacheM, Unit](
+          MonadTrans[InCacheT].liftM[OutCacheM, Unit](
+            StateT.stateTMonadState[Cache, Id].put(out)
+          ))))
 
   def fix_cache(ev: EvalFun => EvalFun): EvalFun = e => for {
     ρ <- ask_env
@@ -539,13 +564,13 @@ object AbsInterpreter {
         _ <- put_store(s)
       } yield v
     } else {
-      val ans_in: Set[(Store, Value)] = in.getOrElse(cfg, Set((Map(), Set())))
+      val ans_in: Set[(Store, Value)] = in.getOrElse(cfg, Set())
       val out_* = out + (cfg → ans_in)
       for {
         _ <- put_out_cache(out_*)
         v <- ev(fix_cache(ev))(e)
         σ <- get_store
-        _ <- put_out_cache(out_* + (cfg → (out_*(cfg) ++ Set((σ, v)))))
+        _ <- update_out_cache(cfg, (σ, v))
       } yield v
     }
   } yield rt
@@ -596,7 +621,7 @@ object AbsInterpreter {
   val σ0: Store = Map()
   val cache0: Cache = Map()
 
-  //def run(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e).run(ρ0).run(σ0).run.run(cache0).run(cache0)
+  def run_wo_cache(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e).run(ρ0).run(σ0).run.run(cache0).run(cache0)
   def run(e: Expr): (Cache, List[(Store, Value)]) = fix_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
@@ -625,7 +650,8 @@ object Main {
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)
 
-    AbsInterpreter.run(omega)
+    //println(AbsInterpreter.run_wo_cache(id4)._2)
+    println(AbsInterpreter.run(id4)._2)
   }
 
 }

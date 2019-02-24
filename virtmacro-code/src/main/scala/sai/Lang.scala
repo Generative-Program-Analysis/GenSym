@@ -40,4 +40,16 @@ object PCFLang {
                      Lit(1),
                      Aop('*, Var("n"), App(Var("fact"), Aop('-, Var("n"), Lit(1))))))
   val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
+
+  val id3 = App(Lam("x",
+                    App(Var("x"), Var("x"))),
+                Lam("y", Var("y")))
+
+  // ((λ (x) ((x x) x)) (λ (y) y))
+  val id4 = App(Lam("x",
+                    App(App(Var("x"), Var("x")),
+                        Var("x"))),
+                Lam("y", Var("y")))
 }
+
+
