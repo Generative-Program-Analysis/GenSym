@@ -460,7 +460,7 @@ object AbsInterpreter {
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
   type Config = (Expr, Env, Store)
-  type Cache = Map[Config, (Store, Value)]
+  type Cache = Map[Config, Set[(Store, Value)]]
 
   type EnvT[F[_], B] = Kleisli[F, Env, B]
   type StoreT[F[_], B] = StateT[F, Store, B]
@@ -505,14 +505,14 @@ object AbsInterpreter {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
 
-  def lift_value(v: Value): AnsM[AbsValue] =
-    MonadTrans[EnvT].liftM[StoreNdInOutCacheM, AbsValue](
-      MonadTrans[StoreT].liftM[NdInOutCacheM, AbsValue](
-        ListT.fromList[InOutCacheM, AbsValue](v.toList.pure[InOutCacheM])
+  def lift_nd[T](vs: List[T]): AnsM[T] =
+    MonadTrans[EnvT].liftM[StoreNdInOutCacheM, T](
+      MonadTrans[StoreT].liftM[NdInOutCacheM, T](
+        ListT.fromList[InOutCacheM, T](vs.pure[InOutCacheM])
       ))
 
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
-    CloV(Lam(x, e), ρ: Env) <- lift_value(fun)
+    CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
     α <- alloc(x)
     ρ <- ext_env(x, α)
     _ <- update_store(α, arg)
@@ -521,7 +521,34 @@ object AbsInterpreter {
 
   type EvalFun = Expr => Ans
   def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
-  //TODO: add cache
+
+  def ask_in_cache: AnsM[Cache] = ???
+  def get_out_cache: AnsM[Cache] = ???
+  def update_out_cache(cfg: Config, sv: (Store,Value)): AnsM[Unit] = ???
+  def put_out_cache(out: Cache): AnsM[Unit] = ???
+
+  def fix_cache(ev: EvalFun => EvalFun): EvalFun = e => for {
+    ρ <- ask_env
+    σ <- get_store
+    val cfg = (e, ρ, σ)
+    in <- ask_in_cache
+    out <- get_out_cache
+    rt <- if (out.contains(cfg)) {
+      for {
+        (s, v) <- lift_nd[(Store, Value)](out(cfg).toList)
+        _ <- put_store(s)
+      } yield v
+    } else {
+      val ans_in: Set[(Store, Value)] = in.getOrElse(cfg, Set((Map(), Set())))
+      val out_* = out + (cfg → ans_in)
+      for {
+        _ <- put_out_cache(out_*)
+        v <- ev(fix_cache(ev))(e)
+        σ <- get_store
+        _ <- put_out_cache(out_* + (cfg → (out_*(cfg) ++ Set((σ, v)))))
+      } yield v
+    }
+  } yield rt
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
@@ -586,13 +613,14 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    val code = specialize(fact5)
-    println(code.code)
-    code.eval(())
+    //val code = specialize(fact5)
+    //println(code.code)
+    //code.eval(())
 
     //val s = new Snippet()
     //println(s(()))
-
+    examples.NDTest.test
     //examples.NDTest.test2
   }
+
 }

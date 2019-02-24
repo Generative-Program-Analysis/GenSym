@@ -12,12 +12,18 @@ object NDTest {
     type AnsT[T] = StateT[NondetT, T]
     type Ans = AnsT[Int]
 
+    val some_data: List[(Store, Int)] = List((Map(99 -> 99), 99), (Map(98 -> 98), 98))
+
     val a: Ans = for {
       s <- StateT.stateTMonadState[Store, NondetT].get
-      x <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(1,2,3)))
-      y <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(4,5,6)))
-      _ <- StateT.stateTMonadState[Store, NondetT].modify(s => s + (x -> y))
-    } yield x + y
+      x <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(1,2)))
+      y <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(4,5)))
+      //_ <- StateT.stateTMonadState[Store, NondetT].modify(s => s + (x -> y))
+      // inject some data
+      d <- MonadTrans[StateT].liftM[NondetT, (Store, Int)](ListT.fromList[Id, (Store, Int)](some_data))
+      _ <- StateT.stateTMonadState[Store, NondetT].put(d._1)
+      val z = d._2
+    } yield z
 
     val b: Ans = for {
       s <- StateT.stateTMonadState[Store, NondetT].get
@@ -30,7 +36,8 @@ object NDTest {
       v <- StateT.stateTMonadPlus[Store, NondetT].plus(a, b)
     } yield v
 
-    println(c.run(Map[Int, Int](-1 -> -1, -2 -> -2)))
+    println(a.run(Map[Int, Int](-1 -> -1)).run)
+    //println(c.run(Map[Int, Int](-1 -> -1)))
   }
 
   def test2() = {
