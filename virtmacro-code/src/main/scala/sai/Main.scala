@@ -41,8 +41,8 @@ object EnvInterpreter {
 
   def ap_clo(fun: Value, arg: Value): Ans = fun match { case CloV(Lam(x, e), ρ: Env) => eval(e).local[Env](_ => ρ + (x → arg)) }
 
-  def branch0(test: Value, thn: Expr, els: Expr): Ans =
-    if (test == IntV(0)) eval(thn) else eval(els)
+  def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
+    if (test == IntV(0)) thn else els
 
   def eval(e: Expr): Ans = e match {
     case Lit(i) => num(i)
@@ -64,7 +64,7 @@ object EnvInterpreter {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
-      rt <- branch0(cnd, e2, e3)
+      rt <- branch0(cnd, eval(e2), eval(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- eval(e1)
@@ -103,9 +103,7 @@ object EnvStoreInterpreter {
   def close(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
   def num(i: Int): Ans = IntV(i).asInstanceOf[Value].pure[AnsM]
 
-  def local_env(e: Expr, ρ: Env): Ans = for {
-    rt <- eval(e).local[Env](_ => ρ)
-  } yield rt
+  def local_env(e: Expr, ρ: Env): Ans = eval(e).local[Env](_ => ρ)
 
   def ap_clo(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
@@ -116,8 +114,8 @@ object EnvStoreInterpreter {
     } yield rt
   }
 
-  def branch0(test: Value, thn: Expr, els: Expr): Ans =
-    if (test == IntV(0)) eval(thn) else eval(els)
+  def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
+    if (test == IntV(0)) thn else els
 
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case ('+, IntV(x), IntV(y)) => IntV(x + y)
@@ -149,7 +147,7 @@ object EnvStoreInterpreter {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
-      rt <- branch0(cnd, e2, e3)
+      rt <- branch0(cnd, eval(e2), eval(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- eval(e1)
@@ -212,18 +210,14 @@ trait StagedCESOps extends SAIDsl {
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
   }
 
-  def local_env(e: Expr, ρ: Env): Ans = for {
-    rt <- eval(e).local[Env](_ => ρ)
-  } yield rt
+  def local_env(e: Expr, ρ: Env): Ans = eval(e).local[Env](_ => ρ)
 
-  def branch0(test: Rep[Value], thn: Expr, els: Expr): Ans = {
+  def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
     for {
       ρ <- ask_env
       σ <- get_store
-      val res: Rep[(Store0, Value)] =
-        if (i == 0) eval(thn).run(ρ).run(σ)
-        else eval(els).run(ρ).run(σ)
+      val res: Rep[(Store0, Value)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
       _ <- put_store(res._1)
     } yield res._2
   }
@@ -266,7 +260,7 @@ trait StagedCESOps extends SAIDsl {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
-      rt <- branch0(cnd, e2, e3)
+      rt <- branch0(cnd, eval(e2), eval(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- eval(e1)
@@ -370,9 +364,7 @@ object AbsInterpreterWOCache {
 
   def ask_env: AnsM[Env] = Kleisli.ask[StateNdM, Env]
   def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
-  def local_env(e: Expr, ρ: Env): Ans = for {
-    rt <- eval(e).local[Env](_ => ρ)
-  } yield rt
+  def local_env(e: Expr, ρ: Env): Ans = eval(e).local[Env](_ => ρ)
 
   def get_store: AnsM[Store] =
     MonadTrans[EnvT].liftMU(StateT.stateTMonadState[Store, NondetM].get)
@@ -388,10 +380,10 @@ object AbsInterpreterWOCache {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
 
-  def join(e1: Expr, e2: Expr, ρ: Env): StateNdM[Value] =
-    StateT.stateTMonadPlus[Store, NondetM].plus(eval(e1)(ρ), eval(e2)(ρ))
+  def join(e1: => Ans, e2: => Ans, ρ: Env): StateNdM[Value] =
+    StateT.stateTMonadPlus[Store, NondetM].plus(e1(ρ), e2(ρ))
 
-  def branch0(test: Value, thn: Expr, els: Expr): Ans = for {
+  def branch0(test: Value, thn: => Ans, els: => Ans): Ans = for {
     ρ <- ask_env
     v <- MonadTrans[EnvT].liftM[StateNdM, Value](join(thn, els, ρ))
   } yield v
@@ -430,7 +422,7 @@ object AbsInterpreterWOCache {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
-      rt <- branch0(cnd, e2, e3)
+      rt <- branch0(cnd, eval(e2), eval(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- eval(e1)
@@ -486,38 +478,50 @@ object AbsInterpreter {
 
   def ask_env: AnsM[Env] = Kleisli.ask[StoreNdInOutCacheM, Env]
   def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
-  def local_env(e: Expr, ρ: Env): Ans = for {
-    rt <- eval(e).local[Env](_ => ρ)
-  } yield rt
+  def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ev(e).local[Env](_ => ρ)
 
-
-  def get_store: AnsM[Store] = ???
-  def put_store(σ: Store): AnsM[Unit] = ???
-  def update_store(a: Addr, v: Value): AnsM[Unit] = ???
+  def get_store: AnsM[Store] =
+    MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].get)
+  def put_store(σ: Store): AnsM[Unit] =
+    MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].put(σ))
+  def update_store(a: Addr, v: Value): AnsM[Unit] =
+    MonadTrans[EnvT].liftM(StateT.stateTMonadState[Store, NdInOutCacheM].modify(σ => σ + (a → (σ.getOrElse(a, Set()) ++ v))))
 
   def alloc(σ: Store, x: String): Addr = Addr(x)
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
+  def join(e1: => Ans, e2: => Ans, ρ: Env): StoreNdInOutCacheM[Value] =
+    StateT.stateTMonadPlus[Store, NdInOutCacheM].plus(e1(ρ), e2(ρ))
+
+  def branch0(test: Value, thn: => Ans, els: => Ans): Ans = for {
+    ρ <- ask_env
+    v <- MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Value](join(thn, els, ρ))
+  } yield v
+
+  def num(i: Int): Ans = Set[AbsValue](IntTop).pure[AnsM]
+  def close(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
 
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
 
-  def join(e1: Expr, e2: Expr, ρ: Env): StoreNdInOutCacheM[Value] = ???
+  def lift_value(v: Value): AnsM[AbsValue] =
+    MonadTrans[EnvT].liftM[StoreNdInOutCacheM, AbsValue](
+      MonadTrans[StoreT].liftM[NdInOutCacheM, AbsValue](
+        ListT.fromList[InOutCacheM, AbsValue](v.toList.pure[InOutCacheM])
+      ))
 
-  def branch0(test: Value, thn: Expr, els: Expr): Ans = for {
-    ρ <- ask_env
-    v <- MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Value](join(thn, els, ρ))
-  } yield v
+  def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
+    CloV(Lam(x, e), ρ: Env) <- lift_value(fun)
+    α <- alloc(x)
+    ρ <- ext_env(x, α)
+    _ <- update_store(α, arg)
+    rt <- local_env(ev)(e, ρ)
+  } yield rt
 
-  def ap_clo(fun: Value, arg: Value): Ans = ???
-
-  def num(i: Int): Ans = Set[AbsValue](IntTop).pure[AnsM]
-  def close(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
-
-  type EvalFun = (Expr) => Ans
-
+  type EvalFun = Expr => Ans
+  def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
   //TODO: add cache
-  def fix(ev: EvalFun => EvalFun): EvalFun = (e) => ev(fix(ev))
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
@@ -531,18 +535,18 @@ object AbsInterpreter {
     case App(e1, e2) => for {
       v1 <- ev(e1)
       v2 <- ev(e2)
-      rt <- ap_clo(v1, v2)
+      rt <- ap_clo(ev)(v1, v2)
     } yield rt
     case Let(x, rhs, e) => for {
       v <- ev(rhs)
       α <- alloc(x)
       _ <- update_store(α, v)
       ρ <- ext_env(x, α)
-      rt <- local_env(e, ρ)
+      rt <- local_env(ev)(e, ρ)
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
-      rt <- branch0(cnd, e2, e3)
+      rt <- branch0(cnd, ev(e2), ev(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)
@@ -551,9 +555,9 @@ object AbsInterpreter {
     case Rec(x, rhs, e) => for {
       α <- alloc(x)
       ρ <- ext_env(x, α)
-      v <- local_env(rhs, ρ)
+      v <- local_env(ev)(rhs, ρ)
       _ <- update_store(α, v)
-      rt <- local_env(e, ρ)
+      rt <- local_env(ev)(e, ρ)
     } yield rt
     case Amb(e1, e2) => for {
       v1 <- ev(e1)
@@ -564,7 +568,9 @@ object AbsInterpreter {
   val ρ0: Env = Map()
   val σ0: Store = Map()
   val cache0: Cache = Map()
-  def run(e: Expr): List[(Store, Value)] = fix(eval)(e).run(ρ0).run(σ0).run(cache0).run(cache0)
+
+  //def run(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e).run(ρ0).run(σ0).run.run(cache0).run(cache0)
+  def run(e: Expr): (Cache, List[(Store, Value)]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
 object Main {
@@ -580,13 +586,13 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    //val code = specialize(fact5)
-    //println(code.code)
-    //code.eval(())
+    val code = specialize(fact5)
+    println(code.code)
+    code.eval(())
 
     //val s = new Snippet()
     //println(s(()))
 
-    examples.NDTest.test2
+    //examples.NDTest.test2
   }
 }
