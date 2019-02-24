@@ -484,6 +484,88 @@ object AbsInterpreter {
   type AnsM[T] = EnvT[StoreNdInOutCacheM, T]
 
   type Ans = AnsM[Value] // EnvT[StateT[NondetT[InCacheT[OutCacheT[Id, ?], ?], ?], ?], Value]
+
+  def ask_env: AnsM[Env] = Kleisli.ask[StoreNdInOutCacheM, Env]
+  def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
+  def local_env(e: Expr, ρ: Env): Ans = for {
+    rt <- eval(e).local[Env](_ => ρ)
+  } yield rt
+
+
+  def get_store: AnsM[Store] = ???
+  def put_store(σ: Store): AnsM[Unit] = ???
+  def update_store(a: Addr, v: Value): AnsM[Unit] = ???
+
+  def alloc(σ: Store, x: String): Addr = Addr(x)
+  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
+  def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
+    case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
+  }
+
+  def join(e1: Expr, e2: Expr, ρ: Env): StoreNdInOutCacheM[Value] = ???
+
+  def branch0(test: Value, thn: Expr, els: Expr): Ans = for {
+    ρ <- ask_env
+    v <- MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Value](join(thn, els, ρ))
+  } yield v
+
+  def ap_clo(fun: Value, arg: Value): Ans = ???
+
+  def num(i: Int): Ans = Set[AbsValue](IntTop).pure[AnsM]
+  def close(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
+
+  type EvalFun = (Expr) => Ans
+
+  //TODO: add cache
+  def fix(ev: EvalFun => EvalFun): EvalFun = (e) => ev(fix(ev))
+
+  def eval(ev: EvalFun)(e: Expr): Ans = e match {
+    case Lit(i) => num(i)
+    case Var(x) => for {
+      ρ <- ask_env
+      σ <- get_store
+    } yield σ(ρ(x))
+    case Lam(x, e) => for {
+      ρ <- ask_env
+    } yield close(Lam(x, e), ρ)
+    case App(e1, e2) => for {
+      v1 <- ev(e1)
+      v2 <- ev(e2)
+      rt <- ap_clo(v1, v2)
+    } yield rt
+    case Let(x, rhs, e) => for {
+      v <- ev(rhs)
+      α <- alloc(x)
+      _ <- update_store(α, v)
+      ρ <- ext_env(x, α)
+      rt <- local_env(e, ρ)
+    } yield rt
+    case If0(e1, e2, e3) => for {
+      cnd <- ev(e1)
+      rt <- branch0(cnd, e2, e3)
+    } yield rt
+    case Aop(op, e1, e2) => for {
+      v1 <- ev(e1)
+      v2 <- ev(e2)
+    } yield prim(op, v1, v2)
+    case Rec(x, rhs, e) => for {
+      α <- alloc(x)
+      ρ <- ext_env(x, α)
+      v <- local_env(rhs, ρ)
+      _ <- update_store(α, v)
+      rt <- local_env(e, ρ)
+    } yield rt
+    case Amb(e1, e2) => for {
+      v1 <- ev(e1)
+      v2 <- ev(e2)
+    } yield v1 ++ v2
+  }
+
+  val ρ0: Env = Map()
+  val σ0: Store = Map()
+  val cache0: Cache = Map()
+  def run(e: Expr): List[(Store, Value)] = fix(eval)(e).run(ρ0).run(σ0).run(cache0).run(cache0)
 }
 
 object Main {
