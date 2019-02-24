@@ -84,23 +84,21 @@ object EnvStoreInterpreter {
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
 
-  type ReaderT[F[_], B] = Kleisli[F, Env, B]
-  val ReaderT = Kleisli
-  type StateT[F[_], B] = IndexedStateT[F, Store, Store, B]
-  val StateT = IndexedStateT
+  type EnvT[F[_], B] = Kleisli[F, Env, B]
+  type StoreT[F[_], B] = StateT[F, Store, B]
 
-  type StateM[T] = StateT[Id, T]
-  type AnsM[T] = ReaderT[StateM, T]
+  type StoreM[T] = StoreT[Id, T]
+  type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Value]
 
-  def ask_env: AnsM[Env] = ReaderT.ask[StateM, Env]
+  def ask_env: AnsM[Env] = Kleisli.ask[StoreM, Env]
   def ext_env(xv: (String, Addr)): AnsM[Env] = for { ρ <- ask_env } yield ρ + xv
 
-  def get_store: AnsM[Store] = MonadTrans[ReaderT].liftM[StateM, Store](State.get)
+  def get_store: AnsM[Store] = MonadTrans[EnvT].liftM[StoreM, Store](State.get)
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
 
   def update_store(av: (Addr, Value)): AnsM[Unit] =
-    MonadTrans[ReaderT].liftM[StateM, Unit](State.modify(σ => σ + av))
+    MonadTrans[EnvT].liftM[StoreM, Unit](State.modify(σ => σ + av))
 
   def close(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
   def num(i: Int): Ans = IntV(i).asInstanceOf[Value].pure[AnsM]
@@ -190,25 +188,23 @@ trait StagedCESOps extends SAIDsl {
   type Store0 = Map[Addr0, Value]
   type Store = Rep[Store0]
 
-  type ReaderT[F[_], B] = Kleisli[F, Env, B]
-  val ReaderT = Kleisli
-  type StateT[F[_], B] = IndexedStateT[Id, Store, Store, B]
-  val StateT = IndexedStateT
+  type EnvT[F[_], B] = Kleisli[F, Env, B]
+  type StoreT[F[_], B] = StateT[Id, Store, B]
 
-  type StateM[T] = StateT[Id, T]
-  type AnsM[T] = ReaderT[StateM, T]
+  type StoreM[T] = StoreT[Id, T]
+  type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Rep[Value]]
 
-  def ask_env: AnsM[Env] = ReaderT.ask[StateM, Env]
+  def ask_env: AnsM[Env] = Kleisli.ask[StoreM, Env]
   def ext_env(x: Rep[String], a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
 
   def alloc(σ: Store, x: String): Rep[Addr0] = σ.size + 1
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
 
-  def put_store(σ: Store): AnsM[Unit] = MonadTrans[ReaderT].liftM[StateM, Unit](State.put(σ))
-  def get_store: AnsM[Store] = MonadTrans[ReaderT].liftM[StateM, Store](State.get)
+  def put_store(σ: Store): AnsM[Unit] = MonadTrans[EnvT].liftM[StoreM, Unit](State.put(σ))
+  def get_store: AnsM[Store] = MonadTrans[EnvT].liftM[StoreM, Store](State.get)
   def update_store(a: Addr, v: Rep[Value]): AnsM[Unit] =
-    MonadTrans[ReaderT].liftM[StateM, Unit](State.modify(σ => σ + (a → v)))
+    MonadTrans[EnvT].liftM[StoreM, Unit](State.modify(σ => σ + (a → v)))
 
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
     val v1n = unchecked(v1, ".asInstanceOf[IntV].i")
@@ -362,27 +358,28 @@ object AbsInterpreterWOCache {
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
 
-  type ReaderT[F[_], B] = Kleisli[F, Env, B]
-  type StateT[F[_], B] = IndexedStateT[F, Store, Store, B]
+  type EnvT[F[_], B] = Kleisli[F, Env, B]
+  type StoreT[F[_], B] = StateT[F, Store, B]
   type NondetT[F[_], B] = ListT[F, B]
 
   type NondetM[T] = NondetT[Id, T]
-  type StateTNondetM[T] = StateT[NondetM, T]
-  type AnsM[T] = ReaderT[StateTNondetM, T] // ReaderT[StateT[ListT[Id, ?], ?], T]
-  type Ans = AnsM[Value]
+  type StateNdM[T] = StoreT[NondetM, T]
+  type AnsM[T] = EnvT[StateNdM, T]
 
-  def ask_env: AnsM[Env] = ReaderT.ask[StateTNondetM, Env]
+  type Ans = AnsM[Value] // EnvT[StoreT[NondetT[Id, ?], ?], Value]
+
+  def ask_env: AnsM[Env] = Kleisli.ask[StateNdM, Env]
   def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
   def local_env(e: Expr, ρ: Env): Ans = for {
     rt <- eval(e).local[Env](_ => ρ)
   } yield rt
 
   def get_store: AnsM[Store] =
-    MonadTrans[ReaderT].liftMU(StateT.stateTMonadState[Store, NondetM].get)
+    MonadTrans[EnvT].liftMU(StateT.stateTMonadState[Store, NondetM].get)
   def put_store(σ: Store): AnsM[Unit] =
-    MonadTrans[ReaderT].liftMU(StateT.stateTMonadState[Store, NondetM].put(σ))
+    MonadTrans[EnvT].liftMU(StateT.stateTMonadState[Store, NondetM].put(σ))
   def update_store(a: Addr, v: Value): AnsM[Unit] =
-    MonadTrans[ReaderT].liftMU(StateT.stateTMonadState[Store, NondetM].modify(σ => σ + (a → (σ.getOrElse(a, Set()) ++ v))))
+    MonadTrans[EnvT].liftMU(StateT.stateTMonadState[Store, NondetM].modify(σ => σ + (a → (σ.getOrElse(a, Set()) ++ v))))
 
   def alloc(σ: Store, x: String): Addr = Addr(x)
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
@@ -391,16 +388,16 @@ object AbsInterpreterWOCache {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
 
-  def join(e1: Expr, e2: Expr, ρ: Env): StateTNondetM[Value] =
+  def join(e1: Expr, e2: Expr, ρ: Env): StateNdM[Value] =
     StateT.stateTMonadPlus[Store, NondetM].plus(eval(e1)(ρ), eval(e2)(ρ))
 
   def branch0(test: Value, thn: Expr, els: Expr): Ans = for {
     ρ <- ask_env
-    v <- MonadTrans[ReaderT].liftM[StateTNondetM, Value](join(thn, els, ρ))
+    v <- MonadTrans[EnvT].liftM[StateNdM, Value](join(thn, els, ρ))
   } yield v
 
   def ap_clo(fun: Value, arg: Value): Ans = for {
-    CloV(Lam(x, e), ρ: Env) <- MonadTrans[ReaderT].liftM[StateTNondetM, AbsValue](MonadTrans[StateT].liftMU(ListT.fromList[Id, AbsValue](fun.toList)))
+    CloV(Lam(x, e), ρ: Env) <- MonadTrans[EnvT].liftM[StateNdM, AbsValue](MonadTrans[StoreT].liftMU(ListT.fromList[Id, AbsValue](fun.toList)))
     α <- alloc(x)
     ρ <- ext_env(x, α)
     _ <- update_store(α, arg)
@@ -451,16 +448,46 @@ object AbsInterpreterWOCache {
       v2 <- eval(e2)
     } yield v1 ++ v2
   }
+
+  val ρ0: Env = Map()
+  val σ0: Store = Map()
+  def run(e: Expr): List[(Store, Value)] = eval(e).run(ρ0).run(σ0).run
 }
 
 object AbsInterpreter {
-  //TODO: add cache monad transformer
   //TODO: does it have to be open recursion?
+  import PCFLang._
+
+  trait AbsValue
+  case object IntTop extends AbsValue
+  case class CloV[Env](lam: Lam, env: Env) extends AbsValue
+
+  type Value = Set[AbsValue]
+
+  type Ident = String
+  case class Addr(x: String)
+  type Env = Map[Ident, Addr]
+  type Store = Map[Addr, Value]
+  type Config = (Expr, Env, Store)
+  type Cache = Map[Config, (Store, Value)]
+
+  type EnvT[F[_], B] = Kleisli[F, Env, B]
+  type StoreT[F[_], B] = StateT[F, Store, B]
+  type NondetT[F[_], B] = ListT[F, B]
+  type InCacheT[F[_], B] = Kleisli[F, Cache, B]
+  type OutCacheT[F[_], B] = IndexedStateT[F, Cache, Cache, B]
+
+  type OutCacheM[T] = OutCacheT[Id, T]
+  type InOutCacheM[T] = InCacheT[OutCacheM, T]
+  type NdInOutCacheM[T] = NondetT[InOutCacheM, T]
+  type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
+  type AnsM[T] = EnvT[StoreNdInOutCacheM, T]
+
+  type Ans = AnsM[Value] // EnvT[StateT[NondetT[InCacheT[OutCacheT[Id, ?], ?], ?], ?], Value]
 }
 
 object Main {
   import PCFLang._
-
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
     @virtualize

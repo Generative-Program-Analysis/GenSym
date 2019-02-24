@@ -86,7 +86,8 @@ object NDTest {
       v <- StateT.stateTMonadPlus[Store, NondetM].plus(a, b)
     } yield v
 
-    println(c.run(Map()).run(Map()).run(Map()))
+    val result: (Cache, List[(Store, Int)]) = c.run(Map()).run(Map()).run(Map())
+    println(result)
 
   }
 }
