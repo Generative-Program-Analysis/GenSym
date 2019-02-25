@@ -1,14 +1,14 @@
 package sai
 package lms
 
-import scala.virtualization.lms.common._
+import scala.virtualization.lms.common.{ListOps => _, ListOpsExp => _, _}
 import scala.virtualization.lms.internal.GenericNestedCodegen
 import org.scala_lang.virtualized.virtualize
 import org.scala_lang.virtualized.SourceContext
 
 /* LMS support for immutable Sets. */
 
-trait SetOps extends Base with Variables {
+trait SetOps extends Base with Variables with ListOps {
   //implicit def setTyp[T:Manifest]: Manifest[Set[T]]
 
   object Set {
@@ -26,6 +26,7 @@ trait SetOps extends Base with Variables {
     def union(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_union(s, s1)
     def subsetOf(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_subsetof(s, s1)
     def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = set_foldLeft(s, z, f)
+    def toList()(implicit pos: SourceContext) = set_toList(s)
   }
 
   def set_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext): Rep[Set[A]]
@@ -37,9 +38,10 @@ trait SetOps extends Base with Variables {
   def set_union[A:Manifest](s1: Rep[Set[A]], s2: Rep[Set[A]])(implicit pos: SourceContext): Rep[Set[A]]
   def set_subsetof[A:Manifest](s1: Rep[Set[A]], s2: Rep[Set[A]])(implicit pos: SourceContext): Rep[Boolean]
   def set_foldLeft[A:Manifest,B:Manifest](s: Rep[Set[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
+  def set_toList[A:Manifest](s: Rep[Set[A]])(implicit pos: SourceContext): Rep[List[A]]
 }
 
-trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp {
+trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp with ListOpsExp {
   /*
   implicit def setTyp[T:Manifest]: Manifest[Set[T]] = {
     manifest[Set[T]]
@@ -57,6 +59,8 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
   case class SetUnion[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]]) extends Def[Set[A]]
   case class SetSubsetOf[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]]) extends Def[Boolean]
   case class SetFoldLeft[A:Manifest,B:Manifest](s: Exp[Set[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
+  case class SetToList[A:Manifest](s: Exp[Set[A]]) extends Def[List[A]]
+
   def set_new[A:Manifest](xs: Seq[Exp[A]])(implicit pos: SourceContext) = SetNew(xs, manifest[A])
   def set_concat[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetConcat(s1, s2)
   def set_isEmpty[A:Manifest](s: Exp[Set[A]])(implicit pos: SourceContext) = SetIsEmpty(s)
@@ -71,6 +75,7 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
     val b = reifyEffects(f(acc, x))
     reflectEffect(SetFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
   }
+  def set_toList[A:Manifest](s: Exp[Set[A]])(implicit pos: SourceContext) = SetToList(s)
 
   override def syms(e: Any): List[Sym[Any]] = e match {
     case SetFoldLeft(s, z, acc, x, b) => syms(s) ::: syms(z) ::: syms(b)
@@ -109,6 +114,7 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
             |${nestedBlock(blk)}
             |$blk
             |}"""
+    case SetToList(s) => emitValDef(sym, src"$s.toList")
     case _ => super.emitNode(sym, rhs)
   }
 }

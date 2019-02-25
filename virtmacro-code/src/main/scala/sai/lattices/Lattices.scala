@@ -6,6 +6,11 @@ import scala.language.higherKinds
 import scala.language.implicitConversions
 import scala.Double.{NegativeInfinity, PositiveInfinity}
 
+import org.scala_lang.virtualized.virtualize
+import org.scala_lang.virtualized.SourceContext
+
+import sai.{SAIDsl, SAIOpsExp}
+
 object DisUnion {
   type ¬[A] = A ⇒ Nothing
   type ∨[A, B] = ¬[¬[A] with ¬[B]]
@@ -20,6 +25,58 @@ trait NumAbsDomain {
   def -(that: AD): AD
   def *(that: AD): AD
   def /(that: AD): AD
+}
+
+trait RepLattices { self: SAIDsl =>
+  import Lattices._
+
+  trait RepLattice[A] extends GenericLattice[Rep, A]
+
+  object RepLattice {
+    def apply[L](implicit l: RepLattice[L]): RepLattice[L] = l
+  }
+
+  implicit class RepLatticeOps[L: RepLattice](l: Rep[L]) {
+    lazy val bot: Rep[L] = RepLattice[L].bot
+    lazy val top: Rep[L] = RepLattice[L].top
+    def ⊑(that: Rep[L]): Rep[Boolean] = RepLattice[L].⊑(l, that)
+    def ⊔(that: Rep[L]): Rep[L] = RepLattice[L].⊔(l, that)
+    def ⊓(that: Rep[L]): Rep[L] = RepLattice[L].⊓(l, that)
+  }
+
+  implicit def RepSetLattice[T:Manifest]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
+    lazy val bot: Rep[Set[T]] = Set[T]()
+    lazy val top: Rep[Set[T]] = throw new RuntimeException("No representation of top power set")
+    def ⊑(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Boolean] = l1 subsetOf l2
+    def ⊔(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 union l2
+    def ⊓(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 intersect l2
+  }
+
+  implicit def RepMapLattice[K:Manifest, V:Manifest:RepLattice]: RepLattice[Map[K, V]] = new RepLattice[Map[K, V]] {
+    lazy val bot: Rep[Map[K, V]] = Map.empty[K, V]
+    lazy val top: Rep[Map[K, V]] = throw new RuntimeException("No representation of top map")
+    def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = ???
+      /* FIXME
+    {
+      m1.foreach { case (k: Rep[K],v: Rep[V]) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
+      true
+    }
+       */
+    def ⊔(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
+      m2.foldLeft (m1) { case (m, (k, v)) ⇒ m + ((k, m.getOrElse(k, v.bot) ⊔ v)) }
+    def ⊓(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
+      (m1.keySet intersect m2.keySet).foldLeft (Map[K, V]()) {
+        case (m_*, k) ⇒ m_* + ((k, m1(k) ⊓ m2(k)))
+      }
+  }
+
+  implicit def RepProductLattice[A:Manifest:RepLattice, B:Manifest:RepLattice]: RepLattice[(A, B)] = new RepLattice[(A, B)] {
+    lazy val bot: Rep[(A, B)] = (RepLattice[A].bot, RepLattice[B].bot)
+    lazy val top: Rep[(A, B)] = (RepLattice[A].top, RepLattice[B].top)
+    def ⊑(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[Boolean] = RepLattice[A].⊑(l1._1, l2._1) && RepLattice[B].⊑(l1._2, l2._2)
+    def ⊔(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] = (RepLattice[A].⊔(l1._1, l2._1), RepLattice[B].⊔(l1._2, l2._2))
+    def ⊓(l1: Rep[(A, B)], l2: Rep[(A, B)]): Rep[(A, B)] = (RepLattice[A].⊓(l1._1, l2._1), RepLattice[B].⊓(l1._2, l2._2))
+  }
 }
 
 object Lattices {
@@ -120,7 +177,7 @@ object Lattices {
     }
   }
 
-  def main(args: Array[String]) {
+  def test() {
     // Test sets as lattices
     val s1 = Set[Int](1,2,3)
     val s2 = Set[Int](3,4,5)
