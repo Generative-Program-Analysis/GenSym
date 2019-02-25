@@ -504,7 +504,7 @@ object AbsInterpreter {
   } yield v
 
   def num(i: Int): Ans = Set[AbsValue](IntTop).pure[AnsM]
-  def close(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
+  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
 
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
@@ -586,7 +586,7 @@ object AbsInterpreter {
     } yield σ(ρ(x))
     case Lam(x, e) => for {
       ρ <- ask_env
-    } yield close(Lam(x, e), ρ)
+    } yield close(ev)(Lam(x, e), ρ)
     case App(e1, e2) => for {
       v1 <- ev(e1)
       v2 <- ev(e2)
@@ -697,12 +697,32 @@ trait StagedAbsInterpter extends SAIDsl with RepLattices {
 
   def num(i: Int): Ans = unchecked[Value0]("Set[AbsValue](IntTop)").pure[AnsM] //Note: generate code
 
-  def close(λ: Lam, ρ: Env): Value = ???
+  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = {
+    val Lam(x, e) = λ
+    val f: Rep[(Cache0, Cache0, (Store0, Value0))] => Rep[(Cache0, List[(Store0, Value0)])] = {
+      case as: Rep[(Cache0, Cache0, (Store0, Value0))] =>
+        val in = as._1; val out = as._2;
+        val svs = as._3; val σ = svs._1; val v = svs._2
+        val α = alloc(σ, x)
+        val res: Rep[(Cache0, List[(Store0, Value0)])] = /* FIXME: current List is not staged */
+          ev(e)(ρ + (unit(x) → α))(σ + (α → v /* TODO: join */)).run(in)(out)
+        ???
+    }
+    unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+  }
 
   def prim(op: Symbol, v1: Value, v2: Value): Value = unchecked[Value0]("Set[AbsValue](IntTop)") //Note: generate code
 
-
-  def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = ???
+  def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans
+    /*
+    for {
+      CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
+      α <- alloc(x)
+      ρ <- ext_env(x, α)
+      _ <- update_store(α, arg)
+      rt <- local_env(ev)(e, ρ)
+    } yield rt
+     */
 
   def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
 
@@ -718,6 +738,7 @@ trait StagedAbsInterpter extends SAIDsl with RepLattices {
         MonadTrans[InCacheT].liftM[OutCacheM, Cache](
           StateT.stateTMonadState[Cache, Id].get
         ))))
+
   def update_out_cache(cfg: Config, sv: (Store,Value)): AnsM[Unit] =
     MonadTrans[EnvT].liftM[StoreNdInOutCacheM, Unit](
       MonadTrans[StoreT].liftM[NdInOutCacheM, Unit](
@@ -777,7 +798,7 @@ trait StagedAbsInterpter extends SAIDsl with RepLattices {
     } yield σ(ρ(x))
     case Lam(x, e) => for {
       ρ <- ask_env
-    } yield close(Lam(x, e), ρ)
+    } yield close(ev)(Lam(x, e), ρ)
     case App(e1, e2) => for {
       v1 <- ev(e1)
       v2 <- ev(e2)
