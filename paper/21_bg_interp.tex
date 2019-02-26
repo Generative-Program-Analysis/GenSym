@@ -1,8 +1,8 @@
 \subsection{Abstract Syntax} \label{bg_lang}
 
-We consider a call-by-value $\lambda$-calculus in direct-style, but extended
+We consider a call-by-value $\lambda$-calculus in direct-style, extended
 with numbers, arithmetics, recursions and conditionals. Other effectful features
-such as assignments also can be supported easily; in Section~\ref{cases_imp}, we
+such as assignments can also be supported readily. In Section~\ref{cases_imp}, we
 will add more imperative features to the language. Since we are mostly
 interested in analyzing the dynamic behaviors of the program, we disguised any
 static semantics and type system. We also assume that input programs are
@@ -20,7 +20,7 @@ case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
 case class AOp(op: String, e1: Expr, e2: Expr) extends Expr // primitives
 \end{lstlisting}
 
-We give the concrete semantics of \TLang by showing a big-step definitional
+We will give the concrete semantics using a big-step definitional
 interpreter. The interpreter is a recursive function that takes the program AST,
 environment and store, and returns the evaluated value and the accompanied
 store. The environment is a mapping from identifiers to addresses, and the store
