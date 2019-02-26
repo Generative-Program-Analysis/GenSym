@@ -13,6 +13,7 @@ import sai.lms._
 trait SAIDsl extends Dsl
     with MapOps
     with SetOps
+    with ListOps
     with TupleOps
     with UncheckedOps
     with TupledFunctions
@@ -20,6 +21,7 @@ trait SAIDsl extends Dsl
 trait SAIOpsExp extends DslExp
     with MapOpsExp
     with SetOpsExp
+    with ListOpsExp
     with TupleOpsExp
     with UncheckedOpsExp
     with TupledFunctionsRecursiveExp

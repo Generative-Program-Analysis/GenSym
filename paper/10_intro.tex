@@ -12,10 +12,12 @@ relies on the dynamic part. However, given an arbitrary program, precisely
 analyzing its binding-time is hard in general. As an alternative and pragmatic
 approach to specialization and partial evaluation, multi-stage programming (MSP
 for short) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the stage
-annotations (i.e., binding-time annotations) to be explicit from the programmers.
+annotations (i.e., binding-time annotations) to be explicit from the
+programmers. The stage annotations can be either syntactic (as in
+MetaML/MetaOCaml, through quasi-quote, escape, etc.) or type-based \todo{cite}.
 These staging annotations identify which part of the inputs should be
-specialized. As a classical example, we use the power function to introduce
-the idea of MSP:
+specialized. As a classical example, we use the power function and type-based
+annotations to introduce the idea of MSP:
 
 \begin{lstlisting}
 def power(b: Rep[Int], e: Int): Rep[Int] = 
@@ -26,13 +28,10 @@ If the programmer identifies that @b@ will be known in the future stage (as show
 on its type @Rep[Int]@ -- a representation of @Int@) and @e@ is known at the
 current stage, say 5, then we can specialize the function @power@ with
 respect to @e = 5@, and generate a specialized function where the overhead of
-recursion is eliminated. The following is the generated code:
+recursion is eliminated. Conceptually, the generated code looks like the following:
 
 \begin{lstlisting}
-def power5(b: Int) = {
-  val x1 = b * b; val x2 = b * x1; val x3 = b * x2; val x4 = b * x3
-  x4
-}
+def power5(b: Int) = b * b * b * b * b
 \end{lstlisting}
 
 Now to concretely illustrate the idea of Futamura projection, consider that we
@@ -66,8 +65,9 @@ concrete counterparts, where the soundness can be easily established by
 examining the transformation of semantics.
 The AAM approach also has been been applied to different variants of
 definitional interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
-DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
-% \todo{CEK example?}
+  DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}. 
+
+\paragraph{Futamura Projection of Abstract Interpreters}
 
 Now we have seen two orthogonal transformations of interpreters: by
 specialization, we can refactor interpreters to code generators; by approximation,
@@ -110,7 +110,7 @@ interpreters. By borrowing the ideas from monadic interpreters
 \cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95,
 DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979} and embedded
 domain-specific languages \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15,
-DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14}, we develop an
+DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14, Hofer:2008:PED:1449913.1449935}, we develop an
 approach to fulfill four different semantics (Figure~\ref{confluence}) in a
 unified framework. The four semantics share one same generic interpreter.
 However, by instantiating the interpreter differently, it can behave as a
@@ -119,7 +119,9 @@ versions, respectively. The key idea that enables this flexibility is to use
 abstract type members abstract over concrete/abstract components (e.g., concrete
 values or abstract values), as well as the binding-time of them (e.g., static or
 dynamic). By staging, the overhead caused by the monadic layers is eliminated in
-the generated code.
+the generated code. 
+
+\paragraph{Performant via Specialization}
 
 Besides the intellectual merit shown in the confluence diagram, this paper
 contributes to a practical problem in static analysis: \textbf{can we speed up a
@@ -141,6 +143,8 @@ approach to meta-programming achieves the performance goal with less intrusive
 changes; in fact, a case study (Section~\ref{cs_ac}) comparing with abstract
 compilation shows, by utilizing type-based stage annotations, the analyzer
 program does not need any changes.
+
+\paragraph{Modularity via Meta-Programming}
 
 \todo{modular analysis: a whole-program abstract
   interpreter can be run on different components of program separately, we

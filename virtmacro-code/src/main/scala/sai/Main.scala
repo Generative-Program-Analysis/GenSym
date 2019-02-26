@@ -704,8 +704,8 @@ trait StagedAbsInterpter extends SAIDsl with RepLattices {
         val in = as._1; val out = as._2;
         val svs = as._3; val σ = svs._1; val v = svs._2
         val α = alloc(σ, x)
-        val res: Rep[(Cache0, List[(Store0, Value0)])] = /* FIXME: current List is not staged */
-          ev(e)(ρ + (unit(x) → α))(σ + (α → v /* TODO: join */)).run(in)(out)
+        //val res: Rep[(Cache0, List[(Store0, Value0)])] = /* FIXME: current List is not staged */
+        //  ev(e)(ρ + (unit(x) → α))(σ + (α → v /* TODO: join */)).run(in)(out)
         ???
     }
     unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
