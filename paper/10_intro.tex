@@ -21,7 +21,7 @@ annotations to introduce the idea of MSP:
 
 \begin{lstlisting}
 def power(b: Rep[Int], e: Int): Rep[Int] = 
-  if (e == 0) 1 else e * power(b, e-1)
+  if (e == 0) 1 else b * power(b, e - 1)
 \end{lstlisting}
 
 If the programmer identifies that @b@ will be known in the future stage (as shown
@@ -31,7 +31,7 @@ respect to @e = 5@, and generate a specialized function where the overhead of
 recursion is eliminated. Conceptually, the generated code looks like the following:
 
 \begin{lstlisting}
-def power5(b: Int) = b * b * b * b * b
+def power5(b: Int): Int = b * b * b * b * b
 \end{lstlisting}
 
 Now to concretely illustrate the idea of Futamura projection, consider that we
@@ -72,9 +72,9 @@ definitional interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
 Now we have seen two orthogonal transformations of interpreters: by
 specialization, we can refactor interpreters to code generators; by approximation,
 we can refactor interpreters to static analyzers. As an intellectual quest, it
-is natural to ask --- starting from an interpreter, \textbf{can we derive a
-sound abstract interpreter but it works like a code generator which produces fast
-analysis code?} Conceptually, it is similar to the concrete setting: for an
+is natural to ask --- starting from an interpreter, \textit{can we derive a
+sound abstract interpreter while it produces fast code that does the analysis?}
+Conceptually, it is similar to the concrete setting: for an
 abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
 \widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
 environment and returns abstract values, we would like to specialize it with
@@ -124,7 +124,7 @@ the generated code.
 \paragraph{Performant via Specialization}
 
 Besides the intellectual merit shown in the confluence diagram, this paper
-contributes to a practical problem in static analysis: \textbf{can we speed up a
+contributes to a practical problem in static analysis: \textit{can we speed up a
 static analyzer without any intrusive changes and soundness compromises?} Static
 analysis is known as a trade-off game between \textit{precision} and
 \textit{efficiency}, we argue that applying meta-programming (multi-stage

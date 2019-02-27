@@ -4,6 +4,14 @@ package examples
 import scalaz._
 import Scalaz._
 
+import scala.virtualization.lms.internal.GenericNestedCodegen
+import scala.virtualization.lms.common.{
+  SetOps => _, SetOpsExp => _, ScalaGenSetOps => _,
+  ListOps => _, ListOpsExp => _, ScalaGenListOps => _,
+  _}
+import org.scala_lang.virtualized.virtualize
+import org.scala_lang.virtualized.SourceContext
+
 object NDTest {
   def test() = {
     type Store = Map[Int, Int]
@@ -96,5 +104,49 @@ object NDTest {
     val result: (Cache, List[(Store, Int)]) = c.run(Map()).run(Map()).run(Map())
     println(result)
 
+  }
+}
+
+object RepListTExample {
+  trait ExampleOps extends SAIDsl with RepListTransfomer {
+    type Store0 = Map[Int, Int]
+    type Cache0 = Map[String, Set[String]]
+
+    type Store = Rep[Store0]
+    type Cache = Rep[Cache0]
+
+    type OutCacheT[F[_], B] = StateT[F, Cache, B]
+    type NondetT[F[_], B] = RepListT[F, B]
+    type StoreT[F[_], B] = StateT[F, Store, B]
+
+    type OutCacheM[T] = OutCacheT[Id, T]
+    type NondetM[T] = NondetT[OutCacheM, T]
+    type AnsM[T] = StoreT[NondetM, T]
+    type Ans = AnsM[Int]
+
+    def RepListLiftM[G[_], A: Manifest](a: G[Rep[A]])(implicit G: Monad[G]): RepListT[G, A] =
+      RepListT(G.map(a)(entry => List(entry)))
+
+    def get_outcache: AnsM[Cache] = {
+      val fa = StateT.stateTMonadState[Cache, Id].get
+      val ga = RepListT[OutCacheM, Cache0](fa.map((entry: Cache) => List(entry)))
+      val f: Store => RepListT[OutCacheM, (Store0, Cache0)] =
+        (s: Store) => ga.map((a: Cache) => {
+                               val res: Rep[(Store0, Cache0)] = (s, a)
+                               res
+                             })
+      StateT[NondetM, Store, Cache](f)
+      // other monads uses Rep type, add pass into NondetT, where only takes non-Rep type.
+      // TODO: rewrite StateT to use Rep type internally
+      // Or, rewrite NonDetT takes Rep type, but unwrap the Rep type automatically
+      ???
+    }
+
+    def update_outcache(k: String, v: String): AnsM[Unit] = ???
+
+    val a: Ans = for {
+      x <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(1,2).pure[OutCacheM]))
+      y <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(4,5).pure[OutCacheM]))
+    } yield x + y
   }
 }

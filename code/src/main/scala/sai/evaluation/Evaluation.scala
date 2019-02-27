@@ -12,7 +12,7 @@ object Evaluation extends AbsLamCalTrait {
 
   def main(args: Array[String]) {
     val progs = List(
-      boyer
+      //boyer
       //euclid,
       //euclid_imp
       //kcfa32

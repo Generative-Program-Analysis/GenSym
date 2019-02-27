@@ -20,6 +20,13 @@ case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
 case class AOp(op: String, e1: Expr, e2: Expr) extends Expr // primitives
 \end{lstlisting}
 
+The abstract syntax we present in fact can be seen as a deep embedding of the
+language -- we use datatypes to represent programs. This design choice makes us
+easily add different interpretations over the AST; with the inheritance and
+overriding mechanism in Scala, we may also add new language construct and reuse
+the existing interpretation.
+
+\iffalse
 We will give the concrete semantics using a big-step definitional
 interpreter. The interpreter is a recursive function that takes the program AST,
 environment and store, and returns the evaluated value and the accompanied
@@ -30,8 +37,66 @@ environment-and-store-passing style big-step interpreter is standard and can
 also be obtained by refunctionalizing \cite{DBLP:conf/ppdp/AgerBDM03,
 Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 \cite{DBLP:conf/popl/FelleisenF87}.
+\fi
+
+\subsection{Monads in Scala}
+
+In Scala, thanks for its nature that combines functional programming and
+object-oriented programming, we may use traits and objects to implement monads.
+A trait poses monadic operations as abstract methods that objects extending it
+should implement. An object encapsulates the data and implements monadic methods
+that operate on these data. The monadic @bind@ operation is usually called
+@flatMap@ in Scala. For example, the following trait @Monad@ declares the
+@return@ and @flatMap@ operation:
+
+\begin{lstlisting}
+  trait Monad[F[_]] {
+    def return[A](a: => A): F[A]
+    def flatMap[A,B](fa: F[A])(f: A => F[B]): F[B]
+  }
+\end{lstlisting}
+
+An object may encapsulate the data of type @F[A]@ and only provide
+@flatMap(f: A => F[B]): F[B]@. This allows us to utilize the for-comprehensions in
+Scala, which provide special syntactic support for moandic @flatMap@.
+For example, a list object of element type @A@ is a monad and it implements the
+methods @flatMap[B](f: A => List[B]): List[B]@ and @map[B](f: A => B): List[B]@.
+To compute the Cartesian product of two lists of numbers, we may directly call
+@flatMap@ and pass an anonymous function that internally calls the monadic
+@return@ operation (the @List@ constructor in this case):
+
+\begin{lstlisting}
+  val xs = List(1, 2); val ys = List(4, 5)
+  xs.flatMap(x => ys.flatMap(y => List((x, y)))) // List((1,4), (1,5), (2,4), (2,5))
+\end{lstlisting}
+
+Or, we can use for-comprehensions that computes the same value:
+
+\begin{lstlisting}
+  for {x <- xs; y <- ys} yield (x, y) // List((1,4), (1,5), (2,4), (2,5))
+\end{lstlisting}
+
+The Scala compiler will translate the above for-comprehension expression into
+an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}:
+
+\begin{lstlisting}
+  xs.flatMap { case x => ys.map { case y => (x, y) } }
+\end{lstlisting}
+
+In the rest of the paper, we will use for-comprehension syntax for monadic
+operations, the implementation of monads and monad transformers essentially
+borrows the ground-truth from Haskell.
 
 \subsection{Generic Interface} \label{generic_if}
+
+Monads provide an elegant and extensible way to build
+interpreters\cite{DBLP:conf/popl/LiangHJ95, Steele:1994:BIC:174675.178068,
+Wadler:1992:EFP:143165.143169}, and recently the approach has been extended to
+abstract interpreters \cite{Sergey:2013:MAI:2491956.2491979,
+DBLP:journals/pacmpl/DaraisLNH17}. In section, with the multi-stage programming
+and abstract interpretation in mind, we use moandic operations to construct an
+generic interface in the style of big-step definitional interpreter.
+
 
 Before showing the actual implementation of the concrete semantics, let us first
 consider a generic interface for the interpreters, which is semantics-agnostic

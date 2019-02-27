@@ -298,11 +298,12 @@ object AbstractLC {
                        AOp('*, Var("n"), App(Var("fact"), AOp('-, Var("n"), Lit(1))))))
     val fact5 = Rec("fact", fact, App(Var("fact"), Lit(5)))
     val omega = App(lam, lam)
-
+  
+    /*
     println(AbsInterp.eval_top(id4))
     println(AbsInterp.eval_top(omega))
     println(AbsInterp.eval_top(fact5))
-
+    */
     //val code = specialize(omega)
     //println(code.code)
     //code.eval(())
@@ -313,8 +314,8 @@ object AbstractLC {
                              Lit(2),
                              Lit(3)),
                      Lit(4)))
-    //val code = specialize(p1)
-    //println(code.code)
+    val code = specialize(fact5)
+    println(code.code)
     //code.eval(())
   }
 }
