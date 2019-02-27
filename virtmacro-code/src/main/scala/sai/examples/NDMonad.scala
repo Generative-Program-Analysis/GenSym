@@ -12,6 +12,8 @@ import scala.virtualization.lms.common.{
 import org.scala_lang.virtualized.virtualize
 import org.scala_lang.virtualized.SourceContext
 
+import sai.lms._
+
 object NDTest {
   def test() = {
     type Store = Map[Int, Int]
@@ -108,6 +110,7 @@ object NDTest {
 }
 
 object RepListTExample {
+  @virtualize
   trait ExampleOps extends SAIDsl with RepListTransfomer {
     type Store0 = Map[Int, Int]
     type Cache0 = Map[String, Set[String]]
@@ -128,25 +131,52 @@ object RepListTExample {
       RepListT(G.map(a)(entry => List(entry)))
 
     def get_outcache: AnsM[Cache] = {
-      val fa = StateT.stateTMonadState[Cache, Id].get
+      //val fa = StateT.stateTMonadState[Cache, Id].get
+      val fa = StateT[Id, Cache, Cache]((s: Cache) => (s, s))
       val ga = RepListT[OutCacheM, Cache0](fa.map((entry: Cache) => List(entry)))
       val f: Store => RepListT[OutCacheM, (Store0, Cache0)] =
         (s: Store) => ga.map((a: Cache) => {
                                val res: Rep[(Store0, Cache0)] = (s, a)
                                res
                              })
-      StateT[NondetM, Store, Cache](f)
+      StateT[NondetM, Store, Cache](f.asInstanceOf[Store => NondetM[(Store, Cache)]])
       // other monads uses Rep type, add pass into NondetT, where only takes non-Rep type.
       // TODO: rewrite StateT to use Rep type internally
       // Or, rewrite NonDetT takes Rep type, but unwrap the Rep type automatically
-      ???
     }
 
     def update_outcache(k: String, v: String): AnsM[Unit] = ???
 
     val a: Ans = for {
-      x <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(1,2).pure[OutCacheM]))
-      y <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(4,5).pure[OutCacheM]))
-    } yield x + y
+      out <- get_outcache
+      //x <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(1,2).pure[OutCacheM]))
+      //y <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(4,5).pure[OutCacheM]))
+    } yield 1
+  }
+
+  trait ExampleOpsExp extends ExampleOps with SAIOpsExp
+
+  trait ExampleGen extends GenericNestedCodegen {
+    val IR: ExampleOpsExp
+    import IR._
+  }
+
+  trait ExampleDriver extends DslDriver[Unit, Unit] with ExampleOpsExp { q =>
+    override val codegen = new DslGen
+        with ScalaGenMapOps
+        with ScalaGenSetOps
+        with ScalaGenUncheckedOps
+        with SAI_ScalaGenTupleOps
+        with SAI_ScalaGenTupledFunctions
+        with ExampleGen {
+      val IR: q.type = q
+    }
+  }
+
+  def test(): DslDriver[Unit, Unit] = new ExampleDriver {
+    @virtualize
+    def snippet(unit: Rep[Unit]): Rep[Unit] = {
+      println(a.run(Map()).run.run(Map()))
+    }
   }
 }

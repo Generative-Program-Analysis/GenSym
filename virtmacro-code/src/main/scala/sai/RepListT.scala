@@ -14,6 +14,45 @@ import org.scala_lang.virtualized.SourceContext
 
 import sai.lms._
 
+trait RepListTransfomer2 extends SAIDsl {
+
+  case class RepListT[M[_], RA, A: Manifest](run: M[Rep[List[A]]]) {
+    def ::(a: RA)(implicit M: Functor[M]): RepListT[M, RA, A] =
+      new RepListT(M.map(run)(list => a.asInstanceOf[Rep[A]] :: list))
+    def isEmpty(implicit M: Functor[M]): M[Rep[Boolean]] = M.map(run)(_.isEmpty)
+    def filter(p: RA => Rep[Boolean])(implicit M: Functor[M]): RepListT[M, RA, A] =
+      new RepListT(M.map(run)(_.filter(p.asInstanceOf[Rep[A] => Rep[Boolean]])))
+    def take(n: Rep[Int])(implicit M: Functor[M]): RepListT[M, RA, A] =
+      new RepListT(M.map(run)(_.take(n)))
+    def ++(bs: => RepListT[M, RA, A])(implicit M: Bind[M]): RepListT[M, RA, A] =
+      new RepListT(M.bind(run) { list1: Rep[List[A]] =>
+                     M.map(bs.run) { list2: Rep[List[A]] =>
+                       list1 ++ list2
+                     }})
+    def flatMap[RB, B: Manifest](f: RA => RepListT[M, RB, B])(implicit M: Monad[M]): RepListT[M, RB, B] =
+      new RepListT(M.bind(run) { list: Rep[List[A]] =>
+                     ??? //list.foldMap(f)
+                   })
+    def flatMapF[RB, B: Manifest](f: RA => M[Rep[List[B]]])(implicit M: Monad[M]): RepListT[M, RB, B] =
+      flatMap(a => RepListT(f(a)))
+    def map[RB, B: Manifest](f: RA => RB)(implicit M: Functor[M]): RepListT[M, RB, B] =
+      new RepListT(M.map(run)(_.map(f.asInstanceOf[Rep[A] => Rep[B]])))
+    def mapF[RB, B: Manifest](f: RA => M[Rep[B]])(implicit M: Monad[M]): RepListT[M, RB, B] =
+      flatMapF { a => M.map(f(a))(b => List(b)) }
+    def mapT[F[_], RB, B: Manifest](f: M[Rep[List[A]]] => F[Rep[List[B]]]): RepListT[F, RB, B] =
+      RepListT(f(run))
+    def tail(implicit M: Functor[M]): RepListT[M, RA, A] = new RepListT(M.map(run)(_.tail))
+    def foldLeft[RB, B: Manifest](z: RB)(f: (=> RB, => RA) => RB)(implicit M: Functor[M]): M[Rep[B]] =
+      M.map(run) { list =>
+        val f1 = f.asInstanceOf[(=> Rep[B], => Rep[A]) => Rep[B]]
+        list.foldLeft(z.asInstanceOf[Rep[B]]){ (left, right) => f1(left, right) }
+      }
+    def toRepList: M[Rep[List[A]]] = run
+    def length(implicit M: Functor[M]): M[Rep[Int]] = M.map(run)(_.length)
+  }
+
+}
+
 trait RepListTransfomer extends SAIDsl {
   case class RepListT[M[_], A: Manifest](run: M[Rep[List[A]]]) {
     // TODO: uncons
@@ -154,12 +193,14 @@ trait RepListTransfomer extends SAIDsl {
 
   private trait RepListTMonadPlus[F[_]] extends MonadPlus[RepListT[F, ?]] with RepListTFunctor[F] {
     implicit def F: Monad[F]
-
     //def bind[A: Manifest, B: Manifest](fa: RepListT[F, A])(f: Rep[A] => RepListT[F, B]): RepListT[F, B] = ??? // fa flatMap f
     def bind[A, B](fa: RepListT[F, A])(f: A => RepListT[F, B]): RepListT[F, B] = ??? // fa flatMap f
 
     //def point[A: Manifest](a: => Rep[A]): RepListT[F, A] = a :: RepListT.empty[F, A]
-    def point[A](a: => A): RepListT[F, A] = ???
+    def point[A](a: => A): RepListT[F, A] = {
+      implicit val ma: Manifest[A] = ???
+      a.asInstanceOf[Rep[A]] :: RepListT.empty[F, A]
+    }
 
     def empty[A]: RepListT[F, A] = {
       ??? //RepListT.empty[F, A]

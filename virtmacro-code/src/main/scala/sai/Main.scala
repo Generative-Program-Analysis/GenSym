@@ -865,8 +865,11 @@ object Main {
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)
 
-    println(AbsInterpreter.run(id4)._2)
-    println(AbsInterpreter.run(fact5)._2)
+    //println(AbsInterpreter.run(id4)._2)
+    //println(AbsInterpreter.run(fact5)._2)
+
+    val t = examples.RepListTExample.test
+    println(t.code)
   }
 
 }
