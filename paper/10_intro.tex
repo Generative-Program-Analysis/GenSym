@@ -244,37 +244,32 @@ context-sensitivity\todo{}.
 \paragraph{Contributions and Outline}
 
 \begin{itemize}
-  \item We progressively present a unifying construction that naturally extends the
-    first Futamura projection to abstract interpreters. Starting from a generic
-    interface of the interpreter for a tiny functional language
+  \item We progressively present a unifying construction that naturally extends
+    the first Futamura projection to abstract interpreters. Starting from a generic
+    interface of the interpreter for a small functional language
     (Section~\ref{generic_if}), we first show the instantiation of concrete
-    interpretation in Section~\ref{unstaged_conc}. Then we lift it to the staged
-    version by adding stage annotations to the semantic operations
-    (Section~\ref{stagedinterp}); and to the abstract interpreter by applying
-    abstraction to the environment, store, and values. Finally, we show the
-    combination of the two transformations, dubbed \textit{staged abstract
-    interpreters}, can be easily derived (Section~\ref{sai}).
-    
-  \item \todo{modular analysis} As shown in Section~\ref{sai}, we demonstrate
-    that if we apply the abstract interpreters on open programs, it not only
-    improves the \textit{efficiency} but also the \textit{scalability}, which are
-    two major issues in static analysis.
-    
-  \item In Section~\ref{cases_study}, we conduct three case studies to
-    demonstrate the applicability and usefulness of the proposed approach to
-    specialize analyses.
+    interpretation (Section~\ref{unstaged_conc}). Then we lift it to the staged
+    version by replacing the binding-time type (Section~\ref{stagedinterp}); and to
+    the abstract interpreter by applying abstraction to the environment, store, and
+    values (Section~\ref{unstaged_abs}). Finally, we show the combination of the two
+    transformations, dubbed \textit{staged abstract interpreters}, can be easily
+    derived (Section~\ref{sai}).
+
+  \item We demonstrate that if we apply the abstract interpreter on components
+    of the program separately, it not only improves the \textit{efficiency} but
+    also the \textit{scalability} (Section~\ref{sai} \todo{}), which are two
+    major issues in static analysis.
+
+  \item We conduct two case studies to show the applicability and usefulness
+    of applying meta-programming to static analysis (Section~\ref{cases_study}).
     (1) We first revisit the Abstract Compilation (AC)
-    \cite{Boucher:1996:ACN:647473.727587} technique in Section~\ref{cs_ac}.
+    \cite{Boucher:1996:ACN:647473.727587} technique (Section~\ref{cs_ac}).
     Our approach and AC are able to achieve the same goal, however, as we show,
     one of the advantage of staging through types is it does not require
     whole-analyzer refactoring.
-    (2) We extend the staged abstract interpreter shown in Section~\ref{sai} to
-    two variants of control-flow analysis: context-sensitive pushdown
-    control-flow analysis and \todo{precise-store?}.
-    (3) In Section~\ref{cases_imp}, we plug a \note{staged numerical domain}
-    \todo{widening} into the staged abstract interpreter, demonstrating that a
-    numerical analysis on imperative languages can be also implemented and
-    speeded-up in this manner.
+    (2) We extend the staged abstract interpreter to two variants of
+    control-flow analysis: context-sensitive pushdown control-flow analysis and
+    \todo{precise-store?} (Section~\ref{sai}).
     
   \item Based on the instantiation of control-flow analysis, we empirically
     evaluate the performance improvement by staging and specialization

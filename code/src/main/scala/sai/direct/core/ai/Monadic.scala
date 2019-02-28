@@ -333,43 +333,45 @@ object Monadics {
     def mod(f: S => S): State[S, Unit] = State(s => ((), f(s)))
   }
 
-  case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)])
+  case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)]) {
+    def flatMap[B](f: A => StateT[M,S,B]): StateT[M,S,B] =
+      StateT(s => run(s).flatMap { case (a, s1) => f(a).run(s1) })
+    def map[B](f: A => B): StateT[M, S, B] =
+      flatMap(a => StateT.pure[M, S, B](f(a)))
+  }
+
   object StateT {
+    def pure[M[_]: Monad, S, A](a: A): StateT[M,S,A] = StateT(s => Monad[M].pure((a, s)))
     def apply[M[_]: Monad, S, A](implicit m: StateT[M, S, A]): StateT[M, S, A] = m
     implicit def apply[M[_]: Monad, S]: Monad[StateT[M, S, ?]] = StateTMonad[M, S]
   }
+
   def StateTMonad[M[_]: Monad, S] = new MonadState[StateT[M, S, ?], S] {
-    def pure[A](a: A): StateT[M,S,A] = StateT(s => Monad[M].pure((a, s)))
-    def flatMap[A, B](sa: StateT[M,S,A])(f: A => StateT[M,S,B]): StateT[M,S,B] =
-      StateT(s => sa.run(s).flatMap { case (a, s1) => f(a).run(s1) })
     def get: StateT[M,S,S] = StateT(s => Monad[M].pure((s, s)))
     def put(s: S): StateT[M,S,Unit] = StateT(s => Monad[M].pure(((), s)))
     def mod(f: S => S): StateT[M,S,Unit] = StateT(s => Monad[M].pure(((), f(s))))
   }
 
-  /*
   case class ReaderStateInterp() extends ReaderSemantics {
     type Store = Int
     type M[T] = ReaderT[StateT[Id, Store, ?], Env, T]
     implicit val s = StateTMonad[Id, Store]
     implicit val m = ReaderTMonad[StateT[Id, Store, ?], Env]
-    import m._
-    import s._
     override def interp(e: Term): M[Value] = e match {
+      /*
       case Tick() => for {
-        _ <- mod(_ + 1)
-        t <- get
+        _ <- s.mod(_ + 1)
+        t <- s.get
         i <- num(t)
       } yield i
+      */
       case Fetch() => for {
-        t <- get
-        i <- num(t)
-      } yield i
+        t <- s.get
+        //i <- num(t) //lift
+      } yield ???
       case _ => super.interp(e)
     }
   }
-   */
-
 
   /****************************************************/
 
