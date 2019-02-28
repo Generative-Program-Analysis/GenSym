@@ -335,10 +335,10 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 
   def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
-    ask_env.flatMap(ρ => { get_store.flatMap(σ => {
-                                               val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
-                                               put_store(res._2).map(_ => res._1)
-                                             })})
+    ask_env.flatMap(ρ => get_store.flatMap(σ => {
+      val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
+      put_store(res._2).map(_ => res._1)
+    }))
     //FIXME: (run-main-3f) scala.MatchError: Sym(49) (of class scala.virtualization.lms.internal.Expressions$Sym)
     /*
     for {
@@ -367,9 +367,9 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 
   def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans =
     get_store.flatMap(σ => {
-                        val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
-                        put_store(res._2).map(_ => res._1)
-                      })
+      val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
+      put_store(res._2).map(_ => res._1)
+    })
   /*
     for {
     σ <- get_store
