@@ -2,6 +2,7 @@ package sai
 package examples
 
 import sai._
+import sai.monads._
 
 object ListTTest {
   import ReaderT._

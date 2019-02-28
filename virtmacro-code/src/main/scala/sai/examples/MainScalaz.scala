@@ -864,17 +864,17 @@ object MainScalaz {
 
     //val s = new Snippet()
     //println(s(()))
-    sai.examples.NDTest.test
+    //sai.examples.NDTest.test
     //examples.NDTest.test2
 
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)
 
-    //println(AbsInterpreter.run(id4)._2)
-    //println(AbsInterpreter.run(fact5)._2)
+    println(AbsInterpreter.run(id4)._2)
+    println("--------------------------")
+    println(AbsInterpreter.run(fact5)._2)
 
     //val t = examples.RepListTExample.test
     //println(t.code)
   }
-
 }

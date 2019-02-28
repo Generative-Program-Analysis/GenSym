@@ -1,4 +1,5 @@
 package sai
+package monads
 
 import scala.virtualization.lms.internal.GenericNestedCodegen
 import scala.virtualization.lms.common.{

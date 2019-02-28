@@ -1,9 +1,11 @@
 package sai
+package monads
 
 trait Monad[M[_]] {
   def pure[A](a: A): M[A]
   def flatMap[A, B](ma: M[A])(f: A => M[B]): M[B]
   def map[A,B](ma: M[A])(f: A => B): M[B] = flatMap(ma)(a => pure(f(a)))
+  def filter[A](ma: M[A])(F: A => Boolean): M[A]
 }
 
 object Monad {
@@ -24,6 +26,7 @@ object IdMonadInstance {
   implicit val IdMonad: Monad[Id] = new Monad[Id] {
     def pure[A](a: A): A = a
     def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = f(ma)
+    def filter[A](ma: Id[A])(F: A => Boolean): Id[A] = throw new Exception("Not supported")
   }
 }
 
@@ -43,6 +46,7 @@ object ReaderT {
   implicit def ReaderTMonad[M[_]: Monad, R] = new MonadReader[ReaderT[M, R, ?], R] {
     def flatMap[A, B](fa: ReaderT[M, R, A])(f: A => ReaderT[M, R, B]) = fa.flatMap(f)
     def pure[A](a: A): ReaderT[M, R, A] = ReaderT(_ => Monad[M].pure(a))
+    def filter[A](fa: ReaderT[M, R, A])(f: A => Boolean): ReaderT[M, R, A] = fa.filter(f)
 
     def ask: ReaderT[M, R, R] = ReaderT(r => Monad[M].pure(r))
     def local[A](fa: ReaderT[M, R, A])(f: R => R): ReaderT[M, R, A] =
@@ -60,6 +64,10 @@ case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
     ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
   def map[B](f: A => B): ReaderT[M, R, B] =
     ReaderT(r => Monad[M].map(run(r))(f))
+
+  def filter(f: A => Boolean): ReaderT[M, R, A] =
+    ReaderT(r => Monad[M].filter(run(r))(f))
+  def withFilter(f: A => Boolean): ReaderT[M, R, A] = filter(f)
 }
 
 trait MonadState[F[_], S] extends Monad[F] {
@@ -79,6 +87,7 @@ object StateT {
   implicit def StateTMonad[M[_]: Monad, S] = new MonadState[StateT[M, S, ?], S] {
     def flatMap[A, B](sa: StateT[M, S, A])(f: A => StateT[M, S, B]) = sa.flatMap(f)
     def pure[A](a: A): StateT[M, S, A] = StateT(s => Monad[M].pure((a, s)))
+    def filter[A](sa: StateT[M, S, A])(f: A => Boolean): StateT[M, S, A] = sa.filter(f)
 
     def get: StateT[M, S, S] = StateT(s => Monad[M].pure((s, s)))
     def put(s: S): StateT[M, S, Unit] = StateT(_ => Monad[M].pure(((), s)))
@@ -102,6 +111,10 @@ case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)]) {
     StateT(s => Monad[M].flatMap(run(s)) { case (a, s1) => f(a).run(s1) })
   def map[B](f: A => B): StateT[M, S, B] =
     flatMap(a => StateT(s => Monad[M].pure((f(a), s))))
+
+  def filter(f: A => Boolean): StateT[M, S, A] =
+    StateT(s => Monad[M].filter(run(s)) { case (a,s) => f(a) })
+  def withFilter(f: A => Boolean): StateT[M, S, A] = filter(f)
 }
 
 object ListT {
@@ -110,6 +123,7 @@ object ListT {
   implicit def ListTMonad[M[_]: Monad] = new Monad[ListT[M, ?]] {
     def flatMap[A, B](la: ListT[M, A])(f: A => ListT[M, B]) = la.flatMap(f)
     def pure[A](a: A): ListT[M, A] = ListT(Monad[M].pure(List(a)))
+    def filter[A](la: ListT[M, A])(f: A => Boolean): ListT[M, A] = la.filter(f)
   }
 
   implicit def ListTMonadPlus[M[_]: Monad] = new MonadPlus[ListT[M, ?]] {
@@ -119,6 +133,9 @@ object ListT {
 
   def fromList[M[_]: Monad, A](xs: List[A]): ListT[M, A] =
     ListT(Monad[M].pure(xs))
+
+  def liftM[G[_]: Monad, A](ga: G[A]): ListT[G, A] =
+    ListT(Monad[G].map(ga)((a: A) => List(a)))
 }
 
 case class ListT[M[_]: Monad, A](run: M[List[A]]) {
@@ -136,4 +153,8 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
           })
   def map[B](f: A => B): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
+
+  def filter(f: A => Boolean): ListT[M, A] =
+    ListT(Monad[M].map(run) { list => list.filter(f) })
+  def withFilter(f: A => Boolean): ListT[M, A] = filter(f)
 }
