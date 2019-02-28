@@ -169,8 +169,10 @@ object EnvStoreInterpreter {
   def run(e: Expr): (Value, Store) = eval(e).run(ρ0).run(σ0)
 }
 
+
+/*
 @virtualize
-trait StagedCESOps extends SAIDsl {
+trait StagedCESOps_Old extends SAIDsl {
   import PCFLang._
   import ReaderT._
   import StateT._
@@ -285,16 +287,154 @@ trait StagedCESOps extends SAIDsl {
 
   def run(e: Expr): (Rep[Value], Store) = eval(e)(ρ0)(σ0)
 }
+*/
+
+@virtualize
+trait StagedCESOps extends SAIDsl with SAIMonads {
+  import PCFLang._
+  import IdMonadInstance._
+  import ReaderT._
+  import StateT._
+
+  sealed trait Value
+  case class IntV(i: Int) extends Value
+  case class CloV[Env](lam: Lam, e: Env) extends Value
+
+  type Ident = String
+
+  type Addr = Int
+
+  type Env = Map[Ident, Addr]
+  type Store = Map[Addr, Value]
+
+  type StoreT[F[_], B] = StateT[Id, Store, B]
+  type EnvT[F[_], T] = ReaderT[F, Env, T]
+
+  type StoreM[T] = StoreT[Id, T]
+  type AnsM[T] = EnvT[StoreM, T]
+  type Ans = AnsM[Value]
+
+  def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
+  def ext_env(x: Rep[String], a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
+
+  def alloc(σ: Rep[Store], x: String): Rep[Addr] = σ.size + 1
+  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
+
+  def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[Id, Store].get)
+  def put_store(σ: Rep[Store]): AnsM[Unit] = ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].put(σ))
+  def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].mod(σ => σ + (a → v)))
+
+  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
+    val v1n = unchecked(v1, ".asInstanceOf[IntV].i")
+    val v2n = unchecked(v2, ".asInstanceOf[IntV].i")
+    unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
+  }
+
+  def local_env(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreM, Env].local(eval(e))(_ => ρ)
+
+  def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
+    val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
+    ask_env.flatMap(ρ => { get_store.flatMap(σ => {
+                                               val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
+                                               put_store(res._2).map(_ => res._1)
+                                             })})
+    //FIXME: (run-main-3f) scala.MatchError: Sym(49) (of class scala.virtualization.lms.internal.Expressions$Sym)
+    /*
+    for {
+      ρ <- ask_env
+      σ <- get_store
+      val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
+      _ <- put_store(res._2)
+    } yield res._1
+     */
+  }
+
+  def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](unchecked[Value]("IntV(", i, ")"))
+
+  def close(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+    val Lam(x, e) = λ
+    val f: Rep[(Value, Store)] => Rep[(Value, Store)] = {
+      case as: Rep[(Value, Store)] =>
+        val v = as._1; val σ = as._2
+        val α = alloc(σ, x)
+        eval(e).run(ρ + (unit(x) → α)).run(σ + (α → v))
+    }
+    unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+  }
+
+  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
+
+  def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans =
+    get_store.flatMap(σ => {
+                        val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
+                        put_store(res._2).map(_ => res._1)
+                      })
+  /*
+    for {
+    σ <- get_store
+    val res: Rep[(Value, Store)] = ap_clo_aux(fun, arg, σ) //unchecked(fun, ".asinstanceof[Compiledclo].f(", arg, ",", σ, ")")
+    _ <- put_store(res._2)
+    } yield res._1
+   */
+
+  def eval(e: Expr): Ans = e match {
+    case Lit(i) => num(i)
+    case Var(x) => for {
+      ρ <- ask_env
+      σ <- get_store
+    } yield σ(ρ(x))
+    case Lam(x, e) => for {
+      ρ <- ask_env
+    } yield close(Lam(x, e), ρ)
+    case App(e1, e2) => for {
+      v1 <- eval(e1)
+      v2 <- eval(e2)
+      rt <- ap_clo(v1, v2)
+    } yield rt
+    case Let(x, rhs, e) => for {
+      v <- eval(rhs)
+      α <- alloc(x)
+      _ <- update_store(α, v)
+      ρ <- ext_env(x, α)
+      rt <- local_env(e, ρ)
+    } yield rt
+    case If0(e1, e2, e3) => for {
+      cnd <- eval(e1)
+      rt <- branch0(cnd, eval(e2), eval(e3))
+    } yield rt
+    case Aop(op, e1, e2) => for {
+      v1 <- eval(e1)
+      v2 <- eval(e2)
+    } yield prim(op, v1, v2)
+    case Rec(x, rhs, e) => for {
+      α <- alloc(x)
+      ρ <- ext_env(x, α)
+      v <- local_env(rhs, ρ)
+      _ <- update_store(α, v)
+      rt <- local_env(e, ρ)
+    } yield rt
+  }
+
+  val ρ0: Rep[Env] = Map[String, Addr]()
+  val σ0: Rep[Store] = Map[Addr, Value]()
+
+  def run(e: Expr): Rep[(Value, Store)] = eval(e)(ρ0)(σ0)
+}
 
 trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
-  case class ApClo(f: Rep[Value], arg: Rep[Value], σ: Store) extends Def[(Value, Store0)]
+  case class ApClo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
 
-  @virtualize
+  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
+    reflectEffect(ApClo(fun, arg, σ))
+
+  /*
   def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans = for {
     σ <- get_store
-    val res: Rep[(Value, Store0)] = reflectEffect(ApClo(fun, arg, σ))
+    val res: Rep[(Value, Store)] = reflectEffect(ApClo(fun, arg, σ))
     _ <- put_store(res._2)
   } yield res._1
+   */
 }
 
 trait StagedCESGen extends GenericNestedCodegen {
@@ -349,18 +489,18 @@ object Main {
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
     @virtualize
     def snippet(unit: Rep[Unit]): Rep[Unit] = {
-      val (v, s) = run(e)
-      println(s)
-      println(v)
+      val vs = run(e)
+      println(vs._1)
+      println(vs._2)
     }
   }
 
   def main(args: Array[String]): Unit = {
-    //val code = specialize(fact5)
-    //println(code.code)
-    //code.eval(())
+    val code = specialize(fact5)
+    println(code.code)
+    code.eval(())
 
-    ListTTest.test
+    //ListTTest.test
 
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)

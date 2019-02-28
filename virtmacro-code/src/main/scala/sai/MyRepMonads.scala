@@ -119,63 +119,14 @@ trait SAIMonads { self: SAIDsl =>
     import StateT._
     def apply(s: Rep[S]): M[(A, S)] = run(s)
     def flatMap[B: Manifest](f: Rep[A] => StateT[M, S, B]): StateT[M, S, B] =
-      StateT(s => Monad[M].flatMap(run(s)) { case as1: Rep[(A, S)] =>
-                  val a = as1._1; val s1 = as1._2
-                  f(a).run(s1)
-                })
+      StateT(s => Monad[M].flatMap(run(s)) {
+               case as1: Rep[(A, S)] =>
+                 val a: Rep[A] = as1._1; val s1: Rep[S] = as1._2
+                 f(a).run(s1)
+             })
     def map[B: Manifest](f: Rep[A] => Rep[B]): StateT[M, S, B] =
       flatMap(a => StateT(s => Monad[M].pure((f(a), s))))
   }
 
 }
 
-trait RepEnvInterpreter extends SAIDsl with SAIMonads {
-  import PCFLang._
-  import IdMonadInstance._
-  import ReaderT._
-  import StateT._
-
-  sealed trait Value
-  case class IntV(i: Int) extends Value
-  case class CloV[Env](lam: Lam, e: Env) extends Value
-
-  type Ident = String
-  type Value0 = Value
-
-  type Addr0 = Int
-  type Addr = Rep[Addr0]
-
-  type Env0 = Map[Ident, Addr0]
-  type Env = Rep[Env0]
-
-  type Store0 = Map[Addr0, Value0]
-  type Store = Rep[Store0]
-
-  type StoreT[F[_], B] = StateT[Id, Store0, B]
-  type EnvT[F[_], T] = ReaderT[F, Env0, T]
-
-  type StoreM[T] = StoreT[Id, T]
-  type AnsM[T] = EnvT[StoreM, T]
-  type Ans = AnsM[Value0]
-
-  def num(i: Int): Ans = ???
-
-  def ask_env: AnsM[Env0] = ReaderTMonad[StoreM, Env0].ask
-  def ext_env(x: Rep[String], a: Rep[Addr0]): AnsM[Env0] = for { ρ <- ask_env } yield ρ + (x → a)
-
-  def alloc(σ: Store, x: String): Rep[Addr0] = σ.size + 1
-  def alloc(x: String): AnsM[Addr0] = for { σ <- get_store } yield σ.size + 1
-
-  def get_store: AnsM[Store0] = ReaderT.liftM[StoreM, Env0, Store0](StateTMonad[Id, Store0].get)
-
-  def eval(e: Expr): Ans = e match {
-    case Lit(i) => num(i)
-      /*
-    case Var(x) => for {
-      ρ <- ReaderTMonad[StoreM, Env0].ask
-    } yield ρ(x)
-       */
-  }
-
-
-}
