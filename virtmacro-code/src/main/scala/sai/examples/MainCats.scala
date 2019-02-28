@@ -1,5 +1,5 @@
 package sai
-package examples
+package examples.withCats
 
 import scala.language.implicitConversions
 

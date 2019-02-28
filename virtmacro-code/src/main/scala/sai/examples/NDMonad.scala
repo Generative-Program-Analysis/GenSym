@@ -35,6 +35,8 @@ object NDTest {
       val z = d._2
     } yield z
 
+    //println(a.run(Map[Int, Int](-1 -> -1)).run)
+
     val b: Ans = for {
       s <- StateT.stateTMonadState[Store, NondetT].get
       x <- MonadTrans[StateT].liftM[NondetT, Int](ListT.fromList[Id, Int](List(4,5)))
@@ -46,8 +48,8 @@ object NDTest {
       v <- StateT.stateTMonadPlus[Store, NondetT].plus(a, b)
     } yield v
 
-    println(a.run(Map[Int, Int](-1 -> -1)).run)
-    //println(c.run(Map[Int, Int](-1 -> -1)))
+    val result = c.run(Map[Int, Int](-1 -> -1)).run
+    println(result.size)
   }
 
   def test2() = {
@@ -110,6 +112,7 @@ object NDTest {
 }
 
 object RepListTExample {
+
   @virtualize
   trait ExampleOps extends SAIDsl with RepListTransfomer {
     type Store0 = Map[Int, Int]
@@ -127,23 +130,7 @@ object RepListTExample {
     type AnsM[T] = StoreT[NondetM, T]
     type Ans = AnsM[Int]
 
-    def RepListLiftM[G[_], A: Manifest](a: G[Rep[A]])(implicit G: Monad[G]): RepListT[G, A] =
-      RepListT(G.map(a)(entry => List(entry)))
-
-    def get_outcache: AnsM[Cache] = {
-      //val fa = StateT.stateTMonadState[Cache, Id].get
-      val fa = StateT[Id, Cache, Cache]((s: Cache) => (s, s))
-      val ga = RepListT[OutCacheM, Cache0](fa.map((entry: Cache) => List(entry)))
-      val f: Store => RepListT[OutCacheM, (Store0, Cache0)] =
-        (s: Store) => ga.map((a: Cache) => {
-                               val res: Rep[(Store0, Cache0)] = (s, a)
-                               res
-                             })
-      StateT[NondetM, Store, Cache](f.asInstanceOf[Store => NondetM[(Store, Cache)]])
-      // other monads uses Rep type, add pass into NondetT, where only takes non-Rep type.
-      // TODO: rewrite StateT to use Rep type internally
-      // Or, rewrite NonDetT takes Rep type, but unwrap the Rep type automatically
-    }
+    def get_outcache: AnsM[Cache] = ???
 
     def update_outcache(k: String, v: String): AnsM[Unit] = ???
 
