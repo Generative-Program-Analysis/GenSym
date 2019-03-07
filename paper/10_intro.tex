@@ -70,10 +70,11 @@ definitional interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
 \paragraph{Futamura Projection of Abstract Interpreters}
 
 Now we have seen two orthogonal transformations of interpreters: by
-specialization, we can refactor interpreters to code generators; by approximation,
-we can refactor interpreters to static analyzers. As an intellectual quest, it
-is natural to ask --- starting from an interpreter, \textit{can we derive a
-sound abstract interpreter while it produces fast code that does the analysis?}
+specialization, we can refactor interpreters to code generators; by
+approximation, we can refactor interpreters to static analyzers. As an
+intellectual quest, we should naturally ask -- starting from an interpreter,
+\textit{can we derive a sound abstract interpreter while it produces fast code
+that does the analysis?}
 Conceptually, it is similar to the concrete setting: for an
 abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
 \widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
@@ -110,18 +111,18 @@ interpreters. By borrowing the ideas from monadic interpreters
 \cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95,
 DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979} and embedded
 domain-specific languages \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15,
-DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14, Hofer:2008:PED:1449913.1449935}, we develop an
-approach to fulfill four different semantics (Figure~\ref{confluence}) in a
-unified framework. The four semantics share one same generic interpreter.
-However, by instantiating the interpreter differently, it can behave as a
-concrete interpreter, an abstracter interpreter, or their code-generator
-versions, respectively. The key idea that enables this flexibility is to use
-abstract type members abstract over concrete/abstract components (e.g., concrete
-values or abstract values), as well as the binding-time of them (e.g., static or
-dynamic). By staging, the overhead caused by the monadic layers is eliminated in
-the generated code. 
+DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14,
+Hofer:2008:PED:1449913.1449935}, we develop an approach to fulfill four
+different semantics (Figure~\ref{confluence}) in a unified framework. The four
+semantics share one same generic interpreter interface. Later, by instantiating
+the interpreter differently, it can behave as a concrete interpreter, an
+abstracter interpreter, or their code-generator versions, respectively. The key
+idea that enables this flexibility is to use abstract type members abstract over
+concrete/abstract components (e.g., concrete values or abstract values), as well
+as the binding-time of them (e.g., static or dynamic). By staging, the overhead
+caused by the monadic layers is eliminated in the generated code.
 
-\paragraph{Performant via Specialization}
+\paragraph{Performance via Specialization}
 
 Besides the intellectual merit shown in the confluence diagram, this paper
 contributes to a practical problem in static analysis: \textit{can we speed up a
@@ -130,25 +131,41 @@ analysis is known as a trade-off game between \textit{precision} and
 \textit{efficiency}, we argue that applying meta-programming (multi-stage
 programming, in particular) with abstract interpreters is an effective approach
 to improve the latter one while the former one is untouched. Specialization
-removes the overhead of abstractions introduced by high-level programming, but
-not changes the meaning of the program -- in this case, the abstract semantics
-implemented by the analyzer. Indeed, specializing analysis with respect to a
-program by partial evaluation \cite{damian1999partial, amtoft1999partial,
-Boucher:1996:ACN:647473.727587, ashley:practical} is not a new idea, despite the
-fact that most of the previous work are ad-hoc on a particular analysis or
-requiring significant changes to the analysis. For example, abstract compilation
-\cite{Boucher:1996:ACN:647473.727587} requires the whole analyzer to be
-rewritten as closure generation from. In this paper, we show a systematic
-approach to meta-programming achieves the performance goal with less intrusive
-changes; in fact, a case study (Section~\ref{cs_ac}) comparing with abstract
-compilation shows, by utilizing type-based stage annotations, the analyzer
-program does not need any changes.
+removes the overhead of abstractions introduced by high-level programming (e.g.,
+monads), but not loses any advantages of this programming style (e.g.,
+extensibility), nor changes the meaning of the program -- in this case, the
+abstract semantics that does the analysis. Indeed, specializing analysis
+with respect to a program by partial evaluation \cite{damian1999partial,
+amtoft1999partial, Boucher:1996:ACN:647473.727587, ashley:practical} is not a
+new idea, despite the fact that most of the previous work are ad-hoc on a
+particular analysis or requiring significant changes to the analysis. For
+example, abstract compilation \cite{Boucher:1996:ACN:647473.727587} requires the
+whole analyzer to be rewritten as closure generation from. In this paper, we
+show a systematic approach to meta-programming that achieves the performance
+goal with less intrusive changes; in fact, a case study (Section~\ref{cs_ac})
+comparing with abstract compilation shows, by utilizing type-based stage
+annotations, the analyzer program does not need any changes.
 
 \paragraph{Modularity via Meta-Programming}
 
-\todo{modular analysis: a whole-program abstract
-  interpreter can be run on different components of program separately, we
-  achieve this by meta-programming mechnically}
+Our second contribution is to enable modular analysis based on a whole-program
+analyzer by meta-programming. Modern software are shipped with large libraries
+\cite{toman_et_al:LIPIcs:2017:7121}, and analyzing programs with large libraries
+is usually expensive or unnecessarily repeated for whole-program analyzing
+algorithms. For example, it has been shown that analyzing a simple ``Hello
+World'' program in Java depends on additional 3,000 classes in the library
+\cite{DBLP:conf/oopsla/KulkarniMZN16}. Meta-programming gives us a chance to
+tweak a whole-program analyzing algorithm into an analyzer that can work on
+different components of program separately. Still, the idea is to specialize the
+abstract interpreter used for whole-program analysis, but on a subset of the
+program, for examples, several generic functions for list manipulation. Such
+specialization works on a lambda expression and generates code, which is partial
+analysis results and can be completed by running with the necessary arguments
+(for example, an environment that closes the lambda term) at next stages. Multiple
+partial analysis results also can be reused later and composed together as they
+are just normal programs at the next stage. Through staging, we mechanically
+obtain a modular analysis, even though the original algorithm is formulated as a
+whole-program analysis.
 
 \iffalse
 Likewise, specializing static analyses by partial evaluation emerged in late 90s
@@ -203,7 +220,6 @@ therefore we obtain a modular analysis through staging, mechanically.
 are still dynamic, no? They change in every iteration of the fixpoint algorithm}
 \note{TR: why is it a big deal. On Closed programs we obtain a constant factor,
 but modular analysis has different asymptotics}
-\fi
 
 When targeting higher-order programs, either staged concrete interpreters or
 staged abstract interpreters are able to compile a closure, i.e., specialize the
@@ -228,7 +244,6 @@ application code when available later. Therefore we mechanically obtain a
 modular analysis through staging, even though the original algorithm is
 formulated as a whole-program analysis.
 
-\iffalse
 It has been observed that partially applying context-sensitivity on selected
 portion of the program could improve the precision and efficiency
 \cite{zipper2018, Kastrinis:2013:HCP:2491956.2462191}. We show that staging
@@ -238,7 +253,6 @@ context-sensitivity\todo{}.
 
 \note{
   Expression problem \cite{DBLP:conf/icfp/GibbonsW14, DBLP:conf/ecoop/KrishnamurthiFF98, expproblem},
-  deep embedding, four different interpretations.
 }
 
 \paragraph{Contributions and Outline}

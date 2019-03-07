@@ -43,27 +43,30 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 
 In Scala, thanks for its nature that combines functional programming and
 object-oriented programming, we may use traits and objects to implement monads.
-A trait poses monadic operations as abstract methods that objects extending it
-should implement. An object encapsulates the data and implements monadic methods
-that operate on these data. The monadic @bind@ operation is usually called
-@flatMap@ in Scala. For example, the following trait @Monad@ declares the
-@return@ and @flatMap@ operation:
+For example, the following trait @Monad@ declares the @pure@ and @flatMap@
+operation. The trait itself takes a higher-kinded type @F[_]: * -> *@
+which takes a type and returns a type. The method @pure@ promotes values of type
+@A@ to values of type @F[A]@. The monadic @bind@ operation is usually called
+@flatMap@ in Scala, which takes a monad-encapsulated value of type @F[A]@, a function of
+@A => F[B]@ and returns values of type @F[B]@.
 
 \begin{lstlisting}
   trait Monad[F[_]] {
-    def return[A](a: => A): F[A]
+    def pure[A](a: A): F[A]
     def flatMap[A,B](fa: F[A])(f: A => F[B]): F[B]
   }
 \end{lstlisting}
 
-An object may encapsulate the data of type @F[A]@ and only provide
-@flatMap(f: A => F[B]): F[B]@. This allows us to utilize the for-comprehensions in
-Scala, which provide special syntactic support for moandic @flatMap@.
-For example, a list object of element type @A@ is a monad and it implements the
-methods @flatMap[B](f: A => List[B]): List[B]@ and @map[B](f: A => B): List[B]@.
-To compute the Cartesian product of two lists of numbers, we may directly call
-@flatMap@ and pass an anonymous function that internally calls the monadic
-@return@ operation (the @List@ constructor in this case):
+An object implementing the trait @Monad@ may also encapsulates the data of type
+@F[A]@ internally, in this case, it only needs to provide method
+@flatMap(f: A => F[B]): F[B]@. This allows us to utilize the for-comprehensions
+in Scala, simliar to Haskell's do-notation, which provides special syntactic
+support for moandic @flatMap@. For example, a list object of element type @A@ is
+a monad and it implements the methods @flatMap[B](f: A => List[B]): List[B]@ and
+@map[B](f: A => B): List[B]@. To compute the Cartesian product of two lists of
+numbers, we may directly call @flatMap@ and pass an anonymous function that
+internally calls the monadic @pure@ operation (the @List@ constructor in this
+case):
 
 \begin{lstlisting}
   val xs = List(1, 2); val ys = List(4, 5)
@@ -83,9 +86,10 @@ an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}:
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
 
-In the rest of the paper, we will use for-comprehension syntax for monadic
-operations, the implementation of monads and monad transformers essentially
-borrows the ground-truth from Haskell.
+In the rest of the paper, we use Scala's for-comprehension syntax and monad
+transformers @ReaderT@, @StateT@, @ListT@ to write our interpreters. The
+implementation of monads and monad transformers essentially borrows the
+ground-truth from Haskell.
 
 \subsection{Generic Interface} \label{generic_if}
 
