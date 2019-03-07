@@ -212,8 +212,10 @@ trait ScalaGenListOps extends BaseGenListOps with ScalaGenEffect {
     case ListZip(xs, ys) => emitValDef(sym, src"$xs.zip($ys)")
     case ListTake(l, i) => emitValDef(sym, src"$l.take($i)")
     case ListFoldLeft(s, z, acc, x, block) =>
-      //TODO
-      ???
+      gen"""val $sym = $s.foldLeft ($z) { case ($acc, $x) => 
+            |${nestedBlock(block)}
+            |$block
+            |}"""
     case _ => super.emitNode(sym, rhs)
   }
 }

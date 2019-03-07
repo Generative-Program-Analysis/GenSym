@@ -171,7 +171,58 @@ object EnvStoreInterpreter {
   val ρ0: Env = Map()
   val σ0: Store = Map()
   def run(e: Expr): (Value, Store) = fix(eval)(e).run(ρ0).run(σ0)
+}
 
+trait MonadOps[M[_], A] {
+  def flatMap[B](f: A => M[B]): M[B]
+  def map[B](f: A => B): M[B]
+}
+
+trait Semantics {
+  import PCFLang._
+  type R[_]
+  type Ident = String
+  type Addr
+  type Env
+  type Store
+  type Value
+  type AnsM[_]
+  type Ans = AnsM[Value]
+  implicit def m: MonadOps[AnsM, Value]
+
+  type EvalFun = Expr => Ans
+
+  /*
+  def eval(ev: EvalFun)(e: Expr): Ans = e match {
+    case Lit(i) => num(i)
+    case Var(x) => for {
+      ρ <- ask_env
+      σ <- get_store
+    } ???
+  }
+   */
+
+  def ask_env: AnsM[Env]
+  def ext_env(x: R[String], a: R[Addr]): AnsM[Env]
+  def local_env(ev: EvalFun)(e: Expr, ρ: R[Env]): AnsM[Value]
+
+  def alloc(x: String): AnsM[Addr]
+  def get_store: AnsM[Store]
+  def put_store(σ: R[Store]): AnsM[Unit]
+  def update_store(a: R[Addr], v: R[Value]): AnsM[Unit]
+
+  def num(i: Int): Ans
+  def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
+
+  def prim(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
+  def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[Value]): Ans
+  def branch0(test: R[Value], thn: => Ans, els: => Ans): Ans
+
+  val ρ0: R[Env]
+  val σ0: R[Store]
+
+  type Result
+  def run(e: Expr): Result
 }
 
 @virtualize
@@ -198,6 +249,8 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   type StoreM[T] = StoreT[Id, T]
   type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Value]
+
+  implicit def m = Monad[AnsM]
 
   type EvalFun = Expr => Ans
 
@@ -316,6 +369,8 @@ trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
 
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
     reflectEffect(ApClo(fun, arg, σ))
+
+  def emit_foldMap[M[_]: Monad, A: Manifest, B: Manifest](xs: Rep[List[A]], f: Rep[A => ListT[M, B]]): Rep[M[List[B]]] = ???
 
   /*
   def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans = for {

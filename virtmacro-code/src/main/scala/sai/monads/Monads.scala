@@ -5,7 +5,7 @@ trait Monad[M[_]] {
   def pure[A](a: A): M[A]
   def flatMap[A, B](ma: M[A])(f: A => M[B]): M[B]
   def map[A,B](ma: M[A])(f: A => B): M[B] = flatMap(ma)(a => pure(f(a)))
-  def filter[A](ma: M[A])(F: A => Boolean): M[A]
+  def filter[A](ma: M[A])(f: A => Boolean): M[A]
 }
 
 object Monad {
@@ -26,7 +26,7 @@ object IdMonadInstance {
   implicit val IdMonad: Monad[Id] = new Monad[Id] {
     def pure[A](a: A): A = a
     def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = f(ma)
-    def filter[A](ma: Id[A])(F: A => Boolean): Id[A] = throw new Exception("Not supported")
+    def filter[A](ma: Id[A])(f: A => Boolean): Id[A] = throw new Exception("Not supported")
   }
 }
 
@@ -136,6 +136,8 @@ object ListT {
 
   def liftM[G[_]: Monad, A](ga: G[A]): ListT[G, A] =
     ListT(Monad[G].map(ga)((a: A) => List(a)))
+
+  def empty[M[_]: Monad, A]: ListT[M, A] = ListTMonadPlus[M].mzero[A]
 }
 
 case class ListT[M[_]: Monad, A](run: M[List[A]]) {
@@ -149,7 +151,7 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
           })
   def flatMap[B](f: A => ListT[M, B]): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { (list: List[A]) =>
-            list.foldLeft(ListTMonadPlus[M].mzero[B])((acc, a) => acc ++ f(a)).run
+            list.foldLeft(ListT.empty[M,B])((acc, a) => acc ++ f(a)).run
           })
   def map[B](f: A => B): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
