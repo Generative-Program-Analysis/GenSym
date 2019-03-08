@@ -172,6 +172,8 @@ trait SAIMonads { self: SAIDsl =>
 
   def emit_foldMap[M[_]: Monad, A: Manifest, B: Manifest](xs: Rep[List[A]], f: Rep[A => ListT[M, B]]): Rep[M[List[B]]]
 
+
+
   case class ListT[M[_]: Monad, A: Manifest](run: M[List[A]]) {
     import ListT._
 
@@ -191,17 +193,18 @@ trait SAIMonads { self: SAIDsl =>
                 /*
                 list.foldLeft(ListT.empty[M, B]) {
                   case (acc: ListT[M, B], a: Rep[A]) => acc ++ f(a)
-                }
-                */
+                 }*/
                 list.foldLeft(List[B]()) {
                   case (acc: Rep[List[B]], a: Rep[A]) =>
                     val fa: ListT[M, B] = f(a)
                     val listb: M[List[B]] = Monad[M].map(fa.run) { case falist: Rep[List[B]] => acc ++ falist }
+                    Comonad[M].extract(listb)
                     ??? // expected Rep[List[B]], a comonad operation `extract: w a -> a`!
                 }
               Monad[M].pure[List[B]](merge)
             })
 
+    /*
     @virtualize
     def flatMapCps[M[_]: Monad, B: Manifest](list: Rep[List[A]], acc: ListT[M, B], f: Rep[A] => ListT[M, B], k: Rep[List[B]] => Rep[List[B]]): Rep[List[B]] = {
       if (list.isEmpty) {
@@ -212,6 +215,7 @@ trait SAIMonads { self: SAIDsl =>
         flatMapCps(list.tl, nacc, f, k)
       }
     }
+     */
 
     def map[B: Manifest](f: Rep[A] => Rep[B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })

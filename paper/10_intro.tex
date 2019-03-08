@@ -154,14 +154,17 @@ analyzer by meta-programming. Modern software are shipped with large libraries
 is usually expensive or unnecessarily repeated for whole-program analyzing
 algorithms. For example, it has been shown that analyzing a simple ``Hello
 World'' program in Java depends on additional 3,000 classes in the library
-\cite{DBLP:conf/oopsla/KulkarniMZN16}. Meta-programming gives us a chance to
-tweak a whole-program analyzing algorithm into an analyzer that can work on
-different components of program separately. Still, the idea is to specialize the
-abstract interpreter used for whole-program analysis, but on a subset of the
-program, for examples, several generic functions for list manipulation. Such
-specialization works on a lambda expression and generates code, which is partial
-analysis results and can be completed by running with the necessary arguments
-(for example, an environment that closes the lambda term) at next stages. Multiple
+\cite{DBLP:conf/oopsla/KulkarniMZN16}. A natural idea is to analyze libraries
+and generate summaries, later we can plugin the necessary information into the
+summaries and finish the analysis; therefore such summaries should be modular
+and reusable. Meta-programming gives us a chance to readily tweak a
+whole-program analyzing algorithm into an analyzer that works modularly and
+produces summaries. Still, the idea is to specialize the abstract interpreter
+that was used for whole-program analysis, but on a subset of the program, for
+examples, several generic functions for list manipulation. Such specialization
+works on lambda expressions and generates code, which is partial analysis
+results and can be completed by running with the necessary arguments (for
+example, an environment that closes the lambda term) at next stages. Multiple
 partial analysis results also can be reused later and composed together as they
 are just normal programs at the next stage. Through staging, we mechanically
 obtain a modular analysis, even though the original algorithm is formulated as a
@@ -251,9 +254,7 @@ abstract interpreters as an approach to effectively implement hybird
 context-sensitivity\todo{}.
 \fi
 
-\note{
-  Expression problem \cite{DBLP:conf/icfp/GibbonsW14, DBLP:conf/ecoop/KrishnamurthiFF98, expproblem},
-}
+%\note{Expression problem \cite{DBLP:conf/icfp/GibbonsW14, DBLP:conf/ecoop/KrishnamurthiFF98, expproblem},}
 
 \paragraph{Contributions and Outline}
 
