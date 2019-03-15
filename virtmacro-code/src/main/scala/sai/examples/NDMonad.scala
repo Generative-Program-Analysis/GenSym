@@ -112,33 +112,34 @@ object NDTest {
 }
 
 object RepListTExample {
+  import sai.monads._
 
   @virtualize
-  trait ExampleOps extends SAIDsl with RepListTransfomer {
-    type Store0 = Map[Int, Int]
-    type Cache0 = Map[String, Set[String]]
+  trait ExampleOps extends SAIDsl with SAIMonads {
+    import ListReaderStateM._
 
-    type Store = Rep[Store0]
+    type Cache0 = Map[String, Set[Int]]
     type Cache = Rep[Cache0]
-
-    type OutCacheT[F[_], B] = StateT[F, Cache, B]
-    type NondetT[F[_], B] = RepListT[F, B]
-    type StoreT[F[_], B] = StateT[F, Store, B]
-
-    type OutCacheM[T] = OutCacheT[Id, T]
-    type NondetM[T] = NondetT[OutCacheM, T]
-    type AnsM[T] = StoreT[NondetM, T]
+    type AnsM[T] = ListReaderStateM[Cache0, Cache0, T]
     type Ans = AnsM[Int]
 
-    def get_outcache: AnsM[Cache] = ???
-
-    def update_outcache(k: String, v: String): AnsM[Unit] = ???
+    def get_outcache: AnsM[Cache0] = ListReaderStateMonad[Cache0, Cache0].get
+    def update_outcache(k: Rep[String], v: Rep[Int]): AnsM[Unit] =
+      ListReaderStateMonad[Cache0, Cache0].mod(s => s + (k -> (s.getOrElse(k, Set[Int]()) ++ Set(v))))
 
     val a: Ans = for {
-      out <- get_outcache
-      //x <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(1,2).pure[OutCacheM]))
-      //y <- MonadTrans[StoreT].liftM[NondetM, Int](RepListT.fromRepList[OutCacheM, Int](List(4,5).pure[OutCacheM]))
-    } yield 1
+      x <- fromList[Cache0, Cache0, Int](List(1,2))
+      y <- fromList[Cache0, Cache0, Int](List(4,5))
+      _ <- update_outcache(x.toString + "+" + y.toString, x + y)
+    } yield x + y
+
+    val b: Ans = for {
+      z <- fromList[Cache0, Cache0, Int](List(10,11))
+      w <- fromList[Cache0, Cache0, Int](List(3,6))
+      _ <- update_outcache(z.toString + "*" + w.toString, z * w)
+    } yield z * w
+
+    val c: Ans = ListReaderStateMonadPlus[Cache0, Cache0].mplus[Int](a, b)
   }
 
   trait ExampleOpsExp extends ExampleOps with SAIOpsExp
@@ -146,12 +147,23 @@ object RepListTExample {
   trait ExampleGen extends GenericNestedCodegen {
     val IR: ExampleOpsExp
     import IR._
+    override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+      case Struct(tag, elems) =>
+        //This fixes code generation for tuples, such as Tuple2MapIntValueValue
+        //TODO: merge back to LMS
+        registerStruct(structName(sym.tp), sym.tp, elems)
+        val typeName = sym.tp.runtimeClass.getSimpleName +
+          "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
+        emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
+      case _ => super.emitNode(sym, rhs)
+    }
   }
 
   trait ExampleDriver extends DslDriver[Unit, Unit] with ExampleOpsExp { q =>
     override val codegen = new DslGen
         with ScalaGenMapOps
         with ScalaGenSetOps
+        with ScalaGenListOps
         with ScalaGenUncheckedOps
         with SAI_ScalaGenTupleOps
         with SAI_ScalaGenTupledFunctions
@@ -163,7 +175,15 @@ object RepListTExample {
   def test(): DslDriver[Unit, Unit] = new ExampleDriver {
     @virtualize
     def snippet(unit: Rep[Unit]): Rep[Unit] = {
-      println(a.run(Map()).run.run(Map()))
+      println(c.run(Map[String, Set[Int]]())(Map[String, Set[Int]]()))
     }
+  }
+}
+
+object RepListTest {
+  def main(args: Array[String]): Unit = {
+    val s = RepListTExample.test
+    println(s.code)
+    s.eval(())
   }
 }

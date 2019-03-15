@@ -51,5 +51,3 @@ object PCFLang {
                         Var("x"))),
                 Lam("y", Var("y")))
 }
-
-

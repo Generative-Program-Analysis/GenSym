@@ -27,7 +27,7 @@ trait SAIMonads { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
-  trait MonadPlus[M[_]]  {
+  trait MonadPlus[M[_]] { //Why not extends from Monad?
     def mzero[A: Manifest]: M[A]
     def mplus[A: Manifest](a: M[A], b: M[A]): M[A]
   }
@@ -45,6 +45,22 @@ trait SAIMonads { self: SAIDsl =>
       def flatMap[A: Manifest, B: Manifest](ma: Id[A])(f: Rep[A] => Id[B]): Id[B] = f(ma)
       def filter[A: Manifest](ma: Id[A])(f: Rep[A] => Rep[Boolean]): Id[A] = throw new Exception("Not supported")
     }
+  }
+
+  object IdMonadObj {
+    def apply[A: Manifest](implicit m: IdM[A]): IdM[A] = m
+
+    implicit val IdMonadInstance: Monad[IdM] = new Monad[IdM] {
+      def pure[A: Manifest](a: Rep[A]): IdM[A] = IdM(a)
+      def flatMap[A: Manifest, B: Manifest](ma: IdM[A])(f: Rep[A] => IdM[B]): IdM[B] = ma.flatMap(f)
+      def filter[A: Manifest](ma: IdM[A])(f: Rep[A] => Rep[Boolean]): IdM[A] = throw new Exception("Not supported")
+    }
+  }
+  case class IdM[A: Manifest](run: Rep[A]) {
+    import IdMonadObj._
+    def apply: Rep[A] = run
+    def flatMap[B: Manifest](f: Rep[A] => IdM[B]): IdM[B] = f(run)
+    def map[B: Manifest](f: Rep[A] => Rep[B]): IdM[B] = IdM(f(run))
   }
 
   /////////////////////////////////////////////////
@@ -118,7 +134,7 @@ trait SAIMonads { self: SAIDsl =>
     }
 
     implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Manifest] = new MonadPlus[StateT[M, S, ?]] {
-      def mzero[A: Manifest]: StateT[M, S, A] = ???
+      def mzero[A: Manifest]: StateT[M, S, A] = ??? //TODO
       def mplus[A: Manifest](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
         StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))
     }
@@ -170,52 +186,25 @@ trait SAIMonads { self: SAIDsl =>
     def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListTMonadPlus[M].mzero[A]
   }
 
-  def emit_foldMap[M[_]: Monad, A: Manifest, B: Manifest](xs: Rep[List[A]], f: Rep[A => ListT[M, B]]): Rep[M[List[B]]]
-
-
-
   case class ListT[M[_]: Monad, A: Manifest](run: M[List[A]]) {
     import ListT._
 
     def apply: M[List[A]] = run
 
     def ++(ys: ListT[M, A]): ListT[M, A] =
-      ListT(Monad[M].flatMap(run) { list1 =>
-              Monad[M].map(run) { list2 =>
-                list1 ++ list2
-              }
-            })
+      ListT(Monad[M].flatMap(run) { list1 => Monad[M].map(run) { list2 => list1 ++ list2 } })
 
     def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
-      // run: M[List[A]]
       ListT(Monad[M].flatMap(run) { case list: Rep[List[A]] =>
               val merge: Rep[List[B]] =
-                /*
-                list.foldLeft(ListT.empty[M, B]) {
-                  case (acc: ListT[M, B], a: Rep[A]) => acc ++ f(a)
-                 }*/
                 list.foldLeft(List[B]()) {
                   case (acc: Rep[List[B]], a: Rep[A]) =>
-                    val fa: ListT[M, B] = f(a)
-                    val listb: M[List[B]] = Monad[M].map(fa.run) { case falist: Rep[List[B]] => acc ++ falist }
-                    Comonad[M].extract(listb)
+                    val fa: M[List[B]] = f(a).run
+                    val listb: M[List[B]] = Monad[M].map(fa) { case falist: Rep[List[B]] => acc ++ falist }
                     ??? // expected Rep[List[B]], a comonad operation `extract: w a -> a`!
                 }
               Monad[M].pure[List[B]](merge)
             })
-
-    /*
-    @virtualize
-    def flatMapCps[M[_]: Monad, B: Manifest](list: Rep[List[A]], acc: ListT[M, B], f: Rep[A] => ListT[M, B], k: Rep[List[B]] => Rep[List[B]]): Rep[List[B]] = {
-      if (list.isEmpty) {
-        k(acc)
-      }
-      else {
-        val nacc = acc ++ f(list.hd)
-        flatMapCps(list.tl, nacc, f, k)
-      }
-    }
-     */
 
     def map[B: Manifest](f: Rep[A] => Rep[B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
@@ -225,6 +214,84 @@ trait SAIMonads { self: SAIDsl =>
 
     def withFilter(f: Rep[A] => Rep[Boolean]): ListT[M, A] =
       filter(f)
+  }
+
+  // ListT[ReaderT[StateT[Id, ?], ?], ?]
+  // ListT: run: M[List[A]]
+  // ReaderT: run: R => M[A]
+  // StateT: run: S => M[(A, S)]
+  // R => S => (List[A], S)
+  object ListReaderStateM {
+    def apply[R: Manifest, S: Manifest, A: Manifest](implicit m: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] = m
+
+    implicit def ListReaderStateMonad[R: Manifest, S: Manifest] =
+      new Monad[ListReaderStateM[R, S, ?]] with MonadState[ListReaderStateM[R, S, ?], S] with MonadReader[ListReaderStateM[R, S, ?], R] {
+      def flatMap[A: Manifest, B: Manifest](ma: ListReaderStateM[R, S, A])(f: Rep[A] => ListReaderStateM[R, S, B]) = ma.flatMap(f)
+      def pure[A: Manifest](a: Rep[A]): ListReaderStateM[R, S, A] = ListReaderStateM(r => s => (List[A](a), s))
+      def filter[A: Manifest](ma: ListReaderStateM[R, S, A])(f: Rep[A] => Rep[Boolean]): ListReaderStateM[R, S, A] = ma.filter(f)
+
+      def get: ListReaderStateM[R, S, S] = ListReaderStateM(r => s => (List[S](s), s))
+      def put(s: Rep[S]): ListReaderStateM[R, S, Unit] = ListReaderStateM(r => _ => (List[Unit](()), s))
+      def mod(f: Rep[S] => Rep[S]): ListReaderStateM[R, S, Unit] = ListReaderStateM(r => s => (List[Unit](()), f(s)))
+
+      def ask: ListReaderStateM[R, S, R] = ListReaderStateM(r => s => (List[R](r), s))
+      def local[A: Manifest](ma: ListReaderStateM[R, S, A])(f: Rep[R] => Rep[R]): ListReaderStateM[R, S, A] =
+        ListReaderStateM(r => s => ma.run(f(r))(s))
+    }
+    //TODO: merge state?
+
+    implicit def ListReaderStateMonadPlus[R: Manifest, S: Manifest] = new MonadPlus[ListReaderStateM[R, S, ?]] {
+      def mzero[A: Manifest]: ListReaderStateM[R, S, A] = empty[R, S, A]
+      def mplus[A: Manifest](a: ListReaderStateM[R, S, A], b: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] =
+        ListReaderStateM(r => s => {
+                           val (lista, s0) = a.run(r)(s)
+                           val (listb, s1) = b.run(r)(s0)
+                           (lista ++ listb, s1)
+                         })
+    }
+
+    def fromList[R: Manifest, S: Manifest, A: Manifest](xs: List[A]): ListReaderStateM[R, S, A] =
+      ListReaderStateM(r => s => (unit(xs), s))
+
+    def fromList[R: Manifest, S: Manifest, A: Manifest](xs: Rep[List[A]]): ListReaderStateM[R, S, A] =
+      ListReaderStateM(r => s => (xs, s))
+
+    def empty[R: Manifest, S: Manifest, A: Manifest]: ListReaderStateM[R, S, A] =
+      ListReaderStateM(r => s => (List[A](), s))
+  }
+
+  case class ListReaderStateM[R: Manifest, S: Manifest, A: Manifest](run: Rep[R] => Rep[S] => (Rep[List[A]], Rep[S])) {
+    import ListReaderStateM._
+
+    def apply(r: Rep[R])(s: Rep[S]): (Rep[List[A]], Rep[S]) = run(r)(s)
+
+    def flatMap[B: Manifest](f: Rep[A] => ListReaderStateM[R, S, B]): ListReaderStateM[R, S, B] =
+      ListReaderStateM(r => s => {
+                         val (lista, s0) = run(r)(s)
+                         val init: Rep[(List[B], S)] = (List[B](), s0)
+                         lista.foldLeft(init) { case (acc: Rep[(List[B], S)], a: Rep[A]) =>
+                           val fa: ListReaderStateM[R, S, B] = f(a)
+                           val listacc = acc._1
+                           val s1 = acc._2
+                           val (listb, s2) = fa.run(r)(s1)
+                           (listacc ++ listb, s2): Rep[(List[B], S)]
+                         }
+                       })
+
+    def map[B: Manifest](f: Rep[A] => Rep[B]): ListReaderStateM[R, S, B] =
+      ListReaderStateM(r => s => {
+                         val (lista, s0) = run(r)(s)
+                         val listb = lista.map(f)
+                         (listb, s0)
+                       })
+
+    def filter(f: Rep[A] => Rep[Boolean]): ListReaderStateM[R, S, A] =
+      ListReaderStateM(r => s => {
+                         val (lista, s0) = run(r)(s)
+                         (lista.filter(f), s0)
+                       })
+
+    def withFilter(f: Rep[A] => Rep[Boolean]): ListReaderStateM[R, S, A] = filter(f)
   }
 
 }
