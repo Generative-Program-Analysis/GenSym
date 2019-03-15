@@ -20,8 +20,7 @@ specialized. As a classical example, we use the power function and type-based
 annotations to introduce the idea of MSP:
 
 \begin{lstlisting}
-def power(b: Rep[Int], e: Int): Rep[Int] = 
-  if (e == 0) 1 else b * power(b, e - 1)
+def power(b: Rep[Int], e: Int): Rep[Int] = if (e == 0) 1 else b * power(b, e - 1)
 \end{lstlisting}
 
 If the programmer identifies that @b@ will be known in the future stage (as shown
@@ -46,11 +45,11 @@ and @eval@ produces a value.
 Semantically, the interpreter satisfies $ \texttt{eval}(e)(arg) = [\![ e ]\!] arg$ for all
 programs and inputs. Given a program $e_0$, by applying the first Futamura
 projection, we may obtain a specialized interpreter
-$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$, and by definition of the interpreter, 
+$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$ -- the so-called \textit{equivalent executable}. By definition of the interpreter, 
 $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $. If we generalize the
 argument @arg@ to an environment (as well as a companion heap object, if for the
-interest of using assignments) that contains values mapped from free variables
-in $e$, the interpreter is a standard environment/store-passing interpreter,
+interest of using assignments) that maps free variables in $e$ to some values, 
+the interpreter is a standard environment/store-passing interpreter,
 where the specialization through MSP is also applicable.
 
 Roughly at the same time when Futamura projections was visioned in 1970s,
@@ -107,20 +106,58 @@ and abstract interpretation, but from the perspective of their recent
 realizations --- multi-stage programming and definitional abstract interpreters.
 To be specific, we present the application of the first Futamura projection on
 definitional abstract interpreters, which intersects as staged abstract
-interpreters. By borrowing the ideas from monadic interpreters
-\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95,
-DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979} and embedded
-domain-specific languages \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15,
+interpreters. We develop a unified approach to fulfill the four different
+semantics, as shown in Figure~\ref{confluence}. Starting with a generic but
+parametric interpreter shared by the four semantics, by simply instantiating
+the interpreter differently, we can automatically derive a concrete interpreter,
+or an abstract interpreter, or their code-generator versions, respectively.
+
+\iffalse
+embedded domain-specific languages \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15,
 DBLP:journals/jfp/CaretteKS09, DBLP:conf/icfp/GibbonsW14,
-Hofer:2008:PED:1449913.1449935}, we develop an approach to fulfill four
-different semantics (Figure~\ref{confluence}) in a unified framework. The four
-semantics share one same generic interpreter interface. Later, by instantiating
-the interpreter differently, it can behave as a concrete interpreter, an
-abstracter interpreter, or their code-generator versions, respectively. The key
-idea that enables this flexibility is to use abstract type members abstract over
-concrete/abstract components (e.g., concrete values or abstract values), as well
-as the binding-time of them (e.g., static or dynamic). By staging, the overhead
-caused by the monadic layers is eliminated in the generated code.
+Hofer:2008:PED:1449913.1449935},
+The key idea that enables this flexibility is to use abstract type members first
+abstract over concrete/abstract components (e.g., concrete values or abstract
+values), then as well as the binding-time of them (e.g., static or dynamic). By
+staging, the overhead caused by the monadic layers is eliminated in the
+generated code.
+\fi
+
+\paragraph{Abstraction, Abstraction and Abstraction}
+To enable such flexibility between different semantics, we extensively use
+abstract type members over multiple abstractions, which can be later instantiated.
+
+\begin{itemize}
+\item Monadic abstractions, which encapsulate the following two abstractions.
+  The interpreter itself is written in monadic form
+  \cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95,
+  DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}, by plugging
+  different monads, the underlying semantics of the interpreter is changed.
+  \todo{mention that direct-style also works?}
+\item Env-store-value abstractions, which control whether the interpreter
+  behaves as a concrete interpreter or an abstract interpreter.
+  The environments, stores and values declared in the generic interpreter are
+  abstract types; we also define several abstract methods that manipulate
+  environments or stores.
+  As shown by the AAM approach \cite{DBLP:journals/jfp/HornM12,
+  DBLP:conf/icfp/HornM10}, if we widen the values to abstract domains (such as
+  intervals) and refactor the store to a mapping from finite addresses to sets of
+  values, we can derive a computable and sound abstract interpreter.
+\item Binding-time abstractions, which control whether the interpreter produces
+  values or residual programs. The binding-times differentiate whether the
+  data is known statically or dynamically. Unsurprisingly, such binding-time
+  information can be encoded into higher-kinded types \todo{cite FTPE, stage poly}.
+\end{itemize}
+
+\paragraph{Abstraction without Regret}
+
+We show that these well-known abstractions can be combined smoothly, and more
+importantly the price is almost free. Through staging, the major overhead of
+abstractions -- from the monadic layers -- is completely eliminated in the
+generated code. However, we do not lose any advantages of this high-level
+programming style (e.g., the extensibility); the meaning of the program also
+remains the same, particularly, the abstract semantics that does the analysis
+when instantiated as an abstract interpreter.
 
 \paragraph{Performance via Specialization}
 
@@ -130,25 +167,22 @@ static analyzer without any intrusive changes and soundness compromises?} Static
 analysis is known as a trade-off game between \textit{precision} and
 \textit{efficiency}, we argue that applying meta-programming (multi-stage
 programming, in particular) with abstract interpreters is an effective approach
-to improve the latter one while the former one is untouched. Specialization
-removes the overhead of abstractions introduced by high-level programming (e.g.,
-monads), but not loses any advantages of this programming style (e.g.,
-extensibility), nor changes the meaning of the program -- in this case, the
-abstract semantics that does the analysis. Indeed, specializing analysis
-with respect to a program by partial evaluation \cite{damian1999partial,
-amtoft1999partial, Boucher:1996:ACN:647473.727587, ashley:practical} is not a
-new idea, despite the fact that most of the previous work are ad-hoc on a
-particular analysis or requiring significant changes to the analysis. For
-example, abstract compilation \cite{Boucher:1996:ACN:647473.727587} requires the
-whole analyzer to be rewritten as closure generation from. In this paper, we
-show a systematic approach to meta-programming that achieves the performance
-goal with less intrusive changes; in fact, a case study (Section~\ref{cs_ac})
-comparing with abstract compilation shows, by utilizing type-based stage
-annotations, the analyzer program does not need any changes.
+to improve the latter one while the former one is untouched.
+In the literature, specializing analysis with respect to a program by partial
+evaluation \cite{damian1999partial, amtoft1999partial,
+Boucher:1996:ACN:647473.727587, ashley:practical} is not a new, despite the fact
+that most of the previous work are ad-hoc on a particular analysis or requiring
+significant changes to the analyzer. For example, abstract compilation
+\cite{Boucher:1996:ACN:647473.727587} requires the whole analyzer to be
+rewritten as closure generation from. In this paper, we advocate a systematic
+approach to meta-programming that achieves the performance goal with less
+intrusive changes; in fact, a case study (Section~\ref{cs_ac}) comparing with
+abstract compilation shows, by utilizing type-based stage annotations, the
+analyzer program does not need any changes.
 
 \paragraph{Modularity via Meta-Programming}
 
-Our second contribution is to enable modular analysis based on a whole-program
+Our next contribution is to enable modular analysis based on a whole-program
 analyzer by meta-programming. Modern software are shipped with large libraries
 \cite{toman_et_al:LIPIcs:2017:7121}, and analyzing programs with large libraries
 is usually expensive or unnecessarily repeated for whole-program analyzing
@@ -161,7 +195,7 @@ and reusable. Meta-programming gives us a chance to readily tweak a
 whole-program analyzing algorithm into an analyzer that works modularly and
 produces summaries. Still, the idea is to specialize the abstract interpreter
 that was used for whole-program analysis, but on a subset of the program, for
-examples, several generic functions for list manipulation. Such specialization
+examples, a set of generic functions for list manipulation. Such specialization
 works on lambda expressions and generates code, which is partial analysis
 results and can be completed by running with the necessary arguments (for
 example, an environment that closes the lambda term) at next stages. Multiple
@@ -169,6 +203,45 @@ partial analysis results also can be reused later and composed together as they
 are just normal programs at the next stage. Through staging, we mechanically
 obtain a modular analysis, even though the original algorithm is formulated as a
 whole-program analysis.
+
+\paragraph{The paper is organized as follows:}
+
+\begin{itemize}
+  \item We progressively present a unifying construction that naturally extends
+    the first Futamura projection to abstract interpreters. Starting from a generic
+    interface of the interpreter for a small functional language
+    (Section~\ref{generic_if}), we first show the instantiation of concrete
+    interpretation (Section~\ref{unstaged_conc}). Then we lift it to the staged
+    version by replacing the binding-time types (Section~\ref{stagedinterp}); and to
+    the abstract interpreter by applying abstraction to the environment, store, and
+    values (Section~\ref{unstaged_abs}). Finally, we show the combination of the two
+    transformations, dubbed \textit{staged abstract interpreters}, can be easily
+    derived (Section~\ref{sai}).
+
+  \item We demonstrate that if we apply the abstract interpreter on components
+    of the program separately, it not only improves the \textit{efficiency} but
+    also the \textit{scalability} (Section~\ref{sai} \todo{}), which are two
+    major issues in static analysis.
+
+  \item We conduct two case studies to show the applicability and usefulness
+    of applying meta-programming to static analysis (Section~\ref{cases_study}).
+    (1) We first revisit the Abstract Compilation (AC)
+    \cite{Boucher:1996:ACN:647473.727587} technique (Section~\ref{cs_ac}).
+    Our approach and AC are able to achieve the same goal, however, as we show,
+    one of the advantage of staging through types is it does not require
+    whole-analyzer refactoring.
+    (2) We extend the staged abstract interpreter to two variants of
+    control-flow analysis: context-sensitive pushdown control-flow analysis and
+    \todo{precise-store?} (Section~\ref{sai}).
+    
+  \item Based on the instantiation of control-flow analysis, we empirically
+    evaluate the performance improvement by staging and specialization
+    (Section~\ref{evaluation}). We compare the both context-insensitive and
+    \note{context-sensitive} analysis.
+    
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \iffalse
 Likewise, specializing static analyses by partial evaluation emerged in late 90s
@@ -255,40 +328,3 @@ context-sensitivity\todo{}.
 \fi
 
 %\note{Expression problem \cite{DBLP:conf/icfp/GibbonsW14, DBLP:conf/ecoop/KrishnamurthiFF98, expproblem},}
-
-\paragraph{Contributions and Outline}
-
-\begin{itemize}
-  \item We progressively present a unifying construction that naturally extends
-    the first Futamura projection to abstract interpreters. Starting from a generic
-    interface of the interpreter for a small functional language
-    (Section~\ref{generic_if}), we first show the instantiation of concrete
-    interpretation (Section~\ref{unstaged_conc}). Then we lift it to the staged
-    version by replacing the binding-time type (Section~\ref{stagedinterp}); and to
-    the abstract interpreter by applying abstraction to the environment, store, and
-    values (Section~\ref{unstaged_abs}). Finally, we show the combination of the two
-    transformations, dubbed \textit{staged abstract interpreters}, can be easily
-    derived (Section~\ref{sai}).
-
-  \item We demonstrate that if we apply the abstract interpreter on components
-    of the program separately, it not only improves the \textit{efficiency} but
-    also the \textit{scalability} (Section~\ref{sai} \todo{}), which are two
-    major issues in static analysis.
-
-  \item We conduct two case studies to show the applicability and usefulness
-    of applying meta-programming to static analysis (Section~\ref{cases_study}).
-    (1) We first revisit the Abstract Compilation (AC)
-    \cite{Boucher:1996:ACN:647473.727587} technique (Section~\ref{cs_ac}).
-    Our approach and AC are able to achieve the same goal, however, as we show,
-    one of the advantage of staging through types is it does not require
-    whole-analyzer refactoring.
-    (2) We extend the staged abstract interpreter to two variants of
-    control-flow analysis: context-sensitive pushdown control-flow analysis and
-    \todo{precise-store?} (Section~\ref{sai}).
-    
-  \item Based on the instantiation of control-flow analysis, we empirically
-    evaluate the performance improvement by staging and specialization
-    (Section~\ref{evaluation}). We compare the both context-insensitive and
-    \note{context-sensitive} analysis.
-    
-\end{itemize}

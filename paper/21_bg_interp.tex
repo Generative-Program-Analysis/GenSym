@@ -44,9 +44,9 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 In Scala, thanks for its nature that combines functional programming and
 object-oriented programming, we may use traits and objects to implement monads.
 For example, the following trait @Monad@ declares the @pure@ and @flatMap@
-operation. The trait itself takes a higher-kinded type @F[_]: * -> *@
+operation. The trait itself takes a higher-kinded type @F[_]: * -> *@ as argument,
 which takes a type and returns a type. The method @pure@ promotes values of type
-@A@ to values of type @F[A]@. The monadic @bind@ operation is usually called
+@A@ to values of type @F[A]@ \footnote{We elect to use \texttt{pure} as the name, since \texttt{return} is a keyword in Scala and \texttt{unit} is a built-in function in LMS.}. The monadic @bind@ operation is usually called
 @flatMap@ in Scala, which takes a monad-encapsulated value of type @F[A]@, a function of
 @A => F[B]@ and returns values of type @F[B]@.
 
@@ -184,7 +184,9 @@ closure values is also written in this style. We define a default implementation
 \texttt{fix(ev)} for \texttt{ev}. Finally, the top-level evaluation function
 \texttt{eval\_top} is defined.
 
-\paragraph{Stage Polymorphism}
+\paragraph{Binding-time Abstraction}
+%\paragraph{Stage Polymorphism}
+% Binding-time abstraction via abstract types
 
 Readers may notice that an abstract higher-kinded type \texttt{R[+T]} is defined
 in the trait, i.e. a type-level function which will be used to specify the
