@@ -136,6 +136,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     case ListFlatMap(a, _, body) => syms(a) ::: syms(body)
     case ListFilter(a, _, body) => syms(a) ::: syms(body)
     case ListSortBy(a, x, body) => syms(a):::syms(body)
+    case ListFoldLeft(s, z, acc, x, body) => syms(s) ::: syms(z) ::: syms(body)
     case _ => super.syms(e)
   }
 
@@ -144,6 +145,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     case ListFlatMap(_, x, body) => x :: effectSyms(body)
     case ListFilter(_, x, body) => x :: effectSyms(body)
     case ListSortBy(a, x, body) => x :: effectSyms(body)
+    case ListFoldLeft(s, z, acc, x, body) => acc :: x :: effectSyms(body)
     case _ => super.boundSyms(e)
   }
 
@@ -151,7 +153,8 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     case ListMap(a, x, body) => freqNormal(a):::freqHot(body)
     case ListFlatMap(a, _, body) => freqNormal(a) ::: freqHot(body)
     case ListFilter(a, _, body) => freqNormal(a) ::: freqHot(body)
-    case ListSortBy(a, x, body) => freqNormal(a):::freqHot(body)
+    case ListSortBy(a, x, body) => freqNormal(a) ::: freqHot(body)
+    case ListFoldLeft(s, z, acc, x, body) => freqNormal(s) ::: freqNormal(z) ::: freqHot(body)
     case _ => super.symsFreq(e)
   }
 }
