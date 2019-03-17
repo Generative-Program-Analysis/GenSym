@@ -54,6 +54,9 @@ object AbsInterpreter {
   def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
   def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
 
+  def alloc(σ: Store, x: String): Addr = Addr(x)
+  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
   def get_store: AnsM[Store] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
@@ -62,17 +65,9 @@ object AbsInterpreter {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ =>
                                                    σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
 
-  def alloc(σ: Store, x: String): Addr = Addr(x)
-  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
-
-  //TODO: Test this!!!
-  def join(e1: => Ans, e2: => Ans, ρ: Env): StoreNdInOutCacheM[Value] =
-    StateTMonadPlus[NdInOutCacheM, Store].mplus(e1(ρ), e2(ρ))
-
-  def branch0(test: Value, thn: => Ans, els: => Ans): Ans = for {
-    ρ <- ask_env
-    v <- ReaderT.liftM[StoreNdInOutCacheM, Env, Value](join(thn, els, ρ))
-  } yield v
+  //TODO: Test this, whether the cache is monotonically preserved.
+  def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
+    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
 
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
@@ -198,6 +193,52 @@ object AbsInterpreter {
 
   def run_wo_cache(e: Expr): (List[(Value, Store)], Cache) = fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
   def run(e: Expr): (List[(Value, Store)], Cache) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
+}
+
+@virtualize
+trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
+  import PCFLang._
+  import ReaderT._
+  import StateT._
+  import ListReaderStateM._
+
+  trait AbsValue
+  case object IntTop extends AbsValue
+  case class CloV[Env](lam: Lam, env: Env) extends AbsValue
+
+  type Value = Set[AbsValue]
+  type Ident = String
+  case class Addr(x: String) { override def toString = x }
+
+  type Env = Map[Ident, Addr]
+  type Store = Map[Addr, Value]
+  type Config = (Expr, Env, Store)
+  type Cache = Map[Config, Set[(Store, Value)]]
+
+  type EnvT[F[_], B] = ReaderT[F, Env, B]
+  type StoreT[F[_], B] = StateT[F, Store, B]
+
+  type NdInOutCacheM[T] = ListReaderStateM[Cache, Cache, T]
+  type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
+  type AnsM[T] = EnvT[StoreNdInOutCacheM, T]
+
+  type Ans = AnsM[Value]
+
+  type EvalFun = Expr => Ans
+
+  def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
+  def ext_env(x: Rep[String], a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
+  def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
+
+  def alloc(σ: Rep[Store], x: String): Rep[Addr] = unchecked("Addr(", x, ")")
+  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
+  def get_store: AnsM[Store] = ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
+  def put_store(σ: Rep[Store]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
+  def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ =>
+                                                   σ + (a → (σ.getOrElse(a, RepLattice[Value].bot) ⊔ v))))
 }
 
 object MainAbs {

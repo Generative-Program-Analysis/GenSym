@@ -12,7 +12,7 @@ object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 }
 
-trait MonadPlus[M[_]]  {
+trait MonadPlus[M[_]] {
   def mzero[A]: M[A]
   def mplus[A](a: M[A], b: M[A]): M[A]
 }
@@ -51,6 +51,11 @@ object ReaderT {
     def ask: ReaderT[M, R, R] = ReaderT(r => Monad[M].pure(r))
     def local[A](fa: ReaderT[M, R, A])(f: R => R): ReaderT[M, R, A] =
       ReaderT(f andThen fa.run)
+  }
+  implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R] = new MonadPlus[ReaderT[M, R, ?]] {
+    def mzero[A]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
+    def mplus[A](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
+      ReaderT(r => MonadPlus[M].mplus(a.run(r), b.run(r)))
   }
 
   def liftM[G[_]: Monad, R, A](ga: G[A]): ReaderT[G, R, A] =
@@ -95,7 +100,7 @@ object StateT {
   }
 
   implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S] = new MonadPlus[StateT[M, S, ?]] {
-    def mzero[A]: StateT[M, S, A] = ???
+    def mzero[A]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
     def mplus[A](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
       StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))
   }

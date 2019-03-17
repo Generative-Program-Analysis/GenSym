@@ -258,6 +258,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
   def ext_env(x: Rep[String], a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
+  def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
 
   def alloc(σ: Rep[Store], x: String): Rep[Addr] = σ.size + 1
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
@@ -272,8 +273,6 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
     val v2n = unchecked(v2, ".asInstanceOf[IntV].i")
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
   }
-
-  def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
 
   def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
@@ -369,8 +368,6 @@ trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
 
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
     reflectEffect(ApClo(fun, arg, σ))
-
-  def emit_foldMap[M[_]: Monad, A: Manifest, B: Manifest](xs: Rep[List[A]], f: Rep[A => ListT[M, B]]): Rep[M[List[B]]] = ???
 
   /*
   def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans = for {

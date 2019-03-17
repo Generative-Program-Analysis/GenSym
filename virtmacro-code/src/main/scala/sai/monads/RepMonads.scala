@@ -89,6 +89,12 @@ trait SAIMonads { self: SAIDsl =>
         ReaderT(f andThen fa.run)
     }
 
+    implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R: Manifest] = new MonadPlus[ReaderT[M, R, ?]] {
+      def mzero[A: Manifest]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
+      def mplus[A: Manifest](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
+        ReaderT(r => MonadPlus[M].mplus(a.run(r), b.run(r)))
+    }
+
     def liftM[G[_]: Monad, R: Manifest, A: Manifest](ga: G[A]): ReaderT[G, R, A] =
       ReaderT(r => ga)
   }
