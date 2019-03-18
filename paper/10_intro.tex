@@ -34,7 +34,7 @@ def power5(b: Int): Int = b * b * b * b * b
 \end{lstlisting}
 
 Now to concretely illustrate the idea of Futamura projection, consider that we
-have an interpreter @eval@ of some language as following:
+have an operational interpreter @eval@ of some language as following:
 
 \begin{lstlisting}
 def eval(e: Expr)(arg: Input): Value = ...
@@ -45,7 +45,8 @@ and @eval@ produces a value.
 Semantically, the interpreter satisfies $ \texttt{eval}(e)(arg) = [\![ e ]\!] arg$ for all
 programs and inputs. Given a program $e_0$, by applying the first Futamura
 projection, we may obtain a specialized interpreter
-$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$ -- the so-called \textit{equivalent executable}. By definition of the interpreter, 
+$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$ -- the so-called \textit{equivalent executable}. 
+By definition of the interpreter, 
 $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $. If we generalize the
 argument @arg@ to an environment (as well as a companion heap object, if for the
 interest of using assignments) that maps free variables in $e$ to some values, 
@@ -123,7 +124,7 @@ staging, the overhead caused by the monadic layers is eliminated in the
 generated code.
 \fi
 
-\paragraph{Abstraction, Abstraction and Abstraction}
+\paragraph{Abstraction, Abstraction, and Abstraction}
 To enable such flexibility between different semantics, we extensively use
 abstract type members over multiple abstractions, which can be later instantiated.
 
