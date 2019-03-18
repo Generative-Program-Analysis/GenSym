@@ -35,7 +35,9 @@ trait ListOps extends Variables {
     /****************************/
     def zip[B:Manifest](rhs: Rep[List[B]]) = list_zip(l, rhs)
     def take(i: Rep[Int]) = list_take(l, i)
-    def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = list_foldLeft(l, z, f)
+    def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]) = list_foldLeft(l, z, f)
+    def containsSlice(that: Rep[List[A]]) = list_containsSlice(l, that)
+    def intersect(that: Rep[List[A]]) = list_intersect(l, that)
   }
 
   def list_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext): Rep[List[A]]
@@ -58,6 +60,8 @@ trait ListOps extends Variables {
   def list_zip[A:Manifest, B:Manifest](lhs: Rep[List[A]], rhs: Rep[List[B]])(implicit pos: SourceContext): Rep[List[(A, B)]]
   def list_take[A:Manifest](xs: Rep[List[A]], i: Rep[Int])(implicit pos: SourceContext): Rep[List[A]]
   def list_foldLeft[A:Manifest,B:Manifest](s: Rep[List[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
+  def list_containsSlice[A:Manifest](l1: Rep[List[A]], l2: Rep[List[A]])(implicit pos: SourceContext): Rep[Boolean]
+  def list_intersect[A:Manifest](l1: Rep[List[A]], l2: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]]
 }
 
 trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
@@ -81,6 +85,8 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
   case class ListZip[A:Manifest, B:Manifest](lhs: Rep[List[A]], rhs: Rep[List[B]]) extends Def[List[(A, B)]]
   case class ListTake[A:Manifest](xs: Rep[List[A]], i: Rep[Int]) extends Def[List[A]]
   case class ListFoldLeft[A:Manifest,B:Manifest](s: Exp[List[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
+  case class ListContainsSlice[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]]) extends Def[Boolean]
+  case class ListIntersect[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]]) extends Def[List[A]]
 
   def list_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext) = ListNew(xs)
   def list_fromseq[A:Manifest](xs: Rep[Seq[A]])(implicit pos: SourceContext) = ListFromSeq(xs)
@@ -123,6 +129,8 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     val b = reifyEffects(f(acc, x))
     reflectEffect(ListFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
   }
+  def list_containsSlice[A: Manifest](l1: Exp[List[A]], l2: Exp[List[A]])(implicit pos: SourceContext) = ListContainsSlice(l1, l2)
+  def list_intersect[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]])(implicit pos: SourceContext) = ListIntersect(l1, l2)
 
   override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = {
     (e match {
@@ -215,10 +223,12 @@ trait ScalaGenListOps extends BaseGenListOps with ScalaGenEffect {
     case ListZip(xs, ys) => emitValDef(sym, src"$xs.zip($ys)")
     case ListTake(l, i) => emitValDef(sym, src"$l.take($i)")
     case ListFoldLeft(s, z, acc, x, block) =>
-      gen"""val $sym = $s.foldLeft ($z) { case ($acc, $x) => 
+      gen"""val $sym = $s.foldLeft ($z) { case ($acc, $x) =>
             |${nestedBlock(block)}
             |$block
             |}"""
+    case ListContainsSlice(l1, l2) => emitValDef(sym, src"$l1.containsSlice($l2)")
+    case ListIntersect(l1, l2) => emitValDef(sym, src"$l1.intersect($l2)")
     case _ => super.emitNode(sym, rhs)
   }
 }

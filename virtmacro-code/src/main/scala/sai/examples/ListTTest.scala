@@ -13,8 +13,10 @@ import org.scala_lang.virtualized.virtualize
 import org.scala_lang.virtualized.SourceContext
 
 import sai.lms._
+import sai.lattices._
+import sai.lattices.Lattices._
 
-object ListTTest {
+object ListTTests {
   import ReaderT._
   import StateT._
   import ListT._
@@ -56,6 +58,36 @@ object ListTTest {
 
     val result = c.run(Map[Int, Int](-1 -> -1)).run
     println(result.size)
+  }
+
+  def test2() = {
+    // test state merge inside of ListT
+    type Store = Map[Int, Set[Int]]
+
+    type NondetT[F[_], B] = ListT[F, B]
+    type StoreT[F[_], B] = StateT[F, Store, B]
+
+    type StoreM[T] = StoreT[Id, T]
+    type AnsM[T] = NondetT[StoreM, T]
+    type Ans = AnsM[Int]
+
+    val a: Ans = for {
+      x <- ListT.fromList[StoreM, Int](List(1,2))
+      y <- ListT.fromList[StoreM, Int](List(4,5))
+      _ <- ListT.liftM[StoreM, Unit](StateTMonad[Id, Store].mod(s => s + (x -> Set(y))))
+    } yield x + y
+
+    val b: Ans = for {
+      x <- ListT.fromList[StoreM, Int](List(1, 2))
+      y <- ListT.fromList[StoreM, Int](List(6, 7))
+      _ <- ListT.liftM[StoreM, Unit](StateTMonad[Id, Store].mod(s => s + (x -> Set(y))))
+    } yield x + y
+
+    println(a.run(Map()))
+    println(b.run(Map()))
+
+    val c: Ans = MonadPlus[AnsM].mplus(a, b)
+    println(c.run(Map()))
   }
 }
 
@@ -127,10 +159,15 @@ object RepListTExample {
   }
 }
 
-object RepListTest {
+object ListTTest {
   def main(args: Array[String]): Unit = {
+    // RepListT
+    /*
     val s = RepListTExample.test
     println(s.code)
     s.eval(())
+     */
+
+    ListTTests.test2
   }
 }

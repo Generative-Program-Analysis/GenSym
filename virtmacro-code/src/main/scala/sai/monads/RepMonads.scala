@@ -10,9 +10,11 @@ import org.scala_lang.virtualized.virtualize
 import org.scala_lang.virtualized.SourceContext
 
 import sai.lms._
+import sai.lattices._
+import sai.lattices.Lattices._
 
 @virtualize
-trait SAIMonads { self: SAIDsl =>
+trait SAIMonads extends RepLattices { self: SAIDsl =>
 
   trait Monad[M[_]] {
     def pure[A: Manifest](a: Rep[A]): M[A]
@@ -27,9 +29,9 @@ trait SAIMonads { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
-  trait MonadPlus[M[_]] { //Why not extends from Monad?
-    def mzero[A: Manifest]: M[A]
-    def mplus[A: Manifest](a: M[A], b: M[A]): M[A]
+  trait MonadPlus[M[_]] { // TODO: Why not extends from Monad?
+    def mzero[A: Manifest : RepLattice]: M[A]
+    def mplus[A: Manifest : RepLattice](a: M[A], b: M[A]): M[A]
   }
 
   object MonadPlus {
@@ -90,8 +92,8 @@ trait SAIMonads { self: SAIDsl =>
     }
 
     implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R: Manifest] = new MonadPlus[ReaderT[M, R, ?]] {
-      def mzero[A: Manifest]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
-      def mplus[A: Manifest](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
+      def mzero[A: Manifest : RepLattice]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
+      def mplus[A: Manifest : RepLattice](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
         ReaderT(r => MonadPlus[M].mplus(a.run(r), b.run(r)))
     }
 
@@ -139,9 +141,9 @@ trait SAIMonads { self: SAIDsl =>
       def mod(f: Rep[S] => Rep[S]): StateT[M, S, Unit] = StateT(s => Monad[M].pure((unit(()), f(s))))
     }
 
-    implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Manifest] = new MonadPlus[StateT[M, S, ?]] {
-      def mzero[A: Manifest]: StateT[M, S, A] = ??? //TODO
-      def mplus[A: Manifest](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
+    implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Manifest : RepLattice] = new MonadPlus[StateT[M, S, ?]] {
+      def mzero[A: Manifest : RepLattice]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
+      def mplus[A: Manifest : RepLattice](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
         StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))
     }
 
@@ -170,6 +172,8 @@ trait SAIMonads { self: SAIDsl =>
     def withFilter(f: Rep[A] => Rep[Boolean]): StateT[M, S, A] = filter(f)
   }
 
+  /////////////////////////////////////////////////
+
   object ListT {
     def apply[M[_]: Monad, A: Manifest](implicit m: ListT[M, A]): ListT[M, A] = m
 
@@ -180,8 +184,8 @@ trait SAIMonads { self: SAIDsl =>
     }
 
     implicit def ListTMonadPlus[M[_]: Monad] = new MonadPlus[ListT[M, ?]] {
-      def mzero[A: Manifest]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
-      def mplus[A: Manifest](a: ListT[M, A], b: ListT[M, A]): ListT[M, A] = a ++ b
+      def mzero[A: Manifest : RepLattice]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
+      def mplus[A: Manifest : RepLattice](a: ListT[M, A], b: ListT[M, A]): ListT[M, A] = a ++ b
     }
 
     def fromList[M[_]: Monad, A: Manifest](xs: Rep[List[A]]): ListT[M, A] =
@@ -189,7 +193,7 @@ trait SAIMonads { self: SAIDsl =>
     def listM[G[_]: Monad, A: Manifest](ga: G[A]): ListT[G, A] =
       ListT(Monad[G].map(ga)((a: Rep[A]) => List(a)))
 
-    def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListTMonadPlus[M].mzero[A]
+    def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
   }
 
   case class ListT[M[_]: Monad, A: Manifest](run: M[List[A]]) {
@@ -222,6 +226,8 @@ trait SAIMonads { self: SAIDsl =>
       filter(f)
   }
 
+  /////////////////////////////////////////////////
+
   // ListT[ReaderT[StateT[Id, ?], ?], ?]
   // ListT: run: M[List[A]]
   // ReaderT: run: R => M[A]
@@ -244,15 +250,14 @@ trait SAIMonads { self: SAIDsl =>
       def local[A: Manifest](ma: ListReaderStateM[R, S, A])(f: Rep[R] => Rep[R]): ListReaderStateM[R, S, A] =
         ListReaderStateM(r => s => ma.run(f(r))(s))
     }
-    //TODO: merge state?
 
-    implicit def ListReaderStateMonadPlus[R: Manifest, S: Manifest] = new MonadPlus[ListReaderStateM[R, S, ?]] {
-      def mzero[A: Manifest]: ListReaderStateM[R, S, A] = empty[R, S, A]
-      def mplus[A: Manifest](a: ListReaderStateM[R, S, A], b: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] =
+    implicit def ListReaderStateMonadPlus[R: Manifest, S: Manifest : RepLattice] = new MonadPlus[ListReaderStateM[R, S, ?]] {
+      def mzero[A: Manifest : RepLattice]: ListReaderStateM[R, S, A] = empty[R, S, A]
+      def mplus[A: Manifest : RepLattice](a: ListReaderStateM[R, S, A], b: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] =
         ListReaderStateM(r => s => {
-                           val (lista, s0) = a.run(r)(s)
-                           val (listb, s1) = b.run(r)(s0)
-                           (lista ++ listb, s1)
+                           val (lista, sa) = a.run(r)(s)
+                           val (listb, sb) = b.run(r)(s)
+                           (lista ⊔ listb, sa ⊔ sb)
                          })
     }
 

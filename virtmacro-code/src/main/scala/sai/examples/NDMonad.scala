@@ -3,7 +3,9 @@ package examples
 
 import scalaz._
 import Scalaz._
-// ListT using scalaz
+
+/* ListT using scalaz */
+
 object NDTest {
   def test() = {
     type Store = Map[Int, Int]

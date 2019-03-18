@@ -441,8 +441,6 @@ object Main {
     println(code.code)
     code.eval(())
 
-    //ListTTest.test
-
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)
   }

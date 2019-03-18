@@ -44,6 +44,14 @@ trait RepLattices { self: SAIDsl =>
     def ⊓(that: Rep[L]): Rep[L] = RepLattice[L].⊓(l, that)
   }
 
+  implicit def RepIntLattice: RepLattice[Int] = new RepLattice[Int] {
+    lazy val bot: Rep[Int] = unit(-2147483648) //Double.NegativeInfinity.toInt
+    lazy val top: Rep[Int] = unit( 2147483647) //Double.PositiveInfinity.toInt
+    def ⊑(l1: Rep[Int], l2: Rep[Int]): Rep[Boolean] = l1 <= l2
+    def ⊔(l1: Rep[Int], l2: Rep[Int]): Rep[Int] = unchecked("math.max(", l1, ",", l2, ")")
+    def ⊓(l1: Rep[Int], l2: Rep[Int]): Rep[Int] = unchecked("math.min(", l1, ",", l2, ")")
+  }
+
   implicit def RepSetLattice[T:Manifest]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
     lazy val bot: Rep[Set[T]] = Set[T]()
     lazy val top: Rep[Set[T]] = throw new RuntimeException("No representation of top power set")
@@ -52,16 +60,22 @@ trait RepLattices { self: SAIDsl =>
     def ⊓(l1: Rep[Set[T]], l2: Rep[Set[T]]): Rep[Set[T]] = l1 intersect l2
   }
 
+  implicit def RepListLattice[T:Manifest]: RepLattice[List[T]] = new RepLattice[List[T]] {
+    lazy val bot: Rep[List[T]] = List[T]()
+    lazy val top: Rep[List[T]] = throw new RuntimeException("No representation of top power list")
+    def ⊑(l1: Rep[List[T]], l2: Rep[List[T]]): Rep[Boolean] = l2 containsSlice l1
+    def ⊔(l1: Rep[List[T]], l2: Rep[List[T]]): Rep[List[T]] = l1 ++ l2
+    def ⊓(l1: Rep[List[T]], l2: Rep[List[T]]): Rep[List[T]] = l1 intersect l2
+  }
+
   implicit def RepMapLattice[K:Manifest, V:Manifest:RepLattice]: RepLattice[Map[K, V]] = new RepLattice[Map[K, V]] {
     lazy val bot: Rep[Map[K, V]] = Map.empty[K, V]
     lazy val top: Rep[Map[K, V]] = throw new RuntimeException("No representation of top map")
     def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = ???
-      /* FIXME
-    {
-      m1.foreach { case (k: Rep[K],v: Rep[V]) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
-      true
-    }
-       */
+    /* FIXME
+    { m1.foreach { case (k: Rep[K],v: Rep[V]) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
+      true }
+    */
     def ⊔(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
       m2.foldLeft (m1) { case (m, (k, v)) ⇒ m + ((k, m.getOrElse(k, v.bot) ⊔ v)) }
     def ⊓(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
@@ -109,12 +123,28 @@ object Lattices {
     def ⊓(that: L): L = Lattice[L].⊓(l, that)
   }
 
+  implicit def IntLattice: Lattice[Int] = new Lattice[Int] {
+    lazy val bot: Int = Double.NegativeInfinity.toInt
+    lazy val top: Int = Double.PositiveInfinity.toInt
+    def ⊑(l1: Int, l2: Int): Boolean = l1 <= l2
+    def ⊔(l1: Int, l2: Int): Int = math.max(l1, l2)
+    def ⊓(l1: Int, l2: Int): Int = math.min(l1, l2)
+  }
+
   implicit def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
     lazy val bot: Set[T] = Set[T]()
     lazy val top: Set[T] = throw new RuntimeException("No representation of top power set")
     def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf l2
     def ⊔(l1: Set[T], l2: Set[T]): Set[T] = l1 union l2
     def ⊓(l1: Set[T], l2: Set[T]): Set[T] = l1 intersect l2
+  }
+
+  implicit def ListLattice[T]: Lattice[List[T]] = new Lattice[List[T]] {
+    lazy val bot: List[T] = List[T]()
+    lazy val top: List[T] = throw new RuntimeException("No representation of top power list")
+    def ⊑(l1: List[T], l2: List[T]): Boolean = l2 containsSlice l1
+    def ⊔(l1: List[T], l2: List[T]): List[T] = l1 ++ l2
+    def ⊓(l1: List[T], l2: List[T]): List[T] = l1 intersect l2
   }
 
   implicit def ProductLattice[A: Lattice, B: Lattice]: Lattice[(A, B)] = new Lattice[(A, B)] {

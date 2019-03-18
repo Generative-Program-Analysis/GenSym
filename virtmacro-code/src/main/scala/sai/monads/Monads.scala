@@ -1,6 +1,9 @@
 package sai
 package monads
 
+import sai.lattices._
+import sai.lattices.Lattices._
+
 trait Monad[M[_]] {
   def pure[A](a: A): M[A]
   def flatMap[A, B](ma: M[A])(f: A => M[B]): M[B]
@@ -13,13 +16,15 @@ object Monad {
 }
 
 trait MonadPlus[M[_]] {
-  def mzero[A]: M[A]
-  def mplus[A](a: M[A], b: M[A]): M[A]
+  def mzero[A: Lattice]: M[A]
+  def mplus[A: Lattice](a: M[A], b: M[A]): M[A]
 }
 
 object MonadPlus {
   def apply[M[_]](implicit m: MonadPlus[M]): MonadPlus[M] = m
 }
+
+/////////////////////////////////////////////////
 
 object IdMonadInstance {
   type Id[T] = T
@@ -28,7 +33,14 @@ object IdMonadInstance {
     def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = f(ma)
     def filter[A](ma: Id[A])(f: A => Boolean): Id[A] = throw new Exception("Not supported")
   }
+
+  implicit val IdMonadPlus: MonadPlus[Id] = new MonadPlus[Id] {
+    def mzero[A: Lattice]: A = Lattice[A].bot
+    def mplus[A: Lattice](a: A, b: A) = Lattice[A].⊔(a, b)
+  }
 }
+
+/////////////////////////////////////////////////
 
 trait MonadReader[F[_], R] extends Monad[F] {
   def ask: F[R]
@@ -53,8 +65,8 @@ object ReaderT {
       ReaderT(f andThen fa.run)
   }
   implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R] = new MonadPlus[ReaderT[M, R, ?]] {
-    def mzero[A]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
-    def mplus[A](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
+    def mzero[A: Lattice]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
+    def mplus[A: Lattice](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
       ReaderT(r => MonadPlus[M].mplus(a.run(r), b.run(r)))
   }
 
@@ -74,6 +86,8 @@ case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
     ReaderT(r => Monad[M].filter(run(r))(f))
   def withFilter(f: A => Boolean): ReaderT[M, R, A] = filter(f)
 }
+
+/////////////////////////////////////////////////
 
 trait MonadState[F[_], S] extends Monad[F] {
   def get: F[S]
@@ -99,9 +113,9 @@ object StateT {
     def mod(f: S => S): StateT[M, S, Unit] = StateT(s => Monad[M].pure(((), f(s))))
   }
 
-  implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S] = new MonadPlus[StateT[M, S, ?]] {
-    def mzero[A]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
-    def mplus[A](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
+  implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Lattice] = new MonadPlus[StateT[M, S, ?]] {
+    def mzero[A: Lattice]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
+    def mplus[A: Lattice](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
       StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))
   }
 
@@ -122,6 +136,8 @@ case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)]) {
   def withFilter(f: A => Boolean): StateT[M, S, A] = filter(f)
 }
 
+/////////////////////////////////////////////////
+
 object ListT {
   def apply[M[_]: Monad, A](implicit m: ListT[M, A]): ListT[M, A] = m
 
@@ -131,9 +147,11 @@ object ListT {
     def filter[A](la: ListT[M, A])(f: A => Boolean): ListT[M, A] = la.filter(f)
   }
 
-  implicit def ListTMonadPlus[M[_]: Monad] = new MonadPlus[ListT[M, ?]] {
-    def mzero[A]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
-    def mplus[A](a: ListT[M, A], b: ListT[M, A]): ListT[M, A] = a ++ b
+  implicit def ListTMonadPlus[M[_]: Monad : MonadPlus] = new MonadPlus[ListT[M, ?]] {
+    def mzero[A: Lattice]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
+    def mplus[A: Lattice](a: ListT[M, A], b: ListT[M, A]): ListT[M, A] = {
+      ListT(MonadPlus[M].mplus(a.run, b.run))
+    }
   }
 
   def fromList[M[_]: Monad, A](xs: List[A]): ListT[M, A] =
@@ -142,7 +160,7 @@ object ListT {
   def liftM[G[_]: Monad, A](ga: G[A]): ListT[G, A] =
     ListT(Monad[G].map(ga)((a: A) => List(a)))
 
-  def empty[M[_]: Monad, A]: ListT[M, A] = ListTMonadPlus[M].mzero[A]
+  def empty[M[_]: Monad, A]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
 }
 
 case class ListT[M[_]: Monad, A](run: M[List[A]]) {
@@ -154,6 +172,7 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
               list1 ++ list2
             }
           })
+
   def flatMap[B](f: A => ListT[M, B]): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { (list: List[A]) =>
             list.foldLeft(ListT.empty[M,B])((acc, a) => acc ++ f(a)).run
