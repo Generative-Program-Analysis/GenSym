@@ -32,7 +32,7 @@ object AbsInterpreter {
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
   type Config = (Expr, Env, Store)
-  type Cache = Map[Config, Set[(Store, Value)]]
+  type Cache = Map[Config, Set[(Value, Store)]]
 
   type EnvT[F[_], B] = ReaderT[F, Env, B]
   type StoreT[F[_], B] = StateT[F, Store, B]
@@ -62,16 +62,14 @@ object AbsInterpreter {
   def put_store(σ: Store): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
   def update_store(a: Addr, v: Value): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ =>
-                                                   σ ⊔ Map(a → v)))
-                                                   //σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
+  //σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
 
   def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
 
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
-
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
@@ -104,13 +102,12 @@ object AbsInterpreter {
           ReaderT.liftM[OutCacheM, Cache, Cache](
             StateTMonad[Id, Cache].get
           ))))
-  def update_out_cache(cfg: Config, sv: (Store, Value)): AnsM[Unit] =
+  def update_out_cache(cfg: Config, vs: (Value, Store)): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
         ListT.liftM[InOutCacheM, Unit](
           ReaderT.liftM[OutCacheM, Cache, Unit](
-            StateTMonad[Id, Cache].mod(c =>
-              c + (cfg → (c.getOrElse(cfg, Lattice[Set[(Store, Value)]].bot) ⊔ Set(sv)))
+            StateTMonad[Id, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
             )))))
   def put_out_cache(out: Cache): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
@@ -129,18 +126,18 @@ object AbsInterpreter {
     out <- get_out_cache
     rt <- if (out.contains(cfg)) {
       for {
-        (s, v) <- lift_nd[(Store, Value)](out(cfg).toList)
+        (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)
         _ <- put_store(s)
       } yield v
     } else {
       for {
         in <- ask_in_cache
-        val ans_in = in.getOrElse(cfg, Lattice[Set[(Store, Value)]].bot)
+        val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
         val out_* = out + (cfg → ans_in)
         _ <- put_out_cache(out_*)
         v <- ev(fix(ev))(e)
         σ <- get_store
-        _ <- update_out_cache(cfg, (σ, v))
+        _ <- update_out_cache(cfg, (v, σ))
       } yield v
     }
   } yield rt
@@ -203,8 +200,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
   import ListReaderStateM._
 
   trait AbsValue
-  case object IntTop extends AbsValue
-  case class CloV[Env](lam: Lam, env: Env) extends AbsValue
+  //case object IntTop extends AbsValue
+  //case class CloV[Env](lam: Lam, env: Env) extends AbsValue
 
   type Value = Set[AbsValue]
   type Ident = String
@@ -213,7 +210,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
   type Config = (Expr, Env, Store)
-  type Cache = Map[Config, Set[(Store, Value)]]
+  type Cache = Map[Config, Set[(Value, Store)]]
 
   type EnvT[F[_], B] = ReaderT[F, Env, B]
   type StoreT[F[_], B] = StateT[F, Store, B]
@@ -237,9 +234,118 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
   def put_store(σ: Rep[Store]): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
   def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ =>
-                                                   σ ⊔ Map(a → v)))
-                                                   //σ + (a → (σ.getOrElse(a, RepLattice[Value].bot) ⊔ v))))
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
+  //σ + (a → (σ.getOrElse(a, RepLattice[Value].bot) ⊔ v))))
+
+  def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
+
+  def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](unchecked("Set[AbsValue](IntTop)"))
+
+  def lift_nd[T: Manifest](vs: Rep[List[T]]): AnsM[T] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, T](
+      StateT.liftM[NdInOutCacheM, Store, T](
+        ListReaderStateM.fromList(vs)
+      ))
+
+  def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+    val Lam(x, e) = λ
+    val f: Rep[(Value, Store, Cache, Cache)] => Rep[(List[(Value, Store)], Cache)] = {
+      case vscc: Rep[(Value, Store, Cache, Cache)] =>
+        val v = vscc._1; val σ = vscc._2
+        val in = vscc._3; val out = vscc._4
+        val α = alloc(σ, x)
+        ev(e)(ρ + (unit(x) → α))(σ ⊔ Map(α → v)).run(in)(out)
+    }
+    unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+  }
+  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked("Set[AbsValue](IntTop)") //FIXME: check v1 && v2 contains Int
+
+  def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
+
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
+    clo <- lift_nd[AbsValue](fun.toList)
+    in <- ask_in_cache
+    out <- get_out_cache
+    σ <- get_store
+    val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
+    val vss: Rep[List[(Value, Store)]] = res._1
+    _ <- put_out_cache(res._2)
+    vs <- lift_nd[(Value, Store)](vss)
+    _ <- put_store(vs._2)
+  } yield vs._1
+
+  def ask_in_cache: AnsM[Cache] = ???
+  def get_out_cache: AnsM[Cache] = ???
+  def put_out_cache(out: Rep[Cache]): AnsM[Unit] = ???
+  def update_out_cache(cfg: Rep[Config], sv: Rep[(Value, Store)]): AnsM[Unit] = ???
+
+  def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
+
+  def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
+    ρ <- ask_env
+    σ <- get_store
+    in <- ask_in_cache
+    out <- get_out_cache
+    val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
+    val res: Rep[(List[(Value, Store)], Cache)] = if (out.contains(cfg)) {
+      (out.get(cfg).toList, out) //FIXME: out(cfg) vs out.get(cfg)
+    } else {
+      val ans_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+      val new_out = out + (cfg → ans_in)
+      val t: Ans = for {
+        _ <- put_out_cache(new_out)
+        v <- ev(fix(ev))(e)
+        σ <- get_store
+        _ <- update_out_cache(cfg, (v, σ))
+      } yield v
+      t(ρ)(σ).run(in)(out)
+    }
+    _ <- put_out_cache(res._2)
+    vs <- lift_nd(res._1)
+    _ <- put_store(vs._2)
+  } yield vs._1
+
+  def eval(ev: EvalFun)(e: Expr): Ans = e match {
+    case Lit(i) => num(i)
+    case Var(x) => for {
+      ρ <- ask_env
+      σ <- get_store
+    } yield σ(ρ(x))
+    case Lam(x, e) => for {
+      ρ <- ask_env
+    } yield close(ev)(Lam(x, e), ρ)
+    case App(e1, e2) => for {
+      v1 <- ev(e1)
+      v2 <- ev(e2)
+      rt <- ap_clo(ev)(v1, v2)
+    } yield rt
+    case Let(x, rhs, e) => for {
+      v <- ev(rhs)
+      α <- alloc(x)
+      _ <- update_store(α, v)
+      ρ <- ext_env(x, α)
+      rt <- local_env(ev)(e, ρ)
+    } yield rt
+    case If0(e1, e2, e3) => for {
+      cnd <- ev(e1)
+      rt <- branch0(cnd, ev(e2), ev(e3))
+    } yield rt
+    case Aop(op, e1, e2) => for {
+      v1 <- ev(e1)
+      v2 <- ev(e2)
+    } yield prim(op, v1, v2)
+    case Rec(x, rhs, e) => for {
+      α <- alloc(x)
+      ρ <- ext_env(x, α)
+      v <- local_env(ev)(rhs, ρ)
+      _ <- update_store(α, v)
+      rt <- local_env(ev)(e, ρ)
+    } yield rt
+    case Amb(e1, e2) => for {
+      v1 <- ev(e1)
+      v2 <- ev(e2)
+    } yield v1 ++ v2
+  }
 }
 
 object MainAbs {

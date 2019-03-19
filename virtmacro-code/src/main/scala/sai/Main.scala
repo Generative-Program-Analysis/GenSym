@@ -233,8 +233,8 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   import StateT._
 
   sealed trait Value
-  case class IntV(i: Int) extends Value
-  case class CloV[Env](lam: Lam, e: Env) extends Value
+  //case class IntV(i: Int) extends Value
+  //case class CloV[Env](lam: Lam, e: Env) extends Value
 
   type Ident = String
 
@@ -296,10 +296,10 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
     val f: Rep[(Value, Store)] => Rep[(Value, Store)] = {
-      case as: Rep[(Value, Store)] =>
-        val v = as._1; val σ = as._2
+      case vs: Rep[(Value, Store)] =>
+        val v = vs._1; val σ = vs._2
         val α = alloc(σ, x)
-        ev(e).run(ρ + (unit(x) → α)).run(σ + (α → v))
+        ev(e)(ρ + (unit(x) → α))(σ + (α → v))
     }
     unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
   }
@@ -314,7 +314,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   /*
     for {
     σ <- get_store
-    val res: Rep[(Value, Store)] = ap_clo_aux(fun, arg, σ) //unchecked(fun, ".asinstanceof[Compiledclo].f(", arg, ",", σ, ")")
+    val res: Rep[(Value, Store)] = ap_clo_aux(fun, arg, σ)
     _ <- put_store(res._2)
     } yield res._1
    */
@@ -368,14 +368,6 @@ trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
 
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
     reflectEffect(ApClo(fun, arg, σ))
-
-  /*
-  def ap_clo(fun: Rep[Value], arg: Rep[Value]): Ans = for {
-    σ <- get_store
-    val res: Rep[(Value, Store)] = reflectEffect(ApClo(fun, arg, σ))
-    _ <- put_store(res._2)
-  } yield res._1
-   */
 }
 
 trait StagedCESGen extends GenericNestedCodegen {
