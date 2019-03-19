@@ -102,13 +102,6 @@ object AbsInterpreter {
           ReaderT.liftM[OutCacheM, Cache, Cache](
             StateTMonad[Id, Cache].get
           ))))
-  def update_out_cache(cfg: Config, vs: (Value, Store)): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
-      StateT.liftM[NdInOutCacheM, Store, Unit](
-        ListT.liftM[InOutCacheM, Unit](
-          ReaderT.liftM[OutCacheM, Cache, Unit](
-            StateTMonad[Id, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
-            )))))
   def put_out_cache(out: Cache): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
@@ -116,6 +109,13 @@ object AbsInterpreter {
           ReaderT.liftM[OutCacheM, Cache, Unit](
             StateTMonad[Id, Cache].put(out)
           ))))
+  def update_out_cache(cfg: Config, vs: (Value, Store)): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
+      StateT.liftM[NdInOutCacheM, Store, Unit](
+        ListT.liftM[InOutCacheM, Unit](
+          ReaderT.liftM[OutCacheM, Cache, Unit](
+            StateTMonad[Id, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
+            )))))
 
   def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
 
@@ -258,7 +258,9 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     }
     unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
   }
-  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = unchecked("Set[AbsValue](IntTop)") //FIXME: check v1 && v2 contains Int
+
+  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
+    unchecked("Set[AbsValue](IntTop)") //FIXME: check v1 && v2 contains Int
 
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
 
@@ -274,10 +276,26 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     _ <- put_store(vs._2)
   } yield vs._1
 
-  def ask_in_cache: AnsM[Cache] = ???
-  def get_out_cache: AnsM[Cache] = ???
-  def put_out_cache(out: Rep[Cache]): AnsM[Unit] = ???
-  def update_out_cache(cfg: Rep[Config], sv: Rep[(Value, Store)]): AnsM[Unit] = ???
+  def ask_in_cache: AnsM[Cache] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
+      StateT.liftM[NdInOutCacheM, Store, Cache](
+        ListReaderStateMonad[Cache, Cache].ask
+      ))
+  def get_out_cache: AnsM[Cache] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
+      StateT.liftM[NdInOutCacheM, Store, Cache](
+        ListReaderStateMonad[Cache, Cache].get
+      ))
+  def put_out_cache(out: Rep[Cache]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
+      StateT.liftM[NdInOutCacheM, Store, Unit](
+        ListReaderStateMonad[Cache, Cache].put(out)
+      ))
+  def update_out_cache(cfg: Rep[Config], vs: Rep[(Value, Store)]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
+      StateT.liftM[NdInOutCacheM, Store, Unit](
+        ListReaderStateMonad[Cache, Cache].mod(c => c ⊔ Map(cfg → Set(vs)))
+      ))
 
   def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
 
@@ -346,6 +364,14 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
       v2 <- ev(e2)
     } yield v1 ++ v2
   }
+
+  val ρ0: Rep[Env] = Map()
+  val σ0: Rep[Store] = Map()
+  val cache0: Rep[Cache] = Map()
+
+  def run_wo_cache(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) =
+    fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
+  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
 object MainAbs {
