@@ -122,18 +122,18 @@ object AbsInterpreter {
   def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
     ρ <- ask_env
     σ <- get_store
-    val cfg = (e, ρ, σ)
+    in <- ask_in_cache
     out <- get_out_cache
+    val cfg = (e, ρ, σ)
     rt <- if (out.contains(cfg)) {
       for {
         (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)
         _ <- put_store(s)
       } yield v
     } else {
+      val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
+      val out_* = out + (cfg → ans_in)
       for {
-        in <- ask_in_cache
-        val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
-        val out_* = out + (cfg → ans_in)
         _ <- put_out_cache(out_*)
         v <- ev(fix(ev))(e)
         σ <- get_store
