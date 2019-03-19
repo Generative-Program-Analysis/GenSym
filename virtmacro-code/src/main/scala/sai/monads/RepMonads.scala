@@ -174,6 +174,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
+  @deprecated
   object ListT {
     def apply[M[_]: Monad, A: Manifest](implicit m: ListT[M, A]): ListT[M, A] = m
 
@@ -196,6 +197,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
     def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
   }
 
+  @deprecated
   case class ListT[M[_]: Monad, A: Manifest](run: M[List[A]]) {
     import ListT._
 

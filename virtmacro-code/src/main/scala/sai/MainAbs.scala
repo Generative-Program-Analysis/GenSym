@@ -63,9 +63,9 @@ object AbsInterpreter {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
   def update_store(a: Addr, v: Value): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ =>
-                                                   σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
+                                                   σ ⊔ Map(a → v)))
+                                                   //σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
 
-  //TODO: Test this, whether the cache is monotonically preserved.
   def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
 
@@ -238,7 +238,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
   def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ =>
-                                                   σ + (a → (σ.getOrElse(a, RepLattice[Value].bot) ⊔ v))))
+                                                   σ ⊔ Map(a → v)))
+                                                   //σ + (a → (σ.getOrElse(a, RepLattice[Value].bot) ⊔ v))))
 }
 
 object MainAbs {
