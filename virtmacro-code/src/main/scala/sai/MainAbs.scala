@@ -178,10 +178,6 @@ object AbsInterpreter {
       _ <- update_store(α, v)
       rt <- local_env(ev)(e, ρ)
     } yield rt
-    case Amb(e1, e2) => for {
-      v1 <- ev(e1)
-      v2 <- ev(e2)
-    } yield v1 ++ v2
   }
 
   val ρ0: Env = Map()
@@ -227,7 +223,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
   def ext_env(x: Rep[String], a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
   def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
 
-  def alloc(σ: Rep[Store], x: String): Rep[Addr] = unchecked("Addr(", x, ")")
+  def alloc(σ: Rep[Store], x: String): Rep[Addr] = unchecked("Addr(\"", x, "\")")
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
   def get_store: AnsM[Store] = ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
@@ -256,7 +252,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ ⊔ Map(α → v)).run(in)(out)
     }
-    unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+    unchecked("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
+    //TODO: when evaluating, change lam/rho to hash code
   }
 
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
@@ -264,7 +261,21 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
 
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
 
-  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
+    lift_nd[AbsValue](fun.toList).flatMap { clo =>
+      ask_in_cache.flatMap { in =>
+        get_out_cache.flatMap { out =>
+          get_store.flatMap { σ =>
+            val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
+            val vss: Rep[List[(Value, Store)]] = res._1
+            put_out_cache(res._2).flatMap { _ =>
+              lift_nd[(Value, Store)](vss).flatMap { vs =>
+                put_store(vs._2).map { _ =>
+                  vs._1
+                } } } } } } }
+  }
+  /*
+    for {
     clo <- lift_nd[AbsValue](fun.toList)
     in <- ask_in_cache
     out <- get_out_cache
@@ -275,6 +286,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     vs <- lift_nd[(Value, Store)](vss)
     _ <- put_store(vs._2)
   } yield vs._1
+   */
 
   def ask_in_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
@@ -359,30 +371,108 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
       _ <- update_store(α, v)
       rt <- local_env(ev)(e, ρ)
     } yield rt
-    case Amb(e1, e2) => for {
-      v1 <- ev(e1)
-      v2 <- ev(e2)
-    } yield v1 ++ v2
   }
 
-  val ρ0: Rep[Env] = Map()
-  val σ0: Rep[Store] = Map()
-  val cache0: Rep[Cache] = Map()
+  val ρ0: Rep[Env] = Map[String, Addr]()
+  val σ0: Rep[Store] = Map[Addr, Value]()
+  val cache0: Rep[Cache] = Map[Config, Set[(Value, Store)]]()
 
   def run_wo_cache(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) =
     fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
   def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
+trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
+  case class ApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]) extends Def[(List[(Value, Store)], Cache)]
+  def emit_ap_clo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]) =
+    reflectEffect(ApClo(clo, arg, σ, in, out))
+}
+
+trait StagedAbsInterpreterGen extends GenericNestedCodegen {
+  val IR: StagedAbsInterpreterExp
+  import IR._
+
+  override def remap[A](m: Manifest[A]): String = {
+    if (m.toString.endsWith("$AbsValue")) "AbsValue"
+    else if (m.toString.endsWith("$Addr")) "Addr"
+    else if (m.toString.endsWith("$Expr")) "Expr"
+    else super.remap(m)
+  }
+
+  override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+    case ApClo(f, arg, σ, in, out) =>
+      emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
+    case Struct(tag, elems) =>
+      //This fixes code generation for tuples, such as Tuple2MapIntValueValue
+      //TODO: merge back to LMS
+      registerStruct(structName(sym.tp), sym.tp, elems)
+      val typeName = sym.tp.runtimeClass.getSimpleName +
+        "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
+    case _ => super.emitNode(sym, rhs)
+  }
+}
+
+trait StagedAbsInterpreterDriver extends DslDriver[Unit, Unit] with StagedAbsInterpreterExp { q =>
+  override val codegen = new DslGen
+      with ScalaGenMapOps
+      with ScalaGenSetOps
+      with ScalaGenListOps
+      with ScalaGenUncheckedOps
+      with SAI_ScalaGenTupleOps
+      with SAI_ScalaGenTupledFunctions
+      with StagedAbsInterpreterGen
+  {
+    val IR: q.type = q
+    override def emitSource[A : Manifest](args: List[Sym[_]], body: Block[A], className: String,
+                                          stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
+      val prelude = """
+  import sai.PCFLang._
+  object RT {
+    type Value = Set[AbsValue]
+    case class Addr(x: String) { override def toString = x }
+    type Env = Map[String, Addr]
+    type Store = Map[Addr, Value]
+    type Config = (Expr, Env, Store)
+    type Cache = Map[Config, Set[(Value, Store)]]
+    trait AbsValue
+    case object IntTop extends AbsValue
+    case class CompiledClo(f: (Value, Store, Cache, Cache) => (List[(Value, Store)], Cache), λ: Lam, ρ: Env) extends AbsValue
+  }
+  import RT._
+      """
+      stream.println(prelude)
+      super.emitSource(args, body, className, stream)
+    }
+  }
+}
+
+//////////////////////////////////////////////////////
+
 object MainAbs {
   import PCFLang._
+
+  def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedAbsInterpreterDriver {
+    @virtualize
+    def snippet(unit: Rep[Unit]): Rep[Unit] = {
+      //val vsc = run(e)
+      val vsc = run_wo_cache(e)
+      println(vsc._1)
+      println(vsc._2)
+    }
+  }
 
   def main(args: Array[String]): Unit = {
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)
 
-    println(AbsInterpreter.run(id4)._1)
-    println("--------------------------")
-    println(AbsInterpreter.run(fact5)._1)
+    //println(AbsInterpreter.run(id4)._1)
+    //println("--------------------------")
+    //println(AbsInterpreter.run(fact5)._1)
+    //println("--------------------------")
+
+    val code = specialize(id4)
+    println(code.code)
+    code.eval(())
   }
 }

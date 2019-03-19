@@ -173,58 +173,6 @@ object EnvStoreInterpreter {
   def run(e: Expr): (Value, Store) = fix(eval)(e).run(ρ0).run(σ0)
 }
 
-trait MonadOps[M[_], A] {
-  def flatMap[B](f: A => M[B]): M[B]
-  def map[B](f: A => B): M[B]
-}
-
-trait Semantics {
-  import PCFLang._
-  type R[_]
-  type Ident = String
-  type Addr
-  type Env
-  type Store
-  type Value
-  type AnsM[_]
-  type Ans = AnsM[Value]
-  implicit def m: MonadOps[AnsM, Value]
-
-  type EvalFun = Expr => Ans
-
-  /*
-  def eval(ev: EvalFun)(e: Expr): Ans = e match {
-    case Lit(i) => num(i)
-    case Var(x) => for {
-      ρ <- ask_env
-      σ <- get_store
-    } ???
-  }
-   */
-
-  def ask_env: AnsM[Env]
-  def ext_env(x: R[String], a: R[Addr]): AnsM[Env]
-  def local_env(ev: EvalFun)(e: Expr, ρ: R[Env]): AnsM[Value]
-
-  def alloc(x: String): AnsM[Addr]
-  def get_store: AnsM[Store]
-  def put_store(σ: R[Store]): AnsM[Unit]
-  def update_store(a: R[Addr], v: R[Value]): AnsM[Unit]
-
-  def num(i: Int): Ans
-  def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
-
-  def prim(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
-  def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[Value]): Ans
-  def branch0(test: R[Value], thn: => Ans, els: => Ans): Ans
-
-  val ρ0: R[Env]
-  val σ0: R[Store]
-
-  type Result
-  def run(e: Expr): Result
-}
-
 @virtualize
 trait StagedCESOps extends SAIDsl with SAIMonads {
   import PCFLang._
@@ -307,14 +255,15 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
 
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans =
-    get_store.flatMap(σ => {
+    get_store.flatMap { σ =>
       val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
-      put_store(res._2).map(_ => res._1)
-    })
+      put_store(res._2).map { _ =>
+        res._1
+      } }
   /*
     for {
     σ <- get_store
-    val res: Rep[(Value, Store)] = ap_clo_aux(fun, arg, σ)
+    val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
     _ <- put_store(res._2)
     } yield res._1
    */
@@ -395,7 +344,8 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
       with ScalaGenUncheckedOps
       with SAI_ScalaGenTupleOps
       with SAI_ScalaGenTupledFunctions
-      with StagedCESGen {
+      with StagedCESGen
+  {
     val IR: q.type = q
 
     override def remap[A](m: Manifest[A]): String = {
