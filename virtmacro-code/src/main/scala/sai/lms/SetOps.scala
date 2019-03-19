@@ -91,6 +91,17 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
   }
 }
 
+trait SetOpsExpOpt extends SetOpsExp with ListOpsExp {
+  override def set_foldLeft[A: Manifest, B: Manifest](s: Exp[Set[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = s match {
+    case Def(SetNew(xs, _)) if xs.size == 1 => f(z, xs(0))
+    case _ => super.set_foldLeft(s, z, f)
+  }
+  override def set_toList[A:Manifest](s: Exp[Set[A]])(implicit pos: SourceContext) = s match {
+    case Def(SetNew(xs, _)) => ListNew(xs, manifest[A])
+    case _ => super.set_toList(s)
+  }
+}
+
 trait BaseGenSetOps extends GenericNestedCodegen {
   val IR: SetOpsExp
   import IR._
@@ -101,7 +112,7 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
   import IR._
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-    case SetNew(xs, mA) => emitValDef(sym, src"collection.immutable.Set[$mA](" + (xs map {quote}).mkString(",") + ")")
+    case SetNew(xs, mA) => emitValDef(sym, src"Set[$mA](" + (xs map {quote}).mkString(",") + ")")
     case SetConcat(s1, s2) => emitValDef(sym, src"$s1 ++ $s2")
     case SetIsEmpty(s) => emitValDef(sym, src"$s.isEmpty")
     case SetHead(s) => emitValDef(sym, src"$s.head")

@@ -243,21 +243,21 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
         ListReaderStateM.fromList(vs)
       ))
 
+  //def emit_compiled_clo(f: Rep[(Value, Store, Cache, Cache)] => Rep[(List[(Value, Store)], Cache)], λ: Lam, ρ: Rep[Env]): Rep[AbsValue]
+  def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value, Store)], Cache)], λ: Lam, ρ: Rep[Env]): Rep[AbsValue]
+
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
-    val f: Rep[(Value, Store, Cache, Cache)] => Rep[(List[(Value, Store)], Cache)] = {
-      case vscc: Rep[(Value, Store, Cache, Cache)] =>
-        val v = vscc._1; val σ = vscc._2
-        val in = vscc._3; val out = vscc._4
+    val f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value, Store)], Cache)] = {
+      case (v, σ, in, out) =>
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ ⊔ Map(α → v)).run(in)(out)
     }
-    unchecked("Set[AbsValue](CompiledClo(", fun(f), ",", λ, ",", ρ, "))")
-    //TODO: when evaluating, change lam/rho to hash code
+    Set[AbsValue](emit_compiled_clo(f, λ, ρ))
   }
 
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
-    unchecked("Set[AbsValue](IntTop)") //FIXME: check v1 && v2 contains Int
+    Set[AbsValue](unchecked("IntTop")) //FIXME: check v1 && v2 contains Int
 
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
 
@@ -383,9 +383,24 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
 }
 
 trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
-  case class ApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]) extends Def[(List[(Value, Store)], Cache)]
-  def emit_ap_clo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]) =
-    reflectEffect(ApClo(clo, arg, σ, in, out))
+  import PCFLang._
+
+  //TODO: when evaluating, change lam/rho to hash code
+  case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
+                           rf: Exp[((Value, Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
+                           λ: Exp[Lam], ρ: Exp[Env]) extends Def[AbsValue]
+  def emit_compiled_clo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)], λ: Lam, ρ: Exp[Env]) = {
+    reflectEffect(IRCompiledClo(f, fun(f), unit(λ), ρ))
+  }
+
+  case class IRApClo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
+  def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = {
+    clo match {
+      //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?
+      //case Def(CompiledClo(f, rf, λ, ρ)) => f(arg, σ, in, out)
+      case _ => reflectEffect(IRApClo(clo, arg, σ, in, out))
+    }
+  }
 }
 
 trait StagedAbsInterpreterGen extends GenericNestedCodegen {
@@ -400,7 +415,9 @@ trait StagedAbsInterpreterGen extends GenericNestedCodegen {
   }
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-    case ApClo(f, arg, σ, in, out) =>
+    case IRCompiledClo(f, rf, λ, ρ) =>
+      emitValDef(sym, s"CompiledClo(${quote(rf)}, ${quote(λ)}, ${quote(ρ)})")
+    case IRApClo(f, arg, σ, in, out) =>
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
     case Struct(tag, elems) =>
       //This fixes code generation for tuples, such as Tuple2MapIntValueValue

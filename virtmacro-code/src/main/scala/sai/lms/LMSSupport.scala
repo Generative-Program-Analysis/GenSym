@@ -18,9 +18,9 @@ trait SAIDsl extends Dsl
     with TupledFunctions
 
 trait SAIOpsExp extends DslExp
-    with MapOpsExp
-    with SetOpsExp
-    with ListOpsExp
+    with MapOpsExpOpt
+    with SetOpsExpOpt
+    with ListOpsExpOpt
     with TupleOpsExp
     with UncheckedOpsExp
     with TupledFunctionsRecursiveExp
