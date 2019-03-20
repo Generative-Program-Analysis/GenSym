@@ -310,12 +310,12 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
 
   def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
 
-  def select_fix(ev: EvalFun => EvalFun): EvalFun = e => e match {
+  def fix_select(ev: EvalFun => EvalFun): EvalFun = e => e match {
     // Atomic expressions
     // TODO: is lambda an atomic?
     case Lit(_) | Var(_) => fix_no_cache(ev)(e)
     // Serious expressions
-    case _ => fix(ev)(e)
+    case _ => ev(fix(ev))(e)
   }
 
   def fix(ev: EvalFun => EvalFun): EvalFun = { e =>
@@ -332,6 +332,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
                 val m: Ans = for {
                   _ <- put_out_cache(out + (cfg → res_in))
                   v <- ev(fix(ev))(e)
+                  //v <- ev(fix_select(ev))(e)
                   σ <- get_store
                   _ <- update_out_cache(cfg, (v, σ))
                 } yield v
@@ -411,6 +412,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
 
   def run_wo_cache(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) =
     fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
+  def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_select(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
   def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
 }
 
@@ -507,7 +509,8 @@ object MainAbs {
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedAbsInterpreterDriver {
     @virtualize
     def snippet(unit: Rep[Unit]): Rep[Unit] = {
-      val vsc = run(e)
+      val vsc = run_select(e)
+      //val vsc = run(e)
       //val vsc = run_wo_cache(e)
       println(vsc._1)
       println(vsc._2.size)
