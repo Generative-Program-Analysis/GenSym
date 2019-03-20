@@ -21,6 +21,9 @@ trait SAIOpsExp extends DslExp
     with MapOpsExpOpt
     with SetOpsExpOpt
     with ListOpsExpOpt
+    //with MapOpsExp
+    //with SetOpsExp
+    //with ListOpsExp
     with TupleOpsExp
     with UncheckedOpsExp
     with TupledFunctionsRecursiveExp

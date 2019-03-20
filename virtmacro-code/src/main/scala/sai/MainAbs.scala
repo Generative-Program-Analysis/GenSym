@@ -132,9 +132,8 @@ object AbsInterpreter {
       } yield v
     } else {
       val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
-      val out_* = out + (cfg → ans_in)
       for {
-        _ <- put_out_cache(out_*)
+        _ <- put_out_cache(out + (cfg → ans_in))
         v <- ev(fix(ev))(e)
         σ <- get_store
         _ <- update_out_cache(cfg, (v, σ))
@@ -256,8 +255,10 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))
   }
 
+  def emit_inttop: Rep[AbsValue]
+
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
-    Set[AbsValue](unchecked("IntTop")) //FIXME: check v1 && v2 contains Int
+    Set[AbsValue](emit_inttop) //FIXME: check v1 && v2 contains Int
 
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
 
@@ -267,9 +268,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
         get_out_cache.flatMap { out =>
           get_store.flatMap { σ =>
             val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
-            val vss: Rep[List[(Value, Store)]] = res._1
             put_out_cache(res._2).flatMap { _ =>
-              lift_nd[(Value, Store)](vss).flatMap { vs =>
+              lift_nd[(Value, Store)](res._1).flatMap { vs =>
                 put_store(vs._2).map { _ =>
                   vs._1
                 } } } } } } }
@@ -281,12 +281,11 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     out <- get_out_cache
     σ <- get_store
     val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
-    val vss: Rep[List[(Value, Store)]] = res._1
     _ <- put_out_cache(res._2)
-    vs <- lift_nd[(Value, Store)](vss)
+    vs <- lift_nd[(Value, Store)](res._1)
     _ <- put_store(vs._2)
   } yield vs._1
-   */
+  */
 
   def ask_in_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
@@ -311,7 +310,40 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
 
   def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
 
-  def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
+  def select_fix(ev: EvalFun => EvalFun): EvalFun = e => e match {
+    // Atomic expressions
+    // TODO: is lambda an atomic?
+    case Lit(_) | Var(_) => fix_no_cache(ev)(e)
+    // Serious expressions
+    case _ => fix(ev)(e)
+  }
+
+  def fix(ev: EvalFun => EvalFun): EvalFun = { e =>
+    ask_env.flatMap { ρ =>
+      get_store.flatMap { σ =>
+        ask_in_cache.flatMap { in =>
+          get_out_cache.flatMap { out =>
+            val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
+            val res: Rep[(List[(Value, Store)], Cache)] =
+              if (out.contains(cfg)) {
+                (repMapToMapOps(out).apply(cfg).toList, out) //FIXME: ambigious implicit
+              } else {
+                val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+                val m: Ans = for {
+                  _ <- put_out_cache(out + (cfg → res_in))
+                  v <- ev(fix(ev))(e)
+                  σ <- get_store
+                  _ <- update_out_cache(cfg, (v, σ))
+                } yield v
+                m(ρ)(σ).run(in)(out)
+              }
+            put_out_cache(res._2).flatMap { _ =>
+              lift_nd(res._1).flatMap { vs =>
+                put_store(vs._2).map { _ =>
+                  vs._1
+                } } } } } } } }
+  /*
+  for {
     ρ <- ask_env
     σ <- get_store
     in <- ask_in_cache
@@ -321,19 +353,19 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
       (out.get(cfg).toList, out) //FIXME: out(cfg) vs out.get(cfg)
     } else {
       val ans_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
-      val new_out = out + (cfg → ans_in)
-      val t: Ans = for {
-        _ <- put_out_cache(new_out)
+      val m: Ans = for {
+        _ <- put_out_cache(out + (cfg → res_in))
         v <- ev(fix(ev))(e)
         σ <- get_store
         _ <- update_out_cache(cfg, (v, σ))
       } yield v
-      t(ρ)(σ).run(in)(out)
+      m(ρ)(σ).run(in)(out)
     }
     _ <- put_out_cache(res._2)
     vs <- lift_nd(res._1)
     _ <- put_store(vs._2)
   } yield vs._1
+  */
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
@@ -393,13 +425,14 @@ trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
     reflectEffect(IRCompiledClo(f, fun(f), unit(λ), ρ))
   }
 
+  case object IRIntTop extends Def[AbsValue]
+  def emit_inttop = IRIntTop
+
   case class IRApClo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
-  def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = {
-    clo match {
-      //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?
-      //case Def(CompiledClo(f, rf, λ, ρ)) => f(arg, σ, in, out)
-      case _ => reflectEffect(IRApClo(clo, arg, σ, in, out))
-    }
+  def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = clo match {
+    //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?
+    //case Def(CompiledClo(f, rf, λ, ρ)) => f(arg, σ, in, out)
+    case _ => reflectEffect(IRApClo(clo, arg, σ, in, out))
   }
 }
 
@@ -419,6 +452,8 @@ trait StagedAbsInterpreterGen extends GenericNestedCodegen {
       emitValDef(sym, s"CompiledClo(${quote(rf)}, ${quote(λ)}, ${quote(ρ)})")
     case IRApClo(f, arg, σ, in, out) =>
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
+    case IRIntTop =>
+      emitValDef(sym, s"IntTop")
     case Struct(tag, elems) =>
       //This fixes code generation for tuples, such as Tuple2MapIntValueValue
       //TODO: merge back to LMS
@@ -472,10 +507,10 @@ object MainAbs {
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedAbsInterpreterDriver {
     @virtualize
     def snippet(unit: Rep[Unit]): Rep[Unit] = {
-      //val vsc = run(e)
-      val vsc = run_wo_cache(e)
+      val vsc = run(e)
+      //val vsc = run_wo_cache(e)
       println(vsc._1)
-      println(vsc._2)
+      println(vsc._2.size)
     }
   }
 
@@ -485,11 +520,15 @@ object MainAbs {
 
     //println(AbsInterpreter.run(id4)._1)
     //println("--------------------------")
-    //println(AbsInterpreter.run(fact5)._1)
-    //println("--------------------------")
 
-    val code = specialize(id4)
+    val code = specialize(fact5)
     println(code.code)
     code.eval(())
+
+    println("--------------------------")
+
+    val unstaged = AbsInterpreter.run(fact5)
+    println(unstaged._1)
+    println(unstaged._2.size)
   }
 }
