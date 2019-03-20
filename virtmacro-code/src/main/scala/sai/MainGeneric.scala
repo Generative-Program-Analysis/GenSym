@@ -48,14 +48,13 @@ trait Semantics {
   def put_store(σ: R[Store]): AnsM[Unit]
   def update_store(a: R[Addr], v: R[Value]): AnsM[Unit]
 
-  def get(ρ: R[Env], σ: R[Store], x: String): R[Value]
-
   // Primitive operations
   def num(i: Int): Ans
-  def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
+  def get(ρ: R[Env], σ: R[Store], x: String): R[Value]
+  def br0(test: R[Value], thn: => Ans, els: => Ans): Ans
   def prim(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
+  def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[Value]): Ans
-  def branch0(test: R[Value], thn: => Ans, els: => Ans): Ans
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
@@ -80,7 +79,7 @@ trait Semantics {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
-      rt <- branch0(cnd, ev(e2), ev(e3))
+      rt <- br0(cnd, ev(e2), ev(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)

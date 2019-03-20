@@ -64,21 +64,14 @@ object AbsInterpreter {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
   //σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
 
-  def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
-    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
-
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
+  def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
+  def br0(test: Value, thn: => Ans, els: => Ans): Ans =
+    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
-
-  def lift_nd[T](vs: List[T]): AnsM[T] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, T](
-      StateT.liftM[NdInOutCacheM, Store, T](
-        ListT.fromList[InOutCacheM, T](vs)
-    ))
-
   //TODO: Test withFilter
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
@@ -87,6 +80,12 @@ object AbsInterpreter {
     _ <- update_store(α, arg)
     rt <- local_env(ev)(e, ρ)
   } yield rt
+
+  def lift_nd[T](vs: List[T]): AnsM[T] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, T](
+      StateT.liftM[NdInOutCacheM, Store, T](
+        ListT.fromList[InOutCacheM, T](vs)
+      ))
 
   def ask_in_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
@@ -145,7 +144,7 @@ object AbsInterpreter {
     case Var(x) => for {
       ρ <- ask_env
       σ <- get_store
-    } yield σ(ρ(x))
+    } yield get(σ, ρ, x)
     case Lam(x, e) => for {
       ρ <- ask_env
     } yield close(ev)(Lam(x, e), ρ)
@@ -163,7 +162,7 @@ object AbsInterpreter {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
-      rt <- branch0(cnd, ev(e2), ev(e3))
+      rt <- br0(cnd, ev(e2), ev(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)
@@ -250,7 +249,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
       ))
 
   // primitive operations
-  def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
+  def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
+  def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](unchecked("Set[AbsValue](IntTop)"))
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
@@ -374,7 +374,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     case Var(x) => for {
       ρ <- ask_env
       σ <- get_store
-    } yield σ(ρ(x))
+    } yield get(σ, ρ, x)
     case Lam(x, e) => for {
       ρ <- ask_env
     } yield close(ev)(Lam(x, e), ρ)
@@ -392,7 +392,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
-      rt <- branch0(cnd, ev(e2), ev(e3))
+      rt <- br0(cnd, ev(e2), ev(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)

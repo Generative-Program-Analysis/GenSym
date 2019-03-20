@@ -41,7 +41,7 @@ object EnvInterpreter {
       ReaderTMonad[Id, Env].local(eval(e))(_ => ρ + (x → arg))
   }
 
-  def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
+  def br0(test: Value, thn: => Ans, els: => Ans): Ans =
     if (test == IntV(0)) thn else els
 
   def eval(e: Expr): Ans = e match {
@@ -64,7 +64,7 @@ object EnvInterpreter {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
-      rt <- branch0(cnd, eval(e2), eval(e3))
+      rt <- br0(cnd, eval(e2), eval(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- eval(e1)
@@ -94,19 +94,26 @@ object EnvStoreInterpreter {
   type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Value]
 
+  type EvalFun = Expr => Ans
+
+  // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
   def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
+  def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
 
+  // Allocating addresses
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
+
+  // Store operations
   def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[Id, Store].get)
+  def put_store(σ: Store): AnsM[Unit] =
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].put(σ))
   def update_store(a: Addr, v: Value): AnsM[Unit] =
     ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].mod(σ => σ + (a → v)))
 
-  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
+  // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](IntV(i))
-
-  def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
-
+  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
@@ -115,10 +122,8 @@ object EnvStoreInterpreter {
       rt <- local_env(ev)(e, ρ)
     } yield rt
   }
-
-  def branch0(test: Value, thn: => Ans, els: => Ans): Ans =
+  def br0(test: Value, thn: => Ans, els: => Ans): Ans =
     if (test == IntV(0)) thn else els
-
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case ('+, IntV(x), IntV(y)) => IntV(x + y)
     case ('-, IntV(x), IntV(y)) => IntV(x - y)
@@ -126,6 +131,7 @@ object EnvStoreInterpreter {
     case ('/, IntV(x), IntV(y)) => IntV(x / y)
   }
 
+  def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
     case Var(x) => for {
@@ -149,7 +155,7 @@ object EnvStoreInterpreter {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
-      rt <- branch0(cnd, ev(e2), ev(e3))
+      rt <- br0(cnd, ev(e2), ev(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)
@@ -163,10 +169,6 @@ object EnvStoreInterpreter {
       rt <- local_env(ev)(e, ρ)
     } yield rt
   }
-
-  type EvalFun = Expr => Ans
-
-  def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
 
   val ρ0: Env = Map()
   val σ0: Store = Map()
@@ -198,12 +200,9 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Value]
 
-  implicit def m = Monad[AnsM]
-
   type EvalFun = Expr => Ans
 
-  def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
-
+  // Code generation
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
   def emit_compiled_clo(fun: (Rep[Value], Rep[Store]) => Rep[(Value, Store)], λ: Lam, ρ: Rep[Env]): Rep[Value]
   def emit_int_proj(i: Rep[Value]): Rep[Int]
@@ -230,7 +229,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
     val v2n = emit_int_proj(v2)
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
   }
-  def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
+  def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = emit_int_proj(test)
     ask_env.flatMap(ρ => get_store.flatMap(σ => {
       val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
@@ -270,6 +269,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
     } yield res._1
        */
 
+  def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
     case Var(x) => for {
@@ -293,7 +293,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
-      rt <- branch0(cnd, ev(e2), ev(e3))
+      rt <- br0(cnd, ev(e2), ev(e3))
     } yield rt
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)
