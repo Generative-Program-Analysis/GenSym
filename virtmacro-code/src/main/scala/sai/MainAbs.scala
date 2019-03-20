@@ -80,7 +80,7 @@ object AbsInterpreter {
         ListT.fromList[InOutCacheM, T](vs)
     ))
 
-  //TODO: Test withFilter!!!
+  //TODO: Test withFilter
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
     α <- alloc(x)
@@ -312,10 +312,10 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
 
   def fix_select(ev: EvalFun => EvalFun): EvalFun = e => e match {
     // Atomic expressions
-    // TODO: is lambda an atomic?
-    case Lit(_) | Var(_) => fix_no_cache(ev)(e)
+    // TODO: to close a lambda term, we need a fix with cache.
+    case Lit(_) | Var(_) | Lam(_, _) => eval(fix(eval))(e)
     // Serious expressions
-    case _ => ev(fix(ev))(e)
+    case _ => fix(eval)(e)
   }
 
   def fix(ev: EvalFun => EvalFun): EvalFun = { e =>
@@ -331,8 +331,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
                 val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
                 val m: Ans = for {
                   _ <- put_out_cache(out + (cfg → res_in))
-                  v <- ev(fix(ev))(e)
-                  //v <- ev(fix_select(ev))(e)
+                 // v <- ev(fix(ev))(e)
+                  v <- ev(fix_select(ev))(e)
                   σ <- get_store
                   _ <- update_out_cache(cfg, (v, σ))
                 } yield v
@@ -432,6 +432,7 @@ trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
 
   case class IRApClo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
   def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = clo match {
+    //Note: egar beta-reduction, produces larger residual code
     //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?
     //case Def(CompiledClo(f, rf, λ, ρ)) => f(arg, σ, in, out)
     case _ => reflectEffect(IRApClo(clo, arg, σ, in, out))
