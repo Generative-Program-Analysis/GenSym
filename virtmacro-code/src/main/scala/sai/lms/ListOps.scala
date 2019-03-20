@@ -175,6 +175,7 @@ trait ListOpsExpOpt extends ListOpsExp {
     case _ => super.list_concat(xs1, xs2)
   }
   override def list_foldLeft[A: Manifest, B: Manifest](s: Exp[List[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Exp[B] = s match {
+    case Def(ListNew(xs, _)) if xs.size == 0 => z
     case Def(ListNew(xs, _)) if xs.size == 1 => f(z, xs(0))
     case _ => super.list_foldLeft(s, z, f)
   }

@@ -166,7 +166,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
     def filter(f: Rep[A] => Rep[Boolean]): StateT[M, S, A] =
       StateT(s => Monad[M].filter(run(s)) {
                case as1: Rep[(A, S)] =>
-                 val a: Rep[A] = as1._1; val s1: Rep[S] = as1._2
+                 val a: Rep[A] = as1._1 //; val s1: Rep[S] = as1._2
                  f(a)
              })
     def withFilter(f: Rep[A] => Rep[Boolean]): StateT[M, S, A] = filter(f)

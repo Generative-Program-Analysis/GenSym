@@ -93,6 +93,7 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
 
 trait SetOpsExpOpt extends SetOpsExp with ListOpsExp {
   override def set_foldLeft[A: Manifest, B: Manifest](s: Exp[Set[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = s match {
+    case Def(SetNew(xs, _)) if xs.size == 0 => z
     case Def(SetNew(xs, _)) if xs.size == 1 => f(z, xs(0))
     case _ => super.set_foldLeft(s, z, f)
   }

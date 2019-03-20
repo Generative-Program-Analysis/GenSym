@@ -243,9 +243,8 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
-    val f: Rep[(Value, Store)] => Rep[(Value, Store)] = {
-      case vs: Rep[(Value, Store)] =>
-        val v = vs._1; val σ = vs._2
+    val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
+      case (v: Rep[Value], σ: Rep[Store]) =>
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ + (α → v))
     }

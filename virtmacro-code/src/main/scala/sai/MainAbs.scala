@@ -414,6 +414,8 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
     fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
   def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_select(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
   def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
+
+  //TODO: fixpoint iteration, as unstaged function
 }
 
 trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
