@@ -311,10 +311,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
   def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
 
   def fix_select(ev: EvalFun => EvalFun): EvalFun = e => e match {
-    // Atomic expressions
-    // TODO: to close a lambda term, we need a fix with cache.
     case Lit(_) | Var(_) | Lam(_, _) => eval(fix(eval))(e)
-    // Serious expressions
     case _ => fix(eval)(e)
   }
 
