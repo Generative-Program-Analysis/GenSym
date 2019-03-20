@@ -357,7 +357,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
         val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
         val m: Ans = for {
           _ <- put_out_cache(out + (cfg → res_in))
-          v <- ev(fix(ev))(e)
+          v <- ev(fix(ev))(e) //TODO: remember to change it
           σ <- get_store
           _ <- update_out_cache(cfg, (v, σ))
         } yield v
@@ -412,9 +412,9 @@ trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
   val cache0: Rep[Cache] = Map[Config, Set[(Value, Store)]]()
 
   def run_wo_cache(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) =
-    fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
-  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_cache(e)(ρ0)(σ0).run(cache0)(cache0)
-  def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_select(e)(ρ0)(σ0).run(cache0)(cache0)
+    fix_no_cache(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_cache(e)(ρ0)(σ0)(cache0)(cache0)
+  def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_select(e)(ρ0)(σ0)(cache0)(cache0)
 
   //TODO: fixpoint iteration, as unstaged function
 }
@@ -426,11 +426,12 @@ trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
   case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
                            rf: Exp[((Value, Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
                            λ: Exp[Lam], ρ: Exp[Env]) extends Def[AbsValue]
+  case class IRApClo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
+
   def emit_compiled_clo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)], λ: Lam, ρ: Exp[Env]) = {
     reflectEffect(IRCompiledClo(f, fun(f), unit(λ), ρ))
   }
 
-  case class IRApClo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
   def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = clo match {
     //Note: egar beta-reduction, produces larger residual code
     //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?

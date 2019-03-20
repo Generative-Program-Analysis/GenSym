@@ -204,26 +204,34 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 
   def fix(ev: EvalFun => EvalFun): EvalFun = e => ev(fix(ev))(e)
 
+  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
+  def emit_compiled_clo(fun: (Rep[Value], Rep[Store]) => Rep[(Value, Store)], λ: Lam, ρ: Rep[Env]): Rep[Value]
+  def emit_int_proj(i: Rep[Value]): Rep[Int]
+
+  // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
   def ext_env(x: Rep[String], a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
   def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
 
+  // Allocating addresses
   def alloc(σ: Rep[Store], x: String): Rep[Addr] = σ.size + 1
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
 
+  // Store operations
   def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[Id, Store].get)
   def put_store(σ: Rep[Store]): AnsM[Unit] = ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].put(σ))
   def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
     ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].mod(σ => σ + (a → v)))
 
+  // Primitive operations
+  def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](unchecked[Value]("IntV(", i, ")"))
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    val v1n = unchecked(v1, ".asInstanceOf[IntV].i")
-    val v2n = unchecked(v2, ".asInstanceOf[IntV].i")
+    val v1n = emit_int_proj(v1)
+    val v2n = emit_int_proj(v2)
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
   }
-
   def branch0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-    val i = unchecked[Int](test, ".asInstanceOf[IntV].i")
+    val i = emit_int_proj(test)
     ask_env.flatMap(ρ => get_store.flatMap(σ => {
       val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
       put_store(res._2).map(_ => res._1)
@@ -238,9 +246,6 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
     } yield res._1
      */
   }
-
-  def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](unchecked[Value]("IntV(", i, ")"))
-
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
     val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
@@ -248,24 +253,22 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ + (α → v))
     }
-    unchecked("CompiledClo(", fun(f), ",", λ, ",", ρ, ")")
+    emit_compiled_clo(f, λ, ρ)
   }
-
-  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
-
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans =
     get_store.flatMap { σ =>
       val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
       put_store(res._2).map { _ =>
         res._1
       } }
-  /*
+      /*
     for {
-    σ <- get_store
-    val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
-    _ <- put_store(res._2)
+      σ <- get_store
+      val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
+      //val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
+      _ <- put_store(res._2)
     } yield res._1
-   */
+       */
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
@@ -312,10 +315,19 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 }
 
 trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
-  case class ApClo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
+  import PCFLang._
 
-  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
-    reflectEffect(ApClo(fun, arg, σ))
+  case class IRApClo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
+  case class IRCompiledClo(f: Exp[((Value,Store)) => (Value, Store)], λ: Exp[Lam], ρ: Exp[Env]) extends Def[Value]
+  case class IRIntProj(i: Rep[Value]) extends Def[Int]
+
+  override def emit_ap_clo(fun: Exp[Value], arg: Exp[Value], σ: Exp[Store]): Exp[(Value, Store)] =
+    reflectEffect(IRApClo(fun, arg, σ))
+
+  override def emit_compiled_clo(f: (Exp[Value], Exp[Store]) => Exp[(Value, Store)], λ: Lam, ρ: Exp[Env]): Exp[Value] =
+    reflectEffect(IRCompiledClo(fun(f), unit(λ), ρ))
+
+  override def emit_int_proj(i: Exp[Value]): Exp[Int] = IRIntProj(i)
 }
 
 trait StagedCESGen extends GenericNestedCodegen {
@@ -323,8 +335,12 @@ trait StagedCESGen extends GenericNestedCodegen {
   import IR._
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-    case ApClo(f, arg, σ) =>
+    case IRApClo(f, arg, σ) =>
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)})")
+    case IRCompiledClo(f, λ, ρ) =>
+      emitValDef(sym, s"CompiledClo(${quote(f)}, ${quote(λ)}, ${quote(ρ)})")
+    case IRIntProj(i) =>
+      emitValDef(sym, s"${quote(i)}.asInstanceOf[IntV].i")
     case Struct(tag, elems) =>
       //This fixes code generation for tuples, such as Tuple2MapIntValueValue
       //TODO: merge back to LMS

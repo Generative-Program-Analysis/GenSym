@@ -230,11 +230,6 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
-  // ListT[ReaderT[StateT[Id, ?], ?], ?]
-  // ListT: run: M[List[A]]
-  // ReaderT: run: R => M[A]
-  // StateT: run: S => M[(A, S)]
-  // R => S => (List[A], S)
   object ListReaderStateM {
     def apply[R: Manifest, S: Manifest, A: Manifest](implicit m: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] = m
 
@@ -273,6 +268,11 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
       ListReaderStateM(r => s => (List[A](), s))
   }
 
+  // ListT[ReaderT[StateT[Id, ?], ?], ?]
+  // ListT: run: M[List[A]]
+  // ReaderT: run: R => M[A]
+  // StateT: run: S => M[(A, S)]
+  // R => S => (List[A], S)
   case class ListReaderStateM[R: Manifest, S: Manifest, A: Manifest](run: Rep[R] => Rep[S] => (Rep[List[A]], Rep[S])) {
     import ListReaderStateM._
 
