@@ -4,23 +4,23 @@ package monads
 import sai.lattices._
 import sai.lattices.Lattices._
 
-object NoRep {
-  type NoRep[+T] = T
-}
-
-trait RMonadOps[R[_], M[_], A] {
-  def map[B](f: R[A] => R[B]): M[B]
-  def flatMap[B](f: R[A] => M[B]): M[B]
-  //def filter(f: R[A] => Boolean): M[A]
-  //def withFilter(f: R[A] => Boolean): M[A]
-}
-
 trait RMonad[R[_], M[_]] {
   def pure[A](a: R[A]): M[A]
   def flatMap[A, B](ma: M[A])(f: R[A] => M[B]): M[B]
   def map[A,B](ma: M[A])(f: R[A] => R[B]): M[B] = flatMap(ma)(a => pure(f(a)))
   def filter[A](ma: M[A])(f: R[A] => R[Boolean]): M[A]
 }
+
+/*
+trait RMonad[R[_], M[_]] {
+  def pure[A](a: R[A])(implicit mA: Manifest[A] = null): M[A]
+  def flatMap[A, B](ma: M[A])(f: R[A] => M[B])
+             (implicit mA: Manifest[A] = null, mB: Manifest[B] = null): M[B]
+  def map[A,B](ma: M[A])(f: R[A] => R[B])
+         (implicit mA: Manifest[A] = null, mB: Manifest[B] = null): M[B] = flatMap(ma)(a => pure(f(a)))
+  def filter[A](ma: M[A])(f: R[A] => R[Boolean])(implicit mA: Manifest[A] = null): M[A]
+}
+ */
 
 trait Monad[M[_]] extends RMonad[NoRep.NoRep, M]
 
