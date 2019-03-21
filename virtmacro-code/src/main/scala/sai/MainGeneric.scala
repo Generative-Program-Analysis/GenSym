@@ -14,13 +14,6 @@ import sai.lattices._
 import sai.lattices.Lattices._
 import sai.examples._
 
-trait MonadOps[R[_], M[_], A] {
-  def map[B](f: R[A] => R[B]): M[B]
-  def flatMap[B](f: R[A] => M[B]): M[B]
-  def filter(f: R[A] => Boolean): M[A]
-  def withFilter(f: R[A] => Boolean): M[A]
-}
-
 trait Semantics {
   import PCFLang._
   type R[_]
@@ -29,7 +22,7 @@ trait Semantics {
   type Value
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
-  type AnsM[T] <: MonadOps[R, AnsM, T]
+  type AnsM[T] <: RMonadOps[R, AnsM, T]
   type Ans = AnsM[Value]
 
   type EvalFun = Expr => Ans

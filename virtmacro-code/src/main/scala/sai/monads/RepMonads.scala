@@ -16,6 +16,16 @@ import sai.lattices.Lattices._
 @virtualize
 trait SAIMonads extends RepLattices { self: SAIDsl =>
 
+  trait RepMonad[M[_]] extends RMonad[Rep, M]
+
+  case class IdM1[A: Manifest](run: Rep[A]) extends RMonadOps[Rep, IdM1, A] {
+    def map[B](f: Rep[A] => Rep[B]): IdM1[B] = ???
+    def flatMap[B](f: Rep[A] => IdM1[B]): IdM1[B] = ???
+
+    def filter(f: Rep[A] => Boolean): IdM1[A] = ???
+    def withFilter(f: Rep[A] => Boolean): IdM1[A] = ???
+  }
+
   trait Monad[M[_]] {
     def pure[A: Manifest](a: Rep[A]): M[A]
     def flatMap[A: Manifest, B: Manifest](ma: M[A])(f: Rep[A] => M[B]): M[B]
