@@ -11,8 +11,8 @@ object NoRep {
 trait RMonadOps[R[_], M[_], A] {
   def map[B](f: R[A] => R[B]): M[B]
   def flatMap[B](f: R[A] => M[B]): M[B]
-  def filter(f: R[A] => Boolean): M[A]
-  def withFilter(f: R[A] => Boolean): M[A]
+  //def filter(f: R[A] => Boolean): M[A]
+  //def withFilter(f: R[A] => Boolean): M[A]
 }
 
 trait RMonad[R[_], M[_]] {

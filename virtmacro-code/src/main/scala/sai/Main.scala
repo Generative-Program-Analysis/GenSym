@@ -184,7 +184,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
 
   sealed trait Value
   //case class IntV(i: Int) extends Value
-  //case class CloV[Env](lam: Lam, e: Env) extends Value
+  case class CloV[Env](lam: Lam, e: Env) extends Value
 
   type Ident = String
 
