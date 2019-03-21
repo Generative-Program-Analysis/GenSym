@@ -20,7 +20,7 @@ trait RMonad[R[_], M[_]] {
          (implicit mA: Manifest[A] = null, mB: Manifest[B] = null): M[B] = flatMap(ma)(a => pure(f(a)))
   def filter[A](ma: M[A])(f: R[A] => R[Boolean])(implicit mA: Manifest[A] = null): M[A]
 }
- */
+*/
 
 trait Monad[M[_]] extends RMonad[NoRep.NoRep, M]
 
@@ -39,6 +39,7 @@ object MonadPlus {
 
 /////////////////////////////////////////////////
 
+@deprecated("Use IdM", "")
 object IdMonadInstance {
   type Id[T] = T
   implicit val IdMonad: Monad[Id] = new Monad[Id] {
@@ -51,6 +52,27 @@ object IdMonadInstance {
     def mzero[A: Lattice]: A = Lattice[A].bot
     def mplus[A: Lattice](a: A, b: A) = Lattice[A].⊔(a, b)
   }
+}
+
+object IdM {
+  def apply[A](implicit m: IdM[A]): IdM[A] = m
+
+  implicit val IdMonadInstance: Monad[IdM] = new Monad[IdM] {
+    def pure[A](a: A): IdM[A] = IdM(a)
+    def flatMap[A, B](ma: IdM[A])(f: A => IdM[B]): IdM[B] = ma.flatMap(f)
+    def filter[A](ma: IdM[A])(f: A => Boolean): IdM[A] = throw new Exception("Not supported")
+  }
+
+  implicit val IdMonadPlus: MonadPlus[IdM] = new MonadPlus[IdM] {
+    def mzero[A: Lattice]: IdM[A] = IdM(Lattice[A].bot)
+    def mplus[A: Lattice](a: IdM[A], b: IdM[A]): IdM[A] = IdM(a.run ⊔ b.run)
+  }
+}
+
+case class IdM[A](run: A) extends MonadOps[IdM, A] {
+  def apply: A = run
+  def flatMap[B](f: A => IdM[B])(implicit mB: Manifest[B] = null): IdM[B] = f(run)
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): IdM[B] = IdM(f(run))
 }
 
 /////////////////////////////////////////////////

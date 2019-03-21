@@ -16,7 +16,9 @@ import sai.lattices.Lattices._
 @virtualize
 trait SAIMonads extends RepLattices { self: SAIDsl =>
 
-  trait RepMonad[M[_]] extends RMonad[Rep, M]
+  trait RepMonad[M[_]] extends RMonad[Rep, M] //TODO
+
+  trait MonadOps[M[_], A] extends RMonadOps[Rep, M, A]
 
   trait Monad[M[_]] {
     def pure[A: Manifest](a: Rep[A]): M[A]
@@ -42,6 +44,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
+  @deprecated("Use IdM", "")
   object IdMonadInstance {
     type Id[T] = Rep[T]
     implicit val IdMonad: Monad[Id] = new Monad[Id] {
@@ -51,7 +54,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
     }
   }
 
-  object IdMonadObj {
+  object IdM {
     def apply[A: Manifest](implicit m: IdM[A]): IdM[A] = m
 
     implicit val IdMonadInstance: Monad[IdM] = new Monad[IdM] {
@@ -59,9 +62,15 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
       def flatMap[A: Manifest, B: Manifest](ma: IdM[A])(f: Rep[A] => IdM[B]): IdM[B] = ma.flatMap(f)
       def filter[A: Manifest](ma: IdM[A])(f: Rep[A] => Rep[Boolean]): IdM[A] = throw new Exception("Not supported")
     }
+
+    implicit val IdMonadPlus: MonadPlus[IdM] = new MonadPlus[IdM] {
+      def mzero[A: Manifest : RepLattice]: IdM[A] = IdM(RepLattice[A].bot)
+      def mplus[A: Manifest : RepLattice](a: IdM[A], b: IdM[A]): IdM[A] = IdM(a.run ⊔ b.run)
+    }
   }
-  case class IdM[A: Manifest](run: Rep[A]) {
-    import IdMonadObj._
+
+  case class IdM[A: Manifest](run: Rep[A]) extends MonadOps[IdM, A] {
+    import IdM._
     def apply: Rep[A] = run
     def flatMap[B: Manifest](f: Rep[A] => IdM[B]): IdM[B] = f(run)
     def map[B: Manifest](f: Rep[A] => Rep[B]): IdM[B] = IdM(f(run))
@@ -176,7 +185,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
-  @deprecated
+  @deprecated("Use fused version", "")
   object ListT {
     def apply[M[_]: Monad, A: Manifest](implicit m: ListT[M, A]): ListT[M, A] = m
 
@@ -199,7 +208,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
     def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
   }
 
-  @deprecated
+  @deprecated("Use fused version", "")
   case class ListT[M[_]: Monad, A: Manifest](run: M[List[A]]) {
     import ListT._
 

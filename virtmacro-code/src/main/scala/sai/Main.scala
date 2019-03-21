@@ -19,15 +19,15 @@ object EnvInterpreter {
   import PCFLang.Values._
   import ReaderT._
   import StateT._
-  import IdMonadInstance._
+  import IdM._
 
   type Ident = String
   type Env = Map[Ident, Value]
 
-  type AnsM[T] = ReaderT[Id, Env, T]
+  type AnsM[T] = ReaderT[IdM, Env, T]
   type Ans = AnsM[Value]
 
-  def num(i: Int): Ans = ReaderTMonad[Id, Env].pure[Value](IntV(i))
+  def num(i: Int): Ans = ReaderTMonad[IdM, Env].pure[Value](IntV(i))
 
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case ('+, IntV(x), IntV(y)) => IntV(x + y)
@@ -38,7 +38,7 @@ object EnvInterpreter {
 
   def ap_clo(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) =>
-      ReaderTMonad[Id, Env].local(eval(e))(_ => ρ + (x → arg))
+      ReaderTMonad[IdM, Env].local(eval(e))(_ => ρ + (x → arg))
   }
 
   def br0(test: Value, thn: => Ans, els: => Ans): Ans =
@@ -47,10 +47,10 @@ object EnvInterpreter {
   def eval(e: Expr): Ans = e match {
     case Lit(i) => num(i)
     case Var(x) => for {
-      ρ <- ReaderTMonad[Id, Env].ask
+      ρ <- ReaderTMonad[IdM, Env].ask
     } yield ρ(x)
     case Lam(x, e) => for {
-      ρ <- ReaderTMonad[Id, Env].ask
+      ρ <- ReaderTMonad[IdM, Env].ask
     } yield CloV(Lam(x, e), ρ)
     case App(e1, e2) => for {
       v1 <- eval(e1)
@@ -59,8 +59,8 @@ object EnvInterpreter {
     } yield rt
     case Let(x, rhs, e) => for {
       v <- eval(rhs)
-      ρ <- ReaderTMonad[Id, Env].ask
-      rt <- ReaderTMonad[Id, Env].local(eval(e))(_ => ρ + (x → v))
+      ρ <- ReaderTMonad[IdM, Env].ask
+      rt <- ReaderTMonad[IdM, Env].local(eval(e))(_ => ρ + (x → v))
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- eval(e1)
@@ -80,7 +80,7 @@ object EnvStoreInterpreter {
   import PCFLang.Values._
   import ReaderT._
   import StateT._
-  import IdMonadInstance._
+  import IdM._
 
   type Ident = String
   type Addr = Int
@@ -90,7 +90,7 @@ object EnvStoreInterpreter {
   type EnvT[F[_], T] = ReaderT[F, Env, T]
   type StoreT[F[_], T] = StateT[F, Store, T]
 
-  type StoreM[T] = StoreT[Id, T]
+  type StoreM[T] = StoreT[IdM, T]
   type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Value]
 
@@ -105,11 +105,11 @@ object EnvStoreInterpreter {
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
 
   // Store operations
-  def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[Id, Store].get)
+  def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[IdM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].put(σ))
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].put(σ))
   def update_store(a: Addr, v: Value): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].mod(σ => σ + (a → v)))
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + (a → v)))
 
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](IntV(i))
@@ -172,31 +172,30 @@ object EnvStoreInterpreter {
 
   val ρ0: Env = Map()
   val σ0: Store = Map()
-  def run(e: Expr): (Value, Store) = fix(eval)(e).run(ρ0).run(σ0)
+  def run(e: Expr): (Value, Store) = fix(eval)(e)(ρ0)(σ0).run
 }
 
 @virtualize
 trait StagedCESOps extends SAIDsl with SAIMonads {
   import PCFLang._
-  import IdMonadInstance._
+  import IdM._
   import ReaderT._
   import StateT._
 
   sealed trait Value
   //case class IntV(i: Int) extends Value
-  case class CloV[Env](lam: Lam, e: Env) extends Value
+  //case class CloV[Env](lam: Lam, e: Env) extends Value
 
   type Ident = String
-
   type Addr = Int
 
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
 
-  type StoreT[F[_], B] = StateT[Id, Store, B]
   type EnvT[F[_], T] = ReaderT[F, Env, T]
+  type StoreT[F[_], B] = StateT[F, Store, B]
 
-  type StoreM[T] = StoreT[Id, T]
+  type StoreM[T] = StoreT[IdM, T]
   type AnsM[T] = EnvT[StoreM, T]
   type Ans = AnsM[Value]
 
@@ -217,10 +216,10 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
 
   // Store operations
-  def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[Id, Store].get)
-  def put_store(σ: Rep[Store]): AnsM[Unit] = ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].put(σ))
+  def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[IdM, Store].get)
+  def put_store(σ: Rep[Store]): AnsM[Unit] = ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].put(σ))
   def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[Id, Store].mod(σ => σ + (a → v)))
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + (a → v)))
 
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](unchecked[Value]("IntV(", i, ")"))
@@ -232,7 +231,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = emit_int_proj(test)
     ask_env.flatMap(ρ => get_store.flatMap(σ => {
-      val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
+      val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run
       put_store(res._2).map(_ => res._1)
     }))
     //FIXME: (run-main-3f) scala.MatchError: Sym(49) (of class scala.virtualization.lms.internal.Expressions$Sym)
@@ -250,7 +249,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
     val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
       case (v: Rep[Value], σ: Rep[Store]) =>
         val α = alloc(σ, x)
-        ev(e)(ρ + (unit(x) → α))(σ + (α → v))
+        ev(e)(ρ + (unit(x) → α))(σ + (α → v)).run
     }
     emit_compiled_clo(f, λ, ρ)
   }
@@ -311,7 +310,7 @@ trait StagedCESOps extends SAIDsl with SAIMonads {
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()
 
-  def run(e: Expr): Rep[(Value, Store)] = fix(eval)(e)(ρ0)(σ0)
+  def run(e: Expr): Rep[(Value, Store)] = fix(eval)(e)(ρ0)(σ0).run
 }
 
 trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {

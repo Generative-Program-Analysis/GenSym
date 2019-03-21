@@ -18,7 +18,7 @@ object AbsInterpreter {
   import ReaderT._
   import StateT._
   import ListT._
-  import IdMonadInstance._
+  import IdM._
 
   trait AbsValue
   case object IntTop extends AbsValue
@@ -39,23 +39,26 @@ object AbsInterpreter {
   type InCacheT[F[_], B] = ReaderT[F, Cache, B]
   type OutCacheT[F[_], B] = StateT[F, Cache, B]
 
-  type OutCacheM[T] = OutCacheT[Id, T]
+  type OutCacheM[T] = OutCacheT[IdM, T]
   type InOutCacheM[T] = InCacheT[OutCacheM, T]
   type NdInOutCacheM[T] = NondetT[InOutCacheM, T]
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
   type AnsM[T] = EnvT[StoreNdInOutCacheM, T]
 
-  type Ans = AnsM[Value] // EnvT[StateT[NondetT[InCacheT[OutCacheT[Id, ?], ?], ?], ?], Value]
+  type Ans = AnsM[Value] // EnvT[StateT[NondetT[InCacheT[OutCacheT[IdM, ?], ?], ?], ?], Value]
 
   type EvalFun = Expr => Ans
 
+  // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
   def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
   def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
 
+  // Allocating addresses
   def alloc(σ: Store, x: String): Addr = Addr(x)
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
+  // Store operations
   def get_store: AnsM[Store] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
@@ -64,6 +67,7 @@ object AbsInterpreter {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
   //σ + (a → (σ.getOrElse(a, Lattice[Value].bot) ⊔ v))))
 
+  // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br0(test: Value, thn: => Ans, els: => Ans): Ans =
@@ -72,7 +76,6 @@ object AbsInterpreter {
   def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
-  //TODO: Test withFilter
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
     α <- alloc(x)
@@ -81,12 +84,14 @@ object AbsInterpreter {
     rt <- local_env(ev)(e, ρ)
   } yield rt
 
+  // auxiliary function that lifts values
   def lift_nd[T](vs: List[T]): AnsM[T] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, T](
       StateT.liftM[NdInOutCacheM, Store, T](
         ListT.fromList[InOutCacheM, T](vs)
       ))
 
+  // Cache operations
   def ask_in_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
       StateT.liftM[NdInOutCacheM, Store, Cache](
@@ -98,21 +103,21 @@ object AbsInterpreter {
       StateT.liftM[NdInOutCacheM, Store, Cache](
         ListT.liftM[InOutCacheM, Cache](
           ReaderT.liftM[OutCacheM, Cache, Cache](
-            StateTMonad[Id, Cache].get
+            StateTMonad[IdM, Cache].get
           ))))
   def put_out_cache(out: Cache): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
         ListT.liftM[InOutCacheM, Unit](
           ReaderT.liftM[OutCacheM, Cache, Unit](
-            StateTMonad[Id, Cache].put(out)
+            StateTMonad[IdM, Cache].put(out)
           ))))
   def update_out_cache(cfg: Config, vs: (Value, Store)): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
         ListT.liftM[InOutCacheM, Unit](
           ReaderT.liftM[OutCacheM, Cache, Unit](
-            StateTMonad[Id, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
+            StateTMonad[IdM, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
             )))))
 
   def fix_no_cache(ev: EvalFun => EvalFun): EvalFun = e => ev(fix_no_cache(ev))(e)
@@ -181,8 +186,8 @@ object AbsInterpreter {
   val σ0: Store = Map()
   val cache0: Cache = Map()
 
-  def run_wo_cache(e: Expr): (List[(Value, Store)], Cache) = fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
-  def run(e: Expr): (List[(Value, Store)], Cache) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0)
+  def run_wo_cache(e: Expr): (List[(Value, Store)], Cache) = fix_no_cache(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
+  def run(e: Expr): (List[(Value, Store)], Cache) = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 }
 
 @virtualize

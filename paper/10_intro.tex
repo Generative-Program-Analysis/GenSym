@@ -125,9 +125,9 @@ generated code.
 \fi
 
 \paragraph{Abstraction, Abstraction, and Abstraction}
-To enable such flexibility between different semantics, we extensively use generic 
-programming and abstract type members over multiple abstractions, which can be 
-later instantiated.
+To enable such flexibility between different semantics, we combine generic 
+programming and generative programming, and extensively use abstract type members 
+over multiple abstractions, which can be later instantiated.
 
 \begin{itemize}
 \item Monadic abstractions, which encapsulate the following two abstractions.
@@ -146,9 +146,10 @@ later instantiated.
   intervals) and refactor the store to a mapping from finite addresses to sets of
   values, we can derive a computable and sound abstract interpreter.
 \item Binding-time abstractions, which control whether the interpreter produces
-  values or residual programs. The binding-times differentiate whether the
-  data is known statically or dynamically. Unsurprisingly, such binding-time
-  information can be encoded into higher-kinded types \todo{cite FTPE, stage poly}.
+  values or generates code. The binding-times differentiate whether data are 
+  known statically or dynamically. Unsurprisingly, such binding-time
+  information can be encoded into higher-kinded types 
+    \cite{DBLP:journals/jfp/CaretteKS09, Ofenbeck:2017:SGP:3136040.3136060}.
 \end{itemize}
 
 \paragraph{Abstraction without Regret}
