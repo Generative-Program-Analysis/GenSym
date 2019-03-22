@@ -27,7 +27,7 @@ object AbsInterpreter {
   type Value = Set[AbsValue]
 
   type Ident = String
-  case class Addr(x: String) { override def toString = x }
+  case class Addr(x: String) { override def toString = "Addr(\"" + x + "\")" }
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
   type Config = (Expr, Env, Store)
