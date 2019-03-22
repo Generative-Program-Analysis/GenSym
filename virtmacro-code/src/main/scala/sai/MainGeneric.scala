@@ -324,8 +324,26 @@ trait StagedConcreteSemanticsDriver extends DslDriver[Unit, Unit] with StagedCon
   }
 }
 
-object MainGeneric {
+////////////////////////////////////////////////
 
+trait AbstractComponents extends Semantics {
+  //implicit cM: Manifest[Cache]
+  type Cache
+}
+
+trait AbstractSemantics extends AbstractComponents {
+  type R[T] = T
+  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+}
+
+trait StagedAbstractSemantics extends AbstractComponents with RepMonads with SAIDsl {
+  type R[T] = Rep[T]
+  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+}
+
+////////////////////////////////////////////////
+
+object MainGeneric {
   def specCon(e: Expr): DslDriver[Unit, Unit] = new StagedConcreteSemanticsDriver {
     @virtualize
     def snippet(unit: Rep[Unit]): Rep[Unit] = {
@@ -334,7 +352,7 @@ object MainGeneric {
     }
   }
 
-  //def specAbs(e: Expr)
+  def specAbs(e: Expr): DslDriver[Unit, Unit] = ???
 
   def testConcrete() = {
     val interpreter = new ConcreteSemantics {}
@@ -359,21 +377,4 @@ object MainGeneric {
       case "staged-abstract" => testStagedAbstract()
     }
   }
-}
-
-////////////////////////////////////////////////
-
-trait AbstractComponents extends Semantics {
-  //implicit cM: Manifest[Cache]
-  type Cache
-}
-
-trait AbstractSemantics extends AbstractComponents {
-  type R[T] = T
-  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
-}
-
-trait StagedAbstractSemantics extends AbstractComponents with RepMonads with SAIDsl {
-  type R[T] = Rep[T]
-  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
 }
