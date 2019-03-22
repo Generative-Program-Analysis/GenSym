@@ -58,6 +58,11 @@ trait Semantics {
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[Value]): Ans
 
+  val ρ0: R[Env]
+  val σ0: R[Store]
+  def fix(ev: EvalFun => EvalFun): EvalFun
+  def run(e: Expr): Result
+
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Lit(i) => num(i)
     case Var(x) => for {
@@ -95,12 +100,6 @@ trait Semantics {
       rt <- local_env(ev)(e, ρ)
     } yield rt
   }
-
-  val ρ0: R[Env]
-  val σ0: R[Store]
-
-  def fix(ev: EvalFun => EvalFun): EvalFun
-  def run(e: Expr): Result
 }
 
 trait ConcreteComponents extends Semantics {
