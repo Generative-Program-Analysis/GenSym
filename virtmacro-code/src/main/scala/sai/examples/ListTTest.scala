@@ -95,7 +95,7 @@ object RepListTExample {
   import sai.monads._
 
   @virtualize
-  trait ExampleOps extends SAIDsl with SAIMonads {
+  trait ExampleOps extends SAIDsl with RepMonads {
     import ListReaderStateM._
 
     type Cache = Map[String, Set[Int]]

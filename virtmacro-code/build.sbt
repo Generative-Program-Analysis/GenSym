@@ -29,6 +29,7 @@ lazy val root = (project in file("."))
     scalacOptions += "-P:continuations:enable",
     scalacOptions += "-Ypartial-unification",
     scalacOptions += "-deprecation",
+    scalacOptions += "-Xfuture",
 
     concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
   )

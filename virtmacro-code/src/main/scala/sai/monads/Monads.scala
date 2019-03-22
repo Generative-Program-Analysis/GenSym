@@ -69,10 +69,12 @@ object IdM {
   }
 }
 
-case class IdM[A](run: A) extends MonadOps[IdM, A] {
+case class IdM[A](run: A) {
   def apply: A = run
   def flatMap[B](f: A => IdM[B])(implicit mB: Manifest[B] = null): IdM[B] = f(run)
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): IdM[B] = IdM(f(run))
+  //def flatMap[B](f: A => IdM[B]): IdM[B] = f(run)
+  //def map[B](f: A => B): IdM[B] = IdM(f(run))
 }
 
 /////////////////////////////////////////////////
@@ -112,11 +114,13 @@ object ReaderT {
 case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
   import ReaderT._
   def apply(r: R): M[A] = run(r)
-  def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] =
-    ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
-  def map[B](f: A => B): ReaderT[M, R, B] =
-    ReaderT(r => Monad[M].map(run(r))(f))
+  //def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] = ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
+  //def map[B](f: A => B): ReaderT[M, R, B] = ReaderT(r => Monad[M].map(run(r))(f))
 
+  def flatMap[B](f: A => ReaderT[M, R, B])(implicit mB: Manifest[B] = null): ReaderT[M, R, B] =
+    ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): ReaderT[M, R, B] =
+    ReaderT(r => Monad[M].map(run(r))(f))
   def filter(f: A => Boolean): ReaderT[M, R, A] =
     ReaderT(r => Monad[M].filter(run(r))(f))
   def withFilter(f: A => Boolean): ReaderT[M, R, A] = filter(f)
@@ -161,9 +165,9 @@ object StateT {
 case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)]) {
   import StateT._
   def apply(s: S): M[(A, S)] = run(s)
-  def flatMap[B](f: A => StateT[M, S, B]): StateT[M, S, B] =
+  def flatMap[B](f: A => StateT[M, S, B])(implicit mB: Manifest[B] = null): StateT[M, S, B] =
     StateT(s => Monad[M].flatMap(run(s)) { case (a, s1) => f(a).run(s1) })
-  def map[B](f: A => B): StateT[M, S, B] =
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): StateT[M, S, B] =
     flatMap(a => StateT(s => Monad[M].pure((f(a), s))))
 
   def filter(f: A => Boolean): StateT[M, S, A] =
@@ -208,11 +212,11 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
             }
           })
 
-  def flatMap[B](f: A => ListT[M, B]): ListT[M, B] =
+  def flatMap[B](f: A => ListT[M, B])(implicit mB: Manifest[B] = null): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { (list: List[A]) =>
             list.foldLeft(ListT.empty[M,B])((acc, a) => acc ++ f(a)).run
           })
-  def map[B](f: A => B): ListT[M, B] =
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
 
   def filter(f: A => Boolean): ListT[M, A] =

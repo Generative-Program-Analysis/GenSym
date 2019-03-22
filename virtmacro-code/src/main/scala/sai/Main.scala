@@ -176,7 +176,7 @@ object EnvStoreInterpreter {
 }
 
 @virtualize
-trait StagedCESOps extends SAIDsl with SAIMonads {
+trait StagedCESOps extends SAIDsl with RepMonads {
   import PCFLang._
   import IdM._
   import ReaderT._

@@ -22,7 +22,14 @@ trait Semantics {
   type Value
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
-  type AnsM[T] <: RMonadOps[R, AnsM, T]
+
+  implicit val mAddr: Manifest[Addr]
+  implicit val mValue: Manifest[Value]
+
+  type AnsM[T] <: {
+    def map[B](f: R[T] => R[B])(implicit mB: Manifest[B]): AnsM[B]
+    def flatMap[B](f: R[T] => AnsM[B])(implicit mB: Manifest[B]): AnsM[B]
+  }
   type Ans = AnsM[Value]
 
   type EvalFun = Expr => Ans
@@ -92,4 +99,35 @@ trait Semantics {
 
   type Result
   def run(e: Expr): Result
+}
+
+trait ConcreteComponents extends Semantics {
+
+}
+
+trait ConcreteSemantics extends ConcreteComponents {
+  type R[T] = T
+  type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
+}
+
+trait StagedConcreteSemantics extends ConcreteComponents with RepMonads with SAIDsl {
+  type R[T] = Rep[T]
+  type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
+}
+
+////////////////////////////////////////////////
+
+trait AbstractComponents extends Semantics {
+  //implicit cM: Manifest[Cache]
+  type Cache
+}
+
+trait AbstractSemantics extends AbstractComponents {
+  type R[T] = T
+  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+}
+
+trait StagedAbstractSemantics extends AbstractComponents with RepMonads with SAIDsl {
+  type R[T] = Rep[T]
+  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
 }

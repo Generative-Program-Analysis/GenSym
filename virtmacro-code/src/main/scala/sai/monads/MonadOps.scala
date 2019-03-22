@@ -7,9 +7,9 @@ object NoRep {
 
 import NoRep._
 
-trait RMonadOps[R[_], M[_], A] {
-  def map[B](f: R[A] => R[B])(implicit mB: Manifest[B] = null): M[B]
-  def flatMap[B](f: R[A] => M[B])(implicit mB: Manifest[B] = null): M[B]
+trait RMonadOps[R[_], Mo[_], E] {
+  def map[B](f: R[E] => R[B])(implicit mB: Manifest[B] = null): Mo[B]
+  def flatMap[B](f: R[E] => Mo[B])(implicit mB: Manifest[B] = null): Mo[B]
 }
 
-trait MonadOps[M[_], A] extends RMonadOps[NoRep, M, A]
+trait MonadOps[Mo[_], A] extends RMonadOps[NoRep, Mo, A]

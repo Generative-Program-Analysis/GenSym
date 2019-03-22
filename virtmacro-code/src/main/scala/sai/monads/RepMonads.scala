@@ -14,11 +14,7 @@ import sai.lattices._
 import sai.lattices.Lattices._
 
 @virtualize
-trait SAIMonads extends RepLattices { self: SAIDsl =>
-
-  trait RepMonad[M[_]] extends RMonad[Rep, M] //TODO
-
-  trait MonadOps[M[_], A] extends RMonadOps[Rep, M, A]
+trait RepMonads extends RepLattices { self: SAIDsl =>
 
   trait Monad[M[_]] {
     def pure[A: Manifest](a: Rep[A]): M[A]
@@ -69,7 +65,7 @@ trait SAIMonads extends RepLattices { self: SAIDsl =>
     }
   }
 
-  case class IdM[A: Manifest](run: Rep[A]) extends MonadOps[IdM, A] {
+  case class IdM[A: Manifest](run: Rep[A]) {
     import IdM._
     def apply: Rep[A] = run
     def flatMap[B: Manifest](f: Rep[A] => IdM[B]): IdM[B] = f(run)

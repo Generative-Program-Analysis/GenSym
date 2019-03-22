@@ -191,7 +191,7 @@ object AbsInterpreter {
 }
 
 @virtualize
-trait StagedAbsInterpreterOps extends SAIDsl with SAIMonads with RepLattices {
+trait StagedAbsInterpreterOps extends SAIDsl with RepMonads with RepLattices {
   import PCFLang._
   import ReaderT._
   import StateT._
