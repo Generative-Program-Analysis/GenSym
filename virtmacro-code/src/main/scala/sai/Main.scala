@@ -102,6 +102,7 @@ object EnvStoreInterpreter {
   def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
 
   // Allocating addresses
+  def alloc(σ: Store, x: String) = σ.size + 1
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield σ.size + 1
 
   // Store operations

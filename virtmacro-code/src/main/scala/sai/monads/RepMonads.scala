@@ -162,10 +162,12 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
     import StateT._
     def apply(s: Rep[S]): M[(A, S)] = run(s)
     def flatMap[B: Manifest](f: Rep[A] => StateT[M, S, B]): StateT[M, S, B] =
-      StateT(s => Monad[M].flatMap(run(s)) {
-               case as1: Rep[(A, S)] =>
-                 val a: Rep[A] = as1._1; val s1: Rep[S] = as1._2
-                 f(a).run(s1)
+      StateT(s => {
+               Monad[M].flatMap(run(s)) {
+                 case as1: Rep[(A, S)] =>
+                   val a: Rep[A] = as1._1; val s1: Rep[S] = as1._2
+                   f(a).run(s1)
+               }
              })
     def map[B: Manifest](f: Rep[A] => Rep[B]): StateT[M, S, B] =
       flatMap(a => StateT(s => Monad[M].pure((f(a), s))))
