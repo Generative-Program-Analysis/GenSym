@@ -111,14 +111,16 @@ ground-truth from Haskell.
 
 \subsection{Generic Interface} \label{generic_if}
 
-Monads provide an elegant and extensible way to build
-interpreters\cite{DBLP:conf/popl/LiangHJ95, Steele:1994:BIC:174675.178068,
-Wadler:1992:EFP:143165.143169}, and recently the approach has been extended to
-abstract interpreters \cite{Sergey:2013:MAI:2491956.2491979,
-DBLP:journals/pacmpl/DaraisLNH17}. In section, with the multi-stage programming
-and abstract interpretation in mind, we use moandic operations to construct an
-generic interface in the style of big-step definitional interpreter.
+Monad transformers are type constructors of kind @(* -> *) -> (* -> *)@, which
+takes a monad as argument and produces another monad. By using monad transformers, 
+we can combine multiple monads into a single one.
+Constructing extensible interpreters using monad transformers was first proposed by \citet{DBLP:conf/popl/LiangHJ95},
+and later has been applied to abstract interpreters \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
+In section, with the multi-stage programming and monad transformers in mind
+while leave them as abstract type members, we present the generic interface of
+a big-step definitional interpreter.
 
+\todo{}
 
 Before showing the actual implementation of the concrete semantics, let us first
 consider a generic interface for the interpreters, which is semantics-agnostic

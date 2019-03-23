@@ -124,23 +124,21 @@ staging, the overhead caused by the monadic layers is eliminated in the
 generated code.
 \fi
 
-\paragraph{Abstraction, Abstraction, and Abstraction}
+\paragraph{Abstraction without Regret}
+
 To enable such flexibility between different semantics, we combine generic 
 programming and generative programming, and extensively use abstract type members 
 over multiple abstractions, which can be later instantiated.
 
 \begin{itemize}
 \item Monadic abstractions, which encapsulate the following two abstractions.
-  The interpreter itself is written in monadic form
-  \cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95,
-  DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}, by plugging
-  different monads, the underlying semantics of the interpreter is changed.
+  The interpreter itself is written in monadic form, and by plugging different monads, 
+  the underlying semantics of the interpreter is changed.
   \todo{mention that direct-style also works?}
+  %\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}
 \item Env-store-value abstractions, which control whether the interpreter
   behaves as a concrete interpreter or an abstract interpreter.
-  The environments, stores and values declared in the generic interpreter are
-  abstract types; we also define several abstract methods that manipulate
-  environments or stores.
+  The environments, stores and values are initially declared as abstract types in the generic interpreter.
   As shown by the AAM approach \cite{DBLP:journals/jfp/HornM12,
   DBLP:conf/icfp/HornM10}, if we widen the values to abstract domains (such as
   intervals) and refactor the store to a mapping from finite addresses to sets of
@@ -151,8 +149,6 @@ over multiple abstractions, which can be later instantiated.
   information can be encoded into higher-kinded types 
     \cite{DBLP:journals/jfp/CaretteKS09, Ofenbeck:2017:SGP:3136040.3136060}.
 \end{itemize}
-
-\paragraph{Abstraction without Regret}
 
 We show that these well-known abstractions can be combined smoothly, and more
 importantly the price is almost free. Through staging, the major overhead of
@@ -207,18 +203,23 @@ are just normal programs at the next stage. Through staging, we mechanically
 obtain a modular analysis, even though the original algorithm is formulated as a
 whole-program analysis.
 
-\paragraph{The paper is organized as follows:}
+\paragraph{Contributions} The contribution of the paper is twofold:
+1) Intellectually, we present a unifying construction that naturally extends the first 
+   Futamura projection to abstract interpreters. 
+2) Pragmatically, staging abstract interpreters is an approach to improve performance 
+   while untouch the soundness. We study the applicability and evaluate the performance 
+   of this approach on various analyses.
+
+The paper is organized as follows:
 
 \begin{itemize}
-  \item We progressively present a unifying construction that naturally extends
-    the first Futamura projection to abstract interpreters. Starting from a generic
-    interface of the interpreter for a small functional language
+  \item Starting from a generic interface of the interpreter for a functional language
     (Section~\ref{generic_if}), we first show the instantiation of concrete
     interpretation (Section~\ref{unstaged_conc}). Then we lift it to the staged
     version by replacing the binding-time types (Section~\ref{stagedinterp}); and to
     the abstract interpreter by applying abstraction to the environment, store, and
     values (Section~\ref{unstaged_abs}). Finally, we show the combination of the two
-    transformations, dubbed \textit{staged abstract interpreters}, can be easily
+    transformations, dubbed \textit{staged abstract interpreters}, can be readily
     derived (Section~\ref{sai}).
 
   \item We demonstrate that if we apply the abstract interpreter on components
@@ -235,7 +236,7 @@ whole-program analysis.
     whole-analyzer refactoring.
     (2) We extend the staged abstract interpreter to two variants of
     control-flow analysis: context-sensitive pushdown control-flow analysis and
-    \todo{precise-store?} (Section~\ref{sai}).
+    \todo{store-widened?} (Section~\ref{sai}).
     
   \item Based on the instantiation of control-flow analysis, we empirically
     evaluate the performance improvement by staging and specialization
