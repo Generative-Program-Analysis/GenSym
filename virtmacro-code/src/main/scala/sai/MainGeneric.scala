@@ -467,9 +467,9 @@ trait AbstractSemantics extends AbstractComponents {
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 }
 
-trait StagedAbstractSemantics extends AbstractComponents with RepMonads with SAIDsl {
+trait StagedAbstractSemantics extends AbstractComponents with RepMonads with RepLattices with SAIDsl {
   type R[T] = Rep[T]
-  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[ListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
 }
 
 ////////////////////////////////////////////////
