@@ -126,13 +126,13 @@ transformers such as @ReaderT@, @StateT@, and @ListT@ to write our interpreters.
 The implementation of monads and monad transformers essentially borrows the
 ground-truth from Haskell.
 
-\subsection{Generic Interface} \label{generic_if}
+\subsection{Generic Interpreter} \label{generic_if}
 
 Monad transformers are type constructors of kind @(* -> *) -> (* -> *)@, which
 takes a monad as argument and produces another monad. By using monad transformers, 
 we can combine multiple monads into a single one.
 Constructing extensible interpreters using monad transformers was first proposed by \citet{DBLP:conf/popl/LiangHJ95},
-and later has been applied to abstract interpreters \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
+and later has been applied to abstract interpreters \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}.
 In section, with the multi-stage programming and monad transformers in mind
 while leave them as abstract type members, we present the generic interface of
 a big-step definitional interpreter.
