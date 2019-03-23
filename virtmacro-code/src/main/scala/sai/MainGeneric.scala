@@ -467,9 +467,181 @@ trait AbstractSemantics extends AbstractComponents {
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 }
 
+@virtualize
 trait StagedAbstractSemantics extends AbstractComponents with RepMonads with RepLattices with SAIDsl {
+  import ReaderT._
+  import StateT._
+  import ListReaderStateM._
+
+  type EnvT[F[_], B] = ReaderT[F, Env, B]
+  type StoreT[F[_], B] = StateT[F, Store, B]
+
+  type NdInOutCacheM[T] = ListReaderStateM[Cache, Cache, T]
+  type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
+
+  //////////////////////////////////////////////////
+
   type R[T] = Rep[T]
   type AnsM[T] = ReaderT[StateT[ListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
+
+  // code generation
+  def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
+                  in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
+  def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value, Store)], Cache)],
+                        λ: Lam, ρ: Rep[Env]): Rep[AbsValue]
+  def emit_inttop: Rep[AbsValue] = unit(IntTop)
+  def emit_addr(x: String): Rep[Addr] = unit(Addr(x))
+
+  // environment operations
+  def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
+  def ext_env(x: String, a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (unit(x) → a)
+  def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
+
+  // allocate addresses
+  def alloc(σ: Rep[Store], x: String): Rep[Addr] = emit_addr(x)
+  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
+  // store operations
+  def get_store: AnsM[Store] = ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
+  def put_store(σ: Rep[Store]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
+  def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
+
+  // auxiliary function that lifts values
+  def lift_nd[T: Manifest](vs: Rep[List[T]]): AnsM[T] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, T](
+      StateT.liftM[NdInOutCacheM, Store, T](
+        ListReaderStateM.fromList(vs)
+      ))
+
+  // primitive operations
+  def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans =
+    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
+  def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
+  def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](emit_inttop))
+  def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+    val Lam(x, e) = λ
+    val f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value, Store)], Cache)] = {
+      case (v, σ, in, out) =>
+        val α = alloc(σ, x)
+        ev(e)(ρ + (unit(x) → α))(σ ⊔ Map(α → v)).run(in)(out)
+    }
+    Set[AbsValue](emit_compiled_clo(f, λ, ρ))
+  }
+  //FIXME: check v1 && v2 contains Int
+  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
+    lift_nd[AbsValue](fun.toList).flatMap { clo =>
+      ask_in_cache.flatMap { in =>
+        get_out_cache.flatMap { out =>
+          get_store.flatMap { σ =>
+            val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
+            put_out_cache(res._2).flatMap { _ =>
+              lift_nd[(Value, Store)](res._1).flatMap { vs =>
+                put_store(vs._2).map { _ =>
+                  vs._1
+                } } } } } } }
+  }
+  /*
+    for {
+    clo <- lift_nd[AbsValue](fun.toList)
+    in <- ask_in_cache
+    out <- get_out_cache
+    σ <- get_store
+    val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
+    _ <- put_out_cache(res._2)
+    vs <- lift_nd[(Value, Store)](res._1)
+    _ <- put_store(vs._2)
+  } yield vs._1
+   */
+
+  // cache operations
+  def ask_in_cache: AnsM[Cache] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
+      StateT.liftM[NdInOutCacheM, Store, Cache](
+        ListReaderStateMonad[Cache, Cache].ask
+      ))
+  def get_out_cache: AnsM[Cache] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
+      StateT.liftM[NdInOutCacheM, Store, Cache](
+        ListReaderStateMonad[Cache, Cache].get
+      ))
+  def put_out_cache(out: Rep[Cache]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
+      StateT.liftM[NdInOutCacheM, Store, Unit](
+        ListReaderStateMonad[Cache, Cache].put(out)
+      ))
+  def update_out_cache(cfg: Rep[Config], vs: Rep[(Value, Store)]): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
+      StateT.liftM[NdInOutCacheM, Store, Unit](
+        ListReaderStateMonad[Cache, Cache].mod(c => c ⊔ Map(cfg → Set(vs)))
+      ))
+
+  def fix_select: EvalFun = e => e match {
+    case Lit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)
+    case _ => fix_cache(e)
+  }
+
+  def fix_cache: EvalFun = { e =>
+    ask_env.flatMap { ρ =>
+      get_store.flatMap { σ =>
+        ask_in_cache.flatMap { in =>
+          get_out_cache.flatMap { out =>
+            val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
+            val res: Rep[(List[(Value, Store)], Cache)] =
+              if (out.contains(cfg)) {
+                (repMapToMapOps(out).apply(cfg).toList, out) //FIXME: ambigious implicit
+              } else {
+                val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+                val m: Ans = for {
+                  _ <- put_out_cache(out + (cfg → res_in))
+                  v <- eval(fix_select)(e)
+                  σ <- get_store
+                  _ <- update_out_cache(cfg, (v, σ))
+                } yield v
+                m(ρ)(σ).run(in)(out)
+              }
+            put_out_cache(res._2).flatMap { _ =>
+              lift_nd(res._1).flatMap { vs =>
+                put_store(vs._2).map { _ =>
+                  vs._1
+                } } } } } } } }
+
+  // non-selective caching
+  def fix_nonsel(ev: EvalFun => EvalFun): EvalFun = { e =>
+    for {
+      ρ <- ask_env
+      σ <- get_store
+      in <- ask_in_cache
+      out <- get_out_cache
+      val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
+      val res: Rep[(List[(Value, Store)], Cache)] =
+        if (out.contains(cfg)) {
+          (repMapToMapOps(out).apply(cfg).toList, out) //FIXME: out(cfg)
+        } else {
+          val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+          val m: Ans = for {
+            _ <- put_out_cache(out + (cfg → res_in))
+            v <- ev(fix(ev))(e)
+            σ <- get_store
+            _ <- update_out_cache(cfg, (v, σ))
+          } yield v
+          m(ρ)(σ).run(in)(out)
+        }
+      _ <- put_out_cache(res._2)
+      vs <- lift_nd(res._1)
+      _ <- put_store(vs._2)
+    } yield vs._1
+  }
+
+  val ρ0: Rep[Env] = Map[String, Addr]()
+  val σ0: Rep[Store] = Map[Addr, Value]()
+  val cache0: Rep[Cache] = Map[Config, Set[(Value, Store)]]()
+
+  def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
+  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_nonsel(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+  def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
 }
 
 ////////////////////////////////////////////////
