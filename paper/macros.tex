@@ -6,7 +6,8 @@
 \definecolor{cstring}{HTML}{2A0099}
 
 \lstdefinelanguage{Scala}%
-{morekeywords={abstract,%
+{morekeywords={
+  abstract,%
   case,catch,char,class,%
   def,do,else,extends,final,finally,for,%
   if,import,implicit,%
@@ -28,7 +29,7 @@
   morecomment=[l]//,%
   morecomment=[s]{/*}{*/},%
   morestring=[b]",%
-%  morestring=[b]',%
+  %morestring=[b]',%
   showstringspaces=false%
 }[keywords,comments,strings]%
 
@@ -53,6 +54,10 @@
            %{fun}{{$\lambda$}}1 
            {idx}{{$\#$}}1 
            {sum}{{$\Sigma$}}1 
+           {rho}{{$\rho$}}2
+           {sigma}{{$\sigma$}}2
+           {alpha}{{$\alpha$}}2
+           {lambda}{{$\lambda$}}2
            {array(}{{$\langle.\rangle$(}}3 
            %{[[}{{$[\![$}}1
            %{]]}{{$]\!]$}}1
@@ -62,8 +67,8 @@
 \definecolor{listingbg}{RGB}{240, 240, 240}
 
 \newcommand{\commentstyle}[1]{\color{ccomment}\itshape{#1}}
-%\newcommand{\keywordstyle}[1]{\color{ckeyword}\bfseries{#1}}
-\newcommand{\keywordstyle}[1]{\color{ckeyword}{#1}}
+\newcommand{\keywordstyle}[1]{\color{ckeyword}\bfseries{#1}}
+%\newcommand{\keywordstyle}[1]{\color{ckeyword}{#1}}
 \newcommand{\stringstyle}[1]{\color{cstring}\bfseries{#1}}
 
 \lstnewenvironment{listing}{\lstset{language=Scala}}{}
