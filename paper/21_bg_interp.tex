@@ -10,14 +10,14 @@ well-typed and all variables are distinct. The abstract syntax is shown as
 follows:
 
 \begin{lstlisting}
-abstract class Expr
-case class Lit(i: Int) extends Expr                         // numbers
-case class Var(x: String) extends Expr                      // variables
-case class Lam(x: String, e: Expr) extends Expr             // abstractions
-case class App(e1: Expr, e2: Expr) extends Expr             // applications
-case class If0(e1: Expr, e2: Expr, e3: Expr) extends Expr   // conditionals
-case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
-case class AOp(op: String, e1: Expr, e2: Expr) extends Expr // primitives
+  abstract class Expr
+  case class Lit(i: Int) extends Expr                         // numbers
+  case class Var(x: String) extends Expr                      // variables
+  case class Lam(x: String, e: Expr) extends Expr             // abstractions
+  case class App(e1: Expr, e2: Expr) extends Expr             // applications
+  case class If0(e1: Expr, e2: Expr, e3: Expr) extends Expr   // conditionals
+  case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
+  case class AOp(op: String, e1: Expr, e2: Expr) extends Expr // primitives
 \end{lstlisting}
 
 The abstract syntax we present in fact can be seen as a deep embedding of the
@@ -43,52 +43,68 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 
 In Scala, thanks for its nature that combines functional programming and
 object-oriented programming, we may use traits and objects to implement monads.
-For example, the following trait @Monad@ declares the @pure@ and @flatMap@
-operation. The trait itself takes a higher-kinded type @F[_]: * -> *@ as argument,
-which takes a type and returns a type. The method @pure@ promotes values of type
-@A@ to values of type @F[A]@ \footnote{We elect to use \texttt{pure} as the name, since \texttt{return} is a keyword in Scala and \texttt{unit} is a built-in function in LMS.}. The monadic @bind@ operation is usually called
-@flatMap@ in Scala, which takes a monad-encapsulated value of type @F[A]@, a function of
-@A => F[B]@ and returns values of type @F[B]@.
+For example, the trait @Monad@ (Figure \ref{fig:monad}) declares the @pure@ and @flatMap@
+operation. The trait itself takes a higher-kinded type @M[_]: * -> *@ as
+argument, which takes a type and returns a type. The method @pure@ promotes
+values of type @A@ to values of type @M[A]@ \footnote{We elect to use
+\texttt{pure} as the name, since \texttt{return} is a keyword in Scala and
+\texttt{unit} is a built-in function in LMS.}. The monadic @bind@ operation is
+usually called @flatMap@ in Scala, which takes a monad-encapsulated value of
+type @M[A]@, a function of @A => M[B]@ and returns values of type @M[B]@.
 
-\begin{lstlisting}
-  trait Monad[F[_]] {
-    def pure[A](a: A): F[A]
-    def flatMap[A,B](fa: F[A])(f: A => F[B]): F[B]
-  }
-\end{lstlisting}
+\begin{figure}[h!]
+  \centering
+  \begin{subfigure}[b]{0.55\textwidth}
+    \begin{lstlisting}
+  trait Monad[M[_]] {                                  
+    def pure[A](a: A): M[A]                            
+    def flatMap[A,B](fa: M[A])(f: A => M[B]): M[B]     
+  }                                                    
+    \end{lstlisting}
+    \caption{trait \texttt{Monad}} \label{fig:monad}
+  \end{subfigure}
+  ~
+  \begin{subfigure}[b]{0.4\textwidth}
+    \begin{lstlisting}
+trait MonadOps[M[_], A] {
+  def flatMap[B](f: A => M[B]): M[B]
+  def map[B](f: A => B): M[B]
+}
+    \end{lstlisting}
+    \caption{trait \texttt{MonadOps}} \label{fig:monadops}
+  \end{subfigure}
+\end{figure}
 
-An object implementing the trait @Monad@ may also encapsulates the data of type
-@F[A]@ internally, in this case, it only needs to provide method
-@flatMap(f: A => F[B]): F[B]@. This allows us to utilize the for-comprehensions
-in Scala, simliar to Haskell's do-notation, which provides special syntactic
-support for moandic @flatMap@. For example, a list object of element type @A@ is
-a monad and it implements the methods @flatMap[B](f: A => List[B]): List[B]@ and
-@map[B](f: A => B): List[B]@. To compute the Cartesian product of two lists of
-numbers, we may directly call @flatMap@ and pass an anonymous function that
-internally calls the monadic @pure@ operation (the @List@ constructor in this
-case):
+Similar to Haskell's @do@-notation, Scala provides special syntactic support for
+monadic operations through @for@-comprehension.
+For example, a object of @List[A]@, where @A@ is the element type. Then to
+compute the the Cartesian product of two lists of numbers, we can use Scala's
+@for@-comprehension syntax.
 
 \begin{lstlisting}
   val xs = List(1, 2); val ys = List(4, 5)
-  xs.flatMap(x => ys.flatMap(y => List((x, y)))) // List((1,4), (1,5), (2,4), (2,5))
-\end{lstlisting}
-
-Or, we can use for-comprehensions that computes the same value:
-
-\begin{lstlisting}
   for {x <- xs; y <- ys} yield (x, y) // List((1,4), (1,5), (2,4), (2,5))
 \end{lstlisting}
 
-The Scala compiler will translate the above for-comprehension expression into
-an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}:
+The Scala compiler will translate the above @for@-comprehension expression into
+an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}. The last binding
+in the @for@-comprehension is translated into a @map@, where the expression of
+@yield@ becomes the body expression of that @map@ application. The foregoing
+bindings are all translated into calls of @flatMap@.
 
 \begin{lstlisting}
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
 
+Note that here the monadic object @List[_]@ encapsulates the data internally.
+Therefore it only exposes simplified version of @flatMap@ and @map@, where the
+monad @M[A]@ is not introduced as a function argument. The trait @MonadOps@
+(Figure \ref{fig:monadops}) defines the simplified version of monadic
+operations. The conversion between @Monad@ and @MonadOps@ can be done by using
+implicit design pattern.
 In the rest of the paper, we use Scala's for-comprehension syntax and monad
-transformers @ReaderT@, @StateT@, @ListT@ to write our interpreters. The
-implementation of monads and monad transformers essentially borrows the
+transformers such as @ReaderT@, @StateT@, and @ListT@ to write our interpreters.
+The implementation of monads and monad transformers essentially borrows the
 ground-truth from Haskell.
 
 \subsection{Generic Interface} \label{generic_if}
