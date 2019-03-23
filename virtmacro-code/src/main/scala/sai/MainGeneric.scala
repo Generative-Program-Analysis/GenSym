@@ -40,8 +40,7 @@ trait Semantics {
 
   // Environment operations
   def ask_env: AnsM[Env]
-  def ext_env(x: String, a: R[Addr]): AnsM[Env]
-  def local_env(ev: EvalFun)(e: Expr, ρ: R[Env]): AnsM[Value]
+  def ext_env(ans: Ans)(xα: (String, R[Addr])): Ans
 
   // allocate addresses
   def alloc(x: String): AnsM[Addr]
@@ -50,13 +49,13 @@ trait Semantics {
   // Store operations
   def get_store: AnsM[Store]
   def put_store(σ: R[Store]): AnsM[Unit]
-  def update_store(a: R[Addr], v: R[Value]): AnsM[Unit]
+  def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
 
   // Primitive operations
   def num(i: Int): Ans
   def get(σ: R[Store], ρ: R[Env], x: String): R[Value]
   def br0(test: R[Value], thn: => Ans, els: => Ans): Ans
-  def prim(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
+  def arith(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[Value]): Ans
 
@@ -82,9 +81,8 @@ trait Semantics {
     case Let(x, rhs, e) => for {
       v <- ev(rhs)
       α <- alloc(x)
-      _ <- update_store(α, v)
-      ρ <- ext_env(x, α)
-      rt <- local_env(ev)(e, ρ)
+      _ <- set_store(α → v)
+      rt <- ext_env(ev(e))(x → α)
     } yield rt
     case If0(e1, e2, e3) => for {
       cnd <- ev(e1)
@@ -93,13 +91,12 @@ trait Semantics {
     case Aop(op, e1, e2) => for {
       v1 <- ev(e1)
       v2 <- ev(e2)
-    } yield prim(op, v1, v2)
+    } yield arith(op, v1, v2)
     case Rec(x, rhs, e) => for {
       α <- alloc(x)
-      ρ <- ext_env(x, α)
-      v <- local_env(ev)(rhs, ρ)
-      _ <- update_store(α, v)
-      rt <- local_env(ev)(e, ρ)
+      v <- ext_env(ev(rhs))(x → α)
+      _ <- set_store(α → v)
+      rt <- ext_env(ev(e))(x → α)
     } yield rt
   }
 }
@@ -132,8 +129,7 @@ trait ConcreteSemantics extends ConcreteComponents {
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
-  def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
-  def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
+  def ext_env(ans: Ans)(xα: (String, Addr)): Ans = ReaderTMonad[StoreM, Env].local(ans)(ρ => ρ + xα)
 
   // Allocating addresses
   def alloc(σ: Store, x: String) = σ.size + 1
@@ -143,8 +139,8 @@ trait ConcreteSemantics extends ConcreteComponents {
   def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[IdM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
     ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].put(σ))
-  def update_store(a: Addr, v: Value): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + (a → v)))
+  def set_store(av: (Addr, Value)): AnsM[Unit] =
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + av))
 
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](IntV(i))
@@ -153,14 +149,13 @@ trait ConcreteSemantics extends ConcreteComponents {
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
-      ρ <- ext_env(x, α)
-      _ <- update_store(α, arg)
-      rt <- local_env(ev)(e, ρ)
+      _ <- set_store(α → arg)
+      rt <- ext_env(ev(e))(x → α)
     } yield rt
   }
   def br0(test: Value, thn: => Ans, els: => Ans): Ans =
     if (test == IntV(0)) thn else els
-  def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
+  def arith(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case ('+, IntV(x), IntV(y)) => IntV(x + y)
     case ('-, IntV(x), IntV(y)) => IntV(x - y)
     case ('*, IntV(x), IntV(y)) => IntV(x * y)
@@ -194,8 +189,7 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
-  def ext_env(x: String, a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (unit(x) → a)
-  def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreM, Env].local(ev(e))(_ => ρ)
+  def ext_env(ans: Ans)(xα: (String, Rep[Addr])): Ans = ReaderTMonad[StoreM, Env].local(ans)(ρ => ρ + (unit(xα._1) → xα._2))
 
   // Allocating addresses
   def alloc(σ: Rep[Store], x: String): Rep[Addr] = σ.size + 1
@@ -204,13 +198,13 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
   // Store operations
   def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[IdM, Store].get)
   def put_store(σ: Rep[Store]): AnsM[Unit] = ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].put(σ))
-  def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + (a → v)))
+  def set_store(av: (Rep[Addr], Rep[Value])): AnsM[Unit] =
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + av))
 
   // Primitive operations
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](unchecked[Value]("IntV(", i, ")"))
-  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
+  def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
     val v1n = emit_int_proj(v1)
     val v2n = emit_int_proj(v2)
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
@@ -372,8 +366,7 @@ trait AbstractSemantics extends AbstractComponents {
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
-  def ext_env(x: String, a: Addr): AnsM[Env] = for { ρ <- ask_env } yield ρ + (x → a)
-  def local_env(ev: EvalFun)(e: Expr, ρ: Env): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
+  def ext_env(ans: Ans)(xα: (String, Addr)): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ans)(ρ => ρ + xα)
 
   // Allocating addresses
   def alloc(σ: Store, x: String): Addr = Addr(x)
@@ -384,8 +377,8 @@ trait AbstractSemantics extends AbstractComponents {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
-  def update_store(a: Addr, v: Value): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
+  def set_store(av: (Addr, Value)): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(av)))
 
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
@@ -393,15 +386,14 @@ trait AbstractSemantics extends AbstractComponents {
   def br0(test: Value, thn: => Ans, els: => Ans): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
-  def prim(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
+  def arith(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
   }
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
     α <- alloc(x)
-    ρ <- ext_env(x, α)
-    _ <- update_store(α, arg)
-    rt <- local_env(ev)(e, ρ)
+    _ <- set_store(α → arg)
+    rt <- ext_env(ev(e))(x → α)
   } yield rt
 
   // auxiliary function that lifts values
@@ -498,8 +490,8 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
 
   // environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
-  def ext_env(x: String, a: Rep[Addr]): AnsM[Env] = for { ρ <- ask_env } yield ρ + (unit(x) → a)
-  def local_env(ev: EvalFun)(e: Expr, ρ: Rep[Env]): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ev(e))(_ => ρ)
+  def ext_env(ans: Ans)(xα: (String, Rep[Addr])): Ans =
+    ReaderTMonad[StoreNdInOutCacheM, Env].local(ans)(ρ => ρ + (unit(xα._1) → xα._2))
 
   // allocate addresses
   def alloc(σ: Rep[Store], x: String): Rep[Addr] = emit_addr(x)
@@ -509,8 +501,8 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   def get_store: AnsM[Store] = ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
   def put_store(σ: Rep[Store]): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
-  def update_store(a: Rep[Addr], v: Rep[Value]): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(a → v)))
+  def set_store(av: (Rep[Addr], Rep[Value])): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(av)))
 
   // auxiliary function that lifts values
   def lift_nd[T: Manifest](vs: Rep[List[T]]): AnsM[T] =
@@ -534,7 +526,7 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))
   }
   //FIXME: check v1 && v2 contains Int
-  def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
+  def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
     lift_nd[AbsValue](fun.toList).flatMap { clo =>
       ask_in_cache.flatMap { in =>
@@ -766,7 +758,7 @@ object MainGeneric {
       def mCache: Manifest[Cache] = manifest[Cache]
     }
     val res = interpreter.run(fact5)
-    //println(AbsInterpreter.run(fact5))
+    println(AbsInterpreter.run(fact5))
     println(res)
   }
 

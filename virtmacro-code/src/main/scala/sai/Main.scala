@@ -400,5 +400,6 @@ object Main {
 
     val lam = Lam("x", App(Var("x"), Var("x")))
     val omega = App(lam, lam)
+    println(EnvStoreInterpreter.run(fact5))
   }
 }
