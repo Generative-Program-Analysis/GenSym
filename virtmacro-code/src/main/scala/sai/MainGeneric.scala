@@ -18,40 +18,40 @@ import sai.lattices.Lattices._
 import PCFLang._
 
 trait Semantics {
-  type R[_]
+  // Basic type definitions
   type Ident = String
   type Addr
   type Value
   type Env = Map[Ident, Addr]
   type Store = Map[Addr, Value]
 
-  implicit def mValue: Manifest[Value]
+  // Binding-time polymorphism
+  type R[_]
 
+  // Monadic interface
   type MonadOps[R[_], M[_], A] = {
     def map[B: Manifest](f: R[A] => R[B]): M[B]
     def flatMap[B: Manifest](f: R[A] => M[B]): M[B]
   }
   type AnsM[T] <: MonadOps[R, AnsM, T]
-
   type Ans = AnsM[Value]
-  type Result
-
-  type EvalFun = Expr => Ans
 
   // Environment operations
   def ask_env: AnsM[Env]
   def ext_env(ans: Ans)(xα: (String, R[Addr])): Ans
 
+  // Store operations
+  def get_store: AnsM[Store]
+  def put_store(σ: R[Store]): AnsM[Unit]
+  def set_store(αv: (R[Addr], R[Value])): AnsM[Unit]
+
   // allocate addresses
   def alloc(x: String): AnsM[Addr]
   def alloc(σ: R[Store], x: String): R[Addr]
 
-  // Store operations
-  def get_store: AnsM[Store]
-  def put_store(σ: R[Store]): AnsM[Unit]
-  def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
-
   // Primitive operations
+  type EvalFun = Expr => Ans
+
   def num(i: Int): Ans
   def get(σ: R[Store], ρ: R[Env], x: String): R[Value]
   def br0(test: R[Value], thn: => Ans, els: => Ans): Ans
@@ -59,9 +59,9 @@ trait Semantics {
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[Value]): Ans
 
-  val ρ0: R[Env]
-  val σ0: R[Store]
+  // Fixpoint wrapper and top-level interface
   def fix(ev: EvalFun => EvalFun): EvalFun
+  type Result
   def run(e: Expr): Result
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
@@ -99,6 +99,10 @@ trait Semantics {
       rt <- ext_env(ev(e))(x → α)
     } yield rt
   }
+
+  val ρ0: R[Env]
+  val σ0: R[Store]
+  implicit def mValue: Manifest[Value]
 }
 
 trait ConcreteComponents extends Semantics {
@@ -139,8 +143,8 @@ trait ConcreteSemantics extends ConcreteComponents {
   def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[IdM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
     ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].put(σ))
-  def set_store(av: (Addr, Value)): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + av))
+  def set_store(αv: (Addr, Value)): AnsM[Unit] =
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + αv))
 
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](IntV(i))
@@ -198,8 +202,8 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
   // Store operations
   def get_store: AnsM[Store] = ReaderT.liftM[StoreM, Env, Store](StateTMonad[IdM, Store].get)
   def put_store(σ: Rep[Store]): AnsM[Unit] = ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].put(σ))
-  def set_store(av: (Rep[Addr], Rep[Value])): AnsM[Unit] =
-    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + av))
+  def set_store(αv: (Rep[Addr], Rep[Value])): AnsM[Unit] =
+    ReaderT.liftM[StoreM, Env, Unit](StateTMonad[IdM, Store].mod(σ => σ + αv))
 
   // Primitive operations
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
@@ -377,8 +381,8 @@ trait AbstractSemantics extends AbstractComponents {
     ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
   def put_store(σ: Store): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
-  def set_store(av: (Addr, Value)): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(av)))
+  def set_store(αv: (Addr, Value)): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(αv)))
 
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
@@ -501,8 +505,8 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   def get_store: AnsM[Store] = ReaderT.liftM[StoreNdInOutCacheM, Env, Store](StateTMonad[NdInOutCacheM, Store].get)
   def put_store(σ: Rep[Store]): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
-  def set_store(av: (Rep[Addr], Rep[Value])): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(av)))
+  def set_store(αv: (Rep[Addr], Rep[Value])): AnsM[Unit] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(αv)))
 
   // auxiliary function that lifts values
   def lift_nd[T: Manifest](vs: Rep[List[T]]): AnsM[T] =
