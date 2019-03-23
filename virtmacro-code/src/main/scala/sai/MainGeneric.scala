@@ -27,10 +27,12 @@ trait Semantics {
 
   implicit def mValue: Manifest[Value]
 
-  type AnsM[T] <: {
-    def map[B: Manifest](f: R[T] => R[B]): AnsM[B]
-    def flatMap[B: Manifest](f: R[T] => AnsM[B]): AnsM[B]
+  type MonadOps[R[_], M[_], A] = {
+    def map[B: Manifest](f: R[A] => R[B]): M[B]
+    def flatMap[B: Manifest](f: R[A] => M[B]): M[B]
   }
+  type AnsM[T] <: MonadOps[R, AnsM, T]
+
   type Ans = AnsM[Value]
   type Result
 
@@ -479,6 +481,8 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   type NdInOutCacheM[T] = ListReaderStateM[Cache, Cache, T]
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
 
+  def mCache: Manifest[Cache] = manifest[Cache]
+
   //////////////////////////////////////////////////
 
   type R[T] = Rep[T]
@@ -600,7 +604,7 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
                   σ <- get_store
                   _ <- update_out_cache(cfg, (v, σ))
                 } yield v
-                m(ρ)(σ).run(in)(out)
+                m(ρ)(σ)(in)(out)
               }
             put_out_cache(res._2).flatMap { _ =>
               lift_nd(res._1).flatMap { vs =>
@@ -627,7 +631,7 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
             σ <- get_store
             _ <- update_out_cache(cfg, (v, σ))
           } yield v
-          m(ρ)(σ).run(in)(out)
+          m(ρ)(σ)(in)(out)
         }
       _ <- put_out_cache(res._2)
       vs <- lift_nd(res._1)
@@ -640,8 +644,89 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   val cache0: Rep[Cache] = Map[Config, Set[(Value, Store)]]()
 
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
-  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_nonsel(eval)(e)(ρ0)(σ0)(cache0)(cache0)
-  def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+
+  def run_nonsel(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_nonsel(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+}
+
+trait StagedAbstractSemanticsExp extends StagedAbstractSemantics with SAIOpsExp {
+  //TODO: when evaluating, change lam/rho to hash code
+  case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
+                           rf: Exp[((Value, Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
+                           λ: Exp[Lam], ρ: Exp[Env]) extends Def[AbsValue]
+  case class IRApClo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store],
+                     in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
+
+  def emit_compiled_clo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
+                        λ: Lam, ρ: Exp[Env]) = reflectEffect(IRCompiledClo(f, fun(f), unit(λ), ρ))
+
+  def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = clo match {
+    //Note: egar beta-reduction, produces larger residual code
+    //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?
+    //case Def(CompiledClo(f, rf, λ, ρ)) => f(arg, σ, in, out)
+    case _ => reflectEffect(IRApClo(clo, arg, σ, in, out))
+  }
+}
+
+trait StagedAbstractSemanticsGen extends GenericNestedCodegen {
+  val IR: StagedAbstractSemanticsExp
+  import IR._
+
+  override def remap[A](m: Manifest[A]): String = {
+    if (m.toString.endsWith("$AbsValue")) "AbsValue"
+    else if (m.toString.endsWith("$Addr")) "Addr"
+    else if (m.toString.endsWith("$Expr")) "Expr"
+    else super.remap(m)
+  }
+
+  override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+    case IRCompiledClo(f, rf, λ, ρ) =>
+      emitValDef(sym, s"CompiledClo(${quote(rf)}, ${quote(λ)}, ${quote(ρ)})")
+    case IRApClo(f, arg, σ, in, out) =>
+      emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
+    case Struct(tag, elems) =>
+      //This fixes code generation for tuples, such as Tuple2MapIntValueValue
+      //TODO: merge back to LMS
+      registerStruct(structName(sym.tp), sym.tp, elems)
+      val typeName = sym.tp.runtimeClass.getSimpleName +
+        "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
+    case _ => super.emitNode(sym, rhs)
+  }
+}
+
+trait StagedAbstractSemanticsDriver extends DslDriver[Unit, Unit] with StagedAbstractSemanticsExp { q =>
+  override val codegen = new DslGen
+      with ScalaGenMapOps
+      with ScalaGenSetOps
+      with ScalaGenListOps
+      with ScalaGenUncheckedOps
+      with SAI_ScalaGenTupleOps
+      with SAI_ScalaGenTupledFunctions
+      with StagedAbstractSemanticsGen
+  {
+    val IR: q.type = q
+    override def emitSource[A : Manifest](args: List[Sym[_]], body: Block[A], className: String,
+                                          stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
+      val prelude = """
+  import sai.PCFLang._
+  object RT {
+    type Value = Set[AbsValue]
+    case class Addr(x: String) { override def toString = x }
+    type Env = Map[String, Addr]
+    type Store = Map[Addr, Value]
+    type Config = (Expr, Env, Store)
+    type Cache = Map[Config, Set[(Value, Store)]]
+    trait AbsValue
+    case object IntTop extends AbsValue
+    case class CompiledClo(f: (Value, Store, Cache, Cache) => (List[(Value, Store)], Cache), λ: Lam, ρ: Env) extends AbsValue
+  }
+  import RT._
+      """
+      stream.println(prelude)
+      super.emitSource(args, body, className, stream)
+    }
+  }
 }
 
 ////////////////////////////////////////////////
@@ -655,7 +740,14 @@ object MainGeneric {
     }
   }
 
-  def specAbs(e: Expr): DslDriver[Unit, Unit] = ???
+  def specAbs(e: Expr): DslDriver[Unit, Unit] = new StagedAbstractSemanticsDriver {
+    @virtualize
+    def snippet(unit: Rep[Unit]): Rep[Unit] = {
+      val vsc = run(e)
+      println(vsc._1)
+      println(vsc._2.size)
+    }
+  }
 
   def testConcrete() = {
     val interpreter = new ConcreteSemantics {}
@@ -674,10 +766,15 @@ object MainGeneric {
       def mCache: Manifest[Cache] = manifest[Cache]
     }
     val res = interpreter.run(fact5)
-    println(AbsInterpreter.run(fact5))
+    //println(AbsInterpreter.run(fact5))
     println(res)
   }
-  def testStagedAbstract() = { ??? }
+
+  def testStagedAbstract() = {
+    val code = specAbs(fact5)
+    println(code.code)
+    code.eval(())
+  }
 
   def main(args: Array[String]): Unit = {
     args(0) match {
