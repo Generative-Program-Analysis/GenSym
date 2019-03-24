@@ -38,7 +38,7 @@ follows:
 \end{lstlisting}
 
 The abstract syntax we present in fact can be seen as a deep embedding of the
-language -- we use datatypes to represent programs. This design choice makes us
+language -- we use data-types to represent programs. This design choice makes us
 easily add different interpretations over the AST; with the inheritance and
 overriding mechanism in Scala, we may also add new language construct and reuse
 the existing interpretation.
@@ -142,8 +142,8 @@ definitional interpreter.
 \paragraph{Basic type definitions} We start with some basic type definitions.
 The identifiers in the program are represented by strings. The two default
 components in the interpreter are environments @Env@ and stores @Store@, i.e.,
-mappings from identifiers to addressess and mappings from addresses to values,
-respectively. But the @Addr@ and @Value@ are just declared as abstracrt types.
+mappings from identifiers to addresses and mappings from addresses to values,
+respectively. But the @Addr@ and @Value@ are just declared as abstract types.
 
 \begin{lstlisting}
   trait Semantics {
@@ -160,8 +160,8 @@ type (i.e., @type R[T] = T@), then the generic interpreter will execute the prog
 In Section \ref{stagedinterp}, we will instantiate @R@ using LMS's built-in
 next-stage type annotation @Rep@, which makes the interpreter act as a compiler.
 
-\paragraph{Moandic operations} We define the return type of the interpreter as
-@Ans@, which is a monad type @AnsM[_]@ wrapping the type @Value@. 
+\paragraph{Monadic operations} We define the return type of the interpreter as
+@Ans@, which is an arbitrary monad type @AnsM[_]@ wrapping the type @Value@. 
 As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
 syntax, certain constraints have to be posed onto the type @AnsM@. Here, we use a
 structural type @MonadOps@ to require @AnsM@ to at least implement @map@ and
@@ -224,7 +224,7 @@ terms (e.g., lambdas) to our value representation (e.g., closures).
 The method @get@ simply retrieves the value mapped from the identifier @x@ in
 the environment and store. Conditionals and arithmetics is handled by @br0@
 and @arith@, respectively. The methods @ap_clo@ takes a function value and an
-arugment value and then does the application.
+argument value and then does the application.
 
 %TODO: close/ap_clo takes an ev
 
