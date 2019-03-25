@@ -1,6 +1,6 @@
 \newcommand{\TLang}{$L_\lambda$}
 
-\section{Preliminaries}
+\section{Preliminaries} \label{prelim}
 
 In this section, we first describe the abstract syntax of the language we will
 analyze, then present the generic interpreter shared among the four different
@@ -289,8 +289,8 @@ termination. Finally, a top-level wrapper @run@ is declared; the return type
 \subsection{A Concrete Interpreter} \label{unstaged_conc}
 
 Now we can instantiate the interpreter as a standard environment-store
-interpreter. Such interpreter can be obtained by refunctionalization of CESK
-machines \cite{Felleisen:1987:CAH:41625.41654, DBLP:conf/ppdp/AgerBDM03}.
+interpreter. Such interpreter also can be obtained by refunctionalization of
+CESK machines \cite{Felleisen:1987:CAH:41625.41654, DBLP:conf/ppdp/AgerBDM03}.
 
 \paragraph{Concrete Components}
 The two types we need to concretize are @Addr@ and @Value@, afterward, the @Env@
@@ -313,16 +313,16 @@ provide a standard fixed-point combinator to close the open-recursive function @
 \end{lstlisting}
 %\vspace{-1em}
 
-\paragraph{Unstaged Concrete Monads}
-% The data manipulated by the monad are staged value. But the monad is known at
-% current stage.
+\paragraph{Unstaged Monads}
 The environment and store can be modeled by reader effect and state effect,
 i.e., a Reader monad and a State monad. We combine them using monad transformers
 @ReaderT@ and @StateT@.
 In other word, we instantiate the @AnsM@ moand as a stack of @ReaderT@ and @StateT@
-transformers, where the @ReaderT@ is parameterized by type @Env@, @StateT@ is
-parameterized by type @Store@, and the inner-most monad @IdM@ is just an identity
-monad.
+transformers\footnote{The question mark syntax is a kind projector
+  \cite{kindprojector}, thus \texttt{StateT[IdM,Store,?]} is equivalent to \newline
+  \texttt{(\{type M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is
+parameterized by type @Env@, @StateT@ is parameterized by type @Store@, and the
+inner-most monad @IdM@ is just an identity monad.
 
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
@@ -377,7 +377,7 @@ environment, then create a closure value @CloV@.
 
 To apply a function, the method @ap_clo@ takes a function value and an arugment
 value, extracts the lambda term and environment enclosed in the function value,
-and evaluates the body expression of that lambda under the new environment and store.
+and evaluates the body expression of that lambda term under the new environment and store.
 
 \begin{lstlisting}
   def ap_clo(ev: EvalFun)(f: Value, arg: Value): Ans = f match {

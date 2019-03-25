@@ -1,41 +1,122 @@
 \section{From Interpreters to Staged Interpreters} \label{stagedinterp}
 
-\subsection{Multi-Stage Programming in LMS}
+In this section, based on the generic interpreter and concrete components we
+presented in Section \ref{prelim}, we show how to obtain a staged concrete
+interpreters by changing the monads and refactoring several primitive
+operations. We begin by briefly introducing the Lightweight Modular Staging
+framework in Scala.
+
+\subsection{Multi-Stage Programming with LMS}
 
 Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
 multi-stage programming framework implemented as a Scala library that enables
-dynamic code generation in a type-safe manner. Different from the syntactic
-approach in MetaOCaml \cite{DBLP:conf/flops/Kiselyov14,
-DBLP:conf/gpce/CalcagnoTHL03} that uses quotations, LMS distinguishes
-binding-time solely based on types. LMS provides a type constructor @Rep[T]@
-where @T@ can be an arbitrary type, indicating an expression will be known at
-next stage. All operations acting on a @Rep[T]@ expression will be residualized
-in the generated code. However, we need to provide intermediate representation
-and code generation support for type @T@ to LMS. Fortunately, the LMS framework
-already provides such support for primitive types and commonly used data
-structure such as arrays and maps; implementing such support for custom class is
-also straightforward. Let's go back and see how LMS can be used to specialize
-the power function we mentioned in Section 1.
+dynamic code generation in a type-safe manner. Different from the approach of
+MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} that
+uses syntactic quotation and escape, LMS distinguishes binding-time solely based
+on types. LMS provides a type constructor @Rep[T]@ where @T@ can be an arbitrary
+type, indicating a value of @T@ will be known at next stage. All operations
+acting a @Rep[T]@ expression will be residualized as generated code.
+
+The LMS framework provides staging support for primitive data types such as
+@Int@ and @Double@, and commonly-used data structures such as arrays and maps.
+The idea is to construct intermediate representations (IR) for the next-stage
+program at current stage. Such conversion from expressions of type @Rep[_]@ to
+their IR is done by using implicit design pattern. As we will see later,
+implementing the staging support for custom classes is also straightforward.
+
+For example, let us go back and see how LMS can be used to specialize the
+@power@ function from Section ~\ref{intro}.
 
 \begin{lstlisting}
 new DslDriver[Int, Int] {
-  def power(b: Rep[Int], x: Int): Rep[Int] =
-    if (x == 0) 1 else b * power(b, x-1)
+  def power(b: Rep[Int], x: Int): Rep[Int] = if (x == 0) 1 else b * power(b, x-1)
   def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
 }
 \end{lstlisting}
 
-In the code shown above, \texttt{power} takes two arguments where \texttt{b} is
-declared as \texttt{Rep[Int]} type meaning that \texttt{b} is a representation
-of \texttt{Int} but whose value will be available at the next stage. Meanwhile,
-the result of the @power@ function will be available at the next stage as well,
-thus the return value of \texttt{power} is also of type \texttt{Rep[Int]}. Then
-we specialize @power@ in function @snippet@ by providing @x@ to @5@. The
-generated code for \texttt{power5} is a function that takes only one argument
-which corresponds to @b@, and the body of this function multiplies @b@ five
-times.
+\todo{Show some IR}
 
 \subsection{Staged Concrete Semantics}
+
+To implement the staged concrete interpreter, we reuse the exactly same concrete
+components from Section \ref{unstaged_conc}, but we instantiate the binding-time
+type @R[T]@ as @Rep[T]@.
+
+\paragraph{Staged Monads} We also need to use monads that operate on staged
+values. Note that the monadic objects such as @StateT@ or the internal value
+@R[S] => M[(A,S)]@ are not staged, only the data @S@ or @A@ are staged.
+This is why we can completely eliminate the overhead caused by the monadic layers.
+Here we use the prefix name @Rep@ to differentitate unstaged monads and staged
+monads, such as @RepReaderT@. So the @AnsM[_]@ is instantiated as the same monad
+stack before, but with @Rep@ versions.
+
+\begin{lstlisting}
+  type R[T] = Rep[T]
+  type AnsM[T] = RepReaderT[RepStateT[RepIdM, Store, ?], Env, T]
+\end{lstlisting}
+
+We use @RepStateT@ as an example to give a sketch of how the @Rep@ versions of monad
+transformers look like. The generic type @M[_]@ is a @RepMonad@ and used as the
+inner monad, which means the pair @(A,S)@ is also staged when appears inside of monad
+@M[_]@. The @flatMap@ is similar to the unstaged one, but the function @f@ takes
+a @Rep[A]@ value. Again, @f@ is not a next-stage function, but a current-stage
+function that transforms a next-stage value of @Rep[A]@ to @StateT[M,S,B]@.
+\todo{highlight the changes in the code}
+
+\begin{lstlisting}
+  case class RepStateT[M[_]: RepMonad, S, A](run: Rep[S] => M[(A, S)]) {
+    def flatMap[B](f: Rep[A] => StateT[M, S, B]): StateT[M, S, B] = ...
+  }
+\end{lstlisting}
+
+Readers may notice that the conversion between unstaged monads and monads is 
+simply changing the unstaged data to staged data, which in fact can be achieved without
+changing the implementation of monads. This is true so far, but as will see in
+the abstract interpreter when introducing the nondeterminism monad (@ListT@), as
+the whole list will be a next-stage value instead of merely the elements in the list.
+For this reason, we explicitly distinguish and present the two version of
+monads, as a more consistent approach.
+
+\paragraph{Primitive Operations} Most of the primitive operations can be easily
+translated to staged version -- we just need to let them works on staged data.
+
+\begin{lstlisting}
+  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
+  def emit_compiled_clo(fun: (Rep[Value], Rep[Store]) => Rep[(Value, Store)],
+                        λ: Lam, ρ: Rep[Env]): Rep[Value]
+
+  def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+    val Lam(x, e) = λ
+    val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
+      case (v: Rep[Value], σ: Rep[Store]) =>
+        val α = alloc(σ, x)
+        ev(e)(ρ + (unit(x) → α))(σ + (α → v))
+    }; emit_compiled_clo(f, λ, ρ)
+  }
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
+    σ <- get_store
+    val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
+    _ <- put_store(res._2)
+  } yield res._1
+\end{lstlisting}
+
+\paragraph{Code Generation}
+
+\begin{lstlisting}
+  case class IRApClo(f: Exp[Value], arg: Exp[Value], σ: Exp[Store]) extends Def[(Value, Store)]
+  override def emit_ap_clo(fun: Exp[Value], arg: Exp[Value], σ: Exp[Store]): Exp[(Value, Store)] =
+    IRApClo(fun, arg, σ)
+\end{lstlisting}
+
+\begin{lstlisting}
+  override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+    case IRApClo(f, arg, σ) =>
+      emitValDef(sym, s"$\textdollar${quote(f)}.asInstanceOf[CompiledClo].f($\textdollar${quote(arg)}, $\textdollar${quote(σ)})")
+    ...
+  }
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 In the staging part, we share the same concrete type instantiation, i.e., trait
 \texttt{Concrete}, but we reimplement the staged version for the concrete
@@ -47,33 +128,6 @@ values and store, which both becomes dynamic values. Thus the staged stores
 propagate the binding-time to environments, because they share the same address
 component.
 
-\begin{lstlisting}
-trait RepConcInterpOps extends Concrete with LMSOps {
-  type R[+T] = Rep[T]
-  val $\rho$0: Rep[Env] = Map[Ident,Addr]()
-  val $\sigma$0: Rep[Store] = Map[Addr,Value]()
-  def get($\rho$: Rep[Env], x: Ident): Rep[Addr] = $\rho$(x)
-  def put($\rho$: Rep[Env], x: Ident, a: Rep[Addr]): Rep[Env] = 
-    $\rho$ + (unit(x) -> a)
-  def get($\sigma$: Rep[Store], a: Rep[Addr]): Rep[Value] = $\sigma$(a)
-  def put($\sigma$: Rep[Store], a: Rep[Addr], v: Rep[Value]): Rep[Store] = 
-    $\sigma$ + (a -> v)
-  def alloc($\sigma$: Rep[Store], x: Ident): Rep[Addr] = $\sigma$.size + 1
-  def num(i: Lit): Rep[Value] = lift(NumV(i))
-  def branch0(cnd: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-    //FIXME: the cast is ugly, patten match?
-    val i = cnd.asInstanceOf[Rep[NumV]].i
-    if (i == 0) thn else els
-  }
-  def prim_eval(op: Symbol, 
-    v1: Rep[Value], v2: Rep[Value]): Rep[Value] = op match {
-      case '+ => v1.asInstanceOf[Rep[NumV]].i + 
-                 v2.asInstanceOf[Rep[NumV]].i
-      ...
-    }
-  ...
-}
-\end{lstlisting}
 
 The first notable change is that the abstract type member @R@ is assigned to be
 @Rep@, and accordingly the affected types such as @Env@ and @Store@ become
@@ -88,7 +142,7 @@ the syntactic term of the lambda expression should be eliminated and specialized
 away. The specialization of the interpreter with respect to the body of the
 lambda term proceeds under the assumptions that the argument and latest store
 will be provided later.
-%\note{to denotational style?, back to HO?}
+
 We will see this is an important observation that enables us to specialize an
 abstract interpreter in a modular way. At the end of function @close@, we create
 a @CompiledClo@ object that contains a staged function, which all will be
@@ -115,27 +169,17 @@ application. The additional @reflectEffect@ is a function in LMS that handles
 side effects.
 
 \begin{lstlisting}
-case class ApplyClosure(f: Rep[Value], 
-  arg: Rep[Value], $\sigma$: Rep[Store]) extends Def[(Value, Store)]
+case class ApplyClosure(f: Rep[Value], arg: Rep[Value], $\sigma$: Rep[Store]) extends Def[(Value, Store)]
 def apply_closure(ev: EvalFun)
   (f: Rep[Value], arg: Rep[Value], $\sigma$: Rep[Store]): Ans = {
     reflectEffect(ApplyClosure(f, arg, $\sigma$))
   }
 \end{lstlisting}
 
-\paragraph{Code Generation}
 
 When generating code for the next stage, values like @CompiledClo@ and @NumV@
 are kept as they are because they are intended exist in the next stage; however,
 we need to treat @ApplyClosure@ a little differently.
-
-\begin{lstlisting}
-  case ApplyClosure(f, arg, $\sigma$) => 
-    emitValDef(sym, quote(f) + 
-                    ".asInstanceOf[CompiledClo].f(" + 
-                    quote(arg) + "," + 
-                    quote($\sigma$) + ")")
-\end{lstlisting}
 
 Concretely, as shown in the code above, when emitting code for @ApplyClosure@,
 we just emit a function application where the function value is extracted from
