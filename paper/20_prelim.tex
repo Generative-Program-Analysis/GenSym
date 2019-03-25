@@ -288,10 +288,11 @@ termination. Finally, a top-level wrapper @run@ is declared; the return type
 
 \subsection{A Concrete Interpreter} \label{unstaged_conc}
 
-\paragraph{Concrete Components}
 Now we can instantiate the interpreter as a standard environment-store
 interpreter. Such interpreter can be obtained by refunctionalization of CESK
 machines \cite{Felleisen:1987:CAH:41625.41654, DBLP:conf/ppdp/AgerBDM03}.
+
+\paragraph{Concrete Components}
 The two types we need to concretize are @Addr@ and @Value@, afterward, the @Env@
 and @Store@ is concretized automatically. To assure the freshness, we use @Int@
 for the address space @Addr@. A value can be either a tagged number
