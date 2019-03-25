@@ -152,23 +152,6 @@ Rep[(Value, Store)] = {
 }
 \end{lstlisting}
 
-\subsection{Specialized Data Structures} \label{staged_ds}
-
-Now we have already obtained an end-to-end staged abstract interpreter that is
-able to specialize an analysis. However, we treat the data structures such as
-@Map@s as black-boxes, which means any operations on a @Map@ become code in the
-next stage. But, as we identified when introducing the generic interface, the
-keys of any environment maps are identifiers in the program, which are
-completely known statically. This leaves us a chance to further specialize the
-data structures. Assume the @Map[K,V]@ is implemented as a hash map, if the keys
-$K$ are known, then the indices can be computed statically. Thus the specialized
-map would be an array @Array[Rep[V]]@ whose elements are next-stage values; all
-the accesses to the array is determined during staging.
-
-Particularly, if we are specializing a monovariant analysis, the address space
-is equivalent to the identifiers, then the environment component can be entirely
-eliminated, and the store is a specialized map as array of @Rep[Value]@
-elements.
 
 \subsection{Modular Analysis for Free}
 
@@ -205,38 +188,85 @@ the first $n$ programs, and the abstract interpreter itself might be a partial
 abstract interpreter.
 \fi
 
+\subsection{Optimizations} \label{staged_ds}
+
+Our staging schema works well in theory, but would suffer from code explosion,
+and possibly runtime GC overhead when analyzing (specializing) large programs.
+We present several optimizations that largely mitigate these issues. Still,
+these optimizations do not need to change the generic interpreter.
+
+\paragraph{Specialized Data Structures}
+
+Now we have already obtained an end-to-end staged abstract interpreter that is
+able to specialize an analysis. However, we treat the data structures such as
+@Map@s as black-boxes, which means any operations on a @Map@ become code in the
+next stage. But, as we identified when introducing the generic interface, the
+keys of any environment maps are identifiers in the program, which are
+completely known statically. This leaves us a chance to further specialize the
+data structures. Assume the @Map[K,V]@ is implemented as a hash map, if the keys
+$K$ are known, then the indices can be computed statically. Thus the specialized
+map would be an array @Array[Rep[V]]@ whose elements are next-stage values; all
+the accesses to the array is determined during staging.
+
+Particularly, if we are specializing a monovariant analysis, the address space
+is equivalent to the identifiers, then the environment component can be entirely
+eliminated, and the store is a specialized map as array of @Rep[Value]@
+elements.
+
+\paragraph{Selective Caching} It is observed that the two-fold caching is
+wrapped for recursive call of our abstract interpreter. But this is even more
+expensive when generating code for atomic expressions such as literal numbers or
+variables. \todo{caching prevents nontermination}
+
+\paragraph{Partially-static Data}
+
+For example, to fold a singleton list, e.g., @List(x).foldLeft(init)(f)@ where
+@x@ and @init@ are staged values, a naive code generator would faithfully
+apply @foldLeft@ to the list with an anonymous function. But we can also utilize
+the algebraic property of @foldLeft@ to generate cheaper code:
+@List(x).foldLeft(init)(f) = f(init, x)@.
+Since the function @f@ is known at current stage, we completely eliminate the
+fold operation and function application. We apply several rewritings enabled by
+partial-static data structures, such as @List@ and @Map@, which greatly reduce
+the size of residual programs.
+
+\paragraph{Heterogeneous Staging} The generated program is in A-Normal form, 
+
 \subsection{Discussion}
 
-In the literature of partial evaluation, \citeauthor{10.1007/3-540-61580-6_11}
-provided guidelines on what to do and not to do when specializing a concrete
-interpreter \cite{10.1007/3-540-61580-6_11}. We borrow these guidelines and
-extend them to abstract interpreters. We discuss decisions we made to achieve
-this and examine some alternatives.
+We have gradually presented the confluence of specialization and abstraction of
+concrete interpreters. In this section, we discuss several decisions we made to
+achieve this and examine some alternatives.
+
+\paragraph{Are Monads Necessary?} No. One can always inline the monads and
+obtain an abstract interpreter in continuation-passing style, or simply use
+explicit side-effects such mutation to implement the artifact with the same
+abstract semantics. In either cases, we can still apply the staging schema to
+abstract interpreter. As an evidence, we provide an staged abstract interpreter
+written in direct-style in the accompanying artifact.
 
 \paragraph{Big-step vs Small-step}
 
-What we implemented is a big-step, compositional abstract interpreter, where
-"compositional" means that every recursive call of our abstract interpreter is
-applied to proper substructures of the current syntactic parameters
-\cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
-specialization can be done by unfolding, as well as that the specialization
-procedure terminates. Nevertheless, it is also possible to specialize a
-small-step operational abstract semantics ---
-\citeauthor{Johnson:2013:OAA:2500365.2500604} showed this in abstract
-compilation \cite{Boucher:1996:ACN:647473.727587} style as one of their
-optimizations of Abstract Abstract Machines
-\cite{Johnson:2013:OAA:2500365.2500604}. However, the generated abstract
+What we implemented is a big-step, compositional abstract interpreter in monadic
+style, where "compositional" means that every recursive call of our abstract
+interpreter is applied to proper substructures of the current syntactic
+parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
+specialization can be done by unfolding, as well as the termination of
+specialization procedure. It is also possible to specialize small-step
+operational abstract semantics through abstract compilation
+\cite{Boucher:1996:ACN:647473.727587} --
+\citet{Johnson:2013:OAA:2500365.2500604} implemented it for
+optimizating Abstract Abstract Machines. However, the generated abstract
 bytecode still requires another small-step abstract machine to execute, which is
-an additional engineering efforts. Another alternative approach for efficient
-specialization is to write the abstract interpreter in a big-step, monadic style
-\cite{DBLP:journals/pacmpl/DaraisLNH17}.
+an additional engineering efforts.
 
 % direct-style vs CPS
 
 \paragraph{Correctness and Soundness}
 
-Based on the assumption that LMS preserves the semantics during staging, we are
-confident that the staged abstract interpreter does the same analysis compared
-with the unstaged one. Moreover, the optimization done by staging does not
-compromise any soundness.
+As one of the merit of our approach, the staging does not compromise any
+soundness, because we only change the underlying monads and data structures to
+the staged version, not any part of the abstract semantics. Based on the
+assumption that LMS preserves the equivalence during staging, we are confident
+that the staged abstract interpreter does the same analysis as the unstaged one.
 

@@ -79,110 +79,70 @@ monads, as a more consistent approach.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to staged version -- we just need to let them works on staged data.
+As we mentioned before, we elaborate how to handle functions and applications in
+detail. One of the desired goal is to eliminate the monadic layers through
+staging, this becomes tricky for clsoures, because we need to actually compile
+the lambda term instead of generate a @CloV@ value. To make this happen, when
+closing the lambda term with the environment, we need to \textit{collpase} the
+monads to normal values. The following function @close@ illustrates the idea:
+@f@ is a current stage function but takes two next-stage values @v@ and
+$\sigma$, inside of which, we eagerly collapse the monads to values by
+@ev(e)(ρ_*)(σ_*)@, which has type @Rep[(Value, Store)]@.
+Then we generate an intermediate representation of the compiled closure using
+@emit_compiled_clo@. The intermediate representation stands for a next-stage
+value, and contains the compiled function, which will be generated as a
+next-stage function.
 
 \begin{lstlisting}
-  def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
-  def emit_compiled_clo(fun: (Rep[Value], Rep[Store]) => Rep[(Value, Store)],
-                        λ: Lam, ρ: Rep[Env]): Rep[Value]
-
+  def emit_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)]): Rep[Value]
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
     val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
       case (v: Rep[Value], σ: Rep[Store]) =>
-        val α = alloc(σ, x)
-        ev(e)(ρ + (unit(x) → α))(σ + (α → v))
-    }; emit_compiled_clo(f, λ, ρ)
+        val α = alloc(σ, x); val ρ_* = ρ + (unit(x) → α); val σ_* = σ + (α + v)
+        ev(e)(ρ_*)(σ_*)
+    }; emit_compiled_clo(f)
   }
-  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
+\end{lstlisting}
+
+When applying a function in @ap_clo@, we generate an intermediate representation
+for closure application through @emit_ap_clo@, assuming that the @rator@ is already an
+IR of compiled closure, @rand@ is an arbitrary stage value, and $\sigma$ is the
+latest store. @emit_ap_clo@ represents a next-stage value of type
+@Rep[(Value, Store)]@, which is a collapsed monadic value from next stage, now
+we need to reify the value and store back into the monad stack through
+@put_store@ and @yield@.
+
+\begin{lstlisting}
+  def emit_ap_clo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
+  def ap_clo(ev: EvalFun)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
     σ <- get_store
-    val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
+    val res: Rep[(Value, Store)] = emit_ap_clo(rator, rand, σ)
     _ <- put_store(res._2)
   } yield res._1
 \end{lstlisting}
 
 \paragraph{Code Generation}
 
+The method @emit_compiled_clo@ and @emit_ap_clo@ mentioned above produces IR
+node in LMS. We define these IR node as follow: \note{Def, quote are omitted}
+
 \begin{lstlisting}
-  case class IRApClo(f: Exp[Value], arg: Exp[Value], σ: Exp[Store]) extends Def[(Value, Store)]
-  override def emit_ap_clo(fun: Exp[Value], arg: Exp[Value], σ: Exp[Store]): Exp[(Value, Store)] =
-    IRApClo(fun, arg, σ)
+  case class IRCompiledClo(f: Rep[((Value,Store)) => (Value, Store)]) extends Rep[Value]
+  case class IRApClo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]) extends Rep[(Value, Store)]
 \end{lstlisting}
+
+After constructing the IR graph, LMS provides an @emitNode@ to generate code for
+each kind of IR node. To generate code for @IRApClo@, we know that @rator@ is a
+compiled closure @IRCompiledClo@, which contains a next-stage function @f@, so
+we just need to generate code that invokes @f@ with @rand@ and @σ@ as arguments
+provided. Similarly, we directly generate a next-stage value @CompiledClo(f)@
+for @IRCompiledClo@.
 
 \begin{lstlisting}
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-    case IRApClo(f, arg, σ) =>
-      emitValDef(sym, s"$\textdollar${quote(f)}.asInstanceOf[CompiledClo].f($\textdollar${quote(arg)}, $\textdollar${quote(σ)})")
+    case IRApClo(rator, rand, σ) => emitValDef(sym, s"$\textdollar$rator.f($\textdollar$rand, $\textdollar$σ)")
+    case IRCompiledClo(f) => emitValDef(sym, s"CompiledClo($\textdollar$f)")
     ...
   }
 \end{lstlisting}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-In the staging part, we share the same concrete type instantiation, i.e., trait
-\texttt{Concrete}, but we reimplement the staged version for the concrete
-operations in trait @RepConcInterpOps@. Meanwhile, it is also extended from
-@LMSOps@ which provides necessary support for the staged version of primitive
-types and data structures. To stage the interpreter, we first identify the
-syntactic input that is known statically, and the interpreter returns a pair of
-values and store, which both becomes dynamic values. Thus the staged stores
-propagate the binding-time to environments, because they share the same address
-component.
-
-
-The first notable change is that the abstract type member @R@ is assigned to be
-@Rep@, and accordingly the affected types such as @Env@ and @Store@ become
-@Rep[Env]@ and @Rep[Store]@. For @num@, we use the @lift@ function which is a
-built-in in LMS that lifts a current-stage value to next stage. The interesting
-point is how we handle closures and function applications when staging is
-involved. In the unstaged version, function @close@ is used to lift a literal
-lambda term to a closure, which is a pair of the syntactic lambda term and the
-enclosing environment. However, what we desire is a \textit{compiled} closure,
-instead of a lifted @CloV@ value like what we did for @NumV@ --- in other words,
-the syntactic term of the lambda expression should be eliminated and specialized
-away. The specialization of the interpreter with respect to the body of the
-lambda term proceeds under the assumptions that the argument and latest store
-will be provided later.
-
-We will see this is an important observation that enables us to specialize an
-abstract interpreter in a modular way. At the end of function @close@, we create
-a @CompiledClo@ object that contains a staged function, which all will be
-emitted in the generated code.
-
-\begin{lstlisting}
-def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Rep[Env]): Rep[Value] = {
-  val Lam(x, e) = $\lambda$
-  val f: Rep[(Value,Store)]=>Rep[(Value,Store)] = { 
-    case (arg: Rep[Value],$\sigma$: Rep[Store]) =>
-      val $\alpha$ = alloc($\sigma$, x)
-      ev(e, put($\rho$, x, $\alpha$), put($\sigma$, $\alpha$, arg)) 
-  }
-  CompiledClo(fun(f))
-}
-\end{lstlisting}
-
-Next, @apply_closure@ takes three arguments: the function value, argument value
-and the latest store, which are all of @Rep@ type. This means basically there
-is nothing we can do at the current stage --- so we create a new node
-@ApplyClosure@ that contains these arguments in the intermediate representation
-graph, and in the code generation phase we can emit the code that performs the
-application. The additional @reflectEffect@ is a function in LMS that handles
-side effects.
-
-\begin{lstlisting}
-case class ApplyClosure(f: Rep[Value], arg: Rep[Value], $\sigma$: Rep[Store]) extends Def[(Value, Store)]
-def apply_closure(ev: EvalFun)
-  (f: Rep[Value], arg: Rep[Value], $\sigma$: Rep[Store]): Ans = {
-    reflectEffect(ApplyClosure(f, arg, $\sigma$))
-  }
-\end{lstlisting}
-
-
-When generating code for the next stage, values like @CompiledClo@ and @NumV@
-are kept as they are because they are intended exist in the next stage; however,
-we need to treat @ApplyClosure@ a little differently.
-
-Concretely, as shown in the code above, when emitting code for @ApplyClosure@,
-we just emit a function application where the function value is extracted from
-the @CompiledClo@ object (we assume the input program is well-typed so that we
-can safely cast it to @CompiledClo@). Argument and a store are the remaining rest
-fields in @ApplyClosure@.

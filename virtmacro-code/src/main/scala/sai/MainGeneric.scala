@@ -646,7 +646,7 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   def run_nonsel(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_nonsel(eval)(e)(ρ0)(σ0)(cache0)(cache0)
 }
 
-trait StagedAbstractSemanticsExp extends StagedAbstractSemantics with SAIOpsExp {
+trait StagedAbstractSemanticsExp extends StagedAbstractSemantics with SAIOpsExp with AbsEnvExpOpt {
   //TODO: when evaluating, change lam/rho to hash code
   case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
                            rf: Exp[((Value, Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
