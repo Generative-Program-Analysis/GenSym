@@ -71,8 +71,8 @@ function that transforms a next-stage value of @Rep[A]@ to @StateT[M,S,B]@.
 
 Readers may notice that the conversion between unstaged monads and monads is 
 simply changing the unstaged data to staged data, which in fact can be achieved without
-changing the implementation of monads. This is true so far, but as will see in
-the abstract interpreter when introducing the nondeterminism monad (@ListT@), as
+changing the implementation of monads. This is true so far, but as we will see
+when introducing the nondeterminism monad (@ListT@) for abstract interpreters, as
 the whole list will be a next-stage value instead of merely the elements in the list.
 For this reason, we explicitly distinguish and present the two version of
 monads, as a more consistent approach.
