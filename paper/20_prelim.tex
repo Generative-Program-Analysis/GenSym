@@ -139,11 +139,13 @@ with the multi-stage programming and monad transformers in mind while leave them
 as abstract type members, we present the generic interface of a big-step
 definitional interpreter.
 
-\paragraph{Basic type definitions} We start with some basic type definitions.
-The identifiers in the program are represented by strings. The two default
-components in the interpreter are environments @Env@ and stores @Store@, i.e.,
-mappings from identifiers to addresses and mappings from addresses to values,
-respectively. But the @Addr@ and @Value@ are just declared as abstract types.
+\paragraph{Basic Types} We start with some basic type definitions used in the
+interpreter. The identifiers in the program are represented by strings. The two
+default components in the interpreter are environments @Env@ and stores @Store@,
+i.e., mappings from identifiers to addresses and mappings from addresses to
+values, respectively. The @Env@ models accessible variables, and @Store@ models
+the persistent heap through the program runtime. But the @Addr@ and @Value@ are
+just declared as abstract types.
 
 \begin{lstlisting}
   trait Semantics {
@@ -154,13 +156,13 @@ respectively. But the @Addr@ and @Value@ are just declared as abstract types.
   }
 \end{lstlisting}
 
-\paragraph{Binding-time abstraction} As mentioned before, the binding-time is
-declared as a higher-kinded type @R[_]@. If we instantiate @R@ as an identity
+\paragraph{Binding-time Abstraction} As mentioned before, the binding-time is
+declared as a higher-kinded type @R[_]@. If we simply instantiate @R@ as an identity
 type (i.e., @type R[T] = T@), then the generic interpreter will execute the program.
 In Section \ref{stagedinterp}, we will instantiate @R@ using LMS's built-in
 next-stage type annotation @Rep@, which makes the interpreter act as a compiler.
 
-\paragraph{Monadic operations} We define the return type of the interpreter as
+\paragraph{Monadic Operations} We define the return type of the interpreter as
 @Ans@, which is an arbitrary monad type @AnsM[_]@ wrapping the type @Value@. 
 As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
 syntax, certain constraints have to be posed onto the type @AnsM@. Here, we use a
@@ -207,7 +209,7 @@ def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
 \end{figure}
 \vspace{-1em}
 
-\paragraph{Primitive operations} Next we define several primitive operations.
+\paragraph{Primitive Operations} Next we define several primitive operations.
 Two versions of @alloc@ are declared. The first one takes a store and an
 identifier, and produces a fresh address of non-monadic type @R[Addr]@. Since
 the freshness of the address may depend on the store, which might be a
@@ -224,7 +226,9 @@ terms (e.g., lambdas) to our value representation (e.g., closures).
 The method @get@ simply retrieves the value mapped from the identifier @x@ in
 the environment and store. Conditionals and arithmetics is handled by @br0@
 and @arith@, respectively. The methods @ap_clo@ takes a function value and an
-argument value and then does the application.
+argument value and then does the application. Note that the @Env@, @Store@, and
+@Value@ are all wrapped by @R[_]@ since they will be known as next-stage value
+when acting as compilers.
 
 %TODO: close/ap_clo takes an ev
 
@@ -237,7 +241,7 @@ argument value and then does the application.
   def ap_clo(ev: Expr => Ans)(fun: R[Value], arg: R[Value]): Ans
 \end{lstlisting}
 
-\paragraph{The interpreter} Now we can define the semantics-agnostic interpreter
+\paragraph{The Interpreter} Now we can define the semantics-agnostic interpreter
 in monadic form. The essential idea is to traverse the abstract syntax tree
 while maintaining the effects such as reader and state. 
 It is worth noting that the interpreter is written in open-recursive style -- it
@@ -284,58 +288,110 @@ termination. Finally, a top-level wrapper @run@ is declared; the return type
 
 \subsection{A Concrete Interpreter} \label{unstaged_conc}
 
-Now we can instantiate a concrete interpreter. We first concretize the abstract
-types as follows. Since the interpreter is concrete, for the purpose that
-properly models the heap, the type \texttt{Int} is used for address space
-\texttt{Addr}. The environment and store are just ordinary \texttt{Map}s in
-Scala. A value can be either a tagged number \texttt{NumV} or a closure
-\texttt{CloV} that contains a lambda term and an environment.
+\paragraph{Concrete Components}
+Now we can instantiate the interpreter as a standard environment-store
+interpreter. Such interpreter can be obtained by refunctionalization of CESK
+machines \cite{Felleisen:1987:CAH:41625.41654, DBLP:conf/ppdp/AgerBDM03}.
+The two types we need to concretize are @Addr@ and @Value@, afterward, the @Env@
+and @Store@ is concretized automatically. To assure the freshness, we use @Int@
+for the address space @Addr@. A value can be either a tagged number
+\texttt{IntV}, or a closure \texttt{CloV} that contains a lambda term and an
+environment. The final return value of the interpreter is a pair of values and
+stores, where the @Value@ and @Store@ are obviously next-stage objects. We also
+provide a standard fixed-point combinator to close the open-recursive function @ev@.
 
 \begin{lstlisting}
-trait Concrete extends Semantics {
-  type Addr = Int;   sealed trait Value
-  case class CloV($\lambda$: Lam, $\rho$: Env) extends Value
-  case class NumV(i: Int) extends Value
-  type Env = Map[Ident, Addr];  type Store = Map[Addr, Value]
-}
+  trait ConcreteComponents extends Semantics {
+    type Addr = Int
+    sealed trait Value
+    case class IntV(i: Int) extends Value
+    case class CloV(λ: Lam, e: Env) extends Value
+    type Result = (R[Value], R[Store])
+    def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => ev(fix(ev))(e)
+  }
 \end{lstlisting}
+%\vspace{-1em}
 
-We proceed to implement the components that define the semantics. As mentioned
-before, type \texttt{R} is concretized as an identity type function, thus all
-types are just ordinary types.
+\paragraph{Unstaged Concrete Monads}
+% The data manipulated by the monad are staged value. But the monad is known at
+% current stage.
+The environment and store can be modeled by reader effect and state effect,
+i.e., a Reader monad and a State monad. We combine them using monad transformers
+@ReaderT@ and @StateT@.
+In other word, we instantiate the @AnsM@ moand as a stack of @ReaderT@ and @StateT@
+transformers, where the @ReaderT@ is parameterized by type @Env@, @StateT@ is
+parameterized by type @Store@, and the inner-most monad @IdM@ is just an identity
+monad.
 
 \begin{lstlisting}
-object ConcInterp extends Concrete {
-  type R[+T] = T
-  val $\rho$0 = Map[Ident,Addr]();  val $\sigma$0 = Map[Addr,Value]()
-  def get($\rho$: Env, x: Ident): Addr = $\rho$(x)
-  def put($\rho$: Env, x: Ident, a: Addr): Env = $\rho$ + (x -> a)
-  def get($\sigma$: Store, a: Addr): Value = $\sigma$(a)
-  def put($\sigma$: Store, a: Addr, v: Value): Store = $\sigma$ + (a -> v)
-  def alloc($\sigma$: Store, x: Ident): Addr = $\sigma$.size + 1
-  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Env): Value = CloV($\lambda$, $\rho$)
-  def num(i: Lit): Value = NumV(i.i)
-  def apply_closure(ev: EvalFun)
-    (f: Value, arg: Value, $\sigma$: Store): Ans = f match {
-      case CloV(Lam(x, e), $\rho$) =>
-        val $\alpha$ = alloc($\sigma$, x); val $\rho$_* = put($\rho$, x, $\alpha$)
-        val $\sigma$_* = put($\sigma$, $\alpha$, arg); ev(e, $\rho$_*, $\sigma$_*)
-    }
-  def branch0(cnd: Value, thn: => Ans, els: => Ans): Ans = 
-    cnd match { case NumV(i) => if (i == 0) thn else els }
-  def prim_eval(op: Symbol, v1: Value, v2: Value): Value = 
-    op match {
-      case '+ => v1.asInstanceOf[NumV].i + v2.asInstanceOf[NumV].i
-      ...
-    }
-}
+  trait ConcreteSemantics extends ConcreteComponents {
+    type R[T] = T
+    type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
+    ...
+  }
 \end{lstlisting}
 
-Finally, \texttt{get} and \texttt{put} directly manipulate the map of
-environment and store. An allocation function is used when we need to update the
-store: in the concrete case, \texttt{alloc} always returns a fresh address of
-the store. \texttt{close} and \texttt{num} lift syntactic literals to values.
-\texttt{apply\_closure} takes the function value, argument value and the latest
-store, then extends the environment and store after allocating a fresh address,
-and continue evaluating the body \texttt{e} of the lambda term.
+Here we sketch the basic idea of unstaged @ReaderT@ and @StateT@. Readers may
+refer to \todo{cite, or appendix?} for more detail and implementation of monad
+transformers.
+A @ReaderT@ monad transformer encapsulates the computation @R => M[A]@, where
+@R@ is the reader type, @M[_]@ is a monad type. The @ReaderT@ monad returns the
+transformed value of type @M[A]@. Similarly, a @StateT@ monad encapsulates the
+computation @S => M[(A, S)]@, where @S@ is the state type, @M[_]@ is a monad
+type. The @StateT@ monad returns the transformed value of type @M[(A, S)]@,
+where the new state is accompanied.
+Note that the binding-time type @R@ is an identity type, thus the monads are
+operated on unstaged data. We can also see this from the signature of @flatMap@:
+the function @f@ takes an unstaged value of type @A@ and produces a monadic
+value.
 
+\begin{lstlisting}
+  case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
+    def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] = ... }
+  case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)]) {
+    def flatMap[B](f: A => StateT[M, S, B]): StateT[M, S, B] = ... }
+\end{lstlisting}
+
+Then, the monadic operations that manipulate the environment and store are
+simply constructing the proper monads and lifting it to the top-level of our
+moand stack. To modify the store, for example, we may have a @StateT@ monad that
+transforms the current store $\sigma$ to @σ + αv@, which results in
+@StateT[IdM, Store, Unit]@, and then lift this @StateT@ value to @ReaderT@,
+i.e., @AnsM[Unit]@.
+\begin{lstlisting}
+  def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ + αv))
+\end{lstlisting}
+
+\paragraph{Primitive Operations}
+Other primitive operations can be implemented straightforwardly, for example,
+@alloc@ simply takes the size of current store and produce the successor number.
+We elide most of them, but describe a little bit on how do we handle functions
+and applications as they will be very different when staging and abstract
+interpretation is involved. The method @close@ takes a lambda term and an
+environment, then create a closure value @CloV@.
+
+\begin{lstlisting}
+  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
+\end{lstlisting}
+
+To apply a function, the method @ap_clo@ takes a function value and an arugment
+value, extracts the lambda term and environment enclosed in the function value,
+and evaluates the body expression of that lambda under the new environment and store.
+
+\begin{lstlisting}
+  def ap_clo(ev: EvalFun)(f: Value, arg: Value): Ans = f match {
+    case CloV(Lam(x, e), ρ: Env) => for {
+      α <- alloc(x)
+      _ <- set_store(α → arg)
+      rt <- ext_env(ev(e))(x → α)
+    } yield rt
+  }
+\end{lstlisting}
+
+With other primitive operations implementated, we can implement the top-level
+@run@ method, where $\rho_0$ and $\sigma_0$ are initial empty environment and
+store.
+
+\begin{lstlisting}
+  def run(e: Expr): Result = fix(eval)(e)(ρ$_0$)(σ$_0$)
+\end{lstlisting}

@@ -108,7 +108,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       ReaderT(r => ga)
   }
 
-  case class ReaderT[M[_]: Monad, R: Manifest, A: Manifest](run: Rep[R] => M[A]) {
+  case class ReaderT[M[_]: Monad, R: Manifest, A: Manifest](run: Rep[R] => M[A]) /*extends SPReaderT[Rep, M, R, A, ReaderT]*/ {
     import ReaderT._
     def apply(r: Rep[R]): M[A] = run(r)
     def flatMap[B: Manifest](f: Rep[A] => ReaderT[M, R, B]): ReaderT[M, R, B] =

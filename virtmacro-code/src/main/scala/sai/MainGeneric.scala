@@ -29,6 +29,7 @@ trait Semantics {
   type R[_]
 
   // Monadic interface
+  // TODO: why not a trait?
   type MonadOps[R[_], M[_], A] = {
     def map[B: Manifest](f: R[A] => R[B]): M[B]
     def flatMap[B: Manifest](f: R[A] => M[B]): M[B]
