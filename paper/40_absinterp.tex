@@ -1,16 +1,61 @@
 \section{From Interpreters to Abstract Interpreters} \label{unstaged_abs}
 
-Based on the generic interface we presented in Section~\ref{bg_lang}, we now
-describe the instantiation of an abstract interpreter. To keep the presentation
-simple, we use simple abstract domains, and just establish a
-context-/path-/flow-insensitive, store-widened analysis in this section ---
-indeed, it is coarse but simple enough to setup a foundation for the staged
-abstract interpreter we will present later. In Section~\ref{cfa}, we will see
-how to regain context-/path-/flow-sensitivity \todo{path/flow} for pushdown
-control-flow analysis; in Section~\ref{cases_imp}, we will see how to
-instantiate an interval abstract domain for numerical analysis.
+After seeing both unstaged and staged concrete interpreters, now we trun our
+focus on abstract interpreters under the same framework. We will first present a
+lattice framework with binding-time annotations, but for the purpose of clearly
+illustrating the idea, we just use simple abstract domains such as power set
+lattice or point-wise map lattice. Then we show the abstract components such as
+abstract environments and abstract stores.
+The abstract interpreter we present in this section is similar to
+\citet{DBLP:journals/pacmpl/DaraisLNH17}'s, it is also
+context/path/flow-insensitive by our choice.  In Section \ref{cfa}, we will
+instantiate a context-sensitive analysis;
+\citet{Darais:2015:GTM:2814270.2814308} shows how to achieve path- and
+flow-sensitive by varying the monads, which is also applicable to our unstaged or
+staged abstract interpreter. \todo{numerical/imp?}
 
-\paragraph{Abstract Instantiation}
+\subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
+
+A complete lattice over set $S$ is a tuple of $\langle S, \sqsubseteq, \top,
+\bot, \sqcup, \sqcap \rangle$, where $\sqsubseteq : S \to S \to Bool$ is the
+ordering relation, $\sqcup: S \to S \to S$ is the join (least upper bound)
+operator, and $\sqcap: S \to S \to S$ is the meet (greatest lower bound)
+operator. The trait @SPLattice@ declares the type class for lattices.
+Similar to @MonadOps@ in Section \ref{generic_if}, we introduce an additional
+higher-kinded type @R[_]@ to annotate the binding-times.
+
+\begin{lstlisting}
+  trait SPLattice[S, R[_]] {
+    val $\top$: R[S];  val $\bot$: R[S]
+    def $\sqsubseteq$(l1: R[S], l2: R[S]): R[Boolean]
+    def $\sqcup$(l1: R[S], l2: R[S]): R[S]
+    def $\sqcap$(l1: R[S], l2: R[S]): R[S]
+  }
+  trait Lattice[S] extends SPLattice[S, NoRep]
+\end{lstlisting}
+
+In this section, we simply let @R[T] = T@ (i.e., @NoRep@) to instantiate the
+unstaged lattice type class. An simple instance of lattice we used is the power
+set abstract domain, where the ordering is subset relation, join is the union
+operation, and meet is the intersect operation. The power set lattice can be
+implemented as follows:
+
+\begin{lstlisting}
+  def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
+    lazy val $\bot$: Set[T] = Set[T]()
+    lazy val $\top$: Set[T] = throw new NotImplementedError("No representation for top")
+    def $\sqsubseteq$(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf l2
+    def $\sqcup$(l1: Set[T], l2: Set[T]): Set[T] = l1 union l2
+    def $\sqcap$(l1: Set[T], l2: Set[T]): Set[T] = l1 intersect l2
+  }
+\end{lstlisting}
+
+Other lattices used in the rest of the paper, such as products and maps, can be
+implemented similarly, or lifted from existing lattices element-wise or point-wise.
+
+\subsection{Abstract Semantics}
+
+\paragraph{Abstract Components}
 
 Our instantiation roughly follows the Abstracting Abstract Machines methodology
 \cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12} that transforms the
@@ -31,44 +76,9 @@ trait Abstract extends Semantics {
 }
 \end{lstlisting}
 
-\subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
+\paragraph{Monads for Abstract Interpretation} nondetT
 
-To effectively reuse the code between unstaged and staged variants, we also make
-the lattice structure stage polymorphic. A lattice type class parameterizes over
-an element type \texttt{E} and defines five operations for \texttt{R[E]}, such
-as meet, join, and ordering relation; again, \texttt{R} is the higher-kinded
-type indicating the binding-time.
-
-\begin{lstlisting}
-trait Lattice[E, R[+_]] {
-  val bot: R[E];  val top: R[E]
-  def $\sqsubseteq$(l1: R[E], l2: R[E]): R[Boolean]
-  def $\sqcup$(l1: R[E], l2: R[E]): R[E]
-  def $\sqcap$(l1: R[E], l2: R[E]): R[E]
-}
-\end{lstlisting}
-
-For example, here we use powersets as the abstract domain, and the unstaged
-lattice of powersets can be easily implemented as follows:
-
-\begin{lstlisting}
-implicit def SetLattice[T]: Lattice[Set[T], NoRep] = 
-  new Lattice[Set[T], NoRep] {
-    lazy val bot: Set[T] = Set[T]()
-    lazy val top: Set[T] = throw new NotImplementedError()
-    def $\sqsubseteq$(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf l2
-    def $\sqcup$(l1: Set[T], l2: Set[T]): Set[T] = l1 union l2
-    def $\sqcap$(l1: Set[T], l2: Set[T]): Set[T] = l1 intersect l2
-  }
-\end{lstlisting}
-
-The ordering relation is to ask whether one set is a subset of the other, 
-join is to union the two sets, and meet is to intersect the two sets.
-Accordingly, other structures used in the rest of the paper such as tuples 
-(products) and maps can be lifted to lattices element-wise or point-wise.
-The code for them are elided.
-
-\subsection{Abstract Semantics}
+\paragraph{Primitive Operations}
 
 The operations @get@ and @put@ on abstract stores are slightly changed according
 to the abstract semantics: @get@ uses the bottom element in the @Value@ lattice
@@ -120,7 +130,7 @@ every time when evaluating the body expression @e@ we use the latest store
 $\sigma$@_*@ which is updated iteratively during the loop. Thus this is a
 store-widened analysis.
 
-\subsection{Fixpoint Iteration}
+\paragraph{Caching and Fixpoint Iteration}
 
 We described the abstract semantics modularly in the last section, however, the
 abstract interpreter may not terminate for some input program. In this section,

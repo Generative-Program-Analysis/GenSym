@@ -329,6 +329,7 @@ trait StagedConcreteSemanticsDriver extends DslDriver[Unit, Unit] with StagedCon
 trait AbstractComponents extends Semantics {
   sealed trait AbsValue
   case object IntTop extends AbsValue
+  case class IntV(i: Int) extends AbsValue
   case class CloV(lam: Lam, env: Env) extends AbsValue
 
   type Value = Set[AbsValue]
@@ -385,14 +386,33 @@ trait AbstractSemantics extends AbstractComponents {
   def set_store(αv: (Addr, Value)): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(αv)))
 
+  def extract_num(v: AbsValue): Int = v match { case IntV(i) => i }
+
   // Primitive operations
   def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntTop))
+  //def num(i: Int): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](IntV(i)))
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br0(test: Value, thn: => Ans, els: => Ans): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def arith(op: Symbol, v1: Value, v2: Value): Value = (op, v1, v2) match {
     case _ if v1.contains(IntTop) && v2.contains(IntTop) => Set(IntTop)
+    case ('+, v1, v2) => for {
+      x <- v1
+      y <- v2
+    } yield IntV(extract_num(x) + extract_num(y))
+    case ('-, v1, v2) => for {
+      x <- v1
+      y <- v2
+    } yield IntV(extract_num(x) - extract_num(y))
+    case ('*, v1, v2) => for {
+      x <- v1
+      y <- v2
+    } yield IntV(extract_num(x) * extract_num(y))
+    case ('/, v1, v2) => for {
+      x <- v1
+      y <- v2
+    } yield IntV(extract_num(x) / extract_num(y))
   }
   def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = for {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
@@ -762,9 +782,11 @@ object MainGeneric {
     val interpreter = new AbstractSemantics {
       def mCache: Manifest[Cache] = manifest[Cache]
     }
-    val res = interpreter.run(fact5)
-    println(AbsInterpreter.run(fact5))
-    println(res)
+    //val res = interpreter.run(fact5)
+    val res = interpreter.run(ifif)
+    //res = interpreter.run(simpleif)
+    //println(AbsInterpreter.run(fact5))
+    println(res._1)
   }
 
   def testStagedAbstract() = {

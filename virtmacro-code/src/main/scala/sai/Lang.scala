@@ -50,4 +50,13 @@ object PCFLang {
                     App(App(Var("x"), Var("x")),
                         Var("x"))),
                 Lam("y", Var("y")))
+
+  val ifif = Let("x",
+                 If0(Lit(-1),
+                     If0(Lit(-1), Lit(1), Lit(2)),
+                     If0(Lit(-1), Lit(3), Lit(4))),
+                 Let("y",
+                     If0(Lit(-1), Lit(5), Lit(6)),
+                     Lit(100)))
+  val simpleif = If0(Lit(-1), Lit(5), Lit(6))
 }
