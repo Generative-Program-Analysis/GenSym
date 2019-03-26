@@ -72,7 +72,7 @@ function that transforms a next-stage value of @Rep[A]@ to @StateT[M,S,B]@.
 Readers may notice that the conversion between unstaged monads and monads is 
 simply changing the unstaged data to staged data, which in fact can be achieved without
 changing the implementation of monads. This is true so far, but as we will see
-it not that easy when introducing the nondeterminism monad (@ListT@) for
+it is not that easy when introducing the nondeterminism monad (@ListT@) for
 abstract interpreters, as the whole list will be a next-stage value instead of
 merely the elements in the list.
 For this reason, we explicitly distinguish and present the two version of
@@ -83,9 +83,10 @@ translated to staged version -- we just need to let them works on staged data.
 As we mentioned before, we elaborate how to handle functions and applications in
 detail. One of the desired goal is to eliminate the monadic layers through
 staging, this becomes tricky for clsoures, because we need to actually compile
-the lambda term instead of generate a @CloV@ value. To make this happen, when
-closing the lambda term with the environment, we need to \textit{collpase} the
-monads to normal values. The following function @close@ illustrates the idea:
+the lambda term instead of generating a @CloV@ value. To make this happen, when
+closing the lambda term with the environment, we need to staging into the body
+expression by \textit{collpasing} the @AnsM@ monads to normal values.
+The following function @close@ illustrates the idea:
 @f@ is a current stage function but takes two next-stage values @v@ and
 $\sigma$, inside of which, we eagerly collapse the monads to values by
 @ev(e)(ρ_*)(σ_*)@, which has type @Rep[(Value, Store)]@.
@@ -126,7 +127,7 @@ we need to reify the value and store back into the monad stack through
 \paragraph{Code Generation}
 
 The method @emit_compiled_clo@ and @emit_ap_clo@ mentioned above produces IR
-node in LMS. We define these IR node as follow: \note{Def, quote are omitted}
+node in LMS. We define these IR node as follow: \note{Exp, Def, quote are omitted}
 
 \begin{lstlisting}
   case class IRCompiledClo(f: Rep[((Value,Store)) => (Value, Store)]) extends Rep[Value]

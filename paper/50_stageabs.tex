@@ -153,47 +153,12 @@ Rep[(Value, Store)] = {
 \end{lstlisting}
 
 
-\subsection{Modular Analysis for Free}
-
-One of the challenges of modern static analysis is program usually depends on
-large libraries programs~\cite{toman_et_al:LIPIcs:2017:7121}. Can we analyze
-programs and libraries separately and reuse the result without losing precision?
-Then we can reduce part of the overhead of repeatedly analyzing libraries for
-different programs. Indeed, some static analyzers compute summary for a function
-or a module, which can be reused later, however they are mostly too conservative
-or unsound, which both lead to imprecision.
-
-The specialization of abstract interpreter provides a chance to obtain such
-partial analysis result in a mechanized way, but still keeps the analysis sound.
-As we see when compiling the closures, we can specialize the abstract
-interpreter with respect the body expression of the lambda term without knowing
-the actual argument. The programs with some unknown variables are open programs,
-which is exactly the case if we want to analyze programs in a modular way.
-
-For a concrete analysis, for example, $k$-CFA ($k$ > 0) is naturally a
-whole-program analysis, because it is inter-procedural and needs the last $k$
-calling contexts to distinguish different call sites, where the calling contexts
-are dynamic values. However, it is possible to analyze programs (libraries)
-separately through specializing an abstract interpreter that generates the
-analysis as the next-stage program and leave the unavailable programs and
-calling contexts as dynamic parameters, and then install these contexts when we
-have the whole program.
-
-\iffalse
-Another perspective: programs are data for an abstract interpreter, so if we
-have $n$ programs, then maybe there can be $n$ stages. Probably we can analyze
-first $m$ programs, and generate a residual abstract interpreter waiting for the
-rest $(n-m)$ programs. These $(n-m)$ programs might be (abstract) arguments for
-the first $n$ programs, and the abstract interpreter itself might be a partial
-abstract interpreter.
-\fi
-
 \subsection{Optimizations} \label{staged_ds}
 
 Our staging schema works well in theory, but would suffer from code explosion,
 and possibly runtime GC overhead when analyzing (specializing) large programs.
 We present several optimizations that largely mitigate these issues. Still,
-these optimizations do not need to change the generic interpreter.
+implementing these optimizations do not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
@@ -242,13 +207,13 @@ achieve this and examine some alternatives.
 obtain an abstract interpreter in continuation-passing style, or simply use
 explicit side-effects such mutation to implement the artifact with the same
 abstract semantics. In either cases, we can still apply the staging schema to
-abstract interpreter. As an evidence, we provide an staged abstract interpreter
-written in direct-style in the accompanying artifact.
+the abstract interpreter. As an evidence, we provide an staged abstract
+interpreter written in direct-style in the accompanying artifact.
 
 \paragraph{Big-step vs Small-step}
 
 What we implemented is a big-step, compositional abstract interpreter in monadic
-style, where "compositional" means that every recursive call of our abstract
+style, where \textit{compositional} means that every recursive call of our abstract
 interpreter is applied to proper substructures of the current syntactic
 parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
 specialization can be done by unfolding, as well as the termination of
@@ -267,6 +232,7 @@ an additional engineering efforts.
 As one of the merit of our approach, the staging does not compromise any
 soundness, because we only change the underlying monads and data structures to
 the staged version, not any part of the abstract semantics. Based on the
-assumption that LMS preserves the equivalence during staging, we are confident
-that the staged abstract interpreter does the same analysis as the unstaged one.
+assumption that MSP system and staged data structure preserve the equivalence
+during staging, we are confident that the staged abstract interpreter does the
+same analysis as the unstaged one.
 

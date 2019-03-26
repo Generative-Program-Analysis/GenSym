@@ -1,4 +1,4 @@
-\section{Case Study} \label{cases_study}
+\section{Case Studies} \label{cases_study}
 
 In Section~\ref{sai}, we have shown that staging an abstract interpreter is
 feasible and can be systematic after correctly identifying the binding-times,
@@ -266,13 +266,46 @@ type Ans = R[Set[VST]]
 
 Using other allocation strategies to achieve different sensitivities is also
 possible \cite{DBLP:conf/icfp/Gilray0M16} and can be staged under our framework.
- 
-%\subsubsection{Mixed Sensitivity}
-
-%using different $k$ for $k$-CFA
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Modular Analysis for Free}
+
+% \subsubsection{Mixed Sensitivity}
+% using different k?
+
+One of the challenges of modern static analysis is program usually depends on
+large libraries programs~\cite{toman_et_al:LIPIcs:2017:7121}. Can we analyze
+programs and libraries separately and reuse the result without losing precision?
+Then we can reduce part of the overhead of repeatedly analyzing libraries for
+different programs. Indeed, some static analyzers compute summary for a function
+or a module, which can be reused later, however they are mostly too conservative
+or unsound, which both lead to imprecision.
+
+The specialization of abstract interpreter provides a chance to obtain such
+partial analysis result in a mechanized way, but still keeps the analysis sound.
+As we see when compiling the closures, we can specialize the abstract
+interpreter with respect the body expression of the lambda term without knowing
+the actual argument. The programs with some unknown variables are open programs,
+which is exactly the case if we want to analyze programs in a modular way.
+
+For a concrete analysis, for example, $k$-CFA ($k$ > 0) is naturally a
+whole-program analysis, because it is inter-procedural and needs the last $k$
+calling contexts to distinguish different call sites, where the calling contexts
+are dynamic values. However, it is possible to analyze programs (libraries)
+separately through specializing an abstract interpreter that generates the
+analysis as the next-stage program and leave the unavailable programs and
+calling contexts as dynamic parameters, and then install these contexts when we
+have the whole program.
+
+\iffalse
+Another perspective: programs are data for an abstract interpreter, so if we
+have $n$ programs, then maybe there can be $n$ stages. Probably we can analyze
+first $m$ programs, and generate a residual abstract interpreter waiting for the
+rest $(n-m)$ programs. These $(n-m)$ programs might be (abstract) arguments for
+the first $n$ programs, and the abstract interpreter itself might be a partial
+abstract interpreter.
+\fi
 
 \subsection{Numerical Analysis in Imperative Languages} \label{cases_imp}
 

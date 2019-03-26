@@ -11,8 +11,8 @@ The abstract interpreter we present in this section is similar to
 context/path/flow-insensitive by our choice.  In Section \ref{cfa}, we will
 instantiate a context-sensitive analysis;
 \citet{Darais:2015:GTM:2814270.2814308} shows how to achieve path- and
-flow-sensitive by varying the monads, which is also applicable to our unstaged or
-staged abstract interpreter. \todo{numerical/imp?}
+flow-sensitivity by varying the monads, which is also applicable to our unstaged
+or staged abstract interpreter.
 
 \subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
 
@@ -26,10 +26,10 @@ additional higher-kinded type @R[_]@ to annotate the binding-times.
 
 \begin{lstlisting}
   trait SPLattice[S, R[_]] {
-    val $\top$: R[S];  val $\bot$: R[S]
-    def $\sqsubseteq$(l1: R[S], l2: R[S]): R[Boolean]
-    def $\sqcup$(l1: R[S], l2: R[S]): R[S]
-    def $\sqcap$(l1: R[S], l2: R[S]): R[S]
+    val ⊤: R[S];  val ⊥: R[S]
+    def ⊑(l1: R[S], l2: R[S]): R[Boolean]
+    def ⊔(l1: R[S], l2: R[S]): R[S]
+    def ⊓(l1: R[S], l2: R[S]): R[S]
   }
   trait Lattice[S] extends SPLattice[S, NoRep]
 \end{lstlisting}
@@ -42,11 +42,11 @@ implemented as follows:
 
 \begin{lstlisting}
   def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
-    lazy val $\bot$: Set[T] = Set[T]()
-    lazy val $\top$: Set[T] = throw new NotImplementedError("No representation for top")
-    def $\sqsubseteq$(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf l2
-    def $\sqcup$(l1: Set[T], l2: Set[T]): Set[T] = l1 union l2
-    def $\sqcap$(l1: Set[T], l2: Set[T]): Set[T] = l1 intersect l2
+    lazy val ⊤: Set[T] = Set[T]()
+    lazy val ⊥: Set[T] = throw new NotImplementedError("No representation for top")
+    def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf  l2
+    def ⊔(l1: Set[T], l2: Set[T]): Set[T]  = l1 union     l2
+    def ⊓(l1: Set[T], l2: Set[T]): Set[T]  = l1 intersect l2
   }
 \end{lstlisting}
 
@@ -85,17 +85,63 @@ occurred at runtime.
   }
 \end{lstlisting}
 
-A cache is a mapping from configurations to sets of value-store pairs, where the
-configuration is a triple of current expression being evaluated, environment and store.
+To prevent the abstract interpreter from falling into nontermination, the ADI
+approach uses a two-cache mechanism. Here we first provides the type
+definitions, and later we will describe the algorithm in detail. A @Cache@ is a
+mapping from configurations @Config@ to sets of value-store pairs, where the
+configuration is a triple of current expression being evaluated, environment and
+store.
 
 \begin{lstlisting}
   type Config = (Expr, Env, Store); type Cache = Map[Config, Set[(Value, Store)]]
+\end{lstlisting}
+
+As of now, the store is a mapping from addresses to sets of abstract values.
+Therefore, when applying a function, for instance @f(a)@, we may retrieve a set
+of closures by dereferencing the address of @f@. We need to apply all of the
+target closures, where the nondeterminism is introduced. Another nondeterminism
+happens when evaluating conditionals, we have to evaluate both branches if the
+condition can not be determined. In other words, we will have multiple computing
+results.
+
+\begin{lstlisting}
   type Result = (R[List[(Value, Store)]], R[Cache])
 \end{lstlisting}
 
-\paragraph{Monads for Abstract Interpretation} nondetT
+This oberservation leads us to the type definition of @Result@: in concrete setting,
+the @Result@ is a pair of @Value@ and @Store@, now we use a list of such pairs
+@List[(Value, Store)]@ to represent multiple results. The results is also linked
+with the resulting cache used in this iteration.
+Note that the abstract binding-time annotation is wrapped to the two objects in
+the @Result@ pair, but not the whole pair. Because we statically know the result
+is a tuple of two elements, but we don't know how many value-store pairs we
+would have, neither the content of the cache.
 
-\paragraph{Primitive Operations}
+\paragraph{Monads for Abstract Interpretation} Now we incorporate the
+nondeterminism and caching into the monad stack. For concrete evaluation, we
+already have a reader effect for environments and a state effect for stores. We
+add three more effects based on it: the nondeterminism effect is represented by
+the @ListT[M[_], A]@ monad transformer, inside of which, we have a @ReaderT@ for
+a @in@ cache, and a @StateT@ for an @out@ cache.
+\todo{highlight where changed}
+
+\begin{lstlisting}
+  trait AbstractSemantics extends AbstractComponents {
+    type R[T] = T
+    type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+    ...
+  }
+\end{lstlisting}
+
+The sketch implementation of @ListT@ is shown below. The value @run@ it encapsulates
+is of type @M[List[A]]@, where @M[_]@ is the inner monad, and @A@ the element
+type of the list. 
+
+\begin{lstlisting}
+  case class ListT[M[_]: Monad, A](run: M[List[A]]) { ... }
+\end{lstlisting}
+
+\paragraph{Primitive Operations} \todo{wip}
 
 The operations @get@ and @put@ on abstract stores are slightly changed according
 to the abstract semantics: @get@ uses the bottom element in the @Value@ lattice
@@ -121,13 +167,12 @@ every time when evaluating the body expression @e@ we use the latest store
 $\sigma$@_*@ which is updated iteratively during the loop. Thus this is a
 store-widened analysis.
 
-\paragraph{Caching and Fixpoint Iteration}
+\paragraph{Caching and Fixpoint Iteration} Caching
 
 \begin{lstlisting}
-  def ask_in_cache: AnsM[Cache]
-  def get_out_cache: AnsM[Cache]
+  def ask_in_cache: AnsM[Cache]; def get_out_cache: AnsM[Cache]
   def put_out_cache(out: R[Cache]): AnsM[Unit]
-  def update_out_cache(cfg: R[Config], vs: R[(Value, Store)]): AnsM[Unit]
+  def set_out_cache(cfg: R[Config], vs: R[(Value, Store)]): AnsM[Unit]
 \end{lstlisting}
 
 We described the abstract semantics modularly in the last section, however, the

@@ -6,10 +6,10 @@ specifically shows that specializing an interpreter with respect to the input
 program yields an equivalent executable. Partial evaluation
 \cite{DBLP:books/daglib/0072559} was the first proposed approach to realize
 Futamura projections, which first identifies the binding-time of variables in
-the program, i.e., they can be known whether statically or dynamically, and then
+the program, i.e., they can be known whether statically or dynamically, then
 evaluates the static part, and finally generates a residual program that solely
 relies on the dynamic part. However, given an arbitrary program, precisely
-analyzing its binding-time is hard in general. As an alternative and pragmatic
+analyzing its binding-times is hard in general. As an alternative and pragmatic
 approach to specialization and partial evaluation, multi-stage programming (MSP
 for short) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the stage
 annotations (i.e., binding-time annotations) to be explicit from the
@@ -20,7 +20,7 @@ specialized. As a classical example, we use the power function and type-based
 annotations to introduce the idea of MSP:
 
 \begin{lstlisting}
-def power(b: Rep[Int], e: Int): Rep[Int] = if (e == 0) 1 else b * power(b, e - 1)
+  def power(b: Rep[Int], e: Int): Rep[Int] = if (e == 0) 1 else b * power(b, e - 1)
 \end{lstlisting}
 
 If the programmer identifies that @b@ will be known in the future stage (as shown
@@ -30,14 +30,14 @@ respect to @e = 5@, and generate a specialized function where the overhead of
 recursion is eliminated. Conceptually, the generated code looks like the following:
 
 \begin{lstlisting}
-def power5(b: Int): Int = b * b * b * b * b
+  def power5(b: Int): Int = b * b * b * b * b
 \end{lstlisting}
 
 Now to concretely illustrate the idea of Futamura projection, consider that we
-have an operational interpreter @eval@ of some language as following:
+have an operational interpreter @eval@ of some language:
 
 \begin{lstlisting}
-def eval(e: Expr)(arg: Input): Value = ...
+  def eval(e: Expr)(arg: Input): Value = ...
 \end{lstlisting}
 
 where $e$ is the program of type @Expr@ and @arg@ is the input to program $e$,
@@ -48,50 +48,52 @@ projection, we may obtain a specialized interpreter
 $\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$ -- the so-called \textit{equivalent executable}. 
 By definition of the interpreter, 
 $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $. If we generalize the
-argument @arg@ to an environment (as well as a companion heap object, if for the
-interest of using assignments) that maps free variables in $e$ to some values, 
-the interpreter is a standard environment/store-passing interpreter,
+argument @arg@ to an environment (as well as an accompanying heap object, if for
+the interest of using assignments) that maps free variables in $e$ to some
+values, the interpreter is a standard environment-passing interpreter,
 where the specialization through MSP is also applicable.
 
 Roughly at the same time when Futamura projections was visioned in 1970s,
-\citeauthor{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
+\citet{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
 lattice-based semantic approach to construct sound static analysis, by
-approximation of fix-points \cite{DBLP:conf/popl/CousotC77}. However,
-constructing sound abstract interpreters was considered abstruse and complicated
-for a long time.
+approximation of fix-points. However, constructing sound abstract interpreters
+was considered abstruse and complicated for a long time.
 Recent progress such as Abstracting Abstract Machines (AAM)
-uncovers a systematic method to derive sound abstract interpreters from their
-concrete counterparts, where the soundness can be easily established by
-examining the transformation of semantics.
-The AAM approach also has been been applied to different variants of
-definitional interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
-  DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}. 
+\cite{DBLP:conf/icfp/HornM10} uncovers a systematic method to derive sound
+abstract interpreters from their concrete counterparts, where the soundness can
+be easily established by examining the transformation of semantics. The AAM
+approach also has been been applied to different variants of definitional
+interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
+DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 
 \paragraph{Futamura Projection of Abstract Interpreters}
 
 Now we have seen two orthogonal transformations of interpreters: by
 specialization, we can refactor interpreters to code generators; by
 approximation, we can refactor interpreters to static analyzers. As an
-intellectual quest, we should naturally ask -- starting from an interpreter,
-\textit{can we derive a sound abstract interpreter while it produces fast code
-that does the analysis?}
+intellectual quest, we should naturally ask -- starting from an abstract
+interpreter, \textit{can we derive a sound abstract interpreter while it
+produces fast code that does the analysis?}
 Conceptually, it is similar to the concrete setting: for an
 abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
 \widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
 environment and returns abstract values, we would like to specialize it with
-respect to a program $e_0$ and produce a compiled analysis
+respect to some program $e_0$ and produce a compiled analysis
 $\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
 \widehat{\texttt{Value}}$, such that $
 \widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
 \widehat{\texttt{eval}}(e_0)(\widehat{\rho})$, but the compiled one leaves the
 abstract environment $\widehat{\rho}$ as remaining input.
 
+\vspace{-1em}
 \begin{figure}[h]
   \begin{tikzpicture}
   \matrix (m) [matrix of math nodes,row sep=3em,column sep=3em,minimum width=2em]
   {
-    \begin{smallmatrix} \text{unstaged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{abstract} \\ \text{interpreters} \end{smallmatrix} \\
-      \begin{smallmatrix} \text{unstaged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} & \begin{smallmatrix} \text{staged} \\ \text{concrete} \\ \text{interpreters} \end{smallmatrix} \\ };
+    \begin{smallmatrix} \text{unstaged} \\ \text{abstract} \\ \text{interpreters} \\ (\text{Sec.}~\ref{unstaged_abs}) \end{smallmatrix} &
+    \begin{smallmatrix} \text{staged} \\ \text{abstract} \\ \text{interpreters} \\ (\text{Sec.}~\ref{sai}) \end{smallmatrix} \\
+    \begin{smallmatrix} \text{unstaged} \\ \text{concrete} \\ \text{interpreters} \\ (\text{Sec.}~\ref{prelim}) \end{smallmatrix} &
+    \begin{smallmatrix} \text{staged} \\ \text{concrete} \\ \text{interpreters} \\ (\text{Sec.}~\ref{stagedinterp}) \end{smallmatrix} \\ };
   \path[-stealth]
     (m-1-1) edge node [above, font=\scriptsize] {$\updownarrows$} (m-1-2)
     (m-2-1) edge node [left, font=\scriptsize] {$\alpha$} (m-1-1)
@@ -101,6 +103,7 @@ abstract environment $\widehat{\rho}$ as remaining input.
   \caption{The confluence of specialization and approximation.}
   \label{confluence}
 \end{figure}
+\vspace{-1em}
 
 In this paper, we study the confluence of two old ideas --- Futamura projection
 and abstract interpretation, but from the perspective of their recent
@@ -153,8 +156,8 @@ over multiple abstractions, which can be later instantiated.
 We show that these well-known abstractions can be combined smoothly, and more
 importantly the price is almost free. Through staging, the major overhead of
 abstractions -- from the monadic layers -- is completely eliminated in the
-generated code. However, we do not lose any advantages of this high-level
-programming style (e.g., the extensibility); the meaning of the program also
+generated code. \todo{put some numbers} However, we do not lose any advantages of this high-level
+programming style (e.g., modularity and extensibility); the meaning of the program also
 remains the same, particularly, the abstract semantics that does the analysis
 when instantiated as an abstract interpreter.
 
@@ -167,19 +170,19 @@ analysis is known as a trade-off game between \textit{precision} and
 \textit{efficiency}, we argue that applying meta-programming (multi-stage
 programming, in particular) with abstract interpreters is an effective approach
 to improve the latter one while the former one is untouched.
-In the literature, specializing analysis with respect to a program by partial
-evaluation \cite{damian1999partial, amtoft1999partial,
-Boucher:1996:ACN:647473.727587, ashley:practical} is not a new, despite the fact
-that most of the previous work are ad-hoc on a particular analysis or requiring
-significant changes to the analyzer. For example, abstract compilation
-\cite{Boucher:1996:ACN:647473.727587} requires the whole analyzer to be
-rewritten as closure generation from. In this paper, we advocate a systematic
+In the literature, specializing analysis with respect to the input program
+\cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587,
+ashley:practical} is not a new, despite the fact that most of the previous work
+are ad-hoc on a particular analysis or requiring significant changes to the
+analyzer. For example, abstract compilation is one of the techniques
+\cite{Boucher:1996:ACN:647473.727587}. But it requires the whole analyzer to be
+rewritten to the closure generation from. In this paper, we advocate a systematic
 approach to meta-programming that achieves the performance goal with less
-intrusive changes; in fact, a case study (Section~\ref{cs_ac}) comparing with
-abstract compilation shows, by utilizing type-based stage annotations, the
-analyzer program does not need any changes.
+intrusive changes; in fact, a case study (Section~\ref{cs_ac}) comparing our
+approach with abstract compilation shows that, by utilizing type-based stage
+annotations, the analyzer program does not need any changes.
 
-\paragraph{Modularity via Meta-Programming}
+\paragraph{Modularity via Meta-Programming} \todo{compress this part}
 
 Our next contribution is to enable modular analysis based on a whole-program
 analyzer by meta-programming. Modern software are shipped with large libraries
