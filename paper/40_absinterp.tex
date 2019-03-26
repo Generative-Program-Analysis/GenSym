@@ -2,14 +2,14 @@
 
 After seeing both unstaged and staged concrete interpreters, now we trun our
 focus on abstract interpreters under the same framework. We will first present a
-lattice framework with binding-time annotations, but for the purpose of clearly
-illustrating the idea, we just use simple abstract domains such as power set
-lattice or point-wise map lattice. Then we show the abstract components such as
-abstract environments and abstract stores.
+lattice framework with binding-time abstraction, but for the purpose of clearly
+illustrating the idea, we will just use simple abstract domains such as power set
+lattice or point-wise map lattice. Then we show the abstract components, namely
+abstract values, abstract environments and abstract stores.
 The abstract interpreter we present in this section is similar to
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s, it is also
 context/path/flow-insensitive by our choice.  In Section \ref{cfa}, we will
-instantiate a context-sensitive analysis;
+instantiate a commonly-used context-sensitive analysis;
 \citet{Darais:2015:GTM:2814270.2814308} shows how to achieve path- and
 flow-sensitivity by varying the monads, which is also applicable to our unstaged
 or staged abstract interpreter.
@@ -20,38 +20,48 @@ A complete lattice over set $S$ is a tuple of $\langle S, \sqsubseteq, \top,
 \bot, \sqcup, \sqcap \rangle$, where $\sqsubseteq : S \to S \to Bool$ is the
 ordering relation, $\sqcup: S \to S \to S$ is the join (least upper bound)
 operator, and $\sqcap: S \to S \to S$ is the meet (greatest lower bound)
-operator. The trait @SPLattice@ defines the type class of stage polymorphic
-lattices. Similar to @MonadOps@ in Section \ref{generic_if}, we introduce an
-additional higher-kinded type @R[_]@ to annotate the binding-times.
+operator. The trait @SPLattice@ (Figure \ref{fig:splattice}) defines the type
+class of stage polymorphic lattices. Similar to @MonadOps@ in Section
+\ref{generic_if}, we introduce an additional higher-kinded type @R[_]@ to
+annotate the binding-times, where @R[_]@ wraps @S@ and @Boolean@ in these
+operations.
 
-\begin{lstlisting}
-  trait SPLattice[S, R[_]] {
-    val ⊤: R[S];  val ⊥: R[S]
-    def ⊑(l1: R[S], l2: R[S]): R[Boolean]
-    def ⊔(l1: R[S], l2: R[S]): R[S]
-    def ⊓(l1: R[S], l2: R[S]): R[S]
-  }
-  trait Lattice[S] extends SPLattice[S, NoRep]
+\begin{figure}[h!]
+  \centering
+  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{lstlisting}[style=small]
+trait SPLattice[S, R[_]] {
+  val ⊤: R[S];  val ⊥: R[S]
+  def ⊑(l1: R[S], l2: R[S]): R[Boolean]
+  def ⊔(l1: R[S], l2: R[S]): R[S]
+  def ⊓(l1: R[S], l2: R[S]): R[S]
+}
+trait Lattice[S] extends SPLattice[S, NoRep]
+  \end{lstlisting}
+  \caption{trait \texttt{SPLattice} and \texttt{Lattice}} \label{fig:splattice}
+  \end{subfigure}
+  ~
+  \begin{subfigure}[b]{0.6\textwidth}
+\begin{lstlisting}[style=small]
+def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
+  lazy val ⊥: Set[T] = Set[T]()
+  lazy val ⊤: Set[T] = error("No representation for ⊤")
+  def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf  l2
+  def ⊔(l1: Set[T], l2: Set[T]): Set[T]  = l1 union     l2
+  def ⊓(l1: Set[T], l2: Set[T]): Set[T]  = l1 intersect l2
+}
 \end{lstlisting}
+  \caption{The power set instance for lattice} \label{fig:powerset}
+\end{subfigure}
+\end{figure}
 
 In this section, we simply let @R[T] = T@ (i.e., @NoRep@) to instantiate the
 unstaged lattice type class. An simple instance of lattice we used is the power
-set abstract domain, where the ordering is subset relation, the join is union
-operation, and the meet is intersect operation. The power set lattice can be
-implemented as follows:
-
-\begin{lstlisting}
-  def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
-    lazy val ⊤: Set[T] = Set[T]()
-    lazy val ⊥: Set[T] = throw new NotImplementedError("No representation for top")
-    def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf  l2
-    def ⊔(l1: Set[T], l2: Set[T]): Set[T]  = l1 union     l2
-    def ⊓(l1: Set[T], l2: Set[T]): Set[T]  = l1 intersect l2
-  }
-\end{lstlisting}
-
+set abstract domain (shown in Figure \ref{fig:powerset}), where the ordering is subset relation, the join is union
+operation, and the meet is intersect operation.
 Other lattices used in the rest of the paper, such as products and maps, can be
-implemented similarly, or lifted from existing lattices element-wise or point-wise.
+implemented similarly, or lifted from existing lattices element-wise or
+point-wise.
 
 \subsection{Abstract Semantics}
 
@@ -72,7 +82,7 @@ addresses. After setteling the @Value@ and @Addr@ type, the environments and
 stores are automatically lifted to abstract environments and abstract stores,
 i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@ respectively.
 It is importatnt that the abstract store now maps addresses to sets of abstract
-values, meaning an address may points to an over-approximated set of values
+values, meaning an address may point to an over-approximated set of values
 occurred at runtime.
 
 \begin{lstlisting}
@@ -86,7 +96,7 @@ occurred at runtime.
 \end{lstlisting}
 
 To prevent the abstract interpreter from falling into nontermination, the ADI
-approach uses a two-cache mechanism. Here we first provides the type
+approach uses a two-cache mechanism. Here we first provide the type
 definitions, and later we will describe the algorithm in detail. A @Cache@ is a
 mapping from configurations @Config@ to sets of value-store pairs, where the
 configuration is a triple of current expression being evaluated, environment and
@@ -98,11 +108,11 @@ store.
 
 As of now, the store is a mapping from addresses to sets of abstract values.
 Therefore, when applying a function, for instance @f(a)@, we may retrieve a set
-of closures by dereferencing the address of @f@. We need to apply all of the
-target closures, where the nondeterminism is introduced. Another nondeterminism
-happens when evaluating conditionals, we have to evaluate both branches if the
-condition can not be determined. In other words, we will have multiple computing
-results.
+of closures by dereferencing the address of @f@. We need to nondeterministically
+apply all of the target closures.
+Another nondeterminism happens when evaluating conditionals, we have to evaluate
+both branches if the condition can not be determined. In other words, we will
+have multiple computing results.
 
 \begin{lstlisting}
   type Result = (R[List[(Value, Store)]], R[Cache])
@@ -120,10 +130,10 @@ would have, neither the content of the cache.
 \paragraph{Monads for Abstract Interpretation} Now we incorporate the
 nondeterminism and caching into the monad stack. For concrete evaluation, we
 already have a reader effect for environments and a state effect for stores. We
-add three more effects based on it: the nondeterminism effect is represented by
-the @ListT[M[_], A]@ monad transformer, inside of which, we have a @ReaderT@ for
-a @in@ cache, and a @StateT@ for an @out@ cache.
-\todo{highlight where changed}
+further add three more effects based on it: the nondeterminism effect is
+represented by the @ListT[M[_], A]@ monad transformer, inside of which, we have
+a @ReaderT@ for a @in@ cache, and a @StateT@ for an @out@ cache. \todo{highlight
+where changed}
 
 \begin{lstlisting}
   trait AbstractSemantics extends AbstractComponents {
@@ -133,41 +143,69 @@ a @in@ cache, and a @StateT@ for an @out@ cache.
   }
 \end{lstlisting}
 
-The sketch implementation of @ListT@ is shown below. The value @run@ it encapsulates
-is of type @M[List[A]]@, where @M[_]@ is the inner monad, and @A@ the element
-type of the list. 
+The sketch implementation of @ListT@ transformer is shown below. The value @run@
+it encapsulates is of type @M[List[A]]@, where @M[_]@ is the inner monad, and
+@A@ the element type of the list. The @flatMap@ method first unwraps the inner
+monadic value @M[List[A]]@ and obtain a value of @List[A]@, then applies @f@ to
+each element in that list, and finally folds the results back to a single
+@List[M, B]@.
 
 \begin{lstlisting}
-  case class ListT[M[_]: Monad, A](run: M[List[A]]) { ... }
+  case class ListT[M[_]: Monad, A](run: M[List[A]]) {
+    def flatMap[B](f: A => ListT[M, B]): ListT[M, B] = ...
+  }
 \end{lstlisting}
 
-\paragraph{Primitive Operations} \todo{wip}
-
-The operations @get@ and @put@ on abstract stores are slightly changed according
-to the abstract semantics: @get@ uses the bottom element in the @Value@ lattice
-if the queried address does not exist; @put@ performs the update by joining with
-the existing values. function @alloc@ simply invokes the @Addr@ constructor.
-\texttt{close} and \texttt{num} lift syntactic literals to our abstract domain,
-i.e., a singleton set that contains only one \texttt{CloV} or \texttt{NumV}
-object.
+\paragraph{Primitive Operations} Some of the primitive operations are changed
+according to the new monad stack. A notable change is that the store update
+operation joins the value with the existing values, for the same address. Under
+abstract interpretation, we may have to explore the results from both branches
+of a conditional expression for soundness. In @br0@, we combine the results
+using @mplus@ from @MonadPlus@, which requires the values are join-semilattices
+(in our case, @List@s and @Map@s).
 
 \begin{lstlisting}
+  def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ ⊔ Map(αv)))
+  def br0(test: Value, thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus.mplus(thn, els)
 \end{lstlisting}
 
-For branching, @branch0@ joins the answers from two branches since we are doing
-a path-insensitive analysis. For arithmetics, @prim_eval@ returns the top
-abstract number element. It is worth noting that @apply_closure@ is where we
-handle the non-determinism of applications. The non-determinism happens because
-the abstract store maps addresses to sets of abstract values; when dereferencing
-an address from the store, we need to explore all possible values to achieve a
-sound analysis. In the case of @apply_closure@, the first argument @fs@ may
-contain multiple target closures, so we use a @for@ comprehension over all
-closures, apply them respectively and form a set result values @vs@; meanwhile,
-every time when evaluating the body expression @e@ we use the latest store
-$\sigma$@_*@ which is updated iteratively during the loop. Thus this is a
-store-widened analysis.
+The value representation of lambda terms is stil @CloV@, but we lift it to a
+singleton set.
 
-\paragraph{Caching and Fixpoint Iteration} Caching
+\begin{lstlisting}
+  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
+\end{lstlisting}
+
+For function applications, @ap_clo@ loooks roughly the same as the concrete
+interpreter. The difference is now the function @rator@ is a set of closures, so
+we can not directly destruct it by pattern matching. Instead, we use an
+auxiliary function @lift_nd@ that takes a list and lifts the elements into the
+monad stack. Then we can still implement @ap_clo@ in monadic style, where the
+@CloV@ comes from the @ListT@ and the nondeterminism is naturally handled.
+
+\begin{lstlisting}
+  def lift_nd[T](vs: List[T]): AnsM[T]
+  def ap_clo(ev: EvalFun)(rator: Value, rand: Value): Ans = for {
+    CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](f.toList)
+    α <- alloc(x)
+    _ <- set_store(α → rator)
+    rt <- ext_env(ev(e))(x → α)
+  } yield rt
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\paragraph{Caching and Fixpoint Iteration}
+
+As we mentioned ealier, the ADI approach uses a two-cache mechanism to
+compute the least fixed-point and prevent nontermination, which is also called a
+\textit{co-inductive} caching algorithm or \textit{truncated depth-first
+evaluation} \cite{Rosendahl:AbsIntPL}. It has been widely used in abstract
+interpretation or fixed point computation
+\cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800,
+Rosendahl:AbsIntPL}. Since the @in@ and @out@ cache are wrapped in the monad
+stack, we first defined several methods to obtain or update the @in@ and @out@
+cache through the monad stack.
 
 \begin{lstlisting}
   def ask_in_cache: AnsM[Cache]; def get_out_cache: AnsM[Cache]
@@ -175,25 +213,59 @@ store-widened analysis.
   def set_out_cache(cfg: R[Config], vs: R[(Value, Store)]): AnsM[Unit]
 \end{lstlisting}
 
-We described the abstract semantics modularly in the last section, however, the
-abstract interpreter may not terminate for some input program. In this section,
-we use a memoization technique to ensure its termination. This technique is also
-widely used under the name of co-inductive caching algorithm
-\cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800} or
-truncated depth-first evaluation \cite{Rosendahl:AbsIntPL}.
+Figure \ref{fig:coind_cache} shows the co-inductive caching algorithm that
+closes the open-recursive @eval@.
+The idea is to first set up two caches called @in@ and @out@ both of type
+@Cache@. Then similar to Kleene's iteration algorithm, we compute the analysis
+result iteratively. The @in@ cache contains what we already have computed from
+the last iteration, and the @out@ cache is what we would have computed after this
+iteration joined with the contents from @in@ cache.
+When starting a new iteration, @in@ is set to be the result of the last
+iteration, i.e., @out@; and @out@ is assigned to be empty.
 
-The idea is to set up two caches called @in@ and @out@, which are both mapping
-from the arguments of the interpreter (@Config@) to the result values of the
-interpreter (@Ans@). The @in@ cache contains what we already have computed from
-the last iteration, the @out@ cache is what we will have computed after this
-iteration joined with the previous one. When starting a new iteration, @in@ is
-set to be the result of the last iteration, i.e., @out@; @out@ is set to be
-empty. In the iteration, we first check whether @out@ contains what we want, if
-yes then it is returned; otherwise, we retrieve what we have from @in@, compute
-the result for this iteration, and put the joined result back into @out@. Note
-that we also instrument the recursive call by putting @cached_ev@ into @evev@.
-After one iteration, if @in == out@, then there is no more information to be
-gained, thus the iteration should end and we have reached the fixed point.
+During the iteration, we first check whether @out@ contains the configuration
+@cfg@, representing the current desired computation, if
+yes then result is directly returned through the monads.
 
-Finally, we override the definition of @eval_top@ by instantiating @CacheFix@
-with @eval@ and starting the first iteration.
+Otherwise, we first retrieve the results from @in@ (@⊥@ if not contained in
+@in@), and put it into the @out@ cache.
+Then we invoke @ev@ to compute the result for this iteration.
+After the evaluation, the store @σ@ may have been changed. So we update the
+@out@ cache with the new result, i.e., @(v, σ)@. Similar to store update, cache
+update is also point-wise join.
+Note that for the recursive call of @ev@, we also instrument it by puting
+@fix(ev)@ as the first argument to @ev@.
+
+The iteration terminates when the resulting @out@ cache is equivalent to the
+input @in@ cache, which means there is no more analysis result can be gained,
+thus the iteration should end and we have reached the least fixed point.
+
+\begin{figure}[t!]
+  \centering
+\begin{lstlisting}
+  def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
+    ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache; val cfg = (e, ρ, σ)
+    rt <- if (out.contains(cfg)) for {
+            (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)
+             _ <- put_store(s)
+          } yield v
+          else for {
+            _ <- put_out_cache(out + (cfg → in.getOrElse(cfg, ⊥)))
+            v <- ev(fix(ev))(e)
+            σ <- get_store
+            _ <- update_out_cache(cfg, (v, σ))
+          } yield v
+  } yield rt
+\end{lstlisting}
+\vspace{-1em}
+\caption{The unstaged co-inductive caching algorithm.}
+\label{fig:coind_cache}
+\end{figure}
+
+\begin{lstlisting}
+  def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run
+\end{lstlisting}
+
+Finally, we override the top-level @run@ method by running the monad with
+the empty abstract environment $\rho_0$, initial store $\sigma_0$, and initial
+caches @cache@$_0$.

@@ -71,6 +71,82 @@
            %{…}{{$\!...$}}1 
 }
 
+\lstdefinestyle{small}{
+  language=Scala,%
+  mathescape=true,%
+%  columns=[c]fixed,%
+  aboveskip=2pt,%\smallskipamount,
+  belowskip=1pt,%\negsmallskipamount,
+  lineskip=-1pt,
+  basewidth={0.6em, 0.45em},%
+%  backgroundcolor=\color{listingbg},
+  basicstyle=\fontsize{7}{9}\selectfont\ttfamily,
+  keywordstyle=\keywordstyle,
+  commentstyle=\commentstyle,
+  stringstyle=\stringstyle,
+%  xleftmargin=0.5cm
+  literate={-->}{{$\to$}}3 
+           {->}{{$\mapsto$}}3 
+           {=>}{{$\Rightarrow ~$}}2 
+           {|-}{{$\ts$}}2 
+           %{fun}{{$\lambda$}}1 
+           {idx}{{$\#$}}1 
+           {sum}{{$\Sigma$}}1 
+           {array(}{{$\langle.\rangle$(}}3
+           {σ}{{$\sigma$}}1
+           {ρ}{{$\rho$}}1
+           {→}{{$\to$}}1
+           {λ}{{$\lambda$}}1
+           {α}{{$\alpha$}}1
+           {⊔}{{$\sqcup$}}1
+           {⊓}{{$\sqcap$}}1
+           {⊑}{{$\sqsubseteq$}}1
+           {⊤}{{$\top$}}1
+           {⊥}{{$\bot$}}1
+           {×}{{$\times$}}1
+           %{[[}{{$[\![$}}1
+           %{]]}{{$]\!]$}}1
+           %{…}{{$\!...$}}1 
+}
+
+\lstdefinestyle{extrasmall}{
+  language=Scala,%
+  mathescape=true,%
+%  columns=[c]fixed,%
+  aboveskip=2pt,%\smallskipamount,
+  belowskip=1pt,%\negsmallskipamount,
+  lineskip=-1pt,
+  basewidth={0.6em, 0.45em},%
+%  backgroundcolor=\color{listingbg},
+  basicstyle=\fontsize{6}{8}\selectfont\ttfamily,
+  keywordstyle=\keywordstyle,
+  commentstyle=\commentstyle,
+  stringstyle=\stringstyle,
+%  xleftmargin=0.5cm
+  literate={-->}{{$\to$}}3 
+           {->}{{$\mapsto$}}3 
+           {=>}{{$\Rightarrow ~$}}2 
+           {|-}{{$\ts$}}2 
+           %{fun}{{$\lambda$}}1 
+           {idx}{{$\#$}}1 
+           {sum}{{$\Sigma$}}1 
+           {array(}{{$\langle.\rangle$(}}3
+           {σ}{{$\sigma$}}1
+           {ρ}{{$\rho$}}1
+           {→}{{$\to$}}1
+           {λ}{{$\lambda$}}1
+           {α}{{$\alpha$}}1
+           {⊔}{{$\sqcup$}}1
+           {⊓}{{$\sqcap$}}1
+           {⊑}{{$\sqsubseteq$}}1
+           {⊤}{{$\top$}}1
+           {⊥}{{$\bot$}}1
+           {×}{{$\times$}}1
+           %{[[}{{$[\![$}}1
+           %{]]}{{$]\!]$}}1
+           %{…}{{$\!...$}}1 
+}
+
 \definecolor{listingbg}{RGB}{240, 240, 240}
 
 \newcommand{\commentstyle}[1]{\color{ccomment}\itshape{#1}}

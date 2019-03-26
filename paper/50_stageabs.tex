@@ -216,10 +216,10 @@ What we implemented is a big-step, compositional abstract interpreter in monadic
 style, where \textit{compositional} means that every recursive call of our abstract
 interpreter is applied to proper substructures of the current syntactic
 parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
-specialization can be done by unfolding, as well as the termination of
-specialization procedure. It is also possible to specialize small-step
+specialization can be done by unfolding, as well as guarantees the termination
+of specialization procedure. It is also possible to specialize small-step
 operational abstract semantics through abstract compilation
-\cite{Boucher:1996:ACN:647473.727587} --
+\cite{Boucher:1996:ACN:647473.727587} -- as
 \citet{Johnson:2013:OAA:2500365.2500604} implemented it for
 optimizating Abstract Abstract Machines. However, the generated abstract
 bytecode still requires another small-step abstract machine to execute, which is

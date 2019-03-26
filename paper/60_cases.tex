@@ -41,21 +41,7 @@ analysis, for example, the environment that maps variables to sets of lambda.
   \centering
   \begin{subfigure}[h]{0.49\textwidth}
     \centering
-    \begin{lstlisting}[
-      language=Scala,%
-      mathescape=true,%
-      %  columns=[c]fixed,%
-      %  basewidth={0.5em, 0.40em},%
-      aboveskip=2pt,%\smallskipamount,
-      belowskip=1pt,%\negsmallskipamount,
-      lineskip=-1pt,
-      basewidth={0.6em, 0.45em},%
-      %  backgroundcolor=\color{listingbg},
-      basicstyle=\fontsize{6}{8}\selectfont\ttfamily,
-      keywordstyle=\keywordstyle,
-      commentstyle=\commentstyle,
-      stringstyle=\stringstyle,
-    ]
+    \begin{lstlisting}[style=extrasmall]
 type CompAnalysis = Store => Store
 def compProgram(prog: Expr): CompAnalysis = compCall(prog)
 def compCall(call: Expr): CompAnalysis = call match {
@@ -88,21 +74,7 @@ def compArgs(args: List[Expr]): CompAnalysis = args match {
 \hfill
   \begin{subfigure}[h]{0.49\textwidth}
     \centering
-    \begin{lstlisting}[
-      language=Scala,%
-      mathescape=true,%
-      %  columns=[c]fixed,%
-      %  basewidth={0.5em, 0.40em},%
-      aboveskip=2pt,%\smallskipamount,
-      belowskip=1pt,%\negsmallskipamount,
-      lineskip=-1pt,
-      basewidth={0.6em, 0.45em},%
-      %  backgroundcolor=\color{listingbg},
-      basicstyle=\fontsize{6}{8}\selectfont\ttfamily,
-      keywordstyle=\keywordstyle,
-      commentstyle=\commentstyle,
-      stringstyle=\stringstyle,
-    ]
+    \begin{lstlisting}[style=extrasmall]
 def analyzeProgram(prog: Expr, $\sigma$: Rep[Store]): Rep[Store] = 
   analyzeCall(prog, $\sigma$)
 def analyzeCall(call: Expr, $\sigma$: Rep[Store]): Rep[Store] = 

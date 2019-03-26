@@ -238,7 +238,7 @@ when acting as compilers.
   def close(ev: Expr => Ans)(λ: Lam, ρ: R[Env]): R[Value]
   def br0(test: R[Value], thn: => Ans, els: => Ans): Ans
   def arith(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
-  def ap_clo(ev: Expr => Ans)(fun: R[Value], arg: R[Value]): Ans
+  def ap_clo(ev: Expr => Ans)(rator: R[Value], rand: R[Value]): Ans
 \end{lstlisting}
 
 \paragraph{The Interpreter} Now we can define the semantics-agnostic interpreter
@@ -389,10 +389,10 @@ value, extracts the lambda term and environment enclosed in the function value,
 and evaluates the body expression of that lambda term under the new environment and store.
 
 \begin{lstlisting}
-  def ap_clo(ev: EvalFun)(f: Value, arg: Value): Ans = f match {
+  def ap_clo(ev: EvalFun)(rator: Value, rand: Value): Ans = rator match {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
-      _ <- set_store(α → arg)
+      _ <- set_store(α → rand)
       rt <- ext_env(ev(e))(x → α)
     } yield rt
   }
