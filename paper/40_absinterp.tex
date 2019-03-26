@@ -20,9 +20,9 @@ A complete lattice over set $S$ is a tuple of $\langle S, \sqsubseteq, \top,
 \bot, \sqcup, \sqcap \rangle$, where $\sqsubseteq : S \to S \to Bool$ is the
 ordering relation, $\sqcup: S \to S \to S$ is the join (least upper bound)
 operator, and $\sqcap: S \to S \to S$ is the meet (greatest lower bound)
-operator. The trait @SPLattice@ declares the type class for lattices.
-Similar to @MonadOps@ in Section \ref{generic_if}, we introduce an additional
-higher-kinded type @R[_]@ to annotate the binding-times.
+operator. The trait @SPLattice@ defines the type class of stage polymorphic
+lattices. Similar to @MonadOps@ in Section \ref{generic_if}, we introduce an
+additional higher-kinded type @R[_]@ to annotate the binding-times.
 
 \begin{lstlisting}
   trait SPLattice[S, R[_]] {
@@ -36,8 +36,8 @@ higher-kinded type @R[_]@ to annotate the binding-times.
 
 In this section, we simply let @R[T] = T@ (i.e., @NoRep@) to instantiate the
 unstaged lattice type class. An simple instance of lattice we used is the power
-set abstract domain, where the ordering is subset relation, join is the union
-operation, and meet is the intersect operation. The power set lattice can be
+set abstract domain, where the ordering is subset relation, the join is union
+operation, and the meet is intersect operation. The power set lattice can be
 implemented as follows:
 
 \begin{lstlisting}
@@ -57,23 +57,40 @@ implemented similarly, or lifted from existing lattices element-wise or point-wi
 
 \paragraph{Abstract Components}
 
-Our instantiation roughly follows the Abstracting Abstract Machines methodology
-\cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12} that transforms the
-concrete semantics to abstract semantics. The store now maps addresses to sets
-of abstract values, meaning that an address points to all possible values that
-may occur at runtime, where the abstract value is either a closure or a single
-abstract number \texttt{NumV}, which stands for the top element of the number
-lattice. The address space is also constrained to be finite, in the monovariant
-setting, we simply use variable names for address.
+% \cite{DBLP:conf/icfp/HornM10, DBLP:journals/jfp/HornM12}
+
+We follow the \textit{abstracting definitional interpreters} (ADIs) approach
+\cite{DBLP:journals/pacmpl/DaraisLNH17} to refactor our concrete interpreter to
+an abstract interpreter. We first widen the concrete values to @AbsValue@: numbers
+are lifted to a singleton object @IntTop@ representing the set of all numbers;
+closures remain the same. Then the type @Value@ is sets of @AbsValue@ (we abuse
+the type names a little bit, as the generic interface defined the abstract type
+@Value@).
+The address space is constrained to be finited to ensure the computatbility of
+analysis -- for the simplest monovariant analysis, we use variable names for
+addresses. After setteling the @Value@ and @Addr@ type, the environments and
+stores are automatically lifted to abstract environments and abstract stores,
+i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@ respectively.
+It is importatnt that the abstract store now maps addresses to sets of abstract
+values, meaning an address may points to an over-approximated set of values
+occurred at runtime.
 
 \begin{lstlisting}
-trait Abstract extends Semantics {
-  case class Addr(x: Ident);  sealed trait AbsValue
-  case class CloV($\lambda$: Lam, $\rho$: Env) extends AbsValue
-  case class NumV() extends AbsValue
-  type Value = Set[AbsValue]
-  type Env = Map[Ident, Addr];  type Store = Map[Addr, Value]
-}
+  trait AbstractComponents extends Semantics {
+    sealed trait AbsValue
+    case object IntTop extends AbsValue
+    case class CloV(lam: Lam, env: Env) extends AbsValue
+    type Value = Set[AbsValue]; case class Addr(x: String)
+    ...
+  }
+\end{lstlisting}
+
+A cache is a mapping from configurations to sets of value-store pairs, where the
+configuration is a triple of current expression being evaluated, environment and store.
+
+\begin{lstlisting}
+  type Config = (Expr, Env, Store); type Cache = Map[Config, Set[(Value, Store)]]
+  type Result = (R[List[(Value, Store)]], R[Cache])
 \end{lstlisting}
 
 \paragraph{Monads for Abstract Interpretation} nondetT
@@ -89,32 +106,6 @@ i.e., a singleton set that contains only one \texttt{CloV} or \texttt{NumV}
 object.
 
 \begin{lstlisting}
-object AbsInterp extends Abstract {
-  type R[+T] = T
-  val $\rho$0 = Map[Ident, Addr]();  val $\sigma$0 = Map[Addr, Value]()
-  def get($\rho$: Env, x: Ident): Addr = $\rho$(x)
-  def put($\rho$: Env, x: Ident, a: Addr): Env = $\rho$ + (x -> a)
-  def get($\sigma$: Store, a: Addr): Value = 
-    $\sigma$.getOrElse(a, Lattice[Value].bot)
-  def put($\sigma$: Store, a: Addr, v: Value): Store =
-    $\sigma$ + (a -> (v $\sqcup$ get($\sigma$, a)))
-  def alloc($\sigma$: Store, x: Ident): Addr = Addr(x)
-  def close(ev: EvalFun)($\lambda$: Lam, $\rho$: Env): Value = Set(CloV($\lambda$, $\rho$))
-  def num(i: Lit): Value = Set(NumV())
-  def apply_closure(ev: EvalFun)
-    (fs: Value, arg: Value, $\sigma$: Store): Ans = { var $\sigma$_* = $\sigma$
-      val vs = for (CloV(Lam(x, e), $\rho$) <- fs) yield {
-        val $\alpha$ = alloc($\sigma$_*, x)
-        val (v, v$\sigma$) = ev(e, put($\rho$, x, $\alpha$), put($\sigma$_*, $\alpha$, arg))
-        $\sigma$_* = v$\sigma$ $\sqcup$ $\sigma$_*; v
-      }
-    (vs.reduce(Lattice[Value].$\sqcup$), $\sigma$_*)
-  }
-  def branch0(cnd: Value, thn: =>Ans, els: =>Ans): Ans = 
-    thn $\sqcup$ els
-  def prim_eval(op: Symbol, v1: Value, v2: Value): Value = 
-    Set(NumV())
-} // to be continued
 \end{lstlisting}
 
 For branching, @branch0@ joins the answers from two branches since we are doing
@@ -131,6 +122,13 @@ $\sigma$@_*@ which is updated iteratively during the loop. Thus this is a
 store-widened analysis.
 
 \paragraph{Caching and Fixpoint Iteration}
+
+\begin{lstlisting}
+  def ask_in_cache: AnsM[Cache]
+  def get_out_cache: AnsM[Cache]
+  def put_out_cache(out: R[Cache]): AnsM[Unit]
+  def update_out_cache(cfg: R[Config], vs: R[(Value, Store)]): AnsM[Unit]
+\end{lstlisting}
 
 We described the abstract semantics modularly in the last section, however, the
 abstract interpreter may not terminate for some input program. In this section,
@@ -151,28 +149,6 @@ the result for this iteration, and put the joined result back into @out@. Note
 that we also instrument the recursive call by putting @cached_ev@ into @evev@.
 After one iteration, if @in == out@, then there is no more information to be
 gained, thus the iteration should end and we have reached the fixed point.
-
-\begin{lstlisting}
-case class CacheFix(evev: EvalFun => EvalFun) {
-  var in = Map[Config, Ans](); var out = Map[Config, Ans]()
-  def cached_ev(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = {
-    val cfg: Config = (e, $\rho$, $\sigma$)
-    if (out.contains(cfg)) out(cfg)
-    else {
-      val ans0 = in.getOrElse(cfg, Lattice[(Value, Store)].bot)
-      out = out + (cfg -> ans0)
-      val ans1 = evev(cached_ev)(e, $\rho$, $\sigma$)
-      out = out + (cfg -> (ans0 $\sqcup$ ans1));  ans1
-    }
-  }
-  def iter(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = {
-    in = out; out = Map[Config, Ans](); cached_ev(e, $\rho$, $\sigma$)
-    if (in == out) out((e, $\rho$, $\sigma$)) else iter(e, $\rho$, $\sigma$)
-  }
-}
-override def eval_top(e: Expr, $\rho$: Env, $\sigma$: Store): Ans = 
-  CacheFix(eval).iter(e, $\rho$, $\sigma$)
-\end{lstlisting}
 
 Finally, we override the definition of @eval_top@ by instantiating @CacheFix@
 with @eval@ and starting the first iteration.

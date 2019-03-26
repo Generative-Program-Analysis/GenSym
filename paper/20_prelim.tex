@@ -242,35 +242,44 @@ when acting as compilers.
 \end{lstlisting}
 
 \paragraph{The Interpreter} Now we can define the semantics-agnostic interpreter
-in monadic form. The essential idea is to traverse the abstract syntax tree
-while maintaining the effects such as reader and state. 
+in monadic form, shown in Figure \ref{fig:shared_int}.
+The essential idea is to traverse the abstract syntax tree while maintaining the
+effects such as reader and state.
 It is worth noting that the interpreter is written in open-recursive style -- it
 can not refer to itself directly, instead, @eval@ takes an additional parameter
 @ev@ of type @Expr => Ans@ to refer to itself. Accordingly, the method @close@
 that lifts lambda terms to closures and @ap_clo@ that applies functions also
 takes an extra @ev@.
 
-\begin{lstlisting}
-  def eval(ev: Expr => Ans)(e: Expr): Ans = e match {
-    case Lit(i) => num(i)                      case Let(x, rhs, e) => for {
-    case Var(x) => for {                         v <- ev(rhs)
-      ρ <- ask_env                               α <- alloc(x)
-      σ <- get_store                             _ <- set_store(α → v)
-     } yield get(σ, ρ, x)                        rt <- ext_env(ev(e))(x → α)
-    case Lam(x, e) => for {                    } yield rt
-      ρ <- ask_env                             case Aop(op, e1, e2) => for {
-    } yield close(ev)(Lam(x, e), ρ)              v1 <- ev(e1)                                               
-    case App(e1, e2) => for {                    v2 <- ev(e2)
-      v1 <- ev(e1)                             } yield arith(op, v1, v2)
-      v2 <- ev(e2)                             case Rec(x, rhs, e) => for {
-      rt <- ap_clo(ev)(v1, v2)                   α <- alloc(x)
-    } yield rt                                   v <- ext_env(ev(rhs))(x → α)
-    case If0(e1, e2, e3) => for {                _ <- set_store(α → v)
-      cnd <- ev(e1)                              rt <- ext_env(ev(e))(x → α)
-      rt <- br0(cnd, ev(e2), ev(e3))           } yield rt                    
-    } yield rt
-  }
-\end{lstlisting}
+\vspace{-1em}
+\begin{figure}[h!]
+  \centering
+  \begin{lstlisting}
+            def eval(ev: Expr => Ans)(e: Expr): Ans = e match {
+              case Lit(i) => num(i)                    case Let(x, rhs, e) => for {
+              case Var(x) => for {                       v <- ev(rhs)
+                ρ <- ask_env                             α <- alloc(x)
+                σ <- get_store                           _ <- set_store(α → v)
+              } yield get(σ, ρ, x)                      rt <- ext_env(ev(e))(x → α)
+              case Lam(x, e) => for {                  } yield rt
+                ρ <- ask_env                           case Aop(op, e1, e2) => for {
+              } yield close(ev)(Lam(x, e), ρ)            v1 <- ev(e1)                                               
+              case App(e1, e2) => for {                  v2 <- ev(e2)
+                v1 <- ev(e1)                           } yield arith(op, v1, v2)
+                v2 <- ev(e2)                           case Rec(x, rhs, e) => for {
+                rt <- ap_clo(ev)(v1, v2)                 α <- alloc(x)
+              } yield rt                                 v <- ext_env(ev(rhs))(x → α)
+              case If0(e1, e2, e3) => for {              _ <- set_store(α → v)
+                cnd <- ev(e1)                            rt <- ext_env(ev(e))(x → α)
+                rt <- br0(cnd, ev(e2), ev(e3))         } yield rt                    
+              } yield rt
+            }
+  \end{lstlisting}
+\caption{The generic interpreter,
+  shared by the unstaged/staged + concrete/abstract interpreter.}
+\label{fig:shared_int}
+\end{figure}
+\vspace{-1em}
 
 Since the interpreter is written in open-recursive style, we declare an abstract
 combinator @fix@ used to close the recursion. For concrete-interpretation instantiation, it
