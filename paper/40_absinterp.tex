@@ -186,7 +186,7 @@ monad stack. Then we can still implement @ap_clo@ in monadic style, where the
 \begin{lstlisting}
   def lift_nd[T](vs: List[T]): AnsM[T]
   def ap_clo(ev: EvalFun)(rator: Value, rand: Value): Ans = for {
-    CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](f.toList)
+    CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](rator.toList)
     α <- alloc(x)
     _ <- set_store(α → rator)
     rt <- ext_env(ev(e))(x → α)

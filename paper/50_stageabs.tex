@@ -71,28 +71,39 @@ stores a staged value of type @Rep[List[A]]@, inside of a staged monad @M@.
   }
 \end{lstlisting}
 
-\paragraph{Primitive Operations}
-
-Once more, the way we handle closures is the same as in the staged concrete
-interpreter: the recursive call to @ev@ with the body expression @e@ is compiled
-and specialized, the wrapper function @f@ will be a field value in a
-@CompiledClo@ object and be generated for the next stage. At the end, we return
-a singleton set:
+\paragraph{Primitive Operations} We keep our road map that focuses on functions
+and applications. The @close@ method now is a rough mixing of the staged
+concrete and unstaged abstract version: we have a current-stage function @f@,
+that takes four next-stage values, @in@ and @out@ additionally; inside of @f@,
+we collapse the @Ans@ monad to values of type @Result@ by providing the desired
+arguments, i.e., the new environment, new store, and caches. The collapse
+happens at current-stage, so the call of @ev@ is unfolded after staging. At
+last, we generate a singleton set containing the compiled closure
+@emit_compiled_clo(f)@, represented by an IR node in LMS.
 
 \begin{lstlisting}
+  def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
+                           => Rep[(List[(Value,Store)], Cache)]): Rep[AbsValue]
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
     val f: (Rep[Value],Rep[Store],Rep[Cache],Rep[Cache]) => Rep[(List[(Value,Store)],Cache)] = {
       case (arg, σ, in, out) =>
         val α = alloc(σ, x); val ρ_* = ρ + (unit(x) → α); val σ_* = σ ⊔ Map(α → arg)
         ev(e)(ρ_*)(σ_*)(in)(out)
-    }
-    Set[AbsValue](emit_compiled_clo(f, λ, ρ))
+    }; Set[AbsValue](emit_compiled_clo(f))
   }
 \end{lstlisting}
 
+The @ap_clo@ method is also similar: we use the staged version of @lift_nd@ to
+lift the set of closures into the monad stack, and generate a next-stage value
+using @emit_ap_clo@, which represets the result of application, and finally we
+put the @out@ cache, store and values back into the monads. The @emit_ap_clo@
+method takes the target closure @clo@, argument @rand@, store and caches.
+
 \begin{lstlisting}
   def lift_nd[T](vs: Rep[List[T]]): AnsM[T]
+  def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
+                  in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
   def ap_clo(ev: EvalFun)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
     clo <- lift_nd[AbsValue](rator.toList)
     σ <- get_store; in <- ask_in_cache; out <- get_out_cache
@@ -105,16 +116,15 @@ a singleton set:
 
 \paragraph{Staged Caching and Fixpoint Iteration} 
 
-Our fixed-point iteration again relies on two caches @in@ and @out@, but the
-iteration no longer be done at the current stage. Because the @in@ and @out@ are
-both next-stage values, the test of whether @in@ and @out@ are equal is a
-generated expression in the next stage, and we can only know the comparison
-result at the next stage. In other words, we do not know how many iterations we
-need to reach the fixed-point. To achieve this, we need to stage a function
-value --- @iter_aux@ is generated as a recursive function of type @Rep[Unit => (Value,Store)]@ 
-and will be invoked at the next stage.
+Our fixed-point iteration again relies on two caches @in@ and @out@, which are
+both staged values now. Therefore, the query of whether the @out@ cache contains
+the current configuration produces a next-stage Boolean value, i.e.,
+@Rep[Boolean]@. Consequently, the branching can not be determined statically --
+we need to generate code for @if@. Figure \ref{fig:staged_coind_cache} shows the
+staged version of @fix@.
 
-\begin{figure}[t!]
+\vspace{-1em}
+\begin{figure}[h!]
   \centering
 \begin{lstlisting}
   def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
@@ -136,41 +146,57 @@ and will be invoked at the next stage.
 \caption{The staged co-inductive caching algorithm.}
 \label{fig:staged_coind_cache}
 \end{figure}
+\vspace{-1em}
 
-However, the instrumented evaluation function that uses the @in@ cache and
-updates the @out@ cache can be completely eliminated by staging. Each recursive
-call to @cached_ev@ will also be specialized if it is applied on subexpressions
-of the analyzed program.
+The @res@ variable is a next-stage result, which consists of a next-stage @if@
+expression. The true branch simply returns a pair of queried result form the
+@out@ cache and the @out@ cache. The else branch constructs a monad @m@ first,
+which evaluates @e@ under the new @out@ cache. After which, we collapse the
+monad @m@ with desired arguments. Finally, we obtain a placeholder @res@ since
+it is a next-stage value, and put the content of @res@ back into the moand
+stack.
+
+\paragraph{Code Generation} The IR nodes for compiled closures and
+applications are defined as following:
 
 \begin{lstlisting}
+  case class IRCompiledClo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
+                           => Rep[(List[(Value, Store)], Cache)]) extends Rep[AbsValue]
+  case class IRApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
+                     in: Rep[Cache], out: Rep[Cache]) extends Rep[(List[(Value, Store)], Cache)]
 \end{lstlisting}
 
-\paragraph{Code Generation} Code generation
-
+The code generator for these two IR nodes is similar to staged concrete
+interpreter, which generates a next-stage @CompiledClo@ object and a next-stage
+function call to @f@, respectively.
+                   
 \subsection{Optimizations} \label{staged_ds}
 
 Our staging schema works well in theory, but in practice would suffer from code
-explosion, and possibly runtime GC overhead when analyzing (specializing) large
-programs. In this section, we present several optimizations that largely
-mitigate these issues. Still, implementing these optimizations do not need to
-change the generic interpreter.
+explosion, and possibly runtime GC overhead (at the next stage) when analyzing
+(specializing) large programs. In this section, we present several optimizations
+that largely mitigate these issues. Still, implementing these optimizations do
+not need to change the generic interpreter.
 
-\paragraph{Specialized Data Structures} \todo{need revise}
+\paragraph{Specialized Data Structures}
 
-Now we have already obtained an end-to-end staged abstract interpreter that is
-able to specialize an analysis. However, we treat the data structures such as
-@Map@s as black-boxes, which means any operations on a @Map@ become code in the
-next stage. But, as we identified when introducing the generic interface, the
-keys of any environment maps are identifiers in the program, which are
-completely known statically. This leaves us a chance to further specialize the
-data structures. Assume the @Map[K,V]@ is implemented as a hash map, if the keys
-$K$ are known, then the indices can be computed statically. Thus the specialized
-map would be an array @Array[Rep[V]]@ whose elements are next-stage values; all
-the accesses to the array is determined during staging.
+Although every components except @Expr@s are staged, we treat the data
+structures such as @Map@s as black-boxes, which means the operations on a @Map@
+directly become code in the next stage, but we don't inspect any further inside.
+As we identified when introducing the generic interface, the keys of @Env@s are
+identifiers (i.e., strings) in the program, which are completely known
+statically. This leaves us a chance to further specialize the data structures.
+For example, let's assume that the @Map[K, V]@ is implemented as a hash map. If
+the keys of type @K@ are all known statically, then the indices also can be
+computed statically. Thus the specialized map would be an array of type
+@Array[Rep[V]]@, whose elements are next-stage values; the size of the array is
+also known statically. An access to the map is translated to an access to the
+array with pre-determined index during staging.
 
 Particularly, if we are specializing a monovariant analysis, the address space
-is equivalent to the identifiers, then the environment component can be entirely
-eliminated, and the store is a specialized map as array of @Rep[Value]@
+is equivalent to the set of identifiers in the program. Then the accesses to the
+environment can be completely determined statically, and generates the addresses
+directly. After which, the stores can be specialized as arrays of @Rep[Value]@
 elements.
 
 \paragraph{Selective Caching} It is observed that the two-fold co-inductive
@@ -204,13 +230,21 @@ operation and function application. We apply several rewritings enabled by
 partial-static data structures, such as @List@ and @Map@, which greatly reduces
 the size of residual programs.
 
-\paragraph{Heterogeneous Staging} The generated program is in A-Normal form. \todo{TODO}
+%\paragraph{Heterogeneous Staging} The generated program is in A-Normal form. \todo{TODO}
 
 \subsection{Discussion}
 
 We have gradually presented the confluence of specialization and abstraction of
 concrete interpreters. In this section, we discuss several decisions we made to
 achieve this and examine some alternatives.
+
+\paragraph{What the generated code look like?} In the generated code, all the
+primtive operations (such as @eval@, @fix@, @ap_clo@, etc.) and moandic
+operations (such as @flatMap@ and @map@) are eliminated. The residual program
+consists of statements and expressions that purely manipulate the environment,
+store, and two caches, whose underlying representions are all @Rep[Map[K,V]]@. We
+also have several operations on tuples and lists, which are residualized from
+the use of monads internally.
 
 \paragraph{Are Monads Necessary?} No. One can always inline the monads and
 obtain an abstract interpreter in continuation-passing style, or simply use
@@ -233,8 +267,6 @@ operational abstract semantics through abstract compilation
 optimizating Abstract Abstract Machines. However, the generated abstract
 bytecode still requires another small-step abstract machine to execute, which is
 an additional engineering efforts.
-
-% direct-style vs CPS
 
 \paragraph{Correctness and Soundness}
 
