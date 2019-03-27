@@ -1,6 +1,8 @@
 package sai
 package lens
 
+case class FAlgebra[F[_], A](run: F[A] => A)
+
 case class Lens[A, B, S, T](view: S => A, update: (S, B) => T)
 
 trait Profunctor[P[_, _]] {

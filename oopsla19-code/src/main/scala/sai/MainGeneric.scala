@@ -553,10 +553,10 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   //FIXME: check v1 && v2 contains Int
   def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
-    lift_nd[AbsValue](fun.toList).flatMap { clo =>
-      ask_in_cache.flatMap { in =>
-        get_out_cache.flatMap { out =>
-          get_store.flatMap { σ =>
+    get_store.flatMap { σ =>
+      lift_nd[AbsValue](fun.toList).flatMap { clo =>
+        ask_in_cache.flatMap { in =>
+          get_out_cache.flatMap { out =>
             val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
             put_out_cache(res._2).flatMap { _ =>
               lift_nd[(Value, Store)](res._1).flatMap { vs =>
@@ -565,11 +565,11 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
                 } } } } } } }
   }
   /*
-    for {
+  for {
+    σ <- get_store
     clo <- lift_nd[AbsValue](fun.toList)
     in <- ask_in_cache
     out <- get_out_cache
-    σ <- get_store
     val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
     _ <- put_out_cache(res._2)
     vs <- lift_nd[(Value, Store)](res._1)
