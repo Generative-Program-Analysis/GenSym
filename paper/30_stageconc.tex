@@ -97,7 +97,7 @@ a next-stage function.
 
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)]): Rep[Value]
-  def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+  def close(ev: Expr => Ans)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
     val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
       case (v: Rep[Value], σ: Rep[Store]) =>
@@ -117,7 +117,7 @@ we need to reify the value and store back into the monad stack through
 
 \begin{lstlisting}
   def emit_ap_clo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
-  def ap_clo(ev: EvalFun)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
+  def ap_clo(ev: Expr => Ans)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
     σ <- get_store
     val res: Rep[(Value, Store)] = emit_ap_clo(rator, rand, σ)
     _ <- put_store(res._2)

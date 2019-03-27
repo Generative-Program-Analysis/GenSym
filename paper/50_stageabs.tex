@@ -44,7 +44,7 @@ Now we implement the staged abstract semantics, where @R@ is instantiated as
 @Rep@, and the abstract components are shared from the unstaged version.
 
 \paragraph{Staged Monads for Abstract Interpretation}
-We use the same moand stack structure as in the unstaged abstract interpreter,
+We use the same monad stack structure as in the unstaged abstract interpreter,
 but replacing \textit{all} the transformers to their staged version. The
 following code shows this change. For the readability, we squeeze the three
 inner transformers into a single monad @RepListReaderStateM[A, B, C]@, where @A@
@@ -55,7 +55,7 @@ two staged value: @Rep[List[(Value, Store)]]@ and @Rep[Cache]@.
   trait StagedAbstractSemantics extends AbstractComponents {
     type R[T] = Rep[T]
     type RepListReaderStateM[A, B, C] = RepListT[RepReaderT[RepStateT[RepIdM, A, ?], B, ?], C]
-    type AnsM[T] = ReaderT[StateT[RepListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
+    type AnsM[T] = RepReaderT[RepStateT[RepListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
     type Result = (Rep[List[(Value, Store)]], Rep[Cache])
     ...
   }
@@ -84,7 +84,7 @@ last, we generate a singleton set containing the compiled closure
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                            => Rep[(List[(Value,Store)], Cache)]): Rep[AbsValue]
-  def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+  def close(ev: Expr => Ans)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
     val f: (Rep[Value],Rep[Store],Rep[Cache],Rep[Cache]) => Rep[(List[(Value,Store)],Cache)] = {
       case (arg, σ, in, out) =>
@@ -96,7 +96,7 @@ last, we generate a singleton set containing the compiled closure
 
 The @ap_clo@ method is also similar: we use the staged version of @lift_nd@ to
 lift the set of closures into the monad stack, and generate a next-stage value
-using @emit_ap_clo@, which represets the result of application, and finally we
+using @emit_ap_clo@, which represents the result of application, and finally we
 put the @out@ cache, store and values back into the monads. The @emit_ap_clo@
 method takes the target closure @clo@, argument @rand@, store and caches.
 
@@ -104,7 +104,7 @@ method takes the target closure @clo@, argument @rand@, store and caches.
   def lift_nd[T](vs: Rep[List[T]]): AnsM[T]
   def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
                   in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
-  def ap_clo(ev: EvalFun)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
+  def ap_clo(ev: Expr => Ans)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
     clo <- lift_nd[AbsValue](rator.toList)
     σ <- get_store; in <- ask_in_cache; out <- get_out_cache
     val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, rand, σ, in, out)
@@ -127,7 +127,7 @@ staged version of @fix@.
 \begin{figure}[h!]
   \centering
 \begin{lstlisting}
-  def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
+  def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
     ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache
     val cfg: Rep[Config] = (unit(e), ρ, σ)
     val res: Rep[(List[(Value, Store)], Cache)] =
@@ -153,7 +153,7 @@ expression. The true branch simply returns a pair of queried result form the
 @out@ cache and the @out@ cache. The else branch constructs a monad @m@ first,
 which evaluates @e@ under the new @out@ cache. After which, we collapse the
 monad @m@ with desired arguments. Finally, we obtain a placeholder @res@ since
-it is a next-stage value, and put the content of @res@ back into the moand
+it is a next-stage value, and put the content of @res@ back into the monad
 stack.
 
 \paragraph{Code Generation} The IR nodes for compiled closures and
@@ -207,7 +207,7 @@ the idea from the partition in ANF \cite{Flanagan:1993:ECC:155090.155113}, we
 may use a selective caching algorithm:
 
 \begin{lstlisting}
-  def fix_select: EvalFun = e => e match {
+  def fix_select: Expr => Ans = e => e match {
     case Lit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)
     case _ => fix_cache(e)
   }
@@ -217,7 +217,7 @@ may use a selective caching algorithm:
 
 Our treatment to binding-times is coarse-grained: @Expr@s is static, the rest of
 the world are all dynamic. But this is not always true, since the static data
-has to be used somewhere with the dyanmic operation. Partial-static data is a
+has to be used somewhere with the dynamic operation. Partial-static data is a
 way to improve binding-times and optimize the generated code.
 
 For example, to fold a singleton list (often appears in @ListT@), e.g.,
@@ -239,10 +239,10 @@ concrete interpreters. In this section, we discuss several decisions we made to
 achieve this and examine some alternatives.
 
 \paragraph{What the generated code look like?} In the generated code, all the
-primtive operations (such as @eval@, @fix@, @ap_clo@, etc.) and moandic
+primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
 operations (such as @flatMap@ and @map@) are eliminated. The residual program
 consists of statements and expressions that purely manipulate the environment,
-store, and two caches, whose underlying representions are all @Rep[Map[K,V]]@. We
+store, and two caches, whose underlying representations are all @Rep[Map[K,V]]@. We
 also have several operations on tuples and lists, which are residualized from
 the use of monads internally.
 
@@ -264,8 +264,8 @@ of specialization procedure. It is also possible to specialize small-step
 operational abstract semantics through abstract compilation
 \cite{Boucher:1996:ACN:647473.727587} -- as
 \citet{Johnson:2013:OAA:2500365.2500604} implemented it for
-optimizating Abstract Abstract Machines. However, the generated abstract
-bytecode still requires another small-step abstract machine to execute, which is
+optimizing Abstract Abstract Machines. However, the generated abstract
+byte-code still requires another small-step abstract machine to execute, which is
 an additional engineering efforts.
 
 \paragraph{Correctness and Soundness}

@@ -18,7 +18,7 @@ to construct such staged abstract interpreters.
 \subsection{Abstract Syntax} \label{bg_lang}
 
 We consider a call-by-value $\lambda$-calculus in direct-style, extended
-with numbers, arithmetics, recursions and conditionals. Other effectful features
+with numbers, arithmetic, recursions and conditionals. Other effectful features
 such as assignments can also be supported readily. In Section~\ref{cases_imp}, we
 will add more imperative features to the language. Since we are mostly
 interested in analyzing the dynamic behaviors of the program, we disguised any
@@ -34,7 +34,7 @@ follows:
   case class App(e1: Expr, e2: Expr) extends Expr             // applications
   case class If0(e1: Expr, e2: Expr, e3: Expr) extends Expr   // conditionals
   case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
-  case class Aop(op: String, e1: Expr, e2: Expr) extends Expr // arithmetics
+  case class Aop(op: String, e1: Expr, e2: Expr) extends Expr // arithmetic
 \end{lstlisting}
 
 The abstract syntax we present in fact can be seen as a deep embedding of the
@@ -326,7 +326,7 @@ provide a standard fixed-point combinator to close the open-recursive function @
 The environment and store can be modeled by reader effect and state effect,
 i.e., a Reader monad and a State monad. We combine them using monad transformers
 @ReaderT@ and @StateT@.
-In other word, we instantiate the @AnsM@ moand as a stack of @ReaderT@ and @StateT@
+In other word, we instantiate the @AnsM@ monad as a stack of @ReaderT@ and @StateT@
 transformers\footnote{The question mark syntax is a kind projector
   \cite{kindprojector}, thus \texttt{StateT[IdM,Store,?]} is equivalent to \newline
   \texttt{(\{type M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is
@@ -381,7 +381,7 @@ interpretation is involved. The method @close@ takes a lambda term and an
 environment, then create a closure value @CloV@.
 
 \begin{lstlisting}
-  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
+  def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
 \end{lstlisting}
 
 To apply a function, the method @ap_clo@ takes a function value and an arugment
@@ -389,7 +389,7 @@ value, extracts the lambda term and environment enclosed in the function value,
 and evaluates the body expression of that lambda term under the new environment and store.
 
 \begin{lstlisting}
-  def ap_clo(ev: EvalFun)(rator: Value, rand: Value): Ans = rator match {
+  def ap_clo(ev: Expr => Ans)(rator: Value, rand: Value): Ans = rator match {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
       _ <- set_store(α → rand)
@@ -398,7 +398,7 @@ and evaluates the body expression of that lambda term under the new environment 
   }
 \end{lstlisting}
 
-With other primitive operations implementated, we can implement the top-level
+With other primitive operations implemented, we can implement the top-level
 @run@ method, where $\rho_0$ and $\sigma_0$ are initial empty environment and
 store.
 

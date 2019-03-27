@@ -1,6 +1,6 @@
 \section{From Interpreters to Abstract Interpreters} \label{unstaged_abs}
 
-After seeing both unstaged and staged concrete interpreters, now we trun our
+After seeing both unstaged and staged concrete interpreters, now we turn our
 focus on abstract interpreters under the same framework. We will first present a
 lattice framework with binding-time abstraction, but for the purpose of clearly
 illustrating the idea, we will just use simple abstract domains such as power set
@@ -76,12 +76,12 @@ are lifted to a singleton object @IntTop@ representing the set of all numbers;
 closures remain the same. Then the type @Value@ is sets of @AbsValue@ (we abuse
 the type names a little bit, as the generic interface defined the abstract type
 @Value@).
-The address space is constrained to be finited to ensure the computatbility of
+The address space is constrained to be finite to ensure the computatbility of
 analysis -- for the simplest monovariant analysis, we use variable names for
-addresses. After setteling the @Value@ and @Addr@ type, the environments and
+addresses. After settling the @Value@ and @Addr@ type, the environments and
 stores are automatically lifted to abstract environments and abstract stores,
 i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@ respectively.
-It is importatnt that the abstract store now maps addresses to sets of abstract
+It is important that the abstract store now maps addresses to sets of abstract
 values, meaning an address may point to an over-approximated set of values
 occurred at runtime.
 
@@ -95,7 +95,7 @@ occurred at runtime.
   }
 \end{lstlisting}
 
-To prevent the abstract interpreter from falling into nontermination, the ADI
+To prevent the abstract interpreter from falling into non-termination, the ADI
 approach uses a two-cache mechanism. Here we first provide the type
 definitions, and later we will describe the algorithm in detail. A @Cache@ is a
 mapping from configurations @Config@ to sets of value-store pairs, where the
@@ -118,7 +118,7 @@ have multiple computing results.
   type Result = (R[List[(Value, Store)]], R[Cache])
 \end{lstlisting}
 
-This oberservation leads us to the type definition of @Result@: in concrete setting,
+This observation leads us to the type definition of @Result@: in concrete setting,
 the @Result@ is a pair of @Value@ and @Store@, now we use a list of such pairs
 @List[(Value, Store)]@ to represent multiple results. The results is also linked
 with the resulting cache used in this iteration.
@@ -169,14 +169,14 @@ using @mplus@ from @MonadPlus@, which requires the values are join-semilattices
   def br0(test: Value, thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus.mplus(thn, els)
 \end{lstlisting}
 
-The value representation of lambda terms is stil @CloV@, but we lift it to a
+The value representation of lambda terms is still @CloV@, but we lift it to a
 singleton set.
 
 \begin{lstlisting}
-  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
+  def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
 \end{lstlisting}
 
-For function applications, @ap_clo@ loooks roughly the same as the concrete
+For function applications, @ap_clo@ looks roughly the same as the concrete
 interpreter. The difference is now the function @rator@ is a set of closures, so
 we can not directly destruct it by pattern matching. Instead, we use an
 auxiliary function @lift_nd@ that takes a list and lifts the elements into the
@@ -185,7 +185,7 @@ monad stack. Then we can still implement @ap_clo@ in monadic style, where the
 
 \begin{lstlisting}
   def lift_nd[T](vs: List[T]): AnsM[T]
-  def ap_clo(ev: EvalFun)(rator: Value, rand: Value): Ans = for {
+  def ap_clo(ev: Expr => Ans)(rator: Value, rand: Value): Ans = for {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](rator.toList)
     α <- alloc(x)
     _ <- set_store(α → rator)
@@ -197,8 +197,8 @@ monad stack. Then we can still implement @ap_clo@ in monadic style, where the
 
 \paragraph{Caching and Fixpoint Iteration}
 
-As we mentioned ealier, the ADI approach uses a two-cache mechanism to
-compute the least fixed-point and prevent nontermination, which is also called a
+As we mentioned earlier, the ADI approach uses a two-cache mechanism to
+compute the least fixed-point and prevent non-termination, which is also called a
 \textit{co-inductive} caching algorithm or \textit{truncated depth-first
 evaluation} \cite{Rosendahl:AbsIntPL}. It has been widely used in abstract
 interpretation or fixed point computation
@@ -233,7 +233,7 @@ Then we invoke @ev@ to compute the result for this iteration.
 After the evaluation, the store @σ@ may have been changed. So we update the
 @out@ cache with the new result, i.e., @(v, σ)@. Similar to store update, cache
 update is also point-wise join.
-Note that for the recursive call of @ev@, we also instrument it by puting
+Note that for the recursive call of @ev@, we also instrument it by putting
 @fix(ev)@ as the first argument to @ev@.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the
@@ -243,7 +243,7 @@ thus the iteration should end and we have reached the least fixed point.
 \begin{figure}[t!]
   \centering
 \begin{lstlisting}
-  def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
+  def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
     ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache; val cfg = (e, ρ, σ)
     rt <- if (out.contains(cfg)) for {
             (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)
