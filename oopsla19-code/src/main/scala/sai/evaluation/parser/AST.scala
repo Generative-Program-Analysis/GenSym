@@ -1,4 +1,4 @@
-package sai.direct.large.parser
+package sai.evaluation.parser
 
 /* Author: Yuxuan Chen, Guannan Wei */
 
@@ -25,6 +25,7 @@ case class Bind(x: String, e: Expr) {
   override def toString: String = "Bind(\"" + x + "\" " + e + ")"
   def toSet: Set_! = Set_!(x, e)
 }
+
 case class Let(bds: List[Bind], body: Expr) extends Expr {
   def toApp: App = {
     val args = bds map { case Bind(name, _) => name }
@@ -32,6 +33,7 @@ case class Let(bds: List[Bind], body: Expr) extends Expr {
     App(Lam(args, body), vals)
   }
 }
+
 case class Lrc(bds: List[Bind], body: Expr) extends Expr {
   def toApp: App =
     Let(bds.map { case Bind(x, _) => Bind(x, Void()) },
@@ -79,15 +81,5 @@ object SExpPrinter {
   }
 
   def apply(e: Expr): Unit = println(exprToString(e))
-
-  def main(args: Array[String]) = {
-    assert(SExpPrinter.exprToString(CharLit('a')) == "#\\a")
-
-    assert(SExpPrinter.exprToString(App(Lam(List("x", "y"),
-      App(Var("+"), List(Var("x"), Var("y")))), List(IntLit(1), IntLit(3)))) ==
-      "((lambda (x y) (+ x y)) 1 3)")
-
-    assert(SExpPrinter.exprToString(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t")))) ==
-      "(if #f a (lambda (t) t))")
-  }
 }
+

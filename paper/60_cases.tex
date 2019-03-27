@@ -1,43 +1,43 @@
 \section{Case Studies} \label{cases_study}
 
-\todo{WIP}
+In Section~\ref{sai}, we use a toy language to show that staging an abstract
+interpreter is feasible and can be systematically derived from staged concrete
+interpreters and unstaged abstract interpreter.
+In this section, we conduct several case studies to further show that this
+methodology is practically useful and widely applicable to diverse analyses.
 
-In Section~\ref{sai}, we have shown that staging an abstract interpreter is
-feasible and can be systematic after correctly identifying the binding-times,
-despite the fact that the abstract interpreter is intended to be imprecise and
-easy to implement. In this section, we conduct several case studies to show that
-this approach is also useful and widely applicable to different analyses.
+\subsection{Abstract Compilation \`a la Staging} \label{cs_ac}
 
-\subsection{Abstract Compilation a la Staging} \label{cs_ac}
+We first revisit a similar technique called \textit{abstract compilation} (AC).
+AC is introduced by \citet{Boucher:1996:ACN:647473.727587} as a new
+implementation technique for abstract interpretation based static analysis.
+The idea is inspired by partial evaluation similar to the present paper --
+the program is known statically, and the interpretive overhead can be
+eliminated. In AC, the compiled analysis can be represented by either text or
+closures (higher-order functions). The minute difference is that the closures
+can be executed immediately, while the textual programs need to be compiled and
+loaded first.
 
-\citeauthor{Boucher:1996:ACN:647473.727587} introduced abstract compilation (AC)
-as a new implementation technique for abstract interpretation based static
-analysis \cite{Boucher:1996:ACN:647473.727587}. The idea is inspired by partial
-evaluation similar to the present paper -- the program can be known statically,
-the overhead of interpretation can be eliminated. In AC, the compiled analysis
-can be represented by either text or closures (higher-order functions); though
-the closures can be executed immediately, the textual programs need to be
-compiled and loaded first.
-
-Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} show how to compile a
+Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} showed how to compile a
 monovariant control-flow analysis \cite{Shivers:1991:SSC:115865.115884,
 Shivers:1988:CFA:53990.54007} for continuation-passing style (CPS) programs.
-Since the analyzed program is written in CPS, the analyzer is essentially a
-big-step control-environment abstract interpreter. Closure generation compiles
-the analysis as a closure taking an environment argument. The overhead of
-traversing the abstract syntax tree of input program also has been eliminated.
+Since the analyzed program is in CPS form, the analyzer is a big-step
+control-environment abstract interpreter. The abstract compilation transforms
+the analysis as a closure just taking an environment argument. Therefore the
+overhead of traversing the AST of input program has been eliminated.
 
-In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s
-abstract compilation can be understood and implemented as an instance of staging
-abstract interpreters. We first revisit the original implementation of abstract
-compilation of 0-CFA, and then reproduce their result by simply adding stage
-annotations. The generated program of our approach improves approximately the
-same extent of speed, but without changing a single line of the analyzer program
-(with the use of LMS). However, closure generation requires more engineering
-effort, specifically a whole-program conversion on the analyzer. Moreover, as
-shown in Section~\ref{staged_ds}, our approach is able to not only remove the
-interpretive overhead, but also specialize the data structures used in the
-analysis, for example, the environment that maps variables to sets of lambda.
+In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s AC
+(closure generation as example) can be understood and implemented as an instance
+of staging abstract interpreters. We first revisit the original implementation
+of abstract compilation of 0-CFA, and then reproduce their result by simply
+adding stage annotations.
+The generated program of our approach improves approximately the same extent of
+speed, but without changing a single line of the analyzer program using
+type-based staging annotations. However, AC requires more engineering effort,
+i.e., rewriting the whole analyzer into the closure generation form. Moreover,
+as shown in Section~\ref{staged_ds}, our approach is able to not only remove the
+interpretive overhead, but also enabling several optimizations such specialized
+data structures and equivalent rewritings.
 
 \begin{figure*}
   \centering
@@ -110,7 +110,7 @@ def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
   \label{compare_ac_sai}
 \end{figure*}
 
-\subsubsection{Closure Generation}
+\paragraph{Original AC} \todo{WIP}
 
 The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA
 for a CPS language consisting of lambda terms, applications, @letrec@ and
@@ -127,7 +127,7 @@ result of multiple calls on such functions, for example, @compCall@ and
 the input program is specialized into the closure. The code is shown in
 Figure~\ref{compare_ac_sai} (left).
 
-\subsubsection{Staged 0-CFA}
+\paragraph{AC through Staging}
 
 On the other side, our approach does exactly the same thing through staging: the
 syntactic terms are static, and stores are dynamic, therefore the generated code

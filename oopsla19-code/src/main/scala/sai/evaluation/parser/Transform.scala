@@ -1,8 +1,8 @@
-package sai.direct.large.parser
+package sai.evaluation.parser
 
 /* Author: Yuxuan Chen */
 
-object LargeSchemeASTDesugar {
+object SchemeASTDesugar {
   var lastIdent = 0
 
   def newIdentLet(e: Expr)(f: Expr => Expr): App = {
@@ -82,26 +82,3 @@ object LargeSchemeASTDesugar {
   }
 }
 
-object TestLargeSchemeDesugar {
-  def main(args: Array[String]) = {
-    assert(LargeSchemeASTDesugar(IntLit(1)) == IntLit(1))
-    SExpPrinter(LargeSchemeASTDesugar(
-      Begin(List(Define("x", IntLit(2)), Set_!("x", IntLit(3)), Var("x")))))
-    SExpPrinter(LargeSchemeASTDesugar(
-      Cond(List(
-        CondBr(
-          App(Var("positive?"),List(IntLit(-5))),
-          App(Var("error"),List())),
-        CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List())),
-        CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here"))))))
-    SExpPrinter(LargeSchemeASTDesugar(
-      Case(IntLit(3), List(
-        CaseBranch(List(IntLit(3), IntLit(4), IntLit(5)), BoolLit(true)),
-        CaseBranch(List(App(Lam(List(), IntLit(7)), List()), IntLit(6)), BoolLit(false))))))
-
-    val Some(ast) = LargeSchemeParser("(define (pow a b) (if (eq? b 0) 1 (* a (pow a (- b 1))))) (pow 3 5)")
-    SExpPrinter(LargeSchemeASTDesugar(ast))
-    val Some(begin_in_begin) = LargeSchemeParser("(begin (begin a b) c d)")
-    SExpPrinter(LargeSchemeASTDesugar(begin_in_begin))
-  }
-}

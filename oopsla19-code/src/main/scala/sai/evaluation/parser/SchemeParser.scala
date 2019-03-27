@@ -1,13 +1,12 @@
-package sai.direct.large.parser
+package sai.evaluation.parser
 
 /* Author: Yuxuan Chen */
 
 import scala.util.parsing.combinator._
 import scala.io.Source
-import sai.utils.TestTrait
-import sai.common.parser._
+import sai.evaluation.utils.TestTrait
 
-trait LargeSchemeParserTrait extends SchemeTokenParser {
+trait SchemeParserTrait extends SchemeTokenParser {
   def id[T](x: T) = x
 
   implicit def variable: Parser[Var] = IDENT ^^ { Var(_) }
@@ -138,7 +137,7 @@ trait LargeSchemeParserTrait extends SchemeTokenParser {
   def program = implicit_begin
 }
 
-object LargeSchemeParser extends LargeSchemeParserTrait {
+object SchemeParser extends SchemeParserTrait {
   def apply(input: String): Option[Expr] = apply(program, input)
 
   def apply[T](pattern: Parser[T], input: String): Option[T] = parse(pattern, input) match {
@@ -147,30 +146,62 @@ object LargeSchemeParser extends LargeSchemeParserTrait {
   }
 }
 
-object TestSimpleDirectLargeSchemeParser extends TestTrait {
+object SchemeParserTest extends TestTrait {
+
+  def testPrettyPrinter = {
+    assert(SExpPrinter.exprToString(CharLit('a')) == "#\\a")
+    assert(SExpPrinter.exprToString(App(Lam(List("x", "y"),
+      App(Var("+"), List(Var("x"), Var("y")))), List(IntLit(1), IntLit(3)))) ==
+      "((lambda (x y) (+ x y)) 1 3)")
+    assert(SExpPrinter.exprToString(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t")))) ==
+      "(if #f a (lambda (t) t))")
+  }
+
+  def testDesugar = {
+    assert(SchemeASTDesugar(IntLit(1)) == IntLit(1))
+    SExpPrinter(SchemeASTDesugar(
+      Begin(List(Define("x", IntLit(2)), Set_!("x", IntLit(3)), Var("x")))))
+    SExpPrinter(SchemeASTDesugar(
+      Cond(List(
+        CondBr(
+          App(Var("positive?"),List(IntLit(-5))),
+          App(Var("error"),List())),
+        CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List())),
+        CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here"))))))
+    SExpPrinter(SchemeASTDesugar(
+      Case(IntLit(3), List(
+        CaseBranch(List(IntLit(3), IntLit(4), IntLit(5)), BoolLit(true)),
+        CaseBranch(List(App(Lam(List(), IntLit(7)), List()), IntLit(6)), BoolLit(false))))))
+
+    val Some(ast) = SchemeParser("(define (pow a b) (if (eq? b 0) 1 (* a (pow a (- b 1))))) (pow 3 5)")
+    SExpPrinter(SchemeASTDesugar(ast))
+    val Some(begin_in_begin) = SchemeParser("(begin (begin a b) c d)")
+    SExpPrinter(SchemeASTDesugar(begin_in_begin))
+  }
+
   def main(args: Array[String]) = {
     if (args.isEmpty) {
       runtest()
     } else {
       if (args(0) == "-f") {
-        println(LargeSchemeParser(Source.fromFile(args(1)).mkString))
+        println(SchemeParser(Source.fromFile(args(1)).mkString))
       } else if (args(0) == "-t") {
         runtest(args(1))
       } else {
-        println(LargeSchemeParser(args(0)))
+        println(SchemeParser(args(0)))
       }
     }
   }
 
   override def testall() = {
     test("quasiquote") {
-      assert(LargeSchemeParser("'xxxx") == Some(Sym("xxxx")))
-      assert(LargeSchemeParser("'(a 1 ,(a b))")
+      assert(SchemeParser("'xxxx") == Some(Sym("xxxx")))
+      assert(SchemeParser("'(a 1 ,(a b))")
         == Some(App(Var("list"),List(Sym("a"), IntLit(1), App(Var("a"),List(Var("b")))))))
     }
 
     test("letrec_to_set") {
-      val actual = LargeSchemeParser("(letrec ([a 3] [b a]) (add a b))")
+      val actual = SchemeParser("(letrec ([a 3] [b a]) (add a b))")
       val expected = Some(
         App(
           Lam(List("a", "b"),
@@ -187,7 +218,7 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
     }
 
     test("implicit") {
-      val actual = LargeSchemeParser("(add a b) (add a b)")
+      val actual = SchemeParser("(add a b) (add a b)")
       val expected = Some(
         Begin(List(
           App(Var("add"), List(Var("a"), Var("b"))),
@@ -198,7 +229,7 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
     }
 
     test("arith") {
-      val actual = LargeSchemeParser("(+ (- a b) (* (/ 2 3) 4))")
+      val actual = SchemeParser("(+ (- a b) (* (/ 2 3) 4))")
       val expected = Some(
         App(Var("+"), List(
           App(Var("-"), List(Var("a"), Var("b"))),
@@ -208,13 +239,13 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
     }
 
     test("define_proc") {
-      val actual = LargeSchemeParser("(define (f a b) (+ a b))")
+      val actual = SchemeParser("(define (f a b) (+ a b))")
       val expected = Some(Define("f", Lam(List("a", "b"), App(Var("+"), List(Var("a"), Var("b"))))))
       assert(actual == expected)
     }
 
     test("cond") {
-      val actual = LargeSchemeParser(
+      val actual = SchemeParser(
         """(cond
             [(positive? -5) (error 1)]
             [(zero? -5) (error 2)]
@@ -229,7 +260,7 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
     test("toplas98_boyer") {
       val fileName = "benchmarks/toplas98/boyer.sch"
       val program = Source.fromFile(fileName).mkString
-      assert(LargeSchemeParser(program) != None)
+      assert(SchemeParser(program) != None)
     }
 
     test("toplas98_nbody_comments") {
@@ -238,7 +269,7 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
       val program1 = Source.fromFile(fileName1).mkString
       val program2 = Source.fromFile(fileName2).mkString
 
-      assert(LargeSchemeParser(program1) == LargeSchemeParser(program2))
+      assert(SchemeParser(program1) == SchemeParser(program2))
     }
 
     test("toplas98_lattice_comments") {
@@ -247,7 +278,7 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
       val program1 = Source.fromFile(fileName1).mkString
       val program2 = Source.fromFile(fileName2).mkString
 
-      assert(LargeSchemeParser(program1) == LargeSchemeParser(program2))
+      assert(SchemeParser(program1) == SchemeParser(program2))
     }
 
     test("bool") {
@@ -255,21 +286,21 @@ object TestSimpleDirectLargeSchemeParser extends TestTrait {
       val T = "#T"
       val f = "#f"
       val F = "#F"
-      assert(LargeSchemeParser(t) == Some(BoolLit(true)))
-      assert(LargeSchemeParser(T) == Some(BoolLit(true)))
-      assert(LargeSchemeParser(f) == Some(BoolLit(false)))
-      assert(LargeSchemeParser(F) == Some(BoolLit(false)))
+      assert(SchemeParser(t) == Some(BoolLit(true)))
+      assert(SchemeParser(T) == Some(BoolLit(true)))
+      assert(SchemeParser(f) == Some(BoolLit(false)))
+      assert(SchemeParser(F) == Some(BoolLit(false)))
     }
 
     test("float") {
-      assert(LargeSchemeParser("3.14") == Some(FloatLit(3.14)))
-      assert(LargeSchemeParser("-3.14") == Some(FloatLit(-3.14)))
-      assert(LargeSchemeParser("0.00000") == Some(FloatLit(0.0)))
+      assert(SchemeParser("3.14") == Some(FloatLit(3.14)))
+      assert(SchemeParser("-3.14") == Some(FloatLit(-3.14)))
+      assert(SchemeParser("0.00000") == Some(FloatLit(0.0)))
     }
 
     test("complex") {
-      assert(LargeSchemeParser("3.14+2.7i") == Some(App(Var("vector"), List(FloatLit(3.14), FloatLit(2.7)))))
-      assert(LargeSchemeParser("-3.14-2.7i") == Some(App(Var("vector"), List(FloatLit(-3.14), FloatLit(-2.7)))))
+      assert(SchemeParser("3.14+2.7i") == Some(App(Var("vector"), List(FloatLit(3.14), FloatLit(2.7)))))
+      assert(SchemeParser("-3.14-2.7i") == Some(App(Var("vector"), List(FloatLit(-3.14), FloatLit(-2.7)))))
     }
   }
 }
