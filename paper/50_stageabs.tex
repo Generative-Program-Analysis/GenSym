@@ -105,8 +105,8 @@ method takes the target closure @clo@, argument @rand@, store and caches.
   def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
                   in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
   def ap_clo(ev: Expr => Ans)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
-    clo <- lift_nd[AbsValue](rator.toList)
-    σ <- get_store; in <- ask_in_cache; out <- get_out_cache
+    σ <- get_store;     clo <- lift_nd[AbsValue](rator.toList)
+    in <- ask_in_cache; out <- get_out_cache
     val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, rand, σ, in, out)
     _ <- put_out_cache(res._2)
     vs <- lift_nd[(Value, Store)](res._1)
@@ -116,7 +116,7 @@ method takes the target closure @clo@, argument @rand@, store and caches.
 
 \paragraph{Staged Caching and Fixpoint Iteration} 
 
-Our fixed-point iteration again relies on two caches @in@ and @out@, which are
+Our fixed-point iteration again relies on the two caches @in@ and @out@, which are
 both staged values now. Therefore, the query of whether the @out@ cache contains
 the current configuration produces a next-stage Boolean value, i.e.,
 @Rep[Boolean]@. Consequently, the branching can not be determined statically --
