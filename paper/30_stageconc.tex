@@ -101,7 +101,7 @@ a next-stage function.
     val Lam(x, e) = λ
     val f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)] = {
       case (v: Rep[Value], σ: Rep[Store]) =>
-        val α = alloc(σ, x); val ρ_* = ρ + (unit(x) → α); val σ_* = σ + (α + v)
+        val α = alloc(σ, x); val ρ_* = ρ + (unit(x) → α); val σ_* = σ + (α → v)
         ev(e)(ρ_*)(σ_*)
     }; emit_compiled_clo(f)
   }

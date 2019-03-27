@@ -224,7 +224,7 @@ Other primitive operations provide basic functionality for the interpreter.
 The method @num@ and @close@ deal with primitive values, which lift literal
 terms (e.g., lambdas) to our value representation (e.g., closures).
 The method @get@ simply retrieves the value mapped from the identifier @x@ in
-the environment and store. Conditionals and arithmetics is handled by @br0@
+the environment and store. Conditionals and arithmetic is handled by @br0@
 and @arith@, respectively. The methods @ap_clo@ takes a function value and an
 argument value and then does the application. Note that the @Env@, @Store@, and
 @Value@ are all wrapped by @R[_]@ since they will be known as next-stage value
