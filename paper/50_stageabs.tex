@@ -30,13 +30,13 @@ still use power sets as an example to present its staged version.
 \end{lstlisting}
 
 As we can see, the @RepSetLattice@ is an instance of @RepLattice@, which is also
-an abstraction of the manipulations on the foundamental data structure. For
-staged versions, these operations eventually are delegated to the @subsetOf@,
-@union@ and @intersect@ operation on @Rep[Set[T]]@. We even don't have to change
-the implementation code, but just the types – from @Set[T]@ to @Rep[Set[T]]@. In
-the code generation part, these operations emit their corresponding next-stage
-code. Again, other lattice structures such as products and maps are implemented
-in a similar way.
+an abstraction of the underlying data structure. The lattice operations
+eventually are delegated to @subsetOf@, @union@ and @intersect@ on
+@Rep[Set[T]]@. We even don't have to change the implementation code, but just
+the types – from @Set[T]@ to @Rep[Set[T]]@. LMS library provides an implicit
+conversion lifting to next-stage values. In the code generation part, these
+operations emit their corresponding next-stage code. Again, other lattice
+structures such as products and maps are implemented in a similar way.
 
 \subsection{Staged Abstract Semantics}
 
