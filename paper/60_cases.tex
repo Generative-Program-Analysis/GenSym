@@ -11,12 +11,12 @@ methodology is practically useful and widely applicable to diverse analyses.
 We first revisit a similar technique called \textit{abstract compilation} (AC).
 AC is introduced by \citet{Boucher:1996:ACN:647473.727587} as a new
 implementation technique for abstract interpretation based static analysis.
-The idea is inspired by partial evaluation similar to the present paper --
-the program is known statically, and the interpretive overhead can be
+Similar to the present paper, the idea is inspired by partial evaluation:
+the program is known statically and the interpretive overhead can be
 eliminated. In AC, the compiled analysis can be represented by either text or
 closures (higher-order functions). The minute difference is that the closures
 can be executed immediately, while the textual programs need to be compiled and
-loaded first.
+loaded.
 
 Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} showed how to compile a
 monovariant control-flow analysis \cite{Shivers:1991:SSC:115865.115884,

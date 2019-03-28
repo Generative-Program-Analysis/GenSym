@@ -25,6 +25,21 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
   object Monad {
     def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
+
+    // A doesn't have to be a Rep type
+    def mapM[M[_]: Monad, A, B: Manifest](xs: List[A])(f: A => M[B]): M[List[B]] = xs match {
+      case Nil => Monad[M].pure(List[B]())
+      case x::xs => Monad[M].flatMap(f(x)) { b =>
+        Monad[M].flatMap(mapM(xs)(f)) { bs =>
+          Monad[M].pure(b::bs)
+        }
+      }
+    }
+
+    def forM[M[_]: Monad, A, B: Manifest](xs: List[A])(f: A => M[B]): M[B] = xs match {
+      case x::Nil => f(x)
+      case x::xs => Monad[M].flatMap(f(x)) { _ => forM(xs)(f) }
+    }
   }
 
   /////////////////////////////////////////////////
@@ -217,13 +232,12 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
     def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { case list: Rep[List[A]] =>
-              val merge: Rep[List[B]] =
-                list.foldLeft(List[B]()) {
-                  case (acc: Rep[List[B]], a: Rep[A]) =>
-                    val fa: M[List[B]] = f(a).run
-                    val listb: M[List[B]] = Monad[M].map(fa) { case falist: Rep[List[B]] => acc ++ falist }
+              val merge: Rep[List[B]] = list.foldLeft(List[B]()) {
+                case (acc: Rep[List[B]], a: Rep[A]) =>
+                  val fa: M[List[B]] = f(a).run
+                  val listb: M[List[B]] = Monad[M].map(fa) { case falist: Rep[List[B]] => acc ++ falist }
                     ??? // expected Rep[List[B]], a comonad operation `extract: w a -> a`!
-                }
+              }
               Monad[M].pure[List[B]](merge)
             })
 

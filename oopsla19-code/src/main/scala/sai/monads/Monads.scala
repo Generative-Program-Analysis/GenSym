@@ -27,9 +27,21 @@ trait Monad[M[_]] extends RMonad[NoRep.NoRep, M]
 object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 
-  trait RMonadOps[R[_], M[_], A] {
-    def flatMap[B: Manifest](f: R[A] => M[B]): M[B]
-    def map[B: Manifest](f: R[A] => R[B]): M[B]
+  // TODO: test
+  def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B]): M[List[B]] = xs match {
+    case Nil => Monad[M].pure(List.empty[B])
+    case x::xs => Monad[M].flatMap(f(x)) { b =>
+      Monad[M].flatMap(mapM(xs)(f)) { bs =>
+        Monad[M].pure(b::bs)
+      }
+    }
+  }
+
+  // Returns the last result
+  // TODO: test
+  def forM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B]): M[B] = xs match {
+    case x::Nil => f(x)
+    case x::xs => Monad[M].flatMap(f(x)) { _ => forM(xs)(f) }
   }
 }
 
@@ -114,10 +126,6 @@ object ReaderT {
 
   def liftM[G[_]: Monad, R, A](ga: G[A]): ReaderT[G, R, A] =
     ReaderT(r => ga)
-}
-
-trait SPReaderT[BT[_], M[_], R, A] extends Monad.RMonadOps[BT, SPReaderT[BT, M, R, ?], A] {
-  val run: BT[R] => M[A]
 }
 
 case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
