@@ -185,8 +185,13 @@ trait UnstagedSchemeAnalyzer extends SchemeAnalyzer {
   def br(test: Value, thn: => Ans, els: => Ans): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
   def arith(op: Symbol, v1: Value, v2: Value): Value = Set(IntV, FloatV)
-  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = ???
-  def ap_clo(ev: EvalFun)(fun: Value, arg: List[Value]): Ans = ???
+  def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
+  def ap_clo(ev: EvalFun)(fun: Value, arg: List[Value]): Ans = for {
+    CloV(Lam(x, e), ρ: Env) <- lift_nd(fun.toList)
+    αs <- mapM(x)(alloc)
+    //_ <- set_store(x → arg(0))
+    //v <- local_env(ev(e))(ρ + (x → α))
+  } yield ???
 
   def primtives(v: AbsValue, args: List[Value]): Value = ???
 
@@ -251,6 +256,7 @@ trait UnstagedSchemeAnalyzer extends SchemeAnalyzer {
   val σ0: Store = Map()
   val cache0: Cache = Map()
 
+  type Result = (List[(Value, Store)], Cache)
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 
   def mValue: Manifest[Value] = manifest[Value]

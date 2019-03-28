@@ -40,6 +40,7 @@ trait Semantics {
   // Environment operations
   def ask_env: AnsM[Env]
   def ext_env(ans: Ans)(xα: (String, R[Addr])): Ans
+  def local_env(ans: Ans)(ρ: R[Env]): Ans
 
   // Store operations
   def get_store: AnsM[Store]
@@ -134,7 +135,11 @@ trait ConcreteSemantics extends ConcreteComponents {
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
-  def ext_env(ans: Ans)(xα: (String, Addr)): Ans = ReaderTMonad[StoreM, Env].local(ans)(ρ => ρ + xα)
+  def ext_env(ans: Ans)(xα: (String, Addr)): Ans = for {
+    ρ <- ask_env
+    v <- local_env(ans)(ρ + xα)
+  } yield v
+  def local_env(ans: Ans)(ρ: Env): Ans = ReaderTMonad[StoreM, Env].local(ans)(_ => ρ)
 
   // Allocating addresses
   def alloc(σ: Store, x: String) = σ.size + 1
@@ -155,7 +160,7 @@ trait ConcreteSemantics extends ConcreteComponents {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
       _ <- set_store(α → arg)
-      rt <- ext_env(ev(e))(x → α)
+      rt <- local_env(ev(e))(ρ + (x → α))
     } yield rt
   }
   def br0(test: Value, thn: => Ans, els: => Ans): Ans =
@@ -194,7 +199,9 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
-  def ext_env(ans: Ans)(xα: (String, Rep[Addr])): Ans = ReaderTMonad[StoreM, Env].local(ans)(ρ => ρ + (unit(xα._1) → xα._2))
+  def ext_env(ans: Ans)(xα: (String, Rep[Addr])): Ans =
+    ReaderTMonad[StoreM, Env].local(ans)(ρ => ρ + (unit(xα._1) → xα._2))
+  def local_env(ans: Ans)(ρ: Rep[Env]): Ans = ReaderTMonad[StoreM, Env].local(ans)(_ => ρ)
 
   // Allocating addresses
   def alloc(σ: Rep[Store], x: String): Rep[Addr] = σ.size + 1
@@ -373,6 +380,7 @@ trait AbstractSemantics extends AbstractComponents {
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
   def ext_env(ans: Ans)(xα: (String, Addr)): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ans)(ρ => ρ + xα)
+  def local_env(ans: Ans)(ρ: Env): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ans)(_ => ρ)
 
   // Allocating addresses
   def alloc(σ: Store, x: String): Addr = Addr(x)
@@ -418,7 +426,7 @@ trait AbstractSemantics extends AbstractComponents {
     CloV(Lam(x, e), ρ: Env) <- lift_nd[AbsValue](fun.toList)
     α <- alloc(x)
     _ <- set_store(α → arg)
-    rt <- ext_env(ev(e))(x → α)
+    rt <- local_env(ev(e))(ρ + (x → α))
   } yield rt
 
   // auxiliary function that lifts values
@@ -517,6 +525,7 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
   def ext_env(ans: Ans)(xα: (String, Rep[Addr])): Ans =
     ReaderTMonad[StoreNdInOutCacheM, Env].local(ans)(ρ => ρ + (unit(xα._1) → xα._2))
+  def local_env(ans: Ans)(ρ: Rep[Env]): Ans = ReaderTMonad[StoreNdInOutCacheM, Env].local(ans)(_ => ρ)
 
   // allocate addresses
   def alloc(σ: Rep[Store], x: String): Rep[Addr] = emit_addr(x)

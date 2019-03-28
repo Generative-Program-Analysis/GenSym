@@ -176,9 +176,8 @@ values.
 
 We also defines several methods to obtain and modify the environment and store.
 These methods either returns monadic values with environment or store inside, or
-simply a @Unit@ value for effects. For example, @ext_env@ takes a value @ans@ of
-type @Ans@ and a pair of binding that maps @x@ to $\alpha$, and installs this
-binding to the environment when evaluating @ans@.
+simply a @Unit@ value for effects. For example, @local_env@ takes a value @ans@ of
+type @Ans@ and a new environment which will be installed when evaluating @ans@.
 
 \vspace{-1em}
 \begin{figure}[h!]
@@ -199,7 +198,7 @@ binding to the environment when evaluating @ans@.
     \begin{lstlisting}
 // Environment operations
 def ask_env: AnsM[Env]
-def ext_env(ans: Ans)(xα: (Ident, R[Addr])): Ans
+def local_env(ans: Ans)(ρ: R[Env]): Ans
 // Store operations
 def get_store: AnsM[Store]
 def put_store(σ: R[Store]): AnsM[Unit]
@@ -256,23 +255,24 @@ takes an extra @ev@.
   \centering
   \begin{lstlisting}
             def eval(ev: Expr => Ans)(e: Expr): Ans = e match {
-              case Lit(i) => num(i)                    case Let(x, rhs, e) => for {
+              case Lit(i) => num(i)                   case Let(x, rhs, e) => for {
               case Var(x) => for {                       v <- ev(rhs)
-                ρ <- ask_env                             α <- alloc(x)
-                σ <- get_store                           _ <- set_store(α → v)
-              } yield get(σ, ρ, x)                      rt <- ext_env(ev(e))(x → α)
-              case Lam(x, e) => for {                  } yield rt
-                ρ <- ask_env                           case Aop(op, e1, e2) => for {
-              } yield close(ev)(Lam(x, e), ρ)            v1 <- ev(e1)                                               
-              case App(e1, e2) => for {                  v2 <- ev(e2)
-                v1 <- ev(e1)                           } yield arith(op, v1, v2)
-                v2 <- ev(e2)                           case Rec(x, rhs, e) => for {
-                rt <- ap_clo(ev)(v1, v2)                 α <- alloc(x)
-              } yield rt                                 v <- ext_env(ev(rhs))(x → α)
-              case If0(e1, e2, e3) => for {              _ <- set_store(α → v)
-                cnd <- ev(e1)                            rt <- ext_env(ev(e))(x → α)
-                rt <- br0(cnd, ev(e2), ev(e3))         } yield rt                    
-              } yield rt
+                ρ <- ask_env                             ρ <- ask_env
+                σ <- get_store                           α <- alloc(x)
+              } yield get(σ, ρ, x)                       _ <- set_store(α → v)
+              case Lam(x, e) => for {                   rt <- local_env(ev(e))(ρ + (x → α))
+                ρ <- ask_env                          } yield rt
+              } yield close(ev)(Lam(x, e), ρ)         case Aop(op, e1, e2) => for {
+              case App(e1, e2) => for {                 v1 <- ev(e1)                                               
+                v1 <- ev(e1)                            v2 <- ev(e2)
+                v2 <- ev(e2)                          } yield arith(op, v1, v2)
+                rt <- ap_clo(ev)(v1, v2)              case Rec(x, rhs, e) => for {
+              } yield rt                                α <- alloc(x)
+              case If0(e1, e2, e3) => for {             ρ <- ask_env
+                cnd <- ev(e1)                           v <- local_env(ev(rhs))(ρ + (x → α))
+                rt <- br0(cnd, ev(e2), ev(e3))          _ <- set_store(α → v)
+              } yield rt                                rt <- local_env(ev(e))(ρ + (x → α))
+                                                      } yield rt                    
             }
   \end{lstlisting}
 \caption{The generic interpreter,
@@ -393,7 +393,7 @@ and evaluates the body expression of that lambda term under the new environment 
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
       _ <- set_store(α → rand)
-      rt <- ext_env(ev(e))(x → α)
+      rt <- local_env(ev(e))(ρ + (x → α))
     } yield rt
   }
 \end{lstlisting}
