@@ -5,7 +5,8 @@ object Utils {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
     val t1 = System.nanoTime()
-    val t = (t1 - t0) //1000000.0
+    //val t = (t1 - t0) / 1000000.0 //to ms
+    val t = (t1 - t0) / 1000000000.0 //to ms
     //println("Elapsed time: " + t + "ms")
     (result, t)
   }
@@ -21,6 +22,6 @@ case class Timing(ts: List[Double]) {
   val perc50 = sorted_ts((sorted_ts.size / 2).toInt)
   val perc75 = sorted_ts(((sorted_ts.size / 4) * 3).toInt)
   val perc95 = sorted_ts(sorted_ts.size - (sorted_ts.size/20).toInt - 1)
-  def toSec(t: Double): Double = t / 1000000.0
+  def toSec(t: Double): Double = t
   override def toString: String = s"#: ${ts.size}, Mean: ${toSec(mean)}, Median: ${toSec(perc50)}"
 }
