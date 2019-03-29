@@ -63,7 +63,7 @@ case class Set_!(x: String, e: Expr) extends Expr with AtomExpr {
 case class Begin(es: List[Expr]) extends Expr
 case class Define(x: String, e: Expr) extends Expr
 
-object SExpPrinter {
+object ASTUtils {
   def exprToString(e: Expr): String = e match {
     case Var(x) => x
     case Void() => "(void)"
@@ -80,6 +80,22 @@ object SExpPrinter {
     case Lam(params, body) => "(lambda (" + params.mkString(" ") + ") " + exprToString(body) + ")"
   }
 
-  def apply(e: Expr): Unit = println(exprToString(e))
+  def prettyPrint(e: Expr): Unit = println(exprToString(e))
+
+  def size(e: Expr): Int = e match {
+    case Var(x) => 1
+    case Void() => 1
+    case Sym(x) => 1
+    case CharLit(x)   => 1
+    case IntLit(x)    => 1
+    case FloatLit(x)  => 1
+    case BoolLit(x)   => 1
+    case Set_!(x, e)  => 1 + size(e)
+    case Define(x, e) => 1 + size(e)
+    case App(x, l)    => 1 + size(x) + l.foldLeft(0)(_ + size(_))
+    case Begin(es)    => 1 + es.foldLeft(0)(_ + size(_))
+    case If(c, t, e)  => 1 + size(c) + size(t) + size(e)
+    case Lam(params, body) => 1 + size(body)
+  }
 }
 

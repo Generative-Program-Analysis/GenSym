@@ -4,7 +4,9 @@ package sai.evaluation.parser
 
 import scala.util.parsing.combinator._
 import scala.io.Source
+
 import sai.evaluation.utils.TestTrait
+import sai.evaluation.parser.ASTUtils._
 
 trait SchemeParserTrait extends SchemeTokenParser {
   def id[T](x: T) = x
@@ -149,34 +151,34 @@ object SchemeParser extends SchemeParserTrait {
 object SchemeParserTest extends TestTrait {
 
   def testPrettyPrinter = {
-    assert(SExpPrinter.exprToString(CharLit('a')) == "#\\a")
-    assert(SExpPrinter.exprToString(App(Lam(List("x", "y"),
+    assert(prettyPrint(CharLit('a')) == "#\\a")
+    assert(prettyPrint(App(Lam(List("x", "y"),
       App(Var("+"), List(Var("x"), Var("y")))), List(IntLit(1), IntLit(3)))) ==
       "((lambda (x y) (+ x y)) 1 3)")
-    assert(SExpPrinter.exprToString(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t")))) ==
+    assert(prettyPrint(If(BoolLit(false), Var("a"), Lam(List("t"), Var("t")))) ==
       "(if #f a (lambda (t) t))")
   }
 
   def testDesugar = {
     assert(SchemeASTDesugar(IntLit(1)) == IntLit(1))
-    SExpPrinter(SchemeASTDesugar(
+    prettyPrint(SchemeASTDesugar(
       Begin(List(Define("x", IntLit(2)), Set_!("x", IntLit(3)), Var("x")))))
-    SExpPrinter(SchemeASTDesugar(
+    prettyPrint(SchemeASTDesugar(
       Cond(List(
         CondBr(
           App(Var("positive?"),List(IntLit(-5))),
           App(Var("error"),List())),
         CondBr(App(Var("zero?"),List(IntLit(-5))),App(Var("error"),List())),
         CondBr(App(Var("positive?"),List(IntLit(5))),Sym("here"))))))
-    SExpPrinter(SchemeASTDesugar(
+    prettyPrint(SchemeASTDesugar(
       Case(IntLit(3), List(
         CaseBranch(List(IntLit(3), IntLit(4), IntLit(5)), BoolLit(true)),
         CaseBranch(List(App(Lam(List(), IntLit(7)), List()), IntLit(6)), BoolLit(false))))))
 
     val Some(ast) = SchemeParser("(define (pow a b) (if (eq? b 0) 1 (* a (pow a (- b 1))))) (pow 3 5)")
-    SExpPrinter(SchemeASTDesugar(ast))
+    prettyPrint(SchemeASTDesugar(ast))
     val Some(begin_in_begin) = SchemeParser("(begin (begin a b) c d)")
-    SExpPrinter(SchemeASTDesugar(begin_in_begin))
+    prettyPrint(SchemeASTDesugar(begin_in_begin))
   }
 
   def main(args: Array[String]) = {

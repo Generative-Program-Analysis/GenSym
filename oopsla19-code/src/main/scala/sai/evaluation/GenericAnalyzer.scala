@@ -128,6 +128,5 @@ trait AbstractComponents extends SchemeAnalyzer {
 
   type Value = Set[AbsValue]
   type Ctx = R[List[Expr]]
-
 }
 

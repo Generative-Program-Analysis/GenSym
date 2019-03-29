@@ -1,24 +1,30 @@
 \section{Empirical Evaluation} \label{evaluation}
 
-To evaluate whether the performance can be improved through staging, we use the
-abstract interpreter demonstrated in the paper to analyze some Scheme programs.
-We first implement a desugaring transformation for a large subset of Scheme that
-transforms into the small language we used in the paper. We use the same generic
-interface with a 0-CFA-like abstraction, and the unstage abstract interpreter
-forms the baseline.
+To evaluate the performance can be improved by our staging abstract interpreters
+approach, we scale our toy interpreter to a large subset of the Scheme language
+and evaluate the analyzing time against with the unstaged versions. The result
+shows an average \todo{X}\% running time improvement, as a strong evidence of
+our \textit{abstraction without regret} approach to construct abstract
+interpreters.
 
-All of our evaluation benchmarks were performed on an Ubuntu 16.04 LTS (Linux
-kernel 4.4.0) machine with 4 Intel Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of
-RAM. Although the machine has 96 cores and 192 threads in total, the abstract
-interpreters only use one thread to run all the benchmark programs.
+We implement the abstract interpreters for control-flow analysis, i.e., a
+value-flow analysis focus on lambda terms in functional languages. A frontend
+desugars Scheme to a small core language that make the analyzer easy to
+implement. Macros and @call/cc@ is not handled. As described in Section ???, we
+implement a monovariant 0-CFA-like analysis, a context-sensitive $1$-CFA-like
+analysis, both their versions with and without store-widening.
 
-Our evaluations show that the staged abstract interpreter performs well in some
-cases that are considered to be the worst scenarios for traditional $k$-CFA. The
-staged version outperforms the unstaged abstract interpreter by a significant
-margin (up to ~230\% performance gain) on these difficult ones.
+\paragraph{Setting}
 
-\subsection{Benchmarks}
+We use Scala 2.12.4 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04LTS
+(kernel 4.4.0). All of our evaluation were performed on a machine with 4 Intel
+Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96
+cores and 192 threads in total, the abstract interpreters only use one thread.
+To minimize the effect of warming-up from the JVM JIT compiler, all the
+experiments are executed for 20 times and we report the statistical median value
+of the running times (in seconds).
 
+\paragraph{Benchmarks} \todo{Rewrite}
 The benchmark programs we used are collected from previous papers
 \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical,
 DBLP:journals/corr/abs-1102-3676} and exisiting artifacts
@@ -37,36 +43,32 @@ We used the following benchmark programs:
     the number $n$ indicates the depth of nesting lambda terms.
 \end{itemize}
 
-\subsection{Performance}
-
-Considering that our abstract interpreters are implemented in Scala which will be 
-affected by the JIT warm up times, we run all experiments 10 times and report
-the statistical median values of the running times.
-
-\todo{remove fib; report LOC; mean}
+\paragraph{Result}
 
 \begin{figure}[h]
-\begin{tabular}{@{}llll@{}}
+\tiny
+\begin{tabular}{@{}lllll@{}}
 \toprule
-    Program            & unstaged   & staged     & $\Delta$ of median \\ \midrule
-  % fib                & 1.020      & 2.046      & -50.14\%          \\
-    rsa                & 35.928     & 145.306    & -75.27\%          \\
-    kcfa3              & 2.934      & 5.671      & -48.27\%          \\
-    church             & 884.800    & 545.736    & +62.13\%          \\
-    fermat             & 15.673     & 68.790     & -77.22\%          \\
-    kcfa-worst-16      & 320.689    & 301.564    & +6.34\%           \\
-    kcfa-worst-32      & 3,685.615  & 1,854.461  & +98.74\%          \\
-    kcfa-worst-64      & 49,422.666 & 14,849.725 & +232.82\%         \\
+    Program          &\#AST & unstaged   & staged     & $\Delta$ \\ \midrule
+  % fib              &      & 1.020      & 2.046      & -50.14\%          \\
+    @rsa@            &      &            &            & \%          \\
+    @kcfa3@          &      &            &            & \%          \\
+    @church@         &      &            &            & \%          \\
+    @fermat@         &      &            &            & \%          \\
+    @kcfa-worst-16@  &  198 & 0.352      & 0.028      & +1157.14\%        \\
+    @kcfa-worst-32@  &  390 & 4.234      & 0.289      & +1365.05\%          \\
+    @kcfa-worst-64@  &  774 & 61.475     & 4.425      & +1289.27\%         \\
     \bottomrule
 \end{tabular}
-\caption{Evaluation result.} \label{evaluation_result}
+\caption{Evaluation result for 0CFA without store-widening.} \label{evaluation_result}
 \end{figure}
 
-Figure~\ref{evaluation_result} shows the benchmark evaluation results. The
-"unstaged" and "staged" columns show the median time to finish the analysis (in
-milliseconds). The "$\Delta$ of median" column shows the performance change from
-the unstaged abstract interpreter to the staged version.
+Figure~\ref{evaluation_result} shows the evaluation results. The
+\textit{unstaged} and \textit{staged} columns show the median time to finish the
+analysis (in seconds). The "$\Delta$" column shows the median runtime change
+from the unstaged to the staged version. \todo{0cfa, 1cfa, store-widen}
 
+\iffalse
 As we can see from the table, the staged version significantly outperforms the
 unstaged especially for the difficult ones. However, for some benchmarks, we
 observe degraded performance. We conjecture this happens due to the fact that
@@ -75,4 +77,4 @@ simple implementation almost identical to what we described in the previous
 sections, we believe the performance still can be improved if more engineering
 effort is taken, such as optimizing code generation and avoiding code
 duplication.
-
+\fi

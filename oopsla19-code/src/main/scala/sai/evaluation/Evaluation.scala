@@ -12,21 +12,22 @@ import scala.io.Source
 import sai.lms._
 import sai.evaluation.utils._
 import sai.evaluation.parser._
+import sai.evaluation.parser.ASTUtils._
 import sai.evaluation.TestPrograms._
 
 object Evaluation {
 
   def main(args: Array[String]) {
     val progs = List[(Expr, String)](
-      //boyer
-      //euclid,
-      //euclid_imp
-      //kcfa32
+      //(boyer, "boyer"),
+      //(euclid, "euclid"),
+      //(euclid_imp, "euclid_imp"),
       //(fact5, "fact5")
       //(kcfa16, "kcfa16"),
       //(kcfa32, "kcfa32"),
       //(kcfa64, "kcfa64"),
-      (kcfa256, "kcfa256")
+      //(kcfa256, "kcfa256"),
+      (church, "church")
     )
     progs foreach { case (e, id) => compare(e, id) }
   }
@@ -71,8 +72,9 @@ object Evaluation {
   val output = "CodeGen.out"
 
   def compare(e: Expr, id: String) {
+    println(s"Running $id, AST size: ${size(e)}")
+    /*
     val N = 20
-
     val t1 =  run(N, { evalUnstaged(e) })
     println(s"[$id] [unstaged] - ${t1}s")
   
@@ -83,9 +85,6 @@ object Evaluation {
 
     val t2 = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
-
-    //println("Result:")
-    //println(s"  Unstaged time - ${t1}")
-    //println(s"  Staged time - ${t2}")
+    */
   }
 }
