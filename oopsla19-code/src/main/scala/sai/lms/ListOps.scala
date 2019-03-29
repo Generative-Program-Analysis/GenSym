@@ -168,6 +168,8 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
 }
 
 trait ListOpsExpOpt extends ListOpsExp {
+  //TODO: prepend, zip
+
   override def list_concat[A : Manifest](xs1: Exp[List[A]], xs2: Exp[List[A]])(implicit pos: SourceContext): Exp[List[A]] = (xs1, xs2) match {
     case (Def(ListNew(xs1, t1)), Def(ListNew(xs2, t2))) => ListNew(xs1 ++ xs2, manifest[A])
     case (Def(ListNew(Seq(), _)), xs2) => xs2
@@ -177,6 +179,7 @@ trait ListOpsExpOpt extends ListOpsExp {
   override def list_foldLeft[A: Manifest, B: Manifest](s: Exp[List[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Exp[B] = s match {
     case Def(ListNew(xs, _)) if xs.size == 0 => z
     case Def(ListNew(xs, _)) if xs.size == 1 => f(z, xs(0))
+    case Def(ListNew(xs, _)) => xs.foldLeft(z)(f)
     case _ => super.list_foldLeft(s, z, f)
   }
 }

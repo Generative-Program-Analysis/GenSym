@@ -28,7 +28,7 @@ object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 
   // TODO: test
-  def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B]): M[List[B]] = xs match {
+  def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[List[B]] = xs match {
     case Nil => Monad[M].pure(List.empty[B])
     case x::xs => Monad[M].flatMap(f(x)) { b =>
       Monad[M].flatMap(mapM(xs)(f)) { bs =>
@@ -39,7 +39,7 @@ object Monad {
 
   // Returns the last result
   // TODO: test
-  def forM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B]): M[B] = xs match {
+  def forM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[B] = xs match {
     case x::Nil => f(x)
     case x::xs => Monad[M].flatMap(f(x)) { _ => forM(xs)(f) }
   }

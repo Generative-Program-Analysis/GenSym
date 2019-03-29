@@ -50,18 +50,19 @@ trait SchemeAnalyzer {
   def get(ρ: R[Env], x: String): R[Addr]
   def get(σ: R[Store], ρ: R[Env], x: String): R[Value]
   def br(test: R[Value], thn: => Ans, els: => Ans): Ans
-  def arith(op: Symbol, v1: R[Value], v2: R[Value]): R[Value]
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[List[Value]]): Ans
+  def primtives(v: R[Value], args: List[R[Value]]): R[Value]
 
   // Fixpoint wrapper and top-level interface
   def fix(ev: EvalFun => EvalFun): EvalFun
   def run(e: Expr): Result
 
   implicit def mValue: Manifest[Value]
+  implicit def mAddr: Manifest[Addr]
 
-  def mapM[A, B](xs: List[A])(f: A => AnsM[B]): AnsM[List[B]]
-  def forM[A, B](xs: List[A])(f: A => AnsM[B]): AnsM[B]
+  def mapM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[List[B]]
+  def forM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[B]
 
   def eval(ev: EvalFun)(e: Expr): Ans = e match {
     case Void() => void
@@ -120,10 +121,13 @@ trait AbstractComponents extends SchemeAnalyzer {
   //addr as value?
 
   trait Addr
-  case class ZCFAAddr(x: String) extends Addr
+  case class ZCFAAddr(x: String) extends Addr {
+    override def toString = "ZCFAAddr(\"" + x + "\")"
+  }
   case class OCfaAddr(x: String, ctx: Expr) extends Addr
 
   type Value = Set[AbsValue]
   type Ctx = R[List[Expr]]
+
 }
 

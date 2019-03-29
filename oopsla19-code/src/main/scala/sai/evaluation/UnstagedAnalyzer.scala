@@ -30,8 +30,8 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
   type AnsM[T] = EnvT[StoreNdInOutCacheM, T]
 
-  def mapM[A, B](xs: List[A])(f: A => AnsM[B]): AnsM[List[B]] = Monad.mapM(xs)(f)
-  def forM[A, B](xs: List[A])(f: A => AnsM[B]): AnsM[B] = Monad.forM(xs)(f)
+  def mapM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[List[B]] = Monad.mapM(xs)(f)
+  def forM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[B] = Monad.forM(xs)(f)
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask
@@ -68,7 +68,6 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br(test: Value, thn: => Ans, els: => Ans): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
-  def arith(op: Symbol, v1: Value, v2: Value): Value = Set(IntV, FloatV)
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun.toList)
@@ -77,7 +76,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     v <- local_env(ev(e))(params.zip(αs).foldLeft(ρ) { case (ρ, (x,α)) => ρ + (x → α) })
   } yield v
 
-  def primtives(v: AbsValue, args: List[Value]): Value = ???
+  def primtives(v: Value, args: List[Value]): Value = ???
 
   def lift_nd[T](vs: List[T]): AnsM[T] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, T](
@@ -144,4 +143,5 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 
   def mValue: Manifest[Value] = manifest[Value]
+  def mAddr: Manifest[Addr] = manifest[Addr]
 }

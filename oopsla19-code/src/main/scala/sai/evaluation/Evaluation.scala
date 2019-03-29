@@ -1,7 +1,14 @@
 package sai.evaluation
 
-import scala.io.Source
+import scala.virtualization.lms.internal.GenericNestedCodegen
+import scala.virtualization.lms.common.{
+  SetOps => _, SetOpsExp => _, ScalaGenSetOps => _,
+  ListOps => _, ListOpsExp => _, ScalaGenListOps => _,
+  _}
+import org.scala_lang.virtualized.virtualize
+import org.scala_lang.virtualized.SourceContext
 
+import scala.io.Source
 import sai.lms._
 import sai.evaluation.utils._
 import sai.evaluation.parser._
@@ -15,6 +22,7 @@ object Evaluation {
       //euclid,
       //euclid_imp
       //kcfa32
+      //(fact5, "fact5")
       (kcfa16, "kcfa16")
     )
     progs foreach { case (e, id) => compare(e, id) }
@@ -40,28 +48,41 @@ object Evaluation {
     //println(s"Size of cache: ${res._2.size}")
   }
 
-  def specialize(e: Expr): DslDriver[Unit, Unit] = {
-    ???
+  def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedSchemeAnalyzerDriver {
+    @virtualize
+    def snippet(u: Rep[Unit]): Rep[Unit] = {
+      val res = run(e)
+      //println(s"Number of values:" + res._1)
+      //println(s"Size of cache:" + res._2.size)
+      //println(res._1)
+      //println(res._2.size)
+    }
   }
 
+  def writeTo(filename: String, content: String): Unit = {
+    val writer = new java.io.PrintWriter(new java.io.File(filename))
+    writer.write(content)
+    writer.close()
+  }
+
+  val output = "CodeGen.scala"
+
   def compare(e: Expr, id: String) {
-    val t1 =  run(10, { evalUnstaged(e) })
-    println(s"[$id] [unstaged] - ${t1}s")
+    val N = 1
+
+    //val t1 =  run(N, { evalUnstaged(e) })
+    //println(s"[$id] [unstaged] - ${t1}s")
   
-    /*
     val code = specialize(e)
     code.precompile
-    println("Finished precompile, writing code to CodeGen.scala.ignore")
-    val writer = new java.io.PrintWriter(new java.io.File("CodeGen.scala.ignore"))
-    writer.write(code.code)
-    writer.close()
-    println("Start running compiled version")
+    println(s"[$id] [staged] Finished precompile, writing code to ${output}")
+    writeTo(output, code.code)
 
-    val t2 = run(20, { code.eval(()) })
+    val t2 = run(N, { code.eval(()) })
+    println(s"[$id] [staged] - ${t2}s")
 
-    println("-------------------------------------------")
-    println(s"Unstaged time - ${t1}")
-    println(s"Staged time - ${t2}")
-    */
+    //println("Result:")
+    //println(s"  Unstaged time - ${t1}")
+    //println(s"  Staged time - ${t2}")
   }
 }

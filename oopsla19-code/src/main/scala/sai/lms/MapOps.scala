@@ -141,14 +141,6 @@ trait MapOpsExpOpt extends MapOpsExp {
   }
 }
 
-trait AbsEnvExpOpt extends MapOpsExpOpt { self: StagedAbstractSemantics =>
-  // Note: optimization for 0-CFA, collapsing the environment.
-  override def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
-    case (m1: Exp[Map[String,Addr]], Const(x: String)) => unit(Addr(x).asInstanceOf[V])
-    case _ => super.map_apply(m, k)
-  }
-}
-
 trait BaseGenMapOps extends GenericNestedCodegen {
   val IR: MapOpsExp
   import IR._
