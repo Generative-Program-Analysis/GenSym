@@ -27,11 +27,10 @@ trait SAI_ScalaGenIfThenElse extends ScalaGenEffect with BaseGenIfThenElse {
       stream.println(quote(getBlockResult(b)))
       stream.println("}")
 
-      stream.println("val " + if_sym + " = if (" + quote(c) + ") {")
-      stream.println(then_sym + "()")
-      stream.println("} else {")
+      stream.print("val " + if_sym + " = if (" + quote(c) + ") ")
+      stream.print(then_sym + "()")
+      stream.print(" else ")
       stream.println(else_sym + "()")
-      stream.println("}")
     case _ => super.emitNode(sym, rhs)
   }
 }

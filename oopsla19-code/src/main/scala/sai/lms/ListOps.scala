@@ -181,7 +181,12 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
 }
 
 trait ListOpsExpOpt extends ListOpsExp with TupleOpsExp {
-  //TODO: prepend, zip
+  //TODO: zip
+
+  override def list_prepend[A:Manifest](l: Exp[List[A]], e: Exp[A])(implicit pos: SourceContext) = (l, e) match {
+    case (Def(ListNew(xs,t)), e) => ListNew(e +: xs, manifest[A])
+    case _ => super.list_prepend(l, e)
+  }
 
   override def list_concat[A : Manifest](xs1: Exp[List[A]], xs2: Exp[List[A]])(implicit pos: SourceContext): Exp[List[A]] = (xs1, xs2) match {
     case (Def(ListNew(xs1, t1)), Def(ListNew(xs2, t2))) => ListNew(xs1 ++ xs2, manifest[A])

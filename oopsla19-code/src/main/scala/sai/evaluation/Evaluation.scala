@@ -54,8 +54,8 @@ object Evaluation {
       val res = run(e)
       //println(s"Number of values:" + res._1)
       //println(s"Size of cache:" + res._2.size)
-      //println(res._1)
-      //println(res._2.size)
+      println(res._1)
+      println(res._2.size)
     }
   }
 
@@ -65,7 +65,7 @@ object Evaluation {
     writer.close()
   }
 
-  val output = "CodeGen.scala"
+  val output = "CodeGen.out"
 
   def compare(e: Expr, id: String) {
     val N = 1
