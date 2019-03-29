@@ -8,7 +8,7 @@ import org.scala_lang.virtualized.SourceContext
 
 /* Enhanced ListOps for SAI */
 
-trait ListOps extends Variables {
+trait ListOps extends Variables with TupleOps {
   object List {
     def apply[A:Manifest](xs: Rep[A]*)(implicit pos: SourceContext) = list_new(xs)
   }
@@ -36,6 +36,7 @@ trait ListOps extends Variables {
     def zip[B:Manifest](rhs: Rep[List[B]]) = list_zip(l, rhs)
     def take(i: Rep[Int]) = list_take(l, i)
     def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]) = list_foldLeft(l, z, f)
+    def foldLeftPair[B:Manifest,C:Manifest](z: Rep[(B,C)])(f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)]) = list_foldLeftPair(l, z, f)
     def containsSlice(that: Rep[List[A]]) = list_containsSlice(l, that)
     def intersect(that: Rep[List[A]]) = list_intersect(l, that)
   }
@@ -60,6 +61,7 @@ trait ListOps extends Variables {
   def list_zip[A:Manifest, B:Manifest](lhs: Rep[List[A]], rhs: Rep[List[B]])(implicit pos: SourceContext): Rep[List[(A, B)]]
   def list_take[A:Manifest](xs: Rep[List[A]], i: Rep[Int])(implicit pos: SourceContext): Rep[List[A]]
   def list_foldLeft[A:Manifest,B:Manifest](s: Rep[List[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
+  def list_foldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Rep[List[A]], z: Rep[(B,C)], f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)])(implicit pos: SourceContext): Rep[(B,C)]
   def list_containsSlice[A:Manifest](l1: Rep[List[A]], l2: Rep[List[A]])(implicit pos: SourceContext): Rep[Boolean]
   def list_intersect[A:Manifest](l1: Rep[List[A]], l2: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]]
 }
@@ -87,6 +89,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
   case class ListFoldLeft[A:Manifest,B:Manifest](s: Exp[List[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
   case class ListContainsSlice[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]]) extends Def[Boolean]
   case class ListIntersect[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]]) extends Def[List[A]]
+  case class ListFoldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[List[A]], z: Exp[(B,C)], acc1: Sym[B], acc2: Sym[C], x: Sym[A], blocl: Block[(B,C)]) extends Def[(B,C)]
 
   def list_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext) = ListNew(xs, manifest[A])
   def list_fromseq[A:Manifest](xs: Rep[Seq[A]])(implicit pos: SourceContext) = ListFromSeq(xs)
@@ -131,6 +134,13 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
   }
   def list_containsSlice[A: Manifest](l1: Exp[List[A]], l2: Exp[List[A]])(implicit pos: SourceContext) = ListContainsSlice(l1, l2)
   def list_intersect[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]])(implicit pos: SourceContext) = ListIntersect(l1, l2)
+  def list_foldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[List[A]], z: Exp[(B,C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext) = {
+    val acc1 = fresh[B]
+    val acc2 = fresh[C]
+    val x = fresh[A]
+    val b = reifyEffects(f((acc1, acc2), x))
+    reflectEffect(ListFoldLeftPair(s, z, acc1, acc2, x, b), summarizeEffects(b).star)
+  }
 
   override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = {
     (e match {
@@ -145,6 +155,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     case ListFilter(a, _, body) => syms(a) ::: syms(body)
     case ListSortBy(a, x, body) => syms(a):::syms(body)
     case ListFoldLeft(s, z, acc, x, body) => syms(s) ::: syms(z) ::: syms(body)
+    case ListFoldLeftPair(s, z, acc1, acc2, x, body) => syms(s) ::: syms(z) ::: syms(body)
     case _ => super.syms(e)
   }
 
@@ -154,6 +165,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     case ListFilter(_, x, body) => x :: effectSyms(body)
     case ListSortBy(a, x, body) => x :: effectSyms(body)
     case ListFoldLeft(s, z, acc, x, body) => acc :: x :: effectSyms(body)
+    case ListFoldLeftPair(s, z, acc1, acc2, x, body) => acc1::acc2::x::effectSyms(body)
     case _ => super.boundSyms(e)
   }
 
@@ -163,11 +175,12 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     case ListFilter(a, _, body) => freqNormal(a) ::: freqHot(body)
     case ListSortBy(a, x, body) => freqNormal(a) ::: freqHot(body)
     case ListFoldLeft(s, z, acc, x, body) => freqNormal(s) ::: freqNormal(z) ::: freqHot(body)
+    case ListFoldLeftPair(s, z, acc1, acc2, x, body) => freqNormal(s) ::: freqNormal(z) ::: freqHot(body)
     case _ => super.symsFreq(e)
   }
 }
 
-trait ListOpsExpOpt extends ListOpsExp {
+trait ListOpsExpOpt extends ListOpsExp with TupleOpsExp {
   //TODO: prepend, zip
 
   override def list_concat[A : Manifest](xs1: Exp[List[A]], xs2: Exp[List[A]])(implicit pos: SourceContext): Exp[List[A]] = (xs1, xs2) match {
@@ -176,11 +189,17 @@ trait ListOpsExpOpt extends ListOpsExp {
     case (xs1, Def(ListNew(Seq(), _))) => xs1
     case _ => super.list_concat(xs1, xs2)
   }
-  override def list_foldLeft[A: Manifest, B: Manifest](s: Exp[List[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Exp[B] = s match {
+  override def list_foldLeft[A: Manifest, B: Manifest](s: Exp[List[A]], z: Exp[B], f: (Exp[B], Exp[A]) => Exp[B])(implicit pos: SourceContext): Exp[B] = s match {
     case Def(ListNew(xs, _)) if xs.size == 0 => z
     case Def(ListNew(xs, _)) if xs.size == 1 => f(z, xs(0))
     case Def(ListNew(xs, _)) => xs.foldLeft(z)(f)
     case _ => super.list_foldLeft(s, z, f)
+  }
+  override def list_foldLeftPair[A: Manifest, B: Manifest, C: Manifest](s: Exp[List[A]], z: Exp[(B, C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext): Exp[(B,C)] = s match {
+    case Def(ListNew(xs, _)) if xs.size == 0 => z
+    case Def(ListNew(xs, _)) if xs.size == 1 => f(z, xs(0))
+    //case Def(ListNew(xs, _)) => xs.foldLeft(z)(f)
+    case _ => super.list_foldLeftPair(s, z, f)
   }
 }
 
@@ -232,6 +251,11 @@ trait ScalaGenListOps extends BaseGenListOps with ScalaGenEffect {
     case ListTake(l, i) => emitValDef(sym, src"$l.take($i)")
     case ListFoldLeft(s, z, acc, x, block) =>
       gen"""val $sym = $s.foldLeft ($z) { case ($acc, $x) =>
+            |${nestedBlock(block)}
+            |$block
+            |}"""
+    case ListFoldLeftPair(s, z, acc1, acc2, x, block) =>
+      gen"""val $sym = $s.foldLeft ($z) { case (($acc1, $acc2), $x) =>
             |${nestedBlock(block)}
             |$block
             |}"""

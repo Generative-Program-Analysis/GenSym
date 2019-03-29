@@ -675,6 +675,14 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
   def run_nonsel(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_nonsel(eval)(e)(ρ0)(σ0)(cache0)(cache0)
 }
 
+trait AbsEnvExpOpt extends MapOpsExpOpt { self: StagedAbstractSemantics =>
+  // Note: optimization for 0-CFA, collapsing the environment.
+  override def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
+    case (m1: Exp[Map[String,Addr]], Const(x: String)) => unit(Addr(x).asInstanceOf[V])
+    case _ => super.map_apply(m, k)
+  }
+}
+
 trait StagedAbstractSemanticsExp extends StagedAbstractSemantics with SAIOpsExp with AbsEnvExpOpt {
   //TODO: when evaluating, change lam/rho to hash code
   case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],

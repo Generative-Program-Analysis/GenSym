@@ -305,6 +305,12 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       ListReaderStateM(r => s => {
                          val (lista, s0) = run(r)(s)
                          val init: Rep[(List[B], S)] = (List[B](), s0)
+                         lista.foldLeftPair(init) { case ((listacc, s1), a) =>
+                           val fa: ListReaderStateM[R, S, B] = f(a)
+                           val (listb, s2) = fa.run(r)(s1)
+                           (listacc ++ listb, s2): Rep[(List[B], S)]
+                         }
+                         /*
                          lista.foldLeft(init) { case (acc: Rep[(List[B], S)], a: Rep[A]) =>
                            val fa: ListReaderStateM[R, S, B] = f(a)
                            val listacc = acc._1
@@ -312,6 +318,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
                            val (listb, s2) = fa.run(r)(s1)
                            (listacc ++ listb, s2): Rep[(List[B], S)]
                          }
+                          */
                        })
 
     def map[B: Manifest](f: Rep[A] => Rep[B]): ListReaderStateM[R, S, B] =
