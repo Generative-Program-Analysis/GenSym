@@ -1,47 +1,30 @@
 \section{Related Work}
 
 \paragraph{Optimizing Static Analysis Through Specialization}
-The idea in this paper is closely inspired by abstract compilation
-\cite{Boucher:1996:ACN:647473.727587}.
-\citeauthor{Boucher:1996:ACN:647473.727587} presented abstract compilation
-techniques as an efficient implementation of the monovariant flow analysis
-(\textit{0}-CFA) for programs written in continuation-passing style. The key
-idea is to remove the interpretation overhead on traversing the syntax tree by
-partial evaluation. Specifically, they proposed two similar kinds of abstract
-compilation techniques. The first one is to generate specialized analysis as a
-textual program, which then can be loaded and executed by \texttt{eval} or other
-similar mechanisms. The second one is to use closures, i.e., functions that
-remember their environments, as a representation of specialized analysis. As we
-show in the case study, compiling the analysis generates higer-order functions
-on-the-fly with respect to the analyzed program, then the generated closure can
-be applied immediately in the higher-order host language.
-
-\citeauthor{Johnson:2013:OAA:2500365.2500604} adapt the idea of closure
-generation to optimize small-step abstract interpreter in state-transition style
-\cite{Johnson:2013:OAA:2500365.2500604}. The analyzed program is firstly
-compiled to a intermediate representation called "abstract bytecode", which are
-actually higher-order functions, and then be executed on a abstract abstract
-machine for that IR.
-
-\citet{damian1999partial} provides a formal treatment to abstract compilation
-and Shiver's CFA, as well as proofs to establish correctness of the certified
-specialized analyzer \cite{damian1999partial}. \citeauthor{amtoft1999partial}
-applied partial evaluation for constraint-based control flow analysis
-\cite{amtoft1999partial}. Splitting an analysis into multiple stages is also
-studied for analysis other than for control-flow, though the formulation may very
-different. For example, \citeauthor{DBLP:conf/cgo/HardekopfL11} apply staging to
-flow-sensitive pointer analysis \cite{DBLP:conf/cgo/HardekopfL11}. The first
-stage is to analyze the program code to obtain a sparse representation, and then
-the second stage conducts the flow-sensitive analysis based on the first one.
-
-\citeauthor{DBLP:conf/popl/SinghPV17} optimizes polyhedra abstract domains
-through online decomposition \cite{DBLP:conf/popl/SinghPV17,
-Singh:2017:PCD:3177123.3158143}. The idea is to decompose a large polyhedra into
-several smaller one; one abstract transformer usually only depends a limit
-number of variables, then we just need to compute the resulting polyhera on
-those smaller polyhedras which contain these related variables. The decomposition
-can be considered as a specialization of abstract domain with respect to the
-static program structure.
+The underlying idea in this paper is closely related to abstract compilation (AC)
+\cite{Boucher:1996:ACN:647473.727587}: removing the interpretation overhead on
+traversing the syntax tree by specialization. Specifically, the residual program
+of AC can be either textual or closures. However, as we studied in Section
+\ref{cs_ac}, with the perspective from high-performance DSLs and monadic
+interpreters, we make it more general, extensible and easy.
+\citet{Johnson:2013:OAA:2500365.2500604} adapt the idea of closure
+generation to optimize small-step abstract interpreter in state-transition
+style. The analyzed program is firstly compiled to a IR called "abstract
+bytecode", which are actually higher-order functions and will be executed later
+on a abstract abstract machine for that IR. \citet{damian1999partial} provides a
+formal treatment to abstract compilation and Shiver's CFA, as well as proofs to
+establish correctness of the certified specialized analyzer.
+\citet{amtoft1999partial} applied partial evaluation for constraint-based
+control flow analysis. Splitting an analysis into multiple stages is also
+studied for analysis other than for control-flow, though the formulation may
+very different. For example, \citet{DBLP:conf/cgo/HardekopfL11} apply staging to
+flow-sensitive pointer analysis. The first stage is to analyze the program code
+to obtain a sparse representation, and then the second stage conducts the
+flow-sensitive analysis based on the first one.
+The abstract domains can be also specialized w.r.t. the static program
+structure, e.g., decomposing polyhedras \cite{DBLP:conf/popl/SinghPV17,
+Singh:2017:PCD:3177123.3158143} to smaller ones such that the abstract
+transformers can compute using less time and space.
 
 \paragraph{Abstract Interpreters} Abstract interpretation was proposed as a
 semantic-based approach to construct sound static analysis by approximation

@@ -16,10 +16,10 @@ analysis, both their versions with and without store-widening.
 
 \paragraph{Setting}
 
-We use Scala 2.12.4 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04LTS
-(kernel 4.4.0). All of our evaluation were performed on a machine with 4 Intel
+We use Scala 2.12.4 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04 LTS
+(kernel 4.4.0) machine. All of our evaluation were performed on a machine with 4 Intel
 Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96
-cores and 192 threads in total, the abstract interpreters only use one thread.
+cores (192 threads) in total, the abstract interpreters are single-threaded.
 To minimize the effect of warming-up from the JVM JIT compiler, all the
 experiments are executed for 20 times and we report the statistical median value
 of the running times (in seconds).
