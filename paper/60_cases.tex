@@ -55,15 +55,14 @@ def compCall(call: Expr): CompAnalysis = call match {
     val C1 = compApp(f, args); val C2 = compArgs(args)
     ($\sigma$: Store) => C1(C2($\sigma$))
 }
-def compApp(f: Expr, args: List[Expr]): CompAnalysis = 
-  f match {
-    case Var(x) => ($\sigma$: Store) => 
-      analysisAbsApp($\sigma$.lookup(x), args, $\sigma$)
-    case Op(_) => compArgs(args)
-    case Lam(vars, body) =>
-      val C = compCall(body)
-      ($\sigma$: Store) => C($\sigma$.update(vars, args.map(primEval(_, $\sigma$))))
-  }
+def compApp(f: Expr, args: List[Expr]): CompAnalysis = f match {
+  case Var(x) => ($\sigma$: Store) => 
+    analysisAbsApp($\sigma$.lookup(x), args, $\sigma$)
+  case Op(_) => compArgs(args)
+  case Lam(vars, body) =>
+    val C = compCall(body)
+    ($\sigma$: Store) => C($\sigma$.update(vars, args.map(primEval(_, $\sigma$))))
+}
 def compArgs(args: List[Expr]): CompAnalysis = args match {
   case Nil => ($\sigma$: Store) => $\sigma$
   case (arg@Lam(vars, body))::rest =>
@@ -81,12 +80,12 @@ def analyzeProgram(prog: Expr, $\sigma$: Rep[Store]): Rep[Store] =
   analyzeCall(prog, $\sigma$)
 def analyzeCall(call: Expr, $\sigma$: Rep[Store]): Rep[Store] = 
   call match {
-    case App(f, args) => analyzeApp(f, args, analyzeArgs(args, $\sigma$))
     case Letrec(bds, body) =>
       val $\sigma$_* = $\sigma$.update(bds.map(_.name), 
         bds.map(b => Set(b.value.asInstanceOf[Lam])))
       val $\sigma$_** = analyzeArgs(bds.map(_.value), $\sigma$_*)
       analyzeCall(body, $\sigma$_**)
+    case App(f, args) => analyzeApp(f, args, analyzeArgs(args, $\sigma$))
   }
 def analyzeApp(f: Expr, args: List[Expr], $\sigma$: Rep[Store]): 
   Rep[Store] = f match {
