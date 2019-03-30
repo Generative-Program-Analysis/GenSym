@@ -31,11 +31,14 @@
 (define church=?
   (lambda (e1)
     (lambda (e2)
-      (if (church0? e1)
-	  (church0? e2)
-	  (if (church0? e2)
-	      #f
-	      ((church=? ((sub e1) church1)) ((sub e2) church1)))))))
+      (if (church0? e1) 
+          (church0? e2)
+          (if (church0? e2)
+              #f
+              ((church=? ((sub e1) church1)) 
+               ((sub e2) church1)))))))
+
+;;(church0? church0)
 
 ;; multiplication distributes over addition
 ((church=? ((mult church2) ((plus church1) church3)))

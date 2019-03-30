@@ -194,12 +194,14 @@ trait ListOpsExpOpt extends ListOpsExp with TupleOpsExp {
     case (xs1, Def(ListNew(Seq(), _))) => xs1
     case _ => super.list_concat(xs1, xs2)
   }
+
   override def list_foldLeft[A: Manifest, B: Manifest](s: Exp[List[A]], z: Exp[B], f: (Exp[B], Exp[A]) => Exp[B])(implicit pos: SourceContext): Exp[B] = s match {
     case Def(ListNew(xs, _)) if xs.size == 0 => z
     case Def(ListNew(xs, _)) if xs.size == 1 => f(z, xs(0))
     case Def(ListNew(xs, _)) => xs.foldLeft(z)(f)
     case _ => super.list_foldLeft(s, z, f)
   }
+
   override def list_foldLeftPair[A: Manifest, B: Manifest, C: Manifest](s: Exp[List[A]], z: Exp[(B, C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext): Exp[(B,C)] = s match {
     case Def(ListNew(xs, _)) if xs.size == 0 => z
     case Def(ListNew(xs, _)) if xs.size == 1 => f(z, xs(0))

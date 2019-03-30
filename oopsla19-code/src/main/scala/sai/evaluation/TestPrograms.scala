@@ -87,7 +87,7 @@ object TestPrograms {
   def boyer = getAST(Source.fromFile("benchmarks/toplas98/boyer.sch").mkString)
 
   // Dynamic -- Fritz's dynamic type inferencer, set up to run on itself
-  def dynamic = getAST(Source.fromFile("benchmarks/toplas98/boyer.sch").mkString)
+  def dynamic = getAST(Source.fromFile("benchmarks/toplas98/dynamic.sch").mkString)
 
   // graphs
   def graphs = getAST(Source.fromFile("benchmarks/toplas98/graphs.sch").mkString)

@@ -51,7 +51,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
   // Primitive operations
-  def void: Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set(VoidV))
+  def void: Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set())
   def literal(i: Any): Ans = {
     val v: AbsValue = i match {
       case i: Int => IntV

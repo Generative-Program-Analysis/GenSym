@@ -6,7 +6,7 @@ object SchemeASTDesugar {
   var lastIdent = 0
 
   def newIdentLet(e: Expr)(f: Expr => Expr): App = {
-    val prefix = "__$"
+    val prefix = "$"
     val id = lastIdent
     lastIdent += 1
     val newIdent: String = prefix + id

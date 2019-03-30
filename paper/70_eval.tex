@@ -10,9 +10,9 @@ interpreters.
 We implement the abstract interpreters for control-flow analysis, i.e., a
 value-flow analysis focus on lambda terms in functional languages. A frontend
 desugars Scheme to a small core language that make the analyzer easy to
-implement. Macros and @call/cc@ is not handled. As described in Section ???, we
-implement a monovariant 0-CFA-like analysis, a context-sensitive $1$-CFA-like
-analysis, both their versions with and without store-widening.
+implement. Macros and @call/cc@ is not handled. As described in Section
+\ref{cfa}, we implement a monovariant 0-CFA-like analysis, a context-sensitive
+$1$-CFA-like analysis, both their versions with and without store-widening.
 
 \paragraph{Setting}
 
@@ -28,8 +28,7 @@ of the running times (in seconds).
 The benchmark programs we used are collected from previous papers
 \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical,
 DBLP:journals/corr/abs-1102-3676} and exisiting artifacts
-\footnote{https://github.com/ilyasergey/reachability}.
-
+\footnote{https://github.com/ilyasergey/reachability} for control-flow analysis.
 We used the following benchmark programs:
 
 \begin{itemize}
@@ -50,7 +49,6 @@ We used the following benchmark programs:
 \begin{tabular}{@{}lllll@{}}
 \toprule
     Program          &\#AST & unstaged   & staged     & $\Delta$ \\ \midrule
-  % fib              &      & 1.020      & 2.046      & -50.14\%          \\
     @rsa@            &      &            &            & \%          \\
     @kcfa3@          &      &            &            & \%          \\
     @church@         &      &            &            & \%          \\

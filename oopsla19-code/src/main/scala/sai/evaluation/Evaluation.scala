@@ -19,17 +19,32 @@ object Evaluation {
 
   def main(args: Array[String]) {
     val progs = List[(Expr, String)](
-      //(boyer, "boyer"),
       //(euclid, "euclid"),
       //(euclid_imp, "euclid_imp"),
-      //(fact5, "fact5")
+      //(fact5, "fact5"),
       //(kcfa16, "kcfa16"),
       //(kcfa32, "kcfa32"),
       //(kcfa64, "kcfa64"),
       //(kcfa256, "kcfa256"),
       (church, "church")
+      //(fermat, "fermat"),
+      //(rsa, "rsa"),
+      //(blur, "blur"), // 56
+      //(fib, "fib"), // 36
+      //(sat, "sat"), // 73
+      //(boyer, "boyer"),
+      //(earley, "earley"),
+      //(mbrotZ, "mbrotZ"),
+      //(dynamic, "dynamic"),
+      //(graphs, "graphs"),
+      //(lattice, "lattice"),
+      //(matrix, "matrix"),
+      //(nbody, "nbody"),
+      //(nucleic, "nucleic"),
     )
-    progs foreach { case (e, id) => compare(e, id) }
+    //progs foreach { case (e, id) => compare(e, id) }
+    //progs foreach { case (e, id) => println(s"$id - ${size(e)}") }
+    progs foreach { case (e, id) => evalUnstaged(e) }
   }
 
   def run[R](n: Int, block: => R): Timing = {
@@ -48,7 +63,8 @@ object Evaluation {
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run(e)
-    //println(s"Number of values: ${res._1.size}")
+    println(s"Values: ${res._1}")
+    println(s"Number of values: ${res._1.size}")
     //println(s"Size of cache: ${res._2.size}")
   }
 
@@ -73,7 +89,6 @@ object Evaluation {
 
   def compare(e: Expr, id: String) {
     println(s"Running $id, AST size: ${size(e)}")
-    /*
     val N = 20
     val t1 =  run(N, { evalUnstaged(e) })
     println(s"[$id] [unstaged] - ${t1}s")
@@ -85,6 +100,5 @@ object Evaluation {
 
     val t2 = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
-    */
   }
 }
