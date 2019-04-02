@@ -246,8 +246,8 @@ thus the iteration should end and we have reached the least fixed point.
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
     ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache; val cfg = (e, ρ, σ)
     rt <- if (out.contains(cfg)) for {
-            (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)
-             _ <- put_store(s)
+            (v, σ) <- lift_nd[(Value, Store)](out(cfg).toList)
+             _ <- put_store(σ)
           } yield v
           else for {
             _ <- put_out_cache(out + (cfg → in.getOrElse(cfg, ⊥)))

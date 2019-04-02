@@ -27,7 +27,6 @@ trait Monad[M[_]] extends RMonad[NoRep.NoRep, M]
 object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 
-  // TODO: test
   def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[List[B]] = xs match {
     case Nil => Monad[M].pure(List.empty[B])
     case x::xs => Monad[M].flatMap(f(x)) { b =>
@@ -90,8 +89,6 @@ case class IdM[A](run: A) {
   def apply: A = run
   def flatMap[B](f: A => IdM[B])(implicit mB: Manifest[B] = null): IdM[B] = f(run)
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): IdM[B] = IdM(f(run))
-  //def flatMap[B](f: A => IdM[B]): IdM[B] = f(run)
-  //def map[B](f: A => B): IdM[B] = IdM(f(run))
 }
 
 /////////////////////////////////////////////////
@@ -131,8 +128,6 @@ object ReaderT {
 case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
   import ReaderT._
   def apply(r: R): M[A] = run(r)
-  //def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] = ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
-  //def map[B](f: A => B): ReaderT[M, R, B] = ReaderT(r => Monad[M].map(run(r))(f))
 
   def flatMap[B](f: A => ReaderT[M, R, B])(implicit mB: Manifest[B] = null): ReaderT[M, R, B] =
     ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))

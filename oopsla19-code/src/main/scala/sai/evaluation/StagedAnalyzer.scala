@@ -78,8 +78,8 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   }
   def get(ρ: Rep[Env], x: String): Rep[Addr] = ρ(x)
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
-  def br(test: Rep[Value], thn: => Ans, els: => Ans): Ans =
-    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
+  def br(ev: EvalFun)(test: Rep[Value], thn: Expr, els: Expr): Ans =
+    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els))
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(params, e) = λ
     val f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value,Store)], Cache)] = {

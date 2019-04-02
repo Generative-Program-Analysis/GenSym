@@ -179,7 +179,7 @@ These methods either returns monadic values with environment or store inside, or
 simply a @Unit@ value for effects. For example, @local_env@ takes a value @ans@ of
 type @Ans@ and a new environment which will be installed when evaluating @ans@.
 
-\vspace{-1em}
+%\vspace{-1em}
 \begin{figure}[h!]
   \centering
   \begin{subfigure}[b]{0.45\textwidth}
@@ -206,7 +206,7 @@ def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
     \end{lstlisting}
   \end{subfigure}
 \end{figure}
-\vspace{-1em}
+%\vspace{-1em}
 
 \paragraph{Primitive Operations} Next we define several primitive operations.
 Two versions of @alloc@ are declared. The first one takes a store and an
@@ -250,7 +250,7 @@ can not refer to itself directly, instead, @eval@ takes an additional parameter
 that lifts lambda terms to closures and @ap_clo@ that applies functions also
 takes an extra @ev@.
 
-\vspace{-1em}
+%\vspace{-1em}
 \begin{figure}[h!]
   \centering
   \begin{lstlisting}
@@ -279,7 +279,7 @@ takes an extra @ev@.
   shared by the unstaged/staged + concrete/abstract interpreter.}
 \label{fig:shared_int}
 \end{figure}
-\vspace{-1em}
+%\vspace{-1em}
 
 Since the interpreter is written in open-recursive style, we declare an abstract
 combinator @fix@ used to close the recursion. For concrete-interpretation instantiation, it

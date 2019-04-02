@@ -49,7 +49,8 @@ trait SchemeAnalyzer {
   def literal(i: Any): Ans
   def get(ρ: R[Env], x: String): R[Addr]
   def get(σ: R[Store], ρ: R[Env], x: String): R[Value]
-  def br(test: R[Value], thn: => Ans, els: => Ans): Ans
+  //def br(test: R[Value], thn: => Ans, els: => Ans): Ans
+  def br(ev: EvalFun)(test: R[Value], thn: Expr, els: Expr): Ans
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[List[Value]]): Ans
   def primtives(v: R[Value], args: List[R[Value]]): R[Value]
@@ -79,8 +80,8 @@ trait SchemeAnalyzer {
       ρ <- ask_env
     } yield close(ev)(Lam(x, e), ρ)
     case Set_!(x, e) => for {
-      v <- ev(e)
       ρ <- ask_env
+      v <- ev(e)
       _ <- set_store(get(ρ, x) → v)
       n <- void
     } yield n
@@ -97,8 +98,8 @@ trait SchemeAnalyzer {
     } yield rt
     case Begin(es) => forM(es)(ev)
     case If(cnd, thn, els) => for {
-      cnd <- ev(cnd)
-      rt <- br(cnd, ev(thn), ev(els))
+      t <- ev(cnd)
+      rt <- br(ev)(t, thn, els)
     } yield rt
   }
 }

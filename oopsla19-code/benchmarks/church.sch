@@ -22,7 +22,6 @@
     (lambda (s2)
       ((s2 pred) s1))))
 
-
 (define church0 (lambda (f0) (lambda (x0) x0)))
 (define church1 (lambda (f1) (lambda (x1) (f1 x1))))
 (define church2 (lambda (f2) (lambda (x2) (f2 (f2 x2)))))
@@ -44,18 +43,15 @@
 ;; ((church=? ((mult church2) ((plus church1) church3)))
 ;;  ((plus ((mult church2) church1)) ((mult church2) church3)))
 
-(define ff
-  (lambda (e1)
-     (if (church0? e1) church1
-         (ff ((church1 pred) e1)))))
-
+(define ff 
+  (lambda (e)
+  (if (church0? e)
+    e
+    (ff ((church1 pred) e)))))
 (ff church1)
 
-;(define my=?
+;(define ff
 ;  (lambda (e1)
-;    (lambda (e2)
-;    (if (church0? e1)
-;       (church0? e2)
-;      ((my=? ((sub e1) church1)) e2)))))
-
-;((my=? church1) church1)
+;     (if (church0? e1) church1
+;         (ff ((church1 pred) e1)))))
+;(ff church1)
