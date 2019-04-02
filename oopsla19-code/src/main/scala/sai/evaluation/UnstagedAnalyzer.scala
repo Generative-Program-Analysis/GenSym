@@ -66,8 +66,11 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   }
   def get(ρ: Env, x: String): Addr = ρ(x)
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
-  def br(test: Value, thn: => Ans, els: => Ans): Ans =
-    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
+  def br(test: Value, thn: => Ans, els: => Ans): Ans = for {
+    v1 <- thn
+    v2 <- els
+  } yield v1 ++ v2
+    //ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(thn, els)
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun.toList)
@@ -118,6 +121,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     in <- ask_in_cache
     out <- get_out_cache
     val cfg = (e, ρ, σ)
+    val _ = println(s"Eval ${e} – Store size: ${σ.size}")
     rt <- if (out.contains(cfg)) {
       for {
         (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)

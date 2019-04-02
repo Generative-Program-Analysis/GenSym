@@ -3,7 +3,6 @@
 ;; Author: Matthew Might
 ;; Site:   http://matt.might.net/
 
-
 ;; Mathematical support.
 
 ; square(x) = x^2
@@ -17,10 +16,6 @@
       (if (odd? exp)
           (modulo (* base (modulo-power base (- exp 1) n)) n)
           (modulo (square (modulo-power base (/ exp 2) n)) n))))
-
-                     
-    
-
 
 ;; Random number utilities.
 
@@ -43,9 +38,6 @@
 ;  (if (<= bytes 0)
 ;      0
 ;      (+ (* 256 (random (- bytes 1))) (random-byte))))
-
-
-
 
 ;; Primality tests.
 
@@ -75,9 +67,6 @@
             (is-fermat-prime? n (- iterations 1))
             #f))))
 
-
-
-      
 ;; Prime generation.
 
 ; generate-fermat-prime(byte-size) yields a prime satisfying the Fermat test.
@@ -87,8 +76,6 @@
      (and (not (is-trivial-composite? n)) (is-fermat-prime? n iterations))
      n
      (generate-fermat-prime byte-size iterations))))
-
-
 
 ;; Example
 

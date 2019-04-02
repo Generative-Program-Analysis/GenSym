@@ -13,9 +13,9 @@
   (lambda (n)
     (lambda (rf)
       (lambda (rx)
-	(((n (lambda (g) (lambda (h) (h (g rf)))))
-	  (lambda (ignored) rx))
-	 (lambda (id) id))))))
+        (((n (lambda (g) (lambda (h) (h (g rf)))))
+          (lambda (ignored) rx))
+         (lambda (id) id))))))
 
 (define sub
   (lambda (s1)
@@ -38,8 +38,24 @@
               ((church=? ((sub e1) church1)) 
                ((sub e2) church1)))))))
 
-;;(church0? church0)
+;;((church=? church1) church1)
 
 ;; multiplication distributes over addition
-((church=? ((mult church2) ((plus church1) church3)))
- ((plus ((mult church2) church1)) ((mult church2) church3)))
+;; ((church=? ((mult church2) ((plus church1) church3)))
+;;  ((plus ((mult church2) church1)) ((mult church2) church3)))
+
+(define ff
+  (lambda (e1)
+     (if (church0? e1) church1
+         (ff ((church1 pred) e1)))))
+
+(ff church1)
+
+;(define my=?
+;  (lambda (e1)
+;    (lambda (e2)
+;    (if (church0? e1)
+;       (church0? e2)
+;      ((my=? ((sub e1) church1)) e2)))))
+
+;((my=? church1) church1)

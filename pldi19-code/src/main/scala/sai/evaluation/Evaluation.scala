@@ -16,6 +16,7 @@ object Evaluation extends AbsLamCalTrait {
       //euclid,
       //euclid_imp
       //kcfa32
+      church
     )
     progs foreach { compare(_) }
   }
@@ -40,9 +41,10 @@ object Evaluation extends AbsLamCalTrait {
     val t5 = run(n, { ex4fold() })
     println(s"0CFA Staged (fold) average time: $t5")
     */
-    val t1 =  run(20, { evalUnstaged(e) })
+    val t1 =  run(1, { evalUnstaged(e) })
     println(s"Unstaged time - ${t1}")
-
+  
+    /*
     val code = specialize(e)
     code.precompile
     println("Finished precompile, writing code to CodeGen.scala.ignore")
@@ -51,10 +53,11 @@ object Evaluation extends AbsLamCalTrait {
     writer.close()
     println("Start running compiled version")
 
-    val t2 = run(20, { code.eval(()) })
+    val t2 = run(1, { code.eval(()) })
 
     println("-------------------------------------------")
     println(s"Unstaged time - ${t1}")
     println(s"Staged time - ${t2}")
+    */
   }
 }

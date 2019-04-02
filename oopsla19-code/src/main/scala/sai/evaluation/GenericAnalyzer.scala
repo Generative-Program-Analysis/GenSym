@@ -96,9 +96,9 @@ trait SchemeAnalyzer {
       rt <- ap_clo(ev)(v1, v2)
     } yield rt
     case Begin(es) => forM(es)(ev)
-    case If(c, t, e) => for {
-      cnd <- ev(c)
-      rt <- br(cnd, ev(t), ev(e))
+    case If(cnd, thn, els) => for {
+      cnd <- ev(cnd)
+      rt <- br(cnd, ev(thn), ev(els))
     } yield rt
   }
 }

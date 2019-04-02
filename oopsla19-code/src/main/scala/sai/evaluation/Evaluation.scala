@@ -27,6 +27,8 @@ object Evaluation {
       //(kcfa64, "kcfa64"),
       //(kcfa256, "kcfa256"),
       (church, "church")
+      //(omega, "omega")
+      //(church_exp, "church_exp")
       //(fermat, "fermat"),
       //(rsa, "rsa"),
       //(blur, "blur"), // 56
@@ -63,7 +65,7 @@ object Evaluation {
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run(e)
-    println(s"Values: ${res._1}")
+    //println(s"Values: ${res._1}")
     println(s"Number of values: ${res._1.size}")
     //println(s"Size of cache: ${res._2.size}")
   }

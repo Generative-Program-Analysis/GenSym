@@ -74,8 +74,13 @@ object TestPrograms {
     """
   )
 
+  def omega = getAST(Source.fromFile("benchmarks/omega.scm").mkString)
+
   // church encoding
   def church = getAST(Source.fromFile("benchmarks/church.sch").mkString)
+
+  // church encoding
+  def church_exp = getAST(Source.fromFile("benchmarks/church_exp.sch").mkString)
 
   // earley make-parser -- from oaam
   def earley = getAST(Source.fromFile("benchmarks/earley.sch").mkString)
