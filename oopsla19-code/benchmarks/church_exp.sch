@@ -20,11 +20,12 @@
                                                          ((lambda ($9)
                                                             ((church=? ((mult church2) ((plus church1) church3)))
                                                              ((plus ((mult church2) church1)) ((mult church2) church3))))
-                                                          (set! church=? (lambda (e1) (lambda (e2)
-                                                                                        (if (church0? e1)
-                                                                                            (church0? e2)
-                                                                                            (if (church0? e2) #f
-                                                                                                ((church=? ((sub e1) church1)) ((sub e2) church1)))))))))
+                                                          (set! church=? (lambda (e1) 
+                                                                           (lambda (e2)
+                                                                              (if (church0? e1)
+                                                                                  (church0? e2)
+                                                                                  (if (church0? e2) #f
+                                                                                      ((church=? ((sub e1) church1)) ((sub e2) church1)))))))))
                                                        (set! church0? (lambda (z) ((z (lambda (zx) #f)) #t)))))
                                                     (set! church3 (lambda (f3) (lambda (x3) (f3 (f3 (f3 x3))))))))
                                                  (set! church2 (lambda (f2) (lambda (x2) (f2 (f2 x2)))))))

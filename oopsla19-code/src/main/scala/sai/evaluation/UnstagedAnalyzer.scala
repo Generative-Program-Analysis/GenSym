@@ -48,10 +48,12 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
                                                                                          val news = σ ⊔ Map(αv)
                                                                                          val oldc = σ.getOrElse(αv._1, Set())
                                                                                          val newc = news(αv._1)
-                                                                                         if (oldc != newc) {
-                                                                                           println(s"growing: ${αv._1} oldsize: ${oldc.size} newsize: ${newc.size}")
+                                                                                         if (oldc.size == 0) {
+                                                                                           println(s"growing: ${αv}")
                                                                                          }
-
+                                                                                         //  println(s"growing: ${αv._1} oldsize: ${oldc.size} newsize: ${newc.size}")
+                                                                                         //  println(s"oldc: $oldc")
+                                                                                         //  println(s"newc: $newc")
                                                                                          news
                                                                                        }))
 
@@ -145,9 +147,6 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
         _ <- put_store(s)
       } yield v
     } else {
-      // TODO: get which store affects!
-      val sameKeys = out.keys.filter { case (e1,ρ1,σ1) => e1 == e && ρ1 == ρ }
-      println(s"## size same keys: ${sameKeys.size}")
       val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
       for {
         _ <- put_out_cache(out + (cfg → ans_in))

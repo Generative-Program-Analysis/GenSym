@@ -76,18 +76,18 @@ trait SchemeAnalyzer {
       ρ <- ask_env
       σ <- get_store
     } yield get(σ, ρ, x)
-    case Lam(x, e) => for {
+    case Lam(x, body) => for {
       ρ <- ask_env
-    } yield close(ev)(Lam(x, e), ρ)
-    case Set_!(x, e) => for {
+    } yield close(ev)(Lam(x, body), ρ)
+    case Set_!(x, rhs) => for {
       ρ <- ask_env
-      v <- ev(e)
+      v <- ev(rhs)
       _ <- set_store(get(ρ, x) → v)
       n <- void
     } yield n
-    case Define(x, e) => for {
+    case Define(x, rhs) => for {
       α <- alloc(x)
-      v <- ext_env(ev(e))(x → α)
+      v <- ext_env(ev(rhs))(x → α)
       _ <- set_store(α → v)
       n <- void
     } yield n

@@ -14,7 +14,6 @@ case class Var(x: String) extends Expr with AtomExpr {
 }
 case class App(e1: Expr, param: List[Expr]) extends Expr with AtomExpr
 case class Lam(param: List[String], body: Expr) extends Expr with AtomExpr {
-
   override def toString: String = {
     val list = param map { s => "\"" + s + "\"" } mkString (", ")
     "Lam(List(" + list + "), " + body + ")"
