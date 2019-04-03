@@ -134,6 +134,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 }
 
 trait MapOpsExpOpt extends MapOpsExp {
+
   override def map_foldleft[K: Manifest, V: Manifest, B: Manifest](m: Exp[Map[K, V]], z: Exp[B], f: (Exp[B], (Exp[K], Exp[V])) => Exp[B])(implicit pos: SourceContext) = m match {
     case Def(MapNew(kv, _, _)) if kv.size == 0 => z
     case Def(MapNew(kv, _, _)) if kv.size == 1 => f(z, kv(0))

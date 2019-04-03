@@ -16,6 +16,7 @@ trait SetOps extends Base with Variables with ListOps {
   }
 
   implicit def repSetToSetOps[A:Manifest](v: Rep[Set[A]]) = new SetOpsCls(v)
+  implicit def setToSetOps[A:Manifest](v: Set[A]) = new SetOpsCls(unit(v))
 
   class SetOpsCls[A:Manifest](s: Rep[Set[A]]) {
     def ++(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_concat(s, s1)
@@ -26,7 +27,10 @@ trait SetOps extends Base with Variables with ListOps {
     def union(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_union(s, s1)
     def subsetOf(s1: Rep[Set[A]])(implicit pos: SourceContext) = set_subsetof(s, s1)
     def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = set_foldLeft(s, z, f)
+    def foldLeftPair[B:Manifest,C:Manifest](z: Rep[(B,C)])(f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)]) = set_foldLeftPair(s, z, f)
     def toList()(implicit pos: SourceContext) = set_toList(s)
+    def map[B:Manifest](f: Rep[A] => Rep[B]) = set_map(s, f)
+    def filter(f: Rep[A] => Rep[Boolean]) = set_filter(s, f)
   }
 
   def set_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext): Rep[Set[A]]
@@ -39,6 +43,9 @@ trait SetOps extends Base with Variables with ListOps {
   def set_subsetof[A:Manifest](s1: Rep[Set[A]], s2: Rep[Set[A]])(implicit pos: SourceContext): Rep[Boolean]
   def set_foldLeft[A:Manifest,B:Manifest](s: Rep[Set[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
   def set_toList[A:Manifest](s: Rep[Set[A]])(implicit pos: SourceContext): Rep[List[A]]
+  def set_foldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Rep[Set[A]], z: Rep[(B,C)], f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)])(implicit pos: SourceContext): Rep[(B,C)]
+  def set_map[A:Manifest,B:Manifest](s: Rep[Set[A]], f: Rep[A] => Rep[B])(implicit pos: SourceContext): Rep[Set[B]]
+  def set_filter[A: Manifest](s: Rep[Set[A]], f: Rep[A] => Rep[Boolean])(implicit pos: SourceContext): Rep[Set[A]]
 }
 
 trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp with ListOpsExp {
@@ -59,7 +66,10 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
   case class SetUnion[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]]) extends Def[Set[A]]
   case class SetSubsetOf[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]]) extends Def[Boolean]
   case class SetFoldLeft[A:Manifest,B:Manifest](s: Exp[Set[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
+  case class SetFoldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[Set[A]], z: Exp[(B,C)], acc1: Sym[B], acc2: Sym[C], x: Sym[A], block: Block[(B,C)]) extends Def[(B,C)]
   case class SetToList[A:Manifest](s: Exp[Set[A]]) extends Def[List[A]]
+  case class SetMap[A:Manifest,B:Manifest](s: Exp[Set[A]], x: Sym[A], block: Block[B]) extends Def[Set[B]]
+  case class SetFilter[A: Manifest](s: Exp[Set[A]], x: Sym[A], block: Block[Boolean]) extends Def[Set[A]]
 
   def set_new[A:Manifest](xs: Seq[Exp[A]])(implicit pos: SourceContext) = SetNew(xs, manifest[A])
   def set_concat[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetConcat(s1, s2)
@@ -75,27 +85,67 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
     val b = reifyEffects(f(acc, x))
     reflectEffect(SetFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
   }
+  def set_foldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[Set[A]], z: Exp[(B,C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext) = {
+    val acc1 = fresh[B]
+    val acc2 = fresh[C]
+    val x = fresh[A]
+    val b = reifyEffects(f((acc1, acc2), x))
+    reflectEffect(SetFoldLeftPair(s, z, acc1, acc2, x, b), summarizeEffects(b).star)
+  }
   def set_toList[A:Manifest](s: Exp[Set[A]])(implicit pos: SourceContext) = SetToList(s)
+  def set_map[A:Manifest,B:Manifest](s: Exp[Set[A]], f: Exp[A] => Exp[B])(implicit pos: SourceContext) = {
+    val x = fresh[A]
+    val b = reifyEffects(f(x))
+    reflectEffect(SetMap(s, x, b), summarizeEffects(b).star)
+  }
+  def set_filter[A:Manifest](s: Exp[Set[A]], f: Exp[A] => Exp[Boolean])(implicit pos: SourceContext) = {
+    val x = fresh[A]
+    val b = reifyEffects(f(x))
+    reflectEffect(SetFilter(s, x, b), summarizeEffects(b).star)
+  }
 
   override def syms(e: Any): List[Sym[Any]] = e match {
+    case SetMap(s, x, b) => syms(s) ::: syms(b)
+    case SetFilter(s, x, b) => syms(s) ::: syms(b)
     case SetFoldLeft(s, z, acc, x, b) => syms(s) ::: syms(z) ::: syms(b)
+    case SetFoldLeftPair(s, z, acc1, acc2, x, b) => syms(s) ::: syms(z) ::: syms(b)
     case _ => super.syms(e)
   }
   override def boundSyms(e: Any): List[Sym[Any]] = e match {
+    case SetMap(s, x, b) => x :: effectSyms(b)
+    case SetFilter(s, x, b) => x :: effectSyms(b)
     case SetFoldLeft(s, z, acc, x, b) => acc :: x :: effectSyms(b)
+    case SetFoldLeftPair(s, z, acc1, acc2, x, b) => acc1 :: acc2 :: x :: effectSyms(b)
     case _ => super.boundSyms(e)
   }
   override def symsFreq(e: Any): List[(Sym[Any], Double)] = e match {
-    case SetFoldLeft(s, z, acc, x, b) => freqNormal(s) ::: freqNormal(z) ::: freqNormal(b)
+    case SetMap(s, x, b) => freqNormal(s) ::: freqHot(b)
+    case SetFilter(s, x, b) => freqNormal(s) ::: freqHot(b)
+    case SetFoldLeft(s, z, acc, x, b) => freqNormal(s) ::: freqNormal(z) ::: freqHot(b)
+    case SetFoldLeftPair(s, z, acc1, acc2, x, b) => freqNormal(s) ::: freqNormal(z) ::: freqHot(b)
     case _ => super.symsFreq(e)
   }
 }
 
 trait SetOpsExpOpt extends SetOpsExp with ListOpsExp {
+  override def set_concat[A : Manifest](xs1: Exp[Set[A]], xs2: Exp[Set[A]])(implicit pos: SourceContext): Exp[Set[A]] = (xs1, xs2) match {
+    case (Def(SetNew(xs1, t1)), Def(SetNew(xs2, t2))) => SetNew(xs1 ++ xs2, manifest[A])
+    case (Def(SetNew(Seq(), _)), xs2) => xs2
+    case (xs1, Def(SetNew(Seq(), _))) => xs1
+    case _ => super.set_concat(xs1, xs2)
+  }
+
   override def set_foldLeft[A: Manifest, B: Manifest](s: Exp[Set[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = s match {
     case Def(SetNew(xs, _)) if xs.size == 0 => z
-    case Def(SetNew(xs, _)) if xs.size == 1 => f(z, xs(0))
+    case Def(SetNew(xs, _)) => xs.foldLeft(z)(f)
     case _ => super.set_foldLeft(s, z, f)
+  }
+
+  override def set_foldLeftPair[A: Manifest, B: Manifest, C: Manifest](s: Exp[Set[A]], z: Exp[(B,C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext) = s match {
+    case Def(SetNew(xs, _)) if xs.size == 0 => z
+    case Def(SetNew(xs, _)) if xs.size == 1 => f(z, xs(0))
+    // TODO: generalize
+    case _ => super.set_foldLeftPair(s, z, f)
   }
   override def set_toList[A:Manifest](s: Exp[Set[A]])(implicit pos: SourceContext) = s match {
     case Def(SetNew(xs, _)) => ListNew(xs, manifest[A])
@@ -126,7 +176,22 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
             |${nestedBlock(blk)}
             |$blk
             |}"""
+    case SetFoldLeftPair(s, z, acc1, acc2, x, blk) =>
+      gen"""val $sym = $s.foldLeft ($z) { case (($acc1, $acc2), $x) =>
+            |${nestedBlock(blk)}
+            |$blk
+            |}"""
     case SetToList(s) => emitValDef(sym, src"$s.toList")
+    case SetMap(s,x,blk) =>
+      gen"""val $sym = $s.map { $x =>
+           |${nestedBlock(blk)}
+           |$blk
+           |}"""
+    case SetFilter(s,x,blk) =>
+      gen"""val $sym = $s.filter { $x =>
+           |${nestedBlock(blk)}
+           |$blk
+           |}"""
     case _ => super.emitNode(sym, rhs)
   }
 }

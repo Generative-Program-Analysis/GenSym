@@ -89,7 +89,7 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
   case class ListFoldLeft[A:Manifest,B:Manifest](s: Exp[List[A]], z: Exp[B], acc: Sym[B], x: Sym[A], block: Block[B]) extends Def[B]
   case class ListContainsSlice[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]]) extends Def[Boolean]
   case class ListIntersect[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]]) extends Def[List[A]]
-  case class ListFoldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[List[A]], z: Exp[(B,C)], acc1: Sym[B], acc2: Sym[C], x: Sym[A], blocl: Block[(B,C)]) extends Def[(B,C)]
+  case class ListFoldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[List[A]], z: Exp[(B,C)], acc1: Sym[B], acc2: Sym[C], x: Sym[A], block: Block[(B,C)]) extends Def[(B,C)]
 
   def list_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext) = ListNew(xs, manifest[A])
   def list_fromseq[A:Manifest](xs: Rep[Seq[A]])(implicit pos: SourceContext) = ListFromSeq(xs)

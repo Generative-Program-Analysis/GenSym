@@ -79,32 +79,18 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def get(ρ: Env, x: String): Addr = ρ(x)
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
-    //ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache?
+    /*for {
+    v1 <- ev(thn)
+    v2 <- ev(els)
+  } yield v1 ++ v2
+     */
+  ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache?
+  /*
     for {
-      //cnd <- ev(test)
       exp <- lift_nd[Expr](Set(thn, els)) //Note: use same store
       v <- ev(exp)
     } yield v
-      /*
-    for { //Note: they use the same store and cache
-      ρ <- ask_env
-      σ <- get_store
-      in <- ask_in_cache
-      out <- get_out_cache
-      //val (cnd, out0) = ev(test)(ρ)(σ).run(in)(out).run
-      //(cndv, cnds) <- lift_nd[(Value, Store)](cnd)
-      //_ <- put_store(cnds)
-      //ns <- get_store
-      //val _ = println(s"Evaluate then ${thn}: ${out.size}")
-      val (v1, out1) = ev(thn)(ρ)(σ).run(in)(out).run
-      //val _ = println(s"Evaluate else ${els}: ${out1.size}")
-      val (v2, out2) = ev(els)(ρ)(σ).run(in)(out1).run
-      //val _ = println(s"Finish both branch: ${out2.size}")
-      _ <- put_out_cache(out2)
-      (v, s) <- lift_nd[(Value, Store)](v1 ++ v2)
-      _ <- put_store(s)
-    } yield v
-       */
+  */
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
@@ -157,7 +143,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     in <- ask_in_cache
     out <- get_out_cache
     val cfg = (e, ρ, σ)
-    val _ = println(s"Eval ${ASTUtils.exprToString(e)} – ρ size: ${ρ.size} – σ size: ${σ.size} – out: ${out.size}")
+    //val _ = println(s"Eval ${ASTUtils.exprToString(e)} – ρ size: ${ρ.size} – σ size: ${σ.size} – out: ${out.size}")
     rt <- if (out.contains(cfg)) {
       //println("HIT")
       for {

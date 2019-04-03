@@ -18,7 +18,8 @@ import sai.evaluation.parser._
 trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with RepLattices with SAIDsl {
   import ReaderT._
   import StateT._
-  import ListReaderStateM._
+  //import ListReaderStateM._
+  import SetReaderStateM._
 
   //type Config = (Expr, Env, Store)
   type Config = (Int, Env, Store)
@@ -27,7 +28,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   type EnvT[F[_], B] = ReaderT[F, Env, B]
   type StoreT[F[_], B] = StateT[F, Store, B]
 
-  type NdInOutCacheM[T] = ListReaderStateM[Cache, Cache, T]
+  type NdInOutCacheM[T] = SetReaderStateM[Cache, Cache, T]
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
 
   def mCache: Manifest[Cache] = manifest[Cache]
@@ -35,14 +36,14 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   def mAddr: Manifest[Addr] = manifest[Addr]
 
   type R[T] = Rep[T]
-  type AnsM[T] = ReaderT[StateT[ListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[SetReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
 
   def mapM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[List[B]] = Monad.mapM(xs)(f)
   def forM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[B] = Monad.forM(xs)(f)
 
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[List[Value]], σ: Rep[Store],
-                  in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
-  def emit_compiled_clo(f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value, Store)], Cache)],
+                  in: Rep[Cache], out: Rep[Cache]): Rep[(Set[(Value, Store)], Cache)]
+  def emit_compiled_clo(f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(Set[(Value, Store)], Cache)],
                         λ: Lam, ρ: Rep[Env]): Rep[AbsValue]
   def emit_addr(x: String): Rep[Addr] = unit(ZCFAAddr(x))
 
@@ -80,12 +81,16 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   }
   def get(ρ: Rep[Env], x: String): Rep[Addr] = ρ(x)
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
-  //def br(ev: EvalFun)(test: Rep[Value], thn: Expr, els: Expr): Ans =
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
+    /*for {
+     v1 <- ev(thn)
+     v2 <- ev(els)
+     } yield v1 ++ v2
+     */
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els))
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(params, e) = λ
-    val f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value,Store)], Cache)] = {
+    val f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(Set[(Value,Store)], Cache)] = {
       case (args, σ, in, out) =>
         val αs: List[Rep[Addr]] = params.foldRight(collection.immutable.List[Rep[Addr]]()) { case (x, αs_*) => alloc(σ, x)::αs_* }
         val ρ_* = params.zip(αs).foldLeft(ρ) { case (ρ, (x, α)) => ρ + (unit(x) → α) }
@@ -97,10 +102,10 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   }
   def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = {
     get_store.flatMap { σ =>
-      lift_nd[AbsValue](fun.toList).flatMap { clo =>
+      lift_nd[AbsValue](fun).flatMap { clo =>
         ask_in_cache.flatMap { in =>
           get_out_cache.flatMap { out =>
-            val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, args, σ, in, out)
+            val res: Rep[(Set[(Value, Store)], Cache)] = emit_ap_clo(clo, args, σ, in, out)
             put_out_cache(res._2).flatMap { _ =>
               lift_nd[(Value, Store)](res._1).flatMap { vs =>
                 put_store(vs._2).map { _ => vs._1 }
@@ -108,32 +113,32 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   def primtives(v: Rep[Value], args: List[Rep[Value]]): Rep[Value] = ???
 
   // auxiliary function that lifts values
-  def lift_nd[T: Manifest](vs: Rep[List[T]]): AnsM[T] =
+  def lift_nd[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, T](
       StateT.liftM[NdInOutCacheM, Store, T](
-        ListReaderStateM.fromList(vs)
+        SetReaderStateM.fromSet(vs)
       ))
 
   // cache operations
   def ask_in_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
       StateT.liftM[NdInOutCacheM, Store, Cache](
-        ListReaderStateMonad[Cache, Cache].ask
+        SetReaderStateMonad[Cache, Cache].ask
       ))
   def get_out_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
       StateT.liftM[NdInOutCacheM, Store, Cache](
-        ListReaderStateMonad[Cache, Cache].get
+        SetReaderStateMonad[Cache, Cache].get
       ))
   def put_out_cache(out: Rep[Cache]): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
-        ListReaderStateMonad[Cache, Cache].put(out)
+        SetReaderStateMonad[Cache, Cache].put(out)
       ))
   def update_out_cache(cfg: Rep[Config], vs: Rep[(Value, Store)]): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
-        ListReaderStateMonad[Cache, Cache].mod(c => c ⊔ Map(cfg → Set(vs)))
+        SetReaderStateMonad[Cache, Cache].mod(c => c ⊔ Map(cfg → Set(vs)))
       ))
 
   def fix_select: EvalFun = e => e match {
@@ -149,9 +154,9 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
           get_out_cache.flatMap { out =>
             //val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
             val cfg: Rep[(Int, Env, Store)] = (unit(e.hashCode), ρ, σ)
-            val res: Rep[(List[(Value, Store)], Cache)] =
+            val res: Rep[(Set[(Value, Store)], Cache)] =
               if (out.contains(cfg)) {
-                (repMapToMapOps(out).apply(cfg).toList, out) //FIXME: ambigious implicit
+                (repMapToMapOps(out).apply(cfg), out) //FIXME: ambigious implicit
               } else {
                 val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
                 val m: Ans = for {
@@ -172,9 +177,9 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   val σ0: Rep[Store] = Map[Addr, Value]()
   val cache0: Rep[Cache] = Map[Config, Set[(Value, Store)]]()
 
-  type Result = (Rep[List[(Value, Store)]], Rep[Cache])
+  type Result = (Rep[Set[(Value, Store)]], Rep[Cache])
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
-  def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+  def run(e: Expr): (Rep[Set[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
 }
 
 trait ZeroCFAEnvOpt extends MapOpsExpOpt { self: StagedSchemeAnalyzerOps =>
@@ -186,12 +191,12 @@ trait ZeroCFAEnvOpt extends MapOpsExpOpt { self: StagedSchemeAnalyzerOps =>
 
 trait StagedSchemeAnalyzerExp extends StagedSchemeAnalyzerOps with SAIOpsExp with ZeroCFAEnvOpt {
   //case class IRCompiledClo(f: (List[Exp[Value]], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
-  case class IRCompiledClo(f: Exp[((List[Value], Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
+  case class IRCompiledClo(f: Exp[((List[Value], Store, Cache, Cache)) => (Set[(Value, Store)], Cache)],
                            λ: Int, ρ: Exp[Env]) extends Def[AbsValue]
   case class IRApClo(clo: Exp[AbsValue], args: Exp[List[Value]], σ: Exp[Store],
-                     in: Exp[Cache], out: Exp[Cache]) extends Def[(List[(Value, Store)], Cache)]
+                     in: Exp[Cache], out: Exp[Cache]) extends Def[(Set[(Value, Store)], Cache)]
 
-  def emit_compiled_clo(f: (Exp[List[Value]], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
+  def emit_compiled_clo(f: (Exp[List[Value]], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(Set[(Value, Store)], Cache)],
                         λ: Lam, ρ: Exp[Env]) = {
     reflectEffect(IRCompiledClo(fun(f), λ.hashCode, ρ))
   }

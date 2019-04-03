@@ -6,7 +6,7 @@ import sai.evaluation.parser._
 object TestPrograms {
   def getAST(prog: String) = {
     SchemeParser(prog) match {
-      case Some(expr) => SchemeASTDesugar(expr)
+      case Some(expr) => expr //SchemeASTDesugar(expr)
     }
   }
 

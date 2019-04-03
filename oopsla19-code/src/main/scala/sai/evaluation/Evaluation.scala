@@ -23,9 +23,9 @@ object Evaluation {
       //(euclid_imp, "euclid_imp"),
       //(fact5, "fact5"),
       //(kcfa3, "kcfa3"),
-      //(kcfa16, "kcfa16"),
+      (kcfa16, "kcfa16"),
       (kcfa32, "kcfa32"),
-      //(kcfa64, "kcfa64"),
+      (kcfa64, "kcfa64"),
       //(kcfa256, "kcfa256"),
       //(church, "church")
       //(omega, "omega")
@@ -45,9 +45,9 @@ object Evaluation {
       //(nbody, "nbody"),
       //(nucleic, "nucleic"),
     )
-    //progs foreach { case (e, id) => compare(e, id) }
+    progs foreach { case (e, id) => compare(e, id) }
     //progs foreach { case (e, id) => println(s"$id - ${size(e)}") }
-    progs foreach { case (e, id) => println(e); evalUnstaged(e) }
+    //progs foreach { case (e, id) => println(e); evalUnstaged(e) }
   }
 
   def run[R](n: Int, block: => R): Timing = {
@@ -89,16 +89,17 @@ object Evaluation {
   }
 
   val output = "CodeGen.out"
+  def output(id: String): String = s"CodeGen_$id.out"
 
   def compare(e: Expr, id: String) {
     println(s"Running $id, AST size: ${size(e)}")
-    val N = 20
+    val N = 1
     val t1 =  run(N, { evalUnstaged(e) })
     println(s"[$id] [unstaged] - ${t1}s")
   
     val code = specialize(e)
     code.precompile
-    println(s"[$id] [staged] Finished precompile, writing code to ${output}")
+    println(s"[$id] [staged] Finished precompile, writing code to ${output(id)}")
     writeTo(output, code.code)
 
     val t2 = run(N, { code.eval(()) })
