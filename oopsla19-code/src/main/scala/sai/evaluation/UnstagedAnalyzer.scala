@@ -10,7 +10,8 @@ import sai.evaluation.parser._
 object UnstagedSchemeAnalyzer extends AbstractComponents {
   import ReaderT._
   import StateT._
-  import ListT._
+  //import ListT._
+  import SetT._
   import IdM._
 
   type R[T] = T
@@ -20,7 +21,8 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   // Transformers
   type EnvT[F[_], B] = ReaderT[F, Env, B]
   type StoreT[F[_], B] = StateT[F, Store, B]
-  type NondetT[F[_], B] = ListT[F, B]
+  //type NondetT[F[_], B] = ListT[F, B]
+  type NondetT[F[_], B] = SetT[F, B]
   type InCacheT[F[_], B] = ReaderT[F, Cache, B]
   type OutCacheT[F[_], B] = StateT[F, Cache, B]
   // Monads
@@ -48,12 +50,11 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
                                                                                          val news = σ ⊔ Map(αv)
                                                                                          val oldc = σ.getOrElse(αv._1, Set())
                                                                                          val newc = news(αv._1)
-                                                                                         if (oldc.size == 0) {
-                                                                                           println(s"growing: ${αv}")
+                                                                                         if (oldc != newc) {
+                                                                                           //println(s"growing: ${αv._1} oldsize: ${oldc.size} newsize: ${newc.size}")
+                                                                                           //println(s"DIFF ${newc -- oldc}")
                                                                                          }
-                                                                                         //  println(s"growing: ${αv._1} oldsize: ${oldc.size} newsize: ${newc.size}")
-                                                                                         //  println(s"oldc: $oldc")
-                                                                                         //  println(s"newc: $newc")
+
                                                                                          news
                                                                                        }))
 
@@ -77,22 +78,36 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   }
   def get(ρ: Env, x: String): Addr = ρ(x)
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
-  def br(ev: EvalFun)(test: Value, thn: Expr, els: Expr): Ans =
-    //ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache
+  def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
+    //ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache?
+    for {
+      //cnd <- ev(test)
+      exp <- lift_nd[Expr](Set(thn, els)) //Note: use same store
+      v <- ev(exp)
+    } yield v
+      /*
     for { //Note: they use the same store and cache
       ρ <- ask_env
       σ <- get_store
       in <- ask_in_cache
       out <- get_out_cache
+      //val (cnd, out0) = ev(test)(ρ)(σ).run(in)(out).run
+      //(cndv, cnds) <- lift_nd[(Value, Store)](cnd)
+      //_ <- put_store(cnds)
+      //ns <- get_store
+      //val _ = println(s"Evaluate then ${thn}: ${out.size}")
       val (v1, out1) = ev(thn)(ρ)(σ).run(in)(out).run
+      //val _ = println(s"Evaluate else ${els}: ${out1.size}")
       val (v2, out2) = ev(els)(ρ)(σ).run(in)(out1).run
+      //val _ = println(s"Finish both branch: ${out2.size}")
+      _ <- put_out_cache(out2)
       (v, s) <- lift_nd[(Value, Store)](v1 ++ v2)
       _ <- put_store(s)
-      _ <- put_out_cache(out2)
     } yield v
+       */
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
-    CloV(Lam(params, e), ρ: Env) <- lift_nd(fun.toList)
+    CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
     αs <- mapM(params)(alloc)
     _ <- mapM(αs.zip(args))(set_store)
     v <- local_env(ev(e))(params.zip(αs).foldLeft(ρ)(_+_))
@@ -100,36 +115,38 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
 
   def primtives(v: Value, args: List[Value]): Value = ???
 
-  def lift_nd[T](vs: List[T]): AnsM[T] =
+  def foldVss(vss: List[Value]): Value = vss.foldLeft(Lattice[Value].bot)(_ ⊔ _)
+
+  def lift_nd[T](vs: Set[T]): AnsM[T] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, T](
       StateT.liftM[NdInOutCacheM, Store, T](
-        ListT.fromList[InOutCacheM, T](vs)
+        SetT.fromSet[InOutCacheM, T](vs)
       ))
 
   def ask_in_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
       StateT.liftM[NdInOutCacheM, Store, Cache](
-        ListT.liftM[InOutCacheM, Cache](
+        SetT.liftM[InOutCacheM, Cache](
           ReaderTMonad[OutCacheM, Cache].ask
         )))
   def get_out_cache: AnsM[Cache] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Cache](
       StateT.liftM[NdInOutCacheM, Store, Cache](
-        ListT.liftM[InOutCacheM, Cache](
+        SetT.liftM[InOutCacheM, Cache](
           ReaderT.liftM[OutCacheM, Cache, Cache](
             StateTMonad[IdM, Cache].get
           ))))
   def put_out_cache(out: Cache): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
-        ListT.liftM[InOutCacheM, Unit](
+        SetT.liftM[InOutCacheM, Unit](
           ReaderT.liftM[OutCacheM, Cache, Unit](
             StateTMonad[IdM, Cache].put(out)
           ))))
   def update_out_cache(cfg: Config, vs: (Value, Store)): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](
       StateT.liftM[NdInOutCacheM, Store, Unit](
-        ListT.liftM[InOutCacheM, Unit](
+        SetT.liftM[InOutCacheM, Unit](
           ReaderT.liftM[OutCacheM, Cache, Unit](
             StateTMonad[IdM, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
             )))))
@@ -142,16 +159,21 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     val cfg = (e, ρ, σ)
     val _ = println(s"Eval ${ASTUtils.exprToString(e)} – ρ size: ${ρ.size} – σ size: ${σ.size} – out: ${out.size}")
     rt <- if (out.contains(cfg)) {
+      //println("HIT")
       for {
-        (v, s) <- lift_nd[(Value, Store)](out(cfg).toList)
+        (v, s) <- lift_nd[(Value, Store)](out(cfg))
         _ <- put_store(s)
       } yield v
     } else {
+      //println("NOTHIT")
+      //println(s"OLD STORE: ${σ}")
+      // TODO: get which store affects!
       val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
       for {
         _ <- put_out_cache(out + (cfg → ans_in))
         v <- ev(fix(ev))(e)
         σ <- get_store
+        //val _ = println(s"NEW STORE: ${σ}")
         _ <- update_out_cache(cfg, (v, σ))
       } yield v
     }
@@ -162,7 +184,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   val σ0: Store = Map()
   val cache0: Cache = Map()
 
-  type Result = (List[(Value, Store)], Cache)
+  type Result = (Set[(Value, Store)], Cache)
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 
   def mValue: Manifest[Value] = manifest[Value]

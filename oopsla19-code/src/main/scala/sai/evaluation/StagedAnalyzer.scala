@@ -63,6 +63,8 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   def set_store(αv: (Rep[Addr], Rep[Value])): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(αv)))
 
+  def foldVss(vss: Rep[List[Value]]): Rep[Value] = ???
+
   def void: Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue]())
   def literal(i: Any): Ans = {
     val v: AbsValue = i match {
@@ -78,7 +80,8 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   }
   def get(ρ: Rep[Env], x: String): Rep[Addr] = ρ(x)
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
-  def br(ev: EvalFun)(test: Rep[Value], thn: Expr, els: Expr): Ans =
+  //def br(ev: EvalFun)(test: Rep[Value], thn: Expr, els: Expr): Ans =
+  def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els))
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(params, e) = λ

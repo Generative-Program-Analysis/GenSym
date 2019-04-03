@@ -50,7 +50,7 @@ trait SchemeAnalyzer {
   def get(ρ: R[Env], x: String): R[Addr]
   def get(σ: R[Store], ρ: R[Env], x: String): R[Value]
   //def br(test: R[Value], thn: => Ans, els: => Ans): Ans
-  def br(ev: EvalFun)(test: R[Value], thn: Expr, els: Expr): Ans
+  def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[List[Value]]): Ans
   def primtives(v: R[Value], args: List[R[Value]]): R[Value]
@@ -96,12 +96,20 @@ trait SchemeAnalyzer {
       v2 <- mapM(args)(ev)
       rt <- ap_clo(ev)(v1, v2)
     } yield rt
+    case Begin(Define(x, rhs)::rest) => for {
+      α <- alloc(x)
+      v <- ext_env(ev(rhs))(x → α)
+      _ <- set_store(α → v)
+      rv <- ext_env(ev(Begin(rest)))(x → α)
+    } yield rv
     case Begin(es) => forM(es)(ev)
     case If(cnd, thn, els) => for {
       t <- ev(cnd)
-      rt <- br(ev)(t, thn, els)
+      rt <- br(ev)(cnd, thn, els)
     } yield rt
   }
+
+  def foldVss(vss: R[List[Value]]): R[Value]
 }
 
 trait AbstractComponents extends SchemeAnalyzer {

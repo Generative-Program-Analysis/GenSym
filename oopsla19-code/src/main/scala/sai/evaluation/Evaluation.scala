@@ -22,11 +22,12 @@ object Evaluation {
       //(euclid, "euclid"),
       //(euclid_imp, "euclid_imp"),
       //(fact5, "fact5"),
+      //(kcfa3, "kcfa3"),
       //(kcfa16, "kcfa16"),
-      //(kcfa32, "kcfa32"),
+      (kcfa32, "kcfa32"),
       //(kcfa64, "kcfa64"),
       //(kcfa256, "kcfa256"),
-      (church, "church")
+      //(church, "church")
       //(omega, "omega")
       //(church_exp, "church_exp")
       //(fermat, "fermat"),
@@ -46,7 +47,7 @@ object Evaluation {
     )
     //progs foreach { case (e, id) => compare(e, id) }
     //progs foreach { case (e, id) => println(s"$id - ${size(e)}") }
-    progs foreach { case (e, id) => evalUnstaged(e) }
+    progs foreach { case (e, id) => println(e); evalUnstaged(e) }
   }
 
   def run[R](n: Int, block: => R): Timing = {
