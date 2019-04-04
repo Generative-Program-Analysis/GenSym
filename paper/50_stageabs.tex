@@ -47,27 +47,27 @@ Now we implement the staged abstract semantics, where @R@ is instantiated as
 We use the same monad stack structure as in the unstaged abstract interpreter,
 but replacing \textit{all} the transformers to their staged version. The
 following code shows this change. For the readability, we squeeze the three
-inner transformers into a single monad @RepListReaderStateM[A, B, C]@, where @A@
+inner transformers into a single monad @RepSetReaderStateM[A, B, C]@, where @A@
 and @B@ are both @Cache@ when used in @AnsM@. Now the result type is a pair of
-two staged value: @Rep[List[(Value, Store)]]@ and @Rep[Cache]@.
+two staged value: @Rep[Set[(Value, Store)]]@ and @Rep[Cache]@.
 
 \begin{lstlisting}
   trait StagedAbstractSemantics extends AbstractComponents {
     type R[T] = Rep[T]
-    type RepListReaderStateM[A, B, C] = RepListT[RepReaderT[RepStateT[RepIdM, A, ?], B, ?], C]
-    type AnsM[T] = RepReaderT[RepStateT[RepListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
-    type Result = (Rep[List[(Value, Store)]], Rep[Cache])
+    type RepSetReaderStateM[A, B, C] = RepSetT[RepReaderT[RepStateT[RepIdM, A, ?], B, ?], C]
+    type AnsM[T] = RepReaderT[RepStateT[RepSetReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
+    type Result = (Rep[Set[(Value, Store)]], Rep[Cache])
     ...
   }
 \end{lstlisting}
 
-Since our monad stack is uniformly using staged data, so the staged @ListT@ now
-stores a staged value of type @Rep[List[A]]@, inside of a staged monad @M@.
-\todo{staged ListT implementation}
+Since our monad stack is uniformly using staged data, so the staged @SetT@ now
+stores a staged value of type @Rep[Set[A]]@, inside of a staged monad @M@.
+\todo{staged SetT implementation}
 
 \begin{lstlisting}
-  case class ListT[M[_]: RepMonad, A](run: M[List[A]]) {
-    def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] = ...
+  case class SetT[M[_]: RepMonad, A](run: M[Set[A]]) {
+    def flatMap[B: Manifest](f: Rep[A] => SetT[M, B]): SetT[M, B] = ...
   }
 \end{lstlisting}
 
@@ -83,10 +83,10 @@ last, we generate a singleton set containing the compiled closure
 
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
-                           => Rep[(List[(Value,Store)], Cache)]): Rep[AbsValue]
+                           => Rep[(Set[(Value,Store)], Cache)]): Rep[AbsValue]
   def close(ev: Expr => Ans)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
-    val f: (Rep[Value],Rep[Store],Rep[Cache],Rep[Cache]) => Rep[(List[(Value,Store)],Cache)] = {
+    val f: (Rep[Value],Rep[Store],Rep[Cache],Rep[Cache]) => Rep[(Set[(Value,Store)],Cache)] = {
       case (arg, σ, in, out) =>
         val α = alloc(σ, x); val ρ_* = ρ + (unit(x) → α); val σ_* = σ ⊔ Map(α → arg)
         ev(e)(ρ_*)(σ_*)(in)(out)
@@ -101,13 +101,13 @@ put the @out@ cache, store and values back into the monads. The @emit_ap_clo@
 method takes the target closure @clo@, argument @rand@, store and caches.
 
 \begin{lstlisting}
-  def lift_nd[T](vs: Rep[List[T]]): AnsM[T]
+  def lift_nd[T](vs: Rep[Set[T]]): AnsM[T]
   def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
-                  in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)]
+                  in: Rep[Cache], out: Rep[Cache]): Rep[(Set[(Value, Store)], Cache)]
   def ap_clo(ev: Expr => Ans)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
-    σ <- get_store;     clo <- lift_nd[AbsValue](rator.toList)
+    σ <- get_store;     clo <- lift_nd[AbsValue](rator)
     in <- ask_in_cache; out <- get_out_cache
-    val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, rand, σ, in, out)
+    val res: Rep[(Set[(Value, Store)], Cache)] = emit_ap_clo(clo, rand, σ, in, out)
     _ <- put_out_cache(res._2)
     vs <- lift_nd[(Value, Store)](res._1)
     _ <- put_store(vs._2)
@@ -130,8 +130,8 @@ staged version of @fix@.
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
     ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache
     val cfg: Rep[Config] = (unit(e), ρ, σ)
-    val res: Rep[(List[(Value, Store)], Cache)] =
-      if (out.contains(cfg)) (out(cfg).toList, out) // a next-stage if expression
+    val res: Rep[(Set[(Value, Store)], Cache)] =
+      if (out.contains(cfg)) (out(cfg), out) // a next-stage if expression
       else { val m: Ans = for {
                _ <- put_out_cache(out + (cfg → in.getOrElse(cfg, ⊥)))
                v <- ev(fix(ev))(e)
@@ -161,9 +161,9 @@ applications are defined as following:
 
 \begin{lstlisting}
   case class IRCompiledClo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
-                           => Rep[(List[(Value, Store)], Cache)]) extends Rep[AbsValue]
+                           => Rep[(Set[(Value, Store)], Cache)]) extends Rep[AbsValue]
   case class IRApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
-                     in: Rep[Cache], out: Rep[Cache]) extends Rep[(List[(Value, Store)], Cache)]
+                     in: Rep[Cache], out: Rep[Cache]) extends Rep[(Set[(Value, Store)], Cache)]
 \end{lstlisting}
 
 The code generator for these two IR nodes is similar to staged concrete
@@ -220,14 +220,14 @@ the world are all dynamic. But this is not always true, since the static data
 has to be used somewhere with the dynamic operation. Partial-static data is a
 way to improve binding-times and optimize the generated code.
 
-For example, to fold a singleton list (often appears in @ListT@), e.g.,
-@List(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
-generator would faithfully apply @foldLeft@ to the list with an anonymous
+For example, to fold a singleton set (often appears in @SetT@), e.g.,
+@Set(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
+generator would faithfully apply @foldLeft@ to the set with an anonymous
 function. But we can also utilize the algebraic property of @foldLeft@ to
-generate cheaper code: @List(x).foldLeft(init)(f) = f(init, x)@. Since the
+generate cheaper code: @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
 function @f@ is known at current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
-partial-static data structures, such as @List@ and @Map@, which greatly reduces
+partial-static data structures, such as @Set@ and @Map@, which greatly reduces
 the size of residual programs.
 
 %\paragraph{Heterogeneous Staging} The generated program is in A-Normal form. \todo{TODO}

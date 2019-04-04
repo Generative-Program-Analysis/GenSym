@@ -115,12 +115,12 @@ both branches if the condition can not be determined. In other words, we will
 have multiple computing results.
 
 \begin{lstlisting}
-  type Result = (R[List[(Value, Store)]], R[Cache])
+  type Result = (R[Set[(Value, Store)]], R[Cache])
 \end{lstlisting}
 
 This observation leads us to the type definition of @Result@: in concrete setting,
-the @Result@ is a pair of @Value@ and @Store@, now we use a list of such pairs
-@List[(Value, Store)]@ to represent multiple results. The results is also linked
+the @Result@ is a pair of @Value@ and @Store@, now we use a set of such pairs
+@Set[(Value, Store)]@ to represent multiple results. The results is also linked
 with the resulting cache used in this iteration.
 Note that the abstract binding-time annotation is wrapped to the two objects in
 the @Result@ pair, but not the whole pair. Because we statically know the result
@@ -131,28 +131,28 @@ would have, neither the content of the cache.
 nondeterminism and caching into the monad stack. For concrete evaluation, we
 already have a reader effect for environments and a state effect for stores. We
 further add three more effects based on it: the nondeterminism effect is
-represented by the @ListT[M[_], A]@ monad transformer, inside of which, we have
+represented by the @SetT[M[_], A]@ monad transformer, inside of which, we have
 a @ReaderT@ for a @in@ cache, and a @StateT@ for an @out@ cache. \todo{highlight
 where changed}
 
 \begin{lstlisting}
   trait AbstractSemantics extends AbstractComponents {
     type R[T] = T
-    type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+    type AnsM[T] = ReaderT[StateT[SetT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
     ...
   }
 \end{lstlisting}
 
-The sketch implementation of @ListT@ transformer is shown below. The value @run@
-it encapsulates is of type @M[List[A]]@, where @M[_]@ is the inner monad, and
+The sketch implementation of @SetT@ transformer is shown below. The value @run@
+it encapsulates is of type @M[SetT[A]]@, where @M[_]@ is the inner monad, and
 @A@ the element type of the list. The @flatMap@ method first unwraps the inner
-monadic value @M[List[A]]@ and obtain a value of @List[A]@, then applies @f@ to
+monadic value @M[SetT[A]]@ and obtain a value of @Set[A]@, then applies @f@ to
 each element in that list, and finally folds the results back to a single
-@List[M, B]@.
+@SetT[M, B]@.
 
 \begin{lstlisting}
-  case class ListT[M[_]: Monad, A](run: M[List[A]]) {
-    def flatMap[B](f: A => ListT[M, B]): ListT[M, B] = ...
+  case class SetT[M[_]: Monad, A](run: M[Set[A]]) {
+    def flatMap[B](f: A => SetT[M, B]): SetT[M, B] = ...
   }
 \end{lstlisting}
 
@@ -162,7 +162,7 @@ operation joins the value with the existing values, for the same address. Under
 abstract interpretation, we may have to explore the results from both branches
 of a conditional expression for soundness. In @br0@, we combine the results
 using @mplus@ from @MonadPlus@, which requires the values are join-semilattices
-(in our case, @List@s and @Map@s).
+(in our case, @Set@s and @Map@s).
 
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ ⊔ Map(αv)))
@@ -179,14 +179,14 @@ singleton set.
 For function applications, @ap_clo@ looks roughly the same as the concrete
 interpreter. The difference is now the function @rator@ is a set of closures, so
 we can not directly destruct it by pattern matching. Instead, we use an
-auxiliary function @lift_nd@ that takes a list and lifts the elements into the
+auxiliary function @lift_nd@ that takes a set and lifts the elements into the
 monad stack. Then we can still implement @ap_clo@ in monadic style, where the
-@CloV@ comes from the @ListT@ and the nondeterminism is naturally handled.
+@CloV@ comes from the @SetT@ and the nondeterminism is naturally handled.
 
 \begin{lstlisting}
-  def lift_nd[T](vs: List[T]): AnsM[T]
+  def lift_nd[T](vs: Set[T]): AnsM[T]
   def ap_clo(ev: Expr => Ans)(rator: Value, rand: Value): Ans = for {
-    CloV(Lam(x, e), ρ) <- lift_nd[AbsValue](rator.toList)
+    CloV(Lam(x, e), ρ) <- lift_nd[AbsValue](rator)
     α <- alloc(x)
     _ <- set_store(α → rator)
     rt <- local_env(ev(e))(ρ + (x → α))
@@ -246,7 +246,7 @@ thus the iteration should end and we have reached the least fixed point.
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
     ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache; val cfg = (e, ρ, σ)
     rt <- if (out.contains(cfg)) for {
-            (v, σ) <- lift_nd[(Value, Store)](out(cfg).toList)
+            (v, σ) <- lift_nd[(Value, Store)](out(cfg))
              _ <- put_store(σ)
           } yield v
           else for {

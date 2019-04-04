@@ -109,52 +109,54 @@ def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
   \label{compare_ac_sai}
 \end{figure*}
 
-\paragraph{Original AC} \todo{WIP}
-
+\paragraph{Original AC}
 The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA
-for a CPS language consisting of lambda terms, applications, @letrec@ and
-primtive operators. The analyses for different syntactic constructs are
-decomposed into different functions, such as @analyzeCall@ and @analyzeApp@. The
-idea of closure generation is to rewrite these functions. Where previously they
-may take both static arguments and dynamic arguments, after the rewrite only the
-static arguments is taken. In this case, the static arguments are syntactic
-terms; the dynamic arguments are stores. After written in AC style, functions
-like @compCall@ (compiled version of @analyzeCall@) return a value of type
-@CompAnalysis@, i.e., a closure that takes a store and returns a store. The
-result of multiple calls on such functions, for example, @compCall@ and
-@compArgs@, can be composed. The generated closure only takes stores, because
-the input program is specialized into the closure. The code is shown in
-Figure~\ref{compare_ac_sai} (left).
+for a small CPS language consisting of abstractions, applications, recursion and
+primtive operators. Figure \ref{compare_ac_sai} (left) shows the AC
+implementation: different syntactic constructs are handled in different functions
+(e.g., @compCall@, @compApp@, etc.).
+Before refactoring into AC, these functions would take the store as a
+regular argument; now every function returns a value of type @CompAnalysis@,
+which is a function (closure) value that takes and returns stores. After the
+first run of analysis, we have traversed the AST and obtained a single closure
+takes a store and returns a store. Therefore, the ASTs are static terms, and the
+stores are dynamic terms. Now we can invoke the compiled closure with an initial
+store to complete the analysis.
 
 \paragraph{AC through Staging}
 
 On the other side, our approach does exactly the same thing through staging: the
-syntactic terms are static, and stores are dynamic, therefore the generated code
-just looks-up and updates the store. Figure~\ref{compare_ac_sai} (right) shows
-the code written with LMS. In fact, the only changes are the type of @Store@ is
-replaced with @Rep[Store]@ indicating that the values of type @Store@ will be
-known at the next stage. Indeed, additional engineering efforts are required to
-make this happen, including: the staged version @Map@ which is already included
-in LMS; implicit @lift@ function that transform a current-stage constant value
-to next stage; next-stage representation of the syntactic terms, i.e., proper
-@toString@ functions of AST structs. We consider these efforts relatively small,
-and they do not interfere the actual analysis we desire.
+AST are static, and stores are dynamic, therefore we annotate the type @Store@
+with @Rep@ (shown in Figure \ref{compare_ac_sai} (right)). In fact, the only
+changes of our appraoch using LMS framework are the types of @Store@ to
+@Rep[Store]@, since they will be known at the next stage. The generated code
+will just looks-up and update the store. The functions at current stage are
+eliminated in the residual program, therefore we do not generate higher-order
+functions, which provides additional performance improvement. Nevertheless,
+the support from LMS framework is necessary, such as staging support for @Map@,
+we consider these efforts are reusable and complete orthogonal to the
+implementation of analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{Control-flow Analysis} \label{cfa}
 
-The target language we presented in Section~\ref{bg_lang} is essentially a
-higher-order functional language. One fundamental analysis task for functional
-programs is control-flow analysis, i,e., determining which functions will
-possibly be applied at each call-site. The abstract interpreter we used in
-Section~\ref{unstaged_abs} and Section~\ref{sai} is a store-widened 0-CFA-like
-abstraction, moreover it is also a pushdown control-flow analysis; in the last
-section, we also reviewed AC with finite-state 0-CFA. In this section, based on
-the existing staged abstract interpreter, we further develop the staging
-techniques with control-flow analyses, including recoverying a more precise
-store model and adding context-sensitivity to the analysis.
+In this section, to demonstrate the SAI approach is widely applicable, we extend
+and refactor the staged abstract interpreter we presented in Section \ref{sai}
+to various control-flow analysis (CFA). We first discuss calling-context
+sensitive analysis for staged analyzers; then we will see how to implement
+store-widening with staging, which is a common optimization in CFA; finally, we
+integrate abstract garbage collection with staging, \todo{where the addresses to
+  be collected can be computed at the staging time}.
+
+\subsubsection{Context-sensitivity}
+
+\subsubsection{Store-widened Analysis}
+
+\subsubsection{Abstract Garbage Collection at Staging Time}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
 
 \subsubsection{A More Precise Store Model}
 
@@ -242,7 +244,7 @@ possible \cite{DBLP:conf/icfp/Gilray0M16} and can be staged under our framework.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\subsection{Modular Analysis for Free}
+\subsection{Modular Analysis for Free} \label{modular}
 
 % \subsubsection{Mixed Sensitivity}
 % using different k?

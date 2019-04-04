@@ -4,16 +4,20 @@
 
 In this section, we first describe the abstract syntax of the language we will
 analyze, then present the generic interpreter shared among the four different
-semantics, after which, we instantiate the interpreter to the concrete one. Then we
+semantics, after which, we instantiate the interpreter to the concrete one.
+It is worth noting that we choose to use Scala and monad to demonstrate the
+idea, but the approach is not restricted to our choice. One can use
+imperative/direct style and other MSP languages (e.g., MetaOCaml
+\cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} and Template
+Haskell \cite{Sheard:2002:TMH:636517.636528} to construct such staged abstract
+interpreters.
+
+\iffalse
+Then we
 will proceed in two directions: by staging it we obtain a staged concrete interpreter
 (Section~\ref{stagedinterp}); by abstracting it we obtain an unstaged abstract
 interpreter (Section~\ref{unstaged_abs}).
-
-We choose to use Scala and monad to demonstrate the idea, but the approach
-is not restricted to our choice. One can use imperative style and other MSP languages 
-(such as MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} 
-or Template Haskell \cite{Sheard:2002:TMH:636517.636528} \todo{cite the recent one})
-to construct such staged abstract interpreters.
+\fi
 
 \subsection{Abstract Syntax} \label{bg_lang}
 
