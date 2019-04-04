@@ -48,18 +48,21 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def set_store(αv: (Addr, Value)): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => {
                                                                                          val news = σ ⊔ Map(αv)
+                                                                                         /*
                                                                                          val oldc = σ.getOrElse(αv._1, Set())
                                                                                          val newc = news(αv._1)
                                                                                          if (oldc != newc) {
                                                                                            //println(s"growing: ${αv._1} oldsize: ${oldc.size} newsize: ${newc.size}")
                                                                                            //println(s"DIFF ${newc -- oldc}")
                                                                                          }
-
+                                                                                         */
                                                                                          news
                                                                                        }))
 
   // allocate addresses
-  def alloc(σ: Store, x: String): Addr = ZCFAAddr(x)
+  def alloc(σ: Store, x: String): Addr = {
+    ZCFAAddr(x)
+  }
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
   // Primitive operations
@@ -94,9 +97,14 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
+    α <- alloc(params(0))
+    _ <- set_store(α → args(0))
+    v <- local_env(ev(e))(ρ + (params(0) → α))
+    /*
     αs <- mapM(params)(alloc)
     _ <- mapM(αs.zip(args))(set_store)
     v <- local_env(ev(e))(params.zip(αs).foldLeft(ρ)(_+_))
+    */
   } yield v
 
   def primtives(v: Value, args: List[Value]): Value = ???
@@ -140,26 +148,23 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
     ρ <- ask_env
     σ <- get_store
+    val cfg = (e, ρ, σ)
     in <- ask_in_cache
     out <- get_out_cache
-    val cfg = (e, ρ, σ)
-    //val _ = println(s"Eval ${ASTUtils.exprToString(e)} – ρ size: ${ρ.size} – σ size: ${σ.size} – out: ${out.size}")
     rt <- if (out.contains(cfg)) {
-      //println("HIT")
+      //val _ = println(s"MISS ${ASTUtils.exprToString(e)}, ρ: ${ρ.size}, σ: ${σ.size}, out: ${out.size}")
       for {
+        _ <- put_out_cache(out)
         (v, s) <- lift_nd[(Value, Store)](out(cfg))
         _ <- put_store(s)
       } yield v
     } else {
-      //println("NOTHIT")
-      //println(s"OLD STORE: ${σ}")
-      // TODO: get which store affects!
+      //val _ = println(s"HIT ${ASTUtils.exprToString(e)}, ρ: ${ρ.size}, σ: ${σ.size}, out: ${out.size}")
       val ans_in = in.getOrElse(cfg, Lattice[Set[(Value, Store)]].bot)
       for {
         _ <- put_out_cache(out + (cfg → ans_in))
         v <- ev(fix(ev))(e)
         σ <- get_store
-        //val _ = println(s"NEW STORE: ${σ}")
         _ <- update_out_cache(cfg, (v, σ))
       } yield v
     }

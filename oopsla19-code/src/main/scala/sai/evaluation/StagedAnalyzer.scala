@@ -102,7 +102,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   }
   def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = {
     get_store.flatMap { σ =>
-      lift_nd[AbsValue](fun).flatMap { clo =>
+      lift_clo[AbsValue](fun).flatMap { clo =>
         ask_in_cache.flatMap { in =>
           get_out_cache.flatMap { out =>
             val res: Rep[(Set[(Value, Store)], Cache)] = emit_ap_clo(clo, args, σ, in, out)
@@ -117,6 +117,12 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     ReaderT.liftM[StoreNdInOutCacheM, Env, T](
       StateT.liftM[NdInOutCacheM, Store, T](
         SetReaderStateM.fromSet(vs)
+      ))
+
+  def lift_clo[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
+    ReaderT.liftM[StoreNdInOutCacheM, Env, T](
+      StateT.liftM[NdInOutCacheM, Store, T](
+        SetReaderStateM.fromSet(vs.filter { x => unchecked[Boolean](x, ".isInstanceOf[CompiledClo]") })
       ))
 
   // cache operations

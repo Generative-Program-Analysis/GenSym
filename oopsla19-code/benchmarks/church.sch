@@ -37,8 +37,7 @@
               ((church=? ((sub e1) church1)) 
                ((sub e2) church1)))))))
 
-((church=? ((mult church2) ((plus church1) church3)))
-  ((plus church2) church3))
+((church=? church3) church3)
 
 ;; multiplication distributes over addition
 ;((church=? ((mult church2) ((plus church1) church3)))
