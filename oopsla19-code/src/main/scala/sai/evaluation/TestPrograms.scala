@@ -6,7 +6,7 @@ import sai.evaluation.parser._
 object TestPrograms {
   def getAST(prog: String) = {
     SchemeParser(prog) match {
-      case Some(expr) => expr //SchemeASTDesugar(expr)
+      case Some(expr) => SchemeASTDesugar(expr)
     }
   }
 
@@ -71,6 +71,16 @@ object TestPrograms {
               (set! r (% x y))
               (loop_body))))])
       (loop_body))
+    """
+  )
+
+  def letloop = getAST(
+    """
+    (let loop ((z z0) 
+               (c 0)) 
+        (if (= c max-count)
+            c
+            1))
     """
   )
 

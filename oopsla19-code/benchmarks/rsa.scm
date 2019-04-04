@@ -81,4 +81,5 @@
 (newline)
 
 (if (not (= plaintext decrypted-ciphertext))
-    (error "RSA fail!"))
+  (error "RSA fail!")
+  (display "Success"))

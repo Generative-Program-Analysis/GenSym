@@ -5,6 +5,7 @@ import sai.evaluation.parser._
 object SAIRuntime {
   trait AbsValue
   case object IntV extends AbsValue
+  case object SymV extends AbsValue
   case object BoolV extends AbsValue
   case object VoidV extends AbsValue
   case object FloatV extends AbsValue
@@ -13,6 +14,8 @@ object SAIRuntime {
   case object InputPortV extends AbsValue
   case object OutputPortV extends AbsValue
   case object MtListV extends AbsValue
+  case object VectorVTop extends AbsValue
+  case object ListVTop extends AbsValue
   case class PrimOpV(op: String) extends AbsValue
   case class ConsV(a: Addr, b: Addr) extends AbsValue
   case class VectorV(vs: List[Addr]) extends AbsValue

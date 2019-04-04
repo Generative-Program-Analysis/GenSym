@@ -60,12 +60,14 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
       case f: Double => FloatV
       case c: Char => CharV
       case b: Boolean => BoolV
+      case x: String => SymV
       case _ =>
         println(s"value representation for $i not implemented")
         ???
     }
     ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set(v))
   }
+
   def get(ρ: Env, x: String): Addr = ρ(x)
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
@@ -84,17 +86,83 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
-    α <- alloc(params(0))
-    _ <- set_store(α → args(0))
-    v <- local_env(ev(e))(ρ + (params(0) → α))
-    /*
     αs <- mapM(params)(alloc)
     _ <- mapM(αs.zip(args))(set_store)
     v <- local_env(ev(e))(params.zip(αs).foldLeft(ρ)(_+_))
-    */
   } yield v
 
-  def primitives(v: Value, args: List[Value]): Value = ???
+  def primMaps = Map[String, Value](
+        "not" -> Set(BoolV)
+      , "ceiling" -> Set(FloatV)
+      , "-" -> Set(IntV)
+      , "log" -> Set(FloatV)
+      , "vector" -> Set(VectorVTop)
+      , "display" -> Set()
+      , "<=" -> Set(BoolV)
+      , "or" -> Set(BoolV)
+      , "=" -> Set(BoolV)
+      , "*" -> Set(IntV)
+      , "and" -> Set(BoolV)
+      , "/" -> Set(IntV)
+      , "random" -> Set(FloatV)
+      , "modulo" -> Set(IntV)
+      , "newline" -> Set()
+      , "odd?" -> Set(BoolV)
+      , ">" -> Set(BoolV)
+      , "error" -> Set()
+      , "cons" -> Set(ListVTop)
+      , "cdr" -> Set(ListVTop)
+      , "car" -> Set(IntV, FloatV, CharV, BoolV) //FIXME
+      , "<" -> Set(BoolV)
+      , "quotient" -> Set(IntV)
+      , "gcd" -> Set(IntV)
+      , "fl+" -> Set(FloatV)
+      , "+" -> Set(IntV)
+      , "->fl" -> Set(FloatV)
+      , "read" -> Set(EofV, VectorVTop)
+      , ">=" -> Set(BoolV)
+      , "fl>" -> Set(BoolV)
+      , "vector-set!" -> Set()
+      , "imag-part" -> Set(IntV)
+      , "make-rectangular" -> Set(VectorVTop)
+      , "number->string" -> Set(VectorVTop)
+      , "vector-ref" -> Set(IntV, FloatV, CharV, BoolV)
+      , "real-part" -> Set(IntV)
+      , "fl*" -> Set(FloatV)
+      , "write" -> Set()
+      , "make-vector" -> Set(VectorVTop)
+      /***************************************/
+      , "less" -> Set(SymV)
+      , "high" -> Set(SymV)
+      , "low" -> Set(SymV)
+      , "uncomparable" -> Set(SymV)
+      , "equal" -> Set(SymV)
+      , "more" -> Set(SymV)
+      //lattice
+      , "set-cdr!" -> Set()
+      , "remainder" -> Set(IntV)
+      , "eq?" -> Set(BoolV)
+      , "null?" -> Set(BoolV)
+      , "memq" -> Set(ListVTop)
+      , "append" -> Set(ListVTop)
+      , "else" -> Set(BoolV)
+      , "list" -> Set(ListVTop)
+  )
+
+  def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
+    if (x == "apply") {
+      val (f::rest) = args
+      for {
+        fv <- ev(f)
+        as <- mapM(rest)(ev)
+        v <- ap_clo(ev)(fv, as)
+      } yield v
+    } else {
+      for {
+        _ <- mapM(args)(ev)
+      } yield primMaps(x)
+    }
+  }
 
   def foldVss(vss: List[Value]): Value = vss.foldLeft(Lattice[Value].bot)(_ ⊔ _)
 

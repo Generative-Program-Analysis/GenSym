@@ -53,7 +53,21 @@ trait SchemeAnalyzer {
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[List[Value]]): Ans
-  def primitives(v: R[Value], args: List[R[Value]]): R[Value]
+  def isPrim: Set[String] = Set(
+    "log", "-", "ceiling", "odd?", "vector", "<=", "not", "display",
+    "=", "*", "/", "modulo", "or", "and", "newline", "random",
+
+    ">", "error", "cons", "cdr", "car", "<", "quotient", "gcd",
+
+    "fl+", "+", "->fl", "read", ">=", "fl>", "vector-set!",
+    "imag-part", "make-rectangular", "number->string", "vector-ref",
+    "real-part", "fl*", "write", "make-vector",
+
+    "less", "high", "low", "uncomparable", "more", //lattice
+    "set-cdr!", "remainder", "eq?", "null?", "memq", "append",
+    "equal", "apply", "else", "list"
+  )
+  def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans
 
   // Fixpoint wrapper and top-level interface
   def fix(ev: EvalFun => EvalFun): EvalFun
@@ -91,6 +105,8 @@ trait SchemeAnalyzer {
       _ <- set_store(α → v)
       n <- void
     } yield n
+    case App(Var(x), args) if isPrim(x) =>
+      primitives(ev)(x, args)
     case App(e1, args) => for {
       v1 <- ev(e1)
       v2 <- mapM(args)(ev)
@@ -115,6 +131,7 @@ trait SchemeAnalyzer {
 trait AbstractComponents extends SchemeAnalyzer {
   trait AbsValue
   case object IntV extends AbsValue
+  case object SymV extends AbsValue
   case object BoolV extends AbsValue
   case object VoidV extends AbsValue
   case object FloatV extends AbsValue
@@ -123,6 +140,8 @@ trait AbstractComponents extends SchemeAnalyzer {
   case object InputPortV extends AbsValue
   case object OutputPortV extends AbsValue
   case object MtListV extends AbsValue
+  case object ListVTop extends AbsValue
+  case object VectorVTop extends AbsValue
   case class PrimOpV(op: String) extends AbsValue
   case class ConsV(a: Addr, b: Addr) extends AbsValue
   case class VectorV(vs: List[Addr]) extends AbsValue
@@ -138,4 +157,3 @@ trait AbstractComponents extends SchemeAnalyzer {
   type Value = Set[AbsValue]
   type Ctx = R[List[Expr]]
 }
-

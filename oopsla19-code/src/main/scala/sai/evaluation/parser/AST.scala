@@ -96,5 +96,34 @@ object ASTUtils {
     case If(c, t, e)  => 1 + size(c) + size(t) + size(e)
     case Lam(params, body) => 1 + size(body)
   }
+
+  def defVars(e: Expr): Set[String] = e match {
+    case Define(x, e) => Set(x) ++ defVars(e)
+    case Set_!(x, e) => defVars(e)
+    case App(x, l)    => defVars(x) ++ l.map(defVars).foldLeft(Set[String]())(_ ++ _)
+    case Begin(es)    => es.map(defVars).foldLeft(Set[String]())(_ ++ _)
+    case If(c, t, e)  => defVars(c) ++ defVars(t) ++ defVars(e)
+    case Lam(params, body) => defVars(body)
+    case _ => Set()
+  }
+
+  def free(e: Expr): Set[String] = {
+    val fv: Set[String] = e match {
+      case Var(x) => Set(x)
+      case Void() => Set()
+      case Sym(x) => Set()
+      case CharLit(x)   => Set()
+      case IntLit(x)    => Set()
+      case FloatLit(x)  => Set()
+      case BoolLit(x)   => Set()
+      case Set_!(x, e)  => free(e)
+      case Define(x, e) => free(e) - x
+      case App(x, l)    => free(x) ++ l.map(free).foldLeft(Set[String]())(_ ++ _)
+      case Begin(es)    => es.map(free).foldLeft(Set[String]())(_ ++ _)
+      case If(c, t, e)  => free(c) ++ free(t) ++ free(e)
+      case Lam(params, body) => free(body) -- params.toSet
+    }
+    fv -- defVars(e)
+  }
 }
 

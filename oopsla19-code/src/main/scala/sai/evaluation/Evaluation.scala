@@ -22,33 +22,43 @@ object Evaluation {
       //(kcfa16, "kcfa16"),
       //(kcfa32, "kcfa32"),
       //(kcfa64, "kcfa64"),
+      //(church, "church")
+      //(fermat, "fermat"),
+      //(rsa, "rsa"),
+      //(mbrotZ, "mbrotZ"),
       /********************/
+      (lattice, "lattice"),
+      //(letloop, "letloop")
       //(euclid, "euclid"),
       //(euclid_imp, "euclid_imp"),
       //(fact5, "fact5"),
       //(kcfa3, "kcfa3"),
       //(kcfa256, "kcfa256"),
-      (church, "church")
       //(omega, "omega")
       //(church_exp, "church_exp")
-      //(fermat, "fermat"),
-      //(rsa, "rsa"),
       //(blur, "blur"), // 56
       //(fib, "fib"), // 36
       //(sat, "sat"), // 73
       //(boyer, "boyer"),
       //(earley, "earley"),
-      //(mbrotZ, "mbrotZ"),
       //(dynamic, "dynamic"),
       //(graphs, "graphs"),
-      //(lattice, "lattice"),
       //(matrix, "matrix"),
       //(nbody, "nbody"),
       //(nucleic, "nucleic"),
     )
     progs foreach { case (e, id) => compare(e, id) }
-    //progs foreach { case (e, id) => println(s"$id - ${size(e)}") }
-    //progs foreach { case (e, id) => println(e); evalUnstaged(e) }
+    /*
+    progs foreach { case (e, id) => 
+      println(s"$id - ${size(e)}")
+      println(e)
+      println(ASTUtils.exprToString(e))
+      println(ASTUtils.free(e).map("\"" + _ + "\""))
+      println(ASTUtils.free(e).map("\"" + _ + "\" =>\n"))
+      val t1 =  run(1, { evalUnstaged(e) })
+      println(s"[$id] [unstaged] - ${t1}s")
+    }
+    */
     /*
     progs foreach { case (e, id) =>
       val code = specialize(e)
@@ -105,9 +115,10 @@ object Evaluation {
   def compare(e: Expr, id: String) {
     println(s"Running $id, AST size: ${size(e)}")
     val N = 1
-    //val t1 =  run(N, { evalUnstaged(e) })
-    //println(s"[$id] [unstaged] - ${t1}s")
-  
+    /*
+    val t1 =  run(N, { evalUnstaged(e) })
+    println(s"[$id] [unstaged] - ${t1}s")
+    */
     val code = specialize(e)
     code.precompile
     val outfile = output(id)

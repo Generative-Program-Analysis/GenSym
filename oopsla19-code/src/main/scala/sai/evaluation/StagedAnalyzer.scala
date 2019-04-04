@@ -73,8 +73,9 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
       case f: Double => FloatV
       case c: Char => CharV
       case b: Boolean => BoolV
+      case x: String => SymV
       case _ =>
-        println(s"value representation for $i not implemented")
+        System.out.println(s"value representation for $i not implemented")
           ???
     }
     ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](unit(v)))
@@ -105,7 +106,80 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
               lift_nd[(Value, Store)](res._1).flatMap { vs =>
                 put_store(vs._2).map { _ => vs._1 }
               } } } } } } }
-  def primitives(v: Rep[Value], args: List[Rep[Value]]): Rep[Value] = ???
+
+  def primMaps = scala.collection.immutable.Map[String, Rep[Set[AbsValue]]](
+      "not" -> Set[AbsValue](unit(BoolV))
+    , "ceiling" -> Set[AbsValue](unit(FloatV))
+    , "-" -> Set[AbsValue](unit(IntV))
+    , "log" -> Set[AbsValue](unit(FloatV))
+    , "vector" -> Set[AbsValue](unit(VectorVTop))
+    , "display" -> Set[AbsValue]()
+    , "<=" -> Set[AbsValue](unit(BoolV))
+    , "or" -> Set[AbsValue](unit(BoolV))
+    , "=" -> Set[AbsValue](unit(BoolV))
+    , "*" -> Set[AbsValue](unit(IntV))
+    , "and" -> Set[AbsValue](unit(BoolV))
+    , "/" -> Set[AbsValue](unit(IntV))
+    , "random" -> Set[AbsValue](unit(FloatV))
+    , "modulo" -> Set[AbsValue](unit(IntV))
+    , "newline" -> Set[AbsValue]()
+    , "odd?" -> Set[AbsValue](unit(BoolV))
+    , ">" -> Set[AbsValue](unit(BoolV))
+    , "error" -> Set[AbsValue]()
+    , "cons" -> Set[AbsValue](unit(ListVTop))
+    , "cdr" -> Set[AbsValue](unit(ListVTop))
+    , "car" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV)) //FIXME
+    , "<" -> Set[AbsValue](unit(BoolV))
+    , "quotient" -> Set[AbsValue](unit(IntV))
+    , "gcd" -> Set[AbsValue](unit(IntV))
+    /*****************************************/
+    , "fl+" -> Set[AbsValue](unit(FloatV))
+    , "+" -> Set[AbsValue](unit(IntV))
+    , "->fl" -> Set[AbsValue](unit(FloatV))
+    , "read" -> Set[AbsValue](unit(EofV), unit(VectorVTop))
+    , ">=" -> Set[AbsValue](unit(BoolV))
+    , "fl>" -> Set[AbsValue](unit(BoolV))
+    , "vector-set!" -> Set[AbsValue]()
+    , "imag-part" -> Set[AbsValue](unit(IntV))
+    , "make-rectangular" -> Set[AbsValue](unit(VectorVTop))
+    , "number->string" -> Set[AbsValue](unit(VectorVTop))
+    , "vector-ref" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
+    , "real-part" -> Set[AbsValue](unit(IntV))
+    , "fl*" -> Set[AbsValue](unit(FloatV))
+    , "write" -> Set[AbsValue]()
+    , "make-vector" -> Set[AbsValue](unit(VectorVTop))
+    /*****************************************/
+    , "less" -> Set[AbsValue](unit(SymV))
+    , "high" -> Set[AbsValue](unit(SymV))
+    , "low" -> Set[AbsValue](unit(SymV))
+    , "uncomparable" -> Set[AbsValue](unit(SymV))
+    , "equal" -> Set[AbsValue](unit(SymV))
+    , "more" -> Set[AbsValue](unit(SymV))
+    //lattice
+    , "set-cdr!" -> Set[AbsValue]()
+    , "remainder" -> Set[AbsValue](unit(IntV))
+    , "eq?" -> Set[AbsValue](unit(BoolV))
+    , "null?" -> Set[AbsValue](unit(BoolV))
+    , "memq" -> Set[AbsValue](unit(ListVTop))
+    , "append" -> Set[AbsValue](unit(ListVTop))
+    , "else" -> Set[AbsValue](unit(BoolV))
+    , "list" -> Set[AbsValue](unit(ListVTop))
+  )
+
+  def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
+    if (x == "apply") {
+      val (f::rest) = args
+      for {
+        fv <- ev(f)
+        as <- mapM(rest)(ev)
+        v <- ap_clo(ev)(fv, as)
+      } yield v
+    } else {
+      for {
+        _ <- mapM(args)(ev)
+      } yield primMaps(x)
+    }
+  }
 
   // auxiliary function that lifts values
   def lift_nd[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
