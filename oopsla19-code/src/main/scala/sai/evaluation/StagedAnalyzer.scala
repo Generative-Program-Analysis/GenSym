@@ -82,11 +82,6 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   def get(ρ: Rep[Env], x: String): Rep[Addr] = ρ(x)
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
-    /*for {
-     v1 <- ev(thn)
-     v2 <- ev(els)
-     } yield v1 ++ v2
-     */
     ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els))
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(params, e) = λ
@@ -110,7 +105,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
               lift_nd[(Value, Store)](res._1).flatMap { vs =>
                 put_store(vs._2).map { _ => vs._1 }
               } } } } } } }
-  def primtives(v: Rep[Value], args: List[Rep[Value]]): Rep[Value] = ???
+  def primitives(v: Rep[Value], args: List[Rep[Value]]): Rep[Value] = ???
 
   // auxiliary function that lifts values
   def lift_nd[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =

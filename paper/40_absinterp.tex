@@ -144,8 +144,8 @@ where changed}
 \end{lstlisting}
 
 The sketch implementation of @SetT@ transformer is shown below. The value @run@
-it encapsulates is of type @M[SetT[A]]@, where @M[_]@ is the inner monad, and
-@A@ the element type of the list. The @flatMap@ method first unwraps the inner
+encapsulated by the monad is of type @M[SetT[A]]@, where @M[_]@ is the inner monad, and
+@A@ is the element type of the list. The @flatMap@ method first unwraps the inner
 monadic value @M[SetT[A]]@ and obtain a value of @Set[A]@, then applies @f@ to
 each element in that list, and finally folds the results back to a single
 @SetT[M, B]@.

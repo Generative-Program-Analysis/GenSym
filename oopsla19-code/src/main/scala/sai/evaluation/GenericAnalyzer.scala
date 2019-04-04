@@ -53,7 +53,7 @@ trait SchemeAnalyzer {
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans
   def close(ev: EvalFun)(λ: Lam, ρ: R[Env]): R[Value]
   def ap_clo(ev: EvalFun)(fun: R[Value], arg: R[List[Value]]): Ans
-  def primtives(v: R[Value], args: List[R[Value]]): R[Value]
+  def primitives(v: R[Value], args: List[R[Value]]): R[Value]
 
   // Fixpoint wrapper and top-level interface
   def fix(ev: EvalFun => EvalFun): EvalFun

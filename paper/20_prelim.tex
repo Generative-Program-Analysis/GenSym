@@ -346,8 +346,8 @@ inner-most monad @IdM@ is just an identity monad.
 \end{lstlisting}
 
 Here we sketch the basic idea of unstaged @ReaderT@ and @StateT@. Readers may
-refer to \todo{cite, or appendix?} for more detail and implementation of monad
-transformers.
+refer to \cite{DBLP:conf/popl/LiangHJ95, Chiusano:2014:FPS:2688794} for more detail 
+and implementation of monad transformers.
 A @ReaderT@ monad transformer encapsulates the computation @R => M[A]@, where
 @R@ is the reader type, @M[_]@ is a monad type. The @ReaderT@ monad returns the
 transformed value of type @M[A]@. Similarly, a @StateT@ monad encapsulates the

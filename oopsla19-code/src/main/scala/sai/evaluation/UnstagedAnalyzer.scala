@@ -46,23 +46,10 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def put_store(σ: Store): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].put(σ))
   def set_store(αv: (Addr, Value)): AnsM[Unit] =
-    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => {
-                                                                                         val news = σ ⊔ Map(αv)
-                                                                                         /*
-                                                                                         val oldc = σ.getOrElse(αv._1, Set())
-                                                                                         val newc = news(αv._1)
-                                                                                         if (oldc != newc) {
-                                                                                           //println(s"growing: ${αv._1} oldsize: ${oldc.size} newsize: ${newc.size}")
-                                                                                           //println(s"DIFF ${newc -- oldc}")
-                                                                                         }
-                                                                                         */
-                                                                                         news
-                                                                                       }))
+    ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => { σ ⊔ Map(αv) }))
 
   // allocate addresses
-  def alloc(σ: Store, x: String): Addr = {
-    ZCFAAddr(x)
-  }
+  def alloc(σ: Store, x: String): Addr = { ZCFAAddr(x) }
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
   // Primitive operations
@@ -107,7 +94,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     */
   } yield v
 
-  def primtives(v: Value, args: List[Value]): Value = ???
+  def primitives(v: Value, args: List[Value]): Value = ???
 
   def foldVss(vss: List[Value]): Value = vss.foldLeft(Lattice[Value].bot)(_ ⊔ _)
 
