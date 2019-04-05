@@ -2,8 +2,8 @@
 
 \section{Preliminaries} \label{prelim}
 
-In this section, we first describe the abstract syntax of the language we will
-analyze, then present the generic interpreter shared among the four different
+In this section, we first describe the abstract syntax of the language for our interpreter, 
+then present the generic interpreter shared among the four different
 semantics, after which, we instantiate the interpreter to the concrete one.
 It is worth noting that we choose to use Scala and monad to demonstrate the
 idea, but the approach is not restricted to our choice. One can use
@@ -25,7 +25,7 @@ We consider a call-by-value $\lambda$-calculus in direct-style, extended
 with numbers, arithmetic, recursions and conditionals. Other effectful features
 such as assignments can also be supported readily. In Section~\ref{cases_imp}, we
 will add more imperative features to the language. Since we are mostly
-interested in analyzing the dynamic behaviors of the program, we disguised any
+interested in analyzing the dynamic behaviors of the program, we disguise any
 static semantics and type system. We also assume that input programs are
 well-typed and all variables are distinct. The abstract syntax is shown as
 follows:
@@ -42,8 +42,8 @@ follows:
 \end{lstlisting}
 
 The abstract syntax we present in fact can be seen as a deep embedding of the
-language -- we use data-types to represent programs. This design choice makes us
-easily add different interpretations over the AST; with the inheritance and
+language -- we use data-types to represent programs. This design choice allows us to
+easily use different interpretations over the AST; with the inheritance and
 overriding mechanism in Scala, we may also add new language construct and reuse
 the existing interpretation.
 
@@ -133,13 +133,13 @@ ground-truth from Haskell.
 \subsection{Generic Interpreter} \label{generic_if}
 
 Monad transformers are type constructors of kind @(* -> *) -> (* -> *)@, which
-takes a monad as argument and produces another monad. By using monad
+take a monad as argument and produces another monad. By using monad
 transformers, we can combine multiple monads into a single one. Constructing
 extensible interpreters using monad transformers was first proposed by
 \citet{DBLP:conf/popl/LiangHJ95}, and later has been applied to abstract
 interpreters \cite{Sergey:2013:MAI:2491956.2491979,
-DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}. In section,
-with the multi-stage programming and monad transformers in mind while leave them
+DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}. In this section,
+with the multi-stage programming and monad transformers in mind while leaving them
 as abstract type members, we present the generic interface of a big-step
 definitional interpreter.
 
@@ -179,9 +179,10 @@ compilers, we will also replace the monads to the ones that work on staged
 values.
 
 We also defines several methods to obtain and modify the environment and store.
-These methods either returns monadic values with environment or store inside, or
-simply a @Unit@ value for effects. For example, @local_env@ takes a value @ans@ of
-type @Ans@ and a new environment which will be installed when evaluating @ans@.
+These methods return monadic values of type @AnsM[_]@, which encapsulate the 
+environment or store, or simply a @Unit@ value for effects.
+For example, @local_env@ takes a value @ans@ of type @Ans@ and an environment 
+which will be installed when evaluating @ans@.
 
 %\vspace{-1em}
 \begin{figure}[h!]

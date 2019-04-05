@@ -10,8 +10,8 @@ the program (i.e., they can be known statically or dynamically),
 evaluates the static part, and finally generates a residual program that solely
 relies on the dynamic part. However, given an arbitrary program, precisely
 analyzing its binding-times is hard in general. As an alternative and pragmatic
-approach to specialization and partial evaluation, multi-stage programming (MSP
-for short) \cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the staging
+approach to specialization and partial evaluation, multi-stage programming (MSP) 
+\cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the staging
 annotations (i.e., binding-time annotations) to be explicit from the
 programmers. The staging annotations can be either syntactic (as in
 MetaML/MetaOCaml, through quasi-quote, escape, etc.) or type-based \cite{DBLP:conf/gpce/RompfO10}.
@@ -134,11 +134,6 @@ programming and generative programming, and extensively use abstract type
 members over the following abstractions, which can be later instantiated.
 
 \begin{itemize}
-\item Monadic abstractions, which encapsulate the following two abstractions.
-  The interpreter itself is written in monadic form, and by plugging different monads, 
-  the underlying semantics of the interpreter is changed.
-  %\todo{mention that direct-style also works?}
-  %\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}
 \item Env-store-value abstractions, which control whether the interpreter
   behaves as a concrete interpreter or an abstract interpreter.
   The environments, stores and values are initially declared as abstract types in the generic interpreter.
@@ -151,15 +146,20 @@ members over the following abstractions, which can be later instantiated.
   known statically or dynamically. Unsurprisingly, such binding-time
   information can be encoded into higher-kinded types 
     \cite{DBLP:journals/jfp/CaretteKS09, Ofenbeck:2017:SGP:3136040.3136060}.
+\item Monadic abstractions, which encapsulate the above two abstractions.
+  The interpreter itself is written in monadic form, and by plugging different monads, 
+  the underlying semantics of the interpreter is changed.
+  %\todo{mention that direct-style also works?}
+  %\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}
 \end{itemize}
 
 We show that these well-known abstractions can be combined smoothly, and more
-importantly the price is almost free. Through staging, the major overhead of
+importantly almost free. Through staging, the major overhead of
 abstractions -- from the monadic layers -- is completely eliminated in the
 generated code. \todo{put some numbers} However, we do not lose any advantages
 of this high-level programming style (e.g., modularity and extensibility); the
-meaning of the program also remains the same, particularly, the abstract
-semantics that does the analysis when instantiated as an abstract interpreter.
+meaning of the program also remains the same, particularly, the soundness of 
+static analysis after staging.
 
 \paragraph{Performance via Specialization}
 
@@ -169,14 +169,14 @@ static analyzer without any intrusive changes and soundness compromises?} Static
 analysis is known as a trade-off game between \textit{precision} and
 \textit{efficiency}, we argue that applying meta-programming (multi-stage
 programming, in particular) with abstract interpreters is an effective approach
-to improve the latter one while the former one is untouched.
+to improve the latter while the former is untouched.
 In the literature, specializing analysis with respect to the input program
 \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587,
-ashley:practical} is not a new, despite the fact that most of the previous work
+ashley:practical} is not new, despite the fact that most of the previous work
 are ad-hoc on a particular analysis or requiring significant changes to the
 analyzer. For example, abstract compilation is one of the techniques
 \cite{Boucher:1996:ACN:647473.727587}. But it requires the whole analyzer to be
-rewritten to the closure generation from. In this paper, we advocate a systematic
+rewritten to the closure generation form. In this paper, we advocate a systematic
 approach to meta-programming that achieves the performance goal with less
 intrusive changes; in fact, a case study (Section~\ref{cs_ac}) comparing our
 approach with abstract compilation shows that, by utilizing type-based stage
@@ -206,16 +206,18 @@ are just normal programs at the next stage. Through staging, we mechanically
 obtain a modular analysis, even though the original algorithm is formulated as a
 whole-program analysis.
 
-\paragraph{Contributions} The contribution of the paper is twofold:
-1) Intellectually, we present a unifying construction that naturally extends the first 
-   Futamura projection to abstract interpreters.
-2) Pragmatically, we show that staging abstract interpreters is an approach to
-  improve performance while untouch the soundness by case studies and emprical
-  evaluation. The paper is organized as follows:
-
+\paragraph{Contributions} Briefly, the contribution of the paper is twofold:
+\begin{enumerate}[leftmargin=2em]
+  \item Intellectually, through multi-stage programming, we present a unified construction 
+    that naturally extends the first Futamura projection to abstract interpreters.
+ \item Pragmatically, by case studies and emprical evaluation, we show that staging 
+   abstract interpreters is useful to improve performance while untouch 
+   the soundness. 
+\end{enumerate}
+\paragraph{Organization} The paper is organized as follows:
 \begin{itemize}[leftmargin=2em]
 \item Starting from a generic interface of the interpreter for a small higher-order language
-  (Section~\ref{generic_if}), we first show the instantiation of concrete
+  (Section~\ref{prelim}), we first show the instantiation of concrete
   interpretation (Section~\ref{unstaged_conc}), and then lift it to the staged
   version by replacing the binding-time types (Section~\ref{stagedinterp}).
 \item We discuss the unstaged abstract interpreter under the same framework by
@@ -227,7 +229,7 @@ whole-program analysis.
   \begin{enumerate}
   \item We first revisit the Abstract Compilation (AC)
     \cite{Boucher:1996:ACN:647473.727587} (Section~\ref{cs_ac}), showing that we can
-    achieve the same optimization with least engineering effort.
+    achieve the same optimization with much less engineering effort.
   \item We extend the staged abstract interpreter to various control-flow
     analysis (Section \ref{cfa}), including context-sensitivity, store-widening, and abstract
     \note{garbage collection}, showing that our approach is widely applicable.
