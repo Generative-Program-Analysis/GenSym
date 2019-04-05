@@ -31,8 +31,9 @@ object Evaluation {
       //(sat, "sat"), // 73
       //(solovay, "solovay")
       //(metacirc, "meta")
-      (regex, "regex"),
+      //(regex, "regex"),
       //(scheme2java, "scheme2java")
+      (fib, "fib"),
       /********************/
       //(matrix, "matrix"),
       //(letloop, "letloop")
@@ -42,7 +43,6 @@ object Evaluation {
       //(kcfa3, "kcfa3"),
       //(kcfa256, "kcfa256"),
       //(omega, "omega")
-      //(fib, "fib"), // 36
       //(boyer, "boyer"),
       //(earley, "earley"),
       //(dynamic, "dynamic"),
@@ -50,7 +50,8 @@ object Evaluation {
       //(nbody, "nbody"),
       //(nucleic, "nucleic"),
     )
-    //progs foreach { case (e, id) => compare(e, id) }
+    progs foreach { case (e, id) => compare(e, id) }
+    /*
     progs foreach { case (e, id) => 
       println(s"$id - ${size(e)}")
       println(e)
@@ -60,6 +61,7 @@ object Evaluation {
       val t1 =  run(1, { evalUnstaged(e) })
       println(s"[$id] [unstaged] - ${t1}s")
     }
+    */
     /*
     progs foreach { case (e, id) =>
       val code = specialize(e)

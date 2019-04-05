@@ -53,10 +53,11 @@ We used the following benchmark programs:
 \paragraph{Result}
 
 \begin{figure}[h]
-\tiny
+\footnotesize
 \begin{tabular}{@{}lllll@{}}
 \toprule
     program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ \\ \midrule
+    @fib@               & 32   & 0.013      & 0.002      & 650.00\%          \\
     @rsa@               & 451  & 0.308      & 0.064      & 459.15\%          \\
     @church@            & 120  & 71.811     & 23.990     & 299.34\%          \\
     @fermat@            & 310  & 0.043      & 0.006      & 716.67\%          \\

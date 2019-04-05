@@ -156,13 +156,13 @@ members over the following abstractions, which can be later instantiated.
 We show that these well-known abstractions can be combined smoothly, and more
 importantly almost free. Through staging, the major overhead of
 abstractions -- from the monadic layers -- is completely eliminated in the
-generated code. \todo{put some numbers} However, we do not lose any advantages
-of this high-level programming style (e.g., modularity and extensibility); the
-meaning of the program also remains the same, particularly, the soundness of 
-static analysis after staging.
+generated code. We observe at most 14x times faster than the unstage abstract
+interpreter.
+However, we do not lose any advantages of this high-level programming style
+(e.g., modularity and extensibility); the meaning of the program also remains
+the same, particularly, the soundness of static analysis after staging.
 
-\paragraph{Performance via Specialization}
-
+%\paragraph{Performance via Specialization}
 Besides the intellectual merit shown in the confluence diagram, this paper
 contributes to a practical problem in static analysis: \textit{can we speed up a
 static analyzer without any intrusive changes and soundness compromises?} Static
@@ -177,13 +177,23 @@ are ad-hoc on a particular analysis or requiring significant changes to the
 analyzer. For example, abstract compilation is one of the techniques
 \cite{Boucher:1996:ACN:647473.727587}. But it requires the whole analyzer to be
 rewritten to the closure generation form. In this paper, we advocate a systematic
-approach to meta-programming that achieves the performance goal with less
-intrusive changes; in fact, a case study (Section~\ref{cs_ac}) comparing our
-approach with abstract compilation shows that, by utilizing type-based stage
-annotations, the analyzer program does not need any changes.
+approach of meta-programming that achieves the performance goal with less
+intrusive changes and engineering efforts.
 
-\paragraph{Modularity via Meta-Programming} \todo{compress this part}
 
+\paragraph{Applications}
+
+Further more, we show various applications of staging an abstract interpreter.
+(1) We compare our approach with abstract compilation, and show that we can
+achieve the same optimization by utilizing type-based stage annotations,
+meanwhile the analyzer program does not need any changes. (2) \todo{} (3)
+Staging abstract interpreter enables modular analysis and provides a mechanized
+way to create library summaries. We notice that we may apply the staged abstract
+interpreter separately on the different part of the analyzed program, the
+generated code is reusable and composable. Therefore, we can turn a
+whole-program analyzer into a analyzer that runs modularly.
+
+\iffalse
 Our next contribution is to enable modular analysis based on a whole-program
 analyzer by meta-programming. Modern software are shipped with large libraries
 \cite{toman_et_al:LIPIcs:2017:7121}, and analyzing programs with large libraries
@@ -205,6 +215,7 @@ partial analysis results also can be reused later and composed together as they
 are just normal programs at the next stage. Through staging, we mechanically
 obtain a modular analysis, even though the original algorithm is formulated as a
 whole-program analysis.
+\fi
 
 \paragraph{Contributions} Briefly, the contribution of the paper is twofold:
 \begin{enumerate}[leftmargin=2em]

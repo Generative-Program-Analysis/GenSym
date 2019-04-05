@@ -153,95 +153,69 @@ integrate abstract garbage collection with staging, \todo{where the addresses to
 
 \subsubsection{Context-sensitivity}
 
-\subsubsection{Store-widened Analysis}
-
-\subsubsection{Abstract Garbage Collection at Staging Time}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
-
-\subsubsection{A More Precise Store Model}
-
-The store-widened analysis we implemented in Section~\ref{sai} uses a single
-store to approximate the runtime store. It can be efficently computed in
-polynomial time together with 0-CFA-like abstraction, but sometimes we may
-desire a more precise result that distinguishes the final values and stores for
-different closure targets. To achieve this goal, we need to tweak our abstract
-interpreter and type instantiation. The answer type @Ans@ is changed to a set of
-@VS@s where a @VS@ is a pair of sets of abstract values (such as closures or
-abstract numbers) and a store.
+The abstract addresses we introduced in Section \ref{sai} is simply identical to
+the variable names, which is a context-insensitive schema.
+Through tweaking the address allocation strategy, we can achieve various
+context-sensitive analysis \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we
+demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
+\cite{DBLP:journals/jfp/HornM12}, in our staged abstract interpreter.
 
 \begin{lstlisting}
-type VS = (Set[AbsValue], Store)
-type Ans = R[Set[VS]]
+  type Time = List[Expr]
+  case class KCFAAddr(x: Ident, time: Time) extends Addr
 \end{lstlisting}
 
-Note that the type @Ans@ uses our stage polymorphic type @R@, meaning that under
-staging the type @Ans@ represents a next stage value. Then, our generic
-interpreter is also changed when handling function applications.
-
-\begin{lstlisting}
-case App(e1, e2) =>
-  val e1ans = ev(e1, $\rho$, $\sigma$)
-  val e1vs  = choices(e1ans)
-  val e2ans = ev(e2, $\rho$, e1vs.$\sigma$)
-  val e2vs  = choices(e2ans)
-  apply_closure(ev)(e1vs.v, e2vs.v, e2vs.$\sigma$)
-\end{lstlisting}
-
-The idea to handle the application is to explore all possible closures from @e1@
-and meanwhile use the latest store. What @choices@ does is similar to McCarthy's
-@amb@ operator ~\cite{MCCARTHY196333}: it non-deterministically returns an
-element of type @VS@ from its argument, e.g., @e1ans@, to its right-hand side
-receiver, i.e., @e1vs@. The function @choices@ internally uses the delimited
-control operator @shift@ to capture the continuation, which is the code block
-after its call site. This allows us to perform nesting depth-first evaluation
-for function application while still writing the program in direct-style
-\cite{Wei:2018:RAA:3243631.3236800}. Again, we can stage this part as we did for
-the naive abstract interpreter.
-
-\subsubsection{Context-Sensitivity}
-
-We add k-CFA-like context-sensitivity to the analysis by introducing an abstract
-timestamp, whose concrete instantiation is a finite list of expressions that
-track $k$ recent calling contexts. The definition of abstract addresses is
-changed to a tuple of identifiers and the time it get allocated, meaning that
+The timestamp is essentially a finite list of expressions that tracks the $k$
+recent calling contexts. The definition of abstract addresses @KCFAAddr@ is also
+changed to contain a identifier and the time when it get allocated, meaning that
 this address points to some values under such calling context. If $k$ is 0, we
 obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain a
 family of analysis with increasing precision.
 
 \begin{lstlisting}
-type Time = List[Expr]
+  type AnsM[T] = RepReaderT[RepStateT[
+                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //Add Time into a RepStateT
+                 Store, ?], Env, T]
+  type Result = (Rep[Set[(Value, Store, Time)]], Rep[Cache])
+\end{lstlisting}
+
+We then integrate the timestamp into our moand stack by adding a staged
+@StateT@ monad. The result type is passingly get updated to contain a set of
+tuples, where the time is added.
+
+\begin{lstlisting}
+  def tick(e: Expr): AnsM[Unit] = for {
+    τ <- get_time; u <- liftM(StateTMonad.put((e::τ).take($k$)))
+  } yield u
+  def alloc(x: String): AnsM[Addr] = for {
+    τ <- get_time
+  } yield KCFAAddr(x, τ)
 \end{lstlisting}
 
 Every time when we call the @eval@ function, we refresh the timestamp by calling
-function @tick@, which returns a new timestamp. Here we adopt a $k$-CFA-like
-allocation strategy, therefore the @tick@ function can be implemented as
-appending the current expression being evaluated to the existing calling
-context, and then taking the first $k$ elements from the list.
+the @tick@ function, which update the timestamp in the state monad. The @tick@
+function is implemented as prepending the current expression being evaluated @e@
+to the existing calling context, and then taking the first $k$ elements from the list.
+The type @Config@ used in caching is also changed to included the timestamp.
+
+\subsubsection{Store-widened Analysis}
+
+An commonly used technique to improve the running time in control-flow analysis
+is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
+DBLP:journals/pacmpl/DaraisLNH17}, store-widening analysis can be easily
+implemented in monadic abstract interpreter by swaping the @StateT@ (for store)
+and the @SetT@ (for nondeterminism). In this section, we show this optimization
+is orthogonal to staging and we just need to swap the same \textit{staged}
+version of monads. After the adjustment, we have the following monad stack:
 
 \begin{lstlisting}
-def tick(e: Expr, $\tau$: R[Time]): R[Time] = (e :: $\tau$).takewhile
-def eval(ev: EvalFun)
-  (e: Expr, $\rho$: R[Env], $\sigma$: R[Store], $\tau$: R[Time]): Ans = {
-    val $\tau$_* = tick(e, $\tau$)
-    e match {
-      case Lit(i) => ...
-      ...
-    }
-  }
+  type AnsM[T] = RepReaderT[RepSetT[RepStateT[
+                   RepReaderT[RepStateT[IdM, Cache, ?], Cache, ?], Store, ?], ?], Env, T]
 \end{lstlisting}
 
-Accordingly, the type of return value is accompanied by the timestamp. For a
-recursive call of @ev@, which would also return the latest timestamp, and that
-timestamp will be used for the evaluation afterward.
 
-\begin{lstlisting}
-type VST = (Value, Store, Time)
-type Ans = R[Set[VST]]
-\end{lstlisting}
 
-Using other allocation strategies to achieve different sensitivities is also
-possible \cite{DBLP:conf/icfp/Gilray0M16} and can be staged under our framework.
+\subsubsection{Abstract Garbage Collection}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -281,7 +255,6 @@ first $m$ programs, and generate a residual abstract interpreter waiting for the
 rest $(n-m)$ programs. These $(n-m)$ programs might be (abstract) arguments for
 the first $n$ programs, and the abstract interpreter itself might be a partial
 abstract interpreter.
-\fi
 
 \subsection{Numerical Analysis in Imperative Languages} \label{cases_imp}
 
@@ -337,3 +310,4 @@ case class Interval(lb: Rep[Double], ub: Rep[Double]) {
 }
 \end{lstlisting}
 
+\fi
