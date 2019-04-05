@@ -19,21 +19,21 @@ object Evaluation {
 
   def main(args: Array[String]) {
     val progs = List[(Expr, String)](
-      //(kcfa16, "kcfa16"),
-      //(kcfa32, "kcfa32"),
-      //(kcfa64, "kcfa64"),
-      //(church, "church")
-      //(fermat, "fermat"),
-      //(rsa, "rsa"),
-      //(mbrotZ, "mbrotZ"),
-      //(lattice, "lattice"),
+      (fib, "fib"),
+      (rsa, "rsa"),
+      (church, "church"),
+      (fermat, "fermat"),
+      (mbrotZ, "mbrotZ"),
+      (lattice, "lattice"),
+      (kcfa16, "kcfa16"),
+      (kcfa32, "kcfa32"),
+      (kcfa64, "kcfa64"),
+      (solovay, "solovay")
       //(blur, "blur"), // 56
       //(sat, "sat"), // 73
-      //(solovay, "solovay")
       //(metacirc, "meta")
       //(regex, "regex"),
       //(scheme2java, "scheme2java")
-      (fib, "fib"),
       /********************/
       //(matrix, "matrix"),
       //(letloop, "letloop")
