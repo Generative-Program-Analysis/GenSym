@@ -34,31 +34,33 @@ shows that abstract interpreters can be derived systematically from concrete
 semantic artifacts.
 Using monads to construct abstract interpreters is explored by
 \citet{Sergey:2013:MAI:2491956.2491979} and
-\citet{DBLP:journals/pacmpl/DaraisLNH17}.
+\citet{DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}.
 Similar to monadic abstract interpreters, \citet{Wei:2018:RAA:3243631.3236800}
 reconstruct big-step abstract interpreters with delimited continuations;
-\citet{Keidel:2018:CSP:3243631.3236767} present an arrow-based abstract
+\citet{Keidel:2018:CSP:3243631.3236767} present a modular arrow-based abstract
 interpreter that makes proof of soundness can be constructed compositionally.
-\cite{DBLP:conf/cc/CousotC02} proposed an
-abstract interpretation framework for modular analysis.
-\citet{DBLP:conf/popl/CalcagnoDOY09} developed compositional shape analysis by
-using bi-abduction.
+\citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
+modular analysis.
 
-\paragraph{Meta-Programming} The Lightweight Modular Staging framework relies on
-types as stage annotations, and the staging procedure is modular. Other notable
-implementations of MSP exist in ML family, for examples, MetaML
-\cite{DBLP:conf/pepm/TahaS97} and MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03,
-DBLP:conf/flops/Kiselyov14}. Compared with the LMS approach in Scala,
-MetaML/MetaOCaml use term-level annotations such as brackets, escape, and run.
-Notwithstanding, we use LMS in this paper, the idea of staging an abstract
-interpreter still applies with other MSP implementations. Partial evaluation as
-an automatic technique is studied comprehensively
-\cite{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}. Futamura projections
-reveals close relations between interpreters and compilers \cite{Futamura1999,
-futamura1971partial}. \citet{DBLP:conf/gpce/Asai14} studies the compilation of
-reflective language using MSP and MetaOCaml.
+\paragraph{Meta-Programming} In this paper, we use the Lightweight Modular
+Staging framework \cite{DBLP:conf/gpce/RompfO10}, which relies on types as stage
+annotations. Other notable implementations of MSP exist in ML family, e.g.,
+MetaML \cite{DBLP:conf/pepm/TahaS97} and MetaOCaml
+\cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
+The idea of staging an abstract interpreter we presented in this paper is also
+applicable to other MSP system. Partial evaluation as an automatic technique is
+studied comprehensively \cite{10.1007/3-540-61580-6_11,
+DBLP:books/daglib/0072559}. Futamura projections reveals close relations between
+interpreters and compilers, which was originally proposed by
+\citeauthor{futamura1971partial} in 1970s\cite{futamura1971partial}, and later
+reprinted \cite{Futamura1999}.
 \citeauthor{Amin:2017:CTI:3177123.3158140} shows how to collapse a tower of
-concrete interpreters by MSP and LMS framework.
+concrete interpreters by MSP -- it would be also interesting to explore multiple
+layers of abstract interpreters.
+\citet{10.1007/11561347_18} discussed combining
+multi-stage programming with functors and monads.
+Similar to the idea in this paper, specializing monadic interpreters was
+explored by \citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}.
 
 Multi-stage programming has been widely used to improve the performance in many
 domains, such as optimizing compilers or domain-specific languages
@@ -70,9 +72,3 @@ DBLP:conf/pepm/AktemurKKS13}, generic programming
 processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14,
 DBLP:conf/popl/KiselyovBPS17}, query compilation in databases
 \cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18}, etc.
-
-MSP with functors and monads \cite{10.1007/11561347_18}
-
-staged monadic interpreters \cite{DBLP:conf/dsl/SheardBP99}
-
-compiling monads \cite{danvy1991compiling}

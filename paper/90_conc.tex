@@ -1,11 +1,8 @@
 \section{Conclusion}
 
-In this paper, we show the feasibility of using multi-staging programming as a systematic approach 
-to optimize abstract interpreters, while minimally modifying the abstract interpreter and keeping
-the analysis sound.
-We presented an end-to-end design and implementation
-of an staged abstract interpreter for a small higher-order stateful language, which 
-models the core part of modern programming languages.
-The design that uses abstracting definitional interpreters captures the commonality between
-abstract interpreters and concrete interpreters; the implementation that uses staging polymorphism
-captures the commonality between unstage programs and staged programs.
+In this paper, we first present the implementaion of first Futamura projection
+on abstract interpreters. To realize it, we design a generic interpreter that
+abstracts over both binding-time and value domains; by instantiating it
+differently, the staged abstract interpreter can be readily derived. We also
+conduct case studies and empirical evaluation, demonstrating a wide
+applicability of our approach and evaluating the performance improved by staging.
