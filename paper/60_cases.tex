@@ -9,7 +9,7 @@ methodology is practically useful and widely applicable to diverse analyses.
 \subsection{Abstract Compilation \`a la Staging} \label{cs_ac}
 
 We first revisit a similar technique called \textit{abstract compilation} (AC).
-AC is introduced by \citet{Boucher:1996:ACN:647473.727587} as a new
+AC was introduced by \citet{Boucher:1996:ACN:647473.727587} as an
 implementation technique for abstract interpretation based static analysis.
 Similar to the present paper, the idea is inspired by partial evaluation:
 the program is known statically and the interpretive overhead can be
@@ -129,7 +129,8 @@ On the other side, our approach does exactly the same thing through staging: the
 AST are static, and stores are dynamic, therefore we annotate the type @Store@
 with @Rep@ (shown in Figure \ref{compare_ac_sai} (right)). In fact, the only
 changes of our appraoch using LMS framework are the types of @Store@ to
-@Rep[Store]@, since they will be known at the next stage. The generated code
+@Rep[Store]@, since they will be known at the next stage; other parts do not need to change. 
+The generated code
 will just looks-up and update the store. The functions at current stage are
 eliminated in the residual program, therefore we do not generate higher-order
 functions, which provides additional performance improvement. Nevertheless,

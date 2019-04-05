@@ -125,5 +125,49 @@ object ASTUtils {
     }
     fv -- defVars(e)
   }
-}
 
+  var count = 1
+  def fresh(pre: String = "var"): String = {
+    val name = pre + count.toString
+    count = count + 1
+    name
+  }
+  def alpha(e: Expr, map: Map[String, String]): (Expr, Map[String, String]) = {
+    e match {
+      case Var(x) =>
+        (if (map.contains(x)) Var(map(x)) else {
+           //println(s"$x not exist!")
+           e
+         }, map)
+      case Void() => (e, map)
+      case Sym(x) => (e, map)
+      case CharLit(x)   => (e, map)
+      case IntLit(x)    => (e, map)
+      case FloatLit(x)  => (e, map)
+      case BoolLit(x)   => (e, map)
+      case Set_!(x, e)  =>
+        val (ne, nm) = alpha(e, map)
+        (Set_!(map(x), ne), map)
+      case Define(x, e) =>
+        val name = if (map.contains(x)) map(x) else fresh()
+        val nm = map + (x -> name)
+        val (ne, nnm) = alpha(e, nm)
+        (Define(name, ne), nm)
+      case App(x, l)    => (App(alpha(x, map)._1, l.map(alpha(_, map)._1)), map)
+      case Begin(es)    =>
+        val defmap = (es.filter(_.isInstanceOf[Define]).map { case Define(x, _) => (x, fresh()) }).toMap
+        val (res, mm) = es.foldLeft((List[Expr](), defmap ++ map)) {
+          case ((nes, m), e) =>
+            val (ne, nm) = alpha(e, m)
+            (nes ++ List(ne), nm)
+        }
+        (Begin(res), map)
+      case If(c, t, e)  => (If(alpha(c, map)._1, alpha(t, map)._1, alpha(e, map)._1), map)
+      case Lam(params, body) =>
+        val nparams = params.map(x => (x, fresh("var")))
+        val nmap = map ++ nparams.toMap
+        val (nbody, _) = alpha(body, nmap)
+        (Lam(nparams.map(_._2), nbody), map)
+    }
+  }
+}

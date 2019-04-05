@@ -147,6 +147,23 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
       , "append" -> Set(ListVTop)
       , "else" -> Set(BoolV)
       , "list" -> Set(ListVTop)
+      // matrix
+      , "child" -> Set(SymV)
+      , "now" -> Set(SymV)
+      , "puke" -> Set(SymV)
+      , "brother" -> Set(SymV) //matrix symbols
+      , "caar" -> Set(IntV, FloatV, CharV, BoolV)
+      , "for-each" -> Set()
+      , "map" -> Set(ListVTop)
+      , "expt" -> Set(IntV)
+      , "even?" -> Set(BoolV)
+      , "length" -> Set(IntV)
+      , "reverse" -> Set(ListVTop)
+      , "cadr" -> Set(ListVTop)
+      , "vector-ref" -> Set(IntV, FloatV, CharV, BoolV)
+      , "cddr" -> Set(IntV, FloatV, CharV, BoolV)
+      , "zero?" -> Set(BoolV)
+      ,
   )
 
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
@@ -206,10 +223,11 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     val cfg = (e, ρ, σ)
     in <- ask_in_cache
     out <- get_out_cache
+    val _ = println(s"Eval out: ${out.size}")
     rt <- if (out.contains(cfg)) {
       //val _ = println(s"MISS ${ASTUtils.exprToString(e)}, ρ: ${ρ.size}, σ: ${σ.size}, out: ${out.size}")
       for {
-        _ <- put_out_cache(out)
+        //_ <- put_out_cache(out)
         (v, s) <- lift_nd[(Value, Store)](out(cfg))
         _ <- put_store(s)
       } yield v

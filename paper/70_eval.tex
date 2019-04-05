@@ -15,7 +15,6 @@ implement. Macros and @call/cc@ is not handled. As described in Section
 $1$-CFA-like analysis, both their versions with and without store-widening.
 
 \paragraph{Setting}
-
 We use Scala 2.12.7 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04 LTS
 (kernel 4.4.0) machine. All of our evaluation were performed on a machine with 4 Intel
 Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96
@@ -24,13 +23,19 @@ To minimize the effect of warming-up from the JVM JIT compiler, all the
 experiments are executed for 20 times and we report the statistical median value
 of the running times (in seconds).
 
-\paragraph{Benchmarks} \todo{Rewrite}
-The benchmark programs we used are collected from previous papers
+\paragraph{Benchmarks}
+The benchmark programs we used in the experiment are collected from several previous papers
 \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical,
 DBLP:journals/corr/abs-1102-3676} and exisiting artifacts
 \footnote{https://github.com/ilyasergey/reachability} for control-flow analysis.
-We used the following benchmark programs:
+Some of the benchmarks are small programs designed for experiments, such as the @kcfa-worst-@$n$ series, 
+which are intended to challenge $k$-CFA; while some other benchmarks are from real-world applications, 
+for examples, the RSA public key encryption algorithm @rsa@ and matrix computation @matrix@.
+In the Table \ref{?}, we report the number of AST node after parsing and desugaring 
+(excluding comments) as a proper measurement of program size.
 
+\iffalse
+We used the following benchmark programs:
 \begin{itemize}
   %\item \textbf{fib}: Calculates the $n$-th fibonacci number.
   \item \textbf{rsa}: The RSA public key encryption algorithm.
@@ -41,6 +46,7 @@ We used the following benchmark programs:
     Benchmark programs that are supposed to be tough cases for $k$-CFA; 
     the number $n$ indicates the depth of nesting lambda terms.
 \end{itemize}
+\fi
 
 \paragraph{Result}
 
@@ -51,7 +57,7 @@ We used the following benchmark programs:
     program          &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ \\ \midrule
     @church@         & 120  & 71.811     & 23.990     & 299.34\%          \\
     @rsa@            & 451  & 0.308      & 0.064      & 459.15\%          \\
-    @latice@         & 609  & 31.874     & 8.816      & 358.69\%          \\
+    @lattice@        & 609  & 31.874     & 8.816      & 358.69\%          \\
     @fermat@         & 310  & 0.043      & 0.006      & 716.67\%          \\
     @mbrotZ@         & 331  & 1.112      & 0.214      & 519.63\%          \\
     @kcfa-worst-16@  & 182  & 0.083      & 0.013      & 638.46\%          \\

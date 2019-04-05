@@ -30,83 +30,6 @@
 ; Thus, each succeeding row sorts columns withing refinings equivalence
 ; classes.
 ;
-; Maximal? assumes that mat has atleast one row, and that the first row
-; is all +1's.
-(define maximal?
-   (lambda (mat)
-      (let pick-first-row
-           ((first-row-perm
-               (gen-perms mat)))
-         (if first-row-perm
-             (and (zunda first-row-perm mat)
-                  (pick-first-row (first-row-perm 'brother)))
-             #T))))
-
-(define zunda
-   (lambda (first-row-perm mat)
-      (let* ((first-row
-                (first-row-perm 'now))
-             (number-of-cols
-                (length first-row))
-             (make-row->func
-                (lambda (if-equal if-different)
-                   (lambda (row)
-                      (let ((vec
-                               (make-vector number-of-cols)))
-                         (do ((i 0 (+ i 1))
-                              (first first-row
-                                     (cdr first))
-                              (row row
-                                   (cdr row)))
-                             ((= i number-of-cols))
-                            (vector-set! vec
-                                         i
-                                         (if (= (car first) (car row))
-                                             if-equal
-                                             if-different)))
-                         (lambda (i)
-                            (vector-ref vec i))))))
-             (mat
-                (cdr mat)))
-         (zebra (first-row-perm 'child)
-                (make-row->func 1 -1)
-                (make-row->func -1 1)
-                mat
-                number-of-cols))))
-
-
-(define zebra
-   (lambda (row-perm row->func+ row->func- mat number-of-cols)
-      (let -*-
-           ((row-perm
-               row-perm)
-            (mat
-               mat)
-            (partitions
-               (list (matrix-iota number-of-cols))))
-         (or (not row-perm)
-             (and
-                (zulu (car mat)
-                      (row->func+ (row-perm 'now))
-                      partitions
-                      (lambda (new-partitions)
-                         (-*- (row-perm 'child)
-                              (cdr mat)
-                              new-partitions)))
-                (zulu (car mat)
-                      (row->func- (row-perm 'now))
-                      partitions
-                      (lambda (new-partitions)
-                         (-*- (row-perm 'child)
-                              (cdr mat)
-                              new-partitions)))
-                (let ((new-row-perm
-                         (row-perm 'brother)))
-                   (or (not new-row-perm)
-                       (-*- new-row-perm
-                            mat
-                            partitions))))))))
-
 
 (define zulu
    (let ((cons-if-not-null
@@ -167,15 +90,101 @@
                                      plus
                                      (cons next minus)))))))))))
 
-(define all?
-   (lambda (ok? lst)
+(define matrix-iota
+   (lambda (len)
+      (let -*-
+           ((i 0))
+         (if (= i len)
+             '()
+             (cons i
+                   (-*- (+ i 1)))))))
+
+(define zebra
+   (lambda (row-perm row->func+ row->func- mat number-of-cols)
+      (let -*-
+           ((row-perm
+               row-perm)
+            (mat
+               mat)
+            (partitions
+               (list (matrix-iota number-of-cols))))
+         (or (not row-perm)
+             (and
+                (zulu (car mat)
+                      (row->func+ (row-perm 'now))
+                      partitions
+                      (lambda (new-partitions)
+                         (-*- (row-perm 'child)
+                              (cdr mat)
+                              new-partitions)))
+                (zulu (car mat)
+                      (row->func- (row-perm 'now))
+                      partitions
+                      (lambda (new-partitions)
+                         (-*- (row-perm 'child)
+                              (cdr mat)
+                              new-partitions)))
+                (let ((new-row-perm
+                         (row-perm 'brother)))
+                   (or (not new-row-perm)
+                       (-*- new-row-perm
+                            mat
+                            partitions))))))))
+
+(define zunda
+   (lambda (first-row-perm mat)
+      (let* ((first-row
+                (first-row-perm 'now))
+             (number-of-cols
+                (length first-row))
+             (make-row->func
+                (lambda (if-equal if-different)
+                   (lambda (row)
+                      (let ((vec
+                               (make-vector number-of-cols)))
+                        (let doloop
+                          ((i 0)
+                           (first first-row)
+                           (row row))
+                          (if (= i number-of-cols)
+                              (void)
+                              (begin
+                                (vector-set! vec i (if (= (car first) (car row))
+                                                       if-equal
+                                                       if-different))
+                                (doloop (+ i 1)
+                                        (cdr first)
+                                        (cdr row)))))
+                         ;(do ((i 0 (+ i 1))
+                         ;    (first first-row (cdr first))
+                         ;     (row row (cdr row)))
+                         ;   ((= i number-of-cols))
+                         ;  (vector-set! vec i (if (= (car first) (car row))
+                         ;                   if-equal
+                         ;                   if-different)))
+                         (lambda (i)
+                            (vector-ref vec i))))))
+             (mat
+                (cdr mat)))
+         (zebra (first-row-perm 'child)
+                (make-row->func 1 -1)
+                (make-row->func -1 1)
+                mat
+                number-of-cols))))
+
+
+(define fold
+   (lambda (lst folder state)
       (let -*-
            ((lst
-               lst))
-         (or (null? lst)
-             (and (ok? (car lst))
-                  (-*- (cdr lst)))))))
-
+               lst)
+            (state
+               state))
+         (if (null? lst)
+             state
+             (-*- (cdr lst)
+                  (folder (car lst)
+                          state))))))
 (define gen-perms
    (lambda (objects)
       (let -*-
@@ -202,39 +211,83 @@
                    (else
                       (error gen-perms "Bad msg: ~a" msg))))))))
 
-(define fold
-   (lambda (lst folder state)
+; Maximal? assumes that mat has atleast one row, and that the first row
+; is all +1's.
+(define maximal?
+   (lambda (mat)
+      (let pick-first-row
+           ((first-row-perm
+               (gen-perms mat)))
+         (if first-row-perm
+             (and (zunda first-row-perm mat)
+                  (pick-first-row (first-row-perm 'brother)))
+             #T))))
+
+
+(define all?
+   (lambda (ok? lst)
       (let -*-
            ((lst
-               lst)
-            (state
-               state))
-         (if (null? lst)
-             state
-             (-*- (cdr lst)
-                  (folder (car lst)
-                          state))))))
+               lst))
+         (or (null? lst)
+             (and (ok? (car lst))
+                  (-*- (cdr lst)))))))
 
-(define matrix-iota
-   (lambda (len)
-      (let -*-
-           ((i 0))
-         (if (= i len)
-             '()
-             (cons i
-                   (-*- (+ i 1)))))))
 
 (define proc->vector
    (lambda (size proc)
       (let ((res
                (make-vector size)))
-         (do ((i 0
-                 (+ i 1)))
-             ((= i size))
-            (vector-set! res
-                         i
-                         (proc i)))
+        (let doloop
+          ([i 0])
+          (if (= i size)
+              (void)
+              (begin (vector-set! res i (proc i))
+                     (doloop (+ i 1)))))
+         ;(do ((i 0 (+ i 1)))
+         ;    ((= i size))
+         ;    (vector-set! res i (proc i)))
          res)))
+
+; Extended Euclidean algorithm.
+; (extended-gcd a b cont) computes the gcd of a and b, and expresses it
+; as a linear combination of a and b.  It returns calling cont via
+;       (cont gcd a-coef b-coef)
+; where gcd is the GCD and is equal to a-coef * a + b-coef * b.
+(define extended-gcd
+   (let ((n->sgn/abs
+            (lambda (x cont)
+               (if (>= x 0)
+                   (cont 1 x)
+                   (cons -1 (- x))))))
+      (lambda (a b cont)
+         (n->sgn/abs a
+                     (lambda (p-a p)
+                        (n->sgn/abs b
+                                    (lambda (q-b q)
+                                       (let -*-
+                                            ((p
+                                                p)
+                                             (p-a
+                                                p-a)
+                                             (p-b
+                                                0)
+                                             (q
+                                                q)
+                                             (q-a
+                                                0)
+                                             (q-b
+                                                q-b))
+                                          (if (zero? q)
+                                              (cont p p-a p-b)
+                                              (let ((mult
+                                                       (quotient p q)))
+                                                 (-*- q
+                                                      q-a
+                                                      q-b
+                                                      (- p (* mult q))
+                                                      (- p-a (* mult q-a))
+                                                      (- p-b (* mult q-b)))))))))))))
 
 ; Given a prime number P, return a procedure which, given a `maker' procedure,
 ; calls it on the operations for the field Z/PZ.
@@ -276,46 +329,6 @@
                    coef-negate
                    coef-*
                    coef-recip)))))
-
-; Extended Euclidean algorithm.
-; (extended-gcd a b cont) computes the gcd of a and b, and expresses it
-; as a linear combination of a and b.  It returns calling cont via
-;       (cont gcd a-coef b-coef)
-; where gcd is the GCD and is equal to a-coef * a + b-coef * b.
-(define extended-gcd
-   (let ((n->sgn/abs
-            (lambda (x cont)
-               (if (>= x 0)
-                   (cont 1 x)
-                   (cons -1 (- x))))))
-      (lambda (a b cont)
-         (n->sgn/abs a
-                     (lambda (p-a p)
-                        (n->sgn/abs b
-                                    (lambda (q-b q)
-                                       (let -*-
-                                            ((p
-                                                p)
-                                             (p-a
-                                                p-a)
-                                             (p-b
-                                                0)
-                                             (q
-                                                q)
-                                             (q-a
-                                                0)
-                                             (q-b
-                                                q-b))
-                                          (if (zero? q)
-                                              (cont p p-a p-b)
-                                              (let ((mult
-                                                       (quotient p q)))
-                                                 (-*- q
-                                                      q-a
-                                                      q-b
-                                                      (- p (* mult q))
-                                                      (- p-a (* mult q-a))
-                                                      (- p-b (* mult q-b)))))))))))))
 
 ; Given elements and operations on the base field, return a procedure which
 ; computes the row-reduced version of a matrix over that field.  The result
@@ -526,9 +539,81 @@
          (if (even? size)
              main-part
              (* main-part
-                (do ((i 0 (+ i 1)))
-                    ((>= (* i i) size)
-                       i)))))))
+                (let doloop
+                  ((i 0))
+                  (if (>= (* i i) size)
+                      i
+                      (doloop (+ i 1)))))))))
+                      
+                ;(do ((i 0 (+ i 1)))
+                ;    ((>= (* i i) size)
+                ;       i)))))))
+
+; Fold over subsets of a given size.
+(define fold-over-subs-of-size
+   (lambda (universe size folder state)
+      (let ((usize
+               (length universe)))
+         (if (< usize size)
+             state
+             (let -*-
+                  ((size
+                      size)
+                   (universe
+                      universe)
+                   (folder
+                      folder)
+                   (csize
+                      (- usize size))
+                   (state
+                      state))
+                (cond ((zero? csize)
+                         (folder universe state))
+                      ((zero? size)
+                         (folder '() state))
+                      (else
+                         (let ((first-u
+                                  (car universe))
+                               (rest-u
+                                  (cdr universe)))
+                            (-*- size
+                                 rest-u
+                                 folder
+                                 (- csize 1)
+                                 (-*- (- size 1)
+                                      rest-u
+                                      (lambda (tail state)
+                                         (folder (cons first-u tail)
+                                                 state))
+                                      csize
+                                      state))))))))))
+
+(define remove-in-order
+   (lambda (remove? lst)
+      (reverse
+         (fold lst
+               (lambda (e lst)
+                  (if (remove? e)
+                      lst
+                      (cons e lst)))
+               '()))))
+
+; The first fold-over-rows is slower than the second one, but folds
+; over rows in lexical order (large to small).
+(define fold-over-rows
+   (lambda (number-of-cols folder state)
+      (if (zero? number-of-cols)
+          (folder '()
+                  state)
+          (fold-over-rows (- number-of-cols 1)
+                          (lambda (tail state)
+                             (folder (cons -1 tail)
+                                     state))
+                          (fold-over-rows (- number-of-cols 1)
+                                          (lambda (tail state)
+                                             (folder (cons 1 tail)
+                                                     state))
+                                          state)))))
 
 ; Fold over all maximal matrices.
 (define go
@@ -635,7 +720,8 @@
                              (display blen)
                              (display " of size ")
                              (display bsize)
-                             (newline)))
+                             (newline))
+                          (void))
 
                        (cons bsize
                              (cons blen
@@ -674,72 +760,6 @@
              inv-size
              go-folder
              (list -1 -1)))))
-
-(define remove-in-order
-   (lambda (remove? lst)
-      (reverse
-         (fold lst
-               (lambda (e lst)
-                  (if (remove? e)
-                      lst
-                      (cons e lst)))
-               '()))))
-
-; The first fold-over-rows is slower than the second one, but folds
-; over rows in lexical order (large to small).
-(define fold-over-rows
-   (lambda (number-of-cols folder state)
-      (if (zero? number-of-cols)
-          (folder '()
-                  state)
-          (fold-over-rows (- number-of-cols 1)
-                          (lambda (tail state)
-                             (folder (cons -1 tail)
-                                     state))
-                          (fold-over-rows (- number-of-cols 1)
-                                          (lambda (tail state)
-                                             (folder (cons 1 tail)
-                                                     state))
-                                          state)))))
-
-; Fold over subsets of a given size.
-(define fold-over-subs-of-size
-   (lambda (universe size folder state)
-      (let ((usize
-               (length universe)))
-         (if (< usize size)
-             state
-             (let -*-
-                  ((size
-                      size)
-                   (universe
-                      universe)
-                   (folder
-                      folder)
-                   (csize
-                      (- usize size))
-                   (state
-                      state))
-                (cond ((zero? csize)
-                         (folder universe state))
-                      ((zero? size)
-                         (folder '() state))
-                      (else
-                         (let ((first-u
-                                  (car universe))
-                               (rest-u
-                                  (cdr universe)))
-                            (-*- size
-                                 rest-u
-                                 folder
-                                 (- csize 1)
-                                 (-*- (- size 1)
-                                      rest-u
-                                      (lambda (tail state)
-                                         (folder (cons first-u tail)
-                                                 state))
-                                      csize
-                                      state))))))))))
 
 (really-go 7 7)
 

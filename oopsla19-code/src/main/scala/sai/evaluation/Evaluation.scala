@@ -54,8 +54,8 @@ object Evaluation {
       println(ASTUtils.exprToString(e))
       println(ASTUtils.free(e).map("\"" + _ + "\""))
       println(ASTUtils.free(e).map("\"" + _ + "\" =>\n"))
-      //val t1 =  run(1, { evalUnstaged(e) })
-      //println(s"[$id] [unstaged] - ${t1}s")
+      val t1 =  run(1, { evalUnstaged(e) })
+      println(s"[$id] [unstaged] - ${t1}s")
     }
     /*
     progs foreach { case (e, id) =>
