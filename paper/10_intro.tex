@@ -153,14 +153,16 @@ members over the following abstractions, which can be later instantiated.
   %\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}
 \end{itemize}
 
+
 We show that these well-known abstractions can be combined smoothly, and more
-importantly almost free. Through staging, the major overhead of
-abstractions -- from the monadic layers -- is completely eliminated in the
-generated code. We observe at most 14x times faster than the unstage abstract
-interpreter.
-However, we do not lose any advantages of this high-level programming style
-(e.g., modularity and extensibility); the meaning of the program also remains
-the same, particularly, the soundness of static analysis after staging.
+importantly almost free. We implement the four interpreters using Scala and the
+Lightweight Modular Staging \cite{DBLP:conf/gpce/RompfO10} framework. Through
+staging, the major overhead of abstractions -- from the monadic layers -- is
+completely eliminated in the generated code. We observe at most 14x times faster
+than the unstage abstract interpreter. However, we do not lose any advantages of
+this high-level programming style (e.g., modularity and extensibility); the
+meaning of the program also remains the same, particularly, the soundness of
+static analysis after staging.
 
 %\paragraph{Performance via Specialization}
 Besides the intellectual merit shown in the confluence diagram, this paper
@@ -242,17 +244,15 @@ whole-program analysis.
     achieve the same optimization with much less engineering effort.
   \item We extend the staged abstract interpreter to various control-flow
     analysis (Section \ref{cfa}), including context-sensitivity, store-widening, and abstract
-    \note{garbage collection}, showing that our approach is widely applicable.
+    garbage collection, showing that our approach is widely applicable.
   \item We apply our approach to modular analysis (Section \ref{modular}),
     i.e., analyzing the components of program separately and composing them later,
     showing a novel application of generative programming with program analysis.
   \end{enumerate}
 \item We empirically evaluate the performance improvement by staging on
     control-flow analysis (Section~\ref{evaluation}). We compare the both
-    context-insensitive, \note{context-sensitive, and store-widening} analysis.
+    context-insensitive and store-widening analysis.
 \end{itemize}
-
-\todo{mention LMS somewhere}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

@@ -90,10 +90,8 @@ closing a lambda term, we need to staging into the body expression by
 following function @close@ illustrates the idea: @f@ is a current stage function
 but takes two next-stage values @v@ and $\sigma$, inside of which, we eagerly
 collapse the monads to values by @ev(e)(ρ_*)(σ_*)@, which has type
-@Rep[(Value, Store)]@. Then we generate an intermediate representation of the compiled
-closure using @emit_compiled_clo@. The intermediate representation stands for a
-next-stage value, and contains the compiled function, which will be generated as
-a next-stage function.
+@Rep[(Value, Store)]@. Then we generate the next-stage value of the compiled
+closure using @emit_compiled_clo@, containing the compiled closure.
 
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)]): Rep[Value]
@@ -107,13 +105,13 @@ a next-stage function.
   }
 \end{lstlisting}
 
-When applying a function in @ap_clo@, we generate an intermediate representation
+When applying a function in @ap_clo@, we also generate the next-stage value
 for closure application through @emit_ap_clo@, assuming that the @rator@ is already an
 IR of compiled closure, @rand@ is an arbitrary stage value, and $\sigma$ is the
-latest store. @emit_ap_clo@ represents a next-stage value of type
-@Rep[(Value, Store)]@, which is a collapsed monadic value from next stage, now
-we need to reify the value and store back into the monad stack through
-@put_store@ and @yield@.
+latest store. @emit_ap_clo@ represents the result value of application, which has type
+@Rep[(Value, Store)]@. Note that @emit_ap_clo@ is a ordinary value from the
+future, and there is no monads in the future, so we need to reify the value and
+store back into the monad stack through @put_store@ and @yield@.
 
 \begin{lstlisting}
   def emit_ap_clo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)]
@@ -126,12 +124,15 @@ we need to reify the value and store back into the monad stack through
 
 \paragraph{Code Generation}
 
-The method @emit_compiled_clo@ and @emit_ap_clo@ mentioned above produces IR
-node in LMS. We define these IR node as follow: \note{Exp, Def, quote are omitted}
+The method @emit_compiled_clo@ and @emit_ap_clo@ mentioned above produces
+intermediate representations for the denoted operations in LMS. These IR are
+wrappers of the underlying staged data. We define these IR nodes using
+@case class@ extending from @Def[T]@, meaning that they are next-staged definitions of
+type @T@.
 
 \begin{lstlisting}
-  case class IRCompiledClo(f: Rep[((Value,Store)) => (Value, Store)]) extends Rep[Value]
-  case class IRApClo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]) extends Rep[(Value, Store)]
+  case class IRCompiledClo(f: Rep[((Value,Store)) => (Value, Store)], λ: Lam, ρ: Rep[Env]) extends Def[Value]
+  case class IRApClo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
 \end{lstlisting}
 
 After constructing the IR graph, LMS provides an @emitNode@ to generate code for
@@ -144,7 +145,7 @@ for @IRCompiledClo@.
 \begin{lstlisting}
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
     case IRApClo(rator, rand, σ) => emitValDef(sym, s"$\textdollar$rator.f($\textdollar$rand, $\textdollar$σ)")
-    case IRCompiledClo(f) => emitValDef(sym, s"CompiledClo($\textdollar$f)")
+    case IRCompiledClo(f, λ, ρ) => emitValDef(sym, s"CompiledClo($\textdollar$f, $\textdollar$λ, $\textdollar$ρ)")
     ...
   }
 \end{lstlisting}

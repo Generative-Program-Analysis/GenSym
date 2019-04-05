@@ -23,8 +23,9 @@ interpreter (Section~\ref{unstaged_abs}).
 
 We consider a call-by-value $\lambda$-calculus in direct-style, extended
 with numbers, arithmetic, recursions and conditionals. Other effectful features
-such as assignments can also be supported readily. In Section~\ref{cases_imp}, we
-will add more imperative features to the language. Since we are mostly
+such as assignments can also be supported readily.
+%In Section~\ref{cases_imp}, we will add more imperative features to the
+language. Since we are mostly
 interested in analyzing the dynamic behaviors of the program, we disguise any
 static semantics and type system. We also assume that input programs are
 well-typed and all variables are distinct. The abstract syntax is shown as
@@ -42,7 +43,7 @@ follows:
 \end{lstlisting}
 
 The abstract syntax we present in fact can be seen as a deep embedding of the
-language -- we use data-types to represent programs. This design choice allows us to
+language -- we use algebraic data-types to represent programs. This design choice allows us to
 easily use different interpretations over the AST; with the inheritance and
 overriding mechanism in Scala, we may also add new language construct and reuse
 the existing interpretation.

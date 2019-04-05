@@ -189,7 +189,7 @@ tuples, where the time is added.
   } yield u
   def alloc(x: String): AnsM[Addr] = for {
     τ <- get_time
-  } yield KCFAAddr(x, τ)
+  } yield unit(KCFAAddr(x, τ)) // we unit to turn a current-stage constant to next-stage value
 \end{lstlisting}
 
 Every time when we call the @eval@ function, we refresh the timestamp by calling
