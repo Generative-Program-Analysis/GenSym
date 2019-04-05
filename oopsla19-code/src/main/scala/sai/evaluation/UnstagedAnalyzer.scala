@@ -163,7 +163,11 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
       , "vector-ref" -> Set(IntV, FloatV, CharV, BoolV)
       , "cddr" -> Set(IntV, FloatV, CharV, BoolV)
       , "zero?" -> Set(BoolV)
-      ,
+          , "%" -> Set(BoolV)
+          , "symbol?" -> Set(BoolV)
+          , "equal?" -> Set(BoolV)
+          , "pair?" -> Set(BoolV)
+          , "char?" -> Set(BoolV)
   )
 
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
@@ -223,7 +227,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
     val cfg = (e, ρ, σ)
     in <- ask_in_cache
     out <- get_out_cache
-    val _ = println(s"Eval out: ${out.size}")
+    //val _ = println(s"Eval out: ${out.size}")
     rt <- if (out.contains(cfg)) {
       //val _ = println(s"MISS ${ASTUtils.exprToString(e)}, ρ: ${ρ.size}, σ: ${σ.size}, out: ${out.size}")
       for {

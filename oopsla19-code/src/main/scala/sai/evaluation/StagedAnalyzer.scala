@@ -164,6 +164,23 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     , "append" -> Set[AbsValue](unit(ListVTop))
     , "else" -> Set[AbsValue](unit(BoolV))
     , "list" -> Set[AbsValue](unit(ListVTop))
+    , "%" -> Set[AbsValue](unit(IntV))
+    , "brother" -> Set[AbsValue](unit(SymV)) //matrix symbols
+    , "caar" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
+    , "for-each" -> Set[AbsValue]()
+    , "map" -> Set[AbsValue](unit(ListVTop))
+    , "expt" -> Set[AbsValue](unit(IntV))
+    , "even?" -> Set[AbsValue](unit(BoolV))
+    , "length" -> Set[AbsValue](unit(IntV))
+    , "reverse" -> Set[AbsValue](unit(ListVTop))
+    , "cadr" -> Set[AbsValue](unit(ListVTop))
+    , "vector-ref" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
+    , "cddr" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
+    , "zero?" -> Set[AbsValue](unit(BoolV))
+    , "symbol?" -> Set[AbsValue](unit(BoolV))
+    , "equal?" ->  Set[AbsValue](unit(BoolV))
+    , "pair?" ->   Set[AbsValue](unit(BoolV))
+    , "char?" ->   Set[AbsValue](unit(BoolV))
   )
 
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {

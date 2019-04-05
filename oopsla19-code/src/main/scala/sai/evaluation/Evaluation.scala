@@ -26,9 +26,15 @@ object Evaluation {
       //(fermat, "fermat"),
       //(rsa, "rsa"),
       //(mbrotZ, "mbrotZ"),
-      ////(lattice, "lattice"),
+      //(lattice, "lattice"),
+      //(blur, "blur"), // 56
+      //(sat, "sat"), // 73
+      //(solovay, "solovay")
+      //(metacirc, "meta")
+      (regex, "regex"),
+      //(scheme2java, "scheme2java")
       /********************/
-      (matrix, "matrix"),
+      //(matrix, "matrix"),
       //(letloop, "letloop")
       //(euclid, "euclid"),
       //(euclid_imp, "euclid_imp"),
@@ -36,10 +42,7 @@ object Evaluation {
       //(kcfa3, "kcfa3"),
       //(kcfa256, "kcfa256"),
       //(omega, "omega")
-      //(church_exp, "church_exp")
-      //(blur, "blur"), // 56
       //(fib, "fib"), // 36
-      //(sat, "sat"), // 73
       //(boyer, "boyer"),
       //(earley, "earley"),
       //(dynamic, "dynamic"),
@@ -115,6 +118,7 @@ object Evaluation {
     val N = 20
     val t1 =  run(N, { evalUnstaged(e) })
     println(s"[$id] [unstaged] - ${t1}s")
+    
     val code = specialize(e)
     code.precompile
     val outfile = output(id)

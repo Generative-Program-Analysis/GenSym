@@ -54,15 +54,16 @@ We used the following benchmark programs:
 \tiny
 \begin{tabular}{@{}lllll@{}}
 \toprule
-    program          &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ \\ \midrule
-    @church@         & 120  & 71.811     & 23.990     & 299.34\%          \\
-    @rsa@            & 451  & 0.308      & 0.064      & 459.15\%          \\
-    @lattice@        & 609  & 31.874     & 8.816      & 358.69\%          \\
-    @fermat@         & 310  & 0.043      & 0.006      & 716.67\%          \\
-    @mbrotZ@         & 331  & 1.112      & 0.214      & 519.63\%          \\
-    @kcfa-worst-16@  & 182  & 0.083      & 0.013      & 638.46\%          \\
-    @kcfa-worst-32@  & 358  & 0.452      & 0.044      & 1027.27\%         \\
-    @kcfa-worst-64@  & 774  & 3.329      & 0.236      & 1410.59\%         \\
+    program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ \\ \midrule
+    @rsa@               & 451  & 0.308      & 0.064      & 459.15\%          \\
+    @church@            & 120  & 71.811     & 23.990     & 299.34\%          \\
+    @fermat@            & 310  & 0.043      & 0.006      & 716.67\%          \\
+    @mbrotZ@            & 331  & 1.112      & 0.214      & 519.63\%          \\
+    @lattice@           & 609  & 31.874     & 8.816      & 358.69\%          \\
+    @kcfa-worst-16@     & 182  & 0.083      & 0.013      & 638.46\%          \\
+    @kcfa-worst-32@     & 358  & 0.452      & 0.044      & 1027.27\%         \\
+    @kcfa-worst-64@     & 774  & 3.329      & 0.236      & 1410.59\%         \\
+    @solovay-strassen@  & 523  & 5.94       & 1.189      & 428.43\%          \\
     \bottomrule
 \end{tabular}
 \caption{Evaluation result for 0CFA without store-widening.} \label{evaluation_result}

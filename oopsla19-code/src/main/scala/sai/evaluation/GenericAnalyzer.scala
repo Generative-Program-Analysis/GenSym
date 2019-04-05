@@ -65,11 +65,13 @@ trait SchemeAnalyzer {
 
     "less", "high", "low", "uncomparable", "more", //lattice symbols
     "set-cdr!", "remainder", "eq?", "null?", "memq", "append",
-    "equal", "apply", "else", "list",
+    "equal", "apply", "else", "list", "%",
 
     "child", "now", "puke", "brother", //matrix symbols
     "caar", "for-each", "map", "expt", "even?", "length",
     "reverse", "cadr", "vector-ref", "cddr", "zero?",
+
+    "symbol?", "equal?", "pair?", "char?"
   )
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans
 

@@ -7,7 +7,8 @@ object TestPrograms {
   def getAST(prog: String) = {
     SchemeParser(prog) match {
       case Some(expr) => 
-        ASTUtils.alpha(SchemeASTDesugar(expr), Map())._1
+        SchemeASTDesugar(expr)
+        //ASTUtils.alpha(SchemeASTDesugar(expr), Map())._1
     }
   }
 
@@ -132,4 +133,11 @@ object TestPrograms {
   // splay -- old match
   def splay = getAST(Source.fromFile("benchmarks/toplas98/splay.scm").mkString)
 
+  def regex = getAST(Source.fromFile("benchmarks/regex-derivative.scm").mkString)
+
+  def metacirc = getAST(Source.fromFile("benchmarks/meta-circ.scm").mkString)
+
+  def solovay = getAST(Source.fromFile("benchmarks/solovay-strassen.scm").mkString)
+
+  def scheme2java = getAST(Source.fromFile("benchmarks/scheme2java.scm").mkString)
 }

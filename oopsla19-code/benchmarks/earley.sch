@@ -173,7 +173,7 @@
 ;
 ; s -> 0   x -> 1   = -> 4   e ->3    + -> 4   v -> 5   y -> 6
 
-  (let* ((nts (non-terminals grammar))          ; id map = list of non-terms
+    (let* ((nts (non-terminals grammar))          ; id map = list of non-terms
          (nb-nts (vector-length nts))           ; the number of non-terms
          (nb-confs (+ (nb-configurations grammar) nb-nts)) ; the nb of confs
          (starters (make-vector nb-nts '()))    ; starters for every non-term
