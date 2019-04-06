@@ -77,12 +77,6 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   } yield v1 ++ v2
      */
   ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache?
-  /*
-    for {
-      exp <- lift_nd[Expr](Set(thn, els)) //Note: use same store
-      v <- ev(exp)
-    } yield v
-  */
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
@@ -163,11 +157,11 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
       , "vector-ref" -> Set(IntV, FloatV, CharV, BoolV)
       , "cddr" -> Set(IntV, FloatV, CharV, BoolV)
       , "zero?" -> Set(BoolV)
-          , "%" -> Set(BoolV)
-          , "symbol?" -> Set(BoolV)
-          , "equal?" -> Set(BoolV)
-          , "pair?" -> Set(BoolV)
-          , "char?" -> Set(BoolV)
+      , "%" -> Set(BoolV)
+      , "symbol?" -> Set(BoolV)
+      , "equal?" -> Set(BoolV)
+      , "pair?" -> Set(BoolV)
+      , "char?" -> Set(BoolV)
   )
 
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {

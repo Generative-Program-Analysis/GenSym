@@ -26,11 +26,10 @@ control-environment abstract interpreter. The abstract compilation transforms
 the analysis as a closure just taking an environment argument. Therefore the
 overhead of traversing the AST of input program has been eliminated.
 
-In this section, we show that \citeauthor{Boucher:1996:ACN:647473.727587}'s AC
-(closure generation as example) can be understood and implemented as an instance
-of staging abstract interpreters. We first revisit the original implementation
-of abstract compilation of 0-CFA, and then reproduce their result by simply
-adding stage annotations.
+In this section, we show that the AC (closure generation as example) can be
+understood and implemented as an instance of staging abstract interpreters. We
+first revisit the original implementation of abstract compilation of 0-CFA, and
+then reproduce their result by simply adding stage annotations.
 The generated program of our approach improves approximately the same extent of
 speed, but without changing a single line of the analyzer program using
 type-based staging annotations. However, AC requires more engineering effort,
