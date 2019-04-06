@@ -174,7 +174,7 @@ family of analysis with increasing precision.
 
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepStateT[
-                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //Add Time into a RepStateT
+                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //add Time into a RepStateT
                  Store, ?], Env, T]
   type Result = (Rep[Set[(Value, Store, Time)]], Rep[Cache])
 \end{lstlisting}
@@ -189,7 +189,7 @@ tuples, where the time is added.
   } yield u
   def alloc(x: String): AnsM[Addr] = for {
     τ <- get_time
-  } yield unit(KCFAAddr(x, τ)) // we unit to turn a current-stage constant to next-stage value
+  } yield unit(KCFAAddr(x, τ)) // we use unit to turn a current-stage constant to next-stage value
 \end{lstlisting}
 
 Every time when we call the @eval@ function, we refresh the timestamp by calling
