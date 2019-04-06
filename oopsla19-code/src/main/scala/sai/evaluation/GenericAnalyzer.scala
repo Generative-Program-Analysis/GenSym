@@ -132,8 +132,6 @@ trait SchemeAnalyzer {
       rt <- br(ev)(cnd, thn, els)
     } yield rt
   }
-
-  def foldVss(vss: R[List[Value]]): R[Value]
 }
 
 trait AbstractComponents extends SchemeAnalyzer {

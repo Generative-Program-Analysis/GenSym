@@ -52,7 +52,8 @@ object Evaluation {
       //(nbody, "nbody"),
       //(nucleic, "nucleic"),
     )
-    progs foreach { case (e, id) => compare(e, id) }
+    //progs foreach { case (e, id) => compare(e, id) }
+    progs foreach { case (e, id) => compareSW(e, id) }
     /*
     progs foreach { case (e, id) => 
       println(s"$id - ${size(e)}")
@@ -109,6 +110,17 @@ object Evaluation {
     }
   }
 
+  def specializeSW(e: Expr): DslDriver[Unit, Unit] = new SWStagedSchemeAnalyzerDriver {
+    @virtualize
+    def snippet(u: Rep[Unit]): Rep[Unit] = {
+      val res = run(e)
+      println(s"Number of values:" + res._1)
+      //println(s"Size of cache:" + res._2.size)
+      //println(res._1)
+      //println(res._2.size)
+    }
+  }
+
   def writeTo(filename: String, content: String): Unit = {
     val writer = new java.io.PrintWriter(new java.io.File(filename))
     writer.write(content)
@@ -117,15 +129,28 @@ object Evaluation {
 
   val output = "CodeGen.out"
   def output(id: String): String = s"CodeGen_$id.out"
+  val N = 20
 
-  def compare(e: Expr, id: String) {
+  def compareSW(e: Expr, id: String) {
     println(s"Running $id, AST size: ${size(e)}")
-    val N = 20
-    //val t1 =  run(N, { evalUnstaged(e) })
     val t1 = run(N, { evalUnstagedSW(e) })
     println(s"[$id] [unstaged] - ${t1}s")
     
-    /*
+    val code = specializeSW(e)
+    code.precompile
+    val outfile = output(id)
+    println(s"[$id] [staged] Finished precompile, writing code to ${outfile}")
+    writeTo(outfile, code.code)
+
+    val t2 = run(N, { code.eval(()) })
+    println(s"[$id] [staged] - ${t2}s")
+  }
+
+  def compare(e: Expr, id: String) {
+    println(s"Running $id, AST size: ${size(e)}")
+    val t1 =  run(N, { evalUnstaged(e) })
+    println(s"[$id] [unstaged] - ${t1}s")
+    
     val code = specialize(e)
     code.precompile
     val outfile = output(id)
@@ -134,6 +159,5 @@ object Evaluation {
 
     val t2 = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
-    */
   }
 }

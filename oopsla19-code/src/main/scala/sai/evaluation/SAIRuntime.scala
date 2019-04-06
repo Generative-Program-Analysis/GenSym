@@ -50,7 +50,7 @@ object SWSAIRuntime {
   case class PrimOpV(op: String) extends AbsValue
   case class ConsV(a: Addr, b: Addr) extends AbsValue
   case class VectorV(vs: List[Addr]) extends AbsValue
-  case class CompiledClo(f: (List[Value], Store, Cache, Cache) => (Set[(Value, Store)], Cache), λ: Int, ρ: Env) extends AbsValue
+  case class CompiledClo(f: (List[Value], Store, Cache, Cache) => ((Set[Value], Store), Cache), λ: Int, ρ: Env) extends AbsValue
 
   trait Addr
   case class ZCFAAddr(x: String) extends Addr
