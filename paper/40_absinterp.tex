@@ -5,7 +5,7 @@ focus on abstract interpreters under the same framework. We will first present a
 lattice framework with binding-time abstraction, but for the purpose of clearly
 illustrating the idea, we will just use simple abstract domains such as power set
 lattice or point-wise map lattice. Then we show the abstract components, namely
-abstract values, abstract environments and abstract stores.
+abstract values, abstract environments, and abstract stores.
 The abstract interpreter we present in this section is similar to
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s, it is also
 context/path/flow-insensitive by our choice.  In Section \ref{cfa}, we will
@@ -56,11 +56,11 @@ def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
 \end{figure}
 
 In this section, we simply let @R[T] = T@ (i.e., @NoRep@) to instantiate the
-unstaged lattice type class. An simple instance of lattice we used is the power
+unstaged lattice type class. A simple instance of lattice we used is the power
 set abstract domain (shown in Figure \ref{fig:powerset}), where the ordering is subset relation, the join is union
-operation, and the meet is intersect operation.
+operation, and the meet is the intersect operation.
 Other lattices used in the remainder of the paper, such as products and maps, can be
-implemented similarly, or lifted from existing lattices element-wise or
+implemented similarly or lifted from existing lattices element-wise or
 point-wise. Naturally, abstract domains such intervals also can be implemented
 in a stage polymorphic way.
 
@@ -77,7 +77,7 @@ are lifted to a singleton object @IntTop@ representing the set of all numbers;
 closures remain the same. Then the type @Value@ is sets of @AbsValue@ (we abuse
 the type names a little bit, as the generic interface defined the abstract type
 @Value@).
-The address space is constrained to be finite to ensure the computatbility of
+The address space is constrained to be finite to ensure the computability of
 analysis -- for the simplest monovariant analysis, we use variable names for
 addresses. After settling the @Value@ and @Addr@ type, the environments and
 stores are automatically lifted to abstract environments and abstract stores,
@@ -108,7 +108,7 @@ store.
 \end{lstlisting}
 
 As of now, the store is a mapping from addresses to sets of abstract values.
-Therefore, when applying a function, for instance @f(a)@, we may retrieve a set
+Therefore, when applying a function, for instance, @f(a)@, we may retrieve a set
 of closures by dereferencing the address of @f@. We need to nondeterministically
 apply all of the target closures.
 Another nondeterminism happens when evaluating conditionals, we have to evaluate
@@ -119,9 +119,9 @@ have multiple computing results.
   type Result = (R[Set[(Value, Store)]], R[Cache])
 \end{lstlisting}
 
-This observation leads us to the type definition of @Result@: in concrete setting,
+This observation leads us to the type definition of @Result@: in a concrete setting,
 the @Result@ is a pair of @Value@ and @Store@, now we use a set of such pairs
-@Set[(Value, Store)]@ to represent multiple results. The results is also linked
+@Set[(Value, Store)]@ to represent multiple results. The results are also linked
 with the resulting cache used in this iteration.
 Note that the abstract binding-time annotation is wrapped to the two objects in
 the @Result@ pair, but not the whole pair. Because we statically know the result
@@ -133,7 +133,7 @@ nondeterminism and caching into the monad stack. For concrete evaluation, we
 already have a reader effect for environments and a state effect for stores. We
 further add three more effects based on it: the nondeterminism effect is
 represented by the @SetT[M[_], A]@ monad transformer, inside of which, we have
-a @ReaderT@ for a @in@ cache, and a @StateT@ for an @out@ cache. \todo{highlight
+a @ReaderT@ for a @in@ cache and a @StateT@ for an @out@ cache. \todo{highlight
 where changed}
 
 \begin{lstlisting}
@@ -144,7 +144,7 @@ where changed}
   }
 \end{lstlisting}
 
-The sketch implementation of @SetT@ transformer is shown below. The value @run@
+The sketch implementation of the @SetT@ transformer is shown below. The value @run@
 encapsulated by the monad is of type @M[SetT[A]]@, where @M[_]@ is the inner monad, and
 @A@ is the element type of the list. The @flatMap@ method first unwraps the inner
 monadic value @M[SetT[A]]@ and obtain a value of @Set[A]@, then applies @f@ to
@@ -163,7 +163,7 @@ operation joins the value with the existing values, for the same address. Under
 abstract interpretation, we may have to explore the results from both branches
 of a conditional expression for soundness. In @br0@, we combine the results
 using @mplus@ from @MonadPlus@, which requires the values are join-semilattices
-(in our case, @Set@s and @Map@s).
+(in our case @Set@s and @Map@s).
 
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ ⊔ Map(αv)))
@@ -220,13 +220,13 @@ The idea is to first set up two caches called @in@ and @out@ both of type
 @Cache@. Then similar to Kleene's iteration algorithm, we compute the analysis
 result iteratively. The @in@ cache contains what we already have computed from
 the last iteration, and the @out@ cache is what we would have computed after this
-iteration joined with the contents from @in@ cache.
+iteration joined with the contents from the @in@ cache.
 When starting a new iteration, @in@ is set to be the result of the last
 iteration, i.e., @out@; and @out@ is assigned to be empty.
 
 During the iteration, we first check whether @out@ contains the configuration
 @cfg@, representing the current desired computation, if
-yes then result is directly returned through the monads.
+yes, then the result is directly returned through the monads.
 
 Otherwise, we first retrieve the results from @in@ (@⊥@ if not contained in
 @in@), and put it into the @out@ cache.
