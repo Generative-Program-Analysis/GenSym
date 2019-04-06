@@ -21,6 +21,7 @@ object Evaluation {
     val progs = List[(Expr, String)](
       (fib, "fib"),
       (rsa, "rsa"),
+      /*
       (church, "church"),
       (fermat, "fermat"),
       (mbrotZ, "mbrotZ"),
@@ -29,13 +30,14 @@ object Evaluation {
       (kcfa32, "kcfa32"),
       (kcfa64, "kcfa64"),
       (solovay, "solovay")
+      */
       //(blur, "blur"), // 56
       //(sat, "sat"), // 73
       //(metacirc, "meta")
-      //(regex, "regex"),
+      //(regex, "regex"),    //okay for sw
+      //(matrix, "matrix"),  //okay for sw
       //(scheme2java, "scheme2java")
       /********************/
-      //(matrix, "matrix"),
       //(letloop, "letloop")
       //(euclid, "euclid"),
       //(euclid_imp, "euclid_imp"),
@@ -58,11 +60,9 @@ object Evaluation {
       println(ASTUtils.exprToString(e))
       println(ASTUtils.free(e).map("\"" + _ + "\""))
       println(ASTUtils.free(e).map("\"" + _ + "\" =>\n"))
-      val t1 =  run(1, { evalUnstaged(e) })
+      val t1 =  run(1, { evalUnstagedSW(e) })
       println(s"[$id] [unstaged] - ${t1}s")
     }
-    */
-    /*
     progs foreach { case (e, id) =>
       val code = specialize(e)
       code.precompile
@@ -90,9 +90,12 @@ object Evaluation {
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run(e)
-    //println(s"Values: ${res._1}")
     println(s"Number of values: ${res._1.size}")
-    //println(s"Size of cache: ${res._2.size}")
+  }
+
+  def evalUnstagedSW(e: Expr): Unit = {
+    val res = SWUnstagedSchemeAnalyzer.run(e)
+    println(s"Number of values: ${res._1._1.size}")
   }
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedSchemeAnalyzerDriver {
@@ -118,9 +121,11 @@ object Evaluation {
   def compare(e: Expr, id: String) {
     println(s"Running $id, AST size: ${size(e)}")
     val N = 20
-    val t1 =  run(N, { evalUnstaged(e) })
+    //val t1 =  run(N, { evalUnstaged(e) })
+    val t1 = run(N, { evalUnstagedSW(e) })
     println(s"[$id] [unstaged] - ${t1}s")
     
+    /*
     val code = specialize(e)
     code.precompile
     val outfile = output(id)
@@ -129,5 +134,6 @@ object Evaluation {
 
     val t2 = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
+    */
   }
 }

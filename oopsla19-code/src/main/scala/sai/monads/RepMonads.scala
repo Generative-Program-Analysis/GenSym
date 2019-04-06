@@ -392,5 +392,85 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
     def withFilter(f: Rep[A] => Rep[Boolean]): SetReaderStateM[R, S, A] = filter(f)
   }
 
+  /////////////////////////////////////////////
+  object SetStateReaderStateM {
+    type SSRS[R,S1,S2,A] = SetStateReaderStateM[R, S1, S2, A]
+    def apply[R:Manifest,S1:Manifest,S2:Manifest,A:Manifest](implicit m: SetStateReaderStateM[R,S1,S2,A]): SetStateReaderStateM[R,S1,S2,A] = m
+
+    implicit def SetStateReaderStateMonad[R: Manifest, S1: Manifest, S2: Manifest] = new Monad[SetStateReaderStateM[R,S1,S2,?]] {
+        def flatMap[A:Manifest, B:Manifest](ma: SSRS[R,S1,S2,A])(f: Rep[A] => SSRS[R,S1,S2,B]) = ma.flatMap(f)
+        def pure[A: Manifest](a: Rep[A]): SSRS[R,S1,S2,A] = SetStateReaderStateM(r=>s1=>s2=> ((Set[A](a),s1),s2))
+        def filter[A: Manifest](ma: SSRS[R,S1,S2,A])(f: Rep[A] => Rep[Boolean]): SSRS[R,S1,S2,A] = ma.filter(f)
+
+        def put1(s1: => Rep[S1]): SSRS[R,S1,S2,Unit] = SetStateReaderStateM(r => _ => s2 => ((Set[Unit](()), s1), s2))
+        def put2(s2: => Rep[S2]): SSRS[R,S1,S2,Unit] = SetStateReaderStateM(r => s1 => _ => ((Set[Unit](()), s1), s2))
+        def get1: SSRS[R,S1,S2,S1] = SetStateReaderStateM(r => s1 => s2 => ((Set[S1](s1), s1), s2))
+        def get2: SSRS[R,S1,S2,S2] = SetStateReaderStateM(r => s1 => s2 => ((Set[S2](s2), s1), s2))
+
+        def mod1(f: Rep[S1] => Rep[S1]): SSRS[R,S1,S2,Unit] = SetStateReaderStateM(r => s1 => s2 => ((Set[Unit](()), f(s1)), s2))
+        def mod2(f: Rep[S2] => Rep[S2]): SSRS[R,S1,S2,Unit] = SetStateReaderStateM(r => s1 => s2 => ((Set[Unit](()), s1), f(s2)))
+
+        def ask: SSRS[R, S1, S2, R] = SetStateReaderStateM(r => s1 => s2 => ((Set[R](r), s1), s2))
+        def local[A: Manifest](ma: SSRS[R, S1, S2, A])(f: Rep[R] => Rep[R]): SSRS[R, S1, S2, A] =
+          SetStateReaderStateM(r => s1 => s2 => ma.run(f(r))(s1)(s2))
+    }
+
+    implicit def SetStateReaderStateMonadPlus[R: Manifest, S1: Manifest : RepLattice, S2: Manifest : RepLattice] = new MonadPlus[SetStateReaderStateM[R,S1,S2,?]] {
+      def mzero[A: Manifest : RepLattice]: SSRS[R, S1, S2, A] = empty[R, S1, S2, A]
+      def mplus[A: Manifest : RepLattice](a: SSRS[R, S1, S2, A], b: SSRS[R, S1, S2, A]): SSRS[R, S1, S2, A] =
+        SetStateReaderStateM(r => s1 => s2 => {
+                               val ((seta, s1a), s2a) = a.run(r)(s1)(s2)
+                               val ((setb, s1b), s2b) = a.run(r)(s1)(s2)
+                               ((seta ⊔ setb, s1a ⊔ s1b), s2a ⊔ s2b)
+                             })
+    }
+
+    def fromSet[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest](xs: Set[A]): SSRS[R,S1,S2,A] =
+      SetStateReaderStateM(r => s1 => s2 => ((unit(xs), s1), s2))
+
+    def fromSet[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest](xs: Rep[Set[A]]): SSRS[R,S1,S2,A] =
+      SetStateReaderStateM(r => s1 => s2 => ((xs, s1), s2))
+
+    def empty[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest]: SSRS[R,S1,S2,A] =
+      SetStateReaderStateM(r => s1 => s2 => ((Set[A](), s1), s2))
+  }
+
+  case class SetStateReaderStateM[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest](run: Rep[R]=>Rep[S1]=>Rep[S2]=>((Rep[Set[A]], Rep[S1]), Rep[S2])) {
+    import SetStateReaderStateM._
+
+    type Result = ((Rep[Set[A]], Rep[S1]), Rep[S2])
+    type MM[T] = SetStateReaderStateM[R,S1,S2,T]
+    def apply(r: Rep[R])(s1: Rep[S1])(s2: Rep[S2]): Result = run(r)(s1)(s2)
+    def flatMap[B: Manifest](f: Rep[A] => MM[B]): MM[B] = {
+      SetStateReaderStateM(r => s1 => s2 => {
+                             val ((seta, s10), s20) = run(r)(s1)(s2)
+                             val init0: Rep[(Set[B], S1)] = (Set[B](), s10)
+                             val init: Rep[((Set[B], S1), S2)] = (init0, s20)
+                             val res = seta.foldLeftPairPair(init) { case (((setacc, s11), s21), a) =>
+                               val fa: MM[B] = f(a)
+                               val ((setb, s12), s22) = fa.run(r)(s11)(s21)
+                               val res0: Rep[(Set[B], S1)] = ((setacc ++ setb), s12)
+                               (res0, s22): Rep[((Set[B], S1), S2)]
+                             }
+                             (res._1, res._2)
+                           })
+    }
+
+    def map[B: Manifest](f: Rep[A] => Rep[B]): MM[B] =
+      SetStateReaderStateM(r => s1 => s2 => {
+                             val ((seta, s10), s20) = run(r)(s1)(s2)
+                             val setb = seta.map(f)
+                             ((setb, s10), s20)
+                           })
+
+    def filter(f: Rep[A] => Rep[Boolean]): MM[A] =
+      SetStateReaderStateM(r => s1 => s2 => {
+                             val ((seta, s10), s20) = run(r)(s1)(s2)
+                             ((seta.filter(f), s10), s20)
+                           })
+
+    def withFilter(f: Rep[A] => Rep[Boolean]): MM[A] = filter(f)
+  }
+
 }
 

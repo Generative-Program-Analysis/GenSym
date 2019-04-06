@@ -19,9 +19,9 @@
 ; -- MATH UTILITIES -----------------------------------------------------------
 
 
-(define FLOATatan flatan)
-(define FLOATcos flcos)
-(define FLOATsin flsin)
+;(define FLOATatan flatan)
+;(define FLOATcos flcos)
+;(define FLOATsin flsin)
 
 
 (define Constant-Pi          3.14159265358979323846)

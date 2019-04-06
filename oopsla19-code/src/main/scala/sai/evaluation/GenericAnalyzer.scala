@@ -71,7 +71,9 @@ trait SchemeAnalyzer {
     "caar", "for-each", "map", "expt", "even?", "length",
     "reverse", "cadr", "vector-ref", "cddr", "zero?",
 
-    "symbol?", "equal?", "pair?", "char?"
+    "symbol?", "equal?", "pair?", "char?", "integer?",
+
+    "fl/", "fl+", "flsqrt", "flcos", "fl<", "flatan", "fl=", "fl-", "fl>", "fl<=", "fl*", "flsin",
   )
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans
 

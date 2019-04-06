@@ -22,7 +22,7 @@ Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96
 cores (192 threads) in total, the abstract interpreters are single-threaded.
 To minimize the effect of warming-up from the JVM JIT compiler, all the
 experiments are executed for 20 times and we report the statistical median value
-of the running times (in seconds).
+of the running times. We set a 5 minutes timeout.
 
 \paragraph{Benchmarks}
 The benchmark programs we used in the experiment are collected from several
@@ -54,29 +54,35 @@ We used the following benchmark programs:
 
 \begin{figure}[h]
 \footnotesize
-\begin{tabular}{@{}lllll@{}}
+\begin{tabular}{@{}ll|lll|lll@{}}
 \toprule
-    program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ \\ \midrule
-    @fib@               & 32   & 0.013      & 0.002      & 650.00\%          \\
-    @rsa@               & 451  & 0.232      & 0.042      & 552.38\%          \\
-    @church@            & 120  & 67.342     & 18.917     & 355.99\%          \\
-    @fermat@            & 310  & 0.024      & 0.004      & 600.00\%          \\
-    @mbrotZ@            & 331  & 0.763      & 0.127      & 600.79\%          \\
-    @lattice@           & 609  & 31.874     & 8.816      & 361.59\%          \\
-    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 750.00\%          \\
-    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 1290.91\%         \\
-    @kcfa-worst-64@     & 774  & 2.18       & 0.129      & 1689.92\%         \\
-    @solovay-strassen@  & 523  & 5.094      & 1.189      & 428.43\%          \\
+    program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ & unstaged   & staged    & $\frac{\text{unstaged}}{\text{staged}}$  \\ 
+    \midrule
+                        &      & \multicolumn{3}{c}{w/o store-widening} &  \multicolumn{3}{c}{w/ store-widening}  \\
+    \midrule
+    @fib@               & 32   & 0.013      & 0.002      & 650.00\%  & & &        \\
+    @rsa@               & 451  & 0.232      & 0.042      & 552.38\%  & & &        \\
+    @church@            & 120  & 67.342     & 18.917     & 355.99\%  & & &        \\
+    @fermat@            & 310  & 0.024      & 0.004      & 600.00\%  & & &        \\
+    @mbrotZ@            & 331  & 0.763      & 0.127      & 600.79\%  & & &        \\
+    @lattice@           & 609  & 31.874     & 8.816      & 361.59\%  & & &       \\
+    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 750.00\%  & & &      \\
+    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 1290.91\% & & &      \\
+    @kcfa-worst-64@     & 774  & 2.18       & 0.129      & 1689.92\% & & &      \\
+    @solovay-strassen@  & 523  & 5.094      & 1.189      & 428.43\%  & & &       \\
+    @regex@             & 550  & -          & -          & -         & & &       \\
+    @matrix@            & 1891 & -          & -          & -         & & &       \\
     \bottomrule
 \end{tabular}
-\caption{Evaluation result for 0CFA without store-widening.} \label{evaluation_result}
+\caption{Evaluation result for monovariant control-flow analysis.} \label{evaluation_result}
 \end{figure}
 
 Figure~\ref{evaluation_result} shows the evaluation result, comparing the
 performance improved by staging on 0CFA without store-widening. The
 \textit{unstaged} and \textit{staged} columns show the median time to finish the
 analysis (in seconds). The last column $\frac{\text{unstaged}}{\text{staged}}$
-shows the improvement from staging. \todo{0cfa, 1cfa, store-widen}
+shows the improvement from staging. The dash - in some cells indicates timeout.
+\todo{0cfa, 1cfa, store-widen}
 As we can see from the table, the staged version significantly outperforms the
 unstaged version on all benchmarks, especially for the @kcfa-worst-@$n$ series.
 We observe the most improvement of 17x times faster than the unstaged version on
