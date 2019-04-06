@@ -3,7 +3,7 @@
 To evaluate how the performance can be improved by our staged abstract interpreters
 approach, we scale our toy interpreter to a large subset of the Scheme language
 and evaluate the analyzing time against with the unstaged versions. The result
-shows that the staged versions are averagely 6 times as fast of the unstaged
+shows that the staged versions are averagely 11x times as fast as the unstaged
 version, as strong evidence of our \textit{abstraction without regret}
 approach.
 
@@ -11,10 +11,10 @@ approach.
 We implement the abstract interpreters for control-flow analysis, i.e., a
 value-flow analysis focus on lambda terms in functional languages. A front-end
 desugars Scheme to a small core language that makes the analyzer easy to
-implement. As described in Section \ref{cfa}, we implement a monovariant
-0-CFA-like analysis, \todo{a context-sensitive $1$-CFA-like analysis, both their
-  versions with and without store-widening}. We also implement several
-optimizations mentioned in Section \ref{staged_ds} (less than ~30 LOC in total).
+implement. As described in Section \ref{cfa}, we implement two monovariant
+0-CFA-like analysis, one is equipped with store-widening, the other does not.
+We also implement several optimizations mentioned in Section \ref{staged_ds} 
+(less than ~30 LOC in total).
 
 We use Scala 2.12.7 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04 LTS
 (kernel 4.4.0) machine. All of our evaluations were performed on a machine with 4 Intel
@@ -58,35 +58,34 @@ We used the following benchmark programs:
 \toprule
     program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ & unstaged   & staged    & $\frac{\text{unstaged}}{\text{staged}}$  \\ 
     \midrule
-                        &      & \multicolumn{3}{c}{w/o store-widening}  &  \multicolumn{3}{c}{w/ store-widening}  \\
+                        &      & \multicolumn{3}{c}{w/o store-widening (sec.)}  &  \multicolumn{3}{c}{w/ store-widening (ms)}\\
     \midrule
-    @fib@               & 32   & 0.013      & 0.002      & 650.00\%  & & &        \\
-    @rsa@               & 451  & 0.232      & 0.042      & 552.38\%  & & &        \\
-    @church@            & 120  & 67.342     & 18.917     & 355.99\%  & & &        \\
-    @fermat@            & 310  & 0.024      & 0.004      & 600.00\%  & & &        \\
-    @mbrotZ@            & 331  & 0.763      & 0.127      & 600.79\%  & & &        \\
-    @lattice@           & 609  & 31.874     & 8.816      & 361.59\%  & & &       \\
-    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 750.00\%  & & &      \\
-    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 1290.91\% & & &      \\
-    @kcfa-worst-64@     & 774  & 2.18       & 0.129      & 1689.92\% & & &      \\
-    @solovay-strassen@  & 523  & 5.094      & 1.189      & 428.43\%  & & &       \\
-    @regex@             & 550  & -          & -          & -         & & &       \\
-    @matrix@            & 1891 & -          & -          & -         & & &       \\
+    @fib@               & 32   & 0.013      & 0.002      & 6.50x      & 1.537 & 0.067  &  22.87x       \\
+    @rsa@               & 451  & 0.232      & 0.042      & 5.52x      & 15.113& 1.449 &  10.43x       \\
+    @church@            & 120  & 67.342     & 18.917     & 3.56x      & 2.962 & 0.291 &  10.19x       \\
+    @fermat@            & 310  & 0.024      & 0.004      & 6.00x      & 7.624 & 0.622 &  12.26x       \\
+    @mbrotZ@            & 331  & 0.763      & 0.127      & 6.01x      & 12.229& 0.729 &  16.77x       \\
+    @lattice@           & 609  & 31.874     & 8.816      & 3.62x      & 17.943& 0.909 &  19.75x      \\
+    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 7.50x      & 4.658 & 0.785 &  5.93x     \\
+    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 12.91x     & 10.005& 1.680 &  5.95x     \\
+    @kcfa-worst-64@     & 774  & 2.18       & 0.129      & 16.90x     & 22.999& 3.872 &  5.94x     \\
+    @solovay-strassen@  & 523  & 5.094      & 1.189      & 4.28x      & 19.118& 0.654 &  29.25x      \\
+    @regex@             & 550  & -          & -          & -          & 7.133 & 0.624 &  11.43x      \\
+    @matrix@            & 1891 & -          & -          & -          & 86.176& 4.592 &  18.76x      \\
     \bottomrule
 \end{tabular}
 \caption{Evaluation result for monovariant control-flow analysis.} \label{evaluation_result}
 \end{figure}
 
 Figure~\ref{evaluation_result} shows the evaluation result, comparing the
-performance improved by staging on 0CFA without store-widening. The
+performance improved by staging on 0CFA without and with store-widening. The
 \textit{unstaged} and \textit{staged} columns show the median time to finish the
-analysis (in seconds). The last column $\frac{\text{unstaged}}{\text{staged}}$
+analysis. The column $\frac{\text{unstaged}}{\text{staged}}$
 shows the improvement from staging. The dash - in some cells indicates timeout.
-\todo{0cfa, 1cfa, store-widen}
 As we can see from the table, the staged version significantly outperforms the
 unstaged version on all benchmarks, especially for the @kcfa-worst-@$n$ series.
-We observe the most improvement of 17x times faster than the unstaged version on
-@kcfa-worst-64@. On average, the staging produces code that runs 7x times faster
+We observe the most improvement of 29x times faster than the unstaged version on
+@solovay-strassen@. On average, the staging produces code that runs 11x times faster
 than the unstaged analyzer.
 
 We also observe that much overhead of unstaged analyzers are from the monadic

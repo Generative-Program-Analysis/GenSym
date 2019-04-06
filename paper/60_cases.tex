@@ -247,10 +247,9 @@ compute the root addresses for compound expressions, readers may refer to
     _ <- put_store(σ)
   } yield v
 \end{lstlisting}
-\vspace{-1em}
+\vspace{-2em}
 \caption{\texttt{fix\_gc} for abstract garbage collection} \label{fixgc}
 \end{figure}
-
 
 %def root(v: Rep[Value]): Set[Addr]  def ask_root: AnsM[Set[Addr]]  def gc(ra: Rep[Set[Addr]]): AnsM[Store]
 
