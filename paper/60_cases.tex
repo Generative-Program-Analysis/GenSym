@@ -200,7 +200,7 @@ The type @Config@ used in caching is also changed to included the timestamp.
 
 \subsubsection{Store-widened Analysis}
 
-An commonly used technique to improve the running time in control-flow analysis
+A commonly used technique to improve the running time in control-flow analysis
 is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
 DBLP:journals/pacmpl/DaraisLNH17}, store-widening analysis can be easily
 implemented in monadic abstract interpreter by swaping the @StateT@ (for store)
@@ -220,12 +220,40 @@ the store while doing the abstract interpretation
 \cite{Might:2006:IFA:1159803.1159807}. \citet{DBLP:journals/pacmpl/DaraisLNH17}
 shows that, for big-step monadic abstract interpreter, we may add a @Reader@
 monad to track a set of root addresses and compute the reachable addresses every
-time when we obtain a value.
+time when we obtain a value. Here we adopt it with staged monads:
 
 \begin{lstlisting}
-  def ask_root: AnsM[Set[Addr]]
-  def eval(e: Expr): AnsM
+  type AnsM[T] = RepReaderT[RepReaderT[
+                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Store, ?],
+                 Set[Addr], ?], Env, T] //add a reader monad for Set[Addr]
 \end{lstlisting}
+
+The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We modify the @fix@
+function with caching (from Section \ref{sai}) to @fix_gc@, but the caching part
+is omitted. Several auxiliary functions are used: @ask_root@ retrieves the
+current root addresses from the moand stack; @root@ compute the reachable
+addresses from a value; and @gc@ cleans up the store according to the reachable
+addresses and returns a new store. For the generic interpreter, we also need to
+compute the root addresses for compound expressions, readers may refer to
+\cite{DBLP:journals/pacmpl/DaraisLNH17}.
+
+\begin{figure}[h!]
+\begin{lstlisting}
+  def fix_gc(ev: (Expr => Ans) => (Expr => Ans))(e: Expr): Ans = for {
+    ψ <- ask_roots ... // omit code for retrieving ρ, σ, in and out
+    val res: Rep[(Set[(Value,Store)], Cache)] = ... // omit code for checking caches
+    _ <- put_out_cache(res._2)
+    vs <- lift_nd(res._1)
+    σ <- gc(ψ ⊔ root(vs._2)) // perform abstract garbage collection
+    _ <- put_store(σ)
+  } yield v
+\end{lstlisting}
+\vspace{-1em}
+\caption{\texttt{fix\_gc} for abstract garbage collection} \label{fixgc}
+\end{figure}
+
+
+%def root(v: Rep[Value]): Set[Addr]  def ask_root: AnsM[Set[Addr]]  def gc(ra: Rep[Set[Addr]]): AnsM[Store]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
