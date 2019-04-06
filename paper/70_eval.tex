@@ -78,12 +78,12 @@ We used the following benchmark programs:
 \end{figure}
 
 Figure~\ref{evaluation_result} shows the evaluation result, comparing the
-performance improved by staging on 0CFA without and with store-widening. The
+performance improved by staging on two monovariant CFA (without and with store-widening). The
 \textit{unstaged} and \textit{staged} columns show the median time to finish the
 analysis. The column $\frac{\text{unstaged}}{\text{staged}}$
 shows the improvement from staging. The dash - in some cells indicates timeout.
 As we can see from the table, the staged version significantly outperforms the
-unstaged version on all benchmarks, especially for the @kcfa-worst-@$n$ series.
+unstaged version on all benchmarks. %, especially for the @kcfa-worst-@$n$ series.
 We observe the most improvement of 29x times faster than the unstaged version on
 @solovay-strassen@. On average, the staging produces code that runs 11x times faster
 than the unstaged analyzer.
