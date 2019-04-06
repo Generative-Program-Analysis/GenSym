@@ -2,7 +2,7 @@
 
 In this section, based on the generic interpreter and concrete components we
 presented in Section \ref{prelim}, we show how to obtain a staged concrete
-interpreters by changing the monads and refactoring several primitive
+interpreter by changing the monads and refactoring several primitive
 operations. We begin by briefly introducing the Lightweight Modular Staging
 framework in Scala.
 
@@ -15,17 +15,12 @@ MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} that
 uses syntactic quotation and escape, LMS distinguishes binding-time solely based
 on types. LMS provides a type constructor @Rep[T]@ where @T@ can be an arbitrary
 type, indicating a value of @T@ will be known at the next stage. All operations
-acting a @Rep[T]@ expression will be residualized as generated code.
+acting on @Rep[T]@ expressions will be residualized as generated code.
 
-The LMS framework provides staging support for primitive data types such as
-@Int@ and @Double@, and commonly-used data structures such as arrays and maps.
-The idea is to construct intermediate representations (IR) for the next stage
-program at the current stage. Such conversion from expressions of type @Rep[_]@ to
-their IR is done by using the implicit design pattern. As we will see later,
-implementing the staging support for custom classes is also straightforward.
-
-For example, let us go back and see how LMS can be used to specialize the
-@power@ function from Section ~\ref{intro}.
+For the example we introduced in Section \ref{intro}, we have identified @b@ will 
+be known later. To specialize it we write a function @snippet@ that provides a 
+concrete value @x@ for @x@. After this, we may instantiate an @DslDriver@ object 
+which provide the specialized program.
 
 \begin{lstlisting}
   new DslDriver[Int, Int] {
@@ -34,7 +29,12 @@ For example, let us go back and see how LMS can be used to specialize the
   }
 \end{lstlisting}
 
-\todo{Show some IR}
+The LMS framework provides staging support for primitive data types such as
+@Int@ and @Double@, and commonly-used data structures such as arrays and maps.
+The idea is to construct intermediate representations (IR) for the next stage
+program at the current stage. Such conversion from expressions of type @Rep[_]@ to
+their IR is done by using the implicit design pattern. As we will see later,
+implementing the staging support for custom classes is also straightforward.
 
 \subsection{Staged Concrete Semantics}
 
@@ -61,7 +61,7 @@ inner monad, which means the pair @(A,S)@ is also staged when appears inside of 
 @M[_]@. The @flatMap@ is similar to the unstaged one, but the function @f@ takes
 a @Rep[A]@ value. Again, @f@ is not a next-stage function, but a current-stage
 function that transforms a next-stage value of @Rep[A]@ to @StateT[M,S,B]@.
-\todo{highlight the changes in the code}
+%\todo{highlight the changes in the code}
 
 \begin{lstlisting}
   case class RepStateT[M[_]: RepMonad, S, A](run: Rep[S] => M[(A, S)]) {

@@ -133,8 +133,8 @@ nondeterminism and caching into the monad stack. For concrete evaluation, we
 already have a reader effect for environments and a state effect for stores. We
 further add three more effects based on it: the nondeterminism effect is
 represented by the @SetT[M[_], A]@ monad transformer, inside of which, we have
-a @ReaderT@ for a @in@ cache and a @StateT@ for an @out@ cache. \todo{highlight
-where changed}
+a @ReaderT@ for a @in@ cache and a @StateT@ for an @out@ cache. 
+%\todo{highlight where changed}
 
 \begin{lstlisting}
   trait AbstractSemantics extends AbstractComponents {

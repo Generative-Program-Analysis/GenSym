@@ -187,8 +187,8 @@ intrusive changes and engineering efforts.
 Furthermore, we show various applications of staging an abstract interpreter.
 (1) We compare our approach with abstract compilation, and show that we can
 achieve the same optimization by utilizing type-based stage annotations,
-meanwhile, the analyzer program does not need any changes. (2) \todo{} (3)
-Staging abstract interpreter enables modular analysis and provides a mechanized
+meanwhile, the analyzer program does not need any changes. (2) We extend the basic staged abstract interpreter to diverse control-flow analysis, including store-widening analysis, context-sensitive analysis and abstract garbage collection.
+(3) Staging abstract interpreter enables modular analysis and provides a mechanized
 way to create library summaries. We notice that we may apply the staged abstract
 interpreter separately on the different part of the analyzed program, the
 generated code is reusable and composable. Therefore, we can turn a
