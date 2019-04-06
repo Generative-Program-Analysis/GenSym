@@ -22,7 +22,7 @@ interpreter (Section~\ref{unstaged_abs}).
 \subsection{Abstract Syntax} \label{bg_lang}
 
 We consider a call-by-value $\lambda$-calculus in direct-style, extended
-with numbers, arithmetic, recursions and conditionals. Other effectful features
+with numbers, arithmetic, recursions, and conditionals. Other effectful features
 such as assignments can also be supported readily.
 %In Section~\ref{cases_imp}, we will add more imperative features to the
 language. Since we are mostly
@@ -51,7 +51,7 @@ the existing interpretation.
 \iffalse
 We will give the concrete semantics using a big-step definitional
 interpreter. The interpreter is a recursive function that takes the program AST,
-environment and store, and returns the evaluated value and the accompanied
+environment, and store, and returns the evaluated value and the accompanying
 store. The environment is a mapping from identifiers to addresses, and the store
 is a mapping from addresses to values. We use the store to model recursion and
 mutation in concrete semantics; it is also useful for polyvariant analysis. This
@@ -65,7 +65,7 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 
 A monad is a type constructor @M[_]: * -> *@ with two operations, often called
 @return@ and @bind@. Informally, @return@ wraps a value into the monad @M@, and
-@bind@ unwraps the monadic value and transforms it to a new monadic value.
+@bind@ unwraps the monadic value and transforms it into a new monadic value.
 Pragmatically in Scala, we define a monad type class using trait @Monad@ (Figure
 \ref{fig:monad}), where it declares the @pure@ \footnote{We elect to use
 \texttt{pure} as the name, since \texttt{return} is a keyword in Scala and
@@ -102,7 +102,7 @@ trait MonadOps[M[_], A] {
 Similar to Haskell's @do@-notation, Scala provides special syntactic support for
 monadic operations through @for@-comprehension.
 For example, an object of @List[A]@ is an instance of @List@ monad, where @A@ is the element type. 
-Then to compute the the Cartesian product of two lists of numbers, we can use Scala's
+Then to compute the Cartesian product of two lists of numbers, we can use Scala's
 @for@-comprehension syntax.
 
 \begin{lstlisting}
@@ -125,7 +125,7 @@ Therefore it only exposes the simplified version of @flatMap@, where the
 monad @M[A]@ is not introduced as a function argument. The trait @MonadOps@
 (Figure \ref{fig:monadops}) defines the simplified version of monadic
 operations that are necessary for @for@-comprehension. 
-The conversion between @Monad@ and @MonadOps@ can be done by using implicit design pattern.
+The conversion between @Monad@ and @MonadOps@ can be done by using the implicit design pattern.
 In the rest of the paper, we use Scala's @for@-comprehension syntax and monad
 transformers such as @ReaderT@, @StateT@, and @ListT@ to write our interpreters.
 The implementation of monads and monad transformers essentially borrows the
@@ -170,7 +170,7 @@ next-stage type annotation @Rep@, which makes the interpreter act as a compiler.
 \paragraph{Monadic Operations} We define the return type of the interpreter as
 @Ans@, which is an arbitrary monad type @AnsM[_]@ wrapping the type @Value@. 
 As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
-syntax, certain constraints have to be posed onto the type @AnsM@. Here, we use a
+syntax, certain constraints have to be added on the type @AnsM@. Here, we use a
 structural type @MonadOps@ to require @AnsM@ to at least implement @map@ and
 @flatMap@. It is worth noting that @MonadOps@ takes another type parameter
 @R[_]@ as binding-time; accordingly the outer @R@ defined in the trait is passed
@@ -179,7 +179,7 @@ encapsulated by the monad, but not the monad type @M@ itself. When acting as
 compilers, we will also replace the monads to the ones that work on staged
 values.
 
-We also defines several methods to obtain and modify the environment and store.
+We also define several methods to obtain and modify the environment and store.
 These methods return monadic values of type @AnsM[_]@, which encapsulate the 
 environment or store, or simply a @Unit@ value for effects.
 For example, @local_env@ takes a value @ans@ of type @Ans@ and an environment 
@@ -216,7 +216,7 @@ def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
 
 \paragraph{Primitive Operations} Next we define several primitive operations.
 Two versions of @alloc@ are declared. The first one takes a store and an
-identifier, and produces a fresh address of non-monadic type @R[Addr]@. Since
+identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
 the freshness of the address may depend on the store, which might be a
 next-stage value as indicated by its type, the type of addresses is also wrapped
 by @R[_]@. The other one would simply wrap the address with our monadic type
@@ -287,12 +287,12 @@ takes an extra @ev@.
 \end{figure}
 %\vspace{-1em}
 
-Since the interpreter is written in open-recursive style, we declare an abstract
+Since the interpreter is written in an open-recursive style, we declare an abstract
 combinator @fix@ used to close the recursion. For concrete-interpretation instantiation, it
 works like the Y combinator; for abstract-interpretation instantiation, we will
 instrument the interpreter by defining a memorized version of @fix@ to ensure
 termination. Finally, a top-level wrapper @run@ is declared; the return type
-@Result@ depends on what kind of monad we will be using, thus is also an abstract type.
+@Result@ depends on what kind of monad we will be using, this is also an abstract type.
 
 \begin{lstlisting}
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans
@@ -332,7 +332,7 @@ provide a standard fixed-point combinator to close the open-recursive function @
 The environment and store can be modeled by reader effect and state effect,
 i.e., a Reader monad and a State monad. We combine them using monad transformers
 @ReaderT@ and @StateT@.
-In other word, we instantiate the @AnsM@ monad as a stack of @ReaderT@ and @StateT@
+In other words, we instantiate the @AnsM@ monad as a stack of @ReaderT@ and @StateT@
 transformers\footnote{The question mark syntax is a kind projector
   \cite{kindprojector}, thus \texttt{StateT[IdM,Store,?]} is equivalent to \newline
   \texttt{(\{type M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is
@@ -370,7 +370,7 @@ value.
 
 Then, the monadic operations that manipulate the environment and store are
 simply constructing the proper monads and lifting it to the top-level of our
-moand stack. To modify the store, for example, we may have a @StateT@ monad that
+monad stack. To modify the store, for example, we may have a @StateT@ monad that
 transforms the current store $\sigma$ to @σ + αv@, which results in
 @StateT[IdM, Store, Unit]@, and then lift this @StateT@ value to @ReaderT@,
 i.e., @AnsM[Unit]@.
@@ -380,8 +380,8 @@ i.e., @AnsM[Unit]@.
 
 \paragraph{Primitive Operations}
 Other primitive operations can be implemented straightforwardly, for example,
-@alloc@ simply takes the size of current store and produce the successor number.
-We elide most of them, but describe a little bit on how do we handle functions
+@alloc@ simply takes the size of the current store and produce the successor number.
+We elide most of them but describe a little bit on how do we handle functions
 and applications as they will be very different when staging and abstract
 interpretation is involved. The method @close@ takes a lambda term and an
 environment, then create a closure value @CloV@.
@@ -390,8 +390,8 @@ environment, then create a closure value @CloV@.
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
 \end{lstlisting}
 
-To apply a function, the method @ap_clo@ takes a function value and an arugment
-value, extracts the lambda term and environment enclosed in the function value,
+To apply a function, the method @ap_clo@ takes a function value and an argument
+value, and extracts the lambda term and environment enclosed in the function value,
 and evaluates the body expression of that lambda term under the new environment and store.
 
 \begin{lstlisting}
@@ -405,7 +405,7 @@ and evaluates the body expression of that lambda term under the new environment 
 \end{lstlisting}
 
 With other primitive operations implemented, we can implement the top-level
-@run@ method, where $\rho_0$ and $\sigma_0$ are initial empty environment and
+@run@ method, where $\rho_0$ and $\sigma_0$ are the initial empty environment and
 store.
 
 \begin{lstlisting}
