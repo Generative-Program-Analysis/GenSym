@@ -66,25 +66,6 @@ approach also has been applied to different variants of definitional
 interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
 DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 
-\paragraph{Futamura Projection of Abstract Interpreters}
-
-Now that we have seen two orthogonal transformations of interpreters: by
-specialization, we can refactor interpreters to code generators; by
-approximation, we can refactor interpreters to static analyzers. As an
-intellectual quest, we should naturally ask -- starting from an abstract
-interpreter, \textit{can we derive a sound abstract interpreter while it
-produces optimized code that does the analysis?}
-Conceptually, it is similar to the concrete setting: for an
-abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
-\widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
-environment and returns abstract values, we would like to specialize it with
-respect to some program $e_0$ and produce a compiled analysis
-$\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
-\widehat{\texttt{Value}}$, such that $
-\widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
-\widehat{\texttt{eval}}(e_0)(\widehat{\rho})$, but the compiled one leaves the
-abstract environment $\widehat{\rho}$ as remaining input.
-
 \vspace{-1em}
 \begin{figure}[h]
   \begin{tikzpicture}
@@ -104,6 +85,25 @@ abstract environment $\widehat{\rho}$ as remaining input.
   \label{confluence}
 \end{figure}
 \vspace{-1em}
+
+\paragraph{Futamura Projection of Abstract Interpreters}
+
+Now that we have seen two orthogonal transformations of interpreters: by
+specialization, we can refactor interpreters to code generators; by
+approximation, we can refactor interpreters to static analyzers. As an
+intellectual quest, we should naturally ask -- starting from an abstract
+interpreter, \textit{can we derive a sound abstract interpreter while it
+produces optimized code that does the analysis?}
+Conceptually, it is similar to the concrete setting: for an
+abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
+\widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
+environment and returns abstract values, we would like to specialize it with
+respect to some program $e_0$ and produce a compiled analysis
+$\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
+\widehat{\texttt{Value}}$, such that $
+\widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
+\widehat{\texttt{eval}}(e_0)(\widehat{\rho})$, but the compiled one leaves the
+abstract environment $\widehat{\rho}$ as remaining input.
 
 In this paper, we study the confluence of two old ideas --- Futamura projection
 and abstract interpretation, but from the perspective of their very recent
