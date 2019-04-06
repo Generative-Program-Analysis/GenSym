@@ -19,13 +19,13 @@ acting on @Rep[T]@ expressions will be residualized as generated code.
 
 For the example we introduced in Section \ref{intro}, we have identified @b@ will 
 be known later. To specialize it we write a function @snippet@ that provides a 
-concrete value @x@ for @x@. After this, we may instantiate an @DslDriver@ object 
+concrete value for @x@. After this, we may instantiate an @DslDriver@ object 
 which provide the specialized program.
 
 \begin{lstlisting}
   new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] = if (x == 0) 1 else b * power(b, x-1)
-    def snippet(x: Rep[Int]): Rep[Int] = power(x, 5)
+    def snippet(b: Rep[Int]): Rep[Int] = power(b, 5)
   }
 \end{lstlisting}
 
