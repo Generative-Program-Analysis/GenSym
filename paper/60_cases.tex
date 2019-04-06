@@ -149,7 +149,7 @@ to various control-flow analysis (CFA). We first discuss calling-context
 sensitive analysis for staged analyzers by tweaking allocation strategy; then we
 will see how to implement store-widening with staged monads, which is a common
 optimization in CFA; finally, we integrate abstract garbage collection with
-staging.
+staging. All of them are in fact orthogonal to staging.
 
 \subsubsection{Context-sensitivity}
 
@@ -213,9 +213,19 @@ version of monads. After the adjustment, we have the following monad stack:
                    RepReaderT[RepStateT[IdM, Cache, ?], Cache, ?], Store, ?], ?], Env, T]
 \end{lstlisting}
 
-
-
 \subsubsection{Abstract Garbage Collection}
+
+Abstract garbage collection is a technique to reclaim unreachable addresses in
+the store while doing the abstract interpretation
+\cite{Might:2006:IFA:1159803.1159807}. \citet{DBLP:journals/pacmpl/DaraisLNH17}
+shows that, for big-step monadic abstract interpreter, we may add a @Reader@
+monad to track a set of root addresses and compute the reachable addresses every
+time when we obtain a value.
+
+\begin{lstlisting}
+  def ask_root: AnsM[Set[Addr]]
+  def eval(e: Expr): AnsM
+\end{lstlisting}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -252,7 +262,8 @@ more for calling context by partially-static data optimization. For example,
 consider that we have a library consists of three functions @f@, @g@ and @h@,
 where @f@ calls @g@ and @h@ internally and returns @y@ fianlly (we extend the
 language to have multiple arguments). @g@ and @h@ do not depend on @f@. Now we
-would like to modularlly specialize these functions, starting from @f@.
+would like to modularlly specialize these functions, starting from @f@ with an
+initial environment containing @f@, @g@ and @h@.
 
 \begin{lstlisting}
   def f(a, b, c) = val x = g(a, b); val y = h(x, c);  y
