@@ -9,7 +9,7 @@ The approach from unstaged to staged abstract interpreter is modular,
 principled, and does not sacrifice soundness or precision. The designer of the
 analyzer has no need to rewrite the analysis. We first present the staged
 lattices and staged monads, and then the staged version of primitive operations,
-especially @close@, @ap_clo@ and @fix@, at last we discuss several optimizations
+especially @close@, @ap_clo@ and @fix@, at last, we discuss several optimizations
 and our design.
 
 \subsection{Staged Lattices}
@@ -62,7 +62,7 @@ two staged value: @Rep[Set[(Value, Store)]]@ and @Rep[Cache]@.
 \end{lstlisting}
 
 Since our monad stack is uniformly using staged data, so the staged @SetT@ now
-stores a staged value of type @Rep[Set[A]]@, inside of anohter staged monad @M@.
+stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
 
 \begin{lstlisting}
   case class SetT[M[_]: RepMonad, A](run: M[Set[A]]) {
@@ -96,9 +96,9 @@ last, we generate a singleton set containing the compiled closure
 The @ap_clo@ method is also similar: we use the staged version of @lift_nd@ to
 lift the set of closures into the monad stack, and generate a next-stage value
 using @emit_ap_clo@, which represents the result of application from future.
-Finally we put the future @out@ cache, store and values back into the
+Finally, we put the future @out@ cache, store, and values back into the
 current-stage monads. The @emit_ap_clo@ method takes the target closure @clo@,
-argument @rand@, store and caches.
+argument @rand@, store, and caches.
 
 \begin{lstlisting}
   def lift_nd[T](vs: Rep[Set[T]]): AnsM[T]
@@ -119,7 +119,7 @@ argument @rand@, store and caches.
 Our fixed-point iteration again relies on the two caches @in@ and @out@, which are
 both staged values now. Therefore, the query of whether the @out@ cache contains
 the current configuration produces a next-stage Boolean value, i.e.,
-@Rep[Boolean]@. Consequently, the branching can not be determined statically --
+@Rep[Boolean]@. Consequently, the branching cannot be determined statically --
 we need to generate code for @if@. Figure \ref{fig:staged_coind_cache} shows the
 staged version of @fix@.
 
@@ -157,7 +157,7 @@ it is a next-stage value, and put the content of @res@ back into the monad
 stack.
 
 \paragraph{Code Generation} The IR nodes for compiled closures and
-applications are defined as following:
+applications are defined as follows:
 
 \begin{lstlisting}
   case class IRCompiledClo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
@@ -180,7 +180,7 @@ not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
-Although every components except @Expr@s are staged, we treat the data
+Although every component except @Expr@s are staged, we treat the data
 structures such as @Map@s as black-boxes, which means the operations on a @Map@
 directly become code in the next stage, but we don't inspect any further inside.
 As we identified when introducing the generic interface, the keys of @Env@s are
@@ -190,12 +190,12 @@ For example, let's assume that the @Map[K, V]@ is implemented as a hash map. If
 the keys of type @K@ are all known statically, then the indices also can be
 computed statically. Thus the specialized map would be an array of type
 @Array[Rep[V]]@, whose elements are next-stage values; the size of the array is
-also known statically. An access to the map is translated to an access to the
+also known statically. An access to the map is translated into an access to the
 array with pre-determined index during staging.
 
 Particularly, if we are specializing a monovariant analysis, the address space
 is equivalent to the set of identifiers in the program. Then the accesses to the
-environment can be completely determined statically, and generates the addresses
+environment can be completely determined statically and generates the addresses
 directly. After which, the stores can be specialized as arrays of @Rep[Value]@
 elements.
 
@@ -216,7 +216,7 @@ may use a selective caching algorithm:
 \paragraph{Partially-static Data}
 
 Our treatment to binding-times is coarse-grained: @Expr@s is static, the rest of
-the world are all dynamic. But this is not always true, since the static data
+the world are all dynamic. But this is not always true since the static data
 has to be used somewhere with the dynamic operation. Partial-static data is a
 way to improve binding-times and optimize the generated code.
 
@@ -225,7 +225,7 @@ For example, to fold a singleton set (often appears in @SetT@), e.g.,
 generator would faithfully apply @foldLeft@ to the set with an anonymous
 function. But we can also utilize the algebraic property of @foldLeft@ to
 generate cheaper code: @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
-function @f@ is known at current stage, we completely eliminate the fold
+function @f@ is known at the current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
 partial-static data structures, such as @Set@ and @Map@, which greatly reduces
 the size of residual programs.
@@ -249,8 +249,8 @@ the use of monads internally.
 \paragraph{Are Monads Necessary?} No. One can always inline the monads and
 obtain an abstract interpreter in continuation-passing style, or simply use
 explicit side-effects such mutation to implement the artifact with the same
-abstract semantics. In either cases, we can still apply the staging schema to
-the abstract interpreter. As an evidence, we provide an staged abstract
+abstract semantics. In either case, we can still apply the staging schema to
+the abstract interpreter. As evidence, we provide a staged abstract
 interpreter written in direct-style in the accompanying artifact.
 
 \paragraph{Big-step vs Small-step}
@@ -266,11 +266,11 @@ operational abstract semantics through abstract compilation
 \citet{Johnson:2013:OAA:2500365.2500604} implemented it for
 optimizing Abstract Abstract Machines. However, the generated abstract
 byte-code still requires another small-step abstract machine to execute, which is
-an additional engineering efforts.
+an additional engineering effort.
 
 \paragraph{Correctness and Soundness}
 
-As one of the merit of our approach, the staging does not compromise any
+As one of the merits of our approach, the staging does not compromise any
 soundness, because we only change the underlying monads and data structures to
 the staged version, not any part of the abstract semantics. Based on the
 assumption that MSP system and staged data structure preserve the equivalence
