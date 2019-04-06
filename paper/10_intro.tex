@@ -53,7 +53,7 @@ support mutable variables) that maps free variables in $e$ to some
 values, the interpreter is a standard environment-passing interpreter,
 where the specialization through MSP is also applicable.
 
-Roughly at the same time when Futamura projections was envisioned in 1970s,
+Roughly at the same time when Futamura projections were envisioned in the 1970s,
 \citet{DBLP:conf/popl/CousotC77} proposed abstract interpretation as a
 lattice-based semantic approach to construct sound static analysis, by
 approximation of fix-points. However, constructing sound abstract interpreters
@@ -62,7 +62,7 @@ Recent progress such as Abstracting Abstract Machines (AAM)
 \cite{DBLP:conf/icfp/HornM10} uncovers a systematic method to derive sound
 abstract interpreters from their concrete counterparts, where the soundness can
 be easily established by examining the transformation of semantics. The AAM
-approach also has been been applied to different variants of definitional
+approach also has been applied to different variants of definitional
 interpreters and abstract machines \cite{DBLP:journals/jfp/HornM12,
 DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 
@@ -136,7 +136,7 @@ members over the following abstractions, which can be later instantiated.
 \begin{itemize}
 \item Env-store-value abstractions, which control whether the interpreter
   behaves as a concrete interpreter or an abstract interpreter.
-  The environments, stores and values are initially declared as abstract types in the generic interpreter.
+  The environments, stores, and values are initially declared as abstract types in the generic interpreter.
   As shown by the AAM approach \cite{DBLP:journals/jfp/HornM12,
   DBLP:conf/icfp/HornM10}, if we widen the values to abstract domains (such as
   intervals) and refactor the store to a mapping from finite addresses to sets of
@@ -174,7 +174,7 @@ programming, in particular) with abstract interpreters is an effective approach
 to improve the latter while the former is untouched.
 In the literature, specializing analysis with respect to the input program
 \cite{damian1999partial, amtoft1999partial, Boucher:1996:ACN:647473.727587,
-ashley:practical} is not new, despite the fact that most of the previous work
+ashley:practical} is not new, despite the fact that most of the previous works
 are ad-hoc on a particular analysis or requiring significant changes to the
 analyzer. For example, abstract compilation is one of the techniques
 \cite{Boucher:1996:ACN:647473.727587}. But it requires the whole analyzer to be
@@ -184,15 +184,15 @@ intrusive changes and engineering efforts.
 
 \paragraph{Applications}
 
-Further more, we show various applications of staging an abstract interpreter.
+Furthermore, we show various applications of staging an abstract interpreter.
 (1) We compare our approach with abstract compilation, and show that we can
 achieve the same optimization by utilizing type-based stage annotations,
-meanwhile the analyzer program does not need any changes. (2) \todo{} (3)
+meanwhile, the analyzer program does not need any changes. (2) \todo{} (3)
 Staging abstract interpreter enables modular analysis and provides a mechanized
 way to create library summaries. We notice that we may apply the staged abstract
 interpreter separately on the different part of the analyzed program, the
 generated code is reusable and composable. Therefore, we can turn a
-whole-program analyzer into a analyzer that runs modularly.
+whole-program analyzer into an analyzer that runs modularly.
 
 \iffalse
 Our next contribution is to enable modular analysis based on a whole-program
@@ -202,12 +202,12 @@ is usually expensive or unnecessarily repeated for whole-program analyzing
 algorithms. For example, it has been shown that analyzing a simple ``Hello
 World'' program in Java depends on additional 3,000 classes in the library
 \cite{DBLP:conf/oopsla/KulkarniMZN16}. A natural idea is to analyze libraries
-and generate summaries, later we can plugin the necessary information into the
+and generate summaries, later we can plug in the necessary information into the
 summaries and finish the analysis; therefore such summaries should be modular
 and reusable. Meta-programming gives us a chance to readily tweak a
 whole-program analyzing algorithm into an analyzer that works modularly and
 produces summaries. Still, the idea is to specialize the abstract interpreter
-that was used for whole-program analysis, but on a subset of the program, for
+that was used for whole-program analysis but on a subset of the program, for
 examples, a set of generic functions for list manipulation. Such specialization
 works on lambda expressions and generates code, which is partial analysis
 results and can be completed by running with the necessary arguments (for
@@ -223,7 +223,7 @@ whole-program analysis.
   \item Intellectually, through multi-stage programming, we present a unified construction 
     that naturally extends the first Futamura projection to abstract interpreters.
  \item Pragmatically, by case studies and empirical evaluation, we show that staging 
-   abstract interpreters is useful to improve performance while untouch 
+   abstract interpreters is useful to improve performance while \note{not a word} untouch 
    the soundness. 
 \end{enumerate}
 \paragraph{Organization} The paper is organized as follows:
@@ -246,7 +246,7 @@ whole-program analysis.
     analysis (Section \ref{cfa}), including context-sensitivity, store-widening, and abstract
     garbage collection, showing that our approach is widely applicable.
   \item We apply our approach to modular analysis (Section \ref{modular}),
-    i.e., analyzing the components of program separately and composing them later,
+    i.e., analyzing the components of the program separately and composing them later,
     showing a novel application of generative programming with program analysis.
   \end{enumerate}
 \item We empirically evaluate the performance improvement by staging on
@@ -257,7 +257,7 @@ whole-program analysis.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \iffalse
-Likewise, specializing static analyses by partial evaluation emerged in late 90s
+Likewise, specializing static analyses by partial evaluation emerged in the late 90s
 , and indeed it is able to effectively remove the interpretive
 overhead of repeatedly traversing the abstract syntax tree. However, these
 previous works focused mostly on one particular analysis, or required to
@@ -266,7 +266,7 @@ a modern perspective based on generative programming, especially for a general
 abstract interpreter that models direct-style $\lambda$-calculus, imperative
 features such as mutation, and different abstract domains. One technical
 challenge is the binding-time engineering when non-determinism, fixed-point
-iterations, different abstract domains and staging are introduced at the same
+iterations, different abstract domains, and staging are introduced at the same
 time. In this paper, we present an end-to-end design and implementation of
 staging an abstract interpreter; that means not only the interpreter that
 traverses the abstract syntax tree, but also the data structure of abstract
@@ -277,10 +277,10 @@ staged.
 On the other hand, the abstract interpreter, as a semantic artifact, should be
 written in a style that is easy for people to communicate the formulation and
 abstraction, but also can be implemented efficiently. As the slogan of
-multi-stage programming said, "abstraction without regret", we draw connection
+multi-stage programming said, "abstraction without regret", we draw a connection
 between high-level description and efficient implementation of abstract
 interpreters, just like the connection between concrete interpreters and
-compilers drawn by Futamura projection. Particularly, we show an easy but
+compilers drawn by the Futamura projections. Particularly, we show an easy but
 systematic way of adding stage annotations to the abstract interpreter without
 changing the code of the interpreter skeleton, which is shared between four concrete
 or abstract, unstaged or staged interpreters. We use the LMS framework for staging,
@@ -307,7 +307,7 @@ representing other parts of the program (e.g., libraries) are dynamic inputs,
 therefore we obtain a modular analysis through staging, mechanically.
 \note{TR: I don't understand this. The program structure is static, the abstract values
 are still dynamic, no? They change in every iteration of the fixpoint algorithm}
-\note{TR: why is it a big deal. On Closed programs we obtain a constant factor,
+\note{TR: why is it a big deal. On Closed programs, we obtain a constant factor,
 but modular analysis has different asymptotics}
 
 When targeting higher-order programs, either staged concrete interpreters or
@@ -334,9 +334,9 @@ modular analysis through staging, even though the original algorithm is
 formulated as a whole-program analysis.
 
 It has been observed that partially applying context-sensitivity on selected
-portion of the program could improve the precision and efficiency
+portions of the program could improve the precision and efficiency
 \cite{zipper2018, Kastrinis:2013:HCP:2491956.2462191}. We show that staging
-abstract interpreters as an approach to effectively implement hybird
+abstract interpreters as an approach to effectively implement hybrid
 context-sensitivity\todo{}.
 \fi
 
