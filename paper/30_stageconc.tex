@@ -14,14 +14,14 @@ dynamic code generation in a type-safe manner. Different from the approach of
 MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} that
 uses syntactic quotation and escape, LMS distinguishes binding-time solely based
 on types. LMS provides a type constructor @Rep[T]@ where @T@ can be an arbitrary
-type, indicating a value of @T@ will be known at next stage. All operations
+type, indicating a value of @T@ will be known at the next stage. All operations
 acting a @Rep[T]@ expression will be residualized as generated code.
 
 The LMS framework provides staging support for primitive data types such as
 @Int@ and @Double@, and commonly-used data structures such as arrays and maps.
-The idea is to construct intermediate representations (IR) for the next-stage
-program at current stage. Such conversion from expressions of type @Rep[_]@ to
-their IR is done by using implicit design pattern. As we will see later,
+The idea is to construct intermediate representations (IR) for the next stage
+program at the current stage. Such conversion from expressions of type @Rep[_]@ to
+their IR is done by using the implicit design pattern. As we will see later,
 implementing the staging support for custom classes is also straightforward.
 
 For example, let us go back and see how LMS can be used to specialize the
@@ -46,7 +46,7 @@ type @R[T]@ as @Rep[T]@.
 values. Note that the monadic objects such as @StateT@ or the internal value
 @R[S] => M[(A,S)]@ are not staged, only the data @S@ or @A@ are staged.
 This is why we can completely eliminate the overhead caused by the monadic layers.
-Here we use the prefix name @Rep@ to differentitate unstaged monads and staged
+Here we use the prefix name @Rep@ to differentiate unstaged monads and staged
 monads, such as @RepReaderT@. So the @AnsM[_]@ is instantiated as the same monad
 stack before, but with @Rep@ versions.
 
@@ -57,7 +57,7 @@ stack before, but with @Rep@ versions.
 
 We use @RepStateT@ as an example to give a sketch of how the @Rep@ versions of monad
 transformers look like. The generic type @M[_]@ is a @RepMonad@ and used as the
-inner monad, which means the pair @(A,S)@ is also staged when appears inside of monad
+inner monad, which means the pair @(A,S)@ is also staged when appears inside of the monad
 @M[_]@. The @flatMap@ is similar to the unstaged one, but the function @f@ takes
 a @Rep[A]@ value. Again, @f@ is not a next-stage function, but a current-stage
 function that transforms a next-stage value of @Rep[A]@ to @StateT[M,S,B]@.
@@ -80,12 +80,12 @@ approach.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to their staged versions -- we just need to let them works on staged data.
-As we mentioned before, we elaborate how to handle functions and applications in
-detail. One of the desired goal is to eliminate the monadic layers through
-staging, this becomes a little bit tricky for clsoures, because we need actually
-compiling the lambda term instead of generating a @CloV@ value, but the @ev(e)@
+As we mentioned before, we elaborate on how to handle functions and applications in
+detail. One of the desired goals is to eliminate the monadic layers through
+staging, this becomes a little bit tricky for closures because we actually need 
+ to compile the lambda term instead of generating a @CloV@ value, but the @ev(e)@
 returns a monad and prevents the specialization. To make this happen, when
-closing a lambda term, we need to staging into the body expression by
+closing a lambda term, we need to specialize the body expression by
 \textit{collpasing} the @AnsM@ monads to normal values. The
 following function @close@ illustrates the idea: @f@ is a current stage function
 but takes two next-stage values @v@ and $\sigma$, inside of which, we eagerly
@@ -108,9 +108,9 @@ closure using @emit_compiled_clo@, containing the compiled closure.
 When applying a function in @ap_clo@, we also generate the next-stage value
 for closure application through @emit_ap_clo@, assuming that the @rator@ is already an
 IR of compiled closure, @rand@ is an arbitrary stage value, and $\sigma$ is the
-latest store. @emit_ap_clo@ represents the result value of application, which has type
-@Rep[(Value, Store)]@. Note that @emit_ap_clo@ is a ordinary value from the
-future, and there is no monads in the future, so we need to reify the value and
+latest store. @emit_ap_clo@ represents the result value of the application, which has type
+@Rep[(Value, Store)]@. Note that @emit_ap_clo@ is an ordinary value from the
+future, and there are no monads in the future, so we need to reify the value and
 store back into the monad stack through @put_store@ and @yield@.
 
 \begin{lstlisting}
@@ -125,7 +125,7 @@ store back into the monad stack through @put_store@ and @yield@.
 \paragraph{Code Generation}
 
 The method @emit_compiled_clo@ and @emit_ap_clo@ mentioned above produces
-intermediate representations for the denoted operations in LMS. These IR are
+intermediate representations for the denoted operations in LMS. These IRs are
 wrappers of the underlying staged data. We define these IR nodes using
 @case class@ extending from @Def[T]@, meaning that they are next-staged definitions of
 type @T@.
