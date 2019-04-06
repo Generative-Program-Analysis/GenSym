@@ -12,7 +12,7 @@ relies on the dynamic part. However, given an arbitrary program, precisely
 analyzing its binding-times is hard in general. As an alternative and pragmatic
 approach to specialization and partial evaluation, multi-stage programming (MSP) 
 \cite{taha1999multi, DBLP:conf/pepm/TahaS97} requires the staging
-annotations (i.e., binding-time annotations) to be given explicit from the
+annotations (i.e., binding-time annotations) to be given explicitly from the
 programmers. The staging annotations can be either syntactic (as in
 MetaML/MetaOCaml, through quasi-quote, escape, etc.) or type-based \cite{DBLP:conf/gpce/RompfO10}.
 These staging annotations identify which part of the inputs should be
@@ -40,16 +40,15 @@ have an interpreter @eval@ of some language:
   def eval(e: Expr)(arg: Input): Value = ...
 \end{lstlisting}
 
-where $e$ is the program of type @Expr@ and @arg@ is the input to program $e$,
+where $e$ is a program of type @Expr@ and @arg@ is the input to $e$,
 and @eval@ produces a value.
 Semantically, the interpreter satisfies $ \texttt{eval}(e)(arg) = [\![ e ]\!] arg$ for all
 programs and inputs. Given a program $e_0$, by applying the first Futamura
-projection, we may obtain a specialized interpreter
-$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$ -- the so-called \textit{equivalent executable}. 
+projection, we can obtain a specialized interpreter
+$\texttt{eval}_{\texttt{e0}}$ with respect to $e_0$, which is the so-called \textit{equivalent executable}. 
 By definition of the interpreter, 
 $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $. If we generalize the
-argument @arg@ to an environment (as well as an accompanying heap object to
-support mutable variables) that maps free variables in $e$ to some
+argument @arg@ to an environment that maps free variables in $e$ to some
 values, the interpreter is a standard environment-passing interpreter,
 where the specialization through MSP is also applicable.
 
@@ -94,16 +93,15 @@ approximation, we can refactor interpreters to static analyzers. As an
 intellectual quest, we should naturally ask -- starting from an abstract
 interpreter, \textit{can we derive a sound abstract interpreter while it
 produces optimized code that does the analysis?}
-Conceptually, it is similar to the concrete setting: for an
+Conceptually, it is similar to the concrete setting: given an
 abstract interpreter $\widehat{\texttt{eval}}: \texttt{Expr} \to
 \widehat{\texttt{Env}} \to \widehat{\texttt{Value}}$, which takes a program, an abstract
 environment and returns abstract values, we would like to specialize it with
 respect to some program $e_0$ and produce a compiled analysis
 $\widehat{\texttt{eval}}_{\texttt{e0}} : \widehat{\texttt{Env}} \to
-\widehat{\texttt{Value}}$, such that $
-\widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
-\widehat{\texttt{eval}}(e_0)(\widehat{\rho})$, but the compiled one leaves the
-abstract environment $\widehat{\rho}$ as remaining input.
+\widehat{\texttt{Value}}$, where the abstract environment $\widehat{\rho}$ is kept as input.
+The specialized analysis satisfies $\widehat{\texttt{eval}}_{\texttt{e0}}(\widehat{\rho}) =
+\widehat{\texttt{eval}}(e_0)(\widehat{\rho})$.
 
 In this paper, we study the confluence of two old ideas --- Futamura projection
 and abstract interpretation, but from the perspective of their very recent
@@ -114,7 +112,7 @@ interpreters. We develop a unified approach to fulfill the four different
 semantics, as shown in Figure~\ref{confluence}. Starting with a generic but
 parametric interpreter shared by the four semantics, by simply instantiating
 the interpreter differently, we can automatically derive a concrete interpreter,
-or an abstract interpreter, or their code-generator versions, respectively.
+or an abstract interpreter, or their staged versions that generate code, respectively.
 
 \iffalse
 embedded domain-specific languages \cite{DBLP:conf/snapl/RompfBLSJAOSKDK15,
@@ -134,8 +132,7 @@ programming and generative programming, and extensively use abstract type
 members over the following abstractions, which can be later instantiated.
 
 \begin{itemize}
-\item Env-store-value abstractions, which control whether the interpreter
-  behaves as a concrete interpreter or an abstract interpreter.
+\item Env-store-value abstractions, which define the domains that the interpreter will be running with.
   The environments, stores, and values are initially declared as abstract types in the generic interpreter.
   As shown by the AAM approach \cite{DBLP:journals/jfp/HornM12,
   DBLP:conf/icfp/HornM10}, if we widen the values to abstract domains (such as
@@ -148,7 +145,7 @@ members over the following abstractions, which can be later instantiated.
     \cite{DBLP:journals/jfp/CaretteKS09, Ofenbeck:2017:SGP:3136040.3136060}.
 \item Monadic abstractions, which encapsulate the above two abstractions.
   The interpreter itself is written in monadic form, and by plugging different monads, 
-  the underlying semantics of the interpreter is changed.
+  the underlying semantics of the interpreter is changed. We also use monad transformers to combine multiple monadic effects.
   %\todo{mention that direct-style also works?}
   %\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}
 \end{itemize}
@@ -159,9 +156,9 @@ importantly for free. We implement the four interpreters using Scala and the
 Lightweight Modular Staging \cite{DBLP:conf/gpce/RompfO10} framework. Through
 staging, the major overhead of abstractions -- from the monadic layers -- is
 completely eliminated in the generated code. We observe that the staged version is 
-11x times as fast as the unstage abstract interpreter. 
-However, we do not lose any advantages of this high-level programming style 
-(e.g., modularity and extensibility); the meaning of the program also remains 
+on average 11x times as fast as the unstaged abstract interpreter. 
+However, we do not lose any advantages of this high-level programming style,
+e.g., modularity and extensibility. The meaning of generated programs also remain
 the same, particularly, the soundness of static analysis after staging.
 
 %\paragraph{Performance via Specialization}
@@ -179,7 +176,7 @@ are ad-hoc on a particular analysis or requiring significant changes to the
 analyzer. For example, abstract compilation is one of the techniques
 \cite{Boucher:1996:ACN:647473.727587}. But it requires the whole analyzer to be
 rewritten to the closure generation form. In this paper, we advocate a systematic
-approach of meta-programming that achieves the performance goal with less
+approach of generative programming that achieves the performance goal with less
 intrusive changes and engineering efforts.
 
 \paragraph{Applications}
@@ -187,10 +184,12 @@ intrusive changes and engineering efforts.
 Furthermore, we show various applications of staging an abstract interpreter.
 (1) We compare our approach with abstract compilation, and show that we can
 achieve the same optimization by utilizing type-based stage annotations,
-meanwhile, the analyzer program does not need any changes. (2) We extend the basic staged abstract interpreter to diverse control-flow analysis, including store-widening analysis, context-sensitive analysis and abstract garbage collection.
+meanwhile, the analyzer program does not need any changes. (2) We extend the 
+basic staged abstract interpreter to diverse control-flow analysis, 
+including a store-widened analysis, a context-sensitive analysis and abstract garbage collection.
 (3) Staging abstract interpreter enables modular analysis and provides a mechanized
 way to create library summaries. We notice that we may apply the staged abstract
-interpreter separately on the different part of the analyzed program, the
+interpreter separately on the different part of the analyzed program, and the
 generated code is reusable and composable. Therefore, we can turn a
 whole-program analyzer into an analyzer that runs modularly.
 
@@ -232,7 +231,7 @@ whole-program analysis.
   (Section~\ref{prelim}), we first show the instantiation of concrete
   interpretation (Section~\ref{unstaged_conc}), and then lift it to the staged
   version by replacing the binding-time types (Section~\ref{stagedinterp}).
-\item We discuss the unstaged abstract interpreter under the same framework by
+\item We present the unstaged abstract interpreter under the same framework by
   replacing the environment, store and values (Section~\ref{unstaged_abs}).
   Finally, we show the combination of approximation and specialization, dubbed
   \textit{staged abstract interpreters}, can be readily derived (Section~\ref{sai}).
