@@ -32,6 +32,7 @@ trait SetOps extends Base with Variables with ListOps with TupleOps with TupledF
     def map[B:Manifest](f: Rep[A] => Rep[B]) = set_map(s, f)
     def filter(f: Rep[A] => Rep[Boolean]) = set_filter(s, f)
     def foldLeftPairPair[B:Manifest,C:Manifest,D:Manifest](z: Rep[((B,C),D)])(f: (((Rep[B], Rep[C]),Rep[D]), Rep[A]) => Rep[((B,C),D)]) = set_foldLeftPairPair(s, z, f)
+    def size()(implicit pos: SourceContext) = set_size(s)
   }
 
   def set_new[A:Manifest](xs: Seq[Rep[A]])(implicit pos: SourceContext): Rep[Set[A]]
@@ -49,6 +50,7 @@ trait SetOps extends Base with Variables with ListOps with TupleOps with TupledF
                                                                         f: (((Rep[B], Rep[C]), Rep[D]), Rep[A]) => Rep[((B,C), D)])(implicit pos: SourceContext): Rep[((B,C), D)]
   def set_map[A:Manifest,B:Manifest](s: Rep[Set[A]], f: Rep[A] => Rep[B])(implicit pos: SourceContext): Rep[Set[B]]
   def set_filter[A: Manifest](s: Rep[Set[A]], f: Rep[A] => Rep[Boolean])(implicit pos: SourceContext): Rep[Set[A]]
+  def set_size[A: Manifest](s: Rep[Set[A]])(implicit pos: SourceContext): Rep[Int]
 }
 
 trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp with ListOpsExp with TupleOpsExp {
@@ -74,6 +76,7 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
   case class SetToList[A:Manifest](s: Exp[Set[A]]) extends Def[List[A]]
   case class SetMap[A:Manifest,B:Manifest](s: Exp[Set[A]], x: Sym[A], block: Block[B]) extends Def[Set[B]]
   case class SetFilter[A: Manifest](s: Exp[Set[A]], x: Sym[A], block: Block[Boolean]) extends Def[Set[A]]
+  case class SetSize[A: Manifest](s: Exp[Set[A]]) extends Def[Int]
 
   def set_new[A:Manifest](xs: Seq[Exp[A]])(implicit pos: SourceContext) = SetNew(xs, manifest[A])
   def set_concat[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetConcat(s1, s2)
@@ -83,6 +86,7 @@ trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsE
   def set_intersect[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetIntersect(s1, s2)
   def set_union[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetUnion(s1, s2)
   def set_subsetof[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]])(implicit pos: SourceContext) = SetSubsetOf(s1, s2)
+  def set_size[A: Manifest](s: Exp[Set[A]])(implicit pos: SourceContext) = SetSize(s)
   def set_foldLeft[A:Manifest,B:Manifest](s: Exp[Set[A]], z: Exp[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext) = {
     val acc = fresh[B]
     val x = fresh[A]
@@ -192,6 +196,7 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
     case SetConcat(s1, s2) => emitValDef(sym, src"$s1 ++ $s2")
     case SetIsEmpty(s) => emitValDef(sym, src"$s.isEmpty")
     case SetHead(s) => emitValDef(sym, src"$s.head")
+    case SetSize(s) => emitValDef(sym, src"$s.size")
     case SetTail(s) => emitValDef(sym, src"$s.tail")
     case SetIntersect(s1, s2) => emitValDef(sym, src"$s1.intersect($s2)")
     case SetUnion(s1, s2) => emitValDef(sym, src"$s1.union($s2)")
