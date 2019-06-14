@@ -172,6 +172,19 @@ function call to @f@, respectively.
                    
 \subsection{Optimizations} \label{staged_ds}
 
+\iffalse
+Revision: Solving Practical Challenges.
+theoretically, all the things should work nicely. Unfolding the interpreter over the AST.
+But the generated code is blowed up. For example .... This should not affect the correctness, 
+but poses burden on the MSP system (ie LMS) and the next stage compiler/runtime (ie, scalac and JVM).
+1) LMS becomes slower since a large IR graph is contructed during the staging.
+2) Scalac becomes slower when reading a such large source code.
+JVM has certain limitation on the size of a single method.
+
+TODO: can we formulate selective caching as a partially-static data law.
+TODO: lambda lifting for if
+\fi
+
 Our staging schema works well in theory, but in practice would suffer from code
 explosion, and possibly runtime GC overhead (at the next stage) when analyzing
 (specializing) large programs. In this section, we present several optimizations
@@ -203,8 +216,8 @@ elements.
 caching is used for every recursive call of our abstract interpreter. But this
 is not necessary and even very expensive when generating code for atomic
 expressions such as literals or variables, as they always terminate. Borrowing
-the idea from the partition in ANF \cite{Flanagan:1993:ECC:155090.155113}, we
-may use a selective caching algorithm:
+the idea from the partition of A-Normal Form \cite{Flanagan:1993:ECC:155090.155113},
+we may use a selective caching algorithm:
 
 \begin{lstlisting}
   def fix_select: Expr => Ans = e => e match {
