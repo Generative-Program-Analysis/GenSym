@@ -18,7 +18,6 @@ import sai.evaluation.parser._
 trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with RepLattices with SAIDsl {
   import ReaderT._
   import StateT._
-  //import ListReaderStateM._
   import SetReaderStateM._
 
   //type Config = (Expr, Env, Store)

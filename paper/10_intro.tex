@@ -1,5 +1,14 @@
 \section{Introduction} \label{intro}
 
+\iffalse
+  Revision: 
+  also motivate from the perspective that ADI is slow,
+  analyze the reason: 1) interpretive overhead, 2) the use of monadic layers,
+  3) the intrinsic complexity of abs int of HO language (ie CFA particularly).
+  Then introduce the abstraction without regret.
+  contribution: derive staged monad transformers.
+\fi
+
 Futamura projections \cite{Futamura1999, futamura1971partial} reveal the close
 connection between compilers and interpreters. The first Futamura projection
 specifically shows that specializing an interpreter with respect to the input
@@ -18,6 +27,8 @@ MetaML/MetaOCaml, through quasi-quote, escape, etc.) or type-based \cite{DBLP:co
 These staging annotations identify which part of the inputs should be
 specialized. As a classical example, we use the power function and type-based
 annotations to introduce the idea of MSP:
+
+\rev{this power is based on the induction of natural number e}
 
 \begin{lstlisting}
   def power(b: Rep[Int], e: Int): Rep[Int] = if (e == 0) 1 else b * power(b, e - 1)
@@ -85,7 +96,7 @@ DBLP:conf/icfp/HornM10, DBLP:journals/pacmpl/DaraisLNH17}.
 \end{figure}
 \vspace{-1em}
 
-\paragraph{Futamura Projection of Abstract Interpreters}
+\paragraph{Intellectual Motivation: Futamura Projection of Abstract Interpreters}
 
 Now that we have seen two orthogonal transformations of interpreters: by
 specialization, we can refactor interpreters to code generators; by
@@ -125,7 +136,8 @@ staging, the overhead caused by the monadic layers is eliminated in the
 generated code.
 \fi
 
-\paragraph{Abstraction without Regret}
+\paragraph{Practical Motivation: Abstraction without Regret}
+\rev{Abstraction without performance regret; Performance without soundness regret}
 
 To enable such flexibility between different semantics, we combine generic
 programming and generative programming, and extensively use abstract type
@@ -149,7 +161,6 @@ members over the following abstractions, which can be later instantiated.
   %\todo{mention that direct-style also works?}
   %\cite{Steele:1994:BIC:174675.178068, DBLP:conf/popl/LiangHJ95, DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979}
 \end{itemize}
-
 
 We show that these well-known abstractions can be combined smoothly, and more
 importantly for free. We implement the four interpreters using Scala and the

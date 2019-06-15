@@ -268,6 +268,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with RepMonads with RepLattices {
   }
   //FIXME: check v1 && v2 contains Int
   def prim(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
+
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
     lift_nd[AbsValue](fun.toList).flatMap { clo =>
       ask_in_cache.flatMap { in =>
