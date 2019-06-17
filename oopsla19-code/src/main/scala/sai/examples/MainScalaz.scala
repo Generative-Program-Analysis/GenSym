@@ -20,9 +20,10 @@ import sai.examples._
 import sai.lattices._
 import sai.lattices.Lattices._
 
+import PCFLang._
+
 object EnvInterpreter {
   /* An environment interpreter using Reader Monad */
-  import PCFLang._
   import PCFLang.Values._
   type Ident = String
   type Env = Map[Ident, Value]
@@ -80,7 +81,6 @@ object EnvInterpreter {
 
 object EnvStoreInterpreter {
   /* An environment-and-store interpreter using Reader Monad and State Monad */
-  import PCFLang._
   import PCFLang.Values._
 
   type Ident = String
@@ -343,8 +343,6 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
 }
 
 object AbsInterpreterWOCache {
-  import PCFLang._
-
   trait AbsValue
   case object IntTop extends AbsValue
   case class CloV[Env](lam: Lam, env: Env) extends AbsValue
@@ -451,8 +449,6 @@ object AbsInterpreterWOCache {
 }
 
 object AbsInterpreter {
-  import PCFLang._
-
   trait AbsValue
   case object IntTop extends AbsValue
   case class CloV[Env](lam: Lam, env: Env) extends AbsValue
@@ -634,8 +630,6 @@ object AbsInterpreter {
 
 @virtualize
 trait StagedAbsInterpter extends SAIDsl with RepLattices {
-  import PCFLang._
-
   trait AbsValue
   case object IntTop extends AbsValue
   case class CloV[Env](lam: Lam, env: Env) extends AbsValue
@@ -846,7 +840,7 @@ trait StagedAbsInterpter extends SAIDsl with RepLattices {
 }
 
 object MainScalaz {
-  import PCFLang._
+  import PCFLang.Examples._
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
     @virtualize

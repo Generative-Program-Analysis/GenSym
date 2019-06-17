@@ -766,6 +766,8 @@ trait StagedAbstractSemanticsDriver extends DslDriver[Unit, Unit] with StagedAbs
 ////////////////////////////////////////////////
 
 object MainGeneric {
+  import PCFLang.Examples._
+
   def specCon(e: Expr): DslDriver[Unit, Unit] = new StagedConcreteSemanticsDriver {
     @virtualize
     def snippet(unit: Rep[Unit]): Rep[Unit] = {

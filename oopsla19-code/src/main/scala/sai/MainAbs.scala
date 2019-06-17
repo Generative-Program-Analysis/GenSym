@@ -13,8 +13,9 @@ import sai.monads._
 import sai.lattices._
 import sai.lattices.Lattices._
 
+import sai.PCFLang._
+
 object AbsInterpreter {
-  import PCFLang._
   import ReaderT._
   import StateT._
   import ListT._
@@ -192,7 +193,6 @@ object AbsInterpreter {
 
 @virtualize
 trait StagedAbsInterpreterOps extends SAIDsl with RepMonads with RepLattices {
-  import PCFLang._
   import ReaderT._
   import StateT._
   import ListReaderStateM._
@@ -426,8 +426,6 @@ trait StagedAbsInterpreterOps extends SAIDsl with RepMonads with RepLattices {
 }
 
 trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
-  import PCFLang._
-
   //TODO: when evaluating, change lam/rho to hash code
   case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
                            rf: Exp[((Value, Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
@@ -510,7 +508,7 @@ trait StagedAbsInterpreterDriver extends DslDriver[Unit, Unit] with StagedAbsInt
 //////////////////////////////////////////////////////
 
 object MainAbs {
-  import PCFLang._
+  import PCFLang.Examples._
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedAbsInterpreterDriver {
     @virtualize

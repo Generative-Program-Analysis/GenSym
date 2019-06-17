@@ -14,8 +14,9 @@ import sai.lattices._
 import sai.lattices.Lattices._
 import sai.examples._
 
+import sai.PCFLang._
+
 object EnvInterpreter {
-  import PCFLang._
   import PCFLang.Values._
   import ReaderT._
   import StateT._
@@ -76,7 +77,6 @@ object EnvInterpreter {
 
 object EnvStoreInterpreter {
   /* An environment-and-store interpreter using Reader Monad and State Monad */
-  import PCFLang._
   import PCFLang.Values._
   import ReaderT._
   import StateT._
@@ -178,7 +178,6 @@ object EnvStoreInterpreter {
 
 @virtualize
 trait StagedCESOps extends SAIDsl with RepMonads {
-  import PCFLang._
   import IdM._
   import ReaderT._
   import StateT._
@@ -315,8 +314,6 @@ trait StagedCESOps extends SAIDsl with RepMonads {
 }
 
 trait StagedCESOpsExp extends StagedCESOps with SAIOpsExp {
-  import PCFLang._
-
   case class IRApClo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[(Value, Store)]
   case class IRCompiledClo(f: Exp[((Value,Store)) => (Value, Store)], λ: Exp[Lam], ρ: Exp[Env]) extends Def[Value]
   case class IRIntProj(i: Rep[Value]) extends Def[Int]
@@ -382,7 +379,7 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
 }
 
 object Main {
-  import PCFLang._
+  import PCFLang.Examples._
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
     @virtualize

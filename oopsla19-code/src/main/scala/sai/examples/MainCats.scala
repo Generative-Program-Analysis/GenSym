@@ -28,6 +28,8 @@ import sai._
 import sai.lms._
 import sai.examples._
 
+import PCFLang._
+
 object Misc {
   type Reader[A, B] = Kleisli[Id, A, B]
   object Reader {
@@ -37,7 +39,6 @@ object Misc {
 
 object EnvInterpreter {
   /* An environment interpreter using Reader Monad */
-  import PCFLang._
   import PCFLang.Values._
   type Ident = String
   type Env = Map[Ident, Value]
@@ -94,7 +95,6 @@ object EnvInterpreter {
 
 object EnvStoreInterpreter {
   /* An environment-and-store interpreter using Reader Monad and State Monad */
-  import PCFLang._
   import PCFLang.Values._
 
   type Ident = String
@@ -193,8 +193,6 @@ object EnvStoreInterpreter {
 
 @virtualize
 trait StagedCESOps extends SAIDsl {
-  import PCFLang._
-
   sealed trait Value
   case class IntV(i: Int) extends Value
   case class CloV[Env](lam: Lam, e: Env) extends Value
@@ -365,7 +363,6 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
 }
 
 object AbsInterpreter {
-  import PCFLang._
   import PCFLang.Values._
 
   type NondetT[A] = Nested[List, Id, Value]
@@ -390,7 +387,7 @@ object AbsInterpreter {
 }
 
 object MainWithCats {
-  import PCFLang._
+  import PCFLang.Examples._
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
     @virtualize
@@ -403,7 +400,6 @@ object MainWithCats {
 
   def main(args: Array[String]): Unit = {
     SPower.test
-    import PCFLang._
     //import EnvInterpreter._
     //println(eval(p1).run(Map()))
     //import EnvStoreInterpreter._
