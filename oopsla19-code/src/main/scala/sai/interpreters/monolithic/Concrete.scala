@@ -1,4 +1,4 @@
-package sai
+package sai.monolithic
 
 import scala.virtualization.lms.internal.GenericNestedCodegen
 import scala.virtualization.lms.common.{
@@ -15,9 +15,9 @@ import sai.lattices.Lattices._
 import sai.examples._
 
 import sai.PCFLang._
+import sai.PCFLang.Values._
 
 object EnvInterpreter {
-  import PCFLang.Values._
   import ReaderT._
   import StateT._
   import IdM._
@@ -77,7 +77,6 @@ object EnvInterpreter {
 
 object EnvStoreInterpreter {
   /* An environment-and-store interpreter using Reader Monad and State Monad */
-  import PCFLang.Values._
   import ReaderT._
   import StateT._
   import IdM._
@@ -375,28 +374,5 @@ trait StagedCESDriver extends DslDriver[Unit, Unit] with StagedCESOpsExp { q =>
       stream.println(prelude)
       super.emitSource(args, body, className, stream)
     }
-  }
-}
-
-object Main {
-  import PCFLang.Examples._
-
-  def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedCESDriver {
-    @virtualize
-    def snippet(unit: Rep[Unit]): Rep[Unit] = {
-      val vs = run(e)
-      println(vs._1)
-      println(vs._2)
-    }
-  }
-
-  def main(args: Array[String]): Unit = {
-    val code = specialize(fact5)
-    println(code.code)
-    code.eval(())
-
-    val lam = Lam("x", App(Var("x"), Var("x")))
-    val omega = App(lam, lam)
-    println(EnvStoreInterpreter.run(fact5))
   }
 }

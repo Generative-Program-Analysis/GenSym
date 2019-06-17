@@ -1,4 +1,4 @@
-package sai
+package sai.monolithic
 
 import scala.virtualization.lms.internal.GenericNestedCodegen
 import scala.virtualization.lms.common.{
@@ -502,40 +502,5 @@ trait StagedAbsInterpreterDriver extends DslDriver[Unit, Unit] with StagedAbsInt
       stream.println(prelude)
       super.emitSource(args, body, className, stream)
     }
-  }
-}
-
-//////////////////////////////////////////////////////
-
-object MainAbs {
-  import PCFLang.Examples._
-
-  def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedAbsInterpreterDriver {
-    @virtualize
-    def snippet(unit: Rep[Unit]): Rep[Unit] = {
-      val vsc = run_select(e)
-      //val vsc = run(e)
-      //val vsc = run_wo_cache(e)
-      println(vsc._1)
-      println(vsc._2.size)
-    }
-  }
-
-  def main(args: Array[String]): Unit = {
-    val lam = Lam("x", App(Var("x"), Var("x")))
-    val omega = App(lam, lam)
-
-    //println(AbsInterpreter.run(id4)._1)
-    //println("--------------------------")
-
-    val code = specialize(fact5)
-    println(code.code)
-    code.eval(())
-
-    println("--------------------------")
-
-    val unstaged = AbsInterpreter.run(fact5)
-    println(unstaged._1)
-    println(unstaged._2.size)
   }
 }
