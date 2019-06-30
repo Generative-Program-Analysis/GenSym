@@ -1,42 +1,47 @@
 \section{Introduction} \label{intro}
 
-Statically analyzing semantic properties of a program is a widely known
-undecidable class of problem. Abstract interpretation as a lattice-based
-approach to construct sound static analysis was proposed by
-\citet{DBLP:conf/popl/CousotC77}. With the Galois connection, one can
-approximate to the program runtime behaviors by computing the fixed points on
-the abstract domain. Despite the tremendous theoretical development of abstract
-interpretation over the years, on the side of pragmatics, constructing
-artifacts and analyzers that perform sound abstract interpretation was 
-considered abstruse and complicated in practice for a long time.
+Statically analyzing semantic properties of a program is a widely
+known undecidable class of problem. Abstract interpretation as a
+lattice-based approach to construct sound static analysis was proposed
+by \citet{DBLP:conf/popl/CousotC77}. With the Galois connection, one
+can approximate to the program runtime behaviors by computing the
+fixed points on the abstract domain. Despite the tremendous
+theoretical development of abstract interpretation over the years, on
+the side of pragmatics, constructing artifacts and analyzers that
+perform sound abstract interpretation was considered abstruse and
+complicated in practice for a long time.
 
-In recent years, we observe a rich progress on how we can construct abstract
-interpreters from systematic principles, instead of ad-hoc engineerings. A
-notable one is the Abstracting Abstract Machine (AAM) methodology
-\cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10}, which uncovers an
-approach to derive sound abstract interpreters from their concrete counterparts,
-where the soundness can be easily established by examining the transformation of
-semantic artifacts. For example, a CEK machine
-\cite{DBLP:conf/popl/FelleisenF87} for concrete execution can be easily
-refactored to an effective 0-CFA control-flow analysis
-\cite{Shivers:1988:CFA:53990.54007, Midtgaard:2012:CAF:2187671.2187672} by first
-tweaking the environment dereference as a nondeterministic choice, then
-allocating continuations in the environment, and constraining the addresses
-space to be finite. This systematic abstraction approach can be tailored to
-different analyses \todo{cite} and and has been applied to multiple variants of
-small-step abstract machines \cite{DBLP:journals/jfp/HornM12,
-DBLP:conf/icfp/HornM10, Sergey:2013:MAI:2491956.2491979} and big-step
-definitional interpreters \cite{Wei:2018:RAA:3243631.3236800,
-DBLP:journals/pacmpl/DaraisLNH17, Keidel:2018:CSP:3243631.3236767}.
+In recent years, we observe a rich progress on how we can construct
+abstract interpreters from systematic principles, instead of ad-hoc
+engineerings. A notable one is the Abstracting Abstract Machine (AAM)
+methodology \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10},
+which uncovers an approach to derive sound abstract interpreters from
+their concrete counterparts, where the soundness can be easily
+established by examining the transformation of semantic artifacts. For
+example, a CEK machine \cite{DBLP:conf/popl/FelleisenF87} for concrete
+execution can be easily refactored to an effective 0-CFA control-flow
+analysis \cite{Shivers:1988:CFA:53990.54007, Midtgaard:2012:CAF:2187671.2187672}
+by first tweaking the environment dereference as a nondeterministic choice,
+then allocating continuations in the environment, and constraining the
+addresses space to be finite. This systematic abstraction approach can
+be tailored to different analyses \todo{cite}
+\cite{DBLP:conf/icfp/Gilray0M16, DBLP:conf/popl/GilrayL0MH16} and and
+has been applied to multiple variants of small-step abstract machines
+\cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10,
+  Sergey:2013:MAI:2491956.2491979} and big-step definitional
+interpreters \cite{Wei:2018:RAA:3243631.3236800,
+  DBLP:journals/pacmpl/DaraisLNH17, Keidel:2018:CSP:3243631.3236767}.
 
-More pragmatically, as an implementation strategy, several purely functional
-programming approaches to build abstract interpreters were emerged, for
-examples, using monads or arrows. The pure approach provides much benefits: 1)
-the abstract interpretation artifacts are compositional and can be constructed
-modularly, 2) one can easily prove the soundness of analysis, and 3) one can
-easily reason the correctness of implementation by leveraging equational
-reasoning. For example, monadic abstract interpreters \todo{two level semantics,
-arrow, Galois transformers}
+More pragmatically, as an implementation strategy, several purely
+functional programming approaches to build abstract interpreters were
+emerged, for examples, using monads or arrows. The pure approach
+provides much benefits: 1) the abstract interpretation artifacts are
+compositional and can be constructed modularly, e.g., by using
+monad transformers. 2) The soundness of analysis can be proved more easily, by
+mechnization \cite{Darais:2016:CGC:2951913.2951934} or paper-based
+proof \cite{Keidel:2018:CSP:3243631.3236767}.  3) The correctness of
+implementations can be reasoned by the programmers more condidently,
+e.g., by leveraging equational reasoning.
 
 However, besides the intrinsic complexity of static analysis, there are
 additional abstraction penalties with these high-level programming approaches.
@@ -50,28 +55,35 @@ abstract interpreter written in pure languages usually extensively uses effect
 systems to model the behaviors of abstract interpretatation, such as
 nondeterminism. For example, \citet{DBLP:journals/pacmpl/DaraisLNH17} and
 \citet{Sergey:2013:MAI:2491956.2491979}'s monadic abstract interpreters use
-monad transformers; the very recent \citet{Githubsemantic}'s Semantic framework
-uses extensible effects. The effect systems may introduce additional performance
-overhead.
+monad transformers; the very recent \citet{Githubsemantic}'s \textsc{Semantic} framework
+uses extensible effects. With certain merits and elegance of the implementation,
+the effect systems may also introduce additional performance overhead.
 
-In this paper, we propose an abstraction-without-regret approach to eliminate
-those performance penalties for abstract interpreters written in purely
-functional programming style. In short, our approach borrows ideas from program
-specialization and high-performance DSLs: 1) Using multi-stage programming at
-type level (the Lightweight Modular Staging framework
-\cite{DBLP:conf/gpce/RompfO10}, in this paper), we can
-specialize the abstract interpreter with respect to the input program and then
-generate efficient low-level code that does the actual analysis. 2) We use the
-tagless-final approach to embed the target language interpreter in a high-level
-host language (Scala, in this paper), allowing the user to implement different
-semantics modularly, including the abstract semantics, without changing the main
-generic interpreter. This design choice allows user to derive staged abstract
-interpreters without intrusive changes to the unstaged one. Therefore, our
-approach is no regret in the sense of both performance and least engineering
-efforts to achieve such performance. We elaborate these two main ideas in detail
-as follow.
+In this paper, we propose an abstraction-without-regret approach to
+eliminate those performance penalties for abstract interpreters
+written in purely functional programming style. In short, our approach
+borrows ideas from program specialization and high-performance DSLs,
+and applies them to a particular kind of meta-programs, abstract
+interpreters.
+1) Using multi-stage programming (the Lightweight Modular Staging
+framework \cite{DBLP:conf/gpce/RompfO10}, in this paper), we can
+specialize the abstract interpreter with respect to an input program
+and then generate efficient low-level code that does the actual
+analysis. The specialization can also eliminate the effect layers in the generated code.
+2) We use a tagless-final approach to embed the target
+language interpreter in a high-level host language (Scala), allowing
+the user to implement different semantics modularly, including the
+abstract semantics and staging, without changing the main generic
+interpreter. Together with the multi-stage programming and type-level
+annotations, this design allows user to derive staged abstract
+interpreters without intrusive changes to the unstaged one. Therefore,
+our approach is no regret in the sense of both performance and least
+engineering efforts to achieve such performance. We elaborate these
+two main ideas in detail as follow.
 
 \paragraph{Futumura Projection of Abstract Interpreters}
+
+The idea of 
 
 specialization of interpreters/abstract interpreters
 
@@ -84,6 +96,12 @@ language (translate to another language, low-level), writing static analyzer for
 the language (abstract semantics property we want to analyze), and a performant
 static analyzer (ultimate goal of this paper). shared a single generic
 interpreter
+
+\paragraph{Applications}
+
+\paragraph{Contribution}
+
+\paragraph{Oragnization}
 
 \iffalse
 On the other side, static analysis is a tradeoff between performance and
