@@ -14,7 +14,7 @@ long time.
 
 In recent years, we observe a rich progress on the methodologies for
 constructing abstract interpreters from systematic principles, instead
-of ad-hoc engineerings. A notable one is the Abstracting Abstract
+of ad-hoc engineering. A notable one is the Abstracting Abstract
 Machine (AAM) methodology \cite{DBLP:journals/jfp/HornM12,
   DBLP:conf/icfp/HornM10}, which uncovers an approach to derive sound
 abstract interpreters from their concrete counterparts, i.e., abstract
@@ -42,22 +42,22 @@ abstract interpreters were emerged, for examples, using monads or
 arrows. The pure approach provides much benefits: 1) the abstract
 interpretation artifacts are compositional and can be constructed
 modularly, e.g., by using monad transformers. 2) The soundness of
-analysis can be proved more easily, by mechnization
+analysis can be proved more easily, by either mechanization
 \cite{Darais:2016:CGC:2951913.2951934} or paper-based proof
 \cite{Keidel:2018:CSP:3243631.3236767}.  3) The correctness of
-implementations can be reasoned by the programmers more condidently,
+implementations can be reasoned by the programmers more confidently,
 e.g., by leveraging equational reasoning.
 
 However, besides the intrinsic complexity of static analysis, there are
 additional abstraction penalties with these high-level programming approaches.
 First, similar to concrete interpreters, the abstract interpreter analyzes the
 program by traversing the abstract syntax tree, which poses the interpretive
-overhead, e.g., pattern matching on the AST and recursive calls on the sub
+overhead, e.g., pattern matching on the ASTs and recursive calls on the sub
 expressions. Those kind of overhead can be negligible if the abstract
 interpreter only runs on the program once, but also can be accumulated
 significantly if it runs repeatedly, for example, on libraries. Second, the
 abstract interpreter written in pure languages usually extensively uses effect
-systems to model the behaviors of abstract interpretatation, such as
+systems to model the behaviors of abstract interpretation, such as
 nondeterminism. For example, \citet{DBLP:journals/pacmpl/DaraisLNH17} and
 \citet{Sergey:2013:MAI:2491956.2491979}'s monadic abstract interpreters use
 monad transformers; the very recent \citet{Githubsemantic}'s \textsc{Semantic} framework
@@ -74,7 +74,7 @@ programming , we can specialize the
 abstract interpreter with respect to an input program and then
 generate efficient low-level code that does the actual analysis. The
 result of specialization is reusable, and the effect layers have been
-eleiminated in the generated code. 2) We use a tagless-final approach
+eliminated in the generated code. 2) We use a tagless-final approach
 to embed the target language interpreter in a high-level host language,
 which defines a generic interpreter and allows user to
 implement different semantics modularly, including the abstract
@@ -106,7 +106,7 @@ $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
 Partial evaluation \cite{DBLP:books/daglib/0072559} was the first
 proposed approach to realize Futamura projections: it discovers the
 binding-time (static or dynamic) of variables, evaluates the static
-part, and residualizes a program that solely relies on the dynamic
+part, and generates a residualized program that solely relies on the dynamic
 part. However, it is hard to precisely analyze binding-times given an
 arbitrary program. As an alternative approach to specialization and
 partial evaluation, multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97}
@@ -122,7 +122,7 @@ interpreter for a stateful, higher-order core language.  We use
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s abstract definitional
 interpreter that uses monad transformers as the unstaged baseline. By
 deriving staged monads that can be used to do code generation, we may
-obtain a staged abstract interpreter that fulfills the specializtion.
+obtain a staged abstract interpreter that fulfills the specialization.
 After staging, the generated code is specialized to the input program,
 and all monadic operations are all inlined.
 
@@ -154,24 +154,24 @@ by applying a series of abstractions to these components, we can
 derive computable and sound abstract interpreters. Finally, the
 monadic abstraction encapsulates both the binding-times and
 components, which appears as the returned type and defines the
-behaviors and datatype the interpreter operatres on.
+behaviors and datatype the interpreter operates on.
 
 \paragraph{Applications and Evaluations}
 We evaluate the idea of staging an abstract interpreter through
-multiple case studies and emipical evaluation on performance.
+multiple case studies and empirical evaluation on performance.
 1) We compare our approach with abstract compilation
 \cite{Boucher:1996:ACN:647473.727587}, and show that we can achieve
 the same optimization by utilizing type-based stage annotations;
 meanwhile, the analyzer program does not need any changes, thereby
-requres little engineering efforts.
+requires little engineering efforts.
 2) We extend the basic staged abstract interpreter to diverse flow
 analysis, including a store-widened analysis, a context-sensitive
 analysis and abstract garbage collection.
 3) We notice that staging an abstract interpreter enables modularly
 compiling an analysis to programs. The compiled analysis is reusable,
-therefore it provides a mechnized way to create library summaries by
+therefore it provides a mechanized way to create library summaries by
 reusing a whole-program analyzer.
-4) We also emipically evaluate the performance improved by staging,
+4) We also empirically evaluate the performance improved by staging,
 showing an average 11x speed-up on flow-analysis.
 
 \paragraph{Contributions} Briefly, the contribution of the paper is as follows:
@@ -185,7 +185,7 @@ showing an average 11x speed-up on flow-analysis.
     metaprogramming.
   \item Pragmatically, we show that staging abstract interpreters is
     useful to improve performance and scalability of analyses by case
-    studies and emiprical evaluation.
+    studies and empirical evaluation.
 \end{itemize}
 
 \paragraph{Organization} The paper is organized as follows:
