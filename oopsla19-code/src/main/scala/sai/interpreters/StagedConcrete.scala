@@ -130,8 +130,6 @@ trait StagedConcreteSemanticsGen extends GenericNestedCodegen {
     case IRIntProj(i) =>
       emitValDef(sym, s"${quote(i)}.asInstanceOf[IntV].i")
     case Struct(tag, elems) =>
-      //This fixes code generation for tuples, such as Tuple2MapIntValueValue
-      //TODO: merge back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
       val typeName = sym.tp.runtimeClass.getSimpleName +
         "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"

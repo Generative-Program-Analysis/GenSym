@@ -82,7 +82,6 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))
   }
 
-  //FIXME: check v1 && v2 contains Int
   def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
 
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
@@ -245,8 +244,6 @@ trait StagedAbstractSemanticsGen extends GenericNestedCodegen {
     case IRApClo(f, arg, σ, in, out) =>
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
     case Struct(tag, elems) =>
-      //This fixes code generation for tuples, such as Tuple2MapIntValueValue
-      //TODO: merge back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
       val typeName = sym.tp.runtimeClass.getSimpleName +
         "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"

@@ -363,7 +363,7 @@ trait StagedAbsInterpreterOps extends SAIDsl with RepMonads with RepLattices {
         val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
         val m: Ans = for {
           _ <- put_out_cache(out + (cfg → res_in))
-          v <- ev(fix(ev))(e) //TODO: remember to change it
+          v <- ev(fix(ev))(e)
           σ <- get_store
           _ <- update_out_cache(cfg, (v, σ))
         } yield v
@@ -421,12 +421,9 @@ trait StagedAbsInterpreterOps extends SAIDsl with RepMonads with RepLattices {
     fix_no_cache(eval)(e)(ρ0)(σ0)(cache0)(cache0)
   def run(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_cache(e)(ρ0)(σ0)(cache0)(cache0)
   def run_select(e: Expr): (Rep[List[(Value, Store)]], Rep[Cache]) = fix_select(e)(ρ0)(σ0)(cache0)(cache0)
-
-  //TODO: fixpoint iteration, as unstaged function
 }
 
 trait StagedAbsInterpreterExp extends StagedAbsInterpreterOps with SAIOpsExp {
-  //TODO: when evaluating, change lam/rho to hash code
   case class IRCompiledClo(f: (Exp[Value], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
                            rf: Exp[((Value, Store, Cache, Cache)) => (List[(Value, Store)], Cache)],
                            λ: Exp[Lam], ρ: Exp[Env]) extends Def[AbsValue]
@@ -461,8 +458,8 @@ trait StagedAbsInterpreterGen extends GenericNestedCodegen {
     case IRApClo(f, arg, σ, in, out) =>
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
     case Struct(tag, elems) =>
-      //This fixes code generation for tuples, such as Tuple2MapIntValueValue
-      //TODO: merge back to LMS
+      //This fixes code generation for tuples, such as buggy types like Tuple2MapIntValueValue
+      //Note: need to merge back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
       val typeName = sym.tp.runtimeClass.getSimpleName +
         "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
