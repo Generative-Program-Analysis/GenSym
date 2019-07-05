@@ -36,7 +36,7 @@ trait ListOps extends Variables with TupleOps {
     def zip[B:Manifest](rhs: Rep[List[B]]) = list_zip(l, rhs)
     def take(i: Rep[Int]) = list_take(l, i)
     def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]) = list_foldLeft(l, z, f)
-    //def foldLeftK[B:Manifest, C](z: Rep[B])(f: (Rep[B], Rep[A], (Rep[B] => C)) => C) = list_foldLeftK(l, z, f)
+    def foldLeftNoRep[B:Manifest, C](z: Rep[B])(f: (Rep[B], Rep[A]) => C) = list_foldLeftNoRep(l, z, f)
     def foldLeftPair[B:Manifest,C:Manifest](z: Rep[(B,C)])(f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)]) = list_foldLeftPair(l, z, f)
     def containsSlice(that: Rep[List[A]]) = list_containsSlice(l, that)
     def intersect(that: Rep[List[A]]) = list_intersect(l, that)
@@ -52,7 +52,7 @@ trait ListOps extends Variables with TupleOps {
   def list_toarray[A:Manifest](l: Rep[List[A]])(implicit pos: SourceContext): Rep[Array[A]]
   def list_toseq[A:Manifest](l: Rep[List[A]])(implicit pos: SourceContext): Rep[Seq[A]]
   def list_concat[A:Manifest](xs: Rep[List[A]], ys: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]]
-  def list_cons[A:Manifest](x: Rep[A], xs: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]] // FIXME remove?
+  def list_cons[A:Manifest](x: Rep[A], xs: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]]
   def list_mkString[A : Manifest](xs: Rep[List[A]])(implicit pos: SourceContext): Rep[String]
   def list_mkString2[A : Manifest](xs: Rep[List[A]], sep:Rep[String])(implicit pos: SourceContext): Rep[String]
   def list_head[A:Manifest](xs: Rep[List[A]])(implicit pos: SourceContext): Rep[A]
@@ -62,6 +62,7 @@ trait ListOps extends Variables with TupleOps {
   def list_zip[A:Manifest, B:Manifest](lhs: Rep[List[A]], rhs: Rep[List[B]])(implicit pos: SourceContext): Rep[List[(A, B)]]
   def list_take[A:Manifest](xs: Rep[List[A]], i: Rep[Int])(implicit pos: SourceContext): Rep[List[A]]
   def list_foldLeft[A:Manifest,B:Manifest](s: Rep[List[A]], z: Rep[B], f: (Rep[B], Rep[A]) => Rep[B])(implicit pos: SourceContext): Rep[B]
+  def list_foldLeftNoRep[A:Manifest,B:Manifest,C](s: Rep[List[A]], z: Rep[B], f: (Rep[B], Rep[A]) => C)(implicit pos: SourceContext): C
   def list_foldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Rep[List[A]], z: Rep[(B,C)], f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)])(implicit pos: SourceContext): Rep[(B,C)]
   def list_containsSlice[A:Manifest](l1: Rep[List[A]], l2: Rep[List[A]])(implicit pos: SourceContext): Rep[Boolean]
   def list_intersect[A:Manifest](l1: Rep[List[A]], l2: Rep[List[A]])(implicit pos: SourceContext): Rep[List[A]]
@@ -133,6 +134,9 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
     val b = reifyEffects(f(acc, x))
     reflectEffect(ListFoldLeft(s, z, acc, x, b), summarizeEffects(b).star)
   }
+  def list_foldLeftNoRep[A:Manifest,B:Manifest,C](s: Exp[List[A]], z: Exp[B], f: (Exp[B], Exp[A]) => C)(implicit pos: SourceContext) = {
+    ???
+  }
   def list_containsSlice[A: Manifest](l1: Exp[List[A]], l2: Exp[List[A]])(implicit pos: SourceContext) = ListContainsSlice(l1, l2)
   def list_intersect[A:Manifest](l1: Exp[List[A]], l2: Exp[List[A]])(implicit pos: SourceContext) = ListIntersect(l1, l2)
   def list_foldLeftPair[A:Manifest,B:Manifest,C:Manifest](s: Exp[List[A]], z: Exp[(B,C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext) = {
@@ -182,8 +186,6 @@ trait ListOpsExp extends ListOps with EffectExp with VariablesExp {
 }
 
 trait ListOpsExpOpt extends ListOpsExp with TupleOpsExp {
-  //TODO: zip
-
   override def list_prepend[A:Manifest](l: Exp[List[A]], e: Exp[A])(implicit pos: SourceContext) = (l, e) match {
     case (Def(ListNew(xs,t)), e) => ListNew(e +: xs, manifest[A])
     case _ => super.list_prepend(l, e)

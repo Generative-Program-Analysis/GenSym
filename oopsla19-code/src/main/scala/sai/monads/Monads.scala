@@ -212,8 +212,8 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
     })
 
   def flatMap[B](f: A => ListT[M, B])(implicit mB: Manifest[B] = null): ListT[M, B] =
-    ListT(Monad[M].flatMap(run) { (list: List[A]) =>
-      list.foldLeft(ListT.empty[M,B])((acc, a) => acc ++ f(a)).run
+    ListT(Monad[M].flatMap(run) { (xs: List[A]) =>
+      xs.foldLeft(ListT.empty[M,B])((acc, x) => acc ++ f(x)).run
     })
 
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): ListT[M, B] =

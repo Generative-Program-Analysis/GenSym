@@ -230,32 +230,10 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
     def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { case xs: Rep[List[A]] =>
-        /*
-        xs.foldLeftK(List[B]())({
-          case (acc: Rep[List[B]], x: Rep[A], k: Rep[List[B]] => ListT[M, B]) =>
-            (ListT.fromList(acc) ++ f(x)).flatMap(k)
-        })
-         */
-        ???
-        /*
-        (foldLeftM(list, ListT.empty[M, B]) {
-          case (acc: ListT[M, B], a: Rep[A]) => acc ++ f(a)
-        }).run
-         */
-      })
-
-    /*
-    def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
-      ListT(Monad[M].flatMap(run) { case list: Rep[List[A]] =>
-              val merge: Rep[List[B]] = list.foldLeft(List[B]()) {
-                case (acc: Rep[List[B]], a: Rep[A]) =>
-                  val fa: M[List[B]] = f(a).run
-                  val listb: M[List[B]] = Monad[M].map(fa) { case falist: Rep[List[B]] => acc ++ falist }
-                    ??? // expected Rep[List[B]], a comonad operation `extract: w a -> a`!
+              xs.foldLeftNoRep(List[B]()) {
+                case (acc: Rep[List[B]], x: Rep[A]) => (fromList[M, B](acc) ++ f(x)).run
               }
-              Monad[M].pure[List[B]](merge)
             })
-     */
 
     def map[B: Manifest](f: Rep[A] => Rep[B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
@@ -416,7 +394,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
   object SetStateReaderStateM {
     type SSRS[R,S1,S2,A] = SetStateReaderStateM[R, S1, S2, A]
-    def apply[R:Manifest,S1:Manifest,S2:Manifest,A:Manifest](implicit m: SetStateReaderStateM[R,S1,S2,A]): SetStateReaderStateM[R,S1,S2,A] = m
+    def apply[R:Manifest,S1:Manifest,S2:Manifest,A:Manifest](implicit m: SSRS[R,S1,S2,A]): SSRS[R,S1,S2,A] = m
 
     implicit def SetStateReaderStateMonad[R: Manifest, S1: Manifest, S2: Manifest] = new Monad[SetStateReaderStateM[R,S1,S2,?]] {
         def flatMap[A:Manifest, B:Manifest](ma: SSRS[R,S1,S2,A])(f: Rep[A] => SSRS[R,S1,S2,B]) = ma.flatMap(f)
