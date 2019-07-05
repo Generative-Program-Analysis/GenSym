@@ -26,7 +26,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
   object Monad {
     def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 
-    // A doesn't have to be a Rep type
+    // Note: type A does not have to be a Rep type
     def mapM[M[_]: Monad, A, B: Manifest](xs: List[A])(f: A => M[B]): M[List[B]] = xs match {
       case Nil => Monad[M].pure(List[B]())
       case x::xs => Monad[M].flatMap(f(x)) { b =>
@@ -44,7 +44,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
   /////////////////////////////////////////////////
 
-  trait MonadPlus[M[_]] { // TODO: Why not extends from Monad?
+  trait MonadPlus[M[_]] {
     def mzero[A: Manifest : RepLattice]: M[A]
     def mplus[A: Manifest : RepLattice](a: M[A], b: M[A]): M[A]
   }
@@ -64,6 +64,8 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       def filter[A: Manifest](ma: Id[A])(f: Rep[A] => Rep[Boolean]): Id[A] = throw new Exception("Not supported")
     }
   }
+
+  /////////////////////////////////////////////////
 
   object IdM {
     def apply[A: Manifest](implicit m: IdM[A]): IdM[A] = m
@@ -123,8 +125,9 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       ReaderT(r => ga)
   }
 
-  case class ReaderT[M[_]: Monad, R: Manifest, A: Manifest](run: Rep[R] => M[A]) /*extends SPReaderT[Rep, M, R, A, ReaderT]*/ {
+  case class ReaderT[M[_]: Monad, R: Manifest, A: Manifest](run: Rep[R] => M[A]) {
     import ReaderT._
+
     def apply(r: Rep[R]): M[A] = run(r)
     def flatMap[B: Manifest](f: Rep[A] => ReaderT[M, R, B]): ReaderT[M, R, B] =
       ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
@@ -163,11 +166,12 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       def mod(f: Rep[S] => Rep[S]): StateT[M, S, Unit] = StateT(s => Monad[M].pure((unit(()), f(s))))
     }
 
-    implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Manifest : RepLattice] = new MonadPlus[StateT[M, S, ?]] {
-      def mzero[A: Manifest : RepLattice]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
-      def mplus[A: Manifest : RepLattice](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
-        StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))
-    }
+    implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Manifest : RepLattice] =
+      new MonadPlus[StateT[M, S, ?]] {
+        def mzero[A: Manifest : RepLattice]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
+        def mplus[A: Manifest : RepLattice](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
+          StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))
+      }
 
     def liftM[G[_]: Monad, S: Manifest, A: Manifest](ga: G[A]): StateT[G, S, A] =
       StateT(s => Monad[G].map(ga)(a => (a, s)))
@@ -188,17 +192,12 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       flatMap(a => StateT(s => Monad[M].pure((f(a), s))))
 
     def filter(f: Rep[A] => Rep[Boolean]): StateT[M, S, A] =
-      StateT(s => Monad[M].filter(run(s)) {
-               case as1: Rep[(A, S)] =>
-                 val a: Rep[A] = as1._1 //; val s1: Rep[S] = as1._2
-                 f(a)
-             })
+      StateT(s => Monad[M].filter(run(s)) { case as1: Rep[(A, S)] => f(as1._1) })
     def withFilter(f: Rep[A] => Rep[Boolean]): StateT[M, S, A] = filter(f)
   }
 
   /////////////////////////////////////////////////
 
-  @deprecated("Use fused version", "")
   object ListT {
     def apply[M[_]: Monad, A: Manifest](implicit m: ListT[M, A]): ListT[M, A] = m
 
@@ -221,7 +220,6 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
     def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
   }
 
-  @deprecated("Use fused version", "")
   case class ListT[M[_]: Monad, A: Manifest](run: M[List[A]]) {
     import ListT._
 
@@ -230,6 +228,23 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
     def ++(ys: ListT[M, A]): ListT[M, A] =
       ListT(Monad[M].flatMap(run) { list1 => Monad[M].map(run) { list2 => list1 ++ list2 } })
 
+    def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
+      ListT(Monad[M].flatMap(run) { case xs: Rep[List[A]] =>
+        /*
+        xs.foldLeftK(List[B]())({
+          case (acc: Rep[List[B]], x: Rep[A], k: Rep[List[B]] => ListT[M, B]) =>
+            (ListT.fromList(acc) ++ f(x)).flatMap(k)
+        })
+         */
+        ???
+        /*
+        (foldLeftM(list, ListT.empty[M, B]) {
+          case (acc: ListT[M, B], a: Rep[A]) => acc ++ f(a)
+        }).run
+         */
+      })
+
+    /*
     def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { case list: Rep[List[A]] =>
               val merge: Rep[List[B]] = list.foldLeft(List[B]()) {
@@ -240,6 +255,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
               }
               Monad[M].pure[List[B]](merge)
             })
+     */
 
     def map[B: Manifest](f: Rep[A] => Rep[B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
@@ -296,6 +312,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
   // ReaderT: run: R => M[A]
   // StateT: run: S => M[(A, S)]
   // R => S => (List[A], S)
+
   case class ListReaderStateM[R: Manifest, S: Manifest, A: Manifest](run: Rep[R] => Rep[S] => (Rep[List[A]], Rep[S])) {
     import ListReaderStateM._
 
@@ -327,6 +344,8 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
     def withFilter(f: Rep[A] => Rep[Boolean]): ListReaderStateM[R, S, A] = filter(f)
   }
+
+  /////////////////////////////////////////////////
 
   object SetReaderStateM {
     def apply[R: Manifest, S: Manifest, A: Manifest](implicit m: SetReaderStateM[R, S, A]): SetReaderStateM[R, S, A] = m
@@ -365,6 +384,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
     def empty[R: Manifest, S: Manifest, A: Manifest]: SetReaderStateM[R, S, A] =
       SetReaderStateM(r => s => (Set[A](), s))
   }
+
   case class SetReaderStateM[R: Manifest, S: Manifest, A: Manifest](run: Rep[R] => Rep[S] => (Rep[Set[A]], Rep[S])) {
     import SetReaderStateM._
     def apply(r: Rep[R])(s: Rep[S]): (Rep[Set[A]], Rep[S]) = run(r)(s)
@@ -393,6 +413,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
   }
 
   /////////////////////////////////////////////
+
   object SetStateReaderStateM {
     type SSRS[R,S1,S2,A] = SetStateReaderStateM[R, S1, S2, A]
     def apply[R:Manifest,S1:Manifest,S2:Manifest,A:Manifest](implicit m: SetStateReaderStateM[R,S1,S2,A]): SetStateReaderStateM[R,S1,S2,A] = m
@@ -415,15 +436,16 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
           SetStateReaderStateM(r => s1 => s2 => ma.run(f(r))(s1)(s2))
     }
 
-    implicit def SetStateReaderStateMonadPlus[R: Manifest, S1: Manifest : RepLattice, S2: Manifest : RepLattice] = new MonadPlus[SetStateReaderStateM[R,S1,S2,?]] {
-      def mzero[A: Manifest : RepLattice]: SSRS[R, S1, S2, A] = empty[R, S1, S2, A]
-      def mplus[A: Manifest : RepLattice](a: SSRS[R, S1, S2, A], b: SSRS[R, S1, S2, A]): SSRS[R, S1, S2, A] =
-        SetStateReaderStateM(r => s1 => s2 => {
-                               val ((seta, s1a), s2a) = a.run(r)(s1)(s2)
-                               val ((setb, s1b), s2b) = a.run(r)(s1)(s2)
-                               ((seta ⊔ setb, s1a ⊔ s1b), s2a ⊔ s2b)
-                             })
-    }
+    implicit def SetStateReaderStateMonadPlus[R: Manifest, S1: Manifest : RepLattice, S2: Manifest : RepLattice] =
+      new MonadPlus[SetStateReaderStateM[R,S1,S2,?]] {
+        def mzero[A: Manifest : RepLattice]: SSRS[R, S1, S2, A] = empty[R, S1, S2, A]
+        def mplus[A: Manifest : RepLattice](a: SSRS[R, S1, S2, A], b: SSRS[R, S1, S2, A]): SSRS[R, S1, S2, A] =
+          SetStateReaderStateM(r => s1 => s2 => {
+            val ((seta, s1a), s2a) = a.run(r)(s1)(s2)
+            val ((setb, s1b), s2b) = a.run(r)(s1)(s2)
+            ((seta ⊔ setb, s1a ⊔ s1b), s2a ⊔ s2b)
+          })
+      }
 
     def fromSet[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest](xs: Set[A]): SSRS[R,S1,S2,A] =
       SetStateReaderStateM(r => s1 => s2 => ((unit(xs), s1), s2))
@@ -435,11 +457,12 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
       SetStateReaderStateM(r => s1 => s2 => ((Set[A](), s1), s2))
   }
 
-  case class SetStateReaderStateM[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest](run: Rep[R]=>Rep[S1]=>Rep[S2]=>((Rep[Set[A]], Rep[S1]), Rep[S2])) {
+  case class SetStateReaderStateM[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest]
+    (run: Rep[R]=>Rep[S1]=>Rep[S2]=>((Rep[Set[A]], Rep[S1]), Rep[S2])) {
     import SetStateReaderStateM._
 
     type Result = ((Rep[Set[A]], Rep[S1]), Rep[S2])
-    type MM[T] = SetStateReaderStateM[R,S1,S2,T]
+    type MM[T] = SetStateReaderStateM[R, S1, S2, T]
     def apply(r: Rep[R], s1: Rep[S1], s2: Rep[S2]): Result = run(r)(s1)(s2)
     def flatMap[B: Manifest](f: Rep[A] => MM[B]): MM[B] = {
       SetStateReaderStateM(r => s1 => s2 => {

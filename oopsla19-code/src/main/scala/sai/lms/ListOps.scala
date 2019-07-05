@@ -36,6 +36,7 @@ trait ListOps extends Variables with TupleOps {
     def zip[B:Manifest](rhs: Rep[List[B]]) = list_zip(l, rhs)
     def take(i: Rep[Int]) = list_take(l, i)
     def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]) = list_foldLeft(l, z, f)
+    //def foldLeftK[B:Manifest, C](z: Rep[B])(f: (Rep[B], Rep[A], (Rep[B] => C)) => C) = list_foldLeftK(l, z, f)
     def foldLeftPair[B:Manifest,C:Manifest](z: Rep[(B,C)])(f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)]) = list_foldLeftPair(l, z, f)
     def containsSlice(that: Rep[List[A]]) = list_containsSlice(l, that)
     def intersect(that: Rep[List[A]]) = list_intersect(l, that)

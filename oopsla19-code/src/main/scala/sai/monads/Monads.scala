@@ -11,23 +11,11 @@ trait RMonad[R[_], M[_]] {
   def filter[A](ma: M[A])(f: R[A] => R[Boolean]): M[A]
 }
 
-/*
-trait RMonad[R[_], M[_]] {
-  def pure[A](a: R[A])(implicit mA: Manifest[A] = null): M[A]
-  def flatMap[A, B](ma: M[A])(f: R[A] => M[B])
-             (implicit mA: Manifest[A] = null, mB: Manifest[B] = null): M[B]
-  def map[A,B](ma: M[A])(f: R[A] => R[B])
-         (implicit mA: Manifest[A] = null, mB: Manifest[B] = null): M[B] = flatMap(ma)(a => pure(f(a)))
-  def filter[A](ma: M[A])(f: R[A] => R[Boolean])(implicit mA: Manifest[A] = null): M[A]
-}
-*/
-
 trait Monad[M[_]] extends RMonad[NoRep.NoRep, M]
 
 object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 
-  // TODO: test
   def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[List[B]] = xs match {
     case Nil => Monad[M].pure(List.empty[B])
     case x::xs => Monad[M].flatMap(f(x)) { b =>
@@ -37,8 +25,6 @@ object Monad {
     }
   }
 
-  // Returns the last result
-  // TODO: test
   def forM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[B] = xs match {
     case x::Nil => f(x)
     case x::xs => Monad[M].flatMap(f(x)) { _ => forM(xs)(f) }
@@ -90,8 +76,6 @@ case class IdM[A](run: A) {
   def apply: A = run
   def flatMap[B](f: A => IdM[B])(implicit mB: Manifest[B] = null): IdM[B] = f(run)
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): IdM[B] = IdM(f(run))
-  //def flatMap[B](f: A => IdM[B]): IdM[B] = f(run)
-  //def map[B](f: A => B): IdM[B] = IdM(f(run))
 }
 
 /////////////////////////////////////////////////
@@ -131,8 +115,6 @@ object ReaderT {
 case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
   import ReaderT._
   def apply(r: R): M[A] = run(r)
-  //def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] = ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
-  //def map[B](f: A => B): ReaderT[M, R, B] = ReaderT(r => Monad[M].map(run(r))(f))
 
   def flatMap[B](f: A => ReaderT[M, R, B])(implicit mB: Manifest[B] = null): ReaderT[M, R, B] =
     ReaderT(r => Monad[M].flatMap(run(r))(a => f(a).run(r)))
@@ -224,15 +206,16 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
   def apply: M[List[A]] = run
   def ++(ys: ListT[M, A]): ListT[M, A] =
     ListT(Monad[M].flatMap(run) { list1 =>
-            Monad[M].map(ys.run) { list2 =>
-              list1 ++ list2
-            }
-          })
+      Monad[M].map(ys.run) { list2 =>
+        list1 ++ list2
+      }
+    })
 
   def flatMap[B](f: A => ListT[M, B])(implicit mB: Manifest[B] = null): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { (list: List[A]) =>
-            list.foldLeft(ListT.empty[M,B])((acc, a) => acc ++ f(a)).run
-          })
+      list.foldLeft(ListT.empty[M,B])((acc, a) => acc ++ f(a)).run
+    })
+
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): ListT[M, B] =
     ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })
 
