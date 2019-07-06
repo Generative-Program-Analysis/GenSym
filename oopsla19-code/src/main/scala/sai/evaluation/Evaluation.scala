@@ -34,12 +34,12 @@ object Evaluation {
     //(rsa, "rsa"),
     (church, "church"),
     (fermat, "fermat"),
-    (mbrotZ, "mbrotZ"),
-    (lattice, "lattice"),
-    (kcfa16, "kcfa16"),
-    (kcfa32, "kcfa32"),
-    (kcfa64, "kcfa64"),
-    (solovay, "solovay")
+    //(mbrotZ, "mbrotZ"),
+    //(lattice, "lattice"),
+    //(kcfa16, "kcfa16"),
+    //(kcfa32, "kcfa32"),
+    //(kcfa64, "kcfa64"),
+    //(solovay, "solovay")
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
@@ -106,9 +106,8 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      val a = res._1
-      val b = a._1
-      val storesize = a._2.size
+      val b = res._1._1
+      val storesize = res._1._2.size
       println(b)
       println(storesize)
       ()
