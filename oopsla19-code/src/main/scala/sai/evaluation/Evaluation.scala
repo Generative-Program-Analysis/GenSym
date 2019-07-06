@@ -17,59 +17,88 @@ import sai.evaluation.TestPrograms._
 
 object Evaluation {
 
+  type Progs = List[(Expr, String)]
+
+  abstract class Option
+  case class WithStoreWidening(progs: Progs) extends Option
+  case class WithoutStoreWidening(progs: Progs) extends Option
+
+  def output(id: String): String = s"CodeGen_$id.out"
+
+  val N = 1
+  val sw = "sw"
+  val wo_sw = "wo_sw"
+
+  def progs_wo_sw: Progs = List[(Expr, String)](
+    //(fib, "fib"),
+    //(rsa, "rsa"),
+    (church, "church"),
+    (fermat, "fermat"),
+    (mbrotZ, "mbrotZ"),
+    (lattice, "lattice"),
+    (kcfa16, "kcfa16"),
+    (kcfa32, "kcfa32"),
+    (kcfa64, "kcfa64"),
+    (solovay, "solovay")
+  )
+
+  def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
+    //(regex, "regex"),
+    //(matrix, "matrix")
+  )
+
+  def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
+    (blur, "blur"),
+    (sat, "sat"),
+    (metacirc, "meta"),
+    (scheme2java, "scheme2java"),
+    (letloop, "letloop"),
+    (euclid, "euclid"),
+    (euclid_imp, "euclid_imp"),
+    (fact5, "fact5"),
+    (kcfa3, "kcfa3"),
+    (kcfa256, "kcfa256"),
+    (omega, "omega"),
+    (boyer, "boyer"),
+    (earley, "earley"),
+    (dynamic, "dynamic"),
+    (graphs, "graphs"),
+    (nbody, "nbody"),
+    (nucleic, "nucleic")
+  )
+
   def main(args: Array[String]) {
-    val progs = List[(Expr, String)](
-      (fib, "fib"),
-      (rsa, "rsa"),
-      //(church, "church"),
-      (fermat, "fermat"),
-      (mbrotZ, "mbrotZ"),
-      (lattice, "lattice"),
-      (kcfa16, "kcfa16"),
-      (kcfa32, "kcfa32"),
-      (kcfa64, "kcfa64"),
-      (solovay, "solovay")
-      //(regex, "regex"),    //okay for sw
-      //(matrix, "matrix"),  //okay for sw
-      //(blur, "blur"), // 56
-      //(sat, "sat"), // 73
-      //(metacirc, "meta")
-      //(scheme2java, "scheme2java")
-      /********************/
-      //(letloop, "letloop")
-      //(euclid, "euclid"),
-      //(euclid_imp, "euclid_imp"),
-      //(fact5, "fact5"),
-      //(kcfa3, "kcfa3"),
-      //(kcfa256, "kcfa256"),
-      //(omega, "omega")
-      //(boyer, "boyer"),
-      //(earley, "earley"),
-      //(dynamic, "dynamic"),
-      //(graphs, "graphs"),
-      //(nbody, "nbody"),
-      //(nucleic, "nucleic"),
-    )
-    progs foreach { case (e, id) => compareWO_SW(e, id) }
-    //progs foreach { case (e, id) => compareSW(e, id) }
+    //runEvaluation(WithoutStoreWidening(progs_wo_sw))
+    //println("\n********************************************\n")
+    runEvaluation(WithStoreWidening(progs_w_sw))
   }
 
-  def evalUnstaged(e: Expr): Unit = {
-    val res = UnstagedSchemeAnalyzer.run(e)
-    println(s"Number of values: ${res._1.size}")
-  }
-
-  def evalUnstagedSW(e: Expr): Unit = {
-    val res = SWUnstagedSchemeAnalyzer.run(e)
-    println(s"Number of values: ${res._1._1.size}")
+  def runEvaluation(opt: Option) = opt match {
+    case WithoutStoreWidening(progs) =>
+      println("Start running evaluation for CFA without store-widening")
+      progs foreach { case (e, id) =>
+        compare(evalUnstaged, specialize)(e, id)
+        println("============================================")
+      }
+      println("End running evaluation for CFA without store-widening")
+    case WithStoreWidening(progs) =>
+      println("Start running evaluation for CFA with store-widening")
+      progs foreach {case (e, id) =>
+        compare(evalUnstagedSW, specializeSW)(e, id)
+        println("============================================")
+      }
+      println("End running evaluation for CFA with store-widening")
   }
 
   def specialize(e: Expr): DslDriver[Unit, Unit] = new StagedSchemeAnalyzerDriver {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      print("Number of values: ") 
-      println(res._1.size)
+      val a = res._1.size
+      val b = res._2.size
+      println(a)
+      println(b)
+      ()
     }
   }
 
@@ -77,7 +106,12 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      println(s"Number of values:" + res._1)
+      val a = res._1
+      val b = a._1
+      val storesize = a._2.size
+      println(b)
+      println(storesize)
+      ()
     }
   }
 
@@ -87,44 +121,47 @@ object Evaluation {
     writer.close()
   }
 
-  val output = "CodeGen.out"
-  def output(id: String): String = s"CodeGen_$id.out"
+  def evalUnstaged(e: Expr): Unit = {
+    val res = UnstagedSchemeAnalyzer.run(e)
+    println(res._1.size)
+    println(res._2.size)
+  }
 
-  val N = 20
-  val sw = "sw"
-  val wo_sw = "wo_sw"
+  def evalUnstagedSW(e: Expr): Unit = {
+    val res = SWUnstagedSchemeAnalyzer.run(e)
+    println("unstaged " + res._1._1)
+    println("unstaged store " + res._1._2.size)
+  }
 
-  def compare(mode: String)(e: Expr, id: String): Unit = {
-    println(s"Running [$mode] $id, AST size: ${size(e)}")
-    val t1 = if (mode == sw) run(N, { evalUnstagedSW(e) }) else run(N, { evalUnstaged(e) })
+  def compare(eval: Expr => Unit, spec: Expr => DslDriver[Unit, Unit])(e: Expr, id: String): Unit = {
+    println(s"Running evaluation for $id, AST size: ${size(e)}")
+    val (res1, t1) = run(N, { eval(e) })
     println(s"[$id] [unstaged] - ${t1}s")
-    
-    val code = if (mode == sw) specializeSW(e) else specialize(e)
+
+    val code = spec(e)
     code.precompile
     val outfile = output(id)
     println(s"[$id] [staged] Finished precompile, writing code to ${outfile}")
     writeTo(outfile, code.code)
 
-    val t2 = run(N, { code.eval(()) })
+    val (res2, t2) = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
+
+    println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")
   }
 
-  def compareSW(e: Expr, id: String) = compare(sw)(e, id)
-
-  def compareWO_SW(e: Expr, id: String) = compare(wo_sw)(e, id)
-
-  def run[R](n: Int, block: => R): Timing = {
-    /* warm up*/
-    //for (i <- 1 to n) block
-    var tsum: List[Double] = Nil
-    for (i <- 1 to n) {
-      val (result, t) = Utils.time(block)
-      println(s"iteration #$i took ${t}s")
-      tsum = t::tsum
-    }
-    val dropN = (0.0 * n).toInt
-    val dropTs = tsum.sorted.drop(dropN).take(n - dropN*2)
-    Timing(dropTs)
+  def run[R](n: Int, block: => R): (R, Timing) = {
+    val res_time: List[(R, Double)] =
+      (1 to n).toList.map({ i =>
+        val (result, t) = Utils.time(block)
+        println(s"  Iteration #$i took ${t}s")
+        (result, t)
+      })
+    val ress = res_time.map(_._1)
+    val times = res_time.map(_._2)
+    val dropN = (0.0 * n).toInt // No dropout
+    val dropTs = times.sorted.drop(dropN).take(n - dropN*2)
+    (ress(0), Timing(dropTs))
   }
 
 }

@@ -28,7 +28,6 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
   def mAddr: Manifest[Addr] = manifest[Addr]
 
   type R[T] = Rep[T]
-  //TODO: reorder types
   type NdStoreInOutCacheM[T] = SetStateReaderStateM[Cache, Store, Cache, T]
   type AnsM[T] = ReaderT[NdStoreInOutCacheM, Env, T]
 
@@ -68,8 +67,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
       case b: Boolean => BoolV
       case x: String => SymV
       case _ =>
-        System.out.println(s"value representation for $i not implemented")
-          ???
+        throw new RuntimeException(s"value representation for $i not implemented")
     }
     ReaderTMonad[NdStoreInOutCacheM, Env].pure[Value](Set[AbsValue](unit(v)))
   }
@@ -81,7 +79,9 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     val Lam(params, e) = λ
     val f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[Res] = {
       case (args, σ, in, out) =>
-        val αs: List[Rep[Addr]] = params.foldRight(collection.immutable.List[Rep[Addr]]()) { case (x, αs_*) => alloc(σ, x)::αs_* }
+        val αs: List[Rep[Addr]] = params.foldRight(collection.immutable.List[Rep[Addr]]()) {
+          case (x, αs_*) => alloc(σ, x)::αs_*
+        }
         val ρ_* = params.zip(αs).foldLeft(ρ) { case (ρ, (x, α)) => ρ + (unit(x) → α) }
         val repαs: Rep[List[Addr]] = List(αs :_*)
         val σ_* = repαs.zip(args).foldLeft(σ) { case (σ, αv) => σ ⊔ Map(αv) }
@@ -110,16 +110,16 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](SetStateReaderStateMonad[Cache, Store, Cache].put2(out))
   def update_out_cache(cfg: Rep[Config], vs: Rep[Value]): AnsM[Unit] =
     ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](SetStateReaderStateMonad[Cache, Store, Cache].mod2(c => c ⊔ Map(cfg → Set(vs))))
-  def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = {
-    lift_clo[AbsValue](fun).flatMap { clo =>
-      get_store.flatMap { σ =>
-        ask_in_cache.flatMap { in =>
-          get_out_cache.flatMap { out =>
-            val res: Rep[Res] = emit_ap_clo(clo, args, σ, in, out)
-            put_out_cache(res._2).flatMap { _ =>
-              put_store(res._1._2).flatMap { _ =>
-                lift_nd[Value](res._1._1)
-              } } } } } } }
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = for {
+    clo <- lift_clo[AbsValue](fun)
+    in  <- ask_in_cache
+    out <- get_out_cache
+    st  <- get_store
+    res <- lift_nd[Res](Set(emit_ap_clo(clo, args, st, in, out)))
+    _   <- put_out_cache(res._2)
+    _   <- put_store(res._1._2)
+    v   <- lift_nd[Value](res._1._1)
+  } yield v
 
   def primMaps = scala.collection.immutable.Map[String, Rep[Set[AbsValue]]](
       "not" -> Set[AbsValue](unit(BoolV))
@@ -142,7 +142,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     , "error" -> Set[AbsValue]()
     , "cons" -> Set[AbsValue](unit(ListVTop))
     , "cdr" -> Set[AbsValue](unit(ListVTop))
-    , "car" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV)) //FIXME
+    , "car" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
     , "<" -> Set[AbsValue](unit(BoolV))
     , "quotient" -> Set[AbsValue](unit(IntV))
     , "gcd" -> Set[AbsValue](unit(IntV))
@@ -217,32 +217,29 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     case _ => fix_cache(e)
   }
 
-  def fix_cache: EvalFun = { e =>
-    ask_env.flatMap { ρ =>
-      get_store.flatMap { σ =>
-        ask_in_cache.flatMap { in =>
-          get_out_cache.flatMap { out =>
-            //val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
-            val cfg: Rep[(Int, Env)] = (unit(e.hashCode), ρ)
-            val res: Rep[((Set[Value], Store), Cache)] =
-              if (out.contains(cfg)) {
-                val t: Rep[(Set[Value], Store)] = (repMapToMapOps(out).apply(cfg), σ)
-                (t, out) //FIXME: ambigious implicit
-              } else {
-                val res_in = in.getOrElse(cfg, RepLattice[Set[Value]].bot)
-                val m: Ans = for {
-                  _ <- put_out_cache(out + (cfg → res_in))
-                  v <- eval(fix_select)(e)
-                  _ <- update_out_cache(cfg, v)
-                } yield v
-                val t = m(ρ)(in, σ, out)
-                val res1: Rep[(Set[Value], Store)] = t._1
-                (res1, t._2)
-              }
-            put_out_cache(res._2).flatMap { _ =>
-              put_store(res._1._2).flatMap { _ =>
-               lift_nd(res._1._1)
-              } } } } } } }
+  def fix_cache(e: Expr): Ans = for {
+    ρ <- ask_env
+    σ <- get_store
+    in <- ask_in_cache
+    out <- get_out_cache
+    cfg <- lift_nd[(Int, Env)](Set((unit(e.hashCode), ρ)))
+    res <- lift_nd[((Set[Value], Store), Cache)](Set(
+      if (out.contains(cfg)) {
+        ((repMapToMapOps(out).apply(cfg), σ), out): (Rep[(Set[Value], Store)], Rep[Cache])
+      } else {
+        val res_in = in.getOrElse(cfg, RepLattice[Set[Value]].bot)
+        val m: Ans = for {
+          _ <- put_out_cache(out + (cfg → res_in))
+          v <- eval(fix_select)(e)
+          _ <- update_out_cache(cfg, v)
+        } yield v
+        val t = m(ρ)(in, σ, out)
+        (t._1, t._2): (Rep[(Set[Value], Store)], Rep[Cache])
+      }))
+    _ <- put_out_cache(res._2)
+    _ <- put_store(res._1._2)
+    v <- lift_nd(res._1._1)
+  } yield v
 
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()

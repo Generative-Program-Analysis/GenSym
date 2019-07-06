@@ -398,7 +398,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
     implicit def SetStateReaderStateMonad[R: Manifest, S1: Manifest, S2: Manifest] = new Monad[SetStateReaderStateM[R,S1,S2,?]] {
         def flatMap[A:Manifest, B:Manifest](ma: SSRS[R,S1,S2,A])(f: Rep[A] => SSRS[R,S1,S2,B]) = ma.flatMap(f)
-        def pure[A: Manifest](a: Rep[A]): SSRS[R,S1,S2,A] = SetStateReaderStateM(r=>s1=>s2=> ((Set[A](a),s1),s2))
+        def pure[A: Manifest](a: Rep[A]): SSRS[R,S1,S2,A] = SetStateReaderStateM(r => s1 => s2 => ((Set[A](a),s1),s2))
         def filter[A: Manifest](ma: SSRS[R,S1,S2,A])(f: Rep[A] => Rep[Boolean]): SSRS[R,S1,S2,A] = ma.filter(f)
 
         def put1(s1: => Rep[S1]): SSRS[R,S1,S2,Unit] = SetStateReaderStateM(r => _ => s2 => ((Set[Unit](()), s1), s2))
@@ -420,7 +420,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
         def mplus[A: Manifest : RepLattice](a: SSRS[R, S1, S2, A], b: SSRS[R, S1, S2, A]): SSRS[R, S1, S2, A] =
           SetStateReaderStateM(r => s1 => s2 => {
             val ((seta, s1a), s2a) = a.run(r)(s1)(s2)
-            val ((setb, s1b), s2b) = a.run(r)(s1)(s2)
+            val ((setb, s1b), s2b) = a.run(r)(s1a)(s2a)
             ((seta ⊔ setb, s1a ⊔ s1b), s2a ⊔ s2b)
           })
       }
@@ -442,6 +442,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
     type Result = ((Rep[Set[A]], Rep[S1]), Rep[S2])
     type MM[T] = SetStateReaderStateM[R, S1, S2, T]
     def apply(r: Rep[R], s1: Rep[S1], s2: Rep[S2]): Result = run(r)(s1)(s2)
+
     def flatMap[B: Manifest](f: Rep[A] => MM[B]): MM[B] = {
       SetStateReaderStateM(r => s1 => s2 => {
                              val ((seta, s10), s20) = run(r)(s1)(s2)

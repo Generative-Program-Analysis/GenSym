@@ -84,7 +84,7 @@
 
 (display "Generating prime...") 
 (newline)
-(display (generate-fermat-prime byte-size iterations)) 
+(display (generate-fermat-prime byte-size iterations))
 (display " is prime with at least probability 1 - 1/2^")
 (display iterations)
 (newline)

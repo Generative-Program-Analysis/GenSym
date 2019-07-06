@@ -1,6 +1,6 @@
 import Dependencies._
 
-ThisBuild / scalaVersion     := "2.12.7"
+ThisBuild / scalaVersion     := "2.12.8"
 ThisBuild / version          := "0.1-OOPSLA"
 ThisBuild / organization     := "sai"
 
@@ -18,7 +18,7 @@ lazy val root = (project in file(".")).settings(
   libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile",
   libraryDependencies += "org.scala-lang" % "scala-library" % scalaVersion.value % "compile",
   libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile",
-  libraryDependencies += "org.scala-lang.plugins" % "scala-continuations-library_2.12" % "1.0.3",
+  //libraryDependencies += "org.scala-lang.plugins" % "scala-continuations-library_2.12" % "1.0.3",
   libraryDependencies += "org.typelevel" %% "cats-core" % "1.6.0",
   libraryDependencies += "org.typelevel" %% "cats-free" % "1.6.0",
   libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.15.0",

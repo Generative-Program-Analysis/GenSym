@@ -20,7 +20,10 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   import StateT._
   import SetReaderStateM._
 
-  //type Config = (Expr, Env, Store)
+  def mCache: Manifest[Cache] = manifest[Cache]
+  def mValue: Manifest[Value] = manifest[Value]
+  def mAddr: Manifest[Addr] = manifest[Addr]
+
   type Config = (Int, Env, Store)
   type Cache = Map[Config, Set[(Value, Store)]]
 
@@ -29,10 +32,6 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
 
   type NdInOutCacheM[T] = SetReaderStateM[Cache, Cache, T]
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
-
-  def mCache: Manifest[Cache] = manifest[Cache]
-  def mValue: Manifest[Value] = manifest[Value]
-  def mAddr: Manifest[Addr] = manifest[Addr]
 
   type R[T] = Rep[T]
   type AnsM[T] = ReaderT[StateT[SetReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
@@ -243,11 +242,10 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
       get_store.flatMap { σ =>
         ask_in_cache.flatMap { in =>
           get_out_cache.flatMap { out =>
-            //val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
             val cfg: Rep[(Int, Env, Store)] = (unit(e.hashCode), ρ, σ)
             val res: Rep[(Set[(Value, Store)], Cache)] =
               if (out.contains(cfg)) {
-                (repMapToMapOps(out).apply(cfg), out) //FIXME: ambigious implicit
+                (repMapToMapOps(out).apply(cfg), out)
               } else {
                 val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
                 val m: Ans = for {

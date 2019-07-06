@@ -158,7 +158,7 @@ trait AbstractComponents extends SchemeAnalyzer {
   case class ZCFAAddr(x: String) extends Addr {
     override def toString = "ZCFAAddr(\"" + x + "\")"
   }
-  case class OCfaAddr(x: String, ctx: Expr) extends Addr
+  case class KCFAAddr(x: String, ctx: Expr) extends Addr
 
   type Value = Set[AbsValue]
   type Ctx = R[List[Expr]]

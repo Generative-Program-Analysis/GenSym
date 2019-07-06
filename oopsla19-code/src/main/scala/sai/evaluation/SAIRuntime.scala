@@ -23,7 +23,7 @@ object SAIRuntime {
 
   trait Addr
   case class ZCFAAddr(x: String) extends Addr
-  case class OCfaAddr(x: String, ctx: Expr) extends Addr
+  case class KCFAAddr(x: String, ctx: Expr) extends Addr
 
   type Value = Set[AbsValue]
   type Env = Map[String, Addr] 
@@ -54,7 +54,7 @@ object SWSAIRuntime {
 
   trait Addr
   case class ZCFAAddr(x: String) extends Addr
-  case class OCfaAddr(x: String, ctx: Expr) extends Addr
+  case class KCFAAddr(x: String, ctx: Expr) extends Addr
 
   type Value = Set[AbsValue]
   type Env = Map[String, Addr] 

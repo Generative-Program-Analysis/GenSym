@@ -20,7 +20,6 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   // Transformers
   type EnvT[F[_], B] = ReaderT[F, Env, B]
   type StoreT[F[_], B] = StateT[F, Store, B]
-  //type NondetT[F[_], B] = ListT[F, B]
   type NondetT[F[_], B] = SetT[F, B]
   type InCacheT[F[_], B] = ReaderT[F, Cache, B]
   type OutCacheT[F[_], B] = StateT[F, Cache, B]
@@ -70,8 +69,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
       case b: Boolean => BoolV
       case x: String => SymV
       case _ =>
-        println(s"value representation for $i not implemented")
-        ???
+        throw new RuntimeException(s"value representation for $i not implemented")
     }
     ReaderTMonad[NdStoreInOutCacheM, Env].pure[Value](Set(v))
   }
@@ -79,7 +77,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   def get(ρ: Env, x: String): Addr = ρ(x)
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
-    ReaderTMonadPlus[NdStoreInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache?
+    ReaderTMonadPlus[NdStoreInOutCacheM, Env].mplus(ev(thn), ev(els))
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
@@ -109,7 +107,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
       , "error" -> Set()
       , "cons" -> Set(ListVTop)
       , "cdr" -> Set(ListVTop)
-      , "car" -> Set(IntV, FloatV, CharV, BoolV) //FIXME
+      , "car" -> Set(IntV, FloatV, CharV, BoolV)
       , "<" -> Set(BoolV)
       , "quotient" -> Set(IntV)
       , "gcd" -> Set(IntV)
@@ -233,9 +231,9 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
     ρ <- ask_env
     σ <- get_store
-    val cfg = (e, ρ)
     in <- ask_in_cache
     out <- get_out_cache
+    val cfg = (e, ρ)
     rt <- if (out.contains(cfg)) {
       for {
         v <- lift_nd[Value](out(cfg))
@@ -262,7 +260,6 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
     else iter(e)(res._1._2, res._2, cache0)
   }
   def run(e: Expr): Result = fix(eval)(e)(ρ0).run(σ0)(cache0)(cache0).run
-    //iter(e)(σ0, cache0, cache0)
 
   def mValue: Manifest[Value] = manifest[Value]
   def mAddr: Manifest[Addr] = manifest[Addr]
