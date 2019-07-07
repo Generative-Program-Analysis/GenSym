@@ -420,7 +420,7 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
         def mplus[A: Manifest : RepLattice](a: SSRS[R, S1, S2, A], b: SSRS[R, S1, S2, A]): SSRS[R, S1, S2, A] =
           SetStateReaderStateM(r => s1 => s2 => {
             val ((seta, s1a), s2a) = a.run(r)(s1)(s2)
-            val ((setb, s1b), s2b) = a.run(r)(s1a)(s2a)
+            val ((setb, s1b), s2b) = a.run(r)(s1)(s2)
             ((seta ⊔ setb, s1a ⊔ s1b), s2a ⊔ s2b)
           })
       }
