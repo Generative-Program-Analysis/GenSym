@@ -28,7 +28,6 @@ object SAIRuntime {
   type Value = Set[AbsValue]
   type Env = Map[String, Addr] 
   type Store = Map[Addr, Value]
-  //type Config = (Expr, Env, Store)
   type Config = (Int, Env, Store)
   type Cache = Map[Config, Set[(Value, Store)]]
 }

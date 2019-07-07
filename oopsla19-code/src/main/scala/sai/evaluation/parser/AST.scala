@@ -60,7 +60,10 @@ case class Set_!(x: String, e: Expr) extends Expr with AtomExpr {
   override def toString: String = "Set_!(\"" + x + "\", " + e + ")"
 }
 case class Begin(es: List[Expr]) extends Expr
-case class Define(x: String, e: Expr) extends Expr
+case class Define(x: String, e: Expr) extends Expr {
+  override def toString: String = "Define(\"" + x + "\"," + e + ")"
+}
+
 
 object ASTUtils {
   def exprToString(e: Expr): String = e match {

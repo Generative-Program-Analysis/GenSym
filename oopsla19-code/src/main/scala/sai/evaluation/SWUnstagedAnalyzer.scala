@@ -60,7 +60,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
   // Primitive operations
-  def void: Ans = ReaderTMonad[NdStoreInOutCacheM, Env].pure[Value](Set())
+  def void: Ans = literal(())
   def literal(i: Any): Ans = {
     val v: AbsValue = i match {
       case i: Int => IntV
@@ -68,6 +68,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
       case c: Char => CharV
       case b: Boolean => BoolV
       case x: String => SymV
+      case u: Unit => VoidV
       case _ =>
         throw new RuntimeException(s"value representation for $i not implemented")
     }
@@ -235,13 +236,11 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
     out <- get_out_cache
     val cfg = (e, ρ)
     rt <- if (out.contains(cfg)) {
-      for {
-        v <- lift_nd[Value](out(cfg))
-      } yield v
+      lift_nd[Value](out(cfg))
     } else {
-      val ans_in = in.getOrElse(cfg, Lattice[Set[Value]].bot)
+      val ans_bot = in.getOrElse(cfg, Lattice[Set[Value]].bot)
       for {
-        _ <- put_out_cache(out + (cfg → ans_in))
+        _ <- put_out_cache(out + (cfg → ans_bot))
         v <- ev(fix(ev))(e)
         _ <- update_out_cache(cfg, v)
       } yield v

@@ -31,10 +31,11 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
   type NdStoreInOutCacheM[T] = SetStateReaderStateM[Cache, Store, Cache, T]
   type AnsM[T] = ReaderT[NdStoreInOutCacheM, Env, T]
 
+  type Res = ((Set[Value], Store), Cache)
+
   def mapM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[List[B]] = Monad.mapM(xs)(f)
   def forM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[B] = Monad.forM(xs)(f)
 
-  type Res = ((Set[Value], Store), Cache)
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[List[Value]], σ: Rep[Store],
                   in: Rep[Cache], out: Rep[Cache]): Rep[Res]
   def emit_compiled_clo(f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[Res],
@@ -56,9 +57,11 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
   def put_store(σ: Rep[Store]): AnsM[Unit] =
     ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](SetStateReaderStateMonad[Cache, Store, Cache].put1(σ))
   def set_store(αv: (Rep[Addr], Rep[Value])): AnsM[Unit] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](SetStateReaderStateMonad[Cache, Store, Cache].mod1(σ => σ ⊔ Map(αv)))
+    ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](
+      SetStateReaderStateMonad[Cache, Store, Cache].mod1(σ => σ ⊔ Map(αv))
+    )
 
-  def void: Ans = ReaderTMonad[NdStoreInOutCacheM, Env].pure[Value](Set[AbsValue]())
+  def void: Ans = literal(())
   def literal(i: Any): Ans = {
     val v: AbsValue = i match {
       case i: Int => IntV
@@ -66,6 +69,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
       case c: Char => CharV
       case b: Boolean => BoolV
       case x: String => SymV
+      case u: Unit => VoidV
       case _ =>
         throw new RuntimeException(s"value representation for $i not implemented")
     }
@@ -75,51 +79,58 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
     ReaderTMonadPlus[NdStoreInOutCacheM, Env].mplus(ev(thn), ev(els))
+
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(params, e) = λ
     val f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[Res] = {
       case (args, σ, in, out) =>
-        val αs: List[Rep[Addr]] = params.foldRight(collection.immutable.List[Rep[Addr]]()) {
-          case (x, αs_*) => alloc(σ, x)::αs_*
-        }
-        val ρ_* = params.zip(αs).foldLeft(ρ) { case (ρ, (x, α)) => ρ + (unit(x) → α) }
+        val αs: List[Rep[Addr]] = params.map(x => alloc(σ, x))
         val repαs: Rep[List[Addr]] = List(αs :_*)
-        val σ_* = repαs.zip(args).foldLeft(σ) { case (σ, αv) => σ ⊔ Map(αv) }
+        val ρ_* : Rep[Env] = params.map(unit[String]).zip(αs).foldLeft(ρ)(_ + _)
+        val σ_* : Rep[Store] = repαs.zip(args).foldLeft(σ) { case (σ, αv) => σ ⊔ Map(αv) }
         val res = ev(e)(ρ_*)(in, σ_*, out)
-        val res1: Rep[(Set[Value], Store)] = res._1
-        (res1, res._2)
+        (res._1, res._2): (Rep[(Set[Value], Store)], Rep[Cache])
     }
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))
   }
 
-  def lift_clo[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, T](
-      fromSet[Cache, Store, Cache, T](vs.filter { x => unchecked[Boolean](x, ".isInstanceOf[CompiledClo]") })
-    )
-  // auxiliary function that lifts values
-  def lift_nd[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, T](
-      fromSet[Cache, Store, Cache, T](vs)
-    )
-  // cache operations
-  def ask_in_cache: AnsM[Cache] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, Cache](SetStateReaderStateMonad[Cache, Store, Cache].ask)
-  def get_out_cache: AnsM[Cache] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, Cache](SetStateReaderStateMonad[Cache, Store, Cache].get2)
-  def put_out_cache(out: Rep[Cache]): AnsM[Unit] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](SetStateReaderStateMonad[Cache, Store, Cache].put2(out))
-  def update_out_cache(cfg: Rep[Config], vs: Rep[Value]): AnsM[Unit] =
-    ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](SetStateReaderStateMonad[Cache, Store, Cache].mod2(c => c ⊔ Map(cfg → Set(vs))))
   def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = for {
     clo <- lift_clo[AbsValue](fun)
     in  <- ask_in_cache
     out <- get_out_cache
-    st  <- get_store
-    res <- lift_nd[Res](Set(emit_ap_clo(clo, args, st, in, out)))
+    σ   <- get_store
+    res <- lift_nd[Res](Set(emit_ap_clo(clo, args, σ, in, out)))
     _   <- put_out_cache(res._2)
     _   <- put_store(res._1._2)
     v   <- lift_nd[Value](res._1._1)
   } yield v
+
+  // auxiliary function that lifts values
+  def lift_clo[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
+    lift_nd[T](vs.filter(x => unchecked[Boolean](x, ".isInstanceOf[CompiledClo]")))
+
+  def lift_nd[T: Manifest](vs: Rep[Set[T]]): AnsM[T] =
+    ReaderT.liftM[NdStoreInOutCacheM, Env, T](
+      fromSet[Cache, Store, Cache, T](vs)
+    )
+
+  // cache operations
+  def ask_in_cache: AnsM[Cache] =
+    ReaderT.liftM[NdStoreInOutCacheM, Env, Cache](
+      SetStateReaderStateMonad[Cache, Store, Cache].ask
+    )
+  def get_out_cache: AnsM[Cache] =
+    ReaderT.liftM[NdStoreInOutCacheM, Env, Cache](
+      SetStateReaderStateMonad[Cache, Store, Cache].get2
+    )
+  def put_out_cache(out: Rep[Cache]): AnsM[Unit] =
+    ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](
+      SetStateReaderStateMonad[Cache, Store, Cache].put2(out)
+    )
+  def update_out_cache(cfg: Rep[Config], vs: Rep[Value]): AnsM[Unit] =
+    ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](
+      SetStateReaderStateMonad[Cache, Store, Cache].mod2(c => c ⊔ Map(cfg → Set(vs)))
+    )
 
   def primMaps = scala.collection.immutable.Map[String, Rep[Set[AbsValue]]](
       "not" -> Set[AbsValue](unit(BoolV))
@@ -222,22 +233,22 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     σ <- get_store
     in <- ask_in_cache
     out <- get_out_cache
-    cfg <- lift_nd[(Int, Env)](Set((unit(e.hashCode), ρ)))
+    cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ)))
     res <- lift_nd[((Set[Value], Store), Cache)](Set(
       if (out.contains(cfg)) {
         ((repMapToMapOps(out).apply(cfg), σ), out): (Rep[(Set[Value], Store)], Rep[Cache])
       } else {
-        val res_in = in.getOrElse(cfg, RepLattice[Set[Value]].bot)
+        val ans_bot = in.getOrElse(cfg, RepLattice[Set[Value]].bot)
         val m: Ans = for {
-          _ <- put_out_cache(out + (cfg → res_in))
+          _ <- put_out_cache(out + (cfg → ans_bot))
           v <- eval(fix_select)(e)
           _ <- update_out_cache(cfg, v)
         } yield v
         val t = m(ρ)(in, σ, out)
         (t._1, t._2): (Rep[(Set[Value], Store)], Rep[Cache])
       }))
-    _ <- put_out_cache(res._2)
     _ <- put_store(res._1._2)
+    _ <- put_out_cache(res._2)
     v <- lift_nd(res._1._1)
   } yield v
 

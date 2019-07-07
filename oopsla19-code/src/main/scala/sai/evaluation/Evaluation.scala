@@ -107,9 +107,11 @@ object Evaluation {
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
       val b = res._1._1
+      val store = res._1._2
       val storesize = res._1._2.size
       println(b)
-      println(storesize)
+      //println(storesize)
+      println(store)
       ()
     }
   }
@@ -130,6 +132,7 @@ object Evaluation {
     val res = SWUnstagedSchemeAnalyzer.run(e)
     println("unstaged " + res._1._1)
     println("unstaged store " + res._1._2.size)
+    println("unstaged store " + res._1._2)
   }
 
   def compare(eval: Expr => Unit, spec: Expr => DslDriver[Unit, Unit])(e: Expr, id: String): Unit = {
