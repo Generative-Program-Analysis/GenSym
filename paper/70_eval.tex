@@ -60,18 +60,18 @@ We used the following benchmark programs:
     \midrule
                         &      & \multicolumn{3}{c}{w/o store-widening (sec.)}  &  \multicolumn{3}{c}{w/ store-widening (ms)}\\
     \midrule
-    @fib@               & 32   & 0.013      & 0.002      & 6.50x      & 1.537 & 0.067  &  22.87x       \\
+    @fib@               & 32   & 0.013      & 0.002      & 6.50x      & 1.537 & 0.067  &  22.87x      \\
     @rsa@               & 451  & 0.232      & 0.042      & 5.52x      & 15.113& 1.449 &  10.43x       \\
     @church@            & 120  & 67.342     & 18.917     & 3.56x      & 2.962 & 0.291 &  10.19x       \\
     @fermat@            & 310  & 0.024      & 0.004      & 6.00x      & 7.624 & 0.622 &  12.26x       \\
     @mbrotZ@            & 331  & 0.763      & 0.127      & 6.01x      & 12.229& 0.729 &  16.77x       \\
-    @lattice@           & 609  & 31.874     & 8.816      & 3.62x      & 17.943& 0.909 &  19.75x      \\
-    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 7.50x      & 4.658 & 0.785 &  5.93x     \\
-    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 12.91x     & 10.005& 1.680 &  5.95x     \\
-    @kcfa-worst-64@     & 774  & 2.18       & 0.129      & 16.90x     & 22.999& 3.872 &  5.94x     \\
-    @solovay-strassen@  & 523  & 5.094      & 1.189      & 4.28x      & 19.118& 0.654 &  29.25x      \\
-    @regex@             & 550  & -          & -          & -          & 7.133 & 0.624 &  11.43x      \\
-    @matrix@            & 1891 & -          & -          & -          & 86.176& 4.592 &  18.76x      \\
+    @lattice@           & 609  & 31.874     & 8.816      & 3.62x      & 17.943& 0.909 &  19.75x       \\
+    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 7.50x      & 4.658 & 0.785 &  5.93x        \\
+    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 12.91x     & 10.005& 1.680 &  5.95x        \\
+    @kcfa-worst-64@     & 710  & 2.18       & 0.129      & 16.90x     & 22.999& 3.872 &  5.94x        \\
+    @solovay-strassen@  & 523  & 5.094      & 1.189      & 4.28x      & 19.118& 0.654 &  29.25x       \\
+    @regex@             & 550  & -          & -          & -          & 7.133 & 0.624 &  11.43x       \\
+    @matrix@            & 1732 & -          & -          & -          & 86.176& 4.592 &  18.76x       \\
     \bottomrule
 \end{tabular}
 \caption{Evaluation result for monovariant control-flow analysis.} \label{evaluation_result}
@@ -83,7 +83,7 @@ performance improved by staging on two monovariant CFA (without and with store-w
 analysis. The column $\frac{\text{unstaged}}{\text{staged}}$
 shows the improvement from staging. The dash - in some cells indicates timeout.
 As we can see from the table, the staged version significantly outperforms the
-unstaged version on all benchmarks. %, especially for the @kcfa-worst-@$n$ series.
+unstaged version on all benchmarks.
 We observe the most improvement of 29x times faster than the unstaged version on
 @solovay-strassen@. On average, the staging produces code that runs 11x times faster
 than the unstaged analyzer.
@@ -93,14 +93,3 @@ layers. Thus our evaluation result provides an abstraction without regret
 approach to construct optimizing abstract interpreters -- the user may write a
 high-level modular and composable abstract interpreter, and then derive a staged
 version in a principled way that runs significantly faster.
-
-\iffalse
-As we can see from the table, the staged version significantly outperforms the
-unstaged especially for the difficult ones. However, for some benchmarks, we
-observe degraded performance. We conjecture this happens due to the fact that
-the large size of the generated code is unoptimized -- as what we test here is a
-simple implementation almost identical to what we described in the previous
-sections, we believe the performance still can be improved if more engineering
-effort is taken, such as optimizing code generation and avoiding code
-duplication.
-\fi

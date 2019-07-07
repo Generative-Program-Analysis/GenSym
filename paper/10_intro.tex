@@ -59,8 +59,8 @@ significantly if it runs repeatedly, for example, on libraries. Second, the
 abstract interpreter written in pure languages usually extensively uses effect
 systems to model the behaviors of abstract interpretation, such as
 nondeterminism. For example, \citet{DBLP:journals/pacmpl/DaraisLNH17} and
-\citet{Sergey:2013:MAI:2491956.2491979}'s monadic abstract interpreters use
-monad transformers; the very recent \citet{Githubsemantic}'s \textsc{Semantic} framework
+\citet{Sergey:2013:MAI:2491956.2491979}'s monadic abstract interpreters;
+the very recent \citet{Githubsemantic}'s \textsc{Semantic} framework
 uses extensible effects. With certain merits and elegance of the implementation,
 the effect systems may also introduce additional performance overhead.
 
@@ -124,7 +124,8 @@ interpreter that uses monad transformers as the unstaged baseline. By
 deriving staged monads that can be used to do code generation, we may
 obtain a staged abstract interpreter that fulfills the specialization.
 After staging, the generated code is specialized to the input program,
-and all monadic operations are all inlined.
+and all monadic operations are all inlined and compiled down to low-level
+Scala code.
 
 \input{fig_confluence.tex}
 
