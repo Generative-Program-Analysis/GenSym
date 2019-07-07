@@ -38,6 +38,10 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   def ext_env(ans: Ans)(xα: (String, Addr)): Ans = ReaderTMonad[NdStoreInOutCacheM, Env].local(ans)(ρ => ρ + xα)
   def local_env(ans: Ans)(ρ: Env): Ans = ReaderTMonad[NdStoreInOutCacheM, Env].local(ans)(_ => ρ)
 
+  // allocate addresses
+  def alloc(σ: Store, x: String): Addr = ZCFAAddr(x)
+  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
+
   // Store operations
   def get_store: AnsM[Store] =
     ReaderT.liftM[NdStoreInOutCacheM, Env, Store](
@@ -52,12 +56,8 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   def set_store(αv: (Addr, Value)): AnsM[Unit] =
     ReaderT.liftM[NdStoreInOutCacheM, Env, Unit](
       SetT.liftM[StoreInOutCacheM, Unit](
-        StateTMonad[InOutCacheM, Store].mod(σ => { σ ⊔ Map(αv) })
+        StateTMonad[InOutCacheM, Store].mod(σ => σ ⊔ Map(αv))
       ))
-
-  // allocate addresses
-  def alloc(σ: Store, x: String): Addr = { ZCFAAddr(x) }
-  def alloc(x: String): AnsM[Addr] = for { σ <- get_store } yield alloc(σ, x)
 
   // Primitive operations
   def void: Ans = literal(())

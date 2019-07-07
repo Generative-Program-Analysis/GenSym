@@ -30,21 +30,21 @@ object Evaluation {
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
-    //(fib, "fib"),
-    //(rsa, "rsa"),
+    (fib, "fib"),
+    (rsa, "rsa"),
     (church, "church"),
     (fermat, "fermat"),
-    //(mbrotZ, "mbrotZ"),
-    //(lattice, "lattice"),
-    //(kcfa16, "kcfa16"),
-    //(kcfa32, "kcfa32"),
-    //(kcfa64, "kcfa64"),
-    //(solovay, "solovay")
+    (mbrotZ, "mbrotZ"),
+    (lattice, "lattice"),
+    (kcfa16, "kcfa16"),
+    (kcfa32, "kcfa32"),
+    (kcfa64, "kcfa64"),
+    (solovay, "solovay")
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    //(regex, "regex"),
-    //(matrix, "matrix")
+    (regex, "regex"),
+    (matrix, "matrix")
   )
 
   def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
@@ -68,7 +68,7 @@ object Evaluation {
   )
 
   def main(args: Array[String]) {
-    //runEvaluation(WithoutStoreWidening(progs_wo_sw))
+    runEvaluation(WithoutStoreWidening(progs_wo_sw))
     //println("\n********************************************\n")
     runEvaluation(WithStoreWidening(progs_w_sw))
   }
@@ -110,8 +110,7 @@ object Evaluation {
       val store = res._1._2
       val storesize = res._1._2.size
       println(b)
-      //println(storesize)
-      println(store)
+      println(storesize)
       ()
     }
   }
@@ -132,7 +131,6 @@ object Evaluation {
     val res = SWUnstagedSchemeAnalyzer.run(e)
     println("unstaged " + res._1._1)
     println("unstaged store " + res._1._2.size)
-    println("unstaged store " + res._1._2)
   }
 
   def compare(eval: Expr => Unit, spec: Expr => DslDriver[Unit, Unit])(e: Expr, id: String): Unit = {

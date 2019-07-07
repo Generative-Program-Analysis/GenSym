@@ -28,8 +28,9 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
   def mAddr: Manifest[Addr] = manifest[Addr]
 
   type R[T] = Rep[T]
+  type EnvT[F[_], B] = ReaderT[F, Env, B]
   type NdStoreInOutCacheM[T] = SetStateReaderStateM[Cache, Store, Cache, T]
-  type AnsM[T] = ReaderT[NdStoreInOutCacheM, Env, T]
+  type AnsM[T] = EnvT[NdStoreInOutCacheM, T]
 
   type Res = ((Set[Value], Store), Cache)
 
@@ -88,7 +89,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
         val repαs: Rep[List[Addr]] = List(αs :_*)
         val ρ_* : Rep[Env] = params.map(unit[String]).zip(αs).foldLeft(ρ)(_ + _)
         val σ_* : Rep[Store] = repαs.zip(args).foldLeft(σ) { case (σ, αv) => σ ⊔ Map(αv) }
-        val res = ev(e)(ρ_*)(in, σ_*, out)
+        val res = ev(e)(ρ_*)(σ_*, in, out)
         (res._1, res._2): (Rep[(Set[Value], Store)], Rep[Cache])
     }
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))
@@ -100,9 +101,9 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     out <- get_out_cache
     σ   <- get_store
     res <- lift_nd[Res](Set(emit_ap_clo(clo, args, σ, in, out)))
+    v   <- lift_nd[Value](res._1._1)
     _   <- put_out_cache(res._2)
     _   <- put_store(res._1._2)
-    v   <- lift_nd[Value](res._1._1)
   } yield v
 
   // auxiliary function that lifts values
@@ -228,7 +229,8 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     case _ => fix_cache(e)
   }
 
-  def fix_cache(e: Expr): Ans = for {
+  def fix_cache(e: Expr): Ans = {
+    for {
     ρ <- ask_env
     σ <- get_store
     in <- ask_in_cache
@@ -244,13 +246,13 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
           v <- eval(fix_select)(e)
           _ <- update_out_cache(cfg, v)
         } yield v
-        val t = m(ρ)(in, σ, out)
+        val t = m(ρ)(σ, in, out)
         (t._1, t._2): (Rep[(Set[Value], Store)], Rep[Cache])
       }))
     _ <- put_store(res._1._2)
     _ <- put_out_cache(res._2)
     v <- lift_nd(res._1._1)
-  } yield v
+  } yield v }
 
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()
@@ -258,7 +260,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
 
   type Result = ((Rep[Set[Value]], Rep[Store]), Rep[Cache])
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
-  def run(e: Expr): Result = fix(eval)(e)(ρ0)(cache0, σ0, cache0)
+  def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0, cache0, cache0)
 }
 
 trait SWZeroCFAEnvOpt extends MapOpsExpOpt { self: SWStagedSchemeAnalyzerOps =>
@@ -269,7 +271,6 @@ trait SWZeroCFAEnvOpt extends MapOpsExpOpt { self: SWStagedSchemeAnalyzerOps =>
 }
 
 trait SWStagedSchemeAnalyzerExp extends SWStagedSchemeAnalyzerOps with SAIOpsExp with SWZeroCFAEnvOpt {
-  //case class IRCompiledClo(f: (List[Exp[Value]], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[(List[(Value, Store)], Cache)],
   case class IRCompiledClo(f: Exp[((List[Value], Store, Cache, Cache)) => Res], λ: Int, ρ: Exp[Env]) extends Def[AbsValue]
   case class IRApClo(clo: Exp[AbsValue], args: Exp[List[Value]], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[Res]
 
