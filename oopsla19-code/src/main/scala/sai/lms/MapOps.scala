@@ -75,9 +75,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 
   def map_empty[K:Manifest,V:Manifest](implicit pos: SourceContext) = MapEmpty(manifest[K], manifest[V])
   def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = MapApply(m, k)
-  def map_contains[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = m match {
-    case _ => MapContains(m, k)
-  }
+  def map_contains[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = MapContains(m, k)
   def map_new[K:Manifest,V:Manifest](kv: Seq[(Exp[K],Exp[V])])(implicit pos: SourceContext) = MapNew(kv, manifest[K], manifest[V])
   def map_size[K:Manifest,V:Manifest](m: Exp[Map[K,V]])(implicit pos: SourceContext) = MapSize(m)
   def map_get[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k: Exp[K])(implicit pos: SourceContext) = MapGet(m, k)
@@ -134,6 +132,19 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 }
 
 trait MapOpsExpOpt extends MapOpsExp {
+  override def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
+    case (Def(MapNew(kv, _, _)), Const(_)) => kv.toMap.apply(k)
+    case _ => super.map_apply(m, k)
+  }
+  override def map_contains[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
+    case (Def(MapNew(kv, _, _)), Const(_)) => unit(kv.toMap.contains(k))
+    case (Def(MapNew(kv, _, _)), _) if kv.size == 0 => unit(false)
+    case _ => super.map_contains(m, k)
+  }
+  override def map_getorelse[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k: Exp[K], default: Exp[V])(implicit pos: SourceContext) = m match {
+    case Def(MapNew(kv, _, _)) if kv.size == 0 => default
+    case _ => super.map_getorelse(m, k, default)
+  }
 
   override def map_foldleft[K: Manifest, V: Manifest, B: Manifest](m: Exp[Map[K, V]], z: Exp[B], f: (Exp[B], (Exp[K], Exp[V])) => Exp[B])(implicit pos: SourceContext) = m match {
     case Def(MapNew(kv, _, _)) if kv.size == 0 => z

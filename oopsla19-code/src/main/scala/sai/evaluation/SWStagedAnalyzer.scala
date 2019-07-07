@@ -192,6 +192,9 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     , "list" -> Set[AbsValue](unit(ListVTop))
     , "%" -> Set[AbsValue](unit(IntV))
     , "brother" -> Set[AbsValue](unit(SymV)) //matrix symbols
+    , "child" -> Set[AbsValue](unit(SymV))
+    , "now" -> Set[AbsValue](unit(SymV))
+    , "puke" -> Set[AbsValue](unit(SymV))
     , "caar" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
     , "for-each" -> Set[AbsValue](unit(VoidV))
     , "map" -> Set[AbsValue](unit(ListVTop))
