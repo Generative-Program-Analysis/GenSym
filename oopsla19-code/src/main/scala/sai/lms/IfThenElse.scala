@@ -18,7 +18,7 @@ trait SAI_ScalaGenIfThenElse extends ScalaGenEffect with BaseGenIfThenElse {
       val else_sym = if_sym + "_else"
       val obj_sym = if_sym + "_obj"
 
-      stream.println("object " + obj_sym + " {")
+      //stream.println("object " + obj_sym + " {")
         stream.println("def " + then_sym + "() = {")
         emitBlock(a)
         stream.println(quote(getBlockResult(a)))
@@ -28,12 +28,14 @@ trait SAI_ScalaGenIfThenElse extends ScalaGenEffect with BaseGenIfThenElse {
         emitBlock(b)
         stream.println(quote(getBlockResult(b)))
         stream.println("}")
-      stream.println("}")
+      //stream.println("}")
 
       stream.print("val " + if_sym + " = if (" + quote(c) + ") ")
-      stream.print(obj_sym + "." + then_sym + "()")
+      //stream.print(obj_sym + "." + then_sym + "()")
+      stream.print(then_sym + "()")
       stream.print(" else ")
-      stream.println(obj_sym + "." + else_sym + "()")
+      //stream.println(obj_sym + "." + else_sym + "()")
+      stream.println(else_sym + "()")
     case _ => super.emitNode(sym, rhs)
   }
 }

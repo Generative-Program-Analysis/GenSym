@@ -202,17 +202,17 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
     case SetUnion(s1, s2) => emitValDef(sym, src"$s1.union($s2)")
     case SetSubsetOf(s1, s2) => emitValDef(sym, src"$s1.subsetOf($s2)")
     case SetFoldLeft(s, z, acc, x, blk) =>
-      gen"""def $sym = $s.foldLeft ($z) { case ($acc, $x) =>
+      gen"""val $sym = $s.foldLeft ($z) { case ($acc, $x) =>
             |${nestedBlock(blk)}
             |$blk
             |}"""
     case SetFoldLeftPair(s, z, acc1, acc2, x, blk) =>
-      gen"""def $sym = $s.foldLeft ($z) { case (($acc1, $acc2), $x) =>
+      gen"""val $sym = $s.foldLeft ($z) { case (($acc1, $acc2), $x) =>
             |${nestedBlock(blk)}
             |$blk
             |}"""
     case SetFoldLeftPairPair(s, z, b, c, d, x, body) =>
-      gen"""def $sym = $s.foldLeft ($z) { case ((($b, $c), $d), $x) =>
+      gen"""val $sym = $s.foldLeft ($z) { case ((($b, $c), $d), $x) =>
             |${nestedBlock(body)}
             |$body
             }"""
