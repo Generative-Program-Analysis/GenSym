@@ -13,7 +13,7 @@ trait ListOps extends Variables with TupleOps {
     def apply[A:Manifest](xs: Rep[A]*)(implicit pos: SourceContext) = list_new(xs)
   }
 
-  implicit def varToListOps[T:Manifest](x: Var[List[T]]) = new ListOpsCls(readVar(x)) // FIXME: dep on var is not nice
+  implicit def varToListOps[T:Manifest](x: Var[List[T]]) = new ListOpsCls(readVar(x)) 
   implicit def repToListOps[T:Manifest](a: Rep[List[T]]) = new ListOpsCls(a)
   implicit def listToListOps[T:Manifest](a: List[T]) = new ListOpsCls(unit(a))
 

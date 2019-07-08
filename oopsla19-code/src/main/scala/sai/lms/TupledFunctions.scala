@@ -8,8 +8,6 @@ import org.scala_lang.virtualized.SourceContext
 
 /* Fixed code generator for tupled functions */
 
-//TODO: double check whether it is necessary?
-
 trait SAI_ScalaGenTupledFunctions extends ScalaGenFunctions with GenericGenUnboxedTupleAccess {
   val IR: TupledFunctionsExp
   import IR._
@@ -56,7 +54,7 @@ trait SAI_ScalaGenTupledFunctions extends ScalaGenFunctions with GenericGenUnbox
       val res = remap(m.typeArguments.last)
       //val targsUnboxed = targs.flatMap(t => unwrapTupleStr(t))
       val targsUnboxed = targs.map(t => unwrapTupleStr(t))
-      if (targsUnboxed.head == "Unit") { //FIXME: GW hack
+      if (targsUnboxed.head == "Unit") { //Note: GW hacks here
         val size = targs.map(s => topLevelTupleSize(s)).foldLeft(0)(_ + _)
         val sep = if (targsUnboxed.tail.length > 0) "," else ""
         s"scala.Function${size-1}[" + targsUnboxed.tail.mkString(",") + sep + res + "]"

@@ -54,14 +54,6 @@ trait SetOps extends Base with Variables with ListOps with TupleOps with TupledF
 }
 
 trait SetOpsExp extends SetOps with EffectExp with VariablesExp with BooleanOpsExp with TupledFunctionsExp with ListOpsExp with TupleOpsExp {
-  /*
-  implicit def setTyp[T:Manifest]: Manifest[Set[T]] = {
-    manifest[Set[T]]
-  }
-  */
-
-  //TODO: syms, boundSyms, symsFreq, mirror
-
   case class SetNew[A:Manifest](xs: Seq[Exp[A]], mA: Manifest[A]) extends Def[Set[A]]
   case class SetConcat[A:Manifest](s1: Exp[Set[A]], s2: Exp[Set[A]]) extends Def[Set[A]]
   case class SetIsEmpty[A:Manifest](s: Exp[Set[A]]) extends Def[Boolean]
@@ -164,7 +156,6 @@ trait SetOpsExpOpt extends SetOpsExp with ListOpsExp {
   override def set_foldLeftPair[A: Manifest, B: Manifest, C: Manifest](s: Exp[Set[A]], z: Exp[(B,C)], f: ((Exp[B], Exp[C]), Exp[A]) => Exp[(B,C)])(implicit pos: SourceContext) = s match {
     case Def(SetNew(xs, _)) if xs.size == 0 => z
     case Def(SetNew(xs, _)) if xs.size == 1 => f(z, xs(0))
-    // TODO: generalize
     case _ => super.set_foldLeftPair(s, z, f)
   }
 

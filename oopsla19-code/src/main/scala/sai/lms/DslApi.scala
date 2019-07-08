@@ -107,7 +107,6 @@ trait DslExp extends Dsl with PrimitiveOpsExpOpt with NumericOpsExpOpt with Bool
     case _ => super.array_apply(x,n)
   }
 
-  // TODO: should this be in LMS?
   override def isPrimitiveType[T](m: Manifest[T]) = (m == manifest[String]) || super.isPrimitiveType(m)
 }
 
@@ -211,7 +210,7 @@ trait DslGenC extends CGenNumericOps
   }
 
   override def quote(x: Exp[Any]) = x match {
-    case Const(s: String) => "\""+s.replace("\"", "\\\"")+"\"" // TODO: more escapes?
+    case Const(s: String) => "\""+s.replace("\"", "\\\"")+"\"" 
     case Const('\n') if x.tp == manifest[Char] => "'\\n'"
     case Const('\t') if x.tp == manifest[Char] => "'\\t'"
     case Const(0)    if x.tp == manifest[Char] => "'\\0'"

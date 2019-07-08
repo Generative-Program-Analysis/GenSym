@@ -32,7 +32,6 @@ trait MapOps extends Variables {
     def foreach(f: (Rep[K], Rep[V]) => Rep[Unit])(implicit pos: SourceContext) = map_foreach(m, f)
     def filter(f: (Rep[K], Rep[V]) => Rep[Boolean])(implicit pos: SourceContext) = map_filter(m, f)
     def map[A:Manifest](f: (Rep[K], Rep[V]) => Rep[A])(implicit pos: SourceContext) = map_map(m, f)
-    //TODO: flatMap
   }
 
   def map_empty[K:Manifest,V:Manifest](implicit pos: SourceContext): Rep[Map[K,V]]
@@ -109,7 +108,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
   }
 
   override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
-    case e@MapNew(kv, mk, mv) => ??? //FIXME
+    //case e@MapNew(kv, mk, mv) => ???
     case _ => super.mirror(e, f)
   }).asInstanceOf[Exp[A]]
 
