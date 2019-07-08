@@ -229,6 +229,12 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
             StateTMonad[IdM, Cache].mod(c => c ⊔ Map(cfg → Set(vs))
             )))))
 
+  def print_select(e: Expr)(s: String): Unit = e match {
+    case Void() | Sym(_) | CharLit(_) | IntLit(_)
+       | FloatLit(_) | BoolLit(_) | Var(_) | Lam(_, _) => ()
+    case _ => print(e); println(s)
+  }
+
   def fix(ev: EvalFun => EvalFun): EvalFun = e => for {
     ρ <- ask_env
     σ <- get_store
@@ -236,8 +242,10 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
     out <- get_out_cache
     val cfg = (e, ρ)
     rt <- if (out.contains(cfg)) {
+      //print_select(e)("  [missed]")
       lift_nd[Value](out(cfg))
     } else {
+      //print_select(e)("  [hitted]")
       val ans_bot = in.getOrElse(cfg, Lattice[Set[Value]].bot)
       for {
         _ <- put_out_cache(out + (cfg → ans_bot))

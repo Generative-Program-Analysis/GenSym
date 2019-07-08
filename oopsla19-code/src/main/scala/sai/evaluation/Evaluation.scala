@@ -25,7 +25,7 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 20
+  val N = 1
   val sw = "sw"
   val wo_sw = "wo_sw"
 
@@ -34,8 +34,8 @@ object Evaluation {
     //(rsa, "rsa"),
     //(church, "church"),
     //(fermat, "fermat"),
-    //(mbrotZ, "mbrotZ"), //FIXME
-    //(lattice, "lattice"), //FIXME
+    //(mbrotZ, "mbrotZ"),
+    (lattice, "lattice"),
     //(kcfa16, "kcfa16"),
     //(kcfa32, "kcfa32"),
     //(kcfa64, "kcfa64"),
@@ -43,8 +43,8 @@ object Evaluation {
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    //(regex, "regex"), //FIXME
-    (matrix, "matrix")
+    (regex, "regex"),
+    //(matrix, "matrix")
   )
 
   def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
@@ -107,7 +107,7 @@ object Evaluation {
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
       val b = res._1._1
-      val store = res._1._2
+      val storekeys = res._1._2.keySet
       val storesize = res._1._2.size
       println(b)
       println(storesize)
@@ -152,7 +152,6 @@ object Evaluation {
     } else {
       code.precompile
       run(N, { code.eval(()) })
-      run(N, { () })
     }
     println(s"[$id] [staged] - ${t2}s")
     println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")

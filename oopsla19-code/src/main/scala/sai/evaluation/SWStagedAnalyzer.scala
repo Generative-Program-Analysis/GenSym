@@ -101,9 +101,9 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     out <- get_out_cache
     σ   <- get_store
     res <- lift_nd[Res](Set(emit_ap_clo(clo, args, σ, in, out)))
-    v   <- lift_nd[Value](res._1._1)
     _   <- put_out_cache(res._2)
     _   <- put_store(res._1._2)
+    v   <- lift_nd[Value](res._1._1)
   } yield v
 
   // auxiliary function that lifts values
@@ -226,14 +226,14 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
       } yield primMaps(x)
     }
   }
+
   def fix_select: EvalFun = e => e match {
     case Void() | Sym(_) | CharLit(_) | IntLit(_)
        | FloatLit(_) | BoolLit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)
     case _ => fix_cache(e)
   }
 
-  def fix_cache(e: Expr): Ans = {
-    for {
+  def fix_cache(e: Expr): Ans = for {
     ρ <- ask_env
     σ <- get_store
     in <- ask_in_cache
@@ -241,8 +241,10 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ)))
     res <- lift_nd[((Set[Value], Store), Cache)](Set(
       if (out.contains(cfg)) {
+        //print(unit(e)); println("  [missed]")
         ((repMapToMapOps(out).apply(cfg), σ), out): (Rep[(Set[Value], Store)], Rep[Cache])
       } else {
+        //print(unit(e)); println("  [hitted]")
         val ans_bot = in.getOrElse(cfg, RepLattice[Set[Value]].bot)
         val m: Ans = for {
           _ <- put_out_cache(out + (cfg → ans_bot))
@@ -255,7 +257,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
     _ <- put_store(res._1._2)
     _ <- put_out_cache(res._2)
     v <- lift_nd(res._1._1)
-  } yield v }
+  } yield v
 
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()
@@ -311,7 +313,6 @@ trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
               mv == manifest[Addr] &&
               kvs.forall(kv => kv._1.isInstanceOf[Const[String]] && kv._2.isInstanceOf[Const[Addr]])) =>
       emitValDef(sym, src"${quote(kvs.hashCode)}")
-      //emitValDef(sym, src"Map[$mk, $mv](${(kvs.map(kv => "("+quote(kv._1)+","+quote(kv._2)+")")).mkString(",")})")
     case IRCompiledClo(f, λ, ρ) =>
       emitValDef(sym, s"CompiledClo(${quote(f)}, ${quote(λ)}, ${quote(ρ)})")
     case IRApClo(f, args, σ, in, out) =>

@@ -34,7 +34,8 @@
                                    (make-rectangular (->fl x)
                                                      (->fl y))))
                (loop5 (- x 1)))
-            (loop4 (- y 1)))) (void))))
+              (loop4 (- y 1)))) 
+    (void))))
 
 (define (test n)
   (let ((matrix (make-vector n)))
@@ -47,10 +48,10 @@
     (vector-ref (vector-ref matrix 0) 0)))
 
 (define (main)
-  (let* ((count (read))
+  (let* ((count-n (read))
          (input1 (read))
          (output (read))
-         (s2 (number->string count))
+         (s2 (number->string count-n))
          (s1 (number->string input1))
          (name "mbrot"))
     (let ([ok?
@@ -58,7 +59,7 @@
           [thunk (lambda () (test input1))])
       (let loop3 ([i 0]
                  [result (void)])
-        (cond [(< i count)
+        (cond [(< i count-n)
                (loop3 (+ i 1) (thunk))]
               [(ok? result) result]
               [else

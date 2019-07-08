@@ -7,7 +7,8 @@ object TestPrograms {
   def getAST(prog: String) = {
     SchemeParser(prog) match {
       case Some(expr) => 
-        ASTUtils.alpha(SchemeASTDesugar(expr), Map())._1
+        //ASTUtils.alpha(SchemeASTDesugar(expr), Map())._1
+        SchemeASTDesugar(expr)
     }
   }
 
