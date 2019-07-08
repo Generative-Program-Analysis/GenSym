@@ -26,7 +26,8 @@ object SAIRuntime {
   case class KCFAAddr(x: String, ctx: Expr) extends Addr
 
   type Value = Set[AbsValue]
-  type Env = Map[String, Addr] 
+  //type Env = Map[String, Addr] 
+  type Env = Int
   type Store = Map[Addr, Value]
   type Config = (Int, Env, Store)
   type Cache = Map[Config, Set[(Value, Store)]]
@@ -56,7 +57,8 @@ object SWSAIRuntime {
   case class KCFAAddr(x: String, ctx: Expr) extends Addr
 
   type Value = Set[AbsValue]
-  type Env = Map[String, Addr] 
+  //type Env = Map[String, Addr] 
+  type Env = Int 
   type Store = Map[Addr, Value]
   type Config = (Int, Env)
   type Cache = Map[Config, Set[Value]]

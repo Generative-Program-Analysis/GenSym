@@ -25,14 +25,14 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 1
+  val N = 10
   val sw = "sw"
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
     (fib, "fib"),
     (rsa, "rsa"),
-    (church, "church"),
+    //(church, "church"),
     (fermat, "fermat"),
     (mbrotZ, "mbrotZ"),
     (lattice, "lattice"),
@@ -43,7 +43,7 @@ object Evaluation {
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    (regex, "regex"),
+    //(regex, "regex"),
     //(matrix, "matrix")
   )
 
@@ -69,7 +69,7 @@ object Evaluation {
 
   def main(args: Array[String]) {
     runEvaluation(WithoutStoreWidening(progs_wo_sw))
-    //println("\n********************************************\n")
+    println("\n********************************************\n")
     runEvaluation(WithStoreWidening(progs_w_sw))
   }
 
@@ -77,14 +77,14 @@ object Evaluation {
     case WithoutStoreWidening(progs) =>
       println("Start running evaluation for CFA without store-widening")
       progs foreach { case (e, id) =>
-        compare(evalUnstaged, specialize)(e, id)
+        compare(evalUnstaged, specialize)(e, id + "_0cfa")
         println("============================================")
       }
       println("End running evaluation for CFA without store-widening")
     case WithStoreWidening(progs) =>
       println("Start running evaluation for CFA with store-widening")
       progs foreach {case (e, id) =>
-        compare(evalUnstagedSW, specializeSW)(e, id)
+        compare(evalUnstagedSW, specializeSW)(e, id + "_0cfa-sw")
         println("============================================")
       }
       println("End running evaluation for CFA with store-widening")
@@ -97,8 +97,8 @@ object Evaluation {
       /*
       val a = res._1.size
       val b = res._2.size
-      //println(a)
-      //println(b)
+      println(a)
+      println(b)
       ()
       */
     }
@@ -151,9 +151,10 @@ object Evaluation {
       // Note: `matrix` codegens a large file that exceeds the JVM class size limit,
       // Here we run a pre-generated code for matrix, which was slightly modified
       // by spliting the method intro smaller ones.
-      val s = new sai.Snippet_matrix()
-      println("start running matrix")
-      run(N, { s.apply(()) })
+      //val s = new sai.Snippet_matrix()
+      //println("start running matrix")
+      //run(N, { s.apply(()) })
+      run(N, { () })
     } else {
       code.precompile
       run(N, { code.eval(()) })

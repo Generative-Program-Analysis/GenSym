@@ -301,10 +301,22 @@ trait StagedSchemeAnalyzerGen extends GenericNestedCodegen {
     else if (m.toString.endsWith("$ZCFAAddr")) "ZCFAAddr"
     else if (m.toString.endsWith("$Addr")) "Addr"
     else if (m.toString.endsWith("$Expr")) "Expr"
-    else super.remap(m)
+    else {
+      val ms = m.toString
+      if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,")
+            && ms.endsWith("AbstractComponents$Addr]")) {
+        "Env"
+      }
+      else super.remap(m)
+    }
   }
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+    case MapNew(kvs, mk, mv)
+        if (mk == manifest[String] &&
+              mv == manifest[Addr] &&
+              kvs.forall(kv => kv._1.isInstanceOf[Const[String]] && kv._2.isInstanceOf[Const[Addr]])) =>
+      emitValDef(sym, src"${quote(kvs.hashCode)}")
     case IRCompiledClo(f, λ, ρ) =>
       emitValDef(sym, s"CompiledClo(${quote(f)}, ${quote(λ)}, ${quote(ρ)})")
     case IRApClo(f, args, σ, in, out) =>

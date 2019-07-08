@@ -295,10 +295,23 @@ trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
     else if (m.toString.endsWith("$ZCFAAddr")) "ZCFAAddr"
     else if (m.toString.endsWith("$Addr")) "Addr"
     else if (m.toString.endsWith("$Expr")) "Expr"
-    else super.remap(m)
+    else {
+      val ms = m.toString
+      if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,")
+          && ms.endsWith("AbstractComponents$Addr]")) {
+        "Env"
+      }
+      else super.remap(m)
+    }
   }
 
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
+    case MapNew(kvs, mk, mv)
+        if (mk == manifest[String] &&
+              mv == manifest[Addr] &&
+              kvs.forall(kv => kv._1.isInstanceOf[Const[String]] && kv._2.isInstanceOf[Const[Addr]])) =>
+      emitValDef(sym, src"${quote(kvs.hashCode)}")
+      //emitValDef(sym, src"Map[$mk, $mv](${(kvs.map(kv => "("+quote(kv._1)+","+quote(kv._2)+")")).mkString(",")})")
     case IRCompiledClo(f, λ, ρ) =>
       emitValDef(sym, s"CompiledClo(${quote(f)}, ${quote(λ)}, ${quote(ρ)})")
     case IRApClo(f, args, σ, in, out) =>
@@ -308,7 +321,8 @@ trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
       //TODO: merge back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
       val typeName = sym.tp.runtimeClass.getSimpleName +
-        "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
+        "[" + sym.tp.typeArguments.map(a => { /*System.out.println(a);*/ this.remap(a) }).mkString(",") + "]"
+
       emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
     case _ => super.emitNode(sym, rhs)
   }
