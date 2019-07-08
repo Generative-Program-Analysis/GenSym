@@ -57,33 +57,18 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
   }
 
+  def lift[T: Manifest](t: Rep[T]): AnsM[T] = 
+    ReaderT.liftM[StoreM, Env, T](StateT.liftM[IdM, Store, T](IdM(t)))
+
   def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = emit_int_proj(test)
     for {
       ρ <- ask_env
       σ <- get_store
-      res <- ReaderT.liftM[StoreM, Env, (Value, Store)](
-        StateT.liftM[IdM, Store, (Value, Store)](
-          IdM.pure(if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run)
-      ))
+      res <- lift[(Value, Store)](if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run)
       _ <- put_store(res._2)
     } yield res._1
   }
-    //FIXME: (run-main-3f) scala.MatchError: Sym(49) (of class scala.virtualization.lms.internal.Expressions$Sym)
-    /*
-    ask_env.flatMap { ρ =>
-      get_store.flatMap { σ =>
-        val (v, σ_*): (Rep[Value], Rep[Store]) =
-          if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run
-        put_store(σ_*).map(_ => v)
-      } }
-    for {
-      ρ <- ask_env
-      σ <- get_store
-      val res: Rep[(Value, Store)] = if (i == 0) thn(ρ)(σ) else els(ρ)(σ)
-      _ <- put_store(res._2)
-    } yield res._1
-     */
 
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
@@ -95,18 +80,11 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
     emit_compiled_clo(f, λ, ρ)
   }
 
-  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans =
-    get_store.flatMap { σ =>
-      val (v, σ_*): (Rep[Value], Rep[Store]) = emit_ap_clo(fun, arg, σ)
-      put_store(σ_*).map(_ => v)
-    }
-    /*
-    for {
-      σ <- get_store
-      val res: Rep[(Value, Store)] = emit_ap_clo(fun, arg, σ)
-      _ <- put_store(res._2)
-    } yield res._1
-       */
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
+    σ  <- get_store
+    vs <- lift[(Value, Store)](emit_ap_clo(fun, arg, σ))
+    _  <- put_store(vs._2)
+  } yield vs._1
 
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()

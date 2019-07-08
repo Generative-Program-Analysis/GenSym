@@ -84,30 +84,16 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
 
   def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](emit_inttop)
 
-  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = {
-    get_store.flatMap { σ =>
-      lift_nd[AbsValue](fun.toList).flatMap { clo =>
-        ask_in_cache.flatMap { in =>
-          get_out_cache.flatMap { out =>
-            val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
-            put_out_cache(res._2).flatMap { _ =>
-              lift_nd[(Value, Store)](res._1).flatMap { vs =>
-                put_store(vs._2).map { _ =>
-                  vs._1
-                } } } } } } }
-  }
-  /*
-  for {
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
     σ <- get_store
     clo <- lift_nd[AbsValue](fun.toList)
     in <- ask_in_cache
     out <- get_out_cache
-    val res: Rep[(List[(Value, Store)], Cache)] = emit_ap_clo(clo, arg, σ, in, out)
+    res <- lift_nd[(List[(Value, Store)], Cache)](List(emit_ap_clo(clo, arg, σ, in, out)))
     _ <- put_out_cache(res._2)
     vs <- lift_nd[(Value, Store)](res._1)
     _ <- put_store(vs._2)
   } yield vs._1
-  */
 
   // cache operations
   def ask_in_cache: AnsM[Cache] =
@@ -139,30 +125,29 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
     case _ => fix_cache(e)
   }
 
-  def fix_cache: EvalFun = { e =>
-    ask_env.flatMap { ρ =>
-      get_store.flatMap { σ =>
-        ask_in_cache.flatMap { in =>
-          get_out_cache.flatMap { out =>
-            val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
-            val res: Rep[(List[(Value, Store)], Cache)] =
-              if (out.contains(cfg)) {
-                (repMapToMapOps(out).apply(cfg).toList, out) //FIXME: ambigious implicit
-              } else {
-                val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
-                val m: Ans = for {
-                  _ <- put_out_cache(out + (cfg → res_in))
-                  v <- eval(fix_select)(e)
-                  σ <- get_store
-                  _ <- update_out_cache(cfg, (v, σ))
-                } yield v
-                m(ρ)(σ)(in)(out)
-              }
-            put_out_cache(res._2).flatMap { _ =>
-              lift_nd(res._1).flatMap { vs =>
-                put_store(vs._2).map { _ =>
-                  vs._1
-                } } } } } } } }
+  def fix_cache(e: Expr): Ans = for {
+    ρ <- ask_env
+    σ <- get_store
+    in <- ask_in_cache
+    out <- get_out_cache
+    cfg <- lift_nd[(Expr, Env, Store)](List((unit(e), ρ, σ)))
+    res <- lift_nd[(List[(Value, Store)], Cache)](List(
+      if (out.contains(cfg)) {
+        (repMapToMapOps(out).apply(cfg).toList, out)
+      } else {
+        val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+        val m: Ans = for {
+          _ <- put_out_cache(out + (cfg → res_in))
+          v <- eval(fix_select)(e)
+          σ <- get_store
+          _ <- update_out_cache(cfg, (v, σ))
+        } yield v
+        m(ρ)(σ)(in)(out)
+      }))
+    _ <- put_out_cache(res._2)
+    vs <- lift_nd(res._1)
+    _ <- put_store(vs._2)
+  } yield vs._1
 
   // non-selective caching
   def fix_nonsel(ev: EvalFun => EvalFun): EvalFun = { e =>
@@ -174,7 +159,7 @@ trait StagedAbstractSemantics extends AbstractComponents with RepMonads with Rep
       val cfg: Rep[(Expr, Env, Store)] = (unit(e), ρ, σ)
       val res: Rep[(List[(Value, Store)], Cache)] =
         if (out.contains(cfg)) {
-          (repMapToMapOps(out).apply(cfg).toList, out) //FIXME: out(cfg)
+          (repMapToMapOps(out).apply(cfg).toList, out)
         } else {
           val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
           val m: Ans = for {
@@ -221,7 +206,7 @@ trait StagedAbstractSemanticsExp extends StagedAbstractSemantics with SAIOpsExp 
 
   def emit_ap_clo(clo: Exp[AbsValue], arg: Exp[Value], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = clo match {
     //Note: egar beta-reduction, produces larger residual code
-    //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out) //FIXME: how to remove reflect?
+    //case Def(Reflect(CompiledClo(f, rf, λ, ρ), s, d)) => f(arg, σ, in, out)
     //case Def(CompiledClo(f, rf, λ, ρ)) => f(arg, σ, in, out)
     case _ => reflectEffect(IRApClo(clo, arg, σ, in, out))
   }
