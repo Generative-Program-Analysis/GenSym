@@ -3,7 +3,7 @@
 To evaluate how the performance can be improved by our staged abstract interpreters
 approach, we scale our toy interpreter to a large subset of the Scheme language
 and evaluate the analyzing time against with the unstaged versions. The result
-shows that the staged versions are averagely 11x times as fast as the unstaged
+shows that the staged versions are averagely 10+ times as fast as the unstaged
 version, as strong evidence of our \textit{abstraction without regret}
 approach.
 
@@ -13,10 +13,9 @@ value-flow analysis focus on lambda terms in functional languages. A front-end
 desugars Scheme to a small core language that makes the analyzer easy to
 implement. As described in Section \ref{cfa}, we implement two monovariant
 0-CFA-like analysis, one is equipped with store-widening, the other does not.
-We also implement several optimizations mentioned in Section \ref{staged_ds} 
-(less than ~30 LOC in total).
+We also implement several optimizations mentioned in Section \ref{staged_ds}.
 
-We use Scala 2.12.7 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04 LTS
+We use Scala 2.12.8 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04 LTS
 (kernel 4.4.0) machine. All of our evaluations were performed on a machine with 4 Intel
 Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96
 cores (192 threads) in total, the abstract interpreters are single-threaded.
@@ -36,20 +35,6 @@ key encryption algorithm @rsa@. In the Figure \ref{evaluation_result}, we report
 the number of AST node after parsing and desugaring (excluding comments) as a
 proper measurement of program size.
 
-\iffalse
-We used the following benchmark programs:
-\begin{itemize}
-  %\item \textbf{fib}: Calculates the $n$-th fibonacci number.
-  \item \textbf{rsa}: The RSA public key encryption algorithm.
-  \item \textbf{kcfa3}: A difficult benchmark for $k$-CFA.
-  \item \textbf{church}: Church numerals with additions and mutiplications.
-  \item \textbf{fermat}: Fermat and Solovay-Strassen primality testing.
-  \item \textbf{kcfa-worst-case-}\textit{n}: 
-    Benchmark programs that are supposed to be tough cases for $k$-CFA; 
-    the number $n$ indicates the depth of nesting lambda terms.
-\end{itemize}
-\fi
-
 \paragraph{Result}
 
 \begin{figure}[h]
@@ -58,20 +43,20 @@ We used the following benchmark programs:
 \toprule
     program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ & unstaged   & staged    & $\frac{\text{unstaged}}{\text{staged}}$  \\ 
     \midrule
-                        &      & \multicolumn{3}{c}{w/o store-widening (sec.)}  &  \multicolumn{3}{c}{w/ store-widening (ms)}\\
+                        &      & \multicolumn{3}{c}{w/o store-widening}  &  \multicolumn{3}{c}{w/ store-widening}\\
     \midrule
-    @fib@               & 32   & 0.013      & 0.002      & 6.50x      & 1.537 & 0.067  &  22.87x      \\
-    @rsa@               & 451  & 0.232      & 0.042      & 5.52x      & 15.113& 1.449 &  10.43x       \\
-    @church@            & 120  & 67.342     & 18.917     & 3.56x      & 2.962 & 0.291 &  10.19x       \\
-    @fermat@            & 310  & 0.024      & 0.004      & 6.00x      & 7.624 & 0.622 &  12.26x       \\
-    @mbrotZ@            & 331  & 0.763      & 0.127      & 6.01x      & 12.229& 0.729 &  16.77x       \\
-    @lattice@           & 609  & 31.874     & 8.816      & 3.62x      & 17.943& 0.909 &  19.75x       \\
-    @kcfa-worst-16@     & 182  & 0.045      & 0.006      & 7.50x      & 4.658 & 0.785 &  5.93x        \\
-    @kcfa-worst-32@     & 358  & 0.284      & 0.022      & 12.91x     & 10.005& 1.680 &  5.95x        \\
-    @kcfa-worst-64@     & 710  & 2.18       & 0.129      & 16.90x     & 22.999& 3.872 &  5.94x        \\
-    @solovay-strassen@  & 523  & 5.094      & 1.189      & 4.28x      & 19.118& 0.654 &  29.25x       \\
-    @regex@             & 550  & -          & -          & -          & 7.133 & 0.624 &  11.43x       \\
-    @matrix@            & 1732 & -          & -          & -          & 86.176& 4.592 &  18.76x       \\
+    @fib@               & 32   & 3.288 ms   & 0.154 ms   & 21.33x      & 1.434 ms   & 0.098 ms  &  14.62x       \\
+    @rsa@               & 451  & 238.171 ms & 23.333 ms  & 10.20x      & 11.977 ms  & 1.197 ms  &  10.00x       \\
+    @church@            & 120  & 61.001 s   & 4.277 s    & 14.26x      & 2.338 ms   & 0.534 ms  &  4.37x        \\
+    @fermat@            & 310  & 23.540 ms  & 2.885 ms   & 8.05x       & 7.146 ms   & 0.915 ms  &  7.81x        \\
+    @mbrotZ@            & 331  & 665.456 ms & 66.070 ms  & 10.07x      & 11.008 ms  & 1.476 ms  &  7.45x        \\
+    @lattice@           & 609  & 29.230 s   & 2.627 s    & 11.12x      & 16.432 ms  & 2.427 ms  &  6.76x        \\
+    @kcfa-worst-16@     & 182  & 44.431 ms  & 3.211 ms   & 13.83x      & 4.425 ms   & 0.850 ms  &  5.20x        \\
+    @kcfa-worst-32@     & 358  & 284.268 ms & 9.065 ms   & 31.35x      & 10.109 ms  & 1.661 ms  &  6.08x        \\
+    @kcfa-worst-64@     & 710  & 2.057 s    & 0.029 s    & 70.23x      & 23.269 ms  & 3.312 ms  &  7.02x        \\
+    @solovay-strassen@  & 523  & 5.078 s    & 0.766 s    & 6.62x       & 18.757 ms  & 3.142 ms  &  5.96x       \\
+    @regex@             & 550  & -          & -          & -           & 6.803 ms   & 1.088 ms  &  6.24x       \\
+    @matrix@            & 1732 & -          & -          & -           & 85.611 ms  & 9.297 ms  &  9.20x       \\
     \bottomrule
 \end{tabular}
 \caption{Evaluation result for monovariant control-flow analysis.} \label{evaluation_result}
@@ -84,8 +69,7 @@ analysis. The column $\frac{\text{unstaged}}{\text{staged}}$
 shows the improvement from staging. The dash - in some cells indicates timeout.
 As we can see from the table, the staged version significantly outperforms the
 unstaged version on all benchmarks.
-We observe the most improvement of 29x times faster than the unstaged version on
-@solovay-strassen@. On average, the staging produces code that runs 11x times faster
+On average, the staging produces code that runs 17x times faster
 than the unstaged analyzer.
 
 We also observe that much overhead of unstaged analyzers are from the monadic
