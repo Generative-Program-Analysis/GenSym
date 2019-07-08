@@ -62,8 +62,6 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
   def set_store(αv: (Rep[Addr], Rep[Value])): AnsM[Unit] =
     ReaderT.liftM[StoreNdInOutCacheM, Env, Unit](StateTMonad[NdInOutCacheM, Store].mod(σ => σ ⊔ Map(αv)))
 
-  def foldVss(vss: Rep[List[Value]]): Rep[Value] = ???
-
   def void: Ans = ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue]())
   def literal(i: Any): Ans = {
     val v: AbsValue = i match {
@@ -73,8 +71,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
       case b: Boolean => BoolV
       case x: String => SymV
       case _ =>
-        System.out.println(s"value representation for $i not implemented")
-          ???
+        throw new RuntimeException(s"value representation for $i not implemented")
     }
     ReaderTMonad[StoreNdInOutCacheM, Env].pure[Value](Set[AbsValue](unit(v)))
   }
@@ -94,8 +91,18 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     }
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))
   }
-  def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = {
-    get_store.flatMap { σ =>
+  def ap_clo(ev: EvalFun)(fun: Rep[Value], args: Rep[List[Value]]): Ans = for {
+    σ   <- get_store
+    clo <- lift_clo[AbsValue](fun)
+    in  <- ask_in_cache
+    out <- get_out_cache
+    res <- lift_nd[(Set[(Value, Store)], Cache)](Set(emit_ap_clo(clo, args, σ, in, out)))
+    _   <- put_out_cache(res._2)
+    vs  <- lift_nd[(Value, Store)](res._1)
+    _   <- put_store(vs._2)
+  } yield vs._1
+  /*
+  { get_store.flatMap { σ =>
       lift_clo[AbsValue](fun).flatMap { clo =>
         ask_in_cache.flatMap { in =>
           get_out_cache.flatMap { out =>
@@ -104,6 +111,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
               lift_nd[(Value, Store)](res._1).flatMap { vs =>
                 put_store(vs._2).map { _ => vs._1 }
               } } } } } } }
+   */
 
   def primMaps = scala.collection.immutable.Map[String, Rep[Set[AbsValue]]](
       "not" -> Set[AbsValue](unit(BoolV))
