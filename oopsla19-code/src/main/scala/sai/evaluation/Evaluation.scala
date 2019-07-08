@@ -30,6 +30,7 @@ object Evaluation {
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
+    /*
     (fib, "fib"),
     (rsa, "rsa"),
     (church, "church"),
@@ -40,10 +41,11 @@ object Evaluation {
     (kcfa32, "kcfa32"),
     (kcfa64, "kcfa64"),
     (solovay, "solovay")
+    */
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    (regex, "regex"),
+    //(regex, "regex"),
     (matrix, "matrix")
   )
 
@@ -139,15 +141,17 @@ object Evaluation {
     println(s"[$id] [unstaged] - ${t1}s")
 
     val code = spec(e)
-    code.precompile
+    //code.precompile
     val outfile = output(id)
     println(s"[$id] [staged] Finished precompile, writing code to ${outfile}")
     writeTo(outfile, code.code)
-
+    
+    /*
     val (res2, t2) = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
 
     println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")
+    */
   }
 
   def run[R](n: Int, block: => R): (R, Timing) = {
