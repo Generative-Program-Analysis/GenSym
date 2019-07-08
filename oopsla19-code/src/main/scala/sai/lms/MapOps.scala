@@ -136,6 +136,7 @@ trait MapOpsExpOpt extends MapOpsExp {
     case Def(MapNew(kv, _, _)) if kv.size == 0 => default
     case Def(MapNew(kv, _, _)) => k match {
       case Const(ck) => kv.toMap.getOrElse(k, default)
+      case _ => super.map_getorelse(m, k, default)
     }
     case _ => super.map_getorelse(m, k, default)
   }
