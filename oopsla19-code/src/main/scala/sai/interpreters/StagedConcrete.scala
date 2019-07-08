@@ -63,8 +63,9 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
       ρ <- ask_env
       σ <- get_store
       res <- ReaderT.liftM[StoreM, Env, (Value, Store)](
-        if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run
-      )
+        StateT.liftM[IdM, Store, (Value, Store)](
+          IdM.pure(if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run)
+      ))
       _ <- put_store(res._2)
     } yield res._1
   }
@@ -83,7 +84,6 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
       _ <- put_store(res._2)
     } yield res._1
      */
-  }
 
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
