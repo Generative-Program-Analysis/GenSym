@@ -25,26 +25,26 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 1
+  val N = 20
   val sw = "sw"
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
-    //(fib, "fib"),
-    //(rsa, "rsa"),
-    //(church, "church"),
-    //(fermat, "fermat"),
-    //(mbrotZ, "mbrotZ"),
+    (fib, "fib"),
+    (rsa, "rsa"),
+    (church, "church"),
+    (fermat, "fermat"),
+    (mbrotZ, "mbrotZ"),
     (lattice, "lattice"),
-    //(kcfa16, "kcfa16"),
-    //(kcfa32, "kcfa32"),
-    //(kcfa64, "kcfa64"),
-    //(solovay, "solovay")
+    (kcfa16, "kcfa16"),
+    (kcfa32, "kcfa32"),
+    (kcfa64, "kcfa64"),
+    (solovay, "solovay")
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
     (regex, "regex"),
-    //(matrix, "matrix")
+    (matrix, "matrix")
   )
 
   def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
@@ -68,7 +68,7 @@ object Evaluation {
   )
 
   def main(args: Array[String]) {
-    //runEvaluation(WithoutStoreWidening(progs_wo_sw))
+    runEvaluation(WithoutStoreWidening(progs_wo_sw))
     println("\n********************************************\n")
     runEvaluation(WithStoreWidening(progs_w_sw))
   }
@@ -94,11 +94,6 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      val a = res._1.size
-      val b = res._2.size
-      println(a)
-      println(b)
-      ()
     }
   }
 
@@ -106,25 +101,15 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      val b = res._1._1
-      val storekeys = res._1._2.keySet
-      val storesize = res._1._2.size
-      println(b)
-      println(storesize)
-      ()
     }
   }
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run(e)
-    println(res._1.size)
-    println(res._2.size)
   }
 
   def evalUnstagedSW(e: Expr): Unit = {
     val res = SWUnstagedSchemeAnalyzer.run(e)
-    println("unstaged " + res._1._1)
-    println("unstaged store " + res._1._2.size)
   }
 
   def writeTo(filename: String, content: String): Unit = {
@@ -145,8 +130,8 @@ object Evaluation {
     
     val (res2, t2) = if (id == "matrix_0cfa-sw") {
       // Note: `matrix` codegens a large file that exceeds the JVM class size limit,
-      // Here we run a pre-generated code for matrix, which was slightly modified
-      // by spliting the class into two smaller ones.
+      // To bypass such restriction, here we run a pre-generated code for matrix, 
+      // which was slightly modified by spliting the class into two smaller ones.
       val s = new sai.GeneratedMatrix_0CFASW()
       run(N, { s.apply(()) })
     } else {
