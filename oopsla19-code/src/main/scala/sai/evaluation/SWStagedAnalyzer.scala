@@ -319,7 +319,7 @@ trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(args)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
     case Struct(tag, elems) =>
       //This fixes code generation for tuples, such as Tuple2MapIntValueValue
-      //TODO: merge back to LMS
+      //Note: need to merge this fix back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
       val typeName = sym.tp.runtimeClass.getSimpleName +
         "[" + sym.tp.typeArguments.map(a => { /*System.out.println(a);*/ this.remap(a) }).mkString(",") + "]"

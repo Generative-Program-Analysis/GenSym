@@ -126,7 +126,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     , "error" -> Set[AbsValue]()
     , "cons" -> Set[AbsValue](unit(ListVTop))
     , "cdr" -> Set[AbsValue](unit(ListVTop))
-    , "car" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV)) //FIXME
+    , "car" -> Set[AbsValue](unit(IntV), unit(FloatV), unit(CharV), unit(BoolV))
     , "<" -> Set[AbsValue](unit(BoolV))
     , "quotient" -> Set[AbsValue](unit(IntV))
     , "gcd" -> Set[AbsValue](unit(IntV))
@@ -323,7 +323,7 @@ trait StagedSchemeAnalyzerGen extends GenericNestedCodegen {
       emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(args)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
     case Struct(tag, elems) =>
       //This fixes code generation for tuples, such as Tuple2MapIntValueValue
-      //TODO: merge back to LMS
+      //Note: need to merge this fix back to LMS
       registerStruct(structName(sym.tp), sym.tp, elems)
       val typeName = sym.tp.runtimeClass.getSimpleName +
         "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"

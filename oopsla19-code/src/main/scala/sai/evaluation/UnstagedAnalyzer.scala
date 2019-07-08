@@ -106,7 +106,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
       , "error" -> Set()
       , "cons" -> Set(ListVTop)
       , "cdr" -> Set(ListVTop)
-      , "car" -> Set(IntV, FloatV, CharV, BoolV) //FIXME
+      , "car" -> Set(IntV, FloatV, CharV, BoolV)
       , "<" -> Set(BoolV)
       , "quotient" -> Set(IntV)
       , "gcd" -> Set(IntV)
