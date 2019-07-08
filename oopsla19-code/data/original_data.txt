@@ -1,0 +1,1040 @@
+Start running evaluation for CFA without store-widening
+Running evaluation for fib_0cfa, AST size: 32
+  Iteration #1 took 0.072312685s
+  Iteration #2 took 0.005054929s
+  Iteration #3 took 0.004228703s
+  Iteration #4 took 0.004263615s
+  Iteration #5 took 0.004294325s
+  Iteration #6 took 0.003522138s
+  Iteration #7 took 0.003372353s
+  Iteration #8 took 0.002518128s
+  Iteration #9 took 0.002230054s
+  Iteration #10 took 0.002451105s
+  Iteration #11 took 0.00226358s
+  Iteration #12 took 0.002679908s
+  Iteration #13 took 0.004060072s
+  Iteration #14 took 0.003288774s
+  Iteration #15 took 0.002561514s
+  Iteration #16 took 0.002533524s
+  Iteration #17 took 0.003426296s
+  Iteration #18 took 0.002863407s
+  Iteration #19 took 0.001688284s
+  Iteration #20 took 0.001560155s
+[fib_0cfa] [unstaged] - #: 20, Mean: 0.00655867745, Median: 0.003288774s
+[fib_0cfa] [staged] Finished precompile, writing code to CodeGen_fib_0cfa.out
+compilation: ok
+  Iteration #1 took 0.017899103s
+  Iteration #2 took 2.98046E-4s
+  Iteration #3 took 4.12433E-4s
+  Iteration #4 took 2.93166E-4s
+  Iteration #5 took 1.67377E-4s
+  Iteration #6 took 1.58733E-4s
+  Iteration #7 took 1.7915E-4s
+  Iteration #8 took 2.50171E-4s
+  Iteration #9 took 1.54142E-4s
+  Iteration #10 took 1.48886E-4s
+  Iteration #11 took 1.47703E-4s
+  Iteration #12 took 1.50737E-4s
+  Iteration #13 took 1.50336E-4s
+  Iteration #14 took 1.46399E-4s
+  Iteration #15 took 1.46142E-4s
+  Iteration #16 took 1.46357E-4s
+  Iteration #17 took 1.47194E-4s
+  Iteration #18 took 1.46643E-4s
+  Iteration #19 took 1.58619E-4s
+  Iteration #20 took 1.48561E-4s
+[fib_0cfa] [staged] - #: 20, Mean: 0.0010724948999999999, Median: 1.54142E-4s
+[fib_0cfa] Median speedup - 21.336001868407056
+============================================
+Running evaluation for rsa_0cfa, AST size: 451
+  Iteration #1 took 0.248657668s
+  Iteration #2 took 0.230922946s
+  Iteration #3 took 0.2292843s
+  Iteration #4 took 0.231855005s
+  Iteration #5 took 0.238171427s
+  Iteration #6 took 0.224542418s
+  Iteration #7 took 0.250399538s
+  Iteration #8 took 0.265804563s
+  Iteration #9 took 0.260625882s
+  Iteration #10 took 0.262032768s
+  Iteration #11 took 0.257689648s
+  Iteration #12 took 0.25891984s
+  Iteration #13 took 0.246692573s
+  Iteration #14 took 0.36166177s
+  Iteration #15 took 0.215069413s
+  Iteration #16 took 0.214225363s
+  Iteration #17 took 0.216890593s
+  Iteration #18 took 0.234503186s
+  Iteration #19 took 0.229039379s
+  Iteration #20 took 0.217879843s
+[rsa_0cfa] [unstaged] - #: 20, Mean: 0.24474340615, Median: 0.238171427s
+[rsa_0cfa] [staged] Finished precompile, writing code to CodeGen_rsa_0cfa.out
+compilation: ok
+  Iteration #1 took 0.141737443s
+  Iteration #2 took 0.024065217s
+  Iteration #3 took 0.023927076s
+  Iteration #4 took 0.023989971s
+  Iteration #5 took 0.023974137s
+  Iteration #6 took 0.023559873s
+  Iteration #7 took 0.023386727s
+  Iteration #8 took 0.023382597s
+  Iteration #9 took 0.023191623s
+  Iteration #10 took 0.02333177s
+  Iteration #11 took 0.023147494s
+  Iteration #12 took 0.023361486s
+  Iteration #13 took 0.023243935s
+  Iteration #14 took 0.023107882s
+  Iteration #15 took 0.023115775s
+  Iteration #16 took 0.023182153s
+  Iteration #17 took 0.023101802s
+  Iteration #18 took 0.023185945s
+  Iteration #19 took 0.023259037s
+  Iteration #20 took 0.023170679s
+[rsa_0cfa] [staged] - #: 20, Mean: 0.0293211311, Median: 0.02333177s
+[rsa_0cfa] Median speedup - 10.208030809492806
+============================================
+Running evaluation for church_0cfa, AST size: 120
+  Iteration #1 took 61.296589799s
+  Iteration #2 took 61.075708707s
+  Iteration #3 took 60.972858344s
+  Iteration #4 took 60.934341892s
+  Iteration #5 took 60.721117175s
+  Iteration #6 took 61.028647022s
+  Iteration #7 took 60.90707636s
+  Iteration #8 took 60.927313237s
+  Iteration #9 took 61.011124208s
+  Iteration #10 took 61.426771437s
+  Iteration #11 took 60.930362098s
+  Iteration #12 took 61.145669957s
+  Iteration #13 took 61.0018946s
+  Iteration #14 took 60.977043181s
+  Iteration #15 took 61.77901177s
+  Iteration #16 took 60.791163495s
+  Iteration #17 took 61.409714845s
+  Iteration #18 took 60.908326218s
+  Iteration #19 took 61.534862096s
+  Iteration #20 took 60.816100483s
+[church_0cfa] [unstaged] - #: 20, Mean: 61.079784846200006, Median: 61.0018946s
+[church_0cfa] [staged] Finished precompile, writing code to CodeGen_church_0cfa.out
+compilation: ok
+  Iteration #1 took 4.335883396s
+  Iteration #2 took 4.304417967s
+  Iteration #3 took 4.260266931s
+  Iteration #4 took 4.369561811s
+  Iteration #5 took 4.198364604s
+  Iteration #6 took 4.280866327s
+  Iteration #7 took 4.294108851s
+  Iteration #8 took 4.146635255s
+  Iteration #9 took 4.277156056s
+  Iteration #10 took 4.187553115s
+  Iteration #11 took 4.469210057s
+  Iteration #12 took 4.205498117s
+  Iteration #13 took 4.181376653s
+  Iteration #14 took 4.416224844s
+  Iteration #15 took 4.327559662s
+  Iteration #16 took 4.263785458s
+  Iteration #17 took 4.261818231s
+  Iteration #18 took 4.386668453s
+  Iteration #19 took 4.21374631s
+  Iteration #20 took 4.197431113s
+[church_0cfa] [staged] - #: 20, Mean: 4.27890666055, Median: 4.277156056s
+[church_0cfa] Median speedup - 14.262255994710893
+============================================
+Running evaluation for fermat_0cfa, AST size: 310
+  Iteration #1 took 0.023750997s
+  Iteration #2 took 0.024706739s
+  Iteration #3 took 0.022761763s
+  Iteration #4 took 0.022801196s
+  Iteration #5 took 0.02435474s
+  Iteration #6 took 0.025029329s
+  Iteration #7 took 0.026034923s
+  Iteration #8 took 0.024870205s
+  Iteration #9 took 0.022639412s
+  Iteration #10 took 0.023696749s
+  Iteration #11 took 0.02269058s
+  Iteration #12 took 0.022757636s
+  Iteration #13 took 0.02276521s
+  Iteration #14 took 0.02341393s
+  Iteration #15 took 0.023258195s
+  Iteration #16 took 0.022762342s
+  Iteration #17 took 0.022681048s
+  Iteration #18 took 0.022689473s
+  Iteration #19 took 0.022732221s
+  Iteration #20 took 0.02441007s
+[fermat_0cfa] [unstaged] - #: 20, Mean: 0.023540337899999993, Median: 0.023258195s
+[fermat_0cfa] [staged] Finished precompile, writing code to CodeGen_fermat_0cfa.out
+compilation: ok
+  Iteration #1 took 0.090117995s
+  Iteration #2 took 0.00320536s
+  Iteration #3 took 0.003038516s
+  Iteration #4 took 0.002961492s
+  Iteration #5 took 0.00299107s
+  Iteration #6 took 0.002936112s
+  Iteration #7 took 0.002880173s
+  Iteration #8 took 0.002876484s
+  Iteration #9 took 0.002882919s
+  Iteration #10 took 0.002903125s
+  Iteration #11 took 0.002900452s
+  Iteration #12 took 0.002889186s
+  Iteration #13 took 0.002873932s
+  Iteration #14 took 0.002868367s
+  Iteration #15 took 0.002874481s
+  Iteration #16 took 0.002885924s
+  Iteration #17 took 0.002878925s
+  Iteration #18 took 0.002877168s
+  Iteration #19 took 0.002873288s
+  Iteration #20 took 0.002875061s
+[fermat_0cfa] [staged] - #: 20, Mean: 0.0072795015000000005, Median: 0.002885924s
+[fermat_0cfa] Median speedup - 8.059184857258888
+============================================
+Running evaluation for mbrotZ_0cfa, AST size: 331
+  Iteration #1 took 0.672952253s
+  Iteration #2 took 0.666972023s
+  Iteration #3 took 0.666154942s
+  Iteration #4 took 0.667763911s
+  Iteration #5 took 0.666616773s
+  Iteration #6 took 0.667121289s
+  Iteration #7 took 0.674334309s
+  Iteration #8 took 0.666719824s
+  Iteration #9 took 0.663584749s
+  Iteration #10 took 0.664758585s
+  Iteration #11 took 0.664082451s
+  Iteration #12 took 0.663090417s
+  Iteration #13 took 0.664597859s
+  Iteration #14 took 0.665050615s
+  Iteration #15 took 0.665236754s
+  Iteration #16 took 0.663321062s
+  Iteration #17 took 0.724059251s
+  Iteration #18 took 0.663553121s
+  Iteration #19 took 0.664955321s
+  Iteration #20 took 0.665456599s
+[mbrotZ_0cfa] [unstaged] - #: 20, Mean: 0.6690191054000001, Median: 0.665456599s
+[mbrotZ_0cfa] [staged] Finished precompile, writing code to CodeGen_mbrotZ_0cfa.out
+compilation: ok
+  Iteration #1 took 0.231466363s
+  Iteration #2 took 0.066763381s
+  Iteration #3 took 0.066725017s
+  Iteration #4 took 0.066726408s
+  Iteration #5 took 0.066543012s
+  Iteration #6 took 0.065996866s
+  Iteration #7 took 0.065972028s
+  Iteration #8 took 0.065855241s
+  Iteration #9 took 0.065979144s
+  Iteration #10 took 0.065541993s
+  Iteration #11 took 0.065623244s
+  Iteration #12 took 0.065642231s
+  Iteration #13 took 0.066728839s
+  Iteration #14 took 0.065504257s
+  Iteration #15 took 0.06661876s
+  Iteration #16 took 0.06595493s
+  Iteration #17 took 0.06668275s
+  Iteration #18 took 0.066070782s
+  Iteration #19 took 0.066249458s
+  Iteration #20 took 0.065949494s
+[mbrotZ_0cfa] [staged] - #: 20, Mean: 0.0744297099, Median: 0.066070782s
+[mbrotZ_0cfa] Median speedup - 10.071874115248098
+============================================
+Running evaluation for lattice_0cfa, AST size: 609
+  Iteration #1 took 29.199655815s
+  Iteration #2 took 29.324412559s
+  Iteration #3 took 29.196948173s
+  Iteration #4 took 29.156021007s
+  Iteration #5 took 29.248882094s
+  Iteration #6 took 29.230567204s
+  Iteration #7 took 29.22657127s
+  Iteration #8 took 29.139237748s
+  Iteration #9 took 29.193563211s
+  Iteration #10 took 29.258038042s
+  Iteration #11 took 29.237466988s
+  Iteration #12 took 29.255097236s
+  Iteration #13 took 29.22065802s
+  Iteration #14 took 29.147176431s
+  Iteration #15 took 29.191773768s
+  Iteration #16 took 29.354921005s
+  Iteration #17 took 29.305673315s
+  Iteration #18 took 29.347909896s
+  Iteration #19 took 29.300505215s
+  Iteration #20 took 29.164334512s
+[lattice_0cfa] [unstaged] - #: 20, Mean: 29.234970675450008, Median: 29.230567204s
+[lattice_0cfa] [staged] Finished precompile, writing code to CodeGen_lattice_0cfa.out
+compilation: ok
+  Iteration #1 took 2.997418965s
+  Iteration #2 took 2.60206138s
+  Iteration #3 took 2.679343649s
+  Iteration #4 took 2.601145368s
+  Iteration #5 took 2.756135893s
+  Iteration #6 took 2.599757035s
+  Iteration #7 took 2.664138788s
+  Iteration #8 took 2.595280296s
+  Iteration #9 took 2.770001697s
+  Iteration #10 took 2.596544827s
+  Iteration #11 took 2.689053096s
+  Iteration #12 took 2.583362944s
+  Iteration #13 took 2.580697631s
+  Iteration #14 took 2.810074694s
+  Iteration #15 took 2.591861956s
+  Iteration #16 took 2.62717162s
+  Iteration #17 took 2.601532842s
+  Iteration #18 took 2.712430888s
+  Iteration #19 took 2.595372222s
+  Iteration #20 took 2.848750731s
+[lattice_0cfa] [staged] - #: 20, Mean: 2.6751068261000004, Median: 2.62717162s
+[lattice_0cfa] Median speedup - 11.126249606791962
+============================================
+Running evaluation for kcfa16_0cfa, AST size: 182
+  Iteration #1 took 0.044431056s
+  Iteration #2 took 0.045438384s
+  Iteration #3 took 0.046820531s
+  Iteration #4 took 0.043897471s
+  Iteration #5 took 0.043932374s
+  Iteration #6 took 0.043874067s
+  Iteration #7 took 0.043979183s
+  Iteration #8 took 0.043978049s
+  Iteration #9 took 0.043943873s
+  Iteration #10 took 0.043859902s
+  Iteration #11 took 0.043860085s
+  Iteration #12 took 0.044858259s
+  Iteration #13 took 0.045804818s
+  Iteration #14 took 0.043989436s
+  Iteration #15 took 0.044903501s
+  Iteration #16 took 0.046004507s
+  Iteration #17 took 0.043807473s
+  Iteration #18 took 0.045790966s
+  Iteration #19 took 0.046336256s
+  Iteration #20 took 0.048635476s
+[kcfa16_0cfa] [unstaged] - #: 20, Mean: 0.04490728335, Median: 0.044431056s
+[kcfa16_0cfa] [staged] Finished precompile, writing code to CodeGen_kcfa16_0cfa.out
+compilation: ok
+  Iteration #1 took 0.145611203s
+  Iteration #2 took 0.003298253s
+  Iteration #3 took 0.003203938s
+  Iteration #4 took 0.003203305s
+  Iteration #5 took 0.00321642s
+  Iteration #6 took 0.00318279s
+  Iteration #7 took 0.003191493s
+  Iteration #8 took 0.004261009s
+  Iteration #9 took 0.003575537s
+  Iteration #10 took 0.003281643s
+  Iteration #11 took 0.003234256s
+  Iteration #12 took 0.003226441s
+  Iteration #13 took 0.0032169s
+  Iteration #14 took 0.003199918s
+  Iteration #15 took 0.003204408s
+  Iteration #16 took 0.003211984s
+  Iteration #17 took 0.003182164s
+  Iteration #18 took 0.003191037s
+  Iteration #19 took 0.003174733s
+  Iteration #20 took 0.003192979s
+[kcfa16_0cfa] [staged] - #: 20, Mean: 0.01040302055, Median: 0.003211984s
+[kcfa16_0cfa] Median speedup - 13.832900786554353
+============================================
+Running evaluation for kcfa32_0cfa, AST size: 358
+  Iteration #1 took 0.288776958s
+  Iteration #2 took 0.308357415s
+  Iteration #3 took 0.286013607s
+  Iteration #4 took 0.284268791s
+  Iteration #5 took 0.28789841s
+  Iteration #6 took 0.27934373s
+  Iteration #7 took 0.279535232s
+  Iteration #8 took 0.285210105s
+  Iteration #9 took 0.283110237s
+  Iteration #10 took 0.280346058s
+  Iteration #11 took 0.28292055s
+  Iteration #12 took 0.279019674s
+  Iteration #13 took 0.295495086s
+  Iteration #14 took 0.295237593s
+  Iteration #15 took 0.292751324s
+  Iteration #16 took 0.280639254s
+  Iteration #17 took 0.284572561s
+  Iteration #18 took 0.279862116s
+  Iteration #19 took 0.279352854s
+  Iteration #20 took 0.279902171s
+[kcfa32_0cfa] [unstaged] - #: 20, Mean: 0.2856306863, Median: 0.284268791s
+[kcfa32_0cfa] [staged] Finished precompile, writing code to CodeGen_kcfa32_0cfa.out
+compilation: ok
+  Iteration #1 took 0.284454882s
+  Iteration #2 took 0.009607609s
+  Iteration #3 took 0.009246956s
+  Iteration #4 took 0.009261001s
+  Iteration #5 took 0.009182963s
+  Iteration #6 took 0.009052476s
+  Iteration #7 took 0.009084027s
+  Iteration #8 took 0.103836095s
+  Iteration #9 took 0.010212258s
+  Iteration #10 took 0.00926622s
+  Iteration #11 took 0.009065694s
+  Iteration #12 took 0.009012976s
+  Iteration #13 took 0.00902251s
+  Iteration #14 took 0.008988311s
+  Iteration #15 took 0.008968128s
+  Iteration #16 took 0.008983714s
+  Iteration #17 took 0.008955952s
+  Iteration #18 took 0.008943718s
+  Iteration #19 took 0.008962579s
+  Iteration #20 took 0.00895386s
+[kcfa32_0cfa] [staged] - #: 20, Mean: 0.027653096450000005, Median: 0.009065694s
+[kcfa32_0cfa] Median speedup - 31.356539389041814
+============================================
+Running evaluation for kcfa64_0cfa, AST size: 710
+  Iteration #1 took 2.059570345s
+  Iteration #2 took 2.057987132s
+  Iteration #3 took 2.063463621s
+  Iteration #4 took 2.055917849s
+  Iteration #5 took 2.062359786s
+  Iteration #6 took 2.061667729s
+  Iteration #7 took 2.053081786s
+  Iteration #8 took 2.05387968s
+  Iteration #9 took 2.053071273s
+  Iteration #10 took 2.055012381s
+  Iteration #11 took 2.057078168s
+  Iteration #12 took 2.061899416s
+  Iteration #13 took 2.053721453s
+  Iteration #14 took 2.057045289s
+  Iteration #15 took 2.053725921s
+  Iteration #16 took 2.060950577s
+  Iteration #17 took 2.053127557s
+  Iteration #18 took 2.052840375s
+  Iteration #19 took 2.056180291s
+  Iteration #20 took 2.063174527s
+[kcfa64_0cfa] [unstaged] - #: 20, Mean: 2.0572877578, Median: 2.057045289s
+[kcfa64_0cfa] [staged] Finished precompile, writing code to CodeGen_kcfa64_0cfa.out
+compilation: ok
+  Iteration #1 took 1.746756113s
+  Iteration #2 took 0.03290418s
+  Iteration #3 took 0.031049452s
+  Iteration #4 took 0.030285779s
+  Iteration #5 took 0.029781468s
+  Iteration #6 took 0.029587885s
+  Iteration #7 took 0.029422609s
+  Iteration #8 took 0.029329143s
+  Iteration #9 took 0.029280133s
+  Iteration #10 took 0.029289731s
+  Iteration #11 took 0.02924978s
+  Iteration #12 took 0.029245388s
+  Iteration #13 took 0.0290942s
+  Iteration #14 took 0.029223466s
+  Iteration #15 took 0.029187211s
+  Iteration #16 took 0.029165789s
+  Iteration #17 took 0.02916456s
+  Iteration #18 took 0.029541203s
+  Iteration #19 took 0.029012807s
+  Iteration #20 took 0.029067838s
+[kcfa64_0cfa] [staged] - #: 20, Mean: 0.11548193675, Median: 0.029289731s
+[kcfa64_0cfa] Median speedup - 70.23093824248505
+============================================
+Running evaluation for solovay_0cfa, AST size: 523
+  Iteration #1 took 5.087874554s
+  Iteration #2 took 5.061731864s
+  Iteration #3 took 5.098421766s
+  Iteration #4 took 5.156221484s
+  Iteration #5 took 5.063463613s
+  Iteration #6 took 5.074480036s
+  Iteration #7 took 5.129695966s
+  Iteration #8 took 5.064798505s
+  Iteration #9 took 5.062181823s
+  Iteration #10 took 5.214266078s
+  Iteration #11 took 5.063028496s
+  Iteration #12 took 5.086678959s
+  Iteration #13 took 5.084837592s
+  Iteration #14 took 5.434025961s
+  Iteration #15 took 5.076108664s
+  Iteration #16 took 5.06365599s
+  Iteration #17 took 5.078974139s
+  Iteration #18 took 5.067864088s
+  Iteration #19 took 5.074503774s
+  Iteration #20 took 5.111467491s
+[solovay_0cfa] [unstaged] - #: 20, Mean: 5.10771404215, Median: 5.078974139s
+[solovay_0cfa] [staged] Finished precompile, writing code to CodeGen_solovay_0cfa.out
+compilation: ok
+  Iteration #1 took 2.105170236s
+  Iteration #2 took 0.716244519s
+  Iteration #3 took 0.766881487s
+  Iteration #4 took 0.712016436s
+  Iteration #5 took 0.778277627s
+  Iteration #6 took 0.689075893s
+  Iteration #7 took 0.786253058s
+  Iteration #8 took 0.789510167s
+  Iteration #9 took 0.853801822s
+  Iteration #10 took 0.76624115s
+  Iteration #11 took 0.774899431s
+  Iteration #12 took 0.711864441s
+  Iteration #13 took 0.701040973s
+  Iteration #14 took 0.773650788s
+  Iteration #15 took 0.708794874s
+  Iteration #16 took 0.768050354s
+  Iteration #17 took 0.823805658s
+  Iteration #18 took 0.712053182s
+  Iteration #19 took 0.726701191s
+  Iteration #20 took 0.711097021s
+[solovay_0cfa] [staged] - #: 20, Mean: 0.8187715153999999, Median: 0.766881487s
+[solovay_0cfa] Median speedup - 6.622893139419337
+============================================
+End running evaluation for CFA without store-widening
+
+********************************************
+
+Start running evaluation for CFA with store-widening
+Running evaluation for fib_0cfa-sw, AST size: 32
+  Iteration #1 took 0.017184264s
+  Iteration #2 took 0.001929898s
+  Iteration #3 took 0.001434887s
+  Iteration #4 took 0.001259211s
+  Iteration #5 took 0.00210778s
+  Iteration #6 took 0.00124353s
+  Iteration #7 took 0.001196271s
+  Iteration #8 took 0.001174326s
+  Iteration #9 took 0.001166784s
+  Iteration #10 took 0.001436953s
+  Iteration #11 took 0.001276635s
+  Iteration #12 took 0.001862499s
+  Iteration #13 took 0.00112416s
+  Iteration #14 took 0.00155185s
+  Iteration #15 took 0.001100525s
+  Iteration #16 took 0.001469564s
+  Iteration #17 took 0.00174112s
+  Iteration #18 took 0.001684158s
+  Iteration #19 took 9.86922E-4s
+  Iteration #20 took 9.18502E-4s
+[fib_0cfa-sw] [unstaged] - #: 20, Mean: 0.00219249195, Median: 0.001434887s
+[fib_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_fib_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.019823832s
+  Iteration #2 took 1.59763E-4s
+  Iteration #3 took 1.34244E-4s
+  Iteration #4 took 1.20165E-4s
+  Iteration #5 took 1.20747E-4s
+  Iteration #6 took 1.18103E-4s
+  Iteration #7 took 0.001267743s
+  Iteration #8 took 2.84614E-4s
+  Iteration #9 took 9.9065E-5s
+  Iteration #10 took 9.3037E-5s
+  Iteration #11 took 9.2835E-5s
+  Iteration #12 took 9.368E-5s
+  Iteration #13 took 9.7714E-5s
+  Iteration #14 took 9.2819E-5s
+  Iteration #15 took 9.3783E-5s
+  Iteration #16 took 9.242E-5s
+  Iteration #17 took 9.8127E-5s
+  Iteration #18 took 9.2113E-5s
+  Iteration #19 took 9.1993E-5s
+  Iteration #20 took 9.1879E-5s
+[fib_0cfa-sw] [staged] - #: 20, Mean: 0.0011579338, Median: 9.8127E-5s
+[fib_0cfa-sw] Median speedup - 14.622754185901941
+============================================
+Running evaluation for rsa_0cfa-sw, AST size: 451
+  Iteration #1 took 0.015318669s
+  Iteration #2 took 0.012897645s
+  Iteration #3 took 0.012893453s
+  Iteration #4 took 0.013432734s
+  Iteration #5 took 0.012496103s
+  Iteration #6 took 0.012255919s
+  Iteration #7 took 0.012134683s
+  Iteration #8 took 0.01197766s
+  Iteration #9 took 0.013583324s
+  Iteration #10 took 0.011768567s
+  Iteration #11 took 0.011772931s
+  Iteration #12 took 0.011680342s
+  Iteration #13 took 0.011733327s
+  Iteration #14 took 0.011999699s
+  Iteration #15 took 0.011431688s
+  Iteration #16 took 0.011371522s
+  Iteration #17 took 0.011254116s
+  Iteration #18 took 0.011127796s
+  Iteration #19 took 0.011065792s
+  Iteration #20 took 0.011169214s
+[rsa_0cfa-sw] [unstaged] - #: 20, Mean: 0.0121682592, Median: 0.01197766s
+[rsa_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_rsa_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.103394948s
+  Iteration #2 took 0.001423201s
+  Iteration #3 took 0.001273352s
+  Iteration #4 took 0.00130183s
+  Iteration #5 took 0.001419254s
+  Iteration #6 took 0.001197706s
+  Iteration #7 took 0.001988765s
+  Iteration #8 took 0.001278902s
+  Iteration #9 took 0.001225599s
+  Iteration #10 took 0.001173049s
+  Iteration #11 took 0.001244905s
+  Iteration #12 took 0.001075196s
+  Iteration #13 took 0.001052889s
+  Iteration #14 took 0.001033215s
+  Iteration #15 took 0.001055241s
+  Iteration #16 took 0.001006446s
+  Iteration #17 took 0.001004179s
+  Iteration #18 took 0.001008946s
+  Iteration #19 took 0.001005692s
+  Iteration #20 took 0.001015964s
+[rsa_0cfa-sw] [staged] - #: 20, Mean: 0.0063089639500000004, Median: 0.001197706s
+[rsa_0cfa-sw] Median speedup - 10.000500957664068
+============================================
+Running evaluation for church_0cfa-sw, AST size: 120
+  Iteration #1 took 0.003124516s
+  Iteration #2 took 0.002401951s
+  Iteration #3 took 0.002536136s
+  Iteration #4 took 0.002396728s
+  Iteration #5 took 0.002529818s
+  Iteration #6 took 0.002369553s
+  Iteration #7 took 0.002306224s
+  Iteration #8 took 0.002328772s
+  Iteration #9 took 0.002338539s
+  Iteration #10 took 0.00240907s
+  Iteration #11 took 0.002373642s
+  Iteration #12 took 0.002591301s
+  Iteration #13 took 0.002299644s
+  Iteration #14 took 0.002311138s
+  Iteration #15 took 0.002257359s
+  Iteration #16 took 0.002264405s
+  Iteration #17 took 0.002285427s
+  Iteration #18 took 0.002226644s
+  Iteration #19 took 0.002191541s
+  Iteration #20 took 0.002193209s
+[church_0cfa-sw] [unstaged] - #: 20, Mean: 0.00238678085, Median: 0.002338539s
+[church_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_church_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.050452091s
+  Iteration #2 took 6.13616E-4s
+  Iteration #3 took 0.001056637s
+  Iteration #4 took 5.70216E-4s
+  Iteration #5 took 5.5766E-4s
+  Iteration #6 took 5.27357E-4s
+  Iteration #7 took 5.23281E-4s
+  Iteration #8 took 5.1694E-4s
+  Iteration #9 took 5.36595E-4s
+  Iteration #10 took 5.3445E-4s
+  Iteration #11 took 5.12595E-4s
+  Iteration #12 took 5.05636E-4s
+  Iteration #13 took 6.34676E-4s
+  Iteration #14 took 5.0995E-4s
+  Iteration #15 took 5.05479E-4s
+  Iteration #16 took 5.44786E-4s
+  Iteration #17 took 5.24974E-4s
+  Iteration #18 took 7.50493E-4s
+  Iteration #19 took 5.12908E-4s
+  Iteration #20 took 4.76475E-4s
+[church_0cfa-sw] [staged] - #: 20, Mean: 0.0030683407499999997, Median: 5.3445E-4s
+[church_0cfa-sw] Median speedup - 4.375599214145383
+============================================
+Running evaluation for fermat_0cfa-sw, AST size: 310
+  Iteration #1 took 0.008662335s
+  Iteration #2 took 0.007175107s
+  Iteration #3 took 0.007154185s
+  Iteration #4 took 0.007128282s
+  Iteration #5 took 0.007146796s
+  Iteration #6 took 0.007147598s
+  Iteration #7 took 0.007127909s
+  Iteration #8 took 0.007127617s
+  Iteration #9 took 0.007172403s
+  Iteration #10 took 0.007158724s
+  Iteration #11 took 0.007122355s
+  Iteration #12 took 0.007156748s
+  Iteration #13 took 0.007136517s
+  Iteration #14 took 0.007146976s
+  Iteration #15 took 0.007186336s
+  Iteration #16 took 0.007114787s
+  Iteration #17 took 0.007125525s
+  Iteration #18 took 0.007106969s
+  Iteration #19 took 0.007085758s
+  Iteration #20 took 0.007098679s
+[fermat_0cfa-sw] [unstaged] - #: 20, Mean: 0.0072140803, Median: 0.007146796s
+[fermat_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_fermat_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.086543981s
+  Iteration #2 took 0.001034721s
+  Iteration #3 took 9.15004E-4s
+  Iteration #4 took 0.001588324s
+  Iteration #5 took 0.002268053s
+  Iteration #6 took 0.001238939s
+  Iteration #7 took 8.62101E-4s
+  Iteration #8 took 8.36386E-4s
+  Iteration #9 took 8.28321E-4s
+  Iteration #10 took 8.10099E-4s
+  Iteration #11 took 0.001057955s
+  Iteration #12 took 8.13728E-4s
+  Iteration #13 took 8.04519E-4s
+  Iteration #14 took 8.18368E-4s
+  Iteration #15 took 0.001617589s
+  Iteration #16 took 0.001026193s
+  Iteration #17 took 9.41169E-4s
+  Iteration #18 took 7.90863E-4s
+  Iteration #19 took 7.76164E-4s
+  Iteration #20 took 7.98242E-4s
+[fermat_0cfa-sw] [staged] - #: 20, Mean: 0.00531853595, Median: 9.15004E-4s
+[fermat_0cfa-sw] Median speedup - 7.810671865915341
+============================================
+Running evaluation for mbrotZ_0cfa-sw, AST size: 331
+  Iteration #1 took 0.01200515s
+  Iteration #2 took 0.011064253s
+  Iteration #3 took 0.011088534s
+  Iteration #4 took 0.011030217s
+  Iteration #5 took 0.011176983s
+  Iteration #6 took 0.011216446s
+  Iteration #7 took 0.011008336s
+  Iteration #8 took 0.01103749s
+  Iteration #9 took 0.011102815s
+  Iteration #10 took 0.010995893s
+  Iteration #11 took 0.011060696s
+  Iteration #12 took 0.010713108s
+  Iteration #13 took 0.010561531s
+  Iteration #14 took 0.010533137s
+  Iteration #15 took 0.010529678s
+  Iteration #16 took 0.01048644s
+  Iteration #17 took 0.010520885s
+  Iteration #18 took 0.010718075s
+  Iteration #19 took 0.010595179s
+  Iteration #20 took 0.010494845s
+[mbrotZ_0cfa-sw] [unstaged] - #: 20, Mean: 0.01089698455, Median: 0.011008336s
+[mbrotZ_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_mbrotZ_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.14635068s
+  Iteration #2 took 0.001812025s
+  Iteration #3 took 0.002130578s
+  Iteration #4 took 0.00167462s
+  Iteration #5 took 0.001549037s
+  Iteration #6 took 0.001735839s
+  Iteration #7 took 0.00178531s
+  Iteration #8 took 0.00157296s
+  Iteration #9 took 0.001619953s
+  Iteration #10 took 0.001461575s
+  Iteration #11 took 0.001449578s
+  Iteration #12 took 0.001436323s
+  Iteration #13 took 0.001366242s
+  Iteration #14 took 0.001391371s
+  Iteration #15 took 0.00142621s
+  Iteration #16 took 0.001409063s
+  Iteration #17 took 0.001398923s
+  Iteration #18 took 0.001476636s
+  Iteration #19 took 0.001347393s
+  Iteration #20 took 0.001349646s
+[mbrotZ_0cfa-sw] [staged] - #: 20, Mean: 0.008787198100000001, Median: 0.001476636s
+[mbrotZ_0cfa-sw] Median speedup - 7.455009900882819
+============================================
+Running evaluation for lattice_0cfa-sw, AST size: 609
+  Iteration #1 took 0.017441713s
+  Iteration #2 took 0.016547066s
+  Iteration #3 took 0.016505615s
+  Iteration #4 took 0.0164204s
+  Iteration #5 took 0.016422813s
+  Iteration #6 took 0.01643914s
+  Iteration #7 took 0.016630876s
+  Iteration #8 took 0.016501931s
+  Iteration #9 took 0.016372355s
+  Iteration #10 took 0.01642456s
+  Iteration #11 took 0.016376962s
+  Iteration #12 took 0.016407278s
+  Iteration #13 took 0.016409128s
+  Iteration #14 took 0.016384322s
+  Iteration #15 took 0.016399226s
+  Iteration #16 took 0.016432545s
+  Iteration #17 took 0.016567496s
+  Iteration #18 took 0.016541974s
+  Iteration #19 took 0.016386716s
+  Iteration #20 took 0.016434926s
+[lattice_0cfa-sw] [unstaged] - #: 20, Mean: 0.0165023521, Median: 0.016432545s
+[lattice_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_lattice_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.187352127s
+  Iteration #2 took 0.003270371s
+  Iteration #3 took 0.004255163s
+  Iteration #4 took 0.005193777s
+  Iteration #5 took 0.003314732s
+  Iteration #6 took 0.002916886s
+  Iteration #7 took 0.002523802s
+  Iteration #8 took 0.002462398s
+  Iteration #9 took 0.002427304s
+  Iteration #10 took 0.002434767s
+  Iteration #11 took 0.002392483s
+  Iteration #12 took 0.002367682s
+  Iteration #13 took 0.002387098s
+  Iteration #14 took 0.002381522s
+  Iteration #15 took 0.002367121s
+  Iteration #16 took 0.002376905s
+  Iteration #17 took 0.002380185s
+  Iteration #18 took 0.002384604s
+  Iteration #19 took 0.002377072s
+  Iteration #20 took 0.002380674s
+[lattice_0cfa-sw] [staged] - #: 20, Mean: 0.01199733365, Median: 0.002427304s
+[lattice_0cfa-sw] Median speedup - 6.769875137189244
+============================================
+Running evaluation for kcfa16_0cfa-sw, AST size: 182
+  Iteration #1 took 0.004879519s
+  Iteration #2 took 0.004548656s
+  Iteration #3 took 0.004482476s
+  Iteration #4 took 0.00444556s
+  Iteration #5 took 0.004444572s
+  Iteration #6 took 0.004425251s
+  Iteration #7 took 0.004431391s
+  Iteration #8 took 0.00443377s
+  Iteration #9 took 0.004414864s
+  Iteration #10 took 0.004415387s
+  Iteration #11 took 0.004425456s
+  Iteration #12 took 0.004456289s
+  Iteration #13 took 0.004422229s
+  Iteration #14 took 0.004413169s
+  Iteration #15 took 0.004503003s
+  Iteration #16 took 0.004399038s
+  Iteration #17 took 0.004413767s
+  Iteration #18 took 0.004398842s
+  Iteration #19 took 0.00439418s
+  Iteration #20 took 0.004411204s
+[kcfa16_0cfa-sw] [unstaged] - #: 20, Mean: 0.0044579311499999994, Median: 0.004425456s
+[kcfa16_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_kcfa16_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.106488339s
+  Iteration #2 took 9.74596E-4s
+  Iteration #3 took 9.08301E-4s
+  Iteration #4 took 8.56922E-4s
+  Iteration #5 took 8.4798E-4s
+  Iteration #6 took 8.48711E-4s
+  Iteration #7 took 8.44141E-4s
+  Iteration #8 took 8.79337E-4s
+  Iteration #9 took 8.70841E-4s
+  Iteration #10 took 8.45958E-4s
+  Iteration #11 took 8.50294E-4s
+  Iteration #12 took 8.46114E-4s
+  Iteration #13 took 8.47781E-4s
+  Iteration #14 took 8.47318E-4s
+  Iteration #15 took 8.43339E-4s
+  Iteration #16 took 8.61712E-4s
+  Iteration #17 took 8.69254E-4s
+  Iteration #18 took 8.95375E-4s
+  Iteration #19 took 8.37777E-4s
+  Iteration #20 took 8.43606E-4s
+[kcfa16_0cfa-sw] [staged] - #: 20, Mean: 0.0061453848000000005, Median: 8.50294E-4s
+[kcfa16_0cfa-sw] Median speedup - 5.204618637788812
+============================================
+Running evaluation for kcfa32_0cfa-sw, AST size: 358
+  Iteration #1 took 0.010464486s
+  Iteration #2 took 0.010109947s
+  Iteration #3 took 0.010091822s
+  Iteration #4 took 0.010036275s
+  Iteration #5 took 0.010045484s
+  Iteration #6 took 0.01004271s
+  Iteration #7 took 0.010054801s
+  Iteration #8 took 0.01005753s
+  Iteration #9 took 0.010043345s
+  Iteration #10 took 0.010145965s
+  Iteration #11 took 0.010102921s
+  Iteration #12 took 0.010154298s
+  Iteration #13 took 0.010179782s
+  Iteration #14 took 0.010081981s
+  Iteration #15 took 0.010089705s
+  Iteration #16 took 0.01018109s
+  Iteration #17 took 0.010113408s
+  Iteration #18 took 0.010167448s
+  Iteration #19 took 0.010174756s
+  Iteration #20 took 0.010164026s
+[kcfa32_0cfa-sw] [unstaged] - #: 20, Mean: 0.010125089, Median: 0.010109947s
+[kcfa32_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_kcfa32_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.212117613s
+  Iteration #2 took 0.001949874s
+  Iteration #3 took 0.001802082s
+  Iteration #4 took 0.00169171s
+  Iteration #5 took 0.001679467s
+  Iteration #6 took 0.001667068s
+  Iteration #7 took 0.001674103s
+  Iteration #8 took 0.001696196s
+  Iteration #9 took 0.001720524s
+  Iteration #10 took 0.001649717s
+  Iteration #11 took 0.001655371s
+  Iteration #12 took 0.001656326s
+  Iteration #13 took 0.001652623s
+  Iteration #14 took 0.001656395s
+  Iteration #15 took 0.001647609s
+  Iteration #16 took 0.001644105s
+  Iteration #17 took 0.001648753s
+  Iteration #18 took 0.001653631s
+  Iteration #19 took 0.001661956s
+  Iteration #20 took 0.001651962s
+[kcfa32_0cfa-sw] [staged] - #: 20, Mean: 0.012208854250000001, Median: 0.001661956s
+[kcfa32_0cfa-sw] Median speedup - 6.083161648082139
+============================================
+Running evaluation for kcfa64_0cfa-sw, AST size: 710
+  Iteration #1 took 0.023864243s
+  Iteration #2 took 0.023502028s
+  Iteration #3 took 0.02339573s
+  Iteration #4 took 0.023386419s
+  Iteration #5 took 0.023495519s
+  Iteration #6 took 0.023369573s
+  Iteration #7 took 0.02371463s
+  Iteration #8 took 0.023285803s
+  Iteration #9 took 0.02324945s
+  Iteration #10 took 0.023389614s
+  Iteration #11 took 0.023218093s
+  Iteration #12 took 0.023230999s
+  Iteration #13 took 0.023269419s
+  Iteration #14 took 0.023175518s
+  Iteration #15 took 0.023199561s
+  Iteration #16 took 0.023261445s
+  Iteration #17 took 0.023216545s
+  Iteration #18 took 0.023169872s
+  Iteration #19 took 0.023143002s
+  Iteration #20 took 0.0232301s
+[kcfa64_0cfa-sw] [unstaged] - #: 20, Mean: 0.023338378150000002, Median: 0.023269419s
+[kcfa64_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_kcfa64_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.449307931s
+  Iteration #2 took 0.004108742s
+  Iteration #3 took 0.003742118s
+  Iteration #4 took 0.00339078s
+  Iteration #5 took 0.003391606s
+  Iteration #6 took 0.00330201s
+  Iteration #7 took 0.003320157s
+  Iteration #8 took 0.003313679s
+  Iteration #9 took 0.003324676s
+  Iteration #10 took 0.003337213s
+  Iteration #11 took 0.003299558s
+  Iteration #12 took 0.00330371s
+  Iteration #13 took 0.003309888s
+  Iteration #14 took 0.003297549s
+  Iteration #15 took 0.003299591s
+  Iteration #16 took 0.003301641s
+  Iteration #17 took 0.003307906s
+  Iteration #18 took 0.003307592s
+  Iteration #19 took 0.003312737s
+  Iteration #20 took 0.003310981s
+[kcfa64_0cfa-sw] [staged] - #: 20, Mean: 0.025679503250000003, Median: 0.003312737s
+[kcfa64_0cfa-sw] Median speedup - 7.02422770053886
+============================================
+Running evaluation for solovay_0cfa-sw, AST size: 523
+  Iteration #1 took 0.019716448s
+  Iteration #2 took 0.018849152s
+  Iteration #3 took 0.018741477s
+  Iteration #4 took 0.018855567s
+  Iteration #5 took 0.018757313s
+  Iteration #6 took 0.018761173s
+  Iteration #7 took 0.018742161s
+  Iteration #8 took 0.018724183s
+  Iteration #9 took 0.018765883s
+  Iteration #10 took 0.01870169s
+  Iteration #11 took 0.018692229s
+  Iteration #12 took 0.019055444s
+  Iteration #13 took 0.018775607s
+  Iteration #14 took 0.018744992s
+  Iteration #15 took 0.018719507s
+  Iteration #16 took 0.018708601s
+  Iteration #17 took 0.018833954s
+  Iteration #18 took 0.018760495s
+  Iteration #19 took 0.018699973s
+  Iteration #20 took 0.018680567s
+[solovay_0cfa-sw] [unstaged] - #: 20, Mean: 0.0188143208, Median: 0.018757313s
+[solovay_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_solovay_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.199281426s
+  Iteration #2 took 0.005731485s
+  Iteration #3 took 0.004641637s
+  Iteration #4 took 0.004243216s
+  Iteration #5 took 0.003400488s
+  Iteration #6 took 0.003142684s
+  Iteration #7 took 0.003128595s
+  Iteration #8 took 0.00335681s
+  Iteration #9 took 0.004898393s
+  Iteration #10 took 0.003272691s
+  Iteration #11 took 0.003019368s
+  Iteration #12 took 0.003393901s
+  Iteration #13 took 0.003067279s
+  Iteration #14 took 0.002976159s
+  Iteration #15 took 0.002918209s
+  Iteration #16 took 0.002925662s
+  Iteration #17 took 0.002909905s
+  Iteration #18 took 0.002919169s
+  Iteration #19 took 0.002982829s
+  Iteration #20 took 0.002938047s
+[solovay_0cfa-sw] [staged] - #: 20, Mean: 0.013257397649999999, Median: 0.003142684s
+[solovay_0cfa-sw] Median speedup - 5.968564768204503
+============================================
+Running evaluation for regex_0cfa-sw, AST size: 445
+  Iteration #1 took 0.007872922s
+  Iteration #2 took 0.006890661s
+  Iteration #3 took 0.0068053s
+  Iteration #4 took 0.006772529s
+  Iteration #5 took 0.00678958s
+  Iteration #6 took 0.006819248s
+  Iteration #7 took 0.007187324s
+  Iteration #8 took 0.00680384s
+  Iteration #9 took 0.007186088s
+  Iteration #10 took 0.00688728s
+  Iteration #11 took 0.006797695s
+  Iteration #12 took 0.007269533s
+  Iteration #13 took 0.00676561s
+  Iteration #14 took 0.006774697s
+  Iteration #15 took 0.006771113s
+  Iteration #16 took 0.006758351s
+  Iteration #17 took 0.006807854s
+  Iteration #18 took 0.00678622s
+  Iteration #19 took 0.006773616s
+  Iteration #20 took 0.006758901s
+[regex_0cfa-sw] [unstaged] - #: 20, Mean: 0.006913918100000001, Median: 0.00680384s
+[regex_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_regex_0cfa-sw.out
+compilation: ok
+  Iteration #1 took 0.090664385s
+  Iteration #2 took 0.001181797s
+  Iteration #3 took 0.001115882s
+  Iteration #4 took 0.001088642s
+  Iteration #5 took 0.002088155s
+  Iteration #6 took 0.001118576s
+  Iteration #7 took 0.001126628s
+  Iteration #8 took 0.001818959s
+  Iteration #9 took 0.001174832s
+  Iteration #10 took 0.001189736s
+  Iteration #11 took 9.26946E-4s
+  Iteration #12 took 9.13578E-4s
+  Iteration #13 took 8.96542E-4s
+  Iteration #14 took 9.10109E-4s
+  Iteration #15 took 9.02481E-4s
+  Iteration #16 took 9.14678E-4s
+  Iteration #17 took 8.92342E-4s
+  Iteration #18 took 8.89468E-4s
+  Iteration #19 took 8.95495E-4s
+  Iteration #20 took 8.91435E-4s
+[regex_0cfa-sw] [staged] - #: 20, Mean: 0.0055800333, Median: 0.001088642s
+[regex_0cfa-sw] Median speedup - 6.249841545705568
+============================================
+Running evaluation for matrix_0cfa-sw, AST size: 1732
+  Iteration #1 took 0.089902473s
+  Iteration #2 took 0.085990362s
+  Iteration #3 took 0.085707932s
+  Iteration #4 took 0.085605065s
+  Iteration #5 took 0.085826586s
+  Iteration #6 took 0.085513473s
+  Iteration #7 took 0.086021944s
+  Iteration #8 took 0.085490084s
+  Iteration #9 took 0.085525373s
+  Iteration #10 took 0.085495665s
+  Iteration #11 took 0.085498814s
+  Iteration #12 took 0.085507119s
+  Iteration #13 took 0.085638589s
+  Iteration #14 took 0.08554799s
+  Iteration #15 took 0.085675467s
+  Iteration #16 took 0.0855491s
+  Iteration #17 took 0.085582482s
+  Iteration #18 took 0.085611845s
+  Iteration #19 took 0.085622412s
+  Iteration #20 took 0.085680378s
+[matrix_0cfa-sw] [unstaged] - #: 20, Mean: 0.08584965765, Median: 0.085611845s
+[matrix_0cfa-sw] [staged] Finished precompile, writing code to CodeGen_matrix_0cfa-sw.out
+  Iteration #1 took 0.60036203s
+  Iteration #2 took 0.015420304s
+  Iteration #3 took 0.011875195s
+  Iteration #4 took 0.009705803s
+  Iteration #5 took 0.009297997s
+  Iteration #6 took 0.009590981s
+  Iteration #7 took 0.00916805s
+  Iteration #8 took 0.009008071s
+  Iteration #9 took 0.010075424s
+  Iteration #10 took 0.010066927s
+  Iteration #11 took 0.00893184s
+  Iteration #12 took 0.008711649s
+  Iteration #13 took 0.00865148s
+  Iteration #14 took 0.009577093s
+  Iteration #15 took 0.008820795s
+  Iteration #16 took 0.008625287s
+  Iteration #17 took 0.008571888s
+  Iteration #18 took 0.008555516s
+  Iteration #19 took 0.008680102s
+  Iteration #20 took 0.010282154s
+[matrix_0cfa-sw] [staged] - #: 20, Mean: 0.0391989293, Median: 0.009297997s
+[matrix_0cfa-sw] Median speedup - 9.207557821324313
+============================================
+End running evaluation for CFA with store-widening
