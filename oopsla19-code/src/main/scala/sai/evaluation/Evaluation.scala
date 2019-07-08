@@ -25,16 +25,14 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 20
+  val N = 1
   val sw = "sw"
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
-    /*
     (fib, "fib"),
     (rsa, "rsa"),
     (church, "church"),
-    */
     (fermat, "fermat"),
     (mbrotZ, "mbrotZ"),
     (lattice, "lattice"),
@@ -45,7 +43,7 @@ object Evaluation {
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    //(regex, "regex"),
+    (regex, "regex"),
     //(matrix, "matrix")
   )
 
@@ -72,7 +70,7 @@ object Evaluation {
   def main(args: Array[String]) {
     runEvaluation(WithoutStoreWidening(progs_wo_sw))
     //println("\n********************************************\n")
-    //runEvaluation(WithStoreWidening(progs_w_sw))
+    runEvaluation(WithStoreWidening(progs_w_sw))
   }
 
   def runEvaluation(opt: Option) = opt match {
@@ -96,11 +94,13 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
+      /*
       val a = res._1.size
       val b = res._2.size
       //println(a)
       //println(b)
       ()
+      */
     }
   }
 
@@ -108,12 +108,14 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
+      /*
       val b = res._1._1
       val store = res._1._2
       val storesize = res._1._2.size
-      //println(b)
-      //println(storesize)
+      println(b)
+      println(storesize)
       ()
+      */
     }
   }
 
@@ -143,7 +145,7 @@ object Evaluation {
     val code = spec(e)
     val outfile = output(id)
     println(s"[$id] [staged] Finished precompile, writing code to ${outfile}")
-    //writeTo(outfile, code.code)
+    writeTo(outfile, code.code)
     
     val (res2, t2) = if (id == "matrix") {
       // Note: `matrix` codegens a large file that exceeds the JVM class size limit,
@@ -158,7 +160,6 @@ object Evaluation {
     }
     println(s"[$id] [staged] - ${t2}s")
     println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")
-
   }
 
   def run[R](n: Int, block: => R): (R, Timing) = {

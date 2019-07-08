@@ -126,11 +126,6 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
 }
 
 trait MapOpsExpOpt extends MapOpsExp {
-  override def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
-    case (Def(MapNew(kv, _, _)), Const(_)) => kv.toMap.apply(k)
-    case _ => super.map_apply(m, k)
-  }
-
   override def map_contains[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
     case (Def(MapNew(kv, _, _)), Const(_)) => unit(kv.toMap.contains(k))
     case (Def(MapNew(kv, _, _)), _) if kv.size == 0 => unit(false)
@@ -142,10 +137,17 @@ trait MapOpsExpOpt extends MapOpsExp {
     case _ => super.map_getorelse(m, k, default)
   }
 
+  /*
+  override def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = (m, k) match {
+    case (Def(MapNew(kv, _, _)), Const(_)) => kv.toMap.apply(k)
+    case _ => super.map_apply(m, k)
+  }
+
   override def map_add[K:Manifest,V:Manifest](m: Exp[Map[K,V]], kv: (Rep[K],Rep[V]))(implicit pos: SourceContext) = m match {
     case Def(MapNew(kv_, _, _)) => MapNew(kv_ ++ Seq(kv), manifest[K], manifest[V])
     case _ => super.map_add(m, kv)
   }
+  */
 
   override def map_foldleft[K: Manifest, V: Manifest, B: Manifest](m: Exp[Map[K, V]], z: Exp[B], f: (Exp[B], (Exp[K], Exp[V])) => Exp[B])(implicit pos: SourceContext) = m match {
     case Def(MapNew(kv, _, _)) if kv.size == 0 => z
