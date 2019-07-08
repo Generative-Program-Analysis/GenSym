@@ -59,14 +59,23 @@ trait StagedConcreteSemantics extends SAIDsl with ConcreteComponents with RepMon
 
   def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
     val i = emit_int_proj(test)
+    for {
+      ρ <- ask_env
+      σ <- get_store
+      res <- ReaderT.liftM[StoreM, Env, (Value, Store)](
+        if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run
+      )
+      _ <- put_store(res._2)
+    } yield res._1
+  }
+    //FIXME: (run-main-3f) scala.MatchError: Sym(49) (of class scala.virtualization.lms.internal.Expressions$Sym)
+    /*
     ask_env.flatMap { ρ =>
       get_store.flatMap { σ =>
         val (v, σ_*): (Rep[Value], Rep[Store]) =
           if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run
         put_store(σ_*).map(_ => v)
       } }
-    //FIXME: (run-main-3f) scala.MatchError: Sym(49) (of class scala.virtualization.lms.internal.Expressions$Sym)
-    /*
     for {
       ρ <- ask_env
       σ <- get_store

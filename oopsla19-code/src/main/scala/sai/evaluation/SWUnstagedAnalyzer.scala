@@ -242,10 +242,8 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
     out <- get_out_cache
     val cfg = (e, ρ)
     rt <- if (out.contains(cfg)) {
-      //print_select(e)("  [missed]")
       lift_nd[Value](out(cfg))
     } else {
-      //print_select(e)("  [hitted]")
       val ans_bot = in.getOrElse(cfg, Lattice[Set[Value]].bot)
       for {
         _ <- put_out_cache(out + (cfg → ans_bot))

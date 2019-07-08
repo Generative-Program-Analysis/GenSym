@@ -254,31 +254,6 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     vs <- lift_nd(res._1)
     _  <- put_store(vs._2)
   } yield vs._1
-  /*
-    ask_env.flatMap { ρ =>
-      get_store.flatMap { σ =>
-        ask_in_cache.flatMap { in =>
-          get_out_cache.flatMap { out =>
-            val cfg: Rep[Config] = (unit(e.hashCode), ρ, σ)
-            val res: Rep[(Set[(Value, Store)], Cache)] =
-              if (out.contains(cfg)) {
-                (repMapToMapOps(out).apply(cfg), out)
-              } else {
-                val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
-                val m: Ans = for {
-                  _ <- put_out_cache(out + (cfg → res_in))
-                  v <- eval(fix_select)(e)
-                  σ <- get_store
-                  _ <- update_out_cache(cfg, (v, σ))
-                } yield v
-                m(ρ)(σ)(in)(out)
-              }
-            put_out_cache(res._2).flatMap { _ =>
-              lift_nd(res._1).flatMap { vs =>
-                put_store(vs._2).map { _ =>
-                  vs._1
-                } } } } } } } }
-   */
 
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()
