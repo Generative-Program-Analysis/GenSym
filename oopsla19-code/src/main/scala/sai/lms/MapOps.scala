@@ -31,7 +31,8 @@ trait MapOps extends Variables {
     def foldLeft[B:Manifest](z: Rep[B])(f: (Rep[B], (Rep[K],Rep[V])) => Rep[B])(implicit pos: SourceContext) = map_foldleft(m, z, f)
     def foreach(f: (Rep[K], Rep[V]) => Rep[Unit])(implicit pos: SourceContext) = map_foreach(m, f)
     def filter(f: (Rep[K], Rep[V]) => Rep[Boolean])(implicit pos: SourceContext) = map_filter(m, f)
-    //TODO: flatMap, map
+    def map[A:Manifest](f: (Rep[K], Rep[V]) => Rep[A])(implicit pos: SourceContext) = map_map(m, f)
+    //TODO: flatMap
   }
 
   def map_empty[K:Manifest,V:Manifest](implicit pos: SourceContext): Rep[Map[K,V]]
@@ -48,6 +49,7 @@ trait MapOps extends Variables {
   def map_foldleft[K:Manifest,V:Manifest,B:Manifest](m: Rep[Map[K,V]], z: Rep[B], f: (Rep[B], (Rep[K],Rep[V])) => Rep[B])(implicit pos: SourceContext): Rep[B]
   def map_foreach[K:Manifest,V:Manifest](m: Rep[Map[K,V]], block: (Rep[K], Rep[V])=>Rep[Unit])(implicit pos: SourceContext): Rep[Unit]
   def map_filter[K:Manifest,V:Manifest](m: Rep[Map[K,V]], block: (Rep[K], Rep[V])=>Rep[Boolean])(implicit pos: SourceContext): Rep[Map[K,V]]
+  def map_map[K:Manifest,V:Manifest,A:Manifest](m: Rep[Map[K,V]], f: (Rep[K], Rep[V])=>Rep[A])(implicit pos: SourceContext): Rep[List[A]]
 }
 
 trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsExp with SetOpsExp {
@@ -66,6 +68,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     acc: Sym[B], k: Sym[K], v: Sym[V], block: Block[B])(implicit pos: SourceContext) extends Def[B]
   case class MapForeach[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k: Sym[K], v: Sym[V], block: Block[Unit]) extends Def[Unit]
   case class MapFilter[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k: Sym[K], v: Sym[V], block: Block[Boolean]) extends Def[Map[K,V]]
+  case class MapMap[K:Manifest,V:Manifest,A:Manifest](m: Exp[Map[K,V]], k: Sym[K], v: Sym[V], f: Block[A]) extends Def[List[A]]
 
   def map_empty[K:Manifest,V:Manifest](implicit pos: SourceContext) = MapEmpty(manifest[K], manifest[V])
   def map_apply[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k:Exp[K])(implicit pos: SourceContext) = MapApply(m, k)
@@ -98,6 +101,13 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     val b = reifyEffects(f(k, v))
     reflectEffect(MapFilter(m, k, v, b), summarizeEffects(b).star)
   }
+  def map_map[K:Manifest,V:Manifest,A:Manifest](m: Exp[Map[K,V]], f: (Exp[K], Exp[V])=>Exp[A])(implicit pos: SourceContext) = {
+    val k = fresh[K]
+    val v = fresh[V]
+    val b = reifyEffects(f(k, v))
+    reflectEffect(MapMap(m, k, v, b), summarizeEffects(b).star)
+  }
+
   override def mirror[A:Manifest](e: Def[A], f: Transformer)(implicit pos: SourceContext): Exp[A] = (e match {
     case e@MapNew(kv, mk, mv) => ??? //FIXME
     case _ => super.mirror(e, f)
@@ -107,6 +117,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     case MapFoldLeft(m, z, acc, k, v, b) => syms(m) ::: syms(z) ::: syms(b)
     case MapForeach(m, k, v, b) => syms(m) ::: syms(b)
     case MapFilter(m, k, v, b) => syms(m) ::: syms(b)
+    case MapMap(m, k, v, b) => syms(m) ::: syms(b)
     case _ => super.syms(e)
   }
 
@@ -114,6 +125,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     case MapFoldLeft(m, z, acc, k, v, b) => acc::k::v::effectSyms(b)
     case MapForeach(m, k, v, b) => k::v::effectSyms(b)
     case MapFilter(m, k, v, b) => k::v::effectSyms(b)
+    case MapMap(m, k, v, b) => k::v::effectSyms(b)
     case _ => super.boundSyms(e)
   }
 
@@ -121,6 +133,7 @@ trait MapOpsExp extends MapOps with EffectExp with VariablesExp with BooleanOpsE
     case MapFoldLeft(m, z, acc, k, v, b) => freqNormal(m) ::: freqNormal(z) ::: freqNormal(b)
     case MapForeach(m, k, v, b) => freqNormal(m) ::: freqNormal(b)
     case MapFilter(m, k, v, b) => freqNormal(m) ::: freqNormal(b)
+    case MapMap(m, k, v, b) => freqNormal(m) ::: freqNormal(b)
     case _ => super.symsFreq(e)
   }
 }
@@ -191,6 +204,11 @@ trait ScalaGenMapOps extends BaseGenMapOps with ScalaGenEffect with ScalaGenSetO
             |}"""
     case MapFilter(m, k, v, blk) =>
       gen"""val $sym = $m.filter { case ($k, $v) =>
+            |${nestedBlock(blk)}
+            |$blk
+            |}"""
+    case MapMap(m, k, v, blk) =>
+      gen"""val $sym = $m.map { case ($k, $v) =>
             |${nestedBlock(blk)}
             |$blk
             |}"""

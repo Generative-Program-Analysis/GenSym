@@ -71,11 +71,10 @@ trait RepLattices { self: SAIDsl =>
   implicit def RepMapLattice[K:Manifest, V:Manifest:RepLattice]: RepLattice[Map[K, V]] = new RepLattice[Map[K, V]] {
     lazy val bot: Rep[Map[K, V]] = Map.empty[K, V]
     lazy val top: Rep[Map[K, V]] = throw new RuntimeException("No representation of top map")
-    def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = ???
-    /* FIXME
-    { m1.foreach { case (k: Rep[K],v: Rep[V]) => if (!(v ⊑ m2.getOrElse(k, v.bot))) return false }
-      true }
-    */
+    def ⊑(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Boolean] = { 
+      val bs = m1.map { case (k: Rep[K], v: Rep[V]) => v ⊑ m2.getOrElse(k, v.bot) }
+      bs.foldLeft (unit(true)) { case (v, b) => b && v }
+    }
     def ⊔(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
       m2.foldLeft (m1) { case (m, (k, v)) ⇒ m + ((k, m.getOrElse(k, v.bot) ⊔ v)) }
     def ⊓(m1: Rep[Map[K, V]], m2: Rep[Map[K, V]]): Rep[Map[K, V]] =
@@ -227,7 +226,7 @@ object Lattices {
     assert(Map(1 → Set(1,2,3), 2 → Set(2,3,4)) ⊑ Map(1 → Set(1,2,3,4), 2 → Set(2,3,4,5)))
     assert(!(Map(1 → Set(1,2,3), 2 → Set(2,3,4)) ⊑ Map(1 → Set(1,3,4), 2 → Set(2,3,4,5))))
 
-    // FIXME: Test signs as lattices
+    // Test signs as lattices
     //assert(!(Sign.top ⊑ Sign.zero))
     //assert(!(Sign.zero ⊑ Sign.bot))
     //assert(Sign.zero ⊔ Sign.pos == Sign.top)
