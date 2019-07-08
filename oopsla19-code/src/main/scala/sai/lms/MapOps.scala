@@ -134,6 +134,9 @@ trait MapOpsExpOpt extends MapOpsExp {
 
   override def map_getorelse[K:Manifest,V:Manifest](m: Exp[Map[K,V]], k: Exp[K], default: Exp[V])(implicit pos: SourceContext) = m match {
     case Def(MapNew(kv, _, _)) if kv.size == 0 => default
+    case Def(MapNew(kv, _, _)) => k match {
+      case Const(ck) => kv.toMap.getOrElse(k, default)
+    }
     case _ => super.map_getorelse(m, k, default)
   }
 
