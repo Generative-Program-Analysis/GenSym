@@ -101,17 +101,6 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     vs  <- lift_nd[(Value, Store)](res._1)
     _   <- put_store(vs._2)
   } yield vs._1
-  /*
-  { get_store.flatMap { σ =>
-      lift_clo[AbsValue](fun).flatMap { clo =>
-        ask_in_cache.flatMap { in =>
-          get_out_cache.flatMap { out =>
-            val res: Rep[(Set[(Value, Store)], Cache)] = emit_ap_clo(clo, args, σ, in, out)
-            put_out_cache(res._2).flatMap { _ =>
-              lift_nd[(Value, Store)](res._1).flatMap { vs =>
-                put_store(vs._2).map { _ => vs._1 }
-              } } } } } } }
-   */
 
   def primMaps = scala.collection.immutable.Map[String, Rep[Set[AbsValue]]](
       "not" -> Set[AbsValue](unit(BoolV))
@@ -242,7 +231,30 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
     case _ => fix_cache(e)
   }
 
-  def fix_cache: EvalFun = { e =>
+  def fix_cache(e: Expr): Ans = for {
+    ρ <- ask_env
+    σ <- get_store
+    in <- ask_in_cache
+    out <- get_out_cache
+    cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ, σ)))
+    res <- lift_nd[(Set[(Value, Store)], Cache)](Set(
+      if (out.contains(cfg)) {
+        (repMapToMapOps(out).apply(cfg), out)
+      } else {
+        val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+        val m: Ans = for {
+          _ <- put_out_cache(out + (cfg → res_in))
+          v <- eval(fix_select)(e)
+          σ <- get_store
+          _ <- update_out_cache(cfg, (v, σ))
+        } yield v
+        m(ρ)(σ)(in)(out)
+      }))
+    _  <- put_out_cache(res._2)
+    vs <- lift_nd(res._1)
+    _  <- put_store(vs._2)
+  } yield vs._1
+  /*
     ask_env.flatMap { ρ =>
       get_store.flatMap { σ =>
         ask_in_cache.flatMap { in =>
@@ -266,6 +278,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
                 put_store(vs._2).map { _ =>
                   vs._1
                 } } } } } } } }
+   */
 
   val ρ0: Rep[Env] = Map[String, Addr]()
   val σ0: Rep[Store] = Map[Addr, Value]()
