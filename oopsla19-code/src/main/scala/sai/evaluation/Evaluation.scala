@@ -25,26 +25,26 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 10
+  val N = 20
   val sw = "sw"
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
-    (fib, "fib"),
-    (rsa, "rsa"),
+    //(fib, "fib"),
+    //(rsa, "rsa"),
     //(church, "church"),
-    (fermat, "fermat"),
-    (mbrotZ, "mbrotZ"),
-    (lattice, "lattice"),
-    (kcfa16, "kcfa16"),
-    (kcfa32, "kcfa32"),
-    (kcfa64, "kcfa64"),
-    (solovay, "solovay")
+    //(fermat, "fermat"),
+    //(mbrotZ, "mbrotZ"), //FIXME
+    //(lattice, "lattice"), //FIXME
+    //(kcfa16, "kcfa16"),
+    //(kcfa32, "kcfa32"),
+    //(kcfa64, "kcfa64"),
+    //(solovay, "solovay")
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    //(regex, "regex"),
-    //(matrix, "matrix")
+    //(regex, "regex"), //FIXME
+    (matrix, "matrix")
   )
 
   def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
@@ -68,7 +68,7 @@ object Evaluation {
   )
 
   def main(args: Array[String]) {
-    runEvaluation(WithoutStoreWidening(progs_wo_sw))
+    //runEvaluation(WithoutStoreWidening(progs_wo_sw))
     println("\n********************************************\n")
     runEvaluation(WithStoreWidening(progs_w_sw))
   }
@@ -94,13 +94,11 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      /*
       val a = res._1.size
       val b = res._2.size
       println(a)
       println(b)
       ()
-      */
     }
   }
 
@@ -108,27 +106,25 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
-      /*
       val b = res._1._1
       val store = res._1._2
       val storesize = res._1._2.size
       println(b)
       println(storesize)
       ()
-      */
     }
   }
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run(e)
-    //println(res._1.size)
-    //println(res._2.size)
+    println(res._1.size)
+    println(res._2.size)
   }
 
   def evalUnstagedSW(e: Expr): Unit = {
     val res = SWUnstagedSchemeAnalyzer.run(e)
-    //println("unstaged " + res._1._1)
-    //println("unstaged store " + res._1._2.size)
+    println("unstaged " + res._1._1)
+    println("unstaged store " + res._1._2.size)
   }
 
   def writeTo(filename: String, content: String): Unit = {
@@ -141,23 +137,22 @@ object Evaluation {
     println(s"Running evaluation for $id, AST size: ${size(e)}")
     val (res1, t1) = run(N, { eval(e) })
     println(s"[$id] [unstaged] - ${t1}s")
-
+    
     val code = spec(e)
     val outfile = output(id)
     println(s"[$id] [staged] Finished precompile, writing code to ${outfile}")
     writeTo(outfile, code.code)
     
-    val (res2, t2) = if (id == "matrix") {
+    val (res2, t2) = if (id == "matrix_0cfa-sw") {
       // Note: `matrix` codegens a large file that exceeds the JVM class size limit,
       // Here we run a pre-generated code for matrix, which was slightly modified
-      // by spliting the method intro smaller ones.
-      //val s = new sai.Snippet_matrix()
-      //println("start running matrix")
-      //run(N, { s.apply(()) })
-      run(N, { () })
+      // by spliting the class into two smaller ones.
+      val s = new sai.GeneratedMatrix_0CFASW()
+      run(N, { s.apply(()) })
     } else {
       code.precompile
       run(N, { code.eval(()) })
+      run(N, { () })
     }
     println(s"[$id] [staged] - ${t2}s")
     println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")
