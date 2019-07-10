@@ -8,7 +8,6 @@ lazy val root = (project in file(".")).settings(
   name := "SAI",
   autoCompilerPlugins := true,
   resolvers += Resolver.sonatypeRepo("snapshots"),
-  logLevel := Level.Error,
 
   addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9"),
   addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
