@@ -63,7 +63,7 @@ object State {
 trait Comonad[W[_]] extends Functor[W] {
   def counit[A](w: W[A]): A
   def duplicate[A](w: W[A]): W[W[A]]
-  //def extend[A, B](w: W[A])(f: W[A] => B): W[B]
+  def extend[A, B](w: W[A])(f: W[A] => B): W[B]
 }
 
 case class Id[A](a: A) {
@@ -86,6 +86,7 @@ object Coreader {
       def map[A, B](c: Coreader[R, A])(f: A => B) = c.map(f)
       def counit[A](c: Coreader[R, A]) = c.extract
       def duplicate[A](c: Coreader[R, A]) = c.duplicate
+      def extend[A, B](c: Coreader[R, A])(f: Coreader[R, A] => B) = c.extend(f)
     }
 }
 
@@ -131,6 +132,8 @@ sealed trait Free[F[_], A]
 case class Return[F[_], A](a: A) extends Free[F, A]
 case class Suspend[F[_], A](s: F[Free[F, A]]) extends Free[F, A]
 
+/* Adjunction of two functors */
+
 trait Adjunction[F[_], G[_]] {
   def left[A, B](f: F[A] => B): A => G[B]
   def right[A, B](f: A => G[B]): F[A] => B
@@ -144,14 +147,32 @@ object Adjunction {
       Function.uncurried(f).tupled
   }
 
-  def monad[F[_], G[_]](adj: Adjunction[F, G])(implicit G: Functor[G]) =
+  /* We can defined a monad with either
+   * 1) unit, join and map
+   * 2) unit, bind
+   */
+  def monad[F[_]: Functor, G[_]: Functor](adj: Adjunction[F, G]) =
     new Monad[λ[α => G[F[α]]]] {
       def unit[A](a: A): G[F[A]] = adj.left((x: F[A]) => x)(a)
       def bind[A, B](a: G[F[A]])(f: A => G[F[B]]): G[F[B]] =
-        G.map(a)(adj.right(f))
+        Functor[G].map(a)(adj.right(f))
       def join[A](a: G[F[G[F[A]]]]): G[F[A]] =
         bind(a)((gfa: G[F[A]]) => bind(gfa)(a => unit(a)))
     }
 
-
+  /* We can define a comonad with either
+   * 1) counit, duplicate, and map
+   * 2) counit, extend
+   */
+  def comonad[F[_]: Functor, G[_]: Functor](adj: Adjunction[F, G]) =
+    new Comonad[λ[α => F[G[α]]]] {
+      def map[A, B](w: F[G[A]])(f: A => B): F[G[B]] =
+        Functor[F].map(w)((ga: G[A]) => Functor[G].map(ga)(f))
+      def counit[A](a: F[G[A]]): A =
+        adj.right((x: G[A]) => x)(a)
+      def duplicate[A](w: F[G[A]]): F[G[F[G[A]]]] =
+        extend(w)((a: F[G[A]]) => a)
+      def extend[A, B](w: F[G[A]])(f: F[G[A]] => B): F[G[B]] =
+        Functor[F].map(w)(adj.left(f))
+    }
 }
