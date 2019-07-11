@@ -230,10 +230,15 @@ trait RepMonads extends RepLattices { self: SAIDsl =>
 
     def flatMap[B: Manifest](f: Rep[A] => ListT[M, B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { case xs: Rep[List[A]] =>
-              xs.foldLeftNoRep(List[B]()) {
-                case (acc: Rep[List[B]], x: Rep[A]) => (fromList[M, B](acc) ++ f(x)).run
-              }
-            })
+        val zero: Rep[List[B]] = List[B]()
+        // flatMap: (Rep[A] => Rep[List[B]]) => Rep[List[B]]
+        val bs: Rep[List[B]] = xs.foldLeft(zero) { case (acc, x) =>
+          val mb: M[List[B]] = f(x).run
+          val mb1: M[List[B]] = Monad[M].map(mb) { case listb: Rep[List[B]] => acc ++ listb }
+          ???
+        }
+        Monad[M].pure(bs)
+      })
 
     def map[B: Manifest](f: Rep[A] => Rep[B]): ListT[M, B] =
       ListT(Monad[M].flatMap(run) { list => Monad[M].pure(list.map(f)) })

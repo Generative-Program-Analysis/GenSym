@@ -175,4 +175,6 @@ object Adjunction {
       def extend[A, B](w: F[G[A]])(f: F[G[A]] => B): F[G[B]] =
         Functor[F].map(w)(adj.left(f))
     }
+
+  //def M[S] = monad[(?, S), S => ?](homSetAdj[S])
 }
