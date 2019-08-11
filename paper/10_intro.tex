@@ -130,49 +130,54 @@ Scala code.
 
 \paragraph{Generic Interpreter and Reinterpretation}
 
-The central basis of our approach is a semantic-agnostic interpreter, which can be
-instantiated by different interpretations or compilations (Figure~\ref{confluence}).
-The different semantics in Figure~\ref{confluence} correspond to four different
-artifacts involved in software language engineering: definitional interpreters
-which are defined by the denotational or operational semantics, compilers that
-translate the program into another language, analyzers that statically compute the
-runtime properties of programs, and optimizing analyzers that achieve the same goal
-of analyzers but in the way of compilers. We observe that these four
-tasks may look like very differently at first glance, but in fact are
-all firmly rooted in the concrete semantics of the language.
+Program specialization and abstract interpretation are two orthogonal concepts.
+To implement the confluence of them, we first construct a generic interpreter that
+is agnostic to both binding-times and value domains used in the semantics.
+Later, the generic interpreter can be instantiated from these two dimensions (Figure~\ref{confluence}):
+\begin{itemize}
+\item With a flat binding-time and concrete domains, it is a ordinary definitional interpreter based
+  on big-step operational semantics;
+\item With two-level binding-times and concrete domain, it is a compiler that translate to program
+  intro antoher language;
+\item With a flat binding-time and abstract domains, it is an definitional abstract interpreter
+  \cite{DBLP:journals/pacmpl/DaraisLNH17} that statically computes runtime properties;
+\item With two-level binding-times and abstract domains, it is an optimizing program analyzer but
+  works in the fashion of compilation.
+\end{itemize}
 
-To achieve the flexibility of reinterpreting the shared interpreter by
-different semantics, our framework abstracts the primitive operations
-from these semantics, and extensively uses abstract type members over
-the binding-times, the components of the interpreter, and the returned
-monadic type of the interpreter. The binding-time abstraction is
-represented by a higher-kinded type, and controls whether the
-interpreter produces values or generates code. The components of the
-interpreter, such as the environment and values, determines the domain
-that the interpreter will be running with. Following the AAM approach,
-by applying a series of abstractions to these components, we can
-derive computable and sound abstract interpreters. Finally, the
-monadic abstraction encapsulates both the binding-times and
-components, which appears as the returned type and defines the
-behaviors and datatype the interpreter operates on.
+Although the four artifacts may look like very differently at first glance,
+but in fact are all firmly rooted in the concrete semantics of the language.
+This observation provides a way to abstract over the interpreter and achieve
+the flexibility of reinterpreting the shared interpreter. We adapt the monadic
+interpreter schema, which already have been applied to abstract interpreters,
+and introduce the binding-time abstraction into the generic interpreter.
+The generic interpreter returns a value of monadic type, which can be varied
+by different semantics. The domain of the interpreter and the effects such as read,
+state and nondeterminism can be both wrapped into this monadic type.
+The binding-time abstraction is represented by a higher-kinded type,
+and controls whether the interpreter produces values directly or generates code.
+It is worth to mention that the binding-time type is also instrumented into
+the monadic type, so that we will distinguish normal monads and staged monads.
 
 \paragraph{Applications and Evaluations}
 We evaluate the idea of staging an abstract interpreter through
-multiple case studies and empirical evaluation on performance.
+case studies and an empirical evaluation on performance.
 1) We compare our approach with abstract compilation
-\cite{Boucher:1996:ACN:647473.727587}, and show that we can achieve
-the same optimization by utilizing type-based stage annotations;
-meanwhile, the analyzer program does not need any changes, thereby
-requires little engineering efforts.
-2) We extend the basic staged abstract interpreter to diverse flow
-analysis, including a store-widened analysis, a context-sensitive
+\cite{Boucher:1996:ACN:647473.727587}, a implementation technique for
+control-flow analyses, and show that by utilizing type-based stage
+annotations we can achieve the same optimization, and meanwhile,
+the analyzer does not need to change, thereby requires much less
+engineering efforts.
+2) We extend the basic staged abstract interpreter to different flow
+analyses, including a store-widened analysis, a context-sensitive
 analysis and abstract garbage collection.
 3) We notice that staging an abstract interpreter enables modularly
-compiling an analysis to programs. The compiled analysis is reusable,
-therefore it provides a mechanized way to create library summaries by
-reusing a whole-program analyzer.
+compiling an analysis to programs. Here we borrow the concept of modular
+analysis, and show that the compiled analysis is reusable.
+Therefore the approach provides a modular way to create optimized analysis
+code by mechanized reusing a whole-program analyzer.
 4) We also empirically evaluate the performance improved by staging,
-showing an order of magnitude speed-up on flow-analysis.
+showing an order of magnitude speed-up on flow-analysis \todo{explicit note the number}.
 
 \paragraph{Contributions} Briefly, the contribution of the paper is as follows:
 \begin{itemize}[leftmargin=2em]
