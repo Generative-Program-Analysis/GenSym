@@ -7,7 +7,7 @@ then present the generic interpreter shared among the four different
 semantics, after which, we instantiate the interpreter to the concrete one.
 It is worth noting that we choose to use Scala and monad to demonstrate the
 idea, but the approach is not restricted to our choice. One can use
-imperative/direct style and other MSP languages (e.g., MetaOCaml
+imperative or direct style in other MSP languages (e.g., MetaOCaml
 \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} and Template
 Haskell \cite{Sheard:2002:TMH:636517.636528} to construct such staged abstract
 interpreters.
@@ -35,10 +35,10 @@ syntax is shown as follows:
 \end{lstlisting}
 
 The abstract syntax we present in fact can be seen as a deep embedding of the
-language -- we use algebraic data-types to represent programs. This design choice allows us to
-easily use different interpretations over the AST; with the inheritance and
-overriding mechanism in Scala, we may also add new language construct and reuse
-the existing interpretation.
+language -- we use data-types to represent programs. This design choice allows us
+to easily use different interpretations over the AST; with the inheritance and
+overriding mechanism in Scala, we may also add new language constructs and reuse
+existing interpretations \todo{cite Bruno?}.
 
 \iffalse
 We will give the concrete semantics using a big-step definitional

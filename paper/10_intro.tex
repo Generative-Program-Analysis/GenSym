@@ -188,25 +188,25 @@ showing an order of magnitude speed-up on flow-analysis \todo{explicit note the 
     Futamura projection to abstract interpreters, showing a
     well-grounded approach to optimize static analyses via
     metaprogramming.
-  \item Pragmatically, we show that staging abstract interpreters is
+  \item Practically, we show that staging an abstract interpreter is
     useful to improve performance and scalability of analyses by case
-    studies and empirical evaluation.
+    studies and an empirical evaluation.
 \end{itemize}
 
 \paragraph{Organization} The paper is organized as follows:
 \begin{itemize}[leftmargin=2em]
-  \item We begin by introducing our core target language and reviewing
+  \item We begin by introducing our target language and reviewing
     monads in Scala, and then presenting the generic interpreter (Section~\ref{prelim}).
     After which, we review its instantiations of concrete interpretation
     (Section~\ref{unstaged_conc}) and staged concrete interpretation
     (Section~\ref{stagedinterp}).
   \item We present the unstaged abstract interpreter under the same framework by
-    replacing the environment, store and values (Section~\ref{unstaged_abs}).
+    replacing the environment, store and values to their abstract counterparts (Section~\ref{unstaged_abs}).
     After, we show the combination of approximation and specialization, dubbed
     \textit{staged abstract interpreters}, can be readily derived (Section~\ref{sai}).
   \item We conduct three case studies (Section~\ref{cases_study}), which demonstrate that
     our approach requires less engineering efforts, is applicable to various analysis,
-    and enables modular analysis.
+    and enables compiling analysis modularly.
   \item We empirically evaluate the performance improvement by staging on
     control-flow analysis (Section~\ref{evaluation}). We compare the both
     context-insensitive and store-widening analysis.

@@ -1,7 +1,5 @@
 \section{Related Work}
 
-%TODO: Souffle
-
 \paragraph{Optimizing Static Analysis Through Specialization}
 The underlying idea in this paper is closely related to abstract compilation (AC)
 \cite{Boucher:1996:ACN:647473.727587}: removing the interpretation overhead on
@@ -44,28 +42,22 @@ reconstruct big-step abstract interpreters with delimited continuations;
 \citet{Keidel:2018:CSP:3243631.3236767} present a modular arrow-based abstract
 interpreter that makes proof of soundness can be constructed compositionally.
 \citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
-modular analysis.
+modular analysis. We borrow the notation of modular analysis, \todo{but intentional properties
+  are different, compare with summary}
 
-\paragraph{Meta-Programming} In this paper, we use the Lightweight Modular
-Staging framework \cite{DBLP:conf/gpce/RompfO10}, which relies on types as stage
-annotations. Other notable implementations of MSP exist in ML family, e.g.,
+\paragraph{Two-level Semantics}
+
+\paragraph{Partial Evaluation and Multi-stage Programming}
+Partial evaluation as an automatic technique for program specialization
+was studied comprehensively by \citet{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.
+In this paper, we use mutli-stage programming as an approach to
+program specialization. The Lightweight Modular Staging framework \cite{DBLP:conf/gpce/RompfO10}
+we used in the paper relies on type-level stage annotations.
+Other notable implementations of MSP exist in ML family, e.g.,
 MetaML \cite{DBLP:conf/pepm/TahaS97} and MetaOCaml
 \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
 The idea of staging an abstract interpreter we presented in this paper is also
-applicable to other MSP systems. Partial evaluation as an automatic technique is
-studied comprehensively \cite{10.1007/3-540-61580-6_11,
-DBLP:books/daglib/0072559}. Futamura projections reveals close relations between
-interpreters and compilers, which was originally proposed by
-\citeauthor{futamura1971partial} in 1970s\cite{futamura1971partial}, and later
-reprinted \cite{Futamura1999}.
-\citeauthor{Amin:2017:CTI:3177123.3158140} shows how to collapse a tower of
-concrete interpreters by MSP -- it would be also interesting to explore multiple
-layers of abstract interpreters.
-\citet{10.1007/11561347_18} discussed combining
-multi-stage programming with functors and monads.
-Similar to the idea in this paper, specializing monadic interpreters was
-explored by \citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}.
-
+applicable to other MSP systems.
 Multi-stage programming has been widely used to improve the performance in many
 domains, such as optimizing compilers or domain-specific languages
 \cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:conf/snapl/RompfBLSJAOSKDK15,
@@ -76,3 +68,19 @@ DBLP:conf/pepm/AktemurKKS13}, generic programming
 processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14,
 DBLP:conf/popl/KiselyovBPS17}, query compilation in databases
 \cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18}, etc.
+
+As an source of inspiration of this paper, Futamura projections reveals a
+hierarchy and close relation between interpreters and compilers, which was
+originally proposed by \citeauthor{futamura1971partial} in 1970s\cite{futamura1971partial},
+and later reprinted \cite{Futamura1999}.
+\citeauthor{Amin:2017:CTI:3177123.3158140} consider a tower of concrete
+interpreters and how to collapse them by using MSP -- it would be
+interesting to explore this idea for multiple layers of abstract interpreters
+\cite{Cousot:2019:AAI:3302515.3290355, Giacobazzi:2015:APA:2676726.2676987}.
+\citet{10.1007/11561347_18} discussed combining
+multi-stage programming with functors and monads. But they didn't \todo{monad transfomers?}
+Similar to the idea in this paper, specializing monadic interpreters was
+explored by \citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}. \todo{what's the difference?}
+
+
+\paragraph{Control-flow Analysis}

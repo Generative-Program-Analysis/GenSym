@@ -245,19 +245,39 @@ the size of residual programs.
 
 %\paragraph{Heterogeneous Staging} The generated program is in A-Normal form. \todo{TODO}
 
-\subsection{Discussion}
+\section{Discussion}
 
 We have gradually presented the confluence of specialization and abstraction of
-concrete interpreters. In this section, we discuss several decisions we made to
-achieve this and examine some alternatives.
+concrete interpreters. In this section, we review and summarize our recipe
+to achieve the staged abstract interpreter, discuss the correctness issue
+and different design choices.
 
-\paragraph{What does the generated code look like?} In the generated code, all the
+\subsection{Summarizing the Approach}
+
+\todo{TODO}
+
+\paragraph{What has been eliminated?} In the generated code, all the
 primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
 operations (such as @flatMap@ and @map@) are eliminated. The residual program
 consists of statements and expressions that purely manipulate the environment,
 store, and two caches, whose underlying representations are all @Rep[Map[K,V]]@. We
 also have several operations on tuples and lists, which are residualized from
 the use of monads internally.
+
+\todo{may be show an small example?}
+
+\subsection{Correctness}
+
+\todo{TODO}
+
+As one of the merits of our approach, the staging does not compromise any
+soundness, because we only change the underlying monads and data structures to
+the staged version, not any part of the abstract semantics. Based on the
+assumption that MSP system and staged data structure preserve the equivalence
+during staging, we are confident that the staged abstract interpreter does the
+same analysis as the unstaged one.
+
+\subsection{Design Choices}
 
 \paragraph{Are Monads Necessary?} No. One can always inline the monads and
 obtain an abstract interpreter in continuation-passing style, or simply use
@@ -280,13 +300,3 @@ operational abstract semantics through abstract compilation
 optimizing Abstract Abstract Machines. However, the generated abstract
 byte-code still requires another small-step abstract machine to execute, which is
 an additional engineering effort.
-
-\paragraph{Correctness and Soundness}
-
-As one of the merits of our approach, the staging does not compromise any
-soundness, because we only change the underlying monads and data structures to
-the staged version, not any part of the abstract semantics. Based on the
-assumption that MSP system and staged data structure preserve the equivalence
-during staging, we are confident that the staged abstract interpreter does the
-same analysis as the unstaged one.
-
