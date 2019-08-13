@@ -15,19 +15,33 @@ on an abstract abstract machine for that IR. \citet{damian1999partial} provides 
 formal treatment to abstract compilation and Shiver's CFA, as well as proofs to
 establish the correctness of the certified specialized analyzer.
 \citet{amtoft1999partial} applied partial evaluation for constraint-based
-control flow analysis. Splitting an analysis into multiple stages is also
-studied for analysis other than for control-flow, though the formulation may
-very different. For example, \citet{DBLP:conf/cgo/HardekopfL11} apply staging to
+control flow analysis.
+
+Splitting an analysis into multiple stages is also studied for analysis other
+than abstract-interpretation-based control-flow analysis, though the formulation may
+very different. \citet{DBLP:conf/cgo/HardekopfL11} apply staging to a
 flow-sensitive pointer analysis. The first stage is to analyze the program code
 to obtain a sparse representation, and then the second stage conducts the
-flow-sensitive analysis based on the first one.
-The abstract domains can be also specialized w.r.t. the static program
-structure, e.g., decomposing polyhedras \cite{DBLP:conf/popl/SinghPV17,
-Singh:2017:PCD:3177123.3158143} to smaller ones depending on the variables
-involved such that the abstract transformers can compute using less time and
-space.
+flow-sensitive analysis by refining the first one. Another large class of static
+analysis are implemented by generating constraints firstly and then let a solver
+discharge these proof obligations or find the fixed-point. Examples include SAT-
+and SMT-based program analysis\todo{cite}, Datalog-based points-to
+analysis\todo{cite}, and \todo{}. Similar to the idea in this paper, such
+analyses can be splitted to staged.
+One of the future work is to explore that whether these analyses can be
+implemented and optimized from metaprogramming. Souffle, one of the
+state-of-the-art Datalog engine that is commonly used in points-to analysis,
+uses the idea of Futamura projection for efficent implemetation. But it only
+specializes Datalog rules to the running engine, instead of a full pipeline from
+program AST to generating constraints and solving constraints.
 
-\paragraph{Abstract Interpreters} Abstract interpretation was proposed as a
+Recent work shows that the numerical abstract domains can be also specialized
+w.r.t. the static program structure. For example, decomposing polyhedras
+\cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143} to smaller ones
+depending on the variables involved in a statement can significantly improve the
+running time and space of abstract transformers.
+
+\paragraph{Construction of Abstract Interpreters} Abstract interpretation was proposed as a
 semantic-based approach to build sound static analysis by approximation
 \cite{DBLP:conf/popl/CousotC77}. As to build semantic artifacts, the Abstracting
 Abstract Machines (AAM) \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10}
@@ -43,6 +57,7 @@ Similar to definitional abstract interpreters, \citet{Wei:2018:RAA:3243631.32368
 reconstruct big-step abstract interpreters with delimited continuations;
 \citet{Keidel:2018:CSP:3243631.3236767} present a modular arrow-based abstract
 interpreter that makes proof of soundness can be constructed compositionally.
+
 \citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
 modular analysis. We borrow the notation of modular analysis, \todo{but intentional properties
   are different, compare with summary}

@@ -185,11 +185,13 @@ TODO: can we formulate selective caching as a partially-static data law.
 TODO: lambda lifting for if
 \fi
 
-Our staging schema works well in theory, but in practice would suffer from code
-explosion, and possibly runtime GC overhead (at the next stage) when analyzing
-(specializing) large programs. In this section, we present several optimizations
-that largely mitigate these issues. Still, implementing these optimizations do
-not need to change the generic interpreter.
+Our staging schema works by unfolding the interpreter over the input AST. In
+practice, it would suffer from code explosion when analyzing (specializing) large
+programs, which increases the compile time.
+If we generate next stage programs running on JVM, such large generated program
+would also cause runtime GC overhead. In this section, we present several
+optimizations that largely mitigate these issues. For all that, implementing
+these optimizations do not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
@@ -254,7 +256,13 @@ and different design choices.
 
 \subsection{Summarizing the Approach}
 
-\todo{TODO}
+\todo{1. construct generic monadic interpreter that abstract over binding-time,
+  primtive operations, return type.
+  2. implement unstaged abstract interpreter with monads, ie. using approriate
+  monad stack
+  3. if we want to generate code, we just need to change the monad stack.
+  the data wrapped are staged.
+  we show readerT monad, stateT monad, fused monad with nondeterminism. }
 
 \paragraph{What has been eliminated?} In the generated code, all the
 primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
@@ -268,14 +276,34 @@ the use of monads internally.
 
 \subsection{Correctness}
 
-\todo{TODO}
+As the central concern of static analysis, the soundness is important for
+every user who would like to use it. Here we briefly summarize that how our
+approach preserve the corretness and soundness of the analysis, under the
+assumption that the unstaged one is sound. It is worth noting that the rationale
+listed here are based on empirical evidence, a rigorous proof of soundness
+perservation of the staged abstract interpreters is still an open question.
 
-As one of the merits of our approach, the staging does not compromise any
-soundness, because we only change the underlying monads and data structures to
-the staged version, not any part of the abstract semantics. Based on the
-assumption that MSP system and staged data structure preserve the equivalence
-during staging, we are confident that the staged abstract interpreter does the
-same analysis as the unstaged one.
+\begin{itemize}
+  \item We usually assume the underlying MSP system achieves cross-stage
+    persistent, i.e., the generated program does not change the observational
+    behaviours of the original program. In the case of this paper, we use the
+    LMS framework, which 1) relies on the type checking facilities of Scala, and
+    2) generates code in A-Normal form that preserves the
+    execution order within a stage \todo{cite WF16}. However, in general, it is
+    possible to subvert these guarantees by using unsafe features, such as
+    casts.
+  \item As shown in the previous section, the generic interpreter is untouched
+    and shared by the four artifacts. We only instantiate binding-time
+    annotations and the monadic types. This allows the programmer to easily
+    check the correctness of implementation of staged monads modularlly.
+  \item We construct the staged monads and staged data structures in a
+    correct-by-construct way that directly corresponds to their unstaged
+    version. For instance, the staged data structure we used here are simply
+    a black-box that wraps the Scala's library data structures (in the next
+    stage).
+  \item In our experiments, the staged abstract interpreter produces the same
+    result with the unstaged one on all benchmark programs we tested.
+\end{itemize}
 
 \subsection{Design Choices}
 
