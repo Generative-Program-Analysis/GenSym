@@ -29,14 +29,16 @@ space.
 
 \paragraph{Abstract Interpreters} Abstract interpretation was proposed as a
 semantic-based approach to build sound static analysis by approximation
-\cite{DBLP:conf/popl/CousotC77}. As semantic artifacts, the Abstracting Abstract
-Machines (AAM) \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10} approach
-shows that abstract interpreters can be derived systematically from concrete
+\cite{DBLP:conf/popl/CousotC77}. As to build semantic artifacts, the Abstracting
+Abstract Machines (AAM) \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10}
+approach shows that abstract interpreters can be derived systematically from concrete
 semantic artifacts. The AAM approach is closely related to control-flow analysis
 for higher-order languages \cite{Midtgaard:2012:CAF:2187671.2187672}.
 Using monads to construct abstract interpreters is explored by
 \citet{Sergey:2013:MAI:2491956.2491979} and
 \citet{DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}.
+The unstaged abstract interpreter in this paper follows the abstracting definitional
+interpreters approach from \citet{DBLP:journals/pacmpl/DaraisLNH17}.
 Similar to definitional abstract interpreters, \citet{Wei:2018:RAA:3243631.3236800}
 reconstruct big-step abstract interpreters with delimited continuations;
 \citet{Keidel:2018:CSP:3243631.3236767} present a modular arrow-based abstract
@@ -45,7 +47,16 @@ interpreter that makes proof of soundness can be constructed compositionally.
 modular analysis. We borrow the notation of modular analysis, \todo{but intentional properties
   are different, compare with summary}
 
-\paragraph{Two-level Semantics}
+\paragraph{Two-level Semantics} The idea of reinterpreting the semantics as
+abstract interpretation can be traced to Nielson's two-level semantics
+\cite{NIELSON1989117}; using two-level semantics for code generation was also
+explored by \citet{NIELSON198859}. \citet{Sergey:2013:MAI:2491956.2491979}'s
+work of monadic abstract interpreters is also closely related to the two-level
+semantics: the use of a generic interface with monads and then reinterpret it by
+different semantics is already two-level. Instead of focusing on semantics, this
+paper shows how a staged analyzer can be built and used to increase efficieny of
+static analysis, we augment the monadic abstract interpreter from another
+dimension, using code generation to produce efficient low-level code.
 
 \paragraph{Partial Evaluation and Multi-stage Programming}
 Partial evaluation as an automatic technique for program specialization
@@ -82,5 +93,4 @@ multi-stage programming with functors and monads. But they didn't \todo{monad tr
 Similar to the idea in this paper, specializing monadic interpreters was
 explored by \citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}. \todo{what's the difference?}
 
-
-\paragraph{Control-flow Analysis}
+\paragraph{Control-flow Analysis} useful applications, why important

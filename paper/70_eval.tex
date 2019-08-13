@@ -9,17 +9,27 @@ approach.
 
 \paragraph{Implementation and Evaluation Environment}
 We implement the abstract interpreters for control-flow analysis, i.e., a
-value-flow analysis focus on lambda terms in functional languages. A front-end
+value-flow analysis that computes which lambda terms can be called at each
+call-sites in functional languages. With other suitable abstract domains, the
+abstract interpreter also can be extended to other analyses. A front-end
 desugars Scheme to a small core language that makes the analyzer easy to
 implement. As described in Section \ref{cfa}, we implement two monovariant
 0-CFA-like analysis, one is equipped with store-widening, the other does not.
-We also implement several optimizations mentioned in Section \ref{staged_ds}.
+\todo{why store widening?} Our prototype implementation currently generates
+Scala code; the generated Scala code will be compiled and executed also on JVM.
+it is possible to also generate C/C++ code in the future. In the experiments, we
+implement several optimizations mentioned in Section \ref{staged_ds},
+specifically, the selective caching and rewriting rules exploiting
+partially-static data. These optimizations are useful to reduce the size of
+generated code.
 
-We use Scala 2.12.8 and Oracle JVM 1.8.0-191, running on an Ubuntu 16.04 LTS
+We use Scala 2.12.8 and Oracle JVM 1.8.0-191 \footnote{The options for running
+  JVM is set to the following: \texttt{-Xms2G -Xmx8G -Xss1024M
+  -XX:MaxMetaspaceSize=2G - XX:ReservedCodeCacheSize=2048M}}, running on an Ubuntu 16.04 LTS
 (kernel 4.4.0) machine. All of our evaluations were performed on a machine with 4 Intel
 Xeon Platinum 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96
 cores (192 threads) in total, the abstract interpreters are single-threaded.
-To minimize the effect of warming-up from the JVM JIT compiler, all the
+To minimize the effect of warming-up from the HotSpot JIT compiler, all the
 experiments are executed for 20 times and we report the statistical median value
 of the running times. We set a 5 minutes timeout.
 
@@ -77,3 +87,5 @@ layers. Thus our evaluation result provides an abstraction without regret
 approach to construct optimizing abstract interpreters -- the user may write a
 high-level modular and composable abstract interpreter, and then derive a staged
 version in a principled way that runs significantly faster.
+
+\todo{analyze some interesting examples}
