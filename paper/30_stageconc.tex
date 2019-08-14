@@ -1,10 +1,11 @@
 \section{From Interpreters to Staged Interpreters} \label{stagedinterp}
 
 In this section, based on the generic interpreter and concrete components we
-presented in Section \ref{prelim}, we show how to obtain a staged concrete
-interpreter by changing the monads and refactoring several primitive
-operations. We begin by briefly introducing the Lightweight Modular Staging
-framework in Scala.
+presented in Section \ref{prelim}, we show how to stage the concrete interpreter
+by changing the monad type and refactoring several primitive operations. We
+begin by briefly introducing the Lightweight Modular Staging framework in Scala,
+and then replay the same step in the unstaged counterpart. At last, we briefly
+describe code generation.
 
 \subsection{Multi-Stage Programming with LMS}
 
