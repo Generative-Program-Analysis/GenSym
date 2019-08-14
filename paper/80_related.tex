@@ -1,111 +1,137 @@
 \section{Related Work}
 
 \paragraph{Optimizing Static Analysis Through Specialization}
-The underlying idea in this paper is closely related to abstract compilation (AC)
-\cite{Boucher:1996:ACN:647473.727587}: removing the interpretation overhead on
-traversing the syntax tree by specialization. Specifically, the residual program
-of AC can be either textual or closures. However, as we studied in Section
-\ref{cs_ac}, with the perspective from generative programming and monadic
+The underlying idea in this paper is closely related to abstract
+compilation (AC) \cite{Boucher:1996:ACN:647473.727587}: removing the
+interpretation overhead on traversing the syntax tree by
+specialization. Specifically, the residual program of AC can be either
+textual or closures. However, as we studied in Section \ref{cs_ac},
+with the perspective from generative programming and monadic
 interpreters, we make it more general, extensible and easy.
 \citet{Johnson:2013:OAA:2500365.2500604} adapt the idea of closure
-generation to optimize small-step abstract interpreter in state-transition
-style. The analyzed program is firstly compiled to an IR called "abstract
-bytecode", which are actually higher-order functions and will be executed later
-on an abstract abstract machine for that IR. \citet{damian1999partial} provides a
-formal treatment to abstract compilation and Shiver's CFA, as well as proofs to
-establish the correctness of the certified specialized analyzer.
-\citet{amtoft1999partial} applied partial evaluation for constraint-based
-control flow analysis.
+generation to optimize small-step abstract interpreter in
+state-transition style. The analyzed program is firstly compiled to an
+IR called "abstract bytecode", which are actually higher-order
+functions and will be executed later on an abstract abstract machine
+for that IR. \citet{damian1999partial} provides a formal treatment to
+abstract compilation and Shiver's CFA, as well as proofs to establish
+the correctness of the certified specialized analyzer.
+\citet{amtoft1999partial} applied partial evaluation for
+constraint-based control flow analysis.
 
-Splitting an analysis into multiple stages is also studied for analysis other
-than abstract-interpretation-based control-flow analysis, though the formulation may
-very different. \citet{DBLP:conf/cgo/HardekopfL11} apply staging to a
-flow-sensitive pointer analysis. The first stage is to analyze the program code
-to obtain a sparse representation, and then the second stage conducts the
-flow-sensitive analysis by refining the first one. Another large class of static
-analysis are implemented by generating constraints firstly and then let a solver
-discharge these proof obligations or find the fixed-point. Examples include SAT-
-and SMT-based program analysis\todo{cite}, Datalog-based points-to
-analysis\todo{cite}, and \todo{}. Similar to the idea in this paper, such
-analyses can be splitted to staged.
-One of the future work is to explore that whether these analyses can be
-implemented and optimized from metaprogramming. Souffle, one of the
-state-of-the-art Datalog engine that is commonly used in points-to analysis,
-uses the idea of Futamura projection for efficent implemetation. But it only
-specializes Datalog rules to the running engine, instead of a full pipeline from
-program AST to generating constraints and solving constraints.
+Splitting an analysis into multiple stages is also studied for
+analysis other than abstract-interpretation-based control-flow
+analysis, though the formulation may very
+different. \citet{DBLP:conf/cgo/HardekopfL11} apply staging to a
+flow-sensitive pointer analysis. The first stage is to analyze the
+program code to obtain a sparse representation, and then the second
+stage conducts the flow-sensitive analysis by refining the first
+one. Another large body of static analyses are implemented by
+generating constraints firstly and then let a solver discharge these
+proof obligations or find the fixed-point. Notable examples include
+SAT- and SMT-based program analysis
+\cite{Gulwani:2008:PAC:1375581.1375616} and Datalog-based points-to
+analysis \cite{Smaragdakis:2015:PA:2802194.2802195}.
+Similar to the idea in this paper, such analyses can be splitted to
+staged.  One of the future work is to explore that whether these
+analyses can be implemented and optimized from
+metaprogramming. Souffl{\'e}, one of the state-of-the-art Datalog
+engine that is commonly used in points-to analysis
+\cite{Antoniadis:2017:PDS:3088515.3088522}, uses the idea of Futamura
+projection for efficent implemetation \cite{10.1007/978-3-319-41540-6_23}.
+But it only specializes Datalog rules to the running engine, instead
+of a full pipeline from program AST to generating constraints and
+solving constraints.
 
-Recent work shows that the numerical abstract domains can be also specialized
-w.r.t. the static program structure. For example, decomposing polyhedras
-\cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143} to smaller ones
-depending on the variables involved in a statement can significantly improve the
-running time and space of abstract transformers.
+Recent work shows that the numerical abstract domains can be
+specialized w.r.t. the static program structure, although not in the
+way of using staging. For example, decomposing polyhedras
+\cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143} to
+smaller ones that depend on the variables involved in a statement can
+significantly improve the running time and space of abstract
+transformers.
 
-\paragraph{Construction of Abstract Interpreters} Abstract interpretation was proposed as a
-semantic-based approach to build sound static analysis by approximation
-\cite{DBLP:conf/popl/CousotC77}. As to build semantic artifacts, the Abstracting
-Abstract Machines (AAM) \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10}
-approach shows that abstract interpreters can be derived systematically from concrete
-semantic artifacts. The AAM approach is closely related to control-flow analysis
-for higher-order languages \cite{Midtgaard:2012:CAF:2187671.2187672}.
-Using monads to construct abstract interpreters is explored by
+\paragraph{Construction of Abstract Interpreters} Abstract interpretation
+was proposed as a semantic-based approach to build sound static analysis by
+approximation \cite{DBLP:conf/popl/CousotC77}. As to build semantic
+artifacts, the Abstracting Abstract Machines (AAM)
+\cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10} approach
+shows that abstract interpreters can be derived systematically from
+concrete semantic artifacts. The AAM approach is closely related to
+control-flow analysis for higher-order languages
+\cite{Midtgaard:2012:CAF:2187671.2187672}.  Using monads to construct
+abstract interpreters is explored by
 \citet{Sergey:2013:MAI:2491956.2491979} and
-\citet{DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}.
-The unstaged abstract interpreter in this paper follows the abstracting definitional
-interpreters approach from \citet{DBLP:journals/pacmpl/DaraisLNH17}.
-Similar to definitional abstract interpreters, \citet{Wei:2018:RAA:3243631.3236800}
-reconstruct big-step abstract interpreters with delimited continuations;
-\citet{Keidel:2018:CSP:3243631.3236767} present a modular arrow-based abstract
-interpreter that makes proof of soundness can be constructed compositionally.
+\citet{DBLP:journals/pacmpl/DaraisLNH17,
+  Darais:2015:GTM:2814270.2814308}.  The unstaged abstract interpreter
+in this paper follows the abstracting definitional interpreters
+approach from \citet{DBLP:journals/pacmpl/DaraisLNH17}.  Similar to
+definitional abstract interpreters,
+\citet{Wei:2018:RAA:3243631.3236800} reconstruct big-step abstract
+interpreters with delimited continuations;
+\citet{Keidel:2018:CSP:3243631.3236767} present a modular arrow-based
+abstract interpreter that makes proof of soundness can be constructed
+compositionally.
 
-\citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
-modular analysis. We borrow the notation of modular analysis, \todo{but intentional properties
-  are different, compare with summary}
+\citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation
+framework for modular analysis. We borrow the notation of modular
+analysis, \todo{but intentional properties are different, compare with
+  summary}
 
 \paragraph{Two-level Semantics} The idea of reinterpreting the semantics as
 abstract interpretation can be traced to Nielson's two-level semantics
-\cite{NIELSON1989117}; using two-level semantics for code generation was also
-explored by \citet{NIELSON198859}. \citet{Sergey:2013:MAI:2491956.2491979}'s
-work of monadic abstract interpreters is also closely related to the two-level
-semantics: the use of a generic interface with monads and then reinterpret it by
-different semantics is already two-level. Instead of focusing on semantics, this
-paper shows how a staged analyzer can be built and used to increase efficieny of
-static analysis, we augment the monadic abstract interpreter from another
-dimension, using code generation to produce efficient low-level code.
+\cite{NIELSON1989117}; using two-level semantics for code generation
+was also explored by \citet{NIELSON198859}.
+\citet{Sergey:2013:MAI:2491956.2491979}'s work of monadic abstract
+interpreters is also closely related to the two-level semantics: the
+use of a generic interface with monads and then reinterpret it by
+different semantics is already two-level. Instead of focusing on
+semantics, this paper shows how a staged analyzer can be built and
+used to increase efficieny of static analysis, we augment the monadic
+abstract interpreter from another dimension, using code generation to
+produce efficient low-level code. Hence the presented work can be
+considered as an two-dimension application of the two-level semantics.
 
 \paragraph{Partial Evaluation and Multi-stage Programming}
-Partial evaluation as an automatic technique for program specialization
-was studied comprehensively by \citet{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.
-In this paper, we use mutli-stage programming as an approach to
-program specialization. The Lightweight Modular Staging framework \cite{DBLP:conf/gpce/RompfO10}
-we used in the paper relies on type-level stage annotations.
-Other notable implementations of MSP exist in ML family, e.g.,
-MetaML \cite{DBLP:conf/pepm/TahaS97} and MetaOCaml
-\cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}.
-The idea of staging an abstract interpreter we presented in this paper is also
-applicable to other MSP systems.
-Multi-stage programming has been widely used to improve the performance in many
-domains, such as optimizing compilers or domain-specific languages
-\cite{DBLP:conf/pldi/RompfSBLCO14, DBLP:conf/snapl/RompfBLSJAOSKDK15,
-DBLP:journals/tecs/SujeethBLRCOO14, DBLP:conf/gpce/SujeethGBLROO13,
-DBLP:journals/jfp/CaretteKS09}, numerical computation \cite{PGL-038,
-DBLP:conf/pepm/AktemurKKS13}, generic programming
-\cite{DBLP:journals/pacmpl/Yallop17, Ofenbeck:2017:SGP:3136040.3136060}, data
-processing \cite{DBLP:conf/oopsla/JonnalageddaCSRO14,
-DBLP:conf/popl/KiselyovBPS17}, query compilation in databases
-\cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18}, etc.
+Partial evaluation as an automatic technique for program
+specialization was studied comprehensively by
+\citet{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.  In this
+paper, we use mutli-stage programming as an approach to program
+specialization. The Lightweight Modular Staging framework
+\cite{DBLP:conf/gpce/RompfO10} we used in the paper relies on
+type-level stage annotations.  Other notable implementations of MSP
+exist in ML family, e.g., MetaML \cite{DBLP:conf/pepm/TahaS97} and
+MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03,
+  DBLP:conf/flops/Kiselyov14}.  The idea of staging an abstract
+interpreter we presented in this paper is also applicable to other MSP
+systems.  Multi-stage programming has been widely used to improve the
+performance in many domains, such as optimizing compilers or
+domain-specific languages \cite{DBLP:conf/pldi/RompfSBLCO14,
+  DBLP:conf/snapl/RompfBLSJAOSKDK15,
+  DBLP:journals/tecs/SujeethBLRCOO14, DBLP:conf/gpce/SujeethGBLROO13,
+  DBLP:journals/jfp/CaretteKS09}, numerical computation \cite{PGL-038,
+  DBLP:conf/pepm/AktemurKKS13}, generic programming
+\cite{DBLP:journals/pacmpl/Yallop17,
+  Ofenbeck:2017:SGP:3136040.3136060}, data processing
+\cite{DBLP:conf/oopsla/JonnalageddaCSRO14,
+  DBLP:conf/popl/KiselyovBPS17}, query compilation in databases
+\cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18},
+etc.
 
-As an source of inspiration of this paper, Futamura projections reveals a
-hierarchy and close relation between interpreters and compilers, which was
-originally proposed by \citeauthor{futamura1971partial} in 1970s\cite{futamura1971partial},
+As an source of inspiration of this paper, Futamura projections
+reveals a hierarchy and close relation between interpreters and
+compilers, which was originally proposed by
+\citeauthor{futamura1971partial} in 1970s\cite{futamura1971partial},
 and later reprinted \cite{Futamura1999}.
-\citeauthor{Amin:2017:CTI:3177123.3158140} consider a tower of concrete
-interpreters and how to collapse them by using MSP -- it would be
-interesting to explore this idea for multiple layers of abstract interpreters
-\cite{Cousot:2019:AAI:3302515.3290355, Giacobazzi:2015:APA:2676726.2676987}.
-\citet{10.1007/11561347_18} discussed combining
-multi-stage programming with functors and monads. But they didn't \todo{monad transfomers?}
-Similar to the idea in this paper, specializing monadic interpreters was
-explored by \citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}. \todo{what's the difference?}
+\citeauthor{Amin:2017:CTI:3177123.3158140} consider a tower of
+concrete interpreters and how to collapse them by using MSP -- it
+would be interesting to explore this idea for multiple layers of
+abstract interpreters \cite{Cousot:2019:AAI:3302515.3290355,
+  Giacobazzi:2015:APA:2676726.2676987}.  \citet{10.1007/11561347_18}
+discussed combining multi-stage programming with functors and
+monads. But they didn't \todo{monad transfomers?}  Similar to the idea
+in this paper, specializing monadic interpreters was explored by
+\citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}. \todo{what's the
+  difference?}
 
 \paragraph{Control-flow Analysis} useful applications, why important

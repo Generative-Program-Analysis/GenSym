@@ -288,10 +288,10 @@ perservation of the staged abstract interpreters is still an open question.
     persistent, i.e., the generated program does not change the observational
     behaviours of the original program. In the case of this paper, we use the
     LMS framework, which 1) relies on the type checking facilities of Scala, and
-    2) generates code in A-Normal form that preserves the
-    execution order within a stage \todo{cite WF16}. However, in general, it is
-    possible to subvert these guarantees by using unsafe features, such as
-    casts.
+    2) generates code in A-Normal form \cite{Flanagan:1993:ECC:155090.155113}
+    that preserves the execution order within a stage \cite{DBLP:conf/birthday/Rompf16}.
+    However, in general, it is possible to subvert these guarantees by
+    using unsafe features, such as casts.
   \item As shown in the previous section, the generic interpreter is untouched
     and shared by the four artifacts. We only instantiate binding-time
     annotations and the monadic types. This allows the programmer to easily

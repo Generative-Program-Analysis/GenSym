@@ -2,15 +2,15 @@
 
 \section{Preliminaries} \label{prelim}
 
-In this section, we first describe the abstract syntax of the language for our interpreter, 
-then present the generic interpreter shared among the four different
+In this section, we first describe the abstract syntax of the language for our interpreters. 
+Then present the generic interpreter shared among the four different
 semantics, after which, we instantiate the interpreter to the concrete one.
-It is worth noting that we choose to use Scala and monad to demonstrate the
-idea, but the approach is not restricted to our choice. One can use
-imperative or direct style in other MSP languages (e.g., MetaOCaml
-\cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} and Template
-Haskell \cite{Sheard:2002:TMH:636517.636528} to construct such staged abstract
-interpreters.
+It is worth noting that we choose to use Scala and monadic style to
+demonstrate the idea, but the approach is not restricted to our
+choice. One can use imperative or direct style in other MSP languages
+(e.g., MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}
+and Template Haskell \cite{Sheard:2002:TMH:636517.636528} to construct
+such staged abstract interpreters.
 
 \subsection{Abstract Syntax} \label{bg_lang}
 
@@ -112,37 +112,42 @@ bindings in the comprehension are all translated into calls of @flatMap@.
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
 
-Note that here the monadic object @List[_]@ encapsulates the data internally.
-Therefore it only exposes the simplified version of @flatMap@, where the
-monad @M[A]@ is not introduced as a function argument. The trait @MonadOps@
-(Figure \ref{fig:monadops}) defines the simplified version of monadic
-operations that are necessary for @for@-comprehension. 
-The conversion between @Monad@ and @MonadOps@ can be done by using the implicit design pattern.
-In the rest of the paper, we use Scala's @for@-comprehension syntax and monad
-transformers such as @ReaderT@, @StateT@, and @ListT@ to write our interpreters.
-The implementation of monads and monad transformers essentially borrows the
-ground-truth from Haskell.
+Note that here the monadic object @List[_]@ encapsulates the data
+internally.  Therefore it only exposes the simplified version of
+@flatMap@, where the monad @M[A]@ is not introduced as a function
+argument. The trait @MonadOps@ (Figure \ref{fig:monadops}) defines the
+simplified version of monadic operations that are necessary for
+@for@-comprehension. The conversion between @Monad@ and @MonadOps@
+can be done by using the implicit design pattern.
+In the rest of the paper, we use Scala's @for@-comprehension syntax
+and a few of monads and monad transformers such as @ReaderT@,
+@StateT@, and @ListT@ to write our interpreters. The implementation
+of monads and monad transformers essentially borrows the ground-truth
+from Haskell.
 
 \subsection{Generic Interpreter} \label{generic_if}
 
 Monad transformers are type constructors of kind @(* -> *) -> (* -> *)@, which
 take a monad as argument and produces another monad. By using monad
 transformers, we can combine multiple monads into a single one. Constructing
-extensible interpreters using monad transformers was first proposed by
+extensible interpreters using monad transformers was first explored by
 \citet{DBLP:conf/popl/LiangHJ95}, and later has been applied to abstract
 interpreters \cite{Sergey:2013:MAI:2491956.2491979,
-DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}. In this section,
-with the multi-stage programming and monad transformers in mind while leaving them
-as abstract type members, we present the generic interface of a big-step
-definitional interpreter.
+  DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}.
+In this section, we present the generic inferface in the style of big-step
+definitional interpreter. The key idea is to keep the binding-time type and
+returned monadic type abstract, so that they can be instantiated differently.
+We also need to abstract the primitive operations on those types.
 
 \paragraph{Basic Types} We start with some basic type definitions used in the
-interpreter. The identifiers in the program are represented by strings. The two
-default components in the interpreter are environments @Env@ and stores @Store@,
-i.e., mappings from identifiers to addresses and mappings from addresses to
-values, respectively. The @Env@ models accessible variables, and @Store@ models
-the persistent heap through the program runtime. But the @Addr@ and @Value@ are
-just declared as abstract types.
+interpreter. The identifiers in the program are represented by
+strings. To represent states, two required components for the
+interpreter are environments @Env@ and stores @Store@. @Env@ maps from
+identifiers to addresses, and @Store@ maps from addresses to values,
+respectively. The @Env@ captures bound variables in scope, and @Store@
+models a persistent heap through the program runtime.  At this moment,
+the domains of addresses and values are still abstract, i.e., they are
+declared as abstract types.
 
 \begin{lstlisting}
   trait Semantics {
@@ -154,28 +159,34 @@ just declared as abstract types.
 \end{lstlisting}
 
 \paragraph{Binding-time Abstraction} As mentioned before, the binding-time is
-declared as a higher-kinded type @R[_]@. If we simply instantiate @R@ as an identity
-type (i.e., @type R[T] = T@), then the generic interpreter will execute the program.
-In Section \ref{stagedinterp}, we will instantiate @R@ using LMS's built-in
-next-stage type annotation @Rep@, which makes the interpreter act as a compiler.
+declared as a higher-kinded type @R[_]@. We are free to use @R@ to annotate
+other datatypes in the interpreter; it is also injected into the monadic
+type @MonadOps@.
+If we simply instantiate @R@ an identity type (i.e., @type R[T] = T@),
+then the generic interpreter is a standard definitional interpreter
+that will execute the program.  In Section \ref{stagedinterp}, we will
+instantiate @R@ using LMS's built-in next-stage type annotation @Rep@,
+which makes the interpreter act as a compiler.
 
 \paragraph{Monadic Operations} We define the return type of the interpreter as
-@Ans@, which is an arbitrary monad type @AnsM[_]@ wrapping the type @Value@. 
+@Ans@, which is a monad type @AnsM[_]@ wrapping the type @Value@. 
 As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
-syntax, certain constraints have to be added on the type @AnsM@. Here, we use a
-structural type @MonadOps@ to require @AnsM@ to at least implement @map@ and
+syntax, certain operations have to be added on the type @AnsM@. Here, we use a
+structural type @MonadOps@ to require that type @AnsM@ at least implements @map@ and
 @flatMap@. It is worth noting that @MonadOps@ takes another type parameter
-@R[_]@ as binding-time; accordingly the outer @R@ defined in the trait is passed
-to @MonadOps@. Inside of @MonadOps@, @R[_]@ wraps the data types @A@ and @B@ that are
-encapsulated by the monad, but not the monad type @M@ itself. When acting as
-compilers, we will also replace the monads to the ones that work on staged
-values.
+@R[_]@ as binding-time that annotates data; accordingly the type @R@
+defined in the outer scope is passed to @MonadOps@. Inside of @MonadOps@,
+@R[_]@ wraps the data types @A@ and @B@ that are encapsulated by the
+monad, but not the monad type @M@ itself. When acting as compilers, we
+will also replace the monads to the ones that work on staged data values.
+\todo{it is important that R only annotates data, not the monad}
 
-We also define several methods to obtain and modify the environment and store.
-These methods return monadic values of type @AnsM[_]@, which encapsulate the 
-environment or store, or simply a @Unit@ value for effects.
-For example, @local_env@ takes a value @ans@ of type @Ans@ and an environment 
-which will be installed when evaluating @ans@.
+We also declare several operations to mannipulate environments and
+stores. These methods return monadic values of type @AnsM[_]@, which
+may encapsulate over the environment or store, or simply a @Unit@
+value for effects. For examples, @local_env@ installs a new environment
+@ρ@ when evaluating the monadic value @ans@; @set_store@ takes a pair of
+addresses and values (potentially staged) and updates the store accordingly.
 
 %\vspace{-1em}
 \begin{figure}[h!]
@@ -210,24 +221,23 @@ def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
 Two versions of @alloc@ are declared. The first one takes a store and an
 identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
 the freshness of the address may depend on the store, which might be a
-next-stage value as indicated by its type, the type of addresses is also wrapped
-by @R[_]@. The other one would simply wrap the address with our monadic type
-@AnsM[_]@.
+next-stage value as indicated by its type, the type of addresses is therefore
+wrapped by @R[_]@. The other @alloc@ is simply the monadic version of the addresses.
+
 \begin{lstlisting}
   def alloc(σ: R[Store], x: Ident): R[Addr];  def alloc(x: Ident): AnsM[Addr]
 \end{lstlisting}
 
-Other primitive operations provide basic functionality for the interpreter.
-The method @num@ and @close@ deal with primitive values, which lift literal
-terms (e.g., lambdas) to our value representation (e.g., closures).
-The method @get@ simply retrieves the value mapped from the identifier @x@ in
-the environment and store. Conditionals and arithmetic is handled by @br0@
-and @arith@, respectively. The methods @ap_clo@ takes a function value and an
-argument value and then does the application. Note that the @Env@, @Store@, and
-@Value@ are all wrapped by @R[_]@ since they will be known as next-stage value
-when acting as compilers.
-
-%TODO: close/ap_clo takes an ev
+Other primitive operations provide basic functionality for the
+interpreter.  The method @num@ and @close@ deal with primitive values,
+which lift literal terms (e.g., lambdas) to our value representation
+(e.g., closures).  The method @get@ retrieves the value of an
+identifier @x@, through the environment and store. Conditionals and
+arithmetic is handled by @br0@ and @arith@, respectively. The method
+@ap_clo@ is used for function applications: it takes a function value
+and an argument value. Note that the @Env@, @Store@, and @Value@ are
+all annotated by @R[_]@ since they can potentially be next-stage
+values when acting as compilers.
 
 \begin{lstlisting}
   def num(i: Int): Ans
@@ -238,17 +248,6 @@ when acting as compilers.
   def ap_clo(ev: Expr => Ans)(rator: R[Value], rand: R[Value]): Ans
 \end{lstlisting}
 
-\paragraph{The Interpreter} Now we can define the semantics-agnostic interpreter
-in monadic form, shown in Figure \ref{fig:shared_int}.
-The essential idea is to traverse the abstract syntax tree while maintaining the
-effects such as reader and state.
-It is worth noting that the interpreter is written in open-recursive style -- it
-can not refer to itself directly, instead, @eval@ takes an additional parameter
-@ev@ of type @Expr => Ans@ to refer to itself. Accordingly, the method @close@
-that lifts lambda terms to closures and @ap_clo@ that applies functions also
-takes an extra @ev@.
-
-%\vspace{-1em}
 \begin{figure}[h!]
   \centering
   \begin{lstlisting}
@@ -277,14 +276,27 @@ takes an extra @ev@.
   shared by the unstaged/staged + concrete/abstract interpreter.}
 \label{fig:shared_int}
 \end{figure}
-%\vspace{-1em}
 
-Since the interpreter is written in an open-recursive style, we declare an abstract
-combinator @fix@ used to close the recursion. For concrete-interpretation instantiation, it
-works like the Y combinator; for abstract-interpretation instantiation, we will
-instrument the interpreter by defining a memorized version of @fix@ to ensure
-termination. Finally, a top-level wrapper @run@ is declared; the return type
-@Result@ depends on what kind of monad we will be using, this is also an abstract type.
+\paragraph{The Interpreter} Now we construct the semantics-agnostic interpreter
+in monadic form, shown in Figure \ref{fig:shared_int}. The basic idea
+of a generic interpretation is to traverse the abstract syntax tree
+while maintaining the effects such as reader and state.  Note that the
+interpreter is written in open-recursive style -- it can not refer to
+itself directly, instead, @eval@ takes an additional parameter @ev@ of
+type @Expr => Ans@ that refers to itself. Consequently, the method
+@close@ that lifts lambda terms to closures and method @ap_clo@ that
+applies functions also takes an extra @ev@, because evaluation may
+happen inside of them.
+To close the open-recursion, we use a fixed-point opertor @fix@.
+For concrete-interpretation instantiation, it works like the Y
+combinator; for abstract-interpretation instantiation, it instruments
+the interpreter by memorizing its input and output, which will ensure
+the termination of abstract interpretation.
+Finally, a top-level wrapper @run@ is declared; the return type
+@Result@ depends on what kind of monad we will be using, this is also
+an abstract type.
+
+%\vspace{-1em}
 
 \begin{lstlisting}
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans
