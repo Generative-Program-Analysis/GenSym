@@ -17,7 +17,6 @@ optimizations and summarize our approach.
 In Section \ref{stagedpoly_lat}, we exploited the higher-kinded type @R@ to
 achieve stage polymorphism. Now we instantiate the type @R@ to @Rep@ and
 still use power sets as an example to present its staged version.
-
 \begin{lstlisting}[escapechar=!]
   trait RepLattice[S] extends Lattice[S, Rep]
   def RepSetLattice[T]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
@@ -53,7 +52,6 @@ where @A@ is the type parameter for reader effect and @B@ for the state effects.
 In our monad stack scheme, they are both instantiated with @Cache@. Now the
 result type is a pair of two staged value: @Rep[Set[(Value, Store)]]@ and
 @Rep[Cache]@.
-
 \begin{lstlisting}
   trait StagedAbstractSemantics extends AbstractComponents {
     type R[T] = Rep[T]
@@ -66,7 +64,6 @@ result type is a pair of two staged value: @Rep[Set[(Value, Store)]]@ and
 \iffalse
 Since our monad stack is uniformly using staged data, the staged @SetT@ now
 stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
-
 \begin{lstlisting}
   case class SetT[M[_]: RepMonad, A](run: M[Set[A]]) {
     def flatMap[B: Manifest](f: Rep[A] => SetT[M, B]): SetT[M, B] = ...
@@ -93,7 +90,6 @@ new environment, new store, and caches. The collapsing of monad happens at
 current-stage, so the call of @ev@ is unfolded through staging. Finally, we
 generate a singleton set containing the compiled next-stage closure
 @emit_compiled_clo(f)@, represented by an IR node in LMS.
-
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                            => Rep[(Set[(Value,Store)], Cache)], λ: Lam, ρ: Exp[Env]): Rep[AbsValue]
@@ -114,7 +110,6 @@ method @emit_ap_clo@ generates the current-stage representation of the
 future-stage result of application.
 Finally, we put the future @out@ cache, store, and values back into
 the current-stage monads.
-
 \begin{lstlisting}
   def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
                   in: Rep[Cache], out: Rep[Cache]): Rep[(Set[ValSt], Cache)]
@@ -174,7 +169,6 @@ The code generation for compiled closures and function applications are similar
 to the staged concrete interpreter. We have two the IR node as case classes, they
 take additional caches as arguments. We also elide how to generate next-stage Scala
 code for them.
-
 \begin{lstlisting}
 case class IRCompiledClo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                           => Rep[(Set[ValSt], Cache)], λ: Lam, ρ: Rep[Env]) extends Def[AbsValue]
@@ -233,7 +227,6 @@ expressions such as literals or variables, because they always terminate.
 Borrowing the idea from the partition of expressions used in A-Normal Form
 \cite{Flanagan:1993:ECC:155090.155113}, we may use a selective caching
 algorithm that does not generate caching for atomic expressions:
-
 \begin{lstlisting}
   def fix_select: Expr => Ans = e => e match {
     case Lit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)

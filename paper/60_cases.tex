@@ -158,7 +158,6 @@ Through tweaking the address allocation strategy, we can achieve various
 context-sensitive analysis \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we
 demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
 \cite{DBLP:journals/jfp/HornM12}, in our staged abstract interpreter.
-
 \begin{lstlisting}
   type Time = List[Expr]
   case class KCFAAddr(x: Ident, time: Time) extends Addr
@@ -173,7 +172,6 @@ family of analysis with increasing precision. Note that when $k = 0$, the
 address space is statically determined by the set of variables appeared in the
 program, and we may exploit it to optimize the generated code. But when $k > 0$,
 the address generation happens at the next stage, i.e., analysis time.
-
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepStateT[
                    RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //add Time with a RepStateT
@@ -184,7 +182,6 @@ the address generation happens at the next stage, i.e., analysis time.
 We then integrate the timestamp into our moand stack by adding a staged
 @StateT@ monad. The result type is passingly get updated to contain a set of
 tuples, where the time is added.
-
 \begin{lstlisting}
   def tick(e: Expr): AnsM[Unit] = for {
     τ <- get_time; u <- liftM(StateTMonad.put((e::τ).take($k$)))
@@ -209,7 +206,6 @@ implemented in monadic abstract interpreter by swaping the @StateT@ (for store)
 and the @SetT@ (for nondeterminism). In this section, we show this optimization
 is orthogonal to staging and we just need to swap the same \textit{staged}
 version of monads. After the adjustment, we have the following monad stack:
-
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepSetT[RepStateT[
                    RepReaderT[RepStateT[IdM, Cache, ?], Cache, ?], Store, ?], ?], Env, T]
@@ -223,7 +219,6 @@ the store while doing the abstract interpretation
 shows that, for big-step monadic abstract interpreter, we may add a @Reader@
 monad to track a set of root addresses and compute the reachable addresses every
 time when we obtain a value. Here we adopt it with staged monads:
-
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepReaderT[
                    RepStateT[RepSetReaderStateM[Cache, Cache, ?], Store, ?],
@@ -258,33 +253,78 @@ compute the root addresses for compound expressions, readers may refer to
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\subsection{Modular Analysis for Free} \label{modular}
+\subsection{Modular Staged Analysis for Free} \label{modular}
 
 % using different k?
 
-One of the challenges of modern static analysis is program usually depends on
-large libraries programs~\cite{toman_et_al:LIPIcs:2017:7121}. If we can analyze
-programs and libraries separately and reuse the result without losing precision,
-then we can reduce the overhead of repeatedly analyzing libraries.
-Some static analyzers compute a summary for a function or a module, which
-can be reused later, however they are mostly too conservative or unsound, which
-both lead to imprecision. In this section, we show meta-programming can be used
-to create sound summaries in the code generation from, such generated code can
-be resued later. The summary contains information that not depend on the
-function argument.
+One of the challenges of modern static analysis is that program
+usually depends on large libraries programs
+\cite{toman_et_al:LIPIcs:2017:7121}. If we are able to analyze
+programs and libraries separately and reuse the result without losing
+precision, then we can reduce the overhead of repeatedly analyzing
+libraries. Some static analyzers compute a summary for a function or a
+module, which can be reused later. However, when lacking the context
+information, those analyses can be too conservative or unsound, which
+both lead to imprecision. In this section, we show that
+meta-programming can provide a trade-off between summary-based modular
+analysis and slow whole-program analysis, by ultilizing an existing
+whole-program analyzer.
 
-As we see when compiling a higher-order function (closure), we specialize the
-abstract interpreter to the body expression of that lambda term under some
-environment, without knowing the actual arguments to the function. We may reuse
-the infrastratures and refactor the @close@ function mentioned in Section
-\ref{sai} to achieve modular analysis. The @close@ function takes a lambda term
-@f@ and an environment, produces a compiled closure, which can be freely used at
-the next stage.
-
+As we have already seen from Section \ref{sai}, and recall the
+primitive operation @close@ that denotes a $\lambda$ term to next-stage
+Scala function.  The specializing of staged abstract interpreter to
+$\lambda$ terms is independent to other parts of the analyzed program.
 \begin{lstlisting}
-  def close(ev: Eval => Ans)(f: Expr, ρ: Rep[Env]): Rep[CompiledClo] = { ...}
+  def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
 \end{lstlisting}
 
+Consider there is a library that contains a list map function @map@, 
+\begin{lstlisting}
+  (define (map xs f)
+    (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
+\end{lstlisting}
+
+The specialization (0CFA and without store-widening) of @close@ on
+@map@ generates the following next-stage Scala code, that is, the
+function @x39@:
+\begin{lstlisting}
+  val x39 = {(x40: List[Set[AbsValue]],          // argument value list
+              x41: Map[Addr, Set[AbsValue]],     // store
+              x42: Map[Config, Set[ValSt]],      // in cache
+              x43: Map[Config, Set[ValSt]]) =>   // out cache
+    val x50 = List[Addr](ZCFAAddr("xs"), ZCFAAddr("f")) // addresses of arguments
+    val x51 = x50.zip(x40)                              // addresses paired with their values
+    val x61 = x51.foldLeft (x41) { case (x52, x53) =>   // prepare a new store that joins
+      val x54 = x53._1;  val x55 = x53._2               //   the arguments and their values
+        val x58 = x52.getOrElse(x54, x57)               //   into the latest store, intially x41
+        val x59 = x58.union(x55)
+        x52 + (x54 -> x59)
+    } ...
+  }
+\end{lstlisting}
+
+We borrow the notation traditional modular analysis and realize that
+such generated function is a reusable artifact which can be used
+modularly.  The generated functions already eliminate the
+interpretation overhead and monadic overhead, therefore can be
+consider as partial summaries. Although, we still need to run the
+generated function at next stage to obtain the analysis result.  At
+next stage, we can provide different abstract arugments, store and
+caches, depending on the context where it is called, thus the analysis
+is modular.
+
+Compared with traditional summary-based analysis, our partial
+summaries are represented by executable functions that are
+parameterized to the context information. In our approach, the
+transition from a whole-program analyzer to modular staged analyzer is
+mechanized and for free from staging. We do not need to design any
+intermediate representation or data structures of summaries.  In some
+scenario, traditional summary-based analyses are able to carry more
+information within a mdoule, e.g., the summary of their internal
+submodules. The staged approach presented here may still need to run
+through the fixed-point for submodules.
+
+\iffalse
 \paragraph{Partially-Static Context} Under a polyvariant analysis (like
 $k$-CFA), such summary generated by specializing static analyzer even could do
 more for calling context by partially-static data optimization. For example,
@@ -293,7 +333,6 @@ where @f@ calls @g@ and @h@ internally and returns @y@ fianlly (we extend the
 language to have multiple arguments). @g@ and @h@ do not depend on @f@. Now we
 would like to modularlly specialize these functions, starting from @f@ with an
 initial environment containing @f@, @g@ and @h@.
-
 \begin{lstlisting}
   def f(a, b, c) = val x = g(a, b); val y = h(x, c);  y
 \end{lstlisting}
@@ -301,6 +340,9 @@ initial environment containing @f@, @g@ and @h@.
 Since $k$ is bounded to a fixed number, after the analysis running $k$ steps
 inside of @f@, the calling context will purely depend on the static structure of
 our module being analyzed.
+\fi
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \iffalse
 Another perspective: programs are data for an abstract interpreter, so if we
@@ -328,7 +370,6 @@ domain and show that the specialization is feasible by staging systematically.
 To evaluates an assignment, we first evaluate its right-hand side, and then put
 the value into the slot where the address of @v@ points to. For simplicity, we
 elect to make the value of the assignment be an @void()@ value.
-
 \begin{lstlisting}
 case Assign(x, e) =>
   val (v, $\sigma$_*) = ev(e, $\rho$, $\sigma$)
@@ -341,7 +382,6 @@ on boolean values. For the @true@ branch, we recursively call @ev@ on a newly
 constructed expression @Seq(e, While(t, e))@ meaning that first evaluates @e@
 and the repeat the loop. Otherwise, for the other branch, we simply return a
 void value and current store.
-
 \begin{lstlisting}
 case While(t, e) =>
   val (tv, t$\sigma$) = ev(t, $\rho$, $\sigma$)
@@ -354,7 +394,6 @@ Interval domain is a relative simple domain which consists of two numeric
 fields, an upper bound and a lower bound. Here we annotate the upper bound and
 lower bound fields to be of type @Rep[Double]@. The operations such as @+@ of
 two intervals produce a new
-
 \begin{lstlisting}
 case class Interval(lb: Rep[Double], ub: Rep[Double]) {
   def +(that: Interval): Interval = that match {
