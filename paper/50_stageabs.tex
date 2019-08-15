@@ -143,11 +143,11 @@ the current-stage monads.
                _ <- put_out_cache(out + (cfg → in.getOrElse(cfg, ⊥)))
                v <- eval(fix_cache)(e)
                σ <- get_store
-               _ <- update_out_cache(cfg, (v, σ)) 
+               _ <- update_out_cache(cfg, (v, σ))
              } yield v
              m(ρ)(σ)(in)(out) }))
     _ <- put_out_cache(res._2);  vs <- lift_nd(res._1);  _ <- put_store(vs._2)
-  } yield vs._1 
+  } yield vs._1
 \end{lstlisting}
 \caption{The staged co-inductive caching algorithm.}
 \label{fig:staged_coind_cache}
@@ -169,7 +169,7 @@ grounded values by providing its desired environment and etc. Finally, we have a
 current-stage representation of the future-stage values @res@, and put the
 content of @res@ back into the monad stack.
 
-\subsection{A Little Bit Code Generation, Again}
+\subsection{A Little Bit of Code Generation, Again}
 The code generation for compiled closures and function applications are similar
 to the staged concrete interpreter. We have two the IR node as case classes, they
 take additional caches as arguments. We also elide how to generate next-stage Scala
@@ -187,7 +187,7 @@ case class IRApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
 \iffalse
 Revision: Solving Practical Challenges.
 theoretically, all the things should work nicely. Unfolding the interpreter over the AST.
-But the generated code is blowed up. For example .... This should not affect the correctness, 
+But the generated code is blowed up. For example .... This should not affect the correctness,
 but poses burden on the MSP system (ie LMS) and the next stage compiler/runtime (ie, scalac and JVM).
 1) LMS becomes slower since a large IR graph is contructed during the staging.
 2) Scalac becomes slower when reading a such large source code.
