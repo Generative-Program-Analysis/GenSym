@@ -264,7 +264,7 @@ the size of residual programs.
 
 We have gradually presented the confluence of specialization and abstraction of
 concrete interpreters. In this section, we review and summarize our recipe
-to achieve the staged abstract interpreter, discuss the correctness issue
+to achieve the staged abstract interpreter, discuss correctness issues,
 and different design choices.
 
 \subsection{Summarizing the Approach}
@@ -273,25 +273,25 @@ We summarize our approach to staging an abstract interpreter as follows:
 
 \begin{itemize}
   \item Constructing a generic interpreter that abstracts over binding-time,
-    value domains and primitive operations. In this paper, the generic interpreter
-    is implemented in monadic style, therefore the semantics can be encapsulated
+    value domains, and primitive operations. In this paper, the generic interpreter
+    is implemented in monadic style; therefore, the semantics can be encapsulated
     into monads.
-  \item By using an approriate moand stack, we can implement a modular, unstaged
+  \item By using an appropriate monad stack, we can implement a modular, unstaged,
     abstract interpreter. This step has been explored in the previous literature.
   \item Replacing the monad stack to staged monad stack, such monads operate on
     staged data types, i.e., next-stage values. We also need to reimplement several
-    primitive operations that on staged values, modularly.
+    primitive operations on staged values, in a modular fashion.
 \end{itemize}
 
-Monadic interperters are known to be able to decouple the interpretation process
-and the underlying semantics. The key insight in this paper is, by making the
+Monadic interpreters are known to be able to decouple the interpretation process
+and the underlying semantics. The key insight in this paper is that by making the
 monadic interpreter binding-time polymorphic, it can be extended for generating
-efficient code in a staging framework. The underying semantics and staging are
+efficient code in a staging framework. The underlying semantics and staging are
 two orthogonal dimensions. It is important to note that the computation
-encapsulated by the monads are not staged, only data such as sets and maps are
+encapsulated by the monads are not staged; only data (such as sets and maps) are
 staged. All the monadic computation, i.e., functions passed to the monadic bind
-operation @flatMap@ are statically known. This is why we can eliminate the
-monadic layer and its overhead.
+operation @flatMap@, are statically known. This is why we can eliminate the
+monadic layer and its associated overhead.
 
 \paragraph{What has been eliminated?} In the generated code, all the
 primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
@@ -301,34 +301,34 @@ store, and two caches, whose underlying representations are all @Rep[Map[K,V]]@.
 also have several operations on tuples and lists, which are residualized from
 the use of monads internally.
 
-%\todo{may be show an small example?}
+%\todo{maybe show a small example?}
 
 \subsection{Correctness}
 
-As the central concern of static analysis, the soundness is important for
-every user who would like to use it. Here we briefly justify that how our
-approach preserve the corretness and soundness of the analysis, under the
+Soundness is the central concern of static analysis, and as such, is vital
+for prospective users. We now briefly examine how our
+approach preserves the correctness and soundness of the analysis, under the
 assumption that the unstaged one is sound. It is worth noting that the rationale
-listed here are based on empirical evidence, a rigorous proof of soundness
-perservation of the staged abstract interpreters is still an open question.
+listed here is based on empirical evidence; a rigorous proof of soundness
+preservation of the staged abstract interpreters remains an open question.
 
 \begin{itemize}
   \item We usually assume the underlying MSP system achieves cross-stage
-    persistent, i.e., the generated program does not change the observational
-    behaviours of the original program. In the case of this paper, we use the
+    persistence, i.e., the generated program does not change the observational
+    behaviors of the original program. In the case of this paper, we use the
     LMS framework, which 1) relies on the type checking facilities of Scala, and
-    2) generates code in A-Normal form \cite{Flanagan:1993:ECC:155090.155113}
+    2) generates code in A-Normal Form \cite{Flanagan:1993:ECC:155090.155113}
     that preserves the execution order within a stage \cite{DBLP:conf/birthday/Rompf16}.
     However, in general, it is possible to subvert these guarantees by
     using unsafe features, such as casts.
   \item As shown in the previous section, the generic interpreter is untouched
     and shared by the four artifacts. We only instantiate binding-time
     annotations and the monadic types. This allows the programmer to easily
-    check the correctness of implementation of staged monads modularlly.
+    check the correctness of implementation of staged monads modularly.
   \item We construct the staged monads and staged data structures in a
     correct-by-construct way that directly corresponds to their unstaged
-    version. For instance, the staged data structure we used here are simply
-    a black-box that wraps the Scala's library data structures (in the next
+    version. For instance, the staged data structures we used here are simply
+    black boxes that wrap the Scala's library data structures (in the next
     stage).
   \item In our experiments, the staged abstract interpreter produces the same
     result with the unstaged one on all benchmark programs we tested.
@@ -338,22 +338,22 @@ perservation of the staged abstract interpreters is still an open question.
 
 \paragraph{Are Monads Necessary?} No. One can always inline the monads and
 obtain an abstract interpreter in continuation-passing style, or simply use
-explicit side-effects such mutation to implement the artifact with the same
+explicit side-effects such as mutation to implement the artifact with the same
 abstract semantics. In either case, we can still apply the staging schema to
 the abstract interpreter. As evidence, we provide a staged abstract
 interpreter written in direct-style in the accompanying artifact.
 
 \paragraph{Big-step vs Small-step}
 
-What we implemented is a big-step, compositional abstract interpreter in monadic
+We implemented a big-step, compositional abstract interpreter in monadic
 style, where \textit{compositional} means that every recursive call of our abstract
 interpreter is applied to proper substructures of the current syntactic
 parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
 specialization can be done by unfolding, as well as guarantees the termination
-of specialization procedure. It is also possible to specialize small-step
+of the specialization procedure. It is also possible to specialize small-step
 operational abstract semantics through abstract compilation
 \cite{Boucher:1996:ACN:647473.727587} -- as
 \citet{Johnson:2013:OAA:2500365.2500604} implemented it for
 optimizing Abstract Abstract Machines. However, the generated abstract
-byte-code still requires another small-step abstract machine to execute, which is
+bytecode still requires another small-step abstract machine to execute, which is
 an additional engineering effort.
