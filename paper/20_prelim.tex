@@ -176,7 +176,6 @@ defined in the outer scope is passed to @MonadOps@. Inside of @MonadOps@,
 @R[_]@ wraps the data types @A@ and @B@ that are encapsulated by the
 monad, but not the monad type @M@ itself. When acting as compilers, we
 will also replace the monads to the ones that work on staged data values.
-\todo{it is important that R only annotates data, not the monad}
 
 We also declare several operations to mannipulate environments and
 stores. These methods return monadic values of type @AnsM[_]@, which

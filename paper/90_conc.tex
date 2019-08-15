@@ -1,10 +1,12 @@
 \section{Conclusion}
 
-In this paper, we first present the implementation of first Futamura projection
-on abstract interpreters. To realize it, we design a generic interpreter that
-abstracts over both binding-time and value domains; by instantiating it
-differently, the staged abstract interpreter can be readily derived.
+In this paper, we present a simple and elegant framework that extends the first
+Futamura projection to abstract interpreters.
+To realize it, we design a generic interpreter that abstracts over both
+binding-time and value domains; by instantiating it with staged monads for
+abstract interpretation, the staged abstract interpreter can be readily derived.
 The meta-programming approach brings new insight and implementation techniques
-to optimize abstract interpretation based static analysis. The optimization can
-be realized in a completely orthogonal way to the abstract semantics and actual
-implementation code. We empirical evaluate the performance improved by our approach.
+to optimize static analyzers. The optimization can be realized in a completely
+orthogonal way to the interpreter and abstract semantics.
+In our empirical evaluation, staging improves an order of magnitude of
+performance in terms of running time.

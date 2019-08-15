@@ -73,10 +73,20 @@ interpreters with delimited continuations;
 abstract interpreter that makes proof of soundness can be constructed
 compositionally.
 
-\citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation
-framework for modular analysis. We borrow the notation of modular
-analysis, \todo{but intentional properties are different, compare with
-  summary}
+\citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
+modular analysis. We borrow the notation of modular analysis for our approach.
+But the staged abstract interpreter does not generate complete summaries for
+modules, instead, it is able to specialize the analysis modularly. Similar, AC
+is considered as an example of this kind of mdoular analysis \cite{DBLP:conf/cc/CousotC02}.
+
+\paragraph{Control-flow Analysis} Our case studies and evaluation focus on
+control-flow anslysis for functional languages
+\cite{Shivers:1991:SSC:115865.115884, Midtgaard:2012:CAF:2187671.2187672}. In
+general, $k$-CFA (where $k > 0$) is considered impractical to use as a compiler
+pass, due to its EXPTIME lower bound \cite{VanHorn:2008:DKC:1411204.1411243}.
+However, several variants of 0CFA were developed and shown to be useful in
+practice and program optimization \cite{Adams:2011:FTR:2048066.2048105,
+Bergstrom:2014:PEH:2628136.2628153, ashley:practical, Reppy:2006:TCA:1159876.1159888}.
 
 \paragraph{Two-level Semantics} The idea of reinterpreting the semantics as
 abstract interpretation can be traced to Nielson's two-level semantics
@@ -133,5 +143,3 @@ monads. But they didn't \todo{monad transfomers?}  Similar to the idea
 in this paper, specializing monadic interpreters was explored by
 \citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}. \todo{what's the
   difference?}
-
-\paragraph{Control-flow Analysis} useful applications, why important

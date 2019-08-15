@@ -56,7 +56,7 @@ def compCall(call: Expr): CompAnalysis = call match {
 }
 def compApp(f: Expr, args: List[Expr]): CompAnalysis = f match {
   case Var(x) => ($\sigma$: Store) => 
-    analysisAbsApp($\sigma$.lookup(x), args, $\sigma$)
+    analyzeAbsApp(args, $\sigma$(x), $\sigma$)
   case Op(_) => compArgs(args)
   case Lam(vars, body) =>
     val C = compCall(body)
@@ -169,11 +169,14 @@ recent calling contexts. The definition of abstract addresses @KCFAAddr@ is also
 changed to contain a identifier and the time when it get allocated, meaning that
 this address points to some values under such calling context. If $k$ is 0, we
 obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain a
-family of analysis with increasing precision.
+family of analysis with increasing precision. Note that when $k = 0$, the
+address space is statically determined by the set of variables appeared in the
+program, and we may exploit it to optimize the generated code. But when $k > 0$,
+the address generation happens at the next stage, i.e., analysis time.
 
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepStateT[
-                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //add Time into a RepStateT
+                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //add Time with a RepStateT
                  Store, ?], Env, T]
   type Result = (Rep[Set[(Value, Store, Time)]], Rep[Cache])
 \end{lstlisting}
