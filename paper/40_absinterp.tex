@@ -3,7 +3,7 @@
 After seeing both unstaged and staged concrete interpreters, now we turn our
 focus on abstract interpreters under the same framework. We first present a
 lattice framework with binding-time abstraction, as well as simple abstract
-domains such as pwoer set lattice.
+domains such as power set lattice.
 Then we show the abstract components, namely abstract values, abstract
 environments, and abstract stores. The abstract interpreter we construct in this
 section is similar to \citet{DBLP:journals/pacmpl/DaraisLNH17}'s. For
@@ -88,7 +88,7 @@ stores are automatically lifted to abstract environments and abstract stores,
 i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@ respectively.
 It is important that the abstract store now maps addresses to sets of abstract
 values, indicating that an address may point to an over-approximated set of
-values occurred at runtime.
+values occurred at run-time.
 \begin{lstlisting}
   trait AbstractComponents extends Semantics {
     sealed trait AbsValue
@@ -112,9 +112,9 @@ the corresponding values and stores for a given program configuration.
 \end{lstlisting}
 
 Now, the store is a mapping from addresses to sets of abstract values. This can
-be justied by the approximation nature of abstract interpretation and
+be justified by the approximation nature of abstract interpretation and
 nondeterminism in the abstract interpreter.
-First, when analyzing a conditional experssion, we may not have enough
+First, when analyzing a conditional expression, we may not have enough
 information on which branch will be taken, thus a sound treatment is to
 nondeterministically explore both branches, i.e., compute the join of two path.
 Second, when applying a function, for instance, @f(a)@, the possible lambda
@@ -129,8 +129,8 @@ for the two caches. The nondeterminism effect is represented by the
 transformed, and @A@ is the type of elements in the set. We use a @ReaderT@ for
 one cache that will not be changed during one fixed-point iteration, and use a
 @StateT@ for another cache that will be constantly updated during analysis.
-\citet{DBLP:journals/pacmpl/DaraisLNH17} discuss different permuatation of the
-moand stack for abstract interpretation. The following @AnsM@ type shows the
+\citet{DBLP:journals/pacmpl/DaraisLNH17} discuss different permutation of the
+monad stack for abstract interpretation. The following @AnsM@ type shows the
 monad stack (we use \hl{light gray} to highlight what have been changed from
 the monad stack of concrete interpretation):
 \begin{lstlisting}[escapechar=!]
@@ -212,7 +212,7 @@ As we mentioned earlier, the ADI approach uses a two-cache mechanism to
 compute the least fixed-point and prevent non-termination, which is also called a
 \textit{co-inductive} caching algorithm or \textit{truncated depth-first
 evaluation} \cite{Rosendahl:AbsIntPL}. It has been used in other abstract
-interpretater or fixed point computation
+interpreter or fixed point computation
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800,
   Rosendahl:AbsIntPL}. The idea is to use a @in@ cache and a @out@ cache during
 the depth-first evaluation, where the @in@ cache stores the result from last

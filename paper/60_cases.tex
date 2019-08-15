@@ -111,7 +111,7 @@ def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
 \paragraph{Original AC}
 The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA
 for a small CPS language consisting of abstractions, applications, recursion and
-primtive operators. Figure \ref{compare_ac_sai} (left) shows the AC
+primitive operators. Figure \ref{compare_ac_sai} (left) shows the AC
 implementation: different syntactic constructs are handled in different functions
 (e.g., @compCall@, @compApp@, etc.).
 Before refactoring into AC, these functions would take the store as a
@@ -127,7 +127,7 @@ store to complete the analysis.
 On the other side, our approach does exactly the same thing through staging: the
 AST are static, and stores are dynamic, therefore we annotate the type @Store@
 with @Rep@ (shown in Figure \ref{compare_ac_sai} (right)). In fact, the only
-changes of our appraoch using LMS framework are the types of @Store@ to
+changes of our approach using LMS framework are the types of @Store@ to
 @Rep[Store]@, since they will be known at the next stage; other parts do not need to change. 
 The generated code
 will just looks-up and update the store. The functions at current stage are
@@ -179,7 +179,7 @@ the address generation happens at the next stage, i.e., analysis time.
   type Result = (Rep[Set[(Value, Store, Time)]], Rep[Cache])
 \end{lstlisting}
 
-We then integrate the timestamp into our moand stack by adding a staged
+We then integrate the timestamp into our monad stack by adding a staged
 @StateT@ monad. The result type is passingly get updated to contain a set of
 tuples, where the time is added.
 \begin{lstlisting}
@@ -202,7 +202,7 @@ The type @Config@ used in caching is also changed to included the timestamp.
 A commonly used technique to improve the running time in control-flow analysis
 is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
 DBLP:journals/pacmpl/DaraisLNH17}, store-widening analysis can be easily
-implemented in monadic abstract interpreter by swaping the @StateT@ (for store)
+implemented in monadic abstract interpreter by swapping the @StateT@ (for store)
 and the @SetT@ (for nondeterminism). In this section, we show this optimization
 is orthogonal to staging and we just need to swap the same \textit{staged}
 version of monads. After the adjustment, we have the following monad stack:
@@ -228,7 +228,7 @@ time when we obtain a value. Here we adopt it with staged monads:
 The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We modify the @fix@
 function with caching (from Section \ref{sai}) to @fix_gc@, but the caching part
 is omitted. Several auxiliary functions are used: @ask_root@ retrieves the
-current root addresses from the moand stack; @root@ compute the reachable
+current root addresses from the monad stack; @root@ compute the reachable
 addresses from a value; and @gc@ cleans up the store according to the reachable
 addresses and returns a new store. For the generic interpreter, we also need to
 compute the root addresses for compound expressions, readers may refer to
@@ -267,7 +267,7 @@ module, which can be reused later. However, when lacking the context
 information, those analyses can be too conservative or unsound, which
 both lead to imprecision. In this section, we show that
 meta-programming can provide a trade-off between summary-based modular
-analysis and slow whole-program analysis, by ultilizing an existing
+analysis and slow whole-program analysis, by utilizing an existing
 whole-program analyzer.
 
 As we have already seen from Section \ref{sai}, and recall the
@@ -296,7 +296,7 @@ function @x39@:
     val x51 = x50.zip(x40)                              // addresses paired with their values
     val x61 = x51.foldLeft (x41) { case (x52, x53) =>   // prepare a new store that joins
       val x54 = x53._1;  val x55 = x53._2               //   the arguments and their values
-        val x58 = x52.getOrElse(x54, x57)               //   into the latest store, intially x41
+        val x58 = x52.getOrElse(x54, x57)               //   into the latest store, initially x41
         val x59 = x58.union(x55)
         x52 + (x54 -> x59)
     } ...
@@ -309,7 +309,7 @@ modularly.  The generated functions already eliminate the
 interpretation overhead and monadic overhead, therefore can be
 consider as partial summaries. Although, we still need to run the
 generated function at next stage to obtain the analysis result.  At
-next stage, we can provide different abstract arugments, store and
+next stage, we can provide different abstract arguments, store and
 caches, depending on the context where it is called, thus the analysis
 is modular.
 
@@ -320,18 +320,18 @@ transition from a whole-program analyzer to modular staged analyzer is
 mechanized and for free from staging. We do not need to design any
 intermediate representation or data structures of summaries.  In some
 scenario, traditional summary-based analyses are able to carry more
-information within a mdoule, e.g., the summary of their internal
-submodules. The staged approach presented here may still need to run
-through the fixed-point for submodules.
+information within a module, e.g., the summary of their internal
+sub-modules. The staged approach presented here may still need to run
+through the fixed-point for sub-modules.
 
 \iffalse
 \paragraph{Partially-Static Context} Under a polyvariant analysis (like
 $k$-CFA), such summary generated by specializing static analyzer even could do
 more for calling context by partially-static data optimization. For example,
 consider that we have a library consists of three functions @f@, @g@ and @h@,
-where @f@ calls @g@ and @h@ internally and returns @y@ fianlly (we extend the
+where @f@ calls @g@ and @h@ internally and returns @y@ finally (we extend the
 language to have multiple arguments). @g@ and @h@ do not depend on @f@. Now we
-would like to modularlly specialize these functions, starting from @f@ with an
+would like to modularly specialize these functions, starting from @f@ with an
 initial environment containing @f@, @g@ and @h@.
 \begin{lstlisting}
   def f(a, b, c) = val x = g(a, b); val y = h(x, c);  y
@@ -359,7 +359,7 @@ data-flow because the control-flow is relatively easy to obtain. In this
 section, we show the staging of other abstract domains, particularly an interval
 domain for numbers. It has been shown that specializing abstract domains with
 respect to the structure of analyzed program significantly improves the
-performance: a recent example is online decomposition of polyhedra
+performance: a recent example is online decomposition of polyhedron
 \cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143}. In this
 section, we first show how to support imperative language features in the
 generic abstract interpreter. Then we present a similar idea for the interval
@@ -378,7 +378,7 @@ case Assign(x, e) =>
 
 To evaluates a @while@ loop statement, we evaluate the condition first. Then
 similar to how we treat @branch0@, we have a generic @branch@ function but works
-on boolean values. For the @true@ branch, we recursively call @ev@ on a newly
+on Boolean values. For the @true@ branch, we recursively call @ev@ on a newly
 constructed expression @Seq(e, While(t, e))@ meaning that first evaluates @e@
 and the repeat the loop. Otherwise, for the other branch, we simply return a
 void value and current store.

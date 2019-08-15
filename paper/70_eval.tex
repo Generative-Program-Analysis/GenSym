@@ -85,11 +85,10 @@ from the table, the staged version significantly outperforms the
 unstaged version on all benchmarks.  On average, the staging produces
 code that runs 17x times faster than the unstaged analyzer.
 
-We also observe that much overhead of unstaged analyzers are from the
-monadic layers. Thus our evaluation result provides an abstraction
-without regret approach to construct optimizing abstract interpreters
--- the user may write a high-level modular and composable abstract
-interpreter, and then derive a staged version in a principled way that
-runs significantly faster.
-
 \todo{analyze some interesting examples}
+
+Our evaluation result provides an abstraction without regret
+approach to construct optimizing abstract interpreters -- the user may write a
+high-level modular and compositional abstract interpreter, and then derive a
+staged version in a principled way that runs significantly faster.
+

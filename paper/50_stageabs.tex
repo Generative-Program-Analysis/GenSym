@@ -302,7 +302,7 @@ Soundness is the central concern of static analysis, and as such, is vital
 for prospective users. We now briefly examine how our
 approach preserves the correctness and soundness of the analysis, under the
 assumption that the unstaged one is sound. It is worth noting that the rationale
-listed here is based on empirical evidence; a rigorous proof of soundness
+listed here is based on empirical evidence; a rigorous proof for soundness
 preservation of the staged abstract interpreters remains an open question.
 
 \begin{itemize}
@@ -318,7 +318,7 @@ preservation of the staged abstract interpreters remains an open question.
     and shared by the four artifacts. We only instantiate binding-time
     annotations and the monadic types. This allows the programmer to easily
     check the correctness of implementation of staged monads modularly.
-  \item We construct the staged monads and staged data structures in a
+  \item We build the staged monads and staged data structures in a
     correct-by-construct way that directly corresponds to their unstaged
     version. For instance, the staged data structures we used here are simply
     black boxes that wrap the Scala's library data structures (in the next

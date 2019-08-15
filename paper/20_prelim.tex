@@ -134,7 +134,7 @@ extensible interpreters using monad transformers was first explored by
 \citet{DBLP:conf/popl/LiangHJ95}, and later has been applied to abstract
 interpreters \cite{Sergey:2013:MAI:2491956.2491979,
   DBLP:journals/pacmpl/DaraisLNH17, Darais:2015:GTM:2814270.2814308}.
-In this section, we present the generic inferface in the style of big-step
+In this section, we present the generic interface in the style of big-step
 definitional interpreter. The key idea is to keep the binding-time type and
 returned monadic type abstract, so that they can be instantiated differently.
 We also need to abstract the primitive operations on those types.
@@ -145,7 +145,7 @@ strings. To represent states, two required components for the
 interpreter are environments @Env@ and stores @Store@. @Env@ maps from
 identifiers to addresses, and @Store@ maps from addresses to values,
 respectively. The @Env@ captures bound variables in scope, and @Store@
-models a persistent heap through the program runtime.  At this moment,
+models a persistent heap through the program run-time.  At this moment,
 the domains of addresses and values are still abstract, i.e., they are
 declared as abstract types.
 \begin{lstlisting}
@@ -159,7 +159,7 @@ declared as abstract types.
 
 \paragraph{Binding-time Abstraction} As mentioned before, the binding-time is
 declared as a higher-kinded type @R[_]@. We are free to use @R@ to annotate
-other datatypes in the interpreter; it is also injected into the monadic
+other data-types in the interpreter; it is also injected into the monadic
 type @MonadOps@.
 If we simply instantiate @R@ an identity type (i.e., @type R[T] = T@),
 then the generic interpreter is a standard definitional interpreter
@@ -179,7 +179,7 @@ defined in the outer scope is passed to @MonadOps@. Inside of @MonadOps@,
 monad, but not the monad type @M@ itself. When acting as compilers, we
 will also replace the monads to the ones that work on staged data values.
 
-We also declare several operations to mannipulate environments and
+We also declare several operations to manipulate environments and
 stores. These methods return monadic values of type @AnsM[_]@, which
 may encapsulate over the environment or store, or simply a @Unit@
 value for effects. For examples, @local_env@ installs a new environment
@@ -283,7 +283,7 @@ type @Expr => Ans@ that refers to itself. Consequently, the method
 @close@ that lifts lambda terms to closures and method @ap_clo@ that
 applies functions also takes an extra @ev@, because evaluation may
 happen inside of them.
-To close the open-recursion, we use a fixed-point opertor @fix@.
+To close the open-recursion, we use a fixed-point operator @fix@.
 For concrete-interpretation instantiation, it works like the Y
 combinator; for abstract-interpretation instantiation, it instruments
 the interpreter by memoizing its input and output, which will ensure
@@ -351,7 +351,7 @@ Here we sketch the basic idea of @ReaderT@ and @StateT@. Readers may
 refer to \cite{DBLP:conf/popl/LiangHJ95, Chiusano:2014:FPS:2688794} for more detail.
 A @ReaderT@ monad transformer encapsulates computation @R => M[A]@, where
 @R@ is the reader type, and @M[_]@ is the inner monad type.
-Given a @R@, @ReaderT@ monad produecs a transformed value of type @M[A]@.
+Given a @R@, @ReaderT@ monad produces a transformed value of type @M[A]@.
 Similarly, a @StateT@ monad encapsulates computation @S => M[(A, S)]@, where
 @S@ is the state type, and @M[_]@ is the inner monad type.
 Given a @S@, @StateT@ monad produces a transformed value of type @M[(A, S)]@,

@@ -35,17 +35,17 @@ analysis \cite{Smaragdakis:2015:PA:2802194.2802195}.
 Similar to the idea in this paper, such analyses can be splitted to
 staged.  One of the future work is to explore that whether these
 analyses can be implemented and optimized from
-metaprogramming. Souffl{\'e}, one of the state-of-the-art Datalog
+meta-programming. Souffl{\'e}, one of the state-of-the-art Datalog
 engine that is commonly used in points-to analysis
 \cite{Antoniadis:2017:PDS:3088515.3088522}, uses the idea of Futamura
-projection for efficent implemetation \cite{10.1007/978-3-319-41540-6_23}.
+projection for efficient implementation \cite{10.1007/978-3-319-41540-6_23}.
 But it only specializes Datalog rules to the running engine, instead
 of a full pipeline from program AST to generating constraints and
 solving constraints.
 
 Recent work shows that the numerical abstract domains can be
 specialized w.r.t. the static program structure, although not in the
-way of using staging. For example, decomposing polyhedras
+way of using staging. For example, decomposing polyhedrons
 \cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143} to
 smaller ones that depend on the variables involved in a statement can
 significantly improve the running time and space of abstract
@@ -80,7 +80,7 @@ modules, instead, it is able to specialize the analysis modularly. Similar, AC
 is considered as an example of this kind of mdoular analysis \cite{DBLP:conf/cc/CousotC02}.
 
 \paragraph{Control-flow Analysis} Our case studies and evaluation focus on
-control-flow anslysis for functional languages
+control-flow analysis for functional languages
 \cite{Shivers:1991:SSC:115865.115884, Midtgaard:2012:CAF:2187671.2187672}. In
 general, $k$-CFA (where $k > 0$) is considered impractical to use as a compiler
 pass, due to its EXPTIME lower bound \cite{VanHorn:2008:DKC:1411204.1411243}.
@@ -97,7 +97,7 @@ interpreters is also closely related to the two-level semantics: the
 use of a generic interface with monads and then reinterpret it by
 different semantics is already two-level. Instead of focusing on
 semantics, this paper shows how a staged analyzer can be built and
-used to increase efficieny of static analysis, we augment the monadic
+used to increase efficiency of static analysis, we augment the monadic
 abstract interpreter from another dimension, using code generation to
 produce efficient low-level code. Hence the presented work can be
 considered as an two-dimension application of the two-level semantics.

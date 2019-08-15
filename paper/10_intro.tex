@@ -24,7 +24,7 @@ can be readily refactored to an effective $0$-CFA control-flow
 analysis \cite{Shivers:1988:CFA:53990.54007,
   Midtgaard:2012:CAF:2187671.2187672}: first, tweak the environment
 dereference as a nondeterministic choice, such that the environment
-may contain mutiple possible values for a varaiable, then allocate
+may contain multiple possible values for a variable, then allocate
 continuations in the environment to exploit return-flow information,
 and also constrain the addresses space to be finite.  This systematic
 abstraction approach can be tailored to different language features
@@ -57,7 +57,7 @@ are additional abstraction penalties with these high-level
 implementation approaches.  First, similar to concrete interpreters,
 the abstract interpreter analyzes the program by traversing the
 abstract syntax tree (AST), which poses an interpretive overhead, such as
-the pattern matching on the ASTs and recursive calls on the subexpressions.
+the pattern matching on the ASTs and recursive calls on the sub-expressions.
 Such overhead can be negligible if the abstract
 interpreter only runs on the program a single time, but can also
 accumulate significantly if run repeatedly (for example, on
@@ -118,7 +118,7 @@ the programmer to explicitly control and annotate the binding-times in
 the program, then the MSP system will check whether these annotations
 are consistent and specialize the program using that information.  The
 staging annotations can be either syntactic (e.g., quote and
-quasiquote in MetaML/MetaOCaml) or type-based (e.g., the Lightweight
+quasi-quote in MetaML/MetaOCaml) or type-based (e.g., the Lightweight
 Modular Staging framework \cite{DBLP:conf/gpce/RompfO10} in Scala).
 
 Our proposed framework adopts the type-based multi-stage programming
@@ -146,7 +146,7 @@ instantiated from these two dimensions (Figure~\ref{confluence}):
 \item With a flat binding-time and concrete domains, it is a ordinary
   definitional interpreter based on big-step operational semantics;
 \item With two-level binding-times and concrete domain, it is a
-  compiler that translate to program intro antoher language;
+  compiler that translate to program intro another language;
 \item With a flat binding-time and abstract domains, it is an
   definitional abstract interpreter \cite{DBLP:journals/pacmpl/DaraisLNH17}
   that statically computes runtime properties;
@@ -198,7 +198,7 @@ showing an order of magnitude speed-up on flow-analysis.
   \item Intellectually, our framework naturally extends the first
     Futamura projection to abstract interpreters, showing a
     well-grounded approach to optimize static analyses via
-    metaprogramming.
+    meta-programming.
   \item Practically, we show that staging an abstract interpreter is
     useful to improve performance and scalability of analyses by case
     studies and an empirical evaluation.
@@ -224,7 +224,7 @@ showing an order of magnitude speed-up on flow-analysis.
 \end{itemize}
 
 \iffalse
-On the other side, static analysis is a tradeoff between performance and
+On the other side, static analysis is a trade-off between performance and
 precision: higher precision usually leads to longer running time.
 
 4. Existing method to improve the performance is adhoc, engineering heavy, require to rewrite the optimized version, therefore harder to reason about the correctness
