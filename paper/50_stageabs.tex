@@ -329,12 +329,14 @@ preservation of the staged abstract interpreters remains an open question.
 
 \subsection{Design Choices}
 
-\paragraph{Are Monads Necessary?} No. One can always inline the monads and
-obtain an abstract interpreter in continuation-passing style, or simply use
-explicit side-effects such as mutation to implement the artifact with the same
-abstract semantics. In either case, we can still apply the staging schema to
-the abstract interpreter. As evidence, we provide a staged abstract
-interpreter written in direct-style in the accompanying artifact.
+\paragraph{Monadic-style vs Direct-style} We use monadic interpreter through the paper,
+but it is not necessary for staging. One can inline the monadic
+operations and obtain an abstract interpreter in continuation-passing
+style, or even translate back to direct-style that may use explicit
+side-effects such as mutations. In either case, we can still apply the
+staging idea to the abstract interpreter and remove the interpretation
+overhead. Although, monads make the staged abstract interpreter can be
+implemented in a modular and extensible way.
 
 \paragraph{Big-step vs Small-step}
 
