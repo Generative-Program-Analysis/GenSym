@@ -22,10 +22,10 @@ A complete lattice over set $S$ is a tuple of $\langle S, \sqsubseteq, \top,
 bottom element, $\sqsubseteq : S \to S \to Bool$ is the
 ordering relation, $\sqcup: S \to S \to S$ is the join (least upper bound)
 operator, and $\sqcap: S \to S \to S$ is the meet (greatest lower bound)
-operator. The trait @SPLattice@ (Figure \ref{fig:splattice}) defines a type
-class of stage polymorphic lattices. Similar to @MonadOps@ in Section
-\ref{generic_if}, we introduce an additional higher-kinded type @R[_]@ to
-annotate the binding-times, where @R[_]@ wraps datatype @S@ and @Boolean@ in
+operator. The trait \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SPLattice} (Figure \ref{fig:splattice}) defines a type
+class of stage polymorphic lattices. Similar to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps} in Section
+\ref{generic_if}, we introduce an additional higher-kinded type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]} to
+annotate the binding-times, where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]} wraps datatype \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{S} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Boolean} in
 these operations.
 
 \begin{figure}[h!]
@@ -57,7 +57,7 @@ def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
 \end{subfigure}
 \end{figure}
 
-In this section, we simply let the binding-time type @R[T] = T@ (i.e., @NoRep@)
+In this section, we simply let the binding-time type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[T] = T} (i.e., \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{NoRep})
 to instantiate an unstaged lattice type class. An example of lattice we used in
 the rest of the paper is the power set abstract domain (shown in Figure
 \ref{fig:powerset}), where the ordering is subset relation, the join is union
@@ -77,15 +77,15 @@ an abstract interpreter.
 
 \paragraph{Abstract Components}
 
-We first widen the concrete values to @AbsValue@: numbers are lifted to a
-singleton object @IntTop@ representing the set of all numbers; closures remain
-the same. Then the type @Value@ is a set of @AbsValue@ (we abuse the type names
-a bit, as the generic interface already defined the abstract type @Value@).
+We first widen the concrete values to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AbsValue}: numbers are lifted to a
+singleton object \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IntTop} representing the set of all numbers; closures remain
+the same. Then the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value} is a set of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AbsValue} (we abuse the type names
+a bit, as the generic interface already defined the abstract type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value}).
 The address space is constrained to be finite to ensure the computability of
 analysis -- for the simplest monovariant analysis, we use variable names for
-addresses. After defining the @Value@ and @Addr@ type, the environments and
+addresses. After defining the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Addr} type, the environments and
 stores are automatically lifted to abstract environments and abstract stores,
-i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@ respectively.
+i.e., \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map[Ident, Addr]} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map[Addr, Set[AbsValue]]} respectively.
 It is important that the abstract store now maps addresses to sets of abstract
 values, indicating that an address may point to an over-approximated set of
 values occurred at run-time.
@@ -103,7 +103,7 @@ To prevent the abstract interpreter from falling into non-termination when
 computing the fixed-point, the ADI approach uses a co-inductive mechanism
 consisting of two caches that remember the input and output of functions.
 Here we first provide the necessary type definitions, and later we will describe
-the algorithm in detail. A @Cache@ is a mapping from configurations @Config@ to
+the algorithm in detail. A \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Cache} is a mapping from configurations \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Config} to
 sets of value-store pairs, where the configuration is a triple of current
 expression being evaluated, environment and store. Intuitively, a cache memoizes
 the corresponding values and stores for a given program configuration.
@@ -117,20 +117,20 @@ nondeterminism in the abstract interpreter.
 First, when analyzing a conditional expression, we may not have enough
 information on which branch will be taken, thus a sound treatment is to
 nondeterministically explore both branches, i.e., compute the join of two path.
-Second, when applying a function, for instance, @f(a)@, the possible lambda
-terms of @f@ is computed approximately. As a result, we may retrieve a set of
-closures when dereferencing the address of @f@ and need to apply all of them.
+Second, when applying a function, for instance, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f(a)}, the possible lambda
+terms of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} is computed approximately. As a result, we may retrieve a set of
+closures when dereferencing the address of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} and need to apply all of them.
 
 \paragraph{Monads for Abstract Interpretation} Compared with the concrete
 interpreter that uses reader and state effects, the abstract interpreter
 further introduces a nondeterminism effect and another reader and state effect
 for the two caches. The nondeterminism effect is represented by the
-@Set[M[_], A]@ monad transformer, where @M@ is the inner monad being
-transformed, and @A@ is the type of elements in the set. We use a @ReaderT@ for
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set[M[_], A]} monad transformer, where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M} is the inner monad being
+transformed, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} is the type of elements in the set. We use a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} for
 one cache that will not be changed during one fixed-point iteration, and use a
-@StateT@ for another cache that will be constantly updated during analysis.
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} for another cache that will be constantly updated during analysis.
 \citet{DBLP:journals/pacmpl/DaraisLNH17} discuss different permutation of the
-monad stack for abstract interpretation. The following @AnsM@ type shows the
+monad stack for abstract interpretation. The following \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM} type shows the
 monad stack (we use \hl{light gray} to highlight what have been changed from
 the monad stack of concrete interpretation):
 \begin{lstlisting}[escapechar=!]
@@ -141,12 +141,12 @@ trait AbstractSemantics extends AbstractComponents {
 }
 \end{lstlisting}
 
-Similar to the concrete scenario, we sketch the implementation of @flatMap@ for
-@SetT@ transformer and omit the rest. The value @run@ encapsulated by the monad
-is of type @M[SetT[A]]@, where @M[_]@ is the inner monad, and @A@ is the element
-type of the set. The @flatMap@ method takes a function that transforms each
-element of type @A@ from @M[Set[A]]@ into a @SetT[M, B]@ value, and then folds
-all the transformed values into a single monadic value of type @Set[M, B]@.
+Similar to the concrete scenario, we sketch the implementation of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap} for
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT} transformer and omit the rest. The value \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{run} encapsulated by the monad
+is of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[SetT[A]]}, where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[_]} is the inner monad, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} is the element
+type of the set. The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap} method takes a function that transforms each
+element of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} from \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[Set[A]]} into a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT[M, B]} value, and then folds
+all the transformed values into a single monadic value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set[M, B]}.
 \begin{lstlisting}
   case class SetT[M[_]: Monad, A](run: M[Set[A]]) {
     def flatMap[B](f: A => SetT[M, B]): SetT[M, B] =
@@ -159,9 +159,9 @@ Such monad stack scheme leads to a different type of result type. In the concret
 setting, we only have a reader monad (for environment) and a state monad (for
 store), and the reader effect is not persistent to the final result. Together
 with the value produced by the interpreter, the final result type is a pair of
-@Value@ and @Store@. In the abstract setting, we have a @SetT@ inside of the
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store}. In the abstract setting, we have a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT} inside of the
 environment monad and store monad, which becomes the container type of the pair
-of values and stores, i.e., @Set[(Value, Store)]@. Also note that the reader and
+of values and stores, i.e., \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set[(Value, Store)]}. Also note that the reader and
 state monad for caches live internally of the nondeterminism monad, therefore
 the cache type of state monad becomes adjacent to the set type.
 \begin{lstlisting}
@@ -172,28 +172,28 @@ the cache type of state monad becomes adjacent to the set type.
 the new monad stack scheme and value domains. A notable change is that the store
 update operation joins the value with the existing values, for the same address.
 As what mentioned before, we may have to explore both branches for conditionals:
-in @br0@ method, we combine the results using @mplus@ from @MonadPlus@, which
-requires the value domains are join-semilattices (in our case @Set@s and
-@Map@s).
+in \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{br0} method, we combine the results using \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{mplus} from \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadPlus}, which
+requires the value domains are join-semilattices (in our case \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set}s and
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map}s).
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ ⊔ Map(αv)))
   def br0(test: Value, thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus.mplus(thn, els)
 \end{lstlisting}
 
 The value representation of lambda terms is still a defunctionalized closure
-@CloV@, but we lift it to a singleton set domain.
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{CloV}, but we lift it to a singleton set domain.
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
 \end{lstlisting}
 
-For function applications, @ap_clo@ looks the same as the concrete interpreter.
-The difference is now the first argument @rator@ is a set of closures (remember
-that @Value@ is now an alias of @Set[AbsValue]@), so we can not directly
-destruct it by pattern matching. Instead, we use an auxiliary function @lift_nd@
+For function applications, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} looks the same as the concrete interpreter.
+The difference is now the first argument \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{rator} is a set of closures (remember
+that \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value} is now an alias of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set[AbsValue]}), so we can not directly
+destruct it by pattern matching. Instead, we use an auxiliary function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{lift_nd}
 that takes a set and lifts the elements into the monad stack. Then we can still
-implement @ap_clo@ in monadic style, where the closures come from the @SetT@ and
+implement \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} in monadic style, where the closures come from the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT} and
 thus the nondeterminism can be naturally handled. The light gray code shows what
-is added from the concrete @ap_clo@.
+is added from the concrete \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo}.
 \begin{lstlisting}[escapechar=!]
   def lift_nd[T](vs: Set[T]): AnsM[T]
   def ap_clo(ev: Expr => Ans)(rator: Value, rand: Value): Ans = for {
@@ -214,14 +214,14 @@ compute the least fixed-point and prevent non-termination, which is also called 
 evaluation} \cite{Rosendahl:AbsIntPL}. It has been used in other abstract
 interpreter or fixed point computation
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800,
-  Rosendahl:AbsIntPL}. The idea is to use a @in@ cache and a @out@ cache during
-the depth-first evaluation, where the @in@ cache stores the result from last
-iteration, and @out@ cache is used for updates in current iteration. In the next
-iteration, the last @out@ cache will be served as @in@ cache, and an empty cache
-is plugged-in to the @out@ slot. Once the @out@ cache does not contain anything
-new than the @in@ cache, the fixed-point is reached.
+  Rosendahl:AbsIntPL}. The idea is to use a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} cache and a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache during
+the depth-first evaluation, where the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} cache stores the result from last
+iteration, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache is used for updates in current iteration. In the next
+iteration, the last \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache will be served as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} cache, and an empty cache
+is plugged-in to the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} slot. Once the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache does not contain anything
+new than the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} cache, the fixed-point is reached.
 
-In out monad stack, the @in@ and @out@ cache modeled by a reader effect and
+In out monad stack, the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache modeled by a reader effect and
 state effect, respectively. We first defined several methods to manipulate
 the two caches through the monad stack; the implementations are elided.
 \begin{lstlisting}
@@ -231,21 +231,21 @@ the two caches through the monad stack; the implementations are elided.
 \end{lstlisting}
 
 The co-inductive caching algorithm is implemented as a instrumentation over
-@eval@ (Figure \ref{fig:coind_cache}), and it also closes the open recursion.
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval} (Figure \ref{fig:coind_cache}), and it also closes the open recursion.
 Initially, the two caches are both empty.
-During the iteration, we first check whether @out@ contains the configuration
-@cfg@, representing the current desired computation. If it does, then the result
+During the iteration, we first check whether \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} contains the configuration
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{cfg}, representing the current desired computation. If it does, then the result
 is directly returned through the monads.
-Otherwise, we first retrieve the results from @in@ (@⊥@ if not contained in
-@in@), and join it into the @out@ cache.
-Then we invoke @ev@ to compute the result for this iteration, where @ev@ takes
-@fix(ev)@ as a self reference.
-After the evaluation, the store @σ@ may have been changed. We update the
-@out@ cache with the new result, i.e., a pair of value and store @(v, σ)@.
+Otherwise, we first retrieve the results from \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} (\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{⊥} if not contained in
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in}), and join it into the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache.
+Then we invoke \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev} to compute the result for this iteration, where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev} takes
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix(ev)} as a self reference.
+After the evaluation, the store \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{σ} may have been changed. We update the
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache with the new result, i.e., a pair of value and store \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{(v, σ)}.
 Similar to store update, cache update is also a point-wise join.
 
-The iteration terminates when the resulting @out@ cache is equivalent to the
-input @in@ cache, which indicates that there is no more fact can be gained, thus
+The iteration terminates when the resulting \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache is equivalent to the
+input \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} cache, which indicates that there is no more fact can be gained, thus
 the iteration should end and we have reached the least fixed point.
 
 \begin{figure}[h!]
@@ -274,6 +274,6 @@ the iteration should end and we have reached the least fixed point.
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run
 \end{lstlisting}
 
-Finally, we override the top-level @run@ method by running the monadic value
+Finally, we override the top-level \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{run} method by running the monadic value
 with the empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
-and initial caches @cache@$_0$.
+and initial caches \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{cache}$_0$.

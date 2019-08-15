@@ -57,18 +57,18 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 
 \subsection{Monads in Scala} \label{monadscala}
 
-A monad is a type constructor @M[_]: * -> *@ with two operations, often called
-@return@ and @bind@. Informally, @return@ wraps a value into the monad @M@, and
-@bind@ unwraps the monadic value and transforms it into a new monadic value.
-Pragmatically in Scala, we define a monad type class using trait @Monad@ (Figure
-\ref{fig:monad}), where it declares the @pure@ \footnote{We elect to use
+A monad is a type constructor \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[_]: * -> *} with two operations, often called
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{return} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{bind}. Informally, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{return} wraps a value into the monad \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M}, and
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{bind} unwraps the monadic value and transforms it into a new monadic value.
+Pragmatically in Scala, we define a monad type class using trait \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Monad} (Figure
+\ref{fig:monad}), where it declares the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{pure} \footnote{We elect to use
 \texttt{pure} as the name, since \texttt{return} is a keyword in Scala and
-\texttt{unit} is a built-in function in LMS.} and @flatMap@ operation. The trait
-itself takes the monad type @M[_]@ as argument, which is a higher-kinded type
-that takes a type and returns a type. The method @pure@ promotes values of type
-@A@ to values of type @M[A]@. The monadic @bind@ operation is usually called
-@flatMap@ in Scala, which takes a monad-encapsulated value of type @M[A]@, a
-function of @A => M[B]@ and returns values of type @M[B]@.
+\texttt{unit} is a built-in function in LMS.} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap} operation. The trait
+itself takes the monad type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[_]} as argument, which is a higher-kinded type
+that takes a type and returns a type. The method \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{pure} promotes values of type
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} to values of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[A]}. The monadic \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{bind} operation is usually called
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap} in Scala, which takes a monad-encapsulated value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[A]}, a
+function of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A => M[B]} and returns values of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[B]}.
 
 \begin{figure}[h!]
   \centering
@@ -93,41 +93,41 @@ trait MonadOps[M[_], A] {
   \end{subfigure}
 \end{figure}
 
-Similar to Haskell's @do@-notation, Scala provides special syntactic support for
-monadic operations through @for@-comprehension.
-For example, an object of @List[A]@ is an instance of @List@ monad, where @A@ is the element type. 
+Similar to Haskell's \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{do}-notation, Scala provides special syntactic support for
+monadic operations through \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension.
+For example, an object of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{List[A]} is an instance of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{List} monad, where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} is the element type. 
 Then to compute the Cartesian product of two lists of numbers, we can use Scala's
-@for@-comprehension syntax.
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension syntax.
 \begin{lstlisting}
   val xs = List(1, 2); val ys = List(4, 5)
   for { x <- xs; y <- ys } yield (x, y) // List((1,4), (1,5), (2,4), (2,5))
 \end{lstlisting}
 
-The Scala compiler will translate the above @for@-comprehension expression into
-an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}. The last binding
-in the @for@-comprehension is translated into a @map@, where the expression of
-@yield@ becomes the body expression of that @map@ application. The foregoing
-bindings in the comprehension are all translated into calls of @flatMap@.
+The Scala compiler will translate the above \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension expression into
+an equivalent one using \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map} ~\cite{scala_spec}. The last binding
+in the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension is translated into a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map}, where the expression of
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{yield} becomes the body expression of that \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map} application. The foregoing
+bindings in the comprehension are all translated into calls of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap}.
 \begin{lstlisting}
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
 
-Note that here the monadic object @List[_]@ encapsulates the data
+Note that here the monadic object \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{List[_]} encapsulates the data
 internally.  Therefore it only exposes the simplified version of
-@flatMap@, where the monad @M[A]@ is not introduced as a function
-argument. The trait @MonadOps@ (Figure \ref{fig:monadops}) defines the
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap}, where the monad \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[A]} is not introduced as a function
+argument. The trait \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps} (Figure \ref{fig:monadops}) defines the
 simplified version of monadic operations that are necessary for
-@for@-comprehension. The conversion between @Monad@ and @MonadOps@
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension. The conversion between \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Monad} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps}
 can be done by using the implicit design pattern.
-In the rest of the paper, we use Scala's @for@-comprehension syntax
-and a few of monads and monad transformers such as @ReaderT@,
-@StateT@, and @ListT/SetT@ to write our interpreters. The implementation
+In the rest of the paper, we use Scala's \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension syntax
+and a few of monads and monad transformers such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT},
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT}, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ListT/SetT} to write our interpreters. The implementation
 of monads and monad transformers essentially borrows the ground-truth
 from Haskell.
 
 \subsection{Generic Interpreter} \label{generic_if}
 
-Monad transformers are type constructors of kind @(* -> *) -> (* -> *)@, which
+Monad transformers are type constructors of kind \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{(* -> *) -> (* -> *)}, which
 take a monad as argument and produces another monad. By using monad
 transformers, we can combine multiple monads into a single one. Constructing
 extensible interpreters using monad transformers was first explored by
@@ -142,9 +142,9 @@ We also need to abstract the primitive operations on those types.
 \paragraph{Basic Types} We start with some basic type definitions used in the
 interpreter. The identifiers in the program are represented by
 strings. To represent states, two required components for the
-interpreter are environments @Env@ and stores @Store@. @Env@ maps from
-identifiers to addresses, and @Store@ maps from addresses to values,
-respectively. The @Env@ captures bound variables in scope, and @Store@
+interpreter are environments \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env} and stores \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store}. \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env} maps from
+identifiers to addresses, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store} maps from addresses to values,
+respectively. The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env} captures bound variables in scope, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store}
 models a persistent heap through the program run-time.  At this moment,
 the domains of addresses and values are still abstract, i.e., they are
 declared as abstract types.
@@ -158,32 +158,32 @@ declared as abstract types.
 \end{lstlisting}
 
 \paragraph{Binding-time Abstraction} As mentioned before, the binding-time is
-declared as a higher-kinded type @R[_]@. We are free to use @R@ to annotate
+declared as a higher-kinded type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]}. We are free to use \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} to annotate
 other data-types in the interpreter; it is also injected into the monadic
-type @MonadOps@.
-If we simply instantiate @R@ an identity type (i.e., @type R[T] = T@),
+type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps}.
+If we simply instantiate \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} an identity type (i.e., \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{type R[T] = T}),
 then the generic interpreter is a standard definitional interpreter
 that will execute the program.  In Section \ref{stagedinterp}, we will
-instantiate @R@ using LMS's built-in next-stage type annotation @Rep@,
+instantiate \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} using LMS's built-in next-stage type annotation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep},
 which makes the interpreter act as a compiler.
 
 \paragraph{Monadic Operations} We define the return type of the interpreter as
-@Ans@, which is a monad type @AnsM[_]@ wrapping the type @Value@. 
-As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
-syntax, certain operations have to be added on the type @AnsM@. Here, we use a
-structural type @MonadOps@ to require that type @AnsM@ at least implements @map@ and
-@flatMap@. It is worth noting that @MonadOps@ takes another type parameter
-@R[_]@ as binding-time that annotates data; accordingly the type @R@
-defined in the outer scope is passed to @MonadOps@. Inside of @MonadOps@,
-@R[_]@ wraps the data types @A@ and @B@ that are encapsulated by the
-monad, but not the monad type @M@ itself. When acting as compilers, we
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Ans}, which is a monad type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM[_]} wrapping the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value}. 
+As mentioned in Section ~\ref{monadscala}, to use the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension
+syntax, certain operations have to be added on the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM}. Here, we use a
+structural type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps} to require that type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM} at least implements \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map} and
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap}. It is worth noting that \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps} takes another type parameter
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]} as binding-time that annotates data; accordingly the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R}
+defined in the outer scope is passed to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps}. Inside of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{MonadOps},
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]} wraps the data types \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{B} that are encapsulated by the
+monad, but not the monad type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M} itself. When acting as compilers, we
 will also replace the monads to the ones that work on staged data values.
 
 We also declare several operations to manipulate environments and
-stores. These methods return monadic values of type @AnsM[_]@, which
-may encapsulate over the environment or store, or simply a @Unit@
-value for effects. For examples, @local_env@ installs a new environment
-@ρ@ when evaluating the monadic value @ans@; @set_store@ takes a pair of
+stores. These methods return monadic values of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM[_]}, which
+may encapsulate over the environment or store, or simply a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Unit}
+value for effects. For examples, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{local_env} installs a new environment
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ρ} when evaluating the monadic value \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ans}; \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{set_store} takes a pair of
 addresses and values (potentially staged) and updates the store accordingly.
 
 %\vspace{-1em}
@@ -216,24 +216,24 @@ def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
 %\vspace{-1em}
 
 \paragraph{Primitive Operations} Next we define several primitive operations.
-First, two versions of @alloc@ are declared. The first one takes a store and an
-identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
+First, two versions of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{alloc} are declared. The first one takes a store and an
+identifier and produces a fresh address of non-monadic type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[Addr]}. Since
 the freshness of the address may depend on the store, which might be a
 next-stage value as indicated by its type, the type of addresses is therefore
-wrapped by @R[_]@. The other @alloc@ is simply the monadic version of the addresses.
+wrapped by \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]}. The other \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{alloc} is simply the monadic version of the addresses.
 \begin{lstlisting}
   def alloc(σ: R[Store], x: Ident): R[Addr];  def alloc(x: Ident): AnsM[Addr]
 \end{lstlisting}
 
 Other primitive operations provide basic functionality for the
-interpreter.  The method @num@ and @close@ deal with primitive values,
+interpreter.  The method \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{num} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} deal with primitive values,
 which lift literal terms (e.g., lambdas) to our value representation
-(e.g., closures).  The method @get@ retrieves the value of an
-identifier @x@, through the environment and store. Conditionals and
-arithmetic is handled by @br0@ and @arith@, respectively. The method
-@ap_clo@ is used for function applications: it takes a function value
-and an argument value. Note that the @Env@, @Store@, and @Value@ are
-all annotated by @R[_]@ since they can potentially be next-stage
+(e.g., closures).  The method \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{get} retrieves the value of an
+identifier \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{x}, through the environment and store. Conditionals and
+arithmetic is handled by \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{br0} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{arith}, respectively. The method
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} is used for function applications: it takes a function value
+and an argument value. Note that the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store}, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value} are
+all annotated by \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R[_]} since they can potentially be next-stage
 values when acting as compilers.
 \begin{lstlisting}
   def num(i: Int): Ans
@@ -278,18 +278,18 @@ in monadic form, shown in Figure \ref{fig:shared_int}. The basic idea
 of a generic interpretation is to traverse the abstract syntax tree
 while maintaining the effects such as reader and state.  Note that the
 interpreter is written in open-recursive style -- it can not refer to
-itself directly, instead, @eval@ takes an additional parameter @ev@ of
-type @Expr => Ans@ that refers to itself. Consequently, the method
-@close@ that lifts lambda terms to closures and method @ap_clo@ that
-applies functions also takes an extra @ev@, because evaluation may
+itself directly, instead, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval} takes an additional parameter \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev} of
+type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Expr => Ans} that refers to itself. Consequently, the method
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} that lifts lambda terms to closures and method \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} that
+applies functions also takes an extra \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev}, because evaluation may
 happen inside of them.
-To close the open-recursion, we use a fixed-point operator @fix@.
+To close the open-recursion, we use a fixed-point operator \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix}.
 For concrete-interpretation instantiation, it works like the Y
 combinator; for abstract-interpretation instantiation, it instruments
 the interpreter by memoizing its input and output, which will ensure
 the termination of abstract interpretation.
-Finally, a top-level wrapper @run@ is declared; the return type
-@Result@ depends on what kind of monad we will be using, this is also
+Finally, a top-level wrapper \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{run} is declared; the return type
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Result} depends on what kind of monad we will be using, this is also
 an abstract type.
 \begin{lstlisting}
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans
@@ -309,14 +309,14 @@ value domain, then show the monad stack for concrete interpretation, finally
 sketch the how the primitive operations are implemented.
 
 \paragraph{Concrete Components}
-The two types we need to concretize are addresses @Addr@ and values @Value@. The
-type @Env@ and @Store@ is derived automatically. To assure the freshness of
-address allocation, we use @Int@ and always return successor of the size of
+The two types we need to concretize are addresses \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Addr} and values \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value}. The
+type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store} is derived automatically. To assure the freshness of
+address allocation, we use \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Int} and always return successor of the size of
 current store. A value can be either a tagged number \texttt{IntV}, or a closure
 \texttt{CloV} that contains a lambda term and an environment. The final grounded
-result of the interpreter is a pair of values and stores, where the @Value@ and
-@Store@ are next-stage objects, as annotated by @R@. We also define a standard
-fixed-point combinator to close the open-recursive function @ev@.
+result of the interpreter is a pair of values and stores, where the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value} and
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store} are next-stage objects, as annotated by \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R}. We also define a standard
+fixed-point combinator to close the open-recursive function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev}.
 \begin{lstlisting}
   trait ConcreteComponents extends Semantics {
     type Addr = Int
@@ -332,13 +332,13 @@ fixed-point combinator to close the open-recursive function @ev@.
 For the purpose of concrete interpretation, the monad needs to model read
 effect and state effect, which correspond to environment and store,
 respectively. Following the monad transformer approach
-\cite{DBLP:conf/popl/LiangHJ95}, we use a @ReaderT@ and @StateT@ monad
-transformer to compose the monad stack. In other words, the type @AnsM@ is
-instantiated by layering @ReaderT@ and @StateT@ transformers\footnote{The
+\cite{DBLP:conf/popl/LiangHJ95}, we use a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} monad
+transformer to compose the monad stack. In other words, the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM} is
+instantiated by layering \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} transformers\footnote{The
 question mark syntax is a kind projector \cite{kindprojector}, thus
 \texttt{StateT[IdM,Store,?]} is equivalent to \newline \texttt{(\{type
-M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is parameterized by type
-@Env@, @StateT@ is parameterized by type @Store@, and the inner-most monad @IdM@
+M[T]=StateT[IdM,Store,T]\})\#M}}, where the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} is parameterized by type
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} is parameterized by type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store}, and the inner-most monad \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IdM}
 is simply an identity monad.
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
@@ -347,19 +347,19 @@ is simply an identity monad.
     ... }
 \end{lstlisting}
 
-Here we sketch the basic idea of @ReaderT@ and @StateT@. Readers may
+Here we sketch the basic idea of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT}. Readers may
 refer to \cite{DBLP:conf/popl/LiangHJ95, Chiusano:2014:FPS:2688794} for more detail.
-A @ReaderT@ monad transformer encapsulates computation @R => M[A]@, where
-@R@ is the reader type, and @M[_]@ is the inner monad type.
-Given a @R@, @ReaderT@ monad produces a transformed value of type @M[A]@.
-Similarly, a @StateT@ monad encapsulates computation @S => M[(A, S)]@, where
-@S@ is the state type, and @M[_]@ is the inner monad type.
-Given a @S@, @StateT@ monad produces a transformed value of type @M[(A, S)]@,
-where the new state (type @S@) is accompanied with the value (type @A@).
-Note that for the moment, the binding-time type @R@ is an identity type, thus
+A \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} monad transformer encapsulates computation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R => M[A]}, where
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} is the reader type, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[_]} is the inner monad type.
+Given a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} monad produces a transformed value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[A]}.
+Similarly, a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} monad encapsulates computation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{S => M[(A, S)]}, where
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{S} is the state type, and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[_]} is the inner monad type.
+Given a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{S}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} monad produces a transformed value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M[(A, S)]},
+where the new state (type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{S}) is accompanied with the value (type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A}).
+Note that for the moment, the binding-time type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} is an identity type, thus
 these monads operate on unstaged data. We can also see this from the
-signature of @flatMap@: the argument function @f@ takes an unstaged value of type @A@ and
-produces a monadic value. In the following code, we elide operations other than @flatMap@.
+signature of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap}: the argument function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} takes an unstaged value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} and
+produces a monadic value. In the following code, we elide operations other than \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap}.
 \begin{lstlisting}
   case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
     def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] =
@@ -372,9 +372,9 @@ produces a monadic value. In the following code, we elide operations other than 
 After defining the monad stack, the operations that manipulate the environment
 and store can be defined by constructing the proper monad and lifting it to the
 top-level of our monad stack. To modify the store, for example, we can construct a
-@StateT@ value that transforms the current store $\sigma$ to @σ + αv@, which
-results in @StateT[IdM, Store, Unit]@, and then lift this @StateT@ value to the
-top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} value that transforms the current store $\sigma$ to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{σ + αv}, which
+results in \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT[IdM, Store, Unit]}, and then lift this \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} value to the
+top-level \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ReaderT} type, i.e., \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{AnsM[Unit]}.
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ + αv))
 \end{lstlisting}
@@ -385,14 +385,14 @@ straightforwardly. We elide most of them but describe a bit on how we handle
 functions and applications. Because lambda terms are data but also part of the
 control flow, although the way we treat them is simple now, but will be very
 different when staging and abstract interpretation is involved. The method
-@close@ takes a lambda term and an environment, and produces the
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} takes a lambda term and an environment, and produces the
 defunctionalized representation of closures.
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
 \end{lstlisting}
 
-To apply a function, @ap_clo@ takes a function value @rator@ and an argument
-@rand@, extracts the lambda term and environment enclosed in @rator@, allocates
+To apply a function, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} takes a function value \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{rator} and an argument
+\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{rand}, extracts the lambda term and environment enclosed in \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{rator}, allocates
 the addresses and updates the environment and store accordingly. Finally, it
 evaluates the body expression of the lambda term under the new environment and
 store.
@@ -406,8 +406,8 @@ store.
   }
 \end{lstlisting}
 
-The top-level @run@ method invokes the fixed-pointer operator directly,
-given the expression @e@, initial environment $\rho_0$ and store $\sigma_0$.
+The top-level \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{run} method invokes the fixed-pointer operator directly,
+given the expression \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{e}, initial environment $\rho_0$ and store $\sigma_0$.
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ$_0$)(σ$_0$)
 \end{lstlisting}

@@ -95,13 +95,13 @@ The idea of specializing interpreters can be traced to Futamura
 projections \cite{Futamura1999, futamura1971partial}.  The first
 Futamura projection specifically shows that specializing an
 interpreter w.r.t. the input program yields an equivalent
-executable. For instance, @eval@ is an interpreter for some language:
+executable. For instance, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval} is an interpreter for some language:
 \begin{lstlisting}
   def eval(e: Expr)(arg: Input): Value
 \end{lstlisting}
-Given a program $e_0$ of type @Expr@, by applying the specialization,
+Given a program $e_0$ of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Expr}, by applying the specialization,
 we can obtain a specialized interpreter $\texttt{eval}_{\texttt{e0}}$
-: @Input@ $\to$ @Value@, which is the so-called \textit{equivalent
+: \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Input} $\to$ \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Value}, which is the so-called \textit{equivalent
   executable}.  By definition of the interpreter, they produce the
 same result when applied with the argument
 $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
