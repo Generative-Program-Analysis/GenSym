@@ -11,27 +11,27 @@ years, constructing artifacts and analyzers that perform sound
 abstract interpretation for modern and expressive languages was
 considered abstruse and complicated for a long time.
 
-In recent years, we observe a rich progress on the methodologies for
-constructing abstract interpreters from systematic principles, instead
-of ad-hoc engineering. A notable one is the Abstracting Abstract
+In recent years, we observe rich progress on the methodologies for
+constructing abstract interpreters from systematic principles rather than
+ad-hoc engineering. Of particular note is the Abstracting Abstract
 Machine (AAM) methodology \cite{DBLP:journals/jfp/HornM12,
-  DBLP:conf/icfp/HornM10}. It uncovers an approach to derive sound
+  DBLP:conf/icfp/HornM10}. This methodology uncovers an approach to derive sound
 abstract interpreters from their concrete counterparts, for example,
 abstract machines, where the soundness can be easily established by
 examining the transformation of semantic artifacts. For example, the
 CEK machine \cite{DBLP:conf/popl/FelleisenF87} for concrete execution
 can be readily refactored to an effective $0$-CFA control-flow
 analysis \cite{Shivers:1988:CFA:53990.54007,
-  Midtgaard:2012:CAF:2187671.2187672}: first we tweak the environment
+  Midtgaard:2012:CAF:2187671.2187672}: first, tweak the environment
 dereference as a nondeterministic choice, such that the environment
-may contain mutiple possible values for a varaiable, then allocating
+may contain mutiple possible values for a varaiable, then allocate
 continuations in the environment to exploit return-flow information,
 and also constrain the addresses space to be finite.  This systematic
 abstraction approach can be tailored to different language features
-(such as states, first-class controls, exceptions and concurrency) and
+(such as states, first-class controls, exceptions, and concurrency) and
 sensitivity analyses \cite{DBLP:conf/icfp/Gilray0M16,
   DBLP:conf/popl/GilrayL0MH16, Darais:2015:GTM:2814270.2814308}. It
-also has been applied to various small-step abstract machines
+has also been applied to various small-step abstract machines
 \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10,
   Sergey:2013:MAI:2491956.2491979} and big-step definitional
 interpreters \cite{Wei:2018:RAA:3243631.3236800,
@@ -39,16 +39,16 @@ interpreters \cite{Wei:2018:RAA:3243631.3236800,
 
 Based on the idea of abstracting abstract machines, more
 pragmatically, several implementation strategies utilizing purely
-functional programming to build abstract interpreters were
+functional programming to build abstract interpreters have
 emerged. Such techniques include monads, monad transformers
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Sergey:2013:MAI:2491956.2491979},
 arrows \cite{Keidel:2018:CSP:3243631.3236767}, extensible effects
-\cite{Githubsemantic} and etc.  The pure approaches provide certain
-benefits. The abstract interpretation artifacts can be built
+\cite{Githubsemantic}, etc.  The pure approaches provide certain
+benefits, including that the abstract interpretation artifacts can be built
 compositionally and modularly, e.g., by using monad
-transformers. Therefore, the soundness of analysis can be proved with
-less efforts, either by mechanized \cite{Darais:2016:CGC:2951913.2951934}
-or paper-based proof \cite{Keidel:2018:CSP:3243631.3236767}. Also,
+transformers. Therefore, the soundness of analysis can be proven with
+less effort, either by mechanized \cite{Darais:2016:CGC:2951913.2951934}
+or paper-based proofs \cite{Keidel:2018:CSP:3243631.3236767}. Also,
 referential transparent and equational reasoning allow programmers to
 reason the correctness of their implementations more confidently.
 
@@ -56,22 +56,22 @@ However, besides the intrinsic complexity of static analysis, there
 are additional abstraction penalties with these high-level
 implementation approaches.  First, similar to concrete interpreters,
 the abstract interpreter analyzes the program by traversing the
-abstract syntax tree, which poses an interpretive overhead, such as
-the pattern matching on the ASTs and recursive calls on the sub
-expressions. Those kind of overhead can be negligible if the abstract
-interpreter only runs on the program for one time, but also can be
-accumulated significantly if it runs repeatedly, for example, on
-libraries.  Second, the abstract interpreter written in pure languages
+abstract syntax tree (AST), which poses an interpretive overhead, such as
+the pattern matching on the ASTs and recursive calls on the subexpressions.
+Such overhead can be negligible if the abstract
+interpreter only runs on the program a single time, but can also
+accumulate significantly if run repeatedly (for example, on
+libraries).  Second, the abstract interpreter written in pure languages
 usually extensively uses effect systems to implement the semantics of
 abstract interpretation.  For example, the abstract interpreter that
 returns all possible runtime values is a form of nondeterminism, where
 nondeterminism monads can help.  Although such pure approaches have
-its own merits and elegance, compared with imperative stateful
+their own merits and elegance, compared with imperative stateful
 implementations, they are significantly slower.
 
 In this paper, we propose an abstraction-without-regret approach to
-eliminate those performance penalties for abstract interpreters,
-meanwhile still keeping the benefits come from purely functional
+eliminating performance penalties for abstract interpreters,
+while still keeping the benefits inherent in purely functional
 programming.  In short, our approach applies ideas and techniques from
 program specialization and embedded DSLs to abstract interpreters. 1)
 Using multi-stage programming , we can specialize the abstract
