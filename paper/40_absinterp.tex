@@ -5,13 +5,25 @@ focus on abstract interpreters under the same framework. We first present a
 lattice framework with binding-time abstraction, as well as simple abstract
 domains such as power set lattice.
 Then we show the abstract components, namely abstract values, abstract
-environments, and abstract stores. The abstract interpreter we construct in this
+environments, and abstract stores.
+The abstract interpreter we construct in this
 section is similar to \citet{DBLP:journals/pacmpl/DaraisLNH17}'s. For
 simplicity, it is also context/path/flow-insensitive by our choice. In Section
 \ref{cfa}, we will instantiate a commonly-used context-sensitive analysis;
 \citet{Darais:2015:GTM:2814270.2814308} shows how to achieve path- and
 flow-sensitivity by varying the monads, which is also applicable to our unstaged
 or staged abstract interpreter.
+
+\iffalse
+For example, the CEK machine \cite{DBLP:conf/popl/FelleisenF87} for
+concrete execution can be readily refactored to an effective $0$-CFA
+control-flow analysis \cite{Shivers:1988:CFA:53990.54007,
+  Midtgaard:2012:CAF:2187671.2187672}: first, tweak the environment
+dereference as a nondeterministic choice, such that the environment
+may contain multiple possible values for a variable, then allocate
+continuations in the environment to exploit return-flow information,
+and also constrain the address space to be finite.
+\fi
 
 \subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
 
@@ -221,7 +233,7 @@ iteration, the last \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=fa
 is plugged-in to the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} slot. Once the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache does not contain anything
 new than the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} cache, the fixed-point is reached.
 
-In out monad stack, the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache modeled by a reader effect and
+In our monad stack, the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache modeled by a reader effect and
 state effect, respectively. We first defined several methods to manipulate
 the two caches through the monad stack; the implementations are elided.
 \begin{lstlisting}
