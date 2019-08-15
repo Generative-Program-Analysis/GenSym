@@ -96,7 +96,6 @@ monadic operations through @for@-comprehension.
 For example, an object of @List[A]@ is an instance of @List@ monad, where @A@ is the element type. 
 Then to compute the Cartesian product of two lists of numbers, we can use Scala's
 @for@-comprehension syntax.
-
 \begin{lstlisting}
   val xs = List(1, 2); val ys = List(4, 5)
   for { x <- xs; y <- ys } yield (x, y) // List((1,4), (1,5), (2,4), (2,5))
@@ -107,7 +106,6 @@ an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}. The last binding
 in the @for@-comprehension is translated into a @map@, where the expression of
 @yield@ becomes the body expression of that @map@ application. The foregoing
 bindings in the comprehension are all translated into calls of @flatMap@.
-
 \begin{lstlisting}
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
@@ -121,7 +119,7 @@ simplified version of monadic operations that are necessary for
 can be done by using the implicit design pattern.
 In the rest of the paper, we use Scala's @for@-comprehension syntax
 and a few of monads and monad transformers such as @ReaderT@,
-@StateT@, and @ListT@ to write our interpreters. The implementation
+@StateT@, and @ListT/SetT@ to write our interpreters. The implementation
 of monads and monad transformers essentially borrows the ground-truth
 from Haskell.
 
@@ -148,7 +146,6 @@ respectively. The @Env@ captures bound variables in scope, and @Store@
 models a persistent heap through the program runtime.  At this moment,
 the domains of addresses and values are still abstract, i.e., they are
 declared as abstract types.
-
 \begin{lstlisting}
   trait Semantics {
     type Ident = String; type Addr; type Value
@@ -223,7 +220,6 @@ identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
 the freshness of the address may depend on the store, which might be a
 next-stage value as indicated by its type, the type of addresses is therefore
 wrapped by @R[_]@. The other @alloc@ is simply the monadic version of the addresses.
-
 \begin{lstlisting}
   def alloc(σ: R[Store], x: Ident): R[Addr];  def alloc(x: Ident): AnsM[Addr]
 \end{lstlisting}
@@ -238,7 +234,6 @@ arithmetic is handled by @br0@ and @arith@, respectively. The method
 and an argument value. Note that the @Env@, @Store@, and @Value@ are
 all annotated by @R[_]@ since they can potentially be next-stage
 values when acting as compilers.
-
 \begin{lstlisting}
   def num(i: Int): Ans
   def get(σ: R[Store], ρ: R[Env], x: Ident): R[Value]
@@ -295,9 +290,6 @@ the termination of abstract interpretation.
 Finally, a top-level wrapper @run@ is declared; the return type
 @Result@ depends on what kind of monad we will be using, this is also
 an abstract type.
-
-%\vspace{-1em}
-
 \begin{lstlisting}
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans
   type Result; def run(e: Expr): Result
@@ -324,7 +316,6 @@ current store. A value can be either a tagged number \texttt{IntV}, or a closure
 result of the interpreter is a pair of values and stores, where the @Value@ and
 @Store@ are next-stage objects, as annotated by @R@. We also define a standard
 fixed-point combinator to close the open-recursive function @ev@.
-
 \begin{lstlisting}
   trait ConcreteComponents extends Semantics {
     type Addr = Int
@@ -348,7 +339,6 @@ question mark syntax is a kind projector \cite{kindprojector}, thus
 M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is parameterized by type
 @Env@, @StateT@ is parameterized by type @Store@, and the inner-most monad @IdM@
 is simply an identity monad.
-
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
     type R[T] = T
@@ -369,7 +359,6 @@ Note that for the moment, the binding-time type @R@ is an identity type, thus
 these monads operate on unstaged data. We can also see this from the
 signature of @flatMap@: the argument function @f@ takes an unstaged value of type @A@ and
 produces a monadic value. In the following code, we elide operations other than @flatMap@.
-
 \begin{lstlisting}
   case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
     def flatMap[B](f: A => ReaderT[M, R, B]): ReaderT[M, R, B] =
@@ -397,7 +386,6 @@ control flow, although the way we treat them is simple now, but will be very
 different when staging and abstract interpretation is involved. The method
 @close@ takes a lambda term and an environment, and produces the
 defunctionalized representation of closures.
-
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
 \end{lstlisting}
@@ -407,7 +395,6 @@ To apply a function, @ap_clo@ takes a function value @rator@ and an argument
 the addresses and updates the environment and store accordingly. Finally, it
 evaluates the body expression of the lambda term under the new environment and
 store.
-
 \begin{lstlisting}
   def ap_clo(ev: Expr => Ans)(rator: Value, rand: Value): Ans = rator match {
     case CloV(Lam(x, e), ρ: Env) => for {
@@ -420,7 +407,6 @@ store.
 
 The top-level @run@ method invokes the fixed-pointer operator directly,
 given the expression @e@, initial environment $\rho_0$ and store $\sigma_0$.
-
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ$_0$)(σ$_0$)
 \end{lstlisting}

@@ -21,7 +21,6 @@ code.
 
 A classic example for introducing multi-stage programming is the power function
 that computes $b^x$, which is usually implemented as a recursive function:
-
 \begin{lstlisting}
   def power(b: Int, x: Int): Int = if (x == 0) 1 else b * power(b, x - 1)
 \end{lstlisting}
@@ -33,7 +32,6 @@ first adding the @Rep@ type to the variable known at next stage. In this case,
 below code recipe.
 The way we use this @power@ function is to create a @DslDriver@ and override the
 @snippet@ method give the currently know value @x@ (5 in this example).
-
 \begin{lstlisting}
   new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] = if (x == 0) 1 else b * power(b, x-1)
@@ -64,10 +62,9 @@ brivity, we call them \textit{staged monads}. In the code, we also use a @Rep@
 prefix on the constructors and types to differentiate them. But it is important
 to note that objects of a case class @ReaderT@/@StateT@ are not staged, the
 monadic computation like @R => M[A]@ are also not staged. Instead, the internal
-data that these monads operate on are staged. The following code snippet shows
-the idea (we use light gray to highlight what have been changed to staged
-version except naming):
-
+data that these monads operate on are staged, i.e., @R@ and @A@ in the
+reader monad, @S@ and @A@ in the state monad. The following code
+snippet shows the idea. We use \hl{light gray} to highlight where @Rep@ type is added:
 \begin{lstlisting}[escapechar=!]
   case class RepReaderT[M[_]: RepMonad, R, A](run: !\hl{Rep[R]}! => M[A]) {
     def flatMap[B](f: !\hl{Rep[A]}! => ReaderT[M, R, B]): RepReaderT[M, R, B] =
@@ -79,50 +76,35 @@ version except naming):
 
 The function @f@ passed to @flatMap@ is also a current-stage-known value, so
 that all the invocation of @flatMap@s can be completed before generating code.
-The fact that we only staged the data but not the monadic computation or monadic
+The fact that we only stage data but not monadic computation or monadic
 values, is the reason that we can peel of the monad stack in the generated code.
 Now the @AnsM[_]@ is instantiated as the same structure as before, but using the
-@Rep@ versions.
-
+@Rep@ versions:
 \begin{lstlisting}
   type R[T] = Rep[T]
   type AnsM[T] = RepReaderT[RepStateT[RepIdM, Store, ?], Env, T]
 \end{lstlisting}
 
-TODOTODO====
-
-We use @RepStateT@ as an example to give a sketch of how the @Rep@ versions of monad
-transformers look like. The generic type @M[_]@ is a @RepMonad@ and used as the
-inner monad, which means the pair @(A,S)@ is also staged when appears inside of the monad
-@M[_]@. The @flatMap@ is similar to the unstaged one, but the function @f@ takes
-a @Rep[A]@ value. Again, @f@ is not a next-stage function, but a current-stage
-function that transforms a next-stage value of @Rep[A]@ to @StateT[M,S,B]@.
-%\todo{highlight the changes in the code}
-
-
 Readers may notice that the conversion between unstaged monads and staged monads
-is simply changing the unstaged data to staged data, which in fact can be
+is merely changing the type of unstaged data to staged data, which in fact can be
 achieved without modifying the implementation of monads. This is true so far, but
-as we will see, it is not that easy when introducing the nondeterminism monad
-(@ListT@) for abstract interpreters, as the whole list will be a next-stage
-value instead of merely the elements in the list. For this reason, we explicitly
-distinguish and present the two versions of monads, as a more consistent
-approach.
+as we will see, it is not straightfoward when for nondeterminism monad
+(@SetT@) in abstract interpreters. Because not only the elements in the set are staged,
+but the whole set is also staged, and we have no knowledge about how many elements
+in the set. In this section, we explicitly distinguish the two versions of monadic interfaces,
+later we will instantiated staged set monad using a different strategy.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
-translated to their staged versions -- we just need to let them works on staged data.
-As we mentioned before, we elaborate on how to handle functions and applications in
-detail. One of the desired goals is to eliminate the monadic layers through
-staging, this becomes a little bit tricky for closures because we actually need 
- to compile the lambda term instead of generating a @CloV@ value, but the @ev(e)@
-returns a monad and prevents the specialization. To make this happen, when
-closing a lambda term, we need to specialize the body expression by
-\textit{collpasing} the @AnsM@ monads to normal values. The
-following function @close@ illustrates the idea: @f@ is a current stage function
-but takes two next-stage values @v@ and $\sigma$, inside of which, we eagerly
-collapse the monads to values by @ev(e)(ρ_*)(σ_*)@, which has type
-@Rep[(Value, Store)]@. Then we generate the next-stage value of the compiled
-closure using @emit_compiled_clo@, containing the compiled closure.
+translated to their staged versions -- we just need to change the types.
+As we mentioned before, we will take more care on how functions and
+applications are handled. The problem here is what should we do for
+lambda terms when staging? We cannot create a next-stage
+defunctionalized closure for it, because it means we still need to
+access the interpreter at the next stage. The desired goal is to eliminate the
+interpretation overhead staging, so the right thing is compiling the lambda term
+and its environment to a next-stage Scala function. To do this, we need to
+recursively call the interpreter function, i.e., the @ev@ argument passed to @close@.
+The following code implements the idea:
 
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)]): Rep[Value]
@@ -135,6 +117,21 @@ closure using @emit_compiled_clo@, containing the compiled closure.
     }; emit_compiled_clo(f)
   }
 \end{lstlisting}
+
+We have created a current function @f@ that takes a next-stage value
+and store, and returns staged value. Then we use @emit_complied_clo@
+to delay @f@ to a next Scala function, represented by the type
+@Rep[Value]@. Inside of @f@, we
+
+To make this happen, when
+closing a lambda term, we need to specialize the body expression by
+\textit{collpasing} the @AnsM@ monads to normal values. The
+following function @close@ illustrates the idea: @f@ is a current stage function
+but takes two next-stage values @v@ and $\sigma$, inside of which, we eagerly
+collapse the monads to values by @ev(e)(ρ_*)(σ_*)@, which has type
+@Rep[(Value, Store)]@. Then we generate the next-stage value of the compiled
+closure using @emit_compiled_clo@, containing the compiled closure.
+
 
 When applying a function in @ap_clo@, we also generate the next-stage value
 for closure application through @emit_ap_clo@, assuming that the @rator@ is already an
