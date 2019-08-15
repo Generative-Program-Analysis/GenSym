@@ -38,6 +38,14 @@ object TestPrograms {
     (fib 10)
   """)
 
+  def map = getAST("""
+    (define (map xs f)
+      (if (null? xs)
+          (list)
+          (cons (f (car xs)) (map (cdr xs) f))))
+    (map (list 1 2 3) (lambda (x) (+ x 1)))
+    """)
+
   def id4 = App(Lam(List("x"), App(App(Var("x"), List(Var("x"))), List(Var("x")))), List(Lam(List("y"), Var("y"))))
   def oneplusone = App(Var("+"), List(IntLit(1), IntLit(1)))
   def fact5 = getAST("(define (fact n) (if (eq? n 0) 1 (* n (fact (- n 1))))) (fact 5)")

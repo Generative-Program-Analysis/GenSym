@@ -138,8 +138,12 @@ concrete interpreters and how to collapse them by using MSP -- it
 would be interesting to explore this idea for multiple layers of
 abstract interpreters \cite{Cousot:2019:AAI:3302515.3290355,
   Giacobazzi:2015:APA:2676726.2676987}.  \citet{10.1007/11561347_18}
-discussed combining multi-stage programming with functors and
-monads. But they didn't \todo{monad transfomers?}  Similar to the idea
-in this paper, specializing monadic interpreters was explored by
-\citet{DBLP:conf/dsl/SheardBP99, danvy1991compiling}. \todo{what's the
-  difference?}
+discussed a let-insertion, memoizing monads for code generation, using
+Gaussian Elimination in MetaOCaml as example. In this work,
+let-insertion is handled by the ANF transformation in LMS, and the
+memoizing monad here just combines a reader monad and state monad
+operating on staged data.
+Similar to the idea in this paper, specializing monadic interpreters
+was explored by \citet{danvy1991compiling, DBLP:conf/dsl/SheardBP99},
+but different from the performance motivation here, the generated code
+is in monadic form.
