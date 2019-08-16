@@ -44,25 +44,24 @@ less effort, whether by mechanized proofs
 transparency and equational reasoning allow programmers to
 confidently reason about the correctness of their implementations.
 
-However, besides the intrinsic complexity of static analysis, there
-are additional abstraction penalties from these high-level
-implementation approaches. First, similar to concrete interpreters,
-an abstract interpreter analyzes the program by traversing the
-abstract syntax tree (AST), which incurs interpretive overhead, such
-as the pattern matching on the ASTs and recursive calls on the
-subexpressions.
-Such overhead can be negligible if the abstract interpreter only runs
-on the program a single time, but can accumulate significantly if
-run repeatedly (for example, on libraries).  Second, it is common that
-abstract interpreters written in pure languages extensively use effect
-systems to implement the semantics of abstract interpretation. For
-example, the collecting interpreter that returns all possible runtime
-values is a form of nondeterminism, where nondeterminism monads can
-help.  Although such pure approaches have their own merits, compared
-with imperative stateful implementations, they are significantly
-slower.
+However, besides the intrinsic complexity of static analysis, there are
+additional abstraction penalties from these high-level implementation
+approaches. First, similar to concrete interpreters, an abstract interpreter
+analyzes the program by traversing the abstract syntax tree (AST), which incurs
+interpretive overhead, such as the pattern matching on the ASTs and recursive
+calls on the subexpressions. Such overhead can be negligible if the abstract
+interpreter only runs on the program a single time, but can accumulate
+significantly if run repeatedly (for example, on libraries).  Second, it is
+common that abstract interpreters written in pure languages extensively use
+effect systems to implement the semantics of abstract interpretation. For
+example, the collecting interpreter that returns all possible runtime values is
+nondeterministic.  Although such pure approaches have their own merits, compared
+with imperative, stateful, implementations, they are significantly slower. In
+order to reconcile these approaches, one must use a programming technique which
+allows for high-level, functional abstractions during implementation, but which
+bypasses the incurred overhead at runtime.
 
-Roughly at the same when abstract interpretation was proposed in
+Roughly at the same time when abstract interpretation was proposed in
 1970s, \citet{futamura1971partial, Futamura1999} revealed a close
 connection between interpreters and compilers through a hierarchy of
 specializations, namely, Futamura Projections. The first Futamura
