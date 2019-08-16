@@ -1,21 +1,20 @@
 \section{Introduction} \label{intro}
 
-Abstract interpretation as a lattice-based approach to sound static
-analyses was proposed by \citet{DBLP:conf/popl/CousotC77}. Equipped
-with Galois connections \cite{CousotCousot79-1}, the analyzer can
-soundly approximate the program runtime behaviors by computing fixed
-points on the abstract domain. Despite the tremendous theoretical
-development of abstract interpretation over the years, constructing
-artifacts and analyzers that perform sound abstract interpretation for
-modern and expressive languages was considered complicated for a long
-time.
+Abstract interpretation as a lattice-based approach to sound static analyses was
+proposed by \citet{DBLP:conf/popl/CousotC77}. Based on the notion of Galois
+connections \cite{CousotCousot79-1}, the analyzer can soundly approximate the
+concrete program runtime behavior by computing fixed points on an abstract
+domain. Despite the tremendous theoretical development of abstract
+interpretation over the years, constructing artifacts and analyzers that perform
+sound abstract interpretation for modern and expressive languages was considered
+complicated for a long time.
 
-Recent progress on methodologies such as the Abstracting Abstract
+Recent progress on methodologies such as Abstracting Abstract
 Machine (AAM) \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10}
 uncovers an approach to constructing abstract interpreters from
 systematic principles, rather than ad-hoc engineering.  By deriving
 semantics artifacts for abstract interpretation from their concrete
-counterparts (for example, abstract machines), the soundness can be
+counterparts (for example, abstract machines), soundness can be
 easily established by examining the transformation of semantic
 artifacts.
 This systematic abstraction approach can be tailored to different
@@ -30,7 +29,7 @@ interpreters \cite{Wei:2018:RAA:3243631.3236800,
 
 Based on the idea of abstracting abstract machines, more
 pragmatically, several implementation strategies utilizing purely
-functional programming to build abstract interpreters have
+functional programming techniques to build abstract interpreters have
 emerged. Such techniques include monads, monad transformers
 \cite{DBLP:journals/pacmpl/DaraisLNH17,
   Sergey:2013:MAI:2491956.2491979}, arrows
@@ -48,7 +47,7 @@ confidently reason about the correctness of their implementations.
 However, besides the intrinsic complexity of static analysis, there
 are additional abstraction penalties with these high-level
 implementation approaches. First, similar to concrete interpreters,
-the abstract interpreter analyzes the program by traversing the
+an abstract interpreter analyzes the program by traversing the
 abstract syntax tree (AST), which incurs an interpretive overhead, such
 as the pattern matching on the ASTs and recursive calls on the
 subexpressions.
