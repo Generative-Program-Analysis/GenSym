@@ -139,7 +139,7 @@ implementation of analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+\vspace{-2em}
 \subsection{Control-flow Analysis} \label{cfa}
 
 In this section, to demonstrate the SAI approach is widely applicable, we extend
@@ -234,18 +234,16 @@ addresses and returns a new store. For the generic interpreter, we also need to
 compute the root addresses for compound expressions, readers may refer to
 \cite{DBLP:journals/pacmpl/DaraisLNH17}.
 
+\vspace{-1em}
 \begin{figure}[h!]
 \begin{lstlisting}
   def fix_gc(ev: (Expr => Ans) => (Expr => Ans))(e: Expr): Ans = for {
     ψ <- ask_roots ... // omit code for retrieving ρ, σ, in and out
-    val res: Rep[(Set[(Value,Store)], Cache)] = ... // omit code for checking caches
-    _ <- put_out_cache(res._2)
-    vs <- lift_nd(res._1)
-    σ <- gc(ψ ⊔ root(vs._2)) // perform abstract garbage collection
-    _ <- put_store(σ)
+    val res: Rep[(Set[(Value,Store)], Cache)] = ...  // omit code for checking caches
+    _ <- put_out_cache(res._2);  vs <- lift_nd(res._1)
+    σ <- gc(ψ ⊔ root(vs._2));     _ <- put_store(σ)  // gc performs abstract garbage collection
   } yield v
 \end{lstlisting}
-\vspace{-2em}
 \caption{\texttt{fix\_gc} for abstract garbage collection} \label{fixgc}
 \end{figure}
 
@@ -253,9 +251,8 @@ compute the root addresses for compound expressions, readers may refer to
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\vspace{-2em}
 \subsection{Modular Staged Analysis for Free} \label{modular}
-
-% using different k?
 
 One of the challenges of modern static analysis is that program
 usually depends on large libraries programs
@@ -278,10 +275,9 @@ $\lambda$ terms is independent to other parts of the analyzed program.
   def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
 \end{lstlisting}
 
-Consider there is a library that contains a list map function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map}, 
+Consider there is a library that contains a list map function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map}:
 \begin{lstlisting}
-  (define (map xs f)
-    (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
+  (define (map xs f) (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
 \end{lstlisting}
 
 The specialization (0CFA and without store-widening) of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} on
@@ -297,21 +293,18 @@ function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicst
     val x61 = x51.foldLeft (x41) { case (x52, x53) =>   // prepare a new store that joins
       val x54 = x53._1;  val x55 = x53._2               //   the arguments and their values
         val x58 = x52.getOrElse(x54, x57)               //   into the latest store, initially x41
-        val x59 = x58.union(x55)
-        x52 + (x54 -> x59)
-    } ...
-  }
+        val x59 = x58.union(x55);  x52 + (x54 -> x59) } 
+    ... }
 \end{lstlisting}
 
-We borrow the notation traditional modular analysis and realize that
-such generated function is a reusable artifact which can be used
-modularly.  The generated functions already eliminate the
-interpretation overhead and monadic overhead, therefore can be
-consider as partial summaries. Although, we still need to run the
-generated function at next stage to obtain the analysis result.  At
-next stage, we can provide different abstract arguments, store and
-caches, depending on the context where it is called, thus the analysis
-is modular.
+We borrow the notation traditional modular analysis
+\cite{DBLP:conf/cc/CousotC02} and realize that such generated function is a
+reusable artifact which can be used modularly.  The generated functions already
+eliminate the interpretation overhead and monadic overhead, therefore can be
+consider as partial summaries. Although, we still need to run the generated
+function at next stage to obtain the analysis result.  At next stage, we can
+provide different abstract arguments, store and caches, depending on the
+context where it is called, thus the analysis is modular.
 
 Compared with traditional summary-based analysis, our partial
 summaries are represented by executable functions that are

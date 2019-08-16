@@ -92,6 +92,7 @@ trait MonadOps[M[_], A] {
     \caption{trait \texttt{MonadOps}} \label{fig:monadops}
   \end{subfigure}
 \end{figure}
+\vspace{-1em}
 
 Similar to Haskell's \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{do}-notation, Scala provides special syntactic support for
 monadic operations through \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{for}-comprehension.
@@ -272,6 +273,7 @@ values when acting as compilers.
   shared by the unstaged/staged + concrete/abstract interpreter.}
 \label{fig:shared_int}
 \end{figure}
+\vspace{-1em}
 
 \paragraph{The Interpreter} Now we construct the semantics-agnostic interpreter
 in monadic form, shown in Figure \ref{fig:shared_int}. The basic idea

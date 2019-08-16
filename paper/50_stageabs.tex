@@ -117,13 +117,9 @@ the current-stage monads.
     σ   <- get_store;      clo <- lift_nd[AbsValue](rator)
     in  <- ask_in_cache;   out <- get_out_cache
     res <- lift_nd[(Set[ValSt], Cache)](Set(emit_ap_clo(clo, arg, σ, in, out)))
-    _   <- put_out_cache(res._2)
-    vs  <- lift_nd[ValSt](res._1)
-    _   <- put_store(vs._2)
+    _   <- put_out_cache(res._2);  vs <- lift_nd[ValSt](res._1);  _ <- put_store(vs._2)
   } yield vs._1
 \end{lstlisting}
-
-% Monad is the bridge that connects future-stage values
 
 \begin{figure}[h!]
   \centering
@@ -251,14 +247,12 @@ operation and function application. We apply several rewritings enabled by
 partial-static data structures, such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map}, which greatly reduces
 the size of residual programs.
 
-%\paragraph{Heterogeneous Staging} The generated program is in A-Normal form. \todo{TODO}
-
 \section{Discussion}
 
 We have gradually presented the confluence of specialization and abstraction of
-concrete interpreters. In this section, we review and summarize our recipe
-to achieve the staged abstract interpreter, discuss correctness issues,
-and different design choices.
+concrete interpreters from an \textit{operational} perspective.
+In this section, we review and summarize our recipe to achieve the staged
+abstract interpreter, discuss correctness issues, and different design choices.
 
 \subsection{Summarizing the Approach}
 
@@ -293,8 +287,6 @@ consists of statements and expressions that purely manipulate the environment,
 store, and two caches, whose underlying representations are all \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Map[K,V]]}. We
 also have several operations on tuples and lists, which are residualized from
 the use of monads internally.
-
-%\todo{maybe show a small example?}
 
 \subsection{Correctness}
 
