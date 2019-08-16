@@ -117,7 +117,7 @@ implementation: different syntactic constructs are handled in different function
 Before refactoring into AC, these functions would take the store as a
 regular argument; now every function returns a value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{CompAnalysis},
 which is a function (closure) value that takes and returns stores. After the
-first run of analysis, we have traversed the AST and obtained a single closure
+first run of analysis, we have traversed the AST and obtained a single closure that
 takes a store and returns a store. Therefore, the ASTs are static terms, and the
 stores are dynamic terms. Now we can invoke the compiled closure with an initial
 store to complete the analysis.
@@ -144,7 +144,7 @@ implementation of analysis.
 
 In this section, to demonstrate the SAI approach is widely applicable, we extend
 and refactor the staged abstract interpreter we presented in Section \ref{sai}
-to various control-flow analysis (CFA). We first discuss calling-context
+to various control-flow analyses (CFA). We first discuss calling-context
 sensitive analysis for staged analyzers by tweaking allocation strategy; then we
 will see how to implement store-widening with staged monads, which is a common
 optimization in CFA; finally, we integrate abstract garbage collection with
@@ -152,10 +152,10 @@ staging. All of them are in fact orthogonal to staging.
 
 \subsubsection{Context-sensitivity}
 
-The abstract addresses we introduced in Section \ref{sai} is simply identical to
+The abstract addresses we introduced in Section \ref{sai} are simply identical to
 the variable names, which is a context-insensitive schema.
 Through tweaking the address allocation strategy, we can achieve various
-context-sensitive analysis \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we
+context-sensitive analyses \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we
 demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
 \cite{DBLP:journals/jfp/HornM12}, in our staged abstract interpreter.
 \begin{lstlisting}
@@ -165,7 +165,7 @@ demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
 
 The timestamp is essentially a finite list of expressions that tracks the $k$
 recent calling contexts. The definition of abstract addresses \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{KCFAAddr} is also
-changed to contain a identifier and the time when it get allocated, meaning that
+changed to contain an identifier and the time when it get allocated, meaning that
 this address points to some values under such calling context. If $k$ is 0, we
 obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain a
 family of analysis with increasing precision. Note that when $k = 0$, the
@@ -192,7 +192,7 @@ tuples, where the time is added.
 \end{lstlisting}
 
 Every time when we call the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval} function, we refresh the timestamp by calling
-the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{tick} function, which update the timestamp in the state monad. The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{tick}
+the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{tick} function, which updates the timestamp in the state monad. The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{tick}
 function is implemented as prepending the current expression being evaluated \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{e}
 to the existing calling context, and then taking the first $k$ elements from the list.
 The type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Config} used in caching is also changed to included the timestamp.
