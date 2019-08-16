@@ -299,18 +299,18 @@ function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicst
 
 We borrow the notation traditional modular analysis
 \cite{DBLP:conf/cc/CousotC02} and realize that such generated function is a
-reusable artifact which can be used modularly.  The generated functions already
-eliminate the interpretation overhead and monadic overhead, therefore can be
-consider as partial summaries. Although, we still need to run the generated
-function at next stage to obtain the analysis result.  At next stage, we can
-provide different abstract arguments, store and caches, depending on the
-context where it is called, thus the analysis is modular.
+reusable artifact which can be used modularly, i.e., independent to its context. 
+The generated functions already eliminate the interpretation overhead and
+monadic overhead, therefore can be consider as partial summaries. Although, we
+still need to run the generated function at next stage to obtain the analysis
+result.  At next stage, we can provide different abstract arguments, store and
+caches, depending on the context where it is called.
 
 Compared with traditional summary-based analysis, our partial
 summaries are represented by executable functions that are
 parameterized to the context information. In our approach, the
 transition from a whole-program analyzer to modular staged analyzer is
-mechanized and for free from staging. We do not need to design any
+mechanized and for free via staging. We do not need to design any
 intermediate representation or data structures of summaries.  In some
 scenario, traditional summary-based analyses are able to carry more
 information within a module, e.g., the summary of their internal

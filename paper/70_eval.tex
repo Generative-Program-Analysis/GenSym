@@ -77,23 +77,24 @@ measurement of program size.
 \caption{Evaluation result for monovariant control-flow analysis.} \label{evaluation_result}
 \end{figure}
 
-Figure~\ref{evaluation_result} shows the evaluation result, comparing
-the performance improved by staging on the two monovariant CFAs 
-The \textit{unstaged} and \textit{staged} columns show the median time to
-finish the analysis. The column $\frac{\text{unstaged}}{\text{staged}}$ shows
-the improvement from staging. The dash - in some cells indicates timeout.  As
-we can see from the table, the staged version significantly outperforms the
-unstaged version on all benchmarks.
-For 0CFA w/o store-widening, we observe an average speed-up of ~17x times.  For
-0CFA w/ store-widening, the average speed-up is ~7x times.  The @kcfa-worst-64@
-benchmark has the most speed-up among all the tests. Although it has a
-comparablely large size of AST, it has a quite simple structure which only
-involves booleans, functions and applications. We conjecture that the simple
-domain and structure allow the generated code to be efficiently optimized by
-the JVM. But on the corresponding 0CFA-SW, we do not observe such great
-speed-up. Due to the complexity of generated code and next-stage running
-platform (JVM), we leave the detailed empirical analysis of which static
-analysis can benefit more from specialization as a future work.
+Figure~\ref{evaluation_result} shows the evaluation result, comparing the
+performance improved by staging on the two monovariant CFAs The
+\textit{unstaged} and \textit{staged} columns show the median time to finish
+the analysis. The column $\frac{\text{unstaged}}{\text{staged}}$ shows the
+improvement. The dash - in some cells indicates timeout.  As
+expected, the staged version significantly outperforms the unstaged version on
+all benchmarks. We observe that simple and homogeneous domain used in the
+benchmark usualy leads to better speed-ups.  For 0CFA w/o store-widening, we
+observe an average speed-up of ~17x times; for 0CFA w/ store-widening, the
+average speed-up is ~7x times.  The @kcfa-worst-64@ benchmark has the most
+speed-up among all the tests. Although it has a comparablely large size of AST,
+it has a quite simple structure which only involves booleans, functions and
+applications. We conjecture that the simple domain and structure allow the
+generated code to be efficiently optimized by the JVM. But on the corresponding
+0CFA-SW, we do not observe such great speed-up. Due to the complexity of
+generated code and next-stage running platform (JVM), we leave the detailed
+empirical analysis of which static analysis can benefit more from
+specialization as future work.
 
 %Our evaluation result provides an abstraction without regret
 %approach to construct optimizing abstract interpreters -- the user may write a

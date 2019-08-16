@@ -170,7 +170,7 @@ representing next-stage definitions of type \lstinline[keywordstyle=,flexiblecol
 The IR nodes are manipulated by the LMS passes and finally generated to
 next-stage Scala code. To generate code, LMS provides an \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{emitNode} method for
 programmers to control what is generated for each kind of node. Here we have
-matched \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IRCompiledClo} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IRApClo} and will generate definitions for them.
+matched \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IRCompiledClo} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IRApClo} and will generate definitions via @emitValDef@ for them.
 For compiled closures, we put the function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} and its accompanying syntactic term
 and environment to its next-stage value representation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{CompiledClo}. For
 applications, we have the knowledge that \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fun} is a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{CompiledClo} at the stage,
