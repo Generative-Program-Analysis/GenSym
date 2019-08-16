@@ -119,8 +119,11 @@ Partial evaluation \cite{DBLP:books/daglib/0072559} was the first proposed
 approach to realize Futamura projections: it first discovers the binding-times
 (\textit{static} or \textit{dynamic}) of variables, then evaluates the static
 part of the program, and generates a residualized program that solely relies on
-the dynamic part. However, it is hard to precisely analyze binding-times given
-an arbitrary program. As an alternative approach, multi-stage programming (MSP)
+the dynamic part. This can be viewed as a \textit{two-level semantics}:
+different parts of the original program will be executed as different programs,
+possibly in an environment with different semantics.
+However, it is hard to precisely analyze binding-times given an arbitrary
+program. As an alternative approach, multi-stage programming (MSP)
 \cite{taha1999multi, DBLP:conf/pepm/TahaS97} lets users explicitly program over
 a two-level semantics \cite{NIELSON198859}, by manually annotating the
 binding-times of variables in the program. Then, the MSP system will check
