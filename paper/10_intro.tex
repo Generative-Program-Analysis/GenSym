@@ -34,21 +34,21 @@ emerged. Such techniques include monads, monad transformers
 \cite{DBLP:journals/pacmpl/DaraisLNH17,
   Sergey:2013:MAI:2491956.2491979}, arrows
 \cite{Keidel:2018:CSP:3243631.3236767}, extensible effects
-\cite{Githubsemantic}, etc. The pure approaches provide certain
+\cite{Kiselyov:2015:FMM:2804302.2804319}, etc. The pure approaches provide certain
 benefits, including that the abstract interpretation artifacts can be
 built compositionally and modularly, e.g., by using monad
 transformers. Therefore, the soundness of analysis can be proven with
 less effort, whether by mechanized proofs
 \cite{Darais:2016:CGC:2951913.2951934} or paper-based proofs
 \cite{Keidel:2018:CSP:3243631.3236767}.  Also, referential
-transparency and equational reasoning allow programmers to more
+transparency and equational reasoning allow programmers to
 confidently reason about the correctness of their implementations.
 
 However, besides the intrinsic complexity of static analysis, there
-are additional abstraction penalties with these high-level
+are additional abstraction penalties from these high-level
 implementation approaches. First, similar to concrete interpreters,
 an abstract interpreter analyzes the program by traversing the
-abstract syntax tree (AST), which incurs an interpretive overhead, such
+abstract syntax tree (AST), which incurs interpretive overhead, such
 as the pattern matching on the ASTs and recursive calls on the
 subexpressions.
 Such overhead can be negligible if the abstract interpreter only runs
@@ -56,7 +56,7 @@ on the program a single time, but can accumulate significantly if
 run repeatedly (for example, on libraries).  Second, it is common that
 abstract interpreters written in pure languages extensively use effect
 systems to implement the semantics of abstract interpretation. For
-example, the abstract interpreter that returns all possible runtime
+example, the collecting interpreter that returns all possible runtime
 values is a form of nondeterminism, where nondeterminism monads can
 help.  Although such pure approaches have their own merits, compared
 with imperative stateful implementations, they are significantly

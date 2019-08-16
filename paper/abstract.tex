@@ -3,7 +3,7 @@ interpreter to a given program produces an equivalent executable that runs faste
 This connection is known as the first Futamura projection.
 It is even more widely known that an abstract interpreter is a program analyzer:
 tweaking an interpreter to run on an abstract domain produces a sound static
-analysis. What happens when we combine these two ideas, and apply staging to
+analysis. What happens when we combine these two ideas, and apply specialization to
 an \emph{abstract} interpreter?
 
 In this paper, we present a unifying framework that naturally extends the first
@@ -16,7 +16,7 @@ interpreter, staged concrete interpreter, unstaged abstract interpreter, or
 staged abstract interpreter. As an example of \emph{abstraction without regret},
 the overhead of these abstraction layers is eliminated in the generated code
 after staging. We show that staging abstract interpreters is practical and
-useful to optimize static analysis while requiring less engineering effort,
+useful to optimize static analysis, while requiring less engineering effort,
 without compromising soundness. We conduct three case studies, including a
 comparison with \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract
 compilation, applications to various control-flow analyses, and a demonstration
