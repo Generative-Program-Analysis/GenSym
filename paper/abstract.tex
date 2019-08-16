@@ -1,9 +1,9 @@
-It is well known that a staged interpreter is a compiler: specializing and
+It is well known that a staged interpreter is a compiler: specializing an
 interpreter to a given program produces an equivalent executable that runs faster.
 This connection is known as the first Futamura projection.
 It is even more widely known that an abstract interpreter is a program analyzer:
 tweaking an interpreter to run on an abstract domain produces a sound static
-analysis. What happens when we combine these two ideas, and apply staging to
+analysis. What happens when we combine these two ideas, and apply specialization to
 an \emph{abstract} interpreter?
 
 In this paper, we present a unifying framework that naturally extends the first
@@ -17,12 +17,12 @@ staged abstract interpreter.
 As an example of \emph{abstraction without regret}, the overhead of these
 abstraction layers is eliminated in the generated code after staging.
 We show that staging abstract interpreters is practical and useful to
-optimize static analysis while requiring less engineering efforts and not
+optimize static analysis while requiring less engineering efforts without 
 compromising soundness. We conduct three case studies, including a comparison
 with \citeauthor{Boucher:1996:ACN:647473.727587}'s abstract compilation,
-applications on various control-flow analyses, and a demonstration shows that
-it can be used for modular analysis.
-We also empirically evaluate the running time improved by staging.
+applications on various control-flow analyses, and a demonstration that
+the approach can be used to compile an analysis to the program in a modular
+fashion.  We also empirically evaluate the running time improved by staging.
 The experiment shows an order of magnitude speedup with staging for
 control-flow analyses.
 
