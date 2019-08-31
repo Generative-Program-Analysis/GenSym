@@ -267,9 +267,8 @@ meta-programming can provide a trade-off between summary-based modular
 analysis and slow whole-program analysis, by utilizing an existing
 whole-program analyzer.
 
-As we have already seen from Section \ref{sai}, and recall the
-primitive operation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} that denotes a $\lambda$ term to next-stage
-Scala function.  The specializing of staged abstract interpreter to
+As we have already seen from Section \ref{sai}, and recall that the
+primitive operation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} can denote a $\lambda$ term to a next-stage Scala function.  The specializing of the staged abstract interpreter to
 $\lambda$ terms is independent to other parts of the analyzed program.
 \begin{lstlisting}
   def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
