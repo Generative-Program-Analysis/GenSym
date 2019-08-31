@@ -31,7 +31,7 @@ running on an Ubuntu 16.04 LTS (kernel 4.4.0) machine. All of our
 evaluations were performed on a machine with 4 Intel Xeon Platinum
 8168 CPU at 2.7GHz and 3 TiB of RAM. Although the machine has 96 cores
 (192 threads) in total, the abstract interpreters are single-threaded.
-To minimize the effect of warming-up from the HotSpot JIT compiler,
+To minimize the effect of warm-up from the HotSpot JIT compiler,
 all the experiments are executed for 20 times and we report the
 statistical median value of the running times. We set a 5 minutes
 timeout.
@@ -83,8 +83,8 @@ performance improved by staging on the two monovariant CFAs The
 the analysis. The column $\frac{\text{unstaged}}{\text{staged}}$ shows the
 improvement. The dash - in some cells indicates timeout.  As
 expected, the staged version significantly outperforms the unstaged version on
-all benchmarks. We observe that simple and homogeneous domain used in the
-benchmark usualy leads to better speed-ups.  For 0CFA w/o store-widening, we
+all benchmarks. We observe that simple and homogeneous value domains used in the
+benchmark usually leads to better speed-ups.  For 0CFA w/o store-widening, we
 observe an average speed-up of ~17x times; for 0CFA w/ store-widening, the
 average speed-up is ~7x times.  The \texttt{kcfa-worst-64} benchmark has the most
 speed-up among all the tests. Although it has a comparablely large size of AST,
