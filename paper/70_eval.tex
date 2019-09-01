@@ -7,20 +7,20 @@ shows that the staged versions are averagely 10+ times as fast as the unstaged
 version, as strong evidence of our \textit{abstraction without regret}
 approach.
 
-\paragraph{Implementation and Evaluation Environment}
-We implement the abstract interpreters for control-flow analysis, i.e., a
-value-flow analysis that computes which lambda terms can be called at each
-call-sites in functional languages. With other suitable abstract domains, the
-abstract interpreter also can be extended to other analyses. A front-end
-desugars Scheme to a small core language that makes the analyzer easy to
-implement. We implement two common monovariant 0-CFA-like analysis, one is
-equipped with store-widening (0CFA-SW for short), the other does not (0CFA for
-short). The store-widened analysis is expected to be faster than the one
-without.  Our prototype implementation currently generates Scala code; the
-generated Scala code will be compiled and executed on JVM. it is possible to
-generate C/C++ code in the future. In the experiments, we implement several
-optimizations mentioned in Section \ref{staged_ds}, specifically, the selective
-caching scheme and IR-level rewriting rules (for pairs, lists, sets, and maps) exploiting
+\paragraph{Implementation and Evaluation Environment} We implement the abstract
+interpreters for control-flow analysis, i.e., a value-flow analysis that
+computes which lambda terms can be called at each call-sites in functional
+languages. With other suitable abstract domains, the abstract interpreter also
+can be extended to other analyses. A front-end desugars Scheme to a small core
+language that makes the analyzer easy to implement. We implement two common
+monovariant 0-CFA-like analysis, one is equipped with store-widening (0CFA-SW
+for short), the other does not (0CFA for short). The store-widened analysis is
+expected to be faster than the one without.  Our prototype implementation
+currently generates Scala code; the generated Scala code will be compiled and
+executed on JVM. It is possible to generate C/C++ code in the future. In the
+experiments, we implement several optimizations mentioned in Section
+\ref{staged_ds}, specifically, the selective caching scheme and IR-level
+rewriting rules (for pairs, lists, sets, and maps) that exploit
 partially-static data. These optimizations are useful to reduce the size of
 generated code.
 
@@ -87,7 +87,7 @@ all benchmarks. We observe that simple and homogeneous value domains used in the
 benchmark usually leads to better speed-ups.  For 0CFA w/o store-widening, we
 observe an average speed-up of ~17x times; for 0CFA w/ store-widening, the
 average speed-up is ~7x times.  The \texttt{kcfa-worst-64} benchmark has the most
-speed-up among all the tests. Although it has a comparablely large size of AST,
+speed-up among all the tests. Although it has a comparably large size of AST,
 it has a quite simple structure which only involves booleans, functions and
 applications. We conjecture that the simple domain and structure allow the
 generated code to be efficiently optimized by the JVM. But on the corresponding
