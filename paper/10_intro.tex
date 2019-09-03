@@ -44,23 +44,25 @@ about the correctness of their implementations.
 However, besides the intrinsic complexity of static analysis, there are
 additional abstraction penalties from these high-level implementation
 approaches. First, similar to concrete interpreters, an abstract interpreter
-analyzes the program by traversing the abstract syntax tree (AST), which incurs
+analyzes the program by traversing the abstract syntax tree (AST). The traversing incurs
 interpretive overhead, such as the pattern matching on the ASTs and recursive
-calls on the subexpressions. Such overhead can be negligible if the abstract
+calls on subexpressions. Such overhead can be negligible if the abstract
 interpreter only runs on the program a single time, but can accumulate
-significantly if run repeatedly (for example, on libraries).  Second, it is
+significantly if it runs repeatedly (for example, on libraries).  Second, it is
 common that abstract interpreters written in pure languages extensively use
 functional encodings of side-effects to implement the semantics of abstract interpretation. 
-For example, the collecting interpreter that returns all possible runtime values is
-nondeterministic, which can be modeled by a list monad.  Although such pure
-approaches have their own merits, compared with imperative, stateful,
-implementations, they are significantly slower.
-In order to reconcile these approaches, one must use a programming technique
-which allows for high-level abstractions during implementation, but which
-bypasses the incurred overhead at runtime.
+For example, the list monad can be used to model nondeterminism from collecting
+interpreters.
+%For example, a collecting interpreter that returns all possible runtime values is
+%nondeterministic, which can be modeled by a list monad.  
+Although such pure approaches have their own merits, compared with imperative,
+stateful implementations, they are significantly slower.  In order to
+reconcile these approaches, one must use a programming technique which allows
+for high-level abstractions during implementation, but which bypasses the
+incurred overhead at runtime.
 
 Roughly at the same time when abstract interpretation was proposed in
-1970s, \citet{futamura1971partial, Futamura1999} revealed a close
+1970s, \citet{futamura1971partial} revealed a close
 connection between interpreters and compilers through a hierarchy of
 specializations, namely, Futamura Projections. The first Futamura
 projection shows that specializing an interpreter to the input program
@@ -69,22 +71,23 @@ that runs faster. The idea of Futamura projection has been applied to
 other similar performance problems and shown success, examples including
 query compilers\cite{DBLP:conf/sigmod/TahboubER18}, PyPy \footnote{PyPy:
 \url{http://pypy.org/}}, Truffle \cite{Marr:2015:TVP:2814270.2814275} and etc.
-The challenge here: can we apply the same idea to general abstract interpreters
-to make them run faster? To achieve this, we need to specialize a nonstandard
+The challenge here: can we apply the same idea to a general abstract interpreter
+to make it run faster? To achieve this, we need to specialize a nonstandard
 semantics that extensively uses nondeterminism, operates on abstract domains,
-and computes fixed-point iteratively with a cache. The solution is not simply obvious.
+and computes fixed-point iteratively over a cache. The solution is not simply obvious.
 
 In this paper, we show that the first Futamura projection can be naturally
 extended to abstract interpreters. We present an abstraction-without-regret
-framework to eliminate performance penalties for abstract interpreters, while
-keeping the implementation as close to its conceptual model.
+framework that eliminates performance penalties for monadic abstract
+interpreters, while keeping the implementation as close to their conceptual
+model.
 In short, our approach borrows ideas and techniques from multi-stage
 programming and embedded DSLs to abstract interpreters:  1) To remove the
 overhead from interpretation and effect layers, we specialize the abstract
 interpreter via staging and then generate efficient low-level code that does
 the actual analysis. 2) Inspired by the tagless-final interpreters
 \cite{DBLP:journals/jfp/CaretteKS09}, we construct a generic interpreter that
-abstracts over binding-time and different semantics, which allows the staged
+abstracts over binding-times and different semantics, which allows the staged
 abstract interpreter can be derived from its unstaged counterpart.
 As a result, the derived staged abstract interpreters has no intrusive changes
 to the underlying abstract semantics, therefore preserves the soundness.
@@ -112,7 +115,7 @@ which is the so-called \textit{equivalent executable}.
 The first proposed approach to realize Futamura projections is partial
 evaluation \cite{DBLP:books/daglib/0072559}, which relies on an automatic
 binding-time analysis (\textit{static} or \textit{dynamic}).  The underlying
-representation can be viewed as \textit{two-level semantics}
+representation can be viewed as a \textit{two-level semantics}
 \cite{NIELSON1989117, NIELSON198859} that distinguishes compile-time
 computation and run-time computation.
 However, it is hard to precisely analyze binding-times given an arbitrary
