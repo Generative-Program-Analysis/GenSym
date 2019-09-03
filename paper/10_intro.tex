@@ -102,12 +102,12 @@ engineering effort. We elaborate these two main ideas in detail, as follows.
 The first Futamura projection specifically shows that specializing an
 interpreter w.r.t. the input program yields an equivalent
 executable. For instance,
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval : Expr -> Input -> Value}
+@eval : Expr -> Input -> Value@
 is an interpreter for some language. Given a program $e_0$ of type
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Expr},
+@Expr@,
 by applying the specialization, we can obtain a specialized
 interpreter $\texttt{eval}_{\texttt{e0}}$ :
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Input -> Value},
+@Input -> Value@,
 which is the so-called \textit{equivalent executable}.
 
 % By definition of the interpreter, they produce the same result when applied with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.

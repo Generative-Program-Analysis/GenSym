@@ -9,13 +9,13 @@ The approach from unstaged to staged abstract interpreter is modular,
 and does not sacrifice soundness or precision. The designer of the
 analyzer therefore has no need to rewrite the analysis. We first present the
 staged lattices and staged monads, and then the staged version of primitive
-operations, especially \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix}. At last, we discuss several
+operations, especially @close@, @ap_clo@ and @fix@. At last, we discuss several
 optimizations and summarize our approach.
 
 \subsection{Staged Lattices}
 
-In Section \ref{stagedpoly_lat}, we exploited the higher-kinded type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} to
-achieve stage polymorphism. Now we instantiate the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep} and
+In Section \ref{stagedpoly_lat}, we exploited the higher-kinded type @R@ to
+achieve stage polymorphism. Now we instantiate the type @R@ to @Rep@ and
 still use power sets as an example to present its staged version.
 \begin{lstlisting}[escapechar=!]
   trait RepLattice[S] extends Lattice[S, Rep]
@@ -28,11 +28,11 @@ still use power sets as an example to present its staged version.
   }
 \end{lstlisting}
 
-The trait \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{RepLattice} is obtained by specializing \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Lattice} with \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep}.
-The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{RepSetLattice} is an instance of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{RepLattice}, where the lattice operations
+The trait @RepLattice@ is obtained by specializing @Lattice@ with @Rep@.
+The @RepSetLattice@ is an instance of @RepLattice@, where the lattice operations
 eventually are delegated to operations on a staged set data type, including
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{subsetOf}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{union} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{intersect}. We even do not have to change the
-implementation code, but just the types -- from \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set[T]} to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Set[T]]}, shown
+@subsetOf@, @union@ and @intersect@. We even do not have to change the
+implementation code, but just the types -- from @Set[T]@ to @Rep[Set[T]]@, shown
 in light gray code. The LMS library provides an implicit conversion that lifts a
 current-stage set value to next-stage values. In the code generation part, these
 operations emit their corresponding next-stage code. Again, other lattice
@@ -40,18 +40,18 @@ structures such as products and maps are implemented in a similar way.
 
 \subsection{Staged Abstract Semantics}
 
-Now we can implement the staged abstract semantics, where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{R} is instantiated as
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep}, and the abstract components are reused from the unstaged version.
+Now we can implement the staged abstract semantics, where @R@ is instantiated as
+@Rep@, and the abstract components are reused from the unstaged version.
 
 \paragraph{Staged Monads for Abstract Interpretation}
 We use the same monad stack structure from the unstaged abstract interpreter,
 but replacing \textit{all} the transformers to their staged version. The
 following code shows this change. For readability, we squeeze the three inner
-transformers (\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{IdM} omitted) into a single monad \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{RepSetReaderStateM[A, B, C]},
-where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{A} is the type parameter for reader effect and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{B} for the state effects.
-In our monad stack scheme, they are both instantiated with \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Cache}. Now the
-result type is a pair of two staged value: \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Set[(Value, Store)]]} and
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Cache]}.
+transformers (@IdM@ omitted) into a single monad @RepSetReaderStateM[A, B, C]@,
+where @A@ is the type parameter for reader effect and @B@ for the state effects.
+In our monad stack scheme, they are both instantiated with @Cache@. Now the
+result type is a pair of two staged value: @Rep[Set[(Value, Store)]]@ and
+@Rep[Cache]@.
 \begin{lstlisting}
   trait StagedAbstractSemantics extends AbstractComponents {
     type R[T] = Rep[T]
@@ -62,8 +62,8 @@ result type is a pair of two staged value: \lstinline[keywordstyle=,flexiblecolu
 \end{lstlisting}
 
 \iffalse
-Since our monad stack is uniformly using staged data, the staged \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT} now
-stores a staged value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Set[A]]}, inside of another staged monad \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{M}.
+Since our monad stack is uniformly using staged data, the staged @SetT@ now
+stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
 \begin{lstlisting}
   case class SetT[M[_]: RepMonad, A](run: M[Set[A]]) {
     def flatMap[B: Manifest](f: Rep[A] => SetT[M, B]): SetT[M, B] = ...
@@ -72,8 +72,8 @@ stores a staged value of type \lstinline[keywordstyle=,flexiblecolumns=false,mat
 \fi
 
 \paragraph{Primitive Operations} When deriving the staged concrete interpreter
-from the unstaged counterpart, we notice that recursive calls of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev} on the
-lambda body are shifted from \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close}. In other word, we need to
+from the unstaged counterpart, we notice that recursive calls of @ev@ on the
+lambda body are shifted from @ap_clo@ to @close@. In other word, we need to
 eagerly specialize the interpreter and generate code every time when we see a
 $\lambda$ term, instead of lazily when we actually need to apply a function.
 With no surprise, it is similar in the staged abstract interpreter,
@@ -81,15 +81,15 @@ additionally, we need to handle nondeterminism. So we keep our track and focus
 on discussing closure representations and function applications for the staged
 version.
 
-The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} method now is a mixing of the \textit{staged} concrete version and
-unstaged \textit{abstract} version: we build a current-stage function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f}, which
+The @close@ method now is a mixing of the \textit{staged} concrete version and
+unstaged \textit{abstract} version: we build a current-stage function @f@, which
 takes four next-stage values, including the argument and latest store, and
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in/out} caches additionally. Inside of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f}, we collapse the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Ans} monad to
-grounded values of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Result} by providing the desired arguments, i.e., the
+@in/out@ caches additionally. Inside of @f@, we collapse the @Ans@ monad to
+grounded values of type @Result@ by providing the desired arguments, i.e., the
 new environment, new store, and caches. The collapsing of monad happens at
-current-stage, so the call of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev} is unfolded through staging. Finally, we
+current-stage, so the call of @ev@ is unfolded through staging. Finally, we
 generate a singleton set containing the compiled next-stage closure
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{emit_compiled_clo(f)}, represented by an IR node in LMS.
+@emit_compiled_clo(f)@, represented by an IR node in LMS.
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                            => Rep[(Set[(Value,Store)], Cache)], λ: Lam, ρ: Exp[Env]): Rep[AbsValue]
@@ -103,12 +103,12 @@ generate a singleton set containing the compiled next-stage closure
   }
 \end{lstlisting}
 
-The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo} method is also similar: we use the staged version of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{lift_nd} to
+The @ap_clo@ method is also similar: we use the staged version of @lift_nd@ to
 lift the next-stage set of closures into the monad stack, and generate a
-next-stage value for each closure \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{clo} in the set, by using \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{emit_ap_clo}. The
-method \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{emit_ap_clo} generates the current-stage representation of the
+next-stage value for each closure @clo@ in the set, by using @emit_ap_clo@. The
+method @emit_ap_clo@ generates the current-stage representation of the
 future-stage result of application.
-Finally, we put the future \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache, store, and values back into
+Finally, we put the future @out@ cache, store, and values back into
 the current-stage monads.
 \begin{lstlisting}
   def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
@@ -145,20 +145,20 @@ the current-stage monads.
 \end{figure}
 
 \paragraph{Staged Caching and Fixpoint Iteration} Our fixed-point iteration
-again relies on the two caches \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{in} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out}, which are both staged maps now.
-Therefore, the query of whether the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache contains the current
+again relies on the two caches @in@ and @out@, which are both staged maps now.
+Therefore, the query of whether the @out@ cache contains the current
 configuration will produce a next-stage Boolean value, i.e., of type
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Boolean]}. Consequently, the branching condition cannot be determined
-statically -- we need to generate code for \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{if}. Figure
-\ref{fig:staged_coind_cache} shows the staged version of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix}. The
-monadic-binded variable \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{res} is a next-stage result, consisting of a next-stage
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{if} expression. The true branch simply returns a pair of queried result form
-the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache and the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache itself. The else branch constructs a monadic
-value \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{m} of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Ans} first, which evaluates \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{e} under the new \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{out} cache.
-After which, we use the similar technique that collapses the monad \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{m} to
+@Rep[Boolean]@. Consequently, the branching condition cannot be determined
+statically -- we need to generate code for @if@. Figure
+\ref{fig:staged_coind_cache} shows the staged version of @fix@. The
+monadic-binded variable @res@ is a next-stage result, consisting of a next-stage
+@if@ expression. The true branch simply returns a pair of queried result form
+the @out@ cache and the @out@ cache itself. The else branch constructs a monadic
+value @m@ of type @Ans@ first, which evaluates @e@ under the new @out@ cache.
+After which, we use the similar technique that collapses the monad @m@ to
 grounded values by providing its desired environment and etc. Finally, we have a
-current-stage representation of the future-stage values \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{res}, and put the
-content of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{res} back into the monad stack.
+current-stage representation of the future-stage values @res@, and put the
+content of @res@ back into the monad stack.
 
 \subsection{A Little Bit of Code Generation, Again}
 The code generation for compiled closures and function applications are similar
@@ -197,23 +197,23 @@ optimizations do not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
-Although every component except \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Expr}s are staged, we treat the data
-structures such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map}s as black-boxes, which means the operations on a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map}
+Although every component except @Expr@s are staged, we treat the data
+structures such as @Map@s as black-boxes, which means the operations on a @Map@
 directly become code in the next stage, but we don't inspect any further inside.
-As we identified when introducing the generic interface, the keys of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Env}s are
+As we identified when introducing the generic interface, the keys of @Env@s are
 identifiers (i.e., strings) in the program, which are completely known
 statically. This leaves us a chance to further specialize the data structures.
-For example, let's assume that the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map[K, V]} is implemented as a hash map. If
-the keys of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{K} are all known statically, then the indices also can be
+For example, let's assume that the @Map[K, V]@ is implemented as a hash map. If
+the keys of type @K@ are all known statically, then the indices also can be
 computed statically. Thus the specialized map would be an array of type
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Array[Rep[V]]}, whose elements are next-stage values; the size of the array is
+@Array[Rep[V]]@, whose elements are next-stage values; the size of the array is
 also known statically. An access to the map is translated into an access to the
 array with pre-determined index during staging.
 
 Particularly, if we are specializing a monovariant analysis, the address space
 is equivalent to the set of identifiers in the program. Then the accesses to the
 environment can be completely determined statically and generates the addresses
-directly. After which, the stores can be specialized as arrays of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Value]}
+directly. After which, the stores can be specialized as arrays of @Rep[Value]@
 elements.
 
 \paragraph{Selective Caching} It is observed that the two-fold co-inductive
@@ -232,19 +232,19 @@ algorithm that does not generate caching for atomic expressions:
 
 \paragraph{Partially-static Data}
 
-Our treatment to binding-times is coarse-grained: \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Expr}s is static, the rest of
+Our treatment to binding-times is coarse-grained: @Expr@s is static, the rest of
 the world are all dynamic. But this is not always true since the static data
 has to be used somewhere with the dynamic operation. Partial-static data is a
 way to improve binding-times and optimize the generated code.
 
-For example, to fold a singleton set (often appears in \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT}), e.g.,
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set(x).foldLeft(init)(f)} where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{x} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{init} are staged values, a naive code
-generator would faithfully apply \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{foldLeft} to the set with an anonymous
-function. But we can also utilize the algebraic property of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{foldLeft} to
-generate cheaper code: \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set(x).foldLeft(init)(f) = f(init, x)}. Since the
-function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} is known at the current stage, we completely eliminate the fold
+For example, to fold a singleton set (often appears in @SetT@), e.g.,
+@Set(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
+generator would faithfully apply @foldLeft@ to the set with an anonymous
+function. But we can also utilize the algebraic property of @foldLeft@ to
+generate cheaper code: @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
+function @f@ is known at the current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
-partial-static data structures, such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Set} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map}, which greatly reduces
+partial-static data structures, such as @Set@ and @Map@, which greatly reduces
 the size of residual programs.
 
 \section{Discussion}
@@ -277,14 +277,14 @@ efficient code in a staging framework. The underlying semantics and staging are
 two orthogonal dimensions. It is important to note that the computation
 encapsulated by the monads are not staged; only data (such as sets and maps) are
 staged. All the monadic computation, i.e., functions passed to the monadic bind
-operation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap}, are statically known. This is why we can eliminate the
+operation @flatMap@, are statically known. This is why we can eliminate the
 monadic layer and its associated overhead.
 
 \paragraph{What has been eliminated?} In the generated code, all the
-primitive operations (such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ap_clo}, etc.) and monadic
-operations (such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{flatMap} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map}) are eliminated. The residual program
+primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
+operations (such as @flatMap@ and @map@) are eliminated. The residual program
 consists of statements and expressions that purely manipulate the environment,
-store, and two caches, whose underlying representations are all \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Map[K,V]]}. We
+store, and two caches, whose underlying representations are all @Rep[Map[K,V]]@. We
 also have several operations on tuples and lists, which are residualized from
 the use of monads internally.
 

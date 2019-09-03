@@ -113,9 +113,9 @@ The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA
 for a small CPS language consisting of abstractions, applications, recursion and
 primitive operators. Figure \ref{compare_ac_sai} (left) shows the AC
 implementation: different syntactic constructs are handled in different functions
-(e.g., \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{compCall}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{compApp}, etc.).
+(e.g., @compCall@, @compApp@, etc.).
 Before refactoring into AC, these functions would take the store as a
-regular argument; now every function returns a value of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{CompAnalysis},
+regular argument; now every function returns a value of type @CompAnalysis@,
 which is a function (closure) value that takes and returns stores. After the
 first run of analysis, we have traversed the AST and obtained a single closure that
 takes a store and returns a store. Therefore, the ASTs are static terms, and the
@@ -125,15 +125,15 @@ store to complete the analysis.
 \paragraph{AC through Staging}
 
 On the other side, our approach does exactly the same thing through staging: the
-AST are static, and stores are dynamic, therefore we annotate the type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store}
-with \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep} (shown in Figure \ref{compare_ac_sai} (right)). In fact, the only
-changes of our approach using LMS framework are the types of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Store} to
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Store]}, since they will be known at the next stage; other parts do not need to change. 
+AST are static, and stores are dynamic, therefore we annotate the type @Store@
+with @Rep@ (shown in Figure \ref{compare_ac_sai} (right)). In fact, the only
+changes of our approach using LMS framework are the types of @Store@ to
+@Rep[Store]@, since they will be known at the next stage; other parts do not need to change. 
 The generated code
 will just looks-up and update the store. The functions at current stage are
 eliminated in the residual program, therefore we do not generate higher-order
 functions, which provides additional performance improvement. Nevertheless,
-the support from LMS framework is necessary, such as staging support for \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Map},
+the support from LMS framework is necessary, such as staging support for @Map@,
 we consider these efforts are reusable and complete orthogonal to the
 implementation of analysis.
 
@@ -164,7 +164,7 @@ demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
 \end{lstlisting}
 
 The timestamp is essentially a finite list of expressions that tracks the $k$
-recent calling contexts. The definition of abstract addresses \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{KCFAAddr} is also
+recent calling contexts. The definition of abstract addresses @KCFAAddr@ is also
 changed to contain an identifier and the time when it get allocated, meaning that
 this address points to some values under such calling context. If $k$ is 0, we
 obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain a
@@ -180,7 +180,7 @@ the address generation happens at the next stage, i.e., analysis time.
 \end{lstlisting}
 
 We then integrate the timestamp into our monad stack by adding a staged
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} monad. The result type is passingly get updated to contain a set of
+@StateT@ monad. The result type is passingly get updated to contain a set of
 tuples, where the time is added.
 \begin{lstlisting}
   def tick(e: Expr): AnsM[Unit] = for {
@@ -191,19 +191,19 @@ tuples, where the time is added.
   } yield unit(KCFAAddr(x, τ)) // we use unit to turn a current-stage constant to next-stage value
 \end{lstlisting}
 
-Every time when we call the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{eval} function, we refresh the timestamp by calling
-the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{tick} function, which updates the timestamp in the state monad. The \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{tick}
-function is implemented as prepending the current expression being evaluated \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{e}
+Every time when we call the @eval@ function, we refresh the timestamp by calling
+the @tick@ function, which updates the timestamp in the state monad. The @tick@
+function is implemented as prepending the current expression being evaluated @e@
 to the existing calling context, and then taking the first $k$ elements from the list.
-The type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Config} used in caching is also changed to included the timestamp.
+The type @Config@ used in caching is also changed to included the timestamp.
 
 \subsubsection{Store-widened Analysis}
 
 A commonly used technique to improve the running time in control-flow analysis
 is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
 DBLP:journals/pacmpl/DaraisLNH17}, store-widening analysis can be easily
-implemented in monadic abstract interpreter by swapping the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{StateT} (for store)
-and the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{SetT} (for nondeterminism). In this section, we show this optimization
+implemented in monadic abstract interpreter by swapping the @StateT@ (for store)
+and the @SetT@ (for nondeterminism). In this section, we show this optimization
 is orthogonal to staging and we just need to swap the same \textit{staged}
 version of monads. After the adjustment, we have the following monad stack:
 \begin{lstlisting}
@@ -216,7 +216,7 @@ version of monads. After the adjustment, we have the following monad stack:
 Abstract garbage collection is a technique to reclaim unreachable addresses in
 the store while doing the abstract interpretation
 \cite{Might:2006:IFA:1159803.1159807}. \citet{DBLP:journals/pacmpl/DaraisLNH17}
-shows that, for big-step monadic abstract interpreter, we may add a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Reader}
+shows that, for big-step monadic abstract interpreter, we may add a @Reader@
 monad to track a set of root addresses and compute the reachable addresses every
 time when we obtain a value. Here we adopt it with staged monads:
 \begin{lstlisting}
@@ -225,11 +225,11 @@ time when we obtain a value. Here we adopt it with staged monads:
                  Set[Addr], ?], Env, T] //add a reader monad for Set[Addr]
 \end{lstlisting}
 
-The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We modify the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix}
-function with caching (from Section \ref{sai}) to \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{fix_gc}, but the caching part
-is omitted. Several auxiliary functions are used: \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ask_root} retrieves the
-current root addresses from the monad stack; \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{root} compute the reachable
-addresses from a value; and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{gc} cleans up the store according to the reachable
+The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We modify the @fix@
+function with caching (from Section \ref{sai}) to @fix_gc@, but the caching part
+is omitted. Several auxiliary functions are used: @ask_root@ retrieves the
+current root addresses from the monad stack; @root@ compute the reachable
+addresses from a value; and @gc@ cleans up the store according to the reachable
 addresses and returns a new store. For the generic interpreter, we also need to
 compute the root addresses for compound expressions, readers may refer to
 \cite{DBLP:journals/pacmpl/DaraisLNH17}.
@@ -268,20 +268,20 @@ analysis and slow whole-program analysis, by utilizing an existing
 whole-program analyzer.
 
 As we have already seen from Section \ref{sai}, and recall that the
-primitive operation \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} can denote a $\lambda$ term to a next-stage Scala function.  The specializing of the staged abstract interpreter to
+primitive operation @close@ can denote a $\lambda$ term to a next-stage Scala function.  The specializing of the staged abstract interpreter to
 $\lambda$ terms is independent to other parts of the analyzed program.
 \begin{lstlisting}
   def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
 \end{lstlisting}
 
-Consider there is a library that contains a list map function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map}:
+Consider there is a library that contains a list map function @map@:
 \begin{lstlisting}
   (define (map xs f) (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
 \end{lstlisting}
 
-The specialization (0CFA and without store-widening) of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{close} on
-\lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{map} generates the following next-stage Scala code, that is, the
-function \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{x39}:
+The specialization (0CFA and without store-widening) of @close@ on
+@map@ generates the following next-stage Scala code, that is, the
+function @x39@:
 \begin{lstlisting}
   val x39 = {(x40: List[Set[AbsValue]],          // argument value list
               x41: Map[Addr, Set[AbsValue]],     // store
@@ -320,17 +320,17 @@ through the fixed-point for sub-modules.
 \paragraph{Partially-Static Context} Under a polyvariant analysis (like
 $k$-CFA), such summary generated by specializing static analyzer even could do
 more for calling context by partially-static data optimization. For example,
-consider that we have a library consists of three functions \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{g} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{h},
-where \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} calls \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{g} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{h} internally and returns \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{y} finally (we extend the
-language to have multiple arguments). \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{g} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{h} do not depend on \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f}. Now we
-would like to modularly specialize these functions, starting from \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f} with an
-initial environment containing \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f}, \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{g} and \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{h}.
+consider that we have a library consists of three functions @f@, @g@ and @h@,
+where @f@ calls @g@ and @h@ internally and returns @y@ finally (we extend the
+language to have multiple arguments). @g@ and @h@ do not depend on @f@. Now we
+would like to modularly specialize these functions, starting from @f@ with an
+initial environment containing @f@, @g@ and @h@.
 \begin{lstlisting}
   def f(a, b, c) = val x = g(a, b); val y = h(x, c);  y
 \end{lstlisting}
 
 Since $k$ is bounded to a fixed number, after the analysis running $k$ steps
-inside of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{f}, the calling context will purely depend on the static structure of
+inside of @f@, the calling context will purely depend on the static structure of
 our module being analyzed.
 \fi
 
@@ -360,18 +360,18 @@ domain and show that the specialization is feasible by staging systematically.
 \subsubsection{Scaling to Imperative Languages}
 
 To evaluates an assignment, we first evaluate its right-hand side, and then put
-the value into the slot where the address of \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{v} points to. For simplicity, we
-elect to make the value of the assignment be an \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{void()} value.
+the value into the slot where the address of @v@ points to. For simplicity, we
+elect to make the value of the assignment be an @void()@ value.
 \begin{lstlisting}
 case Assign(x, e) =>
   val (v, $\sigma$_*) = ev(e, $\rho$, $\sigma$)
   (void(), put($\sigma$_*, get($\rho$, x), v))
 \end{lstlisting}
 
-To evaluates a \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{while} loop statement, we evaluate the condition first. Then
-similar to how we treat \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{branch0}, we have a generic \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{branch} function but works
-on Boolean values. For the \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{true} branch, we recursively call \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{ev} on a newly
-constructed expression \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Seq(e, While(t, e))} meaning that first evaluates \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{e}
+To evaluates a @while@ loop statement, we evaluate the condition first. Then
+similar to how we treat @branch0@, we have a generic @branch@ function but works
+on Boolean values. For the @true@ branch, we recursively call @ev@ on a newly
+constructed expression @Seq(e, While(t, e))@ meaning that first evaluates @e@
 and the repeat the loop. Otherwise, for the other branch, we simply return a
 void value and current store.
 \begin{lstlisting}
@@ -384,7 +384,7 @@ case While(t, e) =>
 
 Interval domain is a relative simple domain which consists of two numeric
 fields, an upper bound and a lower bound. Here we annotate the upper bound and
-lower bound fields to be of type \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{Rep[Double]}. The operations such as \lstinline[keywordstyle=,flexiblecolumns=false,mathescape=false,basicstyle=\tt]{+} of
+lower bound fields to be of type @Rep[Double]@. The operations such as @+@ of
 two intervals produce a new
 \begin{lstlisting}
 case class Interval(lb: Rep[Double], ub: Rep[Double]) {
