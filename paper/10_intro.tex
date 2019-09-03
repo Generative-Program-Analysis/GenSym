@@ -58,7 +58,7 @@ interpreters.
 Although such pure approaches have their own merits, compared with imperative,
 stateful implementations, they are significantly slower.  In order to
 reconcile these approaches, one must use a programming technique which allows
-for high-level abstractions during implementation, but which bypasses the
+for high-level abstractions during implementation, but bypasses the
 incurred overhead at runtime.
 
 Roughly at the same time when abstract interpretation was proposed in
@@ -67,8 +67,8 @@ connection between interpreters and compilers through a hierarchy of
 specializations, namely, Futamura Projections. The first Futamura
 projection shows that specializing an interpreter to the input program
 removes interpretation overhead and yields an equivalent executable
-that runs faster. The idea of Futamura projection has been applied to 
-other similar performance problems and shown success, examples including
+that runs faster. The Futamura projections has been successfully applied to 
+other similar performance problems, examples including
 query compilers\cite{DBLP:conf/sigmod/TahboubER18}, PyPy \footnote{PyPy:
 \url{http://pypy.org/}}, Truffle \cite{Marr:2015:TVP:2814270.2814275} and etc.
 The challenge here: can we apply the same idea to a general abstract interpreter
@@ -100,15 +100,11 @@ engineering effort. We elaborate these two main ideas in detail, as follows.
 \paragraph{Futamura Projection of Abstract Interpreters}
 
 The first Futamura projection specifically shows that specializing an
-interpreter w.r.t. the input program yields an equivalent
-executable. For instance,
-@eval : Expr -> Input -> Value@
-is an interpreter for some language. Given a program $e_0$ of type
-@Expr@,
-by applying the specialization, we can obtain a specialized
-interpreter $\texttt{eval}_{\texttt{e0}}$ :
-@Input -> Value@,
-which is the so-called \textit{equivalent executable}.
+interpreter w.r.t. the input program yields an equivalent executable. For
+instance, @eval : Expr -> Input -> Value@ is an interpreter for some language.
+Given a program $e_0$ of type @Expr@, by applying the specialization, we can
+obtain a specialized interpreter $\texttt{eval}_{\texttt{e0}}$ : 
+@Input -> Value@, which is the so-called \textit{equivalent executable}.
 
 % By definition of the interpreter, they produce the same result when applied with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
 
@@ -119,8 +115,8 @@ representation can be viewed as a \textit{two-level semantics}
 \cite{NIELSON1989117, NIELSON198859} that distinguishes compile-time
 computation and run-time computation.
 However, it is hard to precisely analyze binding-times given an arbitrary
-program. As an alternative approach, multi-stage programming (MSP)
-\cite{taha1999multi, DBLP:conf/pepm/TahaS97} lets users explicitly program over
+program. As alternative approach, multi-stage programming (MSP)
+\cite{taha1999multi, DBLP:conf/pepm/TahaS97} allows users explicitly program over
 a two-level syntax \cite{Nielson:1992:TFL:130665}, by manually
 annotating the binding-times of variables in the program. Then, the MSP system
 will check whether these annotations are consistent, and specialize the program
@@ -128,19 +124,19 @@ using that information. The staging annotations can be either syntactic (e.g.,
 quote and quasi-quote in MetaML/MetaOCaml) or type-based (e.g., the Lightweight
 Modular Staging framework \cite{DBLP:conf/gpce/RompfO10} in Scala).
 
-Similar to two-level semantics \cite{NIELSON1989117}, we found
-monads provide a good abstraction to hide the detail of abstract
-interpretation semantics, and allows us to fit code generation into
-the semantics. We use \citet{DBLP:journals/pacmpl/DaraisLNH17}'s
-abstract definitional interpreter that uses monad transformers as the
-unstaged baseline. However, the monads do not have a clear stage distinction.
-We further introduce binding-time and make the monads binding-time polymorphic.
+To apply Futamura projections on abstract interpreters, we consider
+\citet{DBLP:journals/pacmpl/DaraisLNH17}'s big-step monadic abstract
+interpreter as the unstaged baseline.  Similar to the two-level semantics
+\cite{NIELSON1989117}, monads provide a good abstraction to hide the detail of
+abstract interpretation semantics. However, the monads do not have a clear
+stage distinction.
+We further introduce binding-times and make the monads binding-time polymorphic.
 Our proposed framework adopts the type-based multi-stage programming from the
 Lightweight Modular Staging framework, and implements the Futamura projection
 of a big-step abstract interpreter for a small, stateful, higher-order
 language. By deriving staged monads that can be used to do code generation, we
 obtain a staged abstract interpreter that can be used for specialization. After
-staging, the generated code is specialized to the input program, and all
+staging, the generated code is specialized to the input program, and all the
 monadic operations are inlined and compiled down to low-level Scala code.
 
 \input{fig_confluence.tex}
@@ -164,7 +160,7 @@ instantiated from these two dimensions (Figure~\ref{confluence}):
   program analyzer, but works in the fashion of compilation.
 \end{itemize}
 
-Although the four artifacts may look like dissimilar at first glance, they in
+Although the four artifacts may look dissimilar at first glance, they in
 fact are all firmly rooted in the concrete semantics of the language.  This
 observation provides a way to abstract over the interpreter and achieve the
 flexibility of reinterpreting the shared interpreter.  The generic interpreter
@@ -176,15 +172,15 @@ interpreter produces values directly or generates code. It is worth mentioning
 that the binding-time type is also injected into the monadic type, so that we
 will distinguish normal monads and staged monads.
 
-\paragraph{Applications and Evaluations}
+\paragraph{Applications and Evaluation}
 We evaluate the idea of staging an abstract interpreter through
 case studies and an empirical evaluation on performance.
 1) We compare our approach with abstract compilation
 \cite{Boucher:1996:ACN:647473.727587}, an implementation technique for
-control-flow analyses, and show that by utilizing type-based stage
-annotations we can achieve the same optimizations. Meanwhile,
-the analyzer does not need to change, thereby requiring significantly less
-engineering effort.
+control-flow analyses. We show that by utilizing type-based stage
+annotations, we can achieve the same optimizations. Meanwhile,
+the analyzer does not need to change, except the stage annotations, 
+thereby requiring significantly less engineering effort.
 2) We extend the basic staged abstract interpreter to different flow
 analyses, including a store-widened analysis, a context-sensitive
 analysis, and abstract garbage collection.
@@ -193,21 +189,17 @@ compilation of an analysis to programs. Here we borrow the concept of
 modular analysis, and show that the compiled analysis is reusable.
 Therefore, the approach provides a modular way to create optimized
 analysis code by mechanized reuse of a whole-program analyzer.
-4) We also empirically evaluate the performance improvements gained by staging,
-showing an order of magnitude speedup on flow-analysis.
+4) We empirically evaluate the performance improvements gained by staging,
+showing an order of magnitude speedup on flow analyses.
 
 \paragraph{Contributions} Briefly, the contributions of the paper are as follows:
 \begin{itemize}[leftmargin=2em]
-  \item To our best knowledge, we present the first
-    multi-stage programming system to specialize a general abstract interpreter,
-    without our approach affecting the soundness of analyses.
-  \item Intellectually, our framework naturally extends the first
-    Futamura projection to abstract interpreters, showing a
-    well-grounded approach to optimizing static analyses via
-    meta-programming.
-  \item Practically, we show that staging an abstract interpreter is
-    useful to improve performance and scalability of analyses by case
-    studies and an empirical evaluation.
+  \item Intellectually, we present a framework that naturally extends the first
+    Futamura projection to definitional abstract interpreters, showing a
+    well-grounded approach to optimizing static analyses via meta-programming.
+  \item Practically, we show that staging an abstract interpreter is useful to
+    improve performance and scalability of analyses by case studies and an
+    empirical evaluation.
 \end{itemize}
 
 \paragraph{Organization} The paper is organized as follows:
