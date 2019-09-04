@@ -1,28 +1,27 @@
 \section{Empirical Evaluation} \label{evaluation}
 
-To evaluate how the performance can be improved by our staged abstract interpreters
+To evaluate how performance can be improved by our staged abstract interpreters
 approach, we scale our toy interpreter to a large subset of the Scheme language
 and evaluate the analyzing time against with the unstaged versions. The result
 shows that the staged versions are averagely 10+ times as fast as the unstaged
-version, as strong evidence of our \textit{abstraction without regret}
-approach.
+version, as evidence of our \textit{abstraction without regret} approach.
 
 \paragraph{Implementation and Evaluation Environment} We implement the abstract
 interpreters for control-flow analysis, i.e., a value-flow analysis that
-computes which lambda terms can be called at each call-sites in functional
-languages. With other suitable abstract domains, the abstract interpreter also
-can be extended to other analyses. A front-end desugars Scheme to a small core
-language that makes the analyzer easy to implement. We implement two common
-monovariant 0-CFA-like analysis, one is equipped with store-widening (0CFA-SW
-for short), the other does not (0CFA for short). The store-widened analysis is
-expected to be faster than the one without.  Our prototype implementation
-currently generates Scala code; the generated Scala code will be compiled and
-executed on JVM. It is possible to generate C/C++ code in the future. In the
-experiments, we implement several optimizations mentioned in Section
-\ref{staged_ds}, specifically, the selective caching scheme and IR-level
-rewriting rules (for pairs, lists, sets, and maps) that exploit
-partially-static data. These optimizations are useful to reduce the size of
-generated code.
+computes which lambda terms can be called at each call-site. 
+With other suitable abstract domains, the abstract interpreter
+can also be extended to other analyses. 
+A front-end desugars Scheme to a small core language that makes the analyzer
+easy to implement. We implement two common monovariant 0-CFA-like analysis, one
+is equipped with store-widening (0CFA-SW for short), the other does not (0CFA
+for short). Usually, the store-widened analysis is expected to be faster than the one
+without.  Our prototype implementation currently generates Scala code; the
+generated Scala code will be compiled and executed on JVM. It is possible to
+generate C/C++ code in the future. In the experiments, we implement several
+optimizations mentioned in Section \ref{staged_ds}, specifically, the selective
+caching scheme and IR-level rewriting rules (for pairs, lists, sets, and maps)
+that exploit partially-static data. These optimizations are useful to reduce
+the size of generated code.
 
 We use Scala 2.12.8 and Oracle JVM 1.8.0-191 \footnote{The options for
 running JVM is set to the following: \texttt{-Xms2G -Xmx8G -Xss1024M
@@ -37,7 +36,7 @@ statistical median value of the running times. We set a 5 minutes
 timeout.
 
 \paragraph{Benchmarks}
-The benchmark programs we used in the experiment are collected from several
+The benchmark programs we used in the experiment are collected from
 previous papers \cite{Johnson:2013:OAA:2500365.2500604, ashley:practical,
 DBLP:journals/corr/abs-1102-3676} and existing artifacts
 \footnote{https://github.com/ilyasergey/reachability} for control-flow
@@ -45,15 +44,14 @@ analysis.  Some of the benchmarks are small programs designed for
 experiments, such as the @kcfa-worst-@$n$ series, which are intended
 to challenge $k$-CFA; while some other benchmarks are from real-world
 applications, for examples, the RSA public key encryption algorithm
-@rsa@. In the Figure \ref{evaluation_result}, we report the number of
-AST node after parsing and desugaring (excluding comments) as a proper
+@rsa@. In Figure \ref{evaluation_result}, we report the number of
+AST nodes after parsing and desugaring (excluding comments) as a proper
 measurement of program size.
 
 \paragraph{Result}
 
 \vspace{-1em}
-\begin{figure}[h]
-\footnotesize
+\begin{figure}[h] \footnotesize
 \begin{tabular}{@{}ll|lll|lll@{}}
 \toprule
     program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ & unstaged   & staged    & $\frac{\text{unstaged}}{\text{staged}}$  \\ 
@@ -78,23 +76,25 @@ measurement of program size.
 \end{figure}
 
 Figure~\ref{evaluation_result} shows the evaluation result, comparing the
-performance improved by staging on the two monovariant CFAs The
-\textit{unstaged} and \textit{staged} columns show the median time to finish
-the analysis. The column $\frac{\text{unstaged}}{\text{staged}}$ shows the
-improvement. The dash - in some cells indicates timeout.  As
-expected, the staged version significantly outperforms the unstaged version on
-all benchmarks. We observe that simple and homogeneous value domains used in the
-benchmark usually leads to better speed-ups.  For 0CFA w/o store-widening, we
-observe an average speed-up of ~17x times; for 0CFA w/ store-widening, the
-average speed-up is ~7x times.  The \texttt{kcfa-worst-64} benchmark has the most
-speed-up among all the tests. Although it has a comparably large size of AST,
-it has a quite simple structure which only involves booleans, functions and
-applications. We conjecture that the simple domain and structure allow the
-generated code to be efficiently optimized by the JVM. But on the corresponding
-0CFA-SW, we do not observe such great speed-up. Due to the complexity of
-generated code and next-stage running platform (JVM), we leave the detailed
-empirical analysis of which static analysis can benefit more from
-specialization as future work.
+performance improved by staging on the two monovariant CFAs. The
+\textit{unstaged} and \textit{staged} columns show the median time (excluding
+pre-compilation) to finish the analysis. The column
+$\frac{\text{unstaged}}{\text{staged}}$ shows the improvement. The dash @-@ in
+some cells indicates timeout.  As expected, the staged version significantly
+outperforms the unstaged version on all benchmarks. 
+%We observe that simple value domains used in the benchmark usually leads to
+%better speed-ups, for example, the @kcfa-worst@ series only uses lambdas and
+%booleans.
+For 0CFA w/o store-widening, we observe an average speed-up of ~17x times; for
+0CFA w/ store-widening, the average speed-up is ~7x times.
+\texttt{kcfa-worst-64} has the most speed-up among all the tests.
+Although it has a comparably large size of AST, it has a quite simple structure
+which only involves booleans, lambda terms and applications. We conjecture that
+the simple domain and structure allow the generated code to be efficiently
+optimized by the JVM. But on the corresponding 0CFA-SW, we do not observe such
+great speed-up. Due to the complexity of generated code and next-stage running
+platform (JVM), we leave the detailed empirical analysis of which static
+analysis can benefit more from the specialization as future work.
 
 %Our evaluation result provides an abstraction without regret
 %approach to construct optimizing abstract interpreters -- the user may write a
