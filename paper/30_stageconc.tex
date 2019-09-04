@@ -1,37 +1,37 @@
 \section{From Interpreters to Staged Interpreters} \label{stagedinterp}
 
 In this section, based on the generic interpreter and concrete components we
-presented in Section \ref{prelim}, we show how to stage the concrete interpreter
-by changing the monad type and refactoring several primitive operations. We
-begin by briefly introducing the Lightweight Modular Staging framework in Scala,
-and then replay the same steps from the unstaged counterpart. At last, we briefly
-describe code generation.
+presented in Section \ref{prelim}, we show that how to stage the concrete
+interpreter by changing the monad type and refactoring primitive
+operations. We begin by briefly introducing the Lightweight Modular Staging
+framework in Scala, and then replay the same steps from the unstaged
+counterpart. Finally, we briefly describe code generation.
 
 \subsection{Multi-Stage Programming with LMS}
 
 Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
-multi-stage programming framework implemented as a Scala library that enables
-dynamic code generation in a type-safe manner. Different from the approach of
-MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} that
-uses syntactic quotations and quasi-quotations, LMS distinguishes binding-time
-based on types. LMS provides a type constructor @Rep[T]@ where @T@ can be
-an arbitrary type, indicating a value of @T@ will be known at the next stage.
-All operations acting on @Rep[T]@ expressions will be residualized as generated
+multi-stage programming framework implemented as a Scala library. LMS enables
+runtime code generation in a type-safe manner. Different from the approach of
+MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} which
+use syntactic quotations, LMS distinguishes binding-time based on types. 
+LMS provides a type constructor @Rep[T]@ where @T@ can be
+an arbitrary type, indicating a value of type @T@ will be known at future stage.
+Operations acting on @Rep[T]@ expressions will be residualized as generated
 code.
 
 A classic example for introducing multi-stage programming is the power function
-that computes $b^x$, which is usually implemented as a recursive function:
+that computes $b^x$. Usually it is implemented as a recursive function:
 \begin{lstlisting}
   def power(b: Int, x: Int): Int = if (x == 0) 1 else b * power(b, x - 1)
 \end{lstlisting}
 
-If @x@ is a value know at current stage, we may specialize the power function to
-some value @x@ -- by unrolling the recursive calls. In LMS, this is fulfilled by
-first adding the @Rep@ type to the variable known at next stage. In this case,
-@b : Rep[Int]@ is know later, and @x : Int@ is know currently, as shown in the
+If @x@ is a value known at the current stage, we may specialize the power function to
+the value @x@ -- by unrolling the recursive calls. In LMS, this is fulfilled by
+first adding the @Rep@ type annotation to variables known at next stage. In this case,
+@b : Rep[Int]@ is known later, and @x : Int@ is known currently, as shown in the
 below code recipe.
-The way we use this @power@ function is to create a @DslDriver@ and override the
-@snippet@ method give the currently know value @x@ (5 in this example).
+The way we use this staged @power@ function is to create a @DslDriver@ and override the
+@snippet@ method that gives the currently know value @x@ (5 in this example).
 \begin{lstlisting}
   new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] = if (x == 0) 1 else b * power(b, x-1)
@@ -42,25 +42,25 @@ The way we use this @power@ function is to create a @DslDriver@ and override the
 The LMS framework provides staging support for primitive data types such as
 @Int@ and @Double@, and commonly-used data structures such as lists and maps.
 The idea behind the framework is to construct a sea-of-node intermediate
-representations (IR) for the next stage program at the current stage
+representations (IR) for the next-stage program at the current stage
 \cite{DBLP:conf/birthday/Rompf16}. For convenience, the conversion from
-expressions of type @Rep[_]@ to their IR is done by using the implicit design
+expressions of type @Rep[_]@ to their IR is done by using implicit design
 pattern. As we will see later, implementing staging and code generation
 support for user-defined classes is also straightforward.
 
 \subsection{Staged Concrete Semantics}
 
-To implement the staged concrete interpreter, we replay the steps from
-instantiating unstaged concrete interpreter in Section \ref{unstaged_conc}.
-But now we use the @Rep@ type to annotate value domains, environments and
+To implement the staged concrete interpreter, we replay the steps from the
+instantiation of unstaged concrete interpreter in Section \ref{unstaged_conc}.
+But, now we use the @Rep@ type to annotate the value domains, environments and
 stores, and redefine the staged version of monads and primitive operations.
 
 \paragraph{Staged Monads}
 We use the same structure of monad stack in the unstaged interpreter: a reader
-monad with a state monad. But now the monads operate on staged values, for
-brevity, we call them \textit{staged monads}. In the code, we also use a @Rep@
+monad with a state monad. The difference here is, now the monads operate on staged values. 
+For brevity, we call them \textit{staged monads}. In the code, we also use a @Rep@
 prefix on the constructors and types to differentiate them. But it is important
-to note that objects of a case class @ReaderT@/@StateT@ are not staged, the
+to note that instances of the case class @ReaderT@/@StateT@ are not staged, also the
 monadic computation like @R => M[A]@ are also not staged. Instead, the internal
 data that these monads operate on are staged, i.e., @R@ and @A@ in the
 reader monad, @S@ and @A@ in the state monad. The following code
@@ -74,11 +74,11 @@ snippet shows the idea. We use \hl{light gray} to highlight where @Rep@ type is 
       RepStateT(s => RepMonad[M].flatMap(run(s))(as => f(as._1).run(as._2))); ... }
 \end{lstlisting}
 
-The function @f@ passed to @flatMap@ is also a current-stage-known value, so
-that all the invocation of @flatMap@s can be completed before generating code.
+The function @f@ passed to @flatMap@ is also a function value known at current stage.
+Therefore all invocations of @flatMap@s can be reduced before generating code.
 The fact that we only stage data but not monadic computation or monadic
 values, is the reason that we can peel of the monad stack in the generated code.
-Now the @AnsM[_]@ is instantiated as the same structure as before, but using the
+Now type @AnsM[_]@ is instantiated as the same structure as before, but using the
 @Rep@ versions:
 \begin{lstlisting}
   type R[T] = Rep[T]
@@ -88,24 +88,25 @@ Now the @AnsM[_]@ is instantiated as the same structure as before, but using the
 Readers may notice that the conversion between unstaged monads and staged monads
 is merely changing the type of unstaged data to staged data, which in fact can
 be achieved without modifying the implementation of monads. This is true so far,
-but as we will see, it is not straightforward when for nondeterminism monad
+but as we will see, it is not straightforward for nondeterminism monad
 (@SetT@) in abstract interpreters. Because not only the elements in the set are
 staged, but the whole set is also staged, and we have no knowledge about how
 many elements in the set. In this section, we explicitly distinguish the two
-versions of monadic interfaces, later we will instantiated staged set monad
-using a different strategy.
+versions of monadic interfaces, later we will instantiated the staged set monad
+by manually fusing part of the monad stack.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to their staged versions -- we just need to change the types.
 As we mentioned before, we will take more care on how functions and
-applications are handled. The problem here is what should we do for
-lambda terms when staging? We cannot create a next-stage
-defunctionalized closure for it, because it means we still need to
-access the interpreter at the next stage. The desired goal is to eliminate the
-interpretation overhead staging, so the right thing is compiling the lambda term
-and its environment to a next-stage Scala function. To do this, we need to
-recursively call the interpreter function, i.e., the @ev@ argument passed to @close@.
-The following code implements the idea:
+applications are handled.  One problem here is what should we do for
+$\lambda$ terms when staging? We cannot directly create a next-stage
+defunctionalized closure for it, because that means we still need to
+interpret over these closure at the next stage.  The desired goal is to
+eliminate the interpretation overhead by staging, so the right thing is to
+compile the lambda term with its environment to a next-stage Scala function. To
+do this, we need to recursively call the interpreter function at current stage,
+i.e., the @ev@ argument passed to @close@.  The following code implements the
+idea:
 \begin{lstlisting}
   type ValSt = (Value, Store)
   def emit_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[ValSt], λ: Lam, ρ: Exp[Env]): Rep[Value]
@@ -118,27 +119,27 @@ The following code implements the idea:
   }
 \end{lstlisting}
 
-We have created a current-stage function @f@ that takes a next-stage value and
-store, and returns staged value. Then we use @emit_complied_clo@ to delay @f@ to
-a next-stage Scala function, represented by the type @Rep[Value]@. Inside of
-@f@, we can access the evaluator via @ev@, but @ev@ produces a monadic value of
-type @AnsM@, which can only exist at the current stage. To connect the
-current-stage monadic values and future-stage grounded values, the evaluator
-@ev@ is invoked on the body expression @e@ to be specialized w.r.t. @e@, and
-then we \textit{collapse} the @AnsM@ monad to grounded values by providing the
-prepared environment and store.
+In @close@, we first create a current-stage function @f@ that takes a
+next-stage value and store, and returns staged values. Then we use
+@emit_complied_clo@ to denote @f@ to a next-stage Scala function, represented
+by the type @Rep[Value]@. Inside of @f@, we can access the evaluator via @ev@.
+However, @ev@ produces a monadic value of type @AnsM@, which can only exist at
+the current stage. To connect the current-stage monadic values and future-stage
+grounded values, the evaluator @ev@ is invoked on the body expression @e@ to be
+specialized w.r.t. @e@, and then we \textit{collapse} the monadic value of
+@AnsM@ to grounded values by providing the prepared environment and store.
 
 For function applications @ap_clo@, we have two \textit{next-stage} values @fun@
-and @arg@, but what we can do on these values of @Rep@ type? In fact, @fun@ does
-not have an intensional application operation we can use directly; but we know
-that it is a staged value produced by the @close@ function, which represents a
+and @arg@. But what we can do on the values of @Rep@ type is limited. In fact, @fun@ does
+not have an intensional application operation we can use directly. We only know
+that it is a staged value produced by @close@, and represents a
 next-stage Scala function. Therefore we can just generate a next-stage function
-application, also in Scala. Since @ap_clo@ returns a monadic value of type
+application, also in Scala. Since @ap_clo@ produces a monadic value of type
 @Ans@, we can still use the monadic operation @get_store@ to obtain the latest
-store object. Then we use @emit_ap_clo@ to generate a current-stage
+store object. Then @emit_ap_clo@ is used to generate a current-stage
 representation of the future-stage application result, which is a pair of values
 and stores @ValSt@. After getting that result @vs@, we use @put_store@ to
-replace the store and reify the result to the current-stage monadic value.
+update the store and reify the result into the current-stage monadic value.
 \begin{lstlisting}
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[ValSt]
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
@@ -150,18 +151,18 @@ replace the store and reify the result to the current-stage monadic value.
 
 Compared with the unstaged version, we can observe a shift of using the
 evaluation function @ev@ from application-time to value-representation-time: in
-the unstaged interpreter, the invoke of @ev@ happens in @ap_clo@; while in the
-staged interpreter, we eagerly apply @ev@ when denoting the lambda term to our
-value domain.
+the unstaged interpreter, invocations of @ev@ happens in @ap_clo@; while in the
+staged interpreter, we eagerly apply @ev@ when denoting lambda terms to our
+next-stage value domain.
 
 \subsection{A Little Bit of Code Generation}
 
-In the previous section, we merely show the type of @emit_compiled_clo@ and
-@emit_ap_clo@ without a concrete implementation. In this section, we briefly
+In the previous section, we merely show the types of @emit_compiled_clo@ and
+@emit_ap_clo@ without concrete implementations. In this section, we briefly
 discuss the IR node generated by them and sketch code generation.
 We define the IR nodes @IRCompiledClo@ and @IRApClo@ using @case class@
-extending from @Def[T]@. @Def[T]@ is a built-in type in the LMS framework,
-representing next-stage definitions of type @T@.
+extending from @Def[T]@. @Def[T]@ is a built-in type from the LMS framework,
+representing next-stage value definitions of type @T@.
 \begin{lstlisting}
   case class IRCompiledClo(f: Rep[(ValSt) => ValSt], λ: Lam, ρ: Rep[Env]) extends Def[Value]
   case class IRApClo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]) extends Def[ValSt]
@@ -169,14 +170,14 @@ representing next-stage definitions of type @T@.
 
 The IR nodes are manipulated by the LMS passes and finally generated to
 next-stage Scala code. To generate code, LMS provides an @emitNode@ method for
-programmers to control what is generated for each kind of node. Here we have
-matched @IRCompiledClo@ and @IRApClo@ and will generate definitions via @emitValDef@ for them.
-For compiled closures, we put the function @f@ and its accompanying syntactic term
-and environment to its next-stage value representation @CompiledClo@. For
-applications, we have the knowledge that @fun@ is a @CompiledClo@ at the stage,
-and it has a callable field @f@, so we generate a next-stage function
-application @f(arg, σ)@. The @quote@s are invocations to generate code for the
-other next-stage values.
+programmers to control what is generated for each kind of nodes. Here we match
+@IRCompiledClo@ and @IRApClo@ and generate definitions via @emitValDef@ for
+them.  For compiled closures, we put the function @f@ and its accompanying
+syntactic term and environment to its next-stage value representation
+@CompiledClo@. For applications, we have the knowledge indicating that @fun@ is
+a @CompiledClo@ at the stage, and it has a callable field @f@. Hence, we
+generate a next-stage function application @f(arg, σ)@. The invocations of
+@quote@s are used to generate code for the other next-stage values.
 \begin{lstlisting}
 override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
   case IRCompiledClo(f, λ, ρ) => emitValDef(sym, s"CompiledClo($\textdollar${quote(f)}, $\textdollar${quote(λ)}, $\textdollar${quote(ρ)})")
