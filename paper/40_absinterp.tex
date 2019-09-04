@@ -167,10 +167,10 @@ the cache type of state monad becomes adjacent to the set type.
   type Result = (R[Set[(Value, Store)]], R[Cache])
 \end{lstlisting}
 
-\paragraph{Primitive Operations} The primitive operations are changed to adapt
+\paragraph{Primitive Operations} The primitive operations are changed according to
 the new monad stack scheme and value domains. A notable change is that the store
-update operation joins the value with the existing values, for the same address.
-As what mentioned before, we may have to explore both branches for conditionals:
+update operation joins the new value with existing values, for the same address.
+As we mentioned before, we may have to explore both branches for conditionals:
 in @br0@ method, we combine the results using @mplus@ from @MonadPlus@, which
 requires the value domains are join-semilattices (in our case @Set@s and
 @Map@s).
@@ -186,8 +186,8 @@ The value representation of lambda terms is still a defunctionalized closure
 \end{lstlisting}
 
 For function applications, @ap_clo@ looks the same as the concrete interpreter.
-The difference is now the first argument @rator@ is a set of closures (remember
-that @Value@ is now an alias of @Set[AbsValue]@), so we can not directly
+The difference is that now the first argument @rator@ is a set of closures (remember
+that @Value@ is an alias of @Set[AbsValue]@), so we can not directly
 destruct it by pattern matching. Instead, we use an auxiliary function @lift_nd@
 that takes a set and lifts the elements into the monad stack. Then we can still
 implement @ap_clo@ in monadic style, where the closures come from the @SetT@ and
@@ -215,14 +215,14 @@ interpreter or fixed point computation
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800,
   Rosendahl:AbsIntPL}. The idea is to use a @in@ cache and a @out@ cache during
 the depth-first evaluation, where the @in@ cache stores the result from last
-iteration, and @out@ cache is used for updates in current iteration. In the next
+iteration, and @out@ cache is used for updating in current iteration. In the next
 iteration, the last @out@ cache will be served as @in@ cache, and an empty cache
 is plugged-in to the @out@ slot. Once the @out@ cache does not contain anything
 new than the @in@ cache, the fixed-point is reached.
 
-In our monad stack, the @in@ and @out@ cache modeled by a reader effect and
-state effect, respectively. We first defined several methods to manipulate
-the two caches through the monad stack; the implementations are elided.
+In our monad stack, the @in@ and @out@ cache are modeled by a reader effect and
+state effect, respectively. We first define several methods to manipulate
+the two caches through the monad stack (the implementations are elided).
 \begin{lstlisting}
   def ask_in_cache: AnsM[Cache]; def get_out_cache: AnsM[Cache]
   def put_out_cache(out: R[Cache]): AnsM[Unit]
@@ -244,8 +244,8 @@ After the evaluation, the store @σ@ may have been changed. We update the
 Similar to store update, cache update is also a point-wise join.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the
-input @in@ cache, which indicates that there is no more fact can be gained, thus
-the iteration should end and we have reached the least fixed point.
+input @in@ cache, which indicates that there is no more fact can be discovered,
+therefore the iteration should end and we have reached the least fixed point.
 
 \begin{figure}[h!]
   \centering
@@ -274,5 +274,5 @@ the iteration should end and we have reached the least fixed point.
 \end{lstlisting}
 
 Finally, we override the top-level @run@ method by running the monadic value
-with the empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
+with an empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
 and initial caches @cache@$_0$.
