@@ -128,7 +128,6 @@ ground-truth from Haskell.
 
 \subsection{Generic Interpreter} \label{generic_if}
 
-
 In this section, we present the generic interface in the style of big-step
 definitional interpreter. The key idea is to keep the binding-time type and
 returned monadic type both abstract, so that they can be instantiated
@@ -300,21 +299,23 @@ abstract type.
 
 As the first step in our roadmap, we instantiate the interpreter concretely in
 this section. The result of such instantiation is a standard definitional
-interpreter with environments and stores, it also can be obtained by
+interpreter with environments and stores. It can also be obtained by the
 refunctionalization of CESK machines \cite{Felleisen:1987:CAH:41625.41654,
 DBLP:conf/ppdp/AgerBDM03}. We first present the concrete components, i.e., the
-value domain, then show the monad stack for concrete interpretation, finally
-sketch the how the primitive operations are implemented.
+value domains, then show the monad stack for concrete interpretation, finally
+sketch how the primitive operations are implemented.
 
 \paragraph{Concrete Components}
 The two types we need to concretize are addresses @Addr@ and values @Value@. The
 type @Env@ and @Store@ is derived automatically. To assure the freshness of
-address allocation, we use @Int@ and always return successor of the size of
-current store. A value can be either a tagged number \texttt{IntV}, or a closure
+address allocations, we use type @Int@ and always return a number greater
+than the size of current store.
+A value can be either a tagged number \texttt{IntV}, or a closure
 \texttt{CloV} that contains a lambda term and an environment. The final grounded
 result of the interpreter is a pair of values and stores, where the @Value@ and
-@Store@ are next-stage objects, as annotated by @R@. We also define a standard
-fixed-point combinator to close the open-recursive function @ev@.
+@Store@ can be next-stage objects, as annotated by the binding-time @R@. We
+also define a standard fixed-point combinator to close the open-recursive
+function @ev@.
 \begin{lstlisting}
   trait ConcreteComponents extends Semantics {
     type Addr = Int
@@ -330,13 +331,13 @@ fixed-point combinator to close the open-recursive function @ev@.
 For the purpose of concrete interpretation, the monad needs to model read
 effect and state effect, which correspond to environment and store,
 respectively. Following the monad transformer approach
-\cite{DBLP:conf/popl/LiangHJ95}, we use a @ReaderT@ and @StateT@ monad
-transformer to compose the monad stack. In other words, the type @AnsM@ is
+\cite{DBLP:conf/popl/LiangHJ95}, a @ReaderT@ and @StateT@ monad
+transformer are used to compose the monad stack. In other words, the type @AnsM@ is
 instantiated by layering @ReaderT@ and @StateT@ transformers\footnote{The
 question mark syntax is a kind projector \cite{kindprojector}, thus
 \texttt{StateT[IdM,Store,?]} is equivalent to \newline \texttt{(\{type
 M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is parameterized by type
-@Env@, @StateT@ is parameterized by type @Store@, and the inner-most monad @IdM@
+@Env@, and @StateT@ is parameterized by type @Store@, and the inner-most monad @IdM@
 is simply an identity monad.
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
@@ -348,12 +349,12 @@ is simply an identity monad.
 Here we sketch the basic idea of @ReaderT@ and @StateT@. Readers may
 refer to \cite{DBLP:conf/popl/LiangHJ95, Chiusano:2014:FPS:2688794} for more detail.
 A @ReaderT@ monad transformer encapsulates computation @R => M[A]@, where
-@R@ is the reader type, and @M[_]@ is the inner monad type.
-Given a @R@, @ReaderT@ monad produces a transformed value of type @M[A]@.
+@R@ is the reader type, and @M[_]@ is the inner monadic type.
+Given a value of @R@, a @ReaderT@ monad produces a transformed value of type @M[A]@.
 Similarly, a @StateT@ monad encapsulates computation @S => M[(A, S)]@, where
 @S@ is the state type, and @M[_]@ is the inner monad type.
-Given a @S@, @StateT@ monad produces a transformed value of type @M[(A, S)]@,
-where the new state (type @S@) is accompanied with the value (type @A@).
+Given a value of @S@, a @StateT@ monad produces a transformed value of type @M[(A, S)]@,
+where the new state (of type @S@) is accompanied with the value (of type @A@).
 Note that for the moment, the binding-time type @R@ is an identity type, thus
 these monads operate on unstaged data. We can also see this from the
 signature of @flatMap@: the argument function @f@ takes an unstaged value of type @A@ and
@@ -367,11 +368,11 @@ produces a monadic value. In the following code, we elide operations other than 
       StateT(s => Monad[M].flatMap(run(s)) { case (a, s1) => f(a).run(s1) }); ... }
 \end{lstlisting}
 
-After defining the monad stack, the operations that manipulate the environment
-and store can be defined by constructing the proper monad and lifting it to the
-top-level of our monad stack. To modify the store, for example, we can construct a
+After defining the monad stack, the operations manipulating environments
+and stores can be defined by constructing the proper monadic value and lifting it to the
+top-level of our monad stack. To modify the store, for example, we construct a
 @StateT@ value that transforms the current store $\sigma$ to @σ + αv@, which
-results in @StateT[IdM, Store, Unit]@, and then lift this @StateT@ value to the
+results in a @StateT[IdM, Store, Unit]@, and then lift this @StateT@ value to the
 top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ + αv))
@@ -380,20 +381,20 @@ top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
 \paragraph{Primitive Operations}
 Other primitive operations over the value domain can be implemented
 straightforwardly. We elide most of them but describe a bit on how we handle
-functions and applications. Because lambda terms are data but also part of the
-control flow, although the way we treat them is simple now, but will be very
-different when staging and abstract interpretation is involved. The method
-@close@ takes a lambda term and an environment, and produces the
-defunctionalized representation of closures.
+functions and applications. This is because lambda terms are data but are also
+part of the control flow. Although the way we treat them is simple now, but it
+will be very different when staging and abstract interpretation is involved.
+At the moment, the method @close@ takes a lambda term and an environment, and
+produces the defunctionalized representation of closures.
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
 \end{lstlisting}
 
 To apply a function, @ap_clo@ takes a function value @rator@ and an argument
-@rand@, extracts the lambda term and environment enclosed in @rator@, allocates
-the addresses and updates the environment and store accordingly. Finally, it
-evaluates the body expression of the lambda term under the new environment and
-store.
+@rand@. It extracts the lambda term and environment enclosed in @rator@, and
+allocates the addresses and updates the environment and store accordingly.
+Finally, body expression of the lambda term is evaluated under the new
+environment and store.
 \begin{lstlisting}
   def ap_clo(ev: Expr => Ans)(rator: Value, rand: Value): Ans = rator match {
     case CloV(Lam(x, e), ρ: Env) => for {
