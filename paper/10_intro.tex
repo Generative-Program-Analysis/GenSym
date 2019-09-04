@@ -76,6 +76,7 @@ to make it run faster? To achieve this, we need to specialize a nonstandard
 semantics that extensively uses nondeterminism, operates on abstract domains,
 and computes fixed-points iteratively over a cache. The solution is not simply obvious.
 
+
 In this paper, we show that the first Futamura projection can be naturally
 extended to abstract interpreters. We present an abstraction-without-regret
 framework that eliminates performance penalties for monadic abstract
@@ -97,14 +98,16 @@ engineering effort. We elaborate these two main ideas in detail, as follows.
 %The result of specialization is reusable, and the effect layers have
 %been eliminated in the generated code.
 
+\input{fig_confluence.tex}
+
 \paragraph{Futamura Projection of Abstract Interpreters}
 
 The first Futamura projection specifically shows that specializing an
 interpreter w.r.t. the input program yields an equivalent executable. For
 instance, @eval : Expr -> Input -> Value@ is an interpreter for some language.
 Given a program $e_0$ of type @Expr@, by applying the specialization, we can
-obtain a specialized interpreter $\texttt{eval}_{\texttt{e0}}$ :
-@Input -> Value@, which is the so-called \textit{equivalent executable}.
+obtain a specialized interpreter $\texttt{eval}_{\texttt{e0}}$ : @Input -> Value@,
+which is the so-called \textit{equivalent executable}.
 
 % By definition of the interpreter, they produce the same result when applied with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
 
@@ -138,8 +141,6 @@ language. By deriving staged monads that can be used to do code generation, we
 obtain a staged abstract interpreter that can be used for specialization. After
 staging, the generated code is specialized to the input program, and all the
 monadic operations are inlined and compiled down to low-level Scala code.
-
-\input{fig_confluence.tex}
 
 \paragraph{Generic Interpreter and Reinterpretation}
 

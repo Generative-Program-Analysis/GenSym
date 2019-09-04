@@ -253,20 +253,18 @@ therefore the iteration should end and we have reached the least fixed point.
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
     ρ <- ask_env; σ <- get_store; in <- ask_in_cache; out <- get_out_cache; val cfg = (e, ρ, σ)
     rt <- if (out.contains(cfg)) for { // ask if out already contains the desired result
-            (v, σ) <- lift_nd[(Value, Store)](out(cfg))
-             _ <- put_store(σ)
+            (v, σ) <- lift_nd[(Value, Store)](out(cfg));  _ <- put_store(σ)
           } yield v
           else for {
             _ <- put_out_cache(out + (cfg → in.getOrElse(cfg, ⊥)))
-            v <- ev(fix(ev))(e)
-            σ <- get_store
-            _ <- update_out_cache(cfg, (v, σ))
+            v <- ev(fix(ev))(e);  σ <- get_store;  _ <- update_out_cache(cfg, (v, σ))
           } yield v
   } yield rt
 \end{lstlisting}
 \vspace{-1em}
 \caption{The unstaged co-inductive caching algorithm.}
 \label{fig:coind_cache}
+\vspace{-1em}
 \end{figure}
 
 \begin{lstlisting}
