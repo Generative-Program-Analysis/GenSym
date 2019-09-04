@@ -25,13 +25,12 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 1
+  val N = 20
   val sw = "sw"
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
-    (map, "map")
-    /*
+    //(map, "map")
     (fib, "fib"),
     (rsa, "rsa"),
     (church, "church"),
@@ -42,14 +41,11 @@ object Evaluation {
     (kcfa32, "kcfa32"),
     (kcfa64, "kcfa64"),
     (solovay, "solovay")
-    */
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
-    /*
     (regex, "regex"),
     (matrix, "matrix")
-    */
   )
 
   def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
@@ -99,6 +95,8 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
+      val store = res._1
+      println(store.size)
     }
   }
 
@@ -106,15 +104,23 @@ object Evaluation {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run(e)
+      val vs = res._1
+      val vals = vs._1
+      println(vals.size)
     }
   }
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run(e)
+      val store = res._1
+      println(store.size)
   }
 
   def evalUnstagedSW(e: Expr): Unit = {
     val res = SWUnstagedSchemeAnalyzer.run(e)
+      val vs = res._1
+      val vals = vs._1
+      println(vals.size)
   }
 
   def writeTo(filename: String, content: String): Unit = {
