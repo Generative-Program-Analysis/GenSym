@@ -139,25 +139,26 @@ implementation of analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\vspace{-2em}
 \subsection{Control-flow Analysis} \label{cfa}
 
-In this section, to demonstrate the SAI approach is widely applicable, we extend
-and refactor the staged abstract interpreter we presented in Section \ref{sai}
-to various control-flow analyses (CFA). We first discuss calling-context
-sensitive analysis for staged analyzers by tweaking allocation strategy; then we
-will see how to implement store-widening with staged monads, which is a common
-optimization in CFA; finally, we integrate abstract garbage collection with
-staging. All of them are in fact orthogonal to staging.
+In this section, to demonstrate the SAI approach is widely applicable, we
+extend and refactor the staged abstract interpreter we presented in Section
+\ref{sai} to various control-flow analyses (CFA). We first discuss
+calling-context sensitive analysis for staged analyzers by tweaking the
+allocation strategy. Then we describe how to implement store-widening with
+staged monads, which is a common optimization in CFA. Finally, we integrate
+abstract garbage collection with staging. All of them are in fact orthogonal to
+staging.
 
 \subsubsection{Context-sensitivity}
 
-The abstract addresses we introduced in Section \ref{sai} are simply identical to
-the variable names, which is a context-insensitive schema.
-Through tweaking the address allocation strategy, we can achieve various
-context-sensitive analyses \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we
-demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
-\cite{DBLP:journals/jfp/HornM12}, in our staged abstract interpreter.
+The abstract addresses we introduced in Section \ref{sai} are simply identical
+to the variable names, which is a context-insensitive schema.  Through tweaking
+the address allocation strategy, we can achieve various context-sensitive
+analyses \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we demonstrate a
+calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
+\cite{DBLP:journals/jfp/HornM12}, can be implemented our staged abstract
+interpreter.
 \begin{lstlisting}
   type Time = List[Expr]
   case class KCFAAddr(x: Ident, time: Time) extends Addr
@@ -165,7 +166,7 @@ demonstrate a calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
 
 The timestamp is essentially a finite list of expressions that tracks the $k$
 recent calling contexts. The definition of abstract addresses @KCFAAddr@ is also
-changed to contain an identifier and the time when it get allocated, meaning that
+changed to include the identifier and the time when it get allocated, meaning that
 this address points to some values under such calling context. If $k$ is 0, we
 obtain a monovariant analysis as demonstrated before; if $k > 0$, we obtain a
 family of analysis with increasing precision. Note that when $k = 0$, the
@@ -180,7 +181,7 @@ the address generation happens at the next stage, i.e., analysis time.
 \end{lstlisting}
 
 We then integrate the timestamp into our monad stack by adding a staged
-@StateT@ monad. The result type is passingly get updated to contain a set of
+@StateT@ monad. The result type is accordingly updated to contain a set of
 tuples, where the time is added.
 \begin{lstlisting}
   def tick(e: Expr): AnsM[Unit] = for {
@@ -191,11 +192,12 @@ tuples, where the time is added.
   } yield unit(KCFAAddr(x, τ)) // we use unit to turn a current-stage constant to next-stage value
 \end{lstlisting}
 
-Every time when we call the @eval@ function, we refresh the timestamp by calling
-the @tick@ function, which updates the timestamp in the state monad. The @tick@
-function is implemented as prepending the current expression being evaluated @e@
-to the existing calling context, and then taking the first $k$ elements from the list.
-The type @Config@ used in caching is also changed to included the timestamp.
+Every time when we call the @eval@ function, we refresh the timestamp by
+calling the @tick@ function, which updates the timestamp in the state monad.
+The @tick@ function is implemented as prepending the current control expression
+being evaluated (@e@) to the existing calling context, and then taking the
+first $k$ elements from the list.  The type @Config@ used in caching is also
+changed to include timestamps.
 
 \subsubsection{Store-widened Analysis}
 
@@ -204,7 +206,7 @@ is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
 DBLP:journals/pacmpl/DaraisLNH17}, store-widening analysis can be easily
 implemented in monadic abstract interpreter by swapping the @StateT@ (for store)
 and the @SetT@ (for nondeterminism). In this section, we show this optimization
-is orthogonal to staging and we just need to swap the same \textit{staged}
+is orthogonal to staging and we just need to similarly swap the same \textit{staged}
 version of monads. After the adjustment, we have the following monad stack:
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepSetT[RepStateT[
@@ -218,20 +220,21 @@ the store while doing the abstract interpretation
 \cite{Might:2006:IFA:1159803.1159807}. \citet{DBLP:journals/pacmpl/DaraisLNH17}
 shows that, for big-step monadic abstract interpreter, we may add a @Reader@
 monad to track a set of root addresses and compute the reachable addresses every
-time when we obtain a value. Here we adopt it with staged monads:
+time when we obtain a value. Here, we adopt the idea with staged monads:
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepReaderT[
                    RepStateT[RepSetReaderStateM[Cache, Cache, ?], Store, ?],
                  Set[Addr], ?], Env, T] //add a reader monad for Set[Addr]
 \end{lstlisting}
 
-The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We modify the @fix@
-function with caching (from Section \ref{sai}) to @fix_gc@, but the caching part
-is omitted. Several auxiliary functions are used: @ask_root@ retrieves the
-current root addresses from the monad stack; @root@ compute the reachable
-addresses from a value; and @gc@ cleans up the store according to the reachable
-addresses and returns a new store. For the generic interpreter, we also need to
-compute the root addresses for compound expressions, readers may refer to
+The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We
+update the @fix@ function with caching (from Section \ref{sai}) to @fix_gc@,
+but the caching part is omitted in the presented code. Several auxiliary
+functions are used: @ask_root@ retrieves the current root addresses from the
+monad stack; @root@ computes the reachable addresses from a value; and @gc@
+performs garbage collection according to the reachable addresses and returns a new
+store. For the generic interpreter, we also need to compute the root addresses
+for compound expressions, readers may refer to
 \cite{DBLP:journals/pacmpl/DaraisLNH17}.
 
 \vspace{-1em}
