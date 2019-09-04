@@ -1,22 +1,21 @@
 \section{From Abstract Interpreters to Staged Abstract Interpreters} \label{sai}
 
 In the previous sections, we have seen an unstaged abstract interpreter and a
-staged concrete interpreter, now we begin describing the implementation of their
-confluence -- a staged abstract interpreter.
-Unsurprisingly, the staged abstract interpreter in this section has the same
-abstract semantics with the unstaged version from Section~\ref{unstaged_abs}.
-The approach from unstaged to staged abstract interpreter is modular,
-and does not sacrifice soundness or precision. The designer of the
-analyzer therefore has no need to rewrite the analysis. We first present the
-staged lattices and staged monads, and then the staged version of primitive
-operations, especially @close@, @ap_clo@ and @fix@. At last, we discuss several
-optimizations and summarize our approach.
+staged concrete interpreter, now we begin describing the implementation of
+their confluence -- a staged abstract interpreter.  Unsurprisingly, the staged
+abstract interpreter in this section has the same abstract semantics with the
+unstaged version from Section~\ref{unstaged_abs}.  The approach that refactors
+the unstaged one to the staged abstract interpreter is modular, and does not
+sacrifice soundness or precision. The designer of the analyzer therefore has no
+need to rewrite the analysis. We first present the staged lattices and staged
+monads, and then the staged version of primitive operations, especially
+@close@, @ap_clo@ and @fix@. At last, we discuss several optimizations.
 
 \subsection{Staged Lattices}
 
 In Section \ref{stagedpoly_lat}, we exploited the higher-kinded type @R@ to
 achieve stage polymorphism. Now we instantiate the type @R@ to @Rep@ and
-still use power sets as an example to present its staged version.
+still use power-set as an example to describe its staged version.
 \begin{lstlisting}[escapechar=!]
   trait RepLattice[S] extends Lattice[S, Rep]
   def RepSetLattice[T]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
@@ -30,27 +29,27 @@ still use power sets as an example to present its staged version.
 
 The trait @RepLattice@ is obtained by specializing @Lattice@ with @Rep@.
 The @RepSetLattice@ is an instance of @RepLattice@, where the lattice operations
-eventually are delegated to operations on a staged set data type, including
+are eventually delegated to operations on a staged set data type, such as
 @subsetOf@, @union@ and @intersect@. We even do not have to change the
-implementation code, but just the types -- from @Set[T]@ to @Rep[Set[T]]@, shown
-in light gray code. The LMS library provides an implicit conversion that lifts a
-current-stage set value to next-stage values. In the code generation part, these
+implementation code, except the types -- from @Set[T]@ to @Rep[Set[T]]@, as shown
+in light gray code. The LMS library provides implicit conversions that lift
+current-stage values to next-stage values. In the code generation part, these
 operations emit their corresponding next-stage code. Again, other lattice
 structures such as products and maps are implemented in a similar way.
 
 \subsection{Staged Abstract Semantics}
 
 Now we can implement the staged abstract semantics, where @R@ is instantiated as
-@Rep@, and the abstract components are reused from the unstaged version.
+@Rep@, and the types of abstract components are reused from the unstaged version.
 
 \paragraph{Staged Monads for Abstract Interpretation}
 We use the same monad stack structure from the unstaged abstract interpreter,
 but replacing \textit{all} the transformers to their staged version. The
-following code shows this change. For readability, we squeeze the three inner
+following code shows this change. We manually squeeze the three inner
 transformers (@IdM@ omitted) into a single monad @RepSetReaderStateM[A, B, C]@,
-where @A@ is the type parameter for reader effect and @B@ for the state effects.
-In our monad stack scheme, they are both instantiated with @Cache@. Now the
-result type is a pair of two staged value: @Rep[Set[(Value, Store)]]@ and
+where @A@ is the type parameter for the reader effect and @B@ for the state effect.
+In our monad stack scheme, they are both instantiated with type @Cache@. Now the
+grounded result type is a pair of two staged value: @Rep[Set[(Value, Store)]]@ and
 @Rep[Cache]@.
 \begin{lstlisting}
   trait StagedAbstractSemantics extends AbstractComponents {
@@ -72,14 +71,15 @@ stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
 \fi
 
 \paragraph{Primitive Operations} When deriving the staged concrete interpreter
-from the unstaged counterpart, we notice that recursive calls of @ev@ on the
-lambda body are shifted from @ap_clo@ to @close@. In other word, we need to
+from the unstaged counterpart, we notice that the recursive calls of @ev@ on the
+lambda body are shifted from @ap_clo@ to @close@. In other words, we need to
 eagerly specialize the interpreter and generate code every time when we see a
-$\lambda$ term, instead of lazily when we actually need to apply a function.
-With no surprise, it is similar in the staged abstract interpreter,
-additionally, we need to handle nondeterminism. So we keep our track and focus
-on discussing closure representations and function applications for the staged
-version.
+$\lambda$ term, instead of lazily when applications happen.
+With no surprise, it is similar in the staged abstract interpreter;
+additionally, we have to handle nondeterminism occurred by over-approximation
+of runtime behaviors.
+In the rest of this part, we keep our roadmap and focus on discussing closure
+representations and function applications for the staged version.
 
 The @close@ method now is a mixing of the \textit{staged} concrete version and
 unstaged \textit{abstract} version: we build a current-stage function @f@, which
@@ -191,9 +191,9 @@ Our staging schema works by unfolding the interpreter over the input AST. In
 practice, however, it would suffer from code explosion when analyzing
 (specializing) large programs, which increases the compile time. If we generate
 next stage programs running on JVM, such large generated program would also
-cause runtime GC overhead. In this section, we present several optimizations
-that largely mitigate these issues. For all that, implementing these
-optimizations do not need to change the generic interpreter.
+potentially cause runtime GC overhead. In this section, we present several
+optimizations that largely mitigate these issues. For all that, implementing
+these optimizations do not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
