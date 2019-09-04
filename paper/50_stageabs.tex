@@ -252,20 +252,20 @@ the size of residual programs.
 We have gradually presented the confluence of specialization and abstraction of
 concrete interpreters from an \textit{operational} perspective.
 In this section, we review and summarize our recipe to achieve the staged
-abstract interpreter, discuss correctness issues, and different design choices.
+abstract interpreter and discuss correctness issues and different design choices.
 
 \subsection{Summarizing the Approach}
 
 We summarize our approach to staging an abstract interpreter as follows:
 
 \begin{itemize}
-  \item Constructing a generic interpreter that abstracts over binding-time,
+  \item Constructing a generic interpreter that abstracts over binding times,
     value domains, and primitive operations. In this paper, the generic interpreter
     is implemented in monadic style; therefore, the semantics can be encapsulated
     into monads.
   \item By using an appropriate monad stack, we can implement a modular, unstaged,
     abstract interpreter. This step has been explored in the previous literature.
-  \item Replacing the monad stack to staged monad stack, such monads operate on
+  \item Replacing the monad stack to a staged monad stack; such monads operate on
     staged data types, i.e., next-stage values. We also need to reimplement several
     primitive operations on staged values, in a modular fashion.
 \end{itemize}
@@ -275,7 +275,7 @@ and the underlying semantics. The key insight in this paper is that by making th
 monadic interpreter binding-time polymorphic, it can be extended for generating
 efficient code in a staging framework. The underlying semantics and staging are
 two orthogonal dimensions. It is important to note that the computation
-encapsulated by the monads are not staged; only data (such as sets and maps) are
+encapsulated by the monads are not staged: only data (such as sets and maps) are
 staged. All the monadic computation, i.e., functions passed to the monadic bind
 operation @flatMap@, are statically known. This is why we can eliminate the
 monadic layer and its associated overhead.
@@ -321,13 +321,13 @@ preservation of the staged abstract interpreters remains an open question.
 
 \subsection{Design Choices}
 
-\paragraph{Monadic-style vs Direct-style} We use monadic interpreter through the paper,
+\paragraph{Monadic-style vs Direct-style} We use a monadic interpreter throughout the paper,
 but it is not necessary for staging. One can inline the monadic
 operations and obtain an abstract interpreter in continuation-passing
-style, or even translate back to direct-style that may use explicit
+style, or even translate back to a direct-style that may use explicit
 side-effects such as mutations. In either case, we can still apply the
 staging idea to the abstract interpreter and remove the interpretation
-overhead. Although, monads make the staged abstract interpreter can be
+overhead. However, monads allow the staged abstract interpreter to be
 implemented in a modular and extensible way.
 
 \paragraph{Big-step vs Small-step}
