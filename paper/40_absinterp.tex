@@ -1,34 +1,23 @@
 \section{From Interpreters to Abstract Interpreters} \label{unstaged_abs}
 
-After seeing both unstaged and staged concrete interpreters, now we turn our
+After seeing the unstaged and staged concrete interpreter, now we turn our
 focus on abstract interpreters under the same framework. We first present a
-lattice framework with binding-time abstraction, as well as simple abstract
-domains such as power set lattice.
+lattice representation with binding-time abstraction, as well as simple
+abstract domains such as power set lattice.
 Then we show the abstract components, namely abstract values, abstract
 environments, and abstract stores.
 The abstract interpreter we construct in this
 section is similar to \citet{DBLP:journals/pacmpl/DaraisLNH17}'s. For
 simplicity, it is also context/path/flow-insensitive by our choice. In Section
-\ref{cfa}, we will instantiate a commonly-used context-sensitive analysis;
+\ref{cfa}, we will instantiate it to a commonly-used context-sensitive analysis;
 \citet{Darais:2015:GTM:2814270.2814308} shows how to achieve path- and
 flow-sensitivity by varying the monads, which is also applicable to our unstaged
 or staged abstract interpreter.
 
-\iffalse
-For example, the CEK machine \cite{DBLP:conf/popl/FelleisenF87} for
-concrete execution can be readily refactored to an effective $0$-CFA
-control-flow analysis \cite{Shivers:1988:CFA:53990.54007,
-  Midtgaard:2012:CAF:2187671.2187672}: first, tweak the environment
-dereference as a nondeterministic choice, such that the environment
-may contain multiple possible values for a variable, then allocate
-continuations in the environment to exploit return-flow information,
-and also constrain the address space to be finite.
-\fi
-
 \subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
 
-Abstract interpreters run on abstract domains, such abstract domains usually can
-be presented by a lattice.
+Abstract interpreters operate on abstract domains, such abstract domains
+usually can be formulated by complete lattices.
 A complete lattice over set $S$ is a tuple of $\langle S, \sqsubseteq, \top,
 \bot, \sqcup, \sqcap \rangle$, where $\top$ is the top element, $\bot$ is the
 bottom element, $\sqsubseteq : S \to S \to Bool$ is the
@@ -72,12 +61,12 @@ def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
 In this section, we simply let the binding-time type @R[T] = T@ (i.e., @NoRep@)
 to instantiate an unstaged lattice type class. An example of lattice we used in
 the rest of the paper is the power set abstract domain (shown in Figure
-\ref{fig:powerset}), where the ordering is subset relation, the join is union
+\ref{fig:powerset}): the ordering is subset relation, the join is the union
 operation, and the meet is the intersect operation. The bottom element of a
 power set is empty set, and we don't have a top representation for power set.
-Other lattices used in the the paper, such as products and maps, can be
+Other lattices used in the paper, such as products and maps, can be
 implemented similarly or lifted from existing lattices element-wise or
-point-wise. Non-relational abstract domains such intervals also can be
+point-wise. Non-relational abstract domains such intervals can also be
 implemented in a stage polymorphic way.
 
 \subsection{Abstract Semantics}
@@ -97,10 +86,7 @@ The address space is constrained to be finite to ensure the computability of
 analysis -- for the simplest monovariant analysis, we use variable names for
 addresses. After defining the @Value@ and @Addr@ type, the environments and
 stores are automatically lifted to abstract environments and abstract stores,
-i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@ respectively.
-It is important that the abstract store now maps addresses to sets of abstract
-values, indicating that an address may point to an over-approximated set of
-values occurred at run-time.
+i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@, respectively.
 \begin{lstlisting}
   trait AbstractComponents extends Semantics {
     sealed trait AbsValue
@@ -111,10 +97,21 @@ values occurred at run-time.
   }
 \end{lstlisting}
 
+It is important that the abstract store now maps addresses to sets of abstract
+values, indicating that an address may point to an over-approximated set of
+values occurred at run-time.  This can be justified by the approximation nature
+of abstract interpretation and nondeterminism in the abstract interpreter.
+First, when analyzing a conditional expression, we may not have enough
+information on which branch will be taken, thus a sound treatment is to
+nondeterministically explore both branches, i.e., compute the join of two path.
+Second, when applying a function, for instance, @f(a)@, the possible lambda
+terms of @f@ is computed approximately. As a result, we may retrieve a set of
+closures when dereferencing the address of @f@ and need to apply all of them.
+
 To prevent the abstract interpreter from falling into non-termination when
 computing the fixed-point, the ADI approach uses a co-inductive mechanism
 consisting of two caches that remember the input and output of functions.
-Here we first provide the necessary type definitions, and later we will describe
+Here, we first provide the necessary type definitions, and later we will describe
 the algorithm in detail. A @Cache@ is a mapping from configurations @Config@ to
 sets of value-store pairs, where the configuration is a triple of current
 expression being evaluated, environment and store. Intuitively, a cache memoizes
@@ -123,16 +120,6 @@ the corresponding values and stores for a given program configuration.
   type Config = (Expr, Env, Store); type Cache = Map[Config, Set[(Value, Store)]]
 \end{lstlisting}
 
-Now, the store is a mapping from addresses to sets of abstract values. This can
-be justified by the approximation nature of abstract interpretation and
-nondeterminism in the abstract interpreter.
-First, when analyzing a conditional expression, we may not have enough
-information on which branch will be taken, thus a sound treatment is to
-nondeterministically explore both branches, i.e., compute the join of two path.
-Second, when applying a function, for instance, @f(a)@, the possible lambda
-terms of @f@ is computed approximately. As a result, we may retrieve a set of
-closures when dereferencing the address of @f@ and need to apply all of them.
-
 \paragraph{Monads for Abstract Interpretation} Compared with the concrete
 interpreter that uses reader and state effects, the abstract interpreter
 further introduces a nondeterminism effect and another reader and state effect
@@ -140,7 +127,7 @@ for the two caches. The nondeterminism effect is represented by the
 @Set[M[_], A]@ monad transformer, where @M@ is the inner monad being
 transformed, and @A@ is the type of elements in the set. We use a @ReaderT@ for
 one cache that will not be changed during one fixed-point iteration, and use a
-@StateT@ for another cache that will be constantly updated during analysis.
+@StateT@ for another cache that will be constantly updated during the analysis.
 \citet{DBLP:journals/pacmpl/DaraisLNH17} discuss different permutation of the
 monad stack for abstract interpretation. The following @AnsM@ type shows the
 monad stack (we use \hl{light gray} to highlight what have been changed from
@@ -167,14 +154,14 @@ all the transformed values into a single monadic value of type @Set[M, B]@.
       }); ... }
 \end{lstlisting}
 
-Such monad stack scheme leads to a different type of result type. In the concrete
+Such monad stack scheme leads to a different type of grounded result. In the concrete
 setting, we only have a reader monad (for environment) and a state monad (for
 store), and the reader effect is not persistent to the final result. Together
 with the value produced by the interpreter, the final result type is a pair of
 @Value@ and @Store@. In the abstract setting, we have a @SetT@ inside of the
-environment monad and store monad, which becomes the container type of the pair
+environment monad and store monad, which becomes the container type of pairs
 of values and stores, i.e., @Set[(Value, Store)]@. Also note that the reader and
-state monad for caches live internally of the nondeterminism monad, therefore
+state monad for caches inhibit internally of the nondeterminism monad, therefore
 the cache type of state monad becomes adjacent to the set type.
 \begin{lstlisting}
   type Result = (R[Set[(Value, Store)]], R[Cache])
