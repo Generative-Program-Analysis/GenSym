@@ -203,7 +203,7 @@ directly become code in the next stage, but we don't inspect any further inside.
 As we identified when introducing the generic interface, the keys of @Env@s are
 identifiers (i.e., strings) in the program, which are completely known
 statically. This leaves us a chance to further specialize the data structures.
-For example, let's assume that the @Map[K, V]@ is implemented as a hash map. If
+For example, let us assume that the @Map[K, V]@ is implemented as a hash map. If
 the keys of type @K@ are all known statically, then the indices also can be
 computed statically. Thus the specialized map would be an array of type
 @Array[Rep[V]]@, whose elements are next-stage values; the size of the array is
