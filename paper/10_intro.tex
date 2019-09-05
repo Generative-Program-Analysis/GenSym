@@ -46,7 +46,7 @@ paper-based proofs \cite{Keidel:2018:CSP:3243631.3236767}.
 However, besides the intrinsic complexity of static analysis, there are
 additional abstraction penalties from these high-level implementation
 approaches. First, similar to concrete interpreters, an abstract interpreter
-analyzes the program by traversing the abstract syntax tree (AST). The traversal incurs
+analyzes the program by traversing the AST. The traversal incurs
 interpretive overhead, such as the pattern matching on the ASTs and recursive
 calls on subexpressions. Such overhead can be negligible if the abstract
 interpreter only runs on the program a single time, but can accumulate
@@ -74,10 +74,9 @@ other similar performance problems, examples including
 query compilers\cite{DBLP:conf/sigmod/TahboubER18}, PyPy \footnote{PyPy:
 \url{http://pypy.org/}}, Truffle \cite{Marr:2015:TVP:2814270.2814275}, and etc.
 The challenge here: can we apply the same idea to a general abstract interpreter
-to make it run faster? To achieve this, we need to specialize a nonstandard
-semantics that extensively uses nondeterminism, operates on abstract domains,
-and computes fixed-points iteratively over a cache. The solution is not simply obvious.
-
+to make it run faster? The solution is not obvious, as we need to specialize
+a nonstandard semantics that extensively uses nondeterminism, operates on
+abstract domains, and computes fixed-points iteratively over a cache. 
 
 In this paper, we show that the first Futamura projection can be naturally
 extended to abstract interpreters. We present an abstraction-without-regret
@@ -107,7 +106,7 @@ engineering effort. We elaborate these two main ideas in detail, as follows.
 The first Futamura projection specifically shows that specializing an
 interpreter w.r.t. the input program yields an equivalent executable. For
 instance, @eval : Expr -> Input -> Value@ is an interpreter for some language.
-Given a program $e_0$ of type @Expr@, by applying the specialization, we can
+Given a program $e_0$@ : Expr@, by applying the specialization, we can
 obtain a specialized interpreter $\texttt{eval}_{\texttt{e0}}$ : @Input -> Value@,
 which is the so-called \textit{equivalent executable}.
 
@@ -123,7 +122,7 @@ However, it is hard to precisely analyze binding-times given an arbitrary
 program. As an alternative approach, multi-stage programming (MSP)
 \cite{taha1999multi, DBLP:conf/pepm/TahaS97} allows users to explicitly program over
 a two-level syntax \cite{Nielson:1992:TFL:130665}, by manually
-annotating the binding-times of variables in the program. Then, the MSP system
+annotating the binding-times of variables. Then, the MSP system
 will check whether these annotations are consistent, and specialize the program
 using that information. The staging annotations can be either syntactic (e.g.,
 quote and quasi-quote in MetaML/MetaOCaml) or type-based (e.g., the Lightweight
@@ -138,7 +137,7 @@ stage distinction.
 We further introduce binding-times and make the monads binding-time polymorphic.
 Our proposed framework adopts the type-based multi-stage programming from the
 Lightweight Modular Staging framework, and implements the Futamura projection
-of a big-step abstract interpreter for a small, stateful, higher-order
+of a abstract interpreter for a stateful higher-order
 language. By deriving staged monads that can be used to do code generation, we
 obtain a staged abstract interpreter that can be used for specialization. After
 staging, the generated code is specialized to the input program, and all the
@@ -168,12 +167,15 @@ fact are all firmly rooted in the concrete semantics of the language.  This
 observation provides a way to abstract over the interpreter and achieve the
 flexibility of reinterpreting the shared interpreter.  The generic interpreter
 returns a value of monadic type, which can be varied by different semantics.
-The domain of the interpreter and the effects such as read, state, and
-nondeterminism can all be wrapped into this monadic type.  The binding-time
-abstraction is represented by a higher-kinded type, and controls whether the
-interpreter produces values directly or generates code. It is worth mentioning
-that the binding-time type is also injected into the monadic type, so that we
-will distinguish normal monads and staged monads.
+The value domains of the interpreter and the effects such as state and nondeterminism
+can all be wrapped into this monadic type.  The binding-time abstraction is
+represented by a higher-kinded type, and injected into the monadic type.  The
+binding-times will control whether the interpreter produces values directly or
+generates code. 
+
+%It is worth mentioning
+%that the binding-time type is also injected into the monadic type, so that we
+%will distinguish normal monads and staged monads.
 
 \paragraph{Applications and Evaluation}
 We evaluate the idea of staging an abstract interpreter through
@@ -193,7 +195,7 @@ modular analysis, and show that the compiled analysis is reusable.
 Therefore, the approach provides a modular way to create optimized
 analysis code by mechanized reuse of a whole-program analyzer.
 4) We empirically evaluate the performance improvements gained by staging,
-showing an order of magnitude speedup on flow analyses.
+showing an order of magnitude speedup.
 
 \paragraph{Contributions} Briefly, the contributions of the paper are as follows:
 \begin{itemize}[leftmargin=2em]
