@@ -174,9 +174,8 @@ address space is statically determined by the set of variables appeared in the
 program, and we may exploit it to optimize the generated code. But when $k > 0$,
 the address generation happens at the next stage, i.e., analysis time.
 \begin{lstlisting}
-  type AnsM[T] = RepReaderT[RepStateT[
-                   RepStateT[RepSetReaderStateM[Cache, Cache, ?], Time, ?], //add Time with a RepStateT
-                 Store, ?], Env, T]
+  type AnsM[T] = RepReaderT[RepStateT[RepStateT[ // add Time with a RepStateT
+                  RepSetReaderStateM[Cache, Cache, ?], Time, ?], Store, ?], Env, T]
   type Result = (Rep[Set[(Value, Store, Time)]], Rep[Cache])
 \end{lstlisting}
 
