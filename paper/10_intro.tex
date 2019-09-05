@@ -1,8 +1,8 @@
 \section{Introduction} \label{intro}
 
 Abstract interpretation as a lattice-based approach to sound static analyses was
-proposed by \citet{DBLP:conf/popl/CousotC77}. Based on the notion of Galois
-connections \cite{CousotCousot79-1}, the analyzer can soundly approximate the
+proposed by \citet{DBLP:conf/popl/CousotC77, CousotCousot79-1}. Based on the notion of Galois
+connections, the analyzer can soundly approximate the
 concrete program runtime behavior by computing fixed points on an abstract
 domain. Despite the tremendous theoretical development of abstract
 interpretation over the years, constructing artifacts and analyzers that perform
@@ -25,21 +25,23 @@ has also been applied to various small-step abstract machines
 interpreters \cite{Wei:2018:RAA:3243631.3236800,
   DBLP:journals/pacmpl/DaraisLNH17, Keidel:2018:CSP:3243631.3236767}.
 
-Based on the idea of abstracting abstract machines, more
-pragmatically, several implementation strategies utilizing purely
-functional programming techniques to build abstract interpreters have
-emerged. Such techniques include monads, monad transformers
-\cite{DBLP:journals/pacmpl/DaraisLNH17,
-  Sergey:2013:MAI:2491956.2491979}, arrows
+%Based on the idea of abstracting abstract machines, more
+%pragmatically, several implementation strategies utilizing purely
+%functional programming techniques to build abstract interpreters have
+%emerged. 
+
+Based on the idea of AAM, more pragmatically, several implementation strategies
+in high-level functional programming languages have emerged.  Such techniques
+include monads and monad transformers \cite{DBLP:journals/pacmpl/DaraisLNH17,
+Sergey:2013:MAI:2491956.2491979}, arrows
 \cite{Keidel:2018:CSP:3243631.3236767}, extensible effects
 \cite{Kiselyov:2015:FMM:2804302.2804319, Githubsemantic}, etc. The pure
-approaches provide certain benefits, including that the abstract interpretation
-artifacts can be built compositionally and modularly, e.g., by using monad
-transformers. Therefore, the soundness of analysis can be proven with less
+approaches provide certain benefits, for examples, the abstract interpretation
+artifacts can be built in a compositional and modular fashion, and referential
+transparency allow programmers to confidently reason about the correctness of
+their implementations.  The soundness of analysis can also be proven with less
 effort, whether by mechanized proofs \cite{Darais:2016:CGC:2951913.2951934} or
-paper-based proofs \cite{Keidel:2018:CSP:3243631.3236767}.  Also, referential
-transparency and equational reasoning allow programmers to confidently reason
-about the correctness of their implementations.
+paper-based proofs \cite{Keidel:2018:CSP:3243631.3236767}.  
 
 However, besides the intrinsic complexity of static analysis, there are
 additional abstraction penalties from these high-level implementation
