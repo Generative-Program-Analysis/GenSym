@@ -17,13 +17,13 @@ correctness of a certified specialized analyzer.  \citet{amtoft1999partial}
 applied partial evaluation for constraint-based control-flow analysis.
 
 Splitting an analysis into multiple stages has also been studied for other
-forms of static analyses. 
+forms of static analyses.
 \citet{DBLP:conf/cgo/HardekopfL11} applied staging to a
 flow-sensitive pointer analysis. The first stage is to analyze the
 programs to obtain a sparse representation, and then the second
 stage conducts the flow-sensitive analysis by refining the first
 one. Another large body of static analyses are implemented by
-generating constraints firstly and then use a solver to discharge the
+first generating constraints and then using a solver to discharge the
 proof obligations or find the fixed-point. Notable examples include
 SAT- and SMT-based program analysis
 \cite{Gulwani:2008:PAC:1375581.1375616} and Datalog-based points-to
