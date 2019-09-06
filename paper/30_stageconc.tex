@@ -1,11 +1,11 @@
 \section{From Interpreters to Staged Interpreters} \label{stagedinterp}
 
 In this section, based on the generic interpreter and concrete components we
-presented in Section \ref{prelim}, we show that how to stage the concrete
+presented in Section \ref{prelim}, we show how to stage the concrete
 interpreter by changing the monad type and refactoring primitive
 operations. We begin by briefly introducing the Lightweight Modular Staging
 framework in Scala, and then replay the same steps from the unstaged
-counterpart. Finally, we briefly describe code generation.
+counterpart. Finally, we briefly describe the code generation.
 
 \subsection{Multi-Stage Programming with LMS}
 
@@ -15,19 +15,19 @@ runtime code generation in a type-safe manner. Different from the approach of
 MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} which
 use syntactic quotations, LMS distinguishes binding-time based on types. 
 LMS provides a type constructor @Rep[T]@ where @T@ can be
-an arbitrary type, indicating a value of type @T@ will be known at future stage.
+an arbitrary type, indicating a value of type @T@ will be known at the future stage.
 Operations acting on @Rep[T]@ expressions will be residualized as generated
 code.
 
 A classic example for introducing multi-stage programming is the power function
-that computes $b^x$. Usually it is implemented as a recursive function:
+that computes $b^x$. Usually, it is implemented as a recursive function:
 \begin{lstlisting}
   def power(b: Int, x: Int): Int = if (x == 0) 1 else b * power(b, x - 1)
 \end{lstlisting}
 
 If @x@ is a value known at the current stage, we may specialize the power function to
 the value @x@ -- by unrolling the recursive calls. In LMS, this is fulfilled by
-first adding the @Rep@ type annotation to variables known at next stage. In this case,
+first adding the @Rep@ type annotation to variables known at the next stage. In this case,
 @b : Rep[Int]@ is known later, and @x : Int@ is known currently, as shown in the
 below code recipe.
 The way we use this staged @power@ function is to create a @DslDriver@ and override the
@@ -42,29 +42,30 @@ The way we use this staged @power@ function is to create a @DslDriver@ and overr
 The LMS framework provides staging support for primitive data types such as
 @Int@ and @Double@, and commonly-used data structures such as lists and maps.
 The idea behind the framework is to construct a sea-of-node intermediate
-representations (IR) for the next-stage program at the current stage
+representation (IR) for the next-stage program at the current stage
 \cite{DBLP:conf/birthday/Rompf16}. For convenience, the conversion from
-expressions of type @Rep[_]@ to their IR is done by using implicit design
+expressions of type @Rep[_]@ to their IR is done by using the implicit design
 pattern. As we will see later, implementing staging and code generation
 support for user-defined classes is also straightforward.
 
 \subsection{Staged Concrete Semantics}
 
 To implement the staged concrete interpreter, we replay the steps from the
-instantiation of unstaged concrete interpreter in Section \ref{unstaged_conc}.
-But, now we use the @Rep@ type to annotate the value domains, environments and
+instantiation of the unstaged concrete interpreter in Section \ref{unstaged_conc}.
+However, now we use the @Rep@ type to annotate the value domains, environments and
 stores, and redefine the staged version of monads and primitive operations.
 
 \paragraph{Staged Monads}
 We use the same structure of monad stack in the unstaged interpreter: a reader
-monad with a state monad. The difference here is, now the monads operate on staged values. 
-For brevity, we call them \textit{staged monads}. In the code, we also use a @Rep@
-prefix on the constructors and types to differentiate them. But it is important
-to note that instances of the case class @ReaderT@/@StateT@ are not staged, also the
-monadic computation like @R => M[A]@ are also not staged. Instead, the internal
-data that these monads operate on are staged, i.e., @R@ and @A@ in the
-reader monad, @S@ and @A@ in the state monad. The following code
-snippet shows the idea. We use \hl{light gray} to highlight where @Rep@ type is added:
+monad with a state monad. The difference here is, now the monads operate on
+staged values.  For brevity, we call them \textit{staged monads}. In the code,
+we also use a @Rep@ prefix on the constructors and types to differentiate them.
+But it is important to note that instances of the case class @ReaderT@/@StateT@
+are not staged; also the monadic computation, such as functions of @R => M[A]@,
+are not staged. Instead, the internal data that these monads operate on are
+staged, i.e., @R@ and @A@ in the reader monad, @S@ and @A@ in the state monad.
+The following code snippet shows the idea. We use \hl{light gray} to highlight
+where @Rep@ type is added:
 \begin{lstlisting}[escapechar=!]
   case class RepReaderT[M[_]: RepMonad, R, A](run: !\hl{Rep[R]}! => M[A]) {
     def flatMap[B](f: !\hl{Rep[A]}! => ReaderT[M, R, B]): RepReaderT[M, R, B] =
@@ -74,11 +75,11 @@ snippet shows the idea. We use \hl{light gray} to highlight where @Rep@ type is 
       RepStateT(s => RepMonad[M].flatMap(run(s))(as => f(as._1).run(as._2))); ... }
 \end{lstlisting}
 
-The function @f@ passed to @flatMap@ is also a function value known at current stage.
+The function @f@ passed to @flatMap@ is also a function value known at the current stage.
 Therefore all invocations of @flatMap@s can be reduced before generating code.
 The fact that we only stage data but not monadic computation or monadic
-values, is the reason that we can peel of the monad stack in the generated code.
-Now type @AnsM[_]@ is instantiated as the same structure as before, but using the
+values is the reason that we can peel of the monad stack in the generated code.
+Now the type @AnsM[_]@ is instantiated as the same structure as before, but using the
 @Rep@ versions:
 \begin{lstlisting}
   type R[T] = Rep[T]
@@ -89,11 +90,11 @@ Readers may notice that the conversion between unstaged monads and staged monads
 is merely changing the type of unstaged data to staged data, which in fact can
 be achieved without modifying the implementation of monads. This is true so far,
 but as we will see, it is not straightforward for nondeterminism monad
-(@SetT@) in abstract interpreters. Because not only the elements in the set are
+(@SetT@) in the abstract interpreter. Because not only the elements in the set are
 staged, but the whole set is also staged, and we have no knowledge about how
 many elements in the set. In this section, we explicitly distinguish the two
-versions of monadic interfaces, later we will instantiated the staged set monad
-by manually fusing part of the monad stack.
+versions of monadic interfaces; later we will instantiate the staged set monad
+by manually fusing a fragment of the monad stack.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to their staged versions -- we just need to change the types.

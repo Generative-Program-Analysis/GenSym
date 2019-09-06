@@ -60,8 +60,6 @@ Second, it is common that abstract interpreters written in pure languages
 extensively use functional encodings of side-effects to implement the semantics
 of abstract interpretation.  For example, the list monad can be used to model
 nondeterminism from collecting interpreters.
-%For example, a collecting interpreter that returns all possible runtime values is
-%nondeterministic, which can be modeled by a list monad.
 Although such pure approaches have their own merits, compared with imperative,
 stateful implementations, they are significantly slower.  In order to
 reconcile these approaches, one must use a programming technique which allows
