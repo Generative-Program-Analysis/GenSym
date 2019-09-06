@@ -174,42 +174,44 @@ case class IRApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
 
 \subsection{Optimizations} \label{staged_ds}
 
-Our staging schema works by unfolding the interpreter over the input AST. In
-practice, however, it would suffer from code explosion when analyzing
-(specializing) large programs, which increases the compile time. If we generate
-next stage programs running on JVM, such large generated program would also
-potentially cause runtime GC overhead. In this section, we present several
-optimizations that largely mitigate these issues. For all that, implementing
-these optimizations do not need to change the generic interpreter.
+Our staging schema works by unfolding the interpreter over the input abstract
+syntax tree. In practice, however, it would suffer from code explosion when
+analyzing (specializing) large programs, which increases the compile time. If
+we generate next-stage programs running on JVM, such large generated program
+would also potentially cause runtime GC overhead. In this section, we present
+optimizations that largely mitigate these issues. For all that,
+implementing these optimizations do not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
-Although every component except @Expr@s are staged, we treat the data
-structures such as @Map@s as black-boxes, which means the operations on a @Map@
-directly become code in the next stage, but we don't inspect any further inside.
-As we identified when introducing the generic interface, the keys of @Env@s are
-identifiers (i.e., strings) in the program, which are completely known
-statically. This leaves us a chance to further specialize the data structures.
-For example, let us assume that the @Map[K, V]@ is implemented as a hash map. If
-the keys of type @K@ are all known statically, then the indices also can be
-computed statically. Thus the specialized map would be an array of type
-@Array[Rep[V]]@, whose elements are next-stage values; the size of the array is
-also known statically. An access to the map is translated into an access to the
-array with pre-determined index during staging.
+Every components in the interpreter except @Expr@s are staged. The data
+structures representing these components are treated as black-boxes, such as
+@Map@, which means that the operations on a @Map@ directly become nex-stage code,
+but we don't inspect any further inside. As we identified when
+introducing the generic interface, the keys of @Env@s are identifiers (i.e.,
+strings) in the program, which are completely known statically. This
+observation gives us a chance to further specialize the data structures.  For
+example, let us assume that the @Map[K, V]@ is implemented as a hash map. If
+all the keys of type @K@ are all known statically, then the indices also can be
+computed statically. Thus, the specialized map would be an array of type
+@Array[Rep[V]]@, whose elements are next-stage values, and the size of the array is
+known statically. An access to the map is translated into an access to the
+array with the pre-computed index during staging.
 
 Particularly, if we are specializing a monovariant analysis, the address space
-is equivalent to the set of identifiers in the program. Then the accesses to the
-environment can be completely determined statically and generates the addresses
-directly. After which, the stores can be specialized as arrays of @Rep[Value]@
-elements.
+is equivalent to the set of identifiers in the program. Then the accesses to
+the environment can be completely computed statically and we may generate the
+addresses directly during staging. After which, the stores are specialized
+as arrays with element type @Rep[Value]@.
 
-\paragraph{Selective Caching} It is observed that the two-fold co-inductive
-caching is used for every recursive call of our abstract interpreter. But this
-is not necessary and even very expensive when generating code for atomic
+\paragraph{Selective Caching} We observe that the two-fold co-inductive
+caching is used for every recursive calls in our abstract interpreter. But this
+is not necessary and redundant when generating code for atomic
 expressions such as literals or variables, because they always terminate.
 Borrowing the idea from the partition of expressions used in A-Normal Form
-\cite{Flanagan:1993:ECC:155090.155113}, we may use a selective caching
-algorithm that does not generate caching for atomic expressions:
+$\lambda$-calculus \cite{Flanagan:1993:ECC:155090.155113}, we can use a
+selective caching algorithm that does not generate caching code for atomic
+expressions:
 \begin{lstlisting}
   def fix_select: Expr => Ans = e => e match {
     case Lit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)
@@ -218,28 +220,27 @@ algorithm that does not generate caching for atomic expressions:
 \end{lstlisting}
 
 \paragraph{Partially-static Data}
-
-Our treatment to binding-times is coarse-grained: @Expr@s is static, the rest of
-the world are all dynamic. But this is not always true since the static data
-has to be used somewhere with the dynamic operation. Partial-static data is a
+Our treatment of binding-times is coarse-grained: @Expr@s is static, the rest
+of the components are all dynamic. But this is not always true since the static
+data has to be used somewhere with dynamic operations. Partial-static data is a
 way to improve binding-times and optimize the generated code.
 
-For example, to fold a singleton set (often appears in @SetT@), e.g.,
+For example, to fold a static singleton set (often appears in @SetT@), e.g.,
 @Set(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
-generator would faithfully apply @foldLeft@ to the set with an anonymous
-function. But we can also utilize the algebraic property of @foldLeft@ to
+generator would faithfully generates code that applies @foldLeft@ with the set and
+function @f@. But we can also utilize the algebraic property of @foldLeft@ to
 generate cheaper code: @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
 function @f@ is known at the current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
-partial-static data structures, such as @Set@ and @Map@, which greatly reduces
-the size of residual programs.
+partial-static patterns, such as for @Set@ and @Map@. This optimizations
+greatly reduces the size of residual programs.
 
 \section{Discussion} \label{discussion}
 
 We have gradually presented the confluence of specialization and abstraction of
-concrete interpreters from an \textit{operational} perspective.
-In this section, we review and summarize our recipe to achieve the staged
-abstract interpreter and discuss correctness issues and different design choices.
+concrete interpreters from an operational perspective.  In this section, we
+review and summarize our recipe to achieve the staged abstract interpreter and
+discuss correctness issues and different design choices.
 
 \subsection{Summarizing the Approach}
 
@@ -250,22 +251,23 @@ We summarize our approach to staging an abstract interpreter as follows:
     value domains, and primitive operations. In this paper, the generic interpreter
     is implemented in monadic style; therefore, the semantics can be encapsulated
     into monads.
-  \item By using an appropriate monad stack, we can implement a modular, unstaged,
-    abstract interpreter. This step has been explored in the previous literature.
-  \item Replacing the monad stack to a staged monad stack; such monads operate on
-    staged data types, i.e., next-stage values. We also need to reimplement several
-    primitive operations on staged values, in a modular fashion.
+  \item Then we can implement an unstaged abstract interpreter modularly using
+    the appropriate monad stack. This step has been explored in the previous
+    literatures.
+  \item Finally, we replace the monad stack with a staged monad stack, and
+    refactor related primitive operations.  Such staged monads operate on
+    staged data types, i.e., next-stage values.
 \end{itemize}
 
-Monadic interpreters are known to be able to decouple the interpretation process
-and the underlying semantics. The key insight in this paper is that by making the
-monadic interpreter binding-time polymorphic, it can be extended for generating
-efficient code in a staging framework. The underlying semantics and staging are
-two orthogonal dimensions. It is important to note that the computation
-encapsulated by the monads are not staged: only data (such as sets and maps) are
-staged. All the monadic computation, i.e., functions passed to the monadic bind
-operation @flatMap@, are statically known. This is why we can eliminate the
-monadic layer and its associated overhead.
+Monadic interpreters are known to be able to decouple the interpretation
+procedure and the underlying semantics. The key insight in this paper is that
+by making the monadic interpreter binding-time polymorphic, the interpreter can
+be extended for generating efficient code. The underlying semantics and staging
+are two orthogonal dimensions. It is important to note that the computation
+encapsulated by the monads are not staged: only data (such as sets and maps)
+are staged. All the monadic computation, i.e., functions passed to the monadic
+bind operation @flatMap@, are statically known. This is why we can eliminate
+the monadic layer and its associated overhead.
 
 \paragraph{What has been eliminated?} In the generated code, all the
 primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
@@ -273,7 +275,7 @@ operations (such as @flatMap@ and @map@) are eliminated. The residual program
 consists of statements and expressions that purely manipulate the environment,
 store, and two caches, whose underlying representations are all @Rep[Map[K,V]]@. We
 also have several operations on tuples and lists, which are residualized from
-the use of monads internally.
+the internal code fragments of monads. 
 
 \subsection{Correctness}
 
@@ -282,51 +284,51 @@ for prospective users. We now briefly examine how our
 approach preserves the correctness and soundness of the analysis, under the
 assumption that the unstaged one is sound. It is worth noting that the rationale
 listed here is based on empirical evidence; a rigorous proof for soundness
-preservation of the staged abstract interpreters remains an open question.
+preservation of the staged abstract interpreter remains an open challenge.
 
 \begin{itemize}
-  \item We usually assume the underlying MSP system achieves cross-stage
-    persistence, i.e., the generated program does not change the observational
+  \item We usually assume the underlying MSP system preserves the meaning during staging,
+    i.e., the generated program does not change the observational
     behaviors of the original program. In the case of this paper, we use the
     LMS framework, which 1) relies on the type checking facilities of Scala, and
-    2) generates code in A-Normal Form \cite{Flanagan:1993:ECC:155090.155113}
+    2) generates code in A-Normal form \cite{Flanagan:1993:ECC:155090.155113}
     that preserves the execution order within a stage \cite{DBLP:conf/birthday/Rompf16}.
     However, in general, it is possible to subvert these guarantees by
     using unsafe features, such as casts.
-  \item As shown in the previous section, the generic interpreter is untouched
+  \item As shown in the previous sections, the generic interpreter is untouched
     and shared by the four artifacts. We only instantiate binding-time
     annotations and the monadic types. This allows the programmer to easily
-    check the correctness of implementation of staged monads modularly.
+    check the correctness of the implementation of staged monads modularly.
   \item We build the staged monads and staged data structures in a
     correct-by-construct way that directly corresponds to their unstaged
-    version. For instance, the staged data structures we used here are simply
-    black boxes that wrap the Scala's library data structures.
+    versions. For instance, the staged data structures we use here are simply
+    black boxes that wrap the data structures in Scala library.
   \item In our experiments, the staged abstract interpreter produces the same
     result with the unstaged one on all benchmark programs we tested.
 \end{itemize}
 
 \subsection{Design Choices}
 
-\paragraph{Monadic-style vs Direct-style} We use a monadic interpreter throughout the paper,
-but it is not necessary for staging. One can inline the monadic
-operations and obtain an abstract interpreter in continuation-passing
+\paragraph{Monadic-style vs Direct-style} We use a monadic interpreter
+throughout the paper, but it is not necessary for staging. One can inline the
+monadic operations and obtain an abstract interpreter in continuation-passing
 style, or even translate back to a direct-style that may use explicit
-side-effects such as mutations. In either case, we can still apply the
-staging idea to the abstract interpreter and remove the interpretation
-overhead. However, monads allow the staged abstract interpreter to be
-implemented in a modular and extensible way.
+side-effects such as mutations. In either case, we can still apply the staging
+idea to the abstract interpreter and remove the interpretation overhead.
+However, monads allow the staged abstract interpreter to be implemented in a
+modular and extensible way.
 
 \paragraph{Big-step vs Small-step}
 
 We implemented a big-step, compositional abstract interpreter in monadic
-style, where \textit{compositional} means that every recursive call of our abstract
-interpreter is applied to proper substructures of the current syntactic
+style, where \textit{compositional} means that every recursive calls of our abstract
+interpreter is applied to the proper substructures of the current syntactic
 parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
 specialization can be done by unfolding, as well as guarantees the termination
-of the specialization procedure. It is also possible to specialize small-step
+of the specialization procedure. It is also possible to specialize a small-step
 operational abstract semantics through abstract compilation
 \cite{Boucher:1996:ACN:647473.727587} -- as
-\citet{Johnson:2013:OAA:2500365.2500604} implemented it for
+\citet{Johnson:2013:OAA:2500365.2500604} presented for
 optimizing Abstract Abstract Machines. However, the generated abstract
 bytecode still requires another small-step abstract machine to execute, which is
 an additional engineering effort.
