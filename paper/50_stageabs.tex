@@ -184,7 +184,7 @@ implementing these optimizations do not need to change the generic interpreter.
 
 \paragraph{Specialized Data Structures}
 
-Every components in the interpreter except @Expr@s are staged. The data
+All components in the interpreter except @Expr@s are staged. The data
 structures representing these components are treated as black-boxes, such as
 @Map@, which means that the operations on a @Map@ directly become nex-stage code,
 but we don't inspect any further inside. As we identified when
@@ -205,7 +205,7 @@ addresses directly during staging. After which, the stores are specialized
 as arrays with element type @Rep[Value]@.
 
 \paragraph{Selective Caching} We observe that the two-fold co-inductive
-caching is used for every recursive calls in our abstract interpreter. But this
+caching is used for every recursive call in our abstract interpreter. But this
 is not necessary and redundant when generating code for atomic
 expressions such as literals or variables, because they always terminate.
 Borrowing the idea from the partition of expressions used in A-Normal Form
@@ -321,7 +321,7 @@ modular and extensible way.
 \paragraph{Big-step vs Small-step}
 
 We implemented a big-step, compositional abstract interpreter in monadic
-style, where \textit{compositional} means that every recursive calls of our abstract
+style, where \textit{compositional} means that every recursive call of our abstract
 interpreter is applied to the proper substructures of the current syntactic
 parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
 specialization can be done by unfolding, as well as guarantees the termination
