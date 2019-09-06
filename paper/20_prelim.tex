@@ -403,7 +403,7 @@ environment and store.
 \end{lstlisting}
 
 Given the expression @e@, initial environment $\rho_0$ and store $\sigma_0$,
-the top-level @run@ method invokes the fixed-point operator directly,
+the top-level @run@ method invokes the fixed-point operator directly.
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ$_0$)(σ$_0$)
 \end{lstlisting}
