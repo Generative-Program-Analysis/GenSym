@@ -72,10 +72,11 @@ connection between interpreters and compilers through a hierarchy of
 specializations, since then known as Futamura Projections. The first Futamura
 projection describes that specializing an interpreter to the input program
 removes interpretative overhead and yields an equivalent executable
-that runs faster. The Futamura projections have been successfully applied to
-other similar performance problems, examples including
-query compilers \cite{DBLP:conf/sigmod/TahboubER18}, PyPy \footnote{PyPy:
-\url{http://pypy.org/}}, Truffle \cite{Marr:2015:TVP:2814270.2814275}, etc.
+that runs faster. 
+In recent years, the idea of Futamura projection has regained more attentions
+and successfully applied to many real-world problems, examples including
+query compilers \cite{DBLP:conf/sigmod/TahboubER18}, PyPy \cite{Bolz:2009:TMP:1565824.1565827},
+Truffle \cite{Marr:2015:TVP:2814270.2814275}, etc.
 The challenge here: can we apply the same idea to a general abstract interpreter
 to make it run faster? The solution is not obvious, as we need to specialize
 a nonstandard semantics that extensively uses nondeterminism, operates on
