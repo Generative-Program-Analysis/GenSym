@@ -1,21 +1,21 @@
 \section{From Abstract Interpreters to Staged Abstract Interpreters} \label{sai}
 
 In the previous sections, we have seen an unstaged abstract interpreter and a
-staged concrete interpreter, now we begin describing the implementation of
+staged concrete interpreter. Now we begin describing the implementation of
 their confluence -- a staged abstract interpreter.  Unsurprisingly, the staged
-abstract interpreter in this section has the same abstract semantics with the
-unstaged version from Section~\ref{unstaged_abs}.  The approach that refactors
+abstract interpreter in this section uses the same abstract semantics from the
+unstaged version in Section~\ref{unstaged_abs}.  The approach we refactor
 the unstaged one to the staged abstract interpreter is modular, and does not
 sacrifice soundness or precision. The designer of the analyzer therefore has no
 need to rewrite the analysis. We first present the staged lattices and staged
-monads, and then the staged version of primitive operations, especially
+monads, and then discuss the staged version of primitive operations, especially
 @close@, @ap_clo@ and @fix@. At last, we discuss several optimizations.
 
 \subsection{Staged Lattices}
 
 In Section \ref{stagedpoly_lat}, we exploited the higher-kinded type @R@ to
-achieve stage polymorphism. Now we instantiate the type @R@ to @Rep@ and
-still use power-set as an example to describe its staged version.
+achieve the stage polymorphism. Now we instantiate the type @R@ as @Rep@ and
+still use power-set as example to describe its staged version.
 \begin{lstlisting}[escapechar=!]
   trait RepLattice[S] extends Lattice[S, Rep]
   def RepSetLattice[T]: RepLattice[Set[T]] = new RepLattice[Set[T]] {
@@ -27,30 +27,31 @@ still use power-set as an example to describe its staged version.
   }
 \end{lstlisting}
 
-The trait @RepLattice@ is obtained by specializing @Lattice@ with @Rep@.
+The trait @RepLattice@ is shown by specializing @Lattice@ with type @Rep@.
 The @RepSetLattice@ is an instance of @RepLattice@, where the lattice operations
-are eventually delegated to operations on a staged set data type, such as
-@subsetOf@, @union@ and @intersect@. We even do not have to change the
-implementation code, except the types -- from @Set[T]@ to @Rep[Set[T]]@, as shown
-in light gray code. The LMS library provides implicit conversions that lift
-current-stage values to next-stage values. In the code generation part, these
-operations emit their corresponding next-stage code. Again, other lattice
-structures such as products and maps are implemented in a similar way.
+are eventually delegated to the operations on a staged set data type, such as
+@subsetOf@, @union@ and @intersect@. We do not need to change the
+implementation code, except the types -- such as from @Set[T]@ to @Rep[Set[T]]@.
+We show the changes in light gray code. The LMS library provides implicit
+conversions that lift the current-stage values to their next-stage values. In
+the code generation part, these operations emit their corresponding next-stage
+code. Again, other lattice structures such as products and maps are implemented
+in a similar way.
 
 \subsection{Staged Abstract Semantics}
 
-Now we can implement the staged abstract semantics, where @R@ is instantiated as
-@Rep@, and the types of abstract components are reused from the unstaged version.
+Now we can implement the staged abstract semantics, under that @R@ is instantiated as
+@Rep@. The types of abstract components are reused from the unstaged version.
 
 \paragraph{Staged Monads for Abstract Interpretation}
 We use the same monad stack structure from the unstaged abstract interpreter,
-but replacing \textit{all} the transformers to their staged version. The
-following code shows this change. We manually squeeze the three inner
+but replacing \textit{all} the monad transformers to their staged version. The
+following code snippet shows this change. We manually fuse the three inner
 transformers (@IdM@ omitted) into a single monad @RepSetReaderStateM[A, B, C]@,
-where @A@ is the type parameter for the reader effect and @B@ for the state effect.
-In our monad stack scheme, they are both instantiated with type @Cache@. Now the
-grounded result type is a pair of two staged value: @Rep[Set[(Value, Store)]]@ and
-@Rep[Cache]@.
+where @A@ is the type parameter for the reader effects and @B@ for the state effects.
+In our monad stack scheme, they are both instantiated with the type @Cache@. 
+Similar to the unstaged version, the grounded result type is a pair of two
+staged value: @Rep[Set[(Value, Store)]]@ and @Rep[Cache]@.
 \begin{lstlisting}
   trait StagedAbstractSemantics extends AbstractComponents {
     type R[T] = Rep[T]
@@ -70,26 +71,26 @@ stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
 \end{lstlisting}
 \fi
 
-\paragraph{Primitive Operations} When deriving the staged concrete interpreter
-from the unstaged counterpart, we notice that the recursive calls of @ev@ on the
-lambda body are shifted from @ap_clo@ to @close@. In other words, we need to
-eagerly specialize the interpreter and generate code every time when we see a
-$\lambda$ term, instead of lazily when applications happen.
-With no surprise, it is similar in the staged abstract interpreter;
-additionally, we have to handle nondeterminism occurred by over-approximation
-of runtime behaviors.
+\paragraph{Primitive Operations} 
+When deriving the staged concrete interpreter from its unstaged counterpart, we
+notice that the recursive calls of the evaluator @ev@ on the lambda body are shifted from
+@ap_clo@ to @close@. In other words, we eagerly specialize the interpreter and
+generate code every time when we see a $\lambda$ term, instead of lazily when the
+applications happen.  With no surprise, it is similar here. Additionally,
+in the staged abstract interpreter, we have to handle nondeterminism
+incurred by the over-approximation of runtime behavior.
 In the rest of this part, we keep our roadmap and focus on discussing closure
 representations and function applications for the staged version.
 
-The @close@ method now is a mixing of the \textit{staged} concrete version and
-unstaged \textit{abstract} version: we build a current-stage function @f@, which
+The @close@ method now is a mix of the \textit{staged} concrete version and
+unstaged \textit{abstract} version. We first build a current-stage function @f@, which
 takes four next-stage values, including the argument and latest store, and
-@in/out@ caches additionally. Inside of @f@, we collapse the @Ans@ monad to
-grounded values of type @Result@ by providing the desired arguments, i.e., the
+@in/out@ caches additionally. Inside of @f@, we collapse the @Ans@ monadic value to
+a grounded value of type @Result@, by providing the desired arguments, i.e., the
 new environment, new store, and caches. The collapsing of monad happens at
-current-stage, so the call of @ev@ is unfolded through staging. Finally, we
+current-stage, so the calls of @ev@ is unfolded within staging. Finally, we
 generate a singleton set containing the compiled next-stage closure
-@emit_compiled_clo(f)@, represented by an IR node in LMS.
+@emit_compiled_clo(f)@, which is represented by an IR node in LMS.
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                            => Rep[(Set[(Value,Store)], Cache)], λ: Lam, ρ: Exp[Env]): Rep[AbsValue]
@@ -107,14 +108,14 @@ The @ap_clo@ method is also similar: we use the staged version of @lift_nd@ to
 lift the next-stage set of closures into the monad stack, and generate a
 next-stage value for each closure @clo@ in the set, by using @emit_ap_clo@. The
 method @emit_ap_clo@ generates the current-stage representation of the
-future-stage result of application.
+future-stage application result.
 Finally, we put the future @out@ cache, store, and values back into
 the current-stage monads.
 \begin{lstlisting}
-  def emit_ap_clo(rator: Rep[AbsValue], rand: Rep[Value], σ: Rep[Store],
+  def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
                   in: Rep[Cache], out: Rep[Cache]): Rep[(Set[ValSt], Cache)]
-  def ap_clo(ev: Expr => Ans)(rator: Rep[Value], rand: Rep[Value]): Ans = for {
-    σ   <- get_store;      clo <- lift_nd[AbsValue](rator)
+  def ap_clo(ev: Expr => Ans)(funs: Rep[Value], arg: Rep[Value]): Ans = for {
+    σ   <- get_store;      clo <- lift_nd[AbsValue](funs)
     in  <- ask_in_cache;   out <- get_out_cache
     res <- lift_nd[(Set[ValSt], Cache)](Set(emit_ap_clo(clo, arg, σ, in, out)))
     _   <- put_out_cache(res._2);  vs <- lift_nd[ValSt](res._1);  _ <- put_store(vs._2)
@@ -123,17 +124,17 @@ the current-stage monads.
 
 \paragraph{Staged Caching and Fixpoint Iteration} Our fixed-point iteration
 again relies on the two caches @in@ and @out@, which are both staged maps now.
-Therefore, the query of whether the @out@ cache contains the current
-configuration will produce a next-stage Boolean value, i.e., of type
+Therefore, the query of whether the @in/out@ cache contains the current
+configuration will produce next-stage Boolean values, i.e., of type
 @Rep[Boolean]@. Consequently, the branching condition cannot be determined
-statically -- we need to generate code for @if@. Figure
+statically -- we need to generate code for the whole @if@ expression. Figure
 \ref{fig:staged_coind_cache} shows the staged version of @fix@. The
-monadic-binded variable @res@ is a next-stage result, consisting of a next-stage
-@if@ expression. The true branch simply returns a pair of queried result form
+variable @res@ represents the next-stage result, consisting of a next-stage
+@if@ expression. The true branch simply returns a pair of the queried result form
 the @out@ cache and the @out@ cache itself. The else branch constructs a monadic
 value @m@ of type @Ans@ first, which evaluates @e@ under the new @out@ cache.
-After which, we use the similar technique that collapses the monad @m@ to
-grounded values by providing its desired environment and etc. Finally, we have a
+After which, we use a similar technique that collapses the monadic value @m@ to
+grounded values, by providing its desired environment and etc. Finally, we have a
 current-stage representation of the future-stage values @res@, and put the
 content of @res@ back into the monad stack.
 
@@ -145,7 +146,7 @@ content of @res@ back into the monad stack.
     cfg <- lift_nd[Config](Set((unit(e), ρ, σ)))
     res <- lift_nd[(Set[ValSt], Cache)](Set(
       // a next-stage value of type Rep[(Set[ValSt], Cache)] generated by if
-      if (out.contains(cfg)) (repMapToMapOps(out).apply(cfg).toList, out)
+      if (out.contains(cfg)) (out(cfg), out)
       else { val m: Ans = for {
                _ <- put_out_cache(out + (cfg → in.getOrElse(cfg, ⊥)))
                v <- eval(fix_cache)(e);  σ <- get_store;  _ <- update_out_cache(cfg, (v, σ))
@@ -161,9 +162,9 @@ content of @res@ back into the monad stack.
 
 \subsection{A Little Bit of Code Generation, Again}
 The code generation for compiled closures and function applications are similar
-to the staged concrete interpreter. We have two the IR node as case classes, they
-take additional caches as arguments. We also elide how to generate next-stage Scala
-code for them.
+to their counterparts in the staged concrete interpreter. We have two IR nodes
+implemented as case classes; they also take additional caches as arguments. We
+elide the code generation part for these IR nodes.
 \begin{lstlisting}
 case class IRCompiledClo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                           => Rep[(Set[ValSt], Cache)], λ: Lam, ρ: Rep[Env]) extends Def[AbsValue]
@@ -172,19 +173,6 @@ case class IRApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
 \end{lstlisting}
 
 \subsection{Optimizations} \label{staged_ds}
-
-\iffalse
-Revision: Solving Practical Challenges.
-theoretically, all the things should work nicely. Unfolding the interpreter over the AST.
-But the generated code is blowed up. For example .... This should not affect the correctness,
-but poses burden on the MSP system (ie LMS) and the next stage compiler/runtime (ie, scalac and JVM).
-1) LMS becomes slower since a large IR graph is contructed during the staging.
-2) Scalac becomes slower when reading a such large source code.
-JVM has certain limitation on the size of a single method.
-
-TODO: can we formulate selective caching as a partially-static data law.
-TODO: lambda lifting for if
-\fi
 
 Our staging schema works by unfolding the interpreter over the input AST. In
 practice, however, it would suffer from code explosion when analyzing
