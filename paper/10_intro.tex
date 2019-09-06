@@ -3,7 +3,7 @@
 Abstract interpretation as a lattice-based approach to sound static analyses was
 proposed by \citet{DBLP:conf/popl/CousotC77, CousotCousot79-1}. Based on the notion of Galois
 connections, the analyzer can soundly approximate the
-concrete program runtime behavior by computing fixed points on an abstract
+concrete program behavior at runtime by computing fixed points on an abstract
 domain. Despite the tremendous theoretical development of abstract
 interpretation over the years, constructing artifacts and analyzers that perform
 sound abstract interpretation for modern and expressive languages was considered
@@ -16,7 +16,7 @@ semantics artifacts for abstract interpretation from their concrete
 counterparts (for example, abstract machines), soundness can be easily
 established by examining the transformation of semantic artifacts.
 This systematic abstraction approach can be tailored to different
-language features (such as state, first-class control, exception, and
+language features (such as state, first-class control, exceptions, and
 concurrency) and sensitivity analyses \cite{DBLP:conf/icfp/Gilray0M16,
   DBLP:conf/popl/GilrayL0MH16, Darais:2015:GTM:2814270.2814308}. It
 has also been applied to various small-step abstract machines
@@ -35,26 +35,31 @@ in high-level functional programming languages have emerged.  Such techniques
 include monads and monad transformers \cite{DBLP:journals/pacmpl/DaraisLNH17,
 Sergey:2013:MAI:2491956.2491979}, arrows
 \cite{Keidel:2018:CSP:3243631.3236767}, extensible effects
-\cite{Kiselyov:2015:FMM:2804302.2804319, Githubsemantic}, etc. The pure
-approaches provide certain benefits, for examples, the abstract interpretation
+\cite{Kiselyov:2015:FMM:2804302.2804319, Githubsemantic}, etc. These pure
+approaches provide certain benefits, for example, the abstract interpretation
 artifacts can be built in a compositional and modular fashion, and referential
-transparency allow programmers to confidently reason about the correctness of
-their implementations.  The soundness of analysis can also be proven with less
+transparency allows programmers to confidently reason about the correctness of
+their implementations.  The soundness of an analysis can also be proven with less
 effort, whether by mechanized proofs \cite{Darais:2016:CGC:2951913.2951934} or
 paper-based proofs \cite{Keidel:2018:CSP:3243631.3236767}.  
 
 However, besides the intrinsic complexity of static analysis, there are
 additional abstraction penalties from these high-level implementation
 approaches. First, similar to concrete interpreters, an abstract interpreter
-analyzes the program by traversing the AST. The traversal incurs
-interpretive overhead, such as the pattern matching on the ASTs and recursive
-calls on subexpressions. Such overhead can be negligible if the abstract
-interpreter only runs on the program a single time, but can accumulate
-significantly if it runs repeatedly (for example, on libraries).  Second, it is
-common that abstract interpreters written in pure languages extensively use
-functional encodings of side-effects to implement the semantics of abstract interpretation.
-For example, the list monad can be used to model nondeterminism from collecting
-interpreters.
+analyzes a program by traversing its AST. This traversal incurs
+interpretive overhead, such as pattern matching on the AST nodes and recursive
+calls on subexpressions. If it is a single-time traversal, such overhead can be
+negligible. But usually, abstract interpreters iteratively analyze and traverse
+the AST multiple times to reach fixed-points, therefore the accumulated
+overhead is even magnified. 
+%Repeatedly analyzing library programs also poses significant overhead.
+%Such overhead can be negligible if the abstract
+%interpreter only runs on the program a single time, but can accumulate
+%significantly if it runs repeatedly (for example, on libraries).  
+Second, it is common that abstract interpreters written in pure languages
+extensively use functional encodings of side-effects to implement the semantics
+of abstract interpretation.  For example, the list monad can be used to model
+nondeterminism from collecting interpreters.
 %For example, a collecting interpreter that returns all possible runtime values is
 %nondeterministic, which can be modeled by a list monad.
 Although such pure approaches have their own merits, compared with imperative,
@@ -63,16 +68,16 @@ reconcile these approaches, one must use a programming technique which allows
 for high-level abstractions during implementation, but bypasses the
 incurred overhead at runtime.
 
-Roughly at the same time when abstract interpretation was proposed in
-1970s, \citet{futamura1971partial} revealed a close
+Roughly at the same time when abstract interpretation was proposed in the
+1970s, \citet{futamura1971partial} observed a close
 connection between interpreters and compilers through a hierarchy of
-specializations, namely, Futamura Projections. The first Futamura
-projection shows that specializing an interpreter to the input program
+specializations, since then known as Futamura Projections. The first Futamura
+projection describes that specializing an interpreter to the input program
 removes interpretative overhead and yields an equivalent executable
 that runs faster. The Futamura projections have been successfully applied to
 other similar performance problems, examples including
-query compilers\cite{DBLP:conf/sigmod/TahboubER18}, PyPy \footnote{PyPy:
-\url{http://pypy.org/}}, Truffle \cite{Marr:2015:TVP:2814270.2814275}, and etc.
+query compilers \cite{DBLP:conf/sigmod/TahboubER18}, PyPy \footnote{PyPy:
+\url{http://pypy.org/}}, Truffle \cite{Marr:2015:TVP:2814270.2814275}, etc.
 The challenge here: can we apply the same idea to a general abstract interpreter
 to make it run faster? The solution is not obvious, as we need to specialize
 a nonstandard semantics that extensively uses nondeterminism, operates on
@@ -84,17 +89,17 @@ framework that eliminates performance penalties for monadic abstract
 interpreters, while keeping the implementation as close to their conceptual
 model as possible.
 In short, our approach borrows ideas and techniques from multi-stage
-programming and embedded DSLs to abstract interpreters:  1) To remove the
-overhead from interpretation and effect layers, we specialize the abstract
-interpreter via staging and then generate efficient low-level code that does
-the actual analysis. 2) Inspired by the tagless-final interpreters
+programming and embedded DSLs, and apply them to abstract interpreters:  1) To
+remove the overhead from interpretation and effect layers, we specialize the
+abstract interpreter via staging and then generate efficient low-level code
+that does the actual analysis. 2) Inspired by the tagless-final interpreters
 \cite{DBLP:journals/jfp/CaretteKS09}, we construct a generic interpreter that
 abstracts over binding-times and different semantics, which allows the staged
-abstract interpreter to be derived from its unstaged counterpart.
-As a result, the derived staged abstract interpreters has no intrusive changes
-to the underlying abstract semantics, thereby preserving the soundness.
-In this sense, our approach allows for no regret for both performance and
-engineering effort. We elaborate these two main ideas in detail, as follows.
+abstract interpreter to be derived from its unstaged counterpart.  As a result,
+the derived staged abstract interpreters has no intrusive changes to the
+underlying abstract semantics, thereby preserving soundness.  In this
+sense, our approach allows for no regret for both performance and engineering
+effort. We elaborate these two main ideas in detail, as follows.
 
 %The result of specialization is reusable, and the effect layers have
 %been eliminated in the generated code.
@@ -105,13 +110,11 @@ engineering effort. We elaborate these two main ideas in detail, as follows.
 
 The first Futamura projection specifically shows that specializing an
 interpreter w.r.t. the input program yields an equivalent executable. For
-instance, @eval : Expr -> Input -> Value@ is an interpreter for some language.
+instance, assume that @eval : Expr --> Input --> Value@ is an interpreter for some language.
 Given a program $e_0$@ : Expr@, by applying the specialization, we can
-obtain a specialized interpreter $\texttt{eval}_{\texttt{e0}}$ : @Input -> Value@,
-which is the so-called \textit{equivalent executable}.
-
+obtain a specialized program $\texttt{eval}_{\texttt{e0}}$ : @Input --> Value@.
+%which is the so-called \textit{equivalent executable}.
 % By definition of the interpreter, they produce the same result when applied with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
-
 The first proposed approach to realize Futamura projections is partial
 evaluation \cite{DBLP:books/daglib/0072559}, which relies on an automatic
 binding-time analysis (\textit{static} or \textit{dynamic}).  The underlying
@@ -132,14 +135,14 @@ To apply Futamura projections on abstract interpreters, we consider
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s big-step monadic abstract
 interpreter as the unstaged baseline.  Similar to the two-level semantics
 \cite{NIELSON1989117}, monads provide a good abstraction to hide the detail of
-abstract interpretation semantics. However, the monads do not have a clear
+abstract interpretation semantics. However, monads do not have a clear
 stage distinction.
 We further introduce binding-times and make the monads binding-time polymorphic.
 Our proposed framework adopts the type-based multi-stage programming from the
 Lightweight Modular Staging framework, and implements the Futamura projection
-of a abstract interpreter for a stateful higher-order
-language. By deriving staged monads that can be used to do code generation, we
-obtain a staged abstract interpreter that can be used for specialization. After
+of an abstract interpreter for a stateful higher-order
+language. By deriving staged monads that can be used to perform code generation, we
+obtain a staged abstract interpreter that can be used for specialization. Through
 staging, the generated code is specialized to the input program, and all the
 monadic operations are inlined and compiled down to low-level Scala code.
 
@@ -170,7 +173,7 @@ returns a value of monadic type, which can be varied by different semantics.
 The value domains of the interpreter and the effects such as state and nondeterminism
 can all be wrapped into this monadic type.  The binding-time abstraction is
 represented by a higher-kinded type, and injected into the monadic type.  The
-binding-times will control whether the interpreter produces values directly or
+binding-times control whether the interpreter produces values directly or
 generates code. 
 
 %It is worth mentioning
@@ -179,7 +182,7 @@ generates code.
 
 \paragraph{Applications and Evaluation}
 We evaluate the idea of staging an abstract interpreter through
-case studies and an empirical evaluation on performance.
+case studies and an empirical performance evaluation.
 1) We compare our approach with abstract compilation
 \cite{Boucher:1996:ACN:647473.727587}, an implementation technique for
 control-flow analyses. We show that by utilizing type-based stage
@@ -221,8 +224,8 @@ showing an order of magnitude speedup.
     \textit{staged abstract interpreters}, can be readily derived
     (Section~\ref{sai}). We also summarize the approach and discuss
     soundness properties after showing the four artifacts.
-  \item We summarize our approach and discuss correctness issues (Section~\ref{discussion}).
-    After, we conduct three case studies (Section~\ref{cases_study}) and
+  \item We summarize our approach and discuss correctness (Section~\ref{discussion}).
+    We conduct three case studies (Section~\ref{cases_study}) and
     an empirical evaluation on performance improvements (Section~\ref{evaluation}).
     Finally we discuss related work and conclude.
 \end{itemize}

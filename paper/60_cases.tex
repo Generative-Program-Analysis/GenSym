@@ -274,8 +274,8 @@ independent to other parts of the analyzed program.
   def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
 \end{lstlisting}
 
-We use Scheme as an example, and consider there is a library that contains a
-list map function @map@:
+We use Scheme as an example, and consider a library that contains a
+function @map@:
 \begin{lstlisting}
   (define (map xs f) (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
 \end{lstlisting}

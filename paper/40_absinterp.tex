@@ -229,7 +229,7 @@ the two caches through the monad stack (the implementations are elided).
   def set_out_cache(cfg: R[Config], vs: R[(Value, Store)]): AnsM[Unit]
 \end{lstlisting}
 
-The co-inductive caching algorithm is implemented as a instrumentation over
+The co-inductive caching algorithm is implemented as an instrumentation over
 @eval@ (Figure \ref{fig:coind_cache}), and it also closes the open recursion.
 Initially, the two caches are both empty.
 During the iteration, we first check whether @out@ contains the configuration
@@ -241,7 +241,7 @@ Then we invoke @ev@ to compute the result for this iteration, where @ev@ takes
 @fix(ev)@ as a self reference.
 After the evaluation, the store @σ@ may have been changed. We update the
 @out@ cache with the new result, i.e., a pair of value and store @(v, σ)@.
-Similar to store update, cache update is also a point-wise join.
+Similar to store updates, the cache update is also a point-wise join.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the
 input @in@ cache, which indicates that there is no more fact can be discovered,

@@ -55,7 +55,7 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 
 \subsection{Monads in Scala} \label{monadscala}
 
-A monad is a type constructor @M[_]: * -> *@ with two operations, often called
+A monad is a type constructor @M[_]: * --> *@ with two operations, often called
 @return@ and @bind@. Informally, @return@ wraps a value into the monad @M@, and
 @bind@ unwraps the monadic value and transforms it into a new monadic value.
 Pragmatically in Scala, we define a monad type class using trait @Monad@ (Figure
@@ -120,7 +120,7 @@ are necessary for @for@-comprehension. The conversion between @Monad@ and
 In the rest of the paper, we use Scala's @for@-comprehension syntax and a few
 of monads and monad transformers such as @ReaderT@, @StateT@, and @SetT@ to
 write our interpreters.
-Monad transformers are type constructors of kind @(* -> *) -> (* -> *)@, which
+Monad transformers are type constructors of kind @(* --> *) --> (* --> *)@, which
 take a monad as argument and produces another monad. By using monad
 transformers, we can combine multiple monads into a single one.  The
 implementation of monads and monad transformers essentially borrows the
