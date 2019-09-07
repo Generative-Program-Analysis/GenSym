@@ -66,18 +66,18 @@ reconcile these approaches, one must use a programming technique which allows
 for high-level abstractions during implementation, but bypasses the
 incurred overhead at runtime.
 
-Roughly at the same time when abstract interpretation was proposed in the
-1970s, \citet{futamura1971partial} observed a close
+Roughly at the same time when abstract interpretation was proposed,
+\citet{futamura1971partial} observed a close
 connection between interpreters and compilers through a hierarchy of
 specializations, since then known as Futamura Projections. The first Futamura
 projection describes that specializing an interpreter to the input program
 removes interpretative overhead and yields an equivalent executable
 that runs faster. 
-In recent years, the idea of Futamura projections has gained more attentions
-and has been successfully applied to many real-world problems, examples including
+In recent years, the idea of Futamura projections has attracted more attentions
+and has been successfully applied to many real-world problems, including
 query compilers \cite{DBLP:conf/sigmod/TahboubER18}, PyPy \cite{Bolz:2009:TMP:1565824.1565827},
 Truffle \cite{Marr:2015:TVP:2814270.2814275}, etc.
-The challenge here: can we apply the same idea to a general abstract interpreter
+The challenge here: can we apply Futamura projections to a general abstract interpreter
 to make it run faster? The solution is not obvious, as we need to specialize
 a nonstandard semantics that extensively uses nondeterminism, operates on
 abstract domains, and computes fixed-points iteratively over caches. 
