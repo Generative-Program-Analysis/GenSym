@@ -36,8 +36,7 @@ analyzer program using type-based staging annotations. However, AC requires
 more engineering effort, i.e., rewriting the whole analyzer into the
 closure-generation form. Moreover, as shown in Section~\ref{staged_ds}, our
 approach is able to not only remove the interpretive overhead, but also enable
-several optimizations such as specialized data structures and equivalent
-rewritings.
+several optimizations such as specialized data structures.
 
 \begin{figure*}
   \centering
@@ -110,33 +109,33 @@ def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
 \end{figure*}
 
 \paragraph{Original AC}
-The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is 0-CFA
+The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is a 0-CFA
 for a small CPS language consisting of abstractions, applications, recursion, and
 primitive operators. Figure \ref{compare_ac_sai} (left) shows the AC
 implementation: different syntactic constructs are handled in different functions
-(e.g., @compCall@, @compApp@, etc.).
-Before refactoring into AC, these functions would take the store as a
-regular argument; now every function returns a value of type @CompAnalysis@,
-which is a function (closure) value that takes and returns stores. After the
-first run of analysis, we have traversed the AST and obtained a single closure that
+(e.g., @compCall@ and @compApp@).
+Before refactoring to AC, the original functions take a store as a
+regular argument. Now every function returns a value of type @CompAnalysis@,
+which is a function value (i.e., closure) that takes and returns stores. After the
+first run of the analysis, we have traversed the AST and obtained a single closure that
 takes a store and returns a store. Therefore, the ASTs are static terms, and the
-stores are dynamic terms. Now we can invoke the compiled closure with an initial
+stores are dynamic terms. Now, we can invoke the compiled closure with an initial
 store to complete the analysis.
 
 \paragraph{AC through Staging}
 
-On the other side, our approach works equivalently through staging: the
-ASTs are static, whereas stores are dynamic; therefore, we annotate the type @Store@
-with @Rep@ (shown in Figure \ref{compare_ac_sai} (right)). In fact, the only
-changes of our approach using the LMS framework are the types of @Store@ to
-@Rep[Store]@, since they will be known at the next stage: no other parts need to change.
-The generated code
-will consist entirely of looks-up and updating the store. The functions at the current stage are
-eliminated in the residual program; therefore, we do not generate higher-order
-functions, which provides additional performance improvement. Nevertheless,
-the support from the LMS framework is necessary, such as staging support for @Map@.
-We consider these efforts reusable and completely orthogonal to the
-implementation of the analysis.
+On the other side, our approach works equivalently through staging: the ASTs
+are static, whereas stores are dynamic. Therefore, we annotate the type @Store@
+with @Rep@ (Figure \ref{compare_ac_sai} (right)). In fact, the only changes of
+our approach using the LMS framework are the types of @Store@ to @Rep[Store]@,
+since they will be known at the next stage. There is no need for other changes.
+The generated programs consist entirely of looks-up and updating operations
+w.r.t the store.  The functions at the current stage are eliminated in the
+residual program; therefore, we do not generate higher-order functions, which
+provides additional performance improvement. Nevertheless, the LMS framework
+provides support for necessary data structures, such as @Map@.  We consider
+these efforts reusable and completely orthogonal to the implementation of the
+analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -144,11 +143,11 @@ implementation of the analysis.
 
 In this section, to demonstrate that the SAI approach is widely applicable, we
 extend and refactor the staged abstract interpreter we presented in Section
-\ref{sai} to various control-flow analyses (CFA). We first discuss
+\ref{sai} to various control-flow analyses (CFA). We first discuss the
 calling-context sensitive analysis for staged analyzers by tweaking the
-allocation strategy. Then we describe how to implement store-widening with
+allocation strategy. Then, we describe how to implement store-widening with the
 staged monads, which is a common optimization in CFA. Finally, we integrate
-abstract garbage collection with staging. All of them are in fact orthogonal to
+abstract garbage collection with staging. All of them are orthogonal to
 staging.
 
 \subsubsection{Context-sensitivity}
@@ -157,8 +156,8 @@ The abstract addresses we introduced in Section \ref{sai} are simply identical
 to the variable names, which is a context-insensitive schema.  Through tweaking
 the address allocation strategy, we can achieve various context-sensitive
 analyses \cite{DBLP:conf/icfp/Gilray0M16}. In this section, we demonstrate a
-calling-context-sensitive analysis, i.e., $k$-CFA-like analysis
-\cite{DBLP:journals/jfp/HornM12}, can be implemented our staged abstract
+calling-context sensitive analysis, i.e., $k$-CFA-like analysis
+\cite{DBLP:journals/jfp/HornM12}, can be implemented in our staged abstract
 interpreter.
 \begin{lstlisting}
   type Time = List[Expr]
