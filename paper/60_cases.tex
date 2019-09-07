@@ -180,7 +180,7 @@ the address generation happens at the next stage, i.e., analysis time.
 \end{lstlisting}
 
 We then integrate the timestamp into our monad stack by adding a staged
-@StateT@ monad. The result type is accordingly updated to contain a set of
+@StateT@ monad. The result type is accordingly updated to contain the set of
 tuples, where the time is added.
 \begin{lstlisting}
   def tick(e: Expr): AnsM[Unit] = for {
@@ -191,22 +191,23 @@ tuples, where the time is added.
   } yield unit(KCFAAddr(x, τ)) // we use unit to turn a current-stage constant to next-stage value
 \end{lstlisting}
 
-Every time we call the @eval@ function, we refresh the timestamp by
+Every time when we call the @eval@ function, we also refresh the timestamp by
 calling the @tick@ function, which updates the timestamp in the state monad.
 The @tick@ function is implemented as prepending the current control expression
 being evaluated (@e@) to the existing calling context, and then taking the
-first $k$ elements from the list.  The type @Config@ used in caching is also
-changed to include timestamps.
+first $k$ elements from the list. The type @Config@ used in the caching
+algorithm is also changed to include timestamps.
 
 \subsubsection{Store-widened Analysis}
 
-A commonly-used technique to improve the running time in control-flow analysis
+A commonly-used technique to improve the running time of control-flow analyses
 is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
-DBLP:journals/pacmpl/DaraisLNH17}, store-widening analysis can be easily
-implemented in monadic abstract interpreter by swapping the @StateT@ (for store)
-and the @SetT@ (for nondeterminism). In this section, we show this optimization
-is orthogonal to staging and we just need to similarly swap the same \textit{staged}
-version of monads. After the adjustment, we have the following monad stack:
+DBLP:journals/pacmpl/DaraisLNH17}, a store-widening analysis can be easily
+implemented in the monadic abstract interpreter by swapping the @StateT@ and
+the @SetT@ monad transformer. In this section, we show this optimization is
+orthogonal to staging and we just need to similarly swap the same
+\textit{staged} version of monads. After the adjustment, conceptually, we have
+the following monad stack:
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepSetT[RepStateT[
                    RepReaderT[RepStateT[IdM, Cache, ?], Cache, ?], Store, ?], ?], Env, T]
@@ -218,7 +219,7 @@ Abstract garbage collection is a technique to reclaim unreachable addresses in
 the store while doing the abstract interpretation
 \cite{Might:2006:IFA:1159803.1159807}. \citet{DBLP:journals/pacmpl/DaraisLNH17}
 showed that, for big-step monadic abstract interpreters, we may add a @Reader@
-monad to track a set of root addresses and compute the reachable addresses every
+monad to track the set of root addresses and compute the reachable addresses every
 time when we obtain a value. Here, we adopt the idea with staged monads:
 \begin{lstlisting}
   type AnsM[T] = RepReaderT[RepReaderT[
@@ -227,14 +228,14 @@ time when we obtain a value. Here, we adopt the idea with staged monads:
 \end{lstlisting}
 
 The idea of abstract garbage collection is shown in Figure \ref{fixgc}. We
-update the @fix@ function with caching (from Section \ref{sai}) to @fix_gc@,
-but the caching part is omitted in the presented code. Several auxiliary
+update the @fix@ function with caching (from Section \ref{sai}) to @fix_gc@
+(the caching part is omitted in the presented code snippet). Several auxiliary
 functions are used: @ask_root@ retrieves the current root addresses from the
-monad stack; @root@ computes the reachable addresses from a value; and @gc@
-performs garbage collection according to the reachable addresses and returns a new
-store. For the generic interpreter, we also need to compute the root addresses
-for compound expressions, readers may refer to
-\cite{DBLP:journals/pacmpl/DaraisLNH17}.
+monad stack; @root@ computes the reachable addresses given a value; and @gc@
+performs garbage collection according to the given reachable addresses and
+returns a new store. For the generic interpreter, we also need to compute the
+root addresses for compound expressions; for the detail of this part, readers
+may refer to \cite{DBLP:journals/pacmpl/DaraisLNH17}.
 
 \begin{figure}[h!]
 \begin{lstlisting}
