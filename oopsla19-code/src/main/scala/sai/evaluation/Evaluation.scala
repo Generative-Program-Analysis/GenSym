@@ -33,7 +33,6 @@ object Evaluation {
     //(map, "map")
     (fib, "fib"),
     (rsa, "rsa"),
-    /*
     (church, "church"),
     (fermat, "fermat"),
     (mbrotZ, "mbrotZ"),
@@ -42,12 +41,11 @@ object Evaluation {
     (kcfa32, "kcfa32"),
     (kcfa64, "kcfa64"),
     (solovay, "solovay")
-    */
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
     (regex, "regex"),
-    (matrix, "matrix")
+    //(matrix, "matrix")
   )
 
   def progs_all: Progs = progs_w_sw ++ List[(Expr, String)](
@@ -73,7 +71,7 @@ object Evaluation {
   def main(args: Array[String]) {
     runEvaluation(WithoutStoreWidening(progs_wo_sw))
     println("\n********************************************\n")
-    //runEvaluation(WithStoreWidening(progs_w_sw))
+    runEvaluation(WithStoreWidening(progs_w_sw))
   }
 
   def runEvaluation(opt: Option) = opt match {
