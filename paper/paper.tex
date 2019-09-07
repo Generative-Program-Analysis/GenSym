@@ -2,7 +2,6 @@
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 %\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
-\documentclass[acmsmall]{acmart}\settopmatter{}
 %% For double-blind review submission, w/ CCS and ACM Reference
 %\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
@@ -10,7 +9,7 @@
 %% For single-blind review submission, w/ CCS and ACM Reference
 %\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true}
 %% For final camera-ready submission, w/ required CCS and ACM Reference
-%\documentclass[acmsmall]{acmart}\settopmatter{}
+\documentclass[acmsmall, screen]{acmart}\settopmatter{}
 
 %% Journal information
 %% Supplied to authors by publisher for camera-ready submission;
@@ -18,14 +17,15 @@
 %\startPage{1}
 
 \setcopyright{rightsretained}
+\acmPrice{}
+\acmDOI{10.1145/3360552}
+\acmYear{2019}
+\copyrightyear{2019}
 \acmJournal{PACMPL}
-\acmYear{2019} 
-\acmVolume{3} 
-\acmNumber{OOPSLA} 
-\acmArticle{126} 
-\acmMonth{10} 
-\acmPrice{}\acmDOI{10.1145/3360552}
-
+\acmVolume{3}
+\acmNumber{OOPSLA}
+\acmArticle{126}
+\acmMonth{10}
 
 %% Copyright information
 %% Supplied to authors (based on authors' rights management selection;
@@ -206,7 +206,7 @@ Purdue University
 
 %% Keywords
 %% comma separated list
-% \keywords{keyword1, keyword2, keyword3}  %% \keywords are mandatory in final camera-ready submission
+\keywords{multi-stage programming, abstract interpreters, control-flow analysis}  %% \keywords are mandatory in final camera-ready submission
 
 
 %% \maketitle
@@ -214,15 +214,6 @@ Purdue University
 %% commands, abstract environment, Computing Classification System
 %% environment and commands, and keywords command.
 \maketitle
-
-\iffalse
-
-\renewcommand\thefootnotecopyrightpermission{}
-\footnotetextcopyrightpermission{
-Preprint, November 2018.\\ Copyright held by the authors.}
-\fancyhead[RO,LE]{Preprint, November 2018}
-
-\fi
 
 \input{10_intro}
 \input{20_prelim}
