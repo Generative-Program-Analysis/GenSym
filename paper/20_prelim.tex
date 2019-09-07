@@ -104,7 +104,7 @@ To compute the Cartesian product of two lists of numbers, we can use Scala's
 \end{lstlisting}
 
 The Scala compiler translates the above @for@-comprehension expression into
-an equivalent one using @flatMap@ and @map@ ~\cite{scala_spec}. The last binding
+an equivalent one using @flatMap@ and @map@. The last binding
 in @for@-comprehensions is translated into a @map@, where the argument of
 @yield@ becomes the body expression inside of that @map@ operation. The 
 bindings before the last one are all translated into calls of @flatMap@:

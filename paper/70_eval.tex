@@ -6,6 +6,7 @@ and evaluate the analysis time against the unstaged versions. The result
 shows that the staged versions are, on average, 10+ times as fast as the unstaged
 version, as evidence of our \textit{abstraction without regret} approach.
 
+\vspace{-5pt}
 \paragraph{Implementation and Evaluation Environment} We implement the abstract
 interpreters for control-flow analysis, i.e., a value-flow analysis that
 computes which lambda terms can be called at each call-site.
@@ -50,7 +51,7 @@ measurement of program size.
 
 \paragraph{Result}
 
-\begin{figure}[h] \footnotesize
+\begin{figure}[t] \footnotesize
 \begin{tabular}{@{}ll|lll|lll@{}}
 \toprule
     program             &\#AST & unstaged   & staged     & $\frac{\text{unstaged}}{\text{staged}}$ & unstaged   & staged    & $\frac{\text{unstaged}}{\text{staged}}$  \\
@@ -71,7 +72,9 @@ measurement of program size.
     @matrix@            & 1732 & -          & -          & -           & 85.611 ms  & 9.297 ms  &  9.20x       \\
     \bottomrule
 \end{tabular}
+\vspace{-0.5em}
 \caption{Evaluation result for monovariant control-flow analysis.} \label{evaluation_result}
+\vspace{-2em}
 \end{figure}
 
 Figure~\ref{evaluation_result} shows the evaluation result, comparing the
