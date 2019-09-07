@@ -4,12 +4,12 @@ In the previous sections, we have seen an unstaged abstract interpreter and a
 staged concrete interpreter. Now we begin describing the implementation of
 their confluence -- a staged abstract interpreter.  Unsurprisingly, the staged
 abstract interpreter in this section uses the same abstract semantics from the
-unstaged version in Section~\ref{unstaged_abs}.  The approach we refactor
+unstaged version in Section~\ref{unstaged_abs}.  The approach we use to refactor
 the unstaged one to the staged abstract interpreter is modular, and does not
 sacrifice soundness or precision. The designer of the analyzer therefore has no
 need to rewrite the analysis. We first present the staged lattices and staged
 monads, and then discuss the staged version of primitive operations, especially
-@close@, @ap_clo@ and @fix@. At last, we discuss several optimizations.
+@close@, @ap_clo@ and @fix@. In the end, we discuss several optimizations.
 
 \subsection{Staged Lattices}
 
@@ -45,7 +45,7 @@ Now we can implement the staged abstract semantics, under that @R@ is instantiat
 
 \paragraph{Staged Monads for Abstract Interpretation}
 We use the same monad stack structure from the unstaged abstract interpreter,
-but replacing \textit{all} the monad transformers to their staged version. The
+but replacing \textit{all} the monad transformers with their staged versions. The
 following code snippet shows this change. We manually fuse the three inner
 transformers (@IdM@ omitted) into a single monad @RepSetReaderStateM[A, B, C]@,
 where @A@ is the type parameter for the reader effects and @B@ for the state effects.
