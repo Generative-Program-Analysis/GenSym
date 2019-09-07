@@ -3,8 +3,8 @@
 After seeing the unstaged and staged concrete interpreter, now we turn our
 focus to abstract interpreters under the same framework. We first present a
 lattice representation with binding-time abstraction, as well as simple
-abstract domains, such as power set lattice.  Then we show the abstract
-components, namely abstract values, abstract environments, and abstract stores.
+abstract domains, such as power sets.  Then, we show the abstract
+components, namely, abstract values, abstract environments, and abstract stores.
 The abstract interpreter we construct in this section is similar to
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s. For simplicity, it is
 context/path/flow-insensitive by our choice. In Section \ref{cfa}, we will
@@ -243,7 +243,7 @@ Otherwise, we first retrieve the result from @in@ (@⊥@ if @in@ not contains
 Then, we invoke @ev@ to compute the result for this iteration, where @ev@ takes
 @fix(ev)@ as a self reference.
 After the evaluation, the store @σ@ may have been changed. Therefore, 
-we get the latest store and construct the result @(v, $\sigma$)@; the
+we get the latest store and construct the result @(v, σ)@; the
 result will be used to update the out cache.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the

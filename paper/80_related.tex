@@ -7,11 +7,11 @@ traversing the syntax tree by specialization. The residual programs of AC can
 be either textual (using quasi-quotations) or closures (using higher-order
 functions).  Our approach is more flexible between representations and requires
 less engineering efforts to refactor the analyzer (Section \ref{cs_ac}).
-\citet{Johnson:2013:OAA:2500365.2500604} adapted closure generation to optimize
+\citet{Johnson:2013:OAA:2500365.2500604} adapted closure generation to optimize a
 small-step abstract interpreter in state-transition style. The program
-is first compiled to an ``abstract bytecode'' IR. The IR consists of higher-order
+is firstly compiled to an ``abstract bytecode'' IR. The IR consists of higher-order
 functions, which will be executed later on an abstract abstract machine for
-that IR.  \citet{damian1999partial} provided a formal treatment to abstract
+that IR.  \citet{damian1999partial} provided a formal treatment for abstract
 compilation and control-flow analysis, as well as proofs to establish the
 correctness of a certified specialized analyzer.  \citet{amtoft1999partial}
 applied partial evaluation for constraint-based control-flow analysis.
@@ -20,8 +20,8 @@ Splitting an analysis into multiple stages has also been studied for other
 forms of static analyses.
 \citet{DBLP:conf/cgo/HardekopfL11} applied staging to a
 flow-sensitive pointer analysis. The first stage is to analyze the
-programs to obtain a sparse representation, and then the second
-stage conducts the flow-sensitive analysis by refining the first
+programs and obtain a sparse representation, and then the second
+stage conducts a flow-sensitive analysis by refining the first
 one. Another large body of static analyses is implemented by
 first generating constraints and then using a solver to discharge the
 proof obligations or find the fixed-point. Notable examples include
@@ -29,17 +29,17 @@ SAT- and SMT-based program analysis
 \cite{Gulwani:2008:PAC:1375581.1375616} and Datalog-based points-to
 analysis \cite{Smaragdakis:2015:PA:2802194.2802195}.
 Such analyses can be considered having stage distinctions.  One piece of future
-work is to explore whether they can be implemented and optimized from
+work is to explore whether they can be implemented and optimized using
 meta-programming.
 Souffl{\'e}, one of the state-of-the-art Datalog engines commonly used in
 points-to analysis \cite{Antoniadis:2017:PDS:3088515.3088522}, uses Futamura
 projections for efficient implementation \cite{10.1007/978-3-319-41540-6_23}.
-However, it only specializes Datalog rules to the running engine, instead of a
+However, it only specializes the solving engine to Datalog rules, instead of a
 full pipeline from a program AST to a specialized solver.
 
 Recent work shows that numerical abstract domains can be
-specialized w.r.t. the static program structure, although not by
-way of staging. For example, decomposing polyhedrons
+specialized to the static program structure, although not by
+ways of staging. For example, decomposing polyhedrons
 \cite{DBLP:conf/popl/SinghPV17, Singh:2017:PCD:3177123.3158143} to
 smaller ones depending on the variables involved in a statement can
 significantly improve the running time and space consumption of abstract
