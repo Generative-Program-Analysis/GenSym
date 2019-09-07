@@ -248,7 +248,15 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   
   type ValueStores = Set[(Value, Store)]
   type Result = (ValueStores, Cache)
-  def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
+  def run(e: Expr): Result = {
+    def iter(in: Cache, out: Cache): Result = {
+      val result = fix(eval)(e)(ρ0)(σ0).run(in)(out).run
+      val newOut = result._2
+      if (in == newOut) result else iter(newOut, cache0)
+    }
+    iter(cache0, cache0)
+    //fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
+  }
 
   def mValue: Manifest[Value] = manifest[Value]
   def mAddr: Manifest[Addr] = manifest[Addr]

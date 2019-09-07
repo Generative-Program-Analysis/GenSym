@@ -265,7 +265,21 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with R
 
   type Result = ((Rep[Set[Value]], Rep[Store]), Rep[Cache])
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
-  def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0, cache0, cache0)
+  def run(e: Expr): Result = {
+    def staged_iter: Rep[((Cache, Cache)) => ((Set[Value], Store), Cache)] = fun(
+    {
+      case (in: Rep[Cache], out: Rep[Cache]) => 
+        //println("a new iteration")
+        val result = fix(eval)(e)(ρ0)(σ0, in, out)
+        val newOut = result._2
+        if (in == newOut) {
+          val vs: Rep[(Set[Value], Store)] = (result._1._1, result._1._2)
+          (vs, result._2): Rep[((Set[Value], Store), Cache)]
+        } else staged_iter(newOut, cache0)
+    } : ((Rep[Cache], Rep[Cache]) => Rep[((Set[Value], Store), Cache)]))
+    val result = staged_iter(cache0, cache0)
+    (result._1, result._2)
+  }
 }
 
 trait SWZeroCFAEnvOpt extends MapOpsExpOpt { self: SWStagedSchemeAnalyzerOps =>
@@ -293,17 +307,23 @@ trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
   import IR._
 
   override def remap[A](m: Manifest[A]): String = {
-    if (m.toString.endsWith("$AbsValue")) "AbsValue"
-    else if (m.toString.endsWith("$ZCFAAddr")) "ZCFAAddr"
-    else if (m.toString.endsWith("$Addr")) "Addr"
-    else if (m.toString.endsWith("$Expr")) "Expr"
-    else {
-      val ms = m.toString
-      if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,")
-          && ms.endsWith("AbstractComponents$Addr]")) {
-        "Env"
-      }
-      else super.remap(m)
+    m.runtimeClass.getSimpleName match {
+      //case "Map" => "Map[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      //case "Set" => "Set[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      case _ => 
+        if (m.toString.endsWith("$AbsValue")) "AbsValue"
+        else if (m.toString.endsWith("$ZCFAAddr")) "ZCFAAddr"
+        else if (m.toString.endsWith("$Addr")) "Addr"
+        else if (m.toString.endsWith("$Expr")) "Expr"
+        else {
+          val ms = m.toString
+          //scala.collection.immutable.Map[java.lang.String, sai.evaluation.Evaluation$$anon$2@135bb152.type#sai.evaluation.AbstractComponents$Addr]
+          if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,") && ms.endsWith("$Addr]")) {
+            //System.err.println(ms)
+            "Env"
+          }
+          else super.remap(m)
+        }
     }
   }
 
@@ -331,8 +351,8 @@ trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
 
 trait SWStagedSchemeAnalyzerDriver extends DslDriver[Unit, Unit] with SWStagedSchemeAnalyzerExp { q =>
   override val codegen = new DslGen
-      with ScalaGenMapOps
       with ScalaGenSetOps
+      with ScalaGenMapOps
       with ScalaGenListOps
       with ScalaGenUncheckedOps
       with SAI_ScalaGenTupleOps
@@ -340,6 +360,7 @@ trait SWStagedSchemeAnalyzerDriver extends DslDriver[Unit, Unit] with SWStagedSc
       with SWStagedSchemeAnalyzerGen
   {
     val IR: q.type = q
+
     override def emitSource[A : Manifest](args: List[Sym[_]], body: Block[A], className: String,
                                           stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
       val prelude = """

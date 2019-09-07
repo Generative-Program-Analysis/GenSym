@@ -182,6 +182,13 @@ trait ScalaGenSetOps extends BaseGenSetOps with ScalaGenEffect {
   val IR: SetOpsExp
   import IR._
 
+  override def remap[A](m: Manifest[A]) = {
+    m.runtimeClass.getSimpleName match {
+      case "Set" => m.runtimeClass.getSimpleName + "[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      case _ => super.remap(m)
+    }
+  }
+
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
     case SetNew(xs, mA) => emitValDef(sym, src"Set[$mA](" + (xs map {quote}).mkString(",") + ")")
     case SetConcat(s1, s2) => emitValDef(sym, src"$s1 ++ $s2")

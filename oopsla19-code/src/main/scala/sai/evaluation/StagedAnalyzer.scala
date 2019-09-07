@@ -261,7 +261,19 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with RepMonads with Rep
 
   type Result = (Rep[Set[(Value, Store)]], Rep[Cache])
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
-  def run(e: Expr): (Rep[Set[(Value, Store)]], Rep[Cache]) = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+  def run(e: Expr): (Rep[Set[(Value, Store)]], Rep[Cache]) = {
+    def staged_iter: Rep[((Cache, Cache)) => (Set[(Value, Store)], Cache)] = fun(
+    {
+       case (in: Rep[Cache], out: Rep[Cache]) =>
+        val result = fix(eval)(e)(ρ0)(σ0)(in)(out)
+        val newOut = result._2
+        if (in == newOut) {
+          result
+        } else staged_iter(newOut, cache0)
+    } : ((Rep[Cache], Rep[Cache]) => Rep[(Set[(Value, Store)], Cache)]))
+
+    staged_iter(cache0, cache0)
+  }
 }
 
 trait ZeroCFAEnvOpt extends MapOpsExpOpt { self: StagedSchemeAnalyzerOps =>

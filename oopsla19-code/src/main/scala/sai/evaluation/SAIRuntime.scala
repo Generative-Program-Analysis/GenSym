@@ -62,4 +62,5 @@ object SWSAIRuntime {
   type Store = Map[Addr, Value]
   type Config = (Int, Env)
   type Cache = Map[Config, Set[Value]]
+  // Map[(Int, Map[String,sai.evaluation.SWSAIRuntime.Addr]),Set[Set[sai.evaluation.SWSAIRuntime.AbsValue]]]
 }

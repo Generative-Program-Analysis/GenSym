@@ -179,6 +179,15 @@ trait ScalaGenMapOps extends BaseGenMapOps with ScalaGenEffect with ScalaGenSetO
   val IR: MapOpsExp
   import IR._
 
+  override def remap[A](m: Manifest[A]) = {
+    m.runtimeClass.getSimpleName match {
+      case "Map" => "Map[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
+      case _ => 
+        //System.err.println(m.runtimeClass.getSimpleName)
+        super.remap(m)
+    }
+  }
+
   override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
     case MapEmpty(mk, mv) => emitValDef(sym, src"Map.empty[$mk, $mv]")
     case MapNew(kv, mk, mv) => emitValDef(sym, src"Map[$mk, $mv](${(kv.map(kv => "("+quote(kv._1)+","+quote(kv._2)+")")).mkString(",")})")

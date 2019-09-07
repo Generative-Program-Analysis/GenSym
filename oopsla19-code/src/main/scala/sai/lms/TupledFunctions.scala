@@ -33,8 +33,10 @@ trait SAI_ScalaGenTupledFunctions extends ScalaGenFunctions with GenericGenUnbox
   def unwrapTupleStr[A](m: Manifest[A]): String = {
     val s = m.toString
     if (s.startsWith("scala.Tuple")) {
-      //s.slice(s.indexOf("[")+1, s.length-1).filter(c => c != ' ').split(",")
-      s.slice(s.indexOf("[")+1, s.length-1).filter(c => c != ' ')//.split(",")
+      //System.err.println(m.typeArguments.map(a => remap(a)).mkString(","))
+      //System.err.println(s.slice(s.indexOf("[")+1, s.length-1).filter(c => c != ' '))
+      //s.slice(s.indexOf("[")+1, s.length-1).filter(c => c != ' ')//.split(",")
+      m.typeArguments.map(a => remap(a)).mkString(",")
     } else {
       remap(m)
     }
