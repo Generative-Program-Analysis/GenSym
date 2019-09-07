@@ -87,11 +87,11 @@ extended to abstract interpreters. We present an abstraction-without-regret
 framework that eliminates performance penalties for monadic abstract
 interpreters, while keeping the implementation as close to their conceptual
 model as possible.
-In short, our approach borrows ideas and techniques from multi-stage
-programming and embedded DSLs, and apply them to abstract interpreters:  1) To
+In short, we borrow ideas and techniques from multi-stage programming and
+embedded DSLs, and apply them to abstract interpreters:  1) To
 remove the overhead from interpretation and effect layers, we specialize the
 abstract interpreter via staging and then generate efficient low-level code
-that does the actual analysis. 2) Inspired by the tagless-final interpreters
+that performs the actual analysis. 2) Inspired by the tagless-final interpreters
 \cite{DBLP:journals/jfp/CaretteKS09}, we construct a generic interpreter that
 abstracts over binding-times and different semantics, which allows the staged
 abstract interpreter to be derived from its unstaged counterpart.  As a result,
