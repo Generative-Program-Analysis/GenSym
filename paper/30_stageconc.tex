@@ -60,7 +60,7 @@ We use the same monad stack structure as in the unstaged interpreter: a reader
 monad with a state monad. The difference here is that, now the monads operate on
 staged values.  For brevity, we call them \textit{staged monads}. In the code,
 we also use a @Rep@ prefix on the constructors and types to differentiate them.
-But it is important to note that instances of the case class @ReaderT@/@StateT@
+But it is important to note that the instances of @ReaderT@/@StateT@
 are not staged, and that the monadic computation, such as functions of @R => M[A]@,
 are also not staged. Instead, the internal data that these monads operate on are
 staged, i.e., @R@ and @A@ in the reader monad, @S@ and @A@ in the state monad.
@@ -75,7 +75,7 @@ where @Rep@ types are added:
       RepStateT(s => RepMonad[M].flatMap(run(s))(as => f(as._1).run(as._2))); ... }
 \end{lstlisting}
 
-The function @f@ passed to @flatMap@ is also a function value known at the current stage.
+The function @f@ passed to @flatMap@ is also a value known at the current stage.
 Therefore all invocations of @flatMap@ can be reduced before generating code.
 The fact that we only stage data but not monadic computation or monadic
 values is the reason that we can peel of the monad stack in the generated code.
@@ -168,16 +168,16 @@ extending from @Def[T]@. @Def[T]@ is a built-in type in the LMS framework,
 representing next-stage value definitions of type @T@.
 \begin{lstlisting}
   case class IRCompiledClo(f: Rep[(ValSt) => ValSt], λ: Lam, ρ: Rep[Env]) extends Def[Value]
-  case class IRApClo(rator: Rep[Value], rand: Rep[Value], σ: Rep[Store]) extends Def[ValSt]
+  case class IRApClo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]) extends Def[ValSt]
 \end{lstlisting}
 
 The IR nodes are manipulated by the LMS passes and finally generated as
-next-stage Scala code. To generate code, LMS provides an @emitNode@ method for
+next-stage Scala programs. To generate code, LMS provides an @emitNode@ method for
 programmers to control over what code is generated for each kind of nodes. Here,
 we match @IRCompiledClo@ and @IRApClo@, and generate definitions via
-@emitValDef@ for them.  For compiled closures, we put the function @f@ and its
-accompanying syntactic term and environment to their next-stage value
-representation @CompiledClo@. For applications, we know the fact that @fun@ is
+@emitValDef@ for them.  For compiled closures, we pass the function @f@ with its
+accompanying syntactic term and environment to the next-stage value
+representation @CompiledClo@. For applications, we know that @fun@ is
 an instance of @CompiledClo@ at the next stage, and it has a callable field
 @f@. Hence, we generate a next-stage function application @f(arg, σ)@.  The
 invocations of @quote@ are used to generate proper names for the other
@@ -185,7 +185,7 @@ next-stage values.
 \begin{lstlisting}
 override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
   case IRCompiledClo(f, λ, ρ) => emitValDef(sym, s"CompiledClo($\textdollar${quote(f)}, $\textdollar${quote(λ)}, $\textdollar${quote(ρ)})")
-  case IRApClo(rator, rand, σ) => emitValDef(sym, s"$\textdollar$rator.f($\textdollar${quote(rand)}, $\textdollar${quote(σ)})")
+  case IRApClo(fun, arg, σ) => emitValDef(sym, s"$\textdollar$fun.f($\textdollar${quote(arg)}, $\textdollar${quote(σ)})")
   ...
 }
 \end{lstlisting}
