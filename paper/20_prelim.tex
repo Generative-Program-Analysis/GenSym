@@ -113,39 +113,39 @@ bindings before the last one are all translated into calls of @flatMap@:
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
 
-Note that here, the monadic object @List[_]@ encapsulates the data internally.
-Therefore it only exposes the simplified version of @flatMap@, where the monadic
+Note that here the monadic object @List[_]@ encapsulates the data internally.
+Therefore, it only exposes the simplified version of @flatMap@, where the monadic
 value of @M[A]@ is not introduced as a function argument. The trait @MonadOps@ (Figure
-\ref{fig:monadops}) defines the simplified version of monadic operations that
+\ref{fig:monadops}) defines the simplified versions of monadic operations that
 are necessary for @for@-comprehension. The conversion between @Monad@ and
 @MonadOps@ can be achieved by using the implicit design pattern.
 In the rest of the paper, we use Scala's @for@-comprehension syntax and a few
-of monads and monad transformers such as @ReaderT@, @StateT@, and @SetT@ to
+monads and monad transformers such as @ReaderT@, @StateT@, and @SetT@ to
 write our interpreters.
 Monad transformers are type constructors of kind @(* --> *) --> (* --> *)@, which
-take a monad as an argument and produces another monad. By using monad
+take a monad as an argument and produce another monad. By using monad
 transformers, we can combine multiple monads into a single one.  The
 implementation of monads and monad transformers follows the one from Haskell.
 
 \subsection{Generic Interpreter} \label{generic_if}
 
 In this section, we present the generic interface in the style of a big-step
-definitional interpreter. The key idea is to keep the binding-time type and
-returned monadic type both abstract, so that they can be instantiated
+definitional interpreter. The key idea is to keep both the binding-time type and
+returned monadic type abstract, so that they can be instantiated
 differently; we also need to abstract the primitive operations on those types.
 In later sections, we will instantiate the monadic type to perform concrete
 interpretation \citet{DBLP:conf/popl/LiangHJ95} or abstract interpretation
 \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
 
-\paragraph{Basic Types}
-We start with some basic type definitions that are used in the interpreter. The
-identifiers in the program are represented by strings. To represent states, two
-required components for the interpreter are environments @Env@ and stores
-@Store@. @Env@ maps identifiers to addresses, and @Store@ maps
-addresses to values, respectively. The @Env@ captures bound variables in the
-scope of current control, and @Store@ models a persistent heap through the
-program run-time.  At this moment, the domains of addresses and values are
-still abstract, and hence, they are declared as abstract types.
+\paragraph{Basic Types} We start with some basic type definitions that are used
+in the interpreter. The identifiers in the program are represented by strings.
+To represent states, two required components for the interpreter are
+environments, represented by type @Env@, and stores, represented by type
+@Store@. An @Env@ maps identifiers to addresses, and a @Store@ maps addresses to
+values. The @Env@ captures bound variables in the scope of current control, and
+@Store@ models a persistent heap through the program run-time.  Currently,
+the domains of addresses and values are still abstract; hence, they are
+declared as abstract types.
 \begin{lstlisting}
   trait Semantics {
     type Ident = String; type Addr; type Value
