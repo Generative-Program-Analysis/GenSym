@@ -278,7 +278,7 @@ interpreter acts as a compiler.
 in monadic form, shown in Figure \ref{fig:shared_int}. The basic idea
 of generic interpretation is to traverse the abstract syntax tree
 while maintaining the effects (such as environment and state updates).
-Note that the interpreter is written in open-recursive style -- it cannot
+Note that the interpreter is written in open-recursive style: it cannot
 refer to itself directly. Instead, @eval@ takes an additional parameter @ev@ of
 type @Expr => Ans@ that refers to itself. Consequently, the method @close@ that
 lifts lambda terms to closures and method @ap_clo@ that applies functions also
