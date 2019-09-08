@@ -58,16 +58,16 @@ Using monads to construct abstract interpreters was explored by
 \citet{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17,
 Darais:2015:GTM:2814270.2814308}.
 The unstaged abstract interpreter in this paper follows the abstracting
-definitional interpreters (ADI) approach from
-\citet{DBLP:journals/pacmpl/DaraisLNH17}.  Similar to ADI, reconstructing
+definitional interpreters (ADI) approach \cite{DBLP:journals/pacmpl/DaraisLNH17}.  
+Similar to ADI, reconstructing
 big-step abstract interpreters with delimited continuations was shown by
 \citet{Wei:2018:RAA:3243631.3236800}; \citet{Keidel:2018:CSP:3243631.3236767}
 presented a modular, arrow-based abstract interpreter that allows soundness
 proof to be constructed compositionally.
 \citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
-modular analysis, where we borrow the notation of modular analysis.
+modular analysis, from where we borrow the notation of modular analysis.
 However, the staged abstract interpreter does not generate complete summaries for
-modules; instead, it is able to specialize the analysis modularly. Similarly, AC
+modules; instead, it specializes the analysis modularly. Similarly, AC
 is considered as an example of this kind of modular analyses \cite{DBLP:conf/cc/CousotC02}.
 
 \paragraph{Control-flow Analysis} Our case studies and evaluation focus on
@@ -89,10 +89,10 @@ interpreters is closely related to the two-level semantics: the
 use of a generic interface with monads and then reinterpreting it with
 different semantics is already two-level. Instead of focusing on
 semantics, this paper shows how a staged analyzer can be built and
-used to increase efficiency of static analysis. We augment the monadic
-abstract interpreter from another dimension, using code generation to
-produce efficient low-level code. Hence the presented work can be
-considered as a two-dimensional application of the two-level semantics.
+used to increase efficiency of static analyses. We augment the monadic
+abstract interpreter with binding-time polymorphism, using code generation to
+produce efficient low-level code. The presented work can be considered as
+a two-dimensional application of the two-level semantics.
 
 \paragraph{Partial Evaluation and Multi-stage Programming}
 Partial evaluation is an automatic technique for program

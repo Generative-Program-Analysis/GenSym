@@ -2,20 +2,20 @@
 
 In this section, based on the generic interpreter and concrete components we
 presented in Section \ref{prelim}, we show how to stage the concrete
-interpreter by changing the monad type and refactoring primitive
+interpreter by changing the monad type and refactoring the primitive
 operations. We begin by briefly introducing the Lightweight Modular Staging
 framework in Scala, and then replay the same steps from the unstaged
 counterpart. Finally, we briefly describe the code generation.
 
 \subsection{Multi-Stage Programming with LMS}
 
-Lightweight modular staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
+Lightweight Modular Staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
 multi-stage programming framework implemented as a Scala library. LMS enables
 runtime code generation in a type-safe manner. Different from the approach of
 MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} which
-use syntactic quotations, LMS distinguishes binding-time based on types. 
-LMS provides a type constructor @Rep[T]@ where @T@ can be
-an arbitrary type, indicating a value of type @T@ will be known at the future stage.
+uses syntactic quotations, LMS distinguishes binding-times based on types. 
+LMS provides a type constructor @Rep[T]@, where @T@ can be an arbitrary type,
+indicating a value of type @T@ will be known at the future stage.
 Operations acting on @Rep[T]@ expressions will be residualized as generated
 code.
 A classic example for introducing multi-stage programming is the power function
