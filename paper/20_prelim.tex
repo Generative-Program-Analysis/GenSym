@@ -14,13 +14,12 @@ abstract interpreters.
 
 \subsection{Abstract Syntax} \label{bg_lang}
 
-We consider a call-by-value $\lambda$-calculus in direct-style, extended
-with numbers, arithmetic, recursion, and conditionals. Other effects
-such as assignments can also be supported readily.
-Since we are mostly interested in analyzing dynamic behavior of
-programs, we elide the static semantics. We also assume that
-input programs are well-typed and all variables are distinct. The abstract
-syntax is as follows:
+We consider a call-by-value $\lambda$-calculus in direct-style, extended with
+numbers, arithmetic, recursion, and conditionals. Other effects such as
+assignments can also be supported readily. Since we are mostly interested in
+analyzing dynamic behavior of programs, we elide the static semantics. We also
+assume that input programs are well-typed and all variables are distinct. The
+abstract syntax is as follows:
 \begin{lstlisting}
   abstract class Expr
   case class Lit(i: Int) extends Expr                         // numbers
@@ -32,11 +31,11 @@ syntax is as follows:
   case class Aop(op: String, e1: Expr, e2: Expr) extends Expr // arithmetic
 \end{lstlisting}
 
-The abstract syntax we present can be seen as a deep embedding of the
-language -- we use data-types to represent programs. This design choice allows us
-to use different interpretations over the AST; with the inheritance and
-overriding mechanisms in Scala, we may also add new language constructs and reuse
-existing interpretations.
+The abstract syntax we present can be seen as a deep embedding of the language:
+we use data-types to represent programs. This design choice allows us to use
+different interpretations over the AST; with the inheritance and overriding
+mechanisms in Scala, we may also add new language constructs and reuse existing
+interpretations.
 
 %\todo{cite Bruno?}.
 
@@ -58,16 +57,15 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 A monad is a type constructor @M[_]: * --> *@ with two operations, often called
 @return@ and @bind@. Informally, @return@ wraps a value into a monad @M@, and
 @bind@ unwraps a monadic value and transforms it into a new monadic value.
-Pragmatically in Scala, we define the monad type class using trait @Monad@ (Figure
-\ref{fig:monad}), which it declares the @pure@ \footnote{We elect to use
+Pragmatically in Scala, we define the monad type class using trait @Monad@
+(Figure \ref{fig:monad}), which declares the @pure@ \footnote{We elect to use
 \texttt{pure} as the name, since \texttt{return} is a keyword in Scala and
-\texttt{unit} is a built-in function in LMS.} and @flatMap@ operation. The trait
-itself takes the monad type constructor @M[_]@ as an argument, which, as a
-higher-kinded type, takes a type and returns a type. The method @pure@
-promotes values of type @A@ to values of type @M[A]@. The monadic @bind@
-operation is usually called @flatMap@ in Scala. It takes a
-monad-encapsulated value of type @M[A]@, a function of @A => M[B]@ and returns
-values of type @M[B]@.
+\texttt{unit} is a built-in function in LMS.} and @flatMap@ operations. The
+trait itself takes the monad type constructor @M[_]@ as an argument, which, as a
+higher-kinded type, takes a type and returns a type. The method @pure@ promotes
+values of type @A@ to values of type @M[A]@. The monadic @bind@ operation is
+usually called @flatMap@ in Scala. It takes a monad-encapsulated value of type
+@M[A]@, a function of @A => M[B]@, and returns values of type @M[B]@.
 
 \begin{figure}[h!]
   \centering
