@@ -289,7 +289,7 @@ for abstract-interpretation instantiation, it will instrument the interpreter
 by memoizing @ev@'s inputs and outputs, which ensures the termination of
 abstract interpretation.
 Finally, there is a top-level wrapper @run@. The return type @Result@
-depends on the kind of monads being used; and therefore is also left abstract.
+depends on the kind of monads being used and is therefore also left abstract.
 \begin{lstlisting}
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans
   type Result; def run(e: Expr): Result
