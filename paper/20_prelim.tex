@@ -2,15 +2,15 @@
 
 \section{Preliminaries} \label{prelim}
 
-In this section, we first describe the abstract syntax of the language for our interpreters.
-Then we present the generic interpreter shared among the four different
-semantics. After which, we instantiate the interpreter to the concrete one.
-It is worth noting that we choose to use Scala and monadic style to
-demonstrate the idea, but the approach is not restricted to this
-choice. One can use imperative or direct style in other MSP languages
-(e.g., MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}
-and Template Haskell \cite{Sheard:2002:TMH:636517.636528}) to construct
-such staged abstract interpreters.
+In this section, we first describe the abstract syntax of the language for our
+interpreters. Then, we present the generic interpreter shared among the four
+different semantics, after which we instantiate the interpreter to the concrete
+one. It is worth noting that we choose to use Scala and a monadic style to
+demonstrate this idea, though the approach is not restricted to this choice.
+Indeed, one can use imperative or direct style in other MSP languages (e.g.,
+MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} or
+Template Haskell \cite{Sheard:2002:TMH:636517.636528}) to construct such staged
+abstract interpreters.
 
 \subsection{Abstract Syntax} \label{bg_lang}
 
