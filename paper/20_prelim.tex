@@ -274,10 +274,10 @@ interpreter acts as a compiler.
 \label{fig:shared_int}
 \end{figure}
 
-\paragraph{The Interpreter} Now we can construct the semantics-agnostic interpreter
+\paragraph{The Interpreter} We can now construct the semantics-agnostic interpreter
 in monadic form, shown in Figure \ref{fig:shared_int}. The basic idea
-of a generic interpretation is to traverse the abstract syntax tree
-while maintaining the effects such as environment and state updates.
+of generic interpretation is to traverse the abstract syntax tree
+while maintaining the effects (such as environment and state updates).
 Note that the interpreter is written in open-recursive style -- it cannot
 refer to itself directly. Instead, @eval@ takes an additional parameter @ev@ of
 type @Expr => Ans@ that refers to itself. Consequently, the method @close@ that
