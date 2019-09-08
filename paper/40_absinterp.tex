@@ -97,8 +97,8 @@ abstract environments and abstract stores, i.e., @Map[Ident, Addr]@ and
 
 It is important that the abstract stores now map addresses to sets of abstract
 values, indicating that an address may point to an over-approximated set of
-runtime values.  This can be justified by the approximation nature of abstract
-interpretation and nondeterminism in the abstract interpreter.  First, when
+runtime values.  This can be justified by the approximation nature
+and nondeterminism in the abstract interpreter.  First, when
 analyzing a conditional expression, we may not have enough information to
 decide which branch will be taken, thus a sound treatment is to explore the both
 branches. Also, at some later point, we need to compute the join of two path.
@@ -206,8 +206,6 @@ added from the concrete
   } yield rt
 \end{lstlisting}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \paragraph{Caching and Fixpoint Iteration}
 
 As we mentioned earlier, the ADI approach uses a two-cache mechanism to
@@ -249,8 +247,15 @@ result will be used to update the out cache.
 The iteration terminates when the resulting @out@ cache is equivalent to the
 input @in@ cache, which indicates that there is no more fact can be discovered.
 Therefore, the iteration should end, and we have reached the least fixed point.
+\begin{lstlisting}
+  def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run
+\end{lstlisting}
 
-\begin{figure}[h!]
+Finally, we override the top-level @run@ method by running the monadic value
+with an empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
+and initial caches @cache@$_0$.
+
+\begin{figure}[t]
   \centering
 \begin{lstlisting}
   def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => for {
@@ -270,10 +275,3 @@ Therefore, the iteration should end, and we have reached the least fixed point.
 \vspace{-1em}
 \end{figure}
 
-\begin{lstlisting}
-  def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run
-\end{lstlisting}
-
-Finally, we override the top-level @run@ method by running the monadic value
-with an empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
-and initial caches @cache@$_0$.

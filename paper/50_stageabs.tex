@@ -139,7 +139,7 @@ value @m@ to grounded values, by providing its desired environment and etc.
 Finally, we have a current-stage representation of the future-stage values
 @res@, and put the content of @res@ back into the monad stack.
 
-\begin{figure}[h!]
+\begin{figure}[t]
 \centering
 \begin{lstlisting}
   def fix_cache(e: Expr): Ans = for {
@@ -158,7 +158,7 @@ Finally, we have a current-stage representation of the future-stage values
 \end{lstlisting}
 \caption{The staged co-inductive caching algorithm.}
 \label{fig:staged_coind_cache}
-\vspace{-2em}
+\vspace{-1.5em}
 \end{figure}
 
 \subsection{A Little Bit of Code Generation, Again}
@@ -222,15 +222,15 @@ expressions:
 
 \paragraph{Partially-static Data}
 Our treatment of binding-times is coarse-grained: @Expr@s is static, the rest
-of the components are all dynamic. But this is not always true, because the static
-data have to be used somewhere with the dynamic operations. Partial-static data is a
-way to improve binding-times and optimize the generated code.
-
+of the components are all dynamic. But this is not always true, because the
+static data have to be used somewhere with the dynamic operations.
+Partial-static data is a way to improve binding-times and optimize the
+generated code.
 For example, to fold a static singleton set (often appears in @SetT@), e.g.,
 @Set(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
-generator would faithfully generates code that applies @foldLeft@ with the set and
-function @f@. But we can also utilize the algebraic property of @foldLeft@ to
-generate cheaper code: @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
+generator would faithfully generates code that applies @foldLeft@ with the set
+and function @f@. But we can also utilize algebraic properties of @foldLeft@
+to generate cheaper code, e.g, @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
 function @f@ is known at the current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
 partial-static patterns, such as for @Set@ and @Map@. This optimizations

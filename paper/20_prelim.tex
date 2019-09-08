@@ -78,6 +78,7 @@ values of type @M[B]@.
     def flatMap[A,B](ma: M[A])(f: A => M[B]): M[B]     
   }                                                    
     \end{lstlisting}
+    \vspace{-0.5em}
     \caption{trait \texttt{Monad}} \label{fig:monad}
   \end{subfigure}
   ~
@@ -88,6 +89,7 @@ trait MonadOps[M[_], A] {
   def flatMap[B](f: A => M[B]): M[B]
 }
     \end{lstlisting}
+    \vspace{-0.5em}
     \caption{trait \texttt{MonadOps}} \label{fig:monadops}
   \end{subfigure}
 \end{figure}
@@ -231,7 +233,7 @@ methods @num@ and @close@ deal with primitive values, which lift literal terms
 Conditionals and arithmetic are handled by @br0@ and @arith@, respectively. The
 method @ap_clo@ is used for applying functions, which takes a function value
 and an argument value. Note that the @Env@, @Store@, and @Value@ are all
-annotated by @R[_]@ because they can potentially be next-stage values when the
+annotated by @R[_]@, because they are potentially next-stage values when the
 interpreter acts as a compiler.
 \begin{lstlisting}
   def num(i: Int): Ans

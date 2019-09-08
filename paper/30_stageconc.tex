@@ -18,20 +18,18 @@ LMS provides a type constructor @Rep[T]@ where @T@ can be
 an arbitrary type, indicating a value of type @T@ will be known at the future stage.
 Operations acting on @Rep[T]@ expressions will be residualized as generated
 code.
-
 A classic example for introducing multi-stage programming is the power function
 that computes $b^x$. Usually, it is implemented as a recursive function:
 \begin{lstlisting}
   def power(b: Int, x: Int): Int = if (x == 0) 1 else b * power(b, x - 1)
 \end{lstlisting}
 
-If @x@ is a value known at the current stage, we may specialize the power function to
-the value @x@ -- by unrolling the recursive calls. In LMS, this is fulfilled by
+If @x@ is known at the current stage, we may specialize the power function to
+the value @x@ by unrolling the recursive calls. In LMS, this is fulfilled by
 first adding the @Rep@ type annotation to variables known at the next stage. In this case,
-@b : Rep[Int]@ is known later, and @x : Int@ is known currently, as shown in the
-below code snippet.
+@b: Rep[Int]@ is known later, and @x: Int@ is known currently, as shown below.
 The way we use this staged @power@ function is to create a @DslDriver@ and override the
-@snippet@ method that supplies 5 as the currently know value for @x@.
+@snippet@ method that supplies 5 as the currently known value for @x@.
 \begin{lstlisting}
   new DslDriver[Int, Int] {
     def power(b: Rep[Int], x: Int): Rep[Int] = if (x == 0) 1 else b * power(b, x-1)
