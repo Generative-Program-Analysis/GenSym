@@ -189,7 +189,7 @@ The value representation of lambda terms is still a defunctionalized closure
 For function applications, @ap_clo@ looks the same as the concrete interpreter.
 The difference is that now the first argument @funs@ is a set of closures (remember
 that type @Value@ is an alias of @Set[AbsValue]@), so we can not directly
-destruct it to syntactic @Lam@ by pattern matching. Instead, we use an
+destruct it to a syntactic @Lam@ by pattern matching. Instead, we use an
 auxiliary function @lift_nd@ that takes a set and lifts the elements in the set
 into the monad stack. Then we can straightforwardly implement the @ap_clo@ in
 monadic style, where the closures come from the @SetT@ and thus the
@@ -212,7 +212,7 @@ As we mentioned earlier, the ADI approach uses a two-cache mechanism to
 compute the least fixed-point and prevent non-termination.
 The caching algorithm is also called \textit{co-inductive} caching or
 \textit{truncated depth-first evaluation} \cite{Rosendahl:AbsIntPL}. It has
-been used in other abstract interpreter or fixed point computation
+been used in other abstract interpreters or fixed-point computation
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800,
   Rosendahl:AbsIntPL}. The idea is to use a @in@ cache and a @out@ cache during
 the depth-first evaluation. The @in@ cache stores the result from the last
@@ -246,7 +246,7 @@ result will be used to update the out cache.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the
 input @in@ cache, which indicates that there is no more fact can be discovered.
-Therefore, the iteration should end, and we have reached the least fixed point.
+Therefore, the iteration should end, and we have reached the least fixed-point.
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run
 \end{lstlisting}
@@ -254,7 +254,6 @@ Therefore, the iteration should end, and we have reached the least fixed point.
 Finally, we override the top-level @run@ method by running the monadic value
 with an empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
 and initial caches @cache@$_0$.
-
 \begin{figure}[t]
   \centering
 \begin{lstlisting}
