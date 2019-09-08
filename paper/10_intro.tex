@@ -9,7 +9,7 @@ interpretation over the years, constructing artifacts and analyzers that perform
 sound abstract interpretation for modern and expressive languages was considered
 complicated for a long time.
 
-Recent progress on methodologies such as Abstracting Abstract Machine (AAM)
+Recent progress on methodologies such as Abstracting Abstract Machines (AAM)
 \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10} uncovers an
 operational approach to constructing abstract interpreters.  By deriving
 semantics artifacts for abstract interpretation from their concrete
@@ -95,7 +95,7 @@ that performs the actual analysis. 2) Inspired by the tagless-final interpreters
 \cite{DBLP:journals/jfp/CaretteKS09}, we construct a generic interpreter that
 abstracts over binding-times and different semantics, which allows the staged
 abstract interpreter to be derived from its unstaged counterpart.  As a result,
-the derived staged abstract interpreters has no intrusive changes to the
+the derived staged abstract interpreter has no intrusive changes to the
 underlying abstract semantics, thereby preserving soundness.  In this
 sense, our approach allows for no regret for both performance and engineering
 effort. We elaborate these two main ideas in detail, as follows.
@@ -217,7 +217,7 @@ showing an order of magnitude speedup.
     of concrete interpretation (Section~\ref{unstaged_conc}) and
     staged concrete interpretation (Section~\ref{stagedinterp}).
   \item We present the unstaged abstract interpreter under the same
-    framework by replacing the environment, store, and values to their
+    framework by replacing the environment, store, and values with their
     abstract counterparts (Section~\ref{unstaged_abs}). We then
     show that the combination of approximation and specialization, dubbed
     \textit{staged abstract interpreters}, can be readily derived

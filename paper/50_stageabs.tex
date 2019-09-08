@@ -156,6 +156,7 @@ Finally, we have a current-stage representation of the future-stage values
     _ <- put_out_cache(res._2);  vs <- lift_nd(res._1);  _ <- put_store(vs._2)
   } yield vs._1
 \end{lstlisting}
+\vspace{-0.5em}
 \caption{The staged co-inductive caching algorithm.}
 \label{fig:staged_coind_cache}
 \vspace{-1.5em}
@@ -262,13 +263,14 @@ We summarize our approach to staging an abstract interpreter as follows:
 
 Monadic interpreters are known to be able to decouple the interpretation
 procedure and the underlying semantics. The key insight in this paper is that
-by making the monadic interpreter binding-time polymorphic, the interpreter can
-be extended for generating efficient code. The underlying semantics and staging
-are two orthogonal dimensions. It is important to note that the computation
-encapsulated by the monads are not staged: only data (such as sets and maps)
-are staged. All the monadic computation, i.e., functions passed to the monadic
-bind operation @flatMap@, are statically known. This is why we can eliminate
-the monadic layer and its associated overhead.
+by making the monadic interpreter stage polymorphic
+\cite{Ofenbeck:2017:SGP:3136040.3136060, Amin:2017:CTI:3177123.3158140}, the
+abstract interpreter can be extended for generating efficient code. The
+underlying semantics and staging are two orthogonal dimensions. It is important
+to note that the computation encapsulated by the monads are not staged: only
+data (such as sets and maps) are staged. All the monadic computation, i.e.,
+functions passed to the monadic bind operation @flatMap@, are statically known.
+This is why we can eliminate the monadic layer and its associated overhead.
 
 \paragraph{What has been eliminated?} In the generated code, all the
 primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
@@ -280,26 +282,29 @@ the internal code fragments of monads.
 
 \subsection{Correctness}
 
-Soundness is the central concern of static analysis, and as such, is vital
-for prospective users. We now briefly examine how our
-approach preserves the correctness and soundness of the analysis, under the
-assumption that the unstaged one is sound. It is worth noting that the rationale
-listed here is based on empirical evidence; a rigorous proof for soundness
-preservation of the staged abstract interpreter remains an open challenge.
+Soundness is the central concern of static analysis, and as such, is vital for
+prospective users. Our approach does not touch the soundness of the analysis,
+i.e, if the unstaged one does not produces false negative result, the staged
+one also does not. This soundness preservation relies on the correctness
+of the staged implementations and of the underlying MSP system. We now briefly
+examine how this is achieved. Note that the rationale listed
+here is based on empirical evidence; a rigorous proof for soundness
+preservation of our approach remains an open challenge.
 
 \begin{itemize}
-  \item We usually assume the underlying MSP system preserves the meaning during staging,
-    i.e., the generated program does not change the observational
-    behaviors of the original program. In the case of this paper, we use the
-    LMS framework, which 1) relies on the type checking facilities of Scala, and
-    2) generates code in A-Normal form \cite{Flanagan:1993:ECC:155090.155113}
-    that preserves the execution order within a stage \cite{DBLP:conf/birthday/Rompf16}.
-    However, in general, it is possible to subvert these guarantees by
-    using unsafe features, such as casts.
+  \item We usually assume the underlying MSP system preserves the meaning
+    during staging, i.e., the generated program and original program produce
+    the same result given the same arguments.
+    In this paper, we use the LMS framework, which 1) relies on the
+    type checking facilities of Scala, and 2) generates code in A-Normal form
+    \cite{Flanagan:1993:ECC:155090.155113} that preserves the execution order
+    within a stage \cite{DBLP:conf/birthday/Rompf16}.  However, in general, it
+    is possible to subvert these guarantees by using unsafe features, such as
+    casts.
   \item As shown in the previous sections, the generic interpreter is untouched
-    and shared by the four artifacts. We only instantiate binding-time
-    annotations and the monadic types. This allows the programmer to easily
+    and shared by the four artifacts.  This allows the programmer to
     check the correctness of the implementation of staged monads modularly.
+   % We only instantiate binding-time annotations and the monadic types. 
   \item We build the staged monads and staged data structures in a
     correct-by-construct way that directly corresponds to their unstaged
     versions. For instance, the staged data structures we use here are simply

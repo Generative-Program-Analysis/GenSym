@@ -15,7 +15,7 @@ such staged abstract interpreters.
 \subsection{Abstract Syntax} \label{bg_lang}
 
 We consider a call-by-value $\lambda$-calculus in direct-style, extended
-with numbers, arithmetic, recursions, and conditionals. Other effects
+with numbers, arithmetic, recursion, and conditionals. Other effects
 such as assignments can also be supported readily.
 Since we are mostly interested in analyzing dynamic behavior of
 programs, we elide the static semantics. We also assume that
@@ -28,7 +28,7 @@ syntax is as follows:
   case class Lam(x: String, e: Expr) extends Expr             // abstractions
   case class App(e1: Expr, e2: Expr) extends Expr             // applications
   case class If0(e1: Expr, e2: Expr, e3: Expr) extends Expr   // conditionals
-  case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursions
+  case class Rec(x: String, rhs: Expr, e: Expr) extends Expr  // recursion
   case class Aop(op: String, e1: Expr, e2: Expr) extends Expr // arithmetic
 \end{lstlisting}
 
@@ -243,7 +243,7 @@ interpreter acts as a compiler.
   def ap_clo(ev: Expr => Ans)(fun: R[Value], arg: R[Value]): Ans
 \end{lstlisting}
 
-\begin{figure}[h!]
+\begin{figure}[t]
   \centering
   \begin{lstlisting}
           def eval(ev: Expr => Ans)(e: Expr): Ans = e match {
@@ -267,8 +267,10 @@ interpreter acts as a compiler.
                                                     } yield rt                    
           }
   \end{lstlisting}
+\vspace{-0.5em}
 \caption{The generic interpreter,
   shared by the unstaged/staged + concrete/abstract interpreter.}
+\vspace{-1.5em}
 \label{fig:shared_int}
 \end{figure}
 
@@ -311,15 +313,16 @@ types @Env@ and @Store@ are derived automatically. To ensure the freshness of
 address allocations, we use type @Int@ and always return a number greater
 than the size of the current store.
 A value can be either a tagged number \texttt{IntV}, or a closure
-\texttt{CloV} that contains a lambda term and an environment. The final grounded
-result of the interpreter is a pair of values and stores, where the @Value@ and
-@Store@ can be next-stage objects, as annotated by the binding-time @R@. We
-also define a standard fixed-point combinator to close the open-recursive
-function @ev@.
+\texttt{CloV} that contains a lambda term and an environment. The final
+result of the interpreter is a pair of values and stores. 
+To distinguish from the monadic values of type @Ans@ produced by the
+interpreter, later we use \textit{grounded values} to denote such final values.
+The two elements in the type @Result@ are annotated by the binding-time @R@,
+because they cane be next-stage objects.  We also define a standard fixed-point
+combinator to close the open-recursive function @ev@.
 \begin{lstlisting}
   trait ConcreteComponents extends Semantics {
-    type Addr = Int
-    sealed trait Value
+    type Addr = Int;  sealed trait Value
     case class IntV(i: Int) extends Value
     case class CloV(λ: Lam, e: Env) extends Value
     type Result = (R[Value], R[Store])

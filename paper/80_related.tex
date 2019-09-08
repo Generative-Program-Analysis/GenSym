@@ -99,14 +99,17 @@ Partial evaluation is an automatic technique for program
 specialization and was studied comprehensively by
 \citet{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.
 In this paper, we use mutli-stage programming to specialize programs.
-The Lightweight Modular Staging framework
+The Lightweight Modular Staging (LMS) framework
 \cite{DBLP:conf/gpce/RompfO10} we used in the paper relies on
-type-level stage annotations.  Other notable implementations of MSP
-exist in the ML family, e.g., MetaML \cite{DBLP:conf/pepm/TahaS97} and
-MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03,
-  DBLP:conf/flops/Kiselyov14}.
-The idea of staging an abstract interpreter we presented here
-is also applicable to other MSP systems.
+type-level stage annotations.  Other notable MSP systems using syntactic
+quotations exist in the ML family, e.g., MetaML \cite{DBLP:conf/pepm/TahaS97}
+and MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14}. 
+Compared with other approaches using syntactic quotations, LMS provides
+guarantee for preserving evaluation orders within a stage.
+\citet{Ofenbeck:2017:SGP:3136040.3136060} discussed staging for generic
+programming as well as stage polymorphism in LMS.
+%The idea of staging an abstract interpreter we presented here
+%is also applicable to other MSP systems.
 Multi-stage programming has been widely used to improve the
 performance in many other domains, such as optimizing compilers or
 domain-specific languages \cite{DBLP:conf/pldi/RompfSBLCO14,
