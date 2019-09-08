@@ -27,16 +27,16 @@ still use the power-set as example to describe its staged version.
   }
 \end{lstlisting}
 
-The trait @RepLattice@ is shown by specializing @Lattice@ with type @Rep@.
+The trait @RepLattice@ is shown by instantiating @Lattice@ with type @Rep@.
 The @RepSetLattice@ is an instance of @RepLattice@, where the lattice operations
 are eventually delegated to the operations on a staged set data type, such as
 @subsetOf@, @union@ and @intersect@. We do not need to change the
-implementation code, except the types -- such as from @Set[T]@ to @Rep[Set[T]]@.
-We show the changes in light gray code. The LMS library provides implicit
-conversions that lift the current-stage values to their next-stage values. In
-the code generation part, these operations emit their corresponding next-stage
-code. Again, other lattice structures such as products and maps are implemented
-in a similar way.
+implementations, except the types -- such as changing from @Set[T]@ to
+@Rep[Set[T]]@.  We show the changes in light gray code. The LMS library
+provides implicit conversions that lift the current-stage values to their
+next-stage representations. In the code generation part, these operations emit
+their corresponding next-stage code. Again, other lattice structures such as
+products and maps are implemented in a similar way.
 
 \subsection{Staged Abstract Semantics}
 
@@ -75,22 +75,23 @@ stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
 When deriving the staged concrete interpreter from its unstaged counterpart, we
 notice that the recursive calls of the evaluator @ev@ on the lambda body are shifted from
 @ap_clo@ to @close@. In other words, we eagerly specialize the interpreter and
-generate code every time when we see a $\lambda$ term, instead of lazily when the
-applications happen.  With no surprise, it is similar here. Additionally,
-in the staged abstract interpreter, we have to handle nondeterminism
-incurred by the over-approximation of runtime behavior.
-In the rest of this part, we keep our roadmap and focus on discussing closure
+generate code every time when we see a $\lambda$ term, instead of lazily
+calling @ev@ when the applications happen.  With no surprise, it is similar
+here. Additionally, in the staged abstract interpreter, we have to handle
+nondeterminism incurred by the over-approximation of runtime behavior.  In the
+rest of this part, we keep our roadmap and focus on discussing closure
 representations and function applications for the staged version.
 
 The @close@ method now is a mix of the \textit{staged} concrete version and
 unstaged \textit{abstract} version. We first build a current-stage function @f@, which
 takes four next-stage values, including the argument and latest store, and
-@in/out@ caches additionally. Inside of @f@, we collapse the @Ans@ monadic value to
-a grounded value of type @Result@, by providing the desired arguments, i.e., the
-new environment, new store, and caches. The collapsing of monad happens at
-current-stage, so the calls of @ev@ is unfolded within staging. Finally, we
-generate a singleton set containing the compiled next-stage closure
-@emit_compiled_clo(f)@, which is represented by an IR node in LMS.
+@in/out@ caches additionally. Inside of @f@, we collapse the monadic value of
+type @Ans@ to grounded values of type @Result@, by providing the desired
+arguments, i.e., the new environment, new store, and caches. The collapsing of
+monads happens at the current-stage, so the calls of @ev@ is unfolded within
+staging. Finally, we generate a singleton set containing the compiled
+next-stage closure @emit_compiled_clo(f)@, which is represented by an IR node
+in LMS.
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
                            => Rep[(Set[(Value,Store)], Cache)], λ: Lam, ρ: Exp[Env]): Rep[AbsValue]
@@ -109,7 +110,7 @@ lift the next-stage set of closures into the monad stack, and generate a
 next-stage value for each closure @clo@ in the set, by using @emit_ap_clo@. The
 method @emit_ap_clo@ generates the current-stage representation of the
 future-stage application result.
-Finally, we put the future @out@ cache, store, and values back into
+Finally, we reify the future @out@ cache, store, and values back into
 the current-stage monads.
 \begin{lstlisting}
   def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
@@ -124,19 +125,19 @@ the current-stage monads.
 
 \paragraph{Staged Caching and Fixpoint Iteration} Our fixed-point iteration
 again relies on the two caches @in@ and @out@, which are both staged maps now.
-Therefore, the query of whether the @in/out@ cache contains the current
+Because of this, the query of whether the @in/out@ cache contains the current
 configuration will produce next-stage Boolean values, i.e., of type
-@Rep[Boolean]@. Consequently, the branching condition cannot be determined
-statically -- we need to generate code for the whole @if@ expression. Figure
+@Rep[Boolean]@. The branching condition cannot be determined
+statically, consequently we need to generate code for the whole @if@ expression. Figure
 \ref{fig:staged_coind_cache} shows the staged version of @fix@. The
 variable @res@ represents the next-stage result, consisting of a next-stage
-@if@ expression. The true branch simply returns a pair of the queried result form
-the @out@ cache and the @out@ cache itself. The else branch constructs a monadic
-value @m@ of type @Ans@ first, which evaluates @e@ under the new @out@ cache.
-After which, we use a similar technique that collapses the monadic value @m@ to
-grounded values, by providing its desired environment and etc. Finally, we have a
-current-stage representation of the future-stage values @res@, and put the
-content of @res@ back into the monad stack.
+@if@ expression. The true branch simply returns a pair of the queried result
+form the @out@ cache and the @out@ cache itself. The else branch constructs a
+monadic value @m@ of type @Ans@ first, which evaluates @e@ under the new @out@
+cache.  After which, we use a similar technique that collapses the monadic
+value @m@ to grounded values, by providing its desired environment and etc.
+Finally, we have a current-stage representation of the future-stage values
+@res@, and put the content of @res@ back into the monad stack.
 
 \begin{figure}[h!]
 \centering
