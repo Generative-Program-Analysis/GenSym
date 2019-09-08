@@ -165,10 +165,10 @@ standard definitional interpreter that will execute the program.  In Section
 type annotation @Rep@, which makes the interpreter act as a compiler.
 
 \paragraph{Monadic Operations} We define the return type of the interpreter
-@Ans@, as a monadic type @AnsM[_]@ wrapping the type @Value@.
-As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
-syntax, certain operations have to be added on the type @AnsM@. Here, we use a
-structural type @MonadOps@ to require that type @AnsM@ should at least
+@Ans@ as a monadic type @AnsM[_]@ wrapping the type @Value@.
+As mentioned in Section~\ref{monadscala}, in order to use the @for@-comprehension
+syntax certain operations must be added on the type @AnsM@. Here, we use a
+structural type @MonadOps@ to require that type @AnsM@ must (at least)
 implement @map@ and @flatMap@. It is worth noting that @MonadOps@ takes another
 type parameter @R[_]@ as the binding-time, i.e., @MonadOps[R, AnsM, T]@.
 Inside of @MonadOps@, @R[_]@ annotates the data types @A@ and @B@ that are
@@ -181,7 +181,7 @@ stores. These methods return monadic values of type @AnsM[_]@, which
 may be parameterized over the environment or store type, or merely a @Unit@
 value for performing effects. For example, @local_env@ installs a new environment
 @ρ@ when evaluating the monadic value @ans@; @set_store@ takes a pair of
-addresses and values (potentially staged) and updates the store accordingly.
+addresses and (potentially staged) values, and updates the store accordingly.
 
 %\vspace{-1em}
 \begin{figure}[h!]
@@ -214,13 +214,13 @@ def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
 \vspace{-1em}
 
 \paragraph{Primitive Operations} Next, we define a few primitive operations.
-First, we delcare two versions of @alloc@. The first one takes a store and an
+First, we declare two versions of @alloc@. The first takes a store and an
 identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
 the freshness of the address may depend on the store, which might be a
 next-stage value as indicated by its type, the type of addresses is
 consequently wrapped by @R[_]@. The other @alloc@ is simply the monadic version
-of the addresses, and therefore can be used in monadic computations.
-An auxiliary method @get@ retrieves the value of an identifier @x@, through the
+of the addresses, and can therefore be used in monadic computations.
+An auxiliary method @get@ retrieves the value of an identifier @x@ through the
 environment and store.
 \begin{lstlisting}
   def alloc(σ: R[Store], x: Ident): R[Addr];  def alloc(x: Ident): AnsM[Addr]
@@ -233,7 +233,7 @@ methods @num@ and @close@ deal with primitive values, which lift literal terms
 Conditionals and arithmetic are handled by @br0@ and @arith@, respectively. The
 method @ap_clo@ is used for applying functions, which takes a function value
 and an argument value. Note that the @Env@, @Store@, and @Value@ are all
-annotated by @R[_]@, because they are potentially next-stage values when the
+annotated by @R[_]@, as they are potentially next-stage values when the
 interpreter acts as a compiler.
 \begin{lstlisting}
   def num(i: Int): Ans
