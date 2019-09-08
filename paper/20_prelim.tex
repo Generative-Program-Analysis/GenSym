@@ -2,7 +2,7 @@
 
 \section{Preliminaries} \label{prelim}
 
-In this section, we first describe the abstract syntax of the language for our interpreters. 
+In this section, we first describe the abstract syntax of the language for our interpreters.
 Then we present the generic interpreter shared among the four different
 semantics. After which, we instantiate the interpreter to the concrete one.
 It is worth noting that we choose to use Scala and monadic style to
@@ -73,10 +73,10 @@ values of type @M[B]@.
   \centering
   \begin{subfigure}[b]{0.55\textwidth}
     \begin{lstlisting}
-  trait Monad[M[_]] {                                  
-    def pure[A](a: A): M[A]                            
-    def flatMap[A,B](ma: M[A])(f: A => M[B]): M[B]     
-  }                                                    
+  trait Monad[M[_]] {
+    def pure[A](a: A): M[A]
+    def flatMap[A,B](ma: M[A])(f: A => M[B]): M[B]
+  }
     \end{lstlisting}
     \vspace{-0.5em}
     \caption{trait \texttt{Monad}} \label{fig:monad}
@@ -108,7 +108,7 @@ To compute the Cartesian product of two lists of numbers, we can use Scala's
 The Scala compiler translates the above @for@-comprehension expression into
 an equivalent one using @flatMap@ and @map@. The last binding
 in @for@-comprehensions is translated into a @map@, where the argument of
-@yield@ becomes the body expression inside of that @map@ operation. The 
+@yield@ becomes the body expression inside of that @map@ operation. The
 bindings before the last one are all translated into calls of @flatMap@:
 \begin{lstlisting}
   xs.flatMap { case x => ys.map { case y => (x, y) } }
@@ -138,11 +138,11 @@ In later sections, we will instantiate the monadic type to perform concrete
 interpretation \citet{DBLP:conf/popl/LiangHJ95} or abstract interpretation
 \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
 
-\paragraph{Basic Types} 
+\paragraph{Basic Types}
 We start with some basic type definitions that are used in the interpreter. The
 identifiers in the program are represented by strings. To represent states, two
 required components for the interpreter are environments @Env@ and stores
-@Store@. @Env@ maps identifiers to addresses, and @Store@ maps 
+@Store@. @Env@ maps identifiers to addresses, and @Store@ maps
 addresses to values, respectively. The @Env@ captures bound variables in the
 scope of current control, and @Store@ models a persistent heap through the
 program run-time.  At this moment, the domains of addresses and values are
@@ -157,7 +157,7 @@ still abstract, and hence, they are declared as abstract types.
 \end{lstlisting}
 
 \paragraph{Binding-time Abstraction}
-The binding-time type is declared as a higher-kinded type @R[_]@. 
+The binding-time type is declared as a higher-kinded type @R[_]@.
 Now we can use @R@ to annotate other data-types in the interpreter;
 it is also injected into the monadic type @MonadOps@.  If we instantiate
 @R@ as an identity type (i.e., @type R[T] = T@), then the generic interpreter is a
@@ -166,7 +166,7 @@ standard definitional interpreter that will execute the program.  In Section
 type annotation @Rep@, which makes the interpreter act as a compiler.
 
 \paragraph{Monadic Operations} We define the return type of the interpreter
-@Ans@, as a monadic type @AnsM[_]@ wrapping the type @Value@. 
+@Ans@, as a monadic type @AnsM[_]@ wrapping the type @Value@.
 As mentioned in Section ~\ref{monadscala}, to use the @for@-comprehension
 syntax, certain operations have to be added on the type @AnsM@. Here, we use a
 structural type @MonadOps@ to require that type @AnsM@ should at least
@@ -193,7 +193,7 @@ addresses and values (potentially staged) and updates the store accordingly.
     def map[B](f: R[A] => R[B]): M[B]
     def flatMap[B](f: R[A] => M[B]): M[B]
   }
-  
+
   type AnsM[T] <: MonadOps[R, AnsM, T]
   type Ans = AnsM[Value]
     \end{lstlisting}
@@ -221,7 +221,7 @@ next-stage value as indicated by its type, the type of addresses is
 consequently wrapped by @R[_]@. The other @alloc@ is simply the monadic version
 of the addresses, and therefore can be used in monadic computations.
 An auxiliary method @get@ retrieves the value of an identifier @x@, through the
-environment and store. 
+environment and store.
 \begin{lstlisting}
   def alloc(σ: R[Store], x: Ident): R[Addr];  def alloc(x: Ident): AnsM[Addr]
   def get(σ: R[Store], ρ: R[Env], x: Ident): R[Value]
@@ -229,7 +229,7 @@ environment and store.
 
 Other primitive operations in the interpreter handle the language constructs.  The
 methods @num@ and @close@ deal with primitive values, which lift literal terms
-(e.g., lambdas) to our value representation (e.g., closures).  
+(e.g., lambdas) to our value representation (e.g., closures).
 Conditionals and arithmetic are handled by @br0@ and @arith@, respectively. The
 method @ap_clo@ is used for applying functions, which takes a function value
 and an argument value. Note that the @Env@, @Store@, and @Value@ are all
@@ -255,7 +255,7 @@ interpreter acts as a compiler.
             case Lam(x, e) => for {                   rt <- local_env(ev(e))(ρ + (x → α))
               ρ <- ask_env                          } yield rt
             } yield close(ev)(Lam(x, e), ρ)         case Aop(op, e1, e2) => for {
-            case App(e1, e2) => for {                 v1 <- ev(e1)                                               
+            case App(e1, e2) => for {                 v1 <- ev(e1)
               v1 <- ev(e1)                            v2 <- ev(e2)
               v2 <- ev(e2)                          } yield arith(op, v1, v2)
               rt <- ap_clo(ev)(v1, v2)              case Rec(x, rhs, e) => for {
@@ -264,7 +264,7 @@ interpreter acts as a compiler.
               cnd <- ev(e1)                           v  <- local_env(ev(rhs))(ρ + (x → α))
               rt  <- br0(cnd, ev(e2), ev(e3))         _  <- set_store(α → v)
             } yield rt                                rt <- local_env(ev(e))(ρ + (x → α))
-                                                    } yield rt                    
+                                                    } yield rt
           }
   \end{lstlisting}
 \vspace{-0.5em}
@@ -277,7 +277,7 @@ interpreter acts as a compiler.
 \paragraph{The Interpreter} Now we can construct the semantics-agnostic interpreter
 in monadic form, shown in Figure \ref{fig:shared_int}. The basic idea
 of a generic interpretation is to traverse the abstract syntax tree
-while maintaining the effects such as environment and state updates.  
+while maintaining the effects such as environment and state updates.
 Note that the interpreter is written in open-recursive style -- it cannot
 refer to itself directly. Instead, @eval@ takes an additional parameter @ev@ of
 type @Expr => Ans@ that refers to itself. Consequently, the method @close@ that
@@ -314,7 +314,7 @@ address allocations, we use type @Int@ and always return a number greater
 than the size of the current store.
 A value can be either a tagged number \texttt{IntV}, or a closure
 \texttt{CloV} that contains a lambda term and an environment. The final
-result of the interpreter is a pair of values and stores. 
+result of the interpreter is a pair of values and stores.
 To distinguish from the monadic values of type @Ans@ produced by the
 interpreter, later we use \textit{grounded values} to denote such final values.
 The two elements in the type @Result@ are annotated by the binding-time @R@,
