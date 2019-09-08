@@ -316,7 +316,7 @@ A value can be either a tagged number \texttt{IntV}, or a closure
 \texttt{CloV} that contains a lambda term and an environment. The final
 result of the interpreter is a pair of values and stores.
 To distinguish from the monadic values of type @Ans@ produced by the
-interpreter, later we use \textit{grounded values} to denote such final values.
+interpreter, later we use term \textit{grounded values} to denote such final values.
 The two elements in the type @Result@ are annotated by the binding-time @R@,
 because they cane be next-stage objects.  We also define a standard fixed-point
 combinator to close the open-recursive function @ev@.
