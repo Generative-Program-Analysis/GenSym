@@ -113,15 +113,15 @@ def analyzeArgs(args: List[Expr], $\sigma$: Rep[Store]): Rep[Store] =
 The analysis presented by \citeauthor{Boucher:1996:ACN:647473.727587} is a 0-CFA
 for a small CPS language consisting of abstractions, applications, recursion, and
 primitive operators. Figure \ref{compare_ac_sai} (left) shows the AC
-implementation: different syntactic constructs are handled in different functions
+implementation: different syntactic constructs are handled by different functions
 (e.g., @compCall@ and @compApp@).
-Before refactoring to AC, the original functions take a store as a
-regular argument. Now every function returns a value of type @CompAnalysis@,
-which is a function value (i.e., closure) that takes and returns stores. After the
-first run of the analysis, we have traversed the AST and obtained a single closure that
-takes a store and returns a store. Therefore, the ASTs are static terms, and the
-stores are dynamic terms. Now, we can invoke the compiled closure with an initial
-store to complete the analysis.
+All original functions take a store as regular argument. After refactoring to
+AC, every function returns a value of type @CompAnalysis@, which is a function
+value that takes and returns stores. After the first run of the
+analysis, we have traversed the AST and obtained a single closure that takes a
+store and returns a store. Therefore, the ASTs are treated as static terms, and
+the stores are dynamic terms. Finally, we may invoke the compiled closure with an
+initial store to complete the analysis.
 
 \paragraph{AC through Staging}
 
