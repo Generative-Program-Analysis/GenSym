@@ -4,7 +4,7 @@ In this section, based on the generic interpreter and concrete components we
 presented in Section \ref{prelim}, we show how to stage the concrete
 interpreter by changing the monad type and refactoring the primitive
 operations. We begin by briefly introducing the Lightweight Modular Staging
-framework in Scala, and then replay the same steps from the unstaged
+framework in Scala, and then replay the same steps as we did for the unstaged
 counterpart. Finally, we briefly describe the code generation.
 
 \subsection{Multi-Stage Programming with LMS}
@@ -14,10 +14,10 @@ multi-stage programming framework implemented as a Scala library. LMS enables
 runtime code generation in a type-safe manner. Different from the approach of
 MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} which
 uses syntactic quotations, LMS distinguishes binding-times based on types. 
-LMS provides a type constructor @Rep[T]@, where @T@ can be an arbitrary type,
-indicating a value of type @T@ will be known at the future stage.
-Operations acting on @Rep[T]@ expressions will be residualized as generated
-code.
+To achieve this, LMS provides a type constructor @Rep[T]@, where @T@ can be an
+arbitrary type, indicating that a value of type @T@ will be known at a future
+stage.  Operations acting on @Rep[T]@ expressions will be residualized as
+generated code.
 A classic example for introducing multi-stage programming is the power function
 that computes $b^x$. Usually, it is implemented as a recursive function:
 \begin{lstlisting}
@@ -38,9 +38,10 @@ The way we use this staged @power@ function is to create a @DslDriver@ and overr
 \end{lstlisting}
 
 The LMS framework provides staging support for primitive data types such as
-@Int@ and @Double@, and commonly-used data structures such as lists and maps.
-The framework internally constructs a sea-of-nodes intermediate representation (IR)
-for the next-stage program when executing the current stage \cite{DBLP:conf/birthday/Rompf16}.
+@Int@ and @Double@, and for commonly-used data structures such as lists and
+maps.  The framework internally constructs a sea-of-nodes intermediate
+representation (IR) for the next-stage program when executing the current stage
+program \cite{DBLP:conf/birthday/Rompf16}.
 For convenience, the conversion from expressions of type @Rep[_]@ to their IR
 is done by using the implicit design pattern. As we will see later,
 implementing staging and code generation support for user-defined classes is
@@ -55,15 +56,17 @@ stores, and redefine the staged version of monads and primitive operations.
 
 \paragraph{Staged Monads}
 We use the same monad stack structure as in the unstaged interpreter: a reader
-monad with a state monad. The difference here is that, now the monads operate on
-staged values.  For brevity, we call them \textit{staged monads}. In the code,
-we also use a @Rep@ prefix on the constructors and types to differentiate them.
-But it is important to note that the instances of @ReaderT@/@StateT@
-are not staged, and that the monadic computation, such as functions of @R => M[A]@,
-are also not staged. Instead, the internal data that these monads operate on are
-staged, i.e., @R@ and @A@ in the reader monad, @S@ and @A@ in the state monad.
+monad with a state monad. The difference here is that, now the monads operate
+on staged values.  For brevity, we call them \textit{staged monads}. In the
+code snippet, we also use a @Rep@ prefix on the name of constructors and types
+to differentiate them.
+But it is important to note that the instances of @ReaderT@/@StateT@ are not
+staged, and that the monadic computation, such as functions of @R => M[A]@, are
+also not staged. Instead, the internal data that these monads operate on are
+staged, i.e., values of @R@ and @A@ in the reader monad, and values of @S@ and
+@A@ in the state monad.
 The following code snippet shows the idea. We use \hl{light gray} to highlight
-where @Rep@ types are added:
+where @Rep@ types are added.
 \begin{lstlisting}[escapechar=!]
   case class RepReaderT[M[_]: RepMonad, R, A](run: !\hl{Rep[R]}! => M[A]) {
     def flatMap[B](f: !\hl{Rep[A]}! => ReaderT[M, R, B]): RepReaderT[M, R, B] =
@@ -73,12 +76,12 @@ where @Rep@ types are added:
       RepStateT(s => RepMonad[M].flatMap(run(s))(as => f(as._1).run(as._2))); ... }
 \end{lstlisting}
 
-The function @f@ passed to @flatMap@ is also a value known at the current stage.
-Therefore all invocations of @flatMap@ can be reduced before generating code.
-The fact that we only stage data but not monadic computation or monadic
-values is the reason that we can peel of the monad stack in the generated code.
-Now the type @AnsM[_]@ is instantiated as the same structure as before, but using the
-@Rep@ versions:
+The function @f@ passed to the @flatMap@ is also a value known at the current stage.
+Therefore, all invocations of @flatMap@ can be reduced before generating code.
+The fact that we only stage data but not the monadic computation or monadic
+values is the reason that we can peel of the monad stack in the generated code
+through staging.  Now the type @AnsM[_]@ is instantiated as the same structure
+as before, but using the @Rep@ versions of monad transformers:
 \begin{lstlisting}
   type R[T] = Rep[T]
   type AnsM[T] = RepReaderT[RepStateT[RepIdM, Store, ?], Env, T]
@@ -90,22 +93,22 @@ be achieved without modifying the implementation of monads. This is true so far,
 but as we will see, it is not as straightforward for the nondeterminism monad
 (@SetT@) in the abstract interpreter, because not only the elements in the set are
 staged, but the whole set is also staged, and we have no knowledge about how
-many elements in the set. In this section, we explicitly distinguish the two
-versions of monadic interfaces. Later, we will instantiate the staged set monad
-by manually fusing a fragment of the monad stack.
+many elements in the set. Therefore, any traversals over the set has to be
+staged.  In this section, we explicitly distinguish the two versions of monadic
+interfaces. Later, we will instantiate the staged set monad by manually fusing
+the fragment of the monad stack inside of @SetT@.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
-translated to their staged versions -- we just need to change the types.
-As we mentioned before, we will take more care on how functions and
-applications are handled.  One problem here is what should we do for
-$\lambda$ terms when staging? We cannot directly create a next-stage
-defunctionalized closure for it, because that means we still need to
-interpret over these closure at the next stage.  The desired goal is to
-eliminate the interpretation overhead by staging, so the right thing is to
-compile the lambda term with its environment to a next-stage Scala function. To
-do this, we need to recursively call the interpreter function at the current stage,
-i.e., the @ev@ argument passed to @close@.  The following code implements the
-idea:
+translated to their staged versions -- we just need to change the types.  As we
+mentioned before, we will illustrate in detail how functions and applications
+are handled.  One problem here is what should we do for $\lambda$ terms when
+staging them? We cannot directly create a next-stage defunctionalized closure
+for it, because that means we still need to interpret over these closures at the
+next stage and the interpretation overhead has not been eliminated. 
+The solution is to compile the $\lambda$ term with its environment by calling
+the evaluator at the current stage. The result is generating a next-stage
+Scala function. The evaluator is passed as @ev@ to the method @close@.
+The following code implements the idea:
 \begin{lstlisting}
   type ValSt = (Value, Store)
   def emit_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[ValSt], λ: Lam, ρ: Exp[Env]): Rep[Value]
@@ -118,29 +121,20 @@ idea:
   }
 \end{lstlisting}
 
-In @close@, we first create a current-stage function @f@ that takes a
-next-stage value and store, and returns staged values. Then we use
-@emit_complied_clo@ to denote @f@ to a next-stage Scala function, represented
-by the type @Rep[Value]@. Inside of function @f@, we can access the evaluator via @ev@.
+In @close@, we first create a function @f@ that takes a next-stage value and
+store, and returns staged values and stores. The function @f@ is a
+current-stage and we then use @emit_complied_clo@ to denote it to a next-stage
+Scala function.
+The method @emit_compiled_clo@ produces current-stage representations of
+next-stage function values, i.e., of type @Rep[Value]@.
+Inside of function @f@, we can access the evaluator via @ev@.
 However, @ev@ produces a monadic value of type @AnsM@, which can only exist at
 the current stage. To connect current-stage monadic values and future-stage
 grounded values, the evaluator @ev@ is supplied with not only the body
-expression @e@ to be specialized, but also the prepared environment and store.
-By doing so, we \textit{collapse} the monadic value of @AnsM@ to grounded
-values within staging; therefore in the future stage, there is no monads.
-
-For function applications @ap_clo@, we have two \textit{next-stage} values @fun@
-and @arg@. But what we can do with these values of type @Rep@ is limited. 
-In fact, @fun@ does not have an intensional application operation we can use
-directly. We only know that it is a staged value produced by @close@, and
-it represents a next-stage Scala function. Therefore, we can only generate a
-next-stage function application, also in Scala. @ap_clo@ produces a monadic
-value of type @Ans@, so that we can still use the monadic operation @get_store@
-to obtain the latest store. Then @emit_ap_clo@ takes the function and argument
-values, and the latest store to generate a current-stage representation of the
-future-stage application result, which is of type @Rep[ValSt]@, a pair of
-values and stores.  After obtaining the result @vs@, we use @put_store@ to
-update the store and reify the result into the current-stage monadic value.
+expression @e@ to be specialized, but also with the prepared environment and
+store.  By doing so, we have \textit{collapsed} the monadic values of @AnsM@ to
+grounded values within staging; therefore in the future stage, there is no
+monads.
 \begin{lstlisting}
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[ValSt]
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
@@ -150,11 +144,26 @@ update the store and reify the result into the current-stage monadic value.
   } yield vs._1
 \end{lstlisting}
 
-Compared with the unstaged version, we can observe a shift of where we use the
-evaluation function @ev@: in the unstaged interpreter, the invocation of @ev@
-happens in @ap_clo@, i.e., at the application time; while in the staged
-interpreter, we eagerly apply @ev@ when denoting the lambda terms to our
-next-stage value domains, i.e., at the value-representation time.
+For function applications @ap_clo@, we have two \textit{next-stage} values @fun@
+and @arg@. But what we can do with these values of type @Rep@ is limited. 
+In fact, @fun@ does not have an intensional application operation we can use
+directly. We only know that it is a current-stage representation of functions produced by @close@,
+whose next-stage form is a Scala function.
+With this fact, we can generate a next-stage function application for it, also in
+Scala. The method @emit_ap_clo@ produces a current-stage representation
+of a next-stage function application, with necessary arguments such as the latest
+store @σ@. Meanwhile, we still want the method @ap_clo@ implemented in monadic
+style, so that it can be smoothly connected with other parts of the
+interpreter.  To achieve this, we lift the result values and stores from
+the future stage into our current-stage monad stack, with a binding @vs@.
+Finally, we use @put_store@ to update the store with @vs._2@ and return the
+value result @vs._1@ into the current-stage monadic value.
+
+Now, compared with the unstaged interpreter, we observe a key difference of where
+we use the evaluation function @ev@.  In the unstaged interpreter, the
+invocation of @ev@ happens in @ap_clo@, i.e., at the application time; while in
+the staged interpreter, we eagerly apply @ev@ when denoting the lambda terms to
+our next-stage value domains, i.e., at the value-representation time.
 
 \subsection{A Little Bit of Code Generation}
 
