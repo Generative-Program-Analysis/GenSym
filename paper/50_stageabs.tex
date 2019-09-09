@@ -244,12 +244,12 @@ discuss correctness issues and different design choices.
 We summarize our approach to staging an abstract interpreter as follows:
 
 \begin{itemize}
-  \item Constructing a generic interpreter that abstracts over binding times,
+  \item First, we construct a generic interpreter that abstracts over binding times,
     value domains, and primitive operations. In this paper, the generic interpreter
     is implemented in monadic style; therefore, the semantics can be encapsulated
     into monads.
-  \item Then we can implement an unstaged abstract interpreter modularly using
-    the appropriate monad stack. This step has been explored in the previous
+  \item Then, we implement an unstaged abstract interpreter modularly using the
+    appropriate monad stack. This step has been explored in the previous
     literatures.
   \item Finally, we replace the monad stack with a staged monad stack, and
     refactor related primitive operations.  Such staged monads operate on
