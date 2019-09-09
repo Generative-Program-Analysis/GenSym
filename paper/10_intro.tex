@@ -163,7 +163,7 @@ Although the four artifacts may look dissimilar at first glance, they are in
 fact all firmly rooted in the concrete semantics.  This observation provides a
 way to abstract over the interpreter and achieve the flexibility of
 reinterpreting the shared interpreter.  The generic interpreter returns a value
-of monadic type, which vary based on semantics. The value domains
+of monadic types, which vary based on semantics. The value domains
 of the interpreter and the effects such as state and nondeterminism can all be
 wrapped into this monadic type.  The binding-time abstraction is represented by
 a higher-kinded type and injected into the monadic type.  The binding-times
