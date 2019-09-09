@@ -149,15 +149,15 @@ and @arg@. But what we can do with these values of type @Rep@ is limited.
 In fact, @fun@ does not have an intensional application operation we can use
 directly. We only know that it is a current-stage representation of functions produced by @close@,
 whose next-stage form is a Scala function.
-With this fact, we can generate a next-stage function application for it, also in
-Scala. The method @emit_ap_clo@ produces a current-stage representation
-of a next-stage function application, with necessary arguments such as the latest
-store @σ@. Meanwhile, we still want the method @ap_clo@ implemented in monadic
-style, so that it can be smoothly connected with other parts of the
-interpreter.  To achieve this, we lift the result values and stores from
-the future stage into our current-stage monad stack, with a binding @vs@.
-Finally, we use @put_store@ to update the store with @vs._2@ and return the
-value result @vs._1@ into the current-stage monadic value.
+With this fact, we can generate a next-stage function application for it, also
+in our target language Scala. The method @emit_ap_clo@ produces a current-stage
+representation of a next-stage function application, with necessary arguments
+such as the latest store @σ@. Meanwhile, we still want the method @ap_clo@
+implemented in monadic style, so that it can be smoothly connected with other
+parts of the interpreter.  To achieve this, we lift the result values and
+stores from the future stage into our current-stage monad stack, with a binding
+@vs@.  Finally, we use @put_store@ to update the store with @vs._2@ and return
+the value result @vs._1@ into the current-stage monadic value.
 
 Now, compared with the unstaged interpreter, we observe a key difference of where
 we use the evaluation function @ev@.  In the unstaged interpreter, the
@@ -187,7 +187,7 @@ accompanying syntactic term and environment to the next-stage value
 representation @CompiledClo@. For applications, we know that @fun@ is
 an instance of @CompiledClo@ at the next stage, and it has a callable field
 @f@. Hence, we generate a next-stage function application @f(arg, σ)@.  The
-invocations of @quote@ are used to generate proper names for the other
+invocations of @quote@ are used to generate proper names for other
 next-stage values.
 \begin{lstlisting}
 override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {

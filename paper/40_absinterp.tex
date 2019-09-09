@@ -9,7 +9,7 @@ The abstract interpreter we construct in this section is similar to
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s. For simplicity, it is
 context/path/flow-insensitive by our choice. In Section \ref{cfa}, we will
 instantiate it to a commonly-used context-sensitive analysis;
-\citet{Darais:2015:GTM:2814270.2814308} show how to achieve path- and
+\citet{Darais:2015:GTM:2814270.2814308} showed how to achieve path- and
 flow-sensitivity by varying the monads, which is also applicable to our
 unstaged or staged abstract interpreter.
 
@@ -73,7 +73,7 @@ be implemented in a stage polymorphic way.
 
 In this section, we follow the abstracting definitional interpreters
 (ADI) approach \cite{DBLP:journals/pacmpl/DaraisLNH17} to refactor our monadic
-concrete interpreter to an monadic abstract interpreter.
+concrete interpreter to a monadic abstract interpreter.
 
 \paragraph{Abstract Components}
 
@@ -103,7 +103,7 @@ conditional expression, we may not have enough information to decide which
 branch will be taken, thus a sound treatment is to explore the both branches.
 Also, at some later point, we need to compute the join of two path.  Another
 nondeterminism comes from function applications, for instance, @f(a)@, the
-possible $\lambda$ terms of @f@ is computed approximately.  As a
+possible $\lambda$ terms of @f@ are computed approximately.  As the
 result, we need to store all the possible callees, as well as we will
 retrieve a set of closures when dereferencing an address. 
 
