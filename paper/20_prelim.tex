@@ -55,8 +55,9 @@ Wei:2018:RAA:3243631.3236800} a small-step CESK machine
 \subsection{Monads in Scala} \label{monadscala}
 
 A monad is a type constructor @M[_]: * --> *@ with two operations, often called
-@return@ and @bind@. Informally, @return@ wraps a value into a monad @M@, and
-@bind@ unwraps a monadic value and transforms it into a new monadic value.
+@return@ and @bind@ \cite{Wadler:1992:EFP:143165.143169,
+DBLP:journals/iandc/Moggi91}. Informally, @return@ wraps a value into a monad
+@M@, and @bind@ unwraps a monadic value and transforms it into a new monadic value.
 Pragmatically in Scala, we define the monad type class using trait @Monad@
 (Figure \ref{fig:monad}), which declares the @pure@ \footnote{We elect to use
 \texttt{pure} as the name, since \texttt{return} is a keyword in Scala and
