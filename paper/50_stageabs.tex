@@ -69,7 +69,7 @@ notice that the recursive calls of the evaluation function @ev@ on the lambda
 body are shifted from @ap_clo@ to @close@. In other words, we eagerly
 specialize the interpreter and generate code every time when we reach a
 $\lambda$ term, instead of lazily calling @ev@ when the applications happen.
-Similarly, we use the same way to handle staged $\lambda$ terms.  Additionally,
+Similarly, here we use the same way to handle staged $\lambda$ terms.  Additionally,
 in the staged abstract interpreter, we have to handle nondeterminism incurred
 by the over-approximation of runtime behavior.  In the rest of this part, we
 keep our roadmap and focus on discussing closure representations and function
@@ -83,7 +83,7 @@ type @Ans@ to grounded values of type @Result@, by providing the desired
 arguments, i.e., the new environment, new store, and two caches. The collapsing
 of monadic values happens at the current-stage, so the invocation of @ev@ is unfolded
 within staging. Finally, we generate a singleton set containing the compiled
-next-stage closure @emit_compiled_clo(f)@, which is represented by an IR node
+next-stage closure (@emit_compiled_clo@), which is represented by an IR node
 in LMS.
 \begin{lstlisting}
   def emit_compiled_clo(f: (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache])
@@ -186,7 +186,7 @@ data structures representing these components are treated as black-boxes, i.e.,
 nex-stage code, and we do not inspect any further inside. As we identified when
 introducing the generic interface, the keys of an @Env@ are string-represented
 identifiers in the program, which are completely known statically. This
-observation gives us a chance to further specialize the data structures for environment.
+observation gives us a chance to further specialize the data structures for environments.
 For example, let us assume that the @Map[K, V]@ is implemented as a hash-map.
 If all the keys of type @K@ are all known statically, then the indices for
 those keys can also be computed statically. Thus, the specialized map would be

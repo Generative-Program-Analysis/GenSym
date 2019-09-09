@@ -23,7 +23,7 @@ monovariant control-flow analysis \cite{Shivers:1991:SSC:115865.115884,
 Shivers:1988:CFA:53990.54007} for continuation-passing style (CPS) programs.
 The analyzer is a big-step control-environment abstract interpreter. 
 By applying AC, we refactor every function in the analyzer such that it
-return a closure just taking an environment argument.  Therefore the overhead
+returns a closure taking an environment argument.  Therefore the overhead
 of traversing the AST of input program is eliminated.
 
 We show AC can be understood and implemented as an instance of staging abstract
@@ -133,7 +133,7 @@ The generated programs consist entirely of looks-up and updating operations
 w.r.t the store.  The functions at the current stage are eliminated in the
 residual program; therefore, we do not generate higher-order functions, which
 provides additional performance improvement. Nevertheless, the LMS framework
-provides support for necessary data structures, such as @Map@.  We consider
+provides support for necessary data structures, such as for @Map@.  We consider
 these efforts reusable and completely orthogonal to the implementation of the
 analysis.
 

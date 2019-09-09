@@ -52,7 +52,7 @@ also straightforward.
 To implement the staged concrete interpreter, we replay the steps from the
 instantiation of the unstaged counterpart in Section \ref{unstaged_conc}.
 However, now we use the @Rep@ type to annotate the value domains, environments and
-stores, and redefine the staged version of monads and primitive operations.
+stores, and define the staged version of monads and primitive operations.
 
 \paragraph{Staged Monads}
 We use the same monad stack structure as in the unstaged interpreter: a reader
@@ -63,7 +63,7 @@ to differentiate them.
 But it is important to note that the instances of @ReaderT@/@StateT@ are not
 staged, and that the monadic computation, such as functions of @R => M[A]@, are
 also not staged. Instead, the internal data that these monads operate on are
-staged, i.e., values of @R@ and @A@ in the reader monad, and values of @S@ and
+staged, i.e., values of type @R@ and @A@ in the reader monad, and values of type @S@ and
 @A@ in the state monad.
 The following code snippet shows the idea. We use \hl{light gray} to highlight
 where @Rep@ types are added.
