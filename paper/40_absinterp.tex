@@ -235,9 +235,10 @@ The co-inductive caching algorithm is implemented as an instrumentation over the
 @eval@ function (Figure \ref{fig:coind_cache}), and it also closes the open recursion.
 The instrumentation works as follows. Initially, the two caches are both empty.
 During the iteration, we first check whether the @out@ cache contains the
-configuration @cfg@, which represents the current desired computation. If @out@ does,
-then the result is directly returned throughout the monad stack.
-Otherwise, we first retrieve the result from @in@ (@⊥@ if @in@ not contains
+configuration @cfg@, which represents the current desired computation. If @out@
+does contain @cfg@, then the result is directly returned throughout the monad
+stack.
+Otherwise, we first retrieve the result from @in@ (@⊥@ if @in@ does not contain
 @cfg@), and update this result from @in@ into the @out@ cache in the fashion of
 join. Then, we invoke @ev@ to evaluate the result for this iteration, where
 @ev@ takes @fix(ev)@ as the self reference.  After the evaluation, the store @σ@

@@ -98,10 +98,10 @@ in LMS.
 \end{lstlisting}
 
 The @ap_clo@ method for function applications is also similarly mixing the two
-previous interpreters.  We use the staged version of @lift_nd@ to lift the
+previous versions.  We use the staged version of @lift_nd@ to lift the
 next-stage set of functions into the monad stack.
-For each closure @clo@ in the set, we a generate next-stage value representing
-the function application @clo(arg)@ by using @emit_ap_clo@.  Again, the method
+For each closure @clo@ in the set, we generate a next-stage value, representing
+the function application @clo(arg)@, by using @emit_ap_clo@.  Again, the method
 @emit_ap_clo@ produces a current-stage representation of the future-stage
 application result.  Finally, we reify the @out@ cache, store, and values,
 which are all from the future-stage, back into the current-stage monadic value.
@@ -199,7 +199,7 @@ Particularly, if we are specializing a monovariant analysis, the address space
 is equivalent to the set of all identifiers in the program. Utilizing this fact, the
 result of accesses to the environment can be computed statically and we may
 generate addresses directly during staging. After which, the store can be
-specialized as arrays by using the way mentioned above.
+specialized as an array by using the way mentioned above.
 
 \paragraph{Selective Caching} We observe that the two-fold co-inductive
 caching is used for every recursive call in our abstract interpreter. But this
