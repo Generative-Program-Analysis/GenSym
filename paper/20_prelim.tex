@@ -310,7 +310,7 @@ sketch how the primitive operations are implemented.
 \paragraph{Concrete Components}
 The two types we need to concretize are addresses @Addr@ and values @Value@. The
 types @Env@ and @Store@ are derived automatically. To ensure the freshness of
-address allocations, we use type @Int@ and always return a number greater
+address allocations, we use type @Int@ and always return a number that is greater
 than the size of the current store.
 A value can be either a tagged number \texttt{IntV}, or a closure
 \texttt{CloV} that contains a lambda term and an environment. The final
@@ -318,7 +318,7 @@ result of the interpreter is a pair of values and stores.
 To distinguish from the monadic values of type @Ans@ produced by the
 interpreter, later we use term \textit{grounded values} to denote such final values.
 The two elements in the type @Result@ are annotated by the binding-time @R@,
-because they cane be next-stage objects.  We also define a standard fixed-point
+because they can be next-stage objects.  We also define a standard fixed-point
 combinator to close the open-recursive function @ev@.
 \begin{lstlisting}
   trait ConcreteComponents extends Semantics {
