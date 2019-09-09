@@ -331,16 +331,17 @@ combinator to close the open-recursive function @ev@.
 \end{lstlisting}
 
 \paragraph{Unstaged Monads}
-For concrete interpretation, the monad needs to model reader and state
-effects, which correspond to the environment and the store, respectively. Following
-the monad transformer approach \cite{DBLP:conf/popl/LiangHJ95}, @ReaderT@ and
-@StateT@ monad transformers are used to compose the monad stack. In other words,
-the type @AnsM@ is instantiated by layering @ReaderT@ and @StateT@
-transformers\footnote{The question mark syntax is a kind projector
-\cite{kindprojector}, thus \texttt{StateT[IdM,Store,?]} is equivalent to
-\newline \texttt{(\{type M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@
-is parameterized by the type @Env@, and @StateT@ is parameterized by the type @Store@,
-and the inner-most monad @IdM@ is merely an identity monad.
+For concrete interpretation, the monad needs to model reader and state effects,
+which correspond to the environment and the store, respectively. We follow the
+monad transformer approach \cite{DBLP:conf/popl/LiangHJ95},
+and use the @ReaderT@ and @StateT@ monad transformers to
+compose the monad stack. In other words, the type @AnsM@ is
+instantiated by layering the @ReaderT@ and @StateT@ transformers\footnote{The
+question mark syntax is a kind projector \cite{kindprojector}, such that
+\texttt{StateT[IdM,Store,?]} is equivalent to \newline \texttt{(\{type
+M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is parameterized by the
+type @Env@, and the @StateT@ is parameterized by the type @Store@, and the
+inner-most monad @IdM@ is merely an identity monad.
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
     type R[T] = T
@@ -348,15 +349,15 @@ and the inner-most monad @IdM@ is merely an identity monad.
     ... }
 \end{lstlisting}
 
-Here we sketch the basic idea of @ReaderT@ and @StateT@. Readers may
+Here, we sketch the basic idea of @ReaderT@ and @StateT@. Readers may
 refer to \cite{DBLP:conf/popl/LiangHJ95, Chiusano:2014:FPS:2688794} for more detail.
 A @ReaderT@ monad transformer encapsulates computation @R => M[A]@, where
-@R@ is the reader type, and @M[_]@ is the inner monadic type.
+@R@ is the environment type, and @M[_]@ is the inner monadic type.
 Given a value of @R@, a @ReaderT@ monad produces a transformed value of type @M[A]@.
 Similarly, a @StateT@ monad encapsulates computation @S => M[(A, S)]@, where
 @S@ is the state type, and @M[_]@ is the inner monad type.
 Given a value of @S@, a @StateT@ monad produces a transformed value of type @M[(A, S)]@,
-where the new state (of type @S@) is accompanied with the value (of type @A@).
+where the new state (of type @S@) is accompanied with the result (of type @A@).
 Note that for the moment, the binding-time type @R@ is an identity type; thus,
 these monads operate on unstaged data. We can also see this from the
 signature of @flatMap@: the argument function @f@ takes an unstaged value of type @A@ and
@@ -373,31 +374,29 @@ produces a monadic value. In the following code, we elide operations other than 
 After defining the monad stack, the operations manipulating environments
 and stores can be defined by constructing the proper monadic value and lifting it to the
 top-level of our monad stack. To modify the store, for example, we construct a
-@StateT@ value that transforms the current store $\sigma$ to @σ + αv@, which
-results in a @StateT[IdM, Store, Unit]@, and then lift this @StateT@ value to the
-top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
+@StateT@ value that updates the current store $\sigma$ to @σ + αv@, which
+results in a @StateT[IdM, Store, Unit]@ value. Then, we lift this @StateT@
+value to the top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ + αv))
 \end{lstlisting}
 
 \paragraph{Primitive Operations}
-Other primitive operations over the value domain can be implemented
+Other primitive operations over the value domains can be implemented
 straightforwardly. We elide most of them but describe a bit on how we handle
 functions and applications. The reason is that lambda terms are data but are also
 part of the control flow. The way we treat them is simple now, but
-will become more involved when staging the abstract interpreter.
-At the moment, the method @close@ takes a lambda term and an environment, and
+will become more involved when we stage the abstract interpreter.
+The method @close@ denotes a lambda term to our representation of functions.
+At the moment, @close@ takes a lambda term and an environment, and
 produces the defunctionalized representation of closures.
+The method @ap_clo@ performs function applications, which takes a function
+value @fun@ and an argument @arg@. It first extracts the lambda term and environment
+enclosed in @fun@, and allocates an addresses for the argument and updates the
+environment and store accordingly.  Finally, body expression of the lambda term
+is evaluated under the new environment and store.
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
-\end{lstlisting}
-
-When applying a function, @ap_clo@ takes a function value @fun@ and an argument
-@arg@. It extracts the lambda term and environment enclosed in @fun@, and
-allocates the addresses and updates the environment and store accordingly.
-Finally, body expression of the lambda term is evaluated under the new
-environment and store.
-\begin{lstlisting}
   def ap_clo(ev: Expr => Ans)(fun: Value, arg: Value): Ans = fun match {
     case CloV(Lam(x, e), ρ: Env) => for {
       α <- alloc(x)
@@ -407,8 +406,10 @@ environment and store.
   }
 \end{lstlisting}
 
-Given the expression @e@, initial environment $\rho_0$ and store $\sigma_0$,
-the top-level @run@ method invokes the fixed-point operator directly.
+
+We define the top-level @run@ method as invoking the fixed-point operator with
+the evaluator and input expression @e@, and running the monad stack with the
+initial environment $\rho_0$ and store $\sigma_0$.
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ$_0$)(σ$_0$)
 \end{lstlisting}
