@@ -189,7 +189,7 @@ tuples, where the time is added.
   } yield u
   def alloc(x: String): AnsM[Addr] = for {
     τ <- get_time
-  } yield unit(KCFAAddr(x, τ)) // we use unit to turn a current-stage constant to next-stage value
+  } yield unit(KCFAAddr(x, τ)) // we use unit to turn a current-stage constant to a next-stage value
 \end{lstlisting}
 
 Every time when we call the @eval@ function, we also refresh the timestamp by
@@ -265,13 +265,13 @@ on large libraries, and analyzing these libraries is time-consuming
 If we are able to analyze programs and libraries separately and reuse the
 results without losing precision, we can reduce the overhead of repeatedly
 analyzing libraries. Some static analyzers compute a summary for a function or
-a module, which can be reused later. However, when lacking of the context
+a module, which can be reused later. However, when lacking the context
 information, those analyses can be too conservative or unsound, which both lead
 to imprecision. In this section, we show that meta-programming can provide a
 trade-off between summary-based modular analysis and slow whole-program
 analysis by utilizing an existing whole-program analyzer.
 
-As we have already seen from Section \ref{sai}, the primitive
+As we have already seen in Section \ref{sai}, the primitive
 operation @close@ can denote a $\lambda$ term to a next-stage Scala function.
 The specializing of the staged abstract interpreter to a $\lambda$ term is
 independent to other parts of the analyzed program.
@@ -303,11 +303,11 @@ function @x39@:
 \end{lstlisting}
 
 We borrow the notation from traditional modular analysis
-\cite{DBLP:conf/cc/CousotC02}: such a generated function is a modularly reusable
-artifact, i.e., independent to its context.
+\cite{DBLP:conf/cc/CousotC02}: such a generated function is a modularly
+reusable artifact, i.e., independent to its calling context.
 The generated functions already eliminate the interpretation overhead and
 monadic overhead, and can therefore be considered as partial summaries. However, we
-still need to run the generated function at next stage to obtain the analysis
+still need to run the generated function at the next stage to obtain the analysis
 result.  At the next stage, we can provide different abstract arguments, stores, and
 caches, depending on the context where it is called.
 

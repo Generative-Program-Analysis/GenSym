@@ -234,27 +234,26 @@ the two caches through the monad stack (the implementations are elided).
 The co-inductive caching algorithm is implemented as an instrumentation over the
 @eval@ function (Figure \ref{fig:coind_cache}), and it also closes the open recursion.
 The instrumentation works as follows. Initially, the two caches are both empty.
-During the iteration, we first check whether @out@ contains the configuration
-@cfg@, representing the current desired computation. If it does, then the result
-is directly returned through the monad stack.
+During the iteration, we first check whether the @out@ cache contains the
+configuration @cfg@, which represents the current desired computation. If @out@ does,
+then the result is directly returned throughout the monad stack.
 Otherwise, we first retrieve the result from @in@ (@⊥@ if @in@ not contains
-@cfg@), and update the result into the @out@ cache in the fashion of join.
-Then, we invoke @ev@ to compute the result for this iteration, where @ev@ takes
-@fix(ev)@ as a self reference.
-After the evaluation, the store @σ@ may have been changed. Therefore, 
-we get the latest store and construct the result @(v, σ)@; the
-result will be used to update the out cache.
+@cfg@), and update this result from @in@ into the @out@ cache in the fashion of
+join. Then, we invoke @ev@ to evaluate the result for this iteration, where
+@ev@ takes @fix(ev)@ as the self reference.  After the evaluation, the store @σ@
+may have been changed, so we obtain the latest store and construct the
+result @(v, σ)@, which will be used to update the @out@ cache.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the
-input @in@ cache, which indicates that there is no more fact can be discovered.
+input @in@ cache, which indicates that there is no more fact has been discovered.
 Therefore, the iteration should end, and we have reached the least fixed-point.
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run
 \end{lstlisting}
 
 Finally, we override the top-level @run@ method by running the monadic value
-with an empty abstract environment $\rho_0$, initial abstract store $\sigma_0$,
-and initial caches @cache@$_0$.
+@fix(eval)(e)@ with the initial environment $\rho_0$, initial abstract
+store $\sigma_0$, and initial caches @cache0@; all of which are empty.
 \begin{figure}[t]
   \centering
 \begin{lstlisting}
