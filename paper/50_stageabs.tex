@@ -57,19 +57,8 @@ staged values: @Rep[Set[(Value, Store)]]@ and @Rep[Cache]@.
     type R[T] = Rep[T]
     type AnsM[T] = RepReaderT[RepStateT[RepSetReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
     type Result = (Rep[Set[(Value, Store)]], Rep[Cache])
-    ...
-  }
+    ... }
 \end{lstlisting}
-
-\iffalse
-Since our monad stack is uniformly using staged data, the staged @SetT@ now
-stores a staged value of type @Rep[Set[A]]@, inside of another staged monad @M@.
-\begin{lstlisting}
-  case class SetT[M[_]: RepMonad, A](run: M[Set[A]]) {
-    def flatMap[B: Manifest](f: Rep[A] => SetT[M, B]): SetT[M, B] = ...
-  }
-\end{lstlisting}
-\fi
 
 \paragraph{Primitive Operations} 
 When deriving the staged concrete interpreter from its unstaged counterpart, we
@@ -101,8 +90,7 @@ in LMS.
       case (arg, σ, in, out) =>
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ ⊔ Map(α → arg))(in)(out)
-    }; Set[AbsValue](emit_compiled_clo(f, λ, ρ))
-  }
+    }; Set[AbsValue](emit_compiled_clo(f, λ, ρ)) }
 \end{lstlisting}
 
 The @ap_clo@ method is also similar: we use the staged version of @lift_nd@ to
