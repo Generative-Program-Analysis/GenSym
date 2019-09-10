@@ -108,7 +108,7 @@ To compute the Cartesian product of two lists of numbers, we can use Scala's
 The Scala compiler translates the above @for@-comprehension expression into
 an equivalent one using @flatMap@ and @map@. The last binding
 in @for@-comprehensions is translated into a @map@, where the argument of
-@yield@ becomes the body expression inside of that @map@ operation. The
+@yield@ becomes the body expression inside that @map@ operation. The
 bindings before the last one are all translated into calls of @flatMap@:
 \begin{lstlisting}
   xs.flatMap { case x => ys.map { case y => (x, y) } }
@@ -133,7 +133,7 @@ implementation of monads and monad transformers follows the ones from Haskell.
 In this section, we present the generic interface in the style of a big-step
 definitional interpreter. The key idea is to keep both the binding-time type and
 returned monadic type abstract, so that they can be instantiated
-differently; we also need to abstract the primitive operations on those types.
+differently. We also need to abstract the primitive operations on those types.
 In later sections, we will instantiate the monadic type to perform concrete
 interpretation \citet{DBLP:conf/popl/LiangHJ95} or abstract interpretation
 \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
@@ -143,7 +143,7 @@ in the interpreter. The identifiers in the program are represented by strings.
 To represent states, two required components for the interpreter are
 environments, represented by type @Env@, and stores, represented by type
 @Store@. An @Env@ maps identifiers to addresses, and a @Store@ maps addresses to
-values. The @Env@ captures bound variables in the scope of current control, and
+values. An environment captures bound variables in the scope of current control, and
 @Store@ models a persistent heap through the program run-time.  Currently,
 the domains of addresses and values are still abstract; hence, they are
 declared as abstract types.
@@ -172,7 +172,7 @@ syntax certain operations must be added on the type @AnsM@. Here, we use a
 structural type @MonadOps@ to require that type @AnsM@ must (at least)
 implement @map@ and @flatMap@. It is worth noting that @MonadOps@ takes another
 type parameter @R[_]@ as the binding-time, i.e., @MonadOps[R, AnsM, T]@.
-Inside of @MonadOps@, @R[_]@ annotates the data types @A@ and @B@ that are
+Inside @MonadOps@, @R[_]@ annotates the data types @A@ and @B@ that are
 encapsulated by the monad, but not the monad type @M@ itself. When the generic
 interpreter acts as a compiler, we will replace the monads with the ones that
 work on staged data values.
@@ -283,7 +283,7 @@ Note that the interpreter is written in open-recursive style: it cannot
 refer to itself directly. Instead, @eval@ takes an additional parameter @ev@ of
 type @Expr => Ans@ that refers to itself. Consequently, the method @close@ that
 lifts lambda terms to closures and method @ap_clo@ that applies functions also
-takes an extra @ev@, because evaluations may happen inside of them.
+takes an extra @ev@, because evaluations may happen inside them.
 To close the open recursion, we use a fixed-point operator @fix@.
 For concrete-interpretation instantiation, @fix@ works like the Y combinator;
 for abstract-interpretation instantiation, it will instrument the interpreter
