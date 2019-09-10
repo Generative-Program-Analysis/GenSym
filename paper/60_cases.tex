@@ -234,9 +234,9 @@ We refactor the @fix@ function with caching (used in Section \ref{sai}) to @fix_
 functions are used: @ask_root@ retrieves the current root addresses from the
 monad stack; @root@ computes the reachable addresses given a value; and @gc@
 performs garbage collection according to the given reachable addresses and
-returns a new store. For the generic interpreter, we also need to compute the
-root addresses for compound expressions; for the detail of this part, readers
-may refer to \cite{DBLP:journals/pacmpl/DaraisLNH17}.
+returns a new store. We also need to compute the root addresses for compound
+expressions, which is elided in the code snippet; for the details of this part,
+readers may refer to \cite{DBLP:journals/pacmpl/DaraisLNH17}.
 
 \begin{figure}[h!]
 \vspace{-1em}
