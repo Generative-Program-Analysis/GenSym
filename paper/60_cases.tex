@@ -229,7 +229,7 @@ time when we obtain a value. Here, we adopt the idea with staged monads:
 
 The skeleton of a staged version of abstract garbage collection implementation
 is shown in Figure \ref{fixgc}.
-We refactor the @fix@ function with caching (from Section \ref{sai}) to @fix_gc@
+We refactor the @fix@ function with caching (used in Section \ref{sai}) to @fix_gc@
 (the caching part is omitted in the presented code snippet). Several auxiliary
 functions are used: @ask_root@ retrieves the current root addresses from the
 monad stack; @root@ computes the reachable addresses given a value; and @gc@
