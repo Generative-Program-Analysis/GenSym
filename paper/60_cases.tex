@@ -139,7 +139,7 @@ analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Control-flow Analysis} \label{cfa}
+\subsection{Control-Flow Analysis} \label{cfa}
 
 To demonstrate that the SAI approach is applicable to various analyses, we now
 extend and refactor the staged abstract interpreter we presented in Section
@@ -150,7 +150,7 @@ staged monads, which is a common optimization in CFA. Finally, we integrate
 abstract garbage collection with staging. All of them are orthogonal to
 staging.
 
-\subsubsection{Context-sensitivity}
+\subsubsection{Context-Sensitivity}
 
 The abstract addresses we introduced in Section \ref{sai} are simply identical
 to the variable names, which is a context-insensitive schema.  Through tweaking
@@ -198,7 +198,7 @@ being evaluated (@e@) to the existing calling context, and then taking the
 first $k$ elements from the list. The type @Config@ used in the caching
 algorithm is also changed to include timestamps.
 
-\subsubsection{Store-widened Analysis}
+\subsubsection{Store-Widened Analysis}
 
 A commonly-used technique to improve the running time of control-flow analyses
 is store-widening. As shown by \cite{Darais:2015:GTM:2814270.2814308,
