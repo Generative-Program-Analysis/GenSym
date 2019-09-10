@@ -144,7 +144,7 @@ To represent states, two required components for the interpreter are
 environments, represented by type @Env@, and stores, represented by type
 @Store@. An @Env@ maps identifiers to addresses, and a @Store@ maps addresses to
 values. An environment captures bound variables in the scope of current control, and
-@Store@ models a persistent heap through the program run-time.  Currently,
+a store models a persistent heap through the program run-time.  Currently,
 the domains of addresses and values are still abstract; hence, they are
 declared as abstract types.
 \begin{lstlisting}
