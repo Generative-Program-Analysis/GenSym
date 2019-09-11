@@ -285,7 +285,7 @@ function @map@ and use the Scheme language as example:
   (define (map xs f) (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
 \end{lstlisting}
 
-The specialization (0CFA and without store-widening) of @close@ to
+The specialization (0-CFA and without store-widening) of @close@ to
 @map@ generates the following next-stage Scala code, that is, the
 function @x39@:
 \begin{lstlisting}
