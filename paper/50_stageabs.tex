@@ -173,7 +173,7 @@ Our staging schema works by unfolding the interpreter over the abstract syntax
 tree of the input program. In practice, however, it would suffer from code
 explosion when analyzing (specializing) large programs, which increases the
 compile time. If we generate next-stage programs running on JVM, such large
-generated program would also potentially cause runtime GC overhead. In this
+generated programs would also potentially cause runtime GC overhead. In this
 section, we present optimizations that largely mitigate these issues. For all
 that, implementing these optimizations do not need to change the generic
 interpreter.
