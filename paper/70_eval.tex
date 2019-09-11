@@ -29,7 +29,7 @@ running the JVM are set to the following: \texttt{-Xms2G -Xmx8G -Xss1024M
 -XX:MaxMetaspaceSize=2G - XX:ReservedCodeCacheSize=2048M}},
 running on an Ubuntu 16.04 LTS (kernel 4.4.0) machine. All our
 evaluations were performed on a machine with 4 Intel Xeon Platinum
-8168 CPU at 2.7GHz and 3 TB of RAM. Although the machine has 96 cores
+8168 CPUs at 2.7GHz and 3 TB of RAM. Although the machine has 96 cores
 (192 threads) in total, the abstract interpreters are single-threaded.
 To minimize the effect of warm-up from the HotSpot JIT compiler,
 all the experiments are executed for 20 times and we report the
