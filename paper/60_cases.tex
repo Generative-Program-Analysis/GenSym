@@ -194,9 +194,9 @@ tuples, where the time is added.
 Every time when we call the @eval@ function, we also refresh the timestamp by
 calling the @tick@ function, which updates the timestamp in the state monad.
 The @tick@ function is implemented as prepending the current control expression
-being evaluated (@e@) to the existing calling context, and then taking the
-first $k$ elements from the list. The type @Config@ used in the caching
-algorithm is also changed to include timestamps.
+@e@ being evaluated to the existing calling context, and then taking the first
+$k$ elements from the list. The type @Config@ used in the caching algorithm is
+also changed to include timestamps.
 
 \subsubsection{Store-Widened Analysis}
 

@@ -23,9 +23,9 @@ flow-sensitive pointer analysis. The first stage is to analyze the
 programs and obtain a sparse representation, and then the second
 stage conducts a flow-sensitive analysis by refining the first
 one. Many other forms of static analysis are implemented by
-first generating constraints and then using a solver to discharge the
-proof obligations or find the fixed-point. Notable examples include
-SAT- and SMT-based program analysis
+first collecting constraints from programs and then using a solver to discharge
+the proof obligations or find the fixed-point. Notable examples include SAT-
+and SMT-based program analysis
 \cite{Gulwani:2008:PAC:1375581.1375616} and Datalog-based points-to
 analysis \cite{Smaragdakis:2015:PA:2802194.2802195}.
 Such analyses can be considered having stage distinctions.  One piece of future
