@@ -6,7 +6,7 @@ notion of Galois connections, an analyzer can soundly approximate concrete
 program behavior at runtime by computing fixed points on an abstract domain.
 Despite the tremendous theoretical development of abstract interpretation over
 the years, constructing artifacts and analyzers that perform sound abstract
-interpretation for modern and expressive languages was considered complicated
+interpretation for modern and expressive languages is considered complicated
 for a long time.
 
 Recent progress on methodologies such as Abstracting Abstract Machines (AAM)
@@ -57,11 +57,11 @@ is therefore magnified.
 %significantly if it runs repeatedly (for example, on libraries).
 Second, it is common that abstract interpreters written in pure languages make
 extensive use of functional encodings of side-effects to implement the semantics
-of abstract interpretation.  For example, the list monad can be used to model
-nondeterminism from collecting interpreters. Although such pure approaches have
-their own merits, they are significantly slower when compared with imperative,
-stateful implementations.  In order to reconcile these approaches, one must use
-a programming technique which allows for high-level abstractions during
+of interpreted languages. For example, the list monad can be used to model
+nondeterminism of collecting interpreters. Although such pure approaches have
+their merits, they are significantly slower when compared with imperative,
+stateful implementations.  In order to reconcile these approaches, one need to
+use a programming technique which allows for high-level abstractions during
 implementation, but bypasses the incurred overhead at runtime.
 
 Roughly at the same time abstract interpretation was proposed,
@@ -77,7 +77,7 @@ Truffle \cite{Marr:2015:TVP:2814270.2814275}, query compilers
 Futamura projections to a general abstract interpreter to make it run faster?
 The solution is not obvious, as we need to specialize a nonstandard semantics
 that extensively uses nondeterminism, operates on abstract domains, and
-computes fixed-points iteratively over caches.
+computes fixed-points iteratively. 
 
 In this paper, we show that the first Futamura projection can be naturally
 extended to abstract interpreters. We present an abstraction-without-regret
@@ -87,9 +87,10 @@ model as possible. In short, we borrow ideas and techniques from multi-stage
 programming and embedded DSLs, and apply them to abstract interpreters:  1) To
 remove the overhead from interpretation and effect layers, we specialize the
 abstract interpreter via staging, and then generate efficient low-level code
-that performs the actual analysis. 2) Inspired by the tagless-final interpreters
+that performs the actual analysis. 2) Inspired by tagless-final interpreters
 \cite{DBLP:journals/jfp/CaretteKS09}, we construct a generic interpreter that
-abstracts over binding-times and different semantics, which allows the staged
+abstracts over binding-times \cite{Ofenbeck:2017:SGP:3136040.3136060,
+Amin:2017:CTI:3177123.3158140} and different semantics, which allows the staged
 abstract interpreter to be derived from its unstaged counterpart.  As a result,
 the derived staged abstract interpreter has no intrusive changes to the
 underlying abstract semantics, thereby preserving soundness.  In this sense, our
@@ -103,8 +104,8 @@ and engineering effort. We elaborate these two main ideas in detail, as follows.
 
 \paragraph{Futamura Projections Meet Abstract Interpreters}
 
-The first Futamura projection specifically shows that specializing an
-interpreter w.r.t. the input program yields an equivalent executable. For
+The first Futamura projection shows that specializing an
+interpreter w.r.t. a input program yields an equivalent executable. For
 instance, assume that @eval : Expr --> Input --> Value@ is an interpreter for some language.
 Given a program $e_0$@ : Expr@, by applying the specialization we can
 obtain a specialized program $\texttt{eval}_{\texttt{e0}}$ : @Input --> Value@.
@@ -132,8 +133,8 @@ as the unstaged baseline.  Similar to two-level semantics \cite{NIELSON1989117},
 monads provide a good abstraction to hide the detail of abstract interpretation
 semantics. However, monads do not have a clear stage distinction. We further
 introduce binding-times and make the monads binding-time polymorphic. Our
-proposed framework adopts the type-based multi-stage programming from the
-Lightweight Modular Staging framework, and implements the Futamura projection of
+proposed framework adopts type-based multi-stage programming from the
+Lightweight Modular Staging framework, and implements the Futamura projections of
 an abstract interpreter for a stateful higher-order language. By deriving staged
 monads that can be used to perform code generation, we obtain a staged abstract
 interpreter that can be used for specialization. Through staging, the generated
@@ -161,7 +162,7 @@ instantiated from these two dimensions (Figure~\ref{confluence}):
 
 Although the four artifacts may look dissimilar at first glance, they are in
 fact all firmly rooted in the concrete semantics.  This observation provides a
-way to abstract over the interpreter and achieve the flexibility of
+way to abstract over the semantics and achieve the flexibility of
 reinterpreting the shared interpreter.  The generic interpreter returns a value
 of monadic types, which vary based on semantics. The value domains
 of the interpreter and the effects such as state and nondeterminism can all be
@@ -182,7 +183,7 @@ control-flow analyses. We show that by utilizing type-based stage
 annotations, we can achieve the same optimizations. Meanwhile,
 the analyzer does not need to change (modulo the addition of stage annotations),
 thereby requiring significantly less engineering effort.
-2) We extend the basic staged abstract interpreter to different flow
+2) We extend the basic staged abstract interpreter to cover different flow
 analyses, including a store-widened analysis, a context-sensitive
 analysis, and abstract garbage collection.
 3) We show that staging an abstract interpreter enables modular

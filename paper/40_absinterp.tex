@@ -1,6 +1,6 @@
 \section{From Interpreters to Abstract Interpreters} \label{unstaged_abs}
 
-After seeing the unstaged and staged concrete interpreter, now we turn our
+After seeing the unstaged and staged concrete interpreter, we now turn our
 focus to abstract interpreters under the same framework. We first present a
 lattice representation with binding-time abstraction, as well as simple
 abstract domains, such as power sets.  Then, we show the abstract
@@ -15,15 +15,15 @@ unstaged or staged abstract interpreter.
 
 \subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
 
-The abstract domains operated by abstract interpreters usually can be
-formulated by complete lattices.
+Many abstract domains in abstract interpreters can be formulated by complete
+lattices.
 A complete lattice over set $S$ is a tuple $\langle S, \sqsubseteq, \top,
 \bot, \sqcup, \sqcap \rangle$, where $\top$ is the top element, $\bot$ is the
 bottom element, $\sqsubseteq : S \to S \to Bool$ is the
 ordering relation, $\sqcup: S \to S \to S$ is the join (least upper bound)
 operator, and $\sqcap: S \to S \to S$ is the meet (greatest lower bound)
 operator. The trait @SPLattice@ (Figure \ref{fig:splattice}) defines a type
-class of stage polymorphic lattices. Similar to the @MonadOps@ in Section
+class of stage-polymorphic lattices. Similar to the @MonadOps@ in Section
 \ref{generic_if}, we introduce an additional higher-kinded type @R[_]@ to the
 trait for annotating the binding-times, where @R[_]@ wraps the data type
 @S@ and @Boolean@ in these operations.
@@ -57,17 +57,17 @@ trait for annotating the binding-times, where @R[_]@ wraps the data type
 \end{subfigure}
 \end{figure}
 
-In this section, we simply instantiate @SPLattice@ with the flat binding-time
+In this section, we instantiate @SPLattice@ with the flat binding-time
 type @R[T] = T@ (i.e., @NoRep@); the result is the trait @Lattice[S]@.
-An example of the lattices we used in the rest of the paper is the power set
-abstract domain (shown in Figure \ref{fig:powerset}). For two power sets,
-they are ordered by the subset relation. We use set union to compute their
+An example of the lattices we use in the rest of the paper is the power set
+abstract domain (shown in Figure \ref{fig:powerset}). Two power sets are
+ordered by the subset relation. We use set union to compute their
 join, and set intersection to compute their meet.  The bottom element of a
-power set is the empty set, and we do not have a representation of top element for
+power set is the empty set, and we do not have a representation of the top element for
 power set.  Other lattices used in the paper, such as products and maps, can be
 implemented similarly or by lifting the existing lattices element-wise or
 point-wise.  Non-relational numerical abstract domains such intervals can also
-be implemented in a stage polymorphic way.
+be implemented in a stage-polymorphic way.
 
 \subsection{Abstract Semantics}
 
@@ -82,7 +82,7 @@ We first widen the concrete value domain to @AbsValue@. There are two variants o
 the set of all numbers; 2) closures remain the same. Then, the type @Value@ is
 redefined as a set of @AbsValue@ to account for approximation.  The address
 space is constrained to be finite to ensure the computability of the analysis --
-for a simple monovariant analysis, we directly use variable names for
+for a simple monovariant analysis, we directly use variable names as
 addresses. After defining the @Value@ and @Addr@ type, the types of
 environments and stores are automatically lifted to their abstract versions,
 i.e., @Map[Ident, Addr]@ and @Map[Addr, Set[AbsValue]]@, respectively.  
@@ -101,11 +101,12 @@ runtime values.  This can be justified by the approximation nature and
 nondeterminism during the analysis.  For example, when analyzing a
 conditional expression, we may not have enough information to decide which
 branch will be taken, thus a sound treatment is to explore both of the branches.
-Also, at some later point, we need to compute the join of two path.  Another
-nondeterminism comes from function applications, for instance, @f(a)@, the
-possible $\lambda$-terms of @f@ are computed approximately.  As the
-result, we need to store all the possible callees, as well as we will
-retrieve a set of closures when dereferencing an address. 
+Also, at some later point, we need to compute the join of two paths.  Another
+source of nondeterminism comes from function applications, for instance,
+consider an application @f(a)@, the possible $\lambda$-terms of @f@ are
+computed approximately.  As the result, we need to store all the possible
+callees, as well as we will retrieve a set of closures when dereferencing an
+address. 
 
 To ensure the abstract interpreter terminates on all programs when computing
 the fixed-point, the ADI approach uses a co-inductive mechanism consisting of
@@ -130,7 +131,7 @@ iteration, and use a @StateT@ for another cache that will be constantly updated
 during the analysis.
 \citet{DBLP:journals/pacmpl/DaraisLNH17} discuss different permutations of the
 monad stack for abstract interpretation. The following @AnsM@ type shows the
-monad stack (we use \hl{light gray} to highlight what have been changed from
+monad stack (we use \hl{light gray} to highlight what has been changed from
 the monad stack of concrete interpretation):
 \begin{lstlisting}[escapechar=!]
 trait AbstractSemantics extends AbstractComponents {
@@ -156,7 +157,7 @@ The initial value of the fold is an empty @SetT@.
 \end{lstlisting}
 
 This monad stack scheme (@AnsM[T]@) leads to a different type of grounded
-result. Recall that in the concrete setting, we only have a reader monad (for
+values. Recall that in the concrete setting, we only have a reader monad (for
 environments) and a state monad (for stores). The reader effect is not
 persistent to the final result. Hence, together with the value produced by the
 interpreter, the final result type is just a pair of @Value@ and @Store@.
@@ -174,7 +175,7 @@ that state monad, as shown below.
 \paragraph{Primitive Operations} The primitive operations are changed according
 to the new monad stack scheme and value domains. One of the notable changes is
 that the store update operator merges the new values with existing values.  As
-we mentioned before, sometimes we have to explore the both branches for
+we mentioned before, sometimes we have to explore both of the branches for
 conditionals: in method @br0@, we combine the results using the @mplus@
 operation from @MonadPlus@, which requires the value domains are
 join-semilattices (in our case, @Set@ and @Map@).
@@ -192,12 +193,12 @@ type @Value@ is an alias of @Set[AbsValue]@).
 
 For function applications, @ap_clo@ looks the same as the concrete interpreter.
 The difference is that now the first argument of @ap_clo@ is a set of closures
-@funs@, so we can not directly destruct it to a syntactic @Lam@ by pattern
+@funs@, so we cannot directly destruct it with a syntactic @Lam@ by pattern
 matching. Instead, we use an auxiliary function @lift_nd@ that takes a set and
 lifts the elements in the set into the monad stack. Then we can
-straightforwardly implement the @ap_clo@ in monadic style, where the closures
-come from the monads and thus the nondeterminism can be naturally handled. The
-light gray line shows what is added from the concrete @ap_clo@.
+straightforwardly implement the method @ap_clo@ still in monadic style, where the
+closures come from the monads and thus the nondeterminism can be naturally
+handled. The light gray line shows what is added from its concrete counterpart.
 \begin{lstlisting}[escapechar=!]
   def lift_nd[T](vs: Set[T]): AnsM[T]
   def ap_clo(ev: Expr => Ans)(funs: Value, rand: Value): Ans = for {
@@ -217,8 +218,8 @@ been used in other abstract interpreters or fixed-point computation
 \cite{DBLP:journals/pacmpl/DaraisLNH17, Wei:2018:RAA:3243631.3236800,
   Rosendahl:AbsIntPL}. The idea is to use an @in@ cache and an @out@ cache during
 the depth-first evaluation. The @in@ cache stores the result from the last
-iteration, and @out@ cache is used for updating in the current iteration. In
-the next iteration, the last @out@ cache will be served as the @in@ cache, and
+iteration, and the @out@ cache is constantly updated during the current iteration. In
+the next iteration, the last @out@ cache is served as the @in@ cache, and
 an empty cache is plugged-in to the @out@ slot. Once the @out@ cache does not
 contain any new information compared with the @in@ cache, the fixed-point is
 reached.

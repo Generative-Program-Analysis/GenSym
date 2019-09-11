@@ -2,22 +2,22 @@
 
 \section{Preliminaries} \label{prelim}
 
-In this section, we first describe the abstract syntax of the language for our
-interpreters. Then, we present the generic interpreter shared among the four
-different semantics, after which we instantiate the interpreter to the concrete
-one. It is worth noting that we choose to use Scala and a monadic style to
-demonstrate this idea, though the approach is not restricted to this choice.
-Indeed, one can use imperative or direct style in other MSP languages (e.g.,
-MetaOCaml \cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} or
-Template Haskell \cite{Sheard:2002:TMH:636517.636528}) to construct such staged
-abstract interpreters.
+In this section, we first describe the abstract syntax of the language. Then,
+we present the generic interpreter shared among the four different semantics,
+after which we instantiate the interpreter to the concrete one. It is worth
+noting that we choose to use Scala and a monadic style to demonstrate this
+idea, though the approach is not restricted to this choice.  Indeed, one can
+use imperative or direct-style in other MSP languages (e.g., MetaOCaml
+\cite{DBLP:conf/gpce/CalcagnoTHL03, DBLP:conf/flops/Kiselyov14} or Template
+Haskell \cite{Sheard:2002:TMH:636517.636528}) to construct such staged abstract
+interpreters, although the details are different.
 
 \subsection{Abstract Syntax} \label{bg_lang}
 
 We consider a call-by-value $\lambda$-calculus in direct-style, extended with
 numbers, arithmetic, recursion, and conditionals. Other effects such as
-assignments can also be supported readily. Since we are mostly interested in
-analyzing dynamic behavior of programs, we elide the static semantics. We also
+assignments can also be supported readily. Since we are interested in
+analyzing the dynamic behavior of programs, we elide the static semantics. We also
 assume that input programs are well-typed and all variables are distinct. The
 abstract syntax is as follows:
 \begin{lstlisting}
@@ -32,10 +32,10 @@ abstract syntax is as follows:
 \end{lstlisting}
 
 The abstract syntax we present can be seen as a deep embedding of the language:
-we use data-types to represent programs. This design choice allows us to use
-different interpretations over the AST; with the inheritance and overriding
-mechanisms in Scala, we may also add new language constructs and reuse existing
-interpretations.
+we use data-types to represent programs. This is the most natural choice
+for program analysis and allows us to use different interpretations over the
+AST; with the inheritance and overriding mechanisms in Scala, we may also add
+new language constructs and reuse existing interpretations.
 
 %\todo{cite Bruno?}.
 
@@ -107,7 +107,7 @@ To compute the Cartesian product of two lists of numbers, we can use Scala's
 
 The Scala compiler translates the above @for@-comprehension expression into
 an equivalent one using @flatMap@ and @map@. The last binding
-in @for@-comprehensions is translated into a @map@, where the argument of
+in @for@-comprehensions is translated into a @map@ operation, where the argument of
 @yield@ becomes the body expression inside that @map@ operation. The
 bindings before the last one are all translated into calls of @flatMap@:
 \begin{lstlisting}
@@ -130,12 +130,12 @@ implementation of monads and monad transformers follows the ones from Haskell.
 
 \subsection{Generic Interpreter} \label{generic_if}
 
-In this section, we present the generic interface in the style of a big-step
+In this section, we present the generic evaluator interface in the style of a big-step
 definitional interpreter. The key idea is to keep both the binding-time type and
 returned monadic type abstract, so that they can be instantiated
 differently. We also need to abstract the primitive operations on those types.
 In later sections, we will instantiate the monadic type to perform concrete
-interpretation \citet{DBLP:conf/popl/LiangHJ95} or abstract interpretation
+interpretation \cite{DBLP:conf/popl/LiangHJ95} or abstract interpretation
 \cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
 
 \paragraph{Basic Types} We start with some basic type definitions that are used
@@ -157,10 +157,10 @@ declared as abstract types.
 \end{lstlisting}
 
 \paragraph{Binding-time Abstraction}
-The binding-time type is declared as a higher-kinded type @R[_]@.
+The binding-time type is declared as a higher-kinded type @R[_]@ \cite{Ofenbeck:2017:SGP:3136040.3136060}.
 Now we can use @R@ to annotate other data-types in the interpreter;
 it is also injected into the monadic type @MonadOps@.  If we instantiate
-@R@ as an identity type (i.e., @type R[T] = T@), then the generic interpreter is a
+@R@ as the identity type (i.e., @type R[T] = T@), then the generic interpreter is a
 standard definitional interpreter that will execute the program.  In Section
 \ref{stagedinterp}, we instantiate @R@ using LMS's built-in next-stage
 type annotation @Rep@, which makes the interpreter act as a compiler.
@@ -232,7 +232,7 @@ Other primitive operations in the interpreter handle the language constructs.  T
 methods @num@ and @close@ deal with primitive values, which lift literal terms
 (e.g., lambdas) to our value representation (e.g., closures).
 Conditionals and arithmetic are handled by @br0@ and @arith@, respectively. The
-method @ap_clo@ is used for applying functions, which takes a function value
+method @ap_clo@ is used for applying functions, by taking a function value
 and an argument value. Note that the @Env@, @Store@, and @Value@ are all
 annotated by @R[_]@, as they are potentially next-stage values when the
 interpreter acts as a compiler.
@@ -281,9 +281,9 @@ of generic interpretation is to traverse the AST
 while maintaining the effects (such as environment and state updates).
 Note that the interpreter is written in open-recursive style: it cannot
 refer to itself directly. Instead, @eval@ takes an additional parameter @ev@ of
-type @Expr => Ans@ that refers to itself. Consequently, the method @close@ that
+type @Expr => Ans@ that refers to itself. Consequently, method @close@ that
 lifts $\lambda$-terms to closures and method @ap_clo@ that applies functions also
-takes an extra @ev@, because evaluations may happen inside them.
+takes an extra @ev@, because further evaluation may happen inside them.
 To close the open recursion, we use a fixed-point operator @fix@.
 For concrete-interpretation instantiation, @fix@ works like the Y combinator;
 for abstract-interpretation instantiation, it will instrument the interpreter
@@ -305,7 +305,7 @@ concrete execution in this section. The result is a standard definitional
 interpreter with environments and stores. It can also be obtained by
 refunctionalizing a standard CESK machine \cite{Felleisen:1987:CAH:41625.41654,
 DBLP:conf/ppdp/AgerBDM03}. We first present the concrete components, i.e., the
-value domains, then show the monad stack for concrete interpretation, finally
+value domains, then show the monad stack for concrete interpretation, and finally
 sketch how the primitive operations are implemented.
 
 \paragraph{Concrete Components}
@@ -342,7 +342,7 @@ question mark syntax is a kind projector \cite{kindprojector}, such that
 \texttt{StateT[IdM,Store,?]} is equivalent to \newline \texttt{(\{type
 M[T]=StateT[IdM,Store,T]\})\#M}}, where the @ReaderT@ is parameterized by the
 type @Env@, and the @StateT@ is parameterized by the type @Store@, and the
-inner-most monad @IdM@ is merely an identity monad.
+inner-most monad @IdM@ is merely the identity monad.
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
     type R[T] = T
@@ -357,9 +357,9 @@ A @ReaderT@ monad transformer encapsulates computation @R => M[A]@, where
 Given a value of @R@, a @ReaderT@ monad produces a transformed value of type @M[A]@.
 Similarly, a @StateT@ monad encapsulates computation @S => M[(A, S)]@, where
 @S@ is the state type, and @M[_]@ is the inner monad type.
-Given a value of @S@, a @StateT@ monad produces a transformed value of type @M[(A, S)]@,
+Given a value of type @S@, a @StateT@ monad produces a transformed value of type @M[(A, S)]@,
 where the new state (of type @S@) is accompanied with the result (of type @A@).
-Note that for the moment, the binding-time type @R@ is an identity type; thus,
+Note that for the moment, the binding-time type @R@ is the identity type; thus,
 these monads operate on unstaged data. We can also see this from the
 signature of @flatMap@: the argument function @f@ takes an unstaged value of type @A@ and
 produces a monadic value. In the following code, we elide operations other than @flatMap@.
@@ -384,7 +384,7 @@ value to the top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
 
 \paragraph{Primitive Operations}
 Other primitive operations over the value domains can be implemented
-straightforwardly. We elide most of them but describe a bit on how we handle
+straightforwardly. We elide most of them but describe how we handle
 functions and applications. The reason is that $\lambda$-terms are data but are also
 part of the control flow. The way we treat them is simple now, but
 will become more involved when we stage the abstract interpreter.
@@ -395,8 +395,8 @@ The method @ap_clo@ performs function applications, which takes a function
 value @fun@ and an argument @arg@. It first extracts the syntactic
 $\lambda$-term and environment enclosed in @fun@, and allocates an addresses
 for the argument and updates the environment and store accordingly.  Finally,
-body expression of the $\lambda$-term is evaluated under the new environment
-and store.
+by recursively calling @ev@, it evaluates the body expression of the
+$\lambda$-term under the new environment and store.
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
   def ap_clo(ev: Expr => Ans)(fun: Value, arg: Value): Ans = fun match {
@@ -407,7 +407,6 @@ and store.
     } yield rt
   }
 \end{lstlisting}
-
 
 We define the top-level @run@ method as invoking the fixed-point operator with
 the evaluator and input expression @e@, and running the monad stack with the
