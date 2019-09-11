@@ -78,7 +78,7 @@ applications for the staged version.
 The @close@ method now is a mix of the \textit{staged} concrete version and
 unstaged \textit{abstract} version. We first build a current-stage function @f@, which
 takes four next-stage values, including the argument and latest store, and
-@in/out@ caches additionally. Inside of @f@, we collapse the monadic value of
+@in/out@ caches additionally. Inside @f@, we collapse the monadic value of
 type @Ans@ to grounded values of type @Result@, by providing the desired
 arguments, i.e., the new environment, new store, and two caches. The collapsing
 of monadic values happens at the current-stage, so the invocation of @ev@ is unfolded
