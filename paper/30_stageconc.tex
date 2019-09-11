@@ -101,11 +101,11 @@ the fragment of the monad stack inside @SetT@.
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to their staged versions -- we just need to change the types.  As we
 mentioned before, we will illustrate in detail how functions and applications
-are handled.  One problem here is what should we do for $\lambda$ terms when
+are handled.  One problem here is what should we do for $\lambda$-terms when
 staging them? We cannot directly create a next-stage defunctionalized closure
 for it, because that means we still need to interpret over these closures at the
 next stage and the interpretation overhead has not been eliminated. 
-The solution is to compile the $\lambda$ term with its environment by calling
+The solution is to compile the $\lambda$-term with its environment by calling
 the evaluator at the current stage. The result is generating a next-stage
 Scala function. The evaluator is passed as @ev@ to the method @close@.
 The following code implements the idea:
@@ -162,7 +162,7 @@ the value result @vs._1@ into the current-stage monadic value.
 Now, compared with the unstaged interpreter, we observe a key difference of where
 we use the evaluation function @ev@.  In the unstaged interpreter, the
 invocation of @ev@ happens in @ap_clo@, i.e., at the application time; while in
-the staged interpreter, we eagerly apply @ev@ when denoting the lambda terms to
+the staged interpreter, we eagerly apply @ev@ when denoting the $\lambda$-terms to
 our next-stage value domains, i.e., at the value-representation time.
 
 \subsection{A Little Bit of Code Generation}

@@ -65,14 +65,15 @@ version, the grounded result type is a pair of two staged values:
 
 \paragraph{Primitive Operations} 
 When deriving the staged concrete interpreter from its unstaged counterpart, we
-notice that the recursive calls of the evaluation function @ev@ on the lambda
-body are shifted from @ap_clo@ to @close@. In other words, we eagerly
-specialize the interpreter and generate code every time when we reach a
-$\lambda$ term, instead of lazily calling @ev@ when the applications happen.
-Similarly, here we use the same way to handle staged $\lambda$ terms.  Additionally,
-in the staged abstract interpreter, we have to handle nondeterminism incurred
-by the over-approximation of runtime behavior.  In the rest of this part, we
-keep our roadmap and focus on discussing closure representations and function
+notice that where the evaluation @ev(e)@ is invoked are shifted from @ap_clo@ to
+@close@, where @e@ is the body expression of a $\lambda$-term.
+In other words, when staging, we eagerly specialize the interpreter and
+generate code every time when we reach a $\lambda$-term, instead of lazily
+calling @ev@ when the applications happen.  Similarly, here we use the same way
+to handle staged $\lambda$-terms.  Additionally, in the staged abstract
+interpreter, we have to handle nondeterminism incurred by the
+over-approximation of runtime behavior.  In the rest of this part, we keep our
+roadmap and focus on discussing closure representations and function
 applications for the staged version.
 
 The @close@ method now is a mix of the \textit{staged} concrete version and

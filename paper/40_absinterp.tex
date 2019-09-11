@@ -103,7 +103,7 @@ conditional expression, we may not have enough information to decide which
 branch will be taken, thus a sound treatment is to explore both of the branches.
 Also, at some later point, we need to compute the join of two path.  Another
 nondeterminism comes from function applications, for instance, @f(a)@, the
-possible $\lambda$ terms of @f@ are computed approximately.  As the
+possible $\lambda$-terms of @f@ are computed approximately.  As the
 result, we need to store all the possible callees, as well as we will
 retrieve a set of closures when dereferencing an address. 
 
@@ -183,7 +183,7 @@ join-semilattices (in our case, @Set@ and @Map@).
   def br0(test: Value, thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus.mplus(thn, els)
 \end{lstlisting}
 
-The value representation of lambda terms is still a defunctionalized closure of
+The value representation of $\lambda$-terms is still a defunctionalized closure of
 type @CloV@, but we lift it to a singleton set of @AbsValue@ (remember that
 type @Value@ is an alias of @Set[AbsValue]@).
 \begin{lstlisting}

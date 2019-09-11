@@ -272,9 +272,9 @@ trade-off between summary-based modular analyses and slow whole-program
 analyses, by utilizing an existing whole-program analyzer.
 
 As we have already seen in Section \ref{sai}, the primitive operation @close@
-can denote a $\lambda$ term to a next-stage Scala function. Similar to
-compilers, the specializing of the staged abstract interpreter to a $\lambda$
-term is also independent of other parts of the analyzed program.
+can denote a $\lambda$-term to a next-stage Scala function. Similar to
+compilers, the specializing of the staged abstract interpreter to a
+$\lambda$-term is also independent of other parts of the analyzed program.
 \begin{lstlisting}
   def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
 \end{lstlisting}

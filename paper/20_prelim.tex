@@ -282,7 +282,7 @@ while maintaining the effects (such as environment and state updates).
 Note that the interpreter is written in open-recursive style: it cannot
 refer to itself directly. Instead, @eval@ takes an additional parameter @ev@ of
 type @Expr => Ans@ that refers to itself. Consequently, the method @close@ that
-lifts lambda terms to closures and method @ap_clo@ that applies functions also
+lifts $\lambda$-terms to closures and method @ap_clo@ that applies functions also
 takes an extra @ev@, because evaluations may happen inside them.
 To close the open recursion, we use a fixed-point operator @fix@.
 For concrete-interpretation instantiation, @fix@ works like the Y combinator;
@@ -314,7 +314,7 @@ types @Env@ and @Store@ are derived automatically. To ensure the freshness of
 address allocations, we use type @Int@ and always return a number that is greater
 than the size of the current store.
 A value can be either a tagged number \texttt{IntV}, or a closure
-\texttt{CloV} that contains a lambda term and an environment. The final
+\texttt{CloV} that contains a $\lambda$-term and an environment. The final
 result of the interpreter is a pair of values and stores.
 To distinguish from the monadic values of type @Ans@ produced by the
 interpreter, later we use term \textit{grounded values} to denote such final values.
@@ -385,17 +385,18 @@ value to the top-level @ReaderT@ type, i.e., @AnsM[Unit]@.
 \paragraph{Primitive Operations}
 Other primitive operations over the value domains can be implemented
 straightforwardly. We elide most of them but describe a bit on how we handle
-functions and applications. The reason is that lambda terms are data but are also
+functions and applications. The reason is that $\lambda$-terms are data but are also
 part of the control flow. The way we treat them is simple now, but
 will become more involved when we stage the abstract interpreter.
-The method @close@ denotes a lambda term to our representation of functions.
-At the moment, @close@ takes a lambda term and an environment, and
+The method @close@ denotes a $\lambda$-term to our representation of functions.
+At the moment, @close@ takes a $\lambda$-term and an environment, and
 produces the defunctionalized representation of closures.
 The method @ap_clo@ performs function applications, which takes a function
-value @fun@ and an argument @arg@. It first extracts the lambda term and environment
-enclosed in @fun@, and allocates an addresses for the argument and updates the
-environment and store accordingly.  Finally, body expression of the lambda term
-is evaluated under the new environment and store.
+value @fun@ and an argument @arg@. It first extracts the syntactic
+$\lambda$-term and environment enclosed in @fun@, and allocates an addresses
+for the argument and updates the environment and store accordingly.  Finally,
+body expression of the $\lambda$-term is evaluated under the new environment
+and store.
 \begin{lstlisting}
   def close(ev: Expr => Ans)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
   def ap_clo(ev: Expr => Ans)(fun: Value, arg: Value): Ans = fun match {

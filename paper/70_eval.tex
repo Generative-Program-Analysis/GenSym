@@ -9,7 +9,7 @@ evidence of our \textit{abstraction without regret} approach.
 \vspace{-5pt}
 \paragraph{Implementation and Evaluation Environment} We implement the abstract
 interpreters for control-flow analysis, i.e., a value-flow analysis that
-computes which lambda terms can be called at each call-site.
+computes which $\lambda$-terms can be called at each call-site.
 With other suitable abstract domains, the abstract interpreter
 can also be extended to other analyses.
 A front-end desugars Scheme to a small core language that makes the analyzer
@@ -91,7 +91,7 @@ For 0CFA without store-widening, we observe an average speedup of ~17 times;
 for 0CFA with store-widening, the average speedup is ~7 times.
 \texttt{kcfa-worst-64} has the highest speedup among all the tests. Although it
 has a comparably large size of AST, it has a rather simple structure which only
-involves booleans, lambda terms, and applications. We conjecture that the simple
+involves booleans, $\lambda$-terms, and applications. We conjecture that the simple
 domain and structure allow the generated code to be efficiently optimized by the
 JVM. However, on the corresponding 0CFA-SW, we do not observe such a significant
 speedup. Due to the complexity of generated code and next-stage running platform
