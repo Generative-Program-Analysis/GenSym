@@ -161,7 +161,7 @@ environments) and a state monad (for stores). The reader effect is not
 persistent to the final result. Hence, together with the value produced by the
 interpreter, the final result type is just a pair of @Value@ and @Store@.
 However, under the new monad stack for abstract interpretation, we have a
-@SetT@ inside of the environment monad and store monad. Therefore, the type
+@SetT@ monad transformer inside the environment monad and store monad. Therefore, the type
 @Set@ becomes the container type of the pairs of values and stores, i.e.,
 @Set[(Value, Store)]@.  Also, note that the reader and state monad for the
 caches both inhibit internally of the nondeterminism monad; as the result, the

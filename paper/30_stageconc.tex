@@ -96,7 +96,7 @@ staged, but the whole set is also staged, and we have no knowledge about how
 many elements in the set. Therefore, any traversals over the set has to be
 staged.  In this section, we explicitly distinguish the two versions of monadic
 interfaces. Later, we will instantiate the staged set monad by manually fusing
-the fragment of the monad stack inside of @SetT@.
+the fragment of the monad stack inside @SetT@.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to their staged versions -- we just need to change the types.  As we
@@ -127,7 +127,7 @@ current-stage and we then use @emit_complied_clo@ to denote it to a next-stage
 Scala function.
 The method @emit_compiled_clo@ produces current-stage representations of
 next-stage function values, i.e., of type @Rep[Value]@.
-Inside of function @f@, we can access the evaluator via @ev@.
+Inside function @f@, we can access the evaluator via @ev@.
 However, @ev@ produces a monadic value of type @AnsM@, which can only exist at
 the current stage. To connect current-stage monadic values and future-stage
 grounded values, the evaluator @ev@ is supplied with not only the body
