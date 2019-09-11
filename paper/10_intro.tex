@@ -71,13 +71,13 @@ Futamura projections. The first Futamura projection states that specializing an
 interpreter to an input program removes interpretative overhead and yields an
 equivalent executable that runs faster. In recent years, the idea of Futamura
 projections has attracted more attention, and has been successfully applied to
-many real-world problems, including query compilers
-\cite{DBLP:conf/sigmod/TahboubER18}, PyPy \cite{Bolz:2009:TMP:1565824.1565827},
-Truffle \cite{Marr:2015:TVP:2814270.2814275}, etc. The challenge here: can we
-apply Futamura projections to a general abstract interpreter to make it run
-faster? The solution is not obvious, as we need to specialize a nonstandard
-semantics that extensively uses nondeterminism, operates on abstract domains,
-and computes fixed-points iteratively over caches.
+many real-world problems, including PyPy \cite{Bolz:2009:TMP:1565824.1565827},
+Truffle \cite{Marr:2015:TVP:2814270.2814275}, query compilers
+\cite{DBLP:conf/sigmod/TahboubER18}, etc. The challenge here: can we apply
+Futamura projections to a general abstract interpreter to make it run faster?
+The solution is not obvious, as we need to specialize a nonstandard semantics
+that extensively uses nondeterminism, operates on abstract domains, and
+computes fixed-points iteratively over caches.
 
 In this paper, we show that the first Futamura projection can be naturally
 extended to abstract interpreters. We present an abstraction-without-regret
