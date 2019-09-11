@@ -193,6 +193,5 @@ next-stage values.
 override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
   case IRCompiledClo(f, λ, ρ) => emitValDef(sym, s"CompiledClo($\textdollar${quote(f)}, $\textdollar${quote(λ)}, $\textdollar${quote(ρ)})")
   case IRApClo(fun, arg, σ) => emitValDef(sym, s"$\textdollar$fun.f($\textdollar${quote(arg)}, $\textdollar${quote(σ)})")
-  ...
-}
+  ... }
 \end{lstlisting}
