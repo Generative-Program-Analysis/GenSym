@@ -230,7 +230,7 @@ to generate cheaper code, e.g., @Set(x).foldLeft(init)(f) = f(init, x)@. Since t
 function @f@ is known at the current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
 partial-static patterns, such as for @Set@, @Map@, and @Tuple@. This
-optimizations greatly reduces the size of residual programs.
+optimization greatly reduces the size of residual programs.
 
 \section{Discussion} \label{discussion}
 
