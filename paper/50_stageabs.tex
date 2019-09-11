@@ -267,7 +267,7 @@ data (such as sets and maps) are staged. All the monadic computation, i.e.,
 functions passed to the monadic bind operation @flatMap@, are statically known.
 This is why we can eliminate the monadic layer and its associated overhead.
 
-\paragraph{What has been eliminated?} In the generated code, all the
+\paragraph{What has been eliminated?} In the generated code, all
 primitive operations (such as @eval@, @fix@, @ap_clo@, etc.) and monadic
 operations (such as @flatMap@ and @map@) are eliminated. The residual program
 consists of statements and expressions that purely manipulate the environment,
