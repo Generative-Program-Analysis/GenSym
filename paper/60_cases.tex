@@ -289,13 +289,13 @@ The specialization (0-CFA and without store-widening) of @close@ to
 @map@ generates the following next-stage Scala code, that is, the
 function @x39@:
 \begin{lstlisting}
-  val x39 = {(x40: List[Set[AbsValue]],          // argument value list
+  val x39 = {(x40: List[Set[AbsValue]],          // list of argument values
               x41: Map[Addr, Set[AbsValue]],     // store
               x42: Map[Config, Set[ValSt]],      // in cache
               x43: Map[Config, Set[ValSt]]) =>   // out cache
     val x50 = List[Addr](ZCFAAddr("xs"), ZCFAAddr("f")) // addresses of arguments
     val x51 = x50.zip(x40)                              // addresses paired with their values
-    val x61 = x51.foldLeft (x41) { case (x52, x53) =>   // prepare a new store that joins
+    val x61 = x51.foldLeft (x41) { case (x52, x53) =>   // preparing a new store that joins
       val x54 = x53._1;  val x55 = x53._2               //   the arguments and their values
         val x58 = x52.getOrElse(x54, x57)               //   into the latest store, initially x41
         val x59 = x58.union(x55);  x52 + (x54 -> x59) }
