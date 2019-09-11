@@ -165,7 +165,7 @@ However, under the new monad stack for abstract interpretation, we have a
 @Set@ becomes the container type of the pairs of values and stores, i.e.,
 @Set[(Value, Store)]@.  Also, note that the reader and state monad for the
 caches both inhibit internally of the nondeterminism monad; as the result, the
-final result type is paired the set of value-stores with the cache type from
+final result type pairs the set of value-stores with the cache type from
 that state monad, as shown below.
 \begin{lstlisting}
   type Result = (R[Set[(Value, Store)]], R[Cache])
