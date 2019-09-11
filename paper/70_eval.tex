@@ -14,20 +14,20 @@ With other suitable abstract domains, the abstract interpreter
 can also be extended to other analyses.
 A front-end desugars Scheme to a small core language that makes the analyzer
 easy to implement. We implement two common monovariant 0-CFA-like analyses: one
-is equipped with store-widening (0CFA-SW for short), the other is not (0CFA
+is equipped with store-widening (0CFA-SW for short), the other one is not (0CFA
 for short). It is traditionally expected that the store-widened analysis be faster than the
-alternative.  Our prototype implementation currently generates Scala code; the
+alternative.  Our prototype implementation currently generates Scala code. The
 generated Scala code will be compiled and executed on the JVM, though it is possible to
 generate C/C++ code in the future. In the experiments, we implement several
-optimizations mentioned in Section \ref{staged_ds}, specifically, the selective
-caching scheme and IR-level rewriting rules (for pairs, lists, sets, and maps)
-that exploit partially-static data. These optimizations are useful to reduce
-the size of generated code.
+optimizations mentioned in Section \ref{staged_ds}, specifically, including the
+selective caching scheme and IR-level rewriting rules (for pairs, lists, sets,
+and maps) that exploit partially-static data. These optimizations are useful to
+reduce the size of generated code and improve performance.
 
 We use Scala 2.12.8 and Oracle JVM 1.8.0-191 \footnote{The options for
 running the JVM are set to the following: \texttt{-Xms2G -Xmx8G -Xss1024M
 -XX:MaxMetaspaceSize=2G - XX:ReservedCodeCacheSize=2048M}},
-running on an Ubuntu 16.04 LTS (kernel 4.4.0) machine. All of our
+running on an Ubuntu 16.04 LTS (kernel 4.4.0) machine. All our
 evaluations were performed on a machine with 4 Intel Xeon Platinum
 8168 CPU at 2.7GHz and 3 TB of RAM. Although the machine has 96 cores
 (192 threads) in total, the abstract interpreters are single-threaded.
