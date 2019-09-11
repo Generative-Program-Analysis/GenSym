@@ -100,7 +100,7 @@ values, indicating that an address may point to an over-approximated set of
 runtime values.  This can be justified by the approximation nature and
 nondeterminism during the analysis.  For example, when analyzing a
 conditional expression, we may not have enough information to decide which
-branch will be taken, thus a sound treatment is to explore the both branches.
+branch will be taken, thus a sound treatment is to explore both of the branches.
 Also, at some later point, we need to compute the join of two path.  Another
 nondeterminism comes from function applications, for instance, @f(a)@, the
 possible $\lambda$ terms of @f@ are computed approximately.  As the
