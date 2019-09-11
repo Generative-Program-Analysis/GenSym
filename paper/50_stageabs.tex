@@ -224,7 +224,7 @@ Partial-static data is a way to improve binding-times and optimize the
 generated code.
 For example, to fold a static singleton set (often appears in @SetT@), e.g.,
 @Set(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
-generator would faithfully generates code that applies @foldLeft@ with the set
+generator would faithfully generate code that applies @foldLeft@ with the set
 and function @f@. But we can also utilize algebraic properties of @foldLeft@
 to generate cheaper code, e.g., @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
 function @f@ is known at the current stage, we completely eliminate the fold
