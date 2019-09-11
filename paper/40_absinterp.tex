@@ -197,7 +197,7 @@ matching. Instead, we use an auxiliary function @lift_nd@ that takes a set and
 lifts the elements in the set into the monad stack. Then we can
 straightforwardly implement the @ap_clo@ in monadic style, where the closures
 come from the monads and thus the nondeterminism can be naturally handled. The
-light gray code shows what is added from the concrete @ap_clo@.
+light gray line shows what is added from the concrete @ap_clo@.
 \begin{lstlisting}[escapechar=!]
   def lift_nd[T](vs: Set[T]): AnsM[T]
   def ap_clo(ev: Expr => Ans)(funs: Value, rand: Value): Ans = for {
