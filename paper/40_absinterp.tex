@@ -30,6 +30,7 @@ trait for annotating the binding-times, where @R[_]@ wraps the data type
 
 \begin{figure}[h!]
   \centering
+  \vspace{-1em}
   \begin{subfigure}[b]{0.45\textwidth}
   \begin{lstlisting}[style=small]
   trait SPLattice[S, R[_]] {
@@ -40,22 +41,25 @@ trait for annotating the binding-times, where @R[_]@ wraps the data type
   }
   trait Lattice[S] extends SPLattice[S, NoRep]
   \end{lstlisting}
-  \caption{trait \texttt{SPLattice} and \texttt{Lattice}} \label{fig:splattice}
   \end{subfigure}
   ~
   \begin{subfigure}[b]{0.6\textwidth}
-\begin{lstlisting}[style=small]
-  def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
-    lazy val ⊤: Set[T] = error("No representation for ⊤")
-    lazy val ⊥: Set[T] = Set[T]()
-    def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf  l2
-    def ⊔(l1: Set[T], l2: Set[T]): Set[T]  = l1 union     l2
-    def ⊓(l1: Set[T], l2: Set[T]): Set[T]  = l1 intersect l2
-  }
-\end{lstlisting}
-  \caption{The power set instance for lattice} \label{fig:powerset}
-\end{subfigure}
+  \begin{lstlisting}[style=small]
+    def SetLattice[T]: Lattice[Set[T]] = new Lattice[Set[T]] {
+      lazy val ⊤: Set[T] = error("No representation for ⊤")
+      lazy val ⊥: Set[T] = Set[T]()
+      def ⊑(l1: Set[T], l2: Set[T]): Boolean = l1 subsetOf  l2
+      def ⊔(l1: Set[T], l2: Set[T]): Set[T]  = l1 union     l2
+      def ⊓(l1: Set[T], l2: Set[T]): Set[T]  = l1 intersect l2
+    }
+  \end{lstlisting}
+  \end{subfigure} 
+  \vspace{-1.5em}
+  \caption{trait \texttt{SPLattice} and \texttt{Lattice} (left),
+  and the power set instance (right) } \label{fig:splattice}
+  \label{fig:powerset}
 \end{figure}
+\vspace{-1em}
 
 In this section, we instantiate @SPLattice@ with the flat binding-time
 type @R[T] = T@ (i.e., @NoRep@); the result is the trait @Lattice[S]@.

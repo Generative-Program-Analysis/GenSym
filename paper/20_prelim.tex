@@ -78,8 +78,6 @@ usually called @flatMap@ in Scala. It takes a monad-encapsulated value of type
     def flatMap[A,B](ma: M[A])(f: A => M[B]): M[B]
   }
     \end{lstlisting}
-    \vspace{-0.5em}
-    \caption{trait \texttt{Monad}} \label{fig:monad}
   \end{subfigure}
   ~
   \begin{subfigure}[b]{0.4\textwidth}
@@ -89,9 +87,9 @@ trait MonadOps[M[_], A] {
   def flatMap[B](f: A => M[B]): M[B]
 }
     \end{lstlisting}
-    \vspace{-0.5em}
-    \caption{trait \texttt{MonadOps}} \label{fig:monadops}
   \end{subfigure}
+  \vspace{-1em}
+  \caption{trait \texttt{Monad} (left) and trait \texttt{MonadOps} (right)} \label{fig:monad} \label{fig:monadops}
 \end{figure}
 \vspace{-1em}
 
@@ -183,36 +181,15 @@ may be parameterized over the environment or store type, or merely a @Unit@
 value for performing effects. For example, @local_env@ installs a new environment
 @ρ@ when evaluating the monadic value @ans@; @set_store@ takes a pair of
 addresses and (potentially staged) values, and updates the store accordingly.
-
-%\vspace{-1em}
-\begin{figure}[h!]
-  \centering
-\vspace{-1em}
-  \begin{subfigure}[b]{0.45\textwidth}
-    \begin{lstlisting}
-  type MonadOps[R[_], M[_], A] = {
-    def map[B](f: R[A] => R[B]): M[B]
-    def flatMap[B](f: R[A] => M[B]): M[B]
-  }
-
-  type AnsM[T] <: MonadOps[R, AnsM, T]
-  type Ans = AnsM[Value]
-    \end{lstlisting}
-  \end{subfigure}
-  ~
-  \begin{subfigure}[b]{0.55\textwidth}
-    \begin{lstlisting}
-// Environment operations
-def ask_env: AnsM[Env]
-def local_env(ans: Ans)(ρ: R[Env]): Ans
-// Store operations
-def get_store: AnsM[Store]
-def put_store(σ: R[Store]): AnsM[Unit]
-def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
-    \end{lstlisting}
-  \end{subfigure}
-\end{figure}
-\vspace{-1em}
+\begin{lstlisting}
+  type MonadOps[R[_], M[_], A] = {           // Environment operations
+    def map[B](f: R[A] => R[B]): M[B]        def ask_env: AnsM[Env]
+    def flatMap[B](f: R[A] => M[B]): M[B]    def local_env(ans: Ans)(ρ: R[Env]): Ans
+  }                                          // Store operations
+                                             def get_store: AnsM[Store]
+  type AnsM[T] <: MonadOps[R, AnsM, T]       def put_store(σ: R[Store]): AnsM[Unit]
+  type Ans = AnsM[Value]                     def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
+\end{lstlisting}
 
 \paragraph{Primitive Operations} Next, we define a few primitive operations.
 First, we declare two versions of @alloc@. The first takes a store and an
