@@ -9,7 +9,7 @@ functions).  Our approach is more flexible between representations and requires
 less engineering efforts to refactor the analyzer (Section \ref{cs_ac}).
 \citet{Johnson:2013:OAA:2500365.2500604} adapted closure generation to optimize a
 small-step abstract interpreter in state-transition style. The program
-is firstly compiled to an ``abstract bytecode'' IR. The IR consists of higher-order
+is first compiled to an ``abstract bytecode'' IR. The IR consists of higher-order
 functions, which will be executed later on an abstract abstract machine for
 that IR.  \citet{damian1999partial} provided a formal treatment for abstract
 compilation and control-flow analysis, as well as proofs to establish the
@@ -46,7 +46,7 @@ significantly improve the running time and space consumption of abstract
 transformers.
 
 \paragraph{Construction of Abstract Interpreters} Abstract interpretation is a
-semantics-based approach to build sound static analysis by approximation
+semantics-based approach of sound static analyses by approximation
 \cite{DBLP:conf/popl/CousotC77, Cousot98-5}.
 As for building semantic artifacts, the Abstracting Abstract Machines (AAM)
 \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10} approach shows that
@@ -61,14 +61,15 @@ The unstaged abstract interpreter in this paper follows the abstracting
 definitional interpreters (ADI) approach \cite{DBLP:journals/pacmpl/DaraisLNH17}.  
 Similar to ADI, reconstructing
 big-step abstract interpreters with delimited continuations was shown by
-\citet{Wei:2018:RAA:3243631.3236800}; \citet{Keidel:2018:CSP:3243631.3236767}
+\citet{Wei:2018:RAA:3243631.3236800}.
+\citet{Keidel:2018:CSP:3243631.3236767}
 presented a modular, arrow-based abstract interpreter that allows soundness
-proof to be constructed compositionally.
-\citet{DBLP:conf/cc/CousotC02} proposed an abstract interpretation framework for
-modular analysis, from where we borrow the notation of modular analysis.
-However, the staged abstract interpreter does not generate complete summaries for
-modules; instead, it specializes the analysis modularly. Similarly, AC
-is considered as an example of this kind of modular analyses \cite{DBLP:conf/cc/CousotC02}.
+proofs to be constructed compositionally.  \citet{DBLP:conf/cc/CousotC02}
+proposed an abstract interpretation framework for modular analysis. In Section
+\ref{modular}, we borrow the notation of modular analysis.  However, the staged
+abstract interpreter does not generate complete summaries for modules; instead,
+it specializes the analysis modularly. Similarly, AC is considered as an
+example of this kind of modular analyses \cite{DBLP:conf/cc/CousotC02}.
 
 \paragraph{Control-flow Analysis} Our case studies and evaluation focus on
 control-flow analysis for functional languages
@@ -96,8 +97,7 @@ a two-dimensional application of the two-level semantics.
 
 \paragraph{Partial Evaluation and Multi-stage Programming}
 Partial evaluation is an automatic technique for program
-specialization and was studied comprehensively by
-\citet{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.
+specialization \cite{10.1007/3-540-61580-6_11, DBLP:books/daglib/0072559}.
 In this paper, we use mutli-stage programming to specialize programs.
 The Lightweight Modular Staging (LMS) framework
 \cite{DBLP:conf/gpce/RompfO10} we used in the paper relies on
@@ -122,13 +122,13 @@ domain-specific languages \cite{DBLP:conf/pldi/RompfSBLCO14,
   Ofenbeck:2017:SGP:3136040.3136060}, data processing
 \cite{DBLP:conf/oopsla/JonnalageddaCSRO14,
   DBLP:conf/popl/KiselyovBPS17}, query compilation in databases
-\cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18},
+\cite{DBLP:conf/osdi/EssertelTDBOR18, DBLP:conf/sigmod/TahboubER18, Rompf:2015:FPS:2784731.2784760},
 etc.
 
 As a source of inspiration of this paper, the Futamura projections reveal a
 close relation between interpreters and compilers, which was
-originally proposed by \citet{futamura1971partial}, and later reprinted \cite{Futamura1999}.
-\citeauthor{Amin:2017:CTI:3177123.3158140} considered a tower of concrete
+originally proposed by \citet{futamura1971partial} (reprinted as \cite{Futamura1999}).
+\citet{Amin:2017:CTI:3177123.3158140} considered a tower of concrete
 interpreters and showed how to collapse them by using MSP -- it would be interesting
 to explore this idea for multiple abstract interpreters
 \cite{Cousot:2019:AAI:3302515.3290355, Giacobazzi:2015:APA:2676726.2676987}.
@@ -136,7 +136,7 @@ to explore this idea for multiple abstract interpreters
 memoization for code generation, using Gaussian Elimination in MetaOCaml as an
 example. In this work, let-insertion is handled by the ANF transformation in
 LMS, and the memoizing monad is just a combination of a reader monad and a state monad
-operating on staged data.  Similar to the idea in this paper, specializing
-monadic interpreters was explored by \citet{danvy1991compiling,
-DBLP:conf/dsl/SheardBP99}. However, they are different from the performance
+operating on staged data.  Similar to the ideas in this paper, specializing
+monadic interpreters was explored by \citet{danvy1991compiling} and
+\citet{DBLP:conf/dsl/SheardBP99}. However, these work are different from the performance
 motivation here. 

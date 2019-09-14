@@ -17,8 +17,8 @@ interpreters, although the details are different.
 We consider a call-by-value $\lambda$-calculus in direct-style, extended with
 numbers, arithmetic, recursion, and conditionals. Other effects such as
 assignments can also be supported readily. Since we are interested in
-analyzing the dynamic behavior of programs, we elide the static semantics. We also
-assume that input programs are well-typed and all variables are distinct. The
+analyzing the dynamic behavior of programs, we elide the precise static semantics. We
+assume that programs are well-typed and variables are distinct. The
 abstract syntax is as follows:
 \begin{lstlisting}
   abstract class Expr
@@ -124,7 +124,7 @@ In the rest of the paper, we use Scala's @for@-comprehension syntax and a few
 monads and monad transformers such as @ReaderT@, @StateT@, and @SetT@ to
 write our interpreters.
 Monad transformers are type constructors of kind @(* --> *) --> (* --> *)@, which
-take a monad as an argument and produce another monad. By using monad
+take a monad type as argument and produce another monad type. By using monad
 transformers, we can combine multiple monads into a single one.  The
 implementation of monads and monad transformers follows the ones from Haskell.
 
@@ -275,7 +275,7 @@ interpreter acts as a compiler.
 \label{fig:shared_int}
 \end{figure}
 
-\paragraph{The Interpreter} We can now construct the semantics-agnostic interpreter
+\paragraph{The Interpreter} We can now construct the generic interpreter
 in monadic form, as shown in Figure \ref{fig:shared_int}. The basic idea
 of generic interpretation is to traverse the AST
 while maintaining the effects (such as environment and state updates).

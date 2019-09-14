@@ -43,8 +43,8 @@ and maps can be implemented in a similar way.
 
 \subsection{Staged Abstract Semantics}
 
-Now we can implement the staged abstract semantics, under that the binding-time
-type @R@ is instantiated as @Rep@. The types of abstract components are reused
+Now we can implement the staged abstract semantics, with the binding-time
+type @R@ instantiated as @Rep@. The types of abstract components are reused
 from the unstaged version.
 
 \paragraph{Staged Monads for Abstract Interpretation}
@@ -74,8 +74,8 @@ generate code every time we reach a $\lambda$-term, instead of lazily
 calling @ev@ when the applications happen.  Similarly, here we use the same way
 to handle staged $\lambda$-terms.  Additionally, in the staged abstract
 interpreter, we have to handle nondeterminism incurred by the
-over-approximation of runtime behavior.  In the rest of this part, we keep our
-roadmap and focus on discussing the closure representation and function
+over-approximation of runtime behavior.  In the rest of this part, we 
+focus on discussing the closure representation and function
 application for the staged version.
 
 The @close@ method now is a mix of the \textit{staged} concrete version and
@@ -85,7 +85,7 @@ store, and @in/out@ caches additionally. Inside @f@, we collapse the monadic
 value of type @Ans@ to grounded values of type @Result@, by providing the
 desired arguments, i.e., the new environment, new store, and two caches. The
 collapsing of monadic values happens at the current-stage, so the invocation of
-@ev@ is unfolded during staging. Finally, we generate a singleton set
+@ev@ is unfolded at staging time. Finally, we generate a singleton set
 containing the compiled next-stage closure (@emit_compiled_clo@), which is
 represented by an IR node in LMS.
 \begin{lstlisting}
@@ -130,10 +130,11 @@ variable @res@ represents the next-stage result, consisting of a next-stage
 @if@ expression. The true branch simply returns a pair of the query result
 form the @out@ cache, and the @out@ cache itself. The else branch constructs a
 monadic value @m@ of type @Ans@ first, which evaluates @e@ under the new @out@
-cache.  After, we use a similar technique that collapses the monadic
-value @m@ to grounded values, by providing its desired environment and etc.
-Finally, we have a current-stage representation of the future-stage values
-@res@, and we reify the content of @res@ back into the current-stage monad stack.
+cache.  After this, we use a similar technique that eagerly collapses the
+monadic value @m@ to grounded values, by providing its desired environment and
+other arguments.  Finally, we have a current-stage representation of the
+future-stage values @res@, and we reify the content of @res@ back into the
+current-stage monad stack.
 
 \begin{figure}[t]
 \centering
@@ -159,7 +160,7 @@ Finally, we have a current-stage representation of the future-stage values
 \end{figure}
 
 \subsection{A Little Bit of Code Generation, Again}
-The code generation for compiled closures and function applications are similar
+The code generation for compiled closures and function applications is similar
 to their counterparts in the staged concrete interpreter. We have two IR nodes
 implemented as case classes; they also take additional caches as arguments. We
 elide the code generation part for these IR nodes.
@@ -173,13 +174,13 @@ case class IRApClo(clo: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
 \subsection{Optimizations} \label{staged_ds}
 
 Our staging schema works by unfolding the interpreter over the abstract syntax
-tree of the input program. In practice, however, it would suffer from code
-explosion when analyzing (specializing) large programs, which increases
-compile time. If we generate next-stage programs running on the JVM, such large
-generated programs would also incur GC overhead at runtime. In this
-section, we present optimizations that largely mitigate these issues. 
-Implementing all of those optimizations do not need to change the
-generic interpreter.
+tree of the input program. In practice, however, the staging schema would
+suffer from code explosion when analyzing (specializing) large programs, which
+increases compile time. If we generate next-stage programs running on the JVM,
+such large generated programs would also incur GC overhead at runtime. In this
+section, we present optimizations that largely mitigate these issues.
+Implementing all of those optimizations do not need to change the generic
+interpreter.
 
 \paragraph{Specialized Data Structures}
 
@@ -192,26 +193,26 @@ identifiers in the program, which are completely known statically. This
 observation gives us a chance to further specialize the data structures for environments.
 For example, let us assume that the @Map[K, V]@ is implemented as a hash-map.
 If all the keys of type @K@ are all known statically, then the indices for
-those keys can also be computed statically. Thus, the specialized map would be
-an array of type @Array[Rep[V]]@, whose elements are next-stage values, and the
-size of the array is known statically as the program has finite number of
-identifiers. As result, an access to the map is staged into an access to the array
-with the pre-computed index.
+those keys can also be computed statically. Thus, in this case, the specialized
+map will be an array of type @Array[Rep[V]]@, whose elements are next-stage
+values, and the size of the array is known statically as the program has finite
+number of identifiers. As result, an access to the map is staged into an access
+to the array with a pre-computed index.
 
-Particularly, if we are specializing a monovariant analysis, the address space
+In particular, if we are specializing a monovariant analysis, the address space
 is equivalent to the set of all identifiers in the program. Utilizing this fact, the
 result of accesses to the environment can be computed statically and we may
-generate addresses directly during staging. After which, the store can be
+generate addresses directly during staging. After this, the store can be
 specialized as an array by using the way mentioned above.
 
 \paragraph{Selective Caching} We observe that the two-fold co-inductive
 caching is used for every recursive call in our abstract interpreter. But this
 is unnecessary and redundant when generating code for atomic
 expressions such as literals or variables, because they always terminate.
-Borrowing the idea from the partition of expressions used in A-Normal Form
-$\lambda$-calculus \cite{Flanagan:1993:ECC:155090.155113}, we can use a
-selective caching algorithm that does not generate caching code for atomic
-expressions:
+Borrowing the idea from the partition of expressions used in 
+administrative normal form (ANF) $\lambda$-calculus
+\cite{Flanagan:1993:ECC:155090.155113}, we can use a selective caching
+algorithm that does not generate caching code for atomic expressions:
 \begin{lstlisting}
   def fix_select: Expr => Ans = e => e match {
     case Lit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)
@@ -220,19 +221,19 @@ expressions:
 \end{lstlisting}
 
 \paragraph{Partially-static Data}
-Our treatment of binding-times is coarse-grained: @Expr@s is static, the rest
+Our treatment of binding-times is coarse-grained: @Expr@s are static, the rest
 of the components are all dynamic. But this is not always true, because the
 static data have to be used somewhere with the dynamic operations.
-Partial-static data is a way to improve binding-times and optimize the
+Partially-static data is a way to improve binding-times and optimize the
 generated code.
-For example, to fold a static singleton set (often appears in @SetT@), e.g.,
-@Set(x).foldLeft(init)(f)@ where @x@ and @init@ are staged values, a naive code
-generator would faithfully generate code that applies @foldLeft@ with the set
-and function @f@. But we can also utilize algebraic properties of @foldLeft@
-to generate cheaper code, e.g., @Set(x).foldLeft(init)(f) = f(init, x)@. Since the
+For example, to left-fold a static singleton set (often appears in @SetT@), e.g.,
+@Set(x).fold(init)(f)@ where @x@ and @init@ are staged values, a naive code
+generator would faithfully generate code that applies @fold@ with the set
+and function @f@. But we can also utilize algebraic properties of @fold@
+to generate cheaper code, e.g., @Set(x).fold(init)(f) = f(init, x)@. Since the
 function @f@ is known at the current stage, we completely eliminate the fold
 operation and function application. We apply several rewritings enabled by
-partial-static patterns, such as for @Set@, @Map@, and @Tuple@. This
+partially-static patterns, such as for @Set@, @Map@, and @Tuple@. This
 optimization greatly reduces the size of residual programs.
 
 \section{Discussion} \label{discussion}
@@ -240,7 +241,7 @@ optimization greatly reduces the size of residual programs.
 We have gradually presented the confluence of specialization and abstraction of
 concrete interpreters from an operational perspective.  In this section, we
 review and summarize our recipe to achieve the staged abstract interpreter and
-discuss correctness issues and different design choices.
+discuss correctness and different design choices.
 
 \subsection{Summarizing the Approach}
 
@@ -253,7 +254,7 @@ We summarize our approach to staging an abstract interpreter as follows:
     into monads.
   \item Then, we implement an unstaged abstract interpreter modularly using the
     appropriate monad stack. This step has been explored in the previous
-    literatures.
+    literature.
   \item Finally, we replace the monad stack with a staged monad stack, and
     refactor related primitive operations.  Such staged monads operate on
     staged data types, i.e., next-stage values.
@@ -281,46 +282,50 @@ the internal code fragments of the monads.
 \subsection{Correctness}
 
 Soundness is the central concern of static analysis, and as such, is vital for
-prospective users. Our approach does not touch the soundness of the analysis,
+prospective users. Our approach does not interact with the soundness of the analysis,
 i.e, if the unstaged one does not produces false negative result, the staged
 one also does not. This soundness preservation indeed relies on the correctness
-of the staged implementations and of the underlying MSP system. We now briefly
+of the staged implementations and the underlying MSP system. We now briefly
 examine how this is achieved. Note that the rationale listed
-here is based on empirical evidence; a rigorous proof for soundness
+here is based on empirical evidence; a rigorous proof of soundness
 preservation of our approach remains an open challenge.
 
 \begin{itemize}
-  \item We usually assume the underlying MSP system preserves the meaning
-    during staging, i.e., the generated program and original program produce
-    the same result given the same arguments.
+  \item 
+    In general, syntactic MSP systems based on quotations (e.g.,
+    MetaML/MetaOCaml) cannot guarantee that the generated code preserves the
+    meaning after staging. In other words, the generated code may not preserve
+    the evaluation order or may contain undesired duplication of code.
     In this paper, we use the LMS framework, which 1) checks binding-times by
     checking types which is enabled by the Scala compiler, and 2) generates
-    code in A-Normal form \cite{Flanagan:1993:ECC:155090.155113} that preserves
-    the execution order within a stage \cite{DBLP:conf/birthday/Rompf16}.
-    However, in general, it is possible to subvert these guarantees by using
-    unsafe features, such as casts.
+    code in administrative normal form \cite{Flanagan:1993:ECC:155090.155113}
+    that preserves the execution order within a stage
+    \cite{DBLP:conf/birthday/Rompf16}.
+    %However, in general, it is possible to subvert these guarantees by using
+    %unsafe features, such as casts.
   \item As shown in the previous sections, the generic interpreter is untouched
     and shared by the four artifacts.  This allows the programmer to
-    check the correctness of the implementation of staged monads modularly.
+    check the implementation of staged monads and primitive operations,
+    as well as their correctness modularly.
    % We only instantiate binding-time annotations and the monadic types. 
   \item We build the staged monads and staged data structures in a
     correct-by-construct way that directly corresponds to their unstaged
     versions. For instance, the staged data structures we use here are simply
-    black boxes that wrap the data structures in Scala library.
+    black boxes that wrap the data structures in the Scala library.
   \item In our experiments, the staged abstract interpreter produces the same
-    result with the unstaged one on all benchmark programs we tested.
+    result as the unstaged one on all benchmark programs we tested.
 \end{itemize}
 
 \subsection{Alternatives}
 
 \paragraph{Monadic-style vs Direct-style} We use a monadic interpreter
-throughout the paper, but it is not necessary for staging. One can inline the
-monadic operations and obtain an abstract interpreter in continuation-passing
-style, or even translate back to a direct-style that may use explicit
-side-effects such as mutations. In either case, we can still apply the staging
-idea to the abstract interpreter and remove the interpretation overhead.
-However, monads allow the staged abstract interpreter to be implemented in a
-modular and extensible way.
+throughout the paper, but using monadic-style is not the only choice for
+staging. One can inline the monadic operations and obtain an abstract
+interpreter in continuation-passing style, or even translate back to a
+direct-style that may use explicit side-effects such as mutations. In either
+case, we can still apply the staging idea to the abstract interpreter and
+remove the interpretation overhead.  However, monads allow the staged abstract
+interpreter to be implemented in a modular and extensible way.
 
 \paragraph{Big-step vs Small-step}
 

@@ -27,14 +27,13 @@ reduce the size of generated code and improve performance.
 We use Scala 2.12.8 and Oracle JVM 1.8.0-191 \footnote{The options for
 running the JVM are set to the following: \texttt{-Xms2G -Xmx8G -Xss1024M
 -XX:MaxMetaspaceSize=2G - XX:ReservedCodeCacheSize=2048M}},
-running on an Ubuntu 16.04 LTS (kernel 4.4.0) machine. All our
+running on an Ubuntu 16.04 LTS machine. All our
 evaluations were performed on a machine with 4 Intel Xeon Platinum
-8168 CPUs at 2.7GHz and 3 TB of RAM. Although the machine has 96 cores
-(192 threads) in total, the abstract interpreters are single-threaded.
-To minimize the effect of warm-up from the HotSpot JIT compiler,
-all the experiments are executed for 20 times and we report the
-statistical median value of the running times. We set a 5 minute
-timeout.
+8168 CPUs at 2.7GHz and 3 TB of RAM. Although the machine has 96 cores in
+total, the abstract interpreters are single-threaded.  To minimize the effect
+of warm-up from the HotSpot JIT compiler, all the experiments are executed 20
+times and we report the statistical median value of the running times. We set a
+5 minute timeout.
 
 \paragraph{Benchmarks}
 The benchmark programs we used in the experiment are collected from
@@ -77,7 +76,7 @@ measurement of program size.
 \vspace{-2em}
 \end{figure}
 
-Figure~\ref{evaluation_result} shows the evaluation result, comparing the
+Figure~\ref{evaluation_result} shows the evaluation result comparing the
 performance improved by staging on the two monovariant CFAs. The
 \textit{unstaged} and \textit{staged} columns show the median time (excluding
 pre-compilation) to finish the analysis. The column
@@ -89,14 +88,15 @@ outperforms the unstaged version on all benchmarks.
 %booleans.
 For 0-CFA without store-widening, we observe an average speedup of ~17 times;
 for 0-CFA with store-widening, the average speedup is ~7 times.
-\texttt{kcfa-worst-64} has the highest speedup among all the tests. Although it
-has a comparably large size of AST, it has a rather simple structure which only
-involves booleans, $\lambda$-terms, and applications. We conjecture that the simple
-domain and structure allow the generated code to be efficiently optimized by the
-JVM. However, on the corresponding 0-CFA-SW, we do not observe such a significant
-speedup. Due to the complexity of generated code and next-stage running platform
-(JVM), we leave the detailed empirical analysis of which static analysis can
-benefit more from the specialization as future work.
+The highest speedup among all the tests is observed on benchmark \texttt{kcfa-worst-64}.
+Although the program size of \texttt{kcfa-worst-64} is large, it has a rather
+simple structure which only involves booleans, $\lambda$-terms, and
+applications. We conjecture that the simple domain and structure allow the
+generated code to be efficiently optimized by the JVM. However, on the
+corresponding 0-CFA-SW, we do not observe a significant speedup. Due to
+the complexity of generated code and next-stage running platform (JVM), we
+leave the detailed empirical analysis of which static analysis can benefit more
+from the specialization as a future work.
 
 %Our evaluation result provides an abstraction without regret
 %approach to construct optimizing abstract interpreters -- the user may write a

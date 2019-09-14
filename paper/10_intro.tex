@@ -16,28 +16,22 @@ for abstract interpretation from their concrete counterparts (for example,
 abstract machines), soundness can be easily established by examining the
 transformation of semantic artifacts. This systematic approach to abstraction
 can be tailored to different language features (such as state, first-class
-control, exceptions, concurrency, etc.) and sensitivity analyses
+control, exceptions, etc.) and sensitivity analyses
 \cite{DBLP:conf/icfp/Gilray0M16, DBLP:conf/popl/GilrayL0MH16,
 Darais:2015:GTM:2814270.2814308}. It has also been applied to various small-step
 abstract machines \cite{DBLP:journals/jfp/HornM12, DBLP:conf/icfp/HornM10,
 Sergey:2013:MAI:2491956.2491979} and big-step definitional interpreters
 \cite{Wei:2018:RAA:3243631.3236800, DBLP:journals/pacmpl/DaraisLNH17,
 Keidel:2018:CSP:3243631.3236767}.
-
-%Based on the idea of abstracting abstract machines, more
-%pragmatically, several implementation strategies utilizing purely
-%functional programming techniques to build abstract interpreters have
-%emerged.
-
 Based on the idea of AAM, more pragmatically, several implementation strategies
 in high-level functional programming languages have emerged.  Such techniques
 include monads and monad transformers \cite{DBLP:journals/pacmpl/DaraisLNH17,
 Sergey:2013:MAI:2491956.2491979}, arrows \cite{Keidel:2018:CSP:3243631.3236767},
-extensible effects \cite{Kiselyov:2015:FMM:2804302.2804319, Githubsemantic},
+extensible effects \cite{Githubsemantic},
 etc. These pure approaches provide certain benefits, including the fact that the
 abstract interpretation artifacts can be built in a compositional and modular
 fashion. Furthermore, referential transparency allows programmers to confidently
-reason about the correctness of their implementations.  The soundness of an
+reason about the correctness. The soundness of an
 analysis can also be proven with less effort, whether by mechanized proofs
 \cite{Darais:2016:CGC:2951913.2951934} or paper-based proofs
 \cite{Keidel:2018:CSP:3243631.3236767}.
@@ -60,24 +54,33 @@ extensive use of functional encodings of side-effects to implement the semantics
 of interpreted languages. For example, the list monad can be used to model
 nondeterminism of collecting interpreters. Although such pure approaches have
 their merits, they are significantly slower when compared with imperative,
-stateful implementations.  In order to reconcile these approaches, one need to
-use a programming technique which allows for high-level abstractions during
-implementation, but bypasses the incurred overhead at runtime.
+stateful implementations. The goal of this paper is to develop an approach for
+implementing abstract interpreters, which allows high-level abstractions during
+implementation for clarity, but passes the incurred overhead at runtime for
+efficiency.
+%In order to reconcile these approaches, one need to
+%use a programming technique which allows for high-level abstractions during
+%implementation, but bypasses the incurred overhead at runtime.
 
 Roughly at the same time abstract interpretation was proposed,
 \citet{futamura1971partial} observed a close connection between interpreters and
 compilers through a hierarchy of specializations, known since then as the
-Futamura projections. The first Futamura projection states that specializing an
-interpreter to an input program removes interpretative overhead and yields an
-equivalent executable that runs faster. In recent years, the idea of Futamura
-projections has attracted more attention, and has been successfully applied to
-many real-world problems, including PyPy \cite{Bolz:2009:TMP:1565824.1565827},
-Truffle \cite{Marr:2015:TVP:2814270.2814275}, query compilers
-\cite{DBLP:conf/sigmod/TahboubER18}, etc. The challenge here: can we apply
-Futamura projections to a general abstract interpreter to make it run faster?
-The solution is not obvious, as we need to specialize a nonstandard semantics
-that extensively uses nondeterminism, operates on abstract domains, and
-computes fixed-points iteratively. 
+Futamura projections. 
+The first Futamura projection states that specializing an interpreter to an
+input program removes interpretative overhead and yields an equivalent
+executable that runs faster. Moreover, a procedure that can specialize an
+interpreter to any input program is equivalent to a compiler.
+In recent years, the idea of Futamura projections has attracted more attention,
+and has been successfully applied to many real-world scenarios, such as
+building JIT compilers for dynamic languages
+\cite{Bolz:2009:TMP:1565824.1565827, Marr:2015:TVP:2814270.2814275} and building query
+compilers \cite{DBLP:conf/sigmod/TahboubER18}.  The question here is can we
+apply Futamura projections to an abstract interpreter and obtain a compiler
+for abstract interpretation?
+%apply Futamura projections to a general abstract interpreter to make it run faster? 
+The solution is not obvious, as we need to specialize a nonstandard
+semantics that extensively uses nondeterminism, operates on abstract domains,
+and computes fixed-points iteratively. 
 
 In this paper, we show that the first Futamura projection can be naturally
 extended to abstract interpreters. We present an abstraction-without-regret
@@ -104,28 +107,37 @@ and engineering effort. We elaborate these two main ideas in detail, as follows.
 
 \paragraph{Futamura Projections Meet Abstract Interpreters}
 
-The first Futamura projection shows that specializing an
-interpreter w.r.t. a input program yields an equivalent executable. For
-instance, assume that @eval : Expr --> Input --> Value@ is an interpreter for some language.
-Given a program $e_0$@ : Expr@, by applying the specialization we can
+The first Futamura projection shows that specializing an interpreter w.r.t. an
+input program yields an equivalent program. For instance, assume that 
+@eval : Expr --> Input --> Value@ is an interpreter for some language.
+Given a program $e_0$@ : Expr@, by applying the specialization we
 obtain a specialized program $\texttt{eval}_{\texttt{e0}}$ : @Input --> Value@.
 %which is the so-called \textit{equivalent executable}.
-% By definition of the interpreter, they produce the same result when applied with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
-The first proposed approach to realizing Futamura projections is partial
-evaluation \cite{DBLP:books/daglib/0072559}, which relies on an automatic
-binding-time analysis (\textit{static} or \textit{dynamic}).  The underlying
-representation can be viewed as a \textit{two-level semantics}
-\cite{NIELSON1989117, NIELSON198859} that distinguishes between compile-time
-computation and run-time computation.
-However, it is hard to precisely analyze binding-times given an arbitrary
-program. As an alternative approach, multi-stage programming (MSP)
-\cite{taha1999multi, DBLP:conf/pepm/TahaS97} allows users to explicitly program
-over a two-level syntax \cite{Nielson:1992:TFL:130665} by manually annotating
-the binding-times of variables. The MSP system will then check whether these
-annotations are consistent, and specialize the program using that information.
-The staging annotations can be either syntactic (e.g., quote and quasi-quote in
-MetaML/MetaOCaml) or type-based (e.g., the Lightweight Modular Staging framework
-\cite{DBLP:conf/gpce/RompfO10} in Scala).
+% By definition of the interpreter, they produce the same result when applied
+% with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
+The earlier approach to realizing Futamura projections is partial
+evaluation (PE) \cite{DBLP:books/daglib/0072559}.
+Offline PE relies on a separate binding-time analysis (\textit{static} or
+\textit{dynamic}), and online PE identifies the binding-times during the
+specialization.
+The underlying representation of binding-times can be viewed as a
+two-level semantics \cite{NIELSON1989117, NIELSON198859,
+Nielson:1992:TFL:130665} that distinguishes between compile-time computation
+and run-time computation.  However, it is hard to precisely analyze
+binding-times given an arbitrary program. As an alternative approach,
+multi-stage programming (MSP) \cite{taha1999multi, DBLP:conf/pepm/TahaS97}
+allows programmers to annotate the binding-times of variables and control which
+part of the program should be specialized.
+At the syntactic level, traditional MSP languages (e.g., MetaML/MetaOCaml) use
+quasi-quotations and escapes as annotations. However, the syntactic
+quasi-quotation is a weak two-level semantics, and does not always preserve the
+evaluation order of staged expressions.
+%The MSP system will then check whether these
+%annotations are consistent, and specialize the program using that information.
+Besides the syntactic approach, staging annotations can also be purely
+type-based.  One of the examples is the Lightweight Modular Staging framework
+\cite{DBLP:conf/gpce/RompfO10} in Scala, which provides a stronger guarantee of
+evaluation order by generating code in administrative normal form.
 
 To apply the Futamura projections to abstract interpreters, we consider
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s big-step monadic abstract interpreter
@@ -194,15 +206,12 @@ analysis code by mechanized reuse of a whole-program analyzer.
 4) We empirically evaluate the performance improvements gained by staging,
 showing an order of magnitude speedup.
 
-\paragraph{Contributions} Briefly, the contributions of the paper are as follows:
-\begin{itemize}[leftmargin=2em]
-  \item Intellectually, we present a framework that naturally extends the first
-    Futamura projection to definitional abstract interpreters, showing a
-    well-grounded approach to optimizing static analyses via meta-programming.
-  \item Practically, we show that staging an abstract interpreter is useful to
-    improve performance and scalability of analyses by case studies and an
-    empirical evaluation.
-\end{itemize}
+\paragraph{Contributions} 
+1) Intellectually, we present a framework that naturally extends the first
+Futamura projection to abstract interpreters, showing a well-grounded approach
+to optimizing static analyses via meta-programming.  2) Practically, we show
+that staging an abstract interpreter is useful to improve performance and
+scalability of analyses by case studies and an empirical evaluation.
 
 \paragraph{Organization} The paper is organized as follows:
 \begin{itemize}[leftmargin=2em]
