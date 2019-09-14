@@ -301,8 +301,7 @@ combinator to close the open-recursive function @ev@.
 \begin{lstlisting}
   trait ConcreteComponents extends Semantics {
     type Addr = Int;  sealed trait Value
-    case class IntV(i: Int) extends Value
-    case class CloV(λ: Lam, e: Env) extends Value
+    case class IntV(i: Int) extends Value;  case class CloV(λ: Lam, e: Env) extends Value
     type Result = (R[Value], R[Store])
     def fix(ev: (Expr => Ans) => (Expr => Ans)): Expr => Ans = e => ev(fix(ev))(e)
   }
@@ -322,8 +321,7 @@ type @Env@, and the @StateT@ is parameterized by the type @Store@, and the
 inner-most monad @IdM@ is merely the identity monad.
 \begin{lstlisting}
   trait ConcreteSemantics extends ConcreteComponents {
-    type R[T] = T
-    type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T] // the monad stack
+    type R[T] = T;  type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T] // the monad stack
     ... }
 \end{lstlisting}
 
