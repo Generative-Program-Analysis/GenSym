@@ -12,12 +12,14 @@ counterpart. Finally, we briefly describe the code generation.
 Lightweight Modular Staging (LMS) \cite{DBLP:conf/gpce/RompfO10} is a
 multi-stage programming framework implemented as a Scala library. LMS enables
 runtime code generation in a type-safe manner. Different from the approach of
-MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14, DBLP:conf/gpce/CalcagnoTHL03} which
-uses syntactic quotations, LMS distinguishes binding-times based on types. 
-To achieve this, LMS provides a type constructor @Rep[T]@, where @T@ can be an
-arbitrary type, indicating that a value of type @T@ will be known at a future
-stage.  Operations acting on @Rep[T]@ expressions will be residualized as
-generated code.
+MetaML/MetaOCaml \cite{DBLP:conf/flops/Kiselyov14,
+DBLP:conf/gpce/CalcagnoTHL03} which uses syntactic quotations, LMS
+distinguishes binding-times based on types and preserves the evaluation order
+via an internal ANF transformation of the staged program.
+To achieve typed-based MSP, LMS provides a type constructor @Rep[T]@, where @T@
+can be an arbitrary type, indicating that a value of type @T@ will be known at
+a future stage.  Operations acting on @Rep[T]@ expressions will be residualized
+as generated code.
 A classic example for introducing multi-stage programming is the power function
 that computes $b^x$. Usually, it is implemented as a recursive function:
 \begin{lstlisting}
@@ -121,9 +123,9 @@ The following code implements this idea:
   }
 \end{lstlisting}
 
-In @close@, we first create a function @f@, which input and output are both
-next-stage values and stores.  The function @f@ is a current-stage and we then
-use @emit_complied_clo@ to denote it to a next-stage Scala function.
+In @close@, we first create a current-stage function @f@, whose input and
+output are both next-stage values and stores.  We then use @emit_complied_clo@
+to delay @f@ to a next-stage Scala function.
 The method @emit_compiled_clo@ produces current-stage representations of
 next-stage function values, i.e., of type @Rep[Value]@.
 Inside function @f@, we can access the evaluator via @ev@.
@@ -131,9 +133,9 @@ However, @ev@ produces a monadic value of type @AnsM@, which can only exist at
 the current stage. To connect current-stage monadic values and future-stage
 grounded values, the evaluator @ev@ is supplied with not only the body
 expression @e@ to be specialized, but also with the prepared environment and
-store.  By doing so, we have \textit{collapsed} the monadic values of @AnsM@ to
-grounded values within staging; therefore in the future stage, there will be no
-monadic value.
+store.  By doing this, we have \textit{collapsed} the monadic values of type
+@AnsM@ to grounded values (of type @Rep[ValSt]@) within staging; therefore in
+the future stage, there will be no monadic value.
 \begin{lstlisting}
   def emit_ap_clo(fun: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[ValSt]
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {

@@ -15,7 +15,7 @@ unstaged or staged abstract interpreter.
 
 \subsection{Stage Polymorphic Lattices} \label{stagedpoly_lat}
 
-Many abstract domains in abstract interpreters can be formulated by complete
+Many abstract domains in abstract interpreters can be formulated as complete
 lattices.
 A complete lattice over set $S$ is a tuple $\langle S, \sqsubseteq, \top,
 \bot, \sqcup, \sqcap \rangle$, where $\top$ is the top element, $\bot$ is the
@@ -106,11 +106,12 @@ nondeterminism during the analysis.  For example, when analyzing a
 conditional expression, we may not have enough information to decide which
 branch will be taken, thus a sound treatment is to explore both of the branches.
 Also, at some later point, we need to compute the join of two paths.  Another
-source of nondeterminism comes from function applications, for instance,
-consider an application @f(a)@, the possible $\lambda$-terms of @f@ are
-computed approximately.  As the result, we need to store all the possible
-callees, as well as we will retrieve a set of closures when dereferencing an
-address. 
+source of nondeterminism comes from the abstract semantics of function
+application. For instance, consider an expression @f(a)@, if there are multiple
+possible target closures of @f@, then we have to apply all of them
+nondeterminitically.
+%As the result, we need to store all the possible callees, as well as we will
+%retrieve a set of closures when dereferencing an address. 
 
 To ensure the abstract interpreter terminates on all programs when computing
 the fixed-point, the ADI approach uses a co-inductive mechanism consisting of
@@ -162,16 +163,17 @@ The initial value of the fold is an empty @SetT@.
 
 This monad stack scheme (@AnsM[T]@) leads to a different type of grounded
 values. Recall that in the concrete setting, we only have a reader monad (for
-environments) and a state monad (for stores). The reader effect is not
-persistent to the final result. Hence, together with the value produced by the
-interpreter, the final result type is just a pair of @Value@ and @Store@.
-However, under the new monad stack for abstract interpretation, we have a
-@SetT@ monad transformer inside the environment monad and store monad. Therefore, the type
-@Set@ becomes the container type of the pairs of values and stores, i.e.,
-@Set[(Value, Store)]@.  Also, note that the reader and state monad for the
-caches both inhibit internally of the nondeterminism monad; as the result, the
-final result type pairs the set of value-stores with the cache type from
-that state monad, as shown below.
+environments) and a state monad (for stores). 
+Different from state effects, reader effects are not visible at the final
+result. Hence, together with the value produced by the interpreter, the final
+result type is just a pair of @Value@ and @Store@.  However, under the new
+monad stack for abstract interpretation, we have a @SetT@ monad transformer
+inside the environment monad and store monad. Therefore, the type @Set@ becomes
+the container type of the pairs of values and stores, i.e., @Set[(Value, Store)]@.
+Also, note that the reader and state monad for the caches both
+inhabit the nondeterminism monad; as the result, the final result
+type pairs the set of value-stores with the cache type from that state monad,
+as shown below.
 \begin{lstlisting}
   type Result = (R[Set[(Value, Store)]], R[Cache])
 \end{lstlisting}
@@ -181,7 +183,7 @@ to the new monad stack scheme and value domains. One of the notable changes is
 that the store update operator merges the new values with existing values.  As
 we mentioned before, sometimes we have to explore both of the branches for
 conditionals: in method @br0@, we combine the results using the @mplus@
-operation from @MonadPlus@, which requires the value domains are
+operation from @MonadPlus@, which requires the value domains to be
 join-semilattices (in our case, @Set@ and @Map@).
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ ⊔ Map(αv)))
@@ -197,10 +199,10 @@ type @Value@ is an alias of @Set[AbsValue]@).
 
 For function applications, @ap_clo@ looks the same as the concrete interpreter.
 The difference is that now the first argument of @ap_clo@ is a set of closures
-@funs@, so we cannot directly destruct it with a syntactic @Lam@ by pattern
+@funs@, so we cannot directly match it against with a syntactic @Lam@ by pattern
 matching. Instead, we use an auxiliary function @lift_nd@ that takes a set and
 lifts the elements in the set into the monad stack. Then we can
-straightforwardly implement the method @ap_clo@ still in monadic style, where the
+straightforwardly implement the function @ap_clo@ still in monadic style, where the
 closures come from the monads and thus the nondeterminism can be naturally
 handled. The light gray line shows what is added from its concrete counterpart.
 \begin{lstlisting}[escapechar=!]
@@ -223,8 +225,8 @@ been used in other abstract interpreters or fixed-point computation
   Rosendahl:AbsIntPL}. The idea is to use an @in@ cache and an @out@ cache during
 the depth-first evaluation. The @in@ cache stores the result from the last
 iteration, and the @out@ cache is constantly updated during the current iteration. In
-the next iteration, the last @out@ cache is served as the @in@ cache, and
-an empty cache is plugged-in to the @out@ slot. Once the @out@ cache does not
+the next iteration, the last @out@ cache is used as the @in@ cache, and
+an empty cache is plugged into the @out@ slot. Once the @out@ cache does not
 contain any new information compared with the @in@ cache, the fixed-point is
 reached.
 In our monad stack, the @in@ and @out@ caches are modeled by the reader monad and
@@ -251,7 +253,7 @@ may have been changed, so we obtain the latest store and construct the
 result @(v, σ)@, which will be used to update the @out@ cache.
 
 The iteration terminates when the resulting @out@ cache is equivalent to the
-input @in@ cache, which indicates that there is no more fact has been discovered.
+input @in@ cache, which indicates that there is no more fact have been discovered.
 Therefore, the iteration should end, and we have reached the least fixed-point.
 \begin{lstlisting}
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0).run

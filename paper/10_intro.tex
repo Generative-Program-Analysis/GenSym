@@ -74,9 +74,9 @@ In recent years, the idea of Futamura projections has attracted more attention,
 and has been successfully applied to many real-world scenarios, such as
 building JIT compilers for dynamic languages
 \cite{Bolz:2009:TMP:1565824.1565827, Marr:2015:TVP:2814270.2814275} and building query
-compilers \cite{DBLP:conf/sigmod/TahboubER18}.  The question here is can we
-apply Futamura projections to an abstract interpreter and obtain a compiler
-for abstract interpretation?
+compilers for databases \cite{DBLP:conf/sigmod/TahboubER18, DBLP:conf/osdi/EssertelTDBOR18}.
+The question here is can we apply Futamura projections to an abstract
+interpreter and obtain a compiler for abstract interpretation?
 %apply Futamura projections to a general abstract interpreter to make it run faster? 
 The solution is not obvious, as we need to specialize a nonstandard
 semantics that extensively uses nondeterminism, operates on abstract domains,
@@ -110,11 +110,11 @@ and engineering effort. We elaborate these two main ideas in detail, as follows.
 The first Futamura projection shows that specializing an interpreter w.r.t. an
 input program yields an equivalent program. For instance, assume that 
 @eval : Expr --> Input --> Value@ is an interpreter for some language.
-Given a program $e_0$@ : Expr@, by applying the specialization we
-obtain a specialized program $\texttt{eval}_{\texttt{e0}}$ : @Input --> Value@.
+Given a program $e$@ : Expr@, by applying the specialization we
+obtain a specialized program $\texttt{eval}_{\texttt{e}}$ : @Input --> Value@.
 %which is the so-called \textit{equivalent executable}.
 % By definition of the interpreter, they produce the same result when applied
-% with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e_0 ]\!] arg $.
+% with the argument $\texttt{eval}_{\texttt{e0}}(arg) = [\![ e ]\!] arg $.
 The earlier approach to realizing Futamura projections is partial
 evaluation (PE) \cite{DBLP:books/daglib/0072559}.
 Offline PE relies on a separate binding-time analysis (\textit{static} or
@@ -136,8 +136,9 @@ evaluation order of staged expressions.
 %annotations are consistent, and specialize the program using that information.
 Besides the syntactic approach, staging annotations can also be purely
 type-based.  One of the examples is the Lightweight Modular Staging framework
-\cite{DBLP:conf/gpce/RompfO10} in Scala, which provides a stronger guarantee of
-evaluation order by generating code in administrative normal form.
+\cite{DBLP:conf/gpce/RompfO10} in Scala, which as well provides a stronger
+guarantee of preserving the evaluation order by generating code in
+administrative normal form.
 
 To apply the Futamura projections to abstract interpreters, we consider
 \citet{DBLP:journals/pacmpl/DaraisLNH17}'s big-step monadic abstract interpreter
@@ -146,7 +147,7 @@ monads provide a good abstraction to hide the detail of abstract interpretation
 semantics. However, monads do not have a clear stage distinction. We further
 introduce binding-times and make the monads binding-time polymorphic. Our
 proposed framework adopts type-based multi-stage programming from the
-Lightweight Modular Staging framework, and implements the Futamura projections of
+Lightweight Modular Staging framework, and implements the first Futamura projection of
 an abstract interpreter for a stateful higher-order language. By deriving staged
 monads that can be used to perform code generation, we obtain a staged abstract
 interpreter that can be used for specialization. Through staging, the generated

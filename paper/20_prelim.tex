@@ -95,24 +95,24 @@ trait MonadOps[M[_], A] {
 
 Similar to Haskell's @do@-notation, Scala provides special syntactic support
 for monadic operations through @for@-comprehension.  For example, an object of
-@List[A]@ is an instance of the @List@ monad, with element type @A@.
+type @List[A]@ is an instance of the list monad, with element type @A@.
 To compute the Cartesian product of two lists of numbers, we can use Scala's
 @for@-comprehension syntax:
 \begin{lstlisting}
-  val xs = List(1, 2); val ys = List(3, 4)
+  val xs = List(1, 2); val ys = List(3, 4); 
   for { x <- xs; y <- ys } yield (x, y)   // List((1,3), (1,4), (2,3), (2,4))
 \end{lstlisting}
 
 The Scala compiler translates the above @for@-comprehension expression into
 an equivalent one using @flatMap@ and @map@. The last binding
-in @for@-comprehensions is translated into a @map@ operation, where the argument of
+of @for@-comprehensions is translated into a @map@ operation, where the argument of
 @yield@ becomes the body expression inside that @map@ operation. The
-bindings before the last one are all translated into calls of @flatMap@:
+bindings before the last one are all translated into @flatMap@:
 \begin{lstlisting}
   xs.flatMap { case x => ys.map { case y => (x, y) } }
 \end{lstlisting}
 
-Note that here the monadic object @List[_]@ encapsulates the data internally.
+Note that here the monadic object of type @List[_]@ encapsulates the data internally.
 Therefore, it only exposes the simplified version of @flatMap@, where the monadic
 value of @M[A]@ is not introduced as a function argument. The trait @MonadOps@ (Figure
 \ref{fig:monadops}) defines the simplified versions of monadic operations that
@@ -147,21 +147,21 @@ the domains of addresses and values are still abstract; hence, they are
 declared as abstract types.
 \begin{lstlisting}
   trait Semantics {
-    type Ident = String; type Addr; type Value
-    type Env = Map[Ident, Addr]; type Store = Map[Addr, Value]
+    type Ident = String; type Addr; type Value                 
+    type Env = Map[Ident, Addr]; type Store = Map[Addr, Value] 
     type R[_] // Binding-time as a higher-kinded type
-    ... // The definitions in the rest of this section are enclosed in trait Semantics.
-  }
+    ...  }
 \end{lstlisting}
 
 \paragraph{Binding-time Abstraction}
 The binding-time type is declared as a higher-kinded type @R[_]@ \cite{Ofenbeck:2017:SGP:3136040.3136060}.
-Now we can use @R@ to annotate other data-types in the interpreter;
-it is also injected into the monadic type @MonadOps@.  If we instantiate
-@R@ as the identity type (i.e., @type R[T] = T@), then the generic interpreter is a
-standard definitional interpreter that will execute the program.  In Section
-\ref{stagedinterp}, we instantiate @R@ using LMS's built-in next-stage
-type annotation @Rep@, which makes the interpreter act as a compiler.
+Now we can use @R@ to annotate other data types in the interpreter.
+Later, the binding-time information is also injected into the monadic type
+@MonadOps@.  If we instantiate @R@ as the identity type (i.e., @type R[T] = T@), 
+then the generic interpreter is a standard definitional interpreter that
+will execute the program.  In Section \ref{stagedinterp}, we instantiate @R@
+using LMS's built-in next-stage type annotation @Rep@, which makes the
+interpreter act as a compiler.
 
 \paragraph{Monadic Operations} We define the return type of the interpreter
 @Ans@ as a monadic type @AnsM[_]@ wrapping the type @Value@.
@@ -292,9 +292,10 @@ address allocations, we use type @Int@ and always return a number that is greate
 than the size of the current store.
 A value can be either a tagged number \texttt{IntV}, or a closure
 \texttt{CloV} that contains a $\lambda$-term and an environment. The final
-result of the interpreter is a pair of values and stores.
+result of the interpreter is a @Value@ paired with a @Store@.
 To distinguish from the monadic values of type @Ans@ produced by the
-interpreter, later we use term \textit{grounded values} to denote such final values.
+interpreter, later we use term \textit{grounded values} to denote such final values,
+which can be obtained by running the monads.
 The two elements in the type @Result@ are annotated by the binding-time @R@,
 because they can be next-stage objects.  We also define a standard fixed-point
 combinator to close the open-recursive function @ev@.
