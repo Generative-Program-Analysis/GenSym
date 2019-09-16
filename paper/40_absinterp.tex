@@ -68,7 +68,7 @@ abstract domain (shown in Figure \ref{fig:powerset}). Two power sets are
 ordered by the subset relation. We use set union to compute their
 join, and set intersection to compute their meet.  The bottom element of a
 power set is the empty set, and we do not have a representation of the top element for
-power set.  Other lattices used in the paper, such as products and maps, can be
+power sets.  Other lattices used in the paper, such as products and maps, can be
 implemented similarly or by lifting the existing lattices element-wise or
 point-wise.  Non-relational numerical abstract domains such intervals can also
 be implemented in a stage-polymorphic way.
@@ -77,7 +77,7 @@ be implemented in a stage-polymorphic way.
 
 In this section, we follow the abstracting definitional interpreters
 (ADI) approach \cite{DBLP:journals/pacmpl/DaraisLNH17} to refactor our monadic
-concrete interpreter to a monadic abstract interpreter.
+concrete interpreter into a monadic abstract interpreter.
 
 \paragraph{Abstract Components}
 
@@ -152,7 +152,7 @@ type of the set. We first apply @flatMap@ on the inner monad to obtain the
 set @s@. Then, we use the function @f@ to transform every element of type @A@
 into a monadic value of type @Set[M, B]@. Finally, we fold all the transformed
 values into a single monadic value of type @Set[M, B]@ by appending all of them.
-The initial value of the fold is an empty @SetT@.
+The initial value of the fold is the empty value of @SetT@.
 \begin{lstlisting}
   case class SetT[M[_]: Monad, A](run: M[Set[A]]) {
     def flatMap[B](f: A => SetT[M, B]): SetT[M, B] =
@@ -179,12 +179,13 @@ as shown below.
 \end{lstlisting}
 
 \paragraph{Primitive Operations} The primitive operations are changed according
-to the new monad stack scheme and value domains. One of the notable changes is
-that the store update operator merges the new values with existing values.  As
-we mentioned before, sometimes we have to explore both of the branches for
-conditionals: in method @br0@, we combine the results using the @mplus@
-operation from @MonadPlus@, which requires the value domains to be
-join-semilattices (in our case, @Set@ and @Map@).
+to the new monad stack scheme and value domains. One of the notable changes due
+to the nondeterminism is that the store-update operator merges the new values
+with existing values for the same address in the store.  As we mentioned
+before, sometimes we have to explore both of the branches for conditionals: in
+method @br0@, we combine the results using the @mplus@ operation from
+@MonadPlus@, which requires the value domains to be join-semilattices (in our
+case, @Set@ and @Map@).
 \begin{lstlisting}
   def set_store(αv: (Addr, Value)): AnsM[Unit] = liftM(StateTMonad.mod(σ => σ ⊔ Map(αv)))
   def br0(test: Value, thn: => Ans, els: => Ans): Ans = ReaderTMonadPlus.mplus(thn, els)

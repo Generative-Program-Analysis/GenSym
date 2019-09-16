@@ -49,13 +49,13 @@ from the unstaged version.
 
 \paragraph{Staged Monads for Abstract Interpretation}
 We use the same monad stack structure as the unstaged abstract interpreter,
-but replacing \textit{all} the monad transformers with their staged versions. The
+but replace \textit{all} the monad transformers with their staged versions. The
 following code snippet shows this change.
-We manually fuse the three inner transformers (@IdM@ is omitted) into a single
+We manually fuse the three inner transformers (@IdM@ is omitted) into a single staged
 monad @RepSetReaderStateM[R, S, A]@, where @R@ is the type parameter for the
-reader effects, and @S@ is the type for the state.  In our monad stack scheme,
+reader effects, and @S@ is the type parameter for the state.  In our monad stack scheme,
 @R@ and @S@ are both instantiated with the type @Cache@. Similar to the unstaged
-version, the grounded result type is a pair of two staged values:
+abstract semantics, the grounded result type is a pair of two staged values:
 @Rep[Set[(Value, Store)]]@ and @Rep[Cache]@.
 \begin{lstlisting}
   trait StagedAbstractSemantics extends AbstractComponents {
@@ -66,9 +66,9 @@ version, the grounded result type is a pair of two staged values:
 \end{lstlisting}
 
 \paragraph{Primitive Operations} 
-When deriving the staged concrete interpreter from its unstaged counterpart, we
-notice that where the evaluation @ev(e)@ is invoked are shifted from @ap_clo@ to
-@close@, where @e@ is the body expression of a $\lambda$-term.
+When deriving the staged concrete interpreter from its unstaged counterpart, it
+is observed that where we invoke the evaluator @ev(e)@ is shifted
+from @ap_clo@ to @close@, where @e@ is the body expression of a $\lambda$-term.
 In other words, when staging, we eagerly specialize the interpreter and
 generate code every time we reach a $\lambda$-term, instead of lazily
 calling @ev@ when the applications happen.  Similarly, here we use the same way
@@ -177,7 +177,7 @@ suffer from code explosion when analyzing (specializing) large programs, which
 increases compile time. If we generate next-stage programs running on the JVM,
 such large generated programs would also incur GC overhead at runtime. In this
 section, we present optimizations that largely mitigate these issues.
-Implementing all of those optimizations do not need to change the generic
+Implementing all of those optimizations does not need to change the generic
 interpreter.
 
 \paragraph{Specialized Data Structures}
@@ -210,7 +210,8 @@ expressions such as literals or variables, because they always terminate.
 Borrowing the idea from the partition of expressions used in 
 administrative normal form (ANF) $\lambda$-calculus
 \cite{Flanagan:1993:ECC:155090.155113}, we can use a selective caching
-algorithm that does not generate caching code for atomic expressions:
+algorithm that does not generate caching code for atomic expressions.
+This optimization is implemented by using @fix_select@ to dispatch expressions.
 \begin{lstlisting}
   def fix_select: Expr => Ans = e => e match {
     case Lit(_) | Var(_) | Lam(_, _) => eval(fix_select)(e)
@@ -334,8 +335,8 @@ parameters \cite{10.1007/3-540-61580-6_11}. This compositionality ensures that
 specialization can be done by unfolding, as well as guarantees the termination
 of the specialization procedure. It is also possible to specialize a small-step
 operational abstract semantics through abstract compilation
-\cite{Boucher:1996:ACN:647473.727587} -- as
-\citet{Johnson:2013:OAA:2500365.2500604} presented for
-optimizing Abstract Abstract Machines. However, the generated abstract
-bytecode still requires another small-step abstract machine to execute, which is
-an additional engineering effort.
+\cite{Boucher:1996:ACN:647473.727587}.
+\citet{Johnson:2013:OAA:2500365.2500604} presented this idea for optimizing
+Abstract Abstract Machines. However, the generated abstract bytecode still
+requires another small-step abstract machine to execute, which is an additional
+engineering effort.

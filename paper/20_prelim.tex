@@ -192,15 +192,15 @@ value for performing effects. For example, @local_env@ installs a new environmen
 @ρ@ when evaluating the monadic value @ans@; @set_store@ takes a pair of
 addresses and (potentially staged) values, and updates the store accordingly.
 
-\paragraph{Primitive Operations} Next, we declare a few primitive operations.
-First, we declare two versions of @alloc@. The first takes a store and an
-identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
-the freshness of the address may depend on the store, which might be a
-next-stage value as indicated by its type, the type of addresses is
-consequently wrapped by @R[_]@. The other @alloc@ is simply the monadic version
-of the previous one, and can therefore be used in monadic computations.
-An auxiliary method @get@ retrieves the value of an identifier @x@ through the
-environment and store.
+\paragraph{Primitive Operations} Next, we declare a few primitive operations
+that are currently still abstract.  First, we declare two versions of @alloc@.
+The first takes a store and an identifier and produces a fresh address of
+non-monadic type @R[Addr]@. Since the freshness of the address may depend on
+the store, which might be a next-stage value as indicated by its type, the type
+of addresses is consequently wrapped by @R[_]@. The other @alloc@ is simply the
+monadic version of the previous one, and can therefore be used in monadic
+computations.  An auxiliary method @get@ retrieves the value of an identifier
+@x@ through the environment and store.
 \begin{lstlisting}
   def alloc(σ: R[Store], x: Ident): R[Addr];  def alloc(x: Ident): AnsM[Addr]
   def get(σ: R[Store], ρ: R[Env], x: Ident): R[Value]

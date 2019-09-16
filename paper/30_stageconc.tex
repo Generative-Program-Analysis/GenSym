@@ -20,7 +20,7 @@ To achieve typed-based MSP, LMS provides a type constructor @Rep[T]@, where @T@
 can be an arbitrary type, indicating that a value of type @T@ will be known at
 a future stage.  Operations acting on @Rep[T]@ expressions will be residualized
 as generated code.
-A classic example for introducing multi-stage programming is the power function
+A classic example of multi-stage programming is the power function
 that computes $b^x$. Usually, it is implemented as a recursive function:
 \begin{lstlisting}
   def power(b: Int, x: Int): Int = if (x == 0) 1 else b * power(b, x - 1)
@@ -98,7 +98,7 @@ staged, but the whole set is also staged, and we have no knowledge about how
 many elements are in the set. Therefore, any traversals over the set has to be
 staged.  In this section, we explicitly distinguish the two versions of monadic
 interfaces. Later, we will instantiate the staged set monad by manually fusing
-the fragment of the monad stack inside @SetT@.
+the fragment of the monad stack inside the @SetT@ transformer.
 
 \paragraph{Primitive Operations} Most of the primitive operations can be easily
 translated to their staged versions -- we just need to change the types.  As we
@@ -109,7 +109,7 @@ for it, because that means we still need to interpret over these closures at the
 next stage and the interpretation overhead has not been eliminated. 
 The solution is to compile the $\lambda$-term with its environment by calling
 the evaluator at the current stage. The result is generating a next-stage
-Scala function. The evaluator is passed as @ev@ to the method @close@.
+Scala function. The evaluator is already passed as @ev@ to the method @close@.
 The following code implements this idea:
 \begin{lstlisting}
   type ValSt = (Value, Store)

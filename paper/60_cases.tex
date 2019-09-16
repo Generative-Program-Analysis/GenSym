@@ -18,7 +18,6 @@ eliminated. In AC, the compiled analysis can be represented by either text or
 closures (higher-order functions). The minute difference is that the closures
 can be executed immediately, while the textual programs need to be compiled and
 loaded.
-
 Specifically, \citeauthor{Boucher:1996:ACN:647473.727587} showed how to compile a
 monovariant control-flow analysis \cite{Shivers:1991:SSC:115865.115884,
 Shivers:1988:CFA:53990.54007} for continuation-passing style (CPS) programs.
@@ -246,8 +245,8 @@ readers may refer to \citet{DBLP:journals/pacmpl/DaraisLNH17}.
 \vspace{-1em}
 \begin{lstlisting}
   def fix_gc(ev: (Expr => Ans) => (Expr => Ans))(e: Expr): Ans = for {
-    ψ <- ask_roots ... // omit code for retrieving ρ, σ, in and out
-    val res: Rep[(Set[(Value,Store)], Cache)] = ...  // omit code for checking caches
+    ψ <- ask_roots ... // omit code for retrieving ρ, σ, in and out, and checking caches
+    val res: Rep[(Set[(Value,Store)], Cache)] = ...  // the grounded result
     _ <- put_out_cache(res._2);  vs <- lift_nd(res._1)
     σ <- gc(ψ ⊔ root(vs._2));     _ <- put_store(σ)  // gc performs abstract garbage collection
   } yield v
@@ -276,9 +275,10 @@ trade-off between summary-based modular analyses and slow whole-program
 analyses, by utilizing an existing whole-program analyzer.
 
 As we have already seen in Section \ref{sai}, the primitive operation @close@
-can denote a $\lambda$-term to a next-stage Scala function. 
-The specialization of the staged abstract interpreter to a
-$\lambda$-term is also independent of other parts of the analyzed program.
+can denote a $\lambda$-term to a next-stage Scala function, which is the
+specialized analyzer to that $\lambda$-term.  The specialization of the staged
+abstract interpreter to a $\lambda$-term is independent of other parts of
+the analyzed program.
 \begin{lstlisting}
   def close(ev: Eval => Ans)(λ: Expr, ρ: Rep[Env]): Rep[Value]
 \end{lstlisting}
@@ -289,7 +289,7 @@ function @map@ and use the Scheme language as example:
   (define (map xs f) (if (null? xs) '() (cons (f (car xs)) (map (cdr xs) f))))
 \end{lstlisting}
 
-The specialization (0-CFA and without store-widening) of @close@ to
+The specialization (0-CFA without store-widening) of @close@ to
 @map@ generates the following next-stage Scala code, that is, the
 function @x39@:
 \begin{lstlisting}
@@ -314,14 +314,14 @@ monadic overhead via staging, and can therefore be considered as partial
 summaries. However, we still need to run the generated function at the next
 stage to obtain the analysis result.  At the next stage, we can provide
 different abstract arguments, stores, and caches, depending on the context
-where it is called.
+of where @map@ is called.
 
 Compared with traditional summary-based analysis, our partial
 summaries are represented by executable functions that are
 parameterized to the context information. In our approach, the
 transition from a whole-program analyzer to a modular-staged analyzer is
-mechanized and for-free via staging. We do not need to design any
-intermediate representation or data structures of summaries.  In some
+mechanized via staging. We do not need to design any
+intermediate representation or data structure of summaries.  In some
 scenarios, traditional summary-based analyses are able to carry more
 information within a module, e.g., the summary of their internal
 submodules. The staged approach presented here may still need to run
