@@ -163,6 +163,15 @@ then the generic interpreter is a standard definitional interpreter that
 will execute the program.  In Section \ref{stagedinterp}, we instantiate @R@
 using LMS's built-in next-stage type annotation @Rep@, which makes the
 interpreter act as a compiler.
+\begin{lstlisting}
+  type MonadOps[R[_], M[_], A] = {           // Environment operations
+    def map[B](f: R[A] => R[B]): M[B]        def ask_env: AnsM[Env]
+    def flatMap[B](f: R[A] => M[B]): M[B]    def local_env(ans: Ans)(ρ: R[Env]): Ans
+  }                                          // Store operations
+                                             def get_store: AnsM[Store]
+  type AnsM[T] <: MonadOps[R, AnsM, T]       def put_store(σ: R[Store]): AnsM[Unit]
+  type Ans = AnsM[Value]                     def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
+\end{lstlisting}
 
 \paragraph{Monadic Operations} We define the return type of the interpreter
 @Ans@ as a monadic type @AnsM[_]@ wrapping the type @Value@.
@@ -182,23 +191,14 @@ may be parameterized over the environment or store type, or merely a @Unit@
 value for performing effects. For example, @local_env@ installs a new environment
 @ρ@ when evaluating the monadic value @ans@; @set_store@ takes a pair of
 addresses and (potentially staged) values, and updates the store accordingly.
-\begin{lstlisting}
-  type MonadOps[R[_], M[_], A] = {           // Environment operations
-    def map[B](f: R[A] => R[B]): M[B]        def ask_env: AnsM[Env]
-    def flatMap[B](f: R[A] => M[B]): M[B]    def local_env(ans: Ans)(ρ: R[Env]): Ans
-  }                                          // Store operations
-                                             def get_store: AnsM[Store]
-  type AnsM[T] <: MonadOps[R, AnsM, T]       def put_store(σ: R[Store]): AnsM[Unit]
-  type Ans = AnsM[Value]                     def set_store(av: (R[Addr], R[Value])): AnsM[Unit]
-\end{lstlisting}
 
-\paragraph{Primitive Operations} Next, we define a few primitive operations.
+\paragraph{Primitive Operations} Next, we declare a few primitive operations.
 First, we declare two versions of @alloc@. The first takes a store and an
 identifier and produces a fresh address of non-monadic type @R[Addr]@. Since
 the freshness of the address may depend on the store, which might be a
 next-stage value as indicated by its type, the type of addresses is
 consequently wrapped by @R[_]@. The other @alloc@ is simply the monadic version
-of the addresses, and can therefore be used in monadic computations.
+of the previous one, and can therefore be used in monadic computations.
 An auxiliary method @get@ retrieves the value of an identifier @x@ through the
 environment and store.
 \begin{lstlisting}
@@ -207,7 +207,7 @@ environment and store.
 \end{lstlisting}
 
 Other primitive operations in the interpreter handle the language constructs.  The
-methods @num@ and @close@ deal with primitive values, which lift literal terms
+methods @num@ and @close@ deal with primitive values. For example, @close@ lifts literal terms
 (e.g., lambdas) to our value representation (e.g., closures).
 Conditionals and arithmetic are handled by @br0@ and @arith@, respectively. The
 method @ap_clo@ is used for applying functions, by taking a function value
