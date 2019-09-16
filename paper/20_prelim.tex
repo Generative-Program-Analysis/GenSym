@@ -33,7 +33,7 @@ abstract syntax is as follows:
 
 The abstract syntax we present can be seen as a deep embedding of the language:
 we use data-types to represent programs. This is the most natural choice
-for program analysis and allows us to use different interpretations over the
+for program analysis and it allows us to use different interpretations over the
 AST; with the inheritance and overriding mechanisms in Scala, we may also add
 new language constructs and reuse existing interpretations.
 
@@ -113,9 +113,9 @@ bindings before the last one are all translated into @flatMap@:
 \end{lstlisting}
 
 Note that here the monadic object of type @List[_]@ encapsulates the data internally.
-Therefore, it only exposes the simplified version of @flatMap@, where the monadic
+Therefore, it exposes the simplified interface of @flatMap@, where the monadic
 value of @M[A]@ is not introduced as a function argument. The trait @MonadOps@ (Figure
-\ref{fig:monadops}) defines the simplified versions of monadic operations that
+\ref{fig:monadops}) defines the simplified signatures of monadic operations that
 are necessary for @for@-comprehension. The conversion between @Monad@ and
 @MonadOps@ can be achieved by using the implicit design pattern.
 In the rest of the paper, we use Scala's @for@-comprehension syntax and a few
@@ -133,8 +133,9 @@ definitional interpreter. The key idea is to keep both the binding-time type and
 returned monadic type abstract, so that they can be instantiated
 differently. We also need to abstract the primitive operations on those types.
 In later sections, we will instantiate the monadic type to perform concrete
-interpretation \cite{DBLP:conf/popl/LiangHJ95} or abstract interpretation
-\cite{Sergey:2013:MAI:2491956.2491979, DBLP:journals/pacmpl/DaraisLNH17}.
+interpretation \cite{DBLP:conf/popl/LiangHJ95, Wadler:1992:EFP:143165.143169}
+or abstract interpretation \cite{Sergey:2013:MAI:2491956.2491979,
+DBLP:journals/pacmpl/DaraisLNH17}.
 
 \paragraph{Basic Types} We start with some basic type definitions that are used
 in the interpreter. The identifiers in the program are represented by strings.

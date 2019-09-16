@@ -141,18 +141,20 @@ guarantee of preserving the evaluation order by generating code in
 administrative normal form.
 
 To apply the Futamura projections to abstract interpreters, we consider
-\citet{DBLP:journals/pacmpl/DaraisLNH17}'s big-step monadic abstract interpreter
-as the unstaged baseline.  Similar to two-level semantics \cite{NIELSON1989117},
-monads provide a good abstraction to hide the detail of abstract interpretation
-semantics. However, monads do not have a clear stage distinction. We further
-introduce binding-times and make the monads binding-time polymorphic. Our
-proposed framework adopts type-based multi-stage programming from the
-Lightweight Modular Staging framework, and implements the first Futamura projection of
-an abstract interpreter for a stateful higher-order language. By deriving staged
-monads that can be used to perform code generation, we obtain a staged abstract
-interpreter that can be used for specialization. Through staging, the generated
-code is specialized to the input program, and all the monadic operations are
-inlined and compiled down to low-level Scala code.
+\citet{DBLP:journals/pacmpl/DaraisLNH17}'s big-step monadic abstract
+interpreter as the unstaged baseline.  Our proposed framework adopts type-based
+MSP from the Lightweight Modular Staging framework, and implements the first
+Futamura projection of this monadic abstract interpreter for a stateful
+higher-order language. 
+Similar to two-level semantics \cite{NIELSON1989117}, monads provide a good
+abstraction to hide the detail of abstract interpretation semantics. However,
+monads do not have a clear stage distinction. We further introduce
+binding-times and make the monads binding-time polymorphic. 
+By deriving staged monads that can be used to perform code generation, we
+obtain a staged abstract interpreter that can be used for specialization.
+Through staging, the generated code is specialized to the input program, and
+all the monadic operations are inlined and compiled down to low-level Scala
+code.
 
 \paragraph{Generic Interpreter and Reinterpretation}
 
@@ -200,7 +202,7 @@ thereby requiring significantly less engineering effort.
 analyses, including a store-widened analysis, a context-sensitive
 analysis, and abstract garbage collection.
 3) We show that staging an abstract interpreter enables modular
-compilation of an analysis to programs. Here we borrow the concept of
+compilation of an analysis to programs. Here, we borrow the concept of
 modular analysis, and show that the compiled analysis is reusable.
 Therefore, the approach provides a modular way to create optimized
 analysis code by mechanized reuse of a whole-program analyzer.
@@ -227,10 +229,9 @@ scalability of analyses by case studies and an empirical evaluation.
     show that the combination of approximation and specialization, dubbed
     \textit{staged abstract interpreters}, can be readily derived
     (Section~\ref{sai}). We also summarize the approach and discuss
-    soundness properties after showing the four artifacts.
-  \item We summarize our approach and discuss correctness (Section~\ref{discussion}).
-    We conduct three case studies (Section~\ref{cases_study}) and
-    an empirical evaluation on performance improvements (Section~\ref{evaluation}).
+    correctness properties after showing the four artifacts (Section~\ref{discussion}).
+  \item We conduct three case studies (Section~\ref{cases_study}) and an
+    empirical evaluation on performance improvements (Section~\ref{evaluation}).  
     Finally we discuss related work and conclude.
 \end{itemize}
 
