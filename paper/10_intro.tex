@@ -27,8 +27,8 @@ Based on the idea of AAM, more pragmatically, several implementation strategies
 in high-level functional programming languages have emerged.  Such techniques
 include monads and monad transformers \cite{DBLP:journals/pacmpl/DaraisLNH17,
 Sergey:2013:MAI:2491956.2491979}, arrows \cite{Keidel:2018:CSP:3243631.3236767},
-extensible effects \cite{Githubsemantic},
-etc. These pure approaches provide certain benefits, including the fact that the
+and extensible effects \cite{Githubsemantic}.
+These pure approaches provide certain benefits, including the fact that the
 abstract interpretation artifacts can be built in a compositional and modular
 fashion. Furthermore, referential transparency allows programmers to confidently
 reason about the correctness. The soundness of an
@@ -56,7 +56,7 @@ nondeterminism of collecting interpreters. Although such pure approaches have
 their merits, they are significantly slower when compared with imperative,
 stateful implementations. The goal of this paper is to develop an approach for
 implementing abstract interpreters, which allows high-level abstractions during
-implementation for clarity, but passes the incurred overhead at runtime for
+implementation for clarity, but bypasses the incurred overhead at runtime for
 efficiency.
 %In order to reconcile these approaches, one need to
 %use a programming technique which allows for high-level abstractions during
