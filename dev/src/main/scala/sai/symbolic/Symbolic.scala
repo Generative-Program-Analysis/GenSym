@@ -2,9 +2,10 @@ package sai
 package symbolic
 
 import SimpIL._
-import SimpIL.Values._
 
 object Concrete {
+  import SimpIL.Values._
+
   type PC = Int
   type Addr = Int
   type Store = Map[Addr, Value]
@@ -53,6 +54,12 @@ object Concrete {
     case "-" => IntV(v1 - v2)
     case "*" => IntV(v1 * v2)
     case "/" => IntV(v1 / v2)
+    case "==" => if (v1 == v2) IntV(1) else IntV(0)
+    case "!=" => if (v1 != v2) IntV(1) else IntV(0)
+    case ">"  => if (v1 >  v2) IntV(1) else IntV(0)
+    case ">=" => if (v1 >= v2) IntV(1) else IntV(0)
+    case "<"  => if (v1 <  v2) IntV(1) else IntV(0)
+    case "<=" => if (v1 <= v2) IntV(1) else IntV(0)
   }
 
   def evalUnaryOp(op: String, v: Int): Value = op match {
