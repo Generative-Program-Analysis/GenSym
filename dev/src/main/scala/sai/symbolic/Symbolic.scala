@@ -5,9 +5,8 @@ import SimpIL._
 import SimpIL.Values._
 
 object Concrete {
-  case class Addr(x: Int)
-
   type PC = Int
+  type Addr = Int
   type Store = Map[Addr, Value]
   type Env = Map[String, Value]
   type Prg = Map[PC, Stmt]
@@ -24,7 +23,7 @@ object Concrete {
     case Store(e1, e2) =>
       val v1 = eval(e1, Δ, μ)
       val v2 = eval(e2, Δ, μ)
-      val μ_* = v1 match { case IntV(α) => μ + (Addr(α) → v2) }
+      val μ_* = v1 match { case IntV(α) => μ + (α → v2) }
       exec(Σ(pc+1), Δ, μ_*, pc+1, Σ)
     case Goto(e) => eval(e, Δ, μ) match { case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, ℓ, Σ) }
     case Assert(e) => eval(e, Δ, μ) match { case IntV(1) => exec(Σ(pc+1), Δ, μ, pc+1, Σ) }
@@ -40,7 +39,7 @@ object Concrete {
   def eval(e: Exp, Δ: Env, μ: Store): Value = e match {
     case Lit(i) => IntV(i)
     case Var(x) => Δ(x)
-    case Load(e) => eval(e, Δ, μ) match { case IntV(α) => μ(Addr(α)) }
+    case Load(e) => eval(e, Δ, μ) match { case IntV(α) => μ(α) }
     case BinOp(op, e1, e2) => (eval(e1, Δ, μ), eval(e2, Δ, μ)) match {
       case (IntV(v1), IntV(v2)) => evalBinOp(op, v1, v2)
     }
