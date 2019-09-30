@@ -71,3 +71,64 @@ object Concrete {
     println(run(ex1))
   }
 }
+
+object Taint {
+  trait TaintStatus {
+    def ∨(t: TaintStatus): TaintStatus
+    def ∧(t: TaintStatus): TaintStatus
+    def ¬(): TaintStatus
+  }
+  case object T extends TaintStatus {
+    override def ∨(t: TaintStatus): TaintStatus = T
+    override def ∧(t: TaintStatus): TaintStatus = t
+    override def ¬(): TaintStatus = F
+  }
+  case object F extends TaintStatus {
+    override def ∨(t: TaintStatus): TaintStatus = t
+    override def ∧(t: TaintStatus): TaintStatus = F
+    override def ¬(): TaintStatus = T
+  }
+
+  trait Value
+  case class IntV(x: Int, τ: TaintStatus) extends Value
+
+  type PC = Int
+  type Addr = Int
+  type Store = Map[Addr, Value]
+  type Env = Map[String, Value]
+  type Prg = Map[PC, Stmt]
+
+  type TaintEnv = Map[String, TaintStatus]
+  type TaintStore = Map[Addr, TaintStatus]
+}
+
+trait TaintPolicy {
+  import Taint._
+
+  type TS = TaintStatus
+  def input(src: String): TS
+  def bincheck(t1: TS, t2: TS, v1: Value, v2: Value, op: String): TS
+  def memcheck(t1: TS, t2: TS): TS
+  def const(): TS
+  def unop(t: TS): TS
+  def assign(t: TS): TS
+  def binop(t1: TS, t2: TS): TS
+  def mem(ta: TS, tv: TS): TS
+  def condcheck(te: TS, ta: TS): TS
+  def gotocheck(ta: TS): TS
+}
+
+case object ATypicalTaintPolicy extends TaintPolicy {
+  import Taint._
+
+  def input(src: String): TS = T
+  def bincheck(t1: TS, t2: TS, v1: Value, v2: Value, op: String): TS = T
+  def memcheck(t1: TS, t2: TS): TS = T
+  def const(): TS = F
+  def unop(t: TS): TS = t
+  def assign(t: TS): TS = t
+  def binop(t1: TS, t2: TS): TS = t1 ∨ t2
+  def mem(ta: TS, tv: TS): TS = ta
+  def condcheck(te: TS, ta: TS): TS = ta.¬
+  def gotocheck(ta: TS): TS = ta.¬
+}
