@@ -88,9 +88,9 @@ object Taint {
     override def ∧(t: TaintStatus): TaintStatus = F
     override def ¬(): TaintStatus = T
   }
+  type TS = TaintStatus
 
-  trait Value
-  case class IntV(x: Int, τ: TaintStatus) extends Value
+  import SimpIL.Values._
 
   type PC = Int
   type Addr = Int
@@ -103,9 +103,9 @@ object Taint {
 }
 
 trait TaintPolicy {
+  import SimpIL.Values._
   import Taint._
 
-  type TS = TaintStatus
   def input(src: String): TS
   def bincheck(t1: TS, t2: TS, v1: Value, v2: Value, op: String): TS
   def memcheck(t1: TS, t2: TS): TS
@@ -119,6 +119,7 @@ trait TaintPolicy {
 }
 
 case object ATypicalTaintPolicy extends TaintPolicy {
+  import SimpIL.Values._
   import Taint._
 
   def input(src: String): TS = T
@@ -131,4 +132,69 @@ case object ATypicalTaintPolicy extends TaintPolicy {
   def mem(ta: TS, tv: TS): TS = ta
   def condcheck(te: TS, ta: TS): TS = ta.¬
   def gotocheck(ta: TS): TS = ta.¬
+}
+
+case class TaintAnalysis(p: TaintPolicy = ATypicalTaintPolicy) {
+  import SimpIL.Values._
+  import Taint._
+
+  type Result = (Env, Store, TaintEnv, TaintStore)
+
+  def run(p: Prog): Result = p match {
+    case Prog(stmts) =>
+      exec(stmts(0), Map(), Map(), Map(), Map(), 0, stmts.zipWithIndex.map(_.swap).toMap)
+  }
+
+  def exec(s: Stmt, Δ: Env, μ: Store, τΔ: TaintEnv, τμ: TaintStore, pc: PC, Σ: Prg): Result = s match {
+    case Assign(x, e) =>
+      val (v, t) = eval(e, Δ, μ, τΔ, τμ)
+      val Δ_* = Δ + (x → v)
+      val τΔ_* = τΔ + (x → p.assign(t))
+      exec(Σ(pc+1), Δ_*, μ, τΔ_*, τμ, pc+1, Σ)
+    case Store(e1, e2) =>
+      val (v1, t1) = eval(e1, Δ, μ, τΔ, τμ)
+      val (v2, t2) = eval(e2, Δ, μ, τΔ, τμ)
+      assert(p.memcheck(t1, t2) == T)
+      val (μ_*, τμ_*) = v1 match { case IntV(α) => (μ + (α → v2), τμ + (α → p.mem(t1, t2))) }
+      exec(Σ(pc+1), Δ, μ_*, τΔ, τμ_*, pc+1, Σ)
+    case Goto(e) =>
+      val (IntV(ℓ), t) = eval(e, Δ, μ, τΔ, τμ)
+      assert(p.gotocheck(t) == T)
+      exec(Σ(ℓ), Δ, μ, τΔ, τμ, ℓ, Σ)
+    case Assert(e) =>
+      val (IntV(1), t) = eval(e, Δ, μ, τΔ, τμ)
+      exec(Σ(pc+1), Δ, μ, τΔ, τμ, pc+1, Σ)
+    case Cond(cnd, e1, e2) =>
+      eval(cnd, Δ, μ, τΔ, τμ) match {
+        case (IntV(1), t1) =>
+          val (IntV(ℓ), t2) = eval(e1, Δ, μ, τΔ, τμ)
+          assert(p.condcheck(t1, t2) == T)
+          exec(Σ(ℓ), Δ, μ, τΔ, τμ, ℓ, Σ)
+        case (IntV(0), t1) =>
+          val (IntV(ℓ), t2) = eval(e1, Δ, μ, τΔ, τμ)
+          assert(p.condcheck(t1, t2) == T)
+          exec(Σ(ℓ), Δ, μ, τΔ, τμ, ℓ, Σ)
+      }
+    case Halt() => (Δ, μ, τΔ, τμ)
+    case _ => throw new RuntimeException("not a statement")
+  }
+
+  def eval(e: Exp, Δ: Env, μ: Store, τΔ: TaintEnv, τμ: TaintStore): (Value, TS) = {
+    def rec(e: Exp) = eval(e, Δ, μ, τΔ, τμ)
+    e match {
+      case Lit(i) => (IntV(i), p.const)
+      case Var(x) => (Δ(x), τΔ(x))
+      case Load(e) => rec(e) match { case (IntV(α), t) => (μ(α), p.mem(t, τμ(α))) }
+      case BinOp(op, e1, e2) =>
+        val (i1@IntV(v1), t1) = rec(e1)
+        val (i2@IntV(v2), t2) = rec(e2)
+        assert(p.bincheck(t1, t2, i1, i2, op) == T)
+        (Concrete.evalBinOp(op, v1, v2), p.binop(t1, t2))
+      case UnaryOp(op, e) =>
+        val (i@IntV(v), t) = rec(e)
+        (Concrete.evalUnaryOp(op, v), p.unop(t))
+      case GetInput("stdin") => (IntV(scala.io.StdIn.readInt), p.input("stdin"))
+      case _ => throw new RuntimeException("not an expression")
+    }
+  }
 }
