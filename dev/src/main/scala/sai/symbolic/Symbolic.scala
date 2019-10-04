@@ -198,3 +198,34 @@ case class TaintAnalysis(p: TaintPolicy = ATypicalTaintPolicy) {
     }
   }
 }
+
+object SymbolicExe {
+  trait BExp {
+    def ∧(e: BExp): BExp
+    def ∨(e: BExp): BExp
+  }
+  case object True extends BExp {
+    def ∧(e: BExp): BExp = e
+    def ∨(e: BExp): BExp = True
+  }
+  case object False extends BExp {
+    def ∧(e: BExp): BExp = False
+    def ∨(e: BExp): BExp = e
+  }
+  case class BEq(e1: Exp, e2: Exp) extends BExp {
+    def ∧(e: BExp): BExp = BConj(e :: this :: Nil)
+    def ∨(e: BExp): BExp = BDisj(e :: this :: Nil)
+  }
+  case class BConj(es: List[BExp]) extends BExp {
+    def ∧(e: BExp): BExp = BConj(e :: es)
+    def ∨(e: BExp): BExp = BDisj(e :: this :: Nil)
+  }
+  case class BDisj(es: List[BExp]) extends BExp {
+    def ∧(e: BExp): BExp = BConj(e :: this :: Nil)
+    def ∨(e: BExp): BExp = BDisj(e :: es)
+  }
+
+  def assertEqOne(e: Exp): BExp = BEq(e, Lit(1))
+  def assertEqZero(e: Exp): BExp = BEq(e, Lit(0))
+
+}
