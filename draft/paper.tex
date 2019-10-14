@@ -169,7 +169,8 @@ Text of abstract \ldots.
 
 \section{Introduction}
 
-Text of paper \ldots
+"building a symbolic compiler is often the most difficult aspect of
+creating solver-aided tools, especially for general-purpose languages" \cite{Torlak:2014:LSV:2594291.2594340}
 
 \cite{Futamura1999, Futamura1971}
 
@@ -182,8 +183,11 @@ language, they presented a formalization of forward symbolic execution in the fo
 small-step operational semantics. Existing challenges of symbolic execution and
 potential mitigations are also discussed.
 
-\cite{Siddiqui:2012:SSE:2245276.2231988}
-
+Our technique should not be confused with
+\citet{Siddiqui:2012:SSE:2245276.2231988}'s staged symbolic execution, which
+performs symbolic execution in stages. Different from a compilation-based
+staging in this paper, their first stage generates abstract symbolic inputs,
+which then will be shared and used across other methods in the second stage.
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional

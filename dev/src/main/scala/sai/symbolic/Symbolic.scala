@@ -199,7 +199,7 @@ case class TaintAnalysis(p: TaintPolicy = ATypicalTaintPolicy) {
   }
 }
 
-object SymbolicExe {
+object SymExec {
   trait BExp {
     def ∧(e: BExp): BExp
     def ∨(e: BExp): BExp
@@ -207,25 +207,143 @@ object SymbolicExe {
   case object True extends BExp {
     def ∧(e: BExp): BExp = e
     def ∨(e: BExp): BExp = True
+    override def toString = "⊤"
   }
   case object False extends BExp {
     def ∧(e: BExp): BExp = False
     def ∨(e: BExp): BExp = e
+    override def toString = "⊥"
   }
   case class BEq(e1: Exp, e2: Exp) extends BExp {
     def ∧(e: BExp): BExp = BConj(e :: this :: Nil)
     def ∨(e: BExp): BExp = BDisj(e :: this :: Nil)
+    override def toString = s"($e1 == $e2)"
   }
   case class BConj(es: List[BExp]) extends BExp {
     def ∧(e: BExp): BExp = BConj(e :: es)
     def ∨(e: BExp): BExp = BDisj(e :: this :: Nil)
+    override def toString = es.mkString("∧")
   }
   case class BDisj(es: List[BExp]) extends BExp {
     def ∧(e: BExp): BExp = BConj(e :: this :: Nil)
     def ∨(e: BExp): BExp = BDisj(e :: es)
+    override def toString = es.mkString("∨")
+  }
+  case class BNeg(b: BExp) extends BExp {
+    def ∧(e: BExp): BExp = BConj(e :: this :: Nil)
+    def ∨(e: BExp): BExp = BDisj(e :: this :: Nil)
+    override def toString = s"¬ $b"
   }
 
-  def assertEqOne(e: Exp): BExp = BEq(e, Lit(1))
-  def assertEqZero(e: Exp): BExp = BEq(e, Lit(0))
+  def assertTrue(e: Exp): BExp = BEq(e, Lit(1)) // TODO: convert to boolean?
+  def assertFalse(e: Exp): BExp = BEq(e, Lit(0))
 
+  trait Value
+  case class IntV(x: Int) extends Value
+  case class SymV(x: Exp) extends Value
+
+  var i: Int = 0
+  def fresh: String = {
+    val j = i
+    i = i + 1
+    s"x$j"
+  }
+
+  type PC = Int
+  type Addr = Int
+  type PCond = BExp
+  type Store = Map[Addr, Value]
+  type Env = Map[String, Value]
+  type Prg = Map[PC, Stmt]
+  type Result = Set[(Env, Store, BExp)]
+
+  def error(msg: String) = throw new RuntimeException(msg)
+  def symerror = throw new RuntimeException("Use a symbolic value as address!")
+
+  def exec(s: Stmt, Δ: Env, μ: Store, Π: PCond, pc: PC, Σ: Prg): Result = s match {
+    case Assign(x, e) =>
+      val v = eval(e, Δ, μ)
+      val Δ_* = Δ + (x → v)
+      exec(Σ(pc+1), Δ_*, μ, Π, pc+1, Σ)
+    case Store(e1, e2) =>
+      val v1 = eval(e1, Δ, μ)
+      val v2 = eval(e2, Δ, μ)
+      val μ_* = v1 match {
+        case IntV(α) => μ + (α → v2)
+        case SymV(x) => symerror
+      }
+      exec(Σ(pc+1), Δ, μ_*, Π, pc+1, Σ)
+    case Goto(e) => eval(e, Δ, μ) match {
+      case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, Π, ℓ, Σ)
+      case SymV(x) => symerror
+    }
+    case Assert(e) =>
+      eval(e, Δ, μ) match {
+        case IntV(1) => exec(Σ(pc+1), Δ, μ, Π, pc+1, Σ)
+        case IntV(_) => Set((Map(), Map(), False))
+        case SymV(x) => exec(Σ(pc+1), Δ, μ, Π ∧ assertTrue(x), pc+1, Σ)
+      }
+    case Cond(cnd, t1, t2) =>
+      eval(cnd, Δ, μ) match {
+        case IntV(1) => eval(t1, Δ, μ) match {
+          case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, Π, ℓ, Σ)
+          case SymV(x) => symerror
+        }
+        case IntV(0) => eval(t2, Δ, μ) match {
+          case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, Π, ℓ, Σ)
+          case SymV(x) => symerror
+        }
+        case SymV(x) => (eval(t1, Δ, μ), eval(t2, Δ, μ)) match {
+          case (IntV(ℓ1), IntV(ℓ2)) =>
+            exec(Σ(ℓ1), Δ, μ, Π ∧ assertTrue(x), ℓ1, Σ) ++
+            exec(Σ(ℓ2), Δ, μ, Π ∧ assertFalse(x), ℓ2, Σ)
+          case _ => symerror
+        }
+      }
+    case Halt() => Set((Δ, μ, Π))
+    case _ => throw new RuntimeException("not a statement")
+  }
+
+  def eval(e: Exp, Δ: Env, μ: Store): Value = e match {
+    case Lit(i) => IntV(i)
+    case Var(x) => Δ(x)
+    case Load(e) => eval(e, Δ, μ) match {
+      case IntV(α) => μ(α)
+      case SymV(x) => symerror
+    }
+    case BinOp(op, e1, e2) => (eval(e1, Δ, μ), eval(e2, Δ, μ)) match {
+      case (IntV(v1), IntV(v2)) => evalBinOp(op, v1, v2)
+      case (IntV(v1), SymV(x)) => SymV(BinOp(op, Lit(v1), x))
+      case (SymV(x), IntV(v2)) => SymV(BinOp(op, x, Lit(v2)))
+    }
+    case UnaryOp(op, e) => eval(e, Δ, μ) match { case IntV(v) => evalUnaryOp(op, v) }
+    case GetInput("stdin") => SymV(Var(fresh))
+    case _ => throw new RuntimeException("not an expression")
+  }
+
+  def evalBinOp(op: String, v1: Int, v2: Int): Value = op match {
+    case "+" => IntV(v1 + v2)
+    case "-" => IntV(v1 - v2)
+    case "*" => IntV(v1 * v2)
+    case "/" => IntV(v1 / v2)
+    case "==" => if (v1 == v2) IntV(1) else IntV(0)
+    case "!=" => if (v1 != v2) IntV(1) else IntV(0)
+    case ">"  => if (v1 >  v2) IntV(1) else IntV(0)
+    case ">=" => if (v1 >= v2) IntV(1) else IntV(0)
+    case "<"  => if (v1 <  v2) IntV(1) else IntV(0)
+    case "<=" => if (v1 <= v2) IntV(1) else IntV(0)
+  }
+
+  def evalUnaryOp(op: String, v: Int): Value = op match {
+    case "~" => IntV(-v)
+  }
+
+  def run(p: Prog): Result = p match {
+    case Prog(stmts) => exec(stmts(0), Map(), Map(), True, 0, stmts.zipWithIndex.map(_.swap).toMap)
+  }
+
+  def main(args: Array[String]): Unit = {
+    import SimpIL.Examples._
+    println(run(ex2))
+  }
 }

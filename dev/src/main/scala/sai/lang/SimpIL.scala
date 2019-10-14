@@ -12,11 +12,21 @@ object SimpIL {
   case class Halt() extends Stmt
 
   sealed trait Exp
-  case class Lit(x: Int) extends Exp
-  case class Var(x: String) extends Exp
-  case class Load(e: Exp) extends Exp
-  case class BinOp(op: String, e1: Exp, e2: Exp) extends Exp
-  case class UnaryOp(op: String, e: Exp) extends Exp
+  case class Lit(x: Int) extends Exp {
+    override def toString = x.toString
+  }
+  case class Var(x: String) extends Exp {
+    override def toString = x
+  }
+  case class Load(e: Exp) extends Exp {
+    override def toString = s"(load $e)"
+  }
+  case class BinOp(op: String, e1: Exp, e2: Exp) extends Exp {
+    override def toString = s"($e1 $op $e2)"
+  }
+  case class UnaryOp(op: String, e: Exp) extends Exp {
+    override def toString = s"($op $e)"
+  }
   case class GetInput(src: String) extends Exp
 
   object Values {
@@ -25,7 +35,14 @@ object SimpIL {
   }
 
   object Examples {
-    val ex1 = Prog(List(Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
-                        Halt()))
+    val ex1 = Prog(List(Assign("x", BinOp("*", Lit(2), GetInput("stdin"))), Halt()))
+
+    val ex2 = Prog(List(
+      Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
+      Cond(BinOp("==", BinOp("-", Var("x"), Lit(5)), Lit(14)),
+        Lit(2),
+        Lit(3)),
+      Assert(Lit(0)),
+      Halt()))
   }
 }
