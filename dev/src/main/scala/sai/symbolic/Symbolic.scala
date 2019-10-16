@@ -276,7 +276,7 @@ object SymExec {
     case Goto(e) => eval(e, Δ, μ) match {
       case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, Π, ℓ, Σ)
       case SymV(x) => symerror
-    }
+    } 
     case Assert(e) =>
       eval(e, Δ, μ) match {
         case IntV(1) => exec(Σ(pc+1), Δ, μ, Π, pc+1, Σ)
