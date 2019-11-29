@@ -37,7 +37,8 @@ object Main {
           case (a: Rep[Int], b: Rep[Int]) => a + b
         })
         println(sum)
-        plusone(2) + plustwo.tail.head + zss.head
+        val bs = List(0,1,2,3)
+        plusone(2) + plustwo.tail.head + zss.head + bs(0)
       }
 
       //def snippet(b: Rep[Int]) = power(b, 10)

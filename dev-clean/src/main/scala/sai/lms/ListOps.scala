@@ -12,7 +12,7 @@ import lms.macros.SourceContext
 trait ListOps { b: Base =>
   object List {
     def apply[A: Manifest](xs: Rep[A]*)(implicit pos: SourceContext) =
-      Wrap[List[A]](Adapter.g.reflect("List", xs.map(Unwrap(_)):_*))
+      Wrap[List[A]](Adapter.g.reflect("list-new", xs.map(Unwrap(_)):_*))
   }
 
   implicit def __liftConstList[A: Manifest](xs: List[A]): ListOps[A] = new ListOps(unit(xs))
@@ -71,6 +71,7 @@ trait ListOps { b: Base =>
 trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
   // TODO: is there any other ways to prevent inlining?
   override def mayInline(n: Node): Boolean = n match {
+    case Node(_, "list-new", _, _) => false
     case Node(_, "list-map", _, _) => false
     case Node(_, "list-flatMap", _, _) => false
     case Node(_, "list-foldLeft", _, _) => false
@@ -83,6 +84,13 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
   }
 
   override def shallow(n: Node): Unit = n match {
+    case Node(s, "list-new", xs, _) =>
+      emit("List(");
+      xs.zipWithIndex.map { case (x, i) =>
+        shallow(x)
+        if (i != xs.length-1) emit(", ")
+      }
+      emit(")");
     case Node(s, "list-apply", List(xs, i), _) =>
       shallow(xs); emit("("); shallow(i); emit(")")
     case Node(s, "list-head", List(xs), _) =>
