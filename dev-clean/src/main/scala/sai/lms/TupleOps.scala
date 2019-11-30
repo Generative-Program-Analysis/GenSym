@@ -9,29 +9,50 @@ import lms.core.utils.time
 import lms.macros.SourceContext
 
 trait TupleOps { b: Base =>
+  // Tuple2
   object Tuple2 {
     def apply[A: Manifest, B: Manifest](a: Rep[A], b: Rep[B]) =
       Wrap[Tuple2[A, B]](Adapter.g.reflect("tuple2-new", Unwrap(a), Unwrap(b)))
   }
-  object Tuple3 {
-    def apply[A: Manifest, B: Manifest, C: Manifest](a: Rep[A], b: Rep[B], c: Rep[C]) =
-      Wrap[Tuple3[A, B, C]](Adapter.g.reflect("tuple3-new", Unwrap(a), Unwrap(b), Unwrap(c)))
-  }
 
-  implicit def __liftConstTuple2[A: Manifest, B: Manifest](t: (A, B)) = (unit(t._1), unit(t._2))
-  implicit def __liftConstTuple2Rep[A: Manifest, B: Manifest](t: (Rep[A], Rep[B])) =
+  implicit def __liftTuple2Rep[A: Manifest, B: Manifest](t: (Rep[A], Rep[B])) =
     Tuple2[A, B](t._1, t._2)
-
-  implicit def __liftConstTuple3[A: Manifest, B: Manifest, C: Manifest](t: (A, B, C)) =
-    (unit(t._1), unit(t._2), unit(t._3))
-  implicit def __liftConstTuple3Rep[A: Manifest, B: Manifest, C: Manifest](t: (Rep[A], Rep[B], Rep[C])) =
-    Tuple3[A, B, C](t._1, t._2, t._3)
+  implicit def __liftTuple2RepLhs[A: Manifest, B: Manifest](t: (A, Rep[B])) =
+    Tuple2[A, B](unit(t._1), t._2)
+  implicit def __liftTuple2RepRhs[A: Manifest, B: Manifest](t: (Rep[A], B)) =
+    Tuple2[A, B](t._1, unit(t._2))
+  implicit def __liftTuple2[A: Manifest, B: Manifest](t: (A, B)) =
+    (unit(t._1), unit(t._2))
 
   implicit class Tuple2Ops[A: Manifest, B: Manifest](t: Rep[(A, B)]) {
     val _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
     val _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
     def swap: Rep[(B, A)] = Wrap[(B, A)](Adapter.g.reflect("tuple2-swap", Unwrap(t)))
   }
+
+  // Tuple3
+
+  object Tuple3 {
+    def apply[A: Manifest, B: Manifest, C: Manifest](a: Rep[A], b: Rep[B], c: Rep[C]) =
+      Wrap[Tuple3[A, B, C]](Adapter.g.reflect("tuple3-new", Unwrap(a), Unwrap(b), Unwrap(c)))
+  }
+
+  implicit def __liftTuple3RepAll[A: Manifest, B: Manifest, C: Manifest](t: (Rep[A], Rep[B], Rep[C])) =
+    Tuple3[A, B, C](t._1, t._2, t._3)
+  implicit def __liftTuple3RepFst[A: Manifest, B: Manifest, C: Manifest](t: (A, Rep[B], Rep[C])) =
+    Tuple3[A, B, C](unit(t._1), t._2, t._3)
+  implicit def __liftTuple3RepSnd[A: Manifest, B: Manifest, C: Manifest](t: (Rep[A], B, Rep[C])) =
+    Tuple3[A, B, C](t._1, unit(t._2), t._3)
+  implicit def __liftTuple3RepTrd[A: Manifest, B: Manifest, C: Manifest](t: (Rep[A], Rep[B], C)) =
+    Tuple3[A, B, C](t._1, t._2, unit(t._3))
+  implicit def __liftTuple3RepFstSnd[A: Manifest, B: Manifest, C: Manifest](t: (A, B, Rep[C])) =
+    Tuple3[A, B, C](unit(t._1), unit(t._2), t._3)
+  implicit def __liftTuple3RepFstTrd[A: Manifest, B: Manifest, C: Manifest](t: (A, Rep[B], C)) =
+    Tuple3[A, B, C](unit(t._1), t._2, unit(t._3))
+  implicit def __liftTuple3RepSndTrd[A: Manifest, B: Manifest, C: Manifest](t: (Rep[A], B, C)) =
+    Tuple3[A, B, C](t._1, unit(t._2), unit(t._3))
+  implicit def __liftTuple3[A: Manifest, B: Manifest, C: Manifest](t: (A, B, C)) =
+    (unit(t._1), unit(t._2), unit(t._3))
 
   implicit class Tuple3Ops[A: Manifest, B: Manifest, C: Manifest](t: Rep[(A, B, C)]) {
     val _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))

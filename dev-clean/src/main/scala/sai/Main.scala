@@ -12,7 +12,6 @@ import sai.lmsx._
 
 
 object Main {
-  /*
   def test_list() = {
     val snippet = new SAIDriver[List[Int], Int] {
       @virtualize
@@ -48,7 +47,6 @@ object Main {
     println(snippet.code)
     assert(snippet.eval(List(1,2,3)) == 4 + 4 + 4)
   }
-  */
   def test_map() = {
     val snippet = new SAIDriver[Map[Int, Int], Int] {
       @virtualize
@@ -59,6 +57,7 @@ object Main {
         val t4: Rep[(Int, Int)] = Tuple2(unit(1), 2)
         t1._1 + t2._1 + t3._2 + t4._1
         val m1 = Map((1, 2), (2, 5))
+        val m2 = m1 + (unit(2) -> 3)
         m1(1)
       }
 
@@ -70,7 +69,7 @@ object Main {
 
   def main(args: Array[String]) {
     println("Hello")
-    //test_list()
-    test_map()
+    test_list()
+    //test_map()
   }
 }

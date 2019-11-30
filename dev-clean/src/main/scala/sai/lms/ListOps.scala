@@ -122,7 +122,7 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
     case Node(s, "list-flatMap", List(xs, b), _) =>
       shallow(xs); emit(".flatMap("); shallow(b); emit(")")
     case Node(s, "list-foldLeft", List(xs, z, b), _) =>
-      shallow(xs); emit(".foldLeft("); shallow(z); emit(")("); shallow(b); emit(")")
+      shallow(xs); emit(".foldLeft("); shallow(z); emit(")("); shallow(b, false); emit(")")
     case Node(s, "list-zip", List(xs, ys), _) =>
       shallow(xs); emit(".zip("); shallow(ys); emit(")")
     case Node(s, "list-filter", List(xs, b), _) =>
