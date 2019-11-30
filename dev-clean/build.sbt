@@ -9,6 +9,12 @@ libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value 
 libraryDependencies += "org.scala-lang" % "scala-library" % scalaVersion.value % "compile"
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile"
 
+scalacOptions ++= Seq(
+  "-Xcheckinit",
+  "-deprecation",
+  "-Xlog-implicit-conversions",
+)
+
 autoCompilerPlugins := true
 val paradiseVersion = "2.1.0"
 addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)

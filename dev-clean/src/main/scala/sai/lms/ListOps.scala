@@ -86,12 +86,12 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-new", xs, _) =>
-      emit("List(");
+      emit("List(")
       xs.zipWithIndex.map { case (x, i) =>
         shallow(x)
         if (i != xs.length-1) emit(", ")
       }
-      emit(")");
+      emit(")")
     case Node(s, "list-apply", List(xs, i), _) =>
       shallow(xs); emit("("); shallow(i); emit(")")
     case Node(s, "list-head", List(xs), _) =>

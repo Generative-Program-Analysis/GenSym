@@ -11,14 +11,14 @@ import lms.macros.SourceContext
 
 trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
     with OrderingOps with LiftVariables
-    with ListOps {
+    with TupleOps with ListOps with MapOps {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
 }
 
 trait SAIDslImpl extends SAIOps { q =>
-  val codegen = new ScalaGenBase with ScalaCodeGen_List {
+  val codegen = new ScalaGenBase with ScalaCodeGen_List with ScalaCodeGen_Map with ScalaCodeGen_Tuple {
     val IR: q.type = q
     import IR._
   }
