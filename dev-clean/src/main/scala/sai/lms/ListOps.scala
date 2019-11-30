@@ -53,6 +53,7 @@ trait ListOps { b: Base =>
       Wrap[List[A]](Adapter.g.reflect("list-filter", Unwrap(xs), block))
     }
     def withFilter(f: Rep[A] => Rep[Boolean]): Rep[List[A]] = filter(f)
+    // TODO: what if the Ordering of B not exists at the next stage?
     def sortBy[B: Manifest : Ordering](f: Rep[A] => Rep[B]): Rep[List[A]] = {
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       Wrap[List[A]](Adapter.g.reflect("list-sortBy", Unwrap(xs), block))
@@ -71,7 +72,7 @@ trait ListOps { b: Base =>
 trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
   // TODO: is there any other ways to prevent inlining?
   override def mayInline(n: Node): Boolean = n match {
-    case Node(_, "list-new", _, _) => false
+    //case Node(_, "list-new", _, _) => false
     case Node(_, "list-map", _, _) => false
     case Node(_, "list-flatMap", _, _) => false
     case Node(_, "list-foldLeft", _, _) => false
