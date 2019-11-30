@@ -34,7 +34,11 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "map-new", kvs, _) =>
-      emit("Map(")
+      val kty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
+      val vty = remap(typeMap.get(s).map(_.typeArguments(1)).getOrElse(manifest[Unknown]))
+      emit("Map[")
+      emit(kty); emit(", "); emit(vty)
+      emit("](")
       kvs.zipWithIndex.map { case (kv, i) =>
         shallow(kv)
         if (i != kvs.length-1) emit(", ")

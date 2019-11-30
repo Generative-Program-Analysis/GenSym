@@ -86,7 +86,10 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-new", xs, _) =>
-      emit("List(")
+      val ty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
+      emit("List[")
+      emit(ty)
+      emit("](")
       xs.zipWithIndex.map { case (x, i) =>
         shallow(x)
         if (i != xs.length-1) emit(", ")

@@ -13,7 +13,7 @@ import sai.lmsx._
 
 object Main {
   /*
-  def test_power() = {
+  def test_list() = {
     val snippet = new SAIDriver[List[Int], Int] {
       @virtualize
       def power(b: Rep[Int], x: Int): Rep[Int] =
@@ -48,18 +48,16 @@ object Main {
     println(snippet.code)
     assert(snippet.eval(List(1,2,3)) == 4 + 4 + 4)
   }
-   */
+  */
   def test_map() = {
     val snippet = new SAIDriver[Map[Int, Int], Int] {
       @virtualize
       def maptest(m: Rep[Map[Int, Int]]): Rep[Int] = {
-        /*
         val t1: Rep[(Int, Int)] = (unit(1), unit(2))
-        val t2: Rep[(Int, Int)] = (1, 2)
+        val t2: Rep[(Int, Int)] = (1, 2) //unit handles this directly as constant
         val t3: Rep[(Int, Int)] = Tuple2(1, 2)
         val t4: Rep[(Int, Int)] = Tuple2(unit(1), 2)
-        t1._1
-        */
+        t1._1 + t2._1 + t3._2 + t4._1
         val m1 = Map((1, 2), (2, 5))
         m1(1)
       }
@@ -72,7 +70,7 @@ object Main {
 
   def main(args: Array[String]) {
     println("Hello")
-    //test_power()
+    //test_list()
     test_map()
   }
 }
