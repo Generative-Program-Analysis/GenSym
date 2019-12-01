@@ -94,6 +94,12 @@ object Main {
         println(s2)
         val s3 = s2.filter(x => x > 3)
         println(s3)
+        if (s3(5)) {
+          println("contains")
+        }
+        else {
+          println("not contains")
+        }
         sum
       }
 

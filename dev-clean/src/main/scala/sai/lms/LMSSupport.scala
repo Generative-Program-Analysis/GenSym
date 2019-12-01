@@ -20,7 +20,8 @@ trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
 trait SAIDslImpl extends SAIOps { q =>
   val codegen = new ScalaGenBase
       with ScalaCodeGen_List with ScalaCodeGen_Map
-      with ScalaCodeGen_Tuple with ScalaCodeGen_Set {
+      with ScalaCodeGen_Tuple with ScalaCodeGen_Set
+      with ScalaCodeGen_LiftIf {
     val IR: q.type = q
     import IR._
   }
