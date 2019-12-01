@@ -72,6 +72,10 @@ object Main {
           case (k: Rep[Int], v: Rep[Int]) => (k, v + 1)
         }
         println(m3)
+        val m4: Rep[List[(Int, Int)]] = m2.map {
+          case (k: Rep[Int], v: Rep[Int]) => (k, v + 1)
+        }
+        println(m4)
         m1(1)
       }
 

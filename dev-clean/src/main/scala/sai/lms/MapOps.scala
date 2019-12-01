@@ -54,7 +54,7 @@ trait MapOps { b: Base =>
       val block = Adapter.g.reify(2, syms => Unwrap(f(Wrap[K](syms(0)), Wrap[V](syms(1)))))
       Wrap[List[A]](Adapter.g.reflect("map-map", Unwrap(m), block))
     }
-    def map[K1: Manifest, V1: Manifest](f: ((Rep[K], Rep[V])) => (Rep[K1], Rep[V1])): Rep[Map[K1,V1]] = {
+    def map[K1: Manifest, V1: Manifest](f: ((Rep[K], Rep[V])) => Rep[(K1, V1)]): Rep[Map[K1,V1]] = {
       val block = Adapter.g.reify(2, syms => Unwrap(f(Wrap[K](syms(0)), Wrap[V](syms(1)))))
       Wrap[Map[K1, V1]](Adapter.g.reflect("map-mapmap", Unwrap(m), block))
     }
