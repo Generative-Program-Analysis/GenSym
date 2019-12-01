@@ -85,9 +85,29 @@ object Main {
     assert(snippet.eval(Map((0,2), (1,3))) == 2)
   }
 
+  def test_set() = {
+    val snippet = new SAIDriver[Set[Int], Int] {
+      @virtualize
+      def settest(s: Rep[Set[Int]]): Rep[Int] = {
+        val sum = s.foldLeft(0) { case (z, x) => z + x }
+        val s2 = s.map(x => x + 1)
+        println(s2)
+        val s3 = s2.filter(x => x > 3)
+        println(s3)
+        sum
+      }
+
+      def snippet(s: Rep[Set[Int]]) = settest(s)
+    }
+
+    println(snippet.code)
+    assert(snippet.eval(Set(1,2,3,4)) == 10)
+  }
+
   def main(args: Array[String]) {
     println("Hello")
     //test_list()
-    test_map()
+    //test_map()
+    test_set()
   }
 }
