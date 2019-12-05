@@ -212,7 +212,29 @@ object Lattices {
     }
   }
 
-  def test() {
+}
+
+object TestLattices {
+  import Lattices._
+
+  def test_rep() = {
+    val snippet = new SAIDriver[Set[Int], Int] {
+      @virtualize
+      def snippet(s1: Rep[Set[Int]]) = {
+        val s2 = s1.map(x => x + 1)
+        val s3 = s1 ⊔ s2
+        println(s3)
+        val s4 = s1 ⊓ s2
+        println(s4)
+        0
+      }
+    }
+
+    println(snippet.code)
+    assert(snippet.eval(Set(1,2,3,4)) == 0)
+  }
+
+  def main(args: Array[String]) {
     // Test sets as lattices
     val s1 = Set[Int](1,2,3)
     val s2 = Set[Int](3,4,5)
@@ -244,5 +266,7 @@ object Lattices {
     assert(Interval(5, 10) ⊔ Interval(3, 11) == Interval(3, 11))
     assert(Interval(5, 10) ⊓ Interval(3, 11) == Interval(5, 10))
     assert(Interval(5, 10) ⊑ (Interval(5, 10) ⊓ Interval(3, 11)))
+
+    test_rep()
   }
 }
