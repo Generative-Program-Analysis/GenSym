@@ -333,18 +333,24 @@ trait RepMonads extends RepLattices { self: SAIOps =>
 
     implicit def SetReaderStateMonad[R: Manifest, S: Manifest] =
       new Monad[SetReaderStateM[R, S, ?]] with MonadState[SetReaderStateM[R, S, ?], S] with MonadReader[SetReaderStateM[R, S, ?], R] {
-      def flatMap[A: Manifest, B: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[A] => SetReaderStateM[R, S, B]) = ma.flatMap(f)
-      def pure[A: Manifest](a: Rep[A]): SetReaderStateM[R, S, A] = SetReaderStateM(r => s => (Set[A](a), s))
-      def filter[A: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[A] => Rep[Boolean]): SetReaderStateM[R, S, A] = ma.filter(f)
+        def flatMap[A: Manifest, B: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[A] => SetReaderStateM[R, S, B]) =
+          ma.flatMap(f)
+        def pure[A: Manifest](a: Rep[A]): SetReaderStateM[R, S, A] =
+          SetReaderStateM(r => s => (Set[A](a), s))
+        def filter[A: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[A] => Rep[Boolean]): SetReaderStateM[R, S, A] =
+          ma.filter(f)
 
-      def get: SetReaderStateM[R, S, S] = SetReaderStateM(r => s => (Set[S](s), s))
-      def put(s: Rep[S]): SetReaderStateM[R, S, Unit] = SetReaderStateM(r => _ => (Set[Unit](()), s))
-      def mod(f: Rep[S] => Rep[S]): SetReaderStateM[R, S, Unit] = SetReaderStateM(r => s => (Set[Unit](()), f(s)))
+        def get: SetReaderStateM[R, S, S] =
+          SetReaderStateM(r => s => (Set[S](s), s))
+        def put(s: Rep[S]): SetReaderStateM[R, S, Unit] =
+          SetReaderStateM(r => _ => (Set[Unit](()), s))
+        def mod(f: Rep[S] => Rep[S]): SetReaderStateM[R, S, Unit] =
+          SetReaderStateM(r => s => (Set[Unit](()), f(s)))
 
-      def ask: SetReaderStateM[R, S, R] = SetReaderStateM(r => s => (Set[R](r), s))
-      def local[A: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[R] => Rep[R]): SetReaderStateM[R, S, A] =
-        SetReaderStateM(r => s => ma.run(f(r))(s))
-    }
+        def ask: SetReaderStateM[R, S, R] = SetReaderStateM(r => s => (Set[R](r), s))
+        def local[A: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[R] => Rep[R]): SetReaderStateM[R, S, A] =
+          SetReaderStateM(r => s => ma.run(f(r))(s))
+      }
 
     implicit def SetReaderStateMonadPlus[R: Manifest, S: Manifest : RepLattice] = new MonadPlus[SetReaderStateM[R, S, ?]] {
       def mzero[A: Manifest : RepLattice]: SetReaderStateM[R, S, A] = empty[R, S, A]

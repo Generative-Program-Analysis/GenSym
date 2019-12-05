@@ -10,11 +10,12 @@ import lms.core.utils.time
 import lms.macros.SourceContext
 
 import sai.lattices._
+import sai.monads._
 
 trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
     with OrderingOps with LiftVariables
     with TupleOps with ListOps with MapOps with SetOps
-    with RepLattices {
+    with RepLattices with RepMonads {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
