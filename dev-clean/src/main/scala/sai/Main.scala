@@ -26,7 +26,6 @@ object Main {
     assert(snippet.eval(2) == 32)
   }
 
-  /*
   def test_list() = {
     val snippet = new SAIDriver[List[Int], Int] {
       @virtualize
@@ -62,7 +61,7 @@ object Main {
     println(snippet.code)
     assert(snippet.eval(List(1,2,3)) == 4 + 4 + 4)
   }
-  */
+
   def test_map() = {
     val snippet = new SAIDriver[Map[Int, Int], Int] {
       @virtualize
@@ -79,7 +78,7 @@ object Main {
         {
           case (z, (k, v)) => z + v
         }
-         */
+        */
         println(sumKey)
         val m2 = m1 + (unit(2) -> 3)
         m2.foreach {
@@ -130,9 +129,9 @@ object Main {
 
   def main(args: Array[String]) {
     println("Hello")
-    //test_list()
-    //test_map()
-    //test_set()
-    test_power()
+    //test_power()
+    test_list()
+    test_map()
+    test_set()
   }
 }

@@ -17,6 +17,9 @@ trait MapOps { b: Base =>
       }
       Wrap[Map[K, V]](Adapter.g.reflect("map-new", kvs_*.map(Unwrap):_*))
     }
+    def empty[K: Manifest, V: Manifest](implicit pos: SourceContext) = {
+      Wrap[Map[K, V]](Adapter.g.reflect("map-new"))
+    }
   }
 
   implicit def __liftConstMap[K: Manifest, V: Manifest](m: Map[K, V]): MapOps[K, V] = new MapOps(m)
