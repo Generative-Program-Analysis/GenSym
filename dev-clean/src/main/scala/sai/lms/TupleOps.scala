@@ -28,6 +28,7 @@ trait TupleOps { b: Base =>
     val _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
     val _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
     def swap: Rep[(B, A)] = Wrap[(B, A)](Adapter.g.reflect("tuple2-swap", Unwrap(t)))
+    def unlift: (Rep[A], Rep[B]) = (this._1, this._2)
   }
 
   // Tuple3
@@ -58,6 +59,10 @@ trait TupleOps { b: Base =>
     val _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
     val _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple3-2", Unwrap(t)))
     val _3: Rep[C] = Wrap[C](Adapter.g.reflect("tuple3-3", Unwrap(t)))
+    def unliftLeft: ((Rep[A], Rep[B]), Rep[C]) =
+      ((this._1, this._2), this._3)
+    def unliftRight: (Rep[A], (Rep[B], Rep[C])) =
+      (this._1, (this._2, this._3))
   }
 }
 
