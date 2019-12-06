@@ -48,6 +48,13 @@ trait SetOps { b: Base =>
 }
 
 trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.Set") {
+      val kty = m.typeArguments(0)
+      s"Set[${remap(kty)}]"
+    } else { super.remap(m) }
+  }
+
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "set-++", _, _) => false
     case Node(_, "set-intersect", _, _) => false

@@ -70,6 +70,13 @@ trait ListOps { b: Base =>
 }
 
 trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.List") {
+      val kty = m.typeArguments(0)
+      s"List[${remap(kty)}]"
+    } else { super.remap(m) }
+  }
+
   // TODO: is there any other ways to prevent inlining?
   override def mayInline(n: Node): Boolean = n match {
     //case Node(_, "list-new", _, _) => false

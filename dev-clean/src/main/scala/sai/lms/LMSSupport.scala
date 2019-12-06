@@ -21,24 +21,26 @@ trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
   def manifestTyp[T: Typ] = manifest[T]
 }
 
-trait SAIDslImpl extends SAIOps { q =>
-  val codegen = new ScalaGenBase
-      with ScalaCodeGen_List with ScalaCodeGen_Map
-      with ScalaCodeGen_Tuple with ScalaCodeGen_Set
-      with ScalaCodeGen_LiftIf {
-    val IR: q.type = q
-    import IR._
-  }
-}
-
 abstract class SAISnippet[A:Manifest, B:Manifest] extends SAIOps {
   def wrapper(x: Rep[A]): Rep[B] = snippet(x)
   def snippet(x: Rep[A]): Rep[B]
 }
 
-abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIDslImpl {
+trait SAICodeGen extends ScalaGenBase with ScalaCodeGen_List
+    with ScalaCodeGen_Map with ScalaCodeGen_Tuple
+    with ScalaCodeGen_Set // with ScalaCodeGen_LiftIf
+
+abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps { q =>
+  val codegen = new SAICodeGen {
+    val IR: q.type = q
+    import IR._
+  }
+
+  val prelude: String = ""
+
   lazy val (code, statics) = {
     val source = new java.io.ByteArrayOutputStream()
+    source.write(prelude.getBytes)
     val statics = codegen.emitSource(wrapper, "Snippet",
       new java.io.PrintStream(source))(manifestTyp[A], manifestTyp[B])
     (source.toString, statics)

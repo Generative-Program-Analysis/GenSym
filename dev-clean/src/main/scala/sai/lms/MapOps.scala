@@ -65,6 +65,14 @@ trait MapOps { b: Base =>
 }
 
 trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.Map") {
+      val kty = m.typeArguments(0)
+      val vty = m.typeArguments(1)
+      s"Map[${remap(kty)}, ${remap(vty)}]"
+    } else { super.remap(m) }
+  }
+
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "map-new", _, _) => false
     case Node(_, "map-+", _, _) => false

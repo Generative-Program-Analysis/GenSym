@@ -1,15 +1,17 @@
 package sai
 
+import lms.core._
 import lms.core.stub._
-import lms.macros.SourceContext
+import lms.core.Backend._
 import lms.core.virtualize
+import lms.macros.SourceContext
 
+import FunLang._
 import sai.lmsx._
 import sai.monads._
-import FunLang._
 
 @virtualize
-trait StagedConcreteSemantics extends SAIOps with ConcreteComponents {
+trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
   import IdM._
   import StateT._
   import ReaderT._
@@ -22,11 +24,12 @@ trait StagedConcreteSemantics extends SAIOps with ConcreteComponents {
   type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
 
   // Code generation
-  def lift_ap_clo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] = 
+  def lift_ap_clo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
     Wrap[(Value, Store)](Adapter.g.reflect("sai-ap-clo", Unwrap(f), Unwrap(arg), Unwrap(σ)))
   def lift_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)], λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val block = Adapter.g.reify((v, s) => Unwrap(f(Wrap[Value](v), Wrap[Store](s))))
-    Wrap[Value](Adapter.g.reflect("sai-comp-clo", block, Unwrap(unit[Lam](λ)), Unwrap(ρ)))
+    val block_node = Wrap[(Value, Store)=>(Value, Store)](Adapter.g.reflect("λ", block))
+    Wrap[Value](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
   }
   def lift_int_proj(i: Rep[Value]): Rep[Int] = Wrap[Int](Adapter.g.reflect("sai-IntV-proj", Unwrap(i)))
 
@@ -57,7 +60,7 @@ trait StagedConcreteSemantics extends SAIOps with ConcreteComponents {
     unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
   }
 
-  def lift[T: Manifest](t: Rep[T]): AnsM[T] = 
+  def lift[T: Manifest](t: Rep[T]): AnsM[T] =
     ReaderT.liftM[StoreM, Env, T](StateT.liftM[IdM, Store, T](IdM(t)))
 
   def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
@@ -86,73 +89,81 @@ trait StagedConcreteSemantics extends SAIOps with ConcreteComponents {
     _  <- put_store(vs._2)
   } yield vs._1
 
-  val ρ0: Rep[Env] = Map[String, Addr]()
-  val σ0: Rep[Store] = Map[Addr, Value]()
+  //FIXME: Adapter.g is not initialized, and an null pointer error will be throw if not using lazy
+  //FIXME: Seems DCE/CP eliminates one of the definition, as they are the same value
+  //       without looking at their types.
+  lazy val ρ0: Rep[Env] = Map[String, Addr]()
+  lazy val σ0: Rep[Store] = Map[Addr, Value]()
 
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run.unlift
 }
 
-/*
-trait StagedConcreteSemanticsExp extends StagedConcreteSemantics with SAIOpsExp {
-  case class IRApClo(f: Exp[Value], arg: Exp[Value], σ: Exp[Store]) extends Def[(Value, Store)]
-  case class IRCompiledClo(f: Exp[((Value,Store)) => (Value, Store)], λ: Exp[Lam], ρ: Exp[Env]) extends Def[Value]
-  case class IRIntProj(i: Exp[Value]) extends Def[Int]
+trait StagedConcreteGen extends ExtendedScalaCodeGen {
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(s, "λ", _, _) ⇒ false
+    case Node(s, "sai-ap-clo", _, _) => false
+    case Node(s, "sai-comp-clo", _, _) => false
+    case Node(s, "sai-IntV-proj", _, _) => false
+    case _ => super.mayInline(n)
+  }
 
-  override def lift_ap_clo(fun: Exp[Value], arg: Exp[Value], σ: Exp[Store]): Exp[(Value, Store)] =
-    reflectEffect(IRApClo(fun, arg, σ))
-  override def lift_compiled_clo(f: (Exp[Value], Exp[Store]) => Exp[(Value, Store)],
-                                 λ: Lam, ρ: Exp[Env]): Exp[Value] =
-    reflectEffect(IRCompiledClo(fun(f), unit(λ), ρ))
-  override def lift_int_proj(i: Exp[Value]): Exp[Int] = IRIntProj(i)
-}
-
-trait StagedConcreteSemanticsGen extends GenericNestedCodegen {
-  val IR: StagedConcreteSemanticsExp
-  import IR._
-
-  override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-    case IRApClo(f, arg, σ) =>
-      emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(arg)}, ${quote(σ)})")
-    case IRCompiledClo(f, λ, ρ) =>
-      emitValDef(sym, s"CompiledClo(${quote(f)}, ${quote(λ)}, ${quote(ρ)})")
-    case IRIntProj(i) =>
-      emitValDef(sym, s"${quote(i)}.asInstanceOf[IntV].i")
-    case Struct(tag, elems) =>
-      registerStruct(structName(sym.tp), sym.tp, elems)
-      val typeName = sym.tp.runtimeClass.getSimpleName +
-        "[" + sym.tp.typeArguments.map(a => remap(a)).mkString(",") + "]"
-      emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
-    case _ => super.emitNode(sym, rhs)
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "sai-comp-clo", List(bn, λ, ρ), _) =>
+      emit("CompiledClo(")
+      shallow(bn); emit(", ")
+      shallow(λ); emit(", ")
+      shallow(ρ); emitln(")")
+    case Node(s, "sai-ap-clo", List(f, arg, σ), _) =>
+      shallow(f)
+      emit(".asInstanceOf[CompiledClo].f(")
+      shallow(arg); emit(", ")
+      shallow(σ); emitln(")")
+    case Node(s, "sai-IntV-proj", List(i), _) =>
+      shallow(i); emitln(".asInstanceOf[IntV].i")
+    case _ => super.shallow(n)
   }
 }
 
-trait StagedConcreteSemanticsDriver extends DslDriver[Unit, Unit] with StagedConcreteSemanticsExp { q =>
-  override val codegen = new DslGen
-      with ScalaGenMapOps
-      with ScalaGenSetOps
-      with ScalaGenUncheckedOps
-      with SAI_ScalaGenTupleOps
-      with SAI_ScalaGenTupledFunctions
-      with StagedConcreteSemanticsGen
-  {
+trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcreteSemantics { q =>
+  override val codegen = new SAICodeGen with StagedConcreteGen {
     val IR: q.type = q
+    import IR._
 
-    override def remap[A](m: Manifest[A]): String = {
+    override def remap(m: Manifest[_]): String = {
+      System.out.println(s"We got remap ${m.toString}")
       if (m.toString.endsWith("$Value")) "Value"
       else super.remap(m)
     }
+  }
 
-    override def emitSource[A : Manifest](args: List[Sym[_]], body: Block[A], className: String,
-                                          stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
-      val prelude = """
+  override val prelude =
+"""
   import sai.FunLang._
   sealed trait Value
   case class IntV(i: Int) extends Value
   case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
-        """
-      stream.println(prelude)
-      super.emitSource(args, body, className, stream)
+"""
+
+}
+
+object mainGeneric {
+  import FunLang.Examples._
+
+  def specializeConc(e: Expr): SAIDriver[Unit, Unit] = new StagedConcreteDriver {
+    @virtualize
+    def snippet(u: Rep[Unit]) = {
+      val vs = run(e)
+      println(vs)
     }
   }
+
+  def testStagedConcrete() = {
+    val code = specializeConc(fact5)
+    println(code.code)
+    code.eval(())
+  }
+
+  def main(args: Array[String]) = {
+    testStagedConcrete()
+  }
 }
-*/

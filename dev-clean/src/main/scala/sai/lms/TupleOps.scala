@@ -25,8 +25,12 @@ trait TupleOps { b: Base =>
     (unit(t._1), unit(t._2))
 
   implicit class Tuple2Ops[A: Manifest, B: Manifest](t: Rep[(A, B)]) {
-    val _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
-    val _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
+    val _1: Rep[A] = {
+      Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
+    }
+    val _2: Rep[B] = {
+      Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
+    }
     def swap: Rep[(B, A)] = Wrap[(B, A)](Adapter.g.reflect("tuple2-swap", Unwrap(t)))
     def unlift: (Rep[A], Rep[B]) = (this._1, this._2)
   }
@@ -67,6 +71,22 @@ trait TupleOps { b: Base =>
 }
 
 trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    val typeStr = m.runtimeClass.getName
+    if (typeStr == "scala.Tuple2") {
+      val fst = m.typeArguments(0)
+      val snd = m.typeArguments(1)
+      s"Tuple2[${remap(fst)}, ${remap(snd)}]"
+    } else if (typeStr == "scala.Tuple3") {
+      val fst = m.typeArguments(0)
+      val snd = m.typeArguments(1)
+      val thd = m.typeArguments(2)
+      s"Tuple3[${remap(fst)}, ${remap(snd)}, ${remap(thd)}]"
+    } else {
+      super.remap(m)
+    }
+  }
+
   override def shallow(n: Node): Unit = n match {
     // Tuple2
     case Node(s, "tuple2-new", List(fst, snd), _) =>

@@ -93,6 +93,10 @@ object Main {
           case (k: Rep[Int], v: Rep[Int]) => (k, v + 1)
         }
         println(m4)
+
+        val m5: Rep[Map[Int, Int]] = Map[Int, Int]()
+        println(m5)
+
         m1(1)
       }
 
@@ -130,8 +134,8 @@ object Main {
   def main(args: Array[String]) {
     println("Hello")
     //test_power()
-    test_list()
+    //test_list()
     test_map()
-    test_set()
+    //test_set()
   }
 }
