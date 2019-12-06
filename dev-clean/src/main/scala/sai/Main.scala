@@ -106,6 +106,24 @@ object Main {
     assert(snippet.eval(Map((0,2), (1,3))) == 2)
   }
 
+  def test_opt() = {
+    val snippet = new SAIDriver[Int, Int] {
+      @virtualize
+      def f(i: Rep[Int]): Rep[Int] = {
+        val m1 = Map[String, Int]()
+        val m2 = Map[Int, Int]()
+        val m3 = m1 + ("a", 1)
+        val m4 = m2 + (1, 2)
+        println(m3)
+        println(m4)
+        i
+      }
+      def snippet(i: Rep[Int]) = f(i)
+    }
+
+    println(snippet.code)
+  }
+
   def test_set() = {
     val snippet = new SAIDriver[Set[Int], Int] {
       @virtualize
@@ -135,7 +153,8 @@ object Main {
     println("Hello")
     //test_power()
     //test_list()
-    test_map()
+    //test_map()
     //test_set()
+    test_opt()
   }
 }
