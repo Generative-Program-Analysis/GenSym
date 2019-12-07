@@ -47,7 +47,7 @@ object mainGeneric {
     println(res)
   }
 
-  def testAbstract() = { 
+  def testAbstract() = {
     val interpreter = new AbstractSemantics {
       def mCache: Manifest[Cache] = manifest[Cache]
     }   
