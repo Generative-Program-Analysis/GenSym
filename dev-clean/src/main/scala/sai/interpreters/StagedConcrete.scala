@@ -89,20 +89,14 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
     _  <- put_store(vs._2)
   } yield vs._1
 
-  //FIXME: Adapter.g is not initialized, and an null pointer error will be throw if not using lazy
-  //FIXME: Seems DCE/CP eliminates one of the definition, as they are the same value
-  //       without looking at their types.
   lazy val ρ0: Rep[Env] = Map[String, Addr]()
   lazy val σ0: Rep[Store] = Map[Addr, Value]()
 
   def run(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run.unlift
 }
 
-trait StagedConcreteGen extends ExtendedScalaCodeGen {
+trait StagedConcreteGen extends SAICodeGenBase {
   override def mayInline(n: Node): Boolean = n match {
-    case Node(s, "λ", _, _) ⇒ false
-    case Node(s, "sai-ap-clo", _, _) => false
-    case Node(s, "sai-comp-clo", _, _) => false
     case Node(s, "sai-IntV-proj", _, _) => false
     case _ => super.mayInline(n)
   }
@@ -143,26 +137,4 @@ trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcreteSema
   case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
 """
 
-}
-
-object mainGeneric {
-  import FunLang.Examples._
-
-  def specializeConc(e: Expr): SAIDriver[Unit, Unit] = new StagedConcreteDriver {
-    @virtualize
-    def snippet(u: Rep[Unit]) = {
-      val vs = run(e)
-      println(vs)
-    }
-  }
-
-  def testStagedConcrete() = {
-    val code = specializeConc(fact5)
-    println(code.code)
-    code.eval(())
-  }
-
-  def main(args: Array[String]) = {
-    testStagedConcrete()
-  }
 }

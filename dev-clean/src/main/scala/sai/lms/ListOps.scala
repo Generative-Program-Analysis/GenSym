@@ -29,8 +29,8 @@ trait ListOps { b: Base =>
     def take(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-take", Unwrap(xs), Unwrap(i)))
     def ::(x: Rep[A]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-prepend", Unwrap(xs), Unwrap(x)))
-    def ++[B >: A : Manifest](ys: Rep[List[B]]): Rep[List[B]] =
-      Wrap[List[A]](Adapter.g.reflect("lsit-concat", Unwrap(xs), Unwrap(ys)))
+    def ++(ys: Rep[List[A]]): Rep[List[A]] =
+      Wrap[List[A]](Adapter.g.reflect("list-concat", Unwrap(xs), Unwrap(ys)))
     def mkString: Rep[String] = mkString(unit(""))
     def mkString(sep: Rep[String]): Rep[String] =
       Wrap[String](Adapter.g.reflect("list-mkString", Unwrap(xs), Unwrap(sep)))
@@ -66,10 +66,6 @@ trait ListOps { b: Base =>
     def intersect[B >: A : Manifest](ys: Rep[List[B]]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-intersect", Unwrap(xs), Unwrap(ys)))
   }
-
-  /*
-    def foldLeftPair[B:Manifest,C:Manifest](z: Rep[(B,C)])(f: ((Rep[B], Rep[C]), Rep[A]) => Rep[(B,C)])
-  */
 }
 
 trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
@@ -80,7 +76,6 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
     } else { super.remap(m) }
   }
 
-  // TODO: is there any other ways to prevent inlining?
   override def mayInline(n: Node): Boolean = n match {
     //case Node(_, "list-new", _, _) => false
     case Node(_, "list-map", _, _) => false
@@ -122,9 +117,9 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
     case Node(s, "list-take", List(xs, i), _) =>
       shallow(xs); emit(".take("); shallow(i); emit(")")
     case Node(s, "list-prepend", List(xs, x), _) =>
-      shallow(x); emit("::"); shallow(xs)
+      shallow(x); emit(" :: "); shallow(xs)
     case Node(s, "list-concat", List(xs, ys), _) =>
-      shallow(xs); emit("++"); shallow(ys)
+      shallow(xs); emit(" ++ "); shallow(ys)
     case Node(s, "list-mkString", List(xs, Const("")), _) =>
       shallow(xs); emit(".mkString")
     case Node(s, "list-mkString", List(xs, sep), _) =>
