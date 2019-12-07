@@ -125,8 +125,6 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
     case Node(s, "map-size", List(m), _) =>
       shallow(m); emit(".size");
     case Node(s, "map-+", List(m, kv), _) =>
-      System.out.println(kv)
-      System.out.println(kv.getClass)
       shallow(m); emit(" + ("); shallow(kv); emit(")")
     case Node(s, "map-++", List(m1, m2), _) =>
       shallow(m1); emit(" ++ "); shallow(m2)

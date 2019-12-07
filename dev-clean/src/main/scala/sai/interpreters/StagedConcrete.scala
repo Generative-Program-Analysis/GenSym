@@ -130,7 +130,6 @@ trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcreteSema
     import IR._
 
     override def remap(m: Manifest[_]): String = {
-      System.out.println(s"We got remap ${m.toString}")
       if (m.toString.endsWith("$Value")) "Value"
       else super.remap(m)
     }
