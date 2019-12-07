@@ -11,8 +11,11 @@ import lms.macros.SourceContext
 
 trait ListOps { b: Base =>
   object List {
-    def apply[A: Manifest](xs: Rep[A]*)(implicit pos: SourceContext) =
-      Wrap[List[A]](Adapter.g.reflect("list-new", xs.map(Unwrap(_)):_*))
+    def apply[A: Manifest](xs: Rep[A]*)(implicit pos: SourceContext) = {
+      val mA = Backend.Const(manifest[A])
+      val unwrapped_xs = Seq(mA) ++ xs.map(Unwrap)
+      Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xs:_*))
+    }
   }
 
   implicit def __liftConstList[A: Manifest](xs: List[A]): ListOps[A] = new ListOps(unit(xs))
@@ -98,8 +101,8 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
   }
 
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "list-new", xs, _) =>
-      val ty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
+    case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
+      val ty = remap(mA)
       emit("List[")
       emit(ty)
       emit("](")

@@ -15,11 +15,16 @@ trait MapOps { b: Base =>
       val kvs_* = kvs.map { case (k, v) =>
         Wrap[(K, V)](Adapter.g.reflect("tuple2-new", Unwrap(k), Unwrap(v)))
       }
-      val unwrapped_kvs: List[lms.core.Backend.Exp] = kvs_*.map(Unwrap).toList
-      Wrap[Map[K, V]](Adapter.g.reflect("map-new", kvs_*.map(Unwrap):_*))
+      val mK = Backend.Const(manifest[K])
+      val mV = Backend.Const(manifest[V])
+      val unwrapped_kvs: Seq[Backend.Exp] = Seq(mK, mV) ++ kvs_*.map(Unwrap)
+      Wrap[Map[K, V]](Adapter.g.reflect("map-new", unwrapped_kvs:_*))
     }
     def empty[K: Manifest, V: Manifest](implicit pos: SourceContext) = {
-      Wrap[Map[K, V]](Adapter.g.reflect("map-new"))
+      val mK = Backend.Const(manifest[K])
+      val mV = Backend.Const(manifest[V])
+      val unwrapped_kvs: Seq[Backend.Exp] = Seq[Backend.Exp](mK, mV)
+      Wrap[Map[K, V]](Adapter.g.reflect("map-new", unwrapped_kvs:_*))
     }
   }
 
@@ -98,9 +103,9 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
   }
 
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "map-new", kvs, _) =>
-      val kty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
-      val vty = remap(typeMap.get(s).map(_.typeArguments(1)).getOrElse(manifest[Unknown]))
+    case Node(s, "map-new", Const(mK: Manifest[_])::Const(mV: Manifest[_])::kvs, _) =>
+      val kty = remap(mK)
+      val vty = remap(mV)
       emit("Map[")
       emit(kty); emit(", "); emit(vty)
       emit("](")

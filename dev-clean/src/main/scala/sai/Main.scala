@@ -155,7 +155,7 @@ object Main {
     println("Hello")
     //test_power()
     //test_list()
-    //test_map()
+    test_map()
     //test_set()
     test_opt()
   }
