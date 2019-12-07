@@ -87,6 +87,14 @@ trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
     }
   }
 
+  override def quote(s: Def): String = s match {
+    case Const(t: Tuple2[_, _]) =>
+      "(" + quote(Const(t._1)) + ", " + quote(Const(t._2)) + ")"
+    case Const(t: Tuple3[_, _, _]) =>
+      "(" + quote(Const(t._1)) + ", " + quote(Const(t._2)) + ", " + quote(Const(t._3)) + ")"
+    case _ => super.quote(s)
+  }
+
   override def shallow(n: Node): Unit = n match {
     // Tuple2
     case Node(s, "tuple2-new", List(fst, snd), _) =>

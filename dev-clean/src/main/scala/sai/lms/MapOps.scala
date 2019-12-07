@@ -15,6 +15,7 @@ trait MapOps { b: Base =>
       val kvs_* = kvs.map { case (k, v) =>
         Wrap[(K, V)](Adapter.g.reflect("tuple2-new", Unwrap(k), Unwrap(v)))
       }
+      val unwrapped_kvs: List[lms.core.Backend.Exp] = kvs_*.map(Unwrap).toList
       Wrap[Map[K, V]](Adapter.g.reflect("map-new", kvs_*.map(Unwrap):_*))
     }
     def empty[K: Manifest, V: Manifest](implicit pos: SourceContext) = {
@@ -32,8 +33,9 @@ trait MapOps { b: Base =>
     def getOrElse(k: Rep[K], default: Rep[V]): Rep[V] =
       Wrap[V](Adapter.g.reflect("map-getOrElse", Unwrap(m), Unwrap(k), Unwrap(default)))
     def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("map-size", Unwrap(m)))
-    def +(kv: Rep[(K, V)]): Rep[Map[K, V]] =
+    def +(kv: Rep[(K, V)]): Rep[Map[K, V]] = {
       Wrap[Map[K, V]](Adapter.g.reflect("map-+", Unwrap(m), Unwrap(kv)))
+    }
     def ++(m1: Rep[Map[K, V]]): Rep[Map[K, V]] =
       Wrap[Map[K, V]](Adapter.g.reflect("map-++", Unwrap(m), Unwrap(m1)))
     def ===(m1: Rep[Map[K, V]]): Rep[Boolean] =
@@ -86,6 +88,15 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
     case _ => super.mayInline(n)
   }
 
+  override def quote(s: Def): String = s match {
+    case Const(m: Map[_, _]) =>
+      val kvs = m.map {
+        case (k, v) => "(" + quote(Const(k)) + ", " + quote(Const(v)) + ")"
+      }
+      "Map(" + kvs.mkString(", ") + ")"
+    case _ => super.quote(s)
+  }
+
   override def shallow(n: Node): Unit = n match {
     case Node(s, "map-new", kvs, _) =>
       val kty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
@@ -109,6 +120,8 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
     case Node(s, "map-size", List(m), _) =>
       shallow(m); emit(".size");
     case Node(s, "map-+", List(m, kv), _) =>
+      System.out.println(kv)
+      System.out.println(kv.getClass)
       shallow(m); emit(" + ("); shallow(kv); emit(")")
     case Node(s, "map-++", List(m1, m2), _) =>
       shallow(m1); emit(" ++ "); shallow(m2)

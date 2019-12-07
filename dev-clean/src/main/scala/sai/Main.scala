@@ -116,6 +116,8 @@ object Main {
         val m4 = m2 + (1, 2)
         println(m3)
         println(m4)
+        val m5 = Map((1, "2"), (2, "3"))
+        println(m5)
         i
       }
       def snippet(i: Rep[Int]) = f(i)

@@ -91,6 +91,12 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
     case _ => super.mayInline(n)
   }
 
+  override def quote(s: Def): String = s match {
+    case Const(xs: List[_]) =>
+      "List(" + xs.map(x => quote(Const(x))).mkString(", ") + ")"
+    case _ => super.quote(s)
+  }
+
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-new", xs, _) =>
       val ty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
