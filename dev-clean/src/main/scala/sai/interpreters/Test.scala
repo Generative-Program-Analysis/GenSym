@@ -51,8 +51,8 @@ object mainGeneric {
     val interpreter = new AbstractSemantics {
       def mCache: Manifest[Cache] = manifest[Cache]
     }   
-    //val res = interpreter.run(fact5)
-    val res = interpreter.run(ifif)
+    val res = interpreter.run(fact5)
+    //val res = interpreter.run(ifif)
     //res = interpreter.run(simpleif)
     //println(AbsInterpreter.run(fact5))
     println(res._1)

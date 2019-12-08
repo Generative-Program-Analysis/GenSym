@@ -11,8 +11,11 @@ import lms.macros.SourceContext
 
 trait SetOps { b: Base =>
   object Set {
-    def apply[A: Manifest](xs: Rep[A]*)(implicit pos: SourceContext) =
-      Wrap[Set[A]](Adapter.g.reflect("set-new", xs.map(Unwrap(_)):_*))
+    def apply[A: Manifest](xs: Rep[A]*)(implicit pos: SourceContext) = {
+      val mA = Backend.Const(manifest[A])
+      val unwrapped_xs = Seq(mA) ++ xs.map(Unwrap)
+      Wrap[Set[A]](Adapter.g.reflect("set-new", unwrapped_xs:_*))
+    }
   }
 
   implicit def liftConstSet[A: Manifest](xs: Set[A]): SetOps[A] = new SetOps(xs)
@@ -67,8 +70,8 @@ trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
   }
 
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "set-new", xs, _) =>
-      val ty = remap(typeMap.get(s).map(_.typeArguments(0)).getOrElse(manifest[Unknown]))
+    case Node(s, "set-new", Const(mA: Manifest[_])::xs, _) =>
+      val ty = remap(mA)
       emit("Set["); emit(ty); emit("](")
       xs.zipWithIndex.map { case (x, i) =>
         shallow(x)
