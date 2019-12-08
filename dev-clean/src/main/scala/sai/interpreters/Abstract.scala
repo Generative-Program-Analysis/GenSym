@@ -13,7 +13,7 @@ trait AbstractComponents extends Semantics {
   case class CloV(lam: Lam, env: Env) extends AbsValue
 
   type Value = Set[AbsValue]
-  case class Addr(x: String) { override def toString = x }
+  case class Addr(x: String) { override def toString = "Addr(\"" + x + "\")" }
 
   type Config = (Expr, Env, Store)
   type Cache = Map[Config, Set[(Value, Store)]]
