@@ -47,7 +47,7 @@ trait ListOps { b: Base =>
     }
     def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] = {
       val block = Adapter.g.reify((x, y) => Unwrap(f(Wrap[B](x), Wrap[A](y))))
-      Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block))
+      Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block, Backend.Const(f)))
     }
     def zip[B: Manifest](ys: Rep[List[B]]): Rep[List[(A, B)]] =
       Wrap[List[(A, B)]](Adapter.g.reflect("list-zip", Unwrap(xs), Unwrap(ys)))
@@ -132,7 +132,7 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
       shallow(xs); emit(".map("); shallow(b); emit(")")
     case Node(s, "list-flatMap", List(xs, b), _) =>
       shallow(xs); emit(".flatMap("); shallow(b); emit(")")
-    case Node(s, "list-foldLeft", List(xs, z, b), _) =>
+    case Node(s, "list-foldLeft", List(xs, z, b, _), _) =>
       shallow(xs); emit(".foldLeft("); shallow(z); emit(")("); shallow(b, false); emit(")")
     case Node(s, "list-zip", List(xs, ys), _) =>
       shallow(xs); emit(".zip("); shallow(ys); emit(")")

@@ -50,7 +50,7 @@ trait MapOps { b: Base =>
     def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], (Rep[K], Rep[V])) => Rep[B]) = {
       val block = Adapter.g.reify(3, syms =>
         Unwrap(f(Wrap[B](syms(0)), (Wrap[K](syms(1)), Wrap[V](syms(2))))))
-      Wrap[B](Adapter.g.reflect("map-foldLeft", Unwrap(m), Unwrap(z), block))
+      Wrap[B](Adapter.g.reflect("map-foldLeft", Unwrap(m), Unwrap(z), block, Backend.Const(f)))
     }
     def foreach(f: ((Rep[K], Rep[V])) => Rep[Unit]): Rep[Unit] = {
       val block = Adapter.g.reify(2, syms => Unwrap(f(Wrap[K](syms(0)), Wrap[V](syms(1)))))
@@ -132,7 +132,7 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
       shallow(m); emit(".keySet");
     case Node(s, "map-isEmpty", List(m), _) =>
       shallow(m); emit(".isEmpty");
-    case Node(s, "map-foldLeft", List(m, z, b: Block), _) =>
+    case Node(s, "map-foldLeft", List(m, z, b: Block, _), _) =>
       val p = PTuple(List(PVar(b.in(0)), PTuple(List(PVar(b.in(1)), PVar(b.in(2))))))
       shallow(m); emit(".foldLeft(")
       shallow(z); emit(") ")
