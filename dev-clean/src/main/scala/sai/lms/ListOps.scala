@@ -29,14 +29,8 @@ trait ListOps { b: Base =>
     def take(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-take", Unwrap(xs), Unwrap(i)))
     def ::(x: Rep[A]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-prepend", Unwrap(xs), Unwrap(x)))
-    def ++(ys: Rep[List[A]]): Rep[List[A]] = (Unwrap(xs), Unwrap(ys)) match {
-      case (Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])),
-            Adapter.g.Def("list-new",  _::(ys: List[Backend.Exp]))) =>
-        val unwrapped_xsys = Seq(mA) ++ xs ++ ys
-        Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xsys:_*))
-      case _ =>
-        Wrap[List[A]](Adapter.g.reflect("list-concat", Unwrap(xs), Unwrap(ys)))
-    }
+    def ++(ys: Rep[List[A]]): Rep[List[A]] =
+      Wrap[List[A]](Adapter.g.reflect("list-concat", Unwrap(xs), Unwrap(ys)))
     def mkString: Rep[String] = mkString(unit(""))
     def mkString(sep: Rep[String]): Rep[String] =
       Wrap[String](Adapter.g.reflect("list-mkString", Unwrap(xs), Unwrap(sep)))
@@ -51,14 +45,10 @@ trait ListOps { b: Base =>
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       Wrap[List[B]](Adapter.g.reflect("list-flatMap", Unwrap(xs), block))
     }
-    def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
-      Unwrap(xs) match {
-        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) => 
-          xs.map(Wrap[A](_)).foldLeft(z)(f)
-        case _ => 
-          val block = Adapter.g.reify((x, y) => Unwrap(f(Wrap[B](x), Wrap[A](y))))
-          Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block))
-      }
+    def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] = {
+      val block = Adapter.g.reify((x, y) => Unwrap(f(Wrap[B](x), Wrap[A](y))))
+      Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block))
+    }
     def zip[B: Manifest](ys: Rep[List[B]]): Rep[List[(A, B)]] =
       Wrap[List[(A, B)]](Adapter.g.reflect("list-zip", Unwrap(xs), Unwrap(ys)))
     def filter(f: Rep[A] => Rep[Boolean]): Rep[List[A]] = {
@@ -75,6 +65,24 @@ trait ListOps { b: Base =>
       Wrap[Boolean](Adapter.g.reflect("list-containsSlice", Unwrap(xs), Unwrap(ys)))
     def intersect[B >: A : Manifest](ys: Rep[List[B]]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-intersect", Unwrap(xs), Unwrap(ys)))
+  }
+}
+
+trait ListOpsOpt extends ListOps { b: Base =>
+  implicit class ListOpsOpt[A: Manifest](xs: Rep[List[A]]) extends ListOps[A](xs) {
+    override def ++(ys: Rep[List[A]]): Rep[List[A]] = (Unwrap(xs), Unwrap(ys)) match {
+      case (Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])),
+            Adapter.g.Def("list-new",  _::(ys: List[Backend.Exp]))) =>
+        val unwrapped_xsys = Seq(mA) ++ xs ++ ys
+        Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xsys:_*))
+      case _ => super.++(ys)
+    }
+    override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
+      Unwrap(xs) match {
+        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) => 
+          xs.map(Wrap[A](_)).foldLeft(z)(f)
+        case _ => super.foldLeft(z)(f)
+      }
   }
 }
 
