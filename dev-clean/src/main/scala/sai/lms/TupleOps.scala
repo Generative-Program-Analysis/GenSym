@@ -25,11 +25,15 @@ trait TupleOps { b: Base =>
     (unit(t._1), unit(t._2))
 
   implicit class Tuple2Ops[A: Manifest, B: Manifest](t: Rep[(A, B)]) {
-    val _1: Rep[A] = {
-      Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
+    val _1: Rep[A] = Unwrap(t) match {
+      case Adapter.g.Def("tuple2-new", List(t1: Backend.Exp, t2: Backend.Exp)) =>
+        Wrap[A](t1)
+      case _ => Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
     }
-    val _2: Rep[B] = {
-      Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
+    val _2: Rep[B] = Unwrap(t) match {
+      case Adapter.g.Def("tuple2-new", List(t1: Backend.Exp, t2: Backend.Exp)) =>
+        Wrap[B](t2)
+      case _ => Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
     }
     def swap: Rep[(B, A)] = Wrap[(B, A)](Adapter.g.reflect("tuple2-swap", Unwrap(t)))
     def unlift: (Rep[A], Rep[B]) = (this._1, this._2)

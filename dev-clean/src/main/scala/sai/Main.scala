@@ -52,6 +52,12 @@ object Main {
         })
         println(sum)
         val bs = List(0,1,2,3)
+
+        val twolist = List(List(1, 2), List(2, 3))
+        println(twolist.foldLeft(1) { case (x, ys) => 
+          x * (ys.foldLeft(0) { case (a, b) => a + b })
+        })
+
         plusone(2) + plustwo.tail.head + zss.head + bs(0)
       }
 
@@ -154,9 +160,9 @@ object Main {
   def main(args: Array[String]) {
     println("Hello")
     //test_power()
-    //test_list()
-    test_map()
+    test_list()
+    //test_map()
     //test_set()
-    test_opt()
+    //test_opt()
   }
 }
