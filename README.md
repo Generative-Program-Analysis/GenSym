@@ -5,8 +5,8 @@ Improving the performance of static analysis by meta-programming/multi-stage pro
 ### Directories
 
 * `dev`/`dev-clean` Current development
-* `oopsla19-code` The artifact of OOPSLA '19 submission.
-* `abscomp-racket` Abstract Compilation (CC '96)implemented in Racket
+* `oopsla19-code` The artifact of OOPSLA '19 submission
+* `abscomp-racket` Abstract Compilation (CC '96) implemented in Racket
 
 ### Publications
 
