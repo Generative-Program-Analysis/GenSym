@@ -71,6 +71,22 @@ trait MapOps { b: Base =>
   }
 }
 
+trait MapOpsOpt extends MapOps { b: Base =>
+  implicit override def __liftConstMap[K: Manifest, V: Manifest](m: Map[K, V]): MapOps[K, V] = new MapOpsOpt(m)
+  implicit override def __liftVarMap[K: Manifest, V: Manifest](m: Var[Map[K, V]]): MapOps[K, V] = new MapOpsOpt(readVar(m))
+
+  implicit class MapOpsOpt[K: Manifest, V: Manifest](m: Rep[Map[K, V]]) extends MapOps[K, V](m) {
+    override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], (Rep[K], Rep[V])) => Rep[B]) = Unwrap(m) match {
+      case Adapter.g.Def("map-new", mK::mV::(kvs: List[Backend.Exp])) =>
+        val kv_tps = kvs.map {
+          case Adapter.g.Def("tuple2-new", List(k: Backend.Exp, v: Backend.Exp)) => (Wrap[K](k), Wrap[V](v))
+        }
+        kv_tps.foldLeft(z)(f)
+      case _ => super.foldLeft(z)(f)
+    }
+  }
+}
+
 trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.Map") {

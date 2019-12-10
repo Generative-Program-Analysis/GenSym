@@ -69,6 +69,9 @@ trait ListOps { b: Base =>
 }
 
 trait ListOpsOpt extends ListOps { b: Base =>
+  implicit override def __liftConstList[A: Manifest](xs: List[A]): ListOps[A] = new ListOpsOpt(unit(xs))
+  implicit override def __liftVarList[A: Manifest](xs: Var[List[A]]): ListOps[A] = new ListOpsOpt(readVar(xs))
+
   implicit class ListOpsOpt[A: Manifest](xs: Rep[List[A]]) extends ListOps[A](xs) {
     override def ++(ys: Rep[List[A]]): Rep[List[A]] = (Unwrap(xs), Unwrap(ys)) match {
       case (Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])),
