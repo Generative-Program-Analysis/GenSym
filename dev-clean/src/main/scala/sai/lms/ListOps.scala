@@ -75,6 +75,10 @@ trait ListOpsOpt extends ListOps { b: Base =>
             Adapter.g.Def("list-new",  _::(ys: List[Backend.Exp]))) =>
         val unwrapped_xsys = Seq(mA) ++ xs ++ ys
         Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xsys:_*))
+      case (Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])), _) if xs.isEmpty =>
+        ys
+      case (_, Adapter.g.Def("list-new", mA::(ys: List[Backend.Exp]))) if ys.isEmpty =>
+        xs
       case _ => super.++(ys)
     }
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =

@@ -25,16 +25,8 @@ trait TupleOps { b: Base =>
     (unit(t._1), unit(t._2))
 
   implicit class Tuple2Ops[A: Manifest, B: Manifest](t: Rep[(A, B)]) {
-    val _1: Rep[A] = Unwrap(t) match {
-      case Adapter.g.Def("tuple2-new", List(t1: Backend.Exp, t2: Backend.Exp)) =>
-        Wrap[A](t1)
-      case _ => Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
-    }
-    val _2: Rep[B] = Unwrap(t) match {
-      case Adapter.g.Def("tuple2-new", List(t1: Backend.Exp, t2: Backend.Exp)) =>
-        Wrap[B](t2)
-      case _ => Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
-    }
+    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
+    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
     def swap: Rep[(B, A)] = Wrap[(B, A)](Adapter.g.reflect("tuple2-swap", Unwrap(t)))
     def unlift: (Rep[A], Rep[B]) = (this._1, this._2)
   }
@@ -64,13 +56,44 @@ trait TupleOps { b: Base =>
     (unit(t._1), unit(t._2), unit(t._3))
 
   implicit class Tuple3Ops[A: Manifest, B: Manifest, C: Manifest](t: Rep[(A, B, C)]) {
-    val _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
-    val _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple3-2", Unwrap(t)))
-    val _3: Rep[C] = Wrap[C](Adapter.g.reflect("tuple3-3", Unwrap(t)))
+    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
+    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple3-2", Unwrap(t)))
+    def _3: Rep[C] = Wrap[C](Adapter.g.reflect("tuple3-3", Unwrap(t)))
     def unliftLeft: ((Rep[A], Rep[B]), Rep[C]) =
       ((this._1, this._2), this._3)
     def unliftRight: (Rep[A], (Rep[B], Rep[C])) =
       (this._1, (this._2, this._3))
+  }
+}
+
+trait TupleOpsOpt extends TupleOps { b: Base =>
+  implicit class Tuple2OpsOpt[A: Manifest, B: Manifest](t: Rep[(A, B)]) extends Tuple2Ops[A, B](t) {
+    override def _1: Rep[A] = Unwrap(t) match {
+      case Adapter.g.Def("tuple2-new", List(t1: Backend.Exp, t2: Backend.Exp)) => Wrap[A](t1)
+      case _ => super._1
+    }
+    override def _2: Rep[B] = Unwrap(t) match {
+      case Adapter.g.Def("tuple2-new", List(t1: Backend.Exp, t2: Backend.Exp)) => Wrap[B](t2)
+      case _ => super._2
+    }
+  }
+
+  implicit class Tuple3OpsOpt[A: Manifest, B: Manifest, C: Manifest](t: Rep[(A, B, C)]) extends Tuple3Ops[A, B, C](t) {
+    override def _1: Rep[A] = Unwrap(t) match {
+      case Adapter.g.Def("tuple3-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp)) =>
+        Wrap[A](t1)
+      case _ => Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
+    }
+    override def _2: Rep[B] = Unwrap(t) match {
+      case Adapter.g.Def("tuple3-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp)) =>
+        Wrap[B](t2)
+      case _ => Wrap[B](Adapter.g.reflect("tuple3-2", Unwrap(t)))
+    }
+    override def _3: Rep[C] = Unwrap(t) match {
+      case Adapter.g.Def("tuple3-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp)) =>
+        Wrap[C](t3)
+      case _ => Wrap[C](Adapter.g.reflect("tuple3-3", Unwrap(t)))
+    }
   }
 }
 
