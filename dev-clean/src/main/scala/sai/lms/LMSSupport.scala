@@ -14,7 +14,7 @@ import sai.monads._
 
 trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
     with OrderingOps with LiftVariables
-    with TupleOpsOpt with ListOpsOpt with MapOpsOpt with SetOps
+    with TupleOpsOpt with ListOpsOpt with MapOpsOpt with SetOpsOpt
     with RepLattices with RepMonads {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]

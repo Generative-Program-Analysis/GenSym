@@ -18,8 +18,8 @@ trait SetOps { b: Base =>
     }
   }
 
-  implicit def liftConstSet[A: Manifest](xs: Set[A]): SetOps[A] = new SetOps(xs)
-  implicit def liftVarSet[A: Manifest](xs: Var[Set[A]]): SetOps[A] = new SetOps(readVar(xs))
+  implicit def __liftConstSet[A: Manifest](xs: Set[A]): SetOps[A] = new SetOps(xs)
+  implicit def __liftVarSet[A: Manifest](xs: Var[Set[A]]): SetOps[A] = new SetOps(readVar(xs))
 
   implicit class SetOps[A: Manifest](s: Rep[Set[A]]) {
     def apply(a: Rep[A]): Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("set-apply", Unwrap(s), Unwrap(a)))
@@ -47,6 +47,31 @@ trait SetOps { b: Base =>
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       Wrap[Set[A]](Adapter.g.reflect("set-filter", Unwrap(s), block))
     }
+  }
+}
+
+trait SetOpsOpt extends SetOps { b: Base =>
+  implicit override def __liftConstSet[A: Manifest](xs: Set[A]): SetOps[A] = new SetOpsOpt(unit(xs))
+  implicit override def __liftVarSet[A: Manifest](xs: Var[Set[A]]): SetOps[A] = new SetOpsOpt(readVar(xs))
+
+  implicit class SetOpsOpt[A: Manifest](xs: Rep[Set[A]]) extends SetOps[A](xs) {
+    override def ++(ys: Rep[Set[A]]): Rep[Set[A]] = (Unwrap(xs), Unwrap(ys)) match {
+      case (Adapter.g.Def("set-new", mA::(xs: List[Backend.Exp])),
+            Adapter.g.Def("set-new",  _::(ys: List[Backend.Exp]))) =>
+        val unwrapped_xsys = Seq(mA) ++ xs ++ ys
+        Wrap[Set[A]](Adapter.g.reflect("set-new", unwrapped_xsys:_*))
+      case (Adapter.g.Def("set-new", mA::(xs: List[Backend.Exp])), _) if xs.isEmpty =>
+        ys
+      case (_, Adapter.g.Def("set-new", mA::(ys: List[Backend.Exp]))) if ys.isEmpty =>
+        xs
+      case _ => super.++(ys)
+    }
+    override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
+      Unwrap(xs) match {
+        case Adapter.g.Def("set-new", mA::(xs: List[Backend.Exp])) => 
+          xs.map(Wrap[A](_)).foldLeft(z)(f)
+        case _ => super.foldLeft(z)(f)
+      }
   }
 }
 
