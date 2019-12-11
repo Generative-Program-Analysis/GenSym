@@ -19,7 +19,7 @@ libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.27"
 scalacOptions ++= Seq(
   "-Xcheckinit",
   "-deprecation",
-  "-Xlog-implicit-conversions",
+  //"-Xlog-implicit-conversions",
   "-Ypartial-unification",
   "-P:continuations:enable",
 )

@@ -159,10 +159,10 @@ object Main {
 
   def main(args: Array[String]) {
     println("Hello")
-    //test_power()
+    test_power()
     test_list()
-    //test_map()
-    //test_set()
-    //test_opt()
+    test_map()
+    test_set()
+    test_opt()
   }
 }

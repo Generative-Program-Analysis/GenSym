@@ -11,6 +11,7 @@ import lms.macros.SourceContext
 
 trait MapOps { b: Base =>
   object Map {
+    /*
     def apply[K: Manifest, V: Manifest](kvs: (Rep[K], Rep[V])*)(implicit pos: SourceContext) = {
       val kvs_* = kvs.map { case (k, v) =>
         Wrap[(K, V)](Adapter.g.reflect("tuple2-new", Unwrap(k), Unwrap(v)))
@@ -18,6 +19,13 @@ trait MapOps { b: Base =>
       val mK = Backend.Const(manifest[K])
       val mV = Backend.Const(manifest[V])
       val unwrapped_kvs: Seq[Backend.Exp] = Seq(mK, mV) ++ kvs_*.map(Unwrap)
+      Wrap[Map[K, V]](Adapter.g.reflect("map-new", unwrapped_kvs:_*))
+    }
+    */
+    def apply[K: Manifest, V: Manifest](kvs: Rep[(K, V)]*)(implicit pos: SourceContext) = {
+      val mK = Backend.Const(manifest[K])
+      val mV = Backend.Const(manifest[V])
+      val unwrapped_kvs: Seq[Backend.Exp] = Seq(mK, mV) ++ kvs.map(Unwrap).toSeq
       Wrap[Map[K, V]](Adapter.g.reflect("map-new", unwrapped_kvs:_*))
     }
     def empty[K: Manifest, V: Manifest](implicit pos: SourceContext) = {

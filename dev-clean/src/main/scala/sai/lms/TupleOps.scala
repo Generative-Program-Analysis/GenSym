@@ -11,18 +11,19 @@ import lms.macros.SourceContext
 trait TupleOps { b: Base =>
   // Tuple2
   object Tuple2 {
-    def apply[A: Manifest, B: Manifest](a: Rep[A], b: Rep[B]) =
+    def apply[A: Manifest, B: Manifest](a: Rep[A], b: Rep[B]) = {
       Wrap[Tuple2[A, B]](Adapter.g.reflect("tuple2-new", Unwrap(a), Unwrap(b)))
+    }
   }
 
   implicit def __liftTuple2Rep[A: Manifest, B: Manifest](t: (Rep[A], Rep[B])) =
     Tuple2[A, B](t._1, t._2)
   implicit def __liftTuple2RepLhs[A: Manifest, B: Manifest](t: (A, Rep[B])) =
-    Tuple2[A, B](unit(t._1), t._2)
+    Tuple2[A, B](unit[A](t._1), t._2)
   implicit def __liftTuple2RepRhs[A: Manifest, B: Manifest](t: (Rep[A], B)) =
-    Tuple2[A, B](t._1, unit(t._2))
+    Tuple2[A, B](t._1, unit[B](t._2))
   implicit def __liftTuple2[A: Manifest, B: Manifest](t: (A, B)) =
-    (unit(t._1), unit(t._2))
+    Tuple2[A, B](unit[A](t._1), unit[B](t._2))
 
   implicit class Tuple2Ops[A: Manifest, B: Manifest](t: Rep[(A, B)]) {
     def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
@@ -53,7 +54,7 @@ trait TupleOps { b: Base =>
   implicit def __liftTuple3RepSndTrd[A: Manifest, B: Manifest, C: Manifest](t: (Rep[A], B, C)) =
     Tuple3[A, B, C](t._1, unit(t._2), unit(t._3))
   implicit def __liftTuple3[A: Manifest, B: Manifest, C: Manifest](t: (A, B, C)) =
-    (unit(t._1), unit(t._2), unit(t._3))
+    Tuple3[A, B, C](unit(t._1), unit(t._2), unit(t._3))
 
   implicit class Tuple3Ops[A: Manifest, B: Manifest, C: Manifest](t: Rep[(A, B, C)]) {
     def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
