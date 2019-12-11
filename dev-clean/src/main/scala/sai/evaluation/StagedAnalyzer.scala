@@ -286,17 +286,26 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
 
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
   def run(e: Expr): Rep[Result] = {
-    /*
     def staged_iter: Rep[(Cache, Cache) => (Set[(Value, Store)], Cache)] = fun({
       case (in: Rep[Cache], out: Rep[Cache]) =>
+        println("start")
         val result = fix(eval)(e)(ρ0)(σ0)(in)(out)
+        println("result:")
+        println(result)
         val newOut = result._2
-        if (in == newOut) result
-        else staged_iter(newOut, cache0)
+        if (in == newOut) {
+          println("equal")
+          result
+        }
+        else {
+          println("not equal")
+          println(in)
+          println(newOut)
+          staged_iter(newOut, cache0)
+        }
     })// : ((Rep[Cache], Rep[Cache]) => Rep[(Set[(Value, Store)], Cache)]))
     staged_iter(cache0, cache0)
-     */
-    fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
+    //fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
   }
 }
 

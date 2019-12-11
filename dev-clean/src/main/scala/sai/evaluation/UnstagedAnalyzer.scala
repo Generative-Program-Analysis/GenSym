@@ -246,8 +246,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   val σ0: Store = Map()
   val cache0: Cache = Map()
   
-  type ValueStores = Set[(Value, Store)]
-  type Result = (ValueStores, Cache)
+  type Result = (Set[(Value, Store)], Cache)
   def run(e: Expr): Result = {
     def iter(in: Cache, out: Cache): Result = {
       val result = fix(eval)(e)(ρ0)(σ0).run(in)(out).run

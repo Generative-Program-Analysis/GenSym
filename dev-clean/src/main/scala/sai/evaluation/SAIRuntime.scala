@@ -20,7 +20,19 @@ object SAIRuntime {
   case class ConsV(a: Addr, b: Addr) extends AbsValue
   case class VectorV(vs: List[Addr]) extends AbsValue
   //case class CompiledClo(f: (List[Value], Store, Cache, Cache) => (Set[(Value, Store)], Cache), λ: Int, ρ: Env) extends AbsValue
-  case class CompiledClo(f: (List[Value], Store, Cache, Cache) => (Set[(Value, Store)], Cache), λ: Lam, ρ: Env) extends AbsValue
+  case class CompiledClo(f: (List[Value], Store, Cache, Cache) => (Set[(Value, Store)], Cache), λ: Lam, ρ: Env) extends AbsValue 
+  /*
+  {
+    override def equals(x: Any): Boolean = {
+      x match {
+        case CompiledClo(_, λ1, ρ1) => λ == λ1 && ρ == ρ1
+        case _ => false
+      }
+    }
+
+    override def hashCode: Int = (λ, ρ).hashCode
+  }
+  */
 
   trait Addr
   case class ZCFAAddr(x: String) extends Addr
