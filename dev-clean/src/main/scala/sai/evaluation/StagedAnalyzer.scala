@@ -55,7 +55,8 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
       val w_out = Wrap[Cache](out)
       Unwrap(f(w_vs, w_σ, w_in, w_out))
     })
-    val block_node = Wrap[(List[Value], Store, Cache, Cache) => Result](Adapter.g.reflect("valλ", block))
+    val block_node = Wrap[(List[Value], Store, Cache, Cache) => Result](
+      Adapter.g.reflect("λ", block)) //, Backend.Const("val")))
     Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
   }
 
@@ -302,9 +303,8 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
           println(newOut)
           staged_iter(newOut, cache0)
         }
-    })// : ((Rep[Cache], Rep[Cache]) => Rep[(Set[(Value, Store)], Cache)]))
+    })
     staged_iter(cache0, cache0)
-    //fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
   }
 }
 

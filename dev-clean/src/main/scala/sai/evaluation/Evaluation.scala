@@ -143,7 +143,7 @@ object Evaluation {
     writeTo(outfile, code.code)
     
     code.precompile
-    val (res2, t2) = run(N, { code.eval(()) })
+    val (res2, t2) = run(N, { /*code.eval(())*/ })
     println(s"[$id] [staged] - ${t2}s")
     println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")
   }
