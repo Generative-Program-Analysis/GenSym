@@ -31,15 +31,15 @@ object Evaluation {
   def progs_wo_sw: Progs = List[(Expr, String)](
     //(map, "map")
     (fib, "fib"),
-    //(rsa, "rsa"),
-    //(church, "church"),
-    //(fermat, "fermat"),
-    //(mbrotZ, "mbrotZ"),
-    //(lattice, "lattice"),
-    //(kcfa16, "kcfa16"),
-    //(kcfa32, "kcfa32"),
-    //(kcfa64, "kcfa64"),
-    //(solovay, "solovay")
+    (rsa, "rsa"),
+    (church, "church"),
+    (fermat, "fermat"),
+    (mbrotZ, "mbrotZ"),
+    (lattice, "lattice"),
+    (kcfa16, "kcfa16"),
+    (kcfa32, "kcfa32"),
+    (kcfa64, "kcfa64"),
+    (solovay, "solovay")
   )
 
   def progs_w_sw: Progs = progs_wo_sw ++ List[(Expr, String)](
@@ -91,7 +91,7 @@ object Evaluation {
       println("End running evaluation for CFA with store-widening")
       */
   }
-  
+
   def specialize(e: Expr): SAIDriver[Unit, Unit] = new StagedSchemeAnalyzerDriver {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
@@ -131,19 +131,18 @@ object Evaluation {
     writer.write(content)
     writer.close()
   }
-  
+
   def compare(eval: Expr => Unit, spec: Expr => SAIDriver[Unit, Unit])(e: Expr, id: String): Unit = {
     println(s"Running evaluation for $id, AST size: ${size(e)}")
     val (res1, t1) = run(N, { eval(e) })
     println(s"[$id] [unstaged] - ${t1}s")
-    
+
     val code = spec(e)
     val outfile = output(id)
     println(s"[$id] [staged] Finished precompile, writing code to ${outfile}")
     writeTo(outfile, code.code)
-    
     code.precompile
-    val (res2, t2) = run(N, { /*code.eval(())*/ })
+    val (res2, t2) = run(N, { code.eval(()) })
     println(s"[$id] [staged] - ${t2}s")
     println(s"[$id] Median speedup - ${t2.median_speedup(t1)}")
   }

@@ -56,7 +56,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
       Unwrap(f(w_vs, w_σ, w_in, w_out))
     })
     val block_node = Wrap[(List[Value], Store, Cache, Cache) => Result](
-      Adapter.g.reflect("λ", block)) //, Backend.Const("val")))
+      Adapter.g.reflect("λ", block, Backend.Const("val")))
     Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
   }
 
@@ -288,21 +288,10 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   def run(e: Expr): Rep[Result] = {
     def staged_iter: Rep[(Cache, Cache) => (Set[(Value, Store)], Cache)] = fun({
       case (in: Rep[Cache], out: Rep[Cache]) =>
-        println("start")
         val result = fix(eval)(e)(ρ0)(σ0)(in)(out)
-        println("result:")
-        println(result)
         val newOut = result._2
-        if (in == newOut) {
-          println("equal")
-          result
-        }
-        else {
-          println("not equal")
-          println(in)
-          println(newOut)
-          staged_iter(newOut, cache0)
-        }
+        if (in == newOut) { result }
+        else { staged_iter(newOut, cache0) }
     })
     staged_iter(cache0, cache0)
   }
@@ -312,7 +301,7 @@ trait StagedSchemeAnalyzerGen extends SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "sai-comp-clo", List(bn, λ, ρ), _) =>
       emit("CompiledClo(")
-      shallow(bn); emit(", ")
+      shallow(bn); emit("_val"); emit(", ")
       shallow(λ); emit(", ")
       shallow(ρ); emitln(")")
     case Node(s, "sai-ap-clo", List(f, args, σ, in, out), _) =>
