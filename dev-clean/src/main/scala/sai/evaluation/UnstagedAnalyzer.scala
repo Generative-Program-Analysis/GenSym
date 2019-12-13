@@ -71,12 +71,7 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def get(ρ: Env, x: String): Addr = ρ(x)
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def br(ev: EvalFun)(test: Expr, thn: Expr, els: Expr): Ans =
-    /*for {
-    v1 <- ev(thn)
-    v2 <- ev(els)
-  } yield v1 ++ v2
-     */
-  ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els)) // they use different store and cache?
+    ReaderTMonadPlus[StoreNdInOutCacheM, Env].mplus(ev(thn), ev(els))
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = Set(CloV(λ, ρ))
   def ap_clo(ev: EvalFun)(fun: Value, args: List[Value]): Ans = for {
     CloV(Lam(params, e), ρ: Env) <- lift_nd(fun)
@@ -167,11 +162,14 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
     if (x == "apply") {
       val (f::rest) = args
+      ev(App(f, rest))
+      /*
       for {
         fv <- ev(f)
         as <- mapM(rest)(ev)
         v <- ap_clo(ev)(fv, as)
       } yield v
+      */
     } else {
       for {
         _ <- mapM(args)(ev)
@@ -245,17 +243,17 @@ object UnstagedSchemeAnalyzer extends AbstractComponents {
   val ρ0: Env = Map()
   val σ0: Store = Map()
   val cache0: Cache = Map()
-  
+
   type Result = (Set[(Value, Store)], Cache)
   def run(e: Expr): Result = {
     def iter(in: Cache, out: Cache): Result = {
       val result = fix(eval)(e)(ρ0)(σ0).run(in)(out).run
-      val newOut = result._2
-      if (in == newOut) result else iter(newOut, cache0)
+      val out_* = result._2
+      if (in == out_*) result else iter(out_*, cache0)
     }
     iter(cache0, cache0)
-    //fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
   }
+  def run_once(e: Expr): Result = fix(eval)(e)(ρ0)(σ0).run(cache0)(cache0).run
 
   def mValue: Manifest[Value] = manifest[Value]
   def mAddr: Manifest[Addr] = manifest[Addr]

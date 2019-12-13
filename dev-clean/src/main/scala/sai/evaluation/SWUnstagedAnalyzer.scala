@@ -272,6 +272,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
     }
     iter(cache0, cache0)
   }
+  def run_once(e: Expr): Result = fix(eval)(e)(ρ0).run(σ0)(cache0)(cache0).run
 
   def mValue: Manifest[Value] = manifest[Value]
   def mAddr: Manifest[Addr] = manifest[Addr]

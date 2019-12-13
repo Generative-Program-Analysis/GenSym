@@ -76,8 +76,8 @@ object SchemeASTDesugar {
     case Case(e, branches) =>
       newIdentLet(apply(e)) { v => desugarCaseBranches(v, branches) }
     case Set_!(x, e) => Set_!(x, apply(e))
-    case Begin(es) => 
-      Begin(es.map(apply)) 
+    case Begin(es) =>
+      Begin(es.map(apply))
       //desugarSequence(es)
     case Define(x, s) => Define(x, apply(s))
     case _ => expr

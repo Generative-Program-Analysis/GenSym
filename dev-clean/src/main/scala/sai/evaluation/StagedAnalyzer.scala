@@ -205,11 +205,14 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
     if (x == "apply") {
       val (f::rest) = args
+      ev(App(f, rest))
+      /*
       for {
         fv <- ev(f)
         as <- mapM(rest)(ev)
         v <- ap_clo(ev)(fv, as)
       } yield v
+       */
     } else {
       for {
         _ <- mapM(args)(ev)
@@ -289,12 +292,13 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
     def staged_iter: Rep[(Cache, Cache) => (Set[(Value, Store)], Cache)] = fun({
       case (in: Rep[Cache], out: Rep[Cache]) =>
         val result = fix(eval)(e)(ρ0)(σ0)(in)(out)
-        val newOut = result._2
-        if (in == newOut) { result }
-        else { staged_iter(newOut, cache0) }
+        val out_* = result._2
+        if (in == out_*) { result }
+        else { staged_iter(out_*, cache0) }
     })
     staged_iter(cache0, cache0)
   }
+  def run_once(e: Expr): Rep[Result] = fix(eval)(e)(ρ0)(σ0)(cache0)(cache0)
 }
 
 trait StagedSchemeAnalyzerGen extends SAICodeGenBase {

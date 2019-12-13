@@ -30,11 +30,13 @@ object Evaluation {
 
   def progs_wo_sw: Progs = List[(Expr, String)](
     //(map, "map")
+    /*
     (fib, "fib"),
     (rsa, "rsa"),
     (church, "church"),
     (fermat, "fermat"),
     (mbrotZ, "mbrotZ"),
+    */
     (lattice, "lattice"),
     (kcfa16, "kcfa16"),
     (kcfa32, "kcfa32"),
@@ -95,7 +97,7 @@ object Evaluation {
   def specialize(e: Expr): SAIDriver[Unit, Unit] = new StagedSchemeAnalyzerDriver {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
-      val res = run(e)
+      val res = run_once(e)
       val store = res._1
       println(store.size)
     }
@@ -105,7 +107,7 @@ object Evaluation {
   def specializeSW(e: Expr): DslDriver[Unit, Unit] = new SWStagedSchemeAnalyzerDriver {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
-      val res = run(e)
+      val res = run_once(e)
       val vs = res._1
       val vals = vs._1
       println(vals.size)
@@ -114,13 +116,13 @@ object Evaluation {
   */
 
   def evalUnstaged(e: Expr): Unit = {
-    val res = UnstagedSchemeAnalyzer.run(e)
+    val res = UnstagedSchemeAnalyzer.run_once(e)
       val store = res._1
       println(store.size)
   }
 
   def evalUnstagedSW(e: Expr): Unit = {
-    val res = SWUnstagedSchemeAnalyzer.run(e)
+    val res = SWUnstagedSchemeAnalyzer.run_once(e)
       val vs = res._1
       val vals = vs._1
       println(vals.size)
