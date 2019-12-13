@@ -22,8 +22,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   def mValue: Manifest[Value] = manifest[Value]
   def mAddr: Manifest[Addr] = manifest[Addr]
 
-  //type Config = (Int, Env, Store)
-  type Config = (Expr, Env, Store)
+  type Config = (Int, Env, Store)
   type Cache = Map[Config, Set[(Value, Store)]]
   type Result = (Set[(Value, Store)], Cache)
 
@@ -57,7 +56,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
     })
     val block_node = Wrap[(List[Value], Store, Cache, Cache) => Result](
       Adapter.g.reflect("λ", block, Backend.Const("val")))
-    Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
+    Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Int](λ.hashCode)), Unwrap(ρ)))
   }
 
   def emit_addr(x: String): Rep[Addr] = unit[Addr](ZCFAAddr(x))
@@ -263,8 +262,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
     σ <- get_store
     in <- ask_in_cache
     out <- get_out_cache
-    //cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ, σ)))
-    cfg <- lift_nd[Config](Set((e, ρ, σ)))
+    cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ, σ)))
     res <- lift_nd[(Set[(Value, Store)], Cache)](Set(
       if (out.contains(cfg)) {
         (out(cfg), out)
@@ -316,6 +314,17 @@ trait StagedSchemeAnalyzerGen extends SAICodeGenBase {
       shallow(in); emit(", ")
       shallow(out); emitln(")")
       /*
+    case Node(s, "map-new", Backend.Const(mK: Manifest[_])::Backend.Const(mV: Manifest[_])::kvs, _) =>
+      def constKeyVal(kv: Backend.Exp): Boolean = {
+        ???
+      }
+      if (mK == manifest[String] && mV == manifest[Addr] && kvs.forall(constKeyVal)) {
+        shallow(Backend.Const(kvs.hashCode))
+      } else {
+        super.shallow(n)
+      }
+       */
+      /*
     case MapNew(kvs, mk, mv)
         if (mk == manifest[String] && mv == manifest[Addr] && kvs.forall(kv => kv._1.isInstanceOf[Const[String]] && kv._2.isInstanceOf[Const[Addr]])) =>
       emitValDef(sym, src"${quote(kvs.hashCode)}")
@@ -343,7 +352,7 @@ trait StagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with StagedScheme
 
   override val prelude = """
 import sai.evaluation.parser._
-import sai.evaluation.SAIRuntime._
+import sai.evaluation.SAIRuntimeOpt._
 """
 
 }

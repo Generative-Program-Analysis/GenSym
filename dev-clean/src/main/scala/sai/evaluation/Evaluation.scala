@@ -24,19 +24,17 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 1
+  val N = 20
   val sw = "sw"
   val wo_sw = "wo_sw"
 
   def progs_wo_sw: Progs = List[(Expr, String)](
     //(map, "map")
-    /*
     (fib, "fib"),
     (rsa, "rsa"),
     (church, "church"),
     (fermat, "fermat"),
     (mbrotZ, "mbrotZ"),
-    */
     (lattice, "lattice"),
     (kcfa16, "kcfa16"),
     (kcfa32, "kcfa32"),
