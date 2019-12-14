@@ -267,8 +267,8 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   def run(e: Expr): Result = {
     def iter(in: Cache, out: Cache): Result = {
       val result = fix(eval)(e)(ρ0).run(σ0)(in)(out).run
-      val newOut = result._2
-      if (in == newOut) result else iter(newOut, cache0)
+      val out_* = result._2
+      if (in == out_*) result else iter(out_*, cache0)
     }
     iter(cache0, cache0)
   }

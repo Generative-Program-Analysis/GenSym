@@ -121,7 +121,6 @@ object TestPrograms {
 
   // lattice
   def lattice = getAST(Source.fromFile("benchmarks/toplas98/lattice.scm").mkString)
-  println(lattice)
 
   // matrix
   def matrix = getAST(Source.fromFile("benchmarks/toplas98/matrix.scm").mkString)
