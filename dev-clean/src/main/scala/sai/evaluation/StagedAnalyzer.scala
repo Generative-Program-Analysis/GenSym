@@ -108,7 +108,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
         }
         val ρ_* = params.zip(αs).foldLeft(ρ) { case (ρ, (x, α)) => ρ + (unit(x) → α) }
         val repαs: Rep[List[Addr]] = List(αs :_*)
-        val σ_* = repαs.zip(args).foldLeft(σ) { case (σ, αv) => σ ⊔ Map((αv._1, αv._2)) } //FIXME!
+        val σ_* = repαs.zip(args).foldLeft(σ) { case (σ, αv) => σ ⊔ Map(αv) }
         ev(e)(ρ_*)(σ_*).run(in)(out)
     }
     Set[AbsValue](emit_compiled_clo(f, λ, ρ))

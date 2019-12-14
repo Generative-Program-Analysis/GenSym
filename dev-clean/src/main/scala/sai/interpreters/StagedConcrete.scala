@@ -28,7 +28,7 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
     Wrap[(Value, Store)](Adapter.g.reflect("sai-ap-clo", Unwrap(f), Unwrap(arg), Unwrap(σ)))
   def lift_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)], λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val block = Adapter.g.reify((v, s) => Unwrap(f(Wrap[Value](v), Wrap[Store](s))))
-    val block_node = Wrap[(Value, Store)=>(Value, Store)](Adapter.g.reflect("λ", block))
+    val block_node = Wrap[(Value, Store)=>(Value, Store)](Adapter.g.reflect("λ", block, Backend.Const("val")))
     Wrap[Value](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
   }
   def lift_int_proj(i: Rep[Value]): Rep[Int] = Wrap[Int](Adapter.g.reflect("sai-IntV-proj", Unwrap(i)))

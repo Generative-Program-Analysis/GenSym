@@ -86,7 +86,7 @@ trait ListOpsOpt extends ListOps { b: Base =>
     }
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
       Unwrap(xs) match {
-        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) => 
+        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) =>
           xs.map(Wrap[A](_)).foldLeft(z)(f)
         case _ => super.foldLeft(z)(f)
       }

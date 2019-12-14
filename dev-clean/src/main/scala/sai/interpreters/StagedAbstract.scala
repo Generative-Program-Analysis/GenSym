@@ -45,7 +45,7 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
       Unwrap(f(w_v, w_σ, w_in, w_out))
     })
     val block_node = Wrap[(Value, Store, Cache, Cache) => (List[(Value, Store)], Cache)](
-      Adapter.g.reflect("λ", block))
+      Adapter.g.reflect("λ", block, Backend.Const("val")))
     Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
   }
   def lift_int_top: Rep[AbsValue] = unit(IntTop)
