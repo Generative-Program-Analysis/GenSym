@@ -35,10 +35,27 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   def mapM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[List[B]] = Monad.mapM(xs)(f)
   def forM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[B] = Monad.forM(xs)(f)
 
-  def emit_ap_clo(fun: Rep[AbsValue], arg: Rep[List[Value]], σ: Rep[Store],
-                  in: Rep[Cache], out: Rep[Cache]): Rep[Result]
-  def emit_compiled_clo(f: (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[Result],
-                        λ: Lam, ρ: Rep[Env]): Rep[AbsValue]
+  def emit_ap_clo(f: Rep[AbsValue], arg: Rep[List[Value]], σ: Rep[Store],
+    in: Rep[Cache], out: Rep[Cache]): Rep[Result] = {
+    Wrap[Result](Adapter.g.reflect("sai-ap-clo",
+      Unwrap(f), Unwrap(arg), Unwrap(σ), Unwrap(in), Unwrap(out)))
+  }
+
+  type CompClo = (Rep[List[Value]], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[Result]
+  def emit_compiled_clo(f: CompClo, λ: Lam, ρ: Rep[Env]): Rep[AbsValue] = {
+    val block = Adapter.g.reify(4, syms => {
+      val vs :: σ :: in :: out :: Nil = syms
+      val w_vs = Wrap[List[Value]](vs)
+      val w_σ = Wrap[Store](σ)
+      val w_in = Wrap[Cache](in)
+      val w_out = Wrap[Cache](out)
+      Unwrap(f(w_vs, w_σ, w_in, w_out))
+    })
+    val block_node = Wrap[(List[Value], Store, Cache, Cache) => Result](
+      Adapter.g.reflect("λ", block, Backend.Const("val")))
+    Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Int](λ.hashCode)), Unwrap(ρ)))
+  }
+
   def emit_addr(x: String): Rep[Addr] = unit(ZCFAAddr(x))
 
   // environment operations
@@ -215,11 +232,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   def primitives(ev: EvalFun)(x: String, args: List[Expr]): Ans = {
     if (x == "apply") {
       val (f::rest) = args
-      for {
-        fv <- ev(f)
-        as <- mapM(rest)(ev)
-        v <- ap_clo(ev)(fv, as)
-      } yield v
+      ev(App(f, rest))
     } else {
       for {
         _ <- mapM(args)(ev)
@@ -241,6 +254,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
     cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ)))
     res <- lift_nd[((Set[Value], Store), Cache)](Set(
       if (out.contains(cfg)) {
+        //FIXME: better syntax
         val t: Rep[(Set[Value], Store)] = (out(cfg), σ)
         (t, out): Rep[((Set[Value], Store), Cache)]
       } else {
@@ -264,22 +278,38 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
 
   def fix(ev: EvalFun => EvalFun): EvalFun = fix_select
   def run(e: Expr): Rep[Result] = {
-    def staged_iter: Rep[(Cache, Cache) => ((Set[Value], Store), Cache)] = fun(
-    {
-      case (in: Rep[Cache], out: Rep[Cache]) => 
-        //println("a new iteration")
+    def staged_iter: Rep[(Cache, Cache) => ((Set[Value], Store), Cache)] = fun({
+      case (in: Rep[Cache], out: Rep[Cache]) =>
         val result = fix(eval)(e)(ρ0)(σ0, in, out)
-        val newOut = result._2
-        if (in == newOut) {
+        val out_* = result._2
+        if (in == out_*) {
+          //FIXME: better syntax
           val vs: Rep[(Set[Value], Store)] = (result._1._1, result._1._2)
           (vs, result._2): Rep[((Set[Value], Store), Cache)]
-        } else staged_iter(newOut, cache0)
-    } : ((Rep[Cache], Rep[Cache]) => Rep[((Set[Value], Store), Cache)]))
+        } else staged_iter(out_*, cache0)
+    })
     staged_iter(cache0, cache0)
-    //val result = staged_iter(cache0, cache0)
-    //(result._1, result._2)
+  }
+
+  def run_once(e: Expr): Rep[Result] = {
+    val result = fix(eval)(e)(ρ0)(σ0, cache0, cache0)
+    val vs: Rep[(Set[Value], Store)] = (result._1._1, result._1._2)
+    (vs, result._2): Rep[((Set[Value], Store), Cache)]
   }
 }
+
+trait SWStagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with SWStagedSchemeAnalyzerOps { q =>
+  override val codegen = new SAICodeGen with StagedSchemeAnalyzerGen {
+    val IR: q.type = q
+    import IR._
+  }
+
+  override val prelude = """
+import sai.evaluation.parser._
+import sai.evaluation.SWSAIRuntime._
+"""
+}
+
 
 /*
 trait SWZeroCFAEnvOpt extends MapOpsExpOpt { self: SWStagedSchemeAnalyzerOps =>
@@ -288,88 +318,5 @@ trait SWZeroCFAEnvOpt extends MapOpsExpOpt { self: SWStagedSchemeAnalyzerOps =>
     case _ => super.map_apply(m, k)
   }
 }
+ */
 
-trait SWStagedSchemeAnalyzerExp extends SWStagedSchemeAnalyzerOps with SAIOpsExp with SWZeroCFAEnvOpt {
-  case class IRCompiledClo(f: Exp[((List[Value], Store, Cache, Cache)) => Res], λ: Int, ρ: Exp[Env]) extends Def[AbsValue]
-  case class IRApClo(clo: Exp[AbsValue], args: Exp[List[Value]], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) extends Def[Res]
-
-  def emit_compiled_clo(f: (Exp[List[Value]], Exp[Store], Exp[Cache], Exp[Cache]) => Exp[Res], λ: Lam, ρ: Exp[Env]) = {
-    reflectEffect(IRCompiledClo(fun(f), λ.hashCode, ρ))
-  }
-
-  def emit_ap_clo(clo: Exp[AbsValue], args: Exp[List[Value]], σ: Exp[Store], in: Exp[Cache], out: Exp[Cache]) = clo match {
-    case _ => reflectEffect(IRApClo(clo, args, σ, in, out))
-  }
-}
-
-trait SWStagedSchemeAnalyzerGen extends GenericNestedCodegen {
-  val IR: SWStagedSchemeAnalyzerExp
-  import IR._
-
-  override def remap[A](m: Manifest[A]): String = {
-    m.runtimeClass.getSimpleName match {
-      //case "Map" => "Map[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
-      //case "Set" => "Set[" + m.typeArguments.map(a => remap(a)).mkString(",") + "]"
-      case _ => 
-        if (m.toString.endsWith("$AbsValue")) "AbsValue"
-        else if (m.toString.endsWith("$ZCFAAddr")) "ZCFAAddr"
-        else if (m.toString.endsWith("$Addr")) "Addr"
-        else if (m.toString.endsWith("$Expr")) "Expr"
-        else {
-          val ms = m.toString
-          //scala.collection.immutable.Map[java.lang.String, sai.evaluation.Evaluation$$anon$2@135bb152.type#sai.evaluation.AbstractComponents$Addr]
-          if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,") && ms.endsWith("$Addr]")) {
-            //System.err.println(ms)
-            "Env"
-          }
-          else super.remap(m)
-        }
-    }
-  }
-
-  override def emitNode(sym: Sym[Any], rhs: Def[Any]) = rhs match {
-    case MapNew(kvs, mk, mv)
-        if (mk == manifest[String] &&
-              mv == manifest[Addr] &&
-              kvs.forall(kv => kv._1.isInstanceOf[Const[String]] && kv._2.isInstanceOf[Const[Addr]])) =>
-      emitValDef(sym, src"${quote(kvs.hashCode)}")
-    case IRCompiledClo(f, λ, ρ) =>
-      emitValDef(sym, s"CompiledClo(${quote(f)}, ${quote(λ)}, ${quote(ρ)})")
-    case IRApClo(f, args, σ, in, out) =>
-      emitValDef(sym, s"${quote(f)}.asInstanceOf[CompiledClo].f(${quote(args)}, ${quote(σ)}, ${quote(in)}, ${quote(out)})")
-    case Struct(tag, elems) =>
-      //This fixes code generation for tuples, such as Tuple2MapIntValueValue
-      //Note: need to merge this fix back to LMS
-      registerStruct(structName(sym.tp), sym.tp, elems)
-      val typeName = sym.tp.runtimeClass.getSimpleName +
-        "[" + sym.tp.typeArguments.map(a => { /*System.out.println(a);*/ this.remap(a) }).mkString(",") + "]"
-
-      emitValDef(sym, "new " + typeName + "(" + elems.map(e => quote(e._2)).mkString(",") + ")")
-    case _ => super.emitNode(sym, rhs)
-  }
-}
-
-trait SWStagedSchemeAnalyzerDriver extends DslDriver[Unit, Unit] with SWStagedSchemeAnalyzerExp { q =>
-  override val codegen = new DslGen
-      with ScalaGenSetOps
-      with ScalaGenMapOps
-      with ScalaGenListOps
-      with ScalaGenUncheckedOps
-      with SAI_ScalaGenTupleOps
-      with SAI_ScalaGenTupledFunctions
-      with SWStagedSchemeAnalyzerGen
-  {
-    val IR: q.type = q
-
-    override def emitSource[A : Manifest](args: List[Sym[_]], body: Block[A], className: String,
-                                          stream: java.io.PrintWriter): List[(Sym[Any], Any)] = {
-      val prelude = """
-  import sai.evaluation.parser._
-  import sai.evaluation.SWSAIRuntime._
-      """
-      stream.println(prelude)
-      super.emitSource(args, body, className, stream)
-    }
-  }
-}
-*/

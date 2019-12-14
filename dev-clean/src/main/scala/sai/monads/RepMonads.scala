@@ -455,7 +455,7 @@ trait RepMonads extends RepLattices { self: SAIOps =>
   }
 
   case class SetStateReaderStateM[R: Manifest, S1: Manifest, S2: Manifest, A: Manifest]
-    (run: Rep[S1]=>Rep[R]=>Rep[S2]=>((Rep[Set[A]], Rep[S1]), Rep[S2])) {
+    (run: Rep[S1] => Rep[R] => Rep[S2] => ((Rep[Set[A]], Rep[S1]), Rep[S2])) {
     import SetStateReaderStateM._
 
     type Result = ((Rep[Set[A]], Rep[S1]), Rep[S2])

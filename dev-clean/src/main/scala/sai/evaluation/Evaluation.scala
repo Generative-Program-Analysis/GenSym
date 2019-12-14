@@ -24,7 +24,7 @@ object Evaluation {
 
   def output(id: String): String = s"CodeGen_$id.out"
 
-  val N = 20
+  val N = 1
   val sw = "sw"
   val wo_sw = "wo_sw"
 
@@ -68,9 +68,9 @@ object Evaluation {
   )
 
   def main(args: Array[String]) {
-    runEvaluation(WithoutStoreWidening(progs_wo_sw))
+    //runEvaluation(WithoutStoreWidening(progs_wo_sw))
     println("\n********************************************\n")
-    //runEvaluation(WithStoreWidening(progs_w_sw))
+    runEvaluation(WithStoreWidening(progs_w_sw))
   }
 
   def runEvaluation(opt: Option) = opt match {
@@ -82,14 +82,12 @@ object Evaluation {
       }
       println("End running evaluation for CFA without store-widening")
     case WithStoreWidening(progs) =>
-      /*
       println("Start running evaluation for CFA with store-widening")
       progs foreach {case (e, id) =>
         compare(evalUnstagedSW, specializeSW)(e, id + "_0cfa-sw")
         println("============================================")
       }
       println("End running evaluation for CFA with store-widening")
-      */
   }
 
   def specialize(e: Expr): SAIDriver[Unit, Unit] = new StagedSchemeAnalyzerDriver {
@@ -100,9 +98,8 @@ object Evaluation {
       println(store.size)
     }
   }
-  /*
 
-  def specializeSW(e: Expr): DslDriver[Unit, Unit] = new SWStagedSchemeAnalyzerDriver {
+  def specializeSW(e: Expr): SAIDriver[Unit, Unit] = new SWStagedSchemeAnalyzerDriver {
     @virtualize
     def snippet(u: Rep[Unit]): Rep[Unit] = {
       val res = run_once(e)
@@ -111,7 +108,6 @@ object Evaluation {
       println(vals.size)
     }
   }
-  */
 
   def evalUnstaged(e: Expr): Unit = {
     val res = UnstagedSchemeAnalyzer.run_once(e)

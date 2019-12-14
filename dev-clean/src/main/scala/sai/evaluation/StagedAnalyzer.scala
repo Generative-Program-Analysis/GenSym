@@ -300,6 +300,18 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
 }
 
 trait StagedSchemeAnalyzerGen extends SAICodeGenBase {
+  override def remap(m: Manifest[_]): String = {
+    val ms = m.toString
+    if (ms.endsWith("$AbsValue")) "AbsValue"
+    else if (ms.endsWith("$ZCFAAddr")) "ZCFAAddr"
+    else if (ms.endsWith("$Addr")) "Addr"
+    else if (ms.endsWith("$Expr")) "Expr"
+    else if (ms.endsWith("sai.evaluation.parser.Expr")) "Expr"
+    else if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,")
+      && ms.endsWith("$Addr]")) "Env"
+    else super.remap(m)
+  }
+
   override def shallow(n: Node): Unit = n match {
     case Node(s, "sai-comp-clo", List(bn, λ, ρ), _) =>
       emit("CompiledClo(")
@@ -337,24 +349,12 @@ trait StagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with StagedScheme
   override val codegen = new SAICodeGen with StagedSchemeAnalyzerGen {
     val IR: q.type = q
     import IR._
-    override def remap(m: Manifest[_]): String = {
-      val ms = m.toString
-      if (ms.endsWith("$AbsValue")) "AbsValue"
-      else if (ms.endsWith("$ZCFAAddr")) "ZCFAAddr"
-      else if (ms.endsWith("$Addr")) "Addr"
-      else if (ms.endsWith("$Expr")) "Expr"
-      else if (ms.endsWith("sai.evaluation.parser.Expr")) "Expr"
-      else if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,")
-        && ms.endsWith("AbstractComponents$Addr]")) "Env"
-      else super.remap(m)
-    }
   }
 
   override val prelude = """
 import sai.evaluation.parser._
 import sai.evaluation.SAIRuntimeOpt._
 """
-
 }
 
 /*
