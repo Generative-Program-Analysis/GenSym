@@ -299,7 +299,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
 }
 
 trait SWStagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with SWStagedSchemeAnalyzerOps { q =>
-  override val codegen = new SAICodeGen with StagedSchemeAnalyzerGen {
+  override val codegen = new ScalaGenBase with StagedSchemeAnalyzerGen {
     val IR: q.type = q
     import IR._
   }

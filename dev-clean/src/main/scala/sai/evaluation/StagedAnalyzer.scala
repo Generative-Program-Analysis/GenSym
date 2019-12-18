@@ -346,7 +346,7 @@ trait StagedSchemeAnalyzerGen extends SAICodeGenBase {
 }
 
 trait StagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with StagedSchemeAnalyzerOps { q =>
-  override val codegen = new SAICodeGen with StagedSchemeAnalyzerGen {
+  override val codegen = new ScalaGenBase with StagedSchemeAnalyzerGen {
     val IR: q.type = q
     import IR._
   }

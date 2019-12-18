@@ -216,7 +216,7 @@ trait StagedAbstractGen extends SAICodeGenBase {
 }
 
 trait StagedAbstractDriver extends SAIDriver[Unit, Unit] with StagedAbstractSemantics { q =>
-  override val codegen = new SAICodeGen with StagedAbstractGen {
+  override val codegen = new ScalaGenBase with StagedAbstractGen {
     val IR: q.type = q
     import IR._
 

@@ -119,7 +119,7 @@ trait StagedConcreteGen extends SAICodeGenBase {
 }
 
 trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcreteSemantics { q =>
-  override val codegen = new SAICodeGen with StagedConcreteGen {
+  override val codegen = new ScalaGenBase with StagedConcreteGen {
     val IR: q.type = q
     import IR._
 

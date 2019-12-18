@@ -12,7 +12,13 @@ import lms.macros.SourceContext
 import sai.lattices._
 import sai.monads._
 
-trait SAICodeGenBase extends ExtendedScalaCodeGen {
+// Scala code generator and driver
+
+trait SAICodeGenBase extends ExtendedScalaCodeGen
+    with ScalaCodeGen_List
+    with ScalaCodeGen_Map with ScalaCodeGen_Tuple
+    with ScalaCodeGen_Set // with ScalaCodeGen_LiftIf
+{
   override def remap(m: Manifest[_]): String = {
     val typeStr = m.runtimeClass.getName
     if (typeStr == "scala.Function2") {
@@ -79,12 +85,8 @@ abstract class SAISnippet[A:Manifest, B:Manifest] extends SAIOps {
   def snippet(x: Rep[A]): Rep[B]
 }
 
-trait SAICodeGen extends ScalaGenBase with ScalaCodeGen_List
-    with ScalaCodeGen_Map with ScalaCodeGen_Tuple
-    with ScalaCodeGen_Set // with ScalaCodeGen_LiftIf
-
 abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps { q =>
-  val codegen = new SAICodeGen {
+  val codegen = new ScalaGenBase {
     val IR: q.type = q
     import IR._
   }
@@ -111,3 +113,14 @@ abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with
     time("eval")(f1(x))
   }
 }
+
+// C++ code generator and driver
+/*
+trait SAICXXOps
+
+trait SAICXXCodeGen extends CGenBase
+
+abstract class SAICXXDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAICXXOps { q =>
+
+}
+ */
