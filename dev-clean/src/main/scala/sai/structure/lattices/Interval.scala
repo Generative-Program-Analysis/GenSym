@@ -1,5 +1,4 @@
-package sai
-package lattices
+package sai.structure.lattices
 
 import scala.math._
 import scala.language.higherKinds

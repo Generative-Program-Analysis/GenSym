@@ -8,8 +8,8 @@ import lms.macros.SourceContext
 
 import sai.lmsx._
 import sai.structure.monad._
-import sai.lattices._
-import sai.lattices.Lattices._
+import sai.structure.lattices._
+import sai.structure.lattices.Lattices._
 import sai.evaluation.parser._
 
 @virtualize

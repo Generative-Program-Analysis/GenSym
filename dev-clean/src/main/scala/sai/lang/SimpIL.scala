@@ -1,4 +1,4 @@
-package sai
+package sai.lang
 
 object SimpIL {
   case class Prog(stmts: List[Stmt])

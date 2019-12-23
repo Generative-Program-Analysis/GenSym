@@ -1,7 +1,8 @@
 package sai
 package symbolic
 
-import SimpIL._
+import sai.lang.SimpIL
+import sai.lang.SimpIL._
 
 object Concrete {
   import SimpIL.Values._

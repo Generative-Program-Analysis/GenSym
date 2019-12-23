@@ -1,6 +1,6 @@
 package sai
 
-import FunLang._
+import sai.lang.FunLang._
 
 trait Semantics {
   // Basic type definitions

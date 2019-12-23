@@ -1,6 +1,6 @@
 package sai
 
-import FunLang._
+import sai.lang.FunLang._
 import sai.structure.monad._
 
 trait ConcreteComponents extends Semantics {

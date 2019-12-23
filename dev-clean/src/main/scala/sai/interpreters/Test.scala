@@ -6,11 +6,11 @@ import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 
-import FunLang._
+import sai.lang.FunLang._
 import sai.lmsx._
 
 object mainGeneric {
-  import FunLang.Examples._
+  import sai.lang.FunLang.Examples._
 
   def specializeAbs(e: Expr): SAIDriver[Unit, Unit] = new StagedAbstractDriver {
     @virtualize

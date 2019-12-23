@@ -6,10 +6,10 @@ import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 
-import FunLang._
+import sai.lang.FunLang._
 import sai.lmsx._
-import sai.lattices._
-import sai.lattices.Lattices._
+import sai.structure.lattices._
+import sai.structure.lattices.Lattices._
 import sai.structure.monad._
 
 @virtualize
@@ -230,7 +230,7 @@ trait StagedAbstractDriver extends SAIDriver[Unit, Unit] with StagedAbstractSema
   }
 
   override val prelude = """
-  import sai.FunLang._
+  import sai.lang.FunLang._
   object RT {
     type Value = Set[AbsValue]
     case class Addr(x: String) { override def toString = x }

@@ -4,8 +4,8 @@ import lms.macros.SourceContext
 import lms.core.virtualize
 
 import sai.lmsx._
-import sai.lattices._
-import sai.lattices.Lattices._
+import sai.structure.lattices._
+import sai.structure.lattices.Lattices._
 
 @virtualize
 trait RepMonads extends RepLattices { self: SAIOps =>

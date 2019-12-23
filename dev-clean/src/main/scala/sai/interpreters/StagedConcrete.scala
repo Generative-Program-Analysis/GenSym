@@ -6,7 +6,7 @@ import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 
-import FunLang._
+import sai.lang.FunLang._
 import sai.lmsx._
 import sai.structure.monad._
 
@@ -131,7 +131,7 @@ trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcreteSema
 
   override val prelude =
 """
-  import sai.FunLang._
+  import sai.lang.FunLang._
   sealed trait Value
   case class IntV(i: Int) extends Value
   case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value

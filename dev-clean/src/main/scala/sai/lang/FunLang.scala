@@ -1,4 +1,4 @@
-package sai
+package sai.lang
 
 object FunLang {
   sealed trait Expr

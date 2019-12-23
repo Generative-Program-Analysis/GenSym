@@ -1,10 +1,10 @@
 package sai
 
 import sai.structure.monad._
-import sai.lattices._
-import sai.lattices.Lattices._
+import sai.structure.lattices._
+import sai.structure.lattices.Lattices._
 
-import FunLang._
+import sai.lang.FunLang._
 
 trait AbstractComponents extends Semantics {
   sealed trait AbsValue

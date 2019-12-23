@@ -2,8 +2,8 @@ package sai.evaluation
 
 import sai.lmsx._
 import sai.structure.monad._
-import sai.lattices._
-import sai.lattices.Lattices._
+import sai.structure.lattices._
+import sai.structure.lattices.Lattices._
 import sai.evaluation.parser._
 
 // Unstaged 0CFA for Scheme, withou store widening

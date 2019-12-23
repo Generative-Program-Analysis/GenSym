@@ -1,7 +1,7 @@
 package sai.structure.monad
 
-import sai.lattices._
-import sai.lattices.Lattices._
+import sai.structure.lattices._
+import sai.structure.lattices.Lattices._
 
 object NoRep {
   type NoRep[T] = T
