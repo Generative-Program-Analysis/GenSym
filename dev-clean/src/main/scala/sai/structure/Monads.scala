@@ -8,6 +8,8 @@ object IdType {
   type Id[T] = T
 }
 
+/* Binding-time-aware Monad */
+
 trait RMonad[R[_], M[_]] {
   def pure[A](a: R[A]): M[A]
   def flatMap[A, B](ma: M[A])(f: R[A] => M[B]): M[B]
@@ -24,20 +26,24 @@ trait Monad[M[_]] extends RMonad[IdType.Id, M] with Functor[M]
 object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
 
-  def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[List[B]] = xs match {
-    case Nil => Monad[M].pure(List.empty[B])
-    case x::xs => Monad[M].flatMap(f(x)) { b =>
-      Monad[M].flatMap(mapM(xs)(f)) { bs =>
-        Monad[M].pure(b::bs)
+  def mapM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[List[B]] =
+    xs match {
+      case Nil => Monad[M].pure(List.empty[B])
+      case x::xs => Monad[M].flatMap(f(x)) { b =>
+        Monad[M].flatMap(mapM(xs)(f)) { bs =>
+          Monad[M].pure(b::bs)
+        }
       }
     }
-  }
 
-  def forM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[B] = xs match {
-    case x::Nil => f(x)
-    case x::xs => Monad[M].flatMap(f(x)) { _ => forM(xs)(f) }
-  }
+  def forM[M[_]: Monad, A, B](xs: List[A])(f: A => M[B])(implicit mB: Manifest[B] = null): M[B] =
+    xs match {
+      case x::Nil => f(x)
+      case x::xs => Monad[M].flatMap(f(x)) { _ => forM(xs)(f) }
+    }
 }
+
+/* MonadPlus */
 
 trait MonadPlus[M[_]] {
   def mzero[A: Lattice]: M[A]
@@ -48,7 +54,7 @@ object MonadPlus {
   def apply[M[_]](implicit m: MonadPlus[M]): MonadPlus[M] = m
 }
 
-/////////////////////////////////////////////////
+/* Identity Monad */
 
 @deprecated("Use IdM", "")
 object IdMonadInstance {
@@ -86,7 +92,7 @@ case class IdM[A](run: A) {
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): IdM[B] = IdM(f(run))
 }
 
-/////////////////////////////////////////////////
+/* Reader Monad and Transformer */
 
 trait MonadReader[F[_], R] extends Monad[F] {
   def ask: F[R]
@@ -95,6 +101,31 @@ trait MonadReader[F[_], R] extends Monad[F] {
 
 object MonadReader {
   def apply[F[_], S](implicit r: MonadReader[F, S]): MonadReader[F, S] = r
+}
+
+object ReaderM {
+  def apply[R, A](implicit m: ReaderM[R, A]): ReaderM[R, A] = m
+
+  implicit def ReaderMonadInstance[R] = new MonadReader[ReaderM[R, ?], R] {
+    def flatMap[A, B](fa: ReaderM[R, A])(f: A => ReaderM[R, B]): ReaderM[R, B] = fa.flatMap(f)
+    def pure[A](a: A): ReaderM[R, A] = ReaderM(_ => a)
+    def filter[A](fa: ReaderM[R, A])(f: A => Boolean): ReaderM[R, A] = fa.filter(f)
+    def ask: ReaderM[R, R] = ReaderM(r => r)
+    def local[A](fa: ReaderM[R, A])(f: R => R): ReaderM[R, A] =
+      ReaderM(f andThen fa.run)
+  }
+}
+
+case class ReaderM[R, A](run: R => A) {
+  import ReaderM._
+  def apply(r: R): A = run(r)
+  def flatMap[B](f: A => ReaderM[R, B])(implicit mB: Manifest[B] = null): ReaderM[R, B] =
+    ReaderM(r => f(run(r)).run(r))
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): ReaderM[R, B] =
+    ReaderM(r => f(run(r)))
+  def filter(f: A => Boolean): ReaderM[R, A] =
+    throw new Exception("Not supported")
+  def withFilter(f: A => Boolean): ReaderM[R, A] = filter(f)
 }
 
 object ReaderT {
@@ -133,7 +164,7 @@ case class ReaderT[M[_]: Monad, R, A](run: R => M[A]) {
   def withFilter(f: A => Boolean): ReaderT[M, R, A] = filter(f)
 }
 
-/////////////////////////////////////////////////
+/* State Monad and Transformer */
 
 trait MonadState[F[_], S] extends Monad[F] {
   def get: F[S]
@@ -143,6 +174,35 @@ trait MonadState[F[_], S] extends Monad[F] {
 
 object MonadState {
   def apply[F[_], S](implicit s: MonadState[F, S]): MonadState[F, S] = s
+}
+
+object StateM {
+  def apply[S, A](implicit m: StateM[S, A]): StateM[S, A] = m
+
+  implicit def StateMonadInstance[S] = new MonadState[StateM[S, ?], S] {
+    def flatMap[A, B](sa: StateM[S, A])(f: A => StateM[S, B]): StateM[S, B] =
+      sa.flatMap(f)
+    def pure[A](a: A): StateM[S, A] = StateM(s => (a, s))
+    def filter[A](sa: StateM[S, A])(f: A => Boolean): StateM[S, A] = sa.filter(f)
+
+    def get: StateM[S, S] = StateM(s => (s, s))
+    def put(s: S): StateM[S, Unit] = StateM(_ => ((), s))
+    def mod(f: S => S): StateM[S, Unit] = StateM(s => ((), f(s)))
+  }
+}
+
+case class StateM[S, A](run: S => (A, S)) {
+  import StateM._
+
+  def apply(s: S): (A, S) = run(s)
+  def flatMap[B](f: A => StateM[S, B])(implicit mB: Manifest[B] = null): StateM[S, B] =
+    StateM(s => run(s) match { case (a, s1) => f(a).run(s1) })
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): StateM[S, B] =
+    StateM(s => run(s) match { case (a, s1) => (f(a), s1) })
+
+  def filter(f: A => Boolean): StateM[S, A] =
+    throw new Exception("Not supported")
+  def withFilter(f: A => Boolean): StateM[S, A] = filter(f)
 }
 
 object StateT {
@@ -182,7 +242,7 @@ case class StateT[M[_]: Monad, S, A](run: S => M[(A, S)]) {
   def withFilter(f: A => Boolean): StateT[M, S, A] = filter(f)
 }
 
-/////////////////////////////////////////////////
+/* List Moand and Transformer */
 
 object ListT {
   def apply[M[_]: Monad, A](implicit m: ListT[M, A]): ListT[M, A] = m
@@ -232,7 +292,7 @@ case class ListT[M[_]: Monad, A](run: M[List[A]]) {
   def withFilter(f: A => Boolean): ListT[M, A] = filter(f)
 }
 
-/////////////////////////////////////////////////////
+/* Set Moand and Transformer */
 
 object SetT {
   def apply[M[_]: Monad, A](implicit m: SetT[M, A]): SetT[M, A] = m

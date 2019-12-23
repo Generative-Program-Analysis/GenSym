@@ -92,6 +92,32 @@ package freer {
           throw new Exception("Not supported")
       }
   }
+  
+  object Example2 {
+    import FFreeMonad._
+    import IdMonadInstance._
+
+    type EnvM[A] = FFree[Env, A]
+
+    trait Env[A]
+    case class Local[A](f: Map[String, Int] => Map[String, Int], m: EnvM[A]) extends Env[A]
+    case class Ask() extends Env[Map[String, Int]]
+
+    def local[A](f: Map[String, Int] => Map[String, Int], m: EnvM[A]): EnvM[A] =
+      FFree.liftF(Local[A](f, m))
+    def ask(): EnvM[Map[String, Int]] = FFree.liftF(Ask())
+
+    def aProgram = for {
+      a <- local(m => m + ("a" -> 1), ask)
+    } yield a
+
+    def executeEnv = new NaturalTransformation[Env, Id] {
+      override def transform[A](fa: Env[A]) = fa match {
+        case Local(f, m) => ???
+        case Ask() => ???
+      }
+    }
+  }
 
   object Example {
     import FFreeMonad._
