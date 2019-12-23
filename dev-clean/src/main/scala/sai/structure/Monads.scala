@@ -4,8 +4,8 @@ import sai.structure.functor._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 
-object NoRep {
-  type NoRep[T] = T
+object IdType {
+  type Id[T] = T
 }
 
 trait RMonad[R[_], M[_]] {
@@ -19,7 +19,7 @@ trait RMonad[R[_], M[_]] {
   def join[A](mma: M[M[A]]): M[A] = flatMap(mma) { case ma: M[A] => ma }
 }
 
-trait Monad[M[_]] extends RMonad[NoRep.NoRep, M] with Functor[M]
+trait Monad[M[_]] extends RMonad[IdType.Id, M] with Functor[M]
 
 object Monad {
   def apply[M[_]](implicit m: Monad[M]): Monad[M] = m
