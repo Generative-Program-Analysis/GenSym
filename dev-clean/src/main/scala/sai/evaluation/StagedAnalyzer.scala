@@ -7,7 +7,7 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 
 import sai.lmsx._
-import sai.monads._
+import sai.structure.monad._
 import sai.lattices._
 import sai.lattices.Lattices._
 import sai.evaluation.parser._

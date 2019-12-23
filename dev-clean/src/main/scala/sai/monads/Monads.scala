@@ -1,5 +1,4 @@
-package sai
-package monads
+package sai.structure.monad
 
 import sai.lattices._
 import sai.lattices.Lattices._

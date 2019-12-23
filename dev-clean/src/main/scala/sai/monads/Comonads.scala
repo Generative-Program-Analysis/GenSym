@@ -1,19 +1,7 @@
-package sai.comonads
+package sai.structure.comonad
 
-trait Functor[F[_]] {
-  def map[A, B](x: F[A])(f: A => B): F[B]
-}
-object Functor {
-  def apply[F[_]](implicit f: Functor[F]): Functor[F] = f
-}
-
-trait Monoid[A] {
-  def zero: A
-  def append(a: A, b: A): A
-}
-object Monoid {
-  def apply[A](implicit m: Monoid[A]): Monoid[A] = m
-}
+import sai.structure.functor._
+import sai.structure.monoid._
 
 /* Monads */
 

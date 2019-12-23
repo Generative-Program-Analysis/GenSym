@@ -10,7 +10,7 @@ import lms.core.utils.time
 import lms.macros.SourceContext
 
 import sai.lattices._
-import sai.monads._
+import sai.structure.monad._
 
 // Scala code generator and driver
 

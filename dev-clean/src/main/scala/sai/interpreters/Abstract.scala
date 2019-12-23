@@ -1,6 +1,6 @@
 package sai
 
-import sai.monads._
+import sai.structure.monad._
 import sai.lattices._
 import sai.lattices.Lattices._
 

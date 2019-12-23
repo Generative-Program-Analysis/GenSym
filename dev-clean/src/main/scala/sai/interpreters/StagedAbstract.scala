@@ -8,9 +8,9 @@ import lms.macros.SourceContext
 
 import FunLang._
 import sai.lmsx._
-import sai.monads._
 import sai.lattices._
 import sai.lattices.Lattices._
+import sai.structure.monad._
 
 @virtualize
 trait StagedAbstractSemantics extends AbstractComponents with SAIOps {

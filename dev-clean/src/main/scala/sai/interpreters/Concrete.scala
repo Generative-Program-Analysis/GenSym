@@ -1,7 +1,7 @@
 package sai
 
-import sai.monads._
 import FunLang._
+import sai.structure.monad._
 
 trait ConcreteComponents extends Semantics {
   sealed trait Value

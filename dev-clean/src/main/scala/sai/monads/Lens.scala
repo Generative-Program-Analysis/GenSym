@@ -1,5 +1,4 @@
-package sai
-package lens
+package sai.structure.lens
 
 case class FAlgebra[F[_], A](run: F[A] => A)
 
@@ -12,4 +11,3 @@ trait Profunctor[P[_, _]] {
 trait Cartesian[P[_, _]] {
   def second[A, B, C](pab: P[A, B])(implicit p: Profunctor[P]): P[(C, A), (C, B)]
 }
-

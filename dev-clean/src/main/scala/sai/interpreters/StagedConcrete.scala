@@ -8,7 +8,7 @@ import lms.macros.SourceContext
 
 import FunLang._
 import sai.lmsx._
-import sai.monads._
+import sai.structure.monad._
 
 @virtualize
 trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {

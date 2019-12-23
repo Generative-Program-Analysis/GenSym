@@ -1,5 +1,4 @@
-package sai
-package monads
+package sai.structure.monad
 
 import lms.macros.SourceContext
 import lms.core.virtualize

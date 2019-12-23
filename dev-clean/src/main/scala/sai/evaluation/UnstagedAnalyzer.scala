@@ -1,7 +1,7 @@
 package sai.evaluation
 
 import sai.lmsx._
-import sai.monads._
+import sai.structure.monad._
 import sai.lattices._
 import sai.lattices.Lattices._
 import sai.evaluation.parser._
