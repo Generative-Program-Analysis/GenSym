@@ -2,9 +2,9 @@ package sai.structure.comonad
 
 import sai.structure.functor._
 import sai.structure.monoid._
+import sai.structure.monad._
 
-/* Monads */
-
+// Another way to define monads
 trait Monad[M[_]] {
   def unit[A](a: A): M[A]
   def join[A](mma: M[M[A]]): M[A]

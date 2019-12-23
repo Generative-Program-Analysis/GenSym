@@ -12,6 +12,10 @@ trait RMonad[R[_], M[_]] {
   def flatMap[A, B](ma: M[A])(f: R[A] => M[B]): M[B]
   def map[A,B](ma: M[A])(f: R[A] => R[B]): M[B] = flatMap(ma)(a => pure(f(a)))
   def filter[A](ma: M[A])(f: R[A] => R[Boolean]): M[A]
+
+  def unit[A](a: R[A]): M[A] = pure(a)
+  def bind[A, B](ma: M[A])(f: R[A] => M[B]): M[B] = flatMap(ma)(f)
+  def join[A](mma: M[M[A]]): M[A] = flatMap(mma) { case ma: M[A] => ma }
 }
 
 trait Monad[M[_]] extends RMonad[NoRep.NoRep, M]
