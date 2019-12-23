@@ -3,56 +3,58 @@ package sai.structure.monad
 import sai.structure.functor._
 import sai.structure.NaturalTransformation
 
-abstract class Free[F[_]: Functor, A]
-case class Pure[F[_]: Functor, A](a: A) extends Free[F, A]
-case class Impure[F[_]: Functor, A](x: F[Free[F, A]]) extends Free[F, A]
-
-object Free {
-  def apply[F[_], A](implicit f: Free[F, A]): Free[F, A] = f
-}
-
-object FreeFunctor {
-  implicit def FreeFunctorInstance[F[_]: Functor]: Functor[Free[F, ?]] =
-    new Functor[Free[F, ?]] {
-      def map[A, B](x: Free[F, A])(f: A => B): Free[F, B] = x match {
-        case Pure(a: A) => Pure(f(a))
-        case Impure(x: F[Free[F, A]]) => Impure(Functor[F].map(x){
-                                                  case xf: Free[F, A] =>
-                                                    Functor[Free[F, ?]].map(xf)(f)
-                                                })
-      }
-    }
-}
-
-object FreeMonad {
-  implicit def FreeMonadInstance[F[_]: Functor]: Monad[Free[F, ?]] =
-    new Monad[Free[F, ?]] {
-      def pure[A](a: A): Free[F, A] = Pure[F, A](a)
-      def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma match {
-        case Pure(a: A) => f(a)
-        case Impure(x: F[Free[F, A]]) => Impure(Functor[F].map(x){ case xf: Free[F, A] =>
-                                                  Monad[Free[F, ?]].flatMap(xf)(f)
-                                                })
-      }
-      def filter[A](ma: Free[F, A])(f: A => Boolean): Free[F, A] =
-        throw new Exception("Not supported")
-    }
-}
-
-package free.alternative {
-  abstract class Free[F[_], A] {
-    import free.alternative.FreeMonad._
-    def flatMap[B](f: A => Free[F, B]): Free[F, B] = Monad[Free[F, ?]].flatMap(this)(f)
-    def map[B](f: A => B): Free[F, B] = Monad[Free[F, ?]].map(this)(f)
-  }
-  case class Stop[F[_], A](a: A) extends Free[F, A]
-  case class Step[F[_], A, B](x: F[B], k: B => Free[F, A]) extends Free[F, A]
+package free {
+  abstract class Free[F[_]: Functor, A]
+  case class Pure[F[_]: Functor, A](a: A) extends Free[F, A]
+  case class Impure[F[_]: Functor, A](x: F[Free[F, A]]) extends Free[F, A]
 
   object Free {
     def apply[F[_], A](implicit f: Free[F, A]): Free[F, A] = f
-    def liftF[F[_], A](fa: F[A]): Free[F, A] = Step[F, A, A](fa, Stop.apply)
+  }
+
+  object FreeFunctor {
+    implicit def FreeFunctorInstance[F[_]: Functor]: Functor[Free[F, ?]] =
+      new Functor[Free[F, ?]] {
+        def map[A, B](x: Free[F, A])(f: A => B): Free[F, B] = x match {
+          case Pure(a: A) => Pure(f(a))
+          case Impure(x: F[Free[F, A]]) => Impure(Functor[F].map(x){
+            case xf: Free[F, A] =>
+              Functor[Free[F, ?]].map(xf)(f)
+          })
+        }
+      }
+  }
+
+  object FreeMonad {
+    implicit def FreeMonadInstance[F[_]: Functor]: Monad[Free[F, ?]] =
+      new Monad[Free[F, ?]] {
+        def pure[A](a: A): Free[F, A] = Pure[F, A](a)
+        def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma match {
+          case Pure(a: A) => f(a)
+          case Impure(x: F[Free[F, A]]) => Impure(Functor[F].map(x){ case xf: Free[F, A] =>
+            Monad[Free[F, ?]].flatMap(xf)(f)
+          })
+        }
+        def filter[A](ma: Free[F, A])(f: A => Boolean): Free[F, A] =
+          throw new Exception("Not supported")
+      }
+  }
+}
+
+package freer {
+  abstract class FFree[F[_], A] {
+    import freer.FreeMonad._
+    def flatMap[B](f: A => FFree[F, B]): FFree[F, B] = Monad[FFree[F, ?]].flatMap(this)(f)
+    def map[B](f: A => B): FFree[F, B] = Monad[FFree[F, ?]].map(this)(f)
+  }
+  case class Stop[F[_], A](a: A) extends FFree[F, A]
+  case class Step[F[_], A, X](x: F[X], k: X => FFree[F, A]) extends FFree[F, A]
+
+  object FFree {
+    def apply[F[_], A](implicit f: FFree[F, A]): FFree[F, A] = f
+    def liftF[F[_], A](fa: F[A]): FFree[F, A] = Step[F, A, A](fa, Stop.apply)
     // TODO: what about A =/= B?
-    def run[F[_], G[_]: Monad, A](f: Free[F, A], nt: NaturalTransformation[F, G]): G[A] =
+    def run[F[_], G[_]: Monad, A](f: FFree[F, A], nt: NaturalTransformation[F, G]): G[A] =
       f match {
         case Stop(a) => Monad[G].unit(a)
         case Step(fb: F[_], k) =>
@@ -61,27 +63,26 @@ package free.alternative {
       }
   }
 
-  object FreeFunctor {
-    implicit def FreeFunctorInstance[F[_]: Functor]: Functor[Free[F, ?]] =
-      new Functor[Free[F, ?]] {
-        def map[A, B](x: Free[F, A])(f: A => B): Free[F, B] = x match {
+  object FFreeFunctor {
+    implicit def FreeFunctorInstance[F[_]: Functor]: Functor[FFree[F, ?]] =
+      new Functor[FFree[F, ?]] {
+        def map[A, B](x: FFree[F, A])(f: A => B): FFree[F, B] = x match {
           case Stop(x: A) => Stop(f(x))
-          case Step(fb: F[B], k: (B => Free[F, A])) =>
-            Step(fb, (b: B) => Functor[Free[F, ?]].map(k(b))(f))
+          case Step(fb, k) => Step(fb, k.andThen(x => map(x)(f)))
         }
       }
   }
 
   object FreeMonad {
-    implicit def FreeMonadInstance[F[_]]: Monad[Free[F, ?]] =
-      new Monad[Free[F, ?]] {
-        def pure[A](a: A): Free[F, A] = Stop[F, A](a)
-        def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma match {
-          case Stop(x: A) => f(x)
-          case Step(fb: F[B], k: (B => Free[F, A])) => //FIXME
-            Step(fb, (b: B) => Monad[Free[F, ?]].flatMap(k(b))(f))
+    // Note: we do not require F[_] to be a Functor (See Oleg & Ishii)
+    implicit def FreeMonadInstance[F[_]]: Monad[FFree[F, ?]] =
+      new Monad[FFree[F, ?]] {
+        def pure[A](a: A): FFree[F, A] = Stop[F, A](a)
+        def flatMap[A, B](ma: FFree[F, A])(f: A => FFree[F, B]): FFree[F, B] = ma match {
+          case Stop(x) => f(x)
+          case Step(fb, k) => Step(fb, k.andThen(x => flatMap(x)(f)))
         }
-        def filter[A](ma: Free[F, A])(f: A => Boolean): Free[F, A] =
+        def filter[A](ma: FFree[F, A])(f: A => Boolean): FFree[F, A] =
           throw new Exception("Not supported")
       }
   }
@@ -94,10 +95,10 @@ package free.alternative {
     case class Tell(s: String) extends Interaction[Unit]
     case class Ask(q: String) extends Interaction[String]
 
-    type InteractionDsl[A] = Free[Interaction, A]
+    type InteractionDsl[A] = FFree[Interaction, A]
 
-    def tell(s: String): InteractionDsl[Unit] = Free.liftF(Tell(s))
-    def ask(q: String): InteractionDsl[String] = Free.liftF(Ask(q))
+    def tell(s: String): InteractionDsl[Unit] = FFree.liftF(Tell(s))
+    def ask(q: String): InteractionDsl[String] = FFree.liftF(Ask(q))
 
     def aProgram = for {
       _ <- tell("Hello")
@@ -132,7 +133,7 @@ package free.alternative {
 
     def main(args: Array[String]): Unit = {
       //run(aProgram)
-      Free.run(aProgram, executeIO)
+      FFree.run(aProgram, executeIO)
     }
   }
 }
