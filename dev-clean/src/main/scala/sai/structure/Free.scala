@@ -39,11 +39,17 @@ package free {
           throw new Exception("Not supported")
       }
   }
+
+  object Example {
+    trait ReaderWriter[I, O, X]
+    case class Get[I, O, X](f: I => X) extends ReaderWriter[I, O, X]
+    case class Put[I, O, X](o: O, f: Unit => X) extends ReaderWriter[I, O, X]
+  }
 }
 
 package freer {
   abstract class FFree[F[_], A] {
-    import freer.FreeMonad._
+    import freer.FFreeMonad._
     def flatMap[B](f: A => FFree[F, B]): FFree[F, B] = Monad[FFree[F, ?]].flatMap(this)(f)
     def map[B](f: A => B): FFree[F, B] = Monad[FFree[F, ?]].map(this)(f)
   }
@@ -53,7 +59,7 @@ package freer {
   object FFree {
     def apply[F[_], A](implicit f: FFree[F, A]): FFree[F, A] = f
     def liftF[F[_], A](fa: F[A]): FFree[F, A] = Step[F, A, A](fa, Stop.apply)
-    // TODO: what about A =/= B?
+    // TODO: what about A =/= X?
     def run[F[_], G[_]: Monad, A](f: FFree[F, A], nt: NaturalTransformation[F, G]): G[A] =
       f match {
         case Stop(a) => Monad[G].unit(a)
@@ -67,13 +73,13 @@ package freer {
     implicit def FreeFunctorInstance[F[_]: Functor]: Functor[FFree[F, ?]] =
       new Functor[FFree[F, ?]] {
         def map[A, B](x: FFree[F, A])(f: A => B): FFree[F, B] = x match {
-          case Stop(x: A) => Stop(f(x))
+          case Stop(x) => Stop(f(x))
           case Step(fb, k) => Step(fb, k.andThen(x => map(x)(f)))
         }
       }
   }
 
-  object FreeMonad {
+  object FFreeMonad {
     // Note: we do not require F[_] to be a Functor (See Oleg & Ishii)
     implicit def FreeMonadInstance[F[_]]: Monad[FFree[F, ?]] =
       new Monad[FFree[F, ?]] {
@@ -88,7 +94,7 @@ package freer {
   }
 
   object Example {
-    import FreeMonad._
+    import FFreeMonad._
     import IdMonadInstance._
 
     trait Interaction[A]
@@ -132,7 +138,6 @@ package freer {
     }
 
     def main(args: Array[String]): Unit = {
-      //run(aProgram)
       FFree.run(aProgram, executeIO)
     }
   }
