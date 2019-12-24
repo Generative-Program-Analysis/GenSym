@@ -86,7 +86,7 @@ abstract class SAISnippet[A:Manifest, B:Manifest] extends SAIOps {
 }
 
 abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps { q =>
-  val codegen = new ScalaGenBase {
+  val codegen = new ScalaGenBase with SAICodeGenBase {
     val IR: q.type = q
     import IR._
   }

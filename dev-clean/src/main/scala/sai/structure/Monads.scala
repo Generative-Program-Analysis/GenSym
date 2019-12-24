@@ -14,7 +14,9 @@ trait RMonad[R[_], M[_]] {
   def pure[A](a: R[A]): M[A]
   def flatMap[A, B](ma: M[A])(f: R[A] => M[B]): M[B]
   def map[A,B](ma: M[A])(f: R[A] => R[B]): M[B] = flatMap(ma)(a => pure(f(a)))
-  def filter[A](ma: M[A])(f: R[A] => R[Boolean]): M[A]
+  //TODO: refactor filter, not necessary for monad
+  def filter[A](ma: M[A])(f: R[A] => R[Boolean]): M[A] =
+    throw new Exception("Not supported")
 
   def unit[A](a: R[A]): M[A] = pure(a)
   def bind[A, B](ma: M[A])(f: R[A] => M[B]): M[B] = flatMap(ma)(f)
@@ -62,7 +64,6 @@ object IdMonadInstance {
   implicit val IdMonad: Monad[Id] = new Monad[Id] {
     def pure[A](a: A): A = a
     def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = f(ma)
-    def filter[A](ma: Id[A])(f: A => Boolean): Id[A] = throw new Exception("Not supported")
   }
 
   implicit val IdMonadPlus: MonadPlus[Id] = new MonadPlus[Id] {
@@ -77,7 +78,6 @@ object IdM {
   implicit val IdMonadInstance: Monad[IdM] = new Monad[IdM] {
     def pure[A](a: A): IdM[A] = IdM(a)
     def flatMap[A, B](ma: IdM[A])(f: A => IdM[B]): IdM[B] = ma.flatMap(f)
-    def filter[A](ma: IdM[A])(f: A => Boolean): IdM[A] = throw new Exception("Not supported")
   }
 
   implicit val IdMonadPlus: MonadPlus[IdM] = new MonadPlus[IdM] {
@@ -109,7 +109,6 @@ object ReaderM {
   implicit def ReaderMonadInstance[R] = new MonadReader[ReaderM[R, ?], R] {
     def flatMap[A, B](fa: ReaderM[R, A])(f: A => ReaderM[R, B]): ReaderM[R, B] = fa.flatMap(f)
     def pure[A](a: A): ReaderM[R, A] = ReaderM(_ => a)
-    def filter[A](fa: ReaderM[R, A])(f: A => Boolean): ReaderM[R, A] = fa.filter(f)
     def ask: ReaderM[R, R] = ReaderM(r => r)
     def local[A](fa: ReaderM[R, A])(f: R => R): ReaderM[R, A] =
       ReaderM(f andThen fa.run)
@@ -123,9 +122,8 @@ case class ReaderM[R, A](run: R => A) {
     ReaderM(r => f(run(r)).run(r))
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): ReaderM[R, B] =
     ReaderM(r => f(run(r)))
-  def filter(f: A => Boolean): ReaderM[R, A] =
-    throw new Exception("Not supported")
-  def withFilter(f: A => Boolean): ReaderM[R, A] = filter(f)
+  //def filter(f: A => Boolean): ReaderM[R, A] = throw new Exception("Not supported")
+  //def withFilter(f: A => Boolean): ReaderM[R, A] = filter(f)
 }
 
 object ReaderT {
@@ -135,7 +133,7 @@ object ReaderT {
   implicit def ReaderTMonad[M[_]: Monad, R] = new MonadReader[ReaderT[M, R, ?], R] {
     def flatMap[A, B](fa: ReaderT[M, R, A])(f: A => ReaderT[M, R, B]) = fa.flatMap(f)
     def pure[A](a: A): ReaderT[M, R, A] = ReaderT(_ => Monad[M].pure(a))
-    def filter[A](fa: ReaderT[M, R, A])(f: A => Boolean): ReaderT[M, R, A] = fa.filter(f)
+    override def filter[A](fa: ReaderT[M, R, A])(f: A => Boolean): ReaderT[M, R, A] = fa.filter(f)
 
     def ask: ReaderT[M, R, R] = ReaderT(r => Monad[M].pure(r))
     def local[A](fa: ReaderT[M, R, A])(f: R => R): ReaderT[M, R, A] =
@@ -183,7 +181,6 @@ object StateM {
     def flatMap[A, B](sa: StateM[S, A])(f: A => StateM[S, B]): StateM[S, B] =
       sa.flatMap(f)
     def pure[A](a: A): StateM[S, A] = StateM(s => (a, s))
-    def filter[A](sa: StateM[S, A])(f: A => Boolean): StateM[S, A] = sa.filter(f)
 
     def get: StateM[S, S] = StateM(s => (s, s))
     def put(s: S): StateM[S, Unit] = StateM(_ => ((), s))
@@ -200,9 +197,8 @@ case class StateM[S, A](run: S => (A, S)) {
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): StateM[S, B] =
     StateM(s => run(s) match { case (a, s1) => (f(a), s1) })
 
-  def filter(f: A => Boolean): StateM[S, A] =
-    throw new Exception("Not supported")
-  def withFilter(f: A => Boolean): StateM[S, A] = filter(f)
+  //def filter(f: A => Boolean): StateM[S, A] = throw new Exception("Not supported")
+  //def withFilter(f: A => Boolean): StateM[S, A] = filter(f)
 }
 
 object StateT {
@@ -212,7 +208,7 @@ object StateT {
   implicit def StateTMonad[M[_]: Monad, S] = new MonadState[StateT[M, S, ?], S] {
     def flatMap[A, B](sa: StateT[M, S, A])(f: A => StateT[M, S, B]) = sa.flatMap(f)
     def pure[A](a: A): StateT[M, S, A] = StateT(s => Monad[M].pure((a, s)))
-    def filter[A](sa: StateT[M, S, A])(f: A => Boolean): StateT[M, S, A] = sa.filter(f)
+    override def filter[A](sa: StateT[M, S, A])(f: A => Boolean): StateT[M, S, A] = sa.filter(f)
 
     def get: StateT[M, S, S] = StateT(s => Monad[M].pure((s, s)))
     def put(s: S): StateT[M, S, Unit] = StateT(_ => Monad[M].pure(((), s)))
@@ -250,7 +246,7 @@ object ListT {
   implicit def ListTMonad[M[_]: Monad] = new Monad[ListT[M, ?]] {
     def flatMap[A, B](la: ListT[M, A])(f: A => ListT[M, B]) = la.flatMap(f)
     def pure[A](a: A): ListT[M, A] = ListT(Monad[M].pure(List(a)))
-    def filter[A](la: ListT[M, A])(f: A => Boolean): ListT[M, A] = la.filter(f)
+    override def filter[A](la: ListT[M, A])(f: A => Boolean): ListT[M, A] = la.filter(f)
   }
 
   implicit def ListTMonadPlus[M[_]: Monad : MonadPlus] = new MonadPlus[ListT[M, ?]] {
@@ -300,7 +296,7 @@ object SetT {
   implicit def SetTMonad[M[_]: Monad] = new Monad[SetT[M, ?]] {
     def flatMap[A, B](la: SetT[M, A])(f: A => SetT[M, B]) = la.flatMap(f)
     def pure[A](a: A): SetT[M, A] = SetT(Monad[M].pure(Set[A](a)))
-    def filter[A](la: SetT[M, A])(f: A => Boolean): SetT[M, A] = la.filter(f)
+    override def filter[A](la: SetT[M, A])(f: A => Boolean): SetT[M, A] = la.filter(f)
   }
 
   implicit def SetTMonadPlus[M[_]: Monad : MonadPlus] = new MonadPlus[SetT[M, ?]] {

@@ -12,7 +12,7 @@ import sai.lmsx._
 
 
 object Main {
-  
+
   def test_power() = {
     val snippet = new SAIDriver[Int, Int] {
       @virtualize
@@ -54,7 +54,7 @@ object Main {
         val bs = List(0,1,2,3)
 
         val twolist = List(List(1, 2), List(2, 3))
-        println(twolist.foldLeft(1) { case (x, ys) => 
+        println(twolist.foldLeft(1) { case (x, ys) =>
           x * (ys.foldLeft(0) { case (a, b) => a + b })
         })
 
