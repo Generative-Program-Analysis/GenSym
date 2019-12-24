@@ -34,7 +34,7 @@ object Concrete {
         case IntV(1) => eval(t1, Δ, μ) match { case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, ℓ, Σ) }
         case IntV(0) => eval(t2, Δ, μ) match { case IntV(ℓ) => exec(Σ(ℓ), Δ, μ, ℓ, Σ) }
       }
-    case Halt() => (Δ, μ)
+    case Halt(e) => (Δ, μ)
     case _ => throw new RuntimeException("not a statement")
   }
 
@@ -176,7 +176,7 @@ case class TaintAnalysis(p: TaintPolicy = ATypicalTaintPolicy) {
           assert(p.condcheck(t1, t2) == T)
           exec(Σ(ℓ), Δ, μ, τΔ, τμ, ℓ, Σ)
       }
-    case Halt() => (Δ, μ, τΔ, τμ)
+    case Halt(e) => (Δ, μ, τΔ, τμ)
     case _ => throw new RuntimeException("not a statement")
   }
 
@@ -301,7 +301,7 @@ object SymExec {
           case _ => symerror
         }
       }
-    case Halt() => Set((Δ, μ, Π))
+    case Halt(e) => Set((Δ, μ, Π))
     case _ => throw new RuntimeException("not a statement")
   }
 

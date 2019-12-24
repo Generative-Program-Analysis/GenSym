@@ -9,7 +9,7 @@ object SimpIL {
   case class Goto(e: Exp) extends Stmt
   case class Assert(e: Exp) extends Stmt
   case class Cond(cnd: Exp, then_tgt: Exp, else_tgt: Exp) extends Stmt
-  case class Halt() extends Stmt
+  case class Halt(e: Exp) extends Stmt
 
   sealed trait Exp
   case class Lit(x: Int) extends Exp {
@@ -35,7 +35,7 @@ object SimpIL {
   }
 
   object Examples {
-    val ex1 = Prog(List(Assign("x", BinOp("*", Lit(2), GetInput("stdin"))), Halt()))
+    val ex1 = Prog(List(Assign("x", BinOp("*", Lit(2), GetInput("stdin"))), Halt(Var("x"))))
 
     val ex2 = Prog(List(
       Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
@@ -43,6 +43,6 @@ object SimpIL {
         Lit(2),
         Lit(3)),
       Assert(Lit(0)),
-      Halt()))
+      Halt(Var("x"))))
   }
 }
