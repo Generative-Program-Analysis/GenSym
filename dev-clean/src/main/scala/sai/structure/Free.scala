@@ -194,9 +194,9 @@ package freer {
     }
 
     def main(args: Array[String]): Unit = {
-      FFree.run(aProgram, Console1)
-      //val r = FFree.run(aProgram, Console2)
-      //r(Map())
+      //FFree.run(aProgram, Console1)
+      val r = FFree.run(aProgram, Console2).apply(Map("What is your name?" -> "kkk"))
+      println(r)
     }
   }
 }
