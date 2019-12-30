@@ -68,9 +68,8 @@ object Concrete {
   def branch(c: Value, t1: Exp, t2: Exp): M[PC] =
     if (c == 1) eval(t1) else eval(t2)
 
-  def halt(v: Value): M[Unit] = ReaderT.liftM[EitherStateM, Prg, Unit](
-    EitherT.left[StateM, Value, Unit](v)
-  )
+  def halt(v: Value): M[Unit] =
+    ReaderT.liftM[EitherStateM, Prg, Unit](EitherT.left[StateM, Value, Unit](v))
 
   def exec(s: Stmt): M[Unit] =  s match {
     case Assign(x, e) => for {
@@ -107,12 +106,12 @@ object Concrete {
     } yield r
   }
 
-  def run: M[Unit] = for {
+  def drive: M[Unit] = for {
     Σ <- get_prog
     pc <- get_pc
     _ <- exec(Σ(pc))
     next_pc <- get_pc
-    r <- run
+    r <- drive 
   } yield r
 
   def eval(e: Exp): M[Value] = e match {
@@ -147,22 +146,22 @@ object Concrete {
     case "~" => -v
   }
 
-  def toprun(p: Prog): (Either[Value, Unit], State) = {
+  def run(p: Prog): (Either[Value, Unit], State) = {
     def toMap(p: Prog): Prg = p match {
       case Prog(stmts) => stmts.zipWithIndex.map(_.swap).toMap
     }
-    run(toMap(p)).run((0, Map(), Map())).run
+    drive(toMap(p)).run((0, Map(), Map())).run
   }
 
   def main(args: Array[String]): Unit = {
     import SimpIL.Examples._
-    //println(toprun(ex1))
+    //println(run(ex1))
 
     val h = Prog(List(
       Halt(Lit(1))
     ))
-    //println(toprun(h))
+    //println(run(h))
 
-    println(toprun(ex3))
+    println(run(ex3))
   }
 }
