@@ -67,6 +67,8 @@ object Concrete {
 
   def branch(c: Value, t1: Exp, t2: Exp): M[PC] =
     if (c == 1) eval(t1) else eval(t2)
+  def assert(v: Value): M[Unit] =
+    if (v == 1) inc_pc else halt(-1)
 
   def halt(v: Value): M[Unit] =
     ReaderT.liftM[EitherStateM, Prg, Unit](EitherT.left[StateM, Value, Unit](v))
@@ -89,7 +91,7 @@ object Concrete {
     } yield ()
     case Assert(e) => for {
       v <- eval(e)
-      r <- if (v == 1) inc_pc else halt(-1)
+      r <- assert(v)
     } yield r
     case Cond(cnd, t1, t2) => for {
       c <- eval(cnd)
