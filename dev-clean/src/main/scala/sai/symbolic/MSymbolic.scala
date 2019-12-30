@@ -33,42 +33,42 @@ object Concrete {
 
   def branch(c: Value, t1: Exp, t2: Exp): M[PC] =
     if (c == 1) (for {
-      pc <- evalM(t1)
+      pc <- eval(t1)
     } yield pc)
     else (for {
-      pc <- evalM(t2)
+      pc <- eval(t2)
     } yield pc)
 
   def fail(e: Exp): M[Unit] = ???
 
   def exec(s: Stmt): M[Unit] =  s match {
     case Assign(x, e) => for {
-      v <- evalM(e)
+      v <- eval(e)
       _ <- update_env(x, v)
       _ <- inc_pc
     } yield ()
     case Store(e1, e2) => for {
-      a <- evalM(e1)
-      v <- evalM(e2)
+      a <- eval(e1)
+      v <- eval(e2)
       _ <- update_store(a, v)
       _ <- inc_pc
     } yield ()
     case Goto(e) => for {
-      pc <- evalM(e)
+      pc <- eval(e)
       _ <- set_pc(pc)
     } yield ()
     case Assert(e) => for {
-      v <- evalM(e)
+      v <- eval(e)
       _ <- if (v == 1) inc_pc else ???
     } yield ()
     case Cond(cnd, t1, t2) => for {
-      c <- evalM(cnd)
+      c <- eval(cnd)
       pc <- branch(c, t1, t2)
       _ <- set_pc(pc)
     } yield ()
     case Output(s) => M.pure(println(s))
     case Halt(e) => for {
-      v <- evalM(e)
+      v <- eval(e)
 
     } yield ()
   }
@@ -82,18 +82,18 @@ object Concrete {
     r <- run(Σ(next_pc))
   } yield r
 
-  def evalM(e: Exp): M[Value] = e match {
+  def eval(e: Exp): M[Value] = e match {
     case Lit(i) => M.pure(i)
     case Var(x) => for { ρ <- get_env } yield ρ(x)
     case Load(e) => for {
       σ <- get_store
-      a <- evalM(e)
+      a <- eval(e)
     } yield σ(a)
     case BinOp(op, e1, e2) => for {
-      v1 <- evalM(e1)
-      v2 <- evalM(e2)
+      v1 <- eval(e1)
+      v2 <- eval(e2)
     } yield evalBinOp(op, v1, v2)
-    case UnaryOp(op, e) => for { v <- evalM(e) } yield evalUnaryOp(op, v)
+    case UnaryOp(op, e) => for { v <- eval(e) } yield evalUnaryOp(op, v)
     case GetInput(_) => M.pure(scala.io.StdIn.readInt)
   }
 
