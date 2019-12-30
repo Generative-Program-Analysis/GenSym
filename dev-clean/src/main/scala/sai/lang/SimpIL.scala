@@ -36,7 +36,10 @@ object SimpIL {
   }
 
   object Examples {
-    val ex1 = Prog(List(Assign("x", BinOp("*", Lit(2), GetInput("stdin"))), Halt(Var("x"))))
+    val ex1 = Prog(List(
+      Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
+      Halt(Var("x"))
+    ))
 
     val ex2 = Prog(List(
       Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
@@ -44,6 +47,16 @@ object SimpIL {
         Lit(2),
         Lit(3)),
       Assert(Lit(0)),
+      Halt(Var("x"))))
+
+    val ex3 = Prog(List(
+      Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
+      Cond(BinOp("==", Var("x"), Lit(14)),
+        Lit(2),
+        Lit(4)),
+      Output("then branch"),
+      Assert(Lit(0)),
+      Output("else branch"),
       Halt(Var("x"))))
   }
 }
