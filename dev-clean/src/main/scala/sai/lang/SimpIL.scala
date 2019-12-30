@@ -10,6 +10,7 @@ object SimpIL {
   case class Assert(e: Exp) extends Stmt
   case class Cond(cnd: Exp, then_tgt: Exp, else_tgt: Exp) extends Stmt
   case class Halt(e: Exp) extends Stmt
+  case class Output(str: String) extends Stmt
 
   sealed trait Exp
   case class Lit(x: Int) extends Exp {

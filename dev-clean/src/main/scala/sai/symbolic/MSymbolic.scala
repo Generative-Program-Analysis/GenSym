@@ -17,15 +17,19 @@ object Concrete {
 
   type State = (PC, Env, Store)
   type M[T] = ReaderT[StateT[IdM, State, ?], Prg, T]
+  val M = Monad[ReaderT[StateT[IdM, State, ?], Prg, ?]]
 
   def get_prog: M[Prg] = ???
+
   def get_pc: M[PC] = ???
   def set_pc(pc: PC): M[Unit] = ???
   def inc_pc: M[Unit] = ???
-  def update_env(x: String, v: Value): M[Unit] = ???
-  def update_store(a: Addr, v: Value): M[Unit] = ???
 
-  def evalM(e: Exp): M[Value] = ???
+  def get_env: M[Env] = ???
+  def update_env(x: String, v: Value): M[Unit] = ???
+
+  def get_store: M[Store] = ???
+  def update_store(a: Addr, v: Value): M[Unit] = ???
 
   def branch(c: Value, t1: Exp, t2: Exp): M[PC] =
     if (c == 1) (for {
@@ -34,6 +38,8 @@ object Concrete {
     else (for {
       pc <- evalM(t2)
     } yield pc)
+
+  def fail(e: Exp): M[Unit] = ???
 
   def exec(s: Stmt): M[Unit] =  s match {
     case Assign(x, e) => for {
@@ -60,11 +66,13 @@ object Concrete {
       pc <- branch(c, t1, t2)
       _ <- set_pc(pc)
     } yield ()
+    case Output(s) => M.pure(println(s))
     case Halt(e) => for {
       v <- evalM(e)
 
     } yield ()
   }
+
 
   def run(s: Stmt): M[Value] = for {
     Σ <- get_prog
@@ -74,16 +82,19 @@ object Concrete {
     r <- run(Σ(next_pc))
   } yield r
 
-  def eval(e: Exp, Δ: Env, μ: Store): Value = e match {
-    case Lit(i) => i
-    case Var(x) => Δ(x)
-    case Load(e) => eval(e, Δ, μ) match { case α => μ(α) }
-    case BinOp(op, e1, e2) => (eval(e1, Δ, μ), eval(e2, Δ, μ)) match {
-      case (v1, v2) => evalBinOp(op, v1, v2)
-    }
-    case UnaryOp(op, e) => eval(e, Δ, μ) match { case v => evalUnaryOp(op, v) }
-    case GetInput("stdin") => scala.io.StdIn.readInt
-    case _ => throw new RuntimeException("not an expression")
+  def evalM(e: Exp): M[Value] = e match {
+    case Lit(i) => M.pure(i)
+    case Var(x) => for { ρ <- get_env } yield ρ(x)
+    case Load(e) => for {
+      σ <- get_store
+      a <- evalM(e)
+    } yield σ(a)
+    case BinOp(op, e1, e2) => for {
+      v1 <- evalM(e1)
+      v2 <- evalM(e2)
+    } yield evalBinOp(op, v1, v2)
+    case UnaryOp(op, e) => for { v <- evalM(e) } yield evalUnaryOp(op, v)
+    case GetInput(_) => M.pure(scala.io.StdIn.readInt)
   }
 
   def evalBinOp(op: String, v1: Int, v2: Int): Value = op match {
