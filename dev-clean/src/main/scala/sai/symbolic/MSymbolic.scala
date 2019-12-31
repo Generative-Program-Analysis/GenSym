@@ -28,10 +28,6 @@ object Concrete {
   val EitherStateM = Monad[EitherStateM]
   val M = Monad[M]
 
-  //type StateEitherM[T] = StateT[EitherM[Value, ?], State, T]
-  //type M[T] = ReaderT[StateEitherM, Prg, T]
-  //val M = Monad[ReaderT[StateT[EitherM[Value, ?], State, ?], Prg, ?]]
-
   def get_prog: M[Prg] = ReaderTMonad[EitherStateM, Prg].ask
 
   def get_pc: M[PC] = ReaderT.liftM[EitherStateM, Prg, PC](
@@ -110,11 +106,10 @@ object Concrete {
 
   def drive: M[Unit] = for {
     Σ <- get_prog
-    pc <- get_pc
-    _ <- exec(Σ(pc))
-    next_pc <- get_pc
-    r <- drive 
-  } yield r
+    i <- get_pc
+    _ <- exec(Σ(i))
+    _ <- drive
+  } yield ()
 
   def eval(e: Exp): M[Value] = e match {
     case Lit(i) => M.pure(i)
