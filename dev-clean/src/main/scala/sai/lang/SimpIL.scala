@@ -51,9 +51,10 @@ object SimpIL {
 
     val ex3 = Prog(List(
       Assign("x", BinOp("*", Lit(2), GetInput("stdin"))),
+      Assign("y", Lit(10)),
       Cond(BinOp("==", Var("x"), Lit(14)),
-        Lit(2),
-        Lit(4)),
+        Lit(3),
+        Lit(5)),
       Output("then branch"),
       Assert(Lit(0)),
       Output("else branch"),

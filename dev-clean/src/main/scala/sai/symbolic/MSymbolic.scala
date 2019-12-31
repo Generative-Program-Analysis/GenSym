@@ -87,8 +87,8 @@ object Concrete {
     } yield ()
     case Assert(e) => for {
       v <- eval(e)
-      r <- assert(v)
-    } yield r
+      _ <- assert(v)
+    } yield ()
     case Cond(cnd, t1, t2) => for {
       c <- eval(cnd)
       pc <- branch(c, t1, t2)
@@ -100,8 +100,8 @@ object Concrete {
     } yield ()
     case Halt(e) => for {
       v <- eval(e)
-      r <- halt(v)
-    } yield r
+      _ <- halt(v)
+    } yield ()
   }
 
   def drive: M[Unit] = for {
