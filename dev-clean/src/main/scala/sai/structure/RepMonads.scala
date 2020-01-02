@@ -85,6 +85,18 @@ trait RepMonads extends RepLattices { self: SAIOps =>
 
   /////////////////////////////////////////////////
 
+  object EitherT {
+
+  }
+
+  case class EitherT[M[_]: Monad, E: Manifest, A: Manifest](run: M[Either[E, A]]) {
+    import EitherT._
+
+    def apply: M[Either[E, A]] = run
+  }
+
+  /////////////////////////////////////////////////
+
   trait MonadReader[F[_], R] extends Monad[F] {
     def ask: F[R]
     def local[A: Manifest](fa: F[A])(f: Rep[R] => Rep[R]): F[A]

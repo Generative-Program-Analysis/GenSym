@@ -129,7 +129,7 @@ case class ErrM[A](run: Err[A]) {
   }
 }
 
-/* Either Monad */
+/* Either Monad and Transformer */
 
 object EitherM {
   def apply[E, A](implicit m: EitherM[E, A]): EitherM[E, A] = m
