@@ -86,13 +86,18 @@ trait RepMonads extends RepLattices { self: SAIOps =>
   /////////////////////////////////////////////////
 
   object EitherT {
-
+    def apply[M[_]: Monad, E, A](implicit m: EitherT[M, E, A]) = m
   }
 
   case class EitherT[M[_]: Monad, E: Manifest, A: Manifest](run: M[Either[E, A]]) {
     import EitherT._
 
     def apply: M[Either[E, A]] = run
+    def flatMap[B: Manifest](f: A => EitherT[M, E, B]): EitherT[M, E, B] = {
+      EitherT(Monad[M].flatMap(run) {
+        case e: Rep[Either[E, A]] => ???
+      })
+    }
   }
 
   /////////////////////////////////////////////////
