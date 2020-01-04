@@ -82,8 +82,8 @@ object Concrete {
       _ <- inc_pc
     } yield ()
     case Goto(e) => for {
-      pc <- eval(e)
-      _ <- set_pc(pc)
+      i <- eval(e)
+      _ <- set_pc(i)
     } yield ()
     case Assert(e) => for {
       v <- eval(e)
@@ -91,8 +91,8 @@ object Concrete {
     } yield ()
     case Cond(cnd, t1, t2) => for {
       c <- eval(cnd)
-      pc <- branch(c, t1, t2)
-      _ <- set_pc(pc)
+      i <- branch(c, t1, t2)
+      _ <- set_pc(i)
     } yield ()
     case Output(s) => for {
       _ <- M.pure(println(s))
