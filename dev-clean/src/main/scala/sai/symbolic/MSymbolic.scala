@@ -143,11 +143,22 @@ object Concrete {
     case "~" => -v
   }
 
-  def run(p: Prog): (Either[Value, Unit], State) = {
-    def toMap(p: Prog): Prg = p match {
-      case Prog(stmts) => stmts.zipWithIndex.map(_.swap).toMap
+  def ProgToMap(p: Prog): Prg = p match {
+    case Prog(stmts) => stmts.zipWithIndex.map(_.swap).toMap
+  }
+
+  def run_smallstep(p: Prog): Value = {
+    val pm: Prg = ProgToMap(p)
+    def run(st: State): Value = exec(pm(st._1))(pm).run(st).run match {
+      case (Left(v), _) => v
+      case (Right(()), st) => run(st)
     }
-    drive(toMap(p)).run((0, Map(), Map())).run
+    val st0: State = (0, Map(), Map())
+    run(st0)
+  }
+
+  def run(p: Prog): (Either[Value, Unit], State) = {
+    drive(ProgToMap(p)).run((0, Map(), Map())).run
   }
 
   def main(args: Array[String]): Unit = {
@@ -160,5 +171,6 @@ object Concrete {
     //println(run(h))
 
     println(run(ex3))
+    println(run_smallstep(ex3))
   }
 }
