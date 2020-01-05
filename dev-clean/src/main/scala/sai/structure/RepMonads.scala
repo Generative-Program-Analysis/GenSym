@@ -1,7 +1,7 @@
 package sai.structure.monad
 
+import lms.core._
 import lms.macros.SourceContext
-import lms.core.virtualize
 
 import sai.lmsx._
 import sai.structure.lattices._
@@ -93,9 +93,13 @@ trait RepMonads extends RepLattices { self: SAIOps =>
     import EitherT._
 
     def apply: M[Either[E, A]] = run
-    def flatMap[B: Manifest](f: A => EitherT[M, E, B]): EitherT[M, E, B] = {
+    def flatMap[B: Manifest](f: Rep[A] => EitherT[M, E, B]): EitherT[M, E, B] = {
       EitherT(Monad[M].flatMap(run) {
-        case e: Rep[Either[E, A]] => ???
+        case e: Rep[Either[E, A]] => Unwrap(e) match {
+          case Backend.Const(Left(e: Rep[E])) => ???
+          case Backend.Const(Right(a: Rep[A])) => f(a).run
+          case Backend.Sym(n) => ???
+        }
       })
     }
   }

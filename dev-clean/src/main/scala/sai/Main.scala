@@ -157,12 +157,30 @@ object Main {
     assert(snippet.eval(Set(1,2,3,4)) == 10)
   }
 
+  def test_either() = {
+    val snippet = new SAIDriver[String, Int] {
+      @virtualize
+      def eithertest(s: Rep[String]): Rep[Int] = {
+        val l = Either.left[String, Int](s)
+        println(l.left.value)
+        val r = Either.right[String, Int](unit(3))
+        r.right.value
+      }
+
+      def snippet(s: Rep[String]) = eithertest(s)
+    }
+
+    println(snippet.code)
+  }
+
   def main(args: Array[String]) {
-    println("Hello")
+    /*
     test_power()
     test_list()
     test_map()
     test_set()
     test_opt()
+     */
+    test_either()
   }
 }

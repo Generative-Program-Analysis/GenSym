@@ -17,7 +17,8 @@ import sai.structure.monad._
 trait SAICodeGenBase extends ExtendedScalaCodeGen
     with ScalaCodeGen_List
     with ScalaCodeGen_Map with ScalaCodeGen_Tuple
-    with ScalaCodeGen_Set // with ScalaCodeGen_LiftIf
+    with ScalaCodeGen_Set with ScalaCodeGen_Either
+    // with ScalaCodeGen_LiftIf
 {
   override def remap(m: Manifest[_]): String = {
     val typeStr = m.runtimeClass.getName
@@ -58,7 +59,7 @@ trait SAICodeGenBase extends ExtendedScalaCodeGen
 trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
     with OrderingOps with LiftVariables
     with TupleOpsOpt with ListOpsOpt with MapOpsOpt with SetOpsOpt
-    with RepLattices with RepMonads {
+    with EitherOps   with RepLattices with RepMonads {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
