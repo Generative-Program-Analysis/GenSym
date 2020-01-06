@@ -164,6 +164,11 @@ object Main {
         val l = Either.left[String, Int](s)
         println(l.left.value)
         val r = Either.right[String, Int](unit(3))
+        if (r.isRight) {
+          println("right")
+        } else {
+          println("left")
+        }
         r.right.value
       }
 

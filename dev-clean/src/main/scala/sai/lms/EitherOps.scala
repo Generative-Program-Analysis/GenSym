@@ -28,18 +28,42 @@ trait EitherOps { b: Base =>
     new EitherOps(unit(e))
 
   implicit class EitherOps[A: Manifest, B: Manifest](e: Rep[Either[A, B]]) {
-    def isLeft: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("either-isLeft", Unwrap(e)))
-    def isRight: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("either-isRight", Unwrap(e)))
-    def left: Rep[Left[A, B]] = Wrap[Left[A, B]](Adapter.g.reflect("either-left", Unwrap(e)))
-    def right: Rep[Right[A, B]] = Wrap[Right[A, B]](Adapter.g.reflect("either-right", Unwrap(e)))
+    def isLeft: Rep[Boolean] = Unwrap(e) match {
+      case Adapter.g.Def("either-new-left", _) => Wrap[Boolean](Backend.Const(true))
+      case Adapter.g.Def("either-new-right", _) => Wrap[Boolean](Backend.Const(false))
+      case _ => Wrap[Boolean](Adapter.g.reflect("either-isLeft", Unwrap(e)))
+    }
+
+    def isRight: Rep[Boolean] = Unwrap(e) match {
+      case Adapter.g.Def("either-new-left", _) => Wrap[Boolean](Backend.Const(false))
+      case Adapter.g.Def("either-new-right", _) => Wrap[Boolean](Backend.Const(true))
+      case _ => Wrap[Boolean](Adapter.g.reflect("either-isRight", Unwrap(e)))
+    }
+
+    def left: Rep[Left[A, B]] = Unwrap(e) match {
+      case Adapter.g.Def("either-new-left", unwrapped_xs) =>
+        Wrap[Left[A, B]](Adapter.g.reflect("either-new-left", unwrapped_xs:_*))
+      case _ => Wrap[Left[A, B]](Adapter.g.reflect("either-left", Unwrap(e)))
+    }
+    def right: Rep[Right[A, B]] = Unwrap(e) match {
+      case Adapter.g.Def("either-new-right", unwrapped_xs) =>
+        Wrap[Right[A, B]](Adapter.g.reflect("either-new-right", unwrapped_xs:_*))
+      case _ => Wrap[Right[A, B]](Adapter.g.reflect("either-right", Unwrap(e)))
+    }
   }
 
   implicit class LeftOps[A: Manifest, B: Manifest](l: Rep[Left[A, B]]) {
-    def value: Rep[A] = Wrap[A](Adapter.g.reflect("left-value", Unwrap(l)))
+    def value: Rep[A] = Unwrap(l) match {
+      case Adapter.g.Def("either-new-left", mA::mB::(x : Backend.Exp)::Nil) => Wrap[A](x)
+      case _ => Wrap[A](Adapter.g.reflect("left-value", Unwrap(l)))
+    }
   }
 
   implicit class RightOps[A: Manifest, B: Manifest](r: Rep[Right[A, B]]) {
-    def value: Rep[B] = Wrap[B](Adapter.g.reflect("right-value", Unwrap(r)))
+    def value: Rep[B] = Unwrap(r) match {
+      case Adapter.g.Def("either-new-right", mA::mB::(x : Backend.Exp)::Nil) => Wrap[B](x)
+      case _ => Wrap[B](Adapter.g.reflect("right-value", Unwrap(r)))
+    }
   }
 }
 
