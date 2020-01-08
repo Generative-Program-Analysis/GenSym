@@ -68,7 +68,7 @@ object Evaluation {
   )
 
   def main(args: Array[String]) {
-    //runEvaluation(WithoutStoreWidening(progs_wo_sw))
+    runEvaluation(WithoutStoreWidening(progs_wo_sw))
     println("\n********************************************\n")
     runEvaluation(WithStoreWidening(progs_w_sw))
   }

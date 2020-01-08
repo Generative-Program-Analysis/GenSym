@@ -18,7 +18,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   import StateT._
   import SetStateReaderStateM._
 
-  type Config = (Int, Env)
+  type Config = (Int, Env, Store)
   type Cache = Map[Config, Set[Value]]
 
   def mCache: Manifest[Cache] = manifest[Cache]
@@ -251,7 +251,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
     σ <- get_store
     in <- ask_in_cache
     out <- get_out_cache
-    cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ)))
+    cfg <- lift_nd[Config](Set((unit(e.hashCode), ρ, σ)))
     res <- lift_nd[((Set[Value], Store), Cache)](Set(
       if (out.contains(cfg)) {
         //FIXME: better syntax

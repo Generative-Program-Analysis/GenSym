@@ -89,6 +89,6 @@ object SWSAIRuntime {
   type Env = Map[String, Addr] 
   //type Env = Int 
   type Store = Map[Addr, Value]
-  type Config = (Int, Env)
+  type Config = (Int, Env, Store)
   type Cache = Map[Config, Set[Value]]
 }

@@ -14,7 +14,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
   import IdM._
 
   type R[T] = T
-  type Config = (Expr, Env)
+  type Config = (Expr, Env, Store)
   type Cache = Map[Config, Set[Value]]
 
   // Transformers
@@ -240,7 +240,7 @@ object SWUnstagedSchemeAnalyzer extends AbstractComponents {
     σ <- get_store
     in <- ask_in_cache
     out <- get_out_cache
-    val cfg = (e, ρ)
+    val cfg = (e, ρ, σ)
     rt <- if (out.contains(cfg)) {
       lift_nd[Value](out(cfg))
     } else {
