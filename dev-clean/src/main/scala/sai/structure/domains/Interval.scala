@@ -5,48 +5,68 @@ import scala.language.higherKinds
 import scala.language.implicitConversions
 import scala.Double.{NegativeInfinity, PositiveInfinity}
 
+import sai.structure.lattices.Lattices._
+
 object Interval {
   private val `+∞` = Double.PositiveInfinity
   private val `-∞` = Double.NegativeInfinity
+
   val ⊤ = Interval(`-∞`, `+∞`)
   val ⊥ = Interval(Double.NaN, Double.NaN)
-  val bot = ⊥
-  val top = ⊤
+
+  import NumD._
+
+  implicit def IntervalDomainInstance: NumD[Interval] = new NumD[Interval] {
+    def +(x: Interval, y: Interval): Interval = (x, y) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) =>
+        Interval(lb1 + lb2, ub1 + ub2)
+    }
+    def -(x: Interval, y: Interval): Interval = (x, y) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) =>
+        Interval(lb1 - lb2, ub2 + ub1)
+    }
+    def *(x: Interval, y: Interval): Interval = (x, y) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) =>
+        val lb1lb2 = lb1 * lb2
+        val lb1ub2 = lb1 * ub2
+        val ub1lb2 = ub1 * lb2
+        val ub1ub2 = ub1 * ub2
+        val arr = List[Double](lb1lb2, lb1ub2, ub1lb2, ub1ub2)
+        Interval(arr.reduce(math.min(_, _)), arr.reduce(math.max(_, _)))
+    }
+    def /(x: Interval, y: Interval): Interval = {
+      val rhs = y match {
+        case Interval(lb2, ub2) if !(lb2 <= 0 && 0 <= ub2) =>
+          Interval(1/ub2, 1/lb2)
+        case Interval(lb2, 0) =>
+          Interval(`-∞`, 1/lb2)
+        case Interval(0, ub2) =>
+          Interval(1/ub2, `+∞`)
+        case  _ => ⊤
+      }
+      x * rhs
+    }
+  }
+
+  implicit def IntervalLattice: Lattice[Interval] = new Lattice[Interval] {
+    lazy val bot: Interval = ⊥
+    lazy val top: Interval = ⊤
+    def ⊑(i1: Interval, i2: Interval): Boolean = (i1, i2) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ lb1 >= lb2 && ub1 <= ub2
+    }
+    def ⊔(i1: Interval, i2: Interval): Interval = (i1, i2) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(min(lb1, lb2), max(ub1, ub2))
+    }
+    def ⊓(i1: Interval, i2: Interval): Interval = (i1, i2) match {
+      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(max(lb1, lb2), min(ub1, ub2))
+    }
+  }
 }
 
 /* Note: lower bound and upper bound are both closed. */
-case class Interval(lb: Double, ub: Double) extends NumAbsDomain {
+case class Interval(lb: Double, ub: Double) {
   require(lb <= ub)
 
   import Interval._
-  override type AD = Interval
   override def toString: String = s"[$lb, $ub]"
-
-  def +(that: Interval): Interval = that match {
-    case Interval(lb_, ub_) ⇒ Interval(lb + lb_, ub + ub_)
-  }
-
-  def -(that: Interval): Interval = that match {
-    case Interval(lb_, ub_) ⇒ Interval(lb - lb_, ub_ - ub)
-  }
-
-  def *(that: Interval): Interval = that match {
-    case Interval(lb_, ub_) ⇒
-      val lb1lb2 = lb * lb_
-      val lb1ub2 = lb * ub_
-      val ub1lb2 = ub * lb_
-      val ub1ub2 = ub * ub_
-      val arr = List[Double](lb1lb2, lb1ub2, ub1lb2, ub1ub2)
-      Interval(arr.reduce(math.min(_, _)), arr.reduce(math.max(_, _)))
-  }
-
-  def /(that: Interval): Interval = {
-    val rhs = that match {
-      case Interval(lb_, ub_) if !(lb_ <= 0 && 0 <= ub_) ⇒ Interval(1/ub_, 1/lb_)
-      case Interval(lb_, 0) ⇒ Interval(`-∞`, 1/lb_)
-      case Interval(0, ub_) ⇒ Interval(1/ub_, `+∞`)
-      case Interval(lb_, ub_) if lb_ < 0 && 0 < ub_ ⇒ ⊤
-    }
-    this * rhs
-  }
 }

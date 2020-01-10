@@ -86,43 +86,5 @@ object Lattices {
       (m1.keySet intersect m2.keySet).foldLeft (Map[K, V]())
     { case (m_*, k) ⇒ m_* + ((k, m1(k) ⊓ m2(k))) }
   }
-
-  implicit def SignLattice: Lattice[Sign] = new Lattice[Sign] {
-    import Sign._
-
-    lazy val bot: Sign = ⊥
-    lazy val top: Sign = ⊤
-    def ⊑(s1: Sign, s2: Sign): Boolean = (s1, s2) match {
-      case (⊥, _) ⇒ true
-      case (_, ⊤) ⇒ true
-      case (_, _) ⇒ false
-    }
-    def ⊔(s1: Sign, s2: Sign): Sign = (s1, s2) match {
-      case (⊥, s) ⇒ s
-      case (s, ⊥) ⇒ s
-      case (_, _) ⇒ ⊤
-    }
-    def ⊓(s1: Sign, s2: Sign): Sign = (s1, s2) match {
-      case (⊤, s) ⇒ s
-      case (s, ⊤) ⇒ s
-      case (_, _) ⇒ ⊥
-    }
-  }
-
-  implicit def IntervalLattice: Lattice[Interval] = new Lattice[Interval] {
-    import Interval._
-
-    lazy val bot: Interval = ⊥
-    lazy val top: Interval = ⊤
-    def ⊑(i1: Interval, i2: Interval): Boolean = (i1, i2) match {
-      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ lb1 >= lb2 && ub1 <= ub2
-    }
-    def ⊔(i1: Interval, i2: Interval): Interval = (i1, i2) match {
-      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(min(lb1, lb2), max(ub1, ub2))
-    }
-    def ⊓(i1: Interval, i2: Interval): Interval = (i1, i2) match {
-      case (Interval(lb1, ub1), Interval(lb2, ub2)) ⇒ Interval(max(lb1, lb2), min(ub1, ub2))
-    }
-  }
 }
 
