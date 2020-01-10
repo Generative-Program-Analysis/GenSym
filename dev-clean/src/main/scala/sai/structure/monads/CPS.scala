@@ -17,7 +17,7 @@ case class CpsM[R, A](run: (A => R) => R) {
   import CpsM._
 
   def apply(k: A => R): R = run(k)
-  def flatMap[B](f: A => CpsM[R, B])(implicit mB: Manifest[B] = null): CpsM[R, B] = 
+  def flatMap[B](f: A => CpsM[R, B])(implicit mB: Manifest[B] = null): CpsM[R, B] =
     CpsM[R, B]((k: B => R) => run(a => f(a).run(k)))
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): CpsM[R, B] =
     CpsM[R, B]((k: B => R) => run(a => k(f(a))))
@@ -25,7 +25,14 @@ case class CpsM[R, A](run: (A => R) => R) {
 
 object CpsT {
   def apply[M[_]: Monad, R, A](implicit m: CpsT[M, R, A]): CpsT[M, R, A] = m
-  
+
+  implicit def CpsTMonadInstance[M[_]: Monad, R] = new Monad[CpsT[M, R, ?]] {
+    def flatMap[A, B](fa: CpsT[M, R, A])(f: A => CpsT[M, R, B]) = fa.flatMap(f)
+    def pure[A](a: A): CpsT[M, R, A] = CpsT((k: A => M[R]) => k(a))
+  }
+
+  def liftM[G[_]: Monad, R, A](g: G[A]): CpsT[G, R, A] =
+    CpsT[G, R, A]((k: A => G[R]) => Monad[G].flatMap(g)(k))
 }
 
 case class CpsT[M[_]: Monad, R, A](run: (A => M[R]) => M[R]) {
