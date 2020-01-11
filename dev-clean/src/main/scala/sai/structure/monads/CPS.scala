@@ -11,6 +11,9 @@ object CpsM {
     def flatMap[A, B](fa: CpsM[R, A])(f: A => CpsM[R, B]) = fa.flatMap(f)
     def pure[A](a: A): CpsM[R, A] = CpsM((k: A => R) => k(a))
   }
+
+  def callcc[T, R, A](f: (T => CpsM[R, A]) => CpsM[R, T]): CpsM[R, T] =
+    CpsM[R, T]((k: T => R) => f((x: T) => CpsM[R, A]((_: (A => R)) => k(x))).run(k))
 }
 
 case class CpsM[R, A](run: (A => R) => R) {
@@ -33,6 +36,9 @@ object CpsT {
 
   def liftM[G[_]: Monad, R, A](g: G[A]): CpsT[G, R, A] =
     CpsT[G, R, A]((k: A => G[R]) => Monad[G].flatMap(g)(k))
+
+  def callcc[M[_]: Monad, T, R, A](f: (T => CpsT[M, R, A]) => CpsT[M, R, T]): CpsT[M, R, T] =
+    CpsT[M, R, T]((k: T => M[R]) => f((x: T) => CpsT[M, R, A]((_: A => M[R]) => k(x))).run(k))
 }
 
 case class CpsT[M[_]: Monad, R, A](run: (A => M[R]) => M[R]) {
