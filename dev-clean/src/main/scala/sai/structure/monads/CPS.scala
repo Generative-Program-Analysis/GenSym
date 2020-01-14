@@ -21,9 +21,9 @@ case class CpsM[R, A](run: (A => R) => R) {
 
   def apply(k: A => R): R = run(k)
   def flatMap[B](f: A => CpsM[R, B])(implicit mB: Manifest[B] = null): CpsM[R, B] =
-    CpsM[R, B]((k: B => R) => run(a => f(a).run(k)))
+    CpsM[R, B]((k: B => R) => run(f(_)(k)))
   def map[B](f: A => B)(implicit mB: Manifest[B] = null): CpsM[R, B] =
-    CpsM[R, B]((k: B => R) => run(a => k(f(a))))
+    CpsM[R, B]((k: B => R) => run(f.andThen(k)))
 }
 
 object CpsT {
