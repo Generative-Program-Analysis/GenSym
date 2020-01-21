@@ -33,7 +33,7 @@ object Arrow {
   }
 
   def MonadIsArrow[M[_]: Monad] = new Arrow[Kleisli[M, ?, ?]] {
-    def arr[B, C](f: B => C): Kleisli[M, B, C] = 
+    def arr[B, C](f: B => C): Kleisli[M, B, C] =
       Kleisli[M, B, C](b => Monad[M].pure(f(b)))
     def >>>[B, C, D](f: Kleisli[M, B, C], g: Kleisli[M, C, D]): Kleisli[M, B, D] =
       Kleisli[M, B, D](b => Monad[M].flatMap(f(b))(g.apply))
