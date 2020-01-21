@@ -11,7 +11,7 @@ import sai.structure.lattices.Lattices._
 @virtualize
 trait RepMonads extends RepLattices 
   with RepIdMonad with RepEitherMonad with RepReaderMonad 
-  with RepStateMonad with RepListMonad { self: SAIOps =>
+  with RepStateMonad with RepListMonad with RepCPSMonad { self: SAIOps =>
 
   trait Monad[M[_]] {
     def pure[A: Manifest](a: Rep[A]): M[A]

@@ -5,7 +5,7 @@ Improving the performance of static analysis by meta-programming/multi-stage pro
 ### Directories
 
 * `dev-clean` Current development using [a new version of LMS](https://github.com/TiarkRompf/lms-clean)
-* `dev` development using [virtualization-lms-core](https://github.com/TiarkRompf/virtualization-lms-core)
+* `dev` Development using [virtualization-lms-core](https://github.com/TiarkRompf/virtualization-lms-core)
 * `oopsla19-code` The artifact of the OOPSLA '19 submission
 * `abscomp-racket` Abstract Compilation (CC '96) implemented in Racket
 
