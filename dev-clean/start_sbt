@@ -1,0 +1,1 @@
+export SBT_OPTS="-Xms4G -Xmx32G -Xss1024M -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2048M"; sbt
