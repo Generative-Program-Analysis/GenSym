@@ -28,7 +28,17 @@ object WhileLang {
           Seq(Assign("fact", Lit(1)),
               While(Op2("<=", Var("i"), Lit(5)),
                     Seq(Assign("fact", Op2("*", Var("fact"), Var("i"))),
-                        Assign("i", Op2("+", Var("i"), Lit(1)))))))
+                      Assign("i", Op2("+", Var("i"), Lit(1)))))))
+
+    val cond1 =
+      Cond(Op2("<=", Lit(1), Lit(2)),
+        Assign("x", Lit(3)),
+        Assign("x", Lit(4)))
+
+    val cond2 =
+      Cond(Op2("<=", Var("x"), Var("y")),
+        Assign("z", Var("x")),
+        Assign("z", Var("y")))
   }
 }
 
@@ -168,14 +178,14 @@ trait StagedWhileGen extends SAICodeGenBase {
       emit(")")
     case Node(s, "IntV-proj", List(i), _) =>
       shallow(i)
-      emit(".i")
+      emit(".asInstanceOf[IntV].i")
     case Node(s, "BoolV", List(b), _) =>
       emit("BoolV(")
       shallow(b)
       emit(")")
     case Node(s, "BoolV-proj", List(i), _) =>
       shallow(i)
-      emit(".b")
+      emit(".asInstanceOf[BoolV].b")
     case _ => super.shallow(n)
   }
 }
@@ -214,7 +224,7 @@ object TestWhile {
   @virtualize
   def specialize(s: Stmt): SAIDriver[Unit, Unit] = new StagedWhileDriver {
     def snippet(u: Rep[Unit]) = {
-      val v = exec(s)(Map())(s => s)
+      val v = exec(s)(Map("x" -> IntV(3), "y" -> IntV(4)))(s => s)
       println(v)
     }
   }
@@ -222,7 +232,7 @@ object TestWhile {
   def main(args: Array[String]): Unit = {
     //println(exec(fact5)(Map())(σ => σ("fact")))
     //val code = specialize(Op2("+", Lit(1), Lit(2)))
-    val code = specialize(fact5)
+    val code = specialize(cond2)
     println(code.code)
     code.eval(())
   }
