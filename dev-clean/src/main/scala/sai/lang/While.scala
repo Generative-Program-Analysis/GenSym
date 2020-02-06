@@ -36,9 +36,11 @@ object WhileLang {
         Assign("x", Lit(4)))
 
     val cond2 =
-      Cond(Op2("<=", Var("x"), Var("y")),
-        Assign("z", Var("x")),
-        Assign("z", Var("y")))
+      Seq(Cond(Op2("<=", Var("x"), Var("y")),
+               Assign("z", Var("x")),
+               Assign("z", Var("y"))),
+          Assign("z", Op2("+", Var("z"), Lit(1))))
+
   }
 }
 
@@ -105,7 +107,7 @@ trait StagedWhileSemantics extends SAIOps {
   import WhileLang._
   import CpsM._
 
-  type Ans = Store 
+  type Ans = Store
   type Store = Map[String, Value]
   type M[T] = CpsM[Ans, T]
 
@@ -117,13 +119,19 @@ trait StagedWhileSemantics extends SAIOps {
     Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
   def BoolV(b: Rep[Boolean]): Rep[Value] =
     Wrap[Value](Adapter.g.reflect("BoolV", Unwrap(b)))
+
   def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
-    case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) => Wrap[Int](v)
-    case _ => Wrap[Int](Adapter.g.reflect("IntV-proj", Unwrap(i)))
+    case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
+      Wrap[Int](v)
+    case _ =>
+      Wrap[Int](Adapter.g.reflect("IntV-proj", Unwrap(i)))
   }
+
   def rep_bool_proj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
-    case Adapter.g.Def("BoolV", scala.collection.immutable.List(v: Backend.Exp)) => Wrap[Boolean](v)
-    case _ => Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
+    case Adapter.g.Def("BoolV", scala.collection.immutable.List(v: Backend.Exp)) =>
+      Wrap[Boolean](v)
+    case _ =>
+      Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
   }
 
   def eval(e: Expr, σ: Rep[Store]): Rep[Value] = e match {
@@ -148,6 +156,43 @@ trait StagedWhileSemantics extends SAIOps {
       }
   }
 
+  def fix[A: Manifest, B: Manifest](f: Rep[A => B] => Rep[A => B]): Rep[A => B] = {
+    def g: Rep[A => B] = fun({ case (a: Rep[A]) => f(g)(a) })
+    g
+  }
+
+  def power(x: Rep[Int])(f: Rep[Int => Int]): Rep[Int => Int] = fun({ (n: Rep[Int]) =>
+    if (n == 0) 1
+    else x * f(n - 1)
+  })
+
+  def power3: Rep[Int => Int] = fix(power(3))
+
+  /*
+  def exec(s: Stmt): M[Unit] = s match {
+    case Skip() => pure(())
+    case Assign(x, e) => for {
+      σ <- get_state
+      _ <- update_state(x, eval(e, σ))
+    } yield ()
+    case Cond(e, s1, s2) => for {
+      σ <- get_state
+      cnd <- eval(e, σ)
+      rt <- if (cnd) exec(s1) else exec(s2)
+    } yield rt
+    case Seq(s1, s2) => for {
+      _ <- exec(s1)
+      r <- exec(s2)
+    } yield r
+    case While(e, b) => for {
+      σ <- get_state
+      cnd <- eval(e, σ)
+      r <- if (cnd) exec(Seq(b, s)) else exec(Skip())
+    } yield r
+  }
+   */
+
+  /* The CPS Monad doesn't work for the While case
   def fix[A, B](f: (Rep[A] => B) => Rep[A] => B): Rep[A] => B = { a =>
     f(fix(f))(a)
   }
@@ -168,6 +213,7 @@ trait StagedWhileSemantics extends SAIOps {
         })
       })(σ)
   }
+   */
 }
 
 trait StagedWhileGen extends SAICodeGenBase {
@@ -224,8 +270,10 @@ object TestWhile {
   @virtualize
   def specialize(s: Stmt): SAIDriver[Unit, Unit] = new StagedWhileDriver {
     def snippet(u: Rep[Unit]) = {
-      val v = exec(s)(Map("x" -> IntV(3), "y" -> IntV(4)))(s => s)
-      println(v)
+      //val v = exec(s)(Map("x" -> IntV(3), "y" -> IntV(4)))(s => s)
+      //println(v)
+      val x = power3(2)
+      println(x)
     }
   }
 
