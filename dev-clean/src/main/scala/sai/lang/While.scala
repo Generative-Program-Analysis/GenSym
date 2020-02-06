@@ -274,6 +274,8 @@ object TestWhile {
       //println(v)
       val x = power3(2)
       println(x)
+      val y = power3(3)
+      println(y)
     }
   }
 
