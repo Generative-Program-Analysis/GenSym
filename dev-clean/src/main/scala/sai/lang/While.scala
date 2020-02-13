@@ -211,7 +211,8 @@ trait StagedWhileSemantics extends SAIOps {
       } yield ()
   }
 
-  /* The CPS Monad doesn't work for the While case
+  /* 
+  //The CPS Monad doesn't work for the While case
   def fix[A, B](f: (Rep[A] => B) => Rep[A] => B): Rep[A] => B = { a =>
     f(fix(f))(a)
   }

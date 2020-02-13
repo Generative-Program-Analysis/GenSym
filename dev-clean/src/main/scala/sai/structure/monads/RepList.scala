@@ -10,10 +10,35 @@ import sai.structure.lattices.Lattices._
 
 @virtualize
 trait RepListMonad { self: RepMonads with SAIOps =>
+  object ListM {
+    def apply[A: Manifest](implicit m: ListM[A]): ListM[A] = m
+
+    implicit def ListMonad = new Monad[ListM] {
+      def flatMap[A: Manifest, B: Manifest](la: ListM[A])(f: Rep[A] => ListM[B]) = la.flatMap(f)
+      def pure[A: Manifest](a: Rep[A]): ListM[A] = ListM[A](List(a))
+      override def filter[A: Manifest](la: ListM[A])(f: Rep[A] => Rep[Boolean]): ListM[A] = la.filter(f)
+    }
+
+    implicit def ListMonadPlus = new MonadPlus[ListM] {
+      def mzero[A: Manifest : RepLattice]: ListM[A] = ListM(List())
+      def mplus[A: Manifest : RepLattice](a: ListM[A], b: ListM[A]): ListM[A] = a ++ b
+    }
+
+    def fromList[A: Manifest](xs: Rep[List[A]]): ListM[A] = ListM(xs)
+    def empty[A: Manifest]: ListM[A] = ListM[A](List())
+  }
+
   case class ListM[A: Manifest](run: Rep[List[A]]) {
     def apply: Rep[List[A]] = run
     def ++(ys: ListM[A]): ListM[A] = ListM(run ++ ys.run)
-    def flatMap[B: Manifest](f: Rep[A] => ListM[B]): ListM[B] = ???
+    def flatMap[B: Manifest](f: Rep[A] => ListM[B]): ListM[B] = {
+      ListM[B](run.foldLeft(List[B]())({ case (acc, a) => 
+        acc ++ f(a).run
+      }))
+    }
+    def map[B: Manifest](f: Rep[A] => Rep[B]): ListM[B] = ListM[B](run.map(f))
+    def filter(f: Rep[A] => Rep[Boolean]): ListM[A] = ListM[A](run.filter(f))
+    def withFilter(f: Rep[A] => Rep[Boolean]): ListM[A] = filter(f)
   }
 
   object ListT {
@@ -32,7 +57,7 @@ trait RepListMonad { self: RepMonads with SAIOps =>
 
     def fromList[M[_]: Monad, A: Manifest](xs: Rep[List[A]]): ListT[M, A] =
       ListT(Monad[M].pure(xs))
-    def listM[G[_]: Monad, A: Manifest](ga: G[A]): ListT[G, A] =
+    def liftM[G[_]: Monad, A: Manifest](ga: G[A]): ListT[G, A] =
       ListT(Monad[G].map(ga)((a: Rep[A]) => List(a)))
 
     def empty[M[_]: Monad, A: Manifest]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
