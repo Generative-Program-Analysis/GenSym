@@ -10,6 +10,12 @@ import sai.structure.lattices.Lattices._
 
 @virtualize
 trait RepListMonad { self: RepMonads with SAIOps =>
+  case class ListM[A: Manifest](run: Rep[List[A]]) {
+    def apply: Rep[List[A]] = run
+    def ++(ys: ListM[A]): ListM[A] = ListM(run ++ ys.run)
+    def flatMap[B: Manifest](f: Rep[A] => ListM[B]): ListM[B] = ???
+  }
+
   object ListT {
     def apply[M[_]: Monad, A: Manifest](implicit m: ListT[M, A]): ListT[M, A] = m
 
