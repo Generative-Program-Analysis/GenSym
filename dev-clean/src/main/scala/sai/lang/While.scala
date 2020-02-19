@@ -19,10 +19,19 @@ object WhileLang {
   case class While(b: Expr, s: Stmt) extends Stmt
 
   sealed trait Expr
-  case class Lit(x: Any) extends Expr
-  case class Var(x: String) extends Expr
-  case class Op1(op: String, e: Expr) extends Expr
-  case class Op2(op: String, e1: Expr, e2: Expr) extends Expr
+  case class Lit(x: Any) extends Expr {
+    override def toString: String = s"Lit(${x.toString})"
+  }
+  case class Var(x: String) extends Expr {
+    override def toString: String = "Var\"" + x.toString + "\")"
+  }
+  case class Op1(op: String, e: Expr) extends Expr {
+    override def toString: String = "Op1(\"" + op + "\"," + s"${e.toString})"
+  }
+  case class Op2(op: String, e1: Expr, e2: Expr) extends Expr {
+    override def toString: String =
+      "Op2(\"" + op + "\"," + s"${e1.toString}, ${e2.toString})"
+  }
 
   object Examples {
     val fact5 =
@@ -342,13 +351,27 @@ trait SymStagedWhile extends SAIOps {
     _ <- MonadState[M, Ans].put((ans._1 + (x -> v), ans._2))
   } yield ()
 
-  def br(cnd: Rep[Value], m1: M[Unit], m2: M[Unit])(σ: Rep[Store]): M[Unit] = {
+  def update_pc(e: Expr): M[Unit] = for {
+    ans <- MonadState[M, Ans].get
+    _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(e)))
+  } yield ()
+
+  def br(cnd: Expr, m1: M[Unit], m2: M[Unit])(σ: Rep[Store]): M[Unit] = {
     // TODO: how to merge those states?
     //val s: Rep[Ans] = (σ, Set[Expr]())
     //val res1: Rep[List[(Unit, Ans)]] = m1(s).run
     //val res2: Rep[List[(Unit, Ans)]] = m2(s).run
     //val res = res1 ++ res2
-    m1.flatMap(_ => m2)
+    val b1 = for {
+      _ <- m1
+      _ <- update_pc(cnd)
+    } yield ()
+    val b2 = for {
+      _ <- m2
+      _ <- update_pc(Op1("-", cnd))
+    } yield ()
+
+    b1.flatMap(_ => b2)
   }
 
   def exec(s: Stmt): M[Unit] = s match {
@@ -360,7 +383,7 @@ trait SymStagedWhile extends SAIOps {
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
       σ <- get_store
-      _ <- br(cnd, exec(s1), exec(s2))(σ)
+      _ <- br(e, exec(s1), exec(s2))(σ)
     } yield ()
     case Seq(s1, s2) => for {
       _ <- exec(s1)
@@ -371,14 +394,13 @@ trait SymStagedWhile extends SAIOps {
         val ans = for {
           cnd <- evalM(e)
           σ <- get_store
-          _ <- br(cnd, exec(b), exec(Skip()))(σ)
+          _ <- br(e, exec(b), exec(Skip()))(σ)
         } yield ()
         ???
       })
       ???
   }
 }
-
 
 trait StagedWhileGen extends SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
@@ -430,6 +452,7 @@ trait SymStagedWhileDriver extends SAIDriver[Unit, Unit] with SymStagedWhile { q
     import IR._
     override def remap(m: Manifest[_]): String = {
       if (m.toString.endsWith("$Value")) "Value"
+      else if (m.toString.endsWith("$Expr")) "Expr"
       else super.remap(m)
     }
   }
