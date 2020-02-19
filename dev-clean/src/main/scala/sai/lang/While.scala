@@ -112,10 +112,21 @@ trait StagedWhileSemantics extends SAIOps {
 
   type Ans = Store
   type Store = Map[String, Value]
-  //type M[T] = CpsM[Ans, T]
   type M[T] = StateT[IdM, Ans, T]
   val M = Monad[M]
-  import M._
+  //import M._
+
+  //
+  def fix[A: Manifest, B: Manifest](f: Rep[A => B] => Rep[A => B]): Rep[A => B] = {
+    def g: Rep[A => B] = fun({ case (a: Rep[A]) => f(g)(a) })
+    g
+  }
+  def power(x: Rep[Int])(f: Rep[Int => Int]): Rep[Int => Int] = fun({ (n: Rep[Int]) =>
+    if (n == 0) 1
+    else x * f(n - 1)
+  })
+  def power3: Rep[Int => Int] = fix(power(3))
+  //
 
   trait Value
   def IntV(i: Rep[Int]): Rep[Value] =
@@ -123,14 +134,14 @@ trait StagedWhileSemantics extends SAIOps {
   def BoolV(b: Rep[Boolean]): Rep[Value] =
     Wrap[Value](Adapter.g.reflect("BoolV", Unwrap(b)))
 
-  def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
+  implicit def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
       Wrap[Int](v)
     case _ =>
       Wrap[Int](Adapter.g.reflect("IntV-proj", Unwrap(i)))
   }
 
-  def rep_bool_proj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
+  implicit def rep_bool_proj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
     case Adapter.g.Def("BoolV", scala.collection.immutable.List(v: Backend.Exp)) =>
       Wrap[Boolean](v)
     case _ =>
@@ -142,11 +153,11 @@ trait StagedWhileSemantics extends SAIOps {
     case Lit(b: Boolean) => BoolV(b)
     case Var(x) => σ(x)
     case Op1("-", e) =>
-      val i = rep_int_proj(eval(e, σ))
+      val i: Rep[Int] = eval(e, σ)
       IntV(-i)
     case Op2(op, e1, e2) =>
-      val i1 = rep_int_proj(eval(e1, σ))
-      val i2 = rep_int_proj(eval(e2, σ))
+      val i1: Rep[Int] = eval(e1, σ)
+      val i2: Rep[Int] = eval(e2, σ)
       op match {
         case "+" => IntV(i1 + i2)
         case "-" => IntV(i1 - i2)
@@ -159,18 +170,6 @@ trait StagedWhileSemantics extends SAIOps {
       }
   }
 
-  def fix[A: Manifest, B: Manifest](f: Rep[A => B] => Rep[A => B]): Rep[A => B] = {
-    def g: Rep[A => B] = fun({ case (a: Rep[A]) => f(g)(a) })
-    g
-  }
-
-  def power(x: Rep[Int])(f: Rep[Int => Int]): Rep[Int => Int] = fun({ (n: Rep[Int]) =>
-    if (n == 0) 1
-    else x * f(n - 1)
-  })
-
-  def power3: Rep[Int => Int] = fix(power(3))
-
   def get_state: M[Store] = MonadState[M, Store].get
   def update_state(x: String, v: Rep[Value]): M[Unit] =
     MonadState[M, Store].mod(s => s + (unit(x) -> v))
@@ -182,7 +181,7 @@ trait StagedWhileSemantics extends SAIOps {
   } yield eval(e, σ)
 
   def exec(s: Stmt): M[Unit] = s match {
-    case Skip() => pure(())
+    case Skip() => M.pure(())
     case Assign(x, e) => for {
       v <- evalM(e)
       _ <- update_state(x, v)
@@ -190,21 +189,20 @@ trait StagedWhileSemantics extends SAIOps {
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
       σ <- get_state
-      rt <- lift_state(if (rep_bool_proj(cnd)) exec(s1)(σ).run._2 else exec(s2)(σ).run._2)
+      rt <- lift_state(if (cnd) exec(s1)(σ).run._2 else exec(s2)(σ).run._2)
     } yield ()
     case Seq(s1, s2) => for {
       _ <- exec(s1); _ <- exec(s2)
     } yield ()
     case While(e, b) =>
-      def f: Rep[Store => Store] =
-        fun({ s =>
-              val ans = for {
-                cnd <- evalM(e)
-                σ <- get_state
-                rt <- lift_state(if (rep_bool_proj(cnd)) f(exec(b)(σ).run._2) else σ)
-              } yield ()
-              ans(s).run._2
-            })
+      def f: Rep[Store => Store] = fun({ s =>
+        val ans = for {
+          cnd <- evalM(e)
+          σ <- get_state
+          rt <- lift_state(if (cnd) f(exec(b)(σ).run._2) else σ)
+        } yield ()
+        ans(s).run._2
+      })
       for {
         σ <- get_state
         σ1 <- lift_state(f(σ))
@@ -241,8 +239,8 @@ trait SymStagedWhile extends SAIOps {
   import WhileLang._
   import StateT._
   import ListT._
-
-  trait PC
+  import sai.structure.lattices._
+  import sai.structure.lattices.Lattices._
 
   trait Value
   def IntV(i: Rep[Int]): Rep[Value] =
@@ -266,9 +264,29 @@ trait SymStagedWhile extends SAIOps {
       Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
   }
 
+  def op_neg(v: Rep[Value]): Rep[Value] = {
+    Unwrap(v) match {
+      case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
+        val v1: Rep[Int] = Wrap[Int](v)
+        IntV(-v1)
+      case Adapter.g.Def("SymV", scala.collection.immutable.List(v: Backend.Exp)) =>
+        val v1: Rep[String] = Wrap[String](v)
+        SymV(unit("-" + v1))
+      case i =>
+        val v1: Rep[Int] = Wrap[Int](Adapter.g.reflect("IntV-proj", i))
+        IntV(-v1)
+    }
+  }
+
+  def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
+    Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
+  }
+
+  type PC = Set[Expr]
   type Store = Map[String, Value]
-  type Ans = (Store, Set[PC])
-  type M[T] = StateT[ListT[IdM, ?], Ans, T]
+  type Ans = (Store, PC)
+  type M[T] = StateT[ListM, Ans, T] // List[(Unit, (Store, PC))]
+  val M = Monad[M]
 
   def eval(e: Expr, σ: Rep[Store]): Rep[Value] = e match {
     case Lit(i: Int) => IntV(i)
@@ -276,30 +294,56 @@ trait SymStagedWhile extends SAIOps {
     case Var(x) => σ(x)
     case Op1("-", e) =>
       val v = eval(e, σ)
-      Unwrap(v) match {
-        case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
-          val v1: Rep[Int] = Wrap[Int](v)
-          IntV(-v1)
-        case Adapter.g.Def("SymV", scala.collection.immutable.List(v: Backend.Exp)) =>
-          val v1: Rep[String] = Wrap[String](v)
-          SymV(unit("-" + v1))
-        case i =>
-          val v1: Rep[Int] = Wrap[Int](Adapter.g.reflect("IntV-proj", i))
-          IntV(-v1)
-      }
+      op_neg(v)
     case Op2(op, e1, e2) =>
-      val i1 = eval(e1, σ)
-      val i2 = eval(e2, σ)
-      Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(i1), Unwrap(i2)))
+      val v1 = eval(e1, σ)
+      val v2 = eval(e2, σ)
+      op_2(op, v1, v2)
   }
-
-  def get_state: M[Store] = ???
-  def update_state(x: String, v: Rep[Value]): M[Unit] = ???
-  def lift_state(s: Rep[Store]): M[Unit] = ???
 
   def evalM(e: Expr): M[Value] = for {
     σ <- get_state
   } yield eval(e, σ)
+
+  def get_state: M[Store] = ???
+  def update_state(x: String, v: Rep[Value]): M[Unit] = ???
+  def lift_state(s: Rep[Store]): M[Unit] = ???
+  def br(cnd: Rep[Value], m1: M[Unit], m2: M[Unit])(σ: Rep[Store]): M[Unit] = {
+    //StateTMonadPlus[ListM, Ans].mplus(m1, m2
+    val s: Rep[Ans] = (σ, Set[Expr]())
+    val res1: Rep[List[(Unit, Ans)]] = m1(s).run
+    val res2: Rep[List[(Unit, Ans)]] = m2(s).run
+    val res = res1 ++ res2
+    // TODO: how to merge those states?
+    ???
+  }
+
+  def exec(s: Stmt): M[Unit] = s match {
+    case Skip() => M.pure(())
+    case Assign(x, e) => for {
+      v <- evalM(e)
+      _ <- update_state(x, v)
+    } yield ()
+    case Cond(e, s1, s2) => for {
+      cnd <- evalM(e)
+      σ <- get_state
+      _ <- br(cnd, exec(s1), exec(s2))(σ)
+    } yield ()
+    case Seq(s1, s2) => for {
+      _ <- exec(s1)
+      _ <- exec(s2)
+    } yield ()
+    case While(e, b) =>
+      def f: Rep[Ans => Ans] = fun({ s =>
+        val ans = for {
+          cnd <- evalM(e)
+          σ <- get_state
+          _ <- br(cnd, exec(b), exec(Skip()))(σ)
+        } yield ()
+        ???
+      })
+      ???
+  }
 }
 
 
