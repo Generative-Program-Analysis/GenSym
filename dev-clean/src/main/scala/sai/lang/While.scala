@@ -234,6 +234,32 @@ trait StagedWhileSemantics extends SAIOps {
    */
 }
 
+object SymRuntime {
+  import WhileLang._
+  trait Value
+  case class IntV(i: Int) extends Value
+  case class BoolV(b: Boolean) extends Value
+  case class SymV(s: String) extends Value
+  case class SymE(op: String, args: List[Value]) extends Value
+
+  type PC = Set[Expr]
+  type Store = Map[String, Value]
+
+  def op_2(op: String, v1: Value, v2: Value): Value =
+    (op, v1, v2) match {
+      case ("+", IntV(i1), IntV(i2)) => IntV(i1 + i2)
+      case ("-", IntV(i1), IntV(i2)) => IntV(i1 - i2)
+      case ("*", IntV(i1), IntV(i2)) => IntV(i1 * i2)
+      case ("/", IntV(i1), IntV(i2)) => IntV(i1 / i2)
+      case ("==", IntV(i1), IntV(i2)) => BoolV(i1 == i2)
+      case (">=", IntV(i1), IntV(i2)) => BoolV(i1 >= i2)
+      case (">", IntV(i1), IntV(i2)) => BoolV(i1 > i2)
+      case ("<=", IntV(i1), IntV(i2)) => BoolV(i1 <= i2)
+      case ("<", IntV(i1), IntV(i2)) => BoolV(i1 < i2)
+      case (op, x1, x2) => SymE(op, List(x1, x2))
+    }
+}
+
 @virtualize
 trait SymStagedWhile extends SAIOps {
   import WhileLang._
@@ -250,6 +276,7 @@ trait SymStagedWhile extends SAIOps {
   def SymV(x: Rep[String]): Rep[Value] =
     Wrap[Value](Adapter.g.reflect("SymV", Unwrap(x)))
 
+  /*
   def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
       Wrap[Int](v)
@@ -263,6 +290,7 @@ trait SymStagedWhile extends SAIOps {
     case _ =>
       Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
   }
+   */
 
   def op_neg(v: Rep[Value]): Rep[Value] = {
     Unwrap(v) match {
@@ -302,31 +330,36 @@ trait SymStagedWhile extends SAIOps {
   }
 
   def evalM(e: Expr): M[Value] = for {
-    σ <- get_state
+    σ <- get_store
   } yield eval(e, σ)
 
-  def get_state: M[Store] = ???
-  def update_state(x: String, v: Rep[Value]): M[Unit] = ???
-  def lift_state(s: Rep[Store]): M[Unit] = ???
+  def get_store: M[Store] = for {
+    ans <- MonadState[M, Ans].get
+  } yield ans._1
+
+  def update_store(x: String, v: Rep[Value]): M[Unit] = for {
+    ans <- MonadState[M, Ans].get
+    _ <- MonadState[M, Ans].put((ans._1 + (x -> v), ans._2))
+  } yield ()
+
   def br(cnd: Rep[Value], m1: M[Unit], m2: M[Unit])(σ: Rep[Store]): M[Unit] = {
-    //StateTMonadPlus[ListM, Ans].mplus(m1, m2
-    val s: Rep[Ans] = (σ, Set[Expr]())
-    val res1: Rep[List[(Unit, Ans)]] = m1(s).run
-    val res2: Rep[List[(Unit, Ans)]] = m2(s).run
-    val res = res1 ++ res2
     // TODO: how to merge those states?
-    ???
+    //val s: Rep[Ans] = (σ, Set[Expr]())
+    //val res1: Rep[List[(Unit, Ans)]] = m1(s).run
+    //val res2: Rep[List[(Unit, Ans)]] = m2(s).run
+    //val res = res1 ++ res2
+    m1.flatMap(_ => m2)
   }
 
   def exec(s: Stmt): M[Unit] = s match {
     case Skip() => M.pure(())
     case Assign(x, e) => for {
       v <- evalM(e)
-      _ <- update_state(x, v)
+      _ <- update_store(x, v)
     } yield ()
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
-      σ <- get_state
+      σ <- get_store
       _ <- br(cnd, exec(s1), exec(s2))(σ)
     } yield ()
     case Seq(s1, s2) => for {
@@ -337,7 +370,7 @@ trait SymStagedWhile extends SAIOps {
       def f: Rep[Ans => Ans] = fun({ s =>
         val ans = for {
           cnd <- evalM(e)
-          σ <- get_state
+          σ <- get_store
           _ <- br(cnd, exec(b), exec(Skip()))(σ)
         } yield ()
         ???
@@ -363,6 +396,11 @@ trait StagedWhileGen extends SAICodeGenBase {
     case Node(s, "BoolV-proj", List(i), _) =>
       shallow(i)
       emit(".asInstanceOf[BoolV].b")
+    case Node(s, "op", List(op, x1, x2), _) =>
+      emit("op_2(")
+      shallow(op); emit(", ")
+      shallow(x1); emit(", ")
+      shallow(x2); emit(")")
     case _ => super.shallow(n)
   }
 }
@@ -383,6 +421,23 @@ import sai.lang.WhileLang._
 trait Value
 case class IntV(i: Int) extends Value
 case class BoolV(b: Boolean) extends Value
+"""
+}
+
+trait SymStagedWhileDriver extends SAIDriver[Unit, Unit] with SymStagedWhile { q =>
+  override val codegen = new ScalaGenBase with StagedWhileGen {
+    val IR: q.type = q
+    import IR._
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString.endsWith("$Value")) "Value"
+      else super.remap(m)
+    }
+  }
+
+  override val prelude =
+    """
+import sai.lang.WhileLang._
+import sai.lang.SymRuntime._
 """
 }
 
@@ -412,11 +467,28 @@ object TestWhile {
     }
   }
 
+  @virtualize
+  def specSym(s: Stmt): SAIDriver[Unit, Unit] = new SymStagedWhileDriver {
+    def snippet(u: Rep[Unit]) = {
+      val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4)), Set[Expr]())
+      val v = exec(s)(init).run
+      println(v)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     //println(exec(fact5)(Map())(σ => σ("fact")))
     //val code = specialize(Op2("+", Lit(1), Lit(2)))
+
+    /*
     val code = specialize(fact5)
     println(code.code)
     code.eval(())
+     */
+
+    val code = specSym(cond1)
+    println(code.code)
+    code.eval(())
+
   }
 }
