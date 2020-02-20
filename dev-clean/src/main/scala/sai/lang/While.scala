@@ -13,6 +13,7 @@ import scala.collection.immutable.{List => SList}
 object WhileLang {
   sealed trait Stmt
   case class Skip() extends Stmt
+  case class Break() extends Stmt
   case class Assign(x: String, e: Expr) extends Stmt
   case class Cond(e: Expr, thn: Stmt, els: Stmt) extends Stmt
   case class Seq(s1: Stmt, s2: Stmt) extends Stmt
@@ -42,12 +43,18 @@ object WhileLang {
 
   def while_(e: Expr, s: Stmt): Stmt = While(e, s)
 
-
   object Examples {
     val fact5 =
       Seq(Assign("i", Lit(1)),
           Seq(Assign("fact", Lit(1)),
               While(Op2("<=", Var("i"), Lit(5)),
+                    Seq(Assign("fact", Op2("*", Var("fact"), Var("i"))),
+                      Assign("i", Op2("+", Var("i"), Lit(1)))))))
+
+    val fact_n =
+      Seq(Assign("i", Lit(1)),
+          Seq(Assign("fact", Lit(1)),
+              While(Op2("<=", Var("i"), Var("n")),
                     Seq(Assign("fact", Op2("*", Var("fact"), Var("i"))),
                       Assign("i", Op2("+", Var("i"), Lit(1)))))))
 
@@ -427,6 +434,8 @@ trait SymStagedWhile extends SAIOps {
       _ <- exec(s2)
     } yield ()
     case While(e, b) =>
+      // TODO: add break
+      /*
       def f: Rep[Ans => List[(Unit, Ans)]] = fix { s =>
         val ans = for {
           cnd <- evalM(e)
@@ -435,8 +444,17 @@ trait SymStagedWhile extends SAIOps {
         } yield ()
         ans.run(s).run
       }
-      ???
+      */
+      val k = 4
+      exec(unfold(While(e, b), k))
   }
+
+  def unfold(w: While, k: Int): Stmt =
+    if (k == 0) Skip()
+    else w match {
+      case While(e, b) =>
+        Cond(e, Seq(b, unfold(w, k-1)), Skip())
+    }
 }
 
 trait StagedWhileGen extends SAICodeGenBase {
@@ -531,10 +549,13 @@ object TestWhile {
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] = new SymStagedWhileDriver {
     def snippet(u: Rep[Unit]) = {
-      val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
-                            Set[Expr]())
+      //val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
+      //                      Set[Expr]())
+      val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
       val v = exec(s)(init).run
       println(v)
+      print("path number: ")
+      println(v.size)
     }
   }
 
@@ -551,7 +572,7 @@ object TestWhile {
     //List(((),(Map(x -> IntV(3), z -> IntV(4), y -> IntV(5)),Set(Op2("<=",Var("x"), Var("y"))))),
     //     ((),(Map(x -> IntV(3), z -> IntV(6), y -> IntV(5)),Set(Op1("-",Op2("<=",Var("x"), Var("y")))))))
 
-    val code = specSym(cond3)
+    val code = specSym(fact_n)
     println(code.code)
     code.eval(())
 

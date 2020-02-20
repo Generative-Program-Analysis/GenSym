@@ -25,6 +25,7 @@ trait ListOps { b: Base =>
     def apply(i: Rep[Int]): Rep[A] = Wrap[A](Adapter.g.reflect("list-apply", Unwrap(xs), Unwrap(i)))
     def head: Rep[A] = Wrap[A](Adapter.g.reflect("list-head", Unwrap(xs)))
     def tail: Rep[List[A]] = Wrap[List[A]](Adapter.g.reflect("list-tail", Unwrap(xs)))
+    def size: Rep[List[A]] = Wrap[List[A]](Adapter.g.reflect("list-size", Unwrap(xs)))
     def isEmpty: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("list-isEmpty", Unwrap(xs)))
     def take(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-take", Unwrap(xs), Unwrap(i)))
     def ::(x: Rep[A]): Rep[List[A]] =
@@ -137,6 +138,8 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
       shallow(xs); emit(".head")
     case Node(s, "list-tail", List(xs), _) =>
       shallow(xs); emit(".tail")
+    case Node(s, "list-size", List(xs), _) =>
+      shallow(xs); emit(".size")
     case Node(s, "list-isEmpty", List(xs), _) =>
       shallow(xs); emit(".isEmpty")
     case Node(s, "list-take", List(xs, i), _) =>
