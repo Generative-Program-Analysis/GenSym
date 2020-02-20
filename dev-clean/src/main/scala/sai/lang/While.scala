@@ -23,7 +23,7 @@ object WhileLang {
     override def toString: String = s"Lit(${x.toString})"
   }
   case class Var(x: String) extends Expr {
-    override def toString: String = "Var\"" + x.toString + "\")"
+    override def toString: String = "Var(\"" + x.toString + "\")"
   }
   case class Op1(op: String, e: Expr) extends Expr {
     override def toString: String = "Op1(\"" + op + "\"," + s"${e.toString})"
@@ -33,6 +33,16 @@ object WhileLang {
       "Op2(\"" + op + "\"," + s"${e1.toString}, ${e2.toString})"
   }
 
+  def let_(x: String, rhs: Int)(body: Var => Stmt): Stmt =
+    Seq(Assign(x, Lit(rhs)), body(Var(x)))
+  def let_(x: String, rhs: Expr)(body: Var => Stmt): Stmt =
+    Seq(Assign(x, rhs), body(Var(x)))
+
+  def set_(x: String, rhs: Expr): Stmt = Assign(x, rhs)
+
+  def while_(e: Expr, s: Stmt): Stmt = While(e, s)
+
+
   object Examples {
     val fact5 =
       Seq(Assign("i", Lit(1)),
@@ -40,6 +50,24 @@ object WhileLang {
               While(Op2("<=", Var("i"), Lit(5)),
                     Seq(Assign("fact", Op2("*", Var("fact"), Var("i"))),
                       Assign("i", Op2("+", Var("i"), Lit(1)))))))
+
+    val another_fact5 =
+      let_("i", 1){ i =>
+        let_("fact", 1){ fact =>
+          while_(Op2("<=", i, Lit(5)),
+            let_("fact", Op2("*", fact, i)){ _ =>
+              set_("i", Op2("+", i, Lit(1)))
+            })}}
+
+    println(another_fact5)
+    assert(fact5 == another_fact5)
+
+    val x = Var("x")
+    val y = Var("y")
+    val z = Var("z")
+    val a = Var("a")
+    val b = Var("b")
+    val i = Var("i")
 
     val cond1 =
       Cond(Op2("<=", Lit(1), Lit(2)),
@@ -51,6 +79,16 @@ object WhileLang {
                Assign("z", Var("x")),
                Assign("z", Var("y"))),
           Assign("z", Op2("+", Var("z"), Lit(1))))
+
+    val cond3 =
+      Seq(Cond(Op2("<=", x, y),
+               Assign("z", x),
+               Assign("z", y)),
+        Seq(Assign("z", Op2("+", z, Lit(1))),
+          Seq(Cond(Op2(">=", z, y),
+            Assign("z", Op2("+", z, Lit(2))),
+            Assign("z", Op2("+", z, Lit(3)))),
+          Skip())))
 
   }
 }
@@ -208,13 +246,14 @@ trait StagedWhileSemantics extends SAIOps {
         val ans = for {
           cnd <- evalM(e)
           σ <- get_state
+          //_ <- br(cnd, exec(σ), exec(Skip()))
           rt <- lift_state(if (cnd) f(exec(b)(σ).run._2) else σ)
         } yield ()
         ans(s).run._2
       })
       for {
         σ <- get_state
-        σ1 <- lift_state(f(σ))
+        _ <- lift_state(f(σ))
       } yield ()
   }
 
@@ -356,23 +395,21 @@ trait SymStagedWhile extends SAIOps {
     _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(e)))
   } yield ()
 
-  def br(cnd: Expr, m1: M[Unit], m2: M[Unit])(σ: Rep[Store]): M[Unit] = {
-    // TODO: how to merge those states?
-    //val s: Rep[Ans] = (σ, Set[Expr]())
-    //val res1: Rep[List[(Unit, Ans)]] = m1(s).run
-    //val res2: Rep[List[(Unit, Ans)]] = m2(s).run
-    //val res = res1 ++ res2
+  def br(cnd: Expr, m1: M[Unit], m2: M[Unit]): M[Unit] = {
     val b1 = for {
-      _ <- m1
       _ <- update_pc(cnd)
+      _ <- m1
     } yield ()
     val b2 = for {
-      _ <- m2
       _ <- update_pc(Op1("-", cnd))
+      _ <- m2
     } yield ()
-
-    b1.flatMap(_ => b2)
+    StateT[ListM, Ans, Unit]((s: Rep[Ans]) => {
+      b1.run(s) ++ b2.run(s)
+    })
   }
+
+  def fix[A: Manifest, B: Manifest](f: Rep[A] => Rep[B]): Rep[A => B] = fun(f)
 
   def exec(s: Stmt): M[Unit] = s match {
     case Skip() => M.pure(())
@@ -383,21 +420,21 @@ trait SymStagedWhile extends SAIOps {
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
       σ <- get_store
-      _ <- br(e, exec(s1), exec(s2))(σ)
+      _ <- br(e, exec(s1), exec(s2))
     } yield ()
     case Seq(s1, s2) => for {
       _ <- exec(s1)
       _ <- exec(s2)
     } yield ()
     case While(e, b) =>
-      def f: Rep[Ans => Ans] = fun({ s =>
+      def f: Rep[Ans => List[(Unit, Ans)]] = fix { s =>
         val ans = for {
           cnd <- evalM(e)
           σ <- get_store
-          _ <- br(e, exec(b), exec(Skip()))(σ)
+          _ <- br(e, exec(b), exec(Skip()))
         } yield ()
-        ???
-      })
+        ans.run(s).run
+      }
       ???
   }
 }
@@ -451,7 +488,8 @@ trait SymStagedWhileDriver extends SAIDriver[Unit, Unit] with SymStagedWhile { q
     val IR: q.type = q
     import IR._
     override def remap(m: Manifest[_]): String = {
-      if (m.toString.endsWith("$Value")) "Value"
+      if (m.toString == "java.lang.String") "String"
+      else if (m.toString.endsWith("$Value")) "Value"
       else if (m.toString.endsWith("$Expr")) "Expr"
       else super.remap(m)
     }
@@ -493,7 +531,8 @@ object TestWhile {
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] = new SymStagedWhileDriver {
     def snippet(u: Rep[Unit]) = {
-      val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4)), Set[Expr]())
+      val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
+                            Set[Expr]())
       val v = exec(s)(init).run
       println(v)
     }
@@ -509,7 +548,10 @@ object TestWhile {
     code.eval(())
      */
 
-    val code = specSym(cond1)
+    //List(((),(Map(x -> IntV(3), z -> IntV(4), y -> IntV(5)),Set(Op2("<=",Var("x"), Var("y"))))),
+    //     ((),(Map(x -> IntV(3), z -> IntV(6), y -> IntV(5)),Set(Op1("-",Op2("<=",Var("x"), Var("y")))))))
+
+    val code = specSym(cond3)
     println(code.code)
     code.eval(())
 
