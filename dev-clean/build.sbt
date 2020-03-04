@@ -16,6 +16,8 @@ libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.15.0"
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6"
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.27"
 
+libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
+
 scalacOptions ++= Seq(
   "-Xcheckinit",
   "-deprecation",

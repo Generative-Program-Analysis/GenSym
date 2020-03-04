@@ -98,7 +98,7 @@ trait SymStagedImp extends SAIOps {
     _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(e)))
   } yield ()
 
-  def br(cnd: Expr, m1: M[Unit], m2: M[Unit]): M[Unit] = {
+  def select(cnd: Expr, m1: M[Unit], m2: M[Unit]): M[Unit] = {
     val b1 = for {
       _ <- update_pc(cnd)
       _ <- m1
@@ -107,6 +107,7 @@ trait SymStagedImp extends SAIOps {
       _ <- update_pc(Op1("-", cnd))
       _ <- m2
     } yield ()
+
     StateT[ListM, Ans, Unit]((s: Rep[Ans]) => {
       b1.run(s) ++ b2.run(s)
     })
@@ -123,7 +124,7 @@ trait SymStagedImp extends SAIOps {
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
       σ <- get_store
-      _ <- br(e, exec(s1), exec(s2))
+      _ <- select(e, exec(s1), exec(s2))
     } yield ()
     case Seq(s1, s2) => for {
       _ <- exec(s1)
@@ -153,8 +154,19 @@ trait SymStagedImp extends SAIOps {
     }
 }
 
+trait SymStagedImpGen extends StagedImpGen {
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "op", List(op, x1, x2), _) =>
+      emit("op_2(")
+      shallow(op); emit(", ")
+      shallow(x1); emit(", ")
+      shallow(x2); emit(")")
+    case _ => super.shallow(n)
+  }
+}
+
 trait SymStagedImpDriver extends SAIDriver[Unit, Unit] with SymStagedImp { q =>
-  override val codegen = new ScalaGenBase with StagedImpGen {
+  override val codegen = new ScalaGenBase with SymStagedImpGen {
     val IR: q.type = q
     import IR._
     override def remap(m: Manifest[_]): String = {
@@ -174,8 +186,8 @@ import sai.imp.SymRuntime._
 
 object SymRuntime {
   trait Value
-  case class IntV(i: Int) extends Value
-  case class BoolV(b: Boolean) extends Value
+  case class IntV (i: Int) extends Value
+  case class BoolV (b: Boolean) extends Value
   case class SymV(s: String) extends Value
   case class SymE(op: String, args: List[Value]) extends Value
 

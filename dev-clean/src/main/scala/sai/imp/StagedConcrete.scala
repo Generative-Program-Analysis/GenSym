@@ -158,11 +158,6 @@ trait StagedImpGen extends SAICodeGenBase {
     case Node(s, "BoolV-proj", List(i), _) =>
       shallow(i)
       emit(".asInstanceOf[BoolV].b")
-    case Node(s, "op", List(op, x1, x2), _) =>
-      emit("op_2(")
-      shallow(op); emit(", ")
-      shallow(x1); emit(", ")
-      shallow(x2); emit(")")
     case _ => super.shallow(n)
   }
 }
