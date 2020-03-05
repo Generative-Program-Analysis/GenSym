@@ -185,3 +185,88 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
     case _ => super.symsFreq(n)
   }
 }
+
+trait CppCodeGen_List extends ExtendedCCodeGen {
+  registerHeader("<immer/flex_vector.hpp>")
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.List") {
+      val kty = m.typeArguments(0)
+      s"immer::flex_vector<${remap(kty)}>"
+    } else { super.remap(m) }
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    //case Node(_, "list-new", _, _) => false
+    case Node(_, "list-map", _, _) => false
+    case Node(_, "list-flatMap", _, _) => false
+    case Node(_, "list-foldLeft", _, _) => false
+    case Node(_, "list-take", _, _) => false
+    case Node(_, "list-prepend", _, _) => false
+    case Node(_, "list-concat", _, _) => false
+    case Node(_, "list-zip", _, _) => false
+    case Node(_, "list-sortBy", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
+  override def quote(s: Def): String = s match {
+    case Const(xs: List[_]) =>
+      "{" + xs.map(x => quote(Const(x))).mkString(", ") + "}"
+    case _ => super.quote(s)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
+      emit("immer::flex_vector<")
+      emit(remap(mA))
+      emit(">")
+      emit("{")
+      xs.zipWithIndex.map { case (x, i) =>
+        shallow(x)
+        if (i != xs.length-1) emit(", ")
+      }
+      emit("}")
+    case Node(s, "list-apply", List(xs, i), _) =>
+      shallow(xs); emit(".at("); shallow(i); emit(")")
+    case Node(s, "list-head", List(xs), _) =>
+      shallow(xs); emit(".front()")
+    case Node(s, "list-tail", List(xs), _) =>
+      ???
+      //shallow(xs); emit(".tail")
+    case Node(s, "list-size", List(xs), _) =>
+      shallow(xs); emit(".size()")
+    case Node(s, "list-isEmpty", List(xs), _) =>
+      shallow(xs); emit(".size() == 0")
+    case Node(s, "list-take", List(xs, i), _) =>
+      shallow(xs); emit(".take("); shallow(i); emit(")")
+    case Node(s, "list-prepend", List(xs, x), _) =>
+      shallow(x); emit(".push_front("); shallow(xs); emit(")")
+    case Node(s, "list-concat", List(xs, ys), _) =>
+      shallow(xs); emit(" + "); shallow(ys)
+    case Node(s, "list-mkString", List(xs, Const("")), _) =>
+      ???
+    case Node(s, "list-mkString", List(xs, sep), _) =>
+      ???
+    case Node(s, "list-toArray", List(xs), _) =>
+      ???
+    case Node(s, "list-toSeq", List(xs), _) =>
+      ???
+    case Node(s, "list-map", List(xs, b), _) =>
+      ???
+    case Node(s, "list-flatMap", List(xs, b), _) =>
+      ???
+    case Node(s, "list-foldLeft", List(xs, z, b), _) =>
+      ???
+    case Node(s, "list-zip", List(xs, ys), _) =>
+      ???
+    case Node(s, "list-filter", List(xs, b), _) =>
+      ???
+    case Node(s, "list-sortBy", List(xs, b), _) =>
+      ???
+    case Node(s, "list-containsSlice", List(xs, ys), _) =>
+      ???
+    case Node(s, "list-intersect", List(xs, ys), _) =>
+      ???
+    case _ => super.shallow(n)
+  }
+
+}

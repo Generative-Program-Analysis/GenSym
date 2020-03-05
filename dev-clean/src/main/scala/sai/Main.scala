@@ -26,6 +26,39 @@ object Main {
     assert(snippet.eval(2) == 32)
   }
 
+  def test_power_c() = {
+    val snippet = new CPP_SAIDriver[Int, Int] {
+      @virtualize
+      def power(b: Rep[Int], x: Int): Rep[Int] =
+        if (x == 0) 1
+        else b * power(b, x - 1)
+      def snippet(b: Rep[Int]): Rep[Int] = power(b, 5)
+    }
+
+    println(snippet.code)
+  }
+
+  def test_list_c() = {
+    val snippet = new CPP_SAIDriver[List[Int], Int] {
+      @virtualize
+      def power(b: Rep[Int], x: Int): Rep[Int] =
+        if (x == 0) 1
+        else b * power(b, x - 1)
+
+      @virtualize
+      def listget(xs: Rep[List[Int]]): Rep[Int] = {
+        val ys: Rep[List[Int]] = List(1, 2, 3)
+        val zs = xs ++ ys
+        zs(0)
+      }
+
+      //def snippet(b: Rep[Int]) = power(b, 10)
+      def snippet(xs: Rep[List[Int]]) = listget(xs)
+    }
+    println(snippet.code)
+    snippet.eval(List(5))
+  }
+
   def test_list() = {
     val snippet = new SAIDriver[List[Int], Int] {
       @virtualize
@@ -180,12 +213,13 @@ object Main {
 
   def main(args: Array[String]) {
     /*
-    test_power()
     test_list()
     test_map()
     test_set()
     test_opt()
      */
-    test_either()
+    //test_either()
+    //test_power_c()
+    test_list_c()
   }
 }

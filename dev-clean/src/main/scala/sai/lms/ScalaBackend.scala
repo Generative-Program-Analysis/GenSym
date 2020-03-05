@@ -65,6 +65,7 @@ trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
   def manifestTyp[T: Typ] = manifest[T]
 
   override def __fun[T: Manifest](f: AnyRef, arity: Int, gf: List[Backend.Exp] => Backend.Exp): Backend.Exp = {
+    // No λforward
     val can = canonicalize(f)
     Adapter.funTable.find(_._2 == can) match {
       case Some((funSym, _)) => funSym
@@ -114,14 +115,3 @@ abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with
     time("eval")(f1(x))
   }
 }
-
-// C++ code generator and driver
-/*
-trait SAICXXOps
-
-trait SAICXXCodeGen extends CGenBase
-
-abstract class SAICXXDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAICXXOps { q =>
-
-}
- */
