@@ -91,7 +91,7 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
     import scala.sys.process._
 
     time("gcc") {
-      val pb: ProcessBuilder = s"$compilerCommand ./snippet.c -o ./snippet $libraries"
+      val pb: ProcessBuilder = s"$compilerCommand ./snippet.c -o ./snippet $libraries -I ../immer"
       pb.lines.foreach(Console.println _)
     }
     (a: A) => (s"/tmp/snippet $a": ProcessBuilder).lines.foreach(Console.println _)
