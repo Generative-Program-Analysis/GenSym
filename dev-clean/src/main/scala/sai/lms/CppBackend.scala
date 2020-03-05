@@ -84,14 +84,14 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
   def libraries = codegen.libraryFlags.mkString(" ")
 
   lazy val f: A => Unit = {
-    val out = new java.io.PrintStream("/tmp/snippet.c")
+    val out = new java.io.PrintStream("./snippet.c")
     out.println(code)
     out.close
-    (new java.io.File("/tmp/snippet")).delete
+    (new java.io.File("./snippet")).delete
     import scala.sys.process._
 
     time("gcc") {
-      val pb: ProcessBuilder = s"$compilerCommand /tmp/snippet.c -o /tmp/snippet $libraries"
+      val pb: ProcessBuilder = s"$compilerCommand ./snippet.c -o ./snippet $libraries"
       pb.lines.foreach(Console.println _)
     }
     (a: A) => (s"/tmp/snippet $a": ProcessBuilder).lines.foreach(Console.println _)
