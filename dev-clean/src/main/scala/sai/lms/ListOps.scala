@@ -189,8 +189,7 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
 trait CppCodeGen_List extends ExtendedCCodeGen {
   // Note: using the Immer C++ library for immutable data structures
 
-  registerHeader("<immer/flex_vector.hpp>")
-  registerIncludePath("../immer")
+  registerHeader("../immer", "<immer/flex_vector.hpp>")
 
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.List") {
@@ -247,10 +246,12 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       ???
     case Node(s, "list-map", List(xs, b), _) =>
       registerHeader("<immer/algorithm.hpp>")
-      emit("immer::for_each_chunk(")
-      shallow(xs); emit(".begin(), ")
-      shallow(xs); emit(".end(), ")
-      shallow(b); emit(")")
+      registerHeader("./headers", "<sai.hpp>")
+      emit("map(")
+      shallow(xs)
+      emit(", ")
+      shallow(b)
+      emit(")")
       /*
       emit("immer::accumulate(")
       shallow(xs); emit(".begin(), ")

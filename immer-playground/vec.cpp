@@ -2,6 +2,7 @@
 #include <functional>
 #include <immer/flex_vector.hpp>
 #include <immer/algorithm.hpp>
+#include <sai.hpp>
 
 /*
 template<typename T, typename Fn>
@@ -13,76 +14,6 @@ auto map(immer::flex_vector<T>& v, Fn fn) {
   return r;
 }
 */
-
-//Credit: https://bartoszmilewski.com/2013/11/13/functional-data-structures-in-c-lists/
-
-template<typename U, typename T, typename Fn>
-auto map(immer::flex_vector<T> vec, Fn f) {
-  static_assert(std::is_convertible<Fn, std::function<U(T)>>::value,
-		"map requires a function of type U(T)");
-  if (vec.size() == 0) {
-    return immer::flex_vector<U>();
-  } else {
-    auto head = f(vec.front());
-    auto tail = map<U>(vec.drop(1), f);
-    return tail.push_front(head);
-  }
-}
-
-template<typename T, typename P>
-auto filter(immer::flex_vector<T> vec, P p) {
-  static_assert(std::is_convertible<P, std::function<bool(T)>>::value,
-		"filter requires a function of type bool(T)");
-  if (vec.size == 0) return immer::flex_vector<T>();
-  if (p(vec.front())) {
-    auto head = vec.front();
-    auto tail = filter(vec.drop(1), p);
-    return tail.push_front(head);
-  }
-  else {
-    return filter(vec.drop(1), p);
-  }
-}
-
-template<typename T, typename U, typename Fn>
-U foldLeft(immer::flex_vector<T> vec, U acc, Fn f) {
-  static_assert(std::is_convertible<Fn, std::function<U(U, T)>>::value,
-		"foldLeft requires a function of type U(U, T)");
-  if (vec.size() == 0)
-    return acc;
-  else
-    return foldLeft(vec.drop(1), f(acc, vec.front()), f);
-}
-
-template<typename T, typename U, typename Fn>
-U foldRight(immer::flex_vector<T> vec, U acc, Fn f) {
-  static_assert(std::is_convertible<Fn, std::function<U(T, U)>>::value,
-		"foldLeft requires a function of type U(T, U)");
-  if (vec.size() == 0)
-    return acc;
-  else
-    return f(vec.front(), foldRight(vec.drop(1), acc, f));
-}
-
-template <typename T, typename U, typename Fn>
-auto flatMap(immer::flex_vector<T> vec, Fn f) {
-  static_assert(std::is_convertible<Fn, std::function<immer::flex_vector<U>(T)>>::value,
-                "flatMap requires a function of type flex_vector<U>(T)");
-  auto vmap = map<immer::flex_vector<U>>(vec, f);
-  auto res = immer::flex_vector<U>();
-  for (int i = 0; i < vmap.size(); i++) res = res + vmap.at(i);
-  return res;
-}
-
-template<typename T>
-void print_vec(immer::flex_vector<T>& v) {
-  std::cout << "{ ";
-  for (int i = 0; i < v.size(); i++) {
-    std::cout << v.at(i);
-    if (i != v.size()-1) std::cout << ", ";
-  }
-  std::cout << " }";
-}
 
 int main(int argc, char** argv) {
   auto v1 = immer::flex_vector<int> {1, 2, 3};
@@ -103,7 +34,7 @@ int main(int argc, char** argv) {
   assert(v4 == v5);
 
   // still map
-  auto v6 = map<int>(v1, [](auto x) { return x + 1; } );
+  immer::flex_vector<int> v6 = map<int>(v1, [](int x) { return x + 1; } );
 
   for (int i = 0; i < v6.size(); i++) {
     std::cout << v6.at(i) << "\n";
@@ -114,7 +45,9 @@ int main(int argc, char** argv) {
   // foldLeft and foldRight
 
   auto n = foldLeft(v1, 0, [&](int x, int y) { return x + y; });
+  std::cout << "n is " << n ;
   assert(n == 6);
+
   n = foldLeft(v1, 1, [&](int x, int y) { return x * (y + 1); });
   assert(n == 2*3*4);
 
@@ -124,7 +57,12 @@ int main(int argc, char** argv) {
   assert(n == 2*3*4);
 
   // flatMap
-  auto v7 = flatMap<int, int>(v1, [](int x) { return immer::flex_vector<int>(x, x); });
+  auto v7 = flatMap<int, int>(v1, [](int x) { return immer::flex_vector<int>{x, x}; });
   print_vec(v7);
+
+  auto v8 = reverse(v7);
+
+  print_vec(v8);
+
   return 0;
 }

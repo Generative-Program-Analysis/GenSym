@@ -103,7 +103,7 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
 
     val includes =
       if (codegen.includePaths.isEmpty) ""
-      else s"-I ${codegen.includePaths.mkString(" ")}"
+      else s"-I ${codegen.includePaths.mkString(" -I ")}"
     val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes"
     System.out.println("Compile command: " + pb)
 

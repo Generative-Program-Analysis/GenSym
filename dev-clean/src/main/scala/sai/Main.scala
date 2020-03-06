@@ -10,7 +10,6 @@ import lms.core.utils.time
 
 import sai.lmsx._
 
-
 object Main {
 
   def test_power() = {
