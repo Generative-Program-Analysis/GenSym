@@ -23,8 +23,19 @@ trait CPP_SAICodeGenBase extends ExtendedCCodeGen
     case _ => super.mayInline(n)
   }
 
+  override def quoteBlock(b: Block): Unit = {
+    val autoType = true
+    val eff = quoteEff(b.ein)
+    def typed(s: Sym) = if (!autoType) s"${remap(typeMap(s))} ${quote(s)}" else s"auto ${quote(s)}"
+    def ltyped(xs: List[Sym]) = xs.map(typed(_)).mkString(", ")
+    val xs = b.in
+    emit(s"[&](${ltyped(xs)})$eff")
+    quoteBlockPReturn(traverse(b))
+  }
+
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::(Backend.Const("val"))::Nil, _) =>
+      System.out.println("lambda here")
       super.traverse(n)
     //emitln(s"val ${quote(f)}_val = ${quote(f)} _")
     case _ => super.traverse(n)
@@ -90,11 +101,16 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
     (new java.io.File("./snippet")).delete
     import scala.sys.process._
 
+    val includes =
+      if (codegen.includePaths.isEmpty) ""
+      else s"-I ${codegen.includePaths.mkString(" ")}"
+    val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes"
+    System.out.println("Compile command: " + pb)
+
     time("gcc") {
-      val pb: ProcessBuilder = s"$compilerCommand ./snippet.c -o ./snippet $libraries -I ../immer"
-      pb.lines.foreach(Console.println _)
+      (pb: ProcessBuilder).lines.foreach(Console.println _)
     }
-    (a: A) => (s"/tmp/snippet $a": ProcessBuilder).lines.foreach(Console.println _)
+    (a: A) => (s"./snippet $a": ProcessBuilder).lines.foreach(Console.println _)
   }
 
   def eval(a: A): Unit = {

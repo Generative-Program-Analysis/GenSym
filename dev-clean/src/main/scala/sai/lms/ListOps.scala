@@ -187,7 +187,11 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
 }
 
 trait CppCodeGen_List extends ExtendedCCodeGen {
+  // Note: using the Immer C++ library for immutable data structures
+
   registerHeader("<immer/flex_vector.hpp>")
+  registerIncludePath("../immer")
+
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.List") {
       val kty = m.typeArguments(0)
@@ -196,15 +200,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
   }
 
   override def mayInline(n: Node): Boolean = n match {
-    //case Node(_, "list-new", _, _) => false
-    case Node(_, "list-map", _, _) => false
-    case Node(_, "list-flatMap", _, _) => false
-    case Node(_, "list-foldLeft", _, _) => false
-    case Node(_, "list-take", _, _) => false
-    case Node(_, "list-prepend", _, _) => false
-    case Node(_, "list-concat", _, _) => false
-    case Node(_, "list-zip", _, _) => false
-    case Node(_, "list-sortBy", _, _) => false
+    case Node(_, name, _, _) if name.startsWith("list-") => false
     case _ => super.mayInline(n)
   }
 
@@ -230,8 +226,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
     case Node(s, "list-head", List(xs), _) =>
       shallow(xs); emit(".front()")
     case Node(s, "list-tail", List(xs), _) =>
-      ???
-      //shallow(xs); emit(".tail")
+      shallow(xs); emit(".drop(1)")
     case Node(s, "list-size", List(xs), _) =>
       shallow(xs); emit(".size()")
     case Node(s, "list-isEmpty", List(xs), _) =>
@@ -251,7 +246,18 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
     case Node(s, "list-toSeq", List(xs), _) =>
       ???
     case Node(s, "list-map", List(xs, b), _) =>
-      ???
+      registerHeader("<immer/algorithm.hpp>")
+      emit("immer::for_each_chunk(")
+      shallow(xs); emit(".begin(), ")
+      shallow(xs); emit(".end(), ")
+      shallow(b); emit(")")
+      /*
+      emit("immer::accumulate(")
+      shallow(xs); emit(".begin(), ")
+      shallow(xs); emit(".end(), ")
+      shallow(xs); emit(".take(0), ") // create an empty vector without specifying the element type
+      shallow(b); emit(")")
+       */
     case Node(s, "list-flatMap", List(xs, b), _) =>
       ???
     case Node(s, "list-foldLeft", List(xs, z, b), _) =>

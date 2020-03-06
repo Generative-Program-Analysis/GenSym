@@ -144,18 +144,16 @@ object TestImp {
     //println(exec(fact5)(Map())(σ => σ("fact")))
     //val code = specialize(Op2("+", Lit(1), Lit(2)))
 
-    /*
     val code = specialize(fact5)
     println(code.code)
     code.eval(())
-     */
 
     //List(((),(Map(x -> IntV(3), z -> IntV(4), y -> IntV(5)),Set(Op2("<=",Var("x"), Var("y"))))),
     //     ((),(Map(x -> IntV(3), z -> IntV(6), y -> IntV(5)),Set(Op1("-",Op2("<=",Var("x"), Var("y")))))))
 
-    val code = specSym(fact_n)
-    println(code.code)
-    code.eval(())
+    //val code = specSym(fact_n)
+    //println(code.code)
+    //code.eval(())
 
   }
 }

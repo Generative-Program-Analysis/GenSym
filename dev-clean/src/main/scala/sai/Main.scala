@@ -39,7 +39,7 @@ object Main {
   }
 
   def test_list_c() = {
-    val snippet = new CPP_SAIDriver[List[Int], Int] {
+    val snippet = new CPP_SAIDriver[Int, Int] {
       @virtualize
       def power(b: Rep[Int], x: Int): Rep[Int] =
         if (x == 0) 1
@@ -48,15 +48,16 @@ object Main {
       @virtualize
       def listget(xs: Rep[List[Int]]): Rep[Int] = {
         val ys: Rep[List[Int]] = List(1, 2, 3)
-        val zs = xs ++ ys
-        zs(0)
+        val zs = ys ++ xs
+        val as = zs.map(x => x + 1)
+        as(0)
       }
 
       //def snippet(b: Rep[Int]) = power(b, 10)
-      def snippet(xs: Rep[List[Int]]) = listget(xs)
+      def snippet(xs: Rep[Int]) = listget(List(xs))
     }
     println(snippet.code)
-    snippet.eval(List(5))
+    snippet.eval(5)
   }
 
   def test_list() = {
