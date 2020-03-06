@@ -64,6 +64,26 @@ U foldRight(immer::flex_vector<T> vec, U acc, Fn f) {
     return f(vec.front(), foldRight(vec.drop(1), acc, f));
 }
 
+template <typename T, typename U, typename Fn>
+auto flatMap(immer::flex_vector<T> vec, Fn f) {
+  static_assert(std::is_convertible<Fn, std::function<immer::flex_vector<U>(T)>>::value,
+                "flatMap requires a function of type flex_vector<U>(T)");
+  auto vmap = map<immer::flex_vector<U>>(vec, f);
+  auto res = immer::flex_vector<U>();
+  for (int i = 0; i < vmap.size(); i++) res = res + vmap.at(i);
+  return res;
+}
+
+template<typename T>
+void print_vec(immer::flex_vector<T>& v) {
+  std::cout << "{ ";
+  for (int i = 0; i < v.size(); i++) {
+    std::cout << v.at(i);
+    if (i != v.size()-1) std::cout << ", ";
+  }
+  std::cout << " }";
+}
+
 int main(int argc, char** argv) {
   auto v1 = immer::flex_vector<int> {1, 2, 3};
   auto v2 = immer::accumulate(v1, 0, [&](int x, int y)->int { return x + y; });
@@ -80,7 +100,7 @@ int main(int argc, char** argv) {
 			      [](auto v, auto x) {
 				return v.push_back(x+1);
 			      });
-  assert(v4 == v5); 
+  assert(v4 == v5);
 
   // still map
   auto v6 = map<int>(v1, [](auto x) { return x + 1; } );
@@ -104,7 +124,7 @@ int main(int argc, char** argv) {
   assert(n == 2*3*4);
 
   // flatMap
-  //auto v7 = flatMap(v1, [](auto x) { return immer::flex_vector<int> {x}; });
-
+  auto v7 = flatMap<int, int>(v1, [](int x) { return immer::flex_vector<int>(x, x); });
+  print_vec(v7);
   return 0;
 }
