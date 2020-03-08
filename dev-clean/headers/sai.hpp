@@ -4,6 +4,7 @@
 #include <sstream>
 #include <functional>
 #include <immer/flex_vector.hpp>
+#include <immer/map.hpp>
 #include <immer/algorithm.hpp>
 
 //Credit: https://bartoszmilewski.com/2013/11/13/functional-data-structures-in-c-lists/
@@ -30,7 +31,7 @@
 
 // Iterative implementation of map
 template<typename U, typename T, typename Fn>
-inline immer::flex_vector<U> map(immer::flex_vector<T> vec, Fn f) {
+inline immer::flex_vector<U> vmap(immer::flex_vector<T> vec, Fn f) {
   static_assert(std::is_convertible<Fn, std::function<U(T)>>::value,
 		"map requires a function of type U(T)");
   auto res = immer::flex_vector<U>();
@@ -131,9 +132,9 @@ template<typename T, typename U, typename Fn>
 inline auto flatMap(immer::flex_vector<T> vec, Fn f) {
   static_assert(std::is_convertible<Fn, std::function<immer::flex_vector<U>(T)>>::value,
                 "flatMap requires a function of type flex_vector<U>(T)");
-  auto vmap = map<immer::flex_vector<U>>(vec, f);
+  auto v1 = vmap<immer::flex_vector<U>>(vec, f);
   auto res = immer::flex_vector<U>();
-  for (int i = 0; i < vmap.size(); i++) res = res + vmap.at(i);
+  for (int i = 0; i < v1.size(); i++) res = res + v1.at(i);
   return res;
 }
 
@@ -144,7 +145,7 @@ inline auto reverse(immer::flex_vector<T> vec) {
 
 template<typename T, typename U>
 inline immer::flex_vector<std::tuple<T, U>> zip(immer::flex_vector<T> v1, immer::flex_vector<U> v2) {
-  assert(v1.size() == v2.size());
+  ASSERT(v1.size() == v2.size(), "Vectors must have same size");
   auto res = immer::flex_vector<std::tuple<T, U>>();
   for (int i = 0; i < v1.size(); i++) {
     res = res.push_back(std::make_tuple(v1.at(i), v2.at(i)));

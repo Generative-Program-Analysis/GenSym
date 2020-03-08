@@ -249,7 +249,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       ???
     case Node(s, "list-map", List(xs, b: Block), _) =>
       val retType = remap(typeBlockRes(b.res))
-      emit(s"map<$retType>(")
+      emit(s"vmap<$retType>(")
       shallow(xs)
       emit(", ")
       shallow(b)

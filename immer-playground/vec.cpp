@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   assert(v4 == v5);
 
   // still map
-  immer::flex_vector<int> v6 = map<int>(v1, [](int x) { return x + 1; } );
+  immer::flex_vector<int> v6 = vmap<int>(v1, [](int x) { return x + 1; } );
 
   for (int i = 0; i < v6.size(); i++) {
     std::cout << v6.at(i) << "\n";
