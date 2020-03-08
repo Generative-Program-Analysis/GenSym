@@ -51,7 +51,10 @@ object Main {
         val plustwo = zs.map(x => x + 2)
         val plusthree = plustwo.map(x => x + 3) // List(6, 7, 8, xs + 5)
         val zss = plusthree.flatMap(z => List(z * 2)) // List(12, 14, 16, 2(xs+5))
-        zss(3)
+        val n = zss.foldLeft(0) ({
+          case (a: Rep[Int], b: Rep[Int]) => a + b
+        })
+        n
       }
 
       //def snippet(b: Rep[Int]) = power(b, 10)

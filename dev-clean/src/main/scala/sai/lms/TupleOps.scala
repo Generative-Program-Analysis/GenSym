@@ -135,7 +135,10 @@ trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
       shallow(t); emit(".swap")
     // Tuple3
     case Node(s, "tuple3-new", List(fst, snd, trd), _) =>
-      emit("("); shallow(fst); emit(", "); shallow(snd); emit(", "); shallow(trd); emit(")")
+      emit("(")
+      shallow(fst); emit(", ")
+      shallow(snd); emit(", ")
+      shallow(trd); emit(")")
     case Node(s, "tuple3-1", List(t), _) =>
       shallow(t); emit("._1")
     case Node(s, "tuple3-2", List(t), _) =>
@@ -144,4 +147,61 @@ trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
       shallow(t); emit("._3")
     case _ => super.shallow(n)
   }
+}
+
+trait CppCodeGen_Tuple extends ExtendedCCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    val typeStr = m.runtimeClass.getName
+    if (typeStr == "scala.Tuple2") {
+      val fst = remap(m.typeArguments(0))
+      val snd = remap(m.typeArguments(1))
+      s"std::tuple<$fst, $snd>"
+    } else if (typeStr == "scala.Typle3") {
+      val fst = remap(m.typeArguments(0))
+      val snd = remap(m.typeArguments(1))
+      val thd = remap(m.typeArguments(2))
+      s"std::tuple<$fst, $snd, $thd>"
+    } else {
+      super.remap(m)
+    }
+  }
+
+  override def quote(s: Def): String = s match {
+    case Const(t: Tuple2[_, _]) =>
+      val fst = quote(Const(t._1)) 
+      val snd = quote(Const(t._2)) 
+      s"std::make_tuple($fst, $snd)"
+    case Const(t: Tuple3[_, _, _]) =>
+      val fst = quote(Const(t._1)) 
+      val snd = quote(Const(t._2))
+      val thd = quote(Const(t._3))
+      s"std::make_tuple($fst, $snd, $thd)"
+    case _ => super.quote(s)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    // Tuple2
+    case Node(s, "tuple2-new", List(fst, snd), _) =>
+      emit("std::make_tuple("); shallow(fst); emit(", "); shallow(snd); emit(")")
+    case Node(s, "tuple2-1", List(t), _) =>
+      emit("std::get<0>("); shallow(t); emit(")")
+    case Node(s, "tuple2-2", List(t), _) =>
+      emit("std::get<1>("); shallow(t); emit(")")
+    case Node(s, "tuple2-swap", List(t), _) =>
+      emit("tuple_swap("); shallow(t); emit(")")
+    // Tuple3
+    case Node(s, "tuple3-new", List(fst, snd, trd), _) =>
+      emit("std::make_tuple(")
+      shallow(fst); emit(", ")
+      shallow(snd); emit(", ")
+      shallow(trd); emit(")")
+    case Node(s, "tuple3-1", List(t), _) =>
+      emit("std::get<0>("); shallow(t); emit(")")
+    case Node(s, "tuple3-2", List(t), _) =>
+      emit("std::get<1>("); shallow(t); emit(")")
+    case Node(s, "tuple3-3", List(t), _) =>
+      emit("std::get<2>("); shallow(t); emit(")")
+    case _ => super.shallow(n)
+  }
+
 }

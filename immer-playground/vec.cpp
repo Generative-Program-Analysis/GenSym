@@ -1,3 +1,4 @@
+#include <tuple>
 #include <iostream>
 #include <functional>
 #include <immer/flex_vector.hpp>
@@ -62,7 +63,10 @@ int main(int argc, char** argv) {
 
   auto v8 = reverse(v7);
 
-  print_vec(v8);
+  print_vec(v8); std::cout << "\n";
+
+  auto v9 = zip(v7, v8);
+  //print_vec(v9);
 
   return 0;
 }

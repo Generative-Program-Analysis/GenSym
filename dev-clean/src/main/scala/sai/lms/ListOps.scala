@@ -264,11 +264,18 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       shallow(b)
       emit(")")
     case Node(s, "list-foldLeft", List(xs, z, b), _) =>
-      ???
+      emit("foldLeft(")
+      shallow(xs); emit(", ")
+      shallow(z); emit(", ")
+      shallow(b); emit(")")
     case Node(s, "list-zip", List(xs, ys), _) =>
-      ???
+      emit("zip(")
+      shallow(xs); emit(", ")
+      shallow(ys); emit(")")
     case Node(s, "list-filter", List(xs, b), _) =>
-      ???
+      emit("filter(")
+      shallow(xs); emit(", ")
+      shallow(b); emit(")")
     case Node(s, "list-sortBy", List(xs, b), _) =>
       ???
     case Node(s, "list-containsSlice", List(xs, ys), _) =>
@@ -277,5 +284,4 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       ???
     case _ => super.shallow(n)
   }
-
 }

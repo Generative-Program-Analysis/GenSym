@@ -144,4 +144,9 @@ void print_vec(immer::flex_vector<T>& v) {
   std::cout << " }";
 }
 
+template<typename T, typename U>
+inline std::tuple<U, T> tuple_swap(std::tuple<T, U> t) {
+  return std::make_tuple(std::get<1>(t), std::get<0>(t));
+}
+
 #endif
