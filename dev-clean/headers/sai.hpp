@@ -1,6 +1,7 @@
 #include <tuple>
 #include <cassert>
 #include <iostream>
+#include <sstream>
 #include <functional>
 #include <immer/flex_vector.hpp>
 #include <immer/algorithm.hpp>
@@ -9,6 +10,23 @@
 
 #ifndef SAI_HEADERS
 #define SAI_HEADERS
+
+#define DEBUG
+
+#ifndef NDEBUG
+#   define ASSERT(condition, message) \
+    do { \
+        if (! (condition)) { \
+            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                      << " line " << __LINE__ << ": " << message << std::endl; \
+            std::terminate(); \
+        } \
+    } while (false)
+#else
+#   define ASSERT(condition, message) do { } while (false)
+#endif
+
+/* Vectors */
 
 // Iterative implementation of map
 template<typename U, typename T, typename Fn>
@@ -147,6 +165,24 @@ void print_vec(immer::flex_vector<T>& v) {
 template<typename T, typename U>
 inline std::tuple<U, T> tuple_swap(std::tuple<T, U> t) {
   return std::make_tuple(std::get<1>(t), std::get<0>(t));
+}
+
+/* Maps */
+
+template<typename K, typename V>
+inline bool contains(immer::map<K, V> m, K k) {
+  return m.count(k) == 1;
+}
+
+template<typename K, typename V>
+inline bool notContains(immer::map<K, V> m, K k) {
+  return m.count(k) == 0;
+}
+
+template<typename K, typename V>
+inline auto safe_at(immer::map<K, V> m, K k) {
+  ASSERT(contains(m, k), "The map does not contain key");
+  return m.at(k);
 }
 
 #endif

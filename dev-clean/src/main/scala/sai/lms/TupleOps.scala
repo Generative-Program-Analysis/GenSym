@@ -150,6 +150,8 @@ trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
 }
 
 trait CppCodeGen_Tuple extends ExtendedCCodeGen {
+  registerHeader("<tuple>")
+
   override def remap(m: Manifest[_]): String = {
     val typeStr = m.runtimeClass.getName
     if (typeStr == "scala.Tuple2") {
