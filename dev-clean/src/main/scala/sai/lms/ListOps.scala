@@ -44,7 +44,8 @@ trait ListOps { b: Base =>
     }
     def flatMap[B: Manifest](f: Rep[A] => Rep[List[B]]): Rep[List[B]] = {
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
-      Wrap[List[B]](Adapter.g.reflect("list-flatMap", Unwrap(xs), block))
+      val mA = Backend.Const(manifest[A])
+      Wrap[List[B]](Adapter.g.reflect("list-flatMap", Unwrap(xs), block, mA))
     }
     def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] = {
       val block = Adapter.g.reify((x, y) => Unwrap(f(Wrap[B](x), Wrap[A](y))))
@@ -158,7 +159,7 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
       shallow(xs); emit(".toSeq")
     case Node(s, "list-map", List(xs, b), _) =>
       shallow(xs); emit(".map("); shallow(b); emit(")")
-    case Node(s, "list-flatMap", List(xs, b), _) =>
+    case Node(s, "list-flatMap", xs::(b: Block)::rest, _) =>
       shallow(xs); emit(".flatMap("); shallow(b); emit(")")
     case Node(s, "list-foldLeft", List(xs, z, b), _) =>
       shallow(xs); emit(".foldLeft("); shallow(z); emit(")("); shallow(b, false); emit(")")
@@ -190,6 +191,8 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
   // Note: using the Immer C++ library for immutable data structures
 
   registerHeader("../immer", "<immer/flex_vector.hpp>")
+  registerHeader("../immer", "<immer/algorithm.hpp>")
+  registerHeader("./headers", "<sai.hpp>")
 
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.List") {
@@ -244,23 +247,22 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       ???
     case Node(s, "list-toSeq", List(xs), _) =>
       ???
-    case Node(s, "list-map", List(xs, b), _) =>
-      registerHeader("<immer/algorithm.hpp>")
-      registerHeader("./headers", "<sai.hpp>")
-      emit("map(")
+    case Node(s, "list-map", List(xs, b: Block), _) =>
+      val retType = remap(typeBlockRes(b.res))
+      emit(s"map<$retType>(")
       shallow(xs)
       emit(", ")
       shallow(b)
       emit(")")
-      /*
-      emit("immer::accumulate(")
-      shallow(xs); emit(".begin(), ")
-      shallow(xs); emit(".end(), ")
-      shallow(xs); emit(".take(0), ") // create an empty vector without specifying the element type
-      shallow(b); emit(")")
-       */
-    case Node(s, "list-flatMap", List(xs, b), _) =>
-      ???
+    case Node(s, "list-flatMap", xs::(b: Block)::Const(mA: Manifest[_])::rest, _) =>
+      val eleType = remap(mA)
+      // Note: b.res must return a List type, as required by flatMap
+      val retType = remap(typeBlockRes(b.res).typeArguments(0))
+      emit(s"flatMap<$eleType, $retType>(")
+      shallow(xs)
+      emit(", ")
+      shallow(b)
+      emit(")")
     case Node(s, "list-foldLeft", List(xs, z, b), _) =>
       ???
     case Node(s, "list-zip", List(xs, ys), _) =>

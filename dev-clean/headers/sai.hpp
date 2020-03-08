@@ -1,3 +1,5 @@
+#include <tuple>
+#include <cassert>
 #include <iostream>
 #include <functional>
 #include <immer/flex_vector.hpp>
@@ -10,7 +12,7 @@
 
 // Iterative implementation of map
 template<typename U, typename T, typename Fn>
-immer::flex_vector<U> map(immer::flex_vector<T> vec, Fn f) {
+inline immer::flex_vector<U> map(immer::flex_vector<T> vec, Fn f) {
   static_assert(std::is_convertible<Fn, std::function<U(T)>>::value,
 		"map requires a function of type U(T)");
   auto res = immer::flex_vector<U>();
@@ -36,7 +38,7 @@ immer::flex_vector<U> map_rec(immer::flex_vector<T> vec, Fn f) {
 
 // Iterative implementation of filter
 template<typename T, typename P>
-auto filter(immer::flex_vector<T> vec, P p) {
+inline auto filter(immer::flex_vector<T> vec, P p) {
   static_assert(std::is_convertible<P, std::function<bool(T)>>::value,
 		"filter requires a function of type bool(T)");
   auto res = immer::flex_vector<T>();
@@ -65,7 +67,7 @@ auto filter_rec(immer::flex_vector<T> vec, P p) {
 
 // Iterative implementation of foldLeft
 template<typename T, typename U, typename Fn>
-U foldLeft(immer::flex_vector<T> vec, U acc, Fn f) {
+inline U foldLeft(immer::flex_vector<T> vec, U acc, Fn f) {
   static_assert(std::is_convertible<Fn, std::function<U(U, T)>>::value,
 		"foldLeft requires a function of type U(U, T)");
   U res = acc;
@@ -88,7 +90,7 @@ U foldLeft_rec(immer::flex_vector<T> vec, U acc, Fn f) {
 
 // Iterative implementation of foldRight
 template<typename T, typename U, typename Fn>
-U foldRight(immer::flex_vector<T> vec, U acc, Fn f) {
+inline U foldRight(immer::flex_vector<T> vec, U acc, Fn f) {
   static_assert(std::is_convertible<Fn, std::function<U(T, U)>>::value,
 		"foldLeft requires a function of type U(T, U)");
   U res = acc;
@@ -108,7 +110,7 @@ U foldRight_rec(immer::flex_vector<T> vec, U acc, Fn f) {
 }
 
 template<typename T, typename U, typename Fn>
-auto flatMap(immer::flex_vector<T> vec, Fn f) {
+inline auto flatMap(immer::flex_vector<T> vec, Fn f) {
   static_assert(std::is_convertible<Fn, std::function<immer::flex_vector<U>(T)>>::value,
                 "flatMap requires a function of type flex_vector<U>(T)");
   auto vmap = map<immer::flex_vector<U>>(vec, f);
@@ -118,8 +120,18 @@ auto flatMap(immer::flex_vector<T> vec, Fn f) {
 }
 
 template<typename T>
-auto reverse(immer::flex_vector<T> vec) {
+inline auto reverse(immer::flex_vector<T> vec) {
   return foldLeft(vec, immer::flex_vector<T>(), [](auto acc, auto x) { return acc.push_front(x); });
+}
+
+template<typename T, typename U>
+inline immer::flex_vector<std::tuple<T, U>> zip(immer::flex_vector<T> v1, immer::flex_vector<U> v2) {
+  assert(v1.size() == v2.size());
+  auto res = immer::flex_vector<std::tuple<T, U>>();
+  for (int i = 0; i < v1.size(); i++) {
+    res = res.push_back(std::make_tuple(v1.at(i), v2.at(i)));
+  }
+  return res;
 }
 
 template<typename T>

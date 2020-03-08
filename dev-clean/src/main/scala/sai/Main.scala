@@ -47,9 +47,11 @@ object Main {
       @virtualize
       def listget(xs: Rep[List[Int]]): Rep[Int] = {
         val ys: Rep[List[Int]] = List(1, 2, 3)
-        val zs = ys ++ xs
-        val as = zs.map(x => x + 1)
-        as(0)
+        val zs = ys ++ xs // List(1, 2, 3, xs)
+        val plustwo = zs.map(x => x + 2)
+        val plusthree = plustwo.map(x => x + 3) // List(6, 7, 8, xs + 5)
+        val zss = plusthree.flatMap(z => List(z * 2)) // List(12, 14, 16, 2(xs+5))
+        zss(3)
       }
 
       //def snippet(b: Rep[Int]) = power(b, 10)
