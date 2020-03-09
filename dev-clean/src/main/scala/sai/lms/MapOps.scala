@@ -180,3 +180,96 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
     case _ => super.shallow(n)
   }
 }
+
+trait CppCodeGen_Map extends ExtendedCCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.Map") {
+      val kty = m.typeArguments(0)
+      val vty = m.typeArguments(1)
+      s"immer::map<${remap(kty)}, ${remap(vty)}>"
+    } else { super.remap(m) }
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, name, _, _) if name.startsWith("map-") => false
+    case _ => super.mayInline(n)
+  }
+
+  override def quote(s: Def): String = s match {
+    case Const(m: Map[_, _]) =>
+      val kvs = m.map {
+        case (k, v) => "{" + quote(Const(k)) + ", " + quote(Const(v)) + "}"
+      }
+      val mM = Adapter.typeMap(s.asInstanceOf[Backend.Exp])
+      val keyType = remap(mM.typeArguments(0))
+      val valType = remap(mM.typeArguments(1))
+      s"Map::make_map<$keyType, $valType>({" + kvs.mkString(", ") + "})"
+    case _ => super.quote(s)
+  }
+
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "map-new", Const(mK: Manifest[_])::Const(mV: Manifest[_])::kvs, _) =>
+      val kty = remap(mK)
+      val vty = remap(mV)
+      emit("Map::make_map<")
+      emit(kty); emit(", "); emit(vty)
+      emit(">({")
+      kvs.zipWithIndex.map { case (kv, i) =>
+        shallow(kv)
+        if (i != kvs.length-1) emit(", ")
+      }
+      emit("})")
+    case Node(s, "map-apply", List(m, k), _) =>
+      shallow(m); emit(".safe_at"); shallow(k); emit(")")
+    case Node(s, "map-contains", List(m, k), _) =>
+      emit("Map::contains(")
+      shallow(m); emit(", ")
+      shallow(k); emit(")")
+    case Node(s, "map-get", List(m, k), _) =>
+      ???
+      // Return option type
+      //shallow(m); emit(".get("); shallow(k); emit(")")
+    case Node(s, "map-getOrElse", List(m, k, d), _) =>
+      emit("Map::getOrElse(");
+      shallow(m); emit(", ")
+      shallow(k); emit(", ")
+      shallow(d); emit(")")
+    case Node(s, "map-size", List(m), _) =>
+      shallow(m); emit(".size()");
+    case Node(s, "map-+", List(m, kv), _) =>
+      shallow(m); emit(".insert("); shallow(kv); emit(")")
+    case Node(s, "map-++", List(m1, m2), _) =>
+      emit("Map::concat(")
+      shallow(m1); emit(", ")
+      shallow(m2); emit(")")
+    case Node(s, "map-keySet", List(m), _) =>
+      ???
+      //shallow(m); emit(".keySet");
+    case Node(s, "map-isEmpty", List(m), _) =>
+      shallow(m); emit(".empty()");
+    case Node(s, "map-foldLeft", List(m, z, b: Block, _), _) =>
+      ???
+      /*
+      val p = PTuple(List(PVar(b.in(0)), PTuple(List(PVar(b.in(1)), PVar(b.in(2))))))
+      shallow(m); emit(".foldLeft(")
+      shallow(z); emit(") ")
+      quoteCaseBlock(b, p) //Note: quoteBlock will emit `{` and `}`
+       */
+    case Node(s, "map-foreach", List(m, b: Block), _) =>
+      ???
+      //val p = PTuple(b.in.map(PVar(_)))
+      //shallow(m); emit(".foreach "); quoteCaseBlock(b, p)
+    case Node(s, "map-filter", List(m, b: Block), _) =>
+      val p = PTuple(b.in.map(PVar(_)))
+      shallow(m); emit(".filter "); quoteCaseBlock(b, p)
+    case Node(s, "map-map", List(m, b: Block), _) =>
+      val p = PTuple(b.in.map(PVar(_)))
+      shallow(m); emit(".map "); quoteCaseBlock(b, p)
+    case Node(s, "map-mapmap", List(m, b: Block), _) =>
+      val p = PTuple(b.in.map(PVar(_)))
+      shallow(m); emit(".map "); quoteCaseBlock(b, p)
+    case _ => super.shallow(n)
+  }
+
+}

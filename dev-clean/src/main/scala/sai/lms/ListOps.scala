@@ -249,7 +249,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       ???
     case Node(s, "list-map", List(xs, b: Block), _) =>
       val retType = remap(typeBlockRes(b.res))
-      emit(s"vmap<$retType>(")
+      emit(s"Vec::vmap<$retType>(")
       shallow(xs)
       emit(", ")
       shallow(b)
@@ -258,22 +258,22 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       val eleType = remap(mA)
       // Note: b.res must return a List type, as required by flatMap
       val retType = remap(typeBlockRes(b.res).typeArguments(0))
-      emit(s"flatMap<$eleType, $retType>(")
+      emit(s"Vec::flatMap<$eleType, $retType>(")
       shallow(xs)
       emit(", ")
       shallow(b)
       emit(")")
     case Node(s, "list-foldLeft", List(xs, z, b), _) =>
-      emit("foldLeft(")
+      emit("Vec::foldLeft(")
       shallow(xs); emit(", ")
       shallow(z); emit(", ")
       shallow(b); emit(")")
     case Node(s, "list-zip", List(xs, ys), _) =>
-      emit("zip(")
+      emit("Vec::zip(")
       shallow(xs); emit(", ")
       shallow(ys); emit(")")
     case Node(s, "list-filter", List(xs, b), _) =>
-      emit("filter(")
+      emit("Vec::filter(")
       shallow(xs); emit(", ")
       shallow(b); emit(")")
     case Node(s, "list-sortBy", List(xs, b), _) =>

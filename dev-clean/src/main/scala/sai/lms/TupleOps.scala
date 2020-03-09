@@ -172,7 +172,7 @@ trait CppCodeGen_Tuple extends ExtendedCCodeGen {
     case Const(t: Tuple2[_, _]) =>
       val fst = quote(Const(t._1)) 
       val snd = quote(Const(t._2)) 
-      s"std::make_tuple($fst, $snd)"
+      s"std::make_pair($fst, $snd)"
     case Const(t: Tuple3[_, _, _]) =>
       val fst = quote(Const(t._1)) 
       val snd = quote(Const(t._2))
@@ -184,19 +184,20 @@ trait CppCodeGen_Tuple extends ExtendedCCodeGen {
   override def shallow(n: Node): Unit = n match {
     // Tuple2
     case Node(s, "tuple2-new", List(fst, snd), _) =>
-      emit("std::make_tuple("); shallow(fst); emit(", "); shallow(snd); emit(")")
+      //emit("std::make_tuple("); shallow(fst); emit(", "); shallow(snd); emit(")")
+      emit("{"); shallow(fst); emit(", "); shallow(snd); emit("}")
     case Node(s, "tuple2-1", List(t), _) =>
       emit("std::get<0>("); shallow(t); emit(")")
     case Node(s, "tuple2-2", List(t), _) =>
       emit("std::get<1>("); shallow(t); emit(")")
     case Node(s, "tuple2-swap", List(t), _) =>
-      emit("tuple_swap("); shallow(t); emit(")")
+      emit("Pair::swap("); shallow(t); emit(")")
     // Tuple3
     case Node(s, "tuple3-new", List(fst, snd, trd), _) =>
-      emit("std::make_tuple(")
+      emit("{") //emit("std::make_tuple(")
       shallow(fst); emit(", ")
       shallow(snd); emit(", ")
-      shallow(trd); emit(")")
+      shallow(trd); emit("}") //emit(")")
     case Node(s, "tuple3-1", List(t), _) =>
       emit("std::get<0>("); shallow(t); emit(")")
     case Node(s, "tuple3-2", List(t), _) =>
