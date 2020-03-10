@@ -89,7 +89,6 @@ trait MapOpsOpt extends MapOps { b: Base with TupleOps =>
   implicit override def __liftVarMap[K: Manifest, V: Manifest](m: Var[Map[K, V]]): MapOps[K, V] = new MapOpsOpt(readVar(m))
 
   implicit class MapOpsOpt[K: Manifest, V: Manifest](m: Rep[Map[K, V]]) extends MapOps[K, V](m) {
-    /*
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], (Rep[K], Rep[V])) => Rep[B]) = Unwrap(m) match {
       case Adapter.g.Def("map-new", mK::mV::(kvs: List[Backend.Exp])) =>
         val kv_tps = kvs.map {
@@ -102,7 +101,6 @@ trait MapOpsOpt extends MapOps { b: Base with TupleOps =>
         kv_tps.foldLeft(z)(f)
       case _ => super.foldLeft(z)(f)
     }
-     */
   }
 }
 
