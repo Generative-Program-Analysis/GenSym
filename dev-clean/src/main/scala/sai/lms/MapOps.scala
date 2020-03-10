@@ -56,9 +56,14 @@ trait MapOps { b: Base =>
     def keySet: Rep[Set[K]] = Wrap[Set[K]](Adapter.g.reflect("map-keySet", Unwrap(m)))
     def isEmpty: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("map-isEmpty", Unwrap(m)))
     def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], (Rep[K], Rep[V])) => Rep[B]) = {
-      val block = Adapter.g.reify(3, syms =>
+      def block2 = Adapter.g.reify(2, { syms =>
+        val k = Wrap[K](Adapter.g.reflect("tuple2-1", syms(1)))
+        val v = Wrap[V](Adapter.g.reflect("tuple2-2", syms(1)))
+        Unwrap(f(Wrap[B](syms(0)), (k, v)))
+      })
+      val block3 = Adapter.g.reify(3, syms =>
         Unwrap(f(Wrap[B](syms(0)), (Wrap[K](syms(1)), Wrap[V](syms(2))))))
-      Wrap[B](Adapter.g.reflect("map-foldLeft", Unwrap(m), Unwrap(z), block, Backend.Const(f)))
+      Wrap[B](Adapter.g.reflect("map-foldLeft", Unwrap(m), Unwrap(z), block3, block2))
     }
     def foreach(f: ((Rep[K], Rep[V])) => Rep[Unit]): Rep[Unit] = {
       val block = Adapter.g.reify(2, syms => Unwrap(f(Wrap[K](syms(0)), Wrap[V](syms(1)))))
@@ -84,6 +89,7 @@ trait MapOpsOpt extends MapOps { b: Base with TupleOps =>
   implicit override def __liftVarMap[K: Manifest, V: Manifest](m: Var[Map[K, V]]): MapOps[K, V] = new MapOpsOpt(readVar(m))
 
   implicit class MapOpsOpt[K: Manifest, V: Manifest](m: Rep[Map[K, V]]) extends MapOps[K, V](m) {
+    /*
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], (Rep[K], Rep[V])) => Rep[B]) = Unwrap(m) match {
       case Adapter.g.Def("map-new", mK::mV::(kvs: List[Backend.Exp])) =>
         val kv_tps = kvs.map {
@@ -96,6 +102,7 @@ trait MapOpsOpt extends MapOps { b: Base with TupleOps =>
         kv_tps.foldLeft(z)(f)
       case _ => super.foldLeft(z)(f)
     }
+     */
   }
 }
 
@@ -221,7 +228,8 @@ trait CppCodeGen_Map extends ExtendedCCodeGen {
       }
       emit("})")
     case Node(s, "map-apply", List(m, k), _) =>
-      shallow(m); emit(".safe_at"); shallow(k); emit(")")
+      emit("Map::safe_at(")
+      shallow(m); emit(","); shallow(k); emit(")")
     case Node(s, "map-contains", List(m, k), _) =>
       emit("Map::contains(")
       shallow(m); emit(", ")
@@ -248,27 +256,29 @@ trait CppCodeGen_Map extends ExtendedCCodeGen {
       //shallow(m); emit(".keySet");
     case Node(s, "map-isEmpty", List(m), _) =>
       shallow(m); emit(".empty()");
-    case Node(s, "map-foldLeft", List(m, z, b: Block, _), _) =>
-      ???
-      /*
-      val p = PTuple(List(PVar(b.in(0)), PTuple(List(PVar(b.in(1)), PVar(b.in(2))))))
-      shallow(m); emit(".foldLeft(")
-      shallow(z); emit(") ")
-      quoteCaseBlock(b, p) //Note: quoteBlock will emit `{` and `}`
-       */
+    case Node(s, "map-foldLeft", List(m, z, _, b: Block), _) =>
+      // foldLeft(m, z, { case (acc, (k, v)) => ... })
+      emit("Map::foldLeft(")
+      shallow(m); emit(", ")
+      shallow(z); emit(", ")
+      shallow(b); emit(")")
     case Node(s, "map-foreach", List(m, b: Block), _) =>
       ???
-      //val p = PTuple(b.in.map(PVar(_)))
-      //shallow(m); emit(".foreach "); quoteCaseBlock(b, p)
     case Node(s, "map-filter", List(m, b: Block), _) =>
-      val p = PTuple(b.in.map(PVar(_)))
-      shallow(m); emit(".filter "); quoteCaseBlock(b, p)
+      emit("Map::filter(")
+      shallow(m); emit(", ")
+      shallow(b); emit(")")
     case Node(s, "map-map", List(m, b: Block), _) =>
-      val p = PTuple(b.in.map(PVar(_)))
-      shallow(m); emit(".map "); quoteCaseBlock(b, p)
+      val kty = remap(typeMap(b.in(0)))
+      val vty = remap(typeMap(b.in(1)))
+      val tty = remap(typeBlockRes(b.res))
+      emit(s"Map::map<$kty, $vty, $tty>(")
+      shallow(m); emit(", ")
+      shallow(b); emit(")")
     case Node(s, "map-mapmap", List(m, b: Block), _) =>
-      val p = PTuple(b.in.map(PVar(_)))
-      shallow(m); emit(".map "); quoteCaseBlock(b, p)
+      emit(s"Map::map2map(")
+      shallow(m); emit(", ")
+      quoteTypedBlock(b, false, true); emit(")")
     case _ => super.shallow(n)
   }
 

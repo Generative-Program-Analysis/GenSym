@@ -150,6 +150,33 @@ object Main {
     assert(snippet.eval(Map((0,2), (1,3))) == 2)
   }
 
+  def test_map_c() = {
+    val snippet = new CPP_SAIDriver[Int, Int] {
+      @virtualize
+      def maptest(n: Rep[Int]): Rep[Int] = {
+        val t1 = (unit(1), unit(2))
+        val t2 = (3, 4)
+        val m1 = Map((n, n), t1, t2)
+        def w(z: Rep[Int], kv: (Rep[Int], Rep[Int])): Rep[Int] = z + kv._2 // this will be inlined
+        val sumKey = m1.foldLeft(0)(w)
+        val m2 = m1 + (5 -> 6)
+        val prodKey = m2.foldLeft(1) {
+          case (acc, (k, v)) =>
+            val acc1 = acc + 1
+            acc1 * v
+        }
+        val m3: Rep[Map[Int, Int]] = m2.map({ case (k: Rep[Int], v: Rep[Int]) => (k+1, v+1) })
+        val sumKey2 = m3.foldLeft(0)(w)
+        val xs: Rep[List[Int]] = m2.map({ case (k: Rep[Int], v: Rep[Int]) => k + v })
+        val sumXs = xs.foldLeft(0)({ case (x: Rep[Int], y: Rep[Int]) => x + y })
+        sumKey + prodKey + sumKey2 + sumXs
+      }
+      def snippet(n: Rep[Int]) = maptest(n)
+    }
+    println(snippet.code)
+    snippet.eval(3)
+  }
+
   def test_opt() = {
     val snippet = new SAIDriver[Int, Int] {
       @virtualize
@@ -225,6 +252,7 @@ object Main {
      */
     //test_either()
     //test_power_c()
-    test_list_c()
+    //test_list_c()
+    test_map_c()
   }
 }

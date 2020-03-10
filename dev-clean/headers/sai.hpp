@@ -253,17 +253,38 @@ namespace Map {
     return res;
   }
 
-  template<typename K, typename V, typename Fn>
-  inline immer::map<K, V> map2map(immer::map<K, V> m, Fn f) {
-    static_assert(std::is_convertible<Fn, std::function<std::pair<K, V>(std::pair<K, V>)>>::value,
-      "map2map requires a function of type std::pair<K, V>(std::pari<K, V>)");
-    auto res = immer::map<K, V>{};
+  template<typename K, typename V, typename T, typename Fn>
+  inline immer::flex_vector<T> map(immer::map<K, V> m, Fn f) {
+    static_assert(std::is_convertible<Fn, std::function<T(K, V)>>::value,
+      "map requires a function of type T(K, V)");
+    auto res = immer::flex_vector<T>();
     for (auto kv : m) {
-      res = res.insert(f(kv));
+      res = res.push_back(f(std::get<0>(kv), std::get<1>(kv)));
     }
     return res;
   }
 
+  template<typename K, typename V, typename Fn>
+  inline immer::map<K, V> map2map(immer::map<K, V> m, Fn f) {
+    static_assert(std::is_convertible<Fn, std::function<std::pair<K, V>(K, V)>>::value,
+      "map2map requires a function of type std::pair<K, V>(K, V)");
+    auto res = immer::map<K, V>{};
+    for (auto kv : m) {
+      res = res.insert(f(std::get<0>(kv), std::get<1>(kv)));
+    }
+    return res;
+  }
+
+  template<typename K, typename V, typename T, typename Fn>
+  inline T foldLeft(immer::map<K, V> m, T init, Fn f) {
+    static_assert(std::is_convertible<Fn, std::function<T(T, std::pair<K, V>)>>::value,
+      "foldLeft requires a function of type U(U, std::pair<K, V>)");
+    auto res = init;
+    for (auto kv : m) {
+      res = f(res, kv);
+    }
+    return res;
+  }
 }
 
 #endif

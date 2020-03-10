@@ -31,9 +31,10 @@ package free {
         def pure[A](a: A): Free[F, A] = Pure[F, A](a)
         def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma match {
           case Pure(a: A) => f(a)
-          case Impure(x: F[Free[F, A]]) => Impure(Functor[F].map(x){ case xf: Free[F, A] =>
-            Monad[Free[F, ?]].flatMap(xf)(f)
-          })
+          case Impure(x: F[Free[F, A]]) =>
+            Impure(Functor[F].map(x){ case xf: Free[F, A] =>
+              Monad[Free[F, ?]].flatMap(xf)(f)
+            })
         }
       }
   }
@@ -47,18 +48,33 @@ package free {
 
 case class Coproduct[F[_], G[_], A](run: Either[F[A], G[A]])
 
-sealed trait Inject[F[_], G[_]] {
+sealed trait ⊆[F[_], G[_]] {
   def inj[A](sub: F[A]): G[A]
   def prj[A](sup: G[A]): Option[F[A]]
 }
 
-object Inject {
-  implicit def injRefl[F[_]] = new Inject[F, F] {
+object ⊆ {
+  import free._
+
+  trait Nondet[+K]
+  case object Fail extends Nondet[Nothing]
+  case class Choice[K](k1: K, k2: K) extends Nondet[K]
+
+  def inject[F[_]: Functor, G[_]: Functor, R](x: F[Free[G, R]])(implicit I: (F ⊆ G)): Free[G, R] =
+    Impure(I.inj(x))
+
+  def project[F[_]: Functor, G[_]: Functor, R](x: Free[G, R])(implicit I: (F ⊆ G)): Option[F[Free[G, R]]] =
+    x match {
+      case Impure(f) => I.prj(f)
+      case _ => None
+    }
+
+  implicit def injRefl[F[_]] = new (F ⊆ F) {
     def inj[A](sub: F[A]) = sub
     def prj[A](sup: F[A]) = Some(sup)
   }
 
-  implicit def injLeft[F[_], G[_]] = new Inject[F, Coproduct[F, G, ?]] {
+  implicit def injLeft[F[_], G[_]] = new (F ⊆ Coproduct[F, G, ?]) {
     def inj[A](sub: F[A]) = Coproduct(Left(sub))
     def prj[A](sup: Coproduct[F, G, A]) = sup.run match {
       case Left(fa) => Some(fa)
@@ -66,8 +82,8 @@ object Inject {
     }
   }
 
-  implicit def injRight[F[_], G[_], H[_]](implicit I: Inject[F, G]) =
-    new Inject[F, Coproduct[H, G, ?]] {
+  implicit def injRight[F[_], G[_], H[_]](implicit I: (F ⊆ G)) =
+    new (F ⊆ Coproduct[H, G, ?]) {
       def inj[A](sub: F[A]) = Coproduct(Right(I.inj(sub)))
       def prj[A](sup: Coproduct[H, G, A]) = sup.run match {
         case Left(_) => None
@@ -115,7 +131,7 @@ package freer {
         def pure[A](a: A): FFree[F, A] = Stop[F, A](a)
         def flatMap[A, B](ma: FFree[F, A])(f: A => FFree[F, B]): FFree[F, B] = ma match {
           case Stop(x) => f(x)
-          case Step(fb, k) => Step(fb, k.andThen(x => flatMap(x)(f)))
+          case Step(fb, k) => Step(fb, k.andThen((x: FFree[F, A]) => flatMap(x)(f)))
         }
       }
   }

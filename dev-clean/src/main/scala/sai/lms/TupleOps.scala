@@ -157,7 +157,7 @@ trait CppCodeGen_Tuple extends ExtendedCCodeGen {
     if (typeStr == "scala.Tuple2") {
       val fst = remap(m.typeArguments(0))
       val snd = remap(m.typeArguments(1))
-      s"std::tuple<$fst, $snd>"
+      s"std::pair<$fst, $snd>"
     } else if (typeStr == "scala.Typle3") {
       val fst = remap(m.typeArguments(0))
       val snd = remap(m.typeArguments(1))

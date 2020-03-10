@@ -53,6 +53,17 @@ int main(int argc, char** argv) {
   v7 = Map::map2map(v7, [](auto kv)->std::pair<int, int> { 
     return { std::get<0>(kv)+1, std::get<1>(kv)+1 }; 
   });
+  assert(v7.size() == 2);
   assert(v7[6] == 7);
   assert(v7[8] == 9);
+
+  auto xs = Map::map<int, int, int>(v7, [](auto kv)->int { return std::get<0>(kv) + std::get<1>(kv); });
+  assert(xs.size() == 2);
+  assert(xs.at(0) == 13);
+  assert(xs.at(1) == 17);
+
+  int n = Map::foldLeft(v7, 0, [](auto init, auto kv) {
+    return init + std::get<1>(kv);
+  });
+  assert(n == 16);
 }

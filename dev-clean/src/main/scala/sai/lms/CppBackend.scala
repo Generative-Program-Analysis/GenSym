@@ -13,7 +13,7 @@ import sai.structure.lattices._
 import sai.structure.monad._
 
 trait CPP_SAICodeGenBase extends ExtendedCCodeGen
-  with CppCodeGen_List {
+  with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map {
   override def remap(m: Manifest[_]): String = super.remap(m)
 
   override def mayInline(n: Node): Boolean = n match {
@@ -21,16 +21,6 @@ trait CPP_SAICodeGenBase extends ExtendedCCodeGen
     case Node(s, "sai-ap-clo", _, _) => false
     case Node(s, "sai-comp-clo", _, _) => false
     case _ => super.mayInline(n)
-  }
-
-  override def quoteBlock(b: Block): Unit = {
-    val autoType = true
-    val eff = quoteEff(b.ein)
-    def typed(s: Sym) = if (!autoType) s"${remap(typeMap(s))} ${quote(s)}" else s"auto ${quote(s)}"
-    def ltyped(xs: List[Sym]) = xs.map(typed(_)).mkString(", ")
-    val xs = b.in
-    emit(s"[&](${ltyped(xs)})$eff")
-    quoteBlockPReturn(traverse(b))
   }
 
   override def traverse(n: Node): Unit = n match {
@@ -90,7 +80,7 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
     (source.toString, statics)
   }
 
-  var compilerCommand = "g++ -std=c++17 -O3"
+  var compilerCommand = "g++ -std=c++17 -O3 -Winline"
 
   def libraries = codegen.libraryFlags.mkString(" ")
 
@@ -110,7 +100,10 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
     time("gcc") {
       (pb: ProcessBuilder).lines.foreach(Console.println _)
     }
-    (a: A) => (s"./snippet $a": ProcessBuilder).lines.foreach(Console.println _)
+    (a: A) => {
+      System.out.println(s"Running ./snippet $a")
+      (s"./snippet $a": ProcessBuilder).lines.foreach(Console.println _)
+    }
   }
 
   def eval(a: A): Unit = {
