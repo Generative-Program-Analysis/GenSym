@@ -6,7 +6,8 @@
 #ifndef SAI_IMP_CONC_HEADERS
 #define SAI_IMP_CONC_HEADERS
 
-struct IntV { int i; };
+//struct IntV { int i; };
+struct IntV { unsigned long long i; };
 struct BoolV { bool b; };
 using Value = std::variant<IntV, BoolV>;
 
