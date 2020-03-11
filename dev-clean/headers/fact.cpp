@@ -29,9 +29,7 @@ unsigned long long factorial(unsigned long long n) {
 
 /**************** Snippet ****************/
 unsigned long long Snippet(long long x0){
-  Value x1 = (struct IntV){3};
-  Value x2 = (struct IntV){4};
-  immer::map<std::string, Value> x3 = Map::make_map<std::string, Value>({{"x", x1}, {"z", x2}});
+  immer::map<std::string, Value> x3 = immer::map<std::string, Value>();
   Value x4 = (struct IntV){1};
   immer::map<std::string, Value> x5 = x3.insert({"i", x4});
   immer::map<std::string, Value> x6 = x5.insert({"fact", x4});
