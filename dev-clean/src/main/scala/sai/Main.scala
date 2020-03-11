@@ -26,7 +26,7 @@ object Main {
   }
 
   def test_power_c() = {
-    val snippet = new CPP_SAIDriver[Int, Int] {
+    val snippet = new CppSAIDriver[Int, Int] {
       @virtualize
       def power(b: Rep[Int], x: Int): Rep[Int] =
         if (x == 0) 1
@@ -38,7 +38,7 @@ object Main {
   }
 
   def test_list_c() = {
-    val snippet = new CPP_SAIDriver[Int, Int] {
+    val snippet = new CppSAIDriver[Int, Int] {
       @virtualize
       def power(b: Rep[Int], x: Int): Rep[Int] =
         if (x == 0) 1
@@ -151,7 +151,7 @@ object Main {
   }
 
   def test_map_c() = {
-    val snippet = new CPP_SAIDriver[Int, Int] {
+    val snippet = new CppSAIDriver[Int, Int] {
       @virtualize
       def maptest(n: Rep[Int]): Rep[Int] = {
         val t1 = (unit(1), unit(2))

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <functional>
+#include <variant>
 #include <immer/flex_vector.hpp>
 #include <immer/map.hpp>
 #include <immer/algorithm.hpp>
@@ -38,6 +39,11 @@ void print_vec(immer::flex_vector<T>& v) {
     if (i != v.size()-1) std::cout << ", ";
   }
   std::cout << " }";
+}
+
+template<typename T, class... Types>
+inline bool isInstanceOf(const std::variant<Types...>& v) {
+  return std::holds_alternative<T>(v);
 }
 
 /* Vectors */

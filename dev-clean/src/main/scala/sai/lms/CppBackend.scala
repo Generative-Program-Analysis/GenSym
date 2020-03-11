@@ -12,9 +12,9 @@ import lms.macros.SourceContext
 import sai.structure.lattices._
 import sai.structure.monad._
 
-trait CPP_SAICodeGenBase extends ExtendedCCodeGen
+trait CppSAICodeGenBase extends ExtendedCCodeGen
   with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map {
-  override def remap(m: Manifest[_]): String = super.remap(m)
+  //override def remap(m: Manifest[_]): String = super.remap(m)
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(s, "λ", _, _) => false
@@ -23,12 +23,25 @@ trait CPP_SAICodeGenBase extends ExtendedCCodeGen
     case _ => super.mayInline(n)
   }
 
+  override def shallow(n: Node): Unit = n match {
+    case n @ Node(s, "P", List(x), _) =>
+      emit("std::cout << ")
+      shallow(x)
+    case _ => super.shallow(n)
+  }
+
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::(Backend.Const("val"))::Nil, _) =>
-      System.out.println("lambda here")
       super.traverse(n)
     //emitln(s"val ${quote(f)}_val = ${quote(f)} _")
     case _ => super.traverse(n)
+  }
+
+  override def convert(arg: String, m: Manifest[_]): String = {
+    if (m == manifest[Int]) s"atoi($arg)"
+    else if (m == manifest[String]) arg
+    else if (m == manifest[Unit]) "0"
+    else ???
   }
 
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
@@ -62,14 +75,14 @@ trait CPP_SAICodeGenBase extends ExtendedCCodeGen
       emitln("if (init()) return 0;")
     emitln(s"""
     |  // TODO: what is the right way to pass arguments?
-    |  printf("%d\\n", $name(${convert("argv[1]", m1)}));
+    |  std::cout << $name(${convert("argv[1]", m1)});
     |  return 0;
     |}""".stripMargin)
   }
 }
 
-abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps { q =>
-  val codegen = new CGenBase with CPP_SAICodeGenBase {
+abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps { q =>
+  val codegen = new CGenBase with CppSAICodeGenBase {
     val IR: q.type = q
     import IR._
   }
@@ -110,7 +123,6 @@ abstract class CPP_SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] 
     val g = f
     time("eval")(g(a))
   }
-
 
 }
 

@@ -3,3 +3,6 @@ vec: vec.cpp
 
 map: map.cpp
 	g++ -std=c++17 -O2 -o map map.cpp -I ../immer -I ../dev-clean/headers
+
+variant: variant.cpp
+	g++ -std=c++17 -O2 -o variant variant.cpp -I ../immer -I ../dev-clean/headers

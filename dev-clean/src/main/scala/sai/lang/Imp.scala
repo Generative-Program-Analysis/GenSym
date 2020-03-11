@@ -106,26 +106,26 @@ object TestImp {
   import ImpLang.Examples._
 
   @virtualize
-  def specialize(e: Expr): SAIDriver[Unit, Unit] = new StagedImpDriver {
-    def snippet(u: Rep[Unit]) = {
-      val v = eval(e, Map())
-      println(v)
+  //def specialize(e: Expr): SAIDriver[Unit, Unit] = new StagedImpDriver {
+  def specializeExpr(e: Expr): CppSAIDriver[Int, Int] =
+    new CppStagedImpDriver[Int, Int] {
+      def snippet(u: Rep[Int]) = {
+        val v: Rep[Value] = eval(e, Map())
+        println(v)
+        v
+      }
     }
-  }
 
   @virtualize
-  def specialize(s: Stmt): SAIDriver[Unit, Unit] = new StagedImpDriver {
-    def snippet(u: Rep[Unit]) = {
-      val v = exec(s)(Map("x" -> IntV(3), "z" -> IntV(4))).run
-      println(v)
-      /*
-      val x = power3(2)
-      println(x)
-      val y = power3(3)
-      println(y)
-       */
+  //def specialize(s: Stmt): SAIDriver[Unit, Unit] = new StagedImpDriver {
+  def specialize(s: Stmt): CppSAIDriver[Int, Int] =
+    new CppStagedImpDriver[Int, Int] {
+      def snippet(u: Rep[Int]) = {
+        val v = exec(s)(Map("x" -> IntV(3), "z" -> IntV(4))).run
+        println(v)
+        0
+      }
     }
-  }
 
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] = new SymStagedImpDriver {
@@ -141,16 +141,21 @@ object TestImp {
   }
 
   def main(args: Array[String]): Unit = {
-    //println(exec(fact5)(Map())(σ => σ("fact")))
-    //val code = specialize(Op2("+", Lit(1), Lit(2)))
+    /*
+    val code = specializeExpr(Op2("+", Lit(1), Lit(2)))
+    println(code.code)
+    code.eval(0)
+     */
 
+    /* Concrete execution */
     val code = specialize(fact5)
     println(code.code)
-    code.eval(())
+    code.eval(0)
 
     //List(((),(Map(x -> IntV(3), z -> IntV(4), y -> IntV(5)),Set(Op2("<=",Var("x"), Var("y"))))),
     //     ((),(Map(x -> IntV(3), z -> IntV(6), y -> IntV(5)),Set(Op1("-",Op2("<=",Var("x"), Var("y")))))))
 
+    /* Symbolic execution */
     //val code = specSym(fact_n)
     //println(code.code)
     //code.eval(())

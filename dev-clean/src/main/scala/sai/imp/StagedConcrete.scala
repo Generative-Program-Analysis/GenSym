@@ -180,3 +180,44 @@ case class IntV(i: Int) extends Value
 case class BoolV(b: Boolean) extends Value
 """
 }
+
+trait CppStagedImpGen extends CppSAICodeGenBase {
+  registerHeader("./headers", "<sai_imp_concrete.hpp>")
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, name, _, _) if name.startsWith("IntV") => false
+    case Node(_, name, _, _) if name.startsWith("BoolV") => false
+    case _ => super.mayInline(n)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "IntV", List(i), _) =>
+      emit("(struct IntV){")
+      shallow(i)
+      emit("}")
+    case Node(s, "IntV-proj", List(i), _) =>
+      emit("std::get<IntV>(")
+      shallow(i)
+      emit(").i")
+    case Node(s, "BoolV", List(b), _) =>
+      emit("(struct BoolV){")
+      shallow(b)
+      emit("}")
+    case Node(s, "BoolV-proj", List(i), _) =>
+      emit("std::get<BoolV>(")
+      shallow(i)
+      emit(").b")
+    case _ => super.shallow(n)
+  }
+}
+
+trait CppStagedImpDriver[A, B] extends CppSAIDriver[A, B] with StagedImpSemantics { q =>
+  override val codegen = new CGenBase with CppStagedImpGen {
+    val IR: q.type = q
+    import IR._
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString.endsWith("$Value")) "Value"
+      else super.remap(m)
+    }
+  }
+}
