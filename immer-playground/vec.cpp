@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
   assert(n == 2*3*4);
 
   // flatMap
-  auto v7 = Vec::flatMap<int, int>(v1, [](int x) { return immer::flex_vector<int>{x, x}; });
+  auto v7 = Vec::flatMap<int>(v1, [](int x) { return immer::flex_vector<int>{x, x}; });
   print_vec(v7);
 
   auto v8 = Vec::reverse(v7);

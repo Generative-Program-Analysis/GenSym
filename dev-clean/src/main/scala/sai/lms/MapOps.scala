@@ -273,10 +273,10 @@ trait CppCodeGen_Map extends ExtendedCCodeGen {
       shallow(m); emit(", ")
       shallow(b); emit(")")
     case Node(s, "map-map", List(m, b: Block), _) =>
-      val kty = remap(typeMap(b.in(0)))
-      val vty = remap(typeMap(b.in(1)))
+      //val kty = remap(typeMap(b.in(0)))
+      //val vty = remap(typeMap(b.in(1)))
       val tty = remap(typeBlockRes(b.res))
-      emit(s"Map::map<$kty, $vty, $tty>(")
+      emit(s"Map::map<$tty>(")
       shallow(m); emit(", ")
       shallow(b); emit(")")
     case Node(s, "map-mapmap", List(m, b: Block), _) =>

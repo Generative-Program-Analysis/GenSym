@@ -50,10 +50,9 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
       System.out.println(n)
       val retType = remap(typeBlockRes(b.res))
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
-      emitln(s"std::function<$retType($argTypes)> ${quote(f)};")
+      emitln(s"std::function<$retType(${argTypes}&)> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      // TODO: closure arguments pass by reference
-      quoteTypedBlock(b, false, true)
+      quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List("&")))
       emitln(";")
       //super.traverse(n)
     case _ => super.traverse(n)

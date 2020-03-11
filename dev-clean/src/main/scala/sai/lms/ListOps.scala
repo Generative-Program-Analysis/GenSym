@@ -255,10 +255,10 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       shallow(b)
       emit(")")
     case Node(s, "list-flatMap", xs::(b: Block)::Const(mA: Manifest[_])::rest, _) =>
-      val eleType = remap(mA)
+      //val eleType = remap(mA)
       // Note: b.res must return a List type, as required by flatMap
       val retType = remap(typeBlockRes(b.res).typeArguments(0))
-      emit(s"Vec::flatMap<$eleType, $retType>(")
+      emit(s"Vec::flatMap<$retType>(")
       shallow(xs)
       emit(", ")
       shallow(b)

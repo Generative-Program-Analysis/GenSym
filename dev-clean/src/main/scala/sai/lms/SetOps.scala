@@ -132,3 +132,84 @@ trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
     case _ => super.shallow(n)
   }
 }
+
+
+trait CppCodeGen_Set extends ExtendedCCodeGen {
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.Set") {
+      val kty = m.typeArguments(0)
+      s"immer::Set<${remap(kty)}>"
+    } else { super.remap(m) }
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, name, _, _) if name.startsWith("set-") => false
+      /*
+    case Node(_, "set-++", _, _) => false
+    case Node(_, "set-intersect", _, _) => false
+    case Node(_, "set-union", _, _) => false
+    case Node(_, "set-subsetOf", _, _) => false
+    case Node(_, "set-map", _, _) => false
+    case Node(_, "set-foldLeft", _, _) => false
+    case Node(_, "set-filter", _, _) => false
+       */
+    case _ => super.mayInline(n)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "set-new", Const(mA: Manifest[_])::xs, _) =>
+      val ty = remap(mA)
+      emit("Set::make_set<"); emit(ty); emit(">({")
+      xs.zipWithIndex.map { case (x, i) =>
+        shallow(x)
+        if (i != xs.length-1) emit(", ")
+      }
+      emit("})")
+    case Node(_, "set-apply", List(s, x), _) =>
+      emit("Set::contains(")
+      shallow(s); emit(", ")
+      shallow(x); emit(")")
+    case Node(_, "set-size", List(s), _) =>
+      shallow(s); emit(".size()")
+    case Node(_, "set-isEmpty", List(s), _) =>
+      shallow(s); emit(".empty()")
+    case Node(_, "set-head", List(s), _) =>
+      ???
+    case Node(_, "set-tail", List(s), _) =>
+      ???
+    case Node(_, "set-toList", List(s), _) =>
+      ???
+    case Node(_, "set-++", List(s1, s2), _) =>
+      emit("Set::join(")
+      shallow(s1); emit(", ")
+      shallow(s2); emit(")")
+    case Node(_, "set-intersect", List(s1, s2), _) =>
+      emit("Set::intersect(")
+      shallow(s1); emit(", ")
+      shallow(s2); emit(")")
+    case Node(_, "set-union", List(s1, s2), _) =>
+      emit("Set::join(")
+      shallow(s1); emit(", ")
+      shallow(s2); emit(")")
+    case Node(_, "set-subsetOf", List(s1, s2), _) =>
+      emit("Set::subsetOf(")
+      shallow(s1); emit(", ")
+      shallow(s2); emit(")")
+    case Node(_, "set-map", List(s, b: Block), _) =>
+      val tty = remap(typeBlockRes(b.res))
+      emit(s"Set::map<$tty>(")
+      shallow(s); emit(", ")
+      shallow(b); emit(")")
+    case Node(_, "set-foldLeft", List(s, z, b: Block), _) =>
+      val tty = remap(typeBlockRes(b.res))
+      emit(s"Set::foldLeft<$tty>(")
+      shallow(s); emit(", ")
+      shallow(z); emit(", ")
+      shallow(b); emit(")")
+    case Node(_, "set-filter", List(s, b), _) =>
+      emit("Set::filter(")
+      shallow(s); emit(", ")
+      shallow(b); emit(")")
+    case _ => super.shallow(n)
+  }
+}
