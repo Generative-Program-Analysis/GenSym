@@ -22,8 +22,8 @@ unsigned long long Snippet(long long x0){
   Value x4 = (struct IntV){1};
   immer::map<std::string, Value> x5 = x3.insert({"i", x4});
   immer::map<std::string, Value> x6 = x5.insert({"fact", x4});
-  std::function<immer::map<std::string, Value>(immer::map<std::string, Value>)> x7;
-  x7 = [&](immer::map<std::string, Value> x8)->immer::map<std::string, Value> {
+  std::function<immer::map<std::string, Value>(immer::map<std::string, Value>&)> x7;
+  x7 = [&](immer::map<std::string, Value>& x8)->immer::map<std::string, Value> {
     Value x9 = x8.at("i");
     unsigned long long x10 = std::get<IntV>(x9).i;
     immer::map<std::string, Value> x11 = x10 <= x0 ? ({

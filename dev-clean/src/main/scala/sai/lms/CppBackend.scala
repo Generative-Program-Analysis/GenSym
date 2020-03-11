@@ -52,6 +52,7 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
       emitln(s"std::function<$retType($argTypes)> ${quote(f)};")
       emit(quote(f)); emit(" = ")
+      // TODO: closure arguments pass by reference
       quoteTypedBlock(b, false, true)
       emitln(";")
       //super.traverse(n)
