@@ -14,18 +14,7 @@ Emitting C Generated Code
 #include <immer/algorithm.hpp>
 #include <sai.hpp>
 #include <chrono>
-
 using namespace std::chrono; 
-
-unsigned long long factorial(unsigned long long n) {
-  int i = 1;
-  unsigned long long fact = 1;
-  while (i <= n) {
-    fact = fact * i;
-    i = i + 1;
-  }
-  return fact;
-}
 
 /**************** Snippet ****************/
 unsigned long long Snippet(long long x0){
@@ -64,18 +53,11 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  // TODO: what is the right way to pass arguments?
-  auto start = high_resolution_clock::now(); 
+  auto start2 = high_resolution_clock::now(); 
   std::cout << Snippet(atoi(argv[1])) << std::endl;
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<microseconds>(stop - start);
-  std::cout << "duration (LMS gen): " << duration.count() << std::endl;
-
-  start = high_resolution_clock::now(); 
-  std::cout << factorial(atoi(argv[1])) << std::endl;
-  stop = high_resolution_clock::now();
-  duration = duration_cast<microseconds>(stop - start);
-  std::cout << "duration (hand written): " << duration.count() << std::endl;
+  auto stop2 = high_resolution_clock::now();
+  auto duration2 = duration_cast<microseconds>(stop2 - start2);
+  std::cout << "duration (LMS gen): " << duration2.count() << std::endl;
   return 0;
 }
 
