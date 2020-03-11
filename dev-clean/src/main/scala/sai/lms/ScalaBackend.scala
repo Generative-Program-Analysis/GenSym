@@ -39,6 +39,10 @@ trait SAICodeGenBase extends ExtendedScalaCodeGen
 
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::(Backend.Const("val"))::Nil, _) =>
+      /* Note: this case generates a function with "def" declaration first,
+       * and then a "val" definition that eta-expands the "def" definition.
+       * The later one can be used as function values when storing it to anywhere else.
+       */
       super.traverse(n)
       emitln(s"val ${quote(f)}_val = ${quote(f)} _")
       /*

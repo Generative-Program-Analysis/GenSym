@@ -201,7 +201,7 @@ trait StagedAbstractGen extends SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "sai-comp-clo", List(bn, λ, ρ), _) =>
       emit("CompiledClo(")
-      shallow(bn); emit(", ")
+      shallow(bn); emit("_val, ")
       shallow(λ); emit(", ")
       shallow(ρ); emitln(")")
     case Node(s, "sai-ap-clo", List(f, arg, σ, in, out), _) =>

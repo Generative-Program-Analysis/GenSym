@@ -122,8 +122,7 @@ object TestImp {
     new CppStagedImpDriver[Int, Int] {
       def snippet(u: Rep[Int]) = {
         val v = exec(s)(Map("x" -> IntV(3), "z" -> IntV(4))).run
-        println(v)
-        0
+        v._2("fact")
       }
     }
 

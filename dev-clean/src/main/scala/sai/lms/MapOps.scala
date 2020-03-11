@@ -229,8 +229,11 @@ trait CppCodeGen_Map extends ExtendedCCodeGen {
       }
       emit("})")
     case Node(s, "map-apply", List(m, k), _) =>
+      shallow(m); emit(".at("); shallow(k); emit(")")
+      /*
       emit("Map::safe_at(")
-      shallow(m); emit(","); shallow(k); emit(")")
+      shallow(m); emit(", "); shallow(k); emit(")")
+       */
     case Node(s, "map-contains", List(m, k), _) =>
       emit("Map::contains(")
       shallow(m); emit(", ")

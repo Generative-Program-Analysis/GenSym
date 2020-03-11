@@ -17,6 +17,7 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
   //override def remap(m: Manifest[_]): String = super.remap(m)
 
   override def mayInline(n: Node): Boolean = n match {
+    case Node(s, "?", _, _) => false // ternary condition
     case Node(s, "λ", _, _) => false
     case Node(s, "sai-ap-clo", _, _) => false
     case Node(s, "sai-comp-clo", _, _) => false
@@ -30,10 +31,30 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
     case _ => super.shallow(n)
   }
 
+  override def primitive(rawType: String): String =
+    rawType match {
+      case "java.lang.String" => "std::string"
+      case "Unit" => "void" //FIXME
+      case _ => super.primitive(rawType)
+    }
+
+  override def function(sig: List[Manifest[_]]): String = "auto"
+
   override def traverse(n: Node): Unit = n match {
-    case n @ Node(f, "λ", (b: Block)::(Backend.Const("val"))::Nil, _) =>
-      super.traverse(n)
-    //emitln(s"val ${quote(f)}_val = ${quote(f)} _")
+    case n @ Node(f, "λ", (b: Block)::Backend.Const("val")::_, _) =>
+      ???
+    case n @ Node(f, "λ", (b: Block)::_, _) =>
+      /* Note: generate a declaration with full type annotation first,
+       * and then generate the actual closure.
+       */
+      System.out.println(n)
+      val retType = remap(typeBlockRes(b.res))
+      val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
+      emitln(s"std::function<$retType($argTypes)> ${quote(f)};")
+      emit(quote(f)); emit(" = ")
+      quoteTypedBlock(b, false, true)
+      emitln(";")
+      //super.traverse(n)
     case _ => super.traverse(n)
   }
 
