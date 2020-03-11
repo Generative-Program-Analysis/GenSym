@@ -16,8 +16,10 @@ Emitting C Generated Code
 #include <chrono>
 using namespace std::chrono; 
 
+using numberT = int; //unsigned long long;
+
 /**************** Snippet ****************/
-unsigned long long Snippet(long long x0){
+numberT Snippet(numberT x0){
   immer::map<std::string, Value> x3 = immer::map<std::string, Value>();
   Value x4 = (struct IntV){1};
   immer::map<std::string, Value> x5 = x3.insert({"i", x4});
@@ -25,14 +27,14 @@ unsigned long long Snippet(long long x0){
   std::function<immer::map<std::string, Value>(immer::map<std::string, Value>&)> x7;
   x7 = [&](immer::map<std::string, Value>& x8)->immer::map<std::string, Value> {
     Value x9 = x8.at("i");
-    unsigned long long x10 = std::get<IntV>(x9).i;
+    numberT x10 = std::get<IntV>(x9).i;
     immer::map<std::string, Value> x11 = x10 <= x0 ? ({
         Value x12 = x8.at("fact");
-        unsigned long long x13 = std::get<IntV>(x12).i;
+        numberT x13 = std::get<IntV>(x12).i;
         Value x14 = (struct IntV){x13 * x10};
         immer::map<std::string, Value> x15 = x8.insert({"fact", x14});
         Value x16 = x15.at("i");
-        unsigned long long x17 = std::get<IntV>(x16).i;
+        numberT x17 = std::get<IntV>(x16).i;
         Value x18 = (struct IntV){x17 + 1};
         immer::map<std::string, Value> x19 = x15.insert({"i", x18});
         x7(x19);
@@ -40,7 +42,7 @@ unsigned long long Snippet(long long x0){
     return x11;
   };
   Value x20 = x7(x6).at("fact");
-  unsigned long long x21 = std::get<IntV>(x20).i;
+  numberT x21 = std::get<IntV>(x20).i;
   return x21;
 }
 
