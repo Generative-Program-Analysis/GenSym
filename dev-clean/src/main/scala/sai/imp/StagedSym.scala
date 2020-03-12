@@ -123,7 +123,7 @@ trait SymStagedImp extends SAIOps {
     } yield ()
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
-      σ <- get_store
+      //σ <- get_store
       _ <- select(e, exec(s1), exec(s2))
     } yield ()
     case Seq(s1, s2) => for {

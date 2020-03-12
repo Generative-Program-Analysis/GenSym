@@ -155,9 +155,10 @@ object TestImp {
     //     ((),(Map(x -> IntV(3), z -> IntV(6), y -> IntV(5)),Set(Op1("-",Op2("<=",Var("x"), Var("y")))))))
 
     /* Symbolic execution */
-    //val code = specSym(fact_n)
-    //println(code.code)
-    //code.eval(())
-
+    /*
+    val code = specSym(fact_n)
+    println(code.code)
+    code.eval(())
+     */
   }
 }
