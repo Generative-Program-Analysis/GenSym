@@ -4,7 +4,19 @@ package free
 import sai.structure.functor._
 import sai.structure.~>
 
-abstract class Free[F[_]: Functor, A]
+abstract class Free[F[_]: Functor, A] {
+  def map[B](f: A => B): Free[F, B] = this match {
+    case Pure(a) => Pure(f(a))
+    case Impure(x) =>
+      Impure(Functor[F].map(x)((xf: Free[F, A]) => xf.map(f)))
+  }
+
+  def flatMap[B](f: A => Free[F, B]): Free[F, B] = this match {
+    case Pure(a) => f(a)
+    case Impure(x) =>
+      Impure(Functor[F].map(x)((xf: Free[F, A]) => xf.flatMap(f)))
+  }
+}
 case class Pure[F[_]: Functor, A](a: A) extends Free[F, A]
 case class Impure[F[_]: Functor, A](x: F[Free[F, A]]) extends Free[F, A]
 
@@ -13,22 +25,13 @@ object Free {
 
   implicit def FreeFunctorInstance[F[_]: Functor]: Functor[Free[F, ?]] =
     new Functor[Free[F, ?]] {
-      def map[A, B](x: Free[F, A])(f: A => B): Free[F, B] = x match {
-        case Pure(a: A) => Pure(f(a))
-        case Impure(x: F[Free[F, A]]) => Impure(Functor[F].map(x){
-          case xf: Free[F, A] => map(xf)(f)
-        })
-      }
+      def map[A, B](x: Free[F, A])(f: A => B): Free[F, B] = x.map(f)
     }
 
   implicit def FreeMonadInstance[F[_]: Functor]: Monad[Free[F, ?]] =
     new Monad[Free[F, ?]] {
       def pure[A](a: A): Free[F, A] = Pure[F, A](a)
-      def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma match {
-        case Pure(a: A) => f(a)
-        case Impure(x: F[Free[F, A]]) =>
-          Impure(Functor[F].map(x)((xf: Free[F, A]) => flatMap(xf)(f)))
-      }
+      def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma.flatMap(f)
     }
 }
 
@@ -44,6 +47,14 @@ object Coproduct {
   case class Right[F[_], G[_], A](ga: G[A]) extends Coprod[F, G, A]
 
   type ⊕[F[_], G[_]] = ({type t[A] = Coprod[F, G, A]})
+
+  implicit def CoproductFunctorInstance[F[_]: Functor, G[_]: Functor]: Functor[(F ⊕ G)#t] =
+    new Functor[(F ⊕ G)#t] {
+      def map[A, B](x: Coprod[F, G, A])(f: A => B): Coprod[F, G, B] = x match {
+        case Left(x) => Left(Functor[F].map(x)(f))
+        case Right(x) => Right(Functor[G].map(x)(f))
+      }
+    }
 }
 
 sealed trait ⊆[F[_], G[_]] {
@@ -51,14 +62,21 @@ sealed trait ⊆[F[_], G[_]] {
   def prj[A](sup: G[A]): Option[F[A]]
 }
 
-object ⊆ {
-  import Free._
-  import Coproduct._
-
+object NondetEffect {
   trait Nondet[+K]
   case object Fail extends Nondet[Nothing]
   case class Choice[K](k1: K, k2: K) extends Nondet[K]
 
+  implicit def NondetFunctorInstance: Functor[Nondet] =
+    new Functor[Nondet] {
+      def map[A, B](x: Nondet[A])(f: A => B): Nondet[B] = x match {
+        case Fail => Fail
+        case Choice(k1, k2) => Choice[B](f(k1), f(k2))
+      }
+    }
+}
+
+object VoidEffect {
   trait Void[+K]
 
   implicit val VoidFunctorInstance: Functor[Void] =
@@ -69,22 +87,13 @@ object ⊆ {
   def run[A](f: Free[Void, A]): A = f match {
     case Pure(x) => x
   }
+}
 
-  implicit def NondetFunctorInstance: Functor[Nondet] =
-    new Functor[Nondet] {
-      def map[A, B](x: Nondet[A])(f: A => B): Nondet[B] = x match {
-        case Fail => Fail
-        case Choice(k1, k2) => Choice[B](f(k1), f(k2))
-      }
-    }
-
-  implicit def CoproductFunctorInstance[F[_]: Functor, G[_]: Functor]: Functor[(F ⊕ G)#t] =
-    new Functor[(F ⊕ G)#t] {
-      def map[A, B](x: Coprod[F, G, A])(f: A => B): Coprod[F, G, B] = x match {
-        case Left(x) => Left(Functor[F].map(x)(f))
-        case Right(x) => Right(Functor[G].map(x)(f))
-      }
-    }
+object ⊆ {
+  import Free._
+  import Coproduct._
+  import NondetEffect._
+  import VoidEffect._
 
   def inject[F[_]: Functor, G[_]: Functor, R](x: F[Free[G, R]])(implicit I: (F ⊆ G)): Free[G, R] =
     Impure(I.inj(x))
@@ -140,11 +149,10 @@ object ⊆ {
       case Pure(x) => Pure(List(x))
       case FailPattern() => Pure(List())
       case ChoicePattern(p, q) =>
-        Monad[Free[F, ?]].flatMap(solutions(p)) { ps =>
-          Monad[Free[F, ?]].flatMap(solutions(q)) { qs =>
-            Monad[Free[F, ?]].pure[List[A]](ps ++ qs)
-          }
-        }
+        for {
+          ps <- solutions(p)
+          qs <- solutions(q)
+        } yield ps ++ qs
       case Impure(Right(op)) => Impure(Functor[F].map(op)(a => solutions[F, A](a)))
     }
 
