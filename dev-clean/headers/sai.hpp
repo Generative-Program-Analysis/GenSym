@@ -24,6 +24,8 @@
 
 // Auxiliary definitions
 
+using String = std::string;
+
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \
     do { \
@@ -36,6 +38,9 @@
 #else
 #   define ASSERT(condition, message) do { } while (false)
 #endif
+
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 template<typename T>
 void print_vec(immer::flex_vector<T>& v) {

@@ -10,9 +10,6 @@ struct IntV { int i; };
 struct BoolV { bool b; };
 using Value = std::variant<IntV, BoolV>;
 
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 std::ostream& operator<<(std::ostream& os, const IntV& i) {
   return os << "IntV(" << i.i << ")" << std::endl;
 }
