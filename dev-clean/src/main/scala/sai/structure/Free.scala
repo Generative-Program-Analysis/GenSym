@@ -35,12 +35,6 @@ object Free {
     }
 }
 
-object ReaderWriterEffect {
-  trait ReaderWriter[I, O, X]
-  case class Get[I, O, X](f: I => X) extends ReaderWriter[I, O, X]
-  case class Put[I, O, X](o: O, f: Unit => X) extends ReaderWriter[I, O, X]
-}
-
 object Coproduct {
   abstract class Coprod[F[_], G[_], A]
   case class Left[F[_], G[_], A](fa: F[A]) extends Coprod[F, G, A]
@@ -62,38 +56,9 @@ sealed trait ⊆[F[_], G[_]] {
   def prj[A](sup: G[A]): Option[F[A]]
 }
 
-object NondetEffect {
-  trait Nondet[+K]
-  case object Fail extends Nondet[Nothing]
-  case class Choice[K](k1: K, k2: K) extends Nondet[K]
-
-  implicit def NondetFunctorInstance: Functor[Nondet] =
-    new Functor[Nondet] {
-      def map[A, B](x: Nondet[A])(f: A => B): Nondet[B] = x match {
-        case Fail => Fail
-        case Choice(k1, k2) => Choice[B](f(k1), f(k2))
-      }
-    }
-}
-
-object VoidEffect {
-  trait Void[+K]
-
-  implicit val VoidFunctorInstance: Functor[Void] =
-    new Functor[Void] {
-      def map[A, B](x: Void[A])(f: A => B): Void[B] = x.asInstanceOf[Void[B]]
-    }
-
-  def run[A](f: Free[Void, A]): A = f match {
-    case Pure(x) => x
-  }
-}
-
 object ⊆ {
   import Free._
   import Coproduct._
-  import NondetEffect._
-  import VoidEffect._
 
   def inject[F[_]: Functor, G[_]: Functor, R](x: F[Free[G, R]])(implicit I: (F ⊆ G)): Free[G, R] =
     Impure(I.inj(x))
@@ -125,6 +90,24 @@ object ⊆ {
         case Right(x) => I.prj(x)
       }
     }
+}
+
+object NondetEffect {
+  import Free._
+  import Coproduct._
+  import ⊆._
+
+  trait Nondet[+K]
+  case object Fail extends Nondet[Nothing]
+  case class Choice[K](k1: K, k2: K) extends Nondet[K]
+
+  implicit def NondetFunctorInstance: Functor[Nondet] =
+    new Functor[Nondet] {
+      def map[A, B](x: Nondet[A])(f: A => B): Nondet[B] = x match {
+        case Fail => Fail
+        case Choice(k1, k2) => Choice[B](f(k1), f(k2))
+      }
+    }
 
   object FailPattern {
     def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: (Nondet ⊆ F)): Boolean = {
@@ -144,18 +127,49 @@ object ⊆ {
     }
   }
 
-  def solutions[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
+  def run[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
     prog match {
       case Pure(x) => Pure(List(x))
       case FailPattern() => Pure(List())
       case ChoicePattern(p, q) =>
         for {
-          ps <- solutions(p)
-          qs <- solutions(q)
+          ps <- run(p)
+          qs <- run(q)
         } yield ps ++ qs
-      case Impure(Right(op)) => Impure(Functor[F].map(op)(a => solutions[F, A](a)))
+      case Impure(Right(op)) => Impure(Functor[F].map(op)(a => run[F, A](a)))
     }
 
+  def apply[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] = run(prog)
+}
+
+object VoidEffect {
+  trait Void[+K]
+
+  implicit val VoidFunctorInstance: Functor[Void] =
+    new Functor[Void] {
+      def map[A, B](x: Void[A])(f: A => B): Void[B] = x.asInstanceOf[Void[B]]
+    }
+
+  def run[A](f: Free[Void, A]): A = f match {
+    case Pure(x) => x
+  }
+
+  def apply[A](f: Free[Void, A]): A = run(f)
+}
+
+object NondetVoidInterp {
+  import Coproduct._
+  import NondetEffect._
+  import VoidEffect._
+
   def allsols[A](prog: Free[(Nondet ⊕ Void)#t, A]): List[A] =
-    run(solutions(prog))
+    VoidEffect(NondetEffect(prog))
+}
+
+/*******************************************/
+
+object ReaderWriterEffect {
+  trait ReaderWriter[I, O, X]
+  case class Get[I, O, X](f: I => X) extends ReaderWriter[I, O, X]
+  case class Put[I, O, X](o: O, f: Unit => X) extends ReaderWriter[I, O, X]
 }
