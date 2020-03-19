@@ -6,8 +6,6 @@
 #include <immer/flex_vector.hpp>
 #include <sai.hpp>
 
-#include <boost/variant.hpp>
-
 #ifndef SAI_IMP_SYM_HEADERS
 #define SAI_IMP_SYM_HEADERS
 
@@ -74,20 +72,20 @@ std::shared_ptr<Value> op_2(String op, std::shared_ptr<Value> v1, std::shared_pt
 	auto i2 = std::dynamic_pointer_cast<IntV>(v2);
 
 	if (i1 && i2) {
-		IntV r(0);
-		BoolV b(true);
+    auto r = std::make_shared<IntV>(0);
+		auto b = std::make_shared<BoolV>(true);
 		if (op == "+") {
-			r.i = i1->i + i1->i;
-			return std::make_shared<IntV>(r);
+			r->i = i1->i + i1->i;
+      return r;
 		} else if (op == "-") {
-			r.i = i1->i - i1->i;
-			return std::make_shared<IntV>(r);
+			r->i = i1->i - i1->i;
+      return r;
 		} else if (op == "*") {
-			r.i = i1->i * i1->i;
-			return std::make_shared<IntV>(r);
+			r->i = i1->i * i1->i;
+      return r;
 		} else if (op == "/") {
-			r.i = i1->i / i1->i;
-			return std::make_shared<IntV>(r);
+			r->i = i1->i / i1->i;
+      return r;
 		} else {
 			assert(false);
 		}
