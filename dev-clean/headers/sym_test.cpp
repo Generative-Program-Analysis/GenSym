@@ -7,31 +7,39 @@ int main() {
 	IntV x(1);
 	std::cout << x << std::endl;
 
-	Value& y = x;
-	std::cout << y << std::endl;
+	Ptr<IntV> x2 = make_IntV(2);
+	Ptr<IntV> x3 = x2;
+	std::cout << *op_2("*", x2, x3) << std::endl;
+
+	std::cout << (*x2 == *x3) << std::endl;
+
+	//Value& y = x;
+	//std::cout << y << std::endl;
 
 	std::shared_ptr<Value> z = std::make_shared<IntV>(x);
 	std::cout << *z << std::endl;
+	//std::cout << (*z == x) << std::endl;
 
 	std::cout << *op_2("+", z, std::make_shared<IntV>(x)) << std::endl;
 	
 	BoolV b(true);
 	std::cout << b << std::endl;
 
-	SymV a("a");
-	std::cout << a << std::endl;
+	// not well-typed
+	//std::cout << *op_2("+", z, std::make_shared<BoolV>(b)) << std::endl;
 
-	SymE s("+", { std::make_shared<IntV>(x), std::make_shared<BoolV>(b) }); //(struct SymE){ "+", { x, b } };
-	std::cout << s << std::endl;
+	//SymV a("a");
+	Ptr<SymV> a = make_SymV("a");
+	std::cout << *a << std::endl;
 
-	//std::cout << s.args.at(0) << std::endl;
-	/*
-	auto w = immer::flex_vector<Value>();
-	w = w.push_back(b);
-	*/
+	//SymE s("+", { std::make_shared<IntV>(x), std::make_shared<BoolV>(b) }); //(struct SymE){ "+", { x, b } };
+	Ptr<SymE> s = make_SymE("+", {x2, a});
+	std::cout << *s << std::endl;
+
+	std::cout << *s->args.at(0) << std::endl;
 	
-	//auto v = immer::set<Value>();
-	//v = v.insert(x);
+	auto v = immer::set<std::shared_ptr<Value>>();
+	v = v.insert(std::make_shared<BoolV>(b));
 	
   return 0;
 }

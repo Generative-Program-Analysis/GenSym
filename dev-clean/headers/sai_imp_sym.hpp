@@ -35,6 +35,10 @@ struct IntV : Value {
 	}
 };
 
+inline Ptr<IntV> make_IntV(int i) {
+	return std::make_shared<IntV>(i);
+}
+
 struct BoolV : Value {
 	bool b;
 	BoolV(bool b) : b(b) {}
@@ -43,6 +47,10 @@ struct BoolV : Value {
 	}
 };
 
+inline Ptr<BoolV> make_BoolV(bool b) {
+	return std::make_shared<BoolV>(b);
+}
+
 struct SymV : Value {
 	String s;
 	SymV(String s) : s(s) {}
@@ -50,6 +58,10 @@ struct SymV : Value {
 		return os << "SymV(" << s << ")";
 	}
 };
+
+inline Ptr<SymV> make_SymV(String s) {
+	return std::make_shared<SymV>(s);
+}
 
 struct SymE : Value {
 	String op;
@@ -67,13 +79,16 @@ struct SymE : Value {
 	}
 };
 
+inline Ptr<SymE> make_SymE(String op, std::vector<Ptr<Value>> args) {
+	return std::make_shared<SymE>(op, args);
+}
+
 std::shared_ptr<Value> op_2(String op, std::shared_ptr<Value> v1, std::shared_ptr<Value> v2) {
 	auto i1 = std::dynamic_pointer_cast<IntV>(v1);
 	auto i2 = std::dynamic_pointer_cast<IntV>(v2);
 
 	if (i1 && i2) {
     auto r = std::make_shared<IntV>(0);
-		auto b = std::make_shared<BoolV>(true);
 		if (op == "+") {
 			r->i = i1->i + i1->i;
       return r;
@@ -87,11 +102,24 @@ std::shared_ptr<Value> op_2(String op, std::shared_ptr<Value> v1, std::shared_pt
 			r->i = i1->i / i1->i;
       return r;
 		} else {
-			assert(false);
+			auto b = std::make_shared<BoolV>(true);
+			if (op == "==") {
+				b->b = i1->i == i2->i;
+			} else if (op == ">=") {
+				b->b = i1->i >= i2->i;
+			} else if (op == ">") {
+				b->b = i1->i > i2->i;
+			} else if (op == "<=") {
+				b->b = i1->i <= i2->i;
+			} else if (op == "<") {
+				b->b = i1->i < i2->i;
+			} else if (op == "!=") {
+				b->b = i1->i != i2->i;
+			}
 		}
 	}
 
-	return v1;
+	ASSERT(false, "not a valid operator");
 }
 
 /*

@@ -26,6 +26,9 @@
 
 using String = std::string;
 
+template <typename T>
+using Ptr = std::shared_ptr<T>;
+
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \
     do { \
