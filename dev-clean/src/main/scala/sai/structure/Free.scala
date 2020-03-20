@@ -109,6 +109,11 @@ object NondetEffect {
       }
     }
 
+  def fail[F[_]: Functor, A](implicit I: (Nondet ⊆ F)): Free[F, A] = inject[Nondet, F, A](Fail)
+
+  def choice[F[_]: Functor, A](f: Free[F, A], g: Free[F, A])(implicit I: (Nondet ⊆ F)): Free[F, A] =
+    inject[Nondet, F, A](Choice(f, g))
+
   object FailPattern {
     def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: (Nondet ⊆ F)): Boolean = {
       project[Nondet, F, A](x) match {
@@ -129,14 +134,15 @@ object NondetEffect {
 
   def run[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
     prog match {
-      case Pure(x) => Pure(List(x))
-      case FailPattern() => Pure(List())
+      case Pure(x) => Monad[Free[F, ?]].pure(List(x))
+      case FailPattern() => Monad[Free[F, ?]].pure(List())
       case ChoicePattern(p, q) =>
         for {
           ps <- run(p)
           qs <- run(q)
         } yield ps ++ qs
-      case Impure(Right(op)) => Impure(Functor[F].map(op)(a => run[F, A](a)))
+      case Impure(Right(op)) =>
+        Impure(Functor[F].map(op)(a => run[F, A](a)))
     }
 
   def apply[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] = run(prog)
@@ -164,6 +170,30 @@ object NondetVoidInterp {
 
   def allsols[A](prog: Free[(Nondet ⊕ Void)#t, A]): List[A] =
     VoidEffect(NondetEffect(prog))
+}
+
+object Knapsack {
+  import Coproduct._
+  import NondetEffect._
+  import VoidEffect._
+
+  def select[A](xs: List[A]): Free[(Nondet ⊕ Void)#t, A] =
+    xs.map(Pure[(Nondet ⊕ Void)#t, A]).foldRight[Free[(Nondet ⊕ Void)#t, A]](fail)(choice)
+
+  def knapsack(w: Int, vs: List[Int]): Free[(Nondet ⊕ Void)#t, List[Int]] = {
+    if (w < 0)
+      fail
+    else if (w == 0)
+      Monad[Free[(Nondet ⊕ Void)#t, ?]].pure(List()) //TODO: simplify syntax
+    else for {
+      v <- select(vs)
+      xs <- knapsack(w-v, vs)
+    } yield v :: xs
+  }
+
+  def main(args: Array[String]) {
+    println(NondetVoidInterp.allsols(knapsack(3, List(3, 2, 1))))
+  }
 }
 
 /*******************************************/
