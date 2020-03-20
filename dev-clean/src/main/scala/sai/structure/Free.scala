@@ -148,6 +148,62 @@ object NondetEffect {
   def apply[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] = run(prog)
 }
 
+object StateEffect {
+  import Free._
+  import Coproduct._
+  import ⊆._
+
+  trait State[S, A]
+  case class Get[S, A](k: S => A) extends State[S, A]
+  case class Put[S, A](s: S, k: A) extends State[S, A]
+
+  implicit def StateFunctorInstance[S]: Functor[State[S, ?]] =
+    new Functor[State[S, ?]] {
+      def map[A, B](x: State[S, A])(f: A => B): State[S, B] = x match {
+        case Get(k) => Get(s => f(k(s)))
+        case Put(s, a) => Put(s, f(a))
+      }
+    }
+
+  def get[F[_]: Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
+    inject[State[S, ?], F, S](Get(Pure(_)))
+
+  def put[F[_]: Functor, S](s: S)(implicit I: (State[S, ?] ⊆ F)): Free[F, Unit] =
+    inject[State[S, ?], F, Unit](Put(s, Monad[Free[F, ?]].pure(())))
+
+  object GetPattern {
+    def unapply[F[_]: Functor, S, A](x: Free[F, A])(implicit I: (State[S, ?] ⊆ F)): Option[S => Free[F, A]] = {
+      project[State[S, ?], F, A](x) match {
+        case Some(Get(k)) => Some(k)
+        case _ => None
+      }
+    }
+  }
+
+  object PutPattern {
+    def unapply[F[_]: Functor, S, A](x: Free[F, A])(implicit I: (State[S, ?] ⊆ F)): Option[(S, Free[F, A])] = {
+      project[State[S, ?], F, A](x) match {
+        case Some(Put(s, a)) => Some((s, a))
+        case _ => None
+      }
+    }
+  }
+
+  def run[F[_]: Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
+    prog match {
+      case Pure(a) => Monad[Free[F, ?]].pure((s, a))
+      case GetPattern(k) => run(s, k(s))
+      case PutPattern(s1, k) => run(s1, k)
+      case Impure(Right(op)) =>
+        Impure(Functor[F].map(op)(a => run[F, S, A](s, a)))
+    }
+
+  // TODO: section 4.2
+
+}
+
+// TODO: CPS effect, to support Imp'break
+
 object VoidEffect {
   trait Void[+K]
 
@@ -177,14 +233,16 @@ object Knapsack {
   import NondetEffect._
   import VoidEffect._
 
-  def select[A](xs: List[A]): Free[(Nondet ⊕ Void)#t, A] =
-    xs.map(Pure[(Nondet ⊕ Void)#t, A]).foldRight[Free[(Nondet ⊕ Void)#t, A]](fail)(choice)
+  type Eff[A] = Free[(Nondet ⊕ Void)#t, A]
 
-  def knapsack(w: Int, vs: List[Int]): Free[(Nondet ⊕ Void)#t, List[Int]] = {
+  def select[A](xs: List[A]): Eff[A] =
+    xs.map(Pure[(Nondet ⊕ Void)#t, A]).foldRight[Eff[A]](fail)(choice)
+
+  def knapsack(w: Int, vs: List[Int]): Eff[List[Int]] = {
     if (w < 0)
       fail
     else if (w == 0)
-      Monad[Free[(Nondet ⊕ Void)#t, ?]].pure(List()) //TODO: simplify syntax
+      Monad[Eff].pure(List()) //TODO: simplify syntax
     else for {
       v <- select(vs)
       xs <- knapsack(w-v, vs)
