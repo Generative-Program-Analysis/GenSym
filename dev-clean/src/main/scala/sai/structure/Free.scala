@@ -155,6 +155,19 @@ object StateEffect {
 
   trait State[S, A]
   case class Get[S, A](k: S => A) extends State[S, A]
+
+  /*
+  object Get {
+    def apply[F[_]: Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
+      inject[State[S, ?], F, S](Get(Pure(_)))
+    def unapply[F[_]: Functor, S, A](x: Free[F, A])(implicit I: (State[S, ?] ⊆ F)): Option[S => Free[F, A]] = {
+      project[State[S, ?], F, A](x) match {
+        case Some(Get(k)) => Some(k)
+        case _ => None
+      }
+    }
+  }
+   */
   case class Put[S, A](s: S, k: A) extends State[S, A]
 
   implicit def StateFunctorInstance[S]: Functor[State[S, ?]] =
@@ -202,7 +215,7 @@ object StateEffect {
 
 }
 
-// TODO: CPS effect, to support Imp'break
+// TODO: CPS effect, to support Imp's break from while loop
 
 object VoidEffect {
   trait Void[+K]
@@ -225,7 +238,7 @@ object NondetVoidInterp {
   import VoidEffect._
 
   def allsols[A](prog: Free[(Nondet ⊕ Void)#t, A]): List[A] =
-    VoidEffect(NondetEffect(prog))
+    VoidEffect(NondetEffect(prog)) //TODO: rename XHandler
 }
 
 object Knapsack {
