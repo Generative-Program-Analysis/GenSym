@@ -6,18 +6,18 @@ import sai.structure.~>
 
 abstract class Free[F[_]: Functor, A] {
   def map[B](f: A => B): Free[F, B] = this match {
-    case Pure(a) => Pure(f(a))
+    case Return(a) => Return(f(a))
     case Impure(x) =>
       Impure(Functor[F].map(x)((xf: Free[F, A]) => xf.map(f)))
   }
 
   def flatMap[B](f: A => Free[F, B]): Free[F, B] = this match {
-    case Pure(a) => f(a)
+    case Return(a) => f(a)
     case Impure(x) =>
       Impure(Functor[F].map(x)((xf: Free[F, A]) => xf.flatMap(f)))
   }
 }
-case class Pure[F[_]: Functor, A](a: A) extends Free[F, A]
+case class Return[F[_]: Functor, A](a: A) extends Free[F, A]
 case class Impure[F[_]: Functor, A](x: F[Free[F, A]]) extends Free[F, A]
 
 object Free {
@@ -30,7 +30,7 @@ object Free {
 
   implicit def FreeMonadInstance[F[_]: Functor]: Monad[Free[F, ?]] =
     new Monad[Free[F, ?]] {
-      def pure[A](a: A): Free[F, A] = Pure[F, A](a)
+      def pure[A](a: A): Free[F, A] = Return[F, A](a)
       def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma.flatMap(f)
     }
 }
@@ -134,7 +134,7 @@ object NondetEffect {
 
   def run[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
     prog match {
-      case Pure(x) => Monad[Free[F, ?]].pure(List(x))
+      case Return(x) => Monad[Free[F, ?]].pure(List(x))
       case FailPattern() => Monad[Free[F, ?]].pure(List())
       case ChoicePattern(p, q) =>
         for {
@@ -179,7 +179,7 @@ object StateEffect {
     }
 
   def get[F[_]: Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
-    inject[State[S, ?], F, S](Get(Pure(_)))
+    inject[State[S, ?], F, S](Get(Return(_)))
 
   def put[F[_]: Functor, S](s: S)(implicit I: (State[S, ?] ⊆ F)): Free[F, Unit] =
     inject[State[S, ?], F, Unit](Put(s, Monad[Free[F, ?]].pure(())))
@@ -204,12 +204,49 @@ object StateEffect {
 
   def run[F[_]: Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
     prog match {
-      case Pure(a) => Monad[Free[F, ?]].pure((s, a))
+      case Return(a) => Monad[Free[F, ?]].pure((s, a))
       case GetPattern(k) => run(s, k(s))
       case PutPattern(s1, k) => run(s1, k)
-      case Impure(Right(op)) =>
-        Impure(Functor[F].map(op)(a => run[F, S, A](s, a)))
+      case Impure(Right(op)) => //TODO: have deep_handle and shallow_handle combinators that hide the default case
+        Impure(Functor[F].map(op)(run(s,_)))
     }
+
+  def statefun[F[_]: Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): S => Free[F,A] = {
+      comp match {
+        case Return(x) => { _ => Return(x) }
+        case GetPattern(k) => { s =>
+          val f = statefun(k(s)) //implicit  stumbles with statefun(k(s))(s)
+          f(s)
+        }
+        case PutPattern(s, k) => { _ =>
+          val f = statefun(k)
+          f(s)
+        }
+        case Impure(Right(op)) => { s => //TODO: need functor instance for S => X
+            Impure(Functor[F].map(op) { a =>
+                val f = statefun[F, S, A](a)
+                f(s) })
+        }
+      }
+  }
+
+  def stateref[F[_]: Functor, S, A](init: S)(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F,A] = {
+    var state: S = init
+    def handler(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F,A] = {
+      comp match {
+        case Return(x) => Return(x)
+        case GetPattern(k) => handler(k(state))
+        case PutPattern(s, k) =>
+          state = s
+          handler(k)
+        case Impure(Right(op)) =>
+          Impure(Functor[F].map(op)(handler))
+      }
+    }
+    handler(comp)
+  }
+
+
 
   // TODO: section 4.2
 
@@ -218,18 +255,18 @@ object StateEffect {
 // TODO: CPS effect, to support Imp's break from while loop
 
 object VoidEffect {
-  trait Void[+K]
+  trait ∅[+K]
 
-  implicit val VoidFunctorInstance: Functor[Void] =
-    new Functor[Void] {
-      def map[A, B](x: Void[A])(f: A => B): Void[B] = x.asInstanceOf[Void[B]]
+  implicit val VoidFunctorInstance: Functor[∅] =
+    new Functor[∅] {
+      def map[A, B](x: ∅[A])(f: A => B): ∅[B] = x.asInstanceOf[∅[B]]
     }
 
-  def run[A](f: Free[Void, A]): A = f match {
-    case Pure(x) => x
+  def run[A](f: Free[∅, A]): A = f match {
+    case Return(x) => x
   }
 
-  def apply[A](f: Free[Void, A]): A = run(f)
+  def apply[A](f: Free[∅, A]): A = run(f)
 }
 
 object NondetVoidInterp {
@@ -237,7 +274,7 @@ object NondetVoidInterp {
   import NondetEffect._
   import VoidEffect._
 
-  def allsols[A](prog: Free[(Nondet ⊕ Void)#t, A]): List[A] =
+  def allsols[A](prog: Free[(Nondet ⊕ ∅)#t, A]): List[A] =
     VoidEffect(NondetEffect(prog)) //TODO: rename XHandler
 }
 
@@ -246,10 +283,10 @@ object Knapsack {
   import NondetEffect._
   import VoidEffect._
 
-  type Eff[A] = Free[(Nondet ⊕ Void)#t, A]
+  type Eff[A] = Free[(Nondet ⊕ ∅)#t, A]
 
   def select[A](xs: List[A]): Eff[A] =
-    xs.map(Pure[(Nondet ⊕ Void)#t, A]).foldRight[Eff[A]](fail)(choice)
+    xs.map(Return[(Nondet ⊕ ∅)#t, A]).foldRight[Eff[A]](fail)(choice)
 
   def knapsack(w: Int, vs: List[Int]): Eff[List[Int]] = {
     if (w < 0)
