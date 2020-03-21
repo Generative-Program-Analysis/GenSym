@@ -21,7 +21,8 @@ libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
 scalacOptions ++= Seq(
   "-Xcheckinit",
   "-deprecation",
-  //"-Xlog-implicit-conversions",
+  "-Xlog-implicit-conversions",
+  "-language:implicitConversions",
   "-Ypartial-unification",
   "-P:continuations:enable",
 )
