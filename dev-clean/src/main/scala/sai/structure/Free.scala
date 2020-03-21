@@ -222,14 +222,14 @@ object StateHandler {
     comp match {
       case Return(x) => { _ => ret(x) }
       case GetPattern(k) => { s =>
-        val f = statefun(k(s)) //implicit  stumbles with statefun(k(s))(s)
+        val f = statefun(k(s)) //implicit resolution stumbles with statefun(k(s))(s)
         f(s)
       }
       case PutPattern(s, k) => { _ =>
         val f = statefun(k)
         f(s)
       }
-      case Impure(Right(op)) => { s => //TODO: need functor instance for S => X
+      case Impure(Right(op)) => { s =>
         Impure(Functor[F].map(op) { a =>
           val f = statefun[F, S, A](a)
           f(s)
@@ -238,9 +238,40 @@ object StateHandler {
     }
   }
 
+  /*def statefun2[F[_] : Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, S => A] = {
+    comp match {
+      case Return(x) => ret { _ => x }
+      case GetPattern(k) =>
+        // k: S => Free[S+F,A]
+        // k s :: Free[S+F,A]
+        // f := s => statefun2(k(s)) : S => Free[F, S => A]
+        // ret { s =>
+        //    (f s) : Free[F, S => A]
+        //    .bind {g => //S => A
+        //           ret (g s) //Free[F,A]
+        //     } :Free[F,A]
+        //     } : Free[F, S => Free[F,A]]
+
+        // ret k: Free[F,S => Free[S+F,A]]
+        // (ret k).map { f => s =>
+        //               (statefun2(f(s))  : Free[F, S=> Free[F, S => A]]
+        //                flatmap g => g s
+        ret(k).map { f =>
+          {(s:S) =>
+            f(s)
+
+
+          }
+        }
+      case PutPattern(s, k) => statefun2(k)
+
+      case Impure(Right(op)) =>
+        Impure(Functor[F].map(op)(statefun2))
+    }
+  }*/
+
   def stateref[F[_] : Functor, S, A](init: S)(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
     var state: S = init
-
     def handler(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
       comp match {
         case Return(x) => ret(x)
