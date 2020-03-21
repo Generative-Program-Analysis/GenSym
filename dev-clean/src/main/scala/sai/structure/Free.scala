@@ -117,21 +117,19 @@ object NondetHandler {
     inject[Nondet, F, A](Choice(f, g))
 
   object FailPattern {
-    def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Nondet ⊆ F): Boolean = {
+    def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Nondet ⊆ F): Boolean =
       project[Nondet, F, A](x) match {
         case Some(Fail) => true
         case _ => false
       }
-    }
   }
 
   object ChoicePattern {
-    def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Nondet ⊆ F): Option[(Free[F, A], Free[F, A])] = {
+    def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Nondet ⊆ F): Option[(Free[F, A], Free[F, A])] =
       project[Nondet, F, A](x) match {
         case Some(Choice(p, q)) => Some((p, q))
         case _ => None
       }
-    }
   }
 
   def run[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
@@ -182,7 +180,6 @@ object StateHandler {
       }
     }
 
-
   def get[F[_] : Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
     inject[State[S, ?], F, S](Get(Return(_)))
 
@@ -190,21 +187,19 @@ object StateHandler {
     inject[State[S, ?], F, Unit](Put(s, ret(())))
 
   object GetPattern {
-    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[S => Free[F, A]] = {
+    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[S => Free[F, A]] =
       project[State[S, ?], F, A](x) match {
         case Some(Get(k)) => Some(k)
         case _ => None
       }
-    }
   }
 
   object PutPattern {
-    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[(S, Free[F, A])] = {
+    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[(S, Free[F, A])] =
       project[State[S, ?], F, A](x) match {
         case Some(Put(s, a)) => Some((s, a))
         case _ => None
       }
-    }
   }
 
   def run[F[_] : Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
@@ -216,7 +211,7 @@ object StateHandler {
         Impure(Functor[F].map(op)(run(s, _)))
     }
 
-  def statefun[F[_] : Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): S => Free[F, A] = {
+  def statefun[F[_] : Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): S => Free[F, A] =
     comp match {
       case Return(x) => { _ => ret(x) }
       case GetPattern(k) => { s =>
@@ -234,7 +229,6 @@ object StateHandler {
         })
       }
     }
-  }
 
   def stateref[F[_] : Functor, S, A](init: S)(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
     var state: S = init
@@ -252,7 +246,6 @@ object StateHandler {
     }
     handler(comp)
   }
-
 }
 
 object StateNondetHandler {
@@ -346,7 +339,7 @@ object Knapsack {
 
     val global: (Int, List[List[Int]]) = {
       // Note: have to manually define an implicit functor instance here,
-      //       otherwise Scala compiler complaints implicit expansion divergence
+      //       otherwise Scala compiler complains implicit expansion divergence
       implicit val F = Functor[(State[Int, ?] ⊕ ∅)#t]
       VoidHandler(runGlobal(0, choices(knapsack[(Nondet ⊕ (State[Int, ?] ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
     }
