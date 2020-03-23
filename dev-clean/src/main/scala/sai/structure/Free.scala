@@ -253,7 +253,6 @@ object StateHandler {
   //TODO move these
   //TODO make an idiomatic handler arrow type?
   //TODO have implicit rules that calculate the handler type from the given functions?
-  //TODO make it open handler in style of handlers in action paper
   def deep_handler[Eff[_] : Functor, E[_] : Functor, A, B]
                   (r: Return[Eff,A] => Free[E,B])
                   (h: Eff[Free[E, B]] => Free[E,B]): Free[(Eff ⊕ E)#t, A] => Free[E,B] = {
@@ -274,18 +273,37 @@ object StateHandler {
     }
   }
 
+  //Effect-polymorphic open handler in style of handlers in action paper
+  def deep_handler_open[Eff[_] : Functor, G[_]: Functor, E[_] : Functor, A, B]
+                   (r: Return[Eff,A] => Free[(G ⊕ E)#t,B])
+                   (h: Eff[Free[(G ⊕ E)#t,B]] => Free[(G ⊕ E)#t,B]): Free[(Eff ⊕ E)#t, A] => Free[(G ⊕ E)#t,B] = {
+    comp => comp match {
+      case Return(x) =>         r(Return(x))
+      case Impure(Left(op)) =>  h(Functor[Eff].map(op)(deep_handler_open(r)(h))) //this is what makes the handler "deep"
+      case Impure(Right(op)) => Impure(Right(Functor[E].map(op)(deep_handler_open(r)(h))))
+    }
+  }
+
   //TODO move this
-  //TODO can this be made implicit?
-  def extract[A](comp: Free[∅,A]): A = comp match {
+  implicit def extract[A](comp: Free[∅,A]): A = comp match {
     case Return(a) => a
   }
 
   def stateh[E[_]: Functor, S, A] =
     deep_handler[State[S,?], ∅, A, S => Free[E,A]] {
        case Return(x) => ret { _ => ret(x) }
-    }{ case Get(k)    => ret { s => extract(k(s))(s) }
-       case Put(s, k) => ret { _ => extract(k)(s) }
+    }{ case Get(k)    => ret { s => k(s)(s) }
+       case Put(s, k) => ret { _ => k(s) }
     }
+
+  /*def stateh2[E[_]: Functor, S, A] =
+    deep_handler_open[State[S, ?], ∅, E, A, S => A] {
+      case Return(x) => ret { _ => x}
+    }{
+      case Get(k)    =>
+      // k : S => Free[0+E, S => A]
+      //
+    }*/
 }
 
 object StateNondetHandler {
