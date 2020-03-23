@@ -66,7 +66,7 @@ object ImpLang {
               set_("i", Op2("+", i, Lit(1)))
             })}}
 
-    println(another_fact5)
+    //println(another_fact5)
     assert(fact5 == another_fact5)
 
     val x = Var("x")
