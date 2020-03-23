@@ -384,6 +384,100 @@ object Knapsack {
   }
 }
 
+object ImpEff {
+  import Free._
+  import Coproduct.{CoproductFunctor => _, _}
+  import NondetHandler.{NondetFunctor => _, _}
+  import VoidHandler.{VoidFunctor => _, _}
+  import StateHandler.{StateFunctor => _, _}
+  import NondetVoidHandler._
+  import StateNondetHandler._
+
+  import sai.lang.ImpLang._
+
+  trait Value
+  case class IntV(i: Int) extends Value
+  case class BoolV(b: Boolean) extends Value
+
+  type Store = Map[String, Value]
+
+  def eval(e: Expr, σ: Store): Value = e match {
+    case Lit(i: Int) => IntV(i)
+    case Lit(b: Boolean) => BoolV(b)
+    case Var(x) => σ(x)
+    case Op1("-", e) =>
+      val IntV(i) = eval(e, σ)
+      IntV(-i)
+    case Op2(op, e1, e2) =>
+      val IntV(i1) = eval(e1, σ)
+      val IntV(i2) = eval(e2, σ)
+      op match {
+        case "+" => IntV(i1 + i2)
+        case "-" => IntV(i1 - i2)
+        case "*" => IntV(i1 * i2)
+        case "==" => BoolV(i1 == i2)
+        case "<=" => BoolV(i1 <= i2)
+        case "<" => BoolV(i1 < i2)
+        case ">=" => BoolV(i1 >= i2)
+        case ">" => BoolV(i1 > i2)
+      }
+  }
+
+  def eval[F[_]: Functor](e: Expr)(implicit I1: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Value] =
+    for {
+      σ <- get
+    } yield eval(e, σ)
+
+  def select[F[_]: Functor, A](xs: List[A])(implicit I: Nondet ⊆ F): Free[F, A] =
+    xs.map(Return[F, A]).foldRight[Free[F, A]](fail)(choice)
+
+  def select[F[_]: Functor](v: Value, s1: Stmt, s2: Stmt)(implicit I: Nondet ⊆ F): Free[F, Stmt] = {
+    val BoolV(b) = v
+    if (b) select(List(s1)) else select(List(s2))
+  }
+
+  def exec[F[_]: Functor](s: Stmt)(implicit I1: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Unit] = s match {
+    case Skip() => ret(())
+    case Assign(x, e) =>
+      for {
+        σ <- get
+        v <- eval(e)
+        _ <- put(σ + ((x, v)))
+      } yield ()
+    case Cond(e, s1, s2) =>
+      for {
+        v <- eval(e)
+        n <- select(v, s1, s2)
+        _ <- exec(s)
+      } yield ()
+    case Seq(s1, s2) =>
+      for {
+        _ <- exec(s1)
+        _ <- exec(s2)
+      } yield ()
+    case While(e, b) =>
+      for {
+        v <- eval(e)
+        n <- select(v, Seq(b, s), Skip())
+        _ <- exec(n)
+      } yield ()
+  }
+
+  def main(args: Array[String]): Unit = {
+    import Examples._
+    import VoidHandler.VoidFunctor
+    import StateHandler.StateFunctor
+    import NondetHandler.NondetFunctor
+
+    //implicit val F1 = Functor[(State[Store, ?] ⊕ ∅)#t]
+    implicit val F2 = Functor[(Nondet ⊕ ∅)#t]
+    //println(fact5)
+
+    // concrete execution
+    println(VoidHandler.run(NondetHandler.run(StateHandler.run(Map[String, Value](), exec[(State[Store, ?] ⊕ (Nondet ⊕ ∅)#t)#t](fact5)))))
+  }
+}
+
 /*******************************************/
 
 object ReaderWriterEffect {
