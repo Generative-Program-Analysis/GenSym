@@ -2,6 +2,7 @@ package sai.structure.monad
 package free
 
 import sai.structure.functor._
+import sai.structure.monad.free.VoidHandler.∅
 import sai.structure.~>
 
 abstract class Free[F[_]: Functor, A] {
@@ -230,37 +231,7 @@ object StateHandler {
       }
     }
 
-  /*def statefun2[F[_] : Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, S => A] = {
-    comp match {
-      case Return(x) => ret { _ => x }
-      case GetPattern(k) =>
-        // k: S => Free[S+F,A]
-        // k s :: Free[S+F,A]
-        // f := s => statefun2(k(s)) : S => Free[F, S => A]
-        // ret { s =>
-        //    (f s) : Free[F, S => A]
-        //    .bind {g => //S => A
-        //           ret (g s) //Free[F,A]
-        //     } :Free[F,A]
-        //     } : Free[F, S => Free[F,A]]
 
-        // ret k: Free[F,S => Free[S+F,A]]
-        // (ret k).map { f => s =>
-        //               (statefun2(f(s))  : Free[F, S=> Free[F, S => A]]
-        //                flatmap g => g s
-        ret(k).map { f =>
-          {(s:S) =>
-            f(s)
-
-
-          }
-        }
-      case PutPattern(s, k) => statefun2(k)
-
-      case Impure(Right(op)) =>
-        Impure(Functor[F].map(op)(statefun2))
-    }
-  }*/
 
   def stateref[F[_] : Functor, S, A](init: S)(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
     var state: S = init
@@ -277,6 +248,44 @@ object StateHandler {
     }
     handler(comp)
   }
+
+
+  //TODO move these
+  //TODO make an idiomatic handler arrow type?
+  //TODO have implicit rules that calculate the handler type from the given functions?
+  //TODO make it open handler in style of handlers in action paper
+  def deep_handler[Eff[_] : Functor, E[_] : Functor, A, B]
+                  (r: Return[Eff,A] => Free[E,B])
+                  (h: Eff[Free[E, B]] => Free[E,B]): Free[(Eff ⊕ E)#t, A] => Free[E,B] = {
+    comp => comp match {
+      case Return(x) =>  r(Return(x))
+      case Impure(Left(op)) => h(Functor[Eff].map(op)(deep_handler(r)(h))) //this is what makes the handler "deep"
+      case Impure(Right(op)) => Impure(Functor[E].map(op)(deep_handler(r)(h)))
+    }
+  }
+
+  def shallow_handler[Eff[_] : Functor, E[_] : Functor, A, B]
+                     (r: Return[Eff,A] => Free[E,B])
+                     (h: Eff[Free[(Eff ⊕ E)#t, A]] => Free[E,B]): Free[(Eff ⊕ E)#t, A] => Free[E,B] = {
+    comp => comp match {
+      case Return(x) => r(Return(x))
+      case Impure(Left(op)) => h(op)
+      case Impure(Right(op)) => Impure(Functor[E].map(op)(shallow_handler(r)(h)))
+    }
+  }
+
+  //TODO move this
+  //TODO can this be made implicit?
+  def extract[A](comp: Free[∅,A]): A = comp match {
+    case Return(a) => a
+  }
+
+  def stateh[E[_]: Functor, S, A] =
+    deep_handler[State[S,?], ∅, A, S => Free[E,A]] {
+       case Return(x) => ret { _ => ret(x) }
+    }{ case Get(k)    => ret { s => extract(k(s))(s) }
+       case Put(s, k) => ret { _ => extract(k)(s) }
+    }
 }
 
 object StateNondetHandler {
@@ -330,17 +339,17 @@ object Knapsack {
 
   def inc[F[_]: Functor](implicit I: State[Int, ?] ⊆ F): Free[F, Unit] =
     for {
-      x <- get[F, Int]
-      _ <- put[F, Int](x + 1)
+      x <- get
+      _ <- put(x + 1)
     } yield ()
 
   def choices[F[_]: Functor, A](prog: Free[F, A])(implicit I1: Nondet ⊆ F, I2: State[Int, ?] ⊆ F): Free[F, A] =
     prog match {
-      case Return(x) => Monad[Free[F, ?]].pure(x)
+      case Return(x) => ret(x)
       case FailPattern() => fail
       case ChoicePattern(p, q) =>
         for {
-          _ <- inc[F]
+          _ <- inc
           pq <- choice(choices(p), choices(q))
         } yield pq
       case Impure(op) => Impure(Functor[F].map(op)(choices(_)))
