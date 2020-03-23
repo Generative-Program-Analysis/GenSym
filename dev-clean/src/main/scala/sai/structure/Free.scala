@@ -431,10 +431,13 @@ object ImpEff {
   def select[F[_]: Functor, A](xs: List[A])(implicit I: Nondet ⊆ F): Free[F, A] =
     xs.map(Return[F, A]).foldRight[Free[F, A]](fail)(choice)
 
-  def select[F[_]: Functor](v: Value, s1: Stmt, s2: Stmt)(implicit I: Nondet ⊆ F): Free[F, Stmt] = {
-    val BoolV(b) = v
-    if (b) select(List(s1)) else select(List(s2))
-  }
+  def select[F[_]: Functor](e: Expr, s1: Stmt, s2: Stmt)(implicit I: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Stmt] =
+    for {
+      v <- eval(e)
+    } yield {
+      val BoolV(b) = v
+      if (b) s1 else s2
+    }
 
   def exec[F[_]: Functor](s: Stmt)(implicit I1: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Unit] = s match {
     case Skip() => ret(())
@@ -446,8 +449,7 @@ object ImpEff {
       } yield ()
     case Cond(e, s1, s2) =>
       for {
-        v <- eval(e)
-        n <- select(v, s1, s2)
+        n <- select(e, s1, s2)
         _ <- exec(s)
       } yield ()
     case Seq(s1, s2) =>
@@ -457,8 +459,7 @@ object ImpEff {
       } yield ()
     case While(e, b) =>
       for {
-        v <- eval(e)
-        n <- select(v, Seq(b, s), Skip())
+        n <- select(e, Seq(b, s), Skip())
         _ <- exec(n)
       } yield ()
   }
