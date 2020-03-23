@@ -445,7 +445,7 @@ object ImpEff {
       for {
         σ <- get
         v <- eval(e)
-        _ <- put(σ + ((x, v)))
+        _ <- put(σ + (x → v))
       } yield ()
     case Cond(e, s1, s2) =>
       for {
