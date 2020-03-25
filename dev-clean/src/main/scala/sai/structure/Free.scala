@@ -253,48 +253,62 @@ object StateHandler {
   //TODO move these
   //TODO make an idiomatic handler arrow type?
   //TODO have implicit rules that calculate the handler type from the given functions?
-  def deep_handler[Eff[_] : Functor, E[_] : Functor, A, B]
-                  (r: Return[Eff,A] => Free[E,B])
-                  (h: Eff[Free[E, B]] => Free[E,B]): Free[(Eff ⊕ E)#t, A] => Free[E,B] = {
+  def deep_handler[Eff[_]: Functor, E[_]: Functor, A, B]
+                  (r: Return[Eff, A] => Free[E, B])
+                  (h: Eff[Free[E, B]] => Free[E, B]): Free[(Eff ⊕ E)#t, A] => Free[E, B] =
     comp => comp match {
-      case Return(x) =>  r(Return(x))
-      case Impure(Left(op)) => h(Functor[Eff].map(op)(deep_handler(r)(h))) //this is what makes the handler "deep"
-      case Impure(Right(op)) => Impure(Functor[E].map(op)(deep_handler(r)(h)))
+      case Return(x) =>
+        r(Return(x))
+      case Impure(Left(op)) =>
+        h(Functor[Eff].map(op)(deep_handler(r)(h))) //this is what makes the handler "deep"
+      case Impure(Right(op)) =>
+        Impure(Functor[E].map(op)(deep_handler(r)(h)))
     }
-  }
 
-  def shallow_handler[Eff[_] : Functor, E[_] : Functor, A, B]
-                     (r: Return[Eff,A] => Free[E,B])
-                     (h: Eff[Free[(Eff ⊕ E)#t, A]] => Free[E,B]): Free[(Eff ⊕ E)#t, A] => Free[E,B] = {
+  def shallow_handler[Eff[_]: Functor, E[_]: Functor, A, B]
+                     (r: Return[Eff, A] => Free[E, B])
+                     (h: Eff[Free[(Eff ⊕ E)#t, A]] => Free[E, B]): Free[(Eff ⊕ E)#t, A] => Free[E, B] =
     comp => comp match {
       case Return(x) => r(Return(x))
       case Impure(Left(op)) => h(op)
       case Impure(Right(op)) => Impure(Functor[E].map(op)(shallow_handler(r)(h)))
     }
-  }
 
   //Effect-polymorphic open handler in style of handlers in action paper
-  def deep_handler_open[Eff[_] : Functor, G[_]: Functor, E[_] : Functor, A, B]
-                   (r: Return[Eff,A] => Free[(G ⊕ E)#t,B])
-                   (h: Eff[Free[(G ⊕ E)#t,B]] => Free[(G ⊕ E)#t,B]): Free[(Eff ⊕ E)#t, A] => Free[(G ⊕ E)#t,B] = {
+  def deep_handler_open[Eff[_]: Functor, G[_]: Functor, E[_]: Functor, A, B]
+                   (r: Return[Eff, A] => Free[(G ⊕ E)#t, B])
+                   (h: Eff[Free[(G ⊕ E)#t, B]] => Free[(G ⊕ E)#t, B]): Free[(Eff ⊕ E)#t, A] => Free[(G ⊕ E)#t, B] =
     comp => comp match {
-      case Return(x) =>         r(Return(x))
-      case Impure(Left(op)) =>  h(Functor[Eff].map(op)(deep_handler_open(r)(h))) //this is what makes the handler "deep"
-      case Impure(Right(op)) => Impure(Right(Functor[E].map(op)(deep_handler_open(r)(h))))
+      case Return(x) =>
+        r(Return(x))
+      case Impure(Left(op)) =>
+        h(Functor[Eff].map(op)(deep_handler_open(r)(h))) //this is what makes the handler "deep"
+      case Impure(Right(op)) =>
+        Impure(Right(Functor[E].map(op)(deep_handler_open(r)(h))))
     }
-  }
 
   //TODO move this
-  implicit def extract[A](comp: Free[∅,A]): A = comp match {
+  implicit def extract[A](comp: Free[∅, A]): A = comp match {
     case Return(a) => a
   }
 
   def stateh[E[_]: Functor, S, A] =
-    deep_handler[State[S,?], ∅, A, S => Free[E,A]] {
-       case Return(x) => ret { _ => ret(x) }
-    }{ case Get(k)    => ret { s => k(s)(s) }
-       case Put(s, k) => ret { _ => k(s) }
+    deep_handler[State[S, ?], ∅, A, S => Free[E, A]] {
+      case Return(x) => ret(_ => ret(x))
+    }{
+      case Get(k)    => ret(s => k(s)(s))
+      case Put(s, k) => ret(_ => k(s))
     }
+
+  /*
+  def stateh_shallow[E[_]: Functor, S, A] =
+    shallow_handler[State[S, ?], ∅, A, S => Free[E, A]] {
+      case Return(x) => ret(_ => ret(x))
+    }{
+      case Get(k) => ret(s =>  //Free[∅, S => Free[E, A]]
+      case Put(s, k) => ret(_ => ???) //k(s))
+    }
+   */
 
   /*def stateh2[E[_]: Functor, S, A] =
     deep_handler_open[State[S, ?], ∅, E, A, S => A] {
@@ -344,6 +358,52 @@ object NondetVoidHandler {
     VoidHandler(NondetHandler(prog))
 }
 
+object CutHandler {
+  import Free._
+  import Coproduct._
+  import ⊆._
+  import NondetHandler._
+
+  trait Cut[+A]
+  case object Cutfail extends Cut[Nothing]
+
+  implicit val CutFunctor: Functor[Cut] =
+    new Functor[Cut] {
+      def map[A, B](x: Cut[A])(f: A => B): Cut[B] = x.asInstanceOf[Cut[B]]
+    }
+
+  object CutfailPattern {
+    def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Cut ⊆ F): Boolean =
+      project[Cut, F, A](x) match {
+        case Some(Cutfail) => true
+        case _ => false
+      }
+  }
+
+  def cutfail[F[_]: Functor, A](implicit I: Cut ⊆ F): Free[F, A] =
+    inject[Cut, F, A](Cutfail)
+
+  def go[F[_]: Functor, A](p: Free[(Cut ⊕ F)#t, A], q: Free[F, A])(implicit I: Nondet ⊆ F): Free[F, A] =
+    p match {
+      case Return(a) => choice(ret(a), q)
+      case FailPattern() => q
+      case CutfailPattern() => fail
+      case ChoicePattern(a, b) => go(a, go(b, q))
+      case Impure(Right(op)) =>
+        Impure(Functor[F].map(op)(go(_, q)))
+    }
+
+  def call[F[_]: Functor, A](p: Free[(Cut ⊕ F)#t, A])(implicit I: Nondet ⊆ F): Free[F, A] = go(p, fail)
+
+  def skip[M[_]: Monad]: M[Unit] = Monad[M].pure(())
+
+  def cut[F[_]: Functor, A](implicit I1: Nondet ⊆ F, I2: Cut ⊆ F): Free[F, Unit] =
+    choice(skip[Free[F,?]], cutfail)
+
+  def once[F[_]: Functor, A](p: Free[(Cut ⊕ F)#t, A])(implicit I: Nondet ⊆ F): Free[F, A] =
+    call(for { x <- p; _ <- cut[(Cut ⊕ F)#t, A] } yield x)
+}
+
 // TODO: CPS effect, to support Imp's break from while loop
 
 object Knapsack {
@@ -352,6 +412,7 @@ object Knapsack {
   import NondetHandler.{NondetFunctor => _, _}
   import VoidHandler.{VoidFunctor => _, _}
   import StateHandler.{StateFunctor => _, _}
+  import CutHandler.{CutFunctor => _, _}
   import NondetVoidHandler._
   import StateNondetHandler._
 
@@ -391,6 +452,7 @@ object Knapsack {
     import VoidHandler.VoidFunctor
     import StateHandler.StateFunctor
     import NondetHandler.NondetFunctor
+    import CutHandler.CutFunctor
 
     // Only nondeterminism effect
     println(allsols(knapsack(3, List(3, 2, 1))))
@@ -408,6 +470,13 @@ object Knapsack {
       VoidHandler(runLocal(0, choices(knapsack[(State[Int, ?] ⊕ (Nondet ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
     }
     println(local)
+
+    // only computes the first solution
+    val single: List[List[Int]] = {
+      implicit val F = Functor[(Nondet ⊕ ∅)#t]
+      allsols(once(knapsack[(Cut ⊕ (Nondet ⊕ ∅)#t)#t](3, List(3, 2, 1))))
+    }
+    println(single)
   }
 }
 
