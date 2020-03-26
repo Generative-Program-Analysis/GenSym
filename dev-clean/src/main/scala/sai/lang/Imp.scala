@@ -19,19 +19,25 @@ object ImpLang {
   case class Seq(s1: Stmt, s2: Stmt) extends Stmt
   case class While(b: Expr, s: Stmt) extends Stmt
 
-  sealed trait Expr
+  sealed trait Expr {
+    def toSExp: String
+  }
   case class Lit(x: Any) extends Expr {
     override def toString: String = s"Lit(${x.toString})"
+    def toSExp: String = x.toString
   }
   case class Var(x: String) extends Expr {
     override def toString: String = "Var(\"" + x.toString + "\")"
+    def toSExp: String = x.toString
   }
   case class Op1(op: String, e: Expr) extends Expr {
     override def toString: String = "Op1(\"" + op + "\"," + s"${e.toString})"
+    def toSExp: String = s"($op ${e.toSExp})"
   }
   case class Op2(op: String, e1: Expr, e2: Expr) extends Expr {
     override def toString: String =
       "Op2(\"" + op + "\"," + s"${e1.toString}, ${e2.toString})"
+    def toSExp: String = s"($op ${e1.toSExp} ${e2.toSExp})"
   }
 
   def let_(x: String, rhs: Int)(body: Var => Stmt): Stmt =
@@ -134,7 +140,18 @@ object TestImp {
       val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
       val v = exec(s)(init).run
       println(v)
-      print("path number: ")
+      println("path number: ")
+      println(v.size)
+    }
+  }
+
+  @virtualize
+  def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] = new CppSymStagedImpDriver[Int, Unit] {
+    def snippet(u: Rep[Int]) = {
+      val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
+      val v = exec(s)(init).run
+      //println(v)
+      //println("path number: ")
       println(v.size)
     }
   }
@@ -147,18 +164,15 @@ object TestImp {
      */
 
     /* Concrete execution */
+    /*
     val code = specialize(fact5)
     println(code.code)
     code.eval(0)
-
-    //List(((),(Map(x -> IntV(3), z -> IntV(4), y -> IntV(5)),Set(Op2("<=",Var("x"), Var("y"))))),
-    //     ((),(Map(x -> IntV(3), z -> IntV(6), y -> IntV(5)),Set(Op1("-",Op2("<=",Var("x"), Var("y")))))))
+     */
 
     /* Symbolic execution */
-    /*
-    val code = specSym(fact_n)
+    val code = specSymCpp(fact_n)
     println(code.code)
-    code.eval(())
-     */
+    code.eval(0)
   }
 }

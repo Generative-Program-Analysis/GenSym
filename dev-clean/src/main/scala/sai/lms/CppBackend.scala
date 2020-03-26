@@ -13,7 +13,8 @@ import sai.structure.lattices._
 import sai.structure.monad._
 
 trait CppSAICodeGenBase extends ExtendedCCodeGen
-  with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map {
+    with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map
+    with CppCodeGen_Set {
   //override def remap(m: Manifest[_]): String = super.remap(m)
 
   override def mayInline(n: Node): Boolean = n match {
@@ -96,7 +97,7 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
       emitln("if (init()) return 0;")
     emitln(s"""
     |  // TODO: what is the right way to pass arguments?
-    |  std::cout << $name(${convert("argv[1]", m1)});
+    |  $name(${convert("argv[1]", m1)});
     |  return 0;
     |}""".stripMargin)
   }

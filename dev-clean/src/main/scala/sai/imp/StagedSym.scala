@@ -163,6 +163,7 @@ trait SymStagedImpGen extends StagedImpGen {
       shallow(x2); emit(")")
     case _ => super.shallow(n)
   }
+
 }
 
 trait SymStagedImpDriver extends SAIDriver[Unit, Unit] with SymStagedImp { q =>
@@ -207,4 +208,71 @@ object SymRuntime {
       case ("<", IntV(i1), IntV(i2)) => BoolV(i1 < i2)
       case (op, x1, x2) => SymE(op, List(x1, x2))
     }
+}
+
+trait CppSymStagedImpGen extends CppSAICodeGenBase {
+  registerHeader("./header", "<sai_imp_sym.hpp>")
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, name, _, _) if name.startsWith("IntV") => false
+    case Node(_, name, _, _) if name.startsWith("BoolV") => false
+    case Node(_, name, _, _) if name.startsWith("SymV") => false
+    case Node(_, name, _, _) if name.startsWith("SymE") => false
+    case _ => super.mayInline(n)
+  }
+
+  override def quote(s: Def): String = s match {
+    case Const(s@Op2(op, x, y)) => "\"" + s.toSExp + "\""
+    case Const(s@Op1(op, x)) => "\"" + s.toSExp + "\""
+    case Const(()) => "std::monostate{}";
+    case _ => super.quote(s)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "IntV", List(i), _) =>
+      emit("make_IntV(")
+      shallow(i)
+      emit(")")
+    case Node(s, "IntV-proj", List(i), _) =>
+      emit("proj_IntV(")
+      shallow(i)
+      emit(")")
+    case Node(s, "BoolV", List(b), _) =>
+      emit("make_BoolV(")
+      shallow(b)
+      emit(")")
+    case Node(s, "BoolV-proj", List(i), _) =>
+      emit("proj_BoolV(")
+      shallow(i)
+      emit(")")
+    case Node(s, "SymV", List(x), _) =>
+      emit("make_SymV(")
+      shallow(x)
+      emit(")")
+    case Node(s, "op", List(op, x1, x2), _) =>
+      emit("op_2(")
+      shallow(op); emit(", ")
+      shallow(x1); emit(", ")
+      shallow(x2); emit(")")
+    case _ => super.shallow(n)
+  }
+}
+
+trait CppSymStagedImpDriver[A, B] extends CppSAIDriver[A, B] with SymStagedImp { q =>
+  override val codegen = new CGenBase with CppSymStagedImpGen {
+    val IR: q.type = q
+    import IR._
+
+    override def primitive(t: String): String = t match {
+      case "Unit" => "std::monostate"
+      case _ => super.primitive(t)
+    }
+
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString == "java.lang.String") "String"
+      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
+      else if (m.toString.endsWith("$Expr")) "String"
+      else super.remap(m)
+    }
+  }
 }
