@@ -118,10 +118,10 @@ Ptr<Value> op_2(String op, Ptr<Value> v1, Ptr<Value> v2) {
   }
 }
 
-static auto& IntV_ty = typeid(struct IntV);
-static auto& BoolV_ty = typeid(struct BoolV);
-static auto& SymV_ty = typeid(struct SymV);
-static auto& SymE_ty = typeid(struct SymE);
+const static auto& IntV_ty = typeid(struct IntV);
+const static auto& BoolV_ty = typeid(struct BoolV);
+const static auto& SymV_ty = typeid(struct SymV);
+const static auto& SymE_ty = typeid(struct SymE);
 
 inline bool operator==(const Ptr<Value>& lhs, const Ptr<Value>& rhs);
 
@@ -163,84 +163,84 @@ inline bool operator==(const Ptr<Value>& lhs, const Ptr<Value>& rhs){
 
 namespace std {
   template<>
-    struct equal_to<Ptr<Value>> {
-      bool operator()(const Ptr<Value>& lhs, const Ptr<Value>& rhs) const {
-        return lhs == rhs;
-      }
-    };
+  struct equal_to<Ptr<Value>> {
+    bool operator()(const Ptr<Value>& lhs, const Ptr<Value>& rhs) const {
+      return lhs == rhs;
+    }
+  };
 
   template<>
-    struct hash<IntV> {
-      std::size_t operator()(const IntV& v) const {
-        return std::hash<int>{}(v.i);
-      }
-    };
+  struct hash<IntV> {
+    std::size_t operator()(const IntV& v) const {
+      return std::hash<int>{}(v.i);
+    }
+  };
 
   template<>
-    struct hash<BoolV> {
-      std::size_t operator()(const BoolV& v) const {
-        return std::hash<bool>{}(v.b);
-      }
-    };
+  struct hash<BoolV> {
+    std::size_t operator()(const BoolV& v) const {
+      return std::hash<bool>{}(v.b);
+    }
+  };
 
   template<>
-    struct hash<SymV> {
-      std::size_t operator()(const SymV& v) const {
-        return std::hash<std::string>{}(v.s);
-      }
-    };
+  struct hash<SymV> {
+    std::size_t operator()(const SymV& v) const {
+      return std::hash<std::string>{}(v.s);
+    }
+  };
 
   template<>
-    struct hash<Ptr<Value>> {
-      std::size_t operator()(const Ptr<Value>& v) const {
-        auto& v_ty = typeid(*v);
-        if (v_ty == IntV_ty) {
-          return std::hash<IntV>{}(*std::dynamic_pointer_cast<IntV>(v));
-        } else if (v_ty == BoolV_ty) {
-          return std::hash<BoolV>{}(*std::dynamic_pointer_cast<BoolV>(v));
-        } else if (v_ty == SymV_ty) {
-          return std::hash<SymV>{}(*std::dynamic_pointer_cast<SymV>(v));
-        } else if (v_ty == SymE_ty) {
-          //TODO: have to copy-paste code here?
-          auto sv = std::dynamic_pointer_cast<SymE>(v);
-          auto h1 = std::hash<std::string>{}(sv->op);
-          auto vec_hash = [](const std::vector<Ptr<Value>>& vec) {
-            std::size_t seed = vec.size();
-            for(auto& i : vec) {
-              auto h = std::hash<Ptr<Value>>{}(i);
-              seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            }
-            return seed;
-          };
-          auto h2 = vec_hash(sv->args);
-          return h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
-        } else {
-          ASSERT(false, "not of type Ptr<Value>");
-        }
-      }
-    };
-
-  template<>
-    struct hash<std::vector<Ptr<Value>>> {
-      std::size_t operator()(const std::vector<Ptr<Value>>& vec) const {
-        std::size_t seed = vec.size();
-        for(auto& i : vec) {
-          auto h = std::hash<Ptr<Value>>{}(i);
-          // https://stackoverflow.com/questions/4948780/magic-number-in-boosthash-combine
-          seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        }
-        return seed;
-      }
-    };
-
-  template<>
-    struct hash<SymE> {
-      std::size_t operator()(const SymE& v) const {
-        auto h1 = std::hash<std::string>{}(v.op);
-        auto h2 = std::hash<std::vector<std::shared_ptr<Value>>>{}(v.args);
+  struct hash<Ptr<Value>> {
+    std::size_t operator()(const Ptr<Value>& v) const {
+      auto& v_ty = typeid(*v);
+      if (v_ty == IntV_ty) {
+        return std::hash<IntV>{}(*std::dynamic_pointer_cast<IntV>(v));
+      } else if (v_ty == BoolV_ty) {
+        return std::hash<BoolV>{}(*std::dynamic_pointer_cast<BoolV>(v));
+      } else if (v_ty == SymV_ty) {
+        return std::hash<SymV>{}(*std::dynamic_pointer_cast<SymV>(v));
+      } else if (v_ty == SymE_ty) {
+        //TODO: have to copy-paste code here?
+        auto sv = std::dynamic_pointer_cast<SymE>(v);
+        auto h1 = std::hash<std::string>{}(sv->op);
+        auto vec_hash = [](const std::vector<Ptr<Value>>& vec) {
+          std::size_t seed = vec.size();
+          for(auto& i : vec) {
+            auto h = std::hash<Ptr<Value>>{}(i);
+            seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+          }
+          return seed;
+        };
+        auto h2 = vec_hash(sv->args);
         return h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+      } else {
+        ASSERT(false, "not of type Ptr<Value>");
       }
-    };
+    }
+  };
+
+  template<>
+  struct hash<std::vector<Ptr<Value>>> {
+    std::size_t operator()(const std::vector<Ptr<Value>>& vec) const {
+      std::size_t seed = vec.size();
+      for(auto& i : vec) {
+        auto h = std::hash<Ptr<Value>>{}(i);
+        // https://stackoverflow.com/questions/4948780/magic-number-in-boosthash-combine
+        seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+      }
+      return seed;
+    }
+  };
+
+  template<>
+  struct hash<SymE> {
+    std::size_t operator()(const SymE& v) const {
+      auto h1 = std::hash<std::string>{}(v.op);
+      auto h2 = std::hash<std::vector<std::shared_ptr<Value>>>{}(v.args);
+      return h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+    }
+  };
 }
 
 /**********************************************************/
