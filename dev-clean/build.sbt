@@ -4,7 +4,6 @@ scalaVersion := "2.12.10"
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-
 libraryDependencies += "org.scalatest" % "scalatest_2.12" % "3.0.8"
 libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile"
 libraryDependencies += "org.scala-lang" % "scala-library" % scalaVersion.value % "compile"
@@ -15,6 +14,9 @@ libraryDependencies += "org.typelevel" %% "cats-free" % "1.6.0"
 libraryDependencies += "com.github.mpilquist" %% "simulacrum" % "0.15.0"
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6"
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.27"
+
+libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.8"
+//libraryDependencies += "org.antlr" % "stringtemplate" % "4.3"
 
 libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
 

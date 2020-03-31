@@ -3,3 +3,4 @@ target
 *.out
 *.scala~
 *.log
+*.class
