@@ -136,6 +136,7 @@ object Handlers {
   abstract class DeepHO[F[_],G[_],R <: Eff,A] {
     //to allow inducing other effects in the handler body passed by the programmer, we'll need an implicit context with the capability
     //we could probably have a leaner overall design with dotty's implicit function types
+    //TODO: weak point: what if we require G to consist of multiple effects?
     implicit val canG: G ∈ (G ⊗ R) = member
     def apply[X]: (F[X], X => Comp[G ⊗ R, A]) => Comp[G ⊗ R, A]
     final def curried[X](fx: F[X])(k: X => Comp[G ⊗ R, A]): Comp[G ⊗ R, A] = apply(fx,k)
