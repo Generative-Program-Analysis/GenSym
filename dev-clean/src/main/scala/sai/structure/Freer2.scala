@@ -14,12 +14,16 @@ object Eff {
 //union type as in the freer monad paper, scala-style
 object OpenUnion {
   import Eff._
-  sealed trait U[R <: Eff, X]
-  case class Union[R <: Eff,T[_],X] private(index: Int, value: T[X]) extends U[R,X]
+  sealed trait U[R <: Eff, X] {
+    def weaken[E[_]]: U[E ⊗ R,X]
+  }
+  case class Union[R <: Eff,T[_],X] private(index: Int, value: T[X]) extends U[R,X] {
+    def weaken[E[_]]: Union[E ⊗ R, T, X] = Union(index+1,value)
+  }
 
   //type-safe pointers into tlists
   case class Ptr[T[_], R <: Eff] private(pos: Int)
-  implicit def pz[T[_]]: Ptr[T,Lone[T]] = Ptr(0)  //TODO make it tail polymorphic?
+  implicit def pz[T[_], R <: Eff]: Ptr[T, T ⊗ R] = Ptr(0)
   implicit def ps[T[_],R <: Eff,U[_]](implicit pred: Ptr[T,R]): Ptr[T, U ⊗ R] = Ptr(pred.pos + 1)
 
   trait ∈[T[_], R <: Eff] {
@@ -43,7 +47,7 @@ object OpenUnion {
     case Union(n, v) => Left(Union(n-1, v))
   }
 
-  def weaken[T[_], R <: Eff, X](u: U[R,X]): U[T ⊗ R, X] = u match {
+  implicit def weaken[T[_], R <: Eff, X](u: U[R,X]): U[T ⊗ R, X] = u match {
     case Union(n, v) => Union(n+1, v)
   }
 }
@@ -126,6 +130,30 @@ object Handlers {
         Op(op) { x => shallow_handler(ret)(h)(k(x)) }
     }
   }
+
+  //open handlers a la handlers in action paper, i.e., handling an effect E by inducing other effects F
+  //with more powerful effect row calculations, we could just have this kind of deep handler
+  abstract class DeepHO[F[_],G[_],R <: Eff,A] {
+    //to allow inducing other effects in the handler body passed by the programmer, we'll need an implicit context with the capability
+    //we could probably have a leaner overall design with dotty's implicit function types
+    implicit val canG: G ∈ (G ⊗ R) = member
+    def apply[X]: (F[X], X => Comp[G ⊗ R, A]) => Comp[G ⊗ R, A]
+    final def curried[X](fx: F[X])(k: X => Comp[G ⊗ R, A]): Comp[G ⊗ R, A] = apply(fx,k)
+  }
+
+  def ohandler[E[_], F[_], R <: Eff, A, B]
+              (ret: Return[E ⊗ R, A] => Comp[F ⊗ R, B])
+              (h: DeepHO[E, F, R, B]): Comp[E ⊗ R, A] => Comp[F ⊗ R, B] = {
+    case Return(x) => ret(Return(x))
+    case Op(u, k) => decomp(u) match {
+      case Right(ex) =>
+        h.curried(ex) { x => ohandler(ret)(h)(k(x))}
+      case Left(op) =>
+        Op(op.weaken[F]) { x => ohandler(ret)(h)(k(x)) }
+    }
+  }
+
+  //TODO: koka-style parameterized handlers?
 }
 
 object State {
@@ -195,7 +223,44 @@ object State {
     case Put$(s, k)  => ret { _: S => k(())(s) }
   })
 
-  //TODO handler that intercepts and forwards state, e.g. multiplying the replies sent from the outer context
+  //example of intercepting and forwarding effects with open handler
+  def state_square[E <: Eff, A] = ohandler[State[Int,*], State[Int,*], E, A, A] {
+    case Return(x)  => ret(x)
+  } (ν[DeepHO[State[Int, *], State[Int, *], E, A]]{
+    case Get$((), k) =>
+      get() >>= { x => k(x * x)}
+    case Put$(s, k)  =>
+      put(s) >>= k
+  })
+
+  def prog[R <: Eff](implicit I: State[Int,*] ∈ R): Comp[R, Int] = for {
+    x <- get()
+    y <- get()
+    _ <- put(x * y)
+    z <- get()
+  } yield z
+
+  def prog_ref: Comp[∅,Int] = stateref(2)(prog)
+  def prog_ref2: Comp[∅,Int] = stateref2(2)(prog)
+  def prog_fun: Comp[∅,Int] =
+    for {
+      f <- statefun[Int,Int](prog)
+    } yield f(2)
+  def prog_fun2 = statefun[Int,Int](prog)(2)
+  def prog_ref_square: Comp[∅,Int] = stateref(2)(state_square(prog))
+  def prog_ref2_square: Comp[∅,Int] = stateref2(2)(state_square(prog))
+  def prog_fun_square: Comp[∅,Int] = statefun[Int,Int](state_square(prog))(2)
+
+
+  def main(args: Array[String]): Unit = {
+    println(f"prog_ref: $prog_ref%d")
+    println(f"prog_ref2: $prog_ref2%d")
+    println(f"prog_fun: $prog_fun%d")
+    println(f"prog_fun2: $prog_fun2%d")
+    println(f"prog_ref_square: $prog_ref_square%d")
+    println(f"prog_ref2_square: $prog_ref2_square%d")
+    println(f"prog_fun_square: $prog_fun_square%d")
+  }
 }
 
 object Nondet {
@@ -206,6 +271,20 @@ object Nondet {
   sealed trait Nondet[K]
   case object Fail extends Nondet[Nothing]   //Fail ()   ~> Nothing
   case object Choice extends Nondet[Boolean] //Choice () ~> Boolean
+
+  object Fail$ {
+    def unapply[K,R](n: (Nondet[K], K => R)): Boolean = n match {
+      case (Fail,_) => true
+      case _ => false
+    }
+  }
+
+  object Choice$ {
+    def unapply[K,R](n: (Nondet[K], K => R)): Option[(Unit, Boolean => R)] = n match {
+      case (Choice, k) => Some(((), k))
+      case _ => None
+    }
+  }
 
   def fail[A, R <: Eff](implicit I: Nondet ∈ R): Comp[R,A] = perform(Fail)
   def choice[A, R <: Eff](a: Comp[R,A], b: Comp[R,A])(implicit I: Nondet ∈ R): Comp[R,A] =
