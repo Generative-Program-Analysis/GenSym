@@ -4072,8 +4072,7 @@ paramAttr
 //   ::= ArgType (',' ArgType)*
 
 params
-    : (
-        '...'
+    : ( '...'
       | paramList
       | paramList ',' '...'
       ) ?
