@@ -38,16 +38,53 @@ package IR {
     immutable: Immutable,
     typ: LLVMType,
     const: Constant,
-    //ctx: LLVMParser.GlobalDefContext
+    globalAttrs: List[GlobalAttr],
+    funcAttrs: List[FuncAttr],
   ) extends TopLevelEntity
   case class IndirectSymbolDef(ctx: LLVMParser.IndirectSymbolDefContext) extends TopLevelEntity
   case class FunctionDecl(ctx: LLVMParser.FunctionDeclContext) extends TopLevelEntity
-  case class FunctionDef(ctx: LLVMParser.FunctionDefContext) extends TopLevelEntity
+  case class FunctionDef(
+    name: String,
+    linkage: Option[Linkage],
+    header: FunctionHeader,
+    body: FunctionBody,
+    //ctx: LLVMParser.FunctionDefContext,
+  ) extends TopLevelEntity
   case class AttrGroupDef(ctx: LLVMParser.AttrGroupDefContext) extends TopLevelEntity
   case class NamedMetadataDef(ctx: LLVMParser.NamedMetadataDefContext) extends TopLevelEntity
   case class MetadataDef(ctx: LLVMParser.MetadataDefContext) extends TopLevelEntity
   case class UseListOrder(ctx: LLVMParser.UseListOrderContext) extends TopLevelEntity
   case class UseListOrderBB(ctx: LLVMParser.UseListOrderBBContext) extends TopLevelEntity
+
+  case class FunctionHeader(
+    preemptionSpec: Option[PreemptionSpec],
+    visibility: Option[Visibility],
+    dllStorageClass: Option[DllStorageClass],
+    callingConv: Option[CallingConv],
+    returnAttrs: List[ReturnAttr],
+    returnType: LLVMType,
+    globalId: String,
+    params: List[Param],
+    unnamedaddr: Option[UnnamedAddr],
+    funcAttrs: List[FuncAttr],
+    section: Option[Section],
+    // Skipped: optComdat optGC optPrefix optPrologue optPersonality
+  ) extends LAST
+
+  case class FunctionBody(
+    blocks: List[BB],
+    useListOrders: List[UseListOrder]
+  ) extends LAST
+
+  case class BB(label: Option[String], ins: List[Instruction], term: Terminator) extends LAST
+
+  case class BasicBlockList(bbs: List[BB]) extends LAST
+  case class UseListOrderList(os: List[UseListOrder]) extends LAST
+
+  abstract class CallingConv extends LAST
+  // TODO
+
+  case class Section(sec: String) extends LAST
 
   // Linkage
 
@@ -97,7 +134,9 @@ package IR {
 
   abstract class LLVMType extends LAST
   case object VoidType extends LLVMType
-  case class IntType(size: Int) extends LLVMType
+  case class IntType(size: Int) extends LLVMType {
+    override def toString = "i" + size.toString
+  }
   case class FloatType(k: FloatKind) extends LLVMType
   case class VectorType(size: Int, ety: LLVMType) extends LLVMType
   case object LabelType extends LLVMType
@@ -112,9 +151,15 @@ package IR {
   case object MetadataType extends LLVMType
   case class PtrType(ty: LLVMType, addrSpace: Option[AddrSpace]) extends LLVMType
 
+  abstract class MetadataAttachment extends LAST
+
+  case class MetadataAttachmentList(ms: List[MetadataAttachment]) extends LAST
+
   abstract class Param extends LAST
   case object Vararg extends Param
   case class TypedParam(ty: LLVMType, attrs: List[ParamAttr], localId: Option[String]) extends Param
+
+  case class TypedConst(ty: LLVMType, const: Constant) extends LAST
 
   case class ParamList(ps: List[Param]) extends LAST
 
@@ -122,25 +167,49 @@ package IR {
 
   case class ParamAttrList(as: List[ParamAttr]) extends LAST
 
-  abstract class ParamAttr extends LAST
-  case class Alignment(n: Int) extends ParamAttr
-  case class Dereferenceable(n: Int, orNull: Boolean) extends ParamAttr
+  case class GlobalAttrList(as: List[GlobalAttr]) extends LAST
+
+  case class ReturnAttrList(as: List[ReturnAttr]) extends LAST
+
+  case class FuncAttrList(as: List[FuncAttr]) extends LAST
+
+  case class TypedConstList(cs: List[TypedConst]) extends LAST
+
+  abstract class Attr extends LAST
+
+  case class Alignment(n: Int) extends Attr
+      with ParamAttr with GlobalAttr with FuncAttr with ReturnAttr
+
+  case class Dereferenceable(n: Int, orNull: Boolean) extends Attr
+      with ParamAttr with ReturnAttr
+
+  case object InReg extends Attr with ReturnAttr with ParamAttr
+  case object NoAlias extends Attr with ReturnAttr with ParamAttr
+  case object NonNull extends Attr with ReturnAttr with ParamAttr
+  case object SignExt extends Attr with ReturnAttr with ParamAttr
+  case object ZeroExt extends Attr with ReturnAttr with ParamAttr
+  case class Other(s: String) extends Attr with ParamAttr
+
+  trait ParamAttr extends Attr
   case object ByVal extends ParamAttr
   case object InAlloca extends ParamAttr
-  case object InReg extends ParamAttr
   case object Nest extends ParamAttr
-  case object NoAlias extends ParamAttr
   case object NoCapture extends ParamAttr
-  case object NonNull extends ParamAttr
   case object ReadNone extends ParamAttr
   case object Returned extends ParamAttr
-  case object SignExt extends ParamAttr
   case object SRet extends ParamAttr
   case object SwiftErro extends ParamAttr
   case object SwiftSelf extends ParamAttr
   case object WriteOnly extends ParamAttr
-  case object ZeroExt extends ParamAttr
-  case class Other(s: String) extends ParamAttr
+
+  trait GlobalAttr extends Attr
+
+  trait FuncAttr extends Attr
+  case class AttrGroupId(id: String) extends FuncAttr {
+    override def toString = id
+  }
+
+  trait ReturnAttr extends Attr
 
   abstract class Constant extends LAST
   case class BoolConst(b: Boolean) extends Constant
@@ -149,16 +218,20 @@ package IR {
   case object NullConst extends Constant
   case object NoneConst extends Constant
   case class StructConst() extends Constant // Skipped
-  case class ArrayConst() extends Constant
-  case class CharArrayConst() extends Constant
-  case class VectorConst() extends Constant
-  case class ZeroInitializerConst() extends Constant
+  case class ArrayConst(cs: List[TypedConst]) extends Constant
+  case class CharArrayConst(s: String) extends Constant {
+    override def toString = s
+  }
+  case class VectorConst(cs: List[TypedConst]) extends Constant
+  case object ZeroInitializerConst extends Constant
   case class GlobalId(id: String) extends Constant
-  case class UndefConst() extends Constant
-  case class BlockAddrConst() extends Constant
+  case object UndefConst extends Constant
+  case class BlockAddrConst(globalId: String, localId: String) extends Constant
   abstract class ConstantExpr extends Constant
 
   abstract class Instruction extends LAST
+
+  abstract class Terminator extends Instruction
 
 }
 
@@ -228,12 +301,12 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
         Some(ExternInitialized()) else None
     val immutable = visit(ctx.immutable).asInstanceOf[Immutable]
     val typ = visit(ctx.llvmType).asInstanceOf[LLVMType]
-    //println(ctx.llvmType)
-    //println(ctx.constant)
+    val globalAttrs = visit(ctx.globalAttrs).asInstanceOf[GlobalAttrList].as
+    val funcAttrs = visit(ctx.funcAttrs).asInstanceOf[FuncAttrList].as
     val const = visit(ctx.constant).asInstanceOf[Constant]
     GlobalDef(id, linkage, preem, vis, dll,
       thread, unnamedAddr, addrSpace,
-      externInit, immutable, typ, const)
+      externInit, immutable, typ, const, globalAttrs, funcAttrs)
   }
 
   override def visitIndirectSymbolDef(ctx: LLVMParser.IndirectSymbolDefContext): LAST = {
@@ -242,10 +315,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitFunctionDecl(ctx: LLVMParser.FunctionDeclContext): LAST = {
     FunctionDecl(ctx)
-  }
-
-  override def visitFunctionDef(ctx: LLVMParser.FunctionDefContext): LAST = {
-    FunctionDef(ctx)
   }
 
   override def visitAttrGroupDef(ctx: LLVMParser.AttrGroupDefContext): LAST = {
@@ -304,10 +373,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     if (ctx.CONSTANT != null) ConstantImm
     else if (ctx.GLOBAL != null) GlobalImm
     else error
-  }
-
-  def buildPtrType(ctx: LLVMParser.LlvmTypeContext): PtrType = {
-    ???
   }
 
   override def visitIntType(ctx: LLVMParser.IntTypeContext): LAST = {
@@ -453,10 +518,14 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
       val ps = visit(ctx.params).asInstanceOf[ParamList].ps
       FuncType(ps, ty)
     }
-    else if (ctx.metadataType != null)
-      MetadataType
+    else if (ctx.metadataType != null) MetadataType
     else if (ctx.llvmType != null && ctx.optAddrSpace != null && ctx.STAR != null) {
-      buildPtrType(ctx)
+      val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+      val addrSpace =
+        if (ctx.optAddrSpace.addrSpace != null)
+          Some(visit(ctx.optAddrSpace.addrSpace).asInstanceOf[AddrSpace])
+        else None
+      PtrType(ty, addrSpace)
     }
     else error
   }
@@ -490,7 +559,13 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitArrayConst(ctx: LLVMParser.ArrayConstContext): LAST = {
-    ArrayConst()
+    val cs = visit(ctx.typeConsts).asInstanceOf[TypedConstList].cs
+    ArrayConst(cs)
+  }
+
+  override def visitVectorConst(ctx: LLVMParser.VectorConstContext): LAST = {
+    val cs = visit(ctx.typeConsts).asInstanceOf[TypedConstList].cs
+    VectorConst(cs)
   }
 
   override def visitNullConst(ctx: LLVMParser.NullConstContext): LAST = {
@@ -501,8 +576,210 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     NoneConst
   }
 
+  override def visitCharArrayConst(ctx: LLVMParser.CharArrayConstContext): LAST = {
+    CharArrayConst(ctx.stringLit.STRING_LIT.getText)
+  }
+
   override def visitStructConst(ctx: LLVMParser.StructConstContext): LAST = {
     ??? //Skipped
+  }
+
+  override def visitZeroInitializerConst(ctx: LLVMParser.ZeroInitializerConstContext): LAST = {
+    ZeroInitializerConst
+  }
+
+  override def visitGlobalIdent(ctx: LLVMParser.GlobalIdentContext): LAST = {
+    val id = ctx.GLOBAL_IDENT.getText
+    GlobalId(id)
+  }
+
+  override def visitUndefConst(ctx: LLVMParser.UndefConstContext): LAST = {
+    UndefConst
+  }
+
+  override def visitBlockAddressConst(ctx: LLVMParser.BlockAddressConstContext): LAST = {
+    val g = ctx.globalIdent.GLOBAL_IDENT.getText
+    val l = ctx.localIdent.LOCAL_IDENT.getText
+    BlockAddrConst(g, l)
+  }
+
+  override def visitConstantExpr(ctx: LLVMParser.ConstantExprContext): LAST = {
+    ???
+  }
+
+  override def visitTypeConsts(ctx: LLVMParser.TypeConstsContext): LAST = {
+    if (ctx.typeConstList != null)
+      visit(ctx.typeConstList)
+    else TypedConstList(List())
+  }
+
+  override def visitTypeConstList(ctx: LLVMParser.TypeConstListContext): LAST = {
+    val tc = visit(ctx.typeConst).asInstanceOf[TypedConst]
+    if (ctx.typeConstList == null) {
+      TypedConstList(List(tc))
+    } else {
+      val tcs = visit(ctx.typeConstList).asInstanceOf[TypedConstList].cs
+      TypedConstList(tcs ++ List(tc))
+    }
+  }
+
+  override def visitTypeConst(ctx: LLVMParser.TypeConstContext): LAST = {
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val const = visit(ctx.constant).asInstanceOf[Constant]
+    TypedConst(ty, const)
+  }
+
+  override def visitGlobalAttrs(ctx: LLVMParser.GlobalAttrsContext): LAST = {
+    if (ctx.globalAttrList != null) visit(ctx.globalAttrList)
+    else GlobalAttrList(List())
+  }
+
+  override def visitGlobalAttrList(ctx: LLVMParser.GlobalAttrListContext): LAST = {
+    val a = visit(ctx.globalAttr).asInstanceOf[GlobalAttr]
+    if (ctx.globalAttrList == null) {
+      GlobalAttrList(List(a))
+    } else {
+      val as = visit(ctx.globalAttrList).asInstanceOf[GlobalAttrList].as
+      GlobalAttrList(as ++ List(a))
+    }
+  }
+
+  override def visitGlobalAttr(ctx: LLVMParser.GlobalAttrContext): LAST = {
+    super.visitGlobalAttr(ctx)
+    // Note: only alignment is handled
+  }
+
+  override def visitAlignment(ctx: LLVMParser.AlignmentContext): LAST = {
+    Alignment(ctx.INT_LIT.getText.toInt)
+  }
+
+  override def visitDereferenceable(ctx: LLVMParser.DereferenceableContext): LAST = {
+    ???
+  }
+
+  override def visitFuncAttrs(ctx: LLVMParser.FuncAttrsContext): LAST = {
+    if (ctx.funcAttrList != null) visit(ctx.funcAttrList)
+    else FuncAttrList(List())
+  }
+
+  override def visitFuncAttrList(ctx: LLVMParser.FuncAttrListContext): LAST = {
+    val a = visit(ctx.funcAttr).asInstanceOf[FuncAttr]
+    if (ctx.funcAttrList == null) {
+      FuncAttrList(List(a))
+    } else {
+      val as = visit(ctx.funcAttrList).asInstanceOf[FuncAttrList].as
+      FuncAttrList(as ++ List(a))
+    }
+  }
+
+  override def visitFuncAttr(ctx: LLVMParser.FuncAttrContext): LAST = {
+    //println(ctx.getText)
+    super.visitFuncAttr(ctx)
+  }
+
+  override def visitAttrGroupID(ctx: LLVMParser.AttrGroupIDContext): LAST = {
+    AttrGroupId(ctx.ATTR_GROUP_ID.getText)
+  }
+
+  override def visitFunctionDef(ctx: LLVMParser.FunctionDefContext): LAST = {
+    val linkage =
+      if (ctx.optLinkage.linkage != null)
+        Some(visit(ctx.optLinkage.linkage).asInstanceOf[Linkage])
+      else None
+    val header = visit(ctx.functionHeader).asInstanceOf[FunctionHeader]
+    println(header)
+    val id = header.globalId
+    val ms = visit(ctx.metadataAttachments).asInstanceOf[MetadataAttachmentList].ms
+    ???
+  }
+
+  override def visitFunctionBody(ctx: LLVMParser.FunctionBodyContext): LAST = {
+    val BBs = visit(ctx.basicBlockList).asInstanceOf[BasicBlockList].bbs
+    val orders = visit(ctx.useListOrders).asInstanceOf[UseListOrderList].os
+    FunctionBody(BBs, orders)
+  }
+
+  override def visitBasicBlockList(ctx: LLVMParser.BasicBlockListContext): LAST = {
+    val bb = visit(ctx.basicBlock).asInstanceOf[BB]
+    if (ctx.basicBlockList == null)
+      BasicBlockList(List(bb))
+    else {
+      val bbs = visit(ctx.basicBlockList).asInstanceOf[BasicBlockList].bbs
+      BasicBlockList(bbs ++ List(bb))
+    }
+  }
+
+  override def visitBasicBlock(ctx: LLVMParser.BasicBlockContext): LAST = {
+    ???
+  }
+
+  override def visitUseListOrders(ctx: LLVMParser.UseListOrdersContext): LAST = {
+    // Skipped
+    UseListOrderList(List())
+  }
+
+  override def visitFunctionHeader(ctx: LLVMParser.FunctionHeaderContext): LAST = {
+    val optPreepSpec = None
+    val vis =
+      if (ctx.visibility != null)
+        Some(visit(ctx.visibility).asInstanceOf[Visibility])
+      else None
+    val optDll = None
+    val optCallConv = None
+    val returnAttrs = visit(ctx.returnAttrs).asInstanceOf[ReturnAttrList].as
+    val retType = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val id = ctx.globalIdent.GLOBAL_IDENT.getText
+    val params = visit(ctx.params).asInstanceOf[ParamList].ps
+    val unnamedAddr =
+      if (ctx.unnamedAddr != null)
+        Some(visit(ctx.unnamedAddr).asInstanceOf[UnnamedAddr])
+      else None
+    val funcAttrs = visit(ctx.funcAttrs).asInstanceOf[FuncAttrList].as //TODO
+    val section =
+      if (ctx.section != null)
+        Some(visit(ctx.section).asInstanceOf[Section]) //TODO
+      else None
+    FunctionHeader(optPreepSpec, vis, optDll, optCallConv, returnAttrs,
+      retType, id, params, unnamedAddr, funcAttrs, section)
+  }
+
+  override def visitMetadataAttachments(ctx: LLVMParser.MetadataAttachmentsContext): LAST = {
+    //super.visitMetadataAttachments(ctx)
+    // Skipped
+    MetadataAttachmentList(List())
+  }
+
+  override def visitReturnAttrs(ctx: LLVMParser.ReturnAttrsContext): LAST = {
+    if (ctx.returnAttrList == null) ReturnAttrList(List())
+    else visit(ctx.returnAttrList)
+  }
+
+  override def visitReturnAttrList(ctx: LLVMParser.ReturnAttrListContext): LAST = {
+    val a = visit(ctx.returnAttr).asInstanceOf[ReturnAttr]
+    if (ctx.returnAttrList == null)
+      ReturnAttrList(List(a))
+    else {
+      val as = visit(ctx.returnAttrList).asInstanceOf[ReturnAttrList].as
+      ReturnAttrList(as ++ List(a))
+    }
+  }
+
+  override def visitReturnAttr(ctx: LLVMParser.ReturnAttrContext): LAST = {
+    if (ctx.stringLit != null) {
+      Other(ctx.stringLit.STRING_LIT.getText)
+    } else if (ctx.INREG != null) {
+      InReg
+    } else if (ctx.NOALIAS != null) {
+      NoAlias
+    } else if (ctx.NONNULL != null) {
+      NonNull
+    } else if (ctx.SIGNEXT != null) {
+      SignExt
+    } else if (ctx.ZEROEXT != null) {
+      ZeroExt
+    } else {
+      super.visitReturnAttr(ctx)
+    }
   }
 
 }
@@ -516,7 +793,8 @@ object LLVMTest {
 
     val visitor = new MyVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    println(res.es(3))
+    //println(res.es(3))
+    println(res.es(19))
     //println(res)
   }
 
