@@ -166,8 +166,6 @@ package IR {
 
   case object Vararg extends Param with Arg
 
-  case class TypedConst(ty: LLVMType, const: Constant) extends LAST
-
   case class ParamList(ps: List[Param]) extends LAST
 
   case class ArgList(as: List[Arg]) extends LAST
@@ -181,8 +179,6 @@ package IR {
   case class ReturnAttrList(as: List[ReturnAttr]) extends LAST
 
   case class FuncAttrList(as: List[FuncAttr]) extends LAST
-
-  case class TypedConstList(cs: List[TypedConst]) extends LAST
 
   abstract class Attr extends LAST
 
@@ -244,6 +240,19 @@ package IR {
   case class BlockAddrConst(globalId: String, localId: String) extends Constant
   abstract class ConstantExpr extends Constant
 
+  case class GetElemPtrExpr(
+    inBounds: Boolean, // false means not specified
+    baseType: LLVMType,
+    ptrType: LLVMType,
+    const: Constant,
+    typedConsts: List[TypedConst]
+  ) extends ConstantExpr
+
+  case class BitCastExpr(from: LLVMType, const: Constant, to: LLVMType) extends ConstantExpr
+
+  case class TypedConst(inRange: Option[Boolean], ty: LLVMType, const: Constant) extends LAST
+  case class TypedConstList(cs: List[TypedConst]) extends LAST
+
   abstract class OverflowFlag extends LAST
   case object NSW extends OverflowFlag
   case object NUW extends OverflowFlag
@@ -261,23 +270,56 @@ package IR {
     valTy: LLVMType,
     ptrTy: LLVMType,
     value: LLVMValue,
-    align: Alignment) extends ValueInstruction
+    align: Alignment
+  ) extends ValueInstruction
   case class GetElemPtrInst(
-    inBounds: Boolean,
+    inBounds: Boolean, // false means not specified
     baseType: LLVMType,
     ptrType: LLVMType,
     ptrValue: LLVMValue,
-    typedValues: List[TypedValue]) extends ValueInstruction
+    typedValues: List[TypedValue]
+  ) extends ValueInstruction
   case class ICmpInst(pred: Predicate, ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue) extends ValueInstruction
   case class ZExtInst(from: LLVMType, value: LLVMValue, to: LLVMType) extends ValueInstruction
   case class SExtInst(from: LLVMType, value: LLVMValue, to: LLVMType) extends ValueInstruction
   case class CallInst(ty: LLVMType, f: LLVMValue, args: List[Arg]) extends ValueInstruction
+  case class PhiInst(ty: LLVMType, incs: List[Inc]) extends ValueInstruction
+  case class SelectInst(
+    cndTy: LLVMType,
+    cndVal: LLVMValue,
+    thnTy: LLVMType,
+    thnVal: LLVMValue,
+    elsTy: LLVMType,
+    elsVal: LLVMValue
+  ) extends ValueInstruction
+
+  // Incoming value with block label
+  case class Inc(value: LLVMValue, label: String) extends LAST
+  case class IncList(incs: List[Inc]) extends LAST
 
   case class AssignInst(x: String, valInst: ValueInstruction) extends Instruction
   case class StoreInst(vt: LLVMType, vv: LLVMValue,
     at: LLVMType, av: LLVMValue, align: Alignment) extends Instruction
 
   abstract class Terminator extends Instruction
+  case class RetTerm(ty: LLVMType, value: Option[LLVMValue]) extends Terminator
+  case class BrTerm(label: String) extends Terminator
+  case class CondBrTerm(
+    ty: IntType,
+    cnd: LLVMValue,
+    thnLab: String,
+    elsLab: String
+  ) extends Terminator
+  case object Unreachable extends Terminator
+  case class SwitchTerm(
+    cndTy: LLVMType,
+    cndVal: LLVMValue,
+    default: String,
+    table: List[LLVMCase]
+  ) extends Terminator
+
+  case class LLVMCase(ty: LLVMType, n: Int, label: String) extends LAST
+  case class CaseList(cs: List[LLVMCase]) extends LAST
 
   abstract class Predicate extends LAST
   case object EQ extends Predicate
@@ -665,12 +707,47 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitGetElementPtrExpr(ctx: LLVMParser.GetElementPtrExprContext): LAST = {
-    println(ctx.getText) //HERE
-    ???
+    val inBounds =
+      if (ctx.optInBounds.INBOUNDS != null) true
+      else false
+    val baseTy = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val ptrTy = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    val const = visit(ctx.constant).asInstanceOf[Constant]
+    val restConsts = visit(ctx.gepConstIndices).asInstanceOf[TypedConstList].cs
+    GetElemPtrExpr(inBounds, baseTy, ptrTy, const, restConsts)
   }
 
-  override def visitBitCaseExpr(ctx: LLVMParser.BitCastExprContext): LAST = {
-    ??? // HERE
+  override def visitGepConstIndices(ctx: LLVMParser.GepConstIndicesContext): LAST = {
+    if (ctx.gepConstIndexList == null)
+      TypedConstList(List())
+    else
+      visit(ctx.gepConstIndexList)
+  }
+
+  override def visitGepConstIndexList(ctx: LLVMParser.GepConstIndexListContext): LAST = {
+    val c = visit(ctx.gepConstIndex).asInstanceOf[TypedConst]
+    if (ctx.gepConstIndexList == null)
+      TypedConstList(List(c))
+    else {
+      val cs = visit(ctx.gepConstIndexList).asInstanceOf[TypedConstList].cs
+      TypedConstList(cs ++ List(c))
+    }
+  }
+
+  override def visitGepConstIndex(ctx: LLVMParser.GepConstIndexContext): LAST = {
+    val inRange =
+      if (ctx.optInrange.INRANGE != null) Some(true)
+      else Some(false)
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val const = visit(ctx.constant).asInstanceOf[Constant]
+    TypedConst(inRange, ty, const)
+  }
+
+  override def visitBitCastExpr(ctx: LLVMParser.BitCastExprContext): LAST = {
+    val from = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val const = visit(ctx.constant).asInstanceOf[Constant]
+    val to = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    BitCastExpr(from, const, to)
   }
 
   override def visitTypeConsts(ctx: LLVMParser.TypeConstsContext): LAST = {
@@ -692,7 +769,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   override def visitTypeConst(ctx: LLVMParser.TypeConstContext): LAST = {
     val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
     val const = visit(ctx.constant).asInstanceOf[Constant]
-    TypedConst(ty, const)
+    TypedConst(None, ty, const)
   }
 
   override def visitGlobalAttrs(ctx: LLVMParser.GlobalAttrsContext): LAST = {
@@ -889,11 +966,21 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitPhiInst(ctx: LLVMParser.PhiInstContext): LAST = {
-    ???
+    // Skipped optCommaSepMetadataAttachmentList
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val incs = visit(ctx.incList).asInstanceOf[IncList].incs
+    PhiInst(ty, incs)
   }
 
   override def visitSelectInst(ctx: LLVMParser.SelectInstContext): LAST = {
-    ???
+    // Skipped optCommaSepMetadataAttachmentList
+    val cndTy = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val cndVal = visit(ctx.value(0)).asInstanceOf[LLVMValue]
+    val thnTy = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    val thnVal = visit(ctx.value(1)).asInstanceOf[LLVMValue]
+    val elsTy = visit(ctx.llvmType(2)).asInstanceOf[LLVMType]
+    val elsVal = visit(ctx.value(2)).asInstanceOf[LLVMValue]
+    SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal)
   }
 
   override def visitStoreInst(ctx: LLVMParser.StoreInstContext): LAST = {
@@ -920,23 +1007,78 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitTerminator(ctx: LLVMParser.TerminatorContext): LAST = {
-    ???
+    super.visitTerminator(ctx)
   }
 
   override def visitRetTerm(ctx: LLVMParser.RetTermContext): LAST = {
-    ???
+    // Skipped optCommaSepMetadataAttachmentList
+    if (ctx.voidType != null) {
+      RetTerm(VoidType, None)
+    } else {
+      val ty =
+        if (ctx.llvmType != null && ctx.optAddrSpace != null && ctx.STAR != null) {
+          val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+          val addrSpace =
+            if (ctx.optAddrSpace.addrSpace != null)
+              Some(visit(ctx.optAddrSpace.addrSpace).asInstanceOf[AddrSpace])
+            else None
+          PtrType(ty, addrSpace)
+        } else {
+          visit(ctx.concreteNonRecType).asInstanceOf[LLVMType]
+        }
+      val value = visit(ctx.value).asInstanceOf[LLVMValue]
+      RetTerm(ty, Some(value))
+    }
   }
 
   override def visitBrTerm(ctx: LLVMParser.BrTermContext): LAST = {
-    ???
+    // Skipped optCommaSepMetadataAttachmentList
+    val lab = ctx.localIdent.LOCAL_IDENT.getText
+    BrTerm(lab)
+  }
+
+  override def visitCondBrTerm(ctx: LLVMParser.CondBrTermContext): LAST = {
+    val intTy = visit(ctx.intType).asInstanceOf[IntType]
+    val cnd = visit(ctx.value).asInstanceOf[LLVMValue]
+    val thn = ctx.localIdent(0).LOCAL_IDENT.getText
+    val els = ctx.localIdent(1).LOCAL_IDENT.getText
+    CondBrTerm(intTy, cnd, thn, els)
   }
 
   override def visitSwitchTerm(ctx: LLVMParser.SwitchTermContext): LAST = {
-    ???
+    // Skipped optCommaSepMetadataAttachmentList
+    val cndTy = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val cndVal = visit(ctx.value).asInstanceOf[LLVMValue]
+    val default = ctx.localIdent.LOCAL_IDENT.getText
+    val cases = visit(ctx.cases).asInstanceOf[CaseList].cs
+    SwitchTerm(cndTy, cndVal, default, cases)
+  }
+
+  override def visitCases(ctx: LLVMParser.CasesContext): LAST = {
+    if (ctx.caseList == null) CaseList(List())
+    else visit(ctx.caseList)
+  }
+
+  override def visitCaseList(ctx: LLVMParser.CaseListContext): LAST = {
+    val c = visit(ctx.llvmCase).asInstanceOf[LLVMCase]
+    if (ctx.caseList == null)
+      CaseList(List(c))
+    else {
+      val cs = visit(ctx.caseList).asInstanceOf[CaseList].cs
+      CaseList(cs ++ List(c))
+    }
+  }
+
+  override def visitLlvmCase(ctx: LLVMParser.LlvmCaseContext): LAST = {
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val n = visit(ctx.intConst).asInstanceOf[IntConst].n
+    val lab = ctx.localIdent.LOCAL_IDENT.getText
+    LLVMCase(ty, n, lab)
   }
 
   override def visitUnreachableTerm(ctx: LLVMParser.UnreachableTermContext): LAST = {
-    ???
+    // Skipped optCommaSepMetadataAttachmentList
+    Unreachable
   }
 
   override def visitValue(ctx: LLVMParser.ValueContext): LAST = {
@@ -1114,6 +1256,23 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     }
   }
 
+  override def visitIncList(ctx: LLVMParser.IncListContext): LAST = {
+    val inc = visit(ctx.inc).asInstanceOf[Inc]
+    if (ctx.incList == null)
+      IncList(List(inc))
+    else {
+      val incs = visit(ctx.incList).asInstanceOf[IncList].incs
+      IncList(incs ++ List(inc))
+    }
+  }
+
+  override def visitInc(ctx: LLVMParser.IncContext): LAST = {
+    val value = visit(ctx.value).asInstanceOf[LLVMValue]
+    val id = ctx.localIdent.LOCAL_IDENT.getText
+    Inc(value, id)
+  }
+
+
 }
 
 object LLVMTest {
@@ -1126,8 +1285,10 @@ object LLVMTest {
     val visitor = new MyVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
     //println(res.es(3))
-    println(res.es(19))
     //println(res)
+    res.es.foreach { e =>
+      println(e)
+    }
   }
 
   def main(args: Array[String]): Unit = {
