@@ -8,7 +8,24 @@ package IR {
 
   // Module
 
-  case class Module(es: List[TopLevelEntity]) extends LAST
+  case class Module(es: List[TopLevelEntity]) extends LAST {
+    val funcDefMap: Map[String, FunctionDef] =
+      es.filter(_.isInstanceOf[FunctionDef]).asInstanceOf[List[FunctionDef]].map(f => (f.id, f)).toMap
+    val funcDeclMap: Map[String, FunctionDecl] =
+      es.filter(_.isInstanceOf[FunctionDecl]).asInstanceOf[List[FunctionDecl]].map(f => (f.id, f)).toMap
+    val globalDefMap: Map[String, GlobalDef] =
+      es.filter(_.isInstanceOf[GlobalDef]).asInstanceOf[List[GlobalDef]].map(d => (d.id, d)).toMap
+
+    def lookupFuncDef(id: String): Option[FunctionDef] = funcDefMap.get(id)
+    def lookupFuncDecl(id: String): Option[FunctionDecl] = funcDeclMap.get(id)
+    def lookupGlobalDef(id: String): Option[GlobalDef] = globalDefMap.get(id)
+
+    def lookup(id: String): Option[TopLevelEntity] = {
+      lookupFuncDef(id) orElse
+      lookupFuncDecl(id) orElse
+      lookupGlobalDef(id)
+    }
+  }
 
   // TopLevelEntityList
 
@@ -42,15 +59,20 @@ package IR {
     funcAttrs: List[FuncAttr],
   ) extends TopLevelEntity
   case class IndirectSymbolDef(ctx: LLVMParser.IndirectSymbolDefContext) extends TopLevelEntity
-  case class FunctionDecl(ctx: LLVMParser.FunctionDeclContext) extends TopLevelEntity
+  case class FunctionDecl(id: String, header: FunctionHeader) extends TopLevelEntity
   case class FunctionDef(
-    name: String,
+    id: String,
     linkage: Option[Linkage],
     metadata: List[MetadataAttachment],
     header: FunctionHeader,
     body: FunctionBody,
     //ctx: LLVMParser.FunctionDefContext,
-  ) extends TopLevelEntity
+  ) extends TopLevelEntity {
+    val retType: LLVMType = header.returnType
+    val params: List[Param] = header.params
+    val blocks: List[BB] = body.blocks
+    def lookupBlock(label: String): Option[BB] = ??? //TODO: recovering labels
+  }
   case class AttrGroupDef(ctx: LLVMParser.AttrGroupDefContext) extends TopLevelEntity
   case class NamedMetadataDef(ctx: LLVMParser.NamedMetadataDefContext) extends TopLevelEntity
   case class MetadataDef(ctx: LLVMParser.MetadataDefContext) extends TopLevelEntity
@@ -410,10 +432,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitIndirectSymbolDef(ctx: LLVMParser.IndirectSymbolDefContext): LAST = {
     IndirectSymbolDef(ctx)
-  }
-
-  override def visitFunctionDecl(ctx: LLVMParser.FunctionDeclContext): LAST = {
-    FunctionDecl(ctx)
   }
 
   override def visitAttrGroupDef(ctx: LLVMParser.AttrGroupDefContext): LAST = {
@@ -855,8 +873,10 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitBasicBlock(ctx: LLVMParser.BasicBlockContext): LAST = {
     val label =
-      if (ctx.optLabelIdent.labelIdent != null)
-        Some(ctx.optLabelIdent.labelIdent.LABEL_IDENT.getText)
+      if (ctx.optLabelIdent.labelIdent != null) {
+        val l = ctx.optLabelIdent.labelIdent.LABEL_IDENT.getText
+        Some("%"+l.substring(1, l.size-1))
+      }
       else
         None
     val instructions = visit(ctx.instructions).asInstanceOf[InstructionList].is
@@ -1272,6 +1292,12 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     Inc(value, id)
   }
 
+  override def visitFunctionDecl(ctx: LLVMParser.FunctionDeclContext): LAST = {
+    // Skipped metadataAttachments and optExternLinkage
+    val header = visit(ctx.functionHeader).asInstanceOf[FunctionHeader]
+    val id = header.globalId
+    FunctionDecl(id, header)
+  }
 
 }
 
@@ -1292,8 +1318,8 @@ object LLVMTest {
   }
 
   def main(args: Array[String]): Unit = {
-    //val testInput = scala.io.Source.fromFile("test.ll").mkString
-    val testInput = scala.io.Source.fromFile("maze.ll").mkString
+    //val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
+    val testInput = scala.io.Source.fromFile("llvm/test/add.ll").mkString
     println(testInput)
     parse(testInput)
   }
