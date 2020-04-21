@@ -145,6 +145,8 @@ object Handlers {
     final def curried[X](fx: F[X])(k: X => Comp[G ⊗ R, A]): Comp[G ⊗ R, A] = apply(fx,k)
   }
 
+  // Can E (or F) appears at anywhere inside R?
+  // e.g., Return[R, A] => Comp[R, B], but requires E ∈ R and F ∈ R
   def ohandler[E[_], F[_], R <: Eff, A, B]
               (ret: Return[E ⊗ R, A] => Comp[F ⊗ R, B])
               (h: DeepHO[E, F, R, B]): Comp[E ⊗ R, A] => Comp[F ⊗ R, B] = {
@@ -352,15 +354,43 @@ object FreerExample {
   def prog_ref2_square: Comp[∅, Int] = stateref2(2)(state_square(prog))
   def prog_fun_square: Comp[∅, Int] = statefun[∅, Int, Int](state_square(prog))(2)
 
-  def runLocal[E <: Eff, S, A](s: S, prog: Comp[State[S, *] ⊗ (Nondet ⊗ E), A])
-    (implicit I1: State[S, *] ∈ E): Comp[E, List[(S, A)]] = {
+  def runLocal[E <: Eff, S, A](s: S, prog: Comp[State[S, *] ⊗ (Nondet ⊗ E), A]): Comp[E, List[(S, A)]] = {
     /*
-    val f: Comp[Nondet ⊗ E, S => Comp[Nondet ⊗ E, (S, A)]] = statefun_pair[Nondet ⊗ E, S, A](prog)
-    val f2: Comp[Nondet ⊗ E, (S, A)] = f >>= { g => g(s) }
+    val f1: Comp[Nondet ⊗ E, S => Comp[Nondet ⊗ E, (S, A)]] = statefun_pair[Nondet ⊗ E, S, A](prog)
+    val f2: Comp[Nondet ⊗ E, (S, A)] = f1 >>= { g => g(s) }
     val f3: Comp[E, List[(S, A)]] = handleNondet(f2)
      */
     handleNondet(statefun_pair(prog) >>= { f => f(s) })
   }
+
+  def runGlobal[E <: Eff, S, A](s: S, prog: Comp[Nondet ⊗ (State[S, *] ⊗ E), A]): Comp[E, (S, List[A])] = {
+    val f1: Comp[State[S, *] ⊗ E, List[A]] = handleNondet[State[S, *] ⊗ E, A](prog)
+    val f2: Comp[E, S => Comp[E, (S, List[A])]] = statefun_pair(f1)
+    val f3: Comp[E, (S, List[A])] = f2 >>= { g => g(s) }
+    f3
+  }
+
+  def select[E <: Eff, A](xs: List[A])(implicit I: Nondet ∈ E): Comp[E, A] =
+    xs.map(Return[E, A]).foldRight[Comp[E, A]](fail)(choice)
+
+  def inc[E <: Eff](implicit I: State[Int, *] ∈ E): Comp[E, Unit] =
+    for {
+      x <- get
+      _ <- put(x + 1)
+    } yield ()
+
+  /*
+  def choices[E <: Eff, A](prog: Comp[E, A])
+    (implicit I1: Nondet ∈ E, I2: State[Int, *] ∈ E): Comp[E, A] = {
+    val h = ohandler[Nondet, Nondet, E, A, A] {
+      case Return(x) => ret(x)
+    } (ν[DeepHO[Nondet, Nondet, E, A]] {
+      case Fail$() => fail[A, E]
+      case Choice$((), k) => ???
+    })
+    h(prog)
+  }
+   */
 
   def main(args: Array[String]): Unit = {
     println(f"prog_ref: $prog_ref%d")
