@@ -156,7 +156,6 @@ object StateHandler {
   import ⊆._
 
   trait State[S, A]
-
   case class Get[S, A](k: S => A) extends State[S, A]
   case class Put[S, A](s: S, k: A) extends State[S, A]
 
@@ -181,10 +180,10 @@ object StateHandler {
       }
     }
 
-  def get[F[_] : Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
+  def get[F[_]: Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
     inject[State[S, ?], F, S](Get(Return(_)))
 
-  def put[F[_] : Functor, S](s: S)(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
+  def put[F[_]: Functor, S](s: S)(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
     inject[State[S, ?], F, Unit](Put(s, ret(())))
 
   object GetPattern {
@@ -231,8 +230,6 @@ object StateHandler {
       }
     }
 
-
-
   def stateref[F[_] : Functor, S, A](init: S)(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
     var state: S = init
     def handler(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
@@ -248,7 +245,6 @@ object StateHandler {
     }
     handler(comp)
   }
-
 
   //TODO move these
   //TODO make an idiomatic handler arrow type?

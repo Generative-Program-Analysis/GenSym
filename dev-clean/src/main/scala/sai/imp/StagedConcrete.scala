@@ -3,10 +3,9 @@ package sai.imp
 import sai.lang.ImpLang._
 
 import lms.core._
+import lms.macros._
 import lms.core.stub._
 import lms.core.Backend._
-import lms.core.virtualize
-import lms.macros.SourceContext
 
 import sai.lmsx._
 
