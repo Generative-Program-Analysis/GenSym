@@ -177,7 +177,7 @@ object State {
   //Scala's type checker struggles with GADTs having more than one type parameter (e.g. State[S,K]) in pattern
   //matching clauses. We define custom extractors to relieve programmers from manual type casts.
   object Get$ {
-    def unapply[S,X,R](p: (State[S,X], X => R)): Option[(Unit, S => R)] = p match {
+    def unapply[S, X, R](p: (State[S, X], X => R)): Option[(Unit, S => R)] = p match {
       case (Get(), k) => Some(((), k.asInstanceOf[S => R])) //the compiler cannot infer that X = S
       case _ => None
     }
@@ -192,7 +192,7 @@ object State {
 
   import Handlers._
 
-  def stateref[S, E <: Eff, A](init: S) = {
+  def stateref[E <: Eff, S, A](init: S) = {
     var state: S = init
     val deeph = new DeepH[State[S, *], E, A] {
       def apply[X] = (_, _) match {
@@ -205,7 +205,7 @@ object State {
   }
 
   //a little less noisy
-  def stateref2[S, E <: Eff, A](init: S) = {
+  def stateref2[E <: Eff, S, A](init: S) = {
     var state: S = init
     handler[State[S, *], E, A, A] {
       case Return(x) => Return(x)
@@ -216,12 +216,56 @@ object State {
     }
   }
 
-  def statefun[S, A] = handler[State[S,*], ∅, A, S => Comp[∅, A]] {
-    case Return(x)  => ret { _: S => ret(x) }
-  } (ν[DeepH[State[S, *], ∅, S => Comp[∅, A]]] {
-    case Get$((), k) => ret { s: S =>  k(s)(s) }
-    case Put$(s, k)  => ret { _: S => k(())(s) }
-  })
+  // TODO: statefun_mt1 vs statefun_mt2
+  def statefun_mt1[S, A]: Comp[State[S, *] ⊗ ∅, A] => Comp[∅, S => Comp[∅, A]] =
+    handler[State[S,*], ∅, A, S => Comp[∅, A]] {
+      case Return(x)  => ret { _: S => ret(x) }
+    } (ν[DeepH[State[S, *], ∅, S => Comp[∅, A]]] {
+      case Get$((), k) => ret { s: S =>  k(s)(s) }
+      case Put$(s, k)  => ret { _: S => k(())(s) }
+    })
+
+  def statefun_mt2[S, A]: Comp[State[S, *] ⊗ ∅, A] => Comp[∅, S => A] =
+    handler[State[S,*], ∅, A, S => A] {
+      case Return(x)  => ret { _: S => x }
+    } (ν[DeepH[State[S, *], ∅, S => A]] {
+      case Get$((), k) => ret { s: S =>  k(s)(s) }
+      case Put$(s, k)  => ret { _: S => k(())(s) }
+    })
+
+  // Generalized from statefun_mt1
+  // Does the two E's have to be the same?                      ↓            ↓
+  def statefun[E<: Eff, S, A]: Comp[State[S, *] ⊗ E, A] => Comp[E, S => Comp[E, A]] =
+    handler[State[S, *], E, A, S => Comp[E, A]] {
+      case Return(x)  => ret { _: S => ret(x) }
+    } (ν[DeepH[State[S, *], E, S => Comp[E, A]]] {
+      case Get$((), k) => ret { s: S =>
+        k(s) >>= (r => r(s))
+      }
+      case Put$(s, k)  => ret { _: S =>
+        k(()) >>= (r => r(s))
+      }
+    })
+
+  def statefun_mt_pair[S, A]: Comp[State[S, *] ⊗ ∅, A] => Comp[∅, S => (S, A)] =
+    handler[State[S,*], ∅, A, S => (S, A)] {
+      case Return(x)  => ret { s: S => (s, x) }
+    } (ν[DeepH[State[S, *], ∅, S => (S, A)]] {
+      case Get$((), k) => ret { s: S =>  k(s)(s) }
+      case Put$(s, k)  => ret { _: S => k(())(s) }
+    })
+
+  def statefun_pair[E <: Eff, S, A]: Comp[State[S, *] ⊗ E, A] => Comp[E, S => Comp[E, (S, A)]] =
+    handler[State[S, *], E, A, S => Comp[E, (S, A)]] {
+      case Return(x) => ret { s: S => ret((s, x)) }
+    } (ν[DeepH[State[S, *], E, S => Comp[E, (S, A)]]] {
+      case Get$((), k) => ret { s: S =>
+        k(s) >>= (r => r(s))
+      }
+      case Put$(s, k) => ret { s: S =>
+        k(()) >>= (r => r(s))
+      }
+    })
 
   //example of intercepting and forwarding effects with open handler
   def state_square[E <: Eff, A] = ohandler[State[Int, *], State[Int, *], E, A, A] {
@@ -266,7 +310,7 @@ object Nondet {
       case false => b
     }
 
-  def handle[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
+  def handleNondet[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
     handler[Nondet, E, A, List[A]] {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, E, List[A]] {
@@ -288,6 +332,7 @@ object FreerExample {
   import Freer._
   import Handlers._
   import State._
+  import Nondet._
 
   def prog[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] = for {
     x <- get()
@@ -300,12 +345,22 @@ object FreerExample {
   def prog_ref2: Comp[∅, Int] = stateref2(2)(prog)
   def prog_fun: Comp[∅, Int] =
     for {
-      f <- statefun[Int, Int](prog)
+      f <- statefun[∅, Int, Int](prog)
     } yield f(2)
-  def prog_fun2 = statefun[Int, Int](prog)(2)
+  def prog_fun2 = statefun[∅, Int, Int](prog)(2)
   def prog_ref_square: Comp[∅, Int] = stateref(2)(state_square(prog))
   def prog_ref2_square: Comp[∅, Int] = stateref2(2)(state_square(prog))
-  def prog_fun_square: Comp[∅, Int] = statefun[Int,Int](state_square(prog))(2)
+  def prog_fun_square: Comp[∅, Int] = statefun[∅, Int, Int](state_square(prog))(2)
+
+  def runLocal[E <: Eff, S, A](s: S, prog: Comp[State[S, *] ⊗ (Nondet ⊗ E), A])
+    (implicit I1: State[S, *] ∈ E): Comp[E, List[(S, A)]] = {
+    /*
+    val f: Comp[Nondet ⊗ E, S => Comp[Nondet ⊗ E, (S, A)]] = statefun_pair[Nondet ⊗ E, S, A](prog)
+    val f2: Comp[Nondet ⊗ E, (S, A)] = f >>= { g => g(s) }
+    val f3: Comp[E, List[(S, A)]] = handleNondet(f2)
+     */
+    handleNondet(statefun_pair(prog) >>= { f => f(s) })
+  }
 
   def main(args: Array[String]): Unit = {
     println(f"prog_ref: $prog_ref%d")
