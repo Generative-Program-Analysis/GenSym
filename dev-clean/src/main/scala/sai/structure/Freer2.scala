@@ -295,6 +295,16 @@ object Nondet {
       case (Fail, _) => true
       case _ => false
     }
+    //def unapply[E <: Eff, K, R](n: (Comp[E, K], K => R))
+      //(implicit I: Nondet ∈ E): Boolean =  n match {
+          /*
+      case Op(f, k) => I.prj(f) match {
+        case Some(Fail) => true
+        case _ => false
+      }
+      case _ => false
+           */
+        //(implicit I: Nondet ∈ E): Boolean = n._1 match {
   }
 
   object Choice$ {

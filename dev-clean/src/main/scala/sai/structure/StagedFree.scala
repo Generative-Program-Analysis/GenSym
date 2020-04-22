@@ -56,7 +56,7 @@ trait RepFree { self: SAIOps =>
   // Free is a DFunctor, which accepts transformations of Rep[A] => Rep[B].
   // However, the underlying structure F[_] (in Free[F, A]) is a Functor.
 
-  implicit def FreeSFunctorInstance[F[_]: Functor]: DFunctor[Free[F, ?]] =
+  implicit def FreeDFunctorInstance[F[_]: Functor]: DFunctor[Free[F, ?]] =
     new DFunctor[Free[F, ?]] {
       def map[A: Manifest, B: Manifest](x: Free[F, A])(f: Rep[A] => Rep[B]): Free[F, B] = x.map(f)
     }
@@ -157,12 +157,10 @@ trait RepFree { self: SAIOps =>
       case _ =>
         project[Cond, (Cond ⊕ F)#t, A](prog) match {
           case Some(Cond(c, t, e)) =>
-            // Again, here we have a trouble, as c has type Rep[Boolean],
-            // and t and e has type Free[F, A], and eventually we need to
-            // return a Free[F, A].
-            runCond(t)
-            runCond(e)
-            ???
+            for {
+              tv <- runCond(t)
+              ev <- runCond(e)
+            } yield (if (c) tv else ev)
           case _ =>
             val Impure(Right(op)) = prog
             Impure(Functor[F].map(op)(a => runCond[F, A](a)))
@@ -357,12 +355,14 @@ object RepFree {
   @virtualize
   def specialize(e: Int): SAIDriver[Int, Int] =
     new StagedFreeDriver[Int, Int] {
+
       def snippet(u: Rep[Int]) = {
         val xs: Rep[List[Int]] = List(u)
         val res: Rep[(List[Int], Int)] = runVoidState(exprog, xs)
         println(res._1)
         res._2
       }
+
     }
 
   def main(args: Array[String]): Unit = {
