@@ -131,17 +131,16 @@ trait RepFree { self: SAIOps =>
       }
     }
 
-  // Cond Effect
+  // Deterministic Cond Effect
   // Why we need this?
-  //   - if in LMS requires the branches to be Rep type
+  //   - `if` in LMS requires the branches to be Rep type
   //   - CPS improves staging/PE
   // Caveat: thn/els are both passed by-value!
 
   case class Cond[K](cnd: Rep[Boolean], thn: K, els: K)
 
   def cond[F[_]: Functor, A: Manifest](cnd: Rep[Boolean], thn: Free[F, A], els: Free[F, A])
-    (implicit I: Cond ⊆ F): Free[F, A] =
-    inject[Cond, F, A](Cond(cnd, thn, els))
+    (implicit I: Cond ⊆ F): Free[F, A] = inject[Cond, F, A](Cond(cnd, thn, els))
 
   implicit def CondFunctor: Functor[Cond] =
     new Functor[Cond] {
@@ -165,7 +164,6 @@ trait RepFree { self: SAIOps =>
             val Impure(Right(op)) = prog
             Impure(Functor[F].map(op)(a => runCond[F, A](a)))
         }
-
     }
 
   // Nondet Effect
@@ -261,8 +259,19 @@ trait RepFree { self: SAIOps =>
   def runVoidState[S: Manifest, A: Manifest](prog: Free[(State[S, *] ⊕ ∅)#t, A], s: Rep[S]): Rep[(S, A)] =
     runVoid(runState(s, prog))
 
+  def runVoidCondState[S: Manifest, A: Manifest]
+    (prog: Free[(State[S, *] ⊕ (Cond ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[(S, A)] =
+    runVoid(runCond(runState(s, prog)))
+
+  def runVoidStateCond[S: Manifest, A: Manifest]
+    (prog: Free[(Cond ⊕ (State[S, *] ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[(S, A)] =
+    runVoid(runState(s, runCond(prog)))
+
   def runVoidNondet[A: Manifest](prog: Free[(Nondet ⊕ ∅)#t, A]): Rep[List[A]] =
     runVoid(runNondet(prog))
+
+  def runVoidCondNondet[A: Manifest](prog: Free[(Nondet ⊕ (Cond ⊕ ∅)#t)#t, A]): Rep[List[A]] =
+    runVoid(runCond(runNondet(prog)))
 
   def runLocal[F[_]: Functor, S: Manifest, A: Manifest]
     (s: Rep[S], prog: Free[(State[S, ?] ⊕ (Nondet ⊕ F)#t)#t, A]): Free[F, List[(S, A)]] =
@@ -272,11 +281,28 @@ trait RepFree { self: SAIOps =>
     (s: Rep[S], prog: Free[(Nondet ⊕ (State[S, ?] ⊕ F)#t)#t, A]): Free[F, (S, List[A])] =
     runState(s, runNondet(prog))
 
-  def exprog: Free[(State[List[Int], *] ⊕ ∅)#t, Int] = for {
-    xs <- get[(State[List[Int], *] ⊕ ∅)#t, List[Int]]
-    _  <- put[(State[List[Int], *] ⊕ ∅)#t, List[Int]](xs.map(x => x + 1))
-    ys <- get[(State[List[Int], *] ⊕ ∅)#t, List[Int]]
-  } yield ys(0)
+  def exprog1[F[_]: Functor]
+    (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F): Free[F, Int] =
+    for {
+      xs <- get[F, List[Int]]
+      _  <- put[F, List[Int]](xs.map(x => x + 1))
+      ys <- get[F, List[Int]]
+    } yield ys(0)
+
+  def exprog2[F[_]: Functor]
+    (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F): Free[F, Int] =
+    for {
+      xs <- get[F, List[Int]]
+      _  <- put[F, List[Int]](xs.map(x => x * x))
+      ys <- get[F, List[Int]]
+    } yield ys(0)
+
+  def exprog3[F[_]: Functor](x: Rep[Int])
+    (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F): Free[F, Int] =
+    for {
+      s <- cond(x == 0, exprog1[F], exprog2[F])
+      y <- exprog1[F]
+    } yield s + y
 
   // Knapsack
 
@@ -295,19 +321,8 @@ trait RepFree { self: SAIOps =>
     choice(x0, choice(x1, choice(x2, fail)))
   }
 
-  // val a = if (cnd: Rep[Boolean]) (x: A) else (y: A)
-
-  def if_cps[A, B: Manifest](cnd: Rep[Boolean], thn: => A, els: => A)
-    (kt: A => Rep[B])(ke: A => Rep[B]) : Rep[B] = {
-    if (cnd) {
-      kt(thn)
-    } else {
-      ke(els)
-    }
-  }
-
   def knapsack[F[_]: Functor](w: Rep[Int], vs: Rep[List[Int]])
-    (implicit I: Nondet ⊆ F): Free[F, List[Int]] = {
+    (implicit I1: Nondet ⊆ F, I2: Cond ⊆ F): Free[F, List[Int]] = {
     /* Observed that:
      * 1. The conditions w < 0 and w == 0 are dynamic, but they
      *    have Free[F, A] branches.
@@ -329,9 +344,18 @@ trait RepFree { self: SAIOps =>
       xs <- knapsack(w-v, vs)
     } yield v :: xs
      */
-    ???
-  }
 
+    val c = for {
+      v <- select3[F, Int](vs)
+      xs <- knapsack[F](w - v, vs)
+    } yield v :: xs
+
+    cond(w < 0,
+      fail,
+      cond(w == 0,
+        DReturn(List()),
+        c))
+  }
 
 }
 
@@ -355,14 +379,36 @@ object RepFree {
   @virtualize
   def specialize(e: Int): SAIDriver[Int, Int] =
     new StagedFreeDriver[Int, Int] {
+      implicit val F1 = Functor[(Cond ⊕ ∅)#t]
+      implicit val F2 = Functor[(State[List[Int], *] ⊕ ∅)#t]
 
       def snippet(u: Rep[Int]) = {
         val xs: Rep[List[Int]] = List(u)
-        val res: Rep[(List[Int], Int)] = runVoidState(exprog, xs)
+        // Note: Different order of interpretation produce different code.
+        // This one handles state first, and then cond, and generates code
+        //   with respect to the scope of then/else branch.
+        // But this one causes code duplicateion!
+        //val res: Rep[(List[Int], Int)] = runVoidCondState(exprog3[(State[List[Int], *] ⊕ (Cond ⊕ ∅)#t)#t](u), xs)
+
+        // This one handles cond first, and then state, and generates code
+        //   that compute both branches first, then use the results (variables)
+        //   in the generated `if`.
+        val res: Rep[(List[Int], Int)] = runVoidStateCond(exprog3[(Cond ⊕ (State[List[Int], *] ⊕ ∅)#t)#t](u), xs)
+
         println(res._1)
         res._2
       }
+    }
 
+  @virtualize
+  def specializeKnapsack(e: Int): SAIDriver[Int, Int] =
+    new StagedFreeDriver[Int, Int] {
+      implicit val F1 = Functor[(Cond ⊕ ∅)#t]
+      implicit val F2 = Functor[(State[List[Int], *] ⊕ ∅)#t]
+
+      def snippet(u: Rep[Int]) = {
+        ???
+      }
     }
 
   def main(args: Array[String]): Unit = {
