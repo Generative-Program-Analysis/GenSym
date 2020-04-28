@@ -29,12 +29,13 @@ trait RepFree { self: SAIOps =>
   }
 
   // Return storing a dynamic data of type Rep[A]
-  case class DReturn[F[_]: Functor, A: Manifest](a: Rep[A]) extends Free[F, A] {
-    def map[B: Manifest](f: Rep[A] => Rep[B]): Free[F, B] = DReturn(f(a))
+  case class Return[F[_]: Functor, A: Manifest](a: Rep[A]) extends Free[F, A] {
+    def map[B: Manifest](f: Rep[A] => Rep[B]): Free[F, B] = Return(f(a))
     def flatMap[B: Manifest](f: Rep[A] => Free[F, B]): Free[F, B] = f(a)
   }
 
   // Return stroing a static data of type A
+  /*
   case class SReturn[F[_]: Functor, A: Manifest](a: A) extends Free[F, A] {
     def map[B: Manifest](f: Rep[A] => Rep[B]): Free[F, B] =
       // Note: We expect the result of f(a) is also static
@@ -44,6 +45,7 @@ trait RepFree { self: SAIOps =>
     def flatMap[B: Manifest](f: Rep[A] => Free[F, B]): Free[F, B] =
       f(unit(a))
   }
+   */
 
   // Impure can only hold static data of type F[Free[F, A]]
   case class Impure[F[_]: Functor, A: Manifest](x: F[Free[F, A]]) extends Free[F, A] {
@@ -70,8 +72,8 @@ trait RepFree { self: SAIOps =>
     new SMonad[Free[F, ?]] {
       def pure[A: Manifest](a: Rep[A]): Free[F, A] =
         Unwrap(a) match {
-          case Backend.Const(a: A) => SReturn[F, A](a)
-          case _ => DReturn[F, A](a)
+          //case Backend.Const(a: A) => SReturn[F, A](a)
+          case _ => Return[F, A](a)
         }
       def flatMap[A: Manifest, B: Manifest](ma: Free[F, A])(f: Rep[A] => Free[F, B]): Free[F, B] =
         ma.flatMap(f)
@@ -100,9 +102,11 @@ trait RepFree { self: SAIOps =>
     def prj[A](sup: G[A]): Option[F[A]]
   }
 
+  // Inject F into G
   def inject[F[_]: Functor, G[_]: Functor, R: Manifest](x: F[Free[G, R]])(implicit I: F ⊆ G): Free[G, R] =
     Impure(I.inj(x))
 
+  // Project F out of G
   def project[F[_]: Functor, G[_]: Functor, R: Manifest](x: Free[G, R])(implicit I: F ⊆ G): Option[F[Free[G, R]]] =
     x match {
       case Impure(f) => I.prj(f)
@@ -140,31 +144,131 @@ trait RepFree { self: SAIOps =>
   case class Cond[K](cnd: Rep[Boolean], thn: K, els: K)
 
   def cond[F[_]: Functor, A: Manifest](cnd: Rep[Boolean], thn: Free[F, A], els: Free[F, A])
-    (implicit I: Cond ⊆ F): Free[F, A] = inject[Cond, F, A](Cond(cnd, thn, els))
+    (implicit I1: Cond ⊆ F /*, I2: CondScope ⊆ F */): Free[F, A] = {
+    /*
+    for {
+      _ <- inject[CondScope, F, Unit](CondStart(Return(())))
+      x <- inject(Cond(cnd, thn, els))
+      _ <- inject[CondScope, F, Unit](CondEnd(Return()))
+    } yield x
+     */
+    inject[Cond, F, A](Cond(cnd, thn, els))
+  }
 
   implicit def CondFunctor: Functor[Cond] =
     new Functor[Cond] {
       def map[A, B](x: Cond[A])(f: A => B): Cond[B] = x match {
-        case Cond(c, t, e) => Cond(c, f(t), f(e)) // TODO: what about the join point?
+        case Cond(c, t, e) =>
+          // TODO: what about the join point?
+          //System.out.println("t: " + t)
+          //System.out.println("f(t): " + f(t))
+          //Cond(c, f(t), f(e))
+          //Cond(c, f(t), f(e))
+          Cond(c, f.asInstanceOf[B], e.asInstanceOf[B])
       }
     }
 
-  def runCond[F[_]: Functor, A: Manifest](prog: Free[(Cond ⊕ F)#t, A]): Free[F, A] =
+  def runCond[F[_]: Functor, A: Manifest](prog: Free[(Cond ⊕ F)#t, A]): Free[F, A] = {
     prog match {
-      case SReturn(x) => SReturn(x)
-      case DReturn(x) => DReturn(x)
+      case Return(x) => Return(x)
       case _ =>
-        project[Cond, (Cond ⊕ F)#t, A](prog) match {
+        System.out.println("runCond: " + prog)
+        val p = project[Cond, (Cond ⊕ F)#t, A](prog)
+        System.out.println("project: " + p)
+        p match {
+          //case Some(Cond(c, t: Free[(Cond ⊕ F)#t, A], e: Free[(Cond ⊕ F)#t, A])) =>
           case Some(Cond(c, t, e)) =>
-            for {
-              tv <- runCond(t)
-              ev <- runCond(e)
-            } yield (if (c) tv else ev)
+            System.out.println(e)
+            ???
+          case Some(Cond(c, t, e)) =>
+            runCond(for {
+              //_ <- Return[F, A](unchecked("//then"))
+              tv <- t //runCond(upcast(t))
+              //_ <- Return[F, A](unchecked("//else"))
+              ev <- e //runCond(upcast(e))
+              //_ <- Return[F, A](unchecked("//end"))
+            } yield (if (c) tv else ev))
           case _ =>
-            val Impure(Right(op)) = prog
-            Impure(Functor[F].map(op)(a => runCond[F, A](a)))
+            System.out.println(prog)
+            prog match {
+              case Impure(Right(op)) =>
+                //val Impure(Right(op)) = prog
+                Impure(Functor[F].map(op)(a => runCond[F, A](a)))
+            }
         }
     }
+  }
+
+  def upcast[F[_]: Functor, G[_]: Functor, A: Manifest](prog: Free[G, A]): Free[(F ⊕ G)#t, A] =
+    prog match {
+      case Return(x) => Return(x)
+      case Impure(op) =>
+        Impure(Right(Functor[G].map(op)(a => upcast(a))))
+    }
+
+  /*
+  abstract class CondScope[K]
+  case class CondStart[K](k: K) extends CondScope[K]
+  case class CondEnd[K](k: K) extends CondScope[K]
+
+  implicit def CondScopeFunctor: Functor[CondScope] =
+    new Functor[CondScope] {
+      def map[A, B](x: CondScope[A])(f: A => B): CondScope[B] = x match {
+        case CondStart(k) => CondStart(f(k))
+        case CondEnd(k) => CondEnd(f(k))
+      }
+    }
+   */
+
+  /*
+  case class KCond[A](cnd: Rep[Boolean], thn: Any, els: Any, k: Any => A) {
+    override def toString: String =
+      "KCond(" + cnd + "," + thn + "," + els + ", λ)"
+  }
+
+  def kcond[F[_]: Functor, A: Manifest](cnd: Rep[Boolean], thn: Free[F, A], els: Free[F, A])
+    (implicit I: KCond ⊆ F): Free[F, A] = {
+    inject[KCond, F, A](KCond(cnd, thn, els, a => a.asInstanceOf[Free[F, A]]))
+  }
+
+  implicit def KCondFunctor: Functor[KCond] =
+    new Functor[KCond] {
+      def map[A, B](x: KCond[A])(f: A => B): KCond[B] = x match {
+        case KCond(c, t, e, k) =>
+          KCond(c, t, e, (r: Any) => f(k(r)))
+      }
+    }
+
+  def runKCond[F[_]: Functor, A: Manifest](prog: Free[(KCond ⊕ F)#t, A]): Free[F, A] = {
+    prog match {
+      case Return(x) => Return(x)
+      case _ =>
+        val I: (KCond ⊆ (KCond ⊕ F)#t) = implicitly[(KCond ⊆ (KCond ⊕ F)#t)]
+        val p = project[KCond, (KCond ⊕ F)#t, A](prog)
+        System.out.println("prog: " + prog)
+        System.out.println("project(prog): " + p)
+        prog match {
+          case Impure(f) =>
+            System.out.println("Yes, impure")
+            System.out.println(I.prj(f))
+          case _ => 
+        }
+        p match {
+          //case Some(KCond(c, t: Free[F, A], e: Free[F, A], k)) =>
+          case Some(KCond(c, t: Free[(KCond ⊕ F)#t, A], e: Free[(KCond ⊕ F)#t, A], k)) =>
+            val res = for {
+              v1 <- runKCond(t)
+              v2 <- runKCond(e)
+            } yield {if (c) v1 else v2}
+            runKCond(k(res))
+          case _ =>
+            System.out.println("else: " + prog)
+            val Impure(Right(op)) = prog
+            Impure(Functor[F].map(op)(a => runKCond(a)))
+        }
+    }
+  }
+   */
 
   // Nondet Effect
 
@@ -188,11 +292,12 @@ trait RepFree { self: SAIOps =>
 
   def runNondet[F[_]: Functor, A: Manifest](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
     prog match {
-      case SReturn(x) => SReturn(scala.collection.immutable.List(x))
-      case DReturn(x) => DReturn(List(x))
+      //case SReturn(x) => SReturn(scala.collection.immutable.List(x))
+      case Return(x) => Return(List(x))
       case _ =>
         project[Nondet, (Nondet ⊕ F)#t, A](prog) match {
-          case Some(Fail) => SReturn(scala.collection.immutable.List())
+          //case Some(Fail) => SReturn(scala.collection.immutable.List())
+          case Some(Fail) => Return(List())
           case Some(Choice(p, q)) =>
             for {
               ps <- runNondet(p)
@@ -207,7 +312,9 @@ trait RepFree { self: SAIOps =>
   // State Effect
 
   abstract class State[S: Manifest, A]
-  case class Get[S: Manifest, A](k: Rep[S] => A) extends State[S, A]
+  case class Get[S: Manifest, A](k: Rep[S] => A) extends State[S, A] {
+    override def toString: String = "Get(λ)"
+  }
   case class Put[S: Manifest, A](s: Rep[S], k: A) extends State[S, A]
 
   // State is a _static_ functor
@@ -220,17 +327,41 @@ trait RepFree { self: SAIOps =>
     }
 
   def get[F[_]: Functor, S: Manifest](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
-    inject[State[S, ?], F, S](Get((s: Rep[S]) => DReturn(s)))
+    inject[State[S, ?], F, S](Get((s: Rep[S]) => Return(s)))
 
   def put[F[_]: Functor, S: Manifest](s: Rep[S])(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
-    inject[State[S, ?], F, Unit](Put(s, SReturn(())))
+    inject[State[S, ?], F, Unit](Put(s, Return(())))
+
+  def runStateRef[F[_]: Functor, S: Manifest, A: Manifest]
+    (s: Rep[S])(prog: Free[(State[S, *] ⊕ F)#t, A]): Free[F, A] = {
+    //var state: Var[S] = s
+    val state: Var[S] = var_new(s)
+    def handler(prog: Free[(State[S, *] ⊕ F)#t, A]): Free[F, A] =
+      prog match {
+        //case SReturn(a) => SReturn(a)
+        case Return(a) => Return(a)
+        case _ =>
+          project[State[S, *], (State[S, *] ⊕ F)#t, A](prog) match {
+            case Some(Get(k)) => handler(k(readVar(state)))
+            //case Some(Get(k)) => handler(k(state))
+            case Some(Put(s1, k)) =>
+              //state = s
+              __assign(state, s)
+              handler(k)
+            case _ =>
+              val Impure(Right(op)) = prog
+              Impure(Functor[F].map(op)(handler))
+          }
+      }
+    handler(prog)
+  }
 
   def runState[F[_]: Functor, S: Manifest, A: Manifest](s: Rep[S], prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
     prog match {
       // TODO: what's the right patially-static data pattern to describe
       //       structure/shape is static, but data is dynamic?
-      case SReturn(a) => DReturn((s, a)) // FIXME `a` and the structure is static, but lifted into DReturn
-      case DReturn(a) => DReturn((s, a))
+      //case SReturn(a) => Return((s, a)) // FIXME `a` and the structure is static, but lifted into Return
+      case Return(a) => Return((s, a))
       //case GetPattern(k) => run(s, k(s))
       //case PutPattern(s1, k) => run(s1, k)
       case _ =>
@@ -250,8 +381,8 @@ trait RepFree { self: SAIOps =>
     }
 
   def runVoid[A: Manifest](f: Free[∅, A]): Rep[A] = f match {
-    case SReturn(x) => unit(x)
-    case DReturn(x) => x
+    //case SReturn(x) => unit(x)
+    case Return(x) => x
   }
 
   // Top-level runner
@@ -263,9 +394,27 @@ trait RepFree { self: SAIOps =>
     (prog: Free[(State[S, *] ⊕ (Cond ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[(S, A)] =
     runVoid(runCond(runState(s, prog)))
 
+  /*
+  def runVoidKCondState[S: Manifest, A: Manifest]
+    (prog: Free[(State[S, *] ⊕ (KCond ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[(S, A)] =
+    runVoid(runKCond(runState(s, prog)))
+   */
+
+  def runVoidCondStateRef[S: Manifest, A: Manifest]
+    (prog: Free[(State[S, *] ⊕ (Cond ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[A] = {
+    val sh = runStateRef[(Cond ⊕ ∅)#t, S, A](s) _
+    runVoid(runCond(sh(prog)))
+  }
+
   def runVoidStateCond[S: Manifest, A: Manifest]
     (prog: Free[(Cond ⊕ (State[S, *] ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[(S, A)] =
     runVoid(runState(s, runCond(prog)))
+
+  /*
+  def runVoidStateKCond[S: Manifest, A: Manifest]
+    (prog: Free[(KCond ⊕ (State[S, *] ⊕ ∅)#t)#t, A], s: Rep[S]): Rep[(S, A)] =
+    runVoid(runState(s, runKCond(prog)))
+   */
 
   def runVoidNondet[A: Manifest](prog: Free[(Nondet ⊕ ∅)#t, A]): Rep[List[A]] =
     runVoid(runNondet(prog))
@@ -285,29 +434,42 @@ trait RepFree { self: SAIOps =>
     (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F): Free[F, Int] =
     for {
       xs <- get[F, List[Int]]
-      _  <- put[F, List[Int]](xs.map(x => x + 1))
+      _  <- put[F, List[Int]](xs.map(x => x + 2))
       ys <- get[F, List[Int]]
     } yield ys(0)
 
-  def exprog2[F[_]: Functor]
+  def exprog2[F[_]: Functor](y: Rep[Int])
     (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F): Free[F, Int] =
     for {
       xs <- get[F, List[Int]]
-      _  <- put[F, List[Int]](xs.map(x => x * x))
+      _  <- put[F, List[Int]](xs.map(x => x * y))
       ys <- get[F, List[Int]]
-    } yield ys(0)
+    } yield ys(1)
 
   def exprog3[F[_]: Functor](x: Rep[Int])
-    (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F): Free[F, Int] =
+    //(implicit I1: State[List[Int], *] ⊆ F, I2: KCond ⊆ F): Free[F, Int] =
+    (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F/*, I3: CondScope ⊆ F*/): Free[F, Int] =
     for {
-      s <- cond(x == 0, exprog1[F], exprog2[F])
-      y <- exprog1[F]
+      //s <- kcond(x == 0, exprog1[F], exprog2[F](x + 100))
+      s <- cond(x == 0, exprog1[F], exprog2[F](x + 100))
+      y <- exprog2[F](x) //Return[F, Int](3)
     } yield s + y
+
+  def exprog4[F[_]: Functor](x: Rep[Int])
+    //(implicit I1: State[List[Int], *] ⊆ F, I2: KCond ⊆ F): Free[F, Int] =
+    (implicit I1: State[List[Int], *] ⊆ F, I2: Cond ⊆ F/*, I3: CondScope ⊆ F*/): Free[F, Int] =
+    for {
+      //s <- kcond(x == 12, exprog3[F](x), exprog1[F])
+      s <- cond(x == 12, exprog3[F](x), exprog1[F])
+      x <- Return[F, Int](5)
+    } yield s + x
+
+  ///////////////////////////////////////////
 
   // Knapsack
 
   // Note: If xs is dynamic, then we cannot statically create
-  //       Return (DReturn) for each element in the list.
+  //       Return (Return) for each element in the list.
   /*
   def select[F[_]: Functor, A: Manifest](xs: Rep[List[A]])
     (implicit I: Nondet ⊆ F): Free[F, A] =
@@ -315,12 +477,13 @@ trait RepFree { self: SAIOps =>
    */
   def select3[F[_]: Functor, A: Manifest](xs: Rep[List[A]])
     (implicit I: Nondet ⊆ F): Free[F, A] = {
-    val x0 = DReturn[F, A](xs(0))
-    val x1 = DReturn[F, A](xs(0))
-    val x2 = DReturn[F, A](xs(0))
+    val x0 = Return[F, A](xs(0))
+    val x1 = Return[F, A](xs(0))
+    val x2 = Return[F, A](xs(0))
     choice(x0, choice(x1, choice(x2, fail)))
   }
 
+  /*
   def knapsack[F[_]: Functor](w: Rep[Int], vs: Rep[List[Int]])
     (implicit I1: Nondet ⊆ F, I2: Cond ⊆ F): Free[F, List[Int]] = {
     /* Observed that:
@@ -353,15 +516,32 @@ trait RepFree { self: SAIOps =>
     cond(w < 0,
       fail,
       cond(w == 0,
-        DReturn(List()),
+        Return(List()),
         c))
   }
+   */
 
 }
 
 trait StagedFreeGen extends SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
+    //case n @ Node(s, op, List(x), _) if op.startsWith("unchecked") => ???
     case _ => super.shallow(n)
+  }
+  override def mayInline(n: Node): Boolean = n match {
+    //case Node(_, "+", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
+  override def traverse(n: Node): Unit = n match {
+    case n @ Node(s, op, List(), _) if op.startsWith("unchecked") =>
+      emit(op.substring("unchecked".size, op.size))
+    case n @ Node(s, op, List(x), _) if op.startsWith("unchecked") =>
+      shallow(x)
+    case n @ Node(s,"var_set",List(x,y),_) =>
+      System.out.println("A VAR SET")
+      emit(s"${quote(x)} = "); shallow(y); emitln()
+    case _ => super.traverse(n)
   }
 }
 
@@ -377,28 +557,36 @@ trait StagedFreeDriver[A, B] extends SAIDriver[A, B] with RepFree { q =>
 
 object RepFree {
   @virtualize
-  def specialize(e: Int): SAIDriver[Int, Int] =
+  def specialize(): SAIDriver[Int, Int] =
     new StagedFreeDriver[Int, Int] {
       implicit val F1 = Functor[(Cond ⊕ ∅)#t]
+      //implicit val F3 = Functor[(KCond ⊕ ∅)#t]
       implicit val F2 = Functor[(State[List[Int], *] ⊕ ∅)#t]
 
       def snippet(u: Rep[Int]) = {
-        val xs: Rep[List[Int]] = List(u)
+        val xs: Rep[List[Int]] = List(u, u+1)
+
         // Note: Different order of interpretation produce different code.
         // This one handles state first, and then cond, and generates code
         //   with respect to the scope of then/else branch.
         // But this one causes code duplicateion!
-        //val res: Rep[(List[Int], Int)] = runVoidCondState(exprog3[(State[List[Int], *] ⊕ (Cond ⊕ ∅)#t)#t](u), xs)
+        val res: Rep[(List[Int], Int)] = runVoidCondState(exprog4[(State[List[Int], *] ⊕ (Cond ⊕ ∅)#t)#t](u), xs)
+        //val res: Rep[(List[Int], Int)] = runVoidKCondState(exprog4[(State[List[Int], *] ⊕ (KCond ⊕ ∅)#t)#t](u), xs)
+
+        // Using mutable state handler (Not work yet)
+        //val res: Rep[Int] = runVoidCondStateRef(exprog3[(State[List[Int], *] ⊕ (Cond ⊕ ∅)#t)#t](u), xs)
 
         // This one handles cond first, and then state, and generates code
         //   that compute both branches first, then use the results (variables)
         //   in the generated `if`.
-        val res: Rep[(List[Int], Int)] = runVoidStateCond(exprog3[(Cond ⊕ (State[List[Int], *] ⊕ ∅)#t)#t](u), xs)
+        //val p = exprog4[(Cond ⊕ (State[List[Int], *] ⊕ ∅)#t)#t](u)
+        //val res: Rep[(List[Int], Int)] = runVoidStateCond(p, xs)
 
-        println(res._1)
+        println(res)
         res._2
       }
     }
+
 
   @virtualize
   def specializeKnapsack(e: Int): SAIDriver[Int, Int] =
@@ -411,10 +599,6 @@ object RepFree {
       }
     }
 
-  def main(args: Array[String]): Unit = {
-    val code = specialize(1)
-    println(code.code)
-  }
 }
 
 

@@ -571,10 +571,289 @@ object ImpEff {
   }
 }
 
-/*******************************************/
+import lms.core._
+import lms.core.stub._
+import lms.macros._
+import lms.core.Backend._
+import sai.lmsx._
 
-object ReaderWriterEffect {
-  trait ReaderWriter[I, O, X]
-  case class Get[I, O, X](f: I => X) extends ReaderWriter[I, O, X]
-  case class Put[I, O, X](o: O, f: Unit => X) extends ReaderWriter[I, O, X]
+@virtualize
+trait StagedImpEff extends SAIOps {
+  import Free._
+  import Coproduct.{CoproductFunctor => _, _}
+  import NondetHandler.{NondetFunctor => _, _}
+  import VoidHandler.{VoidFunctor => _, _}
+  import StateHandler.{StateFunctor => _, _}
+  import NondetVoidHandler._
+  import StateNondetHandler._
+  import ⊆._
+
+  import sai.lang.ImpLang._
+
+  trait Value
+  //case class IntV(i: Int) extends Value
+  //case class BoolV(b: Boolean) extends Value
+  def IntV(i: Rep[Int]): Rep[Value] =
+    Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
+  def BoolV(b: Rep[Boolean]): Rep[Value] =
+    Wrap[Value](Adapter.g.reflect("BoolV", Unwrap(b)))
+
+  implicit def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
+    case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
+      Wrap[Int](v)
+    case _ =>
+      Wrap[Int](Adapter.g.reflect("IntV-proj", Unwrap(i)))
+  }
+
+  implicit def rep_bool_proj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
+    case Adapter.g.Def("BoolV", scala.collection.immutable.List(v: Backend.Exp)) =>
+      Wrap[Boolean](v)
+    case _ =>
+      Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
+  }
+
+  type Store = Map[String, Value]
+
+  def eval(e: Expr, σ: Rep[Store]): Rep[Value] = e match {
+    case Lit(i: Int) => IntV(i)
+    case Lit(b: Boolean) => BoolV(b)
+    case Var(x) => σ(x)
+    case Op1("-", e) =>
+      val i: Rep[Int] = eval(e, σ)
+      IntV(-i)
+    case Op2(op, e1, e2) =>
+      val i1: Rep[Int] = eval(e1, σ)
+      val i2: Rep[Int] = eval(e2, σ)
+      op match {
+        case "+" => IntV(i1 + i2)
+        case "-" => IntV(i1 - i2)
+        case "*" => IntV(i1 * i2)
+        case "==" => BoolV(i1 == i2)
+        case "<=" => BoolV(i1 <= i2)
+        case "<" => BoolV(i1 < i2)
+        case ">=" => BoolV(i1 >= i2)
+        case ">" => BoolV(i1 > i2)
+      }
+  }
+
+  def eval[F[_]: Functor](e: Expr)
+    (implicit I: State[Rep[Store], ?] ⊆ F): Free[F, Rep[Value]] =
+    for { σ <- get } yield eval(e, σ)
+
+  def select[F[_]: Functor, A](xs: List[A])(implicit I: Nondet ⊆ F): Free[F, A] =
+    xs.map(Return[F, A]).foldRight[Free[F, A]](fail)(choice)
+
+  def select[F[_]: Functor](e: Expr, s1: Stmt, s2: Stmt)
+    (implicit I: Nondet ⊆ F, I2: State[Rep[Store], ?] ⊆ F): Free[F, Rep[Stmt]] =
+    for {
+      v <- eval(e)
+    } yield {
+      val b = rep_bool_proj(v)
+      if (b) s1 else s2
+    }
+
+  type Result = (Store, Unit)
+
+  def h[F[_]: Functor](prog: Free[F, Rep[Unit]])
+    (implicit I: State[Rep[Store], ?] ⊆ F): Rep[Result] =
+    ???
+
+  def r[F[_]: Functor](res: Rep[Result])
+    (implicit I: State[Rep[Store], ?] ⊆ F): Free[F, Rep[Unit]] =
+    ???
+    //r_state[F, Store, Unit](res)
+
+  def upcast[F[_]: Functor, G[_]: Functor, A: Manifest](prog: Free[G, A]): Free[(F ⊕ G)#t, A] =
+    prog match {
+      case Return(x) => Return(x)
+      case Impure(op) => Impure(Right(Functor[G].map(op)(a => upcast(a))))
+    }
+
+  def h_state[S: Manifest, A: Manifest](s: Rep[S])
+    (prog: Free[(State[Rep[S], *] ⊕ ∅)#t, Rep[A]]): Rep[(S, A)] = 
+    VoidHandler.run(StateHandler.run(s, prog))
+
+  def r_state[S: Manifest, A: Manifest]
+    (res: Rep[(S, A)]): Free[(State[Rep[S], *] ⊕ ∅)#t, Rep[A]] = {
+    val s = res._1
+    val a = res._2
+    for {
+      _ <- inject[State[Rep[S], *], (State[Rep[S], *] ⊕ ∅)#t, Unit](Put(s, ret(())))
+    } yield a
+  }
+
+  def r_nondet[F[_]: Functor, A: Manifest]
+    (res: Rep[List[A]]): Free[(F ⊕ Nondet)#t, Rep[A]] = {
+    val size: Rep[Int] = res.size
+    // we need to know the size of res
+    ???
+  }
+
+  //def exec[F[_]: Functor](s: Stmt)(implicit I: State[Rep[Store], ?] ⊆ F): Free[F, Rep[Unit]] =
+  def exec(s: Stmt): Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Unit]] =
+    s match {
+      case Skip() => ret(())
+      case Assign(x, e) =>
+        for {
+          σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          v <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+          _ <- put[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]](σ + (x → v))
+        } yield ()
+      case Cond(e, s1, s2) =>
+        /*
+        val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Unit]] =
+          for {
+            b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+            _ <- Return[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]](if (b) h_state(σ)(exec(s1)) else h_state(σ)(exec(s2)))
+          } yield ()
+        for {
+          _ <- res
+        } yield ()
+         */
+
+        /*
+        for {
+          b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+          v1 <- exec(s1)
+          v2 <- exec(s2)
+        } yield { if (b) v1 else v2 }
+         */
+
+        val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
+          for {
+            b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          } yield { if (b) h_state(σ)(exec(s1)) else h_state(σ)(exec(s2)) }
+        for {
+          e <- res
+          a <- r_state(e)
+        } yield a
+      case Seq(s1, s2) =>
+        for {
+          _ <- exec(s1)
+          _ <- exec(s2)
+        } yield ()
+      case While(e, b) =>
+        def loop(in: Rep[Result]): Rep[Result] = {
+          val f: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] = for {
+            _ <- r_state(in)
+            v <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          } yield {
+            if (v) rep_loop(h_state(σ)(exec(b))) else h_state(σ)(exec(Skip()))
+          }
+          val out = h_state[Store, Result](Map())(f)
+          out._2
+        }
+        def rep_loop: Rep[Result => Result] = fun(loop)
+        val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
+          for {
+            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          } yield { rep_loop((σ, ())) }
+        for {
+          e <- res
+          a <- r_state(e)
+        } yield a
+    }
+}
+
+trait StagedImpEffGen extends SAICodeGenBase {
+  override def shallow(n: Node): Unit = n match {
+    //case n @ Node(s, op, List(x), _) if op.startsWith("unchecked") => ???
+    case Node(s, "IntV", List(i), _) =>
+      emit("IntV(")
+      shallow(i)
+      emit(")")
+    case Node(s, "IntV-proj", List(i), _) =>
+      shallow(i)
+      emit(".asInstanceOf[IntV].i")
+    case Node(s, "BoolV", List(b), _) =>
+      emit("BoolV(")
+      shallow(b)
+      emit(")")
+    case Node(s, "BoolV-proj", List(i), _) =>
+      shallow(i)
+      emit(".asInstanceOf[BoolV].b")
+    case _ => super.shallow(n)
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, "?", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
+  override def traverse(n: Node): Unit = n match {
+    case n @ Node(s, op, List(), _) if op.startsWith("unchecked") =>
+      emit(op.substring("unchecked".size, op.size))
+    case n @ Node(s, op, List(x), _) if op.startsWith("unchecked") =>
+      shallow(x)
+    case _ => super.traverse(n)
+  }
+}
+
+trait StagedImpEffDriver[A, B] extends SAIDriver[A, B] with StagedImpEff { q =>
+  override val codegen = new ScalaGenBase with StagedImpEffGen {
+    val IR: q.type = q
+    import IR._
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString.endsWith("$Value")) "Value"
+      else super.remap(m)
+    }
+  }
+
+  override val prelude =
+"""
+import sai.lang.ImpLang._
+trait Value
+case class IntV(i: Int) extends Value
+case class BoolV(b: Boolean) extends Value
+"""
+}
+
+object StagedImpEff {
+  import sai.lang.ImpLang._
+
+  val cond =
+    Seq(
+      Cond(Op2("<=", Var("x"), Var("y")),
+        Assign("z", Var("x")),
+        Assign("z", Var("y"))),
+      Assign("z", Op2("+", Var("z"), Lit(1))))
+
+  val fact_n =
+    Seq(Assign("i", Lit(1)),
+      Seq(Assign("fact", Lit(1)),
+        While(Op2("<=", Var("i"), Var("n")),
+          Seq(Assign("fact", Op2("*", Var("fact"), Var("i"))),
+            Assign("i", Op2("+", Var("i"), Lit(1)))))))
+
+  @virtualize
+  def specialize(): SAIDriver[Int, Int] =
+    new StagedImpEffDriver[Int, Int] {
+
+      def snippet1(u: Rep[Int]) = {
+        val s0: Rep[Map[String, Value]] = Map(("x", IntV(u)), ("y", IntV(u+1)))
+        val f = exec(cond)
+        val result = h_state(s0)(f)
+        println(result)
+        result._1("z")
+      }
+
+      def snippet2(u: Rep[Int]) = {
+        val s0: Rep[Map[String, Value]] = Map(("n", IntV(u)))
+        val f = exec(fact_n)
+        val result = h_state(s0)(f)
+        println(result)
+        result._1("fact")
+      }
+
+      def snippet(u: Rep[Int]) = snippet2(u)
+    }
+
+  def main(args: Array[String]) {
+    val code = specialize()
+    println(code.code)
+    code.eval(5)
+  }
 }
