@@ -735,15 +735,17 @@ trait StagedImpEff extends SAIOps {
           _ <- exec(s2)
         } yield ()
       case While(e, b) =>
+        // This becomes super ugly, needs clean up
         def loop(in: Rep[Result]): Rep[Result] = {
-          val f: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] = for {
-            _ <- r_state(in)
-            v <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
-            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
-          } yield {
-            if (v) rep_loop(h_state(σ)(exec(b))) else h_state(σ)(exec(Skip()))
-          }
-          val out = h_state[Store, Result](Map())(f)
+          val f: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
+            for {
+              _ <- r_state(in)
+              v <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+              σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+            } yield {
+              if (v) rep_loop(h_state(σ)(exec(b))) else h_state(σ)(exec(Skip()))
+            }
+          val out = h_state[Store, Result](Map())(f) // Here the mt store doesn't matter
           out._2
         }
         def rep_loop: Rep[Result => Result] = fun(loop)
@@ -798,6 +800,7 @@ trait StagedImpEffDriver[A, B] extends SAIDriver[A, B] with StagedImpEff { q =>
     import IR._
     override def remap(m: Manifest[_]): String = {
       if (m.toString.endsWith("$Value")) "Value"
+      else if (m.toString == "java.lang.String") "String"
       else super.remap(m)
     }
   }
@@ -854,6 +857,6 @@ object StagedImpEff {
   def main(args: Array[String]) {
     val code = specialize()
     println(code.code)
-    code.eval(5)
+    println(code.eval(5))
   }
 }
