@@ -711,15 +711,34 @@ trait StagedImpEff extends SAIOps {
           _ <- res
         } yield ()
          */
-
         /*
-        for {
+        // h_state': Rep[Store] => Free[State + F, Rep[Unit]] => Free[F, Rep[Unit]]
+        // Seq(Cond(...), Assign(...))
+        val m1 = for {
           b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
-          v1 <- exec(s1)
-          v2 <- exec(s2)
-        } yield { if (b) v1 else v2 }
-         */
+          σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          val then = h_state(σ)(exec(s1)_ >>= ...
+          val els = h_state... //Free[???, Rep[Unit]
 
+          f1 <- shift { (k: Rep[Unit] => Free[F, Rep[Unit]]) => h_state'(σ)(exec(s1)) >>= k }
+          //v1 <- (h_state(σ)(exec(s1)) >>= ((r, s) => for { _ <- put(s) } yield r))
+          //v2 <- (h_state(σ)(exec(s2)) >>= ((r, s) => ... ))
+        } yield { quote { if (b) splice(then) else splice(els) } }
+
+          splice[A]: Free[???, Rep[A]] => Rep[A]            
+          quote = handler {
+            x => x
+            //k: Rep[A] => Free[???,???]
+            splice(comp), k => comp >>= k
+          }
+
+          outer_state_handler {
+            exec(Cond):
+
+            then: Rep[Store] = h_state#1(get#outer){ exec(s1) //get,put handled by #1    } >>= (r,s) => put(s); r
+            els = h_state#2(get#outer){ exec(s2) //get,put handled by #2 }  >>= (r,s) => put(s); r
+          }
+         */
         val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
           for {
             b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
@@ -749,6 +768,7 @@ trait StagedImpEff extends SAIOps {
           out._2
         }
         def rep_loop: Rep[Result => Result] = fun(loop)
+
         val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
           for {
             σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
