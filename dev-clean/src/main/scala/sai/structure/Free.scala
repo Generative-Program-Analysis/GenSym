@@ -2,7 +2,7 @@ package sai.structure.monad
 package free
 
 import sai.structure.functor._
-import sai.structure.monad.free.VoidHandler.∅
+import sai.structure.monad.free.VoidEff.∅
 import sai.structure.~>
 
 abstract class Free[F[_]: Functor, A] {
@@ -95,7 +95,7 @@ object ⊆ {
     }
 }
 
-object NondetHandler {
+object NondetEff {
   import Free._
   import Coproduct._
   import ⊆._
@@ -117,7 +117,7 @@ object NondetHandler {
   def choice[F[_]: Functor, A](f: Free[F, A], g: Free[F, A])(implicit I: Nondet ⊆ F): Free[F, A] =
     inject[Nondet, F, A](Choice(f, g))
 
-  object FailPattern {
+  object Fail$ {
     def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Nondet ⊆ F): Boolean =
       project[Nondet, F, A](x) match {
         case Some(Fail) => true
@@ -125,7 +125,7 @@ object NondetHandler {
       }
   }
 
-  object ChoicePattern {
+  object Choice${
     def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Nondet ⊆ F): Option[(Free[F, A], Free[F, A])] =
       project[Nondet, F, A](x) match {
         case Some(Choice(p, q)) => Some((p, q))
@@ -136,8 +136,8 @@ object NondetHandler {
   def run[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] =
     prog match {
       case Return(x) => ret(List(x))
-      case FailPattern() => ret(List())
-      case ChoicePattern(p, q) =>
+      case Fail$() => ret(List())
+      case Choice$(p, q) =>
         for {
           ps <- run(p)
           qs <- run(q)
@@ -149,7 +149,202 @@ object NondetHandler {
   def apply[F[_]: Functor, A](prog: Free[(Nondet ⊕ F)#t, A]): Free[F, List[A]] = run(prog)
 }
 
-object StateHandler {
+object KondEff {
+  import ⊆._
+  import Free._
+  import Coproduct._
+
+  case class Cnd[E, X, A](cnd: E, thn: A, els: A, k: X => A)
+
+  implicit def CndFunctor[E, X]: Functor[Cnd[E, X, *]] =
+    new Functor[Cnd[E, X, *]] {
+      def map[A, B](x: Cnd[E, X, A])(f: A => B): Cnd[E, X, B] = {
+        val Cnd(c, t, e, k) = x
+        Cnd(c, f(t), f(e), x => f(k(x)))
+      }
+    }
+
+  object Cnd$ {
+    def unapply[F[_] : Functor, E, X, A](x: Free[F, A])
+      (implicit I: Cnd[E, X, ?] ⊆ F): Option[(E, Free[F, A], Free[F, A], X => Free[F, A])] =
+      project[Cnd[E, X, ?], F, A](x) match {
+        case Some(Cnd(c, t, e, k)) => Some((c, t, e, k))
+        case _ => None
+      }
+  }
+
+  def cond[F[_]: Functor, E, X, A](cnd: E, thn: Free[F, A], els: Free[F, A])
+    (implicit I: Cnd[E, X, *] ⊆ F): Free[F, A] = {
+    inject[Cnd[E, X, *], F, A](Cnd(cnd, thn, els, x => {
+      System.out.println(x)
+      Return(x).asInstanceOf[Free[F, A]]
+    }))
+  }
+
+  def run[F[_]: Functor, E, A](prog: Free[(Cnd[E, A, *] ⊕ F)#t, A])
+    (implicit select: (E, A, A) ⇒ A): Free[F, A] = {
+    prog match {
+      case Return(x) => ret(x)
+      case Cnd$(c, t, e, k) =>
+        for {
+          tv <- run(t)
+          ev <- run(e)
+          v <- run(k(select(c, tv, ev)))
+        } yield { v }
+      case Impure(Right(op)) =>
+        Impure(Functor[F].map(op)(a => run[F, E, A](a)))
+    }
+  }
+}
+
+object CondEff {
+  import ⊆._
+  import Free._
+  import Coproduct._
+
+  case class Cnd[E, K](cnd: E, thn: K, els: K)
+
+  implicit def CndFunctor[E]: Functor[Cnd[E, *]] =
+    new Functor[Cnd[E, *]] {
+      def map[A, B](x: Cnd[E, A])(f: A => B): Cnd[E, B] = {
+        val Cnd(c, t, e) = x
+        Cnd(c, f(t), f(e))
+      }
+    }
+
+  object Cnd$ {
+    def unapply[F[_] : Functor, E, A](x: Free[F, A])
+      (implicit I: Cnd[E, ?] ⊆ F): Option[(E, Free[F, A], Free[F, A])] =
+      project[Cnd[E, ?], F, A](x) match {
+        case Some(Cnd(c, t, e)) => Some((c, t, e))
+        case _ => None
+      }
+  }
+
+  def cond[F[_]: Functor, E, A](cnd: E, thn: Free[F, A], els: Free[F, A])
+    (implicit I: Cnd[E, *] ⊆ F): Free[F, A] = {
+    inject[Cnd[E, *], F, A](Cnd(cnd, thn, els))
+  }
+
+  type BCnd[T] = Cnd[Boolean, T]
+  def bcndSelect[T](b: Boolean, t: T, e: T): T = {
+    if (b) t else e
+  }
+
+  def run[F[_]: Functor, E, A](prog: Free[(Cnd[E, *] ⊕ F)#t, A])
+    (implicit select: (E, A, A) ⇒ A): Free[F, A] = {
+    prog match {
+      case Return(x) => ret(x)
+      case Cnd$(c, t, e) =>
+        for {
+          tv <- run(t)
+          ev <- run(e)
+        } yield { select(c, tv, ev) }
+      case Impure(Right(op)) =>
+        Impure(Functor[F].map(op)(a => run[F, E, A](a)))
+    }
+  }
+
+  abstract class CondScope[+K]
+  case class BCond[K](k: K) extends CondScope[K]
+  case class ECond[K](k: K) extends CondScope[K]
+
+  object BCond$ {
+    def unapply[F[_] : Functor, A](x: Free[F, A])
+      (implicit I: CondScope ⊆ F): Option[Free[F, A]] =
+      project[CondScope, F, A](x) match {
+        case Some(BCond(k)) => Some(k)
+        case _ => None
+      }
+  }
+
+  object ECond$ {
+    def unapply[F[_] : Functor, A](x: Free[F, A])
+      (implicit I: CondScope ⊆ F): Option[Free[F, A]] =
+      project[CondScope, F, A](x) match {
+        case Some(ECond(k)) => Some(k)
+        case _ => None
+      }
+  }
+
+  implicit def CondScopeFunctor: Functor[CondScope] =
+    new Functor[CondScope] {
+      def map[A, B](x: CondScope[A])(f: A => B): CondScope[B] = x match {
+        case BCond(a) => BCond(f(a))
+        case ECond(a) => ECond(f(a))
+      }
+    }
+
+  def condWithScope[F[_]: Functor, E, A](cnd: E, thn: Free[F, A], els: Free[F, A])
+    (implicit I1: Cnd[E, *] ⊆ F, I2: CondScope ⊆ F): Free[F, A] = {
+    for {
+      _ <- inject[CondScope, F, Unit](BCond(Return()))
+      x <- inject(Cnd(cnd, thn, els))
+      _ <- inject[CondScope, F, Unit](ECond(Return()))
+    } yield x
+  }
+
+  def upcast[F[_]: Functor, G[_]: Functor, A](prog: Free[G, A]): Free[(F ⊕ G)#t, A] =
+    prog match {
+      case Return(x) => Return(x)
+      case Impure(op) =>
+        Impure(Right(Functor[G].map(op)(a => upcast(a))))
+    }
+
+  def runBCond[F[_]: Functor, E, A](prog: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A])
+    (implicit select: (E, A, A) => A): Free[(Cnd[E, *] ⊕ F)#t, A] = {
+    prog match {
+      case Return(x) => ret(x)
+      case BCond$(k) =>
+        implicit def SelectFree(c: E, t: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A], e: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]): Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A] = {
+          for {
+            tv <- t
+            ev <- e
+          } yield select(c, tv, ev)
+        }
+        for {
+          u <- upcast[Cnd[E, *], F, Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]](run(runECond(k)))
+          v <- runBCond(u)
+        } yield v
+      case ECond$(k) => throw new RuntimeException("Mismatched BCond")
+      case Impure(Right(op)) =>
+        Impure[(Cnd[E, *] ⊕ F)#t, A](Functor[(Cnd[E, *] ⊕ F)#t].map(op)(a => runBCond[F, E, A](a)))
+    }
+  }
+
+  def runECond[F[_]: Functor, E, A](prog: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A])
+    (implicit select: (E, A, A) => A):
+      Free[(Cnd[E, *] ⊕ F)#t, Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]] = {
+    prog match {
+      case Return(x) => ret(Return(x))
+      case BCond$(k) =>
+        implicit def SelectFree(c: E, t: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A], e: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]): Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A] = {
+          for {
+            tv <- t
+            ev <- e
+          } yield select(c, tv, ev)
+        }
+        for {
+          u <- upcast[Cnd[E, *], F, Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]](run(runECond(k)))
+          v <- runECond(k)
+        } yield v
+      case ECond$(k) => ret(k)
+      case Impure(Right(op)) =>
+        Impure(Functor[(Cnd[E, *] ⊕ F)#t].map(op)(a => runECond(a)))
+    }
+  }
+
+  // Still have the problem of code duplication
+  def runWithScope[F[_]: Functor, E, A](prog: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A])
+    (implicit select: (E, A, A) => A): Free[F, A] = {
+    run(runBCond(prog))
+  }
+
+
+}
+
+
+object StateEff {
 
   import Free._
   import Coproduct._
@@ -186,7 +381,7 @@ object StateHandler {
   def put[F[_]: Functor, S](s: S)(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
     inject[State[S, ?], F, Unit](Put(s, ret(())))
 
-  object GetPattern {
+  object Get$ {
     def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[S => Free[F, A]] =
       project[State[S, ?], F, A](x) match {
         case Some(Get(k)) => Some(k)
@@ -194,7 +389,7 @@ object StateHandler {
       }
   }
 
-  object PutPattern {
+  object Put$ {
     def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[(S, Free[F, A])] =
       project[State[S, ?], F, A](x) match {
         case Some(Put(s, a)) => Some((s, a))
@@ -205,8 +400,8 @@ object StateHandler {
   def run[F[_] : Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
     prog match {
       case Return(a) => ret((s, a))
-      case GetPattern(k) => run(s, k(s))
-      case PutPattern(s1, k) => run(s1, k)
+      case Get$(k) => run(s, k(s))
+      case Put$(s1, k) => run(s1, k)
       case Impure(Right(op)) => //TODO: have deep_handle and shallow_handle combinators that hide the default case
         Impure(Functor[F].map(op)(run(s, _)))
     }
@@ -214,11 +409,11 @@ object StateHandler {
   def statefun[F[_] : Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): S => Free[F, A] =
     comp match {
       case Return(x) => { _ => ret(x) }
-      case GetPattern(k) => { s =>
+      case Get$(k) => { s =>
         val f = statefun(k(s)) //implicit resolution stumbles with statefun(k(s))(s)
         f(s)
       }
-      case PutPattern(s, k) => { _ =>
+      case Put$(s, k) => { _ =>
         val f = statefun(k)
         f(s)
       }
@@ -235,8 +430,8 @@ object StateHandler {
     def handler(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
       comp match {
         case Return(x) => ret(x)
-        case GetPattern(k) => handler(k(state))
-        case PutPattern(s, k) =>
+        case Get$(k) => handler(k(state))
+        case Put$(s, k) =>
           state = s
           handler(k)
         case Impure(Right(op)) =>
@@ -316,21 +511,21 @@ object StateHandler {
     }*/
 }
 
-object StateNondetHandler {
+object StateNondetEff {
   import ⊆._
   import Free._
   import Coproduct._
-  import StateHandler._
-  import NondetHandler._
+  import StateEff._
+  import NondetEff._
 
   def runLocal[F[_]: Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ (Nondet ⊕ F)#t)#t, A]): Free[F, List[(S, A)]] =
-    NondetHandler.run(StateHandler.run(s, prog))
+    NondetEff.run(StateEff.run(s, prog))
 
   def runGlobal[F[_]: Functor, S, A](s: S, prog: Free[(Nondet ⊕ (State[S, ?] ⊕ F)#t)#t, A]): Free[F, (S, List[A])] =
-    StateHandler.run(s, NondetHandler.run(prog))
+    StateEff.run(s, NondetEff.run(prog))
 }
 
-object VoidHandler {
+object VoidEff {
   trait ∅[+K]
 
   implicit val VoidFunctor: Functor[∅] =
@@ -345,20 +540,20 @@ object VoidHandler {
   def apply[A](f: Free[∅, A]): A = run(f)
 }
 
-object NondetVoidHandler {
+object NondetVoidEff {
   import Coproduct._
-  import NondetHandler._
-  import VoidHandler._
+  import NondetEff._
+  import VoidEff._
 
   def allsols[A](prog: Free[(Nondet ⊕ ∅)#t, A]): List[A] =
-    VoidHandler(NondetHandler(prog))
+    VoidEff(NondetEff(prog))
 }
 
 object CutHandler {
   import Free._
   import Coproduct._
   import ⊆._
-  import NondetHandler._
+  import NondetEff._
 
   trait Cut[+A]
   case object Cutfail extends Cut[Nothing]
@@ -368,7 +563,7 @@ object CutHandler {
       def map[A, B](x: Cut[A])(f: A => B): Cut[B] = x.asInstanceOf[Cut[B]]
     }
 
-  object CutfailPattern {
+  object Cutfail$ {
     def unapply[F[_]: Functor, A](x: Free[F, A])(implicit I: Cut ⊆ F): Boolean =
       project[Cut, F, A](x) match {
         case Some(Cutfail) => true
@@ -382,9 +577,9 @@ object CutHandler {
   def go[F[_]: Functor, A](p: Free[(Cut ⊕ F)#t, A], q: Free[F, A])(implicit I: Nondet ⊆ F): Free[F, A] =
     p match {
       case Return(a) => choice(ret(a), q)
-      case FailPattern() => q
-      case CutfailPattern() => fail
-      case ChoicePattern(a, b) => go(a, go(b, q))
+      case Fail$() => q
+      case Cutfail$() => fail
+      case Choice$(a, b) => go(a, go(b, q))
       case Impure(Right(op)) =>
         Impure(Functor[F].map(op)(go(_, q)))
     }
@@ -405,12 +600,12 @@ object CutHandler {
 object Knapsack {
   import Free._
   import Coproduct.{CoproductFunctor => _, _}
-  import NondetHandler.{NondetFunctor => _, _}
-  import VoidHandler.{VoidFunctor => _, _}
-  import StateHandler.{StateFunctor => _, _}
+  import NondetEff.{NondetFunctor => _, _}
+  import VoidEff.{VoidFunctor => _, _}
+  import StateEff.{StateFunctor => _, _}
   import CutHandler.{CutFunctor => _, _}
-  import NondetVoidHandler._
-  import StateNondetHandler._
+  import NondetVoidEff._
+  import StateNondetEff._
 
   def inc[F[_]: Functor](implicit I: State[Int, ?] ⊆ F): Free[F, Unit] =
     for {
@@ -421,8 +616,8 @@ object Knapsack {
   def choices[F[_]: Functor, A](prog: Free[F, A])(implicit I1: Nondet ⊆ F, I2: State[Int, ?] ⊆ F): Free[F, A] =
     prog match {
       case Return(x) => ret(x)
-      case FailPattern() => fail
-      case ChoicePattern(p, q) =>
+      case Fail$() => fail
+      case Choice$(p, q) =>
         for {
           _ <- inc
           pq <- choice(choices(p), choices(q))
@@ -445,9 +640,9 @@ object Knapsack {
   }
 
   def main(args: Array[String]) {
-    import VoidHandler.VoidFunctor
-    import StateHandler.StateFunctor
-    import NondetHandler.NondetFunctor
+    import VoidEff.VoidFunctor
+    import StateEff.StateFunctor
+    import NondetEff.NondetFunctor
     import CutHandler.CutFunctor
 
     // Only nondeterminism effect
@@ -457,13 +652,13 @@ object Knapsack {
       // Note: have to manually define an implicit functor instance here,
       //       otherwise Scala compiler complains implicit expansion divergence
       implicit val F = Functor[(State[Int, ?] ⊕ ∅)#t]
-      VoidHandler(runGlobal(0, choices(knapsack[(Nondet ⊕ (State[Int, ?] ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
+      VoidEff(runGlobal(0, choices(knapsack[(Nondet ⊕ (State[Int, ?] ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
     }
     println(global)
 
     val local: List[(Int, List[Int])] = {
       implicit val F = Functor[(Nondet ⊕ ∅)#t]
-      VoidHandler(runLocal(0, choices(knapsack[(State[Int, ?] ⊕ (Nondet ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
+      VoidEff(runLocal(0, choices(knapsack[(State[Int, ?] ⊕ (Nondet ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
     }
     println(local)
 
@@ -479,11 +674,11 @@ object Knapsack {
 object ImpEff {
   import Free._
   import Coproduct.{CoproductFunctor => _, _}
-  import NondetHandler.{NondetFunctor => _, _}
-  import VoidHandler.{VoidFunctor => _, _}
-  import StateHandler.{StateFunctor => _, _}
-  import NondetVoidHandler._
-  import StateNondetHandler._
+  import NondetEff.{NondetFunctor => _, _}
+  import VoidEff.{VoidFunctor => _, _}
+  import StateEff.{StateFunctor => _, _}
+  import NondetVoidEff._
+  import StateNondetEff._
 
   import sai.lang.ImpLang._
 
@@ -558,16 +753,16 @@ object ImpEff {
 
   def main(args: Array[String]): Unit = {
     import Examples._
-    import VoidHandler.VoidFunctor
-    import StateHandler.StateFunctor
-    import NondetHandler.NondetFunctor
+    import VoidEff.VoidFunctor
+    import StateEff.StateFunctor
+    import NondetEff.NondetFunctor
 
     //implicit val F1 = Functor[(State[Store, ?] ⊕ ∅)#t]
     implicit val F2 = Functor[(Nondet ⊕ ∅)#t]
     //println(fact5)
 
     // concrete execution
-    println(VoidHandler.run(NondetHandler.run(StateHandler.run(Map[String, Value](), exec[(State[Store, ?] ⊕ (Nondet ⊕ ∅)#t)#t](fact5)))))
+    println(VoidEff.run(NondetEff.run(StateEff.run(Map[String, Value](), exec[(State[Store, ?] ⊕ (Nondet ⊕ ∅)#t)#t](fact5)))))
   }
 }
 
@@ -577,17 +772,19 @@ import lms.macros._
 import lms.core.Backend._
 import sai.lmsx._
 
+import Free._
+import Coproduct.{CoproductFunctor => _, _}
+import NondetEff.{NondetFunctor => _, _}
+import VoidEff.{VoidFunctor => _, _}
+import StateEff.{StateFunctor => _, _}
+//import CondEff.{CndFunctor => _, CondScopeFunctor => _, _}
+import KondEff.{CndFunctor => _, _}
+import NondetVoidEff._
+import StateNondetEff._
+import ⊆._
+
 @virtualize
 trait StagedImpEff extends SAIOps {
-  import Free._
-  import Coproduct.{CoproductFunctor => _, _}
-  import NondetHandler.{NondetFunctor => _, _}
-  import VoidHandler.{VoidFunctor => _, _}
-  import StateHandler.{StateFunctor => _, _}
-  import NondetVoidHandler._
-  import StateNondetHandler._
-  import ⊆._
-
   import sai.lang.ImpLang._
 
   trait Value
@@ -671,7 +868,7 @@ trait StagedImpEff extends SAIOps {
 
   def h_state[S: Manifest, A: Manifest](s: Rep[S])
     (prog: Free[(State[Rep[S], *] ⊕ ∅)#t, Rep[A]]): Rep[(S, A)] = 
-    VoidHandler.run(StateHandler.run(s, prog))
+    VoidEff.run(StateEff.run(s, prog))
 
   def r_state[S: Manifest, A: Manifest]
     (res: Rep[(S, A)]): Free[(State[Rep[S], *] ⊕ ∅)#t, Rep[A]] = {
@@ -837,7 +1034,7 @@ case class BoolV(b: Boolean) extends Value
 object StagedImpEff {
   import sai.lang.ImpLang._
 
-  val cond =
+  val cond_ex =
     Seq(
       Cond(Op2("<=", Var("x"), Var("y")),
         Assign("z", Var("x")),
@@ -857,7 +1054,7 @@ object StagedImpEff {
 
       def snippet1(u: Rep[Int]) = {
         val s0: Rep[Map[String, Value]] = Map(("x", IntV(u)), ("y", IntV(u+1)))
-        val f = exec(cond)
+        val f = exec(cond_ex)
         val result = h_state(s0)(f)
         println(result)
         result._1("z")
@@ -871,7 +1068,71 @@ object StagedImpEff {
         result._1("fact")
       }
 
-      def snippet(u: Rep[Int]) = snippet2(u)
+      def snippet3(u: Rep[Int]): Rep[Int] = {
+
+        def exprog1[F[_]: Functor]
+          (implicit I1: State[Rep[List[Int]], *] ⊆ F): Free[F, Rep[Int]] =
+          for {
+            xs <- get[F, Rep[List[Int]]]
+            _  <- put[F, Rep[List[Int]]](xs.map(x => x + 2))
+            ys <- get[F, Rep[List[Int]]]
+          } yield ys(0)
+
+        def exprog2[F[_]: Functor]
+          (implicit I1: State[Rep[List[Int]], *] ⊆ F): Free[F, Rep[Int]] =
+          for {
+            xs <- get[F, Rep[List[Int]]]
+            _  <- put[F, Rep[List[Int]]](xs.map(x => x * x))
+            ys <- get[F, Rep[List[Int]]]
+          } yield ys(0)
+
+        //val res = VoidEff.run(StateEff.run(List(u), exprog2[(State[Rep[List[Int]], *] ⊕ ∅)#t]))
+        //res._2
+
+        type RBCnd[T] = Cnd[Rep[Boolean], (Rep[List[Int]], Rep[Int]), T]
+        implicit def bcndSelect(b: Rep[Boolean], t: Rep[Int], e: Rep[Int]): Rep[Int] = {
+          System.out.println("rep boolean select")
+          if (b) t else e
+        }
+        implicit val F1 = Functor[(State[Rep[List[Int]], *] ⊕ ∅)#t]
+        implicit val F2 = Functor[(RBCnd ⊕ ∅)#t]
+
+        def exprog3[F[_]: Functor]
+          (implicit I1: RBCnd ⊆ F,
+            I2: State[Rep[List[Int]], *] ⊆ F
+            /*  I3: CondScope ⊆ F */
+          ): Free[F, Rep[Int]] = {
+          for {
+            x <- get[F, Rep[List[Int]]]
+            y <- cond[F, Rep[Boolean], (Rep[List[Int]], Rep[Int]), Rep[Int]](x == 0, exprog2[F], exprog1[F])
+            //y <- condWithScope(x == 0, exprog2[F], exprog1[F])
+            _ <- put[F, Rep[List[Int]]](List(y))
+            z <- get[F, Rep[List[Int]]]
+          } yield z(0)
+        }
+
+        //val res1 = VoidEff.run(StateEff.run(List(u),
+        //  KondEff.run(exprog3[(RBCnd ⊕ (State[Rep[List[Int]], *] ⊕ ∅)#t)#t])))
+
+        implicit def bcndSelectState(b: Rep[Boolean],
+          t: (Rep[List[Int]], Rep[Int]), e: (Rep[List[Int]], Rep[Int])): (Rep[List[Int]], Rep[Int]) = {
+          System.out.println("rep boolean select")
+          val r: Rep[(List[Int], Int)] = if (b) t else e
+          (r._1, r._2)
+        }
+
+        //implicit val F3 = Functor[(CondScope ⊕ (RBCnd ⊕ ∅)#t)#t]
+
+        val res1 = VoidEff.run(KondEff.run(StateEff.run(List(u),
+          exprog3[(State[Rep[List[Int]], *] ⊕ (RBCnd ⊕ ∅)#t)#t])))
+
+        //val res1 = VoidEff.run(CondEff.runWithScope(StateEff.run(List(u),
+        //  exprog3[(State[Rep[List[Int]], *] ⊕ (CondScope ⊕ (RBCnd ⊕ ∅)#t)#t)#t])))
+
+        res1._2
+      }
+
+      def snippet(u: Rep[Int]): Rep[Int] = snippet3(u)
     }
 
   def main(args: Array[String]) {
