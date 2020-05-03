@@ -177,7 +177,8 @@ object KondEff {
     (implicit I: Cnd[E, X, *] ⊆ F): Free[F, A] = {
     inject[Cnd[E, X, *], F, A](Cnd(cnd, thn, els, x => {
       System.out.println(x)
-      Return(x).asInstanceOf[Free[F, A]]
+      // FIXME: This is not right.
+      Return[F, A](x.asInstanceOf[A])
     }))
   }
 
