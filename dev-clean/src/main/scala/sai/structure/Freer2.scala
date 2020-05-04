@@ -264,7 +264,7 @@ object State {
       case Get$((), k) => ret { s: S =>
         k(s) >>= (r => r(s))
       }
-      case Put$(s, k) => ret { s: S =>
+      case Put$(s, k) => ret { _: S =>
         k(()) >>= (r => r(s))
       }
     })
@@ -338,6 +338,33 @@ object Nondet {
 
 }
 
+trait Selector[R[_]] {
+  def apply[A: Manifest](c: R[Boolean], x: R[A], y: R[A]): R[A]
+}
+
+object CondEff2 {
+  import Eff._
+  import Freer._
+  import Handlers._
+  import OpenUnion._
+
+  sealed trait Cnd[K]
+  case class BranchBy[C](c: C) extends Cnd[C]
+
+  def handleCond[R <: Eff, C, A]: Comp[Cnd ⊗ R, A] => Comp[R, A] =
+    handler[Cnd, R, A, A] {
+      case Return(x) => ret(x)
+    } (new DeepH[Cnd, R, A] {
+      def apply[X]: (Cnd[X], (X => Comp[R, A])) => Comp[R, A] = {
+        case (fx: Cnd[X], k: (X => Comp[R, A])) =>
+          val BranchBy(c) = fx
+          k(c)
+      }
+    })
+
+}
+
+  /*
 object CondEff {
   import Eff._
   import Freer._
@@ -359,10 +386,6 @@ object CondEff {
       }
   }
 
-  trait Selector[C] {
-    def apply[A](c: C, x: A, y: A): A
-  }
-
   def handleCond[R <: Eff, C, A](implicit IF: Selector[C]): Comp[Cnd[R, C, *] ⊗ R, A] => Comp[R, A] =
     handler[Cnd[R, C, *], R, A, A] {
       case Return(x) => ret(x)
@@ -381,6 +404,7 @@ object CondEff {
       }
     })
 }
+   */
 
 import lms.core._
 import lms.core.stub._
@@ -395,43 +419,127 @@ object StagedFreerExample {
   import Freer._
   import Handlers._
   import State._
-  import CondEff._
+  //import CondEff._
+  import CondEff2._
+
+  type NoRep[T] = T
+
+  def cond[R <: Eff, A: Manifest](c: Boolean, a: Comp[R, A], b: Comp[R, A])
+    (implicit I: Cnd ∈ R, IF: Selector[NoRep]): Comp[R, A] = {
+    perform[Cnd, R, Boolean](BranchBy(c)) >>= { x =>
+      implicit def m: Manifest[Comp[R, A]] = null //The manifest is not used for unstaged version
+      IF(x, a, b)
+    }
+  }
 
   @virtualize
   def specialize(): SAIDriver[Int, Int] =
     new StagedImpEffDriver[Int, Int] {
 
-      def prog1[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
+      def scond[R <: Eff, A: Manifest](c: Rep[Boolean], a: Comp[R, Rep[A]], b: Comp[R, Rep[A]])
+        (implicit I: Cnd ∈ R, IF: Selector[Rep]): Comp[R, Rep[A]] = {
+        perform[Cnd, R, Rep[Boolean]](BranchBy(c)) >>= { x =>
+          for {
+            v1 <- a
+            v2 <- b
+          } yield { if (x) { println(v1); v1 } else { println(v2); v2 } } //staged if
+        }
+      }
+
+      def prog1[R <: Eff](implicit I: State[Rep[Int], *] ∈ R): Comp[R, Rep[Int]] =
         for {
           x <- get
           _ <- put(x * x)
           z <- get
         } yield z
 
-      def prog2[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
+      def prog2[R <: Eff](implicit I: State[Rep[Int], *] ∈ R): Comp[R, Rep[Int]] =
         for {
           x <- get
           _ <- put(x + x)
           z <- get
         } yield z
 
-      def prog3[R <: Eff](implicit I1: State[Int, *] ∈ R, I2: Cnd[R, Boolean, *] ∈ R): Comp[R, Int] =
+      implicit object BoolSel extends Selector[NoRep] {
+        def apply[A: Manifest](c: Boolean, x: A, y: A): A = if (c) x else y
+      }
+      implicit object RepBoolSel extends Selector[Rep] {
+        def apply[A: Manifest](c: Rep[Boolean], x: Rep[A], y: Rep[A]): Rep[A] = if (c) x else y
+      }
+
+      def prog3[R <: Eff](implicit I1: State[Rep[Int], *] ∈ R, I2: Cnd ∈ R): Comp[R, Rep[Int]] =
         for {
           x <- get
-          y <- cond(x == 0, prog1, prog2) //[State[Int, *] ⊗ ∅], prog2[State[Int, *] ⊗ ∅])
+          y <- scond[R, Int](x == 0, prog1, prog2)
           z <- get
           _ <- put(z + 1)
           w <- get
         } yield w
 
       def snippet(u: Rep[Int]) = {
-        // FIXME: what's the type for Cnd's R? There seems a recursion.
-        //prog3[(State[Int, *] ⊗ (Cnd[(State[Int, *] ⊗ ∅), Boolean, *] ⊗ ∅))]
-        ???
+        val x: Comp[∅, (Rep[Int], Rep[Int])] =
+          handleCond(statefun_pair(prog3[(State[Rep[Int], *] ⊗ (Cnd ⊗ ∅))]) >>= { f => f(u) })
+        val res: (Rep[Int], Rep[Int]) = x
+        println(res)
+        res._1
+
+        /*
+        val x: Comp[∅, Rep[Int]] =
+          statefun(handleCond(prog3[(Cnd ⊗ (State[Rep[Int], *] ⊗ ∅))])) >>= { f => f(u) }
+          //handleCond(statefun(prog3[(State[Rep[Int], *] ⊗ (Cnd ⊗ ∅))]) >>= { f => f(u) })
+          //handleCond(statefun(prog3[(State[Rep[Int], *] ⊗ (Cnd ⊗ ∅))])) >>= { f => handleCond(f(u)) }
+        val res: Rep[Int] = x
+        println(res)
+        res
+         */
       }
     }
 
+  def unstagedCondTest() = {
+    def prog1[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
+      for {
+        x <- get
+        _ <- put(x * x)
+        z <- get
+      } yield z
+
+    def prog2[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
+      for {
+        x <- get
+        _ <- put(x + x)
+        z <- get
+      } yield z
+
+    implicit object BoolSel extends Selector[NoRep] {
+      def apply[A: Manifest](c: Boolean, x: A, y: A): A = if (c) x else y
+    }
+
+    def prog3[R <: Eff](implicit I1: State[Int, *] ∈ R, I2: Cnd ∈ R): Comp[R, Int] =
+      for {
+        x <- get
+        y <- cond[R, Int](x == 0, prog1, prog2)
+        z <- get
+        _ <- put(z + 1)
+        w <- get
+      } yield w
+
+    val init_n = 5;
+
+    val x: Comp[∅, (Int, Int)] =
+      handleCond(statefun_pair(prog3[(State[Int, *] ⊗ (Cnd ⊗ ∅))]) >>= { f => f(5) })
+    //val x: Comp[∅, Int] =
+    //  handleCond(statefun(prog3[(State[Int, *] ⊗ (Cnd ⊗ ∅))]) >>= { f => f(5) })
+
+    val res = extract(x)
+
+    println(res)
+  }
+
   def main(args: Array[String]) {
+    // Unstaged cond
+    unstagedCondTest()
+
+    // Staged cond
     val code = specialize()
     println(code.code)
     println(code.eval(5))
