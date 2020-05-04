@@ -443,6 +443,11 @@ object StagedFreerExample {
             v1 <- a
             v2 <- b
           } yield { if (x) { println(v1); v1 } else { println(v2); v2 } } //staged if
+          /* The v1 and v2 are just result value of each branch, which
+           * do not contain materialized effect. So this code
+           * fails to generate a confluence point containing the effect
+           * happened inside branches.
+           */
         }
       }
 
@@ -477,6 +482,15 @@ object StagedFreerExample {
         } yield w
 
       def snippet(u: Rep[Int]) = {
+        /* Unlike what I did in Free.scala, switching the handler of
+         * Cnd and State yields the same generated code. In
+         * Free.scala, applying state handler first and then cnd
+         * handler gives a local state interpretation, which prevents
+         * the two branches use the same state.
+         * But here, they seem both generate a global state code,
+         * that is, the "else" branch access the state mutated by the "then"
+         * branch.
+         */
         val x: Comp[∅, (Rep[Int], Rep[Int])] =
           handleCond(statefun_pair(prog3[(State[Rep[Int], *] ⊗ (Cnd ⊗ ∅))]) >>= { f => f(u) })
         val res: (Rep[Int], Rep[Int]) = x
