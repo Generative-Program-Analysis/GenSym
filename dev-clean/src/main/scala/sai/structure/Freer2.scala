@@ -282,9 +282,9 @@ object State {
 
 object Nondet {
   import Eff._
-  import OpenUnion._
   import Freer._
   import Handlers._
+  import OpenUnion._
 
   sealed trait Nondet[K]
   case object Fail extends Nondet[Nothing]   //Fail ()   ~> Nothing
@@ -335,6 +335,107 @@ object Nondet {
           } yield xs ++ ys
       }
     })
+
+}
+
+object CondEff {
+  import Eff._
+  import Freer._
+  import Handlers._
+  import OpenUnion._
+
+  case class Cnd[R <: Eff, C, A](c: C, thn: Comp[R, A], els: Comp[R, A])
+
+  def cond[R <: Eff, C, A](c: C, a: Comp[R, A], b: Comp[R, A])
+    (implicit I: Cnd[R, C, *] ∈ R): Comp[R, A] = { //FIXME: Cnd[R, C, *] ∈ R, recursion?
+    perform[Cnd[R, C, *], R, A](Cnd(c, a, b)) 
+  }
+
+  object Cnd${
+    def unapply[R <: Eff, C, A](n: (Cnd[R, C, A], A => R)): Option[((C, Comp[R, A], Comp[R, A]), A => R)] =
+      n match {
+        case (Cnd(c, t, e), k) => Some(((c, t, e), k))
+        case _ => None
+      }
+  }
+
+  trait Selector[C] {
+    def apply[A](c: C, x: A, y: A): A
+  }
+
+  def handleCond[R <: Eff, C, A](implicit IF: Selector[C]): Comp[Cnd[R, C, *] ⊗ R, A] => Comp[R, A] =
+    handler[Cnd[R, C, *], R, A, A] {
+      case Return(x) => ret(x)
+    } (new DeepH[Cnd[R, C, *], R, A] {
+      def apply[X]: (Cnd[R, C, X], (X => Comp[R, A])) => Comp[R, A] = {
+        case (fx: Cnd[R, C, X], k: (X => Comp[R, A])) =>
+          val Cnd(c, t, e) = fx
+          val x = for {
+            v1 <- t
+            v2 <- e
+          } yield { IF.apply[X](c, v1, v2) }
+          for {
+            v <- x
+            w <- k(v)
+          } yield w
+      }
+    })
+}
+
+import lms.core._
+import lms.core.stub._
+import lms.macros._
+import lms.core.Backend._
+import sai.lmsx._
+import sai.structure.monad.free.{StagedImpEffGen, StagedImpEffDriver}
+
+object StagedFreerExample {
+  import Eff._
+  import OpenUnion._
+  import Freer._
+  import Handlers._
+  import State._
+  import CondEff._
+
+  @virtualize
+  def specialize(): SAIDriver[Int, Int] =
+    new StagedImpEffDriver[Int, Int] {
+
+      def prog1[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
+        for {
+          x <- get
+          _ <- put(x * x)
+          z <- get
+        } yield z
+
+      def prog2[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
+        for {
+          x <- get
+          _ <- put(x + x)
+          z <- get
+        } yield z
+
+      def prog3[R <: Eff](implicit I1: State[Int, *] ∈ R, I2: Cnd[R, Boolean, *] ∈ R): Comp[R, Int] =
+        for {
+          x <- get
+          y <- cond(x == 0, prog1, prog2) //[State[Int, *] ⊗ ∅], prog2[State[Int, *] ⊗ ∅])
+          z <- get
+          _ <- put(z + 1)
+          w <- get
+        } yield w
+
+      def snippet(u: Rep[Int]) = {
+        // FIXME: what's the type for Cnd's R? There seems a recursion.
+        //prog3[(State[Int, *] ⊗ (Cnd[(State[Int, *] ⊗ ∅), Boolean, *] ⊗ ∅))]
+        ???
+      }
+    }
+
+  def main(args: Array[String]) {
+    val code = specialize()
+    println(code.code)
+    println(code.eval(5))
+  }
 
 }
 

@@ -278,11 +278,38 @@ object CondEff {
 
   def condWithScope[F[_]: Functor, E, A](cnd: E, thn: Free[F, A], els: Free[F, A])
     (implicit I1: Cnd[E, *] ⊆ F, I2: CondScope ⊆ F): Free[F, A] = {
+    /*
+    val t = inject[CondScope, F, A](BCond(for {
+      x <- thn
+      _ <- inject[CondScope, F, Unit](ECond(Return()))
+    } yield x))
+    val e = inject[CondScope, F, A](BCond(for {
+      x <- els
+      _ <- inject[CondScope, F, Unit](ECond(Return()))
+    } yield x))
+
+    cond(cnd, t, e)
+     */
+    
+    val t = for {
+      _ <- inject[CondScope, F, Unit](BCond(Return()))
+      x <- thn
+      _ <- inject[CondScope, F, Unit](ECond(Return()))
+    } yield x
+    val e = for {
+      _ <- inject[CondScope, F, Unit](BCond(Return()))
+      x <- els
+      _ <- inject[CondScope, F, Unit](ECond(Return()))
+    } yield x
+    cond(cnd, t, e)
+
+    /*
     for {
       _ <- inject[CondScope, F, Unit](BCond(Return()))
       x <- inject(Cnd(cnd, thn, els))
       _ <- inject[CondScope, F, Unit](ECond(Return()))
     } yield x
+     */
   }
 
   def upcast[F[_]: Functor, G[_]: Functor, A](prog: Free[G, A]): Free[(F ⊕ G)#t, A] =
@@ -298,6 +325,7 @@ object CondEff {
       case Return(x) => ret(x)
       case BCond$(k) =>
         implicit def SelectFree(c: E, t: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A], e: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]): Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A] = {
+          System.out.println("runBCond select")
           for {
             tv <- t
             ev <- e
@@ -307,7 +335,9 @@ object CondEff {
           u <- upcast[Cnd[E, *], F, Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]](run(runECond(k)))
           v <- runBCond(u)
         } yield v
-      case ECond$(k) => throw new RuntimeException("Mismatched BCond")
+      case ECond$(k) =>
+        System.out.println(k)
+        throw new RuntimeException("Mismatched BCond")
       case Impure(Right(op)) =>
         Impure[(Cnd[E, *] ⊕ F)#t, A](Functor[(Cnd[E, *] ⊕ F)#t].map(op)(a => runBCond[F, E, A](a)))
     }
@@ -320,6 +350,7 @@ object CondEff {
       case Return(x) => ret(Return(x))
       case BCond$(k) =>
         implicit def SelectFree(c: E, t: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A], e: Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A]): Free[(CondScope ⊕ (Cnd[E, *] ⊕ F)#t)#t, A] = {
+          System.out.println("runECond select")
           for {
             tv <- t
             ev <- e
@@ -778,8 +809,8 @@ import Coproduct.{CoproductFunctor => _, _}
 import NondetEff.{NondetFunctor => _, _}
 import VoidEff.{VoidFunctor => _, _}
 import StateEff.{StateFunctor => _, _}
-//import CondEff.{CndFunctor => _, CondScopeFunctor => _, _}
-import KondEff.{CndFunctor => _, _}
+import CondEff.{CndFunctor => _, CondScopeFunctor => _, _}
+//import KondEff.{CndFunctor => _, _}
 import NondetVoidEff._
 import StateNondetEff._
 import ⊆._
@@ -937,13 +968,18 @@ trait StagedImpEff extends SAIOps {
             els = h_state#2(get#outer){ exec(s2) //get,put handled by #2 }  >>= (r,s) => put(s); r
           }
          */
+        /*
         val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
           for {
             b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
             σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
           } yield { if (b) h_state(σ)(exec(s1)) else h_state(σ)(exec(s2)) }
+         */
         for {
-          e <- res
+          e <- for {
+            b <- eval[(State[Rep[Store], *] ⊕ ∅)#t](e)
+            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          } yield { if (b) h_state(σ)(exec(s1)) else h_state(σ)(exec(s2)) }
           a <- r_state(e)
         } yield a
       case Seq(s1, s2) =>
@@ -1090,7 +1126,8 @@ object StagedImpEff {
         //val res = VoidEff.run(StateEff.run(List(u), exprog2[(State[Rep[List[Int]], *] ⊕ ∅)#t]))
         //res._2
 
-        type RBCnd[T] = Cnd[Rep[Boolean], (Rep[List[Int]], Rep[Int]), T]
+        //type RBCnd[T] = Cnd[Rep[Boolean], (Rep[List[Int]], Rep[Int]), T]
+        type RBCnd[T] = Cnd[Rep[Boolean], T]
         implicit def bcndSelect(b: Rep[Boolean], t: Rep[Int], e: Rep[Int]): Rep[Int] = {
           System.out.println("rep boolean select")
           if (b) t else e
@@ -1101,35 +1138,38 @@ object StagedImpEff {
         def exprog3[F[_]: Functor]
           (implicit I1: RBCnd ⊆ F,
             I2: State[Rep[List[Int]], *] ⊆ F
-            /*  I3: CondScope ⊆ F */
+            //I3: CondScope ⊆ F
           ): Free[F, Rep[Int]] = {
           for {
             x <- get[F, Rep[List[Int]]]
-            y <- cond[F, Rep[Boolean], (Rep[List[Int]], Rep[Int]), Rep[Int]](x == 0, exprog2[F], exprog1[F])
-            //y <- condWithScope(x == 0, exprog2[F], exprog1[F])
+            y <- cond[F, Rep[Boolean], Rep[Int]](x == 0, exprog2[F], exprog1[F])
+            //y <- condWithScope[F, Rep[Boolean], Rep[Int]](x == 0, exprog2[F], exprog1[F])
             _ <- put[F, Rep[List[Int]]](List(y))
             z <- get[F, Rep[List[Int]]]
           } yield z(0)
         }
 
         //val res1 = VoidEff.run(StateEff.run(List(u),
-        //  KondEff.run(exprog3[(RBCnd ⊕ (State[Rep[List[Int]], *] ⊕ ∅)#t)#t])))
-
+        //  CondEff.run(exprog3[(RBCnd ⊕ (State[Rep[List[Int]], *] ⊕ ∅)#t)#t])))
         implicit def bcndSelectState(b: Rep[Boolean],
           t: (Rep[List[Int]], Rep[Int]), e: (Rep[List[Int]], Rep[Int])): (Rep[List[Int]], Rep[Int]) = {
           System.out.println("rep boolean select")
           val r: Rep[(List[Int], Int)] = if (b) t else e
           (r._1, r._2)
         }
+        val res1 = VoidEff.run(CondEff.run(
+          StateEff.run(List(u), exprog3[(State[Rep[List[Int]], *] ⊕ (RBCnd ⊕ ∅)#t)#t])))
 
-        //implicit val F3 = Functor[(CondScope ⊕ (RBCnd ⊕ ∅)#t)#t]
-
-        val res1 = VoidEff.run(KondEff.run(StateEff.run(List(u),
-          exprog3[(State[Rep[List[Int]], *] ⊕ (RBCnd ⊕ ∅)#t)#t])))
-
+        // Run state first, local
+        implicit val F3 = Functor[(CondScope ⊕ (RBCnd ⊕ ∅)#t)#t]
         //val res1 = VoidEff.run(CondEff.runWithScope(StateEff.run(List(u),
         //  exprog3[(State[Rep[List[Int]], *] ⊕ (CondScope ⊕ (RBCnd ⊕ ∅)#t)#t)#t])))
 
+        // Run cond first, global
+        //val res1 = VoidEff.run(StateEff.run(List(u),
+        //  CondEff.runWithScope(exprog3[(CondScope ⊕ (RBCnd ⊕ (State[Rep[List[Int]], *] ⊕ ∅)#t)#t)#t])))
+        //val res1 = VoidEff.run(StateEff.run(List(u),
+        //  CondEff.run(exprog3[(RBCnd ⊕ (State[Rep[List[Int]], *] ⊕ ∅)#t)#t])))
         res1._2
       }
 
