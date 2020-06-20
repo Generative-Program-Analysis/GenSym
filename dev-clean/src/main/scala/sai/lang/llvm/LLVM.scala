@@ -71,7 +71,10 @@ package IR {
     val retType: LLVMType = header.returnType
     val params: List[Param] = header.params
     val blocks: List[BB] = body.blocks
-    def lookupBlock(label: String): Option[BB] = ??? //TODO: recovering labels
+    def lookupBlock(label: String): Option[BB] = {
+      // Assume all blocks exists
+      blocks.find(_.label == Some(label))
+    }
   }
   case class AttrGroupDef(ctx: LLVMParser.AttrGroupDefContext) extends TopLevelEntity
   case class NamedMetadataDef(ctx: LLVMParser.NamedMetadataDefContext) extends TopLevelEntity
@@ -287,6 +290,7 @@ package IR {
   abstract class Instruction extends LAST
   abstract class ValueInstruction extends Instruction
   case class AddInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
+  case class SubInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
   case class AllocaInst(ty: LLVMType, align: Alignment) extends ValueInstruction
   case class LoadInst(
     valTy: LLVMType,
@@ -357,7 +361,6 @@ package IR {
 }
 
 import IR._
-
 class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   def error = ???
 
@@ -875,7 +878,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val label =
       if (ctx.optLabelIdent.labelIdent != null) {
         val l = ctx.optLabelIdent.labelIdent.LABEL_IDENT.getText
-        Some("%"+l.substring(1, l.size-1))
+        Some("%"+l.substring(0, l.size-1))
       }
       else
         None
@@ -920,6 +923,15 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val ofFlags = visit(ctx.overflowFlags).asInstanceOf[OverflowFlagList].fs
     // Skipped optCommaSepMetadataAttachmentList
     AddInst(ty, lhs, rhs, ofFlags)
+  }
+
+  override def visitSubInst(ctx: LLVMParser.SubInstContext): LAST = {
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val lhs = visit(ctx.value(0)).asInstanceOf[LLVMValue]
+    val rhs = visit(ctx.value(1)).asInstanceOf[LLVMValue]
+    val ofFlags = visit(ctx.overflowFlags).asInstanceOf[OverflowFlagList].fs
+    // Skipped optCommaSepMetadataAttachmentList
+    SubInst(ty, lhs, rhs, ofFlags)
   }
 
   override def visitAllocaInst(ctx: LLVMParser.AllocaInstContext): LAST = {
@@ -1298,29 +1310,5 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val id = header.globalId
     FunctionDecl(id, header)
   }
-
 }
 
-object LLVMTest {
-  def parse(input: String) = {
-    val charStream = new ANTLRInputStream(input)
-    val lexer = new LLVMLexer(charStream)
-    val tokens = new CommonTokenStream(lexer)
-    val parser = new LLVMParser(tokens)
-
-    val visitor = new MyVisitor()
-    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    //println(res.es(3))
-    //println(res)
-    res.es.foreach { e =>
-      println(e)
-    }
-  }
-
-  def main(args: Array[String]): Unit = {
-    //val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
-    val testInput = scala.io.Source.fromFile("llvm/test/add.ll").mkString
-    println(testInput)
-    parse(testInput)
-  }
-}
