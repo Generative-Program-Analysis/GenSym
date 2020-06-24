@@ -119,6 +119,12 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
 
   def libraries = codegen.libraryFlags.mkString(" ")
 
+  def save(to: String): Unit = {
+    val out = new java.io.PrintStream("./"+to)
+    out.println(code)
+    out.close
+  }
+
   lazy val f: A => Unit = {
     val out = new java.io.PrintStream("./snippet.c")
     out.println(code)

@@ -18,9 +18,13 @@ object ImpLang {
   case class Cond(e: Expr, thn: Stmt, els: Stmt) extends Stmt
   case class Seq(s1: Stmt, s2: Stmt) extends Stmt
   case class While(b: Expr, s: Stmt) extends Stmt
+  case class Output(e: Expr) extends Stmt
 
   sealed trait Expr {
     def toSExp: String
+  }
+  case class Input() extends Expr {
+    def toSExp = ???
   }
   case class Lit(x: Any) extends Expr {
     override def toString: String = s"Lit(${x.toString})"
@@ -93,6 +97,18 @@ object ImpLang {
                Assign("z", Var("y"))),
           Assign("z", Op2("+", Var("z"), Lit(1))))
 
+    /* if (x <= y) {
+     *   z = x
+     * } else {
+     *   z = y
+     * }
+     * z = z + 1
+     * if (z >= y) {
+     *   z = z + 2 
+     * } else {
+     *   z = z + 3
+     * }
+     */
     val cond3 =
       Seq(Cond(Op2("<=", x, y),
                Assign("z", x),
@@ -148,7 +164,8 @@ object TestImp {
   @virtualize
   def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] = new CppSymStagedImpDriver[Int, Unit] {
     def snippet(u: Rep[Int]) = {
-      val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
+      //val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
+      val init: Rep[Ans] = (Map("x" -> SymV("x"), "y" -> IntV(0)), Set[Expr]())
       val v = exec(s)(init).run
       //println(v)
       //println("path number: ")
@@ -171,7 +188,7 @@ object TestImp {
      */
 
     /* Symbolic execution */
-    val code = specSymCpp(fact_n)
+    val code = specSymCpp(cond3)
     println(code.code)
     code.eval(0)
   }

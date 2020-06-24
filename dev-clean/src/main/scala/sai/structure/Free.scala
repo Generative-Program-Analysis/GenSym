@@ -1002,15 +1002,10 @@ trait StagedImpEff extends SAIOps {
           out._2
         }
         def rep_loop: Rep[Result => Result] = fun(loop)
-
-        val res: Free[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Result]] =
-          for {
-            σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
-          } yield { rep_loop((σ, ())) }
         for {
-          e <- res
-          a <- r_state(e)
-        } yield a
+          σ <- get[(State[Rep[Store], *] ⊕ ∅)#t, Rep[Store]]
+          a <- r_state(rep_loop((σ, ())))
+        } yield { a }
     }
 }
 
