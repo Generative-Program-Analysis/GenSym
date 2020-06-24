@@ -4,3 +4,9 @@ target
 *.scala~
 *.log
 *.class
+dev-clean/.metals
+dev-clean/.bloop
+dev-clean/project/metals.sbt
+.metals
+dev-clean/snippet.c
+dev-clean/snippet
