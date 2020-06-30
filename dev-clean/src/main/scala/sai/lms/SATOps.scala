@@ -63,11 +63,134 @@ trait UnstagedSAT extends StagePolySAT {
   type R[T] = T
 }
 
+trait SATBoolRep
+
 // Staged SAT solver
-trait StagedSATOps extends StagePolySAT with Base {
+trait StagedSATOps extends Base with Equal with StagePolySAT { 
   type R[T] = Rep[T]
+  trait SATBool
+  trait Model
   // TODO: LMS stuff, generate C/STP code
+  def lit(b: Boolean): R[B] =
+    Wrap[B](Adapter.g.reflectWrite("sat-bool-lit", Backend.Const(b))(Backend.Const("CTRL")))
+  def variable(x: String): R[B] = 
+    Wrap[B](Adapter.g.reflectWrite("sat-bool-var", Backend.Const(x))(Backend.Const("CTRL")))
+  def eq(x: R[B], y: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-eq", Unwrap(x), Unwrap(y)))
+  def or(x: R[B], y: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-or", Unwrap(x), Unwrap(y)))
+  def and(x: R[B], y: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-and", Unwrap(x), Unwrap(y)))
+  def xor(x: R[B], y: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-xor", Unwrap(x), Unwrap(y)))
+  def implies(x: R[B], y: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-implies", Unwrap(x), Unwrap(y)))
+  def iff(x: R[B], y: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-iff", Unwrap(x), Unwrap(y)))
+  def not(x: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-not", Unwrap(x)))
+  def ite(cnd: R[B], thn: R[B], els: R[B]): R[B] =
+    Wrap[B](Adapter.g.reflect("sat-ite", Unwrap(cnd), Unwrap(thn), Unwrap(els)))
+
+  def assert(x: R[B]): R[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite("sat-assert", Unwrap(x))(Backend.Const("CTRL")))
+  def check: R[Boolean] =
+    Wrap[Boolean](Adapter.g.reflect("sat-check"))
+  def check(x: String): R[(Boolean, Boolean)] = ???
+
+  def push: R[Unit] =
+    Wrap[Unit](Adapter.g.reflect("sat-push"))
+  def pop: R[Unit] =
+    Wrap[Unit](Adapter.g.reflect("sat-pop"))
+  def getModel: R[Model] =
+    Wrap[Model](Adapter.g.reflect("sat-getModel"))
 }
+
+trait STPCodeGen_SAT extends ExtendedCCodeGen {
+  // register header
+
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName.contains("SATBool")) {
+      "Expr"
+    } else { super.remap(m) }
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, name, _, _) if name.startsWith("sat") => false
+    case _ => super.mayInline(n)
+  }
+
+  override def shallow(n: Node) = n match {
+    case Node(s, "sat-bool-lit", Const(b: Boolean)::_, _) if b => emit("vc_trueExpr(vc)")
+    case Node(s, "sat-bool-lit", Const(b: Boolean)::_, _) if !b => emit("vc_trueFalse(vc)")
+    case Node(s, "sat-bool-var", Const(ident: String)::_, _) => 
+      emit(s"""vc_varExpr(vc, \"$ident\", vc_boolType(vc))""");
+    case Node(s, "sat-eq", List(l, r), _) => 
+      emit("vc_eqExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
+    case Node(s, "sat-or", List(l, r), _) =>
+      emit("vc_orExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
+    case Node(s, "sat-and", List(l, r), _) =>
+      emit("vc_andExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
+    case Node(s, "sat-xor", List(l, r), _) =>
+      emit("vc_xorExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
+    case Node(s, "sat-not", List(x), _) => 
+      emit("vc_notExpr(vc, "); shallow(x); emit(")")
+    case Node(s, "sat-implies", List(l, r), _) =>
+      emit("vc_impliesExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
+    case Node(s, "sat-iff", List(l, r), _) =>
+      emit("vc_iffExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
+    case Node(s, "sat-ite", List(c, t, e), _) =>
+      emit("vc_iffExpr(vc, "); shallow(c); emit(", "); shallow(t); emit(", "); shallow(e); emit(")")
+    case Node(s, "sat-assert", List(x), _) => 
+      emit("vc_assertFormula(vc, "); shallow(x); emit(")")
+    // TODO check
+    case _ => super.shallow(n)
+  }
+}
+
+trait STPCodeGen extends ExtendedCCodeGen {
+  // TODO register header
+  // TODO remap SATBool => Expr
+  // vc???
+  override def shallow(n: Node): Unit = ???
+}
+
+// Stage polymorphic interface
+trait StagePolySMT extends StagePolySAT {
+  type BV
+  // TODO: how to represent different kind of SMT expression (and how can we compose different theories/logics
+  // TODO: how to specify size of BVs
+  // TODO: operations on BV
+  val bw32: Int = 32
+
+  def bvConstExprFromInt(v: Int, bitWidth: Int = bw32): R[BV]
+  def bvConstExprFromStr(s: String, bitWidth: Int = bw32): R[BV]
+  // TODO: variable?
+  def bvVariable(s: String, bitWidth: Int = bw32): R[BV]
+
+  // bv arith
+  // DLL_PUBLIC Expr vc_bvPlusExpr(VC vc, int bitWidth, Expr left, Expr right);
+  def bvPlus(x: R[BV], y: R[BV]): R[BV]
+  def bvMul(x: R[BV], y: R[BV]): R[BV]
+  def bvDiv(x: R[BV], y: R[BV]): R[BV]
+  def bvMinus(x: R[BV], y: R[BV]): R[BV]
+  def bvMod(x: R[BV], y: R[BV]): R[BV]
+  def bvNeg(x: R[BV])
+  
+  // bv compare
+  def bvLt(x: R[BV], y: R[BV]): R[BV]
+  def bvLe(x: R[BV], y: R[BV]): R[BV]
+  def bvGt(x: R[BV], y: R[BV]): R[BV]
+  def bvGe(x: R[BV], y: R[BV]): R[BV]
+  def bvEq(x: R[BV], y: R[BV]): R[BV]
+
+  // bv bitwise
+  def bvAnd(x: R[BV], y: R[BV]): R[BV]
+  def bvOr(x: R[BV], y: R[BV]): R[BV]
+  def bvXor(x: R[BV], y: R[BV]): R[BV]
+  def bvNot(x: R[BV]): R[BV]
+}
+
 
 // A SMTLib2 expression builder, use Z3 as backend
 trait SMTLib2ExprBuilder extends UnstagedSAT {
@@ -137,14 +260,14 @@ trait SMTLib2ExprBuilder extends UnstagedSAT {
     }
     if (sat == "sat") model.toString else sat
   }
-}
 
-// Stage polymorphic interface
-trait StagePolySMT extends StagePolySAT {
-  type BV
-  // TODO: how to represent different kind of SMT expression (and how can we compose different theories/logics
-  // TODO: how to specify size of BVs
-  // TODO: operations on BV
+  def print_debug: Unit = {
+    varSet.foreach { x =>
+      prelude ++= s"(declare-const $x Bool)\n"
+    }
+    println(prelude)
+    println(constraints)
+  }
 }
 
 object SMTTest {
@@ -160,6 +283,6 @@ object SMTTest {
       //assert(y ≡ false)
     }
     println(sat.getModel)
-    //println(sat.check)
+    println(sat.print_debug)
   }
 }

@@ -14,7 +14,7 @@ import sai.structure.monad._
 
 trait CppSAICodeGenBase extends ExtendedCCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map
-    with CppCodeGen_Set {
+    with CppCodeGen_Set with STPCodeGen_SAT {
   //override def remap(m: Manifest[_]): String = super.remap(m)
 
   override def mayInline(n: Node): Boolean = n match {
