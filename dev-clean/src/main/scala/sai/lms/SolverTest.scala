@@ -14,7 +14,7 @@ abstract class SATSnippet[A:Manifest, B:Manifest] extends StagedSATOps {
   def snippet(x: Rep[A]): Rep[B]
 }
 
-abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] with StagedSATOps { q =>
+abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] with SMTStagedOps { q =>
   val codegen = new CGenBase with CppSAICodeGenBase {
     val IR: q.type = q
     import IR._
@@ -46,7 +46,7 @@ abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] w
       if (codegen.includePaths.isEmpty) ""
       else s"-I ${codegen.includePaths.mkString(" -I ")}"
     val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes -lstp"
-    System.out.println("Compile command: " + pb)
+    System.out.println("\nCompile command: " + pb + "\n")
 
     time("gcc") {
       (pb: ProcessBuilder).lines.foreach(Console.println _)
@@ -64,26 +64,37 @@ abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] w
 }
 
 object SATTest extends App {
-  def test(): CppSATDriver[Int, Unit] = new CppSATDriver[Int, Unit] {
+  def testSAT(): CppSATDriver[Int, Unit] = new CppSATDriver[Int, Unit] {
     def snippet(x: Rep[Int]) = {
       {
+        import SyntaxSMT._
         import SyntaxSAT._
-        val x = variable("x")
-        val y = variable("y")
-        val z = variable("z")
-        // assert(x ⇔ y)
-        // assert(y ⇔ z)
-        // assert(x ==> y)
-        // assert(x ⇔ true)
-        assert(!x)
-        assert(x)
-        printAsserts
-        handle(query(x))
+        val p = boolVar("p")
+        val q = boolVar("q")
+        val r = boolVar("r")
+        // (p ∨ q ∨ r) ∧ (¬ p ∨ ¬ q ∨ ¬ r)
+        handle(query(!((p or q or r) and ((!p) or (!q) or (!r)))))
+      }
+
+      println("Done")
+    }
+  }
+
+  def testSMT(): CppSATDriver[Int, Unit] = new CppSATDriver[Int, Unit] {
+    def snippet(x: Rep[Int]) = {
+      {
+        import SyntaxSMT._
+        import SyntaxSAT._
+        val c = bvVar("c")
+        val a:R[BV] = 5
+        val b:R[BV] = 6
+        handle(query((a + b) ≠ c))
       }
       println("Done")
     }
   }
-  val code = test()
+      
+  val code = testSMT()
   print(code.code)
   code.eval(0)
 }
