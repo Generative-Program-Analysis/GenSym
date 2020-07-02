@@ -42,7 +42,6 @@ abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] w
     out.close
     (new java.io.File("./snippet")).delete
     import scala.sys.process._
-
     val includes =
       if (codegen.includePaths.isEmpty) ""
       else s"-I ${codegen.includePaths.mkString(" -I ")}"
@@ -71,11 +70,15 @@ object SATTest extends App {
         import SyntaxSAT._
         val x = variable("x")
         val y = variable("y")
-        assert(x ⇔ y)
-        assert(x ≡ true)
-        assert(! x)
-        assert(x ==> y)
-        print(query(x))
+        val z = variable("z")
+        // assert(x ⇔ y)
+        // assert(y ⇔ z)
+        // assert(x ==> y)
+        // assert(x ⇔ true)
+        assert(!x)
+        assert(x)
+        printAsserts
+        handle(query(x))
       }
       println("Done")
     }

@@ -102,6 +102,9 @@ trait StagedSATOps extends Base with Equal with StagePolySAT {
     Wrap[Unit](Adapter.g.reflectWrite("sat-printAsserts")(Backend.Const("CTRL")))
   def query(x: R[SATBool]): R[Int] =
     Wrap[Int](Adapter.g.reflectWrite("sat-query", Unwrap(x))(Backend.Const("CTRL")))
+  def handle(n: R[Int]): R[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite("sat-handle", Unwrap(n))(Backend.Const("CTRL")))
+
 
   def push: R[Unit] =
     Wrap[Unit](Adapter.g.reflect("sat-push"))
@@ -113,6 +116,7 @@ trait StagedSATOps extends Base with Equal with StagePolySAT {
 
 trait STPCodeGen_SAT extends ExtendedCCodeGen {
   registerHeader("../stp/include", "<stp/c_interface.h>")
+  registerHeader("./headers", "<stp_handle.hpp>")
 
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName.contains("SATBool")) {
@@ -130,6 +134,8 @@ trait STPCodeGen_SAT extends ExtendedCCodeGen {
       emit("vc_assertFormula(vc, "); shallow(x); emitln(");")
     case Node(s, "sat-printAsserts", _, _) => 
       emitln("vc_printAsserts(vc, 1);")
+    case Node(s, "sat-handle", List(x), _) =>
+      emit("handle(vc, "); shallow(x); emitln(");");
     case _ => super.traverse(n)
   }
 
@@ -138,6 +144,7 @@ trait STPCodeGen_SAT extends ExtendedCCodeGen {
     case Node(s, "sat-bool-lit", Const(b: Boolean)::_, _) if !b => emit("vc_falseExpr(vc)")
     case Node(s, "sat-bool-var", Const(ident: String)::_, _) => 
       emit(s"""vc_varExpr(vc, \"$ident\", vc_boolType(vc))""");
+    // ??? eq may not work as expected
     case Node(s, "sat-eq", List(l, r), _) => 
       emit("vc_eqExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
     case Node(s, "sat-or", List(l, r), _) =>
