@@ -16,44 +16,44 @@ import java.io.PrintStream
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.StringBuilder
 
+trait SMTExpr
+
 // Stage polymorphic interface/syntax of SAT solving
 trait StagePolySAT { op =>
   type R[_]
   type SATBool
   type Model
 
-  type B = SATBool
-
-  def lit(b: Boolean): R[B]
-  def variable(x: String): R[B]
-  def eq(x: R[B], y: R[B]): R[B]
-  def or(x: R[B], y: R[B]): R[B]
-  def not(x: R[B]): R[B]
-  def and(x: R[B], y: R[B]): R[B]
-  def xor(x: R[B], y: R[B]): R[B]
-  def ite(cnd: R[B], thn: R[B], els: R[B]): R[B]
-  def iff(x: R[B], y: R[B]): R[B]
-  def implies(x: R[B], y: R[B]): R[B]
+  def lit(b: Boolean): R[SATBool]
+  def variable(x: String): R[SATBool]
+  def eq(x: R[SATBool], y: R[SATBool]): R[SATBool]
+  def or(x: R[SATBool], y: R[SATBool]): R[SATBool]
+  def not(x: R[SATBool]): R[SATBool]
+  def and(x: R[SATBool], y: R[SATBool]): R[SATBool]
+  def xor(x: R[SATBool], y: R[SATBool]): R[SATBool]
+  def ite(cnd: R[SATBool], thn: R[SATBool], els: R[SATBool]): R[SATBool]
+  def iff(x: R[SATBool], y: R[SATBool]): R[SATBool]
+  def implies(x: R[SATBool], y: R[SATBool]): R[SATBool]
 
   def push: R[Unit]
   def pop: R[Unit]
-  def assert(x: R[B]): R[Unit]
+  def assert(x: R[SATBool]): R[Unit]
 
   def check: R[Boolean]
   def check(x: String): R[(Boolean, Boolean)]
   def getModel: R[Model]
 
-  object Syntax {
-    implicit def __lit(b: Boolean): R[B] = lit(b)
-    implicit def __var(x: String): R[B] = variable(x)
-    implicit class BOps(x: R[B]) {
-      def ≡(y: R[B]): R[B] = op.eq(x, y)
-      def or(y: R[B]): R[B] = op.or(x, y)
-      def unary_!(): R[B] = op.not(x)
-      def and(y: R[B]): R[B] = op.and(x, y)
-      def xor(y: R[B]): R[B] = op.xor(x, y)
-      def ⇔(y: R[B]): R[B] = op.iff(x, y)
-      def ==>(y: R[B]): R[B] = op.implies(x, y)
+  object SyntaxSAT {
+    implicit def __lit(b: Boolean): R[SATBool] = lit(b)
+    implicit def __var(x: String): R[SATBool] = variable(x)
+    implicit class BOps(x: R[SATBool]) {
+      def ≡(y: R[SATBool]): R[SATBool] = op.eq(x, y)
+      def or(y: R[SATBool]): R[SATBool] = op.or(x, y)
+      def unary_!(): R[SATBool] = op.not(x)
+      def and(y: R[SATBool]): R[SATBool] = op.and(x, y)
+      def xor(y: R[SATBool]): R[SATBool] = op.xor(x, y)
+      def ⇔(y: R[SATBool]): R[SATBool] = op.iff(x, y)
+      def ==>(y: R[SATBool]): R[SATBool] = op.implies(x, y)
     }
   }
 }
@@ -68,35 +68,40 @@ trait SATBoolRep
 // Staged SAT solver
 trait StagedSATOps extends Base with Equal with StagePolySAT { 
   type R[T] = Rep[T]
-  trait SATBool
+  trait SATBool extends SMTExpr
   trait Model
   // TODO: LMS stuff, generate C/STP code
-  def lit(b: Boolean): R[B] =
-    Wrap[B](Adapter.g.reflectWrite("sat-bool-lit", Backend.Const(b))(Backend.Const("CTRL")))
-  def variable(x: String): R[B] = 
-    Wrap[B](Adapter.g.reflectWrite("sat-bool-var", Backend.Const(x))(Backend.Const("CTRL")))
-  def eq(x: R[B], y: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-eq", Unwrap(x), Unwrap(y)))
-  def or(x: R[B], y: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-or", Unwrap(x), Unwrap(y)))
-  def and(x: R[B], y: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-and", Unwrap(x), Unwrap(y)))
-  def xor(x: R[B], y: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-xor", Unwrap(x), Unwrap(y)))
-  def implies(x: R[B], y: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-implies", Unwrap(x), Unwrap(y)))
-  def iff(x: R[B], y: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-iff", Unwrap(x), Unwrap(y)))
-  def not(x: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-not", Unwrap(x)))
-  def ite(cnd: R[B], thn: R[B], els: R[B]): R[B] =
-    Wrap[B](Adapter.g.reflect("sat-ite", Unwrap(cnd), Unwrap(thn), Unwrap(els)))
+  def lit(b: Boolean): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-bool-lit", Backend.Const(b)))
+  def variable(x: String): R[SATBool] = 
+    Wrap[SATBool](Adapter.g.reflect("sat-bool-var", Backend.Const(x)))
+  def eq(x: R[SATBool], y: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-eq", Unwrap(x), Unwrap(y)))
+  def or(x: R[SATBool], y: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-or", Unwrap(x), Unwrap(y)))
+  def and(x: R[SATBool], y: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-and", Unwrap(x), Unwrap(y)))
+  def xor(x: R[SATBool], y: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-xor", Unwrap(x), Unwrap(y)))
+  def implies(x: R[SATBool], y: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-implies", Unwrap(x), Unwrap(y)))
+  def iff(x: R[SATBool], y: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-iff", Unwrap(x), Unwrap(y)))
+  def not(x: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-not", Unwrap(x)))
+  def ite(cnd: R[SATBool], thn: R[SATBool], els: R[SATBool]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-ite", Unwrap(cnd), Unwrap(thn), Unwrap(els)))
 
-  def assert(x: R[B]): R[Unit] =
+  def assert(x: R[SATBool]): R[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("sat-assert", Unwrap(x))(Backend.Const("CTRL")))
   def check: R[Boolean] =
-    Wrap[Boolean](Adapter.g.reflect("sat-check"))
+    Wrap[Boolean](Adapter.g.reflectWrite("sat-check")(Backend.Const("CTRL")))
   def check(x: String): R[(Boolean, Boolean)] = ???
+
+  def printAsserts: R[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite("sat-printAsserts")(Backend.Const("CTRL")))
+  def query(x: R[SATBool]): R[Int] =
+    Wrap[Int](Adapter.g.reflectWrite("sat-query", Unwrap(x))(Backend.Const("CTRL")))
 
   def push: R[Unit] =
     Wrap[Unit](Adapter.g.reflect("sat-push"))
@@ -107,7 +112,7 @@ trait StagedSATOps extends Base with Equal with StagePolySAT {
 }
 
 trait STPCodeGen_SAT extends ExtendedCCodeGen {
-  // register header
+  registerHeader("../stp/include", "<stp/c_interface.h>")
 
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName.contains("SATBool")) {
@@ -120,9 +125,17 @@ trait STPCodeGen_SAT extends ExtendedCCodeGen {
     case _ => super.mayInline(n)
   }
 
+  override def traverse(n: Node): Unit = n match {
+    case Node(s, "sat-assert", List(x), _) => 
+      emit("vc_assertFormula(vc, "); shallow(x); emitln(");")
+    case Node(s, "sat-printAsserts", _, _) => 
+      emitln("vc_printAsserts(vc, 1);")
+    case _ => super.traverse(n)
+  }
+
   override def shallow(n: Node) = n match {
     case Node(s, "sat-bool-lit", Const(b: Boolean)::_, _) if b => emit("vc_trueExpr(vc)")
-    case Node(s, "sat-bool-lit", Const(b: Boolean)::_, _) if !b => emit("vc_trueFalse(vc)")
+    case Node(s, "sat-bool-lit", Const(b: Boolean)::_, _) if !b => emit("vc_falseExpr(vc)")
     case Node(s, "sat-bool-var", Const(ident: String)::_, _) => 
       emit(s"""vc_varExpr(vc, \"$ident\", vc_boolType(vc))""");
     case Node(s, "sat-eq", List(l, r), _) => 
@@ -141,9 +154,11 @@ trait STPCodeGen_SAT extends ExtendedCCodeGen {
       emit("vc_iffExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
     case Node(s, "sat-ite", List(c, t, e), _) =>
       emit("vc_iffExpr(vc, "); shallow(c); emit(", "); shallow(t); emit(", "); shallow(e); emit(")")
-    case Node(s, "sat-assert", List(x), _) => 
-      emit("vc_assertFormula(vc, "); shallow(x); emit(")")
-    // TODO check
+    // TODO check is query for now
+    case Node(s, "sat-check", _, _) =>
+      emit("vc_query(vc, vc_trueExpr(vc))")
+    case Node(s, "sat-query", List(x), _) => 
+      emit("vc_query(vc, "); shallow(x); emit(")")
     case _ => super.shallow(n)
   }
 }
@@ -203,19 +218,19 @@ trait SMTLib2ExprBuilder extends UnstagedSAT {
   type SATBool = String
   type Model = String
 
-  def lit(b: Boolean): B = b.toString
-  def variable(x: String): B = {
+  def lit(b: Boolean): SATBool = b.toString
+  def variable(x: String): SATBool = {
     varSet += x
     x
   }
-  def eq(x: B, y: B): B = s"(= $x $y)"
-  def or(x: B, y: B): B = s"(or $x $y)"
-  def not(x: B): B = s"(not $x)"
-  def and(x: B, y: B): B = s"(and $x $y)"
-  def xor(x: B, y: B): B = s"(xor $x $y)"
-  def ite(cnd: B, thn: B, els: B): B = s"(ite $cnd $thn $els)"
-  def iff(x: B, y: B): B = and(implies(x, y), implies(y, x))
-  def implies(x: B, y: B): B = s"(=> $x $y)"
+  def eq(x: SATBool, y: SATBool): SATBool = s"(= $x $y)"
+  def or(x: SATBool, y: SATBool): SATBool = s"(or $x $y)"
+  def not(x: SATBool): SATBool = s"(not $x)"
+  def and(x: SATBool, y: SATBool): SATBool = s"(and $x $y)"
+  def xor(x: SATBool, y: SATBool): SATBool = s"(xor $x $y)"
+  def ite(cnd: SATBool, thn: SATBool, els: SATBool): SATBool = s"(ite $cnd $thn $els)"
+  def iff(x: SATBool, y: SATBool): SATBool = and(implies(x, y), implies(y, x))
+  def implies(x: SATBool, y: SATBool): SATBool = s"(=> $x $y)"
 
   def push: Unit = constraints ++= "(push)\n"
   def pop: Unit = constraints ++= "(pop)\n"
@@ -273,7 +288,7 @@ trait SMTLib2ExprBuilder extends UnstagedSAT {
 object SMTTest {
   def main(args: Array[String]): Unit = {
     val sat = new SMTLib2ExprBuilder {
-      import Syntax._
+      import SyntaxSAT._
       val x = variable("x")
       val y = variable("y")
       assert(x ⇔ y)

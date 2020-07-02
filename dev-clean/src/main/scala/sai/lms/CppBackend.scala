@@ -17,6 +17,8 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
     with CppCodeGen_Set with STPCodeGen_SAT {
   //override def remap(m: Manifest[_]): String = super.remap(m)
 
+  val SMT_DEBUG = true
+
   override def mayInline(n: Node): Boolean = n match {
     case Node(s, "?", _, _) => false // ternary condition
     case Node(s, "λ", _, _) => false
@@ -29,6 +31,7 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
     case n @ Node(s, "P", List(x), _) =>
       emit("std::cout << ")
       shallow(x)
+      emit(" << std::endl")
     case _ => super.shallow(n)
   }
 
@@ -82,6 +85,9 @@ trait CppSAICodeGenBase extends ExtendedCCodeGen
     emitDatastructures(stream)
     emitFunctions(stream)
     emitInit(stream)
+
+    if (SMT_DEBUG) emitln("VC vc = vc_createValidityChecker();")
+
     emitln(s"\n/**************** $name ****************/")
     emit(src)
     emitln("""
