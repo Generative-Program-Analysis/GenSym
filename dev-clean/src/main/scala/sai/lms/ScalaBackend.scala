@@ -60,10 +60,11 @@ trait SAICodeGenBase extends ExtendedScalaCodeGen
   }
 }
 
-trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
-    with OrderingOps with LiftVariables
-    with TupleOpsOpt with ListOpsOpt with MapOpsOpt with SetOpsOpt
-    with EitherOps   with RepLattices with RepMonads {
+trait SAIOps extends Base
+    with PrimitiveOps with LiftPrimitives with Equal
+    with OrderingOps  with LiftVariables  with TupleOpsOpt
+    with ListOpsOpt   with MapOpsOpt      with SetOpsOpt
+    with EitherOps    with RepLattices    with RepMonads {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
@@ -86,7 +87,7 @@ trait SAIOps extends Base with PrimitiveOps with LiftPrimitives with Equal
   }
 }
 
-abstract class SAISnippet[A:Manifest, B:Manifest] extends SAIOps {
+abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
   def wrapper(x: Rep[A]): Rep[B] = snippet(x)
   def snippet(x: Rep[A]): Rep[B]
 }
