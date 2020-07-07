@@ -15,7 +15,7 @@ abstract class SATSnippet[A:Manifest, B:Manifest] extends StagedSATOps {
 }
 
 abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] with SMTStagedOps { q =>
-  val codegen = new CGenBase with CppSAICodeGenBase {
+  val codegen = new CGenBase with STPCodeGen_SMT {
     val IR: q.type = q
     import IR._
   }

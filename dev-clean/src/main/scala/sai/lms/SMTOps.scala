@@ -133,7 +133,7 @@ trait SMTStagedOps extends Base with Equal with StagedSATOps with StagePolySMT {
 }
 
 
-trait STPCodeGen_SMT extends ExtendedCCodeGen {
+trait STPCodeGen_SMT extends CppSAICodeGenBase with STPCodeGen_SAT {
   // TODO register header
   // TODO remap SATBool => Expr
   // vc???
