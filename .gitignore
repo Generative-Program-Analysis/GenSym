@@ -10,7 +10,7 @@ dev-clean/project/metals.sbt
 .metals
 dev-clean/snippet.c
 dev-clean/snippet
+dev-clean/solvers/solver
 dev-clean/constraints.smt2
 dev-clean/solvers/snippet
 dev-clean/solvers/snippet.smt2
-dev-clean/solvers/solver

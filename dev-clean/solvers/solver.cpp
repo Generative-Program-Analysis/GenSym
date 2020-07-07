@@ -38,8 +38,8 @@ return x25;
 immer::set<String> defined = Set::make_set<String>({});
 using Store = immer::map<String, Ptr<Value>>;
 
-(define-fun is-power-of-two ((x (_ BitVec 32))) Bool
-  (= #x00000000 (bvand x (bvsub x #x00000001))))
+// (define-fun is-power-of-two ((x (_ BitVec 32))) Bool
+//   (= #x00000000 (bvand x (bvsub x #x00000001))))
 
 // TODO 1. rewrite using bitvector theory
 //      2. use c++ api
@@ -102,19 +102,19 @@ void emit_store(immer::map<String, Ptr<Value>> store) {
 
 void emit_path_condition(immer::set<String> pc) {
   for (auto u : pc) {
-    //std::cout << "(assert " << u << ")" << std::endl;
-    std::cout << parse_path_condition(u) << std::endl;
+    std::cout << "(assert " << u << ")" << std::endl;
+    // std::cout << parse_path_condition(u) << std::endl;
   }
 }
 
-String parse_path_condition(String pc) {
-  bool not = false;
-  if (pc.find("(-") == 0) {
-    not = true;
-  }
-  // TODO add query to variables
-  // find next "(", then substr
-}
+// String parse_path_condition(String pc) {
+//   bool not = false;
+//   if (pc.find("(-") == 0) {
+//     not = true;
+//   }
+//   // TODO add query to variables
+//   // find next "(", then substr
+// }
 
 
 /* 
@@ -151,14 +151,14 @@ int main(int argc, char **argv) {
 }
 */
 
-int apicallMain() {
-  auto paths = Snippet(0);
-  for (auto path : paths) {
-    Store s = path.second.first;
-    immer::set<String> pc = path.second.second;
-    VC vc = vc_createValidityChecker();
-  }
-}
+// int apicallMain() {
+//   auto paths = Snippet(0);
+//   for (auto path : paths) {
+//     Store s = path.second.first;
+//     immer::set<String> pc = path.second.second;
+//     VC vc = vc_createValidityChecker();
+//   }
+// }
 
 
 void emit_body(immer::flex_vector<std::pair<std::monostate, std::pair<immer::map<String, Ptr<Value>>, immer::set<String>>>> paths) {
