@@ -85,6 +85,7 @@ object SATTest extends App {
       {
         import SyntaxSMT._
         import SyntaxSAT._
+        implicit val bw: BitWidthInt = BitWidthInt(5)
         val c = bvVar("c")
         val a:R[BV] = 5
         val b:R[BV] = 6

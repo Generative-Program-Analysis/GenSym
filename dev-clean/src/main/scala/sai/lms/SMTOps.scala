@@ -16,29 +16,28 @@ import java.io.PrintStream
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.StringBuilder
 
+case class BitWidthInt(bw: Int)
+
 // Stage polymorphic interface
 trait StagePolySMT extends StagePolySAT { op =>
-  val bw32: Int = 32
   type BV
   // TODO: how to represent different kind of SMT expression (and how can we compose different theories/logics
-  // TODO: how to specify size of BVs
-  // about size of BVs
-  // a) use hard code bw
-  // b) create a node that retrieve the width
+  // how to specify size of BVs
+  // now use 
 
-  def bvConstExprFromInt(v: Int, bitWidth: Int): R[BV]
-  def bvConstExprFromStr(s: String, bitWidth: Int): R[BV]
+  def bvConstExprFromInt(v: Int)(implicit bitWidth: BitWidthInt): R[BV]
+  def bvConstExprFromStr(s: String)(implicit bitWidth: BitWidthInt): R[BV]
   // TODO: variable?
-  def bvVar(s: String, bitWidth: Int): R[BV]
+  def bvVar(s: String)(implicit bitWidth: BitWidthInt): R[BV]
 
   // bv arith
   // DLL_PUBLIC Expr vc_bvPlusExpr(VC vc, int bitWidth, Expr left, Expr right);
-  def bvPlus(x: R[BV], y: R[BV]): R[BV]
-  def bvMul(x: R[BV], y: R[BV]): R[BV]
-  def bvDiv(x: R[BV], y: R[BV]): R[BV]
-  def bvMinus(x: R[BV], y: R[BV]): R[BV]
-  def bvMod(x: R[BV], y: R[BV]): R[BV]
-  def bvNeg(x: R[BV]): R[BV]
+  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
+  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
+  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
+  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
+  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
+  def bvNeg(x: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
   
   // bv compare
   def bvLt(x: R[BV], y: R[BV]): R[SATBool]
@@ -54,7 +53,7 @@ trait StagePolySMT extends StagePolySAT { op =>
   def bvNot(x: R[BV]): R[BV]
 
   object SyntaxSMT {
-    implicit def __int(n: Int): R[BV] = bvConstExprFromInt(n, bw32)
+    implicit def __int(n: Int)(implicit bitWidth: BitWidthInt): R[BV] = bvConstExprFromInt(n)(bitWidth)
     implicit class BVOps(x: R[BV]) {
       // compare
       def ≡(y: R[BV]): R[SATBool] = op.eq(x, y)
@@ -66,14 +65,14 @@ trait StagePolySMT extends StagePolySAT { op =>
       // doesn't work
       //def !=(y: R[BV]): R[SATBool] = op.not(op.eq(x, y))
 
-      def +(y: R[BV]) = op.bvPlus(x, y)
-      def -(y: R[BV]) = op.bvMinus(x, y)
-      def *(y: R[BV]) = op.bvMul(x, y)
-      def /(y: R[BV]) = op.bvDiv(x, y)
-      def %(y: R[BV]) = op.bvMod(x, y)
+      def +(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvPlus(x, y)(bitWidth)
+      def -(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvMinus(x, y)(bitWidth)
+      def *(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvMul(x, y)(bitWidth)
+      def /(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvDiv(x, y)(bitWidth)
+      def %(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvMod(x, y)(bitWidth)
 
       def &(y: R[BV]) = op.bvAnd(x, y)
-      def |(y: R[BV]) = op.bvAnd(x, y)
+      def |(y: R[BV]) = op.bvOr(x, y)
       def ⊕(y: R[BV]) = op.bvXor(x, y)
       // TODO not, neg
     }
@@ -81,30 +80,31 @@ trait StagePolySMT extends StagePolySAT { op =>
 }
 
 trait SMTStagedOps extends Base with Equal with StagedSATOps with StagePolySMT {
+  // TODO ! implicit 
   trait BV extends SMTExpr
 
-  def bvConstExprFromInt(v: Int, bitWidth: Int = bw32): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Backend.Const(v), Backend.Const(bitWidth)))
-  def bvConstExprFromStr(s: String, bitWidth: Int = bw32): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth)))
+  def bvConstExprFromInt(v: Int)(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Backend.Const(v), Backend.Const(bitWidth.bw)))
+  def bvConstExprFromStr(s: String)(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth.bw)))
   // TODO: variable?
-  def bvVar(s: String, bitWidth: Int = bw32): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-expr-var", Backend.Const(s), Backend.Const(bitWidth)))
+  def bvVar(s: String)(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-expr-var", Backend.Const(s), Backend.Const(bitWidth.bw)))
 
   // bv arith
   // DLL_PUBLIC Expr vc_bvPlusExpr(VC vc, int bitWidth, Expr left, Expr right);
-  def bvPlus(x: R[BV], y: R[BV]): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y)))
-  def bvMul(x: R[BV], y: R[BV]): R[BV] = 
-    Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y)))
-  def bvDiv(x: R[BV], y: R[BV]): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y)))
-  def bvMinus(x: R[BV], y: R[BV]): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y)))
-  def bvMod(x: R[BV], y: R[BV]): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y)))
-  def bvNeg(x: R[BV]): R[BV]=
-    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x)))
+  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
+  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] = 
+    Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
+  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
+  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
+  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
+  def bvNeg(x: R[BV])(implicit bitWidth: BitWidthInt): R[BV]=
+    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x), Backend.Const(bitWidth.bw)))
   
   // bv compare
   def bvLt(x: R[BV], y: R[BV]): R[SATBool] =
@@ -128,8 +128,6 @@ trait SMTStagedOps extends Base with Equal with StagedSATOps with StagePolySMT {
 
   def eq(x: R[BV], y: R[BV]): R[SATBool] =
     Wrap[SATBool](Adapter.g.reflect("bv-eq", Unwrap(x), Unwrap(y)))
-
-  
 }
 
 
@@ -172,21 +170,19 @@ trait STPCodeGen_SMT extends CppSAICodeGenBase with STPCodeGen_SAT {
       emit("vc_bvGeExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
 
       // FIXME: Pass real bitwidth!
-    case Node(s, "bv-plus", List(x, y), _) =>
-      emit("vc_bvPlusExpr(vc, 32,"); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-minus", List(x, y), _) =>
-      emit("vc_bvMinusExpr(vc, 32,"); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-mul", List(x, y), _) =>
-      emit("vc_bvMultExpr(vc, 32,"); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-div", List(x, y), _) =>
-      emit("vc_bvDivExpr(vc, 32,"); shallow(x); emit(", "); shallow(y); emit(");")
-    case Node(s, "bv-mod", List(x, y), _) =>
-      emit("vc_bvModExpr(vc, 32,"); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-neg", List(x), _) => ???
-
-    
+      // fixed?
+    case Node(s, "bv-plus", List(x, y, len), _) =>
+      emit("vc_bvPlusExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-minus", List(x, y, len), _) =>
+      emit("vc_bvMinusExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-mul", List(x, y, len), _) =>
+      emit("vc_bvMultExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-div", List(x, y, len), _) =>
+      emit("vc_bvDivExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(");")
+    case Node(s, "bv-mod", List(x, y, len), _) =>
+      emit("vc_bvModExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-neg", List(x, len), _) => ???
     case _ => super.shallow(n)
-      
   }
 }
 
