@@ -16,8 +16,6 @@ import java.io.PrintStream
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.StringBuilder
 
-case class BitWidthInt(bw: Int)
-
 // Stage polymorphic interface
 trait StagePolySMT extends StagePolySAT { op =>
   type BV
@@ -25,19 +23,19 @@ trait StagePolySMT extends StagePolySAT { op =>
   // how to specify size of BVs
   // now use 
 
-  def bvConstExprFromInt(v: Int)(implicit bitWidth: BitWidthInt): R[BV]
-  def bvConstExprFromStr(s: String)(implicit bitWidth: BitWidthInt): R[BV]
+  def bvConstExprFromInt(v: Int)(implicit bitWidth: Int): R[BV]
+  def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV]
   // TODO: variable?
-  def bvVar(s: String)(implicit bitWidth: BitWidthInt): R[BV]
+  def bvVar(s: String)(implicit bitWidth: Int): R[BV]
 
   // bv arith
   // DLL_PUBLIC Expr vc_bvPlusExpr(VC vc, int bitWidth, Expr left, Expr right);
-  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
-  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
-  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
-  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
-  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
-  def bvNeg(x: R[BV])(implicit bitWidth: BitWidthInt): R[BV]
+  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
+  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
+  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
+  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
+  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
+  def bvNeg(x: R[BV])(implicit bitWidth: Int): R[BV]
   
   // bv compare
   def bvLt(x: R[BV], y: R[BV]): R[SATBool]
@@ -53,7 +51,7 @@ trait StagePolySMT extends StagePolySAT { op =>
   def bvNot(x: R[BV]): R[BV]
 
   object SyntaxSMT {
-    implicit def __int(n: Int)(implicit bitWidth: BitWidthInt): R[BV] = bvConstExprFromInt(n)(bitWidth)
+    implicit def __int(n: Int)(implicit bitWidth: Int): R[BV] = bvConstExprFromInt(n)(bitWidth)
     implicit class BVOps(x: R[BV]) {
       // compare
       def ≡(y: R[BV]): R[SATBool] = op.eq(x, y)
@@ -65,11 +63,11 @@ trait StagePolySMT extends StagePolySAT { op =>
       // doesn't work
       //def !=(y: R[BV]): R[SATBool] = op.not(op.eq(x, y))
 
-      def +(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvPlus(x, y)(bitWidth)
-      def -(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvMinus(x, y)(bitWidth)
-      def *(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvMul(x, y)(bitWidth)
-      def /(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvDiv(x, y)(bitWidth)
-      def %(y: R[BV])(implicit bitWidth: BitWidthInt) = op.bvMod(x, y)(bitWidth)
+      def +(y: R[BV])(implicit bitWidth: Int) = op.bvPlus(x, y)(bitWidth)
+      def -(y: R[BV])(implicit bitWidth: Int) = op.bvMinus(x, y)(bitWidth)
+      def *(y: R[BV])(implicit bitWidth: Int) = op.bvMul(x, y)(bitWidth)
+      def /(y: R[BV])(implicit bitWidth: Int) = op.bvDiv(x, y)(bitWidth)
+      def %(y: R[BV])(implicit bitWidth: Int) = op.bvMod(x, y)(bitWidth)
 
       def &(y: R[BV]) = op.bvAnd(x, y)
       def |(y: R[BV]) = op.bvOr(x, y)
@@ -80,31 +78,30 @@ trait StagePolySMT extends StagePolySAT { op =>
 }
 
 trait SMTStagedOps extends Base with Equal with StagedSATOps with StagePolySMT {
-  // TODO ! implicit 
   trait BV extends SMTExpr
 
-  def bvConstExprFromInt(v: Int)(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Backend.Const(v), Backend.Const(bitWidth.bw)))
-  def bvConstExprFromStr(s: String)(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth.bw)))
+  def bvConstExprFromInt(v: Int)(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Backend.Const(v), Backend.Const(bitWidth)))
+  def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth)))
   // TODO: variable?
-  def bvVar(s: String)(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-expr-var", Backend.Const(s), Backend.Const(bitWidth.bw)))
+  def bvVar(s: String)(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-expr-var", Backend.Const(s), Backend.Const(bitWidth)))
 
   // bv arith
   // DLL_PUBLIC Expr vc_bvPlusExpr(VC vc, int bitWidth, Expr left, Expr right);
-  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
-  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] = 
-    Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
-  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
-  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
-  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: BitWidthInt): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(bitWidth.bw)))
-  def bvNeg(x: R[BV])(implicit bitWidth: BitWidthInt): R[BV]=
-    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x), Backend.Const(bitWidth.bw)))
+  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
+  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] = 
+    Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
+  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
+  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
+  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
+  def bvNeg(x: R[BV])(implicit bitWidth: Int): R[BV]=
+    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x), Backend.Const(bitWidth)))
   
   // bv compare
   def bvLt(x: R[BV], y: R[BV]): R[SATBool] =
@@ -131,10 +128,9 @@ trait SMTStagedOps extends Base with Equal with StagedSATOps with StagePolySMT {
 }
 
 
-trait STPCodeGen_SMT extends CppSAICodeGenBase with STPCodeGen_SAT {
+trait STPCodeGen_SMT extends ExtendedCCodeGen with STPCodeGen_SAT {
   // TODO register header
   // TODO remap SATBool => Expr
-  // vc???
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, name, _, _) if name.startsWith("bv") => false

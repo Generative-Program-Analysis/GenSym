@@ -118,7 +118,7 @@ trait StagedSATOps extends Base with Equal with StagePolySAT {
     Wrap[Model](Adapter.g.reflect("sat-getModel"))
 }
 
-trait STPCodeGen_SAT extends CppSAICodeGenBase {
+trait STPCodeGen_SAT extends ExtendedCCodeGen {
   registerHeader("../stp/include", "<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")
 

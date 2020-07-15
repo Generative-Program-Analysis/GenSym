@@ -15,7 +15,7 @@ abstract class SATSnippet[A:Manifest, B:Manifest] extends StagedSATOps {
 }
 
 abstract class CppSATDriver[A: Manifest, B: Manifest] extends SATSnippet[A, B] with SMTStagedOps { q =>
-  val codegen = new CGenBase with STPCodeGen_SMT {
+  val codegen = new CGenBase with CppSAICodeGenBase {
     val IR: q.type = q
     import IR._
   }
@@ -85,7 +85,7 @@ object SATTest extends App {
       {
         import SyntaxSMT._
         import SyntaxSAT._
-        implicit val bw: BitWidthInt = BitWidthInt(5)
+        implicit val bw: Int = 32
         val c = bvVar("c")
         val a:R[BV] = 5
         val b:R[BV] = 6
