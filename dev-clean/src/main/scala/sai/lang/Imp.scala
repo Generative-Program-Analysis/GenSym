@@ -153,7 +153,7 @@ object TestImp {
     def snippet(u: Rep[Unit]) = {
       //val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
       //                      Set[Expr]())
-      val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
+      val init: Rep[Ans] = (Map("n" -> SymVBV("n")), Set[SATBool]())
       val v = exec(s)(init).run
       println(v)
       println("path number: ")
@@ -165,10 +165,12 @@ object TestImp {
   def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] = new CppSymStagedImpDriver[Int, Unit] {
     def snippet(u: Rep[Int]) = {
       //val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
-      val init: Rep[Ans] = (Map("x" -> SymV("x"), "y" -> IntV(0)), Set[Expr]())
-      val v = exec(s)(init).run
+      val init: Rep[Ans] = (Map("x" -> SymVBV("x"), "y" -> IntV(3)), Set[SATBool]())
+      val v: Rep[List[(Unit, Ans)]] = exec(s)(init).run
       //println(v)
       //println("path number: ")
+
+      v.foreach(l => handle(query(not(l._2._2.foldLeft(lit(true))(and(_, _))))))
       println(v.size)
     }
   }

@@ -67,6 +67,11 @@ trait ListOps { b: Base =>
       Wrap[Boolean](Adapter.g.reflect("list-containsSlice", Unwrap(xs), Unwrap(ys)))
     def intersect[B >: A : Manifest](ys: Rep[List[B]]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-intersect", Unwrap(xs), Unwrap(ys)))
+    // TODO correct?
+    def foreach(f: Rep[A] => Rep[Unit]): Rep[List[Unit]] = {
+      val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
+      Wrap[List[Unit]](Adapter.g.reflect("list-foreach", Unwrap(xs), block))
+    }
   }
 }
 
@@ -212,6 +217,16 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
     case _ => super.quote(s)
   }
 
+  override def traverse(n: Node): Unit = n match {
+    case Node(s, "list-foreach", List(xs, f), _) =>
+      emit("Vec::foreach(")
+      shallow(xs)
+      emit(", ")
+      shallow(f)
+      emit(");")
+    case _ => super.traverse(n)
+  }
+
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
       emit("immer::flex_vector<")
@@ -246,7 +261,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
     case Node(s, "list-toArray", List(xs), _) =>
       ???
     case Node(s, "list-toSeq", List(xs), _) =>
-      ???
+      ???  
     case Node(s, "list-map", List(xs, b: Block), _) =>
       val retType = remap(typeBlockRes(b.res))
       emit(s"Vec::vmap<$retType>(")

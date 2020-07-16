@@ -197,6 +197,16 @@ namespace Vec {
     }
     return res;
   }
+
+  template<typename T, typename Fn>
+  inline void foreach(immer::flex_vector<T> vec, Fn f) {
+    // static_assert(std::is_convertible<Fn, std::function<U(T)>>::value,
+    //   "Vec::map requires a function of type U(T)");
+    // auto res = immer::flex_vector<U>();
+    for (int i = 0; i < vec.size(); i++) {
+      f(vec.at(i));
+    }
+  }
 }
 
 namespace Tuple {
