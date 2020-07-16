@@ -19,13 +19,19 @@ trait SymStagedImp extends SAIOps {
   import StateT._
   import ListT._
 
-  trait Value
+  implicit val bw: Int = 32
+  // FIXME: are we allowing Boolean exp?
+  val boolOp:Set[String] = scala.collection.immutable.Set()
+
+  type Value = SMTExpr
   def IntV(i: Rep[Int]): Rep[Value] =
-    Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
+    bvConstExprFromInt(i)
   def BoolV(b: Rep[Boolean]): Rep[Value] =
-    Wrap[Value](Adapter.g.reflect("BoolV", Unwrap(b)))
-  def SymV(x: Rep[String]): Rep[Value] =
-    Wrap[Value](Adapter.g.reflect("SymV", Unwrap(x)))
+    lit(b)
+  def SymVBV(x: Rep[String]): Rep[Value] =
+    bvVar(x)
+  def SymVBool(x: Rep[String]): Rep[Value] =
+    boolVar(x)
 
   /*
   def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
@@ -42,26 +48,62 @@ trait SymStagedImp extends SAIOps {
       Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
   }
    */
+  // TODO Change
 
   def op_neg(v: Rep[Value]): Rep[Value] = {
-    Unwrap(v) match {
-      case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
-        val v1: Rep[Int] = Wrap[Int](v)
-        IntV(-v1)
-      case Adapter.g.Def("SymV", scala.collection.immutable.List(v: Backend.Exp)) =>
-        val v1: Rep[String] = Wrap[String](v)
-        SymV(unit("-" + v1))
-      case i =>
-        val v1: Rep[Int] = Wrap[Int](Adapter.g.reflect("IntV-proj", i))
-        IntV(-v1)
+    Adapter.typeMap.get(Unwrap(v)).get.runtimeClass.getName match {
+      case x if x.contains("SATBool") =>
+        not(v.asInstanceOf[Rep[SATBool]])
+      case x if x.contains("BV") =>
+        bvNeg(v.asInstanceOf[Rep[BV]])
+      case _ => ???
     }
   }
 
   def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
+    if (boolOp.contains(op)) {
+      // import SyntaxSAT._
+      // val v1B: Rep[SATBool] = v1.asInstanceOf[Rep[SATBool]]
+      // val v2B: Rep[SATBool] = v2.asInstanceOf[Rep[SATBool]]
+      // op match {
+      //   case "==" => v1B ≡ v2B
+      //   case "<=" => v1B <= v2B
+      //   case ">=" => v1B >= v2B
+      //   case "<" => v1B < v2B
+      //   case ">" => v1B > v2B
+      // }
+      ???
+    } else {
+      import SyntaxSMT._
+      val v1BV = v1.asInstanceOf[Rep[BV]]
+      val v2BV = v2.asInstanceOf[Rep[BV]]
+      op match {
+        case "==" => v1BV ≡ v2BV
+        case "<=" => v1BV <= v2BV
+        case ">=" => v1BV >= v2BV
+        case "<" => v1BV < v2BV
+        case ">" => v1BV > v2BV
+        case "+" => v1BV + v2BV
+        case "-" => v1BV - v2BV
+        case "*" => v1BV * v2BV
+        case "/" => v1BV / v2BV
+      }
+    }
   }
 
-  type PC = Set[Expr]
+  // def to_smt(v: Rep[Value]): Rep[SMTExpr] = {
+  //   Unwrap(v) match {
+  //     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
+  //       val v1: Rep[BV] = 
+  //       IntV(-v1)
+  //     case Adapter.g.Def("SymV", scala.collection.immutable.List(v: Backend.Exp)) =>
+  //       val v1: Rep[String] = Wrap[String](v)
+  //       SymV(unit("-" + v1))
+  //     case Adapter.g.Def
+  //   }
+  // }
+
+  type PC = Set[SATBool]
   type Store = Map[String, Value]
   type Ans = (Store, PC)
   type M[T] = StateT[ListM, Ans, T] // List[(Unit, (Store, PC))]
@@ -95,7 +137,8 @@ trait SymStagedImp extends SAIOps {
 
   def update_pc(e: Expr): M[Unit] = for {
     ans <- MonadState[M, Ans].get
-    _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(e)))
+    pc <- evalM(e)
+    _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(pc.asInstanceOf[Rep[SATBool]])))
   } yield ()
 
   def select(cnd: Expr, m1: M[Unit], m2: M[Unit]): M[Unit] = {
@@ -272,6 +315,7 @@ trait CppSymStagedImpDriver[A, B] extends CppSAIDriver[A, B] with SymStagedImp {
       if (m.toString == "java.lang.String") "String"
       else if (m.toString.endsWith("$Value")) "Ptr<Value>"
       else if (m.toString.endsWith("$Expr")) "String"
+      else if (m.toString.endsWith("SMTExpr")) "Expr"
       else super.remap(m)
     }
   }

@@ -26,6 +26,7 @@ trait StagePolySAT { op =>
   type Model
 
   def lit(b: Boolean): R[SATBool]
+  def lit(b: R[Boolean]): R[SATBool]
   def boolVar(x: String): R[SATBool]
   // FIXME: allow eq?
   //def eq(x: R[SATBool], y: R[SATBool]): R[SATBool]
@@ -77,7 +78,11 @@ trait StagedSATOps extends Base with Equal with StagePolySAT {
   // TODO: LMS stuff, generate C/STP code
   def lit(b: Boolean): R[SATBool] =
     Wrap[SATBool](Adapter.g.reflect("sat-bool-lit", Backend.Const(b)))
+  def lit(b: R[Boolean]): R[SATBool] =
+    Wrap[SATBool](Adapter.g.reflect("sat-bool-lit", Unwrap(b)))
   def boolVar(x: String): R[SATBool] = 
+    Wrap[SATBool](Adapter.g.reflect("sat-bool-var", Backend.Const(x)))
+  def boolVar(x: R[String]): R[SATBool] = 
     Wrap[SATBool](Adapter.g.reflect("sat-bool-var", Backend.Const(x)))
   //def eq(x: R[SATBool], y: R[SATBool]): R[SATBool] =
     //Wrap[SATBool](Adapter.g.reflect("sat-eq", Unwrap(x), Unwrap(y)))
@@ -129,7 +134,10 @@ trait STPCodeGen_SAT extends ExtendedCCodeGen {
   }
 
   override def mayInline(n: Node): Boolean = n match {
-    case Node(_, name, _, _) if name.startsWith("sat") => false
+    case Node(_, name, _, _) if name.startsWith("sat-bool-var") => false
+    case Node(_, name, _, _) if name.startsWith("sat-bool-lit") => false
+    case Node(_, name, _, _) if name.startsWith("sat-check") => false
+    case Node(_, name, _, _) if name.startsWith("sat-query") => false
     case _ => super.mayInline(n)
   }
 

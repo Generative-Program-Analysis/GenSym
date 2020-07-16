@@ -82,11 +82,15 @@ trait SMTStagedOps extends Base with Equal with StagedSATOps with StagePolySMT {
 
   def bvConstExprFromInt(v: Int)(implicit bitWidth: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Backend.Const(v), Backend.Const(bitWidth)))
+  def bvConstExprFromInt(v: R[Int])(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Unwrap(v), Backend.Const(bitWidth)))
   def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth)))
   // TODO: variable?
   def bvVar(s: String)(implicit bitWidth: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-expr-var", Backend.Const(s), Backend.Const(bitWidth)))
+  def bvVar(s: R[String])(implicit bitWidth: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-expr-var", Unwrap(s), Backend.Const(bitWidth)))
 
   // bv arith
   // DLL_PUBLIC Expr vc_bvPlusExpr(VC vc, int bitWidth, Expr left, Expr right);
@@ -133,7 +137,8 @@ trait STPCodeGen_SMT extends ExtendedCCodeGen with STPCodeGen_SAT {
   // TODO remap SATBool => Expr
 
   override def mayInline(n: Node): Boolean = n match {
-    case Node(_, name, _, _) if name.startsWith("bv") => false
+    case Node(_, name, _, _) if name.startsWith("bv-const") => false
+    case Node(_, name, _, _) if name.startsWith("bv-expr") => false
     case _ => super.mayInline(n)
   }
 

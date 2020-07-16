@@ -64,7 +64,8 @@ trait SAIOps extends Base
     with PrimitiveOps with LiftPrimitives with Equal
     with OrderingOps  with LiftVariables  with TupleOpsOpt
     with ListOpsOpt   with MapOpsOpt      with SetOpsOpt
-    with EitherOps    with RepLattices    with RepMonads {
+    with EitherOps    with RepLattices    with RepMonads 
+    with SMTStagedOps {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]

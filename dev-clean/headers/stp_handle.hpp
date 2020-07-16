@@ -1,7 +1,8 @@
 #include "stp/c_interface.h"
 #include <iostream>
+#include <variant>
 
-void handle(VC vc, int n) {
+std::monostate handle(VC vc, int n) {
   switch (n) {
     case 0:
       std::cout << "Query is invalid" << std::endl;
@@ -18,4 +19,5 @@ void handle(VC vc, int n) {
       std::cout << "timeout" << std::endl;
       break;
   }
+  std::cout << std::endl;
 }
