@@ -160,6 +160,10 @@ trait SymStagedImp extends SAIOps {
 
   def exec(s: Stmt): M[Unit] = s match {
     case Skip() => M.pure(())
+    case Assign(x, Input()) => for {
+      // TODO: name of the fresh variable
+      _ <- update_store(x, SymVBV(x))
+    } yield ()
     case Assign(x, e) => for {
       v <- evalM(e)
       _ <- update_store(x, v)
@@ -187,6 +191,9 @@ trait SymStagedImp extends SAIOps {
       */
       val k = 4
       exec(unfold(While(e, b), k))
+    case Assert(e) => for {
+      _ <- update_pc(e)
+    } yield ()
   }
 
   def unfold(w: While, k: Int): Stmt =

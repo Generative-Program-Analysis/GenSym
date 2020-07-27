@@ -9,6 +9,11 @@ import lms.macros.SourceContext
 import sai.lmsx._
 
 import scala.collection.immutable.{List => SList}
+import sai.lang.SimpIL.Assert
+
+// TODO: 
+// add support for input
+// add assert statement
 
 object ImpLang {
   sealed trait Stmt
@@ -19,6 +24,7 @@ object ImpLang {
   case class Seq(s1: Stmt, s2: Stmt) extends Stmt
   case class While(b: Expr, s: Stmt) extends Stmt
   case class Output(e: Expr) extends Stmt
+  case class Assert(e: Expr) extends Stmt
 
   sealed trait Expr {
     def toSExp: String
@@ -75,6 +81,7 @@ object ImpLang {
             let_("fact", Op2("*", fact, i)){ _ =>
               set_("i", Op2("+", i, Lit(1)))
             })}}
+    
 
     //println(another_fact5)
     assert(fact5 == another_fact5)
@@ -85,7 +92,6 @@ object ImpLang {
     val a = Var("a")
     val b = Var("b")
     val i = Var("i")
-
     val cond1 =
       Cond(Op2("<=", Lit(1), Lit(2)),
         Assign("x", Lit(3)),
@@ -118,6 +124,29 @@ object ImpLang {
             Assign("z", Op2("+", z, Lit(2))),
             Assign("z", Op2("+", z, Lit(3)))),
           Skip())))
+
+    val condInput =
+      Seq(Assign("x", Input()),
+      Seq(Cond(Op2("<=", x, y),
+               Assign("z", x),
+               Assign("z", y)),
+        Seq(Assign("z", Op2("+", z, Lit(1))),
+          Seq(Cond(Op2(">=", z, y),
+            Assign("z", Op2("+", z, Lit(2))),
+            Assign("z", Op2("+", z, Lit(3)))),
+          Skip()))))
+
+    val condAssert =
+      Seq(Assign("x", Input()),
+      Seq(Assert(Op2(">=", x, Lit(1))),
+      Seq(Cond(Op2("<=", x, y),
+               Assign("z", x),
+               Assign("z", y)),
+        Seq(Assign("z", Op2("+", z, Lit(1))),
+          Seq(Cond(Op2(">=", z, y),
+            Assign("z", Op2("+", z, Lit(2))),
+            Assign("z", Op2("+", z, Lit(3)))),
+          Skip())))))
 
   }
 }
@@ -165,7 +194,7 @@ object TestImp {
   def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] = new CppSymStagedImpDriver[Int, Unit] {
     def snippet(u: Rep[Int]) = {
       //val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
-      val init: Rep[Ans] = (Map("x" -> SymVBV("x"), "y" -> IntV(3)), Set[SATBool]())
+      val init: Rep[Ans] = (Map("y" -> IntV(3)), Set[SATBool]())
       val v: Rep[List[(Unit, Ans)]] = exec(s)(init).run
       //println(v)
       //println("path number: ")
@@ -190,7 +219,7 @@ object TestImp {
      */
 
     /* Symbolic execution */
-    val code = specSymCpp(cond3)
+    val code = specSymCpp(condAssert)
     println(code.code)
     code.eval(0)
   }
