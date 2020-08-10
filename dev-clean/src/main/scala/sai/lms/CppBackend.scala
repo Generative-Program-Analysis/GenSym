@@ -12,7 +12,7 @@ import lms.macros.SourceContext
 import sai.structure.lattices._
 import sai.structure.monad._
 
-trait CppSAICodeGenBase extends ExtendedCCodeGen
+trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map
     with CppCodeGen_Set with STPCodeGen_SMT {
   //override def remap(m: Manifest[_]): String = super.remap(m)
