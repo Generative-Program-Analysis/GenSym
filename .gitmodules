@@ -10,3 +10,7 @@
 	path = immer
 	url = git@github.com:arximboldi/immer.git
 	ignore = dirty
+[submodule "stp"]
+	path = stp
+	url = https://github.com/stp/stp
+	ignore = dirty
