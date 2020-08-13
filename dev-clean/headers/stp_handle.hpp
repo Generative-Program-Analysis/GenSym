@@ -20,4 +20,5 @@ std::monostate handle(VC vc, int n) {
       break;
   }
   std::cout << std::endl;
+  return std::monostate{};
 }
