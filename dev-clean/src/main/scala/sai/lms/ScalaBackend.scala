@@ -60,11 +60,6 @@ trait SAICodeGenBase extends ExtendedScalaCodeGen
   }
 }
 
-abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
-  def wrapper(x: Rep[A]): Rep[B] = snippet(x)
-  def snippet(x: Rep[A]): Rep[B]
-}
-
 abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps { q =>
   val codegen = new ScalaGenBase with SAICodeGenBase {
     val IR: q.type = q
