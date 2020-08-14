@@ -81,6 +81,13 @@ object SATTest extends App {
         assert(np)
         isValid(and(p, np))
       }
+      build(true) {
+        assert(lit(false))
+        isValid(lit(false))
+      }
+      build(false) {
+        isValid(lit(false))
+      }
       build(false) {
         assert(p)
         val np = not(p)
