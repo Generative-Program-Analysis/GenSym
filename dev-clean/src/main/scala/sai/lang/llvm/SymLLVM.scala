@@ -479,7 +479,7 @@ object LLVMTest {
   def testSimpleBranchEff = {
     import SymExecEff._
     //val testInput = scala.io.Source.fromFile("llvm/test/branch2.ll").mkString
-    val testInput = scala.io.Source.fromFile("llvm/test/multipath4.ll").mkString
+    val testInput = scala.io.Source.fromFile("llvm/benchmarks/multipath4.ll").mkString
     val m = parse(testInput)
 
     val t0 = System.nanoTime()
@@ -493,10 +493,35 @@ object LLVMTest {
 
   }
 
+  def printBB(bb: BB): Unit = {
+    println("  Block: ")
+    println(s"    Label: ${bb.label}")
+    println()
+    println("    Inst:")
+    bb.ins.foreach(u => println(s"      ${u}"))
+    println()
+    println("    Term:")
+    println(s"      ${bb.term}")
+    println()
+    println()
+  }
+
+  def printAst(input: String): Unit = {
+    parse(input).es foreach {u => u match {
+      case FunctionDef(id, linkage, metadata, header, body) => 
+        println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
+        body.blocks foreach(printBB(_))
+      case _ => println(u)
+    }
+      
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     //val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
-    //val testInput = scala.io.Source.fromFile("llvm/test/add.ll").mkString
-    //println(testInput)
+    val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
+    printAst(testInput)
+
 
     //testAdd
     //testAddEff
@@ -509,6 +534,6 @@ object LLVMTest {
      */
 
     //testSimpleBranch
-    testSimpleBranchEff
+    //testSimpleBranchEff
   }
 }
