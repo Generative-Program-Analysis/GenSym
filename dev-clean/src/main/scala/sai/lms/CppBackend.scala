@@ -18,6 +18,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map
     with CppCodeGen_Set with STPCodeGen_SMTBase with STPCodeGen_SMTBV {
   //override def remap(m: Manifest[_]): String = super.remap(m)
+  registerLibraryPath("../stp/build/lib")
 
   val SMT_DEBUG = true
 
@@ -140,11 +141,9 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
     (new java.io.File("./snippet")).delete
     import scala.sys.process._
 
-    val includes =
-      if (codegen.includePaths.isEmpty) ""
-      else s"-I ${codegen.includePaths.mkString(" -I ")}"
-    // TODO: using LMS functionality library path
-    val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes -L ../stp/build/lib"
+    val includes = codegen.joinPaths(codegen.includePaths, "-I")
+    val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
+    val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes $libraryPaths"
     System.out.println("Compile command: " + pb)
 
     time("cc-compile") {
