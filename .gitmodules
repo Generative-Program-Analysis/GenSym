@@ -11,3 +11,6 @@
 	url = git@github.com:arximboldi/immer.git
 	ignore = dirty
 
+[submodule "stp"]
+	path = stp
+	url = git@github.com:stp/stp.git
