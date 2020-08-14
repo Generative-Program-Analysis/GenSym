@@ -7,6 +7,7 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 
 import sai.lmsx._
+import sai.lmsx.smt._
 
 import scala.collection.immutable.{List => SList}
 import sai.lang.SimpIL.Assert
@@ -178,31 +179,33 @@ object TestImp {
     }
 
   @virtualize
-  def specSym(s: Stmt): SAIDriver[Unit, Unit] = new SymStagedImpDriver {
-    def snippet(u: Rep[Unit]) = {
-      //val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
-      //                      Set[Expr]())
-      val init: Rep[Ans] = (Map("n" -> SymVBV("n")), Set[SATBool]())
-      val v = exec(s)(init).run
-      println(v)
-      println("path number: ")
-      println(v.size)
+  def specSym(s: Stmt): SAIDriver[Unit, Unit] =
+    new SymStagedImpDriver {
+      def snippet(u: Rep[Unit]) = {
+        //val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
+        //                      Set[Expr]())
+        val init: Rep[Ans] = (Map("n" -> SymVBV("n")), Set[SMTBool]())
+        val v = exec(s)(init).run
+        println(v)
+        println("path number: ")
+        println(v.size)
+      }
     }
-  }
 
   @virtualize
-  def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] = new CppSymStagedImpDriver[Int, Unit] {
-    def snippet(u: Rep[Int]) = {
-      //val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
-      val init: Rep[Ans] = (Map("y" -> IntV(3)), Set[SATBool]())
-      val v: Rep[List[(Unit, Ans)]] = exec(s)(init).run
-      //println(v)
-      //println("path number: ")
+  def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] =
+    new CppSymStagedImpDriver[Int, Unit] {
+      def snippet(u: Rep[Int]) = {
+        //val init: Rep[Ans] = (Map("n" -> SymV("n")), Set[Expr]())
+        val init: Rep[Ans] = (Map("y" -> IntV(3)), Set[SMTBool]())
+        val v: Rep[List[(Unit, Ans)]] = exec(s)(init).run
+        //println(v)
+        //println("path number: ")
 
-      v.foreach(l => handle(query(not(l._2._2.foldLeft(lit(true))(and(_, _))))))
-      println(v.size)
+        v.foreach(l => handle(isValid(not(l._2._2.foldLeft(lit(true))(and(_, _))))))
+        println(v.size)
+      }
     }
-  }
 
   def main(args: Array[String]): Unit = {
     /*

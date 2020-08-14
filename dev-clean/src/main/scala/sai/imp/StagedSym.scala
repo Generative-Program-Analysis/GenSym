@@ -9,6 +9,7 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
+import sai.lmsx.smt._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 
@@ -28,9 +29,9 @@ trait SymStagedImp extends SAIOps {
     bvConstExprFromInt(i)
   def BoolV(b: Rep[Boolean]): Rep[Value] =
     lit(b)
-  def SymVBV(x: Rep[String]): Rep[Value] =
+  def SymVBV(x: String): Rep[Value] =
     bvVar(x)
-  def SymVBool(x: Rep[String]): Rep[Value] =
+  def SymVBool(x: String): Rep[Value] =
     boolVar(x)
 
   /*
@@ -52,8 +53,8 @@ trait SymStagedImp extends SAIOps {
 
   def op_neg(v: Rep[Value]): Rep[Value] = {
     Adapter.typeMap.get(Unwrap(v)).get.runtimeClass.getName match {
-      case x if x.contains("SATBool") =>
-        not(v.asInstanceOf[Rep[SATBool]])
+      case x if x.contains("SMTBool") =>
+        not(v.asInstanceOf[Rep[SMTBool]])
       case x if x.contains("BV") =>
         bvNeg(v.asInstanceOf[Rep[BV]])
       case _ => ???
@@ -103,7 +104,7 @@ trait SymStagedImp extends SAIOps {
   //   }
   // }
 
-  type PC = Set[SATBool]
+  type PC = Set[SMTBool]
   type Store = Map[String, Value]
   type Ans = (Store, PC)
   type M[T] = StateT[ListM, Ans, T] // List[(Unit, (Store, PC))]
@@ -138,7 +139,7 @@ trait SymStagedImp extends SAIOps {
   def update_pc(e: Expr): M[Unit] = for {
     ans <- MonadState[M, Ans].get
     pc <- evalM(e)
-    _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(pc.asInstanceOf[Rep[SATBool]])))
+    _ <- MonadState[M, Ans].put((ans._1, ans._2 ++ Set(pc.asInstanceOf[Rep[SMTBool]])))
   } yield ()
 
   def select(cnd: Expr, m1: M[Unit], m2: M[Unit]): M[Unit] = {

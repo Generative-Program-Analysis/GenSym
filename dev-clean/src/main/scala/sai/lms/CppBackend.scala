@@ -12,9 +12,11 @@ import lms.macros.SourceContext
 import sai.structure.lattices._
 import sai.structure.monad._
 
+import sai.lmsx.smt._
+
 trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple with CppCodeGen_Map
-    with CppCodeGen_Set with STPCodeGen_SMT {
+    with CppCodeGen_Set with STPCodeGen_SMTBase with STPCodeGen_SMTBV {
   //override def remap(m: Manifest[_]): String = super.remap(m)
 
   val SMT_DEBUG = true
@@ -141,15 +143,19 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
     val includes =
       if (codegen.includePaths.isEmpty) ""
       else s"-I ${codegen.includePaths.mkString(" -I ")}"
-    val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes"
+    // TODO: using LMS functionality library path
+    val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes -L ../stp/build/lib"
     System.out.println("Compile command: " + pb)
 
-    time("gcc") {
+    time("cc-compile") {
       (pb: ProcessBuilder).lines.foreach(Console.println _)
     }
+
     (a: A) => {
       System.out.println(s"Running ./snippet $a")
-      (s"./snippet $a": ProcessBuilder).lines.foreach(Console.println _)
+      // (s"./snippet $a": ProcessBuilder).lines.foreach(Console.println _)
+      // FIXME: LD_LIBRARY_PATH?
+      Process(s"./snippet $a", None, "LD_LIBRARY_PATH"->"../stp/build/lib").lines.foreach(Console.println _)
     }
   }
 
