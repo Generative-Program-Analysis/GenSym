@@ -202,7 +202,7 @@ object TestImp {
         //println(v)
         //println("path number: ")
 
-        v.foreach(l => handle(isValid(not(l._2._2.foldLeft(lit(true))(and(_, _))))))
+        v.foreach(l => handle(query(not(l._2._2.foldLeft(lit(true))(and(_, _))))))
         println(v.size)
       }
     }

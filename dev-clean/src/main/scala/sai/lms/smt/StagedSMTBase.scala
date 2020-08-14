@@ -47,10 +47,12 @@ trait SMTBaseOps extends StagedSMTBase with SMTBaseInterface {
     Wrap[Unit](Adapter.g.reflectWrite("smt-pop")(Adapter.CTRL))
   def assert(x: Rep[SMTBool]): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("smt-assert", Unwrap(x))(Adapter.CTRL))
-  def isValid(x: Rep[SMTBool]): Rep[Int] =
+  def isValid(x: Rep[SMTBool]): Rep[Boolean] =
+    Wrap[Boolean](Adapter.g.reflectWrite("smt-is-valid", Unwrap(x))(Adapter.CTRL))
+  def isSat(x: Rep[SMTBool]): Rep[Boolean] =
+    Wrap[Boolean](Adapter.g.reflectWrite("smt-is-sat", Unwrap(x))(Adapter.CTRL))
+  def query(x: Rep[SMTBool]): Rep[Int] =
     Wrap[Int](Adapter.g.reflectWrite("smt-query", Unwrap(x))(Adapter.CTRL))
-  def checkSat: Rep[Boolean] =
-    Wrap[Boolean](Adapter.g.reflectWrite("smt-check")(Adapter.CTRL))
   def getCounterEx(x: Rep[SMTExpr]): Rep[SMTExpr] =
     // TODO: what's the expression should be given here?
     Wrap[SMTExpr](Adapter.g.reflectWrite("smt-get-cex", Unwrap(x))(Adapter.CTRL))
@@ -83,7 +85,7 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
     case Node(s, "smt-pop", _, _) =>
       emitln("vc_pop(vc);")
     case Node(s, "sat-handle", List(x), _) =>
-      emit("handle(vc, "); shallow(x); emitln(");");
+      emit("handle_query(vc, "); shallow(x); emitln(");");
     case _ => super.traverse(n)
   }
 
@@ -111,9 +113,10 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
     case Node(s, "smt-eq", List(l, r), _) => 
       // TODO: eq may not work as expected (GW: why?)
       emit("vc_eqExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
-    case Node(s, "smt-check", _, _) =>
-      // TODO: Does it work?
-      emit("vc_query(vc, vc_trueExpr(vc))")
+    case Node(s, "smt-is-valid", List(x), _) =>
+      emit("stp_is_valid(vc, "); shallow(x); emit(")")
+    case Node(s, "smt-is-sat", List(x), _) =>
+      emit("stp_is_sat(vc, "); shallow(x); emit(")")
     case Node(s, "smt-query", List(x), _) => 
       emit("vc_query(vc, "); shallow(x); emit(")")
     case Node(s, "smt-get-cex", List(x), _) =>

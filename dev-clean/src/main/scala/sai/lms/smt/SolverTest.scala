@@ -29,7 +29,7 @@ object SATTest extends App {
    */
 
   def testSAT(): CppSAIDriver[Int, Unit] = new CppSAIDriver[Int, Unit] {
-    def build(expect: Boolean)(e: => Rep[Int]): Unit = {
+    def build(expect: Boolean)(e: => Rep[Boolean]): Unit = {
       push
       val res = e
       unchecked("vc_printAsserts(vc, 1);")
@@ -40,9 +40,11 @@ object SATTest extends App {
     }
 
     def snippet(x: Rep[Int]) = {
-      // import SyntaxSMT._
-      // import SyntaxSAT._
       // A few sanity checks
+      // p valid <=> ¬p unsat
+      // p invalid <=> ¬p sat
+      // p sat <=> ¬p invalid
+      // p unsat <=> ¬p valid
       val p = boolVar("p")
       val q = boolVar("q")
       val r = boolVar("r")
@@ -73,14 +75,36 @@ object SATTest extends App {
         assert(not(p))
         isValid(p)
       }
-      // FIXME: this seems not right...
       build(true) {
         assert(p)
         val np = not(p)
         assert(np)
-        assert(lit(false))
-        // isValid(and(p, np))
-        isValid(lit(false))
+        isValid(and(p, np))
+      }
+      build(false) {
+        assert(p)
+        val np = not(p)
+        assert(np)
+        isSat(and(p, np))
+      }
+      build(false) {
+        isSat(lit(false))
+      }
+      build(false) {
+        assert(p)
+        isSat(lit(false))
+      }
+      build(true) {
+        isSat(lit(true))
+      }
+      build(false) {
+        assert(p)
+        assert(not(q))
+        isSat(and(p, q))
+      }
+      build(true) {
+        assert(not(p))
+        isSat(imply(q, p))
       }
       println("Done")
     }
@@ -95,7 +119,7 @@ object SATTest extends App {
         val c = bvVar("c")
         val a: Rep[BV] = 5
         val b: Rep[BV] = 6
-        handle(isValid((a + b) ≠ c))
+        handle(query((a + b) ≠ c))
       }
       println("Done")
     }

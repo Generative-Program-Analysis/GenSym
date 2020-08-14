@@ -24,8 +24,9 @@ trait SMTBaseInterface { op =>
   def push: R[Unit]
   def pop: R[Unit]
   def assert(x: R[SMTBool]): R[Unit]
-  def isValid(x: R[SMTBool]): R[Int]
-  def checkSat: R[Boolean]
+  def isValid(x: R[SMTBool]): R[Boolean]
+  def isSat(x: R[SMTBool]): R[Boolean]
+  def query(x: R[SMTBool]): R[Int]
   def getCounterEx(x: R[SMTExpr]): R[SMTExpr]
 
   object SyntaxSAT {
