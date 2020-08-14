@@ -25,14 +25,10 @@ trait SymStagedImp extends SAIOps {
   val boolOp:Set[String] = scala.collection.immutable.Set()
 
   type Value = SMTExpr
-  def IntV(i: Rep[Int]): Rep[Value] =
-    bvConstExprFromInt(i)
-  def BoolV(b: Rep[Boolean]): Rep[Value] =
-    lit(b)
-  def SymVBV(x: String): Rep[Value] =
-    bvVar(x)
-  def SymVBool(x: String): Rep[Value] =
-    boolVar(x)
+  def IntV(i: Rep[Int]): Rep[Value] = lit(i)
+  def BoolV(b: Rep[Boolean]): Rep[Value] = lit(b)
+  def SymVBV(x: String): Rep[Value] = bvVar(x)
+  def SymVBool(x: String): Rep[Value] = boolVar(x)
 
   /*
   def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {

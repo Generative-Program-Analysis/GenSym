@@ -61,9 +61,9 @@ trait SMTBaseInterface { op =>
 trait SMTBitVecInterface extends SMTBaseInterface { op =>
   type BV = SMTBitVec
 
+  def lit(i: Int)(implicit width: Int): R[BV]
   def lit(i: R[Int])(implicit width: Int): R[BV]
 
-  def bvConstExprFromInt(v: Int)(implicit bitWidth: Int): R[BV]
   def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV] //TODO: why need this?
   def bvVar(s: String)(implicit bitWidth: Int): R[BV]
 
@@ -88,7 +88,7 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
   def bvNot(x: R[BV]): R[BV]
 
   object SyntaxSMT {
-    implicit def __int(n: Int)(implicit bitWidth: Int): R[BV] = bvConstExprFromInt(n)(bitWidth)
+    implicit def __int(n: Int)(implicit bitWidth: Int): R[BV] = lit(n)(bitWidth)
 
     implicit class BVOps(x: R[BV]) {
       // compare
@@ -231,14 +231,12 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
 }
 
 trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
-  def bvConstExprFromInt(v: Int)(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Backend.Const(v), Backend.Const(bitWidth)))
-  def bvConstExprFromInt(v: R[Int])(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Unwrap(v), Backend.Const(bitWidth)))
+  def lit(i: Int)(implicit width: Int): R[BV] = lit(unit(i))
+  def lit(i: R[Int])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Unwrap(i), Backend.Const(width)))
+
   def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth)))
-
-  def lit(i: R[Int])(implicit width: Int): R[BV] = bvConstExprFromInt(i) //TODO: refactor this?
 
   // TODO: variable?
   def bvVar(s: String)(implicit bitWidth: Int): R[BV] =
@@ -280,26 +278,26 @@ trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
 }
 
 trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
-  // TODO register header
-  // TODO remap SATBool => Expr
+  registerHeader("../stp/build/include", "<stp/c_interface.h>")
+  registerHeader("./headers", "<stp_handle.hpp>")
+  registerLibrary("-lstp")
 
   override def mayInline(n: Node): Boolean = n match {
-    case Node(_, name, _, _) if name.startsWith("bv-const") => false
-    case Node(_, name, _, _) if name.startsWith("bv-expr") => false
+    case Node(_, name, _, _) if name.startsWith("bv-") => false
     case _ => super.mayInline(n)
   }
 
   override def remap(m: Manifest[_]): String = {
-    if (m.runtimeClass.getName.contains("BV")) {
-      "Expr"
-    }  else {
-      super.remap(m)
-    }
+    val name = m.runtimeClass.getName
+    if (name.endsWith("SMTBitVec")) "Expr"
+    else super.remap(m)
   }
 
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "bv-const-expr-int", List(Const(i), Const(bw)), _) =>
-      emit(s"vc_bvConstExprFromInt(vc, $bw, $i)")
+    case Node(s, "bv-const-expr-int", List(i, Const(bw)), _) =>
+      emit(s"vc_bvConstExprFromInt(vc, $bw, ")
+      shallow(i)
+      emit(")")
     case Node(s, "bv-const-expr-str", List(Const(str), Const(bw)), _) =>
       ???
     case Node(s, "bv-expr-var", List(Const(name), Const(bw)), _) =>

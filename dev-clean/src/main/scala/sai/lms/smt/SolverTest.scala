@@ -46,35 +46,34 @@ object SATTest extends App {
       val p = boolVar("p")
       val q = boolVar("q")
       val r = boolVar("r")
-      /*
-       build(false) {
-       isValid(or(p, q))
-       }
-       build(true) {
-       assert(p)
-       isValid(or(p, q))
-       }
-       build(true) {
-       assert(p)
-       assert(q)
-       isValid(and(p, q))
-       }
-       build(false) {
-       isValid(p)
-       }
-       build(true) {
-       assert(q)
-       isValid(imply(p, q))
-       }
-       build(false) {
-       assert(q)
-       isValid(imply(q, p))
-       }
-       build(false) {
-       assert(not(p))
-       isValid(p)
-       }
-       */
+      build(false) {
+        isValid(or(p, q))
+      }
+      build(true) {
+        assert(p)
+        isValid(or(p, q))
+      }
+      build(true) {
+        assert(p)
+        assert(q)
+        isValid(and(p, q))
+      }
+      build(false) {
+        isValid(p)
+      }
+      build(true) {
+        assert(q)
+        isValid(imply(p, q))
+      }
+      build(false) {
+        assert(q)
+        isValid(imply(q, p))
+      }
+      build(false) {
+        assert(not(p))
+        isValid(p)
+      }
+      // FIXME: this seems not right...
       build(true) {
         assert(p)
         val np = not(p)
