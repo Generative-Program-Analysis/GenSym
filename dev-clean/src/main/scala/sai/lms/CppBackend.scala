@@ -124,9 +124,10 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
     (source.toString, statics)
   }
 
-  var compilerCommand = "g++ -std=c++17 -O3 -Winline"
-
-  def libraries = codegen.libraryFlags.mkString(" ")
+  val compilerCommand = "g++ -std=c++17 -O3 -Winline"
+  val libraries = codegen.libraryFlags.mkString(" ")
+  val includes = codegen.joinPaths(codegen.includePaths, "-I")
+  val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
 
   def save(to: String): Unit = {
     val out = new java.io.PrintStream("./"+to)
@@ -134,32 +135,31 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
     out.close
   }
 
-  lazy val f: A => Unit = {
-    val out = new java.io.PrintStream("./snippet.c")
-    out.println(code)
-    out.close
-    (new java.io.File("./snippet")).delete
+  def compile(to: String): String = {
     import scala.sys.process._
 
-    val includes = codegen.joinPaths(codegen.includePaths, "-I")
-    val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
-    val pb = s"$compilerCommand ./snippet.c -o ./snippet $libraries $includes $libraryPaths"
+    val bin = to.split('.')(0)
+    (new java.io.File(bin)).delete
+    val pb = s"$compilerCommand $to -o $bin $libraries $includes $libraryPaths"
     System.out.println("Compile command: " + pb)
+    time("cc-compile") { (pb: ProcessBuilder).lines.foreach(Console.println _) }
+    bin
+  }
 
-    time("cc-compile") {
-      (pb: ProcessBuilder).lines.foreach(Console.println _)
-    }
+  def saveCompileRun(to: String): A => Unit = {
+    import scala.sys.process._
+    save(to)
+    val bin = compile(to)
 
     (a: A) => {
-      System.out.println(s"Running ./snippet $a")
-      // (s"./snippet $a": ProcessBuilder).lines.foreach(Console.println _)
+      System.out.println(s"Running ./$bin $a")
       // FIXME: LD_LIBRARY_PATH?
-      Process(s"./snippet $a", None, "LD_LIBRARY_PATH"->"../stp/build/lib").lines.foreach(Console.println _)
+      Process(s"./$bin $a", None, "LD_LIBRARY_PATH"->"../stp/build/lib").lines.foreach(Console.println _)
     }
   }
 
   def eval(a: A): Unit = {
-    val g = f
+    val g = saveCompileRun("snippet.c")
     time("eval")(g(a))
   }
 
