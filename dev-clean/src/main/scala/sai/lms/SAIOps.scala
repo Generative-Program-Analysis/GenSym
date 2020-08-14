@@ -14,6 +14,11 @@ import sai.structure.monad._
 
 import sai.lmsx.smt._
 
+abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
+  def wrapper(x: Rep[A]): Rep[B] = snippet(x)
+  def snippet(x: Rep[A]): Rep[B]
+}
+
 trait SAIOps extends Base
     with PrimitiveOps with LiftPrimitives with Equal
     with OrderingOps  with LiftVariables  with TupleOpsOpt
