@@ -12,10 +12,6 @@ import sai.lmsx.smt._
 import scala.collection.immutable.{List => SList}
 import sai.lang.SimpIL.Assert
 
-// TODO: 
-// add support for input
-// add assert statement
-
 object ImpLang {
   sealed trait Stmt
   case class Skip() extends Stmt

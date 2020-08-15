@@ -117,6 +117,7 @@ trait SymStagedImp extends SAIOps {
       val v1 = eval(e1, σ)
       val v2 = eval(e2, σ)
       op_2(op, v1, v2)
+    case Input() => ???
   }
 
   def evalM(e: Expr): M[Value] = for {
@@ -191,6 +192,7 @@ trait SymStagedImp extends SAIOps {
     case Assert(e) => for {
       _ <- update_pc(e)
     } yield ()
+    case Output(e) => ???
   }
 
   def unfold(w: While, k: Int): Stmt =

@@ -36,6 +36,8 @@ object ImpSemantics {
         case ">=" => BoolV(i1 >= i2)
         case ">" => BoolV(i1 > i2)
       }
+    case Input() =>
+      ???
   }
 
   def fix[A, B](f: (A => B) => A => B): A => B = a => f(fix(f))(a)
@@ -55,6 +57,14 @@ object ImpSemantics {
           if (b) exec(s)(σ)(σ1 => f(σ1)(k)) else k(σ)
         })
       })(σ)
+    case Output(e) =>
+      val v = eval(e, σ)
+      System.out.println(v)
+      pure(σ)
+    case Assert(e) =>
+      val IntV(v) = eval(e, σ)
+      assert(v == 1)
+      pure(σ)
   }
 }
 

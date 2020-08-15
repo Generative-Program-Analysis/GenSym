@@ -10,28 +10,28 @@ import lms.macros.SourceContext
 trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
   def lit(i: Int)(implicit width: Int): R[BV] = lit(unit(i))
   def lit(i: R[Int])(implicit width: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-int", Unwrap(i), Backend.Const(width)))
+    Wrap[BV](Adapter.g.reflect("bv-lit", Unwrap(i), Backend.Const(width)))
 
-  def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(bitWidth)))
+  def bvConstExprFromStr(s: String)(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(width)))
 
   // TODO: variable?
-  def bvVar(s: String)(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-expr-var", Backend.Const(s), Backend.Const(bitWidth)))
+  def bvVar(s: String)(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-var", Backend.Const(s), Backend.Const(width)))
 
   // bv arith
-  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
-  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] = 
-    Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
-  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
-  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
-  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(bitWidth)))
-  def bvNeg(x: R[BV])(implicit bitWidth: Int): R[BV]=
-    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x), Backend.Const(bitWidth)))
+  def bvPlus(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y), Backend.Const(width)))
+  def bvMul(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y), Backend.Const(width)))
+  def bvDiv(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y), Backend.Const(width)))
+  def bvMinus(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(width)))
+  def bvMod(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(width)))
+  def bvNeg(x: R[BV])(implicit width: Int): R[BV]=
+    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x), Backend.Const(width)))
   
   // bv compare
   def bvLt(x: R[BV], y: R[BV]): R[SMTBool] =
@@ -71,15 +71,14 @@ trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
   }
 
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "bv-const-expr-int", List(i, Const(bw)), _) =>
+    case Node(s, "bv-lit", List(i, Const(bw)), _) =>
       emit(s"vc_bvConstExprFromInt(vc, $bw, ")
       shallow(i)
       emit(")")
     case Node(s, "bv-const-expr-str", List(Const(str), Const(bw)), _) =>
       ???
-    case Node(s, "bv-expr-var", List(Const(name), Const(bw)), _) =>
+    case Node(s, "bv-var", List(Const(name), Const(bw)), _) =>
       emit(s"""vc_varExpr(vc, \"$name\", vc_bvType(vc, $bw))""")
-
     // case Node(s, "bv-eq", List(x, y), _) =>
     //  emit("vc_eqExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
     case Node(s, "bv-lt", List(x, y), _) =>

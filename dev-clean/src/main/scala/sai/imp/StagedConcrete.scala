@@ -74,6 +74,7 @@ trait StagedImpSemantics extends SAIOps {
         case ">=" => BoolV(i1 >= i2)
         case ">" => BoolV(i1 > i2)
       }
+    case Input() => ???
   }
 
   def get_state: M[Store] = MonadState[M, Store].get
@@ -114,6 +115,8 @@ trait StagedImpSemantics extends SAIOps {
         σ <- get_state
         _ <- lift_state(f(σ))
       } yield ()
+    case Output(e) => ???
+    case Assert(e) => ???
   }
 
   /* 
