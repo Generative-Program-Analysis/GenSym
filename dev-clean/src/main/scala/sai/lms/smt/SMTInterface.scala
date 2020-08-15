@@ -29,10 +29,13 @@ trait SMTBaseInterface { op =>
   def query(x: R[SMTBool]): R[Int]
   def getCounterEx(x: R[SMTExpr]): R[SMTExpr]
 
+  def printCounterEx: R[Unit]
+  def printExpr(x: R[SMTExpr]): R[Unit]
+
   object SyntaxSAT {
     implicit def __lit(b: Boolean): R[SMTBool] = lit(b)
     implicit class BOps(x: R[SMTBool]) {
-      def ==(y: R[SMTBool]): R[SMTBool] = op.eq(x, y) // of iff?
+      def ===(y: R[SMTBool]): R[SMTBool] = op.eq(x, y) // of iff?
       def ≡(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
       def or(y: R[SMTBool]): R[SMTBool] = op.or(x, y)
       def unary_!(): R[SMTBool] = op.not(x)
@@ -47,31 +50,36 @@ trait SMTBaseInterface { op =>
 trait SMTBitVecInterface extends SMTBaseInterface { op =>
   type BV = SMTBitVec
 
+  // BV constructors
   def lit(i: Int)(implicit width: Int): R[BV]
   def lit(i: R[Int])(implicit width: Int): R[BV]
 
-  def bvConstExprFromStr(s: String)(implicit bitWidth: Int): R[BV] //TODO: why need this?
-  def bvVar(s: String)(implicit bitWidth: Int): R[BV]
+  def bvFromStr(s: String)(implicit width: Int): R[BV] //TODO: why need this?
+  def bvVar(s: String)(implicit width: Int): R[BV]
 
-  // bv arith
-  def bvPlus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
-  def bvMul(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
-  def bvDiv(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
-  def bvMinus(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
-  def bvMod(x: R[BV], y: R[BV])(implicit bitWidth: Int): R[BV]
-  def bvNeg(x: R[BV])(implicit bitWidth: Int): R[BV]
+  // BV arithmetics
+  // TODO: signed operations?
+  def bvPlus(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
+  def bvMul(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
+  def bvDiv(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
+  def bvMinus(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
+  def bvMod(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
+  def bvRem(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
   
-  // bv compare
+  // BV comparisons
   def bvLt(x: R[BV], y: R[BV]): R[SMTBool]
   def bvLe(x: R[BV], y: R[BV]): R[SMTBool]
   def bvGt(x: R[BV], y: R[BV]): R[SMTBool]
   def bvGe(x: R[BV], y: R[BV]): R[SMTBool]
 
-  // bv bitwise
+  // BV bitwise operations
   def bvAnd(x: R[BV], y: R[BV]): R[BV]
   def bvOr(x: R[BV], y: R[BV]): R[BV]
   def bvXor(x: R[BV], y: R[BV]): R[BV]
+  // TODO: bvNot vs bvUMinus, sign bit?
   def bvNot(x: R[BV]): R[BV]
+
+  def bvToInt(x: R[BV]): R[Int]
 
   object SyntaxSMT {
     implicit def __int(n: Int)(implicit bitWidth: Int): R[BV] = lit(n)(bitWidth)
@@ -81,11 +89,9 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
       def ≡(y: R[BV]): R[SMTBool] = op.eq(x, y)
       def >(y: R[BV]): R[SMTBool] = op.bvGt(x, y)
       def <(y: R[BV]): R[SMTBool] = op.bvLt(x, y)
-      def >=(y: R[BV]): R[SMTBool] = op.bvGe(x, y)
-      def <=(y: R[BV]): R[SMTBool] = op.bvLe(x, y)
+      def ≥(y: R[BV]): R[SMTBool] = op.bvGe(x, y)
+      def ≤(y: R[BV]): R[SMTBool] = op.bvLe(x, y)
       def ≠(y: R[BV]): R[SMTBool] = op.not(op.eq(x, y))
-      // doesn't work
-      //def !=(y: R[BV]): R[SMTBool] = op.not(op.eq(x, y))
 
       def +(y: R[BV])(implicit bitWidth: Int) = op.bvPlus(x, y)(bitWidth)
       def -(y: R[BV])(implicit bitWidth: Int) = op.bvMinus(x, y)(bitWidth)
@@ -96,7 +102,7 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
       def &(y: R[BV]) = op.bvAnd(x, y)
       def |(y: R[BV]) = op.bvOr(x, y)
       def ⊕(y: R[BV]) = op.bvXor(x, y)
-      // TODO not, neg
+      // TODO not
     }
   }
 }

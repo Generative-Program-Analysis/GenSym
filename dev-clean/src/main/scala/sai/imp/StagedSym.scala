@@ -52,7 +52,8 @@ trait SymStagedImp extends SAIOps {
       case x if x.contains("SMTBool") =>
         not(v.asInstanceOf[Rep[SMTBool]])
       case x if x.contains("BV") =>
-        bvNeg(v.asInstanceOf[Rep[BV]])
+        // TODO: use proper minus op? It seems bvNot or bvUMinus cannot handle signed values.
+        bvNot(v.asInstanceOf[Rep[BV]])
       case _ => ???
     }
   }
@@ -76,8 +77,8 @@ trait SymStagedImp extends SAIOps {
       val v2BV = v2.asInstanceOf[Rep[BV]]
       op match {
         case "==" => v1BV ≡ v2BV
-        case "<=" => v1BV <= v2BV
-        case ">=" => v1BV >= v2BV
+        case "<=" => v1BV ≤ v2BV
+        case ">=" => v1BV ≥ v2BV
         case "<" => v1BV < v2BV
         case ">" => v1BV > v2BV
         case "+" => v1BV + v2BV

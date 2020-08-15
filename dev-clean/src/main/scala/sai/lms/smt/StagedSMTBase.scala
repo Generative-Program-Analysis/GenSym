@@ -56,6 +56,10 @@ trait SMTBaseOps extends StagedSMTBase with SMTBaseInterface {
   def getCounterEx(x: Rep[SMTExpr]): Rep[SMTExpr] =
     // TODO: what's the expression should be given here?
     Wrap[SMTExpr](Adapter.g.reflectWrite("smt-get-cex", Unwrap(x))(Adapter.CTRL))
+  def printCounterEx: Rep[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite("smt-print-cex")(Adapter.CTRL))
+  def printExpr(x: Rep[SMTExpr]): Rep[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite("smt-print", Unwrap(x))(Adapter.CTRL))
 
   def handle(n: R[Int]): R[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("smt-handle", Unwrap(n))(Adapter.CTRL))
@@ -69,6 +73,7 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName
     if (name.endsWith("SMTBool")) "Expr"
+    else if (name.endsWith("SMTExpr")) "Expr"
     else super.remap(m)
   }
 
@@ -84,8 +89,12 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
       emitln("vc_push(vc);")
     case Node(s, "smt-pop", _, _) =>
       emitln("vc_pop(vc);")
-    case Node(s, "sat-handle", List(x), _) =>
-      emit("handle_query(vc, "); shallow(x); emitln(");");
+    case Node(s, "smt-handle", List(x), _) =>
+      emit("handle_query(vc, "); shallow(x); emitln(");")
+    case Node(s, "smt-print-cex", _, _) =>
+      emitln("vc_printCounterExample(vc);")
+    case Node(s, "smt-print", List(x), _) =>
+      emit("vc_printExpr(vc, "); shallow(x); emitln(");")
     case _ => super.traverse(n)
   }
 

@@ -12,10 +12,8 @@ trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
   def lit(i: R[Int])(implicit width: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-lit", Unwrap(i), Backend.Const(width)))
 
-  def bvConstExprFromStr(s: String)(implicit width: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-const-expr-str", Backend.Const(s), Backend.Const(width)))
-
-  // TODO: variable?
+  def bvFromStr(s: String)(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-str", Backend.Const(s), Backend.Const(width)))
   def bvVar(s: String)(implicit width: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-var", Backend.Const(s), Backend.Const(width)))
 
@@ -30,8 +28,8 @@ trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
     Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(width)))
   def bvMod(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  def bvNeg(x: R[BV])(implicit width: Int): R[BV]=
-    Wrap[BV](Adapter.g.reflect("bv-neg", Unwrap(x), Backend.Const(width)))
+  def bvRem(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-rem", Unwrap(x), Unwrap(y), Backend.Const(width)))
   
   // bv compare
   def bvLt(x: R[BV], y: R[BV]): R[SMTBool] =
@@ -50,8 +48,11 @@ trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
     Wrap[BV](Adapter.g.reflect("bv-or", Unwrap(x), Unwrap(y)))
   def bvXor(x: R[BV], y: R[BV]): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-xor", Unwrap(x), Unwrap(y)))
-  def bvNot(x: R[BV]): R[BV] =
+  def bvNot(x: R[BV]): R[BV]=
     Wrap[BV](Adapter.g.reflect("bv-not", Unwrap(x)))
+
+  def bvToInt(x: R[BV]): R[Int] =
+    Wrap[Int](Adapter.g.reflect("bv-2int", Unwrap(x)))
 }
 
 trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
@@ -72,26 +73,12 @@ trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "bv-lit", List(i, Const(bw)), _) =>
-      emit(s"vc_bvConstExprFromInt(vc, $bw, ")
-      shallow(i)
-      emit(")")
-    case Node(s, "bv-const-expr-str", List(Const(str), Const(bw)), _) =>
+      emit(s"vc_bvConstExprFromInt(vc, $bw, "); shallow(i); emit(")")
+    case Node(s, "bv-str", List(Const(str), Const(bw)), _) =>
       ???
     case Node(s, "bv-var", List(Const(name), Const(bw)), _) =>
       emit(s"""vc_varExpr(vc, \"$name\", vc_bvType(vc, $bw))""")
-    // case Node(s, "bv-eq", List(x, y), _) =>
-    //  emit("vc_eqExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-lt", List(x, y), _) =>
-      emit("vc_bvLtExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-gt", List(x, y), _) =>
-      emit("vc_bvGtExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-le", List(x, y), _) =>
-      emit("vc_bvLeExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-ge", List(x, y), _) =>
-      emit("vc_bvGeExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
 
-    // FIXME: Pass real bitwidth!
-    // fixed?
     case Node(s, "bv-plus", List(x, y, len), _) =>
       emit("vc_bvPlusExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
     case Node(s, "bv-minus", List(x, y, len), _) =>
@@ -102,7 +89,29 @@ trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
       emit("vc_bvDivExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(");")
     case Node(s, "bv-mod", List(x, y, len), _) =>
       emit("vc_bvModExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
-    case Node(s, "bv-neg", List(x, len), _) => ???
+    case Node(s, "bv-rem", List(x, y, len), _) =>
+      emit("vc_bvRemExpr(vc, "); shallow(len); emit(", "); shallow(x); emit(", "); shallow(y); emit(")")
+
+    case Node(s, "bv-lt", List(x, y), _) =>
+      emit("vc_bvLtExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-gt", List(x, y), _) =>
+      emit("vc_bvGtExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-le", List(x, y), _) =>
+      emit("vc_bvLeExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-ge", List(x, y), _) =>
+      emit("vc_bvGeExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+
+    case Node(s, "bv-and", List(x, y), _) =>
+      emit("vc_bvAndExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-or", List(x, y), _) =>
+      emit("vc_bvOrExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-xor", List(x, y), _) =>
+      emit("vc_bvXorExpr(vc, "); shallow(x); emit(", "); shallow(y); emit(")")
+    case Node(s, "bv-not", List(x), _) =>
+      emit("vc_bvNotExpr(vc, "); shallow(x); emit(")")
+
+    case Node(s, "bv-2int", List(x), _) =>
+      emit("getBVInt("); shallow(x); emit(")")
     case _ => super.shallow(n)
   }
 }
