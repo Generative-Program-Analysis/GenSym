@@ -41,8 +41,10 @@ trait SMTBaseInterface { op =>
     implicit class BOps(x: R[SMTBool]) {
       def <=>(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
       def or(y: R[SMTBool]): R[SMTBool] = op.or(x, y)
+      def ∨(y: R[SMTBool]): R[SMTBool] = op.or(x, y)
       def unary_!(): R[SMTBool] = op.not(x)
       def and(y: R[SMTBool]): R[SMTBool] = op.and(x, y)
+      def ∧(y: R[SMTBool]): R[SMTBool] = op.and(x, y)
       def xor(y: R[SMTBool]): R[SMTBool] = op.xor(x, y)
       def ⇔(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
       def ==>(y: R[SMTBool]): R[SMTBool] = op.imply(x, y)
