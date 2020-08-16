@@ -33,13 +33,13 @@ trait SMTBaseOps extends StagedSMTBase with SMTBaseInterface {
     Wrap[SMTBool](Adapter.g.reflect("smt-xor", Unwrap(x), Unwrap(y)))
   def iff(x: Rep[SMTBool], y: Rep[SMTBool]): Rep[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("smt-iff", Unwrap(x), Unwrap(y)))
-  def ite(cnd: Rep[SMTBool], thn: Rep[SMTBool], els: Rep[SMTBool]): Rep[SMTBool] =
-    Wrap[SMTBool](Adapter.g.reflect("smt-ite", Unwrap(cnd), Unwrap(thn), Unwrap(els)))
   def imply(x: Rep[SMTBool], y: Rep[SMTBool]): Rep[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("smt-imply", Unwrap(x), Unwrap(y)))
 
   def eq(x: Rep[SMTExpr], y: Rep[SMTExpr]): Rep[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("smt-eq", Unwrap(x), Unwrap(y)))
+  def ite(cnd: Rep[SMTBool], thn: Rep[SMTExpr], els: Rep[SMTExpr]): Rep[SMTExpr] =
+    Wrap[SMTBool](Adapter.g.reflect("smt-ite", Unwrap(cnd), Unwrap(thn), Unwrap(els)))
 
   def push: Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("smt-push")(Adapter.CTRL))

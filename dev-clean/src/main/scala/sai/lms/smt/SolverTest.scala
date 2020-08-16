@@ -156,6 +156,36 @@ object SATTest extends App {
         assert(((x*x) + (y*y)) ≡ (c*c))
         (isSat(true), c)
       }
+      build(true) {
+        val eq = a ≡ b
+        val d = ite(eq, 15: Rep[BV], 16: Rep[BV])
+        assert(d ≡ (16: Rep[BV]))
+        isSat(true)
+      }
+      build(false) {
+        val eq = a ≡ b
+        val d = ite(eq, 15: Rep[BV], 16: Rep[BV])
+        assert(d ≡ (15: Rep[BV]))
+        isSat(true)
+      }
+      build(true, 16) {
+        val eq = a ≡ b
+        val d = ite(eq, 15: Rep[BV], 16: Rep[BV])
+        (isSat(true), d)
+      }
+      build(true) {
+        val x = bvFromStr("00000000000000000000000000000101")
+        assert(x ≡ a)
+        isValid(true)
+      }
+      build(true) {
+        val t = bvFromBool(true)
+        isValid(t ≡ lit(1)(1))
+      }
+      build(true) {
+        val t = bvFromBool(false)
+        isValid(t ≡ lit(0)(1))
+      }
       println("Done")
     }
   }

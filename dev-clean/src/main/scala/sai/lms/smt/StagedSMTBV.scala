@@ -12,8 +12,13 @@ trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
   def lit(i: R[Int])(implicit width: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-lit", Unwrap(i), Backend.Const(width)))
 
-  def bvFromStr(s: String)(implicit width: Int): R[BV] =
-    Wrap[BV](Adapter.g.reflect("bv-str", Backend.Const(s), Backend.Const(width)))
+  def bvFromStr(s: String)(implicit width: Int): R[BV] = bvFromStr(unit(s))
+  def bvFromStr(s: Rep[String])(implicit width: Int): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-str", Unwrap(s), Backend.Const(width)))
+
+  def bvFromBool(x: R[SMTBool]): R[BV] =
+    Wrap[BV](Adapter.g.reflect("bv-bool", Unwrap(x)))
+
   def bvVar(s: String)(implicit width: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-var", Backend.Const(s), Backend.Const(width)))
 
@@ -48,7 +53,7 @@ trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
     Wrap[BV](Adapter.g.reflect("bv-or", Unwrap(x), Unwrap(y)))
   def bvXor(x: R[BV], y: R[BV]): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-xor", Unwrap(x), Unwrap(y)))
-  def bvNot(x: R[BV]): R[BV]=
+  def bvNot(x: R[BV]): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-not", Unwrap(x)))
 
   def bvToInt(x: R[BV]): R[Int] =
@@ -74,8 +79,10 @@ trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "bv-lit", List(i, Const(bw)), _) =>
       emit(s"vc_bvConstExprFromInt(vc, $bw, "); shallow(i); emit(")")
-    case Node(s, "bv-str", List(Const(str), Const(bw)), _) =>
-      ???
+    case Node(s, "bv-str", List(str, Const(bw)), _) =>
+      emit("vc_bvConstExprFromStr(vc, "); shallow(str); emit(")")
+    case Node(s, "bv-bool", List(b), _) =>
+      emit("vc_boolToBVExpr(vc, "); shallow(b); emit(")")
     case Node(s, "bv-var", List(Const(name), Const(bw)), _) =>
       emit(s"""vc_varExpr(vc, \"$name\", vc_bvType(vc, $bw))""")
 

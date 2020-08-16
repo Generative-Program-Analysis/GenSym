@@ -16,27 +16,30 @@ trait SMTBaseInterface { op =>
   def and(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
   def xor(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
   def iff(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
-  def ite(x: R[SMTBool], y: R[SMTBool], z: R[SMTBool]): R[SMTBool]
   def imply(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
 
   def eq(x: R[SMTExpr], y: R[SMTExpr]): R[SMTBool]
+  def ite(x: R[SMTBool], y: R[SMTExpr], z: R[SMTExpr]): R[SMTExpr]
 
   def push: R[Unit]
   def pop: R[Unit]
   def assert(x: R[SMTBool]): R[Unit]
+  def printExpr(x: R[SMTExpr]): R[Unit]
+
   def isValid(x: R[SMTBool]): R[Boolean]
   def isSat(x: R[SMTBool]): R[Boolean]
   def query(x: R[SMTBool]): R[Int]
-  def getCounterEx(x: R[SMTExpr]): R[SMTExpr]
 
+  def getCounterEx(x: R[SMTExpr]): R[SMTExpr]
   def printCounterEx: R[Unit]
-  def printExpr(x: R[SMTExpr]): R[Unit]
 
   object SyntaxSAT {
     implicit def __lit(b: Boolean): R[SMTBool] = lit(b)
+    implicit class ExprOps(x: R[SMTExpr]) {
+      def ≡(y: R[SMTExpr]): R[SMTBool] = op.eq(x, y)
+    }
     implicit class BOps(x: R[SMTBool]) {
-      def ===(y: R[SMTBool]): R[SMTBool] = op.eq(x, y) // of iff?
-      def ≡(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
+      def <=>(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
       def or(y: R[SMTBool]): R[SMTBool] = op.or(x, y)
       def unary_!(): R[SMTBool] = op.not(x)
       def and(y: R[SMTBool]): R[SMTBool] = op.and(x, y)
@@ -54,7 +57,11 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
   def lit(i: Int)(implicit width: Int): R[BV]
   def lit(i: R[Int])(implicit width: Int): R[BV]
 
-  def bvFromStr(s: String)(implicit width: Int): R[BV] //TODO: why need this?
+  def bvFromStr(s: String)(implicit width: Int): R[BV]
+  def bvFromStr(s: R[String])(implicit width: Int): R[BV]
+
+  def bvFromBool(x: R[SMTBool]): R[BV]
+
   def bvVar(s: String)(implicit width: Int): R[BV]
 
   // BV arithmetics
