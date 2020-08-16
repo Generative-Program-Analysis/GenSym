@@ -92,6 +92,7 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
 
   object SyntaxSMT {
     implicit def __int(n: Int)(implicit bitWidth: Int): R[BV] = lit(n)(bitWidth)
+    implicit def __asBV(x: R[SMTExpr]): R[BV] = x.asInstanceOf[R[BV]]
 
     implicit class BVOps(x: R[BV]) {
       // compare

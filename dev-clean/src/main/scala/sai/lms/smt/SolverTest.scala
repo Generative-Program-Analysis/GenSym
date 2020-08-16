@@ -240,28 +240,28 @@ object SATTest extends App {
         val r = isSat(true)
         unchecked("assert(", r, ")")
 
-        val x11_v = bvToInt(getCounterEx(x11).asInstanceOf[Rep[BV]])
+        val x11_v = bvToInt(getCounterEx(x11))
         unchecked(s"assert(1 == ", x11_v, ")")
 
-        val x12_v = bvToInt(getCounterEx(x12).asInstanceOf[Rep[BV]])
+        val x12_v = bvToInt(getCounterEx(x12))
         unchecked(s"assert(2 == ", x12_v, ")")
 
-        val x13_v = bvToInt(getCounterEx(x13).asInstanceOf[Rep[BV]])
+        val x13_v = bvToInt(getCounterEx(x13))
         unchecked(s"assert(3 == ", x13_v, ")")
 
-        val x22_v = bvToInt(getCounterEx(x22).asInstanceOf[Rep[BV]])
+        val x22_v = bvToInt(getCounterEx(x22))
         unchecked(s"assert(1 == ", x22_v, ")")
 
-        val x23_v = bvToInt(getCounterEx(x23).asInstanceOf[Rep[BV]])
+        val x23_v = bvToInt(getCounterEx(x23))
         unchecked(s"assert(2 == ", x23_v, ")")
 
-        val x31_v = bvToInt(getCounterEx(x31).asInstanceOf[Rep[BV]])
+        val x31_v = bvToInt(getCounterEx(x31))
         unchecked(s"assert(2 == ", x31_v, ")")
 
-        val x32_v = bvToInt(getCounterEx(x32).asInstanceOf[Rep[BV]])
+        val x32_v = bvToInt(getCounterEx(x32))
         unchecked(s"assert(3 == ", x32_v, ")")
 
-        val x33_v = bvToInt(getCounterEx(x33).asInstanceOf[Rep[BV]])
+        val x33_v = bvToInt(getCounterEx(x33))
         unchecked(s"assert(1 == ", x33_v, ")")
 
         println("Done")
