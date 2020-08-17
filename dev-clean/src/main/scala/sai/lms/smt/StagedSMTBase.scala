@@ -121,6 +121,7 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
       emit("vc_impliesExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
     case Node(s, "smt-eq", List(l, r), _) => 
       // TODO: eq may not work as expected (GW: why?)
+      // because this eq is won't work for boolean comparision
       emit("vc_eqExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
     case Node(s, "smt-is-valid", List(x), _) =>
       emit("stp_is_valid(vc, "); shallow(x); emit(")")

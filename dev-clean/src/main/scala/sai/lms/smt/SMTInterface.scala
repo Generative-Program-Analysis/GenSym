@@ -3,6 +3,7 @@ package sai.lmsx.smt
 trait SMTExpr
 trait SMTBool extends SMTExpr
 trait SMTBitVec extends SMTExpr
+trait SMTArray extends SMTExpr
 
 // Stage-polymorphic interfaces and operations
 
