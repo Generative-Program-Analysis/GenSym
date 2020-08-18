@@ -24,7 +24,7 @@ trait SAIOps extends Base
     with OrderingOps  with LiftVariables  with TupleOpsOpt
     with ListOpsOpt   with MapOpsOpt      with SetOpsOpt
     with EitherOps    with RepLattices    with RepMonads
-    with SMTBaseOps   with SMTBitVecOps {
+    with SMTBaseOps   with SMTBitVecOps   with SMTArrayOps {
     // with SMTStagedOps {
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
