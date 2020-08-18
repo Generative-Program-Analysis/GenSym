@@ -19,6 +19,7 @@ trait SMTBaseInterface { op =>
   def iff(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
   def imply(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
 
+  // Note: the operands of `eq` cannot be SMTBool
   def eq(x: R[SMTExpr], y: R[SMTExpr]): R[SMTBool]
   def ite(x: R[SMTBool], y: R[SMTExpr], z: R[SMTExpr]): R[SMTExpr]
 
