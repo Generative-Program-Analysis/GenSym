@@ -200,6 +200,7 @@ object SATTest extends App {
        * |5+   |  |
        * |--------|
        */
+      @virtualize
       def snippet(x: Rep[Int]) = {
         import SyntaxSMT._
         import SyntaxSAT._
