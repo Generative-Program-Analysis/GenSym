@@ -393,21 +393,21 @@ object SATTest extends App {
       }
     }    
 
-  // {
-  //   val code = testSAT()
-  //   println(code.code)
-  //   code.eval(0)
-  // }
-  // {
-  //   val code = testBV()
-  //   print(code.code)
-  //   code.eval(0)
-  // }
-  // {
-  //   val code = kenken()
-  //   print(code.code)
-  //   code.eval(0)
-  // }
+  {
+    val code = testSAT()
+    println(code.code)
+    code.eval(0)
+  }
+  {
+    val code = testBV()
+    print(code.code)
+    code.eval(0)
+  }
+  {
+    val code = kenken()
+    print(code.code)
+    code.eval(0)
+  }
   {
     val code = testArray()
     print(code.code)
