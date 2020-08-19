@@ -18,16 +18,22 @@ trait SMTArrayOps extends StagedSMTBase with SMTBitVecInterface {
   }
 
   def arrayRead(array: Rep[SMTArray], index: Rep[BV]): Rep[BV] =
-    Wrap[BV](Adapter.g.reflectRead("smt-array-read", Unwrap(array), Unwrap(index))(Adapter.CTRL))
+    Wrap[BV](Adapter.g.reflect("smt-array-read", Unwrap(array), Unwrap(index)))
 
   def arrayWrite(array: Rep[SMTArray], index: Rep[BV], value: Rep[BV]): Rep[SMTArray] = {
-    val newArray = Wrap[SMTArray](Adapter.g.reflectWrite("smt-array-write", Unwrap(array), Unwrap(index), Unwrap(value))(Adapter.CTRL))
-    lengthMap(newArray) = lengthMap.getOrElse(array, (0, 32))
+    val newArray = Wrap[SMTArray](Adapter.g.reflect("smt-array-write", Unwrap(array), Unwrap(index), Unwrap(value)))
+    lengthMap(newArray) = lengthMap.get(array) match {
+      case Some(value) => value
+      case None => throw new Exception("Not find array")
+    }
     newArray
   }
 
   implicit class SMTArrayOps(array: Rep[SMTArray]) {
-    val (length, indexBW) = lengthMap.getOrElse(array, (0, 32))
+    val (length, indexBW) = lengthMap.get(array) match {
+      case Some(value) => value
+      case None => throw new Exception("Not find array")
+    }
     implicit val bw = indexBW
 
     def apply(i: Rep[BV]): Rep[BV] =
@@ -44,7 +50,7 @@ trait SMTArrayOps extends StagedSMTBase with SMTBitVecInterface {
     
     def write(i: Rep[BV])(v: Rep[BV]): Rep[SMTArray] = 
       arrayWrite(array, i, v)
-    def write(i: Rep[BV], j: Rep[BV])(v: Rep[BV]): Rep[BV] = {
+    def write(i: Rep[BV], j: Rep[BV])(v: Rep[BV]): Rep[SMTArray] = {
       import SyntaxSMT._
       arrayWrite(array, i * lit(length) + j, v)
     }
@@ -78,11 +84,11 @@ trait STPCodeGen_SMTArray extends ExtendedCPPCodeGen {
       val valueBW = s"vc_bvType(vc, $vbw)"
       emit(s"""vc_varExpr(vc, \"$name\", vc_arrayType(vc, $indexBW, $valueBW))""")
     case Node(s, "smt-array-read", List(array, i), _) =>
-      emit(s"vc_readExpr(vc, "); shallow(array); emit(","); shallow(i); emit(")")
+      emit(s"vc_readExpr(vc, "); shallow(array); emit(", "); shallow(i); emit(")")
     case Node(s, "smt-array-write", List(array, i, v), _) =>
       emit(s"vc_writeExpr(vc, "); shallow(array);
-      emit(","); shallow(i);
-      emit(","); shallow(v); emit(")")
+      emit(", "); shallow(i);
+      emit(", "); shallow(v); emit(")")
     case _ => super.shallow(n)
   }
 
