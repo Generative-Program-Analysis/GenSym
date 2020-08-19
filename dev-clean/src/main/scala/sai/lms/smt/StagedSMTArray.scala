@@ -38,14 +38,14 @@ trait SMTArrayOps extends StagedSMTBase with SMTBitVecInterface {
 
     def apply(i: Rep[BV]): Rep[BV] =
       arrayRead(array, i)
-    def apply(i: Rep[BV])(j: Rep[BV]): Rep[BV] = {
+    def apply(i: Rep[BV], j: Rep[BV]): Rep[BV] = {
       import SyntaxSMT._
       arrayRead(array, i * lit(length) + j)
     }
 
     def apply(i: Int): Rep[BV] =
       arrayRead(array, lit(i))
-    def apply(i: Int)(j: Int): Rep[BV] =
+    def apply(i: Int, j: Int): Rep[BV] =
       arrayRead(array, lit(i * length + j))
     
     def write(i: Rep[BV])(v: Rep[BV]): Rep[SMTArray] = 

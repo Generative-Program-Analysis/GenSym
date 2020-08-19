@@ -269,20 +269,153 @@ object SATTest extends App {
       }
     }
 
+  def testArray(): CppSAIDriver[Int, Unit] =
+    new CppSAIDriver[Int, Unit] with STPTestBuilder {
+      @virtualize
+      def snippet(x: Rep[Int]) = {
+        import SyntaxSMT._
+        import SyntaxSAT._
+
+        implicit val bw: Int = 32
+        // 1d array
+        val array1 = arrayCreate("a", 32, 32)
+        // 2d array each cell has 10 elements
+        val array2 = arrayCreate("b", 32, 32, 10)
+
+        build(true) {
+          val a = array1.write(2)(lit(3))
+          val b = a(2)
+          isValid(b ≡ lit(3))
+        }
+
+        build(false) {
+          val a = array1.write(2)(lit(3))
+          val b = array1(2)
+          isValid(b ≡ lit(3))
+        }
+
+        build(true) {
+          val a = array1.write(2)(lit(3))
+          val b = a.write(2)(lit(10))
+          val c = b(2)
+          val d = a(2)
+          isValid((c ≡ lit(10))∧(d ≡ lit(3)))
+        }
+
+        build(true) {
+          val a = array2.write(3, 5)(lit(20))
+          val b = a(3,5)
+          isValid(b ≡ lit(20))
+        }
+
+        build(true) {
+          val a = array2.write(3, 5)(lit(20))
+          val b = a.write(5, 2)(lit(1))
+          val c = b(3, 5)
+          val d = b(5, 2)
+          isValid((c + d) ≡ lit(21))
+        }
+
+        println("Done")
+      }
+    }
+
+  def kenkenArray(): CppSAIDriver[Int, Unit] =
+    new CppSAIDriver[Int, Unit] with STPTestBuilder {
+      @virtualize
+      def snippet(x: Rep[Int]) = {
+        import SyntaxSMT._
+        import SyntaxSAT._
+
+        implicit val bw: Int = 32
+        val kenken = arrayCreate("kenken", 32, 32, 3)
+        val x11 = kenken(0, 0)
+        val x12 = kenken(0, 1)
+        val x13 = kenken(0, 2)
+        val x21 = kenken(1, 0)
+        val x22 = kenken(1, 1)
+        val x23 = kenken(1, 2)
+        val x31 = kenken(2, 0)
+        val x32 = kenken(2, 1)
+        val x33 = kenken(2, 2)
+
+        assert((x11 ≥ 1) ∧ (x11 ≤ 3))
+        assert((x12 ≥ 1) ∧ (x12 ≤ 3))
+        assert((x13 ≥ 1) ∧ (x13 ≤ 3))
+        assert((x21 ≥ 1) ∧ (x21 ≤ 3))
+        assert((x22 ≥ 1) ∧ (x22 ≤ 3))
+        assert((x23 ≥ 1) ∧ (x23 ≤ 3))
+        assert((x31 ≥ 1) ∧ (x31 ≤ 3))
+        assert((x32 ≥ 1) ∧ (x32 ≤ 3))
+        assert((x33 ≥ 1) ∧ (x33 ≤ 3))
+
+        assert((x11 + x12 + x13) ≡ 6)
+        assert((x21 + x22 + x23) ≡ 6)
+        assert((x31 + x32 + x33) ≡ 6)
+
+        assert((x11 + x21 + x31) ≡ 6)
+        assert((x12 + x22 + x32) ≡ 6)
+        assert((x13 + x23 + x33) ≡ 6)
+
+        assert((x11 + x12) ≡ 3)
+        assert(x21 ≡ 3)
+        assert((x22 + x23 + x33) ≡ 4)
+        assert((x31 + x32) ≡ 5)
+
+        val r = isSat(true)
+        unchecked("assert(", r, ")")
+
+        val x11_v = bvToInt(getCounterEx(x11))
+        unchecked(s"assert(1 == ", x11_v, ")")
+
+        val x12_v = bvToInt(getCounterEx(x12))
+        unchecked(s"assert(2 == ", x12_v, ")")
+
+        val x13_v = bvToInt(getCounterEx(x13))
+        unchecked(s"assert(3 == ", x13_v, ")")
+
+        val x22_v = bvToInt(getCounterEx(x22))
+        unchecked(s"assert(1 == ", x22_v, ")")
+
+        val x23_v = bvToInt(getCounterEx(x23))
+        unchecked(s"assert(2 == ", x23_v, ")")
+
+        val x31_v = bvToInt(getCounterEx(x31))
+        unchecked(s"assert(2 == ", x31_v, ")")
+
+        val x32_v = bvToInt(getCounterEx(x32))
+        unchecked(s"assert(3 == ", x32_v, ")")
+
+        val x33_v = bvToInt(getCounterEx(x33))
+        unchecked(s"assert(1 == ", x33_v, ")")
+
+        println("Done")
+      }
+    }    
+
+  // {
+  //   val code = testSAT()
+  //   println(code.code)
+  //   code.eval(0)
+  // }
+  // {
+  //   val code = testBV()
+  //   print(code.code)
+  //   code.eval(0)
+  // }
+  // {
+  //   val code = kenken()
+  //   print(code.code)
+  //   code.eval(0)
+  // }
   {
-    val code = testSAT()
-    println(code.code)
-    code.eval(0)
-  }
-  {
-    val code = testBV()
+    val code = testArray()
     print(code.code)
     code.eval(0)
   }
   {
-    val code = kenken()
+    val code = kenkenArray()
     print(code.code)
     code.eval(0)
   }
 }
-
