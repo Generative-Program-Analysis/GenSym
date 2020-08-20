@@ -283,34 +283,34 @@ object SATTest extends App {
         val array2 = arrayCreate("b", 32, 32, 10)
 
         build(true) {
-          val a = array1.write(2)(lit(3))
+          val a = (array1(2) = lit(3))
           val b = a(2)
           isValid(b ≡ lit(3))
         }
 
         build(false) {
-          val a = array1.write(2)(lit(3))
+          val a = (array1(2) = lit(3))
           val b = array1(2)
           isValid(b ≡ lit(3))
         }
 
         build(true) {
-          val a = array1.write(2)(lit(3))
-          val b = a.write(2)(lit(10))
+          val a = (array1(2) = lit(3))
+          val b = (a(2) = lit(10))
           val c = b(2)
           val d = a(2)
-          isValid((c ≡ lit(10))∧(d ≡ lit(3)))
+          isValid((c ≡ lit(10)) ∧ (d ≡ lit(3)))
         }
 
         build(true) {
-          val a = array2.write(3, 5)(lit(20))
-          val b = a(3,5)
+          val a = (array2(3, 5) = (lit(20)))
+          val b = a(3, 5)
           isValid(b ≡ lit(20))
         }
 
         build(true) {
-          val a = array2.write(3, 5)(lit(20))
-          val b = a.write(5, 2)(lit(1))
+          val a = (array2(3, 5) = lit(20))
+          val b = (a(5, 2) = lit(1))
           val c = b(3, 5)
           val d = b(5, 2)
           isValid((c + d) ≡ lit(21))
