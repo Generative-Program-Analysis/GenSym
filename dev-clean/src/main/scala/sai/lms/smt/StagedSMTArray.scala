@@ -7,12 +7,15 @@ import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 
-trait SMTArrayOps extends StagedSMTBase with SMTBitVecInterface {
-  // (length, index_bit_width)
+trait SMTArrayOps extends SMTArrayInterface with StagedSMTBase with SMTBitVecOps {
+  // TODO: support arrays of arbitrary dimensions
+
+  // lengthMap maps array representations to pairs of its 2nd-dim length and index domain bit-width.
   val lengthMap = collection.mutable.Map[Rep[SMTArray], (Int, Int)]()
   
   def arrayCreate(s: String, indexBW: Int, valueBW: Int, length: Int = 0): Rep[SMTArray] = {
-    val array = Wrap[SMTArray](Adapter.g.reflect("smt-array-create-var", Backend.Const(s), Backend.Const(indexBW), Backend.Const(valueBW)))
+    val array = Wrap[SMTArray](Adapter.g.reflect("smt-array-create-var",
+      Backend.Const(s), Backend.Const(indexBW), Backend.Const(valueBW)))
     lengthMap(array) = (length, indexBW)
     array
   }
@@ -22,18 +25,12 @@ trait SMTArrayOps extends StagedSMTBase with SMTBitVecInterface {
 
   def arrayWrite(array: Rep[SMTArray], index: Rep[BV], value: Rep[BV]): Rep[SMTArray] = {
     val newArray = Wrap[SMTArray](Adapter.g.reflect("smt-array-write", Unwrap(array), Unwrap(index), Unwrap(value)))
-    lengthMap(newArray) = lengthMap.get(array) match {
-      case Some(value) => value
-      case None => throw new Exception("Not find array")
-    }
+    lengthMap(newArray) = lengthMap(array)
     newArray
   }
 
   implicit class SMTArrayOps(array: Rep[SMTArray]) {
-    val (length, indexBW) = lengthMap.get(array) match {
-      case Some(value) => value
-      case None => throw new Exception("Not find array")
-    }
+    val (length, indexBW) = lengthMap(array)
     implicit val bw = indexBW
 
     def apply(i: Rep[BV]): Rep[BV] =

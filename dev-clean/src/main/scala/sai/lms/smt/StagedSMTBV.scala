@@ -7,7 +7,7 @@ import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 
-trait SMTBitVecOps extends StagedSMTBase with SMTBitVecInterface {
+trait SMTBitVecOps extends SMTBitVecInterface with  StagedSMTBase {
   def lit(i: Int)(implicit width: Int): R[BV] = lit(unit(i))
   def lit(i: R[Int])(implicit width: Int): R[BV] =
     Wrap[BV](Adapter.g.reflect("bv-lit", Unwrap(i), Backend.Const(width)))

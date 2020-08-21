@@ -14,7 +14,7 @@ trait StagedSMTBase extends Base { self: SMTBaseInterface =>
 }
 
 @virtualize
-trait SMTBaseOps extends StagedSMTBase with SMTBaseInterface {
+trait SMTBaseOps extends SMTBaseInterface with StagedSMTBase {
   final val BOOL = Backend.Const("bool")
 
   def boolVar(x: String): Rep[SMTBool] =

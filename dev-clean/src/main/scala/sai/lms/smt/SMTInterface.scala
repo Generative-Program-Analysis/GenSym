@@ -118,3 +118,9 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
     }
   }
 }
+
+trait SMTArrayInterface extends SMTBaseInterface with SMTBitVecInterface { op =>
+  def arrayCreate(s: String, indexBW: Int, valueBW: Int, length: Int): R[SMTArray]
+  def arrayRead(a: R[SMTArray], idx: R[BV]): R[BV]
+  def arrayWrite(a: R[SMTArray], idx: R[BV], value: R[BV]): R[SMTArray]
+}
