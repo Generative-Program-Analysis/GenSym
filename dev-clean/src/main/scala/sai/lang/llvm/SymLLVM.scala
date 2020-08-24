@@ -19,11 +19,15 @@ object ConcExec {
   case class IntValue(x: Int) extends Value
   case class LocValue(loc: Loc) extends Value
   case class ArrayValue(vs: List[Value]) extends Value
+  case class FunId(id: String) extends Value
+  case object VoidValue extends Value
   
   type Store = Map[Loc, Value]
-  type Stack = List[Frame]
+  type Stack = List[(Frame, Store)]
 
-  var funTable: List[FunctionDef] = List()
+  var funDeclMap: Map[String, FunctionDecl] = Map()
+  var funMap: Map[String, FunctionDef] = Map()
+  var globalDefMap: Map[String, GlobalDef] = Map()
   var curFrame: Frame = new Frame("@main")
   var curStore: Store = Map[Loc, Value]()
   var curStack: Stack = List()
@@ -35,6 +39,23 @@ object ConcExec {
         curStore(loc)
       case IntConst(n) =>
         IntValue(n)
+      case GlobalId(id) =>
+        funMap.get(id) match {
+          case Some(_) => FunId(id)
+          case None => funDeclMap.get(id) match {
+            case Some(_) => FunId(id)
+            case None => globalDefMap.get(id) match {
+              case Some(globalDef) => eval(globalDef.const)
+              case None => ???
+            }
+          }
+        }
+        
+      case ArrayConst(cs) => 
+        ArrayValue(cs map (v => eval(v.const)))
+      // FIXME: may not work
+      case BitCastExpr(from, const, to) =>
+        eval(const)
     }
   }
 
@@ -54,8 +75,15 @@ object ConcExec {
   }
 
   def findBlock(fname: String, lab: String): Option[BB] = {
-    funTable.find(_.id == fname).get.lookupBlock(lab)
+    funMap.get(fname).get.lookupBlock(lab)
   }
+
+  // FIXME: Unsafe methods
+  def findFirstBlock(fname: String): BB = {
+    findFundef(fname).body.blocks(0)
+  }
+
+  def findFundef(fname: String) = funMap.get(fname).get
 
   def execTerm(inst: Terminator): Option[Value] = {
     inst match {
@@ -123,9 +151,54 @@ object ConcExec {
           case UGT => IntValue(if (v1 > v2) 1 else 0)
           case UGE => IntValue(if (v1 >= v2) 1 else 0)
         }
-      case ZExtInst(from, value, to) => ???
-      case SExtInst(from, value, to) => ???
-      case CallInst(ty, f, args) => ???
+      case ZExtInst(from, value, to) => eval(value) match {
+        case IntValue(x) => IntValue(x)
+        // could also be vector
+        case _ => ???
+      }
+      case SExtInst(from, value, to) => eval(value) match {
+        // TODO What does sext mean?
+        case IntValue(x) => IntValue(x)
+      }
+      case CallInst(ty, f, args) =>
+        val newfname = eval(f) match {
+          case FunId(id) => id
+          case _ => ???
+        }
+        // call
+        funMap.get(newfname) match {
+          case Some(fundef) => {
+            curStack = (new Frame(newfname), Map[Loc, Value]()) :: curStack
+            curFrame = curStack.head._1
+            curStore = curStack.head._2
+            val paramNames = fundef.header.params.map {
+              param => param match {
+                case TypedParam(ty, attrs, localId) => FrameLoc(localId.get, curFrame)
+                case Vararg => ???
+              }
+            }
+            val paramValues = args.map {
+              arg => arg match {
+                case MetadataArg() => ???
+                case TypedArg(ty, attrs, value) => eval(value)
+                case Vararg => ???
+              }
+            }
+            curStore = curStore ++ (paramNames.zip(paramValues))
+            val retVal = execBlock(findFirstBlock(newfname))
+            // ret
+            curStack = curStack.tail
+            curFrame = curStack.head._1
+            curStore = curStack.head._2
+            retVal match {
+              case None => VoidValue
+              case Some(value) => value
+            }
+          }
+          // FunDecl
+          case None => ???
+        }
+        
       case PhiInst(ty, incomings) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) => ???
     }
@@ -137,7 +210,7 @@ object ConcExec {
     for (i <- insts) {
       execInst(i)
     }
-    println(term)
+    //println(term)
     execTerm(term)
   }
 
@@ -148,9 +221,12 @@ object ConcExec {
 
   def exec(m: Module, fname: String, initStore: => Store): Option[Value] = {
     val Some(f) = m.lookupFuncDef(fname)
-    funTable = m.es.filter(_.isInstanceOf[FunctionDef]).asInstanceOf[List[FunctionDef]]
+    funMap = m.funcDefMap
+    funDeclMap= m.funcDeclMap
+    globalDefMap = m.globalDefMap
     curFrame = new Frame(fname)
     curStore = initStore
+    curStack = (curFrame, curStore) :: curStack
     execBlock(f.body.blocks(0))
   }
 }
@@ -424,9 +500,7 @@ object LLVMTest {
     val testInput = scala.io.Source.fromFile("llvm/test/add.ll").mkString
     val m = parse(testInput)
 
-    val result = ConcExec.exec(m, "@add", Map(
-      FrameLoc("%0", curFrame) -> IntValue(5),
-      FrameLoc("%1", curFrame) -> IntValue(2)))
+    val result = ConcExec.exec(m, "@main", Map())
     println(result)
   }
 
@@ -445,9 +519,8 @@ object LLVMTest {
     import ConcExec._
     val testInput = scala.io.Source.fromFile("llvm/test/single_path.ll").mkString
     val m = parse(testInput)
-
-    val result = ConcExec.exec(m, "@singlepath", Map(
-      FrameLoc("%x", curFrame) -> IntValue(5)))
+    printAst(testInput)
+    val result = ConcExec.exec(m, "@main", Map())
     println(result)
   }
 
@@ -519,11 +592,12 @@ object LLVMTest {
 
   def main(args: Array[String]): Unit = {
     //val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
-    printAst(testInput)
+    // val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
+    // printAst(testInput)
 
 
-    //testAdd
+    // testAdd
+    testSinglePath
     //testAddEff
 
     /*

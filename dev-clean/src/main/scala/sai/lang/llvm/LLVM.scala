@@ -851,7 +851,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
         Some(visit(ctx.optLinkage.linkage).asInstanceOf[Linkage])
       else None
     val header = visit(ctx.functionHeader).asInstanceOf[FunctionHeader]
-    println(header)
     val id = header.globalId
     val ms = visit(ctx.metadataAttachments).asInstanceOf[MetadataAttachmentList].ms
     val body = visit(ctx.functionBody).asInstanceOf[FunctionBody]
