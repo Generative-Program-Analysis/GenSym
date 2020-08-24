@@ -231,6 +231,59 @@ object ConcExec {
   }
 }
 
+object TestMaze extends App {
+  def printBB(bb: BB): Unit = {
+    println("  Block: ")
+    println(s"    Label: ${bb.label}")
+    println()
+    println("    Inst:")
+    bb.ins.foreach(u => println(s"      ${u}"))
+    println()
+    println("    Term:")
+    println(s"      ${bb.term}")
+    println()
+    println()
+  }
+
+  def printAst(input: String): Unit = {
+    parse(input).es foreach {u => u match {
+      case FunctionDef(id, linkage, metadata, header, body) => 
+        println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
+        body.blocks foreach(printBB(_))
+      case _ => println(u)
+    }
+      
+    }
+  }
+
+  def parse(input: String): Module = {
+    val charStream = new ANTLRInputStream(input)
+    val lexer = new LLVMLexer(charStream)
+    val tokens = new CommonTokenStream(lexer)
+    val parser = new LLVMParser(tokens)
+
+    val visitor = new MyVisitor()
+    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
+    //println(res.es(3))
+    //println(res)
+    res
+  }
+
+  def testMaze = {
+    import ConcExec._
+    val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
+    printAst(testInput)
+    val m = parse(testInput)
+
+    val result = ConcExec.exec(m, "@main", Map(
+      (FrameLoc("%argc", curFrame) -> IntValue(5)),
+      (FrameLoc("%argv", curFrame) -> IntValue(5))
+      ))
+    println(result)
+  }
+  testMaze
+}
+
 /**************************************************************/
 
 object SymExecEff {

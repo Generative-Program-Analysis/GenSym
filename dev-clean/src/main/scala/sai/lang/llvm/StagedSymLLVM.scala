@@ -25,6 +25,9 @@ import sai.structure.lattices.Lattices._
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 
+// TODO refactor using SMT backend
+// TODO Implementing missing cases
+// TODO how to keep track of globalDef? Add them to store?
 @virtualize
 trait StagedSymExecEff extends SAIOps {
   trait Loc
@@ -84,6 +87,10 @@ trait StagedSymExecEff extends SAIOps {
       } yield { σ(FrameLoc("f_"+x)) }
       case IntConst(n) =>
         ret(IntV(n))
+      case ArrayConst(cs) => ???
+      case BitCastExpr(from, const, to) => ???
+      case BoolConst(b) => ???
+      case GlobalId(id) => ???
     }
   }
 
@@ -133,6 +140,10 @@ trait StagedSymExecEff extends SAIOps {
             case UGE => IntV(if (v1 >= v2) 1 else 0)
           }
         }
+      case ZExtInst(from, value, to) => ???
+      case SExtInst(from, value, to) => ???
+      case CallInst(ty, f, args) => ???
+      case GetElemPtrInst(inBounds, baseType, ptrType, ptrValue, typedValues) => ???
     }
   }
 
