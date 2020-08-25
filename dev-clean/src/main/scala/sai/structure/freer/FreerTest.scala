@@ -6,11 +6,17 @@ import Eff._
 import Freer._
 import Handlers._
 import OpenUnion._
-import Nondet._
 import State._
 import IO._
 
 object Knapsack {
+  // import Nondet._
+  // (12,List(List(3), List(2, 1), List(1, 2), List(1, 1, 1)))
+  // List(List((1,List(3))), List((2,List(2, 1))), List((2,List(1, 2)), (3,List(1, 1, 1))))
+
+  import NondetList._
+  val Nondet = NondetList
+
   def runLocalState[R <: Eff, S, A](s: S, comp: Comp[State[S, *] ⊗ (Nondet ⊗ R), A]): Comp[R, List[Comp[R, List[(S, A)]]]] = {
     val p: Comp[Nondet ⊗ R, S => Comp[Nondet ⊗ R, (S, A)]] = State.run[Nondet ⊗ R, S, A](comp)
     val p1: Comp[R, List[S => Comp[Nondet ⊗ R, (S, A)]]] = Nondet.run[R, S => Comp[Nondet ⊗ R, (S, A)]](p)
@@ -25,14 +31,20 @@ object Knapsack {
 
   def select_inc[R <: Eff, A](xs: List[A])
     (implicit I1: Nondet ∈ R, I2: State[Int, *] ∈ R, I3: IO ∈ R): Comp[R, A] =
+    for {
+      x <- select(xs)
+      _ <- inc[R]
+    } yield x
+  /*
     xs.map(Return[R, A]).foldRight[Comp[R, A]](fail) {
       case (a, b) =>
         for {
           _ <- inc
           x <- choice(a, b)
-          _ <- writeStr("select " + x.toString)
+          // _ <- writeStr("select " + x.toString)
         } yield x
     }
+     */
 
   def knapsack[R <: Eff](w: Int, vs: List[Int])
     (implicit I1: Nondet ∈ R, I2: State[Int, *] ∈ R, I3: IO ∈ R): Comp[R, List[Int]] = {
@@ -72,6 +84,8 @@ object Knapsack {
     //List(List((1,List(3)), (5,List(2, 1)), (5,List(1, 2)), (9,List(1, 1, 1))))
   }
 }
+
+import Nondet._
 
 object UnstagedSymImpEff {
   import Knapsack._
@@ -168,8 +182,9 @@ object UnstagedSymImpEff {
     val p: Comp[IO ⊗ (State[SS, *] ⊗ (Nondet ⊗ ∅)), Unit] =
       exec[IO ⊗ (State[SS, *] ⊗ (Nondet ⊗ ∅))](s)
     val p1: Comp[State[SS, *] ⊗ (Nondet ⊗ ∅), Unit] = IO.run(p)
-    val p2: Comp[∅, List[Comp[∅, List[(SS, Unit)]]]] = runLocalState(ss0, p1)
-    println(extract(p2).map(extract))
+    ???
+    // val p2: Comp[∅, List[Comp[∅, List[(SS, Unit)]]]] = runLocalState(ss0, p1)
+    // println(extract(p2).map(extract))
   }
 }
 
@@ -344,9 +359,9 @@ object Freer3Test {
     runGlobalKnapsack
     runLocalKnapsack
 
-    import sai.lang.ImpLang.Examples._
+    // import sai.lang.ImpLang.Examples._
 
-    UnstagedSymImpEff.run(fact5)
+    // UnstagedSymImpEff.run(fact5)
   }
 }
  

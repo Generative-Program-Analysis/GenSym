@@ -26,22 +26,59 @@ object NondetList {
       }
   }
 
+  def run_with_mt[A]: Comp[Nondet ⊗ ∅, A] => Comp[∅, List[A]] =
+    handler[Nondet, ∅, A, List[A]] {
+      case Return(x) => ret(List(x))
+    } (new DeepH[Nondet, ∅, List[A]] {
+      def apply[X] = (_, _) match {
+        case Nondet$(xs, k) =>
+          k(xs(0))
+      }
+    })
+
   def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
     handler[Nondet, E, A, List[A]] {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, E, List[A]] {
       def apply[X] = (_, _) match {
         case Nondet$(xs, k) =>
-          for {
-            x <- k(xs(0))
-            y <- k(xs(1))
-          } yield x ++ y
           /*
-          for {
-            xs <- k(true)
-            ys <- k(false)
-          } yield xs ++ ys
+          def nd(xs: List[X], acc: Comp[E, List[A]], k: (Comp[E, List[A]], X) => Comp[E, List[A]]): Comp[E, List[A]] = {
+            if (xs.isEmpty) acc
+            else nd(xs.tail, k(acc, xs.head), k)
+          }
+          nd(xs, Return(List()), { case (comp, x) =>
+            comp.flatMap(rs => k(x).map(xs => rs ++ xs))
+          })
            */
+          var i: Int = 0
+          var c: Comp[E, List[A]] = Return(List()) // technically, should be fail
+          while (i < xs.size) {
+            val xs_i = xs(i)
+            c = c.flatMap { rs =>
+              k(xs_i).map(xs_ => rs ++ xs_)
+            }
+            i = i + 1
+          }
+          c
+          /*
+          xs.foldLeft[Comp[E, List[A]]](ret(List())) { case (comp, x) =>
+            for {
+              rs <- comp
+              xs <- k(x)
+            } yield rs ++ xs
+          }
+           */
+          /*
+          xs.map(x => k(x)).foldLeft[Comp[E, List[A]]](ret(List())) { case (a, b) =>
+            for {
+              xs <- a
+              ys <- b
+            } yield xs ++ ys
+           }
+           */
+        // case Nondet$(xs: Rep[List[A]], k: Rep[A] => Comp[E, Rep[List[A]]]) =>
+
       }
     })
 }
