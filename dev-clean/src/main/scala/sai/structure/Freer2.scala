@@ -317,7 +317,7 @@ object Nondet {
   def fail[A, R <: Eff](implicit I: Nondet ∈ R): Comp[R,A] = perform(Fail)
 
   def choice[A, R <: Eff](a: Comp[R, A], b: Comp[R, A])(implicit I: Nondet ∈ R): Comp[R, A] =
-    perform(Choice) >>= {
+    perform[Nondet, R, Boolean](Choice) >>= {
       case true  => a
       case false => b
     }

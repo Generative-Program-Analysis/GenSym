@@ -1,6 +1,8 @@
 package sai.structure.monad
 package freer
 
+/*
+
 import sai.structure.functor._
 import sai.structure.~>
 
@@ -125,3 +127,5 @@ object Example {
     println(r)
   }
 }
+
+*/
