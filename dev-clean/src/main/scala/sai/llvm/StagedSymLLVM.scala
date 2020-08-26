@@ -1,5 +1,7 @@
-package sai.lang.llvm
-import IR._
+package sai.llvm
+
+import sai.lang.llvm._
+import sai.lang.llvm.IR._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._

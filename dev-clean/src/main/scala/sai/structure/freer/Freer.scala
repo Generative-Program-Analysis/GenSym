@@ -2,16 +2,6 @@ package sai.structure.freer3
 
 import scala.language.{higherKinds, implicitConversions}
 
-object Symbol {
-  private val counters = scala.collection.mutable.HashMap[String,Int]()
-
-  def freshName(prefix: String): String = {
-    val count = counters.getOrElse(prefix, 1)
-    counters.put(prefix, count + 1)
-    prefix + "_" + count
-  }
-}
-
 //Track effects as type-level lists of type constructors
 object Eff {
   sealed trait Eff

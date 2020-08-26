@@ -32,7 +32,10 @@ object NondetList {
     } (new DeepH[Nondet, ∅, List[A]] {
       def apply[X] = (_, _) match {
         case Nondet$(xs, k) =>
-          k(xs(0))
+          ret(xs.foldLeft(List[A]()) { case (zs, x) =>
+            // Here: it works because k(x) directly yields a pure value, involves no effectful computation.
+            zs ++ k(x)
+          })
       }
     })
 

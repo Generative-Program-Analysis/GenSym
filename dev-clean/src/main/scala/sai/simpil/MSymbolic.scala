@@ -1,4 +1,4 @@
-package sai.msymbolic
+package sai.simpil
 
 import lms.core._
 import lms.core.stub._
@@ -11,7 +11,7 @@ import sai.structure.monad._
 import sai.lang.SimpIL
 import sai.lang.SimpIL._
 
-object Concrete {
+object ConcreteM {
   //import SimpIL.Values._
 
   type PC = Int
@@ -166,7 +166,6 @@ object Concrete {
   def run(p: Prog): (Either[Value, Unit], State) = {
     drive(ProgToMap(p)).run((0, Map(), Map())).run
   }
-
 }
 
 @virtualize
@@ -252,18 +251,13 @@ trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcrete { q
   }
 }
 
-object MSymbolicTest {
-  def runUnstagedConcrete = {
-    import SimpIL.Examples._
-    //println(run(ex1))
+object SimpILTest {
+  import SimpIL.Examples._
 
-    val h = Prog(List(
-      Halt(Lit(1))
-    ))
-    //println(run(h))
-
-    println(Concrete.run(ex3))
-    println(Concrete.run_smallstep(ex3))
+  def runConcreteM = {
+    val h = Prog(List(Halt(Lit(1))))
+    println(ConcreteM.run(ex3))
+    println(ConcreteM.run_smallstep(ex3))
   }
 
   def specializeConc(s: Stmt): SAIDriver[Unit, Unit] = new StagedConcreteDriver {
@@ -274,10 +268,16 @@ object MSymbolicTest {
     }
   }
 
+  def runConcrete: Unit = {
+    println(Concrete.run(ex1))
+  }
+  def runSymExec: Unit = {
+    println(SymExec.run(ex2))
+  }
+
   def main(args: Array[String]): Unit = {
     val s = Assign("x", Lit(1))
     val code = specializeConc(s)
     println(code.code)
   }
-
 }

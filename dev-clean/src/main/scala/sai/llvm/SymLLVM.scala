@@ -1,5 +1,7 @@
-package sai.lang.llvm
-import IR._
+package sai.llvm
+
+import sai.lang.llvm._
+import sai.lang.llvm.IR._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -647,7 +649,6 @@ object LLVMTest {
     //val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
     // val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
     // printAst(testInput)
-
 
     // testAdd
     testSinglePath

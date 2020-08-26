@@ -1,5 +1,9 @@
 package sai.lang
 
+/* The Simp Intermediate Langauge defined in:
+ * https://users.ece.cmu.edu/~aavgerin/papers/Oakland10.pdf
+ */
+
 object SimpIL {
   case class Prog(stmts: List[Stmt])
 

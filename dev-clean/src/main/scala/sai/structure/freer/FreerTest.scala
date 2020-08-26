@@ -10,12 +10,12 @@ import State._
 import IO._
 
 object Knapsack {
-  // import Nondet._
+  import Nondet._
   // (12,List(List(3), List(2, 1), List(1, 2), List(1, 1, 1)))
   // List(List((1,List(3))), List((2,List(2, 1))), List((2,List(1, 2)), (3,List(1, 1, 1))))
 
-  import NondetList._
-  val Nondet = NondetList
+  // import NondetList._
+  // val Nondet = NondetList
 
   def runLocalState[R <: Eff, S, A](s: S, comp: Comp[State[S, *] ⊗ (Nondet ⊗ R), A]): Comp[R, List[Comp[R, List[(S, A)]]]] = {
     val p: Comp[Nondet ⊗ R, S => Comp[Nondet ⊗ R, (S, A)]] = State.run[Nondet ⊗ R, S, A](comp)
@@ -31,11 +31,6 @@ object Knapsack {
 
   def select_inc[R <: Eff, A](xs: List[A])
     (implicit I1: Nondet ∈ R, I2: State[Int, *] ∈ R, I3: IO ∈ R): Comp[R, A] =
-    for {
-      x <- select(xs)
-      _ <- inc[R]
-    } yield x
-  /*
     xs.map(Return[R, A]).foldRight[Comp[R, A]](fail) {
       case (a, b) =>
         for {
@@ -44,6 +39,11 @@ object Knapsack {
           // _ <- writeStr("select " + x.toString)
         } yield x
     }
+  /*
+    for {
+      x <- select(xs)
+      _ <- inc[R]
+    } yield x
      */
 
   def knapsack[R <: Eff](w: Int, vs: List[Int])
@@ -83,11 +83,17 @@ object Knapsack {
      */
     //List(List((1,List(3)), (5,List(2, 1)), (5,List(1, 2)), (9,List(1, 1, 1))))
   }
+
+  def main(args: Array[String]) {
+    //def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
+    //def run[E <: Eff, S, A]: Comp[State[S, *] ⊗ E, A] => Comp[E, S => Comp[E, (S, A)]] =
+    runGlobalKnapsack
+    runLocalKnapsack
+  }
 }
 
-import Nondet._
-
-object UnstagedSymImpEff {
+object FreerUnstagedImp {
+  import Nondet._
   import Knapsack._
   import sai.lang.ImpLang._
 
@@ -182,186 +188,8 @@ object UnstagedSymImpEff {
     val p: Comp[IO ⊗ (State[SS, *] ⊗ (Nondet ⊗ ∅)), Unit] =
       exec[IO ⊗ (State[SS, *] ⊗ (Nondet ⊗ ∅))](s)
     val p1: Comp[State[SS, *] ⊗ (Nondet ⊗ ∅), Unit] = IO.run(p)
-    ???
-    // val p2: Comp[∅, List[Comp[∅, List[(SS, Unit)]]]] = runLocalState(ss0, p1)
-    // println(extract(p2).map(extract))
+    val p2: Comp[∅, List[Comp[∅, List[(SS, Unit)]]]] = runLocalState(ss0, p1)
+    println(extract(p2).map(extract))
   }
 }
 
-object Freer3Test {
-  import lms.core._
-  import lms.core.stub._
-  import lms.macros._
-  import lms.core.Backend._
-  import sai.lmsx._
-
-  import Knapsack._
-
-  @virtualize
-  trait ReflectReify extends SAIOps {
-    type E = Nondet ⊗ ∅
-
-    def choice_state(s1: Rep[Int], s2: Rep[Int]): Comp[E, Rep[Int]] = {
-      for {
-        s <- choice(Return[E, Rep[Int]](s1), Return[E, Rep[Int]](s2))
-      } yield s
-    }
-  }
-
-  @virtualize
-  trait StagedSymImpEff extends SAIOps {
-    import sai.lang.ImpLang._
-
-    // TODO change this to SMT backend?
-    trait Value
-    def IntV(i: Rep[Int]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
-    def BoolV(b: Rep[Boolean]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflect("BoolV", Unwrap(b)))
-    def SymV(x: Rep[String]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflect("SymV", Unwrap(x)))
-
-    def op_neg(v: Rep[Value]): Rep[Value] = {
-      Unwrap(v) match {
-        case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
-          val v1: Rep[Int] = Wrap[Int](v)
-          IntV(-v1)
-        case Adapter.g.Def("SymV", scala.collection.immutable.List(v: Backend.Exp)) =>
-          val v1: Rep[String] = Wrap[String](v)
-          SymV(unit("-" + v1))
-        case i =>
-          val v1: Rep[Int] = Wrap[Int](Adapter.g.reflect("IntV-proj", i))
-          IntV(-v1)
-      }
-    }
-
-    def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-      Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
-    }
-
-    type PC = Set[Expr]
-    type Store = Map[String, Value]
-    type SS = (Store, PC)
-
-    def reload[R <: Eff, S, A](xs: List[(S, A)])(implicit I1: Nondet ∈ R, I2: State[S, *] ∈ R): Comp[R, A] = {
-      for {
-        sa <- select(xs)
-        _ <- put(sa._1)
-      } yield sa._2
-    }
-
-    def reload[R <: Eff, S, A](xs: List[A], s: S)(implicit I1: Nondet ∈ R, I2: State[S, *] ∈ R): Comp[R, A] = {
-      for {
-        _ <- put(s)
-        x <- select(xs)
-      } yield x
-    }
-
-    type E = IO ⊗ (State[Rep[SS], *] ⊗ (Nondet ⊗ ∅))
-
-    def getStore: Comp[E, Rep[Store]] =
-      for { s <- get[Rep[SS], E] } yield s._1
-    def updateStore(x: Rep[String], v: Rep[Value]): Comp[E, Rep[Unit]] =
-      for {
-        s <- get[Rep[SS], E]
-        _ <- {
-          val σ: Rep[Store] = s._1 + (x -> v)
-          val ss: Rep[SS] = (σ, s._2)
-          put[Rep[SS], E](ss)
-        }
-      } yield ()
-    def getPC: Comp[E, Rep[PC]] =
-      for { s <- get[Rep[SS], E] } yield s._2
-    def updatePathCond(e: Expr): Comp[E, Rep[Unit]] =
-      for {
-        s <- get[Rep[SS], E]
-        _ <- {
-          val pc: Rep[PC] = Set(e) ++ s._2
-          val ss: Rep[SS] = (s._1, pc)
-          put[Rep[SS], E](ss)
-        }
-      } yield ()
-
-
-    def select_rep(xs: Rep[List[(SS, Unit)]]): Comp[E, Rep[Unit]] = {
-      // xs.map(Return[R, A]).foldRight[Comp[R, A]](fail)(choice)
-      xs.flatMap(x => {
-        val state: Rep[SS] = x._1
-        val u: Rep[Unit] = x._2
-        ???
-      })
-      ???
-    }
-
-    def reify(comp: Comp[E, Rep[Unit]]): Rep[List[(SS, Unit)]] = ???
-    def reflect(res: Rep[List[(SS, Unit)]]): Comp[E, Rep[Unit]] = {
-      ???
-    }
-
-    def unfold(w: While, k: Int): Stmt =
-      if (k == 0) Skip()
-      else w match {
-        case While(e, b) =>
-          Cond(e, Seq(b, unfold(w, k-1)), Skip())
-      }
-
-    def eval(e: Expr, σ: Rep[Store]): Rep[Value] = e match {
-      case Lit(i: Int) => IntV(i)
-      case Lit(b: Boolean) => BoolV(b)
-      case Input() => SymV(Symbol.freshName("x"))
-      case Var(x) => σ(x)
-      case Op1("-", e) =>
-        val v = eval(e, σ)
-        op_neg(v)
-      case Op2(op, e1, e2) =>
-        val v1 = eval(e1, σ)
-        val v2 = eval(e2, σ)
-        op_2(op, v1, v2)
-    }
-
-    //def eval(e: Expr)(implicit I1: State[Rep[SS], *] ∈ E, I2: IO ∈ E): Comp[E, Rep[Value]] = ???
-    def eval(e: Expr): Comp[E, Rep[Value]] = for {
-      σ <- getStore
-    } yield eval(e, σ)
-
-    def execPC(s: Stmt, pc: Expr): Comp[E, Rep[Unit]] = for {
-      _ <- updatePathCond(pc)
-      _ <- exec(s)
-    } yield ()
-
-    //def exec(s: Stmt)(implicit I1: State[Rep[SS], *] ∈ E, I2: IO ∈ E, I3: Nondet ∈ E): Comp[E, Rep[Unit]] =
-    def exec(s: Stmt): Comp[E, Rep[Unit]] =
-      s match {
-        case Skip() => ret(())
-        case Assign(x, e) =>
-          for {
-            v <- eval(e)
-            _ <- updateStore(x, v)
-          } yield ()
-        case Cond(e, s1, s2) =>
-          for {
-            b <- eval(e)
-            v <- choice(execPC(s1, e), execPC(s2, Op1("-", e)))
-          } yield { v }
-        case Seq(s1, s2) =>
-          for { _ <- exec(s1); _ <- exec(s2) } yield ()
-        case While(e, s) =>
-          val k = 4
-          exec(unfold(While(e, s), k))
-        case Assert(e) =>
-          updatePathCond(e)
-      }
-  }
-
-  def main(args: Array[String]) {
-    //def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
-    //def run[E <: Eff, S, A]: Comp[State[S, *] ⊗ E, A] => Comp[E, S => Comp[E, (S, A)]] =
-    runGlobalKnapsack
-    runLocalKnapsack
-
-    // import sai.lang.ImpLang.Examples._
-
-    // UnstagedSymImpEff.run(fact5)
-  }
-}
- 

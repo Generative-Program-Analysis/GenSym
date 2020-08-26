@@ -1,5 +1,4 @@
-package sai
-package symbolic
+package sai.simpil
 
 import sai.lang.SimpIL
 import sai.lang.SimpIL._
@@ -65,11 +64,6 @@ object Concrete {
 
   def evalUnaryOp(op: String, v: Int): Value = op match {
     case "~" => IntV(-v)
-  }
-
-  def main(args: Array[String]): Unit = {
-    import SimpIL.Examples._
-    println(run(ex1))
   }
 }
 
@@ -341,10 +335,5 @@ object SymExec {
 
   def run(p: Prog): Result = p match {
     case Prog(stmts) => exec(stmts(0), Map(), Map(), True, 0, stmts.zipWithIndex.map(_.swap).toMap)
-  }
-
-  def main(args: Array[String]): Unit = {
-    import SimpIL.Examples._
-    println(run(ex2))
   }
 }

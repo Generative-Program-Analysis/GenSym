@@ -176,7 +176,7 @@ object TestImp {
 
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] =
-    new SymStagedImpDriver {
+    new SymStagedImpDriver[Unit, Unit] {
       def snippet(u: Rep[Unit]) = {
         //val init: Rep[Ans] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")),
         //                      Set[Expr]())
