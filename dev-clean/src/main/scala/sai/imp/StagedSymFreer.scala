@@ -33,6 +33,7 @@ object Symbol {
 @virtualize
 trait RepBinaryNondet extends SAIOps {
   import sai.structure.freer3.Nondet._
+
   def run_with_mt[A: Manifest]: Comp[Nondet ⊗ ∅, Rep[A]] => Comp[∅, Rep[List[A]]] =
     handler[Nondet, ∅, Rep[A], Rep[List[A]]] {
       case Return(x) => ret(List(x))
@@ -43,50 +44,62 @@ trait RepBinaryNondet extends SAIOps {
           val xs: Rep[List[A]] = k(true)
           val ys: Rep[List[A]] = k(false)
           ret(xs ++ ys)
+          /*
+          val r: Rep[Int] = // make choice depending p, could be 0 or 1
+          __if (r == 0) {
+            val xs: Rep[List[A]] = k(true)
+            ret(xs)
+          } else {
+            val ys: Rep[List[A]] = k(false)
+            ret(ys)
+          }
+           */
       }
     })
 }
 
 @virtualize
-trait RepNondet extends SAIOps {
-  case class Nondet[A: Manifest](xs: Rep[List[A]])
+trait RepCoin extends SAIOps {
+  
+}
 
-  def perform[T[_], R <: Eff, X: Manifest](op: T[X])(implicit I: T ∈ R): Comp[R, Rep[X]] =
-    Op(I.inj(op)) { x => Return(x) }
+@virtualize
+trait RepNondet extends SAIOps {
+
+  // case class NondetList[A: Manifest](xs: Rep[List[A]])
+  abstract class Nondet[A]
+  case class NondetList[A: Manifest](xs: Rep[List[A]]) extends Nondet[Rep[A]]
+
+  // def perform[T[_], R <: Eff, X: Manifest](op: T[X])(implicit I: T ∈ R): Comp[R, Rep[X]] =
+  //  Op(I.inj(op)) { x => Return(x) }
 
   def fail[R <: Eff, A: Manifest](implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
-    perform[Nondet, R, A](Nondet(List()))
+    perform[Nondet, R, Rep[A]](NondetList(List()))
 
   def choice[R <: Eff, A: Manifest](x: Rep[A], y: Rep[A])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
-    perform(Nondet(List(x, y)))
+    perform[Nondet, R, Rep[A]](NondetList(List(x, y)))
 
   def select[R <: Eff, A: Manifest](xs: Rep[List[A]])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
-    perform(Nondet(xs))
+    perform[Nondet, R, Rep[A]](NondetList(xs))
 
   object Nondet$ {
-    def unapply[A: Manifest, R](n: (Nondet[A], Rep[A] => R)): Option[(Rep[List[A]], Rep[A] => R)] =
+    def unapply[A: Manifest, R, X](n: (Nondet[X], X => R)): Option[(Rep[List[A]], Rep[A] => R)] =
       n match {
-        case (Nondet(xs), k) => Some((xs, k))
+        case (NondetList(xs), k) => Some((xs.asInstanceOf[Rep[List[A]]], k))
         case _ => None
       }
   }
 
-  // TODO: how to make it nice?
   // Observation: curried style works really bad when having Manifest
   def runRepNondet[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = {
     val h = handler[Nondet, ∅, Rep[A], Rep[List[A]]] {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, ∅, Rep[List[A]]] {
-      def apply[X]: (Nondet[X], X => Comp[∅, Rep[List[A]]]) => Comp[∅, Rep[List[A]]] = {
-        // Note: writing in ordinary style wont work, because DeepH doesn't know X is Rep[A]
-        def f(fx: Nondet[X], k: X => Comp[∅, Rep[List[A]]]): Comp[∅, Rep[List[A]]] = {
-          val xs: Rep[List[A]] = fx.asInstanceOf[Nondet[A]].xs
-          val kk = k.asInstanceOf[Rep[A] => Comp[∅, Rep[List[A]]]]
+      def apply[X] = {
+        case Nondet$(xs, k) =>
           ret(xs.foldLeft(List[A]()) { case (acc, x) =>
-            acc ++ kk(x)
+            acc ++ k(x)
           })
-        }
-        f
       }
     })
     h(comp)
@@ -160,6 +173,8 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
   type Store = Map[String, Value]
   type SS = (Store, PC)
 
+  //   // Comp[Nondet x E, S => Comp[E, (S, A)]]
+  // Comp[E, Rep[List[S => Comp[E, (S, A)]]]]
   // type E = IO ⊗ (State[Rep[SS], *] ⊗ (Nondet ⊗ ∅))
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
   type SymEff[T] = Comp[E, T]

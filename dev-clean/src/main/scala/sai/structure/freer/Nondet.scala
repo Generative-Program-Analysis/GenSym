@@ -54,6 +54,7 @@ object NondetList {
     })
    */
 
+  // def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, ( => ) => Rep[List[A]]] =
 
   def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
     handler[Nondet, E, A, List[A]] {
@@ -61,6 +62,12 @@ object NondetList {
     } (new DeepH[Nondet, E, List[A]] {
       def apply[X] = (_, _) match {
         case Nondet$(xs, k) =>
+          xs.foldLeft[Comp[E, List[A]]](ret(List())) { case (comp, x) =>
+            for {
+              rs <- comp
+              xs <- k(x)
+            } yield rs ++ xs
+          }
           /*
           def nd(xs: List[X], acc: Comp[E, List[A]], k: (Comp[E, List[A]], X) => Comp[E, List[A]]): Comp[E, List[A]] = {
             if (xs.isEmpty) acc
@@ -70,6 +77,7 @@ object NondetList {
             comp.flatMap(rs => k(x).map(xs => rs ++ xs))
           })
            */
+          /*
           var i: Int = 0
           var c: Comp[E, List[A]] = Return(List()) // technically, should be fail
           while (i < xs.size) {
@@ -80,13 +88,6 @@ object NondetList {
             i = i + 1
           }
           c
-          /*
-          xs.foldLeft[Comp[E, List[A]]](ret(List())) { case (comp, x) =>
-            for {
-              rs <- comp
-              xs <- k(x)
-            } yield rs ++ xs
-          }
            */
           /*
           xs.map(x => k(x)).foldLeft[Comp[E, List[A]]](ret(List())) { case (a, b) =>
