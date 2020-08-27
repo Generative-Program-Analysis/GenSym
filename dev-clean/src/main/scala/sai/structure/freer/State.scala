@@ -8,7 +8,7 @@ object State {
   import Freer._
   import Handlers._
 
-  sealed trait State[S, K]
+  sealed trait State[S, +K]
   case class Put[S](x: S) extends State[S,Unit] //Put: S ~> Unit
   case class Get[S]() extends State[S,S] //Get: Unit ~> S
 
@@ -44,4 +44,18 @@ object State {
         k(()) >>= (r => r(s))
       }
     })
+
+  // TODO: Double check this
+  def run[E <: Eff, S, A](s: S): Comp[State[S, *] ⊗ E, A] => Comp[E, (S, A)] = {
+    case Return(x) => ret((s, x))
+    case Op(u, k) => decomp[State[S, *], E, Any](u) match {
+      case Right(op) => op match {
+        case Get() => run(s)(k(s))
+        case Put(s1) => run(s1)(k(()))
+      }
+      case Left(op) =>
+        Op(op) { x => run(s)(k(x)) }
+    }
+  }
+
 }

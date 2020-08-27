@@ -552,7 +552,7 @@ object LLVMTest {
 
   def testAdd = {
     import ConcExec._
-    val testInput = scala.io.Source.fromFile("llvm/test/add.ll").mkString
+    val testInput = scala.io.Source.fromFile("llvm/benchmarks/add.ll").mkString
     val m = parse(testInput)
 
     val result = ConcExec.exec(m, "@main", Map())
@@ -650,8 +650,8 @@ object LLVMTest {
     // val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
     // printAst(testInput)
 
-    // testAdd
-    testSinglePath
+    testAdd
+    // testSinglePath
     //testAddEff
 
     /*

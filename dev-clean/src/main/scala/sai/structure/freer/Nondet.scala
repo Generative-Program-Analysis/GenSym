@@ -39,6 +39,22 @@ object NondetList {
       }
     })
 
+  /* Idea: transform nondet effects to a local CPS form
+  def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, CPS[List[A]]] =
+    handler[Nondet, E, A, List[A]] {
+      case Return(x) => ret(List(x))
+    } (new DeepH[Nondet, E, List[A]] {
+      def apply[X] = (_, _) match {
+        case Nondet$(xs, k) =>
+          def cont(kk: X => List[A]): List[A] = {
+
+          }
+          cont
+      }
+    })
+   */
+
+
   def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
     handler[Nondet, E, A, List[A]] {
       case Return(x) => ret(List(x))
@@ -132,6 +148,19 @@ object Nondet {
             xs <- k(true)
             ys <- k(false)
           } yield xs ++ ys
+      }
+    })
+
+  def run_with_mt[A]: Comp[Nondet ⊗ ∅, A] => Comp[∅, List[A]] =
+    handler[Nondet, ∅, A, List[A]] {
+      case Return(x) => ret(List(x))
+    } (new DeepH[Nondet, ∅, List[A]] {
+      def apply[X] = (_, _) match {
+        case Fail$() => ret(List())
+        case Choice$((), k) =>
+          val xs: List[A] = k(true)
+          val ys: List[A] = k(false)
+          ret(xs ++ ys)
       }
     })
 

@@ -371,13 +371,9 @@ object CondEff {
     (implicit select: (E, A, A) => A): Free[F, A] = {
     run(runBCond(prog))
   }
-
-
 }
 
-
 object StateEff {
-
   import Free._
   import Coproduct._
   import ⊆._
