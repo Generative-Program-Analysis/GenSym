@@ -30,7 +30,6 @@ object NondetList {
     handler[Nondet, ∅, A, List[A]] {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, ∅, List[A]] {
-<<<<<<< HEAD
       def apply[X] = (_, _) match {
         case Nondet$(xs, k) =>
           ret(xs.foldLeft(List[A]()) { case (zs, x) =>
@@ -52,12 +51,6 @@ object NondetList {
           }
           cont
       }
-=======
-        def apply[X] = {
-          case Nondet$(xs, k) =>
-            k(xs(0))
-        }
->>>>>>> 62350c7... WIP Path exploration & better handler combinators
     })
    */
 
