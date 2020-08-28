@@ -89,11 +89,19 @@ object ImpLang {
     val a = Var("a")
     val b = Var("b")
     val i = Var("i")
+
     val cond1 =
       Cond(Op2("<=", Lit(1), Lit(2)),
         Assign("x", Lit(3)),
         Assign("x", Lit(4)))
 
+    /* if (x <= y) {
+     *   z = x
+     * } else {
+     *   z = y
+     * }
+     * z = z + 1
+     */
     val cond2 =
       Seq(Cond(Op2("<=", Var("x"), Var("y")),
                Assign("z", Var("x")),
@@ -105,9 +113,9 @@ object ImpLang {
      * } else {
      *   z = y
      * }
-     * z = z + 1
+     * z = z - 1
      * if (z >= y) {
-     *   z = z + 2 
+     *   z = z * 2 
      * } else {
      *   z = z + 3
      * }
@@ -116,9 +124,9 @@ object ImpLang {
       Seq(Cond(Op2("<=", x, y),
                Assign("z", x),
                Assign("z", y)),
-        Seq(Assign("z", Op2("+", z, Lit(1))),
+        Seq(Assign("z", Op2("-", z, Lit(1))),
           Seq(Cond(Op2(">=", z, y),
-            Assign("z", Op2("+", z, Lit(2))),
+            Assign("z", Op2("*", z, Lit(2))),
             Assign("z", Op2("+", z, Lit(3)))),
           Skip())))
 

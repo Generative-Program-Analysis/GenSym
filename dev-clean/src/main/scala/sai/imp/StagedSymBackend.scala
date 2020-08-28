@@ -16,6 +16,12 @@ import scala.collection.immutable.{List => SList}
 
 trait SymStagedImpGen extends StagedImpGen {
   override def shallow(n: Node): Unit = n match {
+    case Node(s, "BoolV-pred", List(i), _) =>
+      shallow(i)
+      emit(".isInstanceOf[BoolV]")
+    case Node(s, "SymV-proj", List(i), _) =>
+      shallow(i)
+      emit(".asInstanceOf[SymV].s")
     case Node(s, "op", List(op, x1, x2), _) =>
       emit("op_2(")
       shallow(op); emit(", ")
@@ -117,7 +123,7 @@ import sai.imp.SymRuntime._
 """
 }
 
-trait GenericCppSymStagedImpDriver[A, B] extends CppSAIDriver[A, B] with SymStagedImp { q =>
+trait GenericCppSymStagedImpDriver[A, B] extends CppSAIDriver[A, B] { q =>
   override val codegen = new CGenBase with CppSymStagedImpGen {
     val IR: q.type = q
     import IR._

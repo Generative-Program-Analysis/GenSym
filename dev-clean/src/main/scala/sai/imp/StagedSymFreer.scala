@@ -4,6 +4,7 @@ import sai.lang.ImpLang._
 
 import scala.language.{higherKinds, implicitConversions}
 
+import sai.structure.freer3._
 import sai.structure.freer3.Eff._
 import sai.structure.freer3.Freer._
 import sai.structure.freer3.Handlers._
@@ -69,9 +70,7 @@ trait RepNondet extends SAIOps {
   // case class NondetList[A: Manifest](xs: Rep[List[A]])
   abstract class Nondet[A]
   case class NondetList[A: Manifest](xs: Rep[List[A]]) extends Nondet[Rep[A]]
-
-  // def perform[T[_], R <: Eff, X: Manifest](op: T[X])(implicit I: T ∈ R): Comp[R, Rep[X]] =
-  //  Op(I.inj(op)) { x => Return(x) }
+  case object BinChoice extends Nondet[Boolean]
 
   def fail[R <: Eff, A: Manifest](implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
     perform[Nondet, R, Rep[A]](NondetList(List()))
@@ -79,15 +78,27 @@ trait RepNondet extends SAIOps {
   def choice[R <: Eff, A: Manifest](x: Rep[A], y: Rep[A])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
     perform[Nondet, R, Rep[A]](NondetList(List(x, y)))
 
+  def choice[R <: Eff, A: Manifest](a: Comp[R, Rep[A]], b: Comp[R, Rep[A]])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
+    perform[Nondet, R, Boolean](BinChoice) >>= {
+      case true => a
+      case false => b
+    }
+
   def select[R <: Eff, A: Manifest](xs: Rep[List[A]])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
     perform[Nondet, R, Rep[A]](NondetList(xs))
 
-  object Nondet$ {
+  object NondetList$ {
     def unapply[A: Manifest, R, X](n: (Nondet[X], X => R)): Option[(Rep[List[A]], Rep[A] => R)] =
       n match {
         case (NondetList(xs), k) => Some((xs.asInstanceOf[Rep[List[A]]], k))
         case _ => None
       }
+  }
+  object BinChoice$ {
+    def unapply[K, R](n: (Nondet[K], K => R)): Option[(Unit, Boolean => R)] = n match {
+      case (BinChoice, k) => Some(((), k))
+      case _ => None
+    }
   }
 
   // Observation: curried style works really bad when having Manifest
@@ -96,10 +107,15 @@ trait RepNondet extends SAIOps {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, ∅, Rep[List[A]]] {
       def apply[X] = {
-        case Nondet$(xs, k) =>
+        case NondetList$(xs, k) =>
           ret(xs.foldLeft(List[A]()) { case (acc, x) =>
             acc ++ k(x)
           })
+        case BinChoice$((), k) =>
+          for {
+            xs <- k(true)
+            ys <- k(false)
+          } yield xs ++ ys
       }
     })
     h(comp)
@@ -110,8 +126,16 @@ trait RepNondet extends SAIOps {
 trait StagedSymImpEff extends SAIOps with RepNondet {
 
   // Basic value representation and their constructors/matchers
-
   abstract class Value
+  implicit class ValueOps(v: Rep[Value]) {
+    def isBool: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("BoolV-pred", Unwrap(v)))
+    def getBool: Rep[Boolean] = BoolV.unapply(v).get
+  }
+
+  def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
+    Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
+  }
+
   object IntV {
     def apply (i: Rep[Int]): Rep[Value] =
       Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
@@ -165,21 +189,16 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     }
   }
 
-  def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
-  }
-
   type PC = Set[Expr]
   type Store = Map[String, Value]
   type SS = (Store, PC)
 
-  //   // Comp[Nondet x E, S => Comp[E, (S, A)]]
-  // Comp[E, Rep[List[S => Comp[E, (S, A)]]]]
   // type E = IO ⊗ (State[Rep[SS], *] ⊗ (Nondet ⊗ ∅))
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
   type SymEff[T] = Comp[E, T]
 
   def getStore: SymEff[Rep[Store]] = for { s <- get[Rep[SS], E] } yield s._1
+  def getPC: SymEff[Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._2
 
   def updateStore(x: Rep[String], v: Rep[Value]): SymEff[Rep[Unit]] =
     for {
@@ -191,8 +210,6 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
       }
     } yield ()
 
-  def getPC: SymEff[Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._2
-
   def updatePathCond(e: Expr): SymEff[Rep[Unit]] =
     for {
       s <- get[Rep[SS], E]
@@ -203,27 +220,12 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
       }
     } yield ()
 
-  // The `State.run` doesn't work well for staged S and state A, as it produces Comp[E, (Rep[S], Rep[A])] result.
-  // Maybe we can have a handler that transform Comp[E, (Rep[S], Rep[A])] into Comp[E, Rep[(S, A)]].
-  // TODO: double check this, and the one in State.scala
-  def runRepState[E <: Eff, S: Manifest, A: Manifest](s: Rep[S], comp: Comp[State[Rep[S], *] ⊗ E, Rep[A]]): Comp[E, Rep[(S, A)]] =
-    comp match {
-      case Return(x) => ret((s, x))
-      case Op(u, k) => decomp[State[Rep[S], *], E, Any](u) match {
-        case Right(op) => op match {
-          case Get() => runRepState(s, k(s))
-          case Put(s1) => runRepState(s1, k(()))
-        }
-        case Left(op) =>
-          Op(op) { x => runRepState(s, k(x)) }
-      }
-    }
-
   def reify(s: Rep[SS])(comp: Comp[E, Rep[Unit]]): Rep[List[(SS, Unit)]] = {
-    val p1: Comp[Nondet ⊗ ∅, Rep[(SS, Unit)]] =
-      runRepState[Nondet ⊗ ∅, SS, Unit](s, comp)
-    val p2: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p1)
-    p2
+    val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[Unit])] =
+      State.run[Nondet ⊗ ∅, Rep[SS], Rep[Unit]](s)(comp)
+    val p2: Comp[Nondet ⊗ ∅, Rep[(SS, Unit)]] = p1.map(a => a)
+    val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p2)
+    p3
   }
 
   def reflect(res: Rep[List[(SS, Unit)]]): Comp[E, Rep[Unit]] = {
@@ -271,15 +273,52 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
           _ <- updateStore(x, v)
         } yield ()
       case Cond(e, s1, s2) =>
-        /*
+        /* generating breath-first exploring code */
         for {
-          b <- eval(e)
-          v <- choice(execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
-        } yield { v }
-         */
-        ???
+          ss <- get[Rep[SS], E]
+          u <- reflect(reify(ss)(execWithPC(s1, e)) ++ reify(ss)(execWithPC(s2, Op1("-", e))))
+        } yield u
+        /* generating depth-first exploring code */
+        choice(execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
+        /* mixing concrete evaluation of condition (a little code duplication) */
+        for {
+          v <- eval(e)
+          ss <- get[Rep[SS], E]
+          u <- reflect {
+            if (v.isBool) {
+              if (v.getBool) reify(ss)(exec(s1))
+              else reify(ss)(exec(s2))
+            } else {
+              reify(ss)(choice(execWithPC(s1, e), execWithPC(s2, Op1("-", e))))
+            }
+          }
+        } yield u
+        /* mixing concrete evaluation of condition, but reify branches to functions */
+        /// TODO: LMS does not correctly lifts functions, seems due to the nested `if`
+        def then_br(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
+          reify(ss)(execWithPC(s1, e))
+        }
+        def else_br(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
+          reify(ss)(execWithPC(s2, Op1("-", e)))
+        }
+        def rep_then_br: Rep[SS => List[(SS, Unit)]] = fun(then_br)
+        def rep_else_br: Rep[SS => List[(SS, Unit)]] = fun(else_br)
+        for {
+          v <- eval(e)
+          ss <- get[Rep[SS], E]
+          u <- reflect {
+            if (v.isBool) {
+              if (v.getBool) rep_then_br(ss) else rep_else_br(ss)
+            } else {
+              rep_then_br(ss) ++ rep_else_br(ss)
+            }
+          }
+        } yield u
       case Seq(s1, s2) =>
-        for { _ <- exec(s1); _ <- exec(s2) } yield ()
+        for {
+          _ <- exec(s1)
+          _ <- exec(s2)
+        } yield ()
       case While(e, s) =>
         val k = 4
         exec(unfold(While(e, s), k))
@@ -288,9 +327,31 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     }
 }
 
+trait StagedSymImpEffDriver[A, B] extends GenericSymStagedImpDriver[A, B] with StagedSymImpEff
+
+trait StagedCppSymImpEffDriver[A, B] extends GenericCppSymStagedImpDriver[A, B] with StagedSymImpEff
+
 object StagedSymFreer {
+  @virtualize
+  def specSym(s: Stmt): SAIDriver[Unit, Unit] =
+    new StagedSymImpEffDriver[Unit, Unit] {
+      def snippet(u: Rep[Unit]) = {
+        // make two conditions symbolic
+        val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")), Set[Expr]())
+        // all concrete values
+        // val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> IntV(5)), Set[Expr]())
+        val v = reify(init)(exec(s))
+        println(v)
+        println("path number: ")
+        println(v.size)
+      }
+    }
+
   def main(args: Array[String]): Unit = {
-    ???
+    import Examples._
+    val code = specSym(cond3)
+    println(code.code)
+    code.eval(())
   }
 }
 
