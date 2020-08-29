@@ -10,9 +10,12 @@ import scala.collection.mutable
 import scala.collection.immutable.Nil
 
 // An imperative implementation of concrete execution
+object Debug {
+  val debug = false
+}
 
 object ConcExec {
-  val debug = true
+
   var funDeclMap: Map[String, FunctionDecl] = Map()
   var funMap: Map[String, FunctionDef] = Map()
   var globalDefMap: Map[String, GlobalDef] = Map()
@@ -117,7 +120,7 @@ object ConcExec {
   }
 
   def execInst(inst: Instruction): Unit = {
-    if (debug) println(inst)
+    if (Debug.debug) println(inst)
     inst match {
       case AssignInst(x, valInst) =>
         curFrame(x) = execValueInst(valInst)
@@ -222,7 +225,6 @@ object ConcExec {
       // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
       case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
         val indices = typedValues.tail.map(v => eval(v.value).asInstanceOf[IntValue])
-        println("              " + indices)
         ptrVal match {
           case GlobalId(id) => LocValue(ArrayLoc(GlobalLoc(id), indices))
           case _ => 
@@ -316,7 +318,7 @@ object TestMaze {
   import ConcExec._
   def testNoArg(file: String, main: String)(f: Option[Value] => Unit): Unit = {
     val testInput = scala.io.Source.fromFile(file).mkString
-    printAst(testInput)
+    if (Debug.debug) printAst(testInput)
     val m = parse(testInput)
     val result = ConcExec.exec(m, main, Map())
     println(result)
@@ -334,6 +336,11 @@ object TestMaze {
   def testArrayAccessLocal = testNoArg("llvm/benchmarks/arrayAccessLocal.ll", "@main") {
     case Some(IntValue(4)) =>
   }
+
+  def testArrayGetSet = testNoArg("llvm/benchmarks/arrayGetSet.ll", "@main") {
+    case Some(IntValue(636)) =>
+  }
+
 
   def testPower = testNoArg("llvm/benchmarks/power.ll", "@main") {
     case Some(IntValue(27)) =>
@@ -405,6 +412,7 @@ object TestMaze {
   }
 
   def main(args: Array[String]): Unit = {
+    testArrayGetSet
     testArrayAccessLocal
     testArrayAccess
     testAdd
