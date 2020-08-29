@@ -7,10 +7,12 @@ import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
 
 import scala.collection.mutable
+import scala.collection.immutable.Nil
 
 // An imperative implementation of concrete execution
 
 object ConcExec {
+  val debug = true
   var funDeclMap: Map[String, FunctionDecl] = Map()
   var funMap: Map[String, FunctionDef] = Map()
   var globalDefMap: Map[String, GlobalDef] = Map()
@@ -34,6 +36,8 @@ object ConcExec {
   abstract class Loc
   case class FrameLoc(x: String, frame: String) extends Loc
   case class SpecialLoc(x: String) extends Loc
+  // Really ugly, need refined with new memory layout
+  case class ArrayLoc(x: String, global: Boolean, frame: String, index: List[IntValue]) extends Loc
   class AllocaLoc(inst: ValueInstruction, frame: Frame) extends Loc
 
   abstract class Value
@@ -54,6 +58,16 @@ object ConcExec {
   
   type Store = Map[Loc, Value]
   type Stack = List[Frame]
+
+  def arrayGet(arr: Value, index: List[IntValue]): Value = {
+    arr match {
+      case ArrayValue(vs) => index match {
+        case Nil => arr
+        case head :: tl => arrayGet(vs(head.x), tl)
+      }
+      case _ => arr
+    }
+  }
 
   def eval(v: LLVMValue): Value = {
     v match {
@@ -87,6 +101,7 @@ object ConcExec {
   }
 
   def execInst(inst: Instruction): Unit = {
+    if (debug) println(inst)
     inst match {
       case AssignInst(x, valInst) =>
         curFrame(x) = execValueInst(valInst)
@@ -154,9 +169,30 @@ object ConcExec {
       case AllocaInst(ty, align) => ???
       case LoadInst(valTy, ptrTy, value, align) =>
         eval(value) match {
-          case LocValue(ptr) => curFrame(ptr)
+          case LocValue(ptr) => ptr match {
+            case ArrayLoc(x, global, frame, index) => 
+              val arr = if (global) eval(GlobalId(x)) else ???
+              arrayGet(arr, index)
+            case _ => curFrame(ptr)
+          }
         }
-      case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) => ???
+      // getElmPtr Note:
+      // typedValues will contain an "extra" parameter compares to C
+      // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
+      case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
+        val indices = typedValues.tail.map(v => eval(v.value).asInstanceOf[IntValue])
+        ptrVal match {
+          case GlobalId(id) => LocValue(ArrayLoc(id, true, "", indices))
+          case _ => 
+            val LocValue(loc) = eval(ptrVal) 
+            loc match {
+              case FrameLoc(x, frame) => ???
+              case ArrayLoc(x, global, frame, index) => 
+                LocValue(ArrayLoc(x, global, frame, index++indices))
+              // assume alloca use local place
+              case _: AllocaLoc => ???
+            }
+        }
       case AddInst(ty, lhs, rhs, _) =>
         val IntValue(v1) = eval(lhs)
         val IntValue(v2) = eval(rhs)
@@ -229,7 +265,7 @@ object ConcExec {
     funDeclMap= m.funcDeclMap
     globalDefMap = m.globalDefMap
 
-    push(new Frame(fname))
+    push(new Frame(fname, initStore))
     execBlock(f.body.blocks(0))
   }
 }
@@ -238,6 +274,7 @@ object TestMaze {
   import ConcExec._
   def testNoArg(file: String, main: String)(f: Option[Value] => Unit): Unit = {
     val testInput = scala.io.Source.fromFile(file).mkString
+    printAst(testInput)
     val m = parse(testInput)
     val result = ConcExec.exec(m, main, Map())
     println(result)
@@ -245,6 +282,14 @@ object TestMaze {
   }
 
   def testAdd = testNoArg("llvm/benchmarks/add.ll", "@main") {
+    case Some(IntValue(3)) =>
+  }
+
+  def testArrayAccess = testNoArg("llvm/benchmarks/arrayAccess.ll", "@main") {
+    case Some(IntValue(4)) =>
+  }
+
+  def testArrayAccessLocal = testNoArg("llvm/benchmarks/testArrayAccessLocal.ll", "@main") {
     case Some(IntValue(3)) =>
   }
 
@@ -288,9 +333,8 @@ object TestMaze {
         println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
         body.blocks foreach(printBB(_))
       case _ => println(u)
-    }
-      
-    }
+    }}
+    println("------------------endofAST--------------------")
   }
 
   def parse(input: String): Module = {
@@ -319,8 +363,9 @@ object TestMaze {
   }
 
   def main(args: Array[String]): Unit = {
-    // testMaze
-    testAdd
-    testPower
+    testArrayAccess
+    // testAdd
+    // testPower
+    //testMaze
   }
 }
