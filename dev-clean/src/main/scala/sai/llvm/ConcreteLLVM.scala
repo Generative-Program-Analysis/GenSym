@@ -34,17 +34,18 @@ object ConcExec {
   }
 
   abstract class Loc
+  case class GlobalLoc(x: String) extends Loc
   case class FrameLoc(x: String, frame: String) extends Loc
   case class SpecialLoc(x: String) extends Loc
   // Really ugly, need refined with new memory layout
-  case class ArrayLoc(x: String, global: Boolean, frame: String, index: List[IntValue]) extends Loc
+  case class ArrayLoc(loc: Loc, index: List[IntValue]) extends Loc
   class AllocaLoc(inst: ValueInstruction, frame: Frame) extends Loc
 
   abstract class Value
   case object BotValue extends Value
   case class IntValue(x: Int) extends Value
   case class LocValue(loc: Loc) extends Value
-  case class ArrayValue(vs: List[Value]) extends Value
+  case class ArrayValue(vs: mutable.ListBuffer[Value]) extends Value
   case class FunValue(id: String, params: List[String]) extends Value {
     def apply(args: List[Value]): Value = {
       params.zip(args).foreach { case (k, v) => curFrame(k) = v }
@@ -66,6 +67,21 @@ object ConcExec {
         case head :: tl => arrayGet(vs(head.x), tl)
       }
       case _ => arr
+    }
+  }
+
+  def arrayUpdate(arr: Value, index: List[IntValue], v: Value): Unit = {
+    index match {
+      case head :: Nil =>
+        arr match {
+          case ArrayValue(vs) => vs(head.x) = v
+          case _ => throw new RuntimeException("Update non-array")
+        }
+      case head :: tl => 
+        arr match {
+          case ArrayValue(vs) => arrayUpdate(vs(head.x), tl, v)
+          case _ => throw new RuntimeException("Update non-array")
+        }
     }
   }
 
@@ -93,7 +109,7 @@ object ConcExec {
       case GlobalId(id) =>
         throw new RuntimeException("Cannot evaluate global id " + id)
       case ArrayConst(cs) => 
-        ArrayValue(cs map (v => eval(v.const)))
+        ArrayValue(mutable.ListBuffer.empty ++= cs.map(v => eval(v.const)))
       // FIXME: may not work
       case BitCastExpr(from, const, to) =>
         eval(const)
@@ -110,7 +126,17 @@ object ConcExec {
         eval(val2) match {
           case LocValue(l) =>
             //FIXME: store to where depends on l, now assume every allocation happens on the local frame
-            curFrame(l) = v1
+            // added array cases
+            l match {
+              case ArrayLoc(loc, index) => {
+                val arr = loc match {
+                  case GlobalLoc(x) => eval(GlobalId(x))
+                  case _ => curFrame(loc)
+                }
+                arrayUpdate(arr, index, v1)
+              }
+              case _ => curFrame(l) = v1
+            }
         }
       case CallInst(ty, f, args) =>
         //TODO: also need to handle call here
@@ -151,16 +177,27 @@ object ConcExec {
     }
   }
 
+  def evalArrayInit(vt: LLVMType): Value = vt match {
+    case ArrayType(size, ety) => 
+      ArrayValue(mutable.ListBuffer.fill(size)(evalArrayInit(ety)))
+    case _ => BotValue
+  }
+
   def execValueInst(inst: ValueInstruction): Value = {
     inst match {
       case AllocaInst(IntType(_), _) =>
         val ptr = new AllocaLoc(inst, curFrame)
         curFrame(ptr) = BotValue
         LocValue(ptr)
+      // FIXME: Array Experiment
+      case AllocaInst(vt : ArrayType, _) =>
+        val ptr = new AllocaLoc(inst, curFrame)
+        curFrame(ptr) = evalArrayInit(vt)
+        LocValue(ptr)
       case AllocaInst(ArrayType(n, IntType(m)), _) =>
         val size = (n * m) / 8 //bytes
         val ptr = new AllocaLoc(inst, curFrame)
-        curFrame(ptr) = ArrayValue(List.fill(n)(BotValue))
+        curFrame(ptr) = ArrayValue(mutable.ListBuffer.fill(n)(BotValue))
         LocValue(ptr)
       case AllocaInst(PtrType(ty, _), _) =>
         val ptr = new AllocaLoc(inst, curFrame)
@@ -170,8 +207,12 @@ object ConcExec {
       case LoadInst(valTy, ptrTy, value, align) =>
         eval(value) match {
           case LocValue(ptr) => ptr match {
-            case ArrayLoc(x, global, frame, index) => 
-              val arr = if (global) eval(GlobalId(x)) else ???
+            case ArrayLoc(loc, index) => 
+              // if we unify the store, then this would be Store(loc)
+              val arr = loc match {
+                case GlobalLoc(x) => eval(GlobalId(x))
+                case _ => curFrame(loc)
+              }
               arrayGet(arr, index)
             case _ => curFrame(ptr)
           }
@@ -181,16 +222,17 @@ object ConcExec {
       // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
       case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
         val indices = typedValues.tail.map(v => eval(v.value).asInstanceOf[IntValue])
+        println("              " + indices)
         ptrVal match {
-          case GlobalId(id) => LocValue(ArrayLoc(id, true, "", indices))
+          case GlobalId(id) => LocValue(ArrayLoc(GlobalLoc(id), indices))
           case _ => 
             val LocValue(loc) = eval(ptrVal) 
             loc match {
               case FrameLoc(x, frame) => ???
-              case ArrayLoc(x, global, frame, index) => 
-                LocValue(ArrayLoc(x, global, frame, index++indices))
-              // assume alloca use local place
-              case _: AllocaLoc => ???
+              case ArrayLoc(aloc, index) => 
+                LocValue(ArrayLoc(aloc, index ++ indices))
+              case alloc: AllocaLoc => 
+                LocValue(ArrayLoc(alloc, indices))
             }
         }
       case AddInst(ty, lhs, rhs, _) =>
@@ -289,8 +331,8 @@ object TestMaze {
     case Some(IntValue(4)) =>
   }
 
-  def testArrayAccessLocal = testNoArg("llvm/benchmarks/testArrayAccessLocal.ll", "@main") {
-    case Some(IntValue(3)) =>
+  def testArrayAccessLocal = testNoArg("llvm/benchmarks/arrayAccessLocal.ll", "@main") {
+    case Some(IntValue(4)) =>
   }
 
   def testPower = testNoArg("llvm/benchmarks/power.ll", "@main") {
@@ -363,9 +405,10 @@ object TestMaze {
   }
 
   def main(args: Array[String]): Unit = {
+    testArrayAccessLocal
     testArrayAccess
-    // testAdd
-    // testPower
+    testAdd
+    testPower
     //testMaze
   }
 }
