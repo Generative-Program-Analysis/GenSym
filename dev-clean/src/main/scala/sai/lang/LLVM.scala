@@ -290,6 +290,7 @@ package IR {
   abstract class Instruction extends LAST
   abstract class ValueInstruction extends Instruction
   case class AddInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
+  case class MulInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
   case class SubInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
   case class AllocaInst(ty: LLVMType, align: Alignment) extends ValueInstruction
   case class LoadInst(
@@ -922,6 +923,15 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val ofFlags = visit(ctx.overflowFlags).asInstanceOf[OverflowFlagList].fs
     // Skipped optCommaSepMetadataAttachmentList
     AddInst(ty, lhs, rhs, ofFlags)
+  }
+
+  override def visitMulInst(ctx: LLVMParser.MulInstContext): LAST = {
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val lhs = visit(ctx.value(0)).asInstanceOf[LLVMValue]
+    val rhs = visit(ctx.value(1)).asInstanceOf[LLVMValue]
+    val ofFlags = visit(ctx.overflowFlags).asInstanceOf[OverflowFlagList].fs
+    // Skipped optCommaSepMetadataAttachmentList
+    MulInst(ty, lhs, rhs, ofFlags)
   }
 
   override def visitSubInst(ctx: LLVMParser.SubInstContext): LAST = {

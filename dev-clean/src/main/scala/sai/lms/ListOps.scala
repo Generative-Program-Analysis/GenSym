@@ -186,11 +186,6 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
   override def traverse(n: Node): Unit = n match {
     case _ => super.traverse(n)
   }
-
-  //TODO: symFreq
-  override def symsFreq(n: Node): Set[(Def, Double)] = n match {
-    case _ => super.symsFreq(n)
-  }
 }
 
 trait CppCodeGen_List extends ExtendedCCodeGen {

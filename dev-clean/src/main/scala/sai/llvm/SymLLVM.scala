@@ -6,286 +6,6 @@ import sai.lang.llvm.IR._
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
 
-// An imperative implementation of concrete execution
-
-object ConcExec {
-  class Frame(val fname: String)
-
-  abstract class Loc
-  case class FrameLoc(x: String, frame: Frame) extends Loc
-  case class SpecialLoc(x: String) extends Loc
-  class AllocaLoc(inst: ValueInstruction, frame: Frame) extends Loc
-
-  abstract class Value
-  case object BotValue extends Value
-  case class IntValue(x: Int) extends Value
-  case class LocValue(loc: Loc) extends Value
-  case class ArrayValue(vs: List[Value]) extends Value
-  case class FunId(id: String) extends Value
-  case object VoidValue extends Value
-  
-  type Store = Map[Loc, Value]
-  type Stack = List[(Frame, Store)]
-
-  var funDeclMap: Map[String, FunctionDecl] = Map()
-  var funMap: Map[String, FunctionDef] = Map()
-  var globalDefMap: Map[String, GlobalDef] = Map()
-  var curFrame: Frame = new Frame("@main")
-  var curStore: Store = Map[Loc, Value]()
-  var curStack: Stack = List()
-
-  def eval(v: LLVMValue): Value = {
-    v match {
-      case LocalId(x) =>
-        val loc = FrameLoc(x, curFrame)
-        curStore(loc)
-      case IntConst(n) =>
-        IntValue(n)
-      case GlobalId(id) =>
-        funMap.get(id) match {
-          case Some(_) => FunId(id)
-          case None => funDeclMap.get(id) match {
-            case Some(_) => FunId(id)
-            case None => globalDefMap.get(id) match {
-              case Some(globalDef) => eval(globalDef.const)
-              case None => ???
-            }
-          }
-        }
-        
-      case ArrayConst(cs) => 
-        ArrayValue(cs map (v => eval(v.const)))
-      // FIXME: may not work
-      case BitCastExpr(from, const, to) =>
-        eval(const)
-    }
-  }
-
-  def execInst(inst: Instruction): Unit = {
-    inst match {
-      case AssignInst(x, valInst) =>
-        val addr = FrameLoc(x, curFrame)
-        val value = execValueInst(valInst)
-        curStore = curStore + (addr -> value)
-      case StoreInst(ty1, val1, ty2, val2, align) =>
-        val v1 = eval(val1)
-        eval(val2) match {
-          case LocValue(l) =>
-            curStore = curStore + (l -> v1)
-        }
-    }
-  }
-
-  def findBlock(fname: String, lab: String): Option[BB] = {
-    funMap.get(fname).get.lookupBlock(lab)
-  }
-
-  // FIXME: Unsafe methods
-  def findFirstBlock(fname: String): BB = {
-    findFundef(fname).body.blocks(0)
-  }
-
-  def findFundef(fname: String) = funMap.get(fname).get
-
-  def execTerm(inst: Terminator): Option[Value] = {
-    inst match {
-      case RetTerm(ty, Some(value)) =>
-        Some(eval(value))
-      case RetTerm(ty, None) => None
-      case BrTerm(lab) =>
-        val Some(b) = findBlock(curFrame.fname, lab)
-        execBlock(b)
-      case CondBrTerm(ty, cnd, thnLab, elsLab) =>
-        val IntValue(v) = eval(cnd)
-        if (v == 1) {
-          val Some(b) = findBlock(curFrame.fname, thnLab)
-          execBlock(b)
-        } else {
-          val Some(b) = findBlock(curFrame.fname, elsLab)
-          execBlock(b)
-        }
-      case SwitchTerm(cndTy, cndVal, default, table) => ???
-      case Unreachable => ???
-    }
-  }
-
-  def execValueInst(inst: ValueInstruction): Value = {
-    inst match {
-      case AllocaInst(IntType(_), _) =>
-        val ptr = new AllocaLoc(inst, curFrame)
-        curStore = curStore + (ptr -> BotValue)
-        LocValue(ptr)
-      case AllocaInst(ArrayType(n, IntType(m)), _) =>
-        val size = (n * m) / 8 //bytes
-        val ptr = new AllocaLoc(inst, curFrame)
-        curStore = curStore + (ptr -> ArrayValue(List.fill(n)(BotValue)))
-        LocValue(ptr)
-      case AllocaInst(PtrType(ty, _), _) =>
-        val ptr = new AllocaLoc(inst, curFrame)
-        curStore = curStore + (ptr -> BotValue)
-        LocValue(ptr)
-      case AllocaInst(ty, align) => ???
-      case LoadInst(valTy, ptrTy, value, align) =>
-        eval(value) match {
-          case LocValue(ptr) => curStore(ptr)
-        }
-      case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) => ???
-      case AddInst(ty, lhs, rhs, _) =>
-        val IntValue(v1) = eval(lhs)
-        val IntValue(v2) = eval(rhs)
-        IntValue(v1 + v2)
-      case SubInst(ty, lhs, rhs, _) =>
-        val IntValue(v1) = eval(lhs)
-        val IntValue(v2) = eval(rhs)
-        IntValue(v1 - v2)
-      case ICmpInst(pred, ty, lhs, rhs) =>
-        val IntValue(v1) = eval(lhs)
-        val IntValue(v2) = eval(rhs)
-        pred match {
-          case EQ => IntValue(if (v1 == v2) 1 else 0)
-          case NE => IntValue(if (v1 != v2) 1 else 0)
-          case SLT => IntValue(if (v1 < v2) 1 else 0)
-          case SLE => IntValue(if (v1 <= v2) 1 else 0)
-          case SGT => IntValue(if (v1 > v2) 1 else 0)
-          case SGE => IntValue(if (v1 >= v2) 1 else 0)
-          case ULT => IntValue(if (v1 < v2) 1 else 0)
-          case ULE => IntValue(if (v1 <= v2) 1 else 0)
-          case UGT => IntValue(if (v1 > v2) 1 else 0)
-          case UGE => IntValue(if (v1 >= v2) 1 else 0)
-        }
-      case ZExtInst(from, value, to) => eval(value) match {
-        case IntValue(x) => IntValue(x)
-        // could also be vector
-        case _ => ???
-      }
-      case SExtInst(from, value, to) => eval(value) match {
-        // TODO What does sext mean?
-        case IntValue(x) => IntValue(x)
-      }
-      case CallInst(ty, f, args) =>
-        val newfname = eval(f) match {
-          case FunId(id) => id
-          case _ => ???
-        }
-        // call
-        funMap.get(newfname) match {
-          case Some(fundef) => {
-            curStack = (new Frame(newfname), Map[Loc, Value]()) :: curStack
-            curFrame = curStack.head._1
-            curStore = curStack.head._2
-            val paramNames = fundef.header.params.map {
-              param => param match {
-                case TypedParam(ty, attrs, localId) => FrameLoc(localId.get, curFrame)
-                case Vararg => ???
-              }
-            }
-            val paramValues = args.map {
-              arg => arg match {
-                case MetadataArg() => ???
-                case TypedArg(ty, attrs, value) => eval(value)
-                case Vararg => ???
-              }
-            }
-            curStore = curStore ++ (paramNames.zip(paramValues))
-            val retVal = execBlock(findFirstBlock(newfname))
-            // ret
-            curStack = curStack.tail
-            curFrame = curStack.head._1
-            curStore = curStack.head._2
-            retVal match {
-              case None => VoidValue
-              case Some(value) => value
-            }
-          }
-          // FunDecl
-          case None => ???
-        }
-        
-      case PhiInst(ty, incomings) => ???
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) => ???
-    }
-  }
-
-  def execBlock(bb: BB): Option[Value] = {
-    val insts = bb.ins
-    val term = bb.term
-    for (i <- insts) {
-      execInst(i)
-    }
-    //println(term)
-    execTerm(term)
-  }
-
-  val mainStore0 = Map(
-    FrameLoc("%0", curFrame) -> IntValue(0),
-    FrameLoc("%1", curFrame) -> LocValue(SpecialLoc("argv")),
-    SpecialLoc("argc") -> ArrayValue(List(IntValue(0))))
-
-  def exec(m: Module, fname: String, initStore: => Store): Option[Value] = {
-    val Some(f) = m.lookupFuncDef(fname)
-    funMap = m.funcDefMap
-    funDeclMap= m.funcDeclMap
-    globalDefMap = m.globalDefMap
-    curFrame = new Frame(fname)
-    curStore = initStore
-    curStack = (curFrame, curStore) :: curStack
-    execBlock(f.body.blocks(0))
-  }
-}
-
-object TestMaze extends App {
-  def printBB(bb: BB): Unit = {
-    println("  Block: ")
-    println(s"    Label: ${bb.label}")
-    println()
-    println("    Inst:")
-    bb.ins.foreach(u => println(s"      ${u}"))
-    println()
-    println("    Term:")
-    println(s"      ${bb.term}")
-    println()
-    println()
-  }
-
-  def printAst(input: String): Unit = {
-    parse(input).es foreach {u => u match {
-      case FunctionDef(id, linkage, metadata, header, body) => 
-        println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
-        body.blocks foreach(printBB(_))
-      case _ => println(u)
-    }
-      
-    }
-  }
-
-  def parse(input: String): Module = {
-    val charStream = new ANTLRInputStream(input)
-    val lexer = new LLVMLexer(charStream)
-    val tokens = new CommonTokenStream(lexer)
-    val parser = new LLVMParser(tokens)
-
-    val visitor = new MyVisitor()
-    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    //println(res.es(3))
-    //println(res)
-    res
-  }
-
-  def testMaze = {
-    import ConcExec._
-    val testInput = scala.io.Source.fromFile("llvm/test/maze.ll").mkString
-    printAst(testInput)
-    val m = parse(testInput)
-
-    val result = ConcExec.exec(m, "@main", Map(
-      (FrameLoc("%argc", curFrame) -> IntValue(5)),
-      (FrameLoc("%argv", curFrame) -> IntValue(5))
-      ))
-    println(result)
-  }
-  testMaze
-}
-
 /**************************************************************/
 
 object SymExecEff {
@@ -550,15 +270,6 @@ object LLVMTest {
     res
   }
 
-  def testAdd = {
-    import ConcExec._
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/add.ll").mkString
-    val m = parse(testInput)
-
-    val result = ConcExec.exec(m, "@main", Map())
-    println(result)
-  }
-
   def testAddEff = {
     import SymExecEff._
     val testInput = scala.io.Source.fromFile("llvm/test/add.ll").mkString
@@ -567,15 +278,6 @@ object LLVMTest {
     val result = SymExecEff.exec(m, "@add", Map(
       "%0" -> IntValue(5),
       "%1" -> IntValue(2)))
-    println(result)
-  }
-
-  def testSinglePath = {
-    import ConcExec._
-    val testInput = scala.io.Source.fromFile("llvm/test/single_path.ll").mkString
-    val m = parse(testInput)
-    printAst(testInput)
-    val result = ConcExec.exec(m, "@main", Map())
     println(result)
   }
 
@@ -592,16 +294,6 @@ object LLVMTest {
     val t1 = System.nanoTime()
     val t = (t1 - t0) / 1000000000.0
     println("time: " + t)
-  }
-
-  def testSimpleBranch = {
-    import ConcExec._
-    val testInput = scala.io.Source.fromFile("llvm/test/branch.ll").mkString
-    val m = parse(testInput)
-
-    val result = ConcExec.exec(m, "@f", Map(
-      FrameLoc("%x", curFrame) -> IntValue(5)))
-    println(result)
   }
 
   def testSimpleBranchEff = {
@@ -650,7 +342,7 @@ object LLVMTest {
     // val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
     // printAst(testInput)
 
-    testAdd
+    // testAdd
     // testSinglePath
     //testAddEff
 
