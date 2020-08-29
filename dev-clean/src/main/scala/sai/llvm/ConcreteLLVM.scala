@@ -236,11 +236,12 @@ object ConcExec {
 
 object TestMaze {
   import ConcExec._
-  def testNoArg(file: String, main: String)(f: Option[Value] => Unit) = {
+  def testNoArg(file: String, main: String)(f: Option[Value] => Unit): Unit = {
     val testInput = scala.io.Source.fromFile(file).mkString
     val m = parse(testInput)
     val result = ConcExec.exec(m, main, Map())
     println(result)
+    f(result)
   }
 
   def testAdd = testNoArg("llvm/benchmarks/add.ll", "@main") {
