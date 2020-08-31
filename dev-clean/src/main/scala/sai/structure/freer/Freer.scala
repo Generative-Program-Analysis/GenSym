@@ -25,8 +25,8 @@ object OpenUnion {
 
   //type-safe pointers into tlists
   case class Ptr[T[_], R <: Eff] private(pos: Int)
-  implicit def pz[T[_], R <: Eff]: Ptr[T, T ⊗ R] = Ptr(0)
   implicit def ps[T[_], R <: Eff, U[_]](implicit pred: Ptr[T, R]): Ptr[T, U ⊗ R] = Ptr(pred.pos + 1)
+  implicit def pz[T[_], R <: Eff]: Ptr[T, T ⊗ R] = Ptr(0)
 
   trait ∈[T[_], R <: Eff] {
     def inj[X](sub: T[X]): R ⊎ X
@@ -44,11 +44,18 @@ object OpenUnion {
     }
 
     @implicitNotFound("Cannot concatenate RowConcat[${A}, ${B}, ${C}]")
-    trait RowConcat[A <: Eff, B <: Eff, C <: Eff]
+    trait RowConcat[A <: Eff, B <: Eff, C <: Eff] {
+      val n : Int
+    }
 
-    implicit def concat1[R <: Eff]: RowConcat[∅, R, R] = null
+    implicit def concat1[R <: Eff]: RowConcat[∅, R, R] = new RowConcat[∅, R, R] {
+      override val n: Int = 0
+    }
 
-    implicit def concat2[E[_], R1 <: Eff, R2 <: Eff, R3 <: Eff](implicit prev: RowConcat[R1, R2, R3]): RowConcat[E ⊗ R1, R2, E ⊗ R3] = null
+    implicit def concat2[E[_], R1 <: Eff, R2 <: Eff, R3 <: Eff](implicit prev: RowConcat[R1, R2, R3]): RowConcat[E ⊗ R1, R2, E ⊗ R3] =
+      new RowConcat[E ⊗ R1, R2, E ⊗ R3] {
+        override val n: Int = prev.n + 1
+      }
 
     //TODO
     //implicit def membercatl[T[_], R1 <: Eff, R2 <: Eff, R3 <: Eff](implicit cat : RowConcat[R1,R2,R3], mem : T ∈ R1): T ∈ R3 = ???
@@ -63,6 +70,13 @@ object OpenUnion {
   implicit def weaken[T[_], R <: Eff, X](u: ⊎[R,X]): ⊎[T ⊗ R, X] = u match {
     case Union(n, v) => Union(n+1, v)
   }
+
+  implicit class WeakenU[R <: Eff, R2 <: Eff, K](val u : ⊎[R,K]) extends AnyVal {
+    def weakenL[X <: Eff](implicit cat : RowConcat[X,R,R2]): ⊎[R2,K] = u match {
+      case Union(n, v) => Union(n + cat.n, v)
+    }
+  }
+
 }
 
 object Freer {
@@ -154,6 +168,12 @@ object Handlers {
     implicit val canG: G ∈ (G ⊗ R) = member
   }
 
+  abstract class DeepHOMulti[E[_], X <: Eff, R1 <: Eff, R2 <: Eff, A] extends FFold[E, Comp[R2, A], Comp[R2, A]] {
+    implicit val prefix : RowConcat[X, R1, R2] = implicitly
+  }
+
+
+
   // Can E (or F) appears at anywhere inside R?
   // e.g., Return[R, A] => Comp[R, B], but requires E ∈ R and F ∈ R
   def ohandler[E[_], F[_], R <: Eff, A, B]
@@ -176,7 +196,7 @@ object Handlers {
    * The point of this is to have a designated handler type having
    * a uniform type parameter list and overall clearer and more concise
    * handler definitions in code. Intuitively, Handler[I, E, O, F] is
-   * just Comp[E, I] => Comp[F, O]. Previously different handler types
+   * just Comp[E, I] => Comp[F, O]. Previously, different handler types
    * had non-uniform type parameter lists, which are hard to memorize.
    * C.f. the Handler companion object on uses.
    * @tparam I
@@ -290,39 +310,31 @@ object Handlers {
       }
     }
 
-  /**
-   * An open handler kind, replacing the front effect with another:
-   * Comp[E ⊗ R, I] => Comp[F ⊗ R, O]. TODO: would be nice if F were an entire list of effects that we prepend to R.
-   * @tparam I
-   * @tparam E
-   * @tparam R
-   * @tparam F
-   * @tparam O
-   */
-  implicit def openHK[I,E[_],R<:Eff,F[_],O] =
-    new HKind[I, E ⊗ R, O, F ⊗ R]  {
-      override type Ret = Return[E ⊗ R, I] => Comp[F ⊗ R, O]
+  implicit def openHK[I,E[_],R<:Eff,X<:Eff,R2<:Eff,O](implicit cat : RowConcat[X,R,R2]) =
+    new HKind[I, E ⊗ R, O, R2]  {
+      override type Ret = Return[E ⊗ R, I] => Comp[R2, O]
       //TODO it would be better if we had a partial function here too, but then we have the problem of not having a
       //capability canG: G ∈ (G ⊗ R) in scope
-      override type Clauses = DeepHO[E,F,R,O]
+      override type Clauses = DeepHOMulti[E,X,R,R2,O]
 
-      override def !(ret: Ret)(h: Clauses): Handler[I, E ⊗ R, O, F ⊗ R] = new Handler[I, E ⊗ R, O, F ⊗ R] {
-        override def apply(comp: Comp[E ⊗ R, I]): Comp[F ⊗ R, O] = comp match {
+      override def !(ret: Ret)(h: Clauses): Handler[I, E ⊗ R, O, R2] = new Handler[I, E ⊗ R, O, R2] {
+        override def apply(comp: Comp[E ⊗ R, I]): Comp[R2, O] = comp match {
           case Return(x) => ret(Return(x))
           case Op(u, k) => decomp(u) match {
             case Right(ex) =>
               h(ex) { x => apply(k(x))}
             case Left(op) =>
-              Op(op.weaken[F]) { x => apply(k(x)) }
+              Op(op.weakenL[X]) { x => apply(k(x)) }
           }
         }
       }
 
-      override type SClauses = ShO[E,F,R,I,O]
-      override def s_!(ret: Ret)(clauses: SClauses): Handler[I, E ⊗ R, O, F ⊗ R] = ???
+      override type SClauses = Nothing //ShO[E,F,R,I,O]
+      override def s_!(ret: Ret)(clauses: SClauses): Handler[I, E ⊗ R, O, R2] = ???
     }
 
   object Handler {
+
     def apply[I,E <: Eff, O, F <: Eff](implicit kind : HKind[I,E,O,F]): kind.type = kind
   }
 
