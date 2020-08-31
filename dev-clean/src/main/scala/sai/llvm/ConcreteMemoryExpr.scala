@@ -63,29 +63,19 @@ object ConcExecMemory {
       } 
     }
     
-    def apply(x: Loc): Value = x match {
-      case GeneralLoc(i) => store(i)
-      case FrameLoc(x, frame) => store(addressMap(x))
-    }
-    def apply(x: String): Value = apply(FrameLoc(x, fname))
+    def apply(x: GeneralLoc): Value = store(x.i)
+    def apply(x: String): Value = apply(GeneralLoc(addressMap(x)))
     def update(x: GeneralLoc, v: Value): Unit = { store(x.i) = v }
     def update(x: String, v: Value): Unit = update(GeneralLoc(addressMap(x)), v)
   }
 
   abstract class Loc
   case class GeneralLoc(i: Int) extends Loc
-  case class FrameLoc(x: String, frame: String) extends Loc
-  case class SpecialLoc(x: String) extends Loc
-  // Really ugly, need refined with new memory layout
-  case class ArrayLoc(loc: Loc, index: List[IntValue]) extends Loc
-  class AllocaLoc(inst: ValueInstruction, frame: Frame) extends Loc
 
   abstract class Value
   case object BotValue extends Value
-  case class IntValue(x: Int) extends Value {
-    override def toString = x.toString()
-  }
-  case class LocValue(loc: Loc) extends Value
+  case class IntValue(x: Int) extends Value 
+  case class LocValue(loc: GeneralLoc) extends Value
   // ArrayValue is the outside view of Array, while inside memory, we have 
   // Value | ... | Value 
   case class ArrayValue(ty: ArrayType, vs: mutable.ListBuffer[Value]) extends Value
@@ -244,9 +234,7 @@ object ConcExecMemory {
           case GlobalId(id) => globalAddressMap(id)
           case _ => 
             val LocValue(loc) = eval(const)
-            loc match {
-              case GeneralLoc(i) => i
-            }
+            loc.i
         }
         val offset = calculateOffset(ptrType, index)
         LocValue(GeneralLoc(baseAddress + offset))
@@ -270,10 +258,7 @@ object ConcExecMemory {
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1)
         eval(val2) match {
-          case LocValue(l) =>
-            l match {
-              case gl@GeneralLoc(i) => curFrame(gl) = v1
-            }
+          case LocValue(l) => curFrame(l) = v1
         }
       case CallInst(ty, f, args) =>
         val fun@FunValue(fid, _) = eval(f)
@@ -358,7 +343,7 @@ object ConcExecMemory {
       case AllocaInst(ty, align) => ???
       case LoadInst(valTy, ptrTy, value, align) =>
         val LocValue(ptr) = eval(value)
-        curFrame(ptr)
+        curFrame(ptr.asInstanceOf[GeneralLoc])
 
       // getElmPtr Note:
       // typedValues will contain an "extra" parameter compares to C
@@ -382,9 +367,7 @@ object ConcExecMemory {
           case GlobalId(id) => globalAddressMap(id)
           case _ => 
             val LocValue(loc) = eval(ptrVal)
-            loc match {
-              case GeneralLoc(i) => i
-            }
+            loc.i
         }
         val offset = calculateOffset(ptrTy, index)
         // if (ptrVal == GlobalId("@maze")) {
