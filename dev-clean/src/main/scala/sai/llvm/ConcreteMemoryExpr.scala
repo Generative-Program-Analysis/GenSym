@@ -189,7 +189,7 @@ object ConcExecMemory {
                     varArgs =  varArgs.tail
                     patternS = patternS.replaceFirst("%s", getStrFromMemory(i))
                   }
-                  case "%42s" => {
+                  case "%4" => {
                     val LocValue(GeneralLoc(i)) = varArgs.head.asInstanceOf[LocValue]
                     varArgs =  varArgs.tail
                     patternS = patternS.replaceFirst("%42s", getStrFromMemory(i))
@@ -203,7 +203,7 @@ object ConcExecMemory {
             case "@read" => 
               val LocValue(GeneralLoc(start)) = args(1)
               val IntValue(len) = args(2)
-              val rawInput = "ssssddddwwadwwddddssssddwwww"
+              val rawInput = "ssssddddwwaawwddddssssddwwww"
               val inputStr = rawInput.take(Math.min(len, rawInput.length))
               Range(0, len) foreach (i => store(start + i) = IntValue(inputStr(i).toInt))
               store(start + len) = IntValue(0)
