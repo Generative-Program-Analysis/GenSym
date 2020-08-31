@@ -24,7 +24,6 @@ object ConcExecMemory {
     globalAddressMap.update(x, store.length)
     v match {
       case ArrayValue(ty, vs) =>
-        store.append(ArrayHead(ty))
         store ++= flattenArray(v)
       case _ => store.append(v)
     } 
@@ -52,7 +51,6 @@ object ConcExecMemory {
     def allocaIndex = store.length
     def alloca: Unit = store.append(BotValue)
     def allocaArray(ty: ArrayType): Unit = {
-      store.append(ArrayHead(ty))
       store ++= mutable.ArrayBuffer.fill(getTySize(ty))(BotValue)
     }
 
@@ -60,7 +58,6 @@ object ConcExecMemory {
       addressMap.update(x, allocaIndex)
       v match {
         case ArrayValue(ty, vs) =>
-          store.append(ArrayHead(ty))
           store ++= flattenArray(v)
         case _ => store.append(v)
       } 
@@ -77,7 +74,6 @@ object ConcExecMemory {
 
   abstract class Loc
   case class GeneralLoc(i: Int) extends Loc
-  case class GlobalLoc(x: String) extends Loc
   case class FrameLoc(x: String, frame: String) extends Loc
   case class SpecialLoc(x: String) extends Loc
   // Really ugly, need refined with new memory layout
@@ -90,9 +86,8 @@ object ConcExecMemory {
     override def toString = x.toString()
   }
   case class LocValue(loc: Loc) extends Value
-  case class ArrayHead(ty: ArrayType) extends Value
   // ArrayValue is the outside view of Array, while inside memory, we have 
-  // ArrayHead | Value | ... | Value 
+  // Value | ... | Value 
   case class ArrayValue(ty: ArrayType, vs: mutable.ListBuffer[Value]) extends Value
   case class FunValue(id: String, params: List[String]) extends Value {
     def apply(args: List[Value]): Value = {
@@ -151,7 +146,7 @@ object ConcExecMemory {
       case LocalId(x) => curFrame(x)
       case IntConst(n) => IntValue(n)
       case BoolConst(b) => if (b) IntValue(1) else IntValue(0)
-      case ZeroInitializerConst => VoidValue
+      case ZeroInitializerConst => IntValue(0)
       case GlobalId(id) if (funMap.contains(id)) =>
         val funDef = funMap(id)
         val paramNames: List[String] = funDef.header.params.map {
@@ -164,18 +159,45 @@ object ConcExecMemory {
           override def apply(args: List[Value]): Value = id match {
             // TODO: do the job of the function
             case "@printf" => {
-              
-              print("Printf: ")
-              val LocValue(GeneralLoc(i)) = args.head
-              val ArrayHead(ty) = store(i-1)
-              var tmp = 
-              store.slice(i, i + ty.size) map {
-                case IntValue(x) =>
-                  print(x.toChar)
+              def getStrFromMemory(i: Int) = {
+                var tmp = i
+                var res = ""
+                while (store(tmp) != IntValue(0)) {
+                  res = res + store(tmp).asInstanceOf[IntValue].x.toChar
+                  tmp += 1
+                }
+                res
               }
-              print(" ")
-              args.tail foreach (i => print(i + " "))
-              println()
+              var varArgs = args.tail
+              var argList = List()
+              val LocValue(GeneralLoc(i)) = args.head
+              var patternS = getStrFromMemory(i)
+              Range(0, patternS.length - 1) foreach {case i => 
+                patternS.slice(i, i + 2) match {
+                  case "%c" => {
+                    val replacement = varArgs.head.asInstanceOf[IntValue].x.toChar.toString
+                    varArgs = varArgs.tail
+                    patternS = patternS.replaceFirst("%c", replacement)
+                  }
+                  case "%d" => {
+                    val replacement = varArgs.head.asInstanceOf[IntValue].x.toString
+                    varArgs =  varArgs.tail
+                    patternS = patternS.replaceFirst("%d", replacement)
+                  }
+                  case "%s" => {
+                    val LocValue(GeneralLoc(i)) = varArgs.head.asInstanceOf[LocValue]
+                    varArgs =  varArgs.tail
+                    patternS = patternS.replaceFirst("%s", getStrFromMemory(i))
+                  }
+                  case "%42s" => {
+                    val LocValue(GeneralLoc(i)) = varArgs.head.asInstanceOf[LocValue]
+                    varArgs =  varArgs.tail
+                    patternS = patternS.replaceFirst("%42s", getStrFromMemory(i))
+                  }
+                  case _ => ()
+                }
+              }
+              print(patternS)
               VoidValue
             }
             case "@read" => 
@@ -184,6 +206,7 @@ object ConcExecMemory {
               val rawInput = "ssssddddwwadwwddddssssddwwww"
               val inputStr = rawInput.take(Math.min(len, rawInput.length))
               Range(0, len) foreach (i => store(start + i) = IntValue(inputStr(i).toInt))
+              store(start + len) = IntValue(0)
               VoidValue
             //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
             case "@exit" => VoidValue
@@ -200,7 +223,9 @@ object ConcExecMemory {
         eval(const)
       case CharArrayConst(s) =>
         // TODO need to be modified in parser
-        val realS = s.slice(1, s.length-1)
+        var realS = s.slice(1, s.length - 1)
+        realS = realS.replaceAllLiterally("""\0A""", "\n")
+        realS = realS.replaceAllLiterally("\\00", "\0")
         ArrayValue(ArrayType(realS.length, IntType(8)), mutable.ListBuffer.empty ++= realS.map(c => IntValue(c.toInt)))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
@@ -223,9 +248,7 @@ object ConcExecMemory {
               case GeneralLoc(i) => i
             }
         }
-        val offset = calculateOffset(ptrType, index) + { 
-          if (store(baseAddress).isInstanceOf[ArrayHead]) 1 else 0
-        }
+        val offset = calculateOffset(ptrType, index)
         LocValue(GeneralLoc(baseAddress + offset))
     }
   }
@@ -241,7 +264,9 @@ object ConcExecMemory {
     inst match {
       case AssignInst(x, valInst) =>
         val curVal = execValueInst(valInst)
+        if (x == "%program") curFrame.alloca
         curFrame.addLocalVar(x, curVal)
+        
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1)
         eval(val2) match {
@@ -276,8 +301,6 @@ object ConcExecMemory {
     if (Debug.debug) println(inst)
     inst match {
       case RetTerm(ty, Some(value)) =>
-        println(value)
-        println(eval(value))
         Some(eval(value))
       case RetTerm(ty, None) => None
       case BrTerm(lab) =>
@@ -363,9 +386,7 @@ object ConcExecMemory {
               case GeneralLoc(i) => i
             }
         }
-        val offset = calculateOffset(ptrTy, index) + { 
-          if (store(baseAddress).isInstanceOf[ArrayHead]) 1 else 0
-        } 
+        val offset = calculateOffset(ptrTy, index)
         // if (ptrVal == GlobalId("@maze")) {
         //   println("++++++++++++++++++++++++++++++++++ base: " + baseAddress + "  offset: " + offset)
         //   inspectMemory(baseAddress+1, baseAddress+12)
