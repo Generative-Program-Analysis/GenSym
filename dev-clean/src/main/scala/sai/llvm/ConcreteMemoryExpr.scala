@@ -30,22 +30,23 @@ object ConcExecMemory {
     } 
   }
   
+  var curStack: Stack = List()
   def push(implicit frame: Frame): Unit = {
     originHead = store.length
-    prevFrame = curFrame
-    curFrame = frame
+    curStack = frame :: curStack
   }
   def pop(implicit frame: Frame): Unit = {
     store = store.take(originHead)
-    curFrame = prevFrame
+    curStack = curStack.tail
   }
-  var prevFrame: Frame = _
-  var curFrame: Frame = _
+  def curFrame: Frame = curStack.head
   var originHead = 0 
+  var branches: List[String] = List()
 
 
   class Frame(val fname: String, val initStore: Store = Map.empty) {
     val addressMap: mutable.Map[String, Int] = mutable.Map.empty
+    initStore foreach {case (k, v) => addLocalVar(k, v)}
 
     // def addressInit(x: String) = addressMap.update(x, lastIndex)
     def allocaIndex = store.length
@@ -112,7 +113,7 @@ object ConcExecMemory {
     case _ => mutable.ArrayBuffer(v)
   }
   
-  type Store = Map[Loc, Value]
+  type Store = Map[String, Value]
   type Stack = List[Frame]
 
   // def arrayGet(arr: Value, index: List[IntValue]): Value = {
@@ -149,6 +150,8 @@ object ConcExecMemory {
     v match {
       case LocalId(x) => curFrame(x)
       case IntConst(n) => IntValue(n)
+      case BoolConst(b) => if (b) IntValue(1) else IntValue(0)
+      case ZeroInitializerConst => VoidValue
       case GlobalId(id) if (funMap.contains(id)) =>
         val funDef = funMap(id)
         val paramNames: List[String] = funDef.header.params.map {
@@ -160,7 +163,31 @@ object ConcExecMemory {
         new FunValue(id, List()) {
           override def apply(args: List[Value]): Value = id match {
             // TODO: do the job of the function
-            case "print" => VoidValue
+            case "@printf" => {
+              
+              print("Printf: ")
+              val LocValue(GeneralLoc(i)) = args.head
+              val ArrayHead(ty) = store(i-1)
+              var tmp = 
+              store.slice(i, i + ty.size) map {
+                case IntValue(x) =>
+                  print(x.toChar)
+              }
+              print(" ")
+              args.tail foreach (i => print(i + " "))
+              println()
+              VoidValue
+            }
+            case "@read" => 
+              val LocValue(GeneralLoc(start)) = args(1)
+              val IntValue(len) = args(2)
+              val rawInput = "ssssddddwwadwwddddssssddwwww"
+              val inputStr = rawInput.take(Math.min(len, rawInput.length))
+              Range(0, len) foreach (i => store(start + i) = IntValue(inputStr(i).toInt))
+              VoidValue
+            //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
+            case "@exit" => VoidValue
+            case "@sleep" => VoidValue
           }
         }
       case GlobalId(id) if (globalDefMap.contains(id)) =>
@@ -169,16 +196,48 @@ object ConcExecMemory {
         throw new RuntimeException("Cannot evaluate global id " + id)
       case ArrayConst(cs) => 
         ArrayValue(ArrayType(cs.length, cs.head.ty), mutable.ListBuffer.empty ++= cs.map(v => eval(v.const)))
-      // FIXME: may not work
       case BitCastExpr(from, const, to) =>
         eval(const)
-      case CharArrayConst(s) => ArrayValue(ArrayType(s.length, IntType(8)), mutable.ListBuffer.empty ++= s.map(c => IntValue(c.toInt)))
-      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => ???
+      case CharArrayConst(s) =>
+        // TODO need to be modified in parser
+        val realS = s.slice(1, s.length-1)
+        ArrayValue(ArrayType(realS.length, IntType(8)), mutable.ListBuffer.empty ++= realS.map(c => IntValue(c.toInt)))
+      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
+        def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
+          if (index.isEmpty) 0 else ty match {
+            case PtrType(ety, addrSpace) =>
+              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+            case ArrayType(size, ety) =>
+              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+            // Struct
+            case _ => ???
+          }
+        }
+        val index = typedConsts.map(v => eval(v.const).asInstanceOf[IntValue].x)
+        // calculate offset
+        val baseAddress:Int = const match {
+          case GlobalId(id) => globalAddressMap(id)
+          case _ => 
+            val LocValue(loc) = eval(const)
+            loc match {
+              case GeneralLoc(i) => i
+            }
+        }
+        val offset = calculateOffset(ptrType, index) + { 
+          if (store(baseAddress).isInstanceOf[ArrayHead]) 1 else 0
+        }
+        LocValue(GeneralLoc(baseAddress + offset))
     }
   }
 
+  def inspectMemory(x: Int, y: Int): Unit =
+    {
+      Range(x, y) foreach(i => print(store(i).asInstanceOf[IntValue].x.toChar))
+      println()
+    }
+
   def execInst(inst: Instruction): Unit = {
-    if (Debug.debug) {println(inst); println(store)}
+    if (Debug.debug) {println(inst);}
     inst match {
       case AssignInst(x, valInst) =>
         val curVal = execValueInst(valInst)
@@ -187,11 +246,8 @@ object ConcExecMemory {
         val v1 = eval(val1)
         eval(val2) match {
           case LocValue(l) =>
-            //FIXME: store to where depends on l, now assume every allocation happens on the local frame
-            // added array cases
             l match {
               case gl@GeneralLoc(i) => curFrame(gl) = v1
-              case _ => ???
             }
         }
       case CallInst(ty, f, args) =>
@@ -210,7 +266,6 @@ object ConcExecMemory {
     funMap.get(fname).get.lookupBlock(lab)
   }
 
-  // FIXME: Unsafe methods
   def findFirstBlock(fname: String): BB = {
     findFundef(fname).body.blocks(0)
   }
@@ -227,18 +282,33 @@ object ConcExecMemory {
       case RetTerm(ty, None) => None
       case BrTerm(lab) =>
         val Some(b) = findBlock(curFrame.fname, lab)
+        branches = lab :: branches
         execBlock(b)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         val IntValue(v) = eval(cnd)
         if (v == 1) {
           val Some(b) = findBlock(curFrame.fname, thnLab)
+          branches = thnLab :: branches
           execBlock(b)
         } else {
           val Some(b) = findBlock(curFrame.fname, elsLab)
+          branches = elsLab :: branches
           execBlock(b)
         }
-      case SwitchTerm(cndTy, cndVal, default, table) => ???
-      case Unreachable => ???
+      case SwitchTerm(cndTy, cndVal, default, table) =>
+        val IntValue(i) = eval(cndVal)
+        val matchCase = table.filter(lcase => { lcase.n == i })
+        if (matchCase.isEmpty) {
+          val Some(b) = findBlock(curFrame.fname, default)
+          branches = default :: branches
+          execBlock(b)
+        } else {
+          val Some(b) = findBlock(curFrame.fname, matchCase.head.label)
+          branches = matchCase.head.label :: branches
+          execBlock(b)
+        }
+      // simply return
+      case Unreachable => None
     }
   }
 
@@ -254,7 +324,6 @@ object ConcExecMemory {
         val ptr = GeneralLoc(curFrame.allocaIndex)
         curFrame.alloca
         LocValue(ptr)
-      // FIXME: Array Experiment
       case AllocaInst(vt : ArrayType, _) =>
         val ptr = GeneralLoc(curFrame.allocaIndex)
         curFrame.allocaArray(vt)
@@ -278,7 +347,7 @@ object ConcExecMemory {
         def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
           if (index.isEmpty) 0 else ty match {
             case PtrType(ety, addrSpace) =>
-              index.head + calculateOffset(ety, index.tail)
+              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
             case ArrayType(size, ety) =>
               index.head * getTySize(ety) + calculateOffset(ety, index.tail)
             case _ => ???
@@ -292,13 +361,23 @@ object ConcExecMemory {
             val LocValue(loc) = eval(ptrVal)
             loc match {
               case GeneralLoc(i) => i
-              case _ => ???
             }
         }
         val offset = calculateOffset(ptrTy, index) + { 
           if (store(baseAddress).isInstanceOf[ArrayHead]) 1 else 0
         } 
-
+        // if (ptrVal == GlobalId("@maze")) {
+        //   println("++++++++++++++++++++++++++++++++++ base: " + baseAddress + "  offset: " + offset)
+        //   inspectMemory(baseAddress+1, baseAddress+12)
+        //   inspectMemory(baseAddress+12, baseAddress+23)
+        //   inspectMemory(baseAddress+23, baseAddress+34)
+        // }
+        // if (ptrVal == LocalId("%arrayidx18")) {
+        //   println("++++++++++++++++++++++++++++++++++ mem: " + (baseAddress + offset))
+        //   inspectMemory(baseAddress+1, baseAddress+12)
+        //   inspectMemory(baseAddress+12, baseAddress+23)
+        //   inspectMemory(baseAddress+23, baseAddress+34)
+        // }
         LocValue(GeneralLoc(baseAddress + offset))
       case AddInst(ty, lhs, rhs, _) =>
         val IntValue(v1) = eval(lhs)
@@ -329,11 +408,9 @@ object ConcExecMemory {
         }
       case ZExtInst(from, value, to) => eval(value) match {
         case IntValue(x) => IntValue(x)
-        // could also be vector
-        case _ => ???
       }
       case SExtInst(from, value, to) => eval(value) match {
-        // TODO What does sext mean?
+        case BotValue => IntValue(0)
         case IntValue(x) => IntValue(x)
       }
       case CallInst(ty, f, args) =>
@@ -346,8 +423,11 @@ object ConcExecMemory {
         val ret = fun(argValues)
         pop
         ret
-      case PhiInst(ty, incomings) => ???
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) => ???
+      case PhiInst(ty, incomings) => 
+        val lastBr = branches.tail.head
+        eval((incomings filter(inc => inc.label == lastBr)).head.value)
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
+        if (eval(cndVal) == IntValue(1)) eval(thnVal) else eval(elsVal)
     }
   }
 
@@ -430,7 +510,7 @@ object TestMemory {
     val m = parse(testInput)
 
     val result = ConcExecMemory.exec(m, "@f", Map(
-      FrameLoc("%x", curFrame.fname) -> IntValue(5)))
+     "%x" -> IntValue(5)))
     println(result)
   }
 
@@ -475,20 +555,32 @@ object TestMemory {
     val m = parse(testInput)
     if (Debug.debug) printAst(testInput)
     val result = ConcExecMemory.exec(m, "@main", Map(
-      (FrameLoc("%argc", "@main") -> IntValue(5)),
-      (FrameLoc("%argv", "@main") -> IntValue(5))
+      "%argc" -> IntValue(5),
+      "%argv" -> IntValue(5)
+      ))
+    println(result)
+  }
+
+  def testMazeNoPhi = {
+    val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze_nophi.ll").mkString
+    val m = parse(testInput)
+    if (Debug.debug) printAst(testInput)
+    val result = ConcExecMemory.exec(m, "@main", Map(
+      "%argc" -> IntValue(5),
+      "%argv" -> IntValue(5)
       ))
     println(result)
   }
 
   def main(args: Array[String]): Unit = {
-    testArraySetLocal
-    testArrayAccess
-    testArrayGetSet
-    testArrayAccessLocal
+    // testArraySetLocal
+    // testArrayAccess
+    // testArrayGetSet
+    // testArrayAccessLocal
     
-    testAdd
-    testPower
-    // testMaze
+    // testAdd
+    // testPower
+    testMaze
+    // testMazeNoPhi
   }
 }
