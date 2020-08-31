@@ -20,14 +20,31 @@ object ConcExecMemory {
   // array implementation of store
   var store: mutable.ArrayBuffer[Value] = mutable.ArrayBuffer.empty
   val globalAddressMap: mutable.Map[String, Int] = mutable.Map.empty
+  def addGlobalVal(x: String, v : Value): Unit = {
+    globalAddressMap.update(x, store.length)
+    v match {
+      case ArrayValue(ty, vs) =>
+        store.append(ArrayHead(ty))
+        store ++= flattenArray(v)
+      case _ => store.append(v)
+    } 
+  }
   
-  def push(implicit frame: Frame): Unit = { curFrame = frame }
-  def pop(implicit frame: Frame): Unit = { store = store.take(frame.originHead) }
+  def push(implicit frame: Frame): Unit = {
+    originHead = store.length
+    prevFrame = curFrame
+    curFrame = frame
+  }
+  def pop(implicit frame: Frame): Unit = {
+    store = store.take(originHead)
+    curFrame = prevFrame
+  }
+  var prevFrame: Frame = _
   var curFrame: Frame = _
+  var originHead = 0 
 
 
   class Frame(val fname: String, val initStore: Store = Map.empty) {
-    val originHead: Int = store.length
     val addressMap: mutable.Map[String, Int] = mutable.Map.empty
 
     // def addressInit(x: String) = addressMap.update(x, lastIndex)
@@ -35,10 +52,9 @@ object ConcExecMemory {
     def alloca: Unit = store.append(BotValue)
     def allocaArray(ty: ArrayType): Unit = {
       store.append(ArrayHead(ty))
-      store ++= mutable.ArrayBuffer.fill(getArrayLen(ty))(BotValue)
+      store ++= mutable.ArrayBuffer.fill(getTySize(ty))(BotValue)
     }
-    
-    
+
     def addLocalVar(x: String, v : Value): Unit = {
       addressMap.update(x, allocaIndex)
       v match {
@@ -69,7 +85,9 @@ object ConcExecMemory {
 
   abstract class Value
   case object BotValue extends Value
-  case class IntValue(x: Int) extends Value
+  case class IntValue(x: Int) extends Value {
+    override def toString = x.toString()
+  }
   case class LocValue(loc: Loc) extends Value
   case class ArrayHead(ty: ArrayType) extends Value
   // ArrayValue is the outside view of Array, while inside memory, we have 
@@ -97,33 +115,33 @@ object ConcExecMemory {
   type Store = Map[Loc, Value]
   type Stack = List[Frame]
 
-  def arrayGet(arr: Value, index: List[IntValue]): Value = {
-    arr match {
-      case ArrayValue(tp, vs) => index match {
-        case Nil => arr
-        case head :: tl => arrayGet(vs(head.x), tl)
-      }
-      case _ => arr
-    }
-  }
+  // def arrayGet(arr: Value, index: List[IntValue]): Value = {
+  //   arr match {
+  //     case ArrayValue(tp, vs) => index match {
+  //       case Nil => arr
+  //       case head :: tl => arrayGet(vs(head.x), tl)
+  //     }
+  //     case _ => arr
+  //   }
+  // }
 
-  def arrayUpdate(arr: Value, index: List[IntValue], v: Value): Unit = {
-    index match {
-      case head :: Nil =>
-        arr match {
-          case ArrayValue(tp, vs) => vs(head.x) = v
-          case _ => throw new RuntimeException("Update non-array")
-        }
-      case head :: tl => 
-        arr match {
-          case ArrayValue(tp, vs) => arrayUpdate(vs(head.x), tl, v)
-          case _ => throw new RuntimeException("Update non-array")
-        }
-    }
-  }
+  // def arrayUpdate(arr: Value, index: List[IntValue], v: Value): Unit = {
+  //   index match {
+  //     case head :: Nil =>
+  //       arr match {
+  //         case ArrayValue(tp, vs) => vs(head.x) = v
+  //         case _ => throw new RuntimeException("Update non-array")
+  //       }
+  //     case head :: tl => 
+  //       arr match {
+  //         case ArrayValue(tp, vs) => arrayUpdate(vs(head.x), tl, v)
+  //         case _ => throw new RuntimeException("Update non-array")
+  //       }
+  //   }
+  // }
 
-  def getArrayLen(vt: LLVMType): Int = vt match {
-    case ArrayType(size, ety) => size * getArrayLen(ety)
+  def getTySize(vt: LLVMType): Int = vt match {
+    case ArrayType(size, ety) => size * getTySize(ety)
     case _ => 1
   }
 
@@ -160,10 +178,11 @@ object ConcExecMemory {
   }
 
   def execInst(inst: Instruction): Unit = {
-    if (Debug.debug) println(inst)
+    if (Debug.debug) {println(inst); println(store)}
     inst match {
       case AssignInst(x, valInst) =>
-        curFrame.addLocalVar(x, execValueInst(valInst))
+        val curVal = execValueInst(valInst)
+        curFrame.addLocalVar(x, curVal)
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1)
         eval(val2) match {
@@ -171,14 +190,8 @@ object ConcExecMemory {
             //FIXME: store to where depends on l, now assume every allocation happens on the local frame
             // added array cases
             l match {
-              case ArrayLoc(loc, index) => {
-                val arr = loc match {
-                  case GlobalLoc(x) => eval(GlobalId(x))
-                  case _ => curFrame(loc)
-                }
-                arrayUpdate(arr, index, v1)
-              }
               case gl@GeneralLoc(i) => curFrame(gl) = v1
+              case _ => ???
             }
         }
       case CallInst(ty, f, args) =>
@@ -205,8 +218,11 @@ object ConcExecMemory {
   def findFundef(fname: String) = funMap.get(fname).get
 
   def execTerm(inst: Terminator): Option[Value] = {
+    if (Debug.debug) println(inst)
     inst match {
       case RetTerm(ty, Some(value)) =>
+        println(value)
+        println(eval(value))
         Some(eval(value))
       case RetTerm(ty, None) => None
       case BrTerm(lab) =>
@@ -249,18 +265,9 @@ object ConcExecMemory {
         LocValue(ptr)
       case AllocaInst(ty, align) => ???
       case LoadInst(valTy, ptrTy, value, align) =>
-        eval(value) match {
-          case LocValue(ptr) => ptr match {
-            case ArrayLoc(loc, index) => 
-              // if we unify the store, then this would be Store(loc)
-              val arr = loc match {
-                case GlobalLoc(x) => eval(GlobalId(x))
-                case _ => curFrame(loc)
-              }
-              arrayGet(arr, index)
-            case _ => curFrame(ptr)
-          }
-        }
+        val LocValue(ptr) = eval(value)
+        curFrame(ptr)
+
       // getElmPtr Note:
       // typedValues will contain an "extra" parameter compares to C
       // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
@@ -268,19 +275,31 @@ object ConcExecMemory {
       // So it is necessary to convert to a unified memory as GetElemPtr
       // also: is &arr[0] ArrayLoc or Ptr(int)? It should be the same thing in the whole memory representation
       case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
-        val indices = typedValues.tail.map(v => eval(v.value).asInstanceOf[IntValue])
-        ptrVal match {
-          case GlobalId(id) => LocValue(ArrayLoc(GlobalLoc(id), indices))
+        def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
+          if (index.isEmpty) 0 else ty match {
+            case PtrType(ety, addrSpace) =>
+              index.head + calculateOffset(ety, index.tail)
+            case ArrayType(size, ety) =>
+              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+            case _ => ???
+          }
+        }
+        val index = typedValues.map(v => eval(v.value).asInstanceOf[IntValue].x)
+        // calculate offset
+        val baseAddress:Int = ptrVal match {
+          case GlobalId(id) => globalAddressMap(id)
           case _ => 
             val LocValue(loc) = eval(ptrVal)
             loc match {
-              case FrameLoc(x, frame) => ???
-              case ArrayLoc(aloc, index) => 
-                LocValue(ArrayLoc(aloc, index ++ indices))
-              case alloc: AllocaLoc => 
-                LocValue(ArrayLoc(alloc, indices))
+              case GeneralLoc(i) => i
+              case _ => ???
             }
         }
+        val offset = calculateOffset(ptrTy, index) + { 
+          if (store(baseAddress).isInstanceOf[ArrayHead]) 1 else 0
+        } 
+
+        LocValue(GeneralLoc(baseAddress + offset))
       case AddInst(ty, lhs, rhs, _) =>
         val IntValue(v1) = eval(lhs)
         val IntValue(v2) = eval(rhs)
@@ -353,9 +372,7 @@ object ConcExecMemory {
     funMap = m.funcDefMap
     funDeclMap= m.funcDeclMap
     m.globalDefMap foreach {case (s, gDef) =>
-      val index = store.length
-      store.append(eval(gDef.const))
-      globalAddressMap(gDef.id) = index
+      addGlobalVal(gDef.id, eval(gDef.const))
     }
 
     push(new Frame(fname, initStore))
@@ -465,13 +482,13 @@ object TestMemory {
   }
 
   def main(args: Array[String]): Unit = {
-    //testArraySetLocal
+    testArraySetLocal
     testArrayAccess
     testArrayGetSet
     testArrayAccessLocal
     
     testAdd
     testPower
-    testMaze
+    // testMaze
   }
 }
