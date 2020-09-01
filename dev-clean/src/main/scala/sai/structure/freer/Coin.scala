@@ -39,17 +39,13 @@ object Coin {
 
   def biasedCoin(p: Float): Boolean = Random.nextInt(100) + 1 <= p * 100
 
-  def coinH[E <: Eff, A] = ???
-    /*Handler[A,Coin ⊗ E,A,E].! {
+  def coinH[E <: Eff, A] =
+    Handler[A,Coin ⊗ E,A,E].! {
       case Return(x) => ret(x)
     } {
       case Coin$(p, k) =>
         k (biasedCoin(p) )
-    }*/
-
-  def foo[E <: Eff](implicit x : RowConcat[Coin ⊗ (Nondet ⊗ ∅), E, Coin ⊗ (Nondet ⊗ E)]): Int = 0
-
-  val x = foo[Nondet ⊗ ∅]
+    }
 }
 
 object Prob {

@@ -208,6 +208,38 @@ object Handlers {
     def apply(comp: Comp[E,I]): Comp[F,O]
   }
 
+  /** This is to prioritize the implicit resolution of handler implementations.
+   * Try first: HKind's companion object, which is the standard "delete effect from the front of row" impl.
+   * Fallback: HKindLvl1's companion object, which defines "replace front with a list of other effects" impl.
+   * Can extend with higher levels as needed.
+   */
+  trait HKindLvl1
+  object HKindLvl1 {
+    implicit def openHK[I,E[_],R<:Eff,X<:Eff,R2<:Eff,O](implicit cat : RowConcat[X,R,R2]) =
+      new HKind[I, E ⊗ R, O, R2]  {
+        override type Ret = Return[E ⊗ R, I] => Comp[R2, O]
+        //TODO it would be better if we had a partial function here too, but then we have the problem of not having a
+        //capability canG: G ∈ (G ⊗ R) in scope
+        override type Clauses = DeepHOMulti[E,X,R,R2,O]
+
+        override def !(ret: Ret)(h: Clauses): Handler[I, E ⊗ R, O, R2] = new Handler[I, E ⊗ R, O, R2] {
+          override def apply(comp: Comp[E ⊗ R, I]): Comp[R2, O] = comp match {
+            case Return(x) => ret(Return(x))
+            case Op(u, k) => decomp(u) match {
+              case Right(ex) =>
+                h(ex) { x => apply(k(x))}
+              case Left(op) =>
+                Op(op.weakenL[X]) { x => apply(k(x)) }
+            }
+          }
+        }
+
+        override type SClauses = Nothing //ShO[E,F,R,I,O]
+        override def s_!(ret: Ret)(clauses: SClauses): Handler[I, E ⊗ R, O, R2] = ???
+      }
+  }
+
+
   /**
    * Abstracts over the different requirements for different handler types.
    * Used as implicit evidence in the Handler companion's apply() factory method.
@@ -216,8 +248,8 @@ object Handlers {
    * @tparam O
    * @tparam F
    */
-  @implicitNotFound("Cannot construct a Handler[${I}, ${E}, ${O}, ${F}]")
-  trait HKind[I,E <: Eff, O, F <: Eff] {
+  @implicitNotFound("Cannot construct a Handler[${I}, ${E}, ${O}, ${F}] with this combination of types.")
+  trait HKind[I,E <: Eff, O, F <: Eff] extends HKindLvl1 {
     /**
      * Type of the return clause
      */
@@ -253,24 +285,25 @@ object Handlers {
     def s_!(ret: Ret)(clauses: SClauses): Handler[I,E,O,F]
   }
 
-  /**
-   * A regular handler kind, discharging the front-most effect, i.e.,
-   * Comp[E ⊗ R, I] => Comp[R, O]
-   * To lighten the notation, we pass a PartialFunction[Any,Any] for the E[_] clauses,
-   * which is internally used as a polymorphic lambda using casts.
-   * This should be no less safe (and not more unsafe) than the previous version,
-   * requiring the user to allocate an FFold instance by hand.
-   * @tparam I
-   * @tparam E
-   * @tparam R
-   * @tparam O
-   * @return
-   */
-  implicit def stdHK[I,E[_], R <: Eff, O] =
-    new HKind[I, E ⊗ R, O, R] {
-      type Ret = Return[E ⊗ R, I] => Comp[R, O]
-      type Clauses = PartialFunction[Any,Any]
-      override def !(ret: Ret)(clauses: Clauses): Handler[I, E ⊗ R, O, R] = {
+  object HKind {
+    /**
+     * A regular handler kind, discharging the front-most effect, i.e.,
+     * Comp[E ⊗ R, I] => Comp[R, O]
+     * To lighten the notation, we pass a PartialFunction[Any,Any] for the E[_] clauses,
+     * which is internally used as a polymorphic lambda using casts.
+     * This should be no less safe (and not more unsafe) than the previous version,
+     * requiring the user to allocate an FFold instance by hand.
+     * @tparam I
+     * @tparam E
+     * @tparam R
+     * @tparam O
+     * @return
+     */
+    implicit def stdHK[I,E[_], R <: Eff, O] =
+      new HKind[I, E ⊗ R, O, R] {
+        type Ret = Return[E ⊗ R, I] => Comp[R, O]
+        type Clauses = PartialFunction[Any,Any]
+        override def !(ret: Ret)(clauses: Clauses): Handler[I, E ⊗ R, O, R] = {
           val h = new DeepH[E, R, O] {
             override def apply[X]: (E[X], X => Comp[R, O]) => Comp[R, O] = { (a : E[X], b : X => Comp[R, O]) =>
               clauses((a,b)).asInstanceOf[Comp[R,O]]
@@ -287,54 +320,33 @@ object Handlers {
               }
             }
           }
-      }
-      type SClauses = PartialFunction[Any,Any]
-      override def s_!(ret: Ret)(clauses: Clauses): Handler[I, E ⊗ R, O, R] = {
-        val h = new ShallowH[E, R, I, O] {
-          override def apply[X]: (E[X], X => Comp[E ⊗ R, I]) => Comp[R, O] = { (a: E[X], b: X => Comp[E ⊗ R, I]) =>
-            clauses((a, b)).asInstanceOf[Comp[R, O]]
-          }
         }
+        type SClauses = PartialFunction[Any,Any]
+        override def s_!(ret: Ret)(clauses: Clauses): Handler[I, E ⊗ R, O, R] = {
+          val h = new ShallowH[E, R, I, O] {
+            override def apply[X]: (E[X], X => Comp[E ⊗ R, I]) => Comp[R, O] = { (a: E[X], b: X => Comp[E ⊗ R, I]) =>
+              clauses((a, b)).asInstanceOf[Comp[R, O]]
+            }
+          }
 
-        new Handler[I, E ⊗ R, O, R] {
-          def apply(c: Comp[E ⊗ R, I]): Comp[R, O] = c match {
-            case Return(x) => ret(Return(x))
-            case Op(u, k) => decomp(u) match {
-              case Right(ex) =>
-                h(ex, k)
-              case Left(op) =>
-                Op(op) { x => apply(k(x)) }
+          new Handler[I, E ⊗ R, O, R] {
+            def apply(c: Comp[E ⊗ R, I]): Comp[R, O] = c match {
+              case Return(x) => ret(Return(x))
+              case Op(u, k) => decomp(u) match {
+                case Right(ex) =>
+                  h(ex, k)
+                case Left(op) =>
+                  Op(op) { x => apply(k(x)) }
+              }
             }
           }
         }
       }
-    }
 
-  implicit def openHK[I,E[_],R<:Eff,X<:Eff,R2<:Eff,O](implicit cat : RowConcat[X,R,R2]) =
-    new HKind[I, E ⊗ R, O, R2]  {
-      override type Ret = Return[E ⊗ R, I] => Comp[R2, O]
-      //TODO it would be better if we had a partial function here too, but then we have the problem of not having a
-      //capability canG: G ∈ (G ⊗ R) in scope
-      override type Clauses = DeepHOMulti[E,X,R,R2,O]
 
-      override def !(ret: Ret)(h: Clauses): Handler[I, E ⊗ R, O, R2] = new Handler[I, E ⊗ R, O, R2] {
-        override def apply(comp: Comp[E ⊗ R, I]): Comp[R2, O] = comp match {
-          case Return(x) => ret(Return(x))
-          case Op(u, k) => decomp(u) match {
-            case Right(ex) =>
-              h(ex) { x => apply(k(x))}
-            case Left(op) =>
-              Op(op.weakenL[X]) { x => apply(k(x)) }
-          }
-        }
-      }
-
-      override type SClauses = Nothing //ShO[E,F,R,I,O]
-      override def s_!(ret: Ret)(clauses: SClauses): Handler[I, E ⊗ R, O, R2] = ???
-    }
+  }
 
   object Handler {
-
     def apply[I,E <: Eff, O, F <: Eff](implicit kind : HKind[I,E,O,F]): kind.type = kind
   }
 
