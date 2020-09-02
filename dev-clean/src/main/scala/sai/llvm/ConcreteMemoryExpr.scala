@@ -122,8 +122,11 @@ object ConcExecMemory {
     case _ => mutable.ArrayBuffer(v)
   }
 
-  def getTySize(vt: LLVMType): Int = vt match {
-    case ArrayType(size, ety) => size * getTySize(ety)
+  def getTySize(vt: LLVMType, align : Int = 1): Int = vt match {
+    case ArrayType(size, ety) =>
+      val rawSize = size * getTySize(ety, align)
+      if (rawSize % align == 0) rawSize
+      else (rawSize / align + 1) * align
     case _ => 1
   }
 
@@ -313,8 +316,8 @@ object ConcExecMemory {
 
   def execValueInst(inst: ValueInstruction): Value = {
     inst match {
-      case AllocaInst(ty, _) =>
-        LocValue(curFrame.alloca(getTySize(ty)))
+      case AllocaInst(ty, align) =>
+        LocValue(curFrame.alloca(getTySize(ty, align.n)))
       case LoadInst(valTy, ptrTy, value, align) =>
         eval(value) match {
           case LocValue(l@FrameLoc(_, m)) => m(l)
