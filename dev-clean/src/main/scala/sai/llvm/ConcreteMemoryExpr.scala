@@ -249,7 +249,7 @@ object ConcExecMemory {
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1)
         eval(val2) match {
-          case LocValue(l@FrameLoc(_, _)) => curFrame(l) = v1
+          case LocValue(l@FrameLoc(_, m)) => m(l) = v1
           case LocValue(l@HeapLoc(_)) => Heap(l) = v1
         }
       case CallInst(ty, f, args) =>
@@ -332,7 +332,7 @@ object ConcExecMemory {
         LocValue(curFrame.alloca(getTySize(ty)))
       case LoadInst(valTy, ptrTy, value, align) =>
         eval(value) match {
-          case LocValue(l@FrameLoc(_, _)) => curFrame(l)
+          case LocValue(l@FrameLoc(_, m)) => m(l)
           case LocValue(l@HeapLoc(_)) => Heap(l)
         }
       case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
