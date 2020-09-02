@@ -61,7 +61,6 @@ object ConcExecMemory {
     def alloca(n: Int): FrameLoc = {
       val addr = store.size
       store ++= mutable.ArrayBuffer.fill(n)(BotValue)
-      store.append(BotValue)
       FrameLoc(addr, this)
     }
     
@@ -178,10 +177,10 @@ object ConcExecMemory {
       val IntValue(len) = args(2)
       val rawInput = "ssssddddwwaawwddddssssddwwww"
       val inputStr = rawInput.take(Math.min(len, rawInput.length))
-      for (i <- 0 until len) {
+      for (i <- 0 until inputStr.length) {
         start.mem(start + i) = IntValue(inputStr(i).toInt)
       }
-      start.mem(start + len) = IntValue(0)
+      start.mem(start + inputStr.length) = IntValue(0)
       VoidValue
       //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
     }
@@ -235,13 +234,7 @@ object ConcExecMemory {
     }
   }
 
-  def inspectMemory(x: Int, y: Int): Unit = {
-    Range(x, y) foreach(i => print(curFrame.store(i).asInstanceOf[IntValue].x.toChar))
-    println()
-  }
-
   def execInst(inst: Instruction): Unit = {
-    if (Debug.debug) {println(inst);}
     inst match {
       case AssignInst(x, valInst) =>
         curFrame(x) = execValueInst(valInst)
@@ -318,12 +311,6 @@ object ConcExecMemory {
     }
   }
 
-  def evalArrayInit(vt: LLVMType): Value = vt match {
-    case at@ArrayType(size, ety) => 
-      ArrayValue(at, List.fill(size)(evalArrayInit(ety)))
-    case _ => BotValue
-  }
-
   def execValueInst(inst: ValueInstruction): Value = {
     inst match {
       case AllocaInst(ty, _) =>
@@ -338,8 +325,6 @@ object ConcExecMemory {
         // typedValues will contain an "extra" parameter compares to C
         // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
         
-        // So it is necessary to convert to a unified memory as GetElemPtr
-        // also: is &arr[0] ArrayLoc or Ptr(int)? It should be the same thing in the whole memory representation
         val index = typedValues.map(v => eval(v.value).asInstanceOf[IntValue].x)
         val offset = calculateOffset(ptrTy, index)
         ptrVal match {
@@ -438,7 +423,6 @@ object TestMemory {
   import ConcExecMemory._
   def testNoArg(file: String, main: String)(f: Option[Value] => Unit): Unit = {
     val testInput = scala.io.Source.fromFile(file).mkString
-    if (Debug.debug) printAst(testInput)
     val m = parse(testInput)
     val result = ConcExecMemory.exec(m, main, Map())
     println(result)
@@ -474,7 +458,6 @@ object TestMemory {
   def testSinglePath = {
     val testInput = scala.io.Source.fromFile("llvm/benchmarks/single_path.ll").mkString
     val m = parse(testInput)
-    printAst(testInput)
     val result = ConcExecMemory.exec(m, "@main", Map())
     println(result)
   }
@@ -486,29 +469,6 @@ object TestMemory {
     val result = ConcExecMemory.exec(m, "@f", Map(
      "%x" -> IntValue(5)))
     println(result)
-  }
-
-  def printBB(bb: BB): Unit = {
-    println("  Block: ")
-    println(s"    Label: ${bb.label}")
-    println()
-    println("    Inst:")
-    bb.ins.foreach(u => println(s"      ${u}"))
-    println()
-    println("    Term:")
-    println(s"      ${bb.term}")
-    println()
-    println()
-  }
-
-  def printAst(input: String): Unit = {
-    parse(input).es foreach {u => u match {
-      case FunctionDef(id, linkage, metadata, header, body) => 
-        println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
-        body.blocks foreach(printBB(_))
-      case _ => println(u)
-    }}
-    println("------------------endofAST--------------------")
   }
 
   def parse(input: String): Module = {
@@ -527,7 +487,6 @@ object TestMemory {
   def testMaze = {
     val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
     val m = parse(testInput)
-    if (Debug.debug) printAst(testInput)
     val result = ConcExecMemory.exec(m, "@main", Map(
       "%argc" -> IntValue(5),
       "%argv" -> IntValue(5)
@@ -538,7 +497,6 @@ object TestMemory {
   def testMazeNoPhi = {
     val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze_nophi.ll").mkString
     val m = parse(testInput)
-    if (Debug.debug) printAst(testInput)
     val result = ConcExecMemory.exec(m, "@main", Map(
       "%argc" -> IntValue(5),
       "%argv" -> IntValue(5)
