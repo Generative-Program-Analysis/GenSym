@@ -244,8 +244,7 @@ object ConcExecMemory {
     if (Debug.debug) {println(inst);}
     inst match {
       case AssignInst(x, valInst) =>
-        val curVal = execValueInst(valInst)
-        curFrame(x) = curVal
+        curFrame(x) = execValueInst(valInst)
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1)
         eval(val2) match {
@@ -286,8 +285,7 @@ object ConcExecMemory {
   def execTerm(inst: Terminator): Option[Value] = {
     if (Debug.debug) println(inst)
     inst match {
-      case RetTerm(ty, Some(value)) =>
-        Some(eval(value))
+      case RetTerm(ty, Some(value)) => Some(eval(value))
       case RetTerm(ty, None) => None
       case BrTerm(lab) =>
         val Some(b) = findBlock(curFrame.fname, lab)
