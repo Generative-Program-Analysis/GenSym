@@ -11,77 +11,102 @@ import scala.collection.immutable.Nil
 
 // An imperative implementation of concrete execution
 object ConcExecMemory {
+  type Store = Map[String, Value]
+  type Stack = List[Frame]
+
+  case class ExitException(value: Value) extends RuntimeException(value.toString)
+
+  var curStack: Stack = List()
+  def push(frame: Frame): Unit = {
+    curStack = frame :: curStack
+  }
+  def pop: Unit = {
+    curStack = curStack.tail
+  }
+  def curFrame: Frame = curStack.head
+  var branches: List[String] = List()
 
   var funDeclMap: Map[String, FunctionDecl] = Map()
   var funMap: Map[String, FunctionDef] = Map()
   var globalDefMap: Map[String, GlobalDef] = Map()
 
-  val heap: mutable.Map[Loc, Value] = mutable.Map.empty
-  // array implementation of store
-  var store: mutable.ArrayBuffer[Value] = mutable.ArrayBuffer.empty
-  val globalAddressMap: mutable.Map[String, Int] = mutable.Map.empty
-  def addGlobalVal(x: String, v : Value): Unit = {
-    globalAddressMap.update(x, store.length)
-    v match {
-      case ArrayValue(ty, vs) =>
-        store ++= flattenArray(v)
-      case _ => store.append(v)
-    } 
+  trait Memory {
+    def apply(x: Loc): Value
+    def update(x: Loc, v: Value): Unit
   }
-  
-  var curStack: Stack = List()
-  def push(implicit frame: Frame): Unit = {
-    originHead = store.length
-    curStack = frame :: curStack
-  }
-  def pop(implicit frame: Frame): Unit = {
-    store = store.take(originHead)
-    curStack = curStack.tail
-  }
-  def curFrame: Frame = curStack.head
-  var originHead = 0 
-  var branches: List[String] = List()
 
+  object Heap extends Memory {
+    val heap: mutable.ArrayBuffer[Value] = mutable.ArrayBuffer.empty
+    val env: mutable.Map[String, Int] = mutable.Map.empty
 
-  class Frame(val fname: String, val initStore: Store = Map.empty) {
-    val addressMap: mutable.Map[String, Int] = mutable.Map.empty
-    initStore foreach {case (k, v) => addLocalVar(k, v)}
-
-    // def addressInit(x: String) = addressMap.update(x, lastIndex)
-    def allocaIndex = store.length
-    def alloca: Unit = store.append(BotValue)
-    def allocaArray(ty: ArrayType): Unit = {
-      store ++= mutable.ArrayBuffer.fill(getTySize(ty))(BotValue)
+    def update(x: String, v: Value): Unit = {
+      env(x) = heap.length
+      v match {
+        case ArrayValue(ty, vs) => heap ++= flattenArray(v)
+        case _ => heap.append(v)
+      }
     }
+    def update(x: Loc, v: Value): Unit = x match { case HeapLoc(i) => heap(i) = v }
+    def apply(x: String): Value = heap(env(x))
+    def apply(x: Loc): Value = x match { case HeapLoc(i) => heap(i) }
+    def getLoc(x: String): HeapLoc = HeapLoc(env(x))
+  }
 
-    def addLocalVar(x: String, v : Value): Unit = {
-      addressMap.update(x, allocaIndex)
+  case class Frame(fname: String, initStore: Store = Map.empty) extends Memory {
+    val addressMap: mutable.Map[String, Int] = mutable.Map.empty
+    val store: mutable.ArrayBuffer[Value] = mutable.ArrayBuffer.empty
+
+    initStore foreach {case (k, v) => update(k, v)}
+
+    def alloca(n: Int): FrameLoc = {
+      val addr = store.size
+      store ++= mutable.ArrayBuffer.fill(n)(BotValue)
+      store.append(BotValue)
+      FrameLoc(addr, this)
+    }
+    
+    def apply(x: Loc): Value = x match { case FrameLoc(i, _) => store(i) }
+    def apply(x: String): Value = apply(FrameLoc(addressMap(x), this))
+    def update(x: Loc, v: Value): Unit = x match { case FrameLoc(i, _) => store(i) = v }
+    def update(x: String, v: Value): Unit = {
+      addressMap.update(x, store.size)
+      store.append(v)
+      /* It seems that there won't be updating LocalId with array value
       v match {
         case ArrayValue(ty, vs) =>
           store ++= flattenArray(v)
-        case _ => store.append(v)
-      } 
+        case _ =>
+          store.append(v)
+      } */
     }
-    
-    def apply(x: GeneralLoc): Value = store(x.i)
-    def apply(x: String): Value = apply(GeneralLoc(addressMap(x)))
-    def update(x: GeneralLoc, v: Value): Unit = { store(x.i) = v }
-    def update(x: String, v: Value): Unit = update(GeneralLoc(addressMap(x)), v)
   }
 
-  abstract class Loc
-  case class GeneralLoc(i: Int) extends Loc
-
+  abstract class Loc {
+    def mem: Memory
+    def inc: Loc
+    def +(i: Int): Loc
+  }
+  case class HeapLoc(i: Int) extends Loc {
+    def mem: Memory = Heap
+    def inc: Loc = HeapLoc(i+1)
+    def +(j: Int): Loc = HeapLoc(i + j)
+  }
+  case class FrameLoc(i: Int, frame: Frame) extends Loc {
+    def mem: Memory = frame
+    def inc: Loc = FrameLoc(i+1, frame)
+    def +(j: Int): Loc = FrameLoc(i + j, frame)
+  }
+  
   abstract class Value
   case object BotValue extends Value
-  case class IntValue(x: Int) extends Value 
-  case class LocValue(loc: GeneralLoc) extends Value
-  // ArrayValue is the outside view of Array, while inside memory, we have 
+  case class IntValue(x: Int) extends Value
+  case class LocValue(loc: Loc) extends Value
+  // ArrayValue is the outside view of Array, while inside memory, we have
   // Value | ... | Value 
-  case class ArrayValue(ty: ArrayType, vs: mutable.ListBuffer[Value]) extends Value
+  case class ArrayValue(ty: ArrayType, vs: List[Value]) extends Value
   case class FunValue(id: String, params: List[String]) extends Value {
     def apply(args: List[Value]): Value = {
-      params.zip(args).foreach { case (k, v) => curFrame.addLocalVar(k, v) }
+      params.zip(args).foreach { case (k, v) => curFrame(k) = v }
       execBlock(findFirstBlock(id)) match {
         case None => VoidValue
         case Some(value) => value
@@ -97,176 +122,142 @@ object ConcExecMemory {
       res
     case _ => mutable.ArrayBuffer(v)
   }
-  
-  type Store = Map[String, Value]
-  type Stack = List[Frame]
-
-  // def arrayGet(arr: Value, index: List[IntValue]): Value = {
-  //   arr match {
-  //     case ArrayValue(tp, vs) => index match {
-  //       case Nil => arr
-  //       case head :: tl => arrayGet(vs(head.x), tl)
-  //     }
-  //     case _ => arr
-  //   }
-  // }
-
-  // def arrayUpdate(arr: Value, index: List[IntValue], v: Value): Unit = {
-  //   index match {
-  //     case head :: Nil =>
-  //       arr match {
-  //         case ArrayValue(tp, vs) => vs(head.x) = v
-  //         case _ => throw new RuntimeException("Update non-array")
-  //       }
-  //     case head :: tl => 
-  //       arr match {
-  //         case ArrayValue(tp, vs) => arrayUpdate(vs(head.x), tl, v)
-  //         case _ => throw new RuntimeException("Update non-array")
-  //       }
-  //   }
-  // }
 
   def getTySize(vt: LLVMType): Int = vt match {
     case ArrayType(size, ety) => size * getTySize(ety)
     case _ => 1
   }
 
+  def getStrFromMemory(loc: Loc): String = {
+    var tmp: Loc = loc
+    var res: String = ""
+    while (loc.mem(tmp) != IntValue(0)) {
+      res = res + loc.mem(tmp).asInstanceOf[IntValue].x.toChar
+      tmp = tmp.inc
+    }
+    res
+  }
+
+  object Primitives {
+    def printf(args: List[Value]): Value = {
+      var varArgs = args.tail
+      val LocValue(loc) = args.head
+      var patternS = getStrFromMemory(loc)
+      for (i <- 0 until (patternS.length - 1)) {
+        patternS.slice(i, i + 2) match {
+          case "%c" => {
+            val replacement = varArgs.head.asInstanceOf[IntValue].x.toChar.toString
+            varArgs = varArgs.tail
+            patternS = patternS.replaceFirst("%c", replacement)
+          }
+          case "%d" => {
+            val replacement = varArgs.head.asInstanceOf[IntValue].x.toString
+            varArgs = varArgs.tail
+            patternS = patternS.replaceFirst("%d", replacement)
+          }
+          case "%s" => {
+            val LocValue(loc) = varArgs.head
+            varArgs = varArgs.tail
+            patternS = patternS.replaceFirst("%s", getStrFromMemory(loc))
+          }
+          case "%4" => {
+            val LocValue(loc) = varArgs.head
+            varArgs = varArgs.tail
+            patternS = patternS.replaceFirst("%42s", getStrFromMemory(loc))
+          }
+          case _ => ()
+        }
+      }
+      print(patternS)
+      VoidValue
+    }
+
+    def read(args: List[Value]): Value = {
+      //FIXME: args(0) is not handled
+      val LocValue(start) = args(1)
+      val IntValue(len) = args(2)
+      val rawInput = "ssssddddwwaawwddddssssddwwww"
+      val inputStr = rawInput.take(Math.min(len, rawInput.length))
+      for (i <- 0 until len) {
+        start.mem(start + i) = IntValue(inputStr(i).toInt)
+      }
+      start.mem(start + len) = IntValue(0)
+      VoidValue
+      //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
+    }
+  }
+
+
   def eval(v: LLVMValue): Value = {
     v match {
       case LocalId(x) => curFrame(x)
       case IntConst(n) => IntValue(n)
       case BoolConst(b) => if (b) IntValue(1) else IntValue(0)
+      case ArrayConst(cs) =>
+        ArrayValue(ArrayType(cs.length, cs.head.ty), cs.map(v => eval(v.const)))
+      case CharArrayConst(s) =>
+        // TODO need to be modified in parser
+        var realS = s.slice(1, s.length - 1)
+        realS = realS.replaceAllLiterally("""\0A""", "\n")
+        realS = realS.replaceAllLiterally("\\00", "\0")
+        ArrayValue(ArrayType(realS.length, IntType(8)), realS.map(c => IntValue(c.toInt)).toList)
       case ZeroInitializerConst => IntValue(0)
-      case GlobalId(id) if (funMap.contains(id)) =>
+      case GlobalId(id) if funMap.contains(id) =>
         val funDef = funMap(id)
         val paramNames: List[String] = funDef.header.params.map {
           case TypedParam(ty, attrs, localId) => localId.get
           case Vararg => ???
         }
         FunValue(id, paramNames)
-      case GlobalId(id) if (funDeclMap.contains(id)) =>
+      case GlobalId(id) if funDeclMap.contains(id) =>
         new FunValue(id, List()) {
           override def apply(args: List[Value]): Value = id match {
-            // TODO: do the job of the function
-            case "@printf" => {
-              def getStrFromMemory(i: Int) = {
-                var tmp = i
-                var res = ""
-                while (store(tmp) != IntValue(0)) {
-                  res = res + store(tmp).asInstanceOf[IntValue].x.toChar
-                  tmp += 1
-                }
-                res
-              }
-              var varArgs = args.tail
-              var argList = List()
-              val LocValue(GeneralLoc(i)) = args.head
-              var patternS = getStrFromMemory(i)
-              Range(0, patternS.length - 1) foreach {case i => 
-                patternS.slice(i, i + 2) match {
-                  case "%c" => {
-                    val replacement = varArgs.head.asInstanceOf[IntValue].x.toChar.toString
-                    varArgs = varArgs.tail
-                    patternS = patternS.replaceFirst("%c", replacement)
-                  }
-                  case "%d" => {
-                    val replacement = varArgs.head.asInstanceOf[IntValue].x.toString
-                    varArgs =  varArgs.tail
-                    patternS = patternS.replaceFirst("%d", replacement)
-                  }
-                  case "%s" => {
-                    val LocValue(GeneralLoc(i)) = varArgs.head.asInstanceOf[LocValue]
-                    varArgs =  varArgs.tail
-                    patternS = patternS.replaceFirst("%s", getStrFromMemory(i))
-                  }
-                  case "%4" => {
-                    val LocValue(GeneralLoc(i)) = varArgs.head.asInstanceOf[LocValue]
-                    varArgs =  varArgs.tail
-                    patternS = patternS.replaceFirst("%42s", getStrFromMemory(i))
-                  }
-                  case _ => ()
-                }
-              }
-              print(patternS)
-              VoidValue
-            }
-            case "@read" => 
-              val LocValue(GeneralLoc(start)) = args(1)
-              val IntValue(len) = args(2)
-              val rawInput = "ssssddddwwaawwddddssssddwwww"
-              val inputStr = rawInput.take(Math.min(len, rawInput.length))
-              Range(0, len) foreach (i => store(start + i) = IntValue(inputStr(i).toInt))
-              store(start + len) = IntValue(0)
-              VoidValue
-            //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
-            case "@exit" => VoidValue
+            case "@printf" => Primitives.printf(args)
+            case "@read" => Primitives.read(args)
+            case "@exit" => throw ExitException(args(0))
             case "@sleep" => VoidValue
           }
         }
-      case GlobalId(id) if (globalDefMap.contains(id)) =>
-        store(globalAddressMap(id))
+      case GlobalId(id) if globalDefMap.contains(id) => Heap(id)
       case GlobalId(id) =>
         throw new RuntimeException("Cannot evaluate global id " + id)
-      case ArrayConst(cs) => 
-        ArrayValue(ArrayType(cs.length, cs.head.ty), mutable.ListBuffer.empty ++= cs.map(v => eval(v.const)))
       case BitCastExpr(from, const, to) =>
         eval(const)
-      case CharArrayConst(s) =>
-        // TODO need to be modified in parser
-        var realS = s.slice(1, s.length - 1)
-        realS = realS.replaceAllLiterally("""\0A""", "\n")
-        realS = realS.replaceAllLiterally("\\00", "\0")
-        ArrayValue(ArrayType(realS.length, IntType(8)), mutable.ListBuffer.empty ++= realS.map(c => IntValue(c.toInt)))
-      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
-        def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
-          if (index.isEmpty) 0 else ty match {
-            case PtrType(ety, addrSpace) =>
-              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-            case ArrayType(size, ety) =>
-              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-            // Struct
-            case _ => ???
-          }
+      case GetElemPtrExpr(_, baseTy, ptrTy, ptrVal, typedValues) =>
+        val index = typedValues.map(v => eval(v.const).asInstanceOf[IntValue].x)
+        val offset = calculateOffset(ptrTy, index)
+        ptrVal match {
+          case GlobalId(id) => LocValue(Heap.getLoc(id) + offset)
+          case _ =>
+            val LocValue(l) = eval(ptrVal)
+            LocValue(l + offset)
         }
-        val index = typedConsts.map(v => eval(v.const).asInstanceOf[IntValue].x)
-        // calculate offset
-        val baseAddress:Int = const match {
-          case GlobalId(id) => globalAddressMap(id)
-          case _ => 
-            val LocValue(loc) = eval(const)
-            loc.i
-        }
-        val offset = calculateOffset(ptrType, index)
-        LocValue(GeneralLoc(baseAddress + offset))
     }
   }
 
-  def inspectMemory(x: Int, y: Int): Unit =
-    {
-      Range(x, y) foreach(i => print(store(i).asInstanceOf[IntValue].x.toChar))
-      println()
-    }
+  def inspectMemory(x: Int, y: Int): Unit = {
+    Range(x, y) foreach(i => print(curFrame.store(i).asInstanceOf[IntValue].x.toChar))
+    println()
+  }
 
   def execInst(inst: Instruction): Unit = {
     if (Debug.debug) {println(inst);}
     inst match {
       case AssignInst(x, valInst) =>
         val curVal = execValueInst(valInst)
-        if (x == "%program") curFrame.alloca
-        curFrame.addLocalVar(x, curVal)
-        
+        curFrame(x) = curVal
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1)
         eval(val2) match {
-          case LocValue(l) => curFrame(l) = v1
+          case LocValue(l@FrameLoc(_, _)) => curFrame(l) = v1
+          case LocValue(l@HeapLoc(_)) => Heap(l) = v1
         }
       case CallInst(ty, f, args) =>
         val fun@FunValue(fid, _) = eval(f)
         val argValues: List[Value] = args.map {
           case TypedArg(ty, attrs, value) => eval(value)
         }
-        implicit val frame = new Frame(fid)
-        push
+        push(Frame(fid))
         fun(argValues)
         pop
     }
@@ -281,6 +272,16 @@ object ConcExecMemory {
   }
 
   def findFundef(fname: String) = funMap.get(fname).get
+
+  def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
+    if (index.isEmpty) 0 else ty match {
+      case PtrType(ety, addrSpace) =>
+        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+      case ArrayType(size, ety) =>
+        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+      case _ => ???
+    }
+  }
 
   def execTerm(inst: Terminator): Option[Value] = {
     if (Debug.debug) println(inst)
@@ -305,7 +306,7 @@ object ConcExecMemory {
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
         val IntValue(i) = eval(cndVal)
-        val matchCase = table.filter(lcase => { lcase.n == i })
+        val matchCase = table.filter(_.n == i)
         if (matchCase.isEmpty) {
           val Some(b) = findBlock(curFrame.fname, default)
           branches = default :: branches
@@ -315,74 +316,40 @@ object ConcExecMemory {
           branches = matchCase.head.label :: branches
           execBlock(b)
         }
-      // simply return
-      case Unreachable => None
+      case Unreachable => throw new RuntimeException("Unreachable")
     }
   }
 
   def evalArrayInit(vt: LLVMType): Value = vt match {
     case at@ArrayType(size, ety) => 
-      ArrayValue(at, mutable.ListBuffer.fill(size)(evalArrayInit(ety)))
+      ArrayValue(at, List.fill(size)(evalArrayInit(ety)))
     case _ => BotValue
   }
 
   def execValueInst(inst: ValueInstruction): Value = {
     inst match {
-      case AllocaInst(IntType(_), _) =>
-        val ptr = GeneralLoc(curFrame.allocaIndex)
-        curFrame.alloca
-        LocValue(ptr)
-      case AllocaInst(vt : ArrayType, _) =>
-        val ptr = GeneralLoc(curFrame.allocaIndex)
-        curFrame.allocaArray(vt)
-        LocValue(ptr)
-      case AllocaInst(PtrType(ty, _), _) =>
-        val ptr = GeneralLoc(curFrame.allocaIndex)
-        curFrame.alloca
-        LocValue(ptr)
-      case AllocaInst(ty, align) => ???
+      case AllocaInst(ty, _) =>
+        LocValue(curFrame.alloca(getTySize(ty)))
       case LoadInst(valTy, ptrTy, value, align) =>
-        val LocValue(ptr) = eval(value)
-        curFrame(ptr.asInstanceOf[GeneralLoc])
-
-      // getElmPtr Note:
-      // typedValues will contain an "extra" parameter compares to C
-      // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
-      
-      // So it is necessary to convert to a unified memory as GetElemPtr
-      // also: is &arr[0] ArrayLoc or Ptr(int)? It should be the same thing in the whole memory representation
+        eval(value) match {
+          case LocValue(l@FrameLoc(_, _)) => curFrame(l)
+          case LocValue(l@HeapLoc(_)) => Heap(l)
+        }
       case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
-        def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
-          if (index.isEmpty) 0 else ty match {
-            case PtrType(ety, addrSpace) =>
-              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-            case ArrayType(size, ety) =>
-              index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-            case _ => ???
-          }
-        }
+        // getElmPtr Note:
+        // typedValues will contain an "extra" parameter compares to C
+        // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
+        
+        // So it is necessary to convert to a unified memory as GetElemPtr
+        // also: is &arr[0] ArrayLoc or Ptr(int)? It should be the same thing in the whole memory representation
         val index = typedValues.map(v => eval(v.value).asInstanceOf[IntValue].x)
-        // calculate offset
-        val baseAddress:Int = ptrVal match {
-          case GlobalId(id) => globalAddressMap(id)
-          case _ => 
-            val LocValue(loc) = eval(ptrVal)
-            loc.i
-        }
         val offset = calculateOffset(ptrTy, index)
-        // if (ptrVal == GlobalId("@maze")) {
-        //   println("++++++++++++++++++++++++++++++++++ base: " + baseAddress + "  offset: " + offset)
-        //   inspectMemory(baseAddress+1, baseAddress+12)
-        //   inspectMemory(baseAddress+12, baseAddress+23)
-        //   inspectMemory(baseAddress+23, baseAddress+34)
-        // }
-        // if (ptrVal == LocalId("%arrayidx18")) {
-        //   println("++++++++++++++++++++++++++++++++++ mem: " + (baseAddress + offset))
-        //   inspectMemory(baseAddress+1, baseAddress+12)
-        //   inspectMemory(baseAddress+12, baseAddress+23)
-        //   inspectMemory(baseAddress+23, baseAddress+34)
-        // }
-        LocValue(GeneralLoc(baseAddress + offset))
+        ptrVal match {
+          case GlobalId(id) => LocValue(Heap.getLoc(id) + offset)
+          case _ =>
+            val LocValue(l) = eval(ptrVal)
+            LocValue(l + offset)
+        }
       case AddInst(ty, lhs, rhs, _) =>
         val IntValue(v1) = eval(lhs)
         val IntValue(v2) = eval(rhs)
@@ -422,8 +389,7 @@ object ConcExecMemory {
         val argValues: List[Value] = args.map {
           case TypedArg(ty, attrs, value) => eval(value)
         }
-        implicit val frame = new Frame(fid)
-        push
+        push(Frame(fid))
         val ret = fun(argValues)
         pop
         ret
@@ -446,9 +412,9 @@ object ConcExecMemory {
 
   /*
   val mainStore0 = Map(
-    FrameLoc("%0", curFrame.fname) -> IntValue(0),
-    FrameLoc("%1", curFrame.fname) -> LocValue(SpecialLoc("argv")),
-    SpecialLoc("argc") -> ArrayValue(List(IntValue(0))))
+    FrameFrameLoc("%0", curFrame.fname) -> IntValue(0),
+    FrameFrameLoc("%1", curFrame.fname) -> LocValue(SpecialFrameLoc("argv")),
+    SpecialFrameLoc("argc") -> ArrayValue(List(IntValue(0))))
    */
 
   def exec(m: Module, fname: String, initStore: => Store): Option[Value] = {
@@ -456,11 +422,17 @@ object ConcExecMemory {
     funMap = m.funcDefMap
     funDeclMap= m.funcDeclMap
     m.globalDefMap foreach {case (s, gDef) =>
-      addGlobalVal(gDef.id, eval(gDef.const))
+      Heap(gDef.id) = eval(gDef.const)
     }
 
-    push(new Frame(fname, initStore))
-    execBlock(f.body.blocks(0))
+    push(Frame(fname, initStore))
+    try {
+      execBlock(f.body.blocks(0))
+    } catch {
+      case ExitException(v) =>
+        pop
+        Some(v)
+    }
   }
 }
 
@@ -577,13 +549,12 @@ object TestMemory {
   }
 
   def main(args: Array[String]): Unit = {
-    // testArraySetLocal
-    // testArrayAccess
-    // testArrayGetSet
-    // testArrayAccessLocal
-    
-    // testAdd
-    // testPower
+    testArrayAccess
+    testArrayGetSet
+    testArrayAccessLocal
+
+    testAdd
+    testPower
     testMaze
     // testMazeNoPhi
   }
