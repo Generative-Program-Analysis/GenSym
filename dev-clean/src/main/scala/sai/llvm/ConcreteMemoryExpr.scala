@@ -175,6 +175,7 @@ object ConcExecMemory {
       //FIXME: args(0) is not handled
       val LocValue(start) = args(1)
       val IntValue(len) = args(2)
+      // FIXME: This would corrupt the memory
       val rawInput = "ssssddddwwaawwddddssssddwwww"
       val inputStr = rawInput.take(Math.min(len, rawInput.length))
       for (i <- 0 until inputStr.length) {
@@ -276,7 +277,6 @@ object ConcExecMemory {
   }
 
   def execTerm(inst: Terminator): Option[Value] = {
-    if (Debug.debug) println(inst)
     inst match {
       case RetTerm(ty, Some(value)) => Some(eval(value))
       case RetTerm(ty, None) => None
