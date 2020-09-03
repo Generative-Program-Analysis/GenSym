@@ -22,32 +22,49 @@ object OpenUnion {
   case class Union[R <: Eff, T[_], X] private(index: Int, value: T[X]) extends (R ⊎ X) {
     def weaken[E[_]]: Union[E ⊗ R, T, X] = Union(index+1,value)
   }
+  object ⊎ {
+    implicit class WeakenU[R <: Eff, R2 <: Eff, K](val u : ⊎[R,K]) extends AnyVal {
+      def weakenL[X <: Eff](implicit cat : RowConcat[X,R,R2]): ⊎[R2,K] = u match {
+        case Union(n, v) => Union(n + cat.n, v)
+      }
+      def weaken[T[_], X](u: ⊎[R,X]): ⊎[T ⊗ R, X] = u match {
+        case Union(n, v) => Union(n+1, v)
+      }
+    }
+  }
 
   //type-safe pointers into tlists
-  case class Ptr[T[_], R <: Eff] private(pos: Int)
-  implicit def ps[T[_], R <: Eff, U[_]](implicit pred: Ptr[T, R]): Ptr[T, U ⊗ R] = Ptr(pred.pos + 1)
-  implicit def pz[T[_], R <: Eff]: Ptr[T, T ⊗ R] = Ptr(0)
+  trait PtrLvl1
+  object PtrLvl1 {
+    implicit def ps[T[_], R <: Eff, U[_]](implicit pred: Ptr[T, R]): Ptr[T, U ⊗ R] = Ptr(pred.pos + 1)
+  }
+  case class Ptr[T[_], R <: Eff] private(pos: Int) extends PtrLvl1
+  object Ptr {
+    implicit def pz[T[_], R <: Eff]: Ptr[T, T ⊗ R] = Ptr(0)
+  }
 
+  @implicitNotFound("Cannot prove that ${T} is in the effect row ${R}")
   trait ∈[T[_], R <: Eff] {
     def inj[X](sub: T[X]): R ⊎ X
     def prj[X](u: R ⊎ X): Option[T[X]]
   }
+  object ∈ {
+    implicit def member[T[_], R <: Eff](implicit ptr: Ptr[T, R]): T ∈ R =
+      new (T ∈ R) {
+        override def inj[X](sub: T[X]): R ⊎ X = Union(ptr.pos, sub)
 
-  implicit def member[T[_], R <: Eff](implicit ptr: Ptr[T, R]): T ∈ R =
-    new (T ∈ R) {
-      override def inj[X](sub: T[X]): R ⊎ X = Union(ptr.pos, sub)
-
-      override def prj[X](u: R ⊎ X): Option[T[X]] = u match {
-        case Union(i, v) if i == ptr.pos => Some(v.asInstanceOf[T[X]])
-        case _ => None
+        override def prj[X](u: R ⊎ X): Option[T[X]] = u match {
+          case Union(i, v) if i == ptr.pos => Some(v.asInstanceOf[T[X]])
+          case _ => None
+        }
       }
-    }
+  }
 
-    @implicitNotFound("Cannot concatenate RowConcat[${A}, ${B}, ${C}]")
-    trait RowConcat[A <: Eff, B <: Eff, C <: Eff] {
-      val n : Int
-    }
-
+  @implicitNotFound("Cannot concatenate RowConcat[${A}, ${B}, ${C}]")
+  trait RowConcat[A <: Eff, B <: Eff, C <: Eff] {
+    val n : Int
+  }
+  object RowConcat {
     implicit def concat1[R <: Eff]: RowConcat[∅, R, R] = new RowConcat[∅, R, R] {
       override val n: Int = 0
     }
@@ -56,27 +73,13 @@ object OpenUnion {
       new RowConcat[E ⊗ R1, R2, E ⊗ R3] {
         override val n: Int = prev.n + 1
       }
-
-    //TODO
-    //implicit def membercatl[T[_], R1 <: Eff, R2 <: Eff, R3 <: Eff](implicit cat : RowConcat[R1,R2,R3], mem : T ∈ R1): T ∈ R3 = ???
-    //implicit def membercatr[T[_], R1 <: Eff, R2 <: Eff, R3 <: Eff](implicit cat : RowConcat[R1,R2,R3], mem : T ∈ R2): T ∈ R3 = ???
+  }
 
   //TODO can this be made more flexible? i.e. have decomp at arbitrary positions in the list R?
   def decomp[T[_], R <: Eff, X](u: (T ⊗ R) ⊎ X): Either[R ⊎ X, T[X]] = u match {
     case Union(0, v) => Right(v.asInstanceOf[T[X]])
     case Union(n, v) => Left(Union(n-1, v))
   }
-
-  implicit def weaken[T[_], R <: Eff, X](u: ⊎[R,X]): ⊎[T ⊗ R, X] = u match {
-    case Union(n, v) => Union(n+1, v)
-  }
-
-  implicit class WeakenU[R <: Eff, R2 <: Eff, K](val u : ⊎[R,K]) extends AnyVal {
-    def weakenL[X <: Eff](implicit cat : RowConcat[X,R,R2]): ⊎[R2,K] = u match {
-      case Union(n, v) => Union(n + cat.n, v)
-    }
-  }
-
 }
 
 object Freer {
@@ -165,10 +168,10 @@ object Handlers {
     //we'll need an implicit context with the capability.
     //we could probably have a leaner overall design with dotty's implicit function types
     //TODO: weak point: what if we require G to consist of multiple effects?
-    implicit val canG: G ∈ (G ⊗ R) = member
+    implicit val canG: G ∈ (G ⊗ R) = implicitly
   }
 
-  abstract class DeepHOMulti[E[_], X <: Eff, R1 <: Eff, R2 <: Eff, A] extends FFold[E, Comp[R2, A], Comp[R2, A]] {
+  abstract class HO[E[_], X <: Eff, R1 <: Eff, R2 <: Eff, A] extends FFold[E, Comp[R2, A], Comp[R2, A]] {
     implicit val prefix : RowConcat[X, R1, R2] = implicitly
   }
 
@@ -189,7 +192,7 @@ object Handlers {
   }
 
   abstract class ShO[F[_], G[_], R <: Eff, A, B] extends FFold[F, Comp[F ⊗ R, A], Comp[G ⊗ R, B]] {
-    implicit val canG: G ∈ (G ⊗ R) = member
+    implicit val canG: G ∈ (G ⊗ R) = implicitly
   }
 
   /**
@@ -213,14 +216,14 @@ object Handlers {
    * Fallback: HKindLvl1's companion object, which defines "replace front with a list of other effects" impl.
    * Can extend with higher levels as needed.
    */
-  trait HKindLvl1
-  object HKindLvl1 {
+  trait HKindLvl2
+  object HKindLvl2 {
     implicit def openHK[I,E[_],R<:Eff,X<:Eff,R2<:Eff,O](implicit cat : RowConcat[X,R,R2]) =
       new HKind[I, E ⊗ R, O, R2]  {
         override type Ret = Return[E ⊗ R, I] => Comp[R2, O]
         //TODO it would be better if we had a partial function here too, but then we have the problem of not having a
         //capability canG: G ∈ (G ⊗ R) in scope
-        override type Clauses = DeepHOMulti[E,X,R,R2,O]
+        override type Clauses = HO[E,X,R,R2,O]
 
         override def !(ret: Ret)(h: Clauses): Handler[I, E ⊗ R, O, R2] = new Handler[I, E ⊗ R, O, R2] {
           override def apply(comp: Comp[E ⊗ R, I]): Comp[R2, O] = comp match {
@@ -239,53 +242,10 @@ object Handlers {
       }
   }
 
+  trait HKindLvl1 extends HKindLvl2
+  object HKindLvl1 {
 
-  /**
-   * Abstracts over the different requirements for different handler types.
-   * Used as implicit evidence in the Handler companion's apply() factory method.
-   * @tparam I
-   * @tparam E
-   * @tparam O
-   * @tparam F
-   */
-  @implicitNotFound("Cannot construct a Handler[${I}, ${E}, ${O}, ${F}] with this combination of types.")
-  trait HKind[I,E <: Eff, O, F <: Eff] extends HKindLvl1 {
-    /**
-     * Type of the return clause
-     */
-    type Ret
-    /**
-     * Type of the handling clauses
-     */
-    type Clauses
-    /**
-     * Type of shallow handling clauses
-     */
-    type SClauses
 
-    /**
-     * Construct handler, e.g.,
-     * Handler[A,Coin ⊗ E,A,E].! {
-     *   case Return(x) => ret(x)
-     * } {
-     *   case Coin$(p, k) =>  k (biasedCoin(p) ) }
-     *
-     * c.f. Handler companion below.
-     * Convention: ! is for the deep version of the handler, s_! for its shallow version.
-     * @param ret
-     * @param clauses
-     * @return
-     */
-    def !(ret: Ret)(clauses: Clauses): Handler[I,E,O,F]
-
-    /**
-     * This should construct the shallow version of the handler
-     * @param ret
-     */
-    def s_!(ret: Ret)(clauses: SClauses): Handler[I,E,O,F]
-  }
-
-  object HKind {
     /**
      * A regular handler kind, discharging the front-most effect, i.e.,
      * Comp[E ⊗ R, I] => Comp[R, O]
@@ -342,8 +302,52 @@ object Handlers {
           }
         }
       }
+  }
 
 
+  /**
+   * Abstracts over the different requirements for different handler types.
+   * Used as implicit evidence in the Handler companion's apply() factory method.
+   * @tparam I
+   * @tparam E
+   * @tparam O
+   * @tparam F
+   */
+  @implicitNotFound("Cannot construct a Handler[${I}, ${E}, ${O}, ${F}] with this combination of types.")
+  trait HKind[I,E <: Eff, O, F <: Eff] extends HKindLvl1 {
+    /**
+     * Type of the return clause
+     */
+    type Ret
+    /**
+     * Type of the handling clauses
+     */
+    type Clauses
+    /**
+     * Type of shallow handling clauses
+     */
+    type SClauses
+
+    /**
+     * Construct handler, e.g.,
+     * Handler[A,Coin ⊗ E,A,E].! {
+     *   case Return(x) => ret(x)
+     * } {
+     *   case Coin$(p, k) =>  k (biasedCoin(p) ) }
+     *
+     * c.f. Handler companion below.
+     * Convention: ! is for the deep version of the handler, s_! for its shallow version.
+     * @param ret
+     * @param clauses
+     * @return
+     */
+    def !(ret: Ret)(clauses: Clauses): Handler[I,E,O,F]
+
+    /**
+     * This should construct the shallow version of the handler
+     * @param ret
+     */
+    def s_!(ret: Ret)(clauses: SClauses): Handler[I,E,O,F]
   }
 
   object Handler {
