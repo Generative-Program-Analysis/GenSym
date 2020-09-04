@@ -184,7 +184,9 @@ object Handlers {
     implicit val prefix : RowConcat[X, R1, R2] = implicitly
   }
 
-
+  abstract class ShO[E[_], X <: Eff, R1 <: Eff, R2 <: Eff, A, B] extends FFold[E, Comp[E ⊗ R1, A], Comp[R2, B]] {
+    implicit val prefix : RowConcat[X, R1, R2] = implicitly
+  }
 
   // Can E (or F) appears at anywhere inside R?
   // e.g., Return[R, A] => Comp[R, B], but requires E ∈ R and F ∈ R
@@ -200,9 +202,7 @@ object Handlers {
     }
   }
 
-  abstract class ShO[F[_], G[_], R <: Eff, A, B] extends FFold[F, Comp[F ⊗ R, A], Comp[G ⊗ R, B]] {
-    implicit val canG: G ∈ (G ⊗ R) = implicitly
-  }
+
 
   /**
    * The point of this is to have a designated handler type having
@@ -246,8 +246,18 @@ object Handlers {
           }
         }
 
-        override type SClauses = Nothing //ShO[E,F,R,I,O]
-        override def s_!(ret: Ret)(clauses: SClauses): Handler[I, E ⊗ R, O, R2] = ???
+        override type SClauses = ShO[E,X,R,R2,I,O]
+        override def s_!(ret: Ret)(h: SClauses): Handler[I, E ⊗ R, O, R2] = new Handler[I, E ⊗ R, O, R2] {
+          override def apply(comp: Comp[E ⊗ R, I]): Comp[R2, O] = comp match {
+            case Return(x) => ret(Return(x))
+            case Op(u, k) => decomp(u) match {
+              case Right(ex) =>
+                h(ex, k)
+              case Left(op) =>
+                Op(op.weakenL[X]) { x => apply(k(x)) }
+            }
+          }
+        }
       }
   }
 
