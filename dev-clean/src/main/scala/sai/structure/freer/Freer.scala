@@ -2,6 +2,7 @@ package sai.structure.freer3
 
 import scala.annotation.implicitNotFound
 import scala.language.{higherKinds, implicitConversions}
+import scala.reflect.runtime.universe.RuntimeClass
 
 //Track effects as type-level lists of type constructors
 object Eff {
@@ -10,6 +11,14 @@ object Eff {
   trait ⊗[A[_], TL <: Eff] extends Eff
 
   type Lone[T[_]] = T ⊗ ∅
+
+  @implicitNotFound("Nothing was inferred")
+  sealed trait NotNothing[-T]
+  object NotNothing {
+    implicit object notNothing extends NotNothing[Any]
+    //We do not want Nothing to be inferred, so make an ambigous implicit
+    implicit object inferredNothing extends NotNothing[Nothing]
+  }
 }
 
 //union type as in the freer monad paper, scala-style
@@ -40,7 +49,7 @@ object OpenUnion {
   }
   case class Ptr[T[_], R <: Eff] private(pos: Int) extends PtrLvl1
   object Ptr {
-    implicit def pz[T[_], R <: Eff]: Ptr[T, T ⊗ R] = Ptr(0)
+    implicit def pz[T[_], R <: Eff](implicit n : NotNothing[R]): Ptr[T, T ⊗ R] = Ptr(0)
   }
 
   @implicitNotFound("Cannot prove that ${T} is in the effect row ${R}")

@@ -80,7 +80,7 @@ object Prob {
       case Left(u) => decomp(u) match {
         case Right(ex) => (ex, k) match {
           case Choice$((), k) =>
-            perform(Coin$(p))(member[Coin, Coin ⊗ (Nondet ⊗ E)]) >>= { b => hWeight(p)(k(b))}
+            perform[Coin, Coin ⊗ (Nondet ⊗ E), Boolean](Coin$(p)) >>= { b => hWeight(p)(k(b))}
 
           case Fail$() => fail
         }
