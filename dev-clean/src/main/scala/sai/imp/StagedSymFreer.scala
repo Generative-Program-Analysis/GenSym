@@ -301,8 +301,9 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
         def else_br(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
           reify(ss)(execWithPC(s2, Op1("-", e)))
         }
-        def rep_then_br: Rep[SS => List[(SS, Unit)]] = fun(then_br)
-        def rep_else_br: Rep[SS => List[(SS, Unit)]] = fun(else_br)
+        // fun: (Rep[A] => Rep[B]) => Rep[A => B]
+        val rep_then_br: Rep[SS => List[(SS, Unit)]] = fun(then_br)
+        val rep_else_br: Rep[SS => List[(SS, Unit)]] = fun(else_br)
         for {
           v <- eval(e)
           ss <- get[Rep[SS], E]

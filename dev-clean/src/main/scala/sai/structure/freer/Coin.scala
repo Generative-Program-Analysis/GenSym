@@ -57,7 +57,6 @@ object Prob {
     assert(w <= 1.0f)
   }
 
-
   object Weight$ {
     def unapply[X,R](p : (Prob[X], X => R)): Option[(Float, Unit => R)] = p match {
       case (Weight(w), k) => Some((w,k))
@@ -85,7 +84,6 @@ object Prob {
         case Right(ex) => (ex, k) match {
           case Choice$((), k) =>
             perform[Coin, Coin ⊗ (Nondet ⊗ E), Boolean](Coin$(p)) >>= { b => hWeight(p)(k(b))}
-
           case Fail$() => fail
         }
         case Left(u) =>

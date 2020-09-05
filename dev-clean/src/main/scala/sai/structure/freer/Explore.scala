@@ -38,6 +38,8 @@ class Exhaustive[E <: Eff, A] extends Explore {
   type Worlds    = Queue[World] //TODO: parameterize over the data structure, is this also a monoid?
   type Thunk[+X] = () => X
   type World     = Thunk[CIn]
+  // Sol, Worlds will become Rep[_]
+  // We don't want Rep[CIn] or anything like staged freer monad
 
   // TODO nicify with the handler combinator
   def apply(sol: Sol, worlds: Worlds)(c: CIn): C[Sol] = c match {
@@ -49,6 +51,7 @@ class Exhaustive[E <: Eff, A] extends Explore {
     case Op(u,k) => decomp(u) match {
       case Right(op) => (op, k) match {
         case Choice$((), k) =>
+          // k_rep: Rep[Boolean => List[...]] using LMS's `fun`
           for {
             worlds <- extend(worlds, {() => k(true)})
             worlds <- extend(worlds, {() => k(false)})
@@ -68,9 +71,12 @@ class Exhaustive[E <: Eff, A] extends Explore {
       sol    <- apply(sol, worlds)(w())
     } yield sol
     val done : C[Sol] = ret(sol)
+    // be careful about infinite loop when recursively calling `apply`
     for {
       ne  <- nonEmpty(worlds)
+      // ne: Rep[Boolean]
       sol <- if (ne) next else done
+      // sol <- reflect(__if(ne) reify(cur_st)(next) else else reify(cur_st)(done))
     } yield sol
   }
 
