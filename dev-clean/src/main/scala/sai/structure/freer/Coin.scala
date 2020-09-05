@@ -7,6 +7,9 @@ import sai.structure.freer3.Handlers.{DeepHO, HO, Handler}
 import sai.structure.freer3.Nondet.{Choice$, Fail$, Nondet, fail}
 import sai.structure.freer3.OpenUnion._
 import ∈._
+
+import scala.collection.immutable.Queue
+import scala.collection.mutable
 import scala.util.Random
 
 object Coin {
@@ -70,6 +73,7 @@ object Prob {
         coinChoice(w)(k())
     } */
 
+  //TODO in terms of combinators, this requires a handler which is shallow, handles more than one effect, and carries a parameter
   def hWeight[E <: Eff, A](p : Float = 0f)(c: Comp[Prob ⊗ (Nondet ⊗ E), A]): Comp[Coin ⊗ (Nondet ⊗ E), A] = c match {
     case Return(x) => ret(x)
     case Op(u, k) => decomp(u) match {
@@ -89,6 +93,4 @@ object Prob {
       }
     }
   }
-
-  //TODO Explore handler (Fig. 11)
 }
