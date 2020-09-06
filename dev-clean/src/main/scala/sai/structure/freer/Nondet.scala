@@ -22,6 +22,13 @@ object NondetList {
   def select[R <: Eff, A](xs: List[A])(implicit I: Nondet ∈ R): Comp[R, A] =
     perform[Nondet, R, A](NondetList(xs))
 
+  object Fail$ {
+    def unapply[X, A, R](n: (Nondet[X], X => R)): Boolean = n match {
+      case (NondetList(Nil), _) => true
+      case _ => false
+    }
+  }
+
   object NondetListWrong1$ {
     // this is unsound, since the calling context can freely choose A, we require existential type
     def unapply[X, A, R](n: (Nondet[X], X => R)): Option[(List[A], A => R)] =

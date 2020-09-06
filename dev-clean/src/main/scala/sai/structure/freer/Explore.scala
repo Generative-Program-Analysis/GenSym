@@ -5,7 +5,8 @@ import lms.core.virtualize
 import sai.lmsx.SAIOps
 import sai.structure.freer3.Eff.{Eff, ⊗}
 import sai.structure.freer3.Freer.{Comp, Op, Return, ret}
-import sai.structure.freer3.Nondet.{Choice$, Fail$, Nondet}
+import sai.structure.freer3.NondetList.NondetList$.??
+import sai.structure.freer3.NondetList.{Fail$, Nondet, NondetList, NondetList$}
 import sai.structure.freer3.OpenUnion.decomp
 
 import scala.collection.immutable.Queue
@@ -17,7 +18,7 @@ trait Explore {
   type In
   final type C[+X] = Comp[Row, X]
   final type CIn   = Comp[N ⊗ Row, □[In]]
-  type Cont
+  type Cont[-A]
   type Sol  //TODO: parameterize over a monoid for In
   type World
   type Worlds  //TODO: parameterize over the data structure, is this also a monoid?
@@ -28,10 +29,10 @@ trait Explore {
   def schedule(sol: □[Sol], worlds: □[Worlds]): C[□[Sol]]
 
   //aux computations, essentially ops lifted to the C[-] monad
-  def extend  (worlds: □[Worlds], k : Cont): C[□[Worlds]]
-  def nonEmpty(worlds: □[Worlds])          : C[□[Boolean]]
-  def head    (worlds: □[Worlds])          : C[□[World]]
-  def tail    (worlds: □[Worlds])          : C[□[Worlds]]
+  def extend[A](worlds: □[Worlds], xs: □[List[A]], k : Cont[□[A]]): C[□[Worlds]]
+  def nonEmpty (worlds: □[Worlds])                                : C[□[Boolean]]
+  def head     (worlds: □[Worlds])                                : C[□[World]]
+  def tail     (worlds: □[Worlds])                                : C[□[Worlds]]
 
   def acc(sol : □[Sol], x : □[In]) : C[□[Sol]]
 }
@@ -47,7 +48,7 @@ class Exhaustive[E <: Eff, A] extends Explore {
   type □[X] = X
   type Row = E
   type N[X] = Nondet[X]
-  type Cont = Boolean => CIn
+  type Cont[-A] = A => CIn
   type In = A
 
   type Sol       = List[In]     //TODO: parameterize over a monoid for In
@@ -66,14 +67,12 @@ class Exhaustive[E <: Eff, A] extends Explore {
 
     case Op(u,k) => decomp(u) match {
       case Right(op) => (op, k) match {
-        case Choice$((), k) =>
+        case NondetList$(??(xs , k)) =>
           // k_rep: Rep[Boolean => List[...]] using LMS's `fun`
           for {
-            worlds <- extend(worlds, k)
+            worlds <- extend(worlds, xs, k)
             sol    <- schedule(sol, worlds)
           } yield sol
-
-        case Fail$() => schedule(sol, worlds)
       }
       case Left(u) =>
         Op(u) { x => apply(sol,worlds)(k(x))}
@@ -96,7 +95,10 @@ class Exhaustive[E <: Eff, A] extends Explore {
     } yield sol
   }
 
-  def extend(worlds: Worlds, k : Cont): C[Worlds] = ret(worlds.enqueue({() => k(true)}).enqueue({() => k(false)}))
+  def extend[A](worlds: Worlds, xs: List[A], k : Cont[A]): C[Worlds] = {
+    ret(worlds.enqueue(xs map {x => () => k(x)}))
+  }
+
   def nonEmpty(worlds: Worlds): C[Boolean] = ret(worlds.nonEmpty)
   def head(worlds: Worlds): C[World] = ret(worlds.dequeue._1)
   def tail(worlds: Worlds): C[Worlds] = ret(worlds.dequeue._2)
