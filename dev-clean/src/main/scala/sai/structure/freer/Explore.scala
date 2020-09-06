@@ -12,10 +12,11 @@ import scala.collection.immutable.Queue
 
 trait Explore {
   type □[_] //stage
+  type N[_] //nondet version TODO: have stage-polymorphic nondet
   type Row <: Eff
   type In
   final type C[+X] = Comp[Row, X]
-  final type CIn   = Comp[Nondet ⊗ Row, □[In]]
+  final type CIn   = Comp[N ⊗ Row, □[In]]
   type Cont
   type Sol  //TODO: parameterize over a monoid for In
   type World
@@ -35,27 +36,25 @@ trait Explore {
   def acc(sol : □[Sol], x : □[In]) : C[□[Sol]]
 }
 
-trait ExploreDefaultImpl extends Explore {
-
-}
-
 @virtualize
-trait StagedExplore extends ExploreDefaultImpl with SAIOps {
+trait StagedExplore extends Explore with SAIOps {
   final type □[X] = Rep[X]
   //TODO staged impl
 }
 
-
-class Exhaustive[E <: Eff, A] extends ExploreDefaultImpl {
+//TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
+class Exhaustive[E <: Eff, A] extends Explore {
   type □[X] = X
   type Row = E
+  type N[X] = Nondet[X]
+  type Cont = Boolean => CIn
   type In = A
 
   type Sol       = List[In]     //TODO: parameterize over a monoid for In
   type Worlds    = Queue[World] //TODO: parameterize over the data structure, is this also a monoid?
   type Thunk[+X] = () => X
   type World     = Thunk[CIn]
-  type Cont = Boolean => CIn
+
   // Sol, Worlds will become Rep[_]
   // We don't want Rep[CIn] or anything like staged freer monad
   // TODO nicify with the handler combinator
@@ -95,7 +94,7 @@ class Exhaustive[E <: Eff, A] extends ExploreDefaultImpl {
       // sol <- reflect(__if(ne) reify(cur_st)(next) else else reify(cur_st)(done))
     } yield sol
   }
-  
+
   def extend(worlds: Worlds, k : Cont): C[Worlds] = ret(worlds.enqueue({() => k(true)}).enqueue({() => k(false)}))
   def nonEmpty(worlds: Worlds): C[Boolean] = ret(worlds.nonEmpty)
   def head(worlds: Worlds): C[World] = ret(worlds.dequeue._1)
