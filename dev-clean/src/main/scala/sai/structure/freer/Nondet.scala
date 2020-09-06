@@ -1,37 +1,80 @@
 package sai.structure.freer3
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.{higherKinds, implicitConversions, existentials}
 
+//TODO would be nice if we could unify into a stage-polymorphic effect definition
 object NondetList {
   import Eff._
   import Freer._
   import Handlers._
   import OpenUnion._
 
-  case class Nondet[A](xs: List[A])
+  sealed trait Nondet[K]
+  case class NondetList[A](xs: List[A]) extends Nondet[A]
 
-  def fail[R <: Eff, A](implicit I: Nondet ∈ R): Comp[R, A] = perform(Nondet(List()))
+  //for some reason, the implicit resolution will try to prove NondetList ∈ R and fail
+  //it's however safe to upcast manually
+  def fail[R <: Eff, A](implicit I: Nondet ∈ R): Comp[R, A] = perform(NondetList(List()).asInstanceOf[Nondet[A]])
 
   def choice[R <: Eff, A](x: A, y: A)(implicit I: Nondet ∈ R): Comp[R, A] =
-    perform(Nondet(List(x, y)))
+    perform(NondetList(List(x, y)).asInstanceOf[Nondet[A]])
 
   def select[R <: Eff, A](xs: List[A])(implicit I: Nondet ∈ R): Comp[R, A] =
-    perform(Nondet(xs))
+    perform(NondetList(xs).asInstanceOf[Nondet[A]])
 
-  object Nondet$ {
-    def unapply[A, R](n: (Nondet[A], A => R)): Option[(List[A], A => R)] =
+  object NondetListWrong1$ {
+    // this is unsound, since the calling context can freely choose A, we require existential type
+    def unapply[X, A, R](n: (Nondet[X], X => R)): Option[(List[A], A => R)] =
       n match {
-        case (Nondet(xs), k) => Some((xs, k))
+        case (NondetList(xs), k) => Some((xs.asInstanceOf[List[A]], k.asInstanceOf[A => R]))
         case _ => None
       }
   }
 
+  object NondetListWrong2$ {
+    // technically the "right" solution, but it seems Scala's forSome is broken, e.g.
+    // often the compiler will complain when calling the returned continuation with elements from the
+    // returned list (even though they have compatible types!)
+    def unapply[X, A, R](n: (Nondet[X], X => R)): Option[(List[A], A => R)] forSome { type A } =
+      n match {
+        case (NondetList(xs), k) => Some((xs, k))
+        case _ => None
+      }
+  }
+
+  object NondetList$ {
+    //a bit more involved solution using path-dependent types for existentials
+    trait Result[+R] {
+      type K
+      def get : (List[K], K => R)
+    }
+    def unapply[X, R](n: (Nondet[X], X => R)): Option[Result[R]] =
+      n match {
+        case (NondetList(xs), k) => Some(new Result[R] {
+          /*K can be arbitrary here, the point is that clients (usually handlers)
+            calling unapply cannot inspect what the K is, since
+            the concrete type param of a polymorphic effect op should be considered
+            an existential. We cannot use Scala's forSome existential types, which
+            appear to be buggy.
+           */
+          type K = Any
+
+          override def get: (List[K], K => R) = (xs.asInstanceOf[List[K]], k.asInstanceOf[K => R])
+        })
+        case _ => None
+      }
+    //path-dependent extractor on Result, see example usages below
+    object ?? {
+      def unapply[A](arg: Result[A]): Option[(List[arg.K], arg.K => A)] = Some(arg.get)
+    }
+  }
+  import NondetList$.??
   def run_with_mt[A]: Comp[Nondet ⊗ ∅, A] => Comp[∅, List[A]] =
     handler[Nondet, ∅, A, List[A]] {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, ∅, List[A]] {
       def apply[X] = (_, _) match {
-        case Nondet$(xs, k) =>
+        case NondetList$(??(xs, k)) =>
           ret(xs.foldLeft(List[A]()) { case (zs, x) =>
             // Here: it works because k(x) directly yields a pure value, involves no effectful computation.
             zs ++ k(x)
@@ -61,7 +104,7 @@ object NondetList {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, E, List[A]] {
       def apply[X] = (_, _) match {
-        case Nondet$(xs, k) =>
+        case NondetList$(??(xs,k)) =>
           xs.foldLeft[Comp[E, List[A]]](ret(List())) { case (comp, x) =>
             for {
               rs <- comp
