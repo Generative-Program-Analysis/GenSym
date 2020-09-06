@@ -17,10 +17,10 @@ object NondetList {
   def fail[R <: Eff, A](implicit I: Nondet ∈ R): Comp[R, A] = perform(NondetList(List()).asInstanceOf[Nondet[A]])
 
   def choice[R <: Eff, A](x: A, y: A)(implicit I: Nondet ∈ R): Comp[R, A] =
-    perform(NondetList(List(x, y)).asInstanceOf[Nondet[A]])
+    perform[Nondet, R, A](NondetList(List(x, y)))
 
   def select[R <: Eff, A](xs: List[A])(implicit I: Nondet ∈ R): Comp[R, A] =
-    perform(NondetList(xs).asInstanceOf[Nondet[A]])
+    perform[Nondet, R, A](NondetList(xs))
 
   object NondetListWrong1$ {
     // this is unsound, since the calling context can freely choose A, we require existential type

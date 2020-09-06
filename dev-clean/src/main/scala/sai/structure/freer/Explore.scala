@@ -79,6 +79,7 @@ class Exhaustive[E <: Eff, A] extends Explore {
         Op(u) { x => apply(sol,worlds)(k(x))}
     }
   }
+  // schedule needs next-stage repr, □[(Sol , Worlds) => Sol]
   def schedule(sol: □[Sol], worlds: □[Worlds]): C[□[Sol]] = {
     val next : C[□[Sol]] = for {
       w      <- head(worlds)

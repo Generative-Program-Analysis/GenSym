@@ -2,7 +2,7 @@ package sai.imp
 
 import sai.lang.ImpLang._
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.{higherKinds, implicitConversions, existentials}
 
 import sai.structure.freer3._
 import sai.structure.freer3.Eff._
@@ -69,7 +69,9 @@ trait RepNondet extends SAIOps {
 
   // case class NondetList[A: Manifest](xs: Rep[List[A]])
   abstract class Nondet[A]
-  case class NondetList[A: Manifest](xs: Rep[List[A]]) extends Nondet[Rep[A]]
+  case class NondetList[A: Manifest](xs: Rep[List[A]]) extends Nondet[Rep[A]] {
+    val m : Manifest[A] = implicitly
+  }
   case object BinChoice extends Nondet[Boolean]
 
   def fail[R <: Eff, A: Manifest](implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
@@ -94,6 +96,27 @@ trait RepNondet extends SAIOps {
         case _ => None
       }
   }
+  object NondetListEx$ {
+    trait Result[+R] {
+      type K
+      implicit val m : Manifest[K]
+      def get : (Rep[List[K]], Rep[K] => R)
+    }
+    def unapply[R, X](n: (Nondet[X], X => R)): Option[Result[R]] =
+      n match {
+        case (nl @ NondetList(xs), k) => Some(new Result[R] {
+          override type K = Any
+          override implicit val m: Manifest[K] = nl.m.asInstanceOf[Manifest[K]]
+
+          override def get: (Rep[List[K]], Rep[K] => R) = (xs.asInstanceOf[Rep[List[K]]], k.asInstanceOf[Rep[K] => R])
+        })
+
+        case _ => None
+      }
+    object ?? {
+      def unapply[R](r : Result[R]) : Option[(Rep[List[r.K]], Rep[r.K] => R)] = Some(r.get)
+    }
+  }
   object BinChoice$ {
     def unapply[K, R](n: (Nondet[K], K => R)): Option[(Unit, Boolean => R)] = n match {
       case (BinChoice, k) => Some(((), k))
@@ -107,7 +130,7 @@ trait RepNondet extends SAIOps {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, ∅, Rep[List[A]]] {
       def apply[X] = {
-        case NondetList$(xs, k) =>
+        case NondetList$(xs, k) => //xs : Rep[List[B]], k : Rep[B] => Comp[∅, Rep[List[A]]], need manifest of B?
           ret(xs.foldLeft(List[A]()) { case (acc, x) =>
             acc ++ k(x)
           })
@@ -120,6 +143,30 @@ trait RepNondet extends SAIOps {
     })
     h(comp)
   }
+
+  implicit def manifestfromndet[A](nl : NondetList[A]): Manifest[A] = nl.m
+
+ /* def runRepNondet2[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = comp match {
+    case Return(x) => ret(List(x))
+    case Op(u, k) => decomp(u) match {
+      case Right(nd) => (nd, k) match {
+        case NondetListEx$(r) =>
+          import NondetListEx$.??
+          val ??(xs, k) = r
+          import r._
+          ret(xs.foldLeft(List[A]()) { case (acc, x) =>
+            acc ++ extract(runRepNondet2(k(x)))
+          })
+        case BinChoice$((), k) =>
+          for {
+            xs <- runRepNondet2(k(true))
+            ys <- runRepNondet2(k(false))
+          } yield xs ++ ys
+      }
+      case Left(u) =>
+        Op(u) { x => runRepNondet2(k(x)) }
+    }
+  }*/
 }
 
 @virtualize
