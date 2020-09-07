@@ -103,22 +103,19 @@ trait RepNondet extends SAIOps {
   object NondetListEx$ {
     trait Result[+R] {
       type K
-     // implicit val m : Manifest[K]
-      def get : (Rep[List[K]], Rep[K] => R)
+      def get : (Manifest[K], Rep[List[K]])
     }
-    def unapply[R, X](n: (Nondet[X], X => R)): Option[Result[R]] =
+    def unapply[R, X](n: Nondet[X]): Option[Result[R]] =
       n match {
-        case (nl @ NondetList(xs), k) => Some(new Result[R] {
+        case nl @ NondetList(xs) => Some(new Result[R] {
           override type K = Any
-          //override implicit val m: Manifest[K] = nl.m.asInstanceOf[Manifest[K]]
-
-          override def get: (Rep[List[K]], Rep[K] => R) = (xs.asInstanceOf[Rep[List[K]]], k.asInstanceOf[Rep[K] => R])
+          override def get = (nl.m.asInstanceOf[Manifest[K]], xs.asInstanceOf[Rep[List[K]]])
         })
 
         case _ => None
       }
     object ?? {
-      def unapply[R](r : Result[R]) : Option[(Rep[List[r.K]], Rep[r.K] => R)] = Some(r.get)
+      def unapply[R](r : Result[R]) : Option[(Manifest[r.K], Rep[List[r.K]])] = Some(r.get)
     }
   }
   object BinChoice$ {
@@ -151,12 +148,13 @@ trait RepNondet extends SAIOps {
   //implicit def manifestfromndet[A](nl : NondetList[A]): Manifest[A] = nl.m
   //implicit def manifestfromresult[A](r : NondetListEx$.Result[A]): Manifest[r.K] = r.m
 
-  def runRepNondet3[E <: Eff, A: Manifest](comp: Comp[Nondet ⊗ E, Rep[A]]): Comp[E, Rep[List[A]]] =
+  def runRepNondet3[E <: Eff, A: Manifest](comp: Comp[Nondet ⊗ E, Rep[A]]): Comp[E, Rep[List[A]]] = {
+    import NondetListEx$.??
     comp match {
       case Return(x) => ret(List(x))
       case Op(u, k) => decomp(u) match {
         case Right(nd) => nd match {
-          case nl @ NondetList(xs) =>
+          case nl @ NondetListEx$(??(m,xs)) =>
             def handleNdet[B : Manifest](xs : Rep[List[B]]): Comp[E, Rep[List[A]]] = {
               close[B, List[A], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
                 m.map { f =>
@@ -165,14 +163,15 @@ trait RepNondet extends SAIOps {
                 }
               })
             }
-            handleNdet(xs)
+            handleNdet(xs)(m)
         }
         case Left(u) =>
           Op(u) { x => runRepNondet3(k(x)) }
       }
     }
+  }
 
- def runRepNondet2[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = comp match {
+  def runRepNondet2[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = comp match {
     case Return(x) => ret(List(x))
     case Op(u, k) => decomp(u) match {
       case Right(nd) => nd match {
