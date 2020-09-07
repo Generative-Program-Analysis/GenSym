@@ -73,7 +73,9 @@ trait RepNondet extends SAIOps {
 
   // case class NondetList[A: Manifest](xs: Rep[List[A]])
   abstract class Nondet[+A]
-  case class NondetList[A](xs: Rep[List[A]]) extends Nondet[Rep[A]]
+  case class NondetList[A : Manifest](xs: Rep[List[A]]) extends Nondet[Rep[A]] {
+    val m: Manifest[A] = implicitly
+  }
   case object BinChoice extends Nondet[Boolean]
 
   def fail[R <: Eff, A: Manifest](implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
@@ -154,15 +156,16 @@ trait RepNondet extends SAIOps {
       case Return(x) => ret(List(x))
       case Op(u, k) => decomp(u) match {
         case Right(nd) => nd match {
-          case NondetList(xs) =>
-            // FIXME: expose the type of list (xs) element
-            type B = A
-            close[B, List[A], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
-              m.map { f =>
-                val f2: Rep[B => List[A]] = c(f)
-                xs.foldLeft(List[A]()) { case (acc, x) => acc ++ f2(x.asInstanceOf[Rep[B]]) }
-              }
-            })
+          case nl @ NondetList(xs) =>
+            def handleNdet[B : Manifest](xs : Rep[List[B]]): Comp[E, Rep[List[A]]] = {
+              close[B, List[A], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
+                m.map { f =>
+                  val f2: Rep[B => List[A]] = c(f)
+                  xs.foldLeft(List[A]()) { case (acc, x) => acc ++ f2(x.asInstanceOf[Rep[B]]) }
+                }
+              })
+            }
+            handleNdet(xs)
         }
         case Left(u) =>
           Op(u) { x => runRepNondet3(k(x)) }

@@ -1,6 +1,7 @@
 package sai
 package lmsx
 
+import scala.language.higherKinds
 import lms.core._
 import lms.util._
 import lms.core.stub._
