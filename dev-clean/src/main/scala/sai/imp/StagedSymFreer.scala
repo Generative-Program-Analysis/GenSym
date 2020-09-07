@@ -67,9 +67,13 @@ trait RepCoin extends SAIOps {
 @virtualize
 trait RepNondet extends SAIOps {
 
+  // def f[B: Manifest](x: Rep[List[B]]): Rep[List[B]] = x ++ x
+  // def ++[A: Manifest](xs: Rep[List[A]], ys: Rep[List[A]]): Rep[List[A]] =
+  //  Wrap[List[A]](Adapter.g.reflect("list-concat", Unwrap(xs), Unwrap(ys)))
+
   // case class NondetList[A: Manifest](xs: Rep[List[A]])
   abstract class Nondet[+A]
-  case class NondetList[A : Manifest](xs: Rep[List[A]]) extends Nondet[Rep[A]] 
+  case class NondetList[A](xs: Rep[List[A]]) extends Nondet[Rep[A]]
   case object BinChoice extends Nondet[Boolean]
 
   def fail[R <: Eff, A: Manifest](implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
@@ -144,6 +148,26 @@ trait RepNondet extends SAIOps {
 
   //implicit def manifestfromndet[A](nl : NondetList[A]): Manifest[A] = nl.m
   //implicit def manifestfromresult[A](r : NondetListEx$.Result[A]): Manifest[r.K] = r.m
+
+  def runRepNondet3[E <: Eff, A: Manifest](comp: Comp[Nondet ⊗ E, Rep[A]]): Comp[E, Rep[List[A]]] =
+    comp match {
+      case Return(x) => ret(List(x))
+      case Op(u, k) => decomp(u) match {
+        case Right(nd) => nd match {
+          case NondetList(xs) =>
+            // FIXME: expose the type of list (xs) element
+            type B = A
+            close[B, List[A], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
+              m.map { f =>
+                val f2: Rep[B => List[A]] = c(f)
+                xs.foldLeft(List[A]()) { case (acc, x) => acc ++ f2(x.asInstanceOf[Rep[B]]) }
+              }
+            })
+        }
+        case Left(u) =>
+          Op(u) { x => runRepNondet3(k(x)) }
+      }
+    }
 
  def runRepNondet2[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = comp match {
     case Return(x) => ret(List(x))
@@ -267,7 +291,8 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[Unit])] =
       State.run[Nondet ⊗ ∅, Rep[SS], Rep[Unit]](s)(comp)
     val p2: Comp[Nondet ⊗ ∅, Rep[(SS, Unit)]] = p1.map(a => a)
-    val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p2)
+    // val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p2)
+    val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet3(p2)
     p3
   }
 
