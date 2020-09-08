@@ -156,12 +156,26 @@ trait RepNondet extends SAIOps {
         case Right(nd) => nd match {
           case nl @ NondetListEx$(??(m,xs)) =>
             def handleNdet[B : Manifest](xs : Rep[List[B]]): Comp[E, Rep[List[A]]] = {
-              close[B, List[A], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
+              val k_eta: Comp[E, Rep[B=>List[A]]] =
+                close[B, A, B, List[A], B=>List[A], Comp[Nondet ⊗ E, *], Comp[E, *]](x => k(x), { (c, m) =>
+                  for {
+                    res <- runRepNondet3(m)
+                  } yield c(res)
+                })
+              for {
+                k <- k_eta
+              } yield {
+                xs.foldLeft(List[A]()) { case (acc, x) => acc ++ k(x) }
+              }
+
+              /*
+              close[B, List[A], B, List[A], List[A], Comp[E, *], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
                 m.map { f =>
                   val f2: Rep[B => List[A]] = c(f)
                   xs.foldLeft(List[A]()) { case (acc, x) => acc ++ f2(x.asInstanceOf[Rep[B]]) }
                 }
               })
+              */
             }
             handleNdet(xs)(m)
         }
@@ -221,7 +235,7 @@ trait StagedKnapsack extends SAIOps with RepNondet {
     val p1: Comp[(State[Rep[Int], *] ⊗ ∅), Rep[List[List[Int]]]] =
       runRepNondet3[(State[Rep[Int], *] ⊗ ∅), List[Int]](p)
     val p2: Comp[∅, (Rep[Int], Rep[List[List[Int]]])] =
-      State.run[∅, Rep[Int], Rep[List[List[Int]]]](0)(p1)
+      State.run[∅, Rep[Int], Rep[List[List[Int]]]](1)(p1)
     val p3: Comp[∅, Rep[(Int, List[List[Int]])]] = p2.map(a => a)
     extract(p3)
   }
@@ -506,7 +520,9 @@ object StagedSymFreer {
       def snippet(u: Rep[Int]) = {
         // val k = knapsack(3, List(3, 2, 1))
         val k = select_count(u :: List(3, 2, 1))
-        println(reify(k))
+        val res: Rep[(Int, List[List[Int]])] = reify(k)
+        println(res._1)
+        println(res)
       }
     }
   }

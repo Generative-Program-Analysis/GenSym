@@ -48,8 +48,16 @@ trait SAIOps extends Base
     }
   }
 
-  type CloseFun[A, B] = Rep[B] => Rep[A => B]
-  def close[A: Manifest, B: Manifest, M[_]](f: Rep[A] => M[Rep[B]], k: (CloseFun[A, B], M[Rep[B]]) => M[Rep[B]]): M[Rep[B]] = {
+  // type CloseFun[A, B] = Rep[B] => Rep[A => B]
+  // def close[A: Manifest, B: Manifest, M[_], C: Manifest, N[_], D: Manifest]
+  // (f: Rep[A] => M[Rep[B]], k: (CloseFun[A, C], M[Rep[B]]) => N[Rep[C]]): N[D] = {
+
+  //def eta(f: Rep[A] => M[Rep[B]], k: M[Rep[B]] => K[Rep[C]]
+
+  def close[A: Manifest, B: Manifest, C: Manifest, D: Manifest, E: Manifest, M[_], K[_]](
+    f: Rep[A] => M[Rep[B]],
+    k: (Rep[D] => Rep[C => D], M[Rep[B]]) => K[Rep[E]]
+  ): K[Rep[E]] = {
     val g = Adapter.g
 
     val s: Backend.Sym = Backend.Sym(g.fresh)
@@ -79,7 +87,7 @@ trait SAIOps extends Base
     val curLocalWrites = g.curLocalWrites
     val curReifyHere = g.reifyHere
 
-    def closefun(rb: Rep[B]): Rep[A => B] = {
+    def closefun(rb: Rep[D]): Rep[C => D] = {
       val fn = Backend.Sym(Adapter.g.fresh)
       val res = Unwrap(rb)
       val block: Block = {
@@ -101,7 +109,7 @@ trait SAIOps extends Base
       g.reifyHere = saveReifyHere
 
       val ret = Adapter.g.reflect(fn, "λ", block)(hardSummary(fn))
-      Wrap[A => B](ret)
+      Wrap[C => D](ret)
     }
 
     k(closefun, m)
