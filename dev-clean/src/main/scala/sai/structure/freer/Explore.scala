@@ -2,11 +2,10 @@ package sai.structure.freer
 
 import scala.language.higherKinds
 import lms.core.virtualize
+import sai.imp.RepNondet
 import sai.lmsx.SAIOps
 import sai.structure.freer3.Eff.{Eff, ⊗}
 import sai.structure.freer3.Freer.{Comp, Op, Return, ret}
-import sai.structure.freer3.NondetList.NondetList$.??
-import sai.structure.freer3.NondetList.{Fail$, Nondet, NondetList, NondetList$}
 import sai.structure.freer3.OpenUnion.decomp
 
 import scala.collection.immutable.Queue
@@ -29,22 +28,78 @@ trait Explore {
   def schedule(sol: □[Sol], worlds: □[Worlds]): C[□[Sol]]
 
   //aux computations, essentially ops lifted to the C[-] monad
-  def extend[A](worlds: □[Worlds], xs: □[List[A]], k : Cont[□[A]]): C[□[Worlds]]
+  def extend[A](worlds: □[Worlds], xs: □[List[A]], k : Cont[□[A]]): C[□[Worlds]] //TODO will need to account for Manifest view on A
   def nonEmpty (worlds: □[Worlds])                                : C[□[Boolean]]
   def head     (worlds: □[Worlds])                                : C[□[World]]
   def tail     (worlds: □[Worlds])                                : C[□[Worlds]]
 
+  def sol_zero(): □[Sol]
+  def sol_join(sol : □[Sol], sol2 : □[Sol]): □[Sol]
   def acc(sol : □[Sol], x : □[In]) : C[□[Sol]]
 }
 
 @virtualize
-trait StagedExplore extends Explore with SAIOps {
+trait StagedExplore extends Explore { self : RepNondet with SAIOps =>
+  import NondetListEx$.??
+  implicit val msol   : Manifest[Sol]    = implicitly
+  implicit val min    : Manifest[In]     = implicitly
+  implicit val mworld : Manifest[World]  = implicitly
+  implicit val mworlds: Manifest[Worlds] = implicitly
+
+  type N[X] = self.Nondet[X]
+
   final type □[X] = Rep[X]
-  //TODO staged impl
+
+  def apply(sol: □[Sol], worlds: □[Worlds])(c: CIn): C[□[Sol]] = for {
+    _ <- concurrent(sol, worlds)(c) //TODO it would be more general if we had a "jump out" effect that carries the solution
+  } yield sol
+
+  def concurrent(sol: □[Sol], worlds: □[Worlds])(c: CIn): Comp[Row, □[In]] = c match {
+    case Return(x) => for {
+      sol1 <- acc(sol,x)
+      y    <- scheduleOrDone(x, sol1, worlds)
+    } yield y
+
+    case Op(u,k) => decomp(u) match {
+      case Right(op) => op match {
+        case NondetListEx$(??(m, xs)) =>
+          def handleNdet[B : Manifest](xs : □[List[B]], k : □[B] => CIn): C[□[In]] = {
+            for {
+              k_eta  <- etaExpand[B](k)(concurrent(sol, worlds))
+              worlds <- ext(worlds, xs, k_eta)
+              res    <- schedule2(sol, worlds)
+            } yield res
+          }
+          handleNdet(xs, k)(m)
+        case BinChoice => ??? //TODO need extension of worlds with boolean continuations
+        /*for {
+          xs <- k(true)
+          ys <- k(false)
+        } yield append(xs, ys)*/
+      }
+      case Left(u) => Op(u) { x => concurrent(sol,worlds)(k(x))}
+    }
+  }
+
+  def etaExpand[B : Manifest](k : □[B] => CIn)(h : CIn => Comp[Row, □[In]]): C[□[B => In]] = ???
+    /*close(k, { (c, kx) =>
+      for {
+        res <- h(kx)
+      } yield c(res)
+    })*/
+
+  def schedule2(sol: □[Sol], worlds: □[Worlds]): C[□[In]] = ???
+  def scheduleOrDone(x : □[In], sol: □[Sol], worlds: □[Worlds]): C[□[In]] = ???
+
+  def sched : □[(Sol , Worlds) => Sol] = ???
+
+  def ext[A](worlds: □[Worlds], xs: □[List[A]], k : □[A => In]): C[□[Worlds]] = ???
 }
 
 //TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
 class Exhaustive[E <: Eff, A] extends Explore {
+  import sai.structure.freer3.NondetList.NondetList$.??
+  import sai.structure.freer3.NondetList.{Fail$, Nondet, NondetList, NondetList$}
   type □[X] = X
   type Row = E
   type N[X] = Nondet[X]
@@ -103,6 +158,8 @@ class Exhaustive[E <: Eff, A] extends Explore {
   def head(worlds: Worlds): C[World] = ret(worlds.dequeue._1)
   def tail(worlds: Worlds): C[Worlds] = ret(worlds.dequeue._2)
 
+  def sol_zero() : Sol = Nil
+  def sol_join(s1: Sol, s2: Sol): Sol = s1 ++ s2
   def acc(sol : Sol, x : In) : C[Sol] = ret(x :: sol)
 }
 
