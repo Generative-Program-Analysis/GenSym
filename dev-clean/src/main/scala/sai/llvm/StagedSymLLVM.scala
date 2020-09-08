@@ -37,15 +37,20 @@ trait StagedSymExecEff extends SAIOps {
     Wrap[Loc](Adapter.g.reflect("FrameLoc", Unwrap(x)))
   def AllocaLoc(lhs: Rep[String]): Rep[Loc] =
     Wrap[Loc](Adapter.g.reflect("AllocaLoc", Unwrap(lhs)))
+  def HeapLoc(i: Rep[Int]): Rep[Loc] =
+    Wrap[Loc](Adapter.g.reflect("HeapLoc", Unwrap(i)))
 
   trait Value
   def BotV: Rep[Value] = Wrap[Value](Adapter.g.reflect("BotV"))
   def LocV(l: Rep[Loc]): Rep[Value] =
     Wrap[Value](Adapter.g.reflect("LocV", Unwrap(l)))
-  def IntV(i: Rep[Int]): Rep[Value] =
-    Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
+  // should int be Int or Rep[Int]?
+  def IntV(i: Rep[Int], width: Int = 32): Rep[Value] =
+    Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i), Backend.Const(width)))
   def SymV(x: Rep[String]): Rep[Value] =
     Wrap[Value](Adapter.g.reflect("SymV", Unwrap(x))) //TODO
+  def ArrayV(arr: Rep[List[Value]]) =
+    Wrap[List[Value]](Adapter.g.reflect("SymV", Unwrap(arr)))
 
   def ProjInt(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
@@ -61,38 +66,67 @@ trait StagedSymExecEff extends SAIOps {
   }
 
   type Store = Map[Loc, Value]
-  //type Stack = List[Frame]
+  type Heap = Store 
+  type FrameStore = Store
   type PC = Set[String]
-  type SS = (Store, PC)
+  type SS = (Heap, FrameStore, PC)
+
+  // is there a better way?
+  type Frame = (String, Rep[FrameStore])
+  type Stack = SList[Frame]
+  var curStack: Stack = SList()
+  def curFrame: Frame = curStack.head
+  def pushFrame(fname: String, initStore: Rep[FrameStore]) = {
+    curStack = (fname, initStore) :: curStack
+    ReplaceFrameStore(initStore)
+  }
+  def popFrame = {
+    curStack = curStack.tail
+    ReplaceFrameStore(curFrame._2)
+  }
+  var branches: List[String] = SList()
 
   type E = (State[Rep[SS], *] ⊗ (Nondet ⊗ ∅))
 
-  def getStore: Comp[E, Rep[Store]] = for {
+  def ReplaceFrameStore(store: Rep[FrameStore]) = for {
     s <- get[Rep[SS], E]
-  } yield s._1
-  def getPC: Comp[E, Rep[PC]] = for {
+    _ <- put[Rep[SS], E]((s._1, store, s._3))
+  } yield ()
+  def getFrameStore: Comp[E, Rep[FrameStore]] = for {
     s <- get[Rep[SS], E]
   } yield s._2
-  def updateStore(a: Rep[Loc], v: Rep[Value]): Comp[E, Rep[Unit]] = for {
+  def getPC: Comp[E, Rep[PC]] = for {
     s <- get[Rep[SS], E]
-    _ <- put[Rep[SS], E]((s._1 + (a -> v), s._2))
+  } yield s._3
+  def updateFrameStore(a: Rep[Loc], v: Rep[Value]): Comp[E, Rep[Unit]] = for {
+    s <- get[Rep[SS], E]
+    _ <- put[Rep[SS], E]((s._1, s._2 + ( a -> v), s._3))
   } yield ()
   def updatePC(c: String): Comp[E, Rep[Unit]] = for {
     s <- get[Rep[SS], E]
-    _ <- put[Rep[SS], E]((s._1, s._2 ++ Set(c)))
+    _ <- put[Rep[SS], E]((s._1, s._2, s._3 ++ Set(c)))
   } yield ()
 
   def eval(v: LLVMValue): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) => for {
-        σ <- getStore
+        σ <- getFrameStore
       } yield { σ(FrameLoc("f_"+x)) }
       case IntConst(n) =>
         ret(IntV(n))
       case ArrayConst(cs) => ???
-      case BitCastExpr(from, const, to) => ???
-      case BoolConst(b) => ???
+      case BitCastExpr(from, const, to) => 
+        for {
+          v <- eval(const)
+        } yield v
+      case BoolConst(b) => b match {
+        case true => ret(IntV(1))
+        case false => ret(IntV(0))
+      }
       case GlobalId(id) => ???
+      case CharArrayConst(s) => ???
+      case ZeroInitializerConst => ret(IntV(0))
+      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => ???
     }
   }
 
@@ -100,23 +134,28 @@ trait StagedSymExecEff extends SAIOps {
     inst match {
       case AllocaInst(IntType(_), _) =>
         for {
-          _ <- updateStore(AllocaLoc("a_"+lhs), BotV)
+          _ <- updateFrameStore(AllocaLoc("a_"+lhs), BotV)
         } yield LocV(AllocaLoc("a_"+lhs))
       case AllocaInst(PtrType(ty, _), _) =>
         for {
-          _ <- updateStore(AllocaLoc("a_"+lhs), BotV)
+          _ <- updateFrameStore(AllocaLoc("a_"+lhs), BotV)
         } yield LocV(AllocaLoc("a_"+lhs))
       case AllocaInst(ty, align) => ???
       case LoadInst(valTy, ptrTy, value, align) =>
         for {
           v <- eval(value)
-          σ <- getStore
+          σ <- getFrameStore
         } yield σ(ProjLoc(v))
       case AddInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
         } yield IntV(ProjInt(v1) + ProjInt(v2))
+      case MulInst(ty, lhs, rhs, _) => 
+        for {
+          v1 <- eval(lhs)
+          v2 <- eval(rhs)
+        } yield IntV(ProjInt(v1) * ProjInt(v2))
       case SubInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
@@ -142,10 +181,31 @@ trait StagedSymExecEff extends SAIOps {
             case UGE => IntV(if (v1 >= v2) 1 else 0)
           }
         }
-      case ZExtInst(from, value, to) => ???
-      case SExtInst(from, value, to) => ???
-      case CallInst(ty, f, args) => ???
+      case ZExtInst(from, value, to) =>
+        for {
+          v <- eval(value)
+        } yield IntV(ProjInt(v), to.asInstanceOf[IntType].size)
+      case SExtInst(from, value, to) => 
+        for {
+          v <- eval(value)
+        } yield IntV(ProjInt(v), to.asInstanceOf[IntType].size)
+      case CallInst(ty, f, args) =>
+        // how do we eval f?
+        ???
       case GetElemPtrInst(inBounds, baseType, ptrType, ptrValue, typedValues) => ???
+      case PhiInst(ty, incs) => ???
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
+        // Why we have cndVal.toString here? How to get the real SMT bool?
+        val selectPC = cndVal.toString
+        val m1 = for {
+          _ <- updatePC(selectPC)
+          v <- eval(thnVal)
+        } yield v
+        val m2 = for {
+          _ <- updatePC("not " + selectPC)
+          v <- eval(thnVal)
+        } yield v
+        choice(m1, m2)
     }
   }
 
@@ -199,6 +259,12 @@ trait StagedSymExecEff extends SAIOps {
           }
         } yield v
         */
+
+      case SwitchTerm(cndTy, cndVal, default, table) =>
+        for {
+          v <- eval(cndVal)
+        } yield ???
+      case Unreachable => ???
     }
   }
 
@@ -226,14 +292,15 @@ trait StagedSymExecEff extends SAIOps {
       case AssignInst(x, valInst) =>
         for {
           v <- execValueInst(x, valInst)
-          _ <- updateStore(FrameLoc("f_" + x), v)
+          _ <- updateFrameStore(FrameLoc("f_" + x), v)
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
           v1 <- eval(val1)
           v2 <- eval(val2)
-          _ <- updateStore(ProjLoc(v2), v1)
+          _ <- updateFrameStore(ProjLoc(v2), v1)
         } yield ()
+      case CallInst(ty, f, args) => ???
     }
   }
 
@@ -247,7 +314,9 @@ trait StagedSymExecEff extends SAIOps {
   def exec(m: Module, fname: String, s0: Rep[Map[Loc, Value]]): Rep[List[(SS, Value)]] = {
     val Some(f) = m.lookupFuncDef(fname)
     fun = f
-    val init: Rep[SS] = (s0, Set[String]())
+    curStack = (fname, s0) :: curStack
+    // eval the global def and put those in heap
+    val init: Rep[SS] = (???, s0, Set[String]())
     val r: List[List[(Rep[SS], Rep[Value])]] =
       extract(runLocalState[∅, Rep[SS], Rep[Value]](init, execBlock(f.body.blocks(0)))).map(extract)
     List(r(0).toSeq.map(__liftTuple2Rep[SS, Value]):_*)
@@ -270,6 +339,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case _ => super.quote(s)
   }
 
+  // TODO change
   override def shallow(n: Node): Unit = n match {
     case Node(s, "BotV", _, _) =>
       emit("bot");

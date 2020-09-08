@@ -316,6 +316,11 @@ object SATTest extends App {
           isValid((c + d) ≡ lit(21))
         }
 
+        build(true) {
+          val a = arrayConstCreate(collection.immutable.List(lit(3), lit(5), lit(8)), 32, 32)
+          isValid((a(0) + a(1) + a(2)) ≡ lit(16))
+        }
+
         println("Done")
       }
     }

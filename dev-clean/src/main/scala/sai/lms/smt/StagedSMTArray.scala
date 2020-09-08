@@ -1,5 +1,7 @@
 package sai.lmsx.smt
 
+import sai.util.symbol.Symbol
+
 import lms.core._
 import lms.util._
 import lms.core.stub._
@@ -18,6 +20,16 @@ trait SMTArrayOps extends SMTArrayInterface with StagedSMTBase with SMTBitVecOps
       Backend.Const(s), Backend.Const(indexBW), Backend.Const(valueBW)))
     lengthMap(array) = (length, indexBW)
     array
+  }
+
+  def arrayConstCreate(arr: List[Rep[BV]], indexBW: Int, valueBW: Int): Rep[SMTArray] = {
+    var smtArr = arrayCreate(Symbol.freshName("carr"), indexBW, valueBW, arr.length)
+    for {
+      i <- 0 to arr.length - 1
+    } {
+      smtArr = (smtArr(i) = arr(i))
+    }
+    smtArr
   }
 
   def arrayRead(array: Rep[SMTArray], index: Rep[BV]): Rep[BV] =
