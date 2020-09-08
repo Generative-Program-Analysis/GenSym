@@ -13,8 +13,14 @@ import sai.lmsx.smt._
 
 import scala.collection.immutable.{List => SList}
 
-
 trait SymStagedImpGen extends StagedImpGen {
+  override def remap(m: Manifest[_]): String = {
+    if (m.toString == "java.lang.String") "String"
+    else if (m.toString.endsWith("$Value")) "Value"
+    else if (m.toString.endsWith("$Expr")) "Expr"
+    else super.remap(m)
+  }
+
   override def shallow(n: Node): Unit = n match {
     case Node(s, "BoolV-pred", List(i), _) =>
       shallow(i)
@@ -58,6 +64,19 @@ object SymRuntime {
 
 trait CppSymStagedImpGen extends CppSAICodeGenBase {
   registerHeader("./header", "<sai_imp_sym.hpp>")
+
+  override def primitive(t: String): String = t match {
+    case "Unit" => "std::monostate"
+    case _ => super.primitive(t)
+  }
+
+  override def remap(m: Manifest[_]): String = {
+    if (m.toString == "java.lang.String") "String"
+    else if (m.toString.endsWith("$Value")) "Ptr<Value>"
+    else if (m.toString.endsWith("$Expr")) "String"
+    else if (m.toString.endsWith("SMTExpr")) "Expr"
+    else super.remap(m)
+  }
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, name, _, _) if name.startsWith("IntV") => false
@@ -108,12 +127,6 @@ trait GenericSymStagedImpDriver[A, B] extends SAIDriver[A, B] { q =>
   override val codegen = new ScalaGenBase with SymStagedImpGen {
     val IR: q.type = q
     import IR._
-    override def remap(m: Manifest[_]): String = {
-      if (m.toString == "java.lang.String") "String"
-      else if (m.toString.endsWith("$Value")) "Value"
-      else if (m.toString.endsWith("$Expr")) "Expr"
-      else super.remap(m)
-    }
   }
 
   override val prelude =
@@ -124,21 +137,8 @@ import sai.imp.SymRuntime._
 }
 
 trait GenericCppSymStagedImpDriver[A, B] extends CppSAIDriver[A, B] { q =>
-  override val codegen = new CGenBase with CppSymStagedImpGen {
+  override val codegen = new CGenBase with CppSAICodeGenBase { //CppSymStagedImpGen {
     val IR: q.type = q
     import IR._
-
-    override def primitive(t: String): String = t match {
-      case "Unit" => "std::monostate"
-      case _ => super.primitive(t)
-    }
-
-    override def remap(m: Manifest[_]): String = {
-      if (m.toString == "java.lang.String") "String"
-      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
-      else if (m.toString.endsWith("$Expr")) "String"
-      else if (m.toString.endsWith("SMTExpr")) "Expr"
-      else super.remap(m)
-    }
   }
 }

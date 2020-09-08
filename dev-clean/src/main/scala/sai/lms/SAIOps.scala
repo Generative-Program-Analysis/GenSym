@@ -52,7 +52,6 @@ trait SAIOps extends Base
   // def close[A: Manifest, B: Manifest, M[_], C: Manifest, N[_], D: Manifest]
   // (f: Rep[A] => M[Rep[B]], k: (CloseFun[A, C], M[Rep[B]]) => N[Rep[C]]): N[D] = {
 
-  //def eta(f: Rep[A] => M[Rep[B]], k: M[Rep[B]] => K[Rep[C]]
 
   def close[A: Manifest, B: Manifest, C: Manifest, D: Manifest, E: Manifest, M[_], K[_]](
     f: Rep[A] => M[Rep[B]],

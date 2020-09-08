@@ -158,16 +158,14 @@ trait RepNondet extends SAIOps {
             def handleNdet[B : Manifest](xs : Rep[List[B]]): Comp[E, Rep[List[A]]] = {
               val k_eta: Comp[E, Rep[B=>List[A]]] =
                 close[B, A, B, List[A], B=>List[A], Comp[Nondet ⊗ E, *], Comp[E, *]](x => k(x), { (c, m) =>
+                  /*
                   for {
                     res <- runRepNondet3(m)
                   } yield c(res)
+                   */
+                  runRepNondet3(m).map(c(_))
                 })
-              for {
-                k <- k_eta
-              } yield {
-                xs.foldLeft(List[A]()) { case (acc, x) => acc ++ k(x) }
-              }
-
+              k_eta.map(k => xs.foldLeft(List[A]()) { case (acc, x) => acc ++ k(x) })
               /*
               close[B, List[A], B, List[A], List[A], Comp[E, *], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
                 m.map { f =>
@@ -175,7 +173,7 @@ trait RepNondet extends SAIOps {
                   xs.foldLeft(List[A]()) { case (acc, x) => acc ++ f2(x.asInstanceOf[Rep[B]]) }
                 }
               })
-              */
+               */
             }
             handleNdet(xs)(m)
         }
@@ -216,26 +214,19 @@ trait StagedKnapsack extends SAIOps with RepNondet {
       _ <- put(x + 1)
     } yield ()
 
-  /*
-  def select_inc[R <: Eff, A](xs: List[A])
-    (implicit I1: Nondet ∈ R, I2: State[Int, *] ∈ R, I3: IO ∈ R): Comp[R, A] =
-    xs.map(Return[R, A]).foldRight[Comp[R, A]](fail) {
-      case (a, b) =>
-        for {
-          _ <- inc
-          x <- choice(a, b)
-        } yield x
-    }
-   */
-
   type Eff = Nondet ⊗ (State[Rep[Int], *] ⊗ ∅)
 
   def reify(comp: Comp[Eff, Rep[List[Int]]]): Rep[(Int, List[List[Int]])] = {
     val p: Comp[Nondet ⊗ (State[Rep[Int], *] ⊗ ∅), Rep[List[Int]]] = comp
     val p1: Comp[(State[Rep[Int], *] ⊗ ∅), Rep[List[List[Int]]]] =
       runRepNondet3[(State[Rep[Int], *] ⊗ ∅), List[Int]](p)
+    /*
+    val p2: Comp[∅, Rep[Int] => Comp[∅, (Rep[Int], Rep[List[List[Int]]])]] =
+      State.run[∅, Rep[Int], Rep[List[List[Int]]]](p1)
+    extract(extract(p2)(0).map(a => a))
+     */
     val p2: Comp[∅, (Rep[Int], Rep[List[List[Int]]])] =
-      State.run[∅, Rep[Int], Rep[List[List[Int]]]](1)(p1)
+      State.run2[∅, Rep[Int], Rep[List[List[Int]]]](1)(p1)
     val p3: Comp[∅, Rep[(Int, List[List[Int]])]] = p2.map(a => a)
     extract(p3)
   }
@@ -251,11 +242,17 @@ trait StagedKnapsack extends SAIOps with RepNondet {
 
   def select_count(xs: Rep[List[Int]]): Comp[Eff, Rep[List[Int]]] = {
     for {
+      _ <- put[Rep[Int], Eff](10)
       v <- select[Eff, Int](xs)
+      // y <- select[Eff, Int](xs)
       x <- get[Rep[Int], Eff]
+      _ <- put[Rep[Int], Eff](x + 1)
+      // _ <- put[Rep[Int], Eff](v)
+      /*
       _ <- put[Rep[Int], Eff](v + x)
-      y <- get[Rep[Int], Eff]
-    } yield List(y)
+      y <- { get[Rep[Int], Eff] }
+       */
+    } yield List(x + v)
   }
 
   def knapsack(w: Rep[Int], vs: Rep[List[Int]]): Comp[Eff, Rep[List[Int]]] = {
@@ -386,7 +383,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
 
   def reify(s: Rep[SS])(comp: Comp[E, Rep[Unit]]): Rep[List[(SS, Unit)]] = {
     val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[Unit])] =
-      State.run[Nondet ⊗ ∅, Rep[SS], Rep[Unit]](s)(comp)
+      State.run2[Nondet ⊗ ∅, Rep[SS], Rep[Unit]](s)(comp)
     val p2: Comp[Nondet ⊗ ∅, Rep[(SS, Unit)]] = p1.map(a => a)
     //val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p2)
     val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet3(p2)
@@ -495,12 +492,45 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
 
 trait StagedSymImpEffDriver[A, B] extends GenericSymStagedImpDriver[A, B] with StagedSymImpEff
 
-trait StagedCppSymImpEffDriver[A, B] extends GenericCppSymStagedImpDriver[A, B] with StagedSymImpEff
+trait StagedCppSymImpEffDriver[A, B] extends CppSAIDriver[A, B] with StagedSymImpEff { q =>
+  override val codegen = new CGenBase with CppSymStagedImpGen {
+    val IR: q.type = q
+    import IR._
+
+    override def primitive(t: String): String = t match {
+      case "Unit" => "std::monostate"
+      case _ => super.primitive(t)
+    }
+
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString == "java.lang.String") "String"
+      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
+      else if (m.toString.endsWith("$Expr")) "String"
+      else if (m.toString.endsWith("SMTExpr")) "Expr"
+      else super.remap(m)
+    }
+  }
+}
 
 object StagedSymFreer {
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] =
     new StagedSymImpEffDriver[Unit, Unit] {
+      def snippet(u: Rep[Unit]) = {
+        // make two conditions symbolic
+        val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")), Set[Expr]())
+        // all concrete values
+        // val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> IntV(5)), Set[Expr]())
+        val v = reify(init)(exec(s))
+        println(v)
+        println("path number: ")
+        println(v.size)
+      }
+    }
+
+  @virtualize
+  def specSymCpp(s: Stmt): CppSAIDriver[Unit, Unit] =
+    new StagedCppSymImpEffDriver[Unit, Unit] {
       def snippet(u: Rep[Unit]) = {
         // make two conditions symbolic
         val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")), Set[Expr]())
@@ -529,11 +559,11 @@ object StagedSymFreer {
 
   def main(args: Array[String]): Unit = {
     import Examples._
-    // val code = specSym(cond3)
-    val code = specKnapsack
+    // val code = specKnapsack
+    // val code = specSymCpp(cond3)
+    val code = specSymCpp(cond3)
     println(code.code)
     code.eval(4)
-
 
   }
 }

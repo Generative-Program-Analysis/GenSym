@@ -326,10 +326,10 @@ object TestStagedLLVM {
     val input = scala.io.Source.fromFile(file).mkString
     LLVMTest.parse(input)
   }
-  val add = parse("llvm/test/add.ll")
-  val singlepath = parse("llvm/test/single_path5.ll")
-  val branch = parse("llvm/test/branch2.ll")
-  val multipath= parse("llvm/test/multipath.ll")
+  val add = parse("llvm/benchmarks/add.ll")
+  val singlepath = parse("llvm/benchmarks/single_path5.ll")
+  val branch = parse("llvm/benchmarks/branch2.ll")
+  val multipath= parse("llvm/benchmarks/multipath.ll")
 
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
