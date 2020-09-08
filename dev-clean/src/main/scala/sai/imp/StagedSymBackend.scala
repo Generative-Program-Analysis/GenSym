@@ -65,19 +65,6 @@ object SymRuntime {
 trait CppSymStagedImpGen extends CppSAICodeGenBase {
   registerHeader("./header", "<sai_imp_sym.hpp>")
 
-  override def primitive(t: String): String = t match {
-    case "Unit" => "std::monostate"
-    case _ => super.primitive(t)
-  }
-
-  override def remap(m: Manifest[_]): String = {
-    if (m.toString == "java.lang.String") "String"
-    else if (m.toString.endsWith("$Value")) "Ptr<Value>"
-    else if (m.toString.endsWith("$Expr")) "String"
-    else if (m.toString.endsWith("SMTExpr")) "Expr"
-    else super.remap(m)
-  }
-
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, name, _, _) if name.startsWith("IntV") => false
     case Node(_, name, _, _) if name.startsWith("BoolV") => false
@@ -137,8 +124,22 @@ import sai.imp.SymRuntime._
 }
 
 trait GenericCppSymStagedImpDriver[A, B] extends CppSAIDriver[A, B] { q =>
-  override val codegen = new CGenBase with CppSAICodeGenBase { //CppSymStagedImpGen {
+  override val codegen = new CGenBase with CppSymStagedImpGen {
     val IR: q.type = q
     import IR._
+
+    override def primitive(t: String): String = t match {
+      case "Unit" => "std::monostate"
+      case _ => super.primitive(t)
+    }
+
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString == "java.lang.String") "String"
+      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
+      else if (m.toString.endsWith("$Expr")) "String"
+      else if (m.toString.endsWith("SMTExpr")) "Expr"
+      else super.remap(m)
+    }
+
   }
 }

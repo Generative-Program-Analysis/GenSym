@@ -127,10 +127,6 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
   }
 
   val compilerCommand = "g++ -std=c++17 -O3 -Winline"
-  System.out.println(codegen)
-  val libraries = codegen.libraryFlags.mkString(" ")
-  val includes = codegen.joinPaths(codegen.includePaths, "-I")
-  val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
 
   def save(to: String): Unit = {
     val out = new java.io.PrintStream("./"+to)
@@ -140,6 +136,9 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
 
   def compile(to: String): String = {
     import scala.sys.process._
+    val libraries = codegen.libraryFlags.mkString(" ")
+    val includes = codegen.joinPaths(codegen.includePaths, "-I")
+    val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
 
     val bin = to.split('.')(0)
     (new java.io.File(bin)).delete

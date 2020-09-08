@@ -492,25 +492,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
 
 trait StagedSymImpEffDriver[A, B] extends GenericSymStagedImpDriver[A, B] with StagedSymImpEff
 
-trait StagedCppSymImpEffDriver[A, B] extends CppSAIDriver[A, B] with StagedSymImpEff { q =>
-  override val codegen = new CGenBase with CppSymStagedImpGen {
-    val IR: q.type = q
-    import IR._
-
-    override def primitive(t: String): String = t match {
-      case "Unit" => "std::monostate"
-      case _ => super.primitive(t)
-    }
-
-    override def remap(m: Manifest[_]): String = {
-      if (m.toString == "java.lang.String") "String"
-      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
-      else if (m.toString.endsWith("$Expr")) "String"
-      else if (m.toString.endsWith("SMTExpr")) "Expr"
-      else super.remap(m)
-    }
-  }
-}
+trait StagedCppSymImpEffDriver[A, B] extends GenericCppSymStagedImpDriver[A, B] with StagedSymImpEff
 
 object StagedSymFreer {
   @virtualize
@@ -529,15 +511,15 @@ object StagedSymFreer {
     }
 
   @virtualize
-  def specSymCpp(s: Stmt): CppSAIDriver[Unit, Unit] =
-    new StagedCppSymImpEffDriver[Unit, Unit] {
-      def snippet(u: Rep[Unit]) = {
+  def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] =
+    new StagedCppSymImpEffDriver[Int, Unit] {
+      def snippet(u: Rep[Int]) = {
         // make two conditions symbolic
         val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> SymV("y")), Set[Expr]())
         // all concrete values
         // val init: Rep[SS] = (Map("x" -> IntV(3), "z" -> IntV(4), "y" -> IntV(5)), Set[Expr]())
         val v = reify(init)(exec(s))
-        println(v)
+        // println(v)
         println("path number: ")
         println(v.size)
       }
@@ -563,7 +545,7 @@ object StagedSymFreer {
     // val code = specSymCpp(cond3)
     val code = specSymCpp(cond3)
     println(code.code)
-    code.eval(4)
+    // code.eval(4)
 
   }
 }
