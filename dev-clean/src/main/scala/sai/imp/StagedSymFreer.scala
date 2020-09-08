@@ -147,16 +147,15 @@ trait RepNondet extends SAIOps {
         case Right(nd) => nd match {
           case nl @ NondetListEx$(??(m,xs)) =>
             def handleNdet[B : Manifest](xs : Rep[List[B]]): Comp[E, Rep[List[A]]] = {
+              // k: Rep[B] => Comp[Nondet x E, List[A]]
+              // k_eta: Comp[E, Rep[B => List[A]]]
+              // k_eta': Comp[E, Rep[List[A]]]
               val k_eta: Comp[E, Rep[B=>List[A]]] =
                 close[B, A, B, List[A], B=>List[A], Comp[Nondet ⊗ E, *], Comp[E, *]](x => k(x), { (c, m) =>
-                  /*
-                  for {
-                    res <- runRepNondet3(m)
-                  } yield c(res)
-                   */
                   runRepNondet3(m).map(c(_))
                 })
               k_eta.map(k => xs.foldLeft(List[A]()) { case (acc, x) => acc ++ k(x) })
+
               /*
               close[B, List[A], B, List[A], List[A], Comp[E, *], Comp[E, *]](x => runRepNondet3(k(x)), { (c, m) =>
                 m.map { f =>
@@ -237,8 +236,7 @@ trait StagedKnapsack extends SAIOps with RepNondet {
       v <- select[Eff, Int](xs)
       // y <- select[Eff, Int](xs)
       x <- get[Rep[Int], Eff]
-      _ <- put[Rep[Int], Eff](x + 1)
-      // _ <- put[Rep[Int], Eff](v)
+      _ <- put[Rep[Int], Eff](x + v)
       /*
       _ <- put[Rep[Int], Eff](v + x)
       y <- { get[Rep[Int], Eff] }
@@ -532,9 +530,9 @@ object StagedSymFreer {
 
   def main(args: Array[String]): Unit = {
     import Examples._
-    // val code = specKnapsack
+    val code = specKnapsack
     // val code = specSymCpp(cond3)
-    val code = specSymCpp(cond3)
+    // val code = specSymCpp(cond3)
     println(code.code)
     // code.eval(4)
 

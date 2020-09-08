@@ -111,7 +111,7 @@ object NondetList {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, E, List[A]] {
       def apply[X] = (_, _) match {
-        case NondetList$(??(xs,k)) =>
+        case NondetList$(??(xs, k)) =>
           xs.foldLeft[Comp[E, List[A]]](ret(List())) { case (comp, x) =>
             for {
               rs <- comp
