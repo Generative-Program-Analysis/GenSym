@@ -106,9 +106,7 @@ trait StagedExplore { self : RepNondet with SAIOps =>
 
   def reflect(value : □[In]): C[□[In]] = ???
 
-  def scheduleOrDone(x : □[In]): C[□[In]] = ???
-    // not found: value sourcecontext
-    //reflect(if (nonEmpty(worlds)) dequeue(worlds)(()) else x)
+  def scheduleOrDone(x : □[In]): C[□[In]] = reflect(if (nonEmpty(worlds)) dequeue(worlds)(()) else x)
   /*{
     for {
       sol <- if (nonEmpty(worlds)) dequeue(worlds)(()) else x
