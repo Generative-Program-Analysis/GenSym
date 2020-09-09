@@ -24,6 +24,7 @@ import sai.lmsx._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 
+
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 

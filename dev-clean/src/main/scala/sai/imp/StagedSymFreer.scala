@@ -234,9 +234,9 @@ trait StagedKnapsack extends SAIOps with RepNondet {
     for {
       _ <- put[Rep[Int], Eff](10)
       v <- select[Eff, Int](xs)
-      // y <- select[Eff, Int](xs)
       x <- get[Rep[Int], Eff]
       _ <- put[Rep[Int], Eff](x + v)
+      // _ <- put[Rep[Int], Eff](v)
       /*
       _ <- put[Rep[Int], Eff](v + x)
       y <- { get[Rep[Int], Eff] }
