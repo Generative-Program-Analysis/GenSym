@@ -114,6 +114,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
     val BBFuns: collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]] =
       new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
+    val FunFuns: collection.mutable.HashMap[String, Rep[SS => List[(SS, Value)]]] =
+      new collection.mutable.HashMap[String, Rep[SS => List[(SS, Value)]]]
 
     def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
       case ArrayType(size, ety) =>
@@ -291,7 +293,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     } yield v
   }
 
-  // Note: should be called at the very beginning
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
       is match {
@@ -311,8 +312,34 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
 
     for (b <- blocks) {
-      val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
-      CompileTimeRuntime.BBFuns(b) = repRunBlock
+      // FIXME: topFun or fun?
+      if (CompileTimeRuntime.BBFuns.contains(b)) {
+        System.err.println("Already compiled " + b)
+      } else {
+        val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
+        CompileTimeRuntime.BBFuns(b) = repRunBlock
+      }
+    }
+  }
+
+  // Note: this should run at the very beginning
+  def precompileFunctions(funs: List[FunctionDef]): Unit = {
+    def runFunction(f: FunctionDef): Comp[E, Rep[Value]] = {
+      precompileBlocks(f.id, f.blocks)
+      execBlock(f.id, f.blocks(0))
+    }
+    def repRunFun(f: FunctionDef)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+      reify[Value](ss)(runFunction(f))
+    }
+
+    for (f <- funs) {
+      if (CompileTimeRuntime.FunFuns.contains(f.id)) {
+        System.err.println("Already compiled " + f)
+      } else {
+        // FIXME: topFun or fun?
+        val repf: Rep[SS => List[(SS, Value)]] = fun(repRunFun(f))
+        CompileTimeRuntime.FunFuns(f.id) = repf
+      }
     }
   }
 
