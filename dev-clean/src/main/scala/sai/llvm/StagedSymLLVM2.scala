@@ -51,6 +51,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
 
   object Mem {
+    import Addr._
     def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] = ???
     def frameLookup(f: Rep[Frame], a: Rep[Addr]): Rep[Value] = lookup(f._2, a)
 
@@ -80,9 +81,11 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       val σ = update(f._2, k, v)
       (f._1, σ)
     }
-    def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = {
-      ???
-    }
+    def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
+      s <- getState
+      f <- curFrame
+      _ <- put[Rep[SS], E]((s._1, frameUpdate(f, localAddr(f, x), v) :: s._2.tail, s._3))
+    } yield ()
 
     def selectMem(v: Rep[Value]): Comp[E, Rep[Mem]] = {
       // if v is a HeapAddr, return heap, otherwise return its frame memory
@@ -97,6 +100,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   object Addr {
     def localAddr(f: Rep[Frame], x: String): Rep[Addr] = ???
+    def heapAddr(x: String): Rep[Addr] = ???
+    def +(a: Rep[Addr], x: Int): Rep[Addr] = ???
   }
 
   object Value {
@@ -164,7 +169,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case IntConst(n) => ret(IntV(n))
       case ArrayConst(cs) => ???
       case BitCastExpr(from, const, to) => ???
-      case BoolConst(b) => ???
+      case BoolConst(b) => b match {
+        case true => ret(IntV(1))
+        case false => ret(IntV(0))
+      }
       case GlobalId(id) => ???
     }
   }
