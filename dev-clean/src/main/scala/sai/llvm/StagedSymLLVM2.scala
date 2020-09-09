@@ -44,6 +44,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
+  // TODO: can be Comp[E, Unit]?
+  def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
   def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
@@ -83,6 +85,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = {
       ???
     }
+    def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
+      ???
+    }
 
     def selectMem(v: Rep[Value]): Comp[E, Rep[Mem]] = {
       // if v is a HeapAddr, return heap, otherwise return its frame memory
@@ -93,6 +98,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       // v should be a LocV and wrap an actual location
       ???
     }
+
+    def pushFrame(f: String): Comp[E, Rep[Unit]] = ???
+    def popFrame: Comp[E, Rep[Unit]] = ???
   }
 
   object Addr {
@@ -103,19 +111,22 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def IntV(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def IntV(i: Rep[Int], bw: Int): Rep[Value] = ???
     def LocV(l: Rep[Addr]): Rep[Value] = ???
+    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = ???
 
     def projLocV(v: Rep[Value]): Rep[Addr] = ???
     def projIntV(v: Rep[Value]): Rep[Int] = ???
+    def projFunV(v: Rep[Value]): Rep[(SS, List[Value]) => List[(SS, Value)]] = ???
   }
 
   object CompileTimeRuntime {
     var funMap: collection.immutable.Map[String, FunctionDef] = SMap()
     var funDeclMap: collection.immutable.Map[String, FunctionDecl] = SMap()
+    var globalDefMap: collection.immutable.Map[String, GlobalDef] = SMap()
 
     val BBFuns: collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]] =
       new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
-    val FunFuns: collection.mutable.HashMap[String, Rep[SS => List[(SS, Value)]]] =
-      new collection.mutable.HashMap[String, Rep[SS => List[(SS, Value)]]]
+    val FunFuns: collection.mutable.HashMap[String, Rep[SS] => Rep[List[(SS, Value)]]] =
+      new collection.mutable.HashMap[String, Rep[SS] => Rep[List[(SS, Value)]]]
 
     def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
       case ArrayType(size, ety) =>
@@ -134,6 +145,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def findFundef(fname: String) = funMap.get(fname).get
   }
 
+  object Primitives {
+
+  }
+
   object Magic {
     def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
       val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
@@ -148,6 +163,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         ssu <- select[E, (SS, T)](res)
         _ <- put[Rep[SS], E](ssu._1)
       } yield ssu._2
+    }
+
+    def mapM[A, B](xs: List[A])(f: A => Comp[E, B]): Comp[E, List[B]] = xs match {
+      case Nil => ret(SList())
+      case x::xs =>
+        for {
+          b <- f(x)
+          bs <- mapM(xs)(f)
+        } yield b::bs
     }
   }
 
@@ -165,7 +189,26 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case ArrayConst(cs) => ???
       case BitCastExpr(from, const, to) => ???
       case BoolConst(b) => ???
-      case GlobalId(id) => ???
+      case GlobalId(id) if funMap.contains(id) =>
+        val funDef = funMap(id)
+        val params: List[String] = funDef.header.params.map {
+          case TypedParam(ty, attrs, localId) => localId.get
+        }
+        if (!CompileTimeRuntime.FunFuns.contains(id)) {
+          precompileFunctions(SList(funMap(id)))
+        }
+        val f: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(id)
+        def repf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+          val m: Comp[E, Rep[Value]] = for {
+            _ <- frameUpdate(params, args)
+            s <- getState
+            v <- reflect(f(s))
+          } yield v
+          reify(s)(m)
+        }
+        ret(FunV(fun(repf)))
+      case GlobalId(id) if funDeclMap.contains(id) => ???
+      case GlobalId(id) if globalDefMap.contains(id) => ???
     }
   }
 
@@ -272,16 +315,17 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           _ <- updateMem(v2, v1)
         } yield ()
       case CallInst(ty, f, args) =>
-        ???
-        /*
-        val fun@FunValue(fid, _) = eval(f)
-        val argValues: List[Value] = args.map {
-          case TypedArg(ty, attrs, value) => eval(value)
+        val argValues: List[LLVMValue] = args.map {
+          case TypedArg(ty, attrs, value) => value
         }
-        push(Frame(fid))
-        fun(argValues)
-        pop
-         */
+        for {
+          fv <- eval(f)
+          vs <- mapM(argValues)(eval)
+          _ <- pushFrame(f.asInstanceOf[GlobalId].id)
+          s <- getState
+          v <- reflect(projFunV(fv)(s, List(vs:_*)))
+          _ <- popFrame
+        } yield ()
     }
   }
 
@@ -337,11 +381,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         System.err.println("Already compiled " + f)
       } else {
         // FIXME: topFun or fun?
-        val repf: Rep[SS => List[(SS, Value)]] = fun(repRunFun(f))
-        CompileTimeRuntime.FunFuns(f.id) = repf
+        CompileTimeRuntime.FunFuns(f.id) = repRunFun(f)
       }
     }
   }
-
 
 }
