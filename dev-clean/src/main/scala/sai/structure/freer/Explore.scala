@@ -38,8 +38,10 @@ trait Explore {
   def acc(sol : □[Sol], x : □[In]) : C[□[Sol]]
 }
 
+import lms.macros.SourceContext
+
 @virtualize
-trait StagedExplore extends Explore { self : RepNondet with SAIOps =>
+trait StagedExplore { self : RepNondet with SAIOps =>
   import NondetListEx$.??
   implicit val msol   : Manifest[Sol]    = implicitly
   implicit val min    : Manifest[In]     = implicitly
@@ -49,15 +51,29 @@ trait StagedExplore extends Explore { self : RepNondet with SAIOps =>
   type N[X] = self.Nondet[X]
 
   final type □[X] = Rep[X]
+  type Row <: Eff
+  type In
+  final type C[+X] = Comp[Row, X]
+  final type CIn   = Comp[N ⊗ Row, □[In]]
+  type Sol  //TODO: parameterize over a monoid for In
+  type World = Unit => In
+  type Worlds   //TODO: parameterize over the data structure, is this also a monoid?
 
-  def apply(sol: □[Sol], worlds: □[Worlds])(c: CIn): C[□[Sol]] = for {
-    _ <- concurrent(sol, worlds)(c) //TODO it would be more general if we had a "jump out" effect that carries the solution
+
+  val sol : □[Sol]
+  val worlds :  □[Worlds]
+
+  def apply(c: CIn): C[□[Sol]] = for {
+    //TODO it would be more general if we had a "jump out" effect that carries the solution
+    //as of now, sol must repr a global mutable state
+    _ <- concurrent(c)
   } yield sol
 
-  def concurrent(sol: □[Sol], worlds: □[Worlds])(c: CIn): Comp[Row, □[In]] = c match {
+  //TODO nicify with handler combinator
+  def concurrent(c: CIn): Comp[Row, □[In]] = c match {
     case Return(x) => for {
-      sol1 <- acc(sol,x)
-      y    <- scheduleOrDone(x, sol1, worlds)
+      _    <- acc(sol,x)
+      y    <- scheduleOrDone(x)
     } yield y
 
     case Op(u,k) => decomp(u) match {
@@ -65,35 +81,69 @@ trait StagedExplore extends Explore { self : RepNondet with SAIOps =>
         case NondetListEx$(??(m, xs)) =>
           def handleNdet[B : Manifest](xs : □[List[B]], k : □[B] => CIn): C[□[In]] = {
             for {
-              k_eta  <- etaExpand[B](k)(concurrent(sol, worlds))
-              worlds <- ext(worlds, xs, k_eta)
-              res    <- schedule2(sol, worlds)
+              k_eta  <- etaExpand[B](k)(concurrent)
+              _      <- ext(worlds, xs, k_eta)
+              res    <- schedule
             } yield res
           }
           handleNdet(xs, k)(m)
-        case BinChoice => ??? //TODO need extension of worlds with boolean continuations
-        /*for {
-          xs <- k(true)
-          ys <- k(false)
-        } yield append(xs, ys)*/
+        case BinChoice => for {
+          k_eta  <- etaExpand[Boolean](k)(concurrent)
+          _      <- ext(worlds, k_eta)
+          res    <- schedule
+        } yield res
       }
-      case Left(u) => Op(u) { x => concurrent(sol,worlds)(k(x))}
+      case Left(u) => Op(u) { x => concurrent(k(x))}
     }
   }
 
-  def etaExpand[B : Manifest](k : □[B] => CIn)(h : CIn => Comp[Row, □[In]]): C[□[B => In]] = ???
-    /*close(k, { (c, kx) =>
-      for {
-        res <- h(kx)
-      } yield c(res)
-    })*/
+  def etaExpand[B : Manifest](k : □[B] => CIn)(h : CIn => Comp[Row, □[In]]): C[□[B => In]] =
+    close[B, In, B, In, B => In, Comp[N ⊗ Row, *], Comp[Row, *]](k, { (cls, kx) =>
+      h(kx).map(cls)
+    })
 
-  def schedule2(sol: □[Sol], worlds: □[Worlds]): C[□[In]] = ???
-  def scheduleOrDone(x : □[In], sol: □[Sol], worlds: □[Worlds]): C[□[In]] = ???
+  val schedule: C[□[In]] = ret(dequeue(worlds)(()))
 
-  def sched : □[(Sol , Worlds) => Sol] = ???
+  def reflect(value : □[In]): C[□[In]] = ???
 
-  def ext[A](worlds: □[Worlds], xs: □[List[A]], k : □[A => In]): C[□[Worlds]] = ???
+  def scheduleOrDone(x : □[In]): C[□[In]] = ???
+    // not found: value sourcecontext
+    //reflect(if (nonEmpty(worlds)) dequeue(worlds)(()) else x)
+  /*{
+    for {
+      sol <- if (nonEmpty(worlds)) dequeue(worlds)(()) else x
+      // sol <- reflect(__if(ne)(reify(cur_st)(next) else else reify(cur_st)(done))
+    } yield sol
+  }*/
+
+
+  def ext[A : Manifest](worlds: □[Worlds], xs: □[List[A]], k : □[A => In]): C[□[Unit]]
+  def ext(worlds: □[Worlds], k : □[Boolean => In]): C[□[Unit]]
+  def nonEmpty(worlds: □[Worlds]) : □[Boolean]
+  def dequeue (worlds: □[Worlds]) : □[World]
+
+  def acc(sol : □[Sol], x : □[In]) : C[□[Unit]]
+}
+
+@virtualize
+trait StagedBFSExplore extends StagedExplore { self : RepNondet with SAIOps =>
+  type Worlds = List[World]
+  type Sol = List[In]
+
+  val sol : □[Sol] = List[In]()
+  val worlds : □[Worlds] = List[World]()
+
+  def ext[A : Manifest](worlds: □[Worlds], xs: □[List[A]], k : □[A => In]): C[□[Unit]] = {
+    //val threads : □[Worlds] = xs map {x => (_:Unit) => k(x)}
+    //ret(worlds.append(threads))
+    ??? //TODO how to define mutable code?
+  }
+
+  def ext(worlds: □[Worlds], k : □[Boolean => In]): C[□[Unit]]
+  def nonEmpty(worlds: □[Worlds]) : □[Boolean] = ??? //ret(!worlds.isEmpty)
+  def dequeue (worlds: □[Worlds]) : □[World] = ??? //ret(worlds.dequeue)
+
+  def acc(sol : □[Sol], x : □[In]) : C[□[Unit]] = ??? //ret(sol :+ x)  //TODO how to define mutable code?
 }
 
 //TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
