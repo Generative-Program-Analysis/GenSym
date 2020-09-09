@@ -112,6 +112,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     var funMap: collection.immutable.Map[String, FunctionDef] = SMap()
     var funDeclMap: collection.immutable.Map[String, FunctionDecl] = SMap()
 
+    val BBFuns: collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]] =
+      new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
+
     def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
       case ArrayType(size, ety) =>
         val rawSize = size * getTySize(ety, align)
@@ -281,9 +284,16 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   def execBlock(funName: String, bb: BB): Comp[E, Rep[Value]] = {
-    val insts = bb.ins
-    val term = bb.term
-    def runInstList(is: List[Instruction]): Comp[E, Rep[Value]] = {
+    val f = CompileTimeRuntime.BBFuns(bb)
+    for {
+      s <- getState
+      v <- reflect(f(s))
+    } yield v
+  }
+
+  // Note: should be called at the very beginning
+  def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
+    def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
       is match {
         case SList(i) => for {
           _ <- execInst(funName, i)
@@ -292,18 +302,19 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         case i :: is =>
           for {
             _ <- execInst(funName, i)
-            v <- runInstList(is)
+            v <- runInstList(is, term)
           } yield v
       }
     }
-    def runBlock(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
-      reify[Value](ss)(runInstList(insts))
+    def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+      reify[Value](ss)(runInstList(b.ins, b.term))
     }
-    val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock)
-    for {
-      s <- getState
-      v <- reflect(repRunBlock(s))
-    } yield v
+
+    for (b <- blocks) {
+      val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
+      CompileTimeRuntime.BBFuns(b) = repRunBlock
+    }
   }
+
 
 }
