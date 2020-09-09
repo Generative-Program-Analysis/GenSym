@@ -53,7 +53,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
 
   object Mem {
-    def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] = ???
+    def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] =
+      Wrap[Value](Adapter.g.reflect("mem-lookup", Unwrap(σ), Unwrap(a)))
     def frameLookup(f: Rep[Frame], a: Rep[Addr]): Rep[Value] = lookup(f._2, a)
 
     def replaceCurrentFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] = ???
@@ -404,5 +405,26 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       }
     }
   }
+}
 
+trait SymStagedLLVMGen extends CppSAICodeGenBase {
+  registerHeader("./headers", "<sai_llvm_sym2.hpp>")
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, name, _, _) if name.startsWith("IntV") => false
+    case Node(_, name, _, _) if name.startsWith("LocV") => false
+    case _ => super.mayInline(n)
+  }
+
+  override def quote(s: Def): String = s match {
+    case Const(()) => "std::monostate{}";
+    case _ => super.quote(s)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "mem-lookup", List(σ, a), _) =>
+      // Note: depends on the concrete representation of Mem, we can emit different code
+      ???
+    case _ => super.shallow(n)
+  }
 }
