@@ -146,7 +146,17 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   object Primitives {
+    import Value._
+    def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      // generate printf
+      ???
+    }
+    def printf: Rep[Value] = FunV(fun(__printf))
 
+    def __read(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      ???
+    }
+    def read: Rep[Value] = FunV(fun(__read))
   }
 
   object Magic {
@@ -208,6 +218,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
         ret(FunV(fun(repf)))
       case GlobalId(id) if funDeclMap.contains(id) => ???
+        val v = id match {
+          case "@printf" => Primitives.printf
+          case "@read" => Primitives.read
+          case "@exit" => ??? // generate an exit
+          case "@sleep" => ??? //noop
+        }
+        ret(v)
       case GlobalId(id) if globalDefMap.contains(id) => ???
     }
   }
@@ -330,6 +347,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   def execBlock(funName: String, bb: BB): Comp[E, Rep[Value]] = {
+    if (!CompileTimeRuntime.BBFuns.contains(bb)) {
+      precompileBlocks(funName, SList(bb))
+    }
     val f = CompileTimeRuntime.BBFuns(bb)
     for {
       s <- getState
@@ -366,7 +386,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-  // Note: this should run at the very beginning
   def precompileFunctions(funs: List[FunctionDef]): Unit = {
     def runFunction(f: FunctionDef): Comp[E, Rep[Value]] = {
       precompileBlocks(f.id, f.blocks)
