@@ -360,17 +360,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
-      is match {
-        case SList(i) => for {
-          _ <- execInst(funName, i)
-          v <- execTerm(funName, term)
-        } yield v
-        case i :: is =>
-          for {
-            _ <- execInst(funName, i)
-            v <- runInstList(is, term)
-          } yield v
-      }
+      for {
+        _ <- mapM(is)(execInst(funName, _))
+        v <- execTerm(funName, term)
+      } yield v
     }
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       reify[Value](ss)(runInstList(b.ins, b.term))
