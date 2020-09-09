@@ -89,9 +89,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       f <- curFrame
       _ <- put[Rep[SS], E]((s._1, frameUpdate(f, localAddr(f, x), v) :: s._2.tail, s._3))
     } yield ()
-    def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = {
-      ???
-    }
     def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
       ???
     }
