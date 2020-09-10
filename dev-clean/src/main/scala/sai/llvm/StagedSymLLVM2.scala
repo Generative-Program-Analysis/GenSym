@@ -50,10 +50,17 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
   def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
   def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._3
+  def updatePC(x: Rep[SMTExpr]): Comp[E, Rep[Unit]] = for { 
+    s <- get[Rep[SS], E]
+    _ <- put[Rep[SS], E]((s._1, s._2, s._3 ++ Set(x)))
+  } yield ()
   def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
 
   object Mem {
     import Addr._
+    def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
+    def frameEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
+
     def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] =
       Wrap[Value](Adapter.g.reflect("mem-lookup", Unwrap(σ), Unwrap(a)))
     def frameLookup(f: Rep[Frame], a: Rep[Addr]): Rep[Value] = lookup(f._2, a)
@@ -80,14 +87,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
 
     def update(σ: Rep[Mem], k: Rep[Addr], v: Rep[Value]): Rep[Mem] = ???
-    def frameUpdate(f: Rep[Frame], k: Rep[Addr], v: Rep[Value]): Rep[Frame] = {
-      val σ = update(f._2, k, v)
-      (f._1, σ)
+    def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] = {
+      ???
     }
     def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
       s <- getState
-      f <- curFrame
-      _ <- put[Rep[SS], E]((s._1, frameUpdate(f, localAddr(f, x), v) :: s._2.tail, s._3))
+      addr <- frameEnv(x)
+      _ <- frameUpdate(addr, v)
     } yield ()
     def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
       ???
@@ -110,7 +116,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   object Addr {
     def localAddr(f: Rep[Frame], x: String): Rep[Addr] = ???
     def heapAddr(x: String): Rep[Addr] = ???
-    def +(a: Rep[Addr], x: Int): Rep[Addr] = ???
+    
+    implicit class AddrOP(a: Rep[Addr]) {
+      def +(x: Int): Rep[Addr] = ???
+    }
   }
 
   object Value {
@@ -141,6 +150,16 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         else (rawSize / align + 1) * align
       case _ => 1
     }
+
+    def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
+      if (index.isEmpty) 0 else ty match {
+      case PtrType(ety, addrSpace) =>
+        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+      case ArrayType(size, ety) =>
+        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+      case _ => ???
+    }
+  }
 
     def findBlock(fname: String, lab: String): Option[BB] = {
       funMap.get(fname).get.lookupBlock(lab)
@@ -191,6 +210,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
+
+  // TODO:
+  // eval ArrayConst
+  // ICmpInst
+  // PhiInst, record branches in SS
+  // SwitchTerm
   import Mem._
   import Addr._
   import Value._
@@ -203,11 +228,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for { f <- curFrame } yield { frameLookup(f, localAddr(f, x)) }
       case IntConst(n) => ret(IntV(n))
       case ArrayConst(cs) => ???
-      case BitCastExpr(from, const, to) => ???
+      case BitCastExpr(from, const, to) => eval(const)
       case BoolConst(b) => b match {
         case true => ret(IntV(1))
         case false => ret(IntV(0))
       }
+      case CharArrayConst(s) => ???
       case GlobalId(id) if funMap.contains(id) =>
         val funDef = funMap(id)
         val params: List[String] = funDef.header.params.map {
@@ -226,7 +252,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           reify(s)(m)
         }
         ret(FunV(fun(repf)))
-      case GlobalId(id) if funDeclMap.contains(id) => ???
+      case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
           case "@printf" => Primitives.printf
           case "@read" => Primitives.read
@@ -235,6 +261,18 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) => ???
+      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
+        val indexValue: List[Int] = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
+        val offset = calculateOffset(ptrType, indexValue)
+        const match {
+          case GlobalId(id) => for {
+            addr <- heapEnv(id)
+          } yield LocV(addr + offset)
+          case _ => for {
+            lV <- eval(const)
+          } yield LocV(projLocV(lV) + offset)
+        }
+      case ZeroInitializerConst => ret(IntV(0))
     }
   }
 
@@ -260,32 +298,70 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
         } yield IntV(projIntV(v1) - projIntV(v2))
-      /*
-      case ICmpInst(pred, ty, lhs, rhs) =>
-        for {
-          val1 <- eval(lhs)
-          val2 <- eval(rhs)
-        } yield {
-          val v1 = ProjInt(val1)
-          val v2 = ProjInt(val2)
-          pred match {
-            case EQ => IntV(if (v1 == v2) 1 else 0)
-            case NE => IntV(if (v1 != v2) 1 else 0)
-            case SLT => IntV(if (v1 < v2) 1 else 0)
-            case SLE => IntV(if (v1 <= v2) 1 else 0)
-            case SGT => IntV(if (v1 > v2) 1 else 0)
-            case SGE => IntV(if (v1 >= v2) 1 else 0)
-            case ULT => IntV(if (v1 < v2) 1 else 0)
-            case ULE => IntV(if (v1 <= v2) 1 else 0)
-            case UGT => IntV(if (v1 > v2) 1 else 0)
-            case UGE => IntV(if (v1 >= v2) 1 else 0)
-          }
+      // case ICmpInst(pred, ty, lhs, rhs) =>
+      //   for {
+      //     val1 <- eval(lhs)
+      //     val2 <- eval(rhs)
+      //   } yield {
+      //     val v1 = ProjInt(val1)
+      //     val v2 = ProjInt(val2)
+      //     pred match {
+      //       case EQ => IntV(if (v1 == v2) 1 else 0)
+      //       case NE => IntV(if (v1 != v2) 1 else 0)
+      //       case SLT => IntV(if (v1 < v2) 1 else 0)
+      //       case SLE => IntV(if (v1 <= v2) 1 else 0)
+      //       case SGT => IntV(if (v1 > v2) 1 else 0)
+      //       case SGE => IntV(if (v1 >= v2) 1 else 0)
+      //       case ULT => IntV(if (v1 < v2) 1 else 0)
+      //       case ULE => IntV(if (v1 <= v2) 1 else 0)
+      //       case UGT => IntV(if (v1 > v2) 1 else 0)
+      //       case UGE => IntV(if (v1 >= v2) 1 else 0)
+      //     }
+      //   }
+      case ZExtInst(from, value, to) => for {
+        v <- eval(value)
+      } yield IntV(projIntV(v), to.asInstanceOf[IntType].size)
+      case SExtInst(from, value, to) =>  for {
+        v <- eval(value)
+      } yield IntV(projIntV(v), to.asInstanceOf[IntType].size)
+      case CallInst(ty, f, args) => 
+        val argValues: List[LLVMValue] = args.map {
+          case TypedArg(ty, attrs, value) => value
         }
-      case ZExtInst(from, value, to) => ???
-      case SExtInst(from, value, to) => ???
-      case CallInst(ty, f, args) => ???
-      case GetElemPtrInst(inBounds, baseType, ptrType, ptrValue, typedValues) => ???
-      */
+        for {
+          fv <- eval(f)
+          vs <- mapM(argValues)(eval)
+          // FIXME: potentially problematic: 
+          // f could be bitCast as well
+          _ <- pushFrame(f.asInstanceOf[GlobalId].id)
+          s <- getState
+          v <- reflect(projFunV(fv)(s, List(vs:_*)))
+          _ <- popFrame
+        } yield v
+      case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
+        // it seems that typedValues must be IntConst
+        val indexValue: List[Int] = typedValues.map(tv => tv.value.asInstanceOf[IntConst].n)
+        val offset = calculateOffset(ptrType, indexValue)
+        ptrValue match {
+          case GlobalId(id) => for {
+            addr <- heapEnv(id)
+          } yield LocV(addr + offset)
+          case _ => for {
+            lV <- eval(ptrValue)
+          } yield LocV(projLocV(lV) + offset)
+        }
+      case PhiInst(ty, incs) => ???
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
+        val cndM: Rep[SMTExpr] = ???
+        val thnM = for {
+          _ <- updatePC(cndM)
+          v <- eval(thnVal)
+        } yield v
+        val elsM = for {
+          _ <- updatePC(/* not */cndM)
+          v <- eval(elsVal)
+        } yield v
+        choice(thnM, elsM)
     }
   }
 
@@ -298,32 +374,43 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         val Some(b) = findBlock(fun, lab)
         execBlock(fun, b)
         // branches = lab :: branches
-      /*
+
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
-        val IntValue(v) = eval(cnd)
-        if (v == 1) {
-          val Some(b) = findBlock(curFrame.fname, thnLab)
-          branches = thnLab :: branches
-          execBlock(b)
-        } else {
-          val Some(b) = findBlock(curFrame.fname, elsLab)
-          branches = elsLab :: branches
-          execBlock(b)
-        }
+        val cndM: Rep[SMTExpr] = ???
+        val Some(bThn) = findBlock(fun, thnLab)
+        val thnM = for {
+          _ <- updatePC(cndM)
+          // update branches
+          v <- execBlock(fun, bThn)
+        } yield v
+        val Some(bEls) = findBlock(fun, elsLab)
+        val elsM = for {
+          _ <- updatePC(/* not */cndM)
+          // update branches
+          v <- execBlock(fun, bEls)
+        } yield v
+        choice(thnM, elsM)
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        val IntValue(i) = eval(cndVal)
-        val matchCase = table.filter(_.n == i)
-        if (matchCase.isEmpty) {
-          val Some(b) = findBlock(curFrame.fname, default)
-          branches = default :: branches
-          execBlock(b)
-        } else {
-          val Some(b) = findBlock(curFrame.fname, matchCase.head.label)
-          branches = matchCase.head.label :: branches
-          execBlock(b)
-        }
-      case Unreachable => throw new RuntimeException("Unreachable")
-      */
+        for {
+          v <- eval(cndVal)
+          // projIntV(v), compare with table, keep track of PC
+          // for path in table, add 1 PC
+          // if default, add all PC
+        } yield ???
+      // case SwitchTerm(cndTy, cndVal, default, table) =>
+      //   val IntValue(i) = eval(cndVal)
+      //   val matchCase = table.filter(_.n == i)
+      //   if (matchCase.isEmpty) {
+      //     val Some(b) = findBlock(curFrame.fname, default)
+      //     branches = default :: branches
+      //     execBlock(b)
+      //   } else {
+      //     val Some(b) = findBlock(curFrame.fname, matchCase.head.label)
+      //     branches = matchCase.head.label :: branches
+      //     execBlock(b)
+      //   }
+      // case Unreachable => throw new RuntimeException("Unreachable")
+
     }
   }
 
@@ -347,6 +434,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
+          // FIXME: potentially problematic: 
+          // f could be bitCast as well
           _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
           v <- reflect(projFunV(fv)(s, List(vs:_*)))
