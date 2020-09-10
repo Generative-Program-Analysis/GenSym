@@ -4,7 +4,8 @@ import scala.language.higherKinds
 import lms.core.virtualize
 import sai.imp.RepNondet
 import sai.lmsx.SAIOps
-import sai.structure.freer3.Eff.{Eff, ⊗}
+import sai.structure.freer3.Eff.{Eff, ∅, ⊗}
+import sai.structure.freer3.Freer
 import sai.structure.freer3.Freer.{Comp, Op, Return, ret}
 import sai.structure.freer3.OpenUnion.decomp
 
@@ -40,8 +41,9 @@ trait Explore {
 
 import lms.macros.SourceContext
 
+//old version that tries to support effects coming after nondet
 @virtualize
-trait StagedExplore { self : RepNondet with SAIOps =>
+trait StagedExplore2 { self : RepNondet with SAIOps =>
   import NondetListEx$.??
   implicit val msol   : Manifest[Sol]    = implicitly
   implicit val min    : Manifest[In]     = implicitly
@@ -124,24 +126,99 @@ trait StagedExplore { self : RepNondet with SAIOps =>
 }
 
 @virtualize
-trait StagedBFSExplore extends StagedExplore { self : RepNondet with SAIOps =>
-  type Worlds = List[World]
-  type Sol = List[In]
+trait StagedExplore { self : RepNondet with SAIOps =>
+  import NondetListEx$.??
+  implicit val msol   : Manifest[Sol]    = implicitly
+  implicit val min    : Manifest[In]     = implicitly
+  implicit val mworlds: Manifest[Worlds] = implicitly
+  implicit val mworld: Manifest[World]  = implicitly
+  final type □[X] = Rep[X]
+  type In
+  final type CIn   = Comp[self.Nondet ⊗ ∅, □[In]]
+  type Sol  //TODO: parameterize over a monoid for In
+  type Worlds   //TODO: parameterize over the data structure, is this also a monoid?
+  type Kont[A] = A => Sol
+  type World = Kont[Unit]
 
-  val sol : □[Sol] = List[In]()
-  val worlds : □[Worlds] = List[World]()
+  val sol    : Var[Sol]
+  val worlds : Var[Worlds]
 
-  def ext[A : Manifest](worlds: □[Worlds], xs: □[List[A]], k : □[A => In]): C[□[Unit]] = {
-    //val threads : □[Worlds] = xs map {x => (_:Unit) => k(x)}
-    //ret(worlds.append(threads))
-    ??? //TODO how to define mutable code?
+  //TODO nicify with handler combinator
+  def apply(c: CIn): □[Sol] = c match {
+    case Return(x) =>
+      __assign(sol, acc(sol, x))
+      schedule(())
+
+    case Op(u,k) => decomp(u) match {
+      case Right(op) => op match {
+        case NondetListEx$(??(m, xs)) =>
+          //some type foo to deal with the existential type on the nondet op
+          def handleNdet[B : Manifest](xs : □[List[B]], k : □[B] => CIn): □[Sol] = {
+            def callback(b: □[B]): □[Sol] = apply(k(b))
+            val kont :  □[Kont[B]] = fun(callback(_))
+            ext(xs, kont)
+            schedule(())
+          }
+          handleNdet(xs, k)(m)
+
+        case BinChoice =>
+          def callback(b: □[Boolean]): □[Sol] = apply(k(b))
+          val kont :  □[Kont[Boolean]] = fun(callback(_))
+          ext(kont)
+          schedule(())
+      }
+      case Left(_) => ??? //dead code
+    }
   }
 
-  def ext(worlds: □[Worlds], k : □[Boolean => In]): C[□[Unit]]
-  def nonEmpty(worlds: □[Worlds]) : □[Boolean] = ??? //ret(!worlds.isEmpty)
-  def dequeue (worlds: □[Worlds]) : □[World] = ??? //ret(worlds.dequeue)
+  def schedule: □[Unit => Sol] = fun({ x: □[Unit] =>
+    if (nonEmpty)
+      next(())
+    else sol
+  })
 
-  def acc(sol : □[Sol], x : □[In]) : C[□[Unit]] = ??? //ret(sol :+ x)  //TODO how to define mutable code?
+  def ext[A : Manifest](xs: □[List[A]], k : □[Kont[A]]): □[Unit]
+  def ext(k : □[Kont[Boolean]]): □[Unit]
+  def nonEmpty : □[Boolean]
+  def next: □[World]
+  def acc(sol : □[Sol], x : □[In]) : □[Sol]
+}
+
+@virtualize
+trait StagedListExplore extends StagedExplore { self : RepNondet with SAIOps =>
+  type Worlds = List[World]
+  type Sol    = List[In]
+
+  val sol    : Var[Sol] = var_new(List[In]())
+  val worlds : Var[Worlds] = var_new(List[World]())
+
+  override def nonEmpty: □[Boolean] = !readVar(worlds).isEmpty
+  override def next: □[World] = {
+    val w : □[World] = worlds.head
+    __assign(worlds, worlds.tail)
+    w
+  }
+  override def acc(sol : □[Sol], x : □[In]) : □[Sol] = x :: sol
+}
+
+@virtualize
+trait StagedBFSExplore extends StagedListExplore { self : RepNondet with SAIOps =>
+  override def ext[A : Manifest](xs: □[List[A]], k : □[Kont[A]]): □[Unit] = {
+    def mkWorld(x: □[A]): □[World] = fun({ _: □[Unit] => k(x) })
+    __assign(worlds, worlds ++ (xs.map(mkWorld(_)) ))
+  }
+
+  override def ext(k : □[Kont[Boolean]]): □[Unit] = ext(List(true,false), k)
+}
+
+@virtualize
+trait StagedDFSExplore extends StagedListExplore { self : RepNondet with SAIOps =>
+  override def ext[A : Manifest](xs: □[List[A]], k : □[Kont[A]]): □[Unit] = {
+    def mkWorld(x: □[A]): □[World] = fun({ _: □[Unit] => k(x) })
+    __assign(worlds, (xs.map(mkWorld(_)) ++ worlds ))
+  }
+
+  override def ext(k : □[Kont[Boolean]]): □[Unit] = ext(List(true,false), k)
 }
 
 //TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
