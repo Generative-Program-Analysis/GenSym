@@ -48,6 +48,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
+  def putHeap(h: Rep[Heap]) = for {
+    s <- get[Rep[SS], E]
+    _ <- put[Rep[SS], E]((h, s._2, s._3))
+  } yield ()
   def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
   def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._3
   def updatePC(x: Rep[SMTExpr]): Comp[E, Rep[Unit]] = for { 
@@ -58,7 +62,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   object Mem {
     import Addr._
-    def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
+    // it seems that heapEnv can be static
+    // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
     def frameEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
 
     def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] =
@@ -87,6 +92,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
 
     def update(σ: Rep[Mem], k: Rep[Addr], v: Rep[Value]): Rep[Mem] = ???
+    def updateL(σ: Rep[Mem], k: Rep[Addr], v: List[Rep[Value]]): Rep[Mem] = ???
     def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] = {
       ???
     }
@@ -137,6 +143,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     var funMap: collection.immutable.Map[String, FunctionDef] = SMap()
     var funDeclMap: collection.immutable.Map[String, FunctionDecl] = SMap()
     var globalDefMap: collection.immutable.Map[String, GlobalDef] = SMap()
+    var heapEnv: collection.immutable.Map[String, Rep[Addr]] = SMap()
 
     val BBFuns: collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]] =
       new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
@@ -153,13 +160,19 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
     def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
       if (index.isEmpty) 0 else ty match {
-      case PtrType(ety, addrSpace) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case ArrayType(size, ety) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case _ => ???
+        case PtrType(ety, addrSpace) =>
+          index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+        case ArrayType(size, ety) =>
+          index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+        case _ => ???
+      }
     }
-  }
+
+    def flattenArray(cst: Constant): List[Constant] = cst match {
+      case ArrayConst(xs) =>
+        xs.map(typC => typC.const).foldRight(SList[Constant]())((con, ls) => flattenArray(con) ++ ls)
+      case _ => SList(cst)
+    }
 
     def findBlock(fname: String, lab: String): Option[BB] = {
       funMap.get(fname).get.lookupBlock(lab)
@@ -226,14 +239,14 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case LocalId(x) => 
         for { f <- curFrame } yield { frameLookup(f, localAddr(f, x)) }
       case IntConst(n) => ret(IntV(n))
-      case ArrayConst(cs) => ???
+      // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
         eval(const)
       case BoolConst(b) => b match {
         case true => ret(IntV(1))
         case false => ret(IntV(0))
       }
-      case CharArrayConst(s) => ???
+      // case CharArrayConst(s) => 
       case GlobalId(id) if funMap.contains(id) =>
         val funDef = funMap(id)
         val params: List[String] = funDef.header.params.map {
@@ -260,14 +273,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           case "@sleep" => ??? //noop
         }
         ret(v)
-      case GlobalId(id) if globalDefMap.contains(id) => ???
+      case GlobalId(id) if globalDefMap.contains(id) =>
+        for { h <- getHeap } yield lookup(h, heapAddr(id))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         val indexValue: List[Int] = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
         val offset = calculateOffset(ptrType, indexValue)
         const match {
-          case GlobalId(id) => for {
-            addr <- heapEnv(id)
-          } yield LocV(addr + offset)
+          case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
           case _ => for {
             lV <- eval(const)
           } yield LocV(projLocV(lV) + offset)
@@ -344,9 +356,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         val indexValue: List[Int] = typedValues.map(tv => tv.value.asInstanceOf[IntConst].n)
         val offset = calculateOffset(ptrType, indexValue)
         ptrValue match {
-          case GlobalId(id) => for {
-            addr <- heapEnv(id)
-          } yield LocV(addr + offset)
+          case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
           case _ => for {
             lV <- eval(ptrValue)
           } yield LocV(projLocV(lV) + offset)
@@ -459,6 +469,40 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       s <- getState
       v <- reflect(execBlock(funName, bb, s))
     } yield v
+  }
+
+  def precompileHeap(heap: Rep[Heap]): Rep[Heap] = {
+    def evalConst(v: Constant): Rep[Value] = v match {
+      case BoolConst(b) =>
+        IntV(if (b) 1 else 0, 1) 
+      case IntConst(n) =>
+        IntV(n)
+      case ZeroInitializerConst =>
+        IntV(0)
+    }
+    def evalConstL(v: Constant): List[Rep[Value]] = v match {
+      case ArrayConst(cs) =>
+        flattenArray(v).map(c => evalConst(c))
+      case CharArrayConst(s) =>
+        s.map(c => IntV(c.toInt, 8)).toList
+    }
+
+    CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
+      val (allocH, addr) = alloc(h, getTySize(v.typ))
+      CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
+      if (v.const.isInstanceOf[ArrayConst] || v.const.isInstanceOf[CharArrayConst]) {
+        updateL(allocH, addr, evalConstL(v.const))
+      } else {
+        update(allocH, addr, evalConst(v.const))
+      }
+    }
+  }
+
+  def precompileHeapM: Comp[E, Rep[Unit]] = {
+    for {
+      h <- getHeap
+      _ <- putHeap(precompileHeap(h))
+    } yield ()
   }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
