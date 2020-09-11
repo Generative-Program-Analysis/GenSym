@@ -210,7 +210,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-
   // TODO:
   // eval ArrayConst
   // ICmpInst
@@ -228,7 +227,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for { f <- curFrame } yield { frameLookup(f, localAddr(f, x)) }
       case IntConst(n) => ret(IntV(n))
       case ArrayConst(cs) => ???
-      case BitCastExpr(from, const, to) => eval(const)
+      case BitCastExpr(from, const, to) =>
+        eval(const)
       case BoolConst(b) => b match {
         case true => ret(IntV(1))
         case false => ret(IntV(0))
@@ -333,6 +333,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           vs <- mapM(argValues)(eval)
           // FIXME: potentially problematic: 
           // f could be bitCast as well
+          // GW: yes, f could be bitCast, but after the evaluation, fv should be a function, right?
           _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
           v <- reflect(projFunV(fv)(s, List(vs:_*)))
@@ -366,51 +367,42 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(fun: String, inst: Terminator): Comp[E, Rep[Value]] = {
+  def execTerm(funName: String, inst: Terminator): Comp[E, Rep[Value]] = {
     inst match {
       case RetTerm(ty, Some(value)) => eval(value)
       case RetTerm(ty, None) => ret(IntV(0))
       case BrTerm(lab) =>
-        val Some(b) = findBlock(fun, lab)
-        execBlock(fun, b)
+        execBlock(funName, lab)
         // branches = lab :: branches
-
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
+        // TODO: needs to consider the case wehre cnd is a concrete value
         val cndM: Rep[SMTExpr] = ???
-        val Some(bThn) = findBlock(fun, thnLab)
         val thnM = for {
           _ <- updatePC(cndM)
           // update branches
-          v <- execBlock(fun, bThn)
+          v <- execBlock(funName, thnLab)
         } yield v
-        val Some(bEls) = findBlock(fun, elsLab)
         val elsM = for {
           _ <- updatePC(/* not */cndM)
           // update branches
-          v <- execBlock(fun, bEls)
+          v <- execBlock(funName, elsLab)
         } yield v
         choice(thnM, elsM)
       case SwitchTerm(cndTy, cndVal, default, table) =>
+        // TODO: cndVal can be either concrete or symbolic
+        // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
+        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
+          if (table.isEmpty) execBlock(funName, default, s)
+          else {
+            if (v == table.head.n) execBlock(funName, table.head.label, s)
+            else switchFun(v, s, table.tail)
+          }
+        }
         for {
           v <- eval(cndVal)
-          // projIntV(v), compare with table, keep track of PC
-          // for path in table, add 1 PC
-          // if default, add all PC
-        } yield ???
-      // case SwitchTerm(cndTy, cndVal, default, table) =>
-      //   val IntValue(i) = eval(cndVal)
-      //   val matchCase = table.filter(_.n == i)
-      //   if (matchCase.isEmpty) {
-      //     val Some(b) = findBlock(curFrame.fname, default)
-      //     branches = default :: branches
-      //     execBlock(b)
-      //   } else {
-      //     val Some(b) = findBlock(curFrame.fname, matchCase.head.label)
-      //     branches = matchCase.head.label :: branches
-      //     execBlock(b)
-      //   }
-      // case Unreachable => throw new RuntimeException("Unreachable")
-
+          s <- getState
+          r <- reflect(switchFun(projIntV(v), s, table))
+        } yield r
     }
   }
 
@@ -444,14 +436,28 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-  def execBlock(funName: String, bb: BB): Comp[E, Rep[Value]] = {
+  def execBlock(funName: String, label: String, s: Rep[SS]): Rep[List[(SS, Value)]] = {
+    val Some(block) = findBlock(funName, label)
+    execBlock(funName, block, s)
+  }
+
+  def execBlock(funName: String, bb: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
     if (!CompileTimeRuntime.BBFuns.contains(bb)) {
       precompileBlocks(funName, SList(bb))
     }
     val f = CompileTimeRuntime.BBFuns(bb)
+    f(s)
+  }
+
+  def execBlock(funName: String, label: String): Comp[E, Rep[Value]] = {
+    val Some(block) = findBlock(funName, label)
+    execBlock(funName, block)
+  }
+
+  def execBlock(funName: String, bb: BB): Comp[E, Rep[Value]] = {
     for {
       s <- getState
-      v <- reflect(f(s))
+      v <- reflect(execBlock(funName, bb, s))
     } yield v
   }
 
