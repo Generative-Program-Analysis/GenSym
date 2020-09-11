@@ -190,7 +190,6 @@ object ConcExecMemory {
     }
   }
 
-
   def eval(v: LLVMValue): Value = {
     v match {
       case LocalId(x) => curFrame(x)

@@ -60,11 +60,26 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   } yield ()
   def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
 
+  def counit[A](x: Rep[A]): A =
+    Unwrap(x) match {
+      case Backend.Const(x) => x.asInstanceOf[A]
+    }
+
+  def curFrameName: Comp[E, String] = for {
+    f <- curFrame
+  } yield counit(f._1)
+
   object Mem {
     import Addr._
+
+    // TODO: be careful of overwriting
+    def envLookup(f: String, x: String): Rep[Addr] = ???
+
     // it seems that heapEnv can be static
     // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
-    def frameEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
+    def frameEnv(s: String): Comp[E, Rep[Addr]] = for {
+      f <- curFrameName
+    } yield envLookup(f, s)
 
     def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] =
       Wrap[Value](Adapter.g.reflect("mem-lookup", Unwrap(σ), Unwrap(a)))
@@ -97,7 +112,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       ???
     }
     def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
-      s <- getState
       addr <- frameEnv(x)
       _ <- frameUpdate(addr, v)
     } yield ()
@@ -269,7 +283,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         val v = id match {
           case "@printf" => Primitives.printf
           case "@read" => Primitives.read
-          case "@exit" => ??? // generate an exit
+          case "@exit" => ??? // returns nondet fail? this should be something like a break
           case "@sleep" => ??? //noop
         }
         ret(v)
@@ -310,26 +324,26 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
         } yield IntV(projIntV(v1) - projIntV(v2))
-      // case ICmpInst(pred, ty, lhs, rhs) =>
-      //   for {
-      //     val1 <- eval(lhs)
-      //     val2 <- eval(rhs)
-      //   } yield {
-      //     val v1 = ProjInt(val1)
-      //     val v2 = ProjInt(val2)
-      //     pred match {
-      //       case EQ => IntV(if (v1 == v2) 1 else 0)
-      //       case NE => IntV(if (v1 != v2) 1 else 0)
-      //       case SLT => IntV(if (v1 < v2) 1 else 0)
-      //       case SLE => IntV(if (v1 <= v2) 1 else 0)
-      //       case SGT => IntV(if (v1 > v2) 1 else 0)
-      //       case SGE => IntV(if (v1 >= v2) 1 else 0)
-      //       case ULT => IntV(if (v1 < v2) 1 else 0)
-      //       case ULE => IntV(if (v1 <= v2) 1 else 0)
-      //       case UGT => IntV(if (v1 > v2) 1 else 0)
-      //       case UGE => IntV(if (v1 >= v2) 1 else 0)
-      //     }
-      //   }
+      case ICmpInst(pred, ty, lhs, rhs) =>
+        for {
+          val1 <- eval(lhs)
+          val2 <- eval(rhs)
+        } yield {
+          val v1 = projIntV(val1)
+          val v2 = projIntV(val2)
+          pred match {
+            case EQ => IntV(if (v1 == v2) 1 else 0)
+            case NE => IntV(if (v1 != v2) 1 else 0)
+            case SLT => IntV(if (v1 < v2) 1 else 0)
+            case SLE => IntV(if (v1 <= v2) 1 else 0)
+            case SGT => IntV(if (v1 > v2) 1 else 0)
+            case SGE => IntV(if (v1 >= v2) 1 else 0)
+            case ULT => IntV(if (v1 < v2) 1 else 0)
+            case ULE => IntV(if (v1 <= v2) 1 else 0)
+            case UGT => IntV(if (v1 > v2) 1 else 0)
+            case UGE => IntV(if (v1 >= v2) 1 else 0)
+          }
+        }
       case ZExtInst(from, value, to) => for {
         v <- eval(value)
       } yield IntV(projIntV(v), to.asInstanceOf[IntType].size)
@@ -472,17 +486,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   def precompileHeap(heap: Rep[Heap]): Rep[Heap] = {
-    def evalConst(v: Constant): Rep[Value] = v match {
+    def evalConst(v: Constant): List[Rep[Value]] = v match {
       case BoolConst(b) =>
-        IntV(if (b) 1 else 0, 1) 
+        SList(IntV(if (b) 1 else 0, 1))
       case IntConst(n) =>
-        IntV(n)
+        SList(IntV(n))
       case ZeroInitializerConst =>
-        IntV(0)
-    }
-    def evalConstL(v: Constant): List[Rep[Value]] = v match {
+        SList(IntV(0))
       case ArrayConst(cs) =>
-        flattenArray(v).map(c => evalConst(c))
+        flattenArray(v).flatMap(c => evalConst(c))
       case CharArrayConst(s) =>
         s.map(c => IntV(c.toInt, 8)).toList
     }
@@ -490,11 +502,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
       val (allocH, addr) = alloc(h, getTySize(v.typ))
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
-      if (v.const.isInstanceOf[ArrayConst] || v.const.isInstanceOf[CharArrayConst]) {
-        updateL(allocH, addr, evalConstL(v.const))
-      } else {
-        update(allocH, addr, evalConst(v.const))
-      }
+      updateL(allocH, addr, evalConst(v.const))
     }
   }
 
