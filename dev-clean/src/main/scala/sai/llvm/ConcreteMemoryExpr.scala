@@ -199,10 +199,7 @@ object ConcExecMemory {
         ArrayValue(ArrayType(cs.length, cs.head.ty), cs.map(v => eval(v.const)))
       case CharArrayConst(s) =>
         // TODO need to be modified in parser
-        var realS = s.slice(1, s.length - 1)
-        realS = realS.replaceAllLiterally("""\0A""", "\n")
-        realS = realS.replaceAllLiterally("\\00", "\0")
-        ArrayValue(ArrayType(realS.length, IntType(8)), realS.map(c => IntValue(c.toInt)).toList)
+        ArrayValue(ArrayType(s.length, IntType(8)), s.map(c => IntValue(c.toInt)).toList)
       case ZeroInitializerConst => IntValue(0)
       case GlobalId(id) if funMap.contains(id) =>
         val funDef = funMap(id)
@@ -507,12 +504,12 @@ object TestMemory {
   }
 
   def main(args: Array[String]): Unit = {
-    testArrayAccess
-    testArrayGetSet
-    testArrayAccessLocal
+    // testArrayAccess
+    // testArrayGetSet
+    // testArrayAccessLocal
 
-    testAdd
-    testPower
+    // testAdd
+    // testPower
     testMaze
     // testMazeNoPhi
   }

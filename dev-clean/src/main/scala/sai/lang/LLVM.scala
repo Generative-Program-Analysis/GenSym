@@ -698,7 +698,11 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitCharArrayConst(ctx: LLVMParser.CharArrayConstContext): LAST = {
-    CharArrayConst(ctx.stringLit.STRING_LIT.getText)
+    val raw = ctx.stringLit.STRING_LIT.getText
+    var s = raw.slice(1, raw.length - 1)
+    s = s.replaceAllLiterally("\\0A", "\n")
+    s = s.replaceAllLiterally("\\00", "\u0000")
+    CharArrayConst(s)
   }
 
   override def visitStructConst(ctx: LLVMParser.StructConstContext): LAST = {
