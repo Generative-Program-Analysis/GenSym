@@ -89,6 +89,9 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     val src = run(name, ng)
     emitHeaders(stream)
+
+    emitFunctionDecls(stream)
+
     if (SMT_DEBUG) emitln("VC vc = vc_createValidityChecker();")
 
     emitDatastructures(stream)
