@@ -247,7 +247,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
     case Node(s, "list-take", List(xs, i), _) =>
       shallow(xs); emit(".take("); shallow(i); emit(")")
     case Node(s, "list-prepend", List(xs, x), _) =>
-      shallow(x); emit(".push_front("); shallow(xs); emit(")")
+      shallow(xs); emit(".push_front("); shallow(x); emit(")")
     case Node(s, "list-concat", List(xs, ys), _) =>
       shallow(xs); emit(" + "); shallow(ys)
     case Node(s, "list-mkString", List(xs, Const("")), _) =>

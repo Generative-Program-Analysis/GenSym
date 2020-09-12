@@ -586,7 +586,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       if (CompileTimeRuntime.BBFuns.contains(b)) {
         System.err.println("Already compiled " + b)
       } else {
-        val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
+        // val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
+        val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
         CompileTimeRuntime.BBFuns(b) = repRunBlock
       }
     }
@@ -616,16 +617,17 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
-    val Some(f) = m.lookupFuncDef(fname)
-    precompileFunctions(SList(f))
-    val repf: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(fname)
+    // val Some(f) = m.lookupFuncDef(fname)
+    // precompileFunctions(SList(f))
+    // val repf: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(fname)
 
     val heap0 = precompileHeap(emptyMem)
     // TODO: put the initial frame mem
     val comp = for {
+      fv <- eval(GlobalId(fname))
       _ <- pushFrame(fname)
       s <- getState
-      v <- reflect(repf(s))
+      v <- reflect(projFunV(fv)(s, List()))
       _ <- popFrame
     } yield v
     val initState: Rep[SS] = (emptyMem, List[Frame](), Set[SMTExpr]())
@@ -703,13 +705,13 @@ object TestStagedLLVM {
     }
 
   def main(args: Array[String]): Unit = {
-    val code = specialize(add, "@main")
+    // val code = specialize(add, "@main")
     //val code = specialize(singlepath, "@singlepath")
-    //val code = specialize(branch, "@f")
-    // val code = specialize(multipath, "@f")
+    // val code = specialize(branch, "@f")
+    val code = specialize(multipath, "@f")
     //println(code.code)
     //code.eval(5)
-    code.save("gen/add.cpp")
+    code.save("gen/multipath.cpp")
     println(code.code)
     println("Done")
   }
