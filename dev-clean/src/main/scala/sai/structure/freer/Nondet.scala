@@ -11,6 +11,7 @@ object NondetList {
 
   sealed trait Nondet[K]
   case class NondetList[A](xs: List[A]) extends Nondet[A]
+  case object BinChoice extends Nondet[Boolean]
 
   //for some reason, the implicit resolution will try to prove NondetList ∈ R and fail
   //it's however safe to upcast manually
@@ -18,6 +19,12 @@ object NondetList {
 
   def choice[R <: Eff, A](x: A, y: A)(implicit I: Nondet ∈ R): Comp[R, A] =
     perform[Nondet, R, A](NondetList(List(x, y)))
+
+  def choice[R <: Eff, A](a: Comp[R, A], b: Comp[R, A])(implicit I: Nondet ∈ R): Comp[R, A] =
+    perform[Nondet, R, Boolean](BinChoice) >>= {
+      case true => a
+      case false => b
+    }
 
   def select[R <: Eff, A](xs: List[A])(implicit I: Nondet ∈ R): Comp[R, A] =
     perform[Nondet, R, A](NondetList(xs))
