@@ -33,10 +33,12 @@ import scala.collection.immutable.{Map => SMap}
 trait StagedSymExecEff extends SAIOps with RepNondet {
   // FIXME: concrete representation of Mem and Expr
   trait Mem
-  trait SMTExpr
   trait Addr
   trait Value
+  type SMTExpr = Value // Temp changes
 
+  // TODO: if there is no dyanmic heap allocation, the object
+  //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
   type Heap = Mem
   type Frame = (String, Mem)
   type PC = Set[SMTExpr]
@@ -44,36 +46,57 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
+  val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt-mem"))
+
   // TODO: can be Comp[E, Unit]?
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
+
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
   def putHeap(h: Rep[Heap]) = for {
     s <- get[Rep[SS], E]
     _ <- put[Rep[SS], E]((h, s._2, s._3))
   } yield ()
-  def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
+
   def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._3
   def updatePC(x: Rep[SMTExpr]): Comp[E, Rep[Unit]] = for { 
-    s <- get[Rep[SS], E]
-    _ <- put[Rep[SS], E]((s._1, s._2, s._3 ++ Set(x)))
+    s <- getState
+    _ <- putState((s._1, s._2, s._3 ++ Set(x)))
   } yield ()
+
+  def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
   def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
+  def pushFrame(f: String): Comp[E, Rep[Unit]] = pushFrame((f, emptyMem))
+  def pushFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] =
+    for {
+      s <- getState
+      _ <- putState((s._1, f :: s._2, s._3))
+    } yield ()
+  def popFrame: Comp[E, Rep[Unit]] =
+    for {
+      s <- getState
+      _ <- putState((s._1, s._2.tail, s._3))
+    } yield ()
+  def curFrameName: Comp[E, String] = for {
+    f <- curFrame
+  } yield counit(f._1)
+  def replaceCurrentFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] = for {
+    _ <- popFrame
+    _ <- pushFrame(f)
+  } yield ()
 
   def counit[A](x: Rep[A]): A =
     Unwrap(x) match {
       case Backend.Const(x) => x.asInstanceOf[A]
     }
 
-  def curFrameName: Comp[E, String] = for {
-    f <- curFrame
-  } yield counit(f._1)
-
   object Mem {
     import Addr._
 
     // TODO: be careful of overwriting
-    def envLookup(f: String, x: String): Rep[Addr] = ???
+    def envLookup(f: String, x: String): Rep[Addr] =
+      // FIXME: seems can be using a current stage map
+      Wrap[Addr](Adapter.g.reflect("env-lookup", Backend.Const(f), Backend.Const(x)))
 
     // it seems that heapEnv can be static
     // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
@@ -85,8 +108,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Value](Adapter.g.reflect("mem-lookup", Unwrap(σ), Unwrap(a)))
     def frameLookup(f: Rep[Frame], a: Rep[Addr]): Rep[Value] = lookup(f._2, a)
 
-    def replaceCurrentFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] = ???
-    def alloc(σ: Rep[Mem], size: Int): (Rep[Mem], Rep[Addr]) = ???
+    def alloc(σ: Rep[Mem], size: Int): (Rep[Mem], Rep[Addr]) = {
+      // FIXME: 
+      val m = Wrap[Mem](Adapter.g.reflect("alloc", Unwrap(σ), Backend.Const(size)))
+      val a = Wrap[Addr](Adapter.g.reflect("alloc", Unwrap(σ), Backend.Const(size)))
+      (m, a)
+    }
+
     def frameAlloc(f: Rep[Frame], size: Int): (Rep[Frame], Rep[Addr]) = {
       val (σ, a) = alloc(f._2, size)
       ((f._1, σ), a)
@@ -106,51 +134,73 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       }
     }
 
-    def update(σ: Rep[Mem], k: Rep[Addr], v: Rep[Value]): Rep[Mem] = ???
-    def updateL(σ: Rep[Mem], k: Rep[Addr], v: List[Rep[Value]]): Rep[Mem] = ???
-    def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] = {
-      ???
-    }
+    def update(σ: Rep[Mem], k: Rep[Addr], v: Rep[Value]): Rep[Mem] =
+      Wrap[Mem](Adapter.g.reflect("mem-update", Unwrap(σ), Unwrap(k), Unwrap(v)))
+    def updateL(σ: Rep[Mem], k: Rep[Addr], v: Rep[List[Value]]): Rep[Mem] =
+      Wrap[Mem](Adapter.g.reflect("mem-updateL", Unwrap(σ), Unwrap(k), Unwrap(v)))
+    def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
+      for {
+        f <- curFrame
+        _ <- replaceCurrentFrame((f._1, update(f._2, k, v)))
+      } yield ()
     def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
       addr <- frameEnv(x)
       _ <- frameUpdate(addr, v)
     } yield ()
     def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
-      ???
+      // TODO: improve this
+      if (xs.isEmpty) ret(())
+      else {
+        val x = xs.head
+        val v = vs.head
+        for {
+          _ <- frameUpdate(x, v)
+          _ <- frameUpdate(xs.tail, vs.tail)
+        } yield ()
+      }
     }
 
     def selectMem(v: Rep[Value]): Comp[E, Rep[Mem]] = {
       // if v is a HeapAddr, return heap, otherwise return its frame memory
-      ???
+      ret(Wrap[Mem](Adapter.g.reflect("select-mem", Unwrap(v))))
     }
     def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = {
       // if v is a HeapAddr, update heap, otherwise update its frame memory
       // v should be a LocV and wrap an actual location
-      ???
+      // FIXME:
+      ret(())
     }
-
-    def pushFrame(f: String): Comp[E, Rep[Unit]] = ???
-    def popFrame: Comp[E, Rep[Unit]] = ???
   }
 
   object Addr {
-    def localAddr(f: Rep[Frame], x: String): Rep[Addr] = ???
-    def heapAddr(x: String): Rep[Addr] = ???
+    def localAddr(f: Rep[Frame], x: String): Rep[Addr] = {
+      Wrap[Addr](Adapter.g.reflect("local-addr", Unwrap(f), Backend.Const(x)))
+    }
+    def heapAddr(x: String): Rep[Addr] = {
+      Wrap[Addr](Adapter.g.reflect("heap-addr", Backend.Const(x)))
+    }
     
     implicit class AddrOP(a: Rep[Addr]) {
-      def +(x: Int): Rep[Addr] = ???
+      def +(x: Int): Rep[Addr] =
+        Wrap[Addr](Adapter.g.reflect("addr-+", Unwrap(a), Backend.Const(x)))
     }
   }
 
   object Value {
     def IntV(i: Rep[Int]): Rep[Value] = IntV(i, 32)
-    def IntV(i: Rep[Int], bw: Int): Rep[Value] = ???
-    def LocV(l: Rep[Addr]): Rep[Value] = ???
-    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = ???
+    def IntV(i: Rep[Int], bw: Int): Rep[Value] =
+      Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i), Backend.Const(bw)))
+    def LocV(l: Rep[Addr]): Rep[Value] = 
+      Wrap[Value](Adapter.g.reflect("LocV", Unwrap(l)))
+    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] =
+      Wrap[Value](Adapter.g.reflect("FunV", Unwrap(f)))
 
-    def projLocV(v: Rep[Value]): Rep[Addr] = ???
-    def projIntV(v: Rep[Value]): Rep[Int] = ???
-    def projFunV(v: Rep[Value]): Rep[(SS, List[Value]) => List[(SS, Value)]] = ???
+    def projLocV(v: Rep[Value]): Rep[Addr] =
+      Wrap[Addr](Adapter.g.reflect("proj-LocV", Unwrap(v)))
+    def projIntV(v: Rep[Value]): Rep[Int] =
+      Wrap[Int](Adapter.g.reflect("proj-IntV", Unwrap(v)))
+    def projFunV(v: Rep[Value]): Rep[(SS, List[Value]) => List[(SS, Value)]] =
+      Wrap[(SS, List[Value]) => List[(SS, Value)]](Adapter.g.reflect("proj-FunV", Unwrap(v)))
   }
 
   object CompileTimeRuntime {
@@ -377,16 +427,19 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
       case PhiInst(ty, incs) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
-        val cndM: Rep[SMTExpr] = ???
-        val thnM = for {
-          _ <- updatePC(cndM)
-          v <- eval(thnVal)
+        for {
+          cnd <- eval(cndVal)
+          v <- choice(
+            for {
+              _ <- updatePC(cnd)
+              v <- eval(thnVal)
+            } yield v,
+            for {
+              _ <- updatePC(/* not */cnd)
+              v <- eval(elsVal)
+            } yield v
+          )
         } yield v
-        val elsM = for {
-          _ <- updatePC(/* not */cndM)
-          v <- eval(elsVal)
-        } yield v
-        choice(thnM, elsM)
     }
   }
 
@@ -400,18 +453,20 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         // branches = lab :: branches
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         // TODO: needs to consider the case wehre cnd is a concrete value
-        val cndM: Rep[SMTExpr] = ???
-        val thnM = for {
-          _ <- updatePC(cndM)
-          // update branches
-          v <- execBlock(funName, thnLab)
+        // val cndM: Rep[SMTExpr] = ???
+        for {
+          cndVal <- eval(cnd)
+          v <- choice(
+            for {
+              _ <- updatePC(cndVal)
+              v <- execBlock(funName, thnLab)
+            } yield v,
+            for {
+              _ <- updatePC(/* not */cndVal)
+              // update branches
+              v <- execBlock(funName, elsLab)
+            } yield v)
         } yield v
-        val elsM = for {
-          _ <- updatePC(/* not */cndM)
-          // update branches
-          v <- execBlock(funName, elsLab)
-        } yield v
-        choice(thnM, elsM)
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
@@ -502,7 +557,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
       val (allocH, addr) = alloc(h, getTySize(v.typ))
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
-      updateL(allocH, addr, evalConst(v.const))
+      updateL(allocH, addr, List(evalConst(v.const):_*))
     }
   }
 
@@ -569,10 +624,9 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case _ => super.quote(s)
   }
 
+  // Note: depends on the concrete representation of Mem, we can emit different code
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "mem-lookup", List(σ, a), _) =>
-      // Note: depends on the concrete representation of Mem, we can emit different code
-      ???
+    // case Node(s, "mem-lookup", List(σ, a), _) =>
     case _ => super.shallow(n)
   }
 }
