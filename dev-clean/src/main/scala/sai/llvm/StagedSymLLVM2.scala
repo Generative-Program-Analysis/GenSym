@@ -46,7 +46,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
-  val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt-mem"))
+  lazy val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt-mem"))
 
   // TODO: can be Comp[E, Unit]?
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
@@ -77,9 +77,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       s <- getState
       _ <- putState((s._1, s._2.tail, s._3))
     } yield ()
-  def curFrameName: Comp[E, String] = for {
+  def curFrameName: Comp[E, Rep[String]] = for {
     f <- curFrame
-  } yield counit(f._1)
+  } yield f._1 //counit(f._1)
   def replaceCurrentFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] = for {
     _ <- popFrame
     _ <- pushFrame(f)
@@ -94,9 +94,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     import Addr._
 
     // TODO: be careful of overwriting
-    def envLookup(f: String, x: String): Rep[Addr] =
+    def envLookup(f: Rep[String], x: Rep[String]): Rep[Addr] =
       // FIXME: seems can be using a current stage map
-      Wrap[Addr](Adapter.g.reflect("env-lookup", Backend.Const(f), Backend.Const(x)))
+      Wrap[Addr](Adapter.g.reflect("env-lookup", Unwrap(f), Unwrap(x)))
 
     // it seems that heapEnv can be static
     // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
@@ -192,15 +192,16 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i), Backend.Const(bw)))
     def LocV(l: Rep[Addr]): Rep[Value] = 
       Wrap[Value](Adapter.g.reflect("LocV", Unwrap(l)))
-    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflect("FunV", Unwrap(f)))
+    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = Wrap[Value](Unwrap(f))
+      // Wrap[Value](Adapter.g.reflect("FunV", Unwrap(f)))
 
     def projLocV(v: Rep[Value]): Rep[Addr] =
       Wrap[Addr](Adapter.g.reflect("proj-LocV", Unwrap(v)))
     def projIntV(v: Rep[Value]): Rep[Int] =
       Wrap[Int](Adapter.g.reflect("proj-IntV", Unwrap(v)))
     def projFunV(v: Rep[Value]): Rep[(SS, List[Value]) => List[(SS, Value)]] =
-      Wrap[(SS, List[Value]) => List[(SS, Value)]](Adapter.g.reflect("proj-FunV", Unwrap(v)))
+      Wrap[(SS, List[Value]) => List[(SS, Value)]](Unwrap(v))
+      // Wrap[(SS, List[Value]) => List[(SS, Value)]](Adapter.g.reflect("proj-FunV", Unwrap(v)))
   }
 
   object CompileTimeRuntime {
@@ -328,7 +329,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           } yield v
           reify(s)(m)
         }
-        ret(FunV(fun(repf)))
+        ret(FunV(topFun(repf)))
+        // ret(FunV(fun(repf)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
           case "@printf" => Primitives.printf
@@ -608,6 +610,27 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       }
     }
   }
+
+  def exec(m: Module, fname: String): Rep[List[(SS, Value)]] = {
+    CompileTimeRuntime.funMap = m.funcDefMap
+    CompileTimeRuntime.funDeclMap = m.funcDeclMap
+    CompileTimeRuntime.globalDefMap = m.globalDefMap
+
+    val Some(f) = m.lookupFuncDef(fname)
+    precompileFunctions(SList(f))
+    val repf: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(fname)
+
+    val heap0 = precompileHeap(emptyMem)
+    // TODO: put the initial frame mem
+    val comp = for {
+      _ <- pushFrame(fname)
+      s <- getState
+      v <- reflect(repf(s))
+      _ <- popFrame
+    } yield v
+    val initState: Rep[SS] = (emptyMem, List[Frame](), Set[SMTExpr]())
+    reify[Value](initState)(comp)
+  }
 }
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
@@ -628,5 +651,66 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     // case Node(s, "mem-lookup", List(σ, a), _) =>
     case _ => super.shallow(n)
+  }
+}
+
+trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExecEff { q =>
+  override val codegen = new CGenBase with SymStagedLLVMGen {
+    val IR: q.type = q
+    import IR._
+
+    override def primitive(t: String): String = t match {
+      case "Unit" => "std::monostate"
+      case _ => super.primitive(t)
+    }
+
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString == "java.lang.String") "String"
+      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
+      else if (m.toString.endsWith("$Addr")) "Addr"
+      else if (m.toString.endsWith("$Mem")) "Mem"
+      else super.remap(m)
+    }
+  }
+}
+
+object TestStagedLLVM {
+  def parse(file: String): Module = {
+    val input = scala.io.Source.fromFile(file).mkString
+    sai.llvm.LLVMTest.parse(input)
+  }
+
+  val add = parse("llvm/benchmarks/add.ll")
+  val power = parse("llvm/benchmarks/power.ll")
+  val singlepath = parse("llvm/benchmarks/single_path5.ll")
+  val branch = parse("llvm/benchmarks/branch2.ll")
+  val multipath= parse("llvm/benchmarks/multipath.ll")
+
+  @virtualize
+  def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
+    new CppSymStagedLLVMDriver[Int, Unit] {
+      def snippet(u: Rep[Int]) = {
+        //def exec(m: Module, fname: String, s0: Rep[Map[Loc, Value]]): Rep[List[(SS, Value)]]
+        //val s = Map(FrameLoc("f_%x") -> IntV(5), FrameLoc("f_%y") -> IntV(2))
+        //val s = Map(FrameLoc("%x") -> IntV(5))
+        // val s = Map(FrameLoc("f_%a") -> IntV(5),
+        // FrameLoc("f_%b") -> IntV(6),
+        //FrameLoc("f_%c") -> IntV(7))
+        val s = Map()
+        val res = exec(m, fname)
+        println(res.size)
+      }
+    }
+
+  def main(args: Array[String]): Unit = {
+    val code = specialize(add, "@main")
+    //val code = specialize(singlepath, "@singlepath")
+    //val code = specialize(branch, "@f")
+    // val code = specialize(multipath, "@f")
+    //println(code.code)
+    //code.eval(5)
+    code.save("add.cpp")
+    println(code.code)
+    println("Done")
   }
 }

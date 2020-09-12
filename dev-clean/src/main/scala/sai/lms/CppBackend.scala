@@ -52,16 +52,18 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::Backend.Const("val")::_, _) =>
       ???
-    case n @ Node(f, "λ", (b: Block)::_, _) =>
+    case n @ Node(f, "λ", (b: Block), _) =>
+      // case n @ Node(f, "λ", (b: Block)::_, _) =>
+      // TODO: regression test
       /* Note: generate a declaration with full type annotation first,
        * and then generate the actual closure.
        */
-      System.out.println(n)
       val retType = remap(typeBlockRes(b.res))
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
       emitln(s"std::function<$retType(${argTypes}&)> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List("&")))
+      // quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List("&")))
+      quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List.fill(b.in.length)("&")))
       emitln(";")
       //super.traverse(n)
     case _ => super.traverse(n)
@@ -87,11 +89,11 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     val src = run(name, ng)
     emitHeaders(stream)
+    if (SMT_DEBUG) emitln("VC vc = vc_createValidityChecker();")
+
     emitDatastructures(stream)
     emitFunctions(stream)
     emitInit(stream)
-
-    if (SMT_DEBUG) emitln("VC vc = vc_createValidityChecker();")
 
     emitln(s"\n/**************** $name ****************/")
     emit(src)
