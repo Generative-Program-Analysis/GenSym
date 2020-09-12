@@ -666,7 +666,7 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
 
     override def remap(m: Manifest[_]): String = {
       if (m.toString == "java.lang.String") "String"
-      else if (m.toString.endsWith("$Value")) "Ptr<Value>"
+      else if (m.toString.endsWith("$Value")) "Value"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
       else super.remap(m)
@@ -709,7 +709,7 @@ object TestStagedLLVM {
     // val code = specialize(multipath, "@f")
     //println(code.code)
     //code.eval(5)
-    code.save("add.cpp")
+    code.save("gen/add.cpp")
     println(code.code)
     println("Done")
   }
