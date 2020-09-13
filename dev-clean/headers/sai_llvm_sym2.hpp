@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <map>
 
 #include <immer/flex_vector.hpp>
 #include <sai.hpp>
@@ -14,7 +15,7 @@
  * Mem := flex_vector<Value>
  * Addr := Int
  * Value := IntV | SymV | LocV
- * TODO: update_mem, stack_addr, select_mem, stack_addr_save
+ * TODO: proj_SMTExpr
  * Not necessary?: heap_addr, mem_alloc
  * Done: make_IntV, make_LocV, proj_LocV, proj_IntV, mt_mem, mem_take, mem_size, mem_lookup, mem_update
  *       mem_updateL
@@ -36,7 +37,13 @@ struct IntV : Value {
   }
 };
 
-#define make_IntV(i) std::make_shared<IntV>(i)
+inline Ptr<Value> make_IntV(int i) {
+  return std::make_shared<IntV>(i);
+}
+inline Ptr<Value> make_IntV(int i, int bw) {
+  //FIXME, bit width
+  return std::make_shared<IntV>(i);
+}
 
 inline int proj_IntV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<IntV>(v)->i;
@@ -58,20 +65,24 @@ struct LocV : Value {
 inline unsigned int proj_LocV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
-
+inline LocV::Kind kStack() { return LocV::kStack; }
+inline LocV::Kind kHeap() { return LocV::kHeap; }
 
 using PtrVal = Ptr<Value>;
+using SMTExpr = Ptr<Value>; //FIXME
+using PC = immer::set<SMTExpr>;
 using Mem = immer::flex_vector<PtrVal>;
+using SS = std::tuple<Mem, Mem, PC>;
 
-static Mem mt_mem = immer::flex_vector<PtrVal>{};
-static immer::flex_vector<std::pair<std::tuple<Mem, Mem, set<Value>>, Value>> mt_res = flex_vector<std::pair<std::tuple<Mem, Mem, set<Value>>, Value>>{};
+// static Mem mt_mem = immer::flex_vector<PtrVal>{};
+inline Mem mt_mem() { return immer::flex_vector<PtrVal>{}; }
 
 #define mem_take(m, n) m.take(n)
 #define mem_size(m) m.size()
 #define mem_lookup(m, a) m.at(a)
 #define mem_alloc(m, size) m
 
-Mem mem_update(Mem m, unsigned int addr, Ptr<Value> v) {
+Mem mem_update(Mem m, unsigned int addr, PtrVal v) {
   if (m.size() <= addr) // TODO: or <=?
     return m.push_back(v);
   return m.update(addr, [&](auto l) { return v; });
@@ -79,6 +90,41 @@ Mem mem_update(Mem m, unsigned int addr, Ptr<Value> v) {
 
 Mem mem_updateL(Mem m, unsigned int addr, immer::flex_vector<PtrVal> vals) {
   return m + vals;
+}
+
+Mem select_mem(PtrVal v, Mem heap, Mem stack) {
+  auto loc = std::dynamic_pointer_cast<LocV>(v);
+  if (loc->k == LocV::kStack) return stack;
+  return heap;
+}
+
+static std::map<String, int> stack_env{};
+
+void stack_addr_save(String x, int addr) {
+  if (stack_env.find(x) != stack_env.end()) {
+    std::cout << "Existing environment mapping " << x << " -> " << addr << std::endl;
+  }
+  stack_env[x] = addr;
+}
+
+int stack_addr(Mem m, String x) {
+  if (stack_env.find(x) == stack_env.end()) {
+    std::cout << "Cannot find " << x << " in stack_env" << std::endl;
+  }
+  return stack_env.at(x);
+}
+
+SS update_mem(SS state, PtrVal k, PtrVal v) {
+  auto loc = std::dynamic_pointer_cast<LocV>(k);
+  if (loc->k == LocV::kStack) {
+    auto stack = std::get<1>(state);
+    auto new_stack = mem_update(stack, loc->l, v);
+    return {std::get<0>(state), new_stack, std::get<2>(state)};
+  } else {
+    auto heap = std::get<0>(state);
+    auto new_heap = mem_update(heap, loc->l, v);
+    return {new_heap, std::get<1>(state), std::get<2>(state)};
+  }
 }
 
 #endif

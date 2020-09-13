@@ -163,6 +163,7 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
     (a: A) => {
       System.out.println(s"Running ./$bin $a")
       // FIXME: LD_LIBRARY_PATH?
+      // export LD_LIBRARY_PATH=../stp/build/lib
       Process(s"./$bin $a", None, "LD_LIBRARY_PATH"->"../stp/build/lib").lines.foreach(Console.println _)
     }
   }
