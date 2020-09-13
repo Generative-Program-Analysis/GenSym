@@ -488,7 +488,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
          */
         // Temp: concrete execution below:
         for {
-          cndVal <- eval(cnd)
+          cndVal <- eval(cnd)(funName)
           s <- getState
           v <- {
             reflect(if (cndVal.int == 1) {
