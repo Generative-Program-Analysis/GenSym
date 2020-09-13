@@ -51,7 +51,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   lazy val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
 
   // TODO: can be Comp[E, Unit]?
-  def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
+  def putState(s: Rep[SS]): Comp[E, Unit] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
 
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
@@ -146,12 +146,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   object StackAddr {
     def apply(x: String): Rep[Addr] = {
-      Wrap[Addr](Adapter.g.reflect("stack_addr", Backend.Const(x)))
+      Wrap[Addr](Adapter.g.reflectWrite("stack_addr", Backend.Const(x))(Adapter.CTRL))
     }
   }
   object HeapAddr {
     def apply(x: String): Rep[Addr] = {
-      Wrap[Addr](Adapter.g.reflect("heap_addr", Backend.Const(x)))
+      Wrap[Addr](Adapter.g.reflectWrite("heap_addr", Backend.Const(x))(Adapter.CTRL))
     }
   }
   
