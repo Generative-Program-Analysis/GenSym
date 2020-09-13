@@ -719,7 +719,7 @@ object TestStagedLLVM {
         // val s = Map(FrameLoc("f_%a") -> IntV(5),
         // FrameLoc("f_%b") -> IntV(6),
         //FrameLoc("f_%c") -> IntV(7))
-        val args: Rep[List[Value]] = List()
+        val args: Rep[List[Value]] = List[Value]()
         val s = Map()
         val res = exec(m, fname, args)
         println(res.size)
