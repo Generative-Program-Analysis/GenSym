@@ -707,6 +707,7 @@ object TestStagedLLVM {
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
   val multipath= parse("llvm/benchmarks/multipath.ll")
+  val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
 
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
@@ -725,8 +726,25 @@ object TestStagedLLVM {
       }
     }
 
+  def testArrayAccess = {
+    // problem: heap loc undefined in other functions
+    val code = specialize(arrayAccess, "@main")
+    code.save("gen/arrayAccess.cpp")
+    println(code.code)
+    code.compile("gen/arrayAccess.cpp")
+    code.eval(0)
+  }
+
+  def testPower = {
+    // problem: FrameEnv override in recursive call
+    val code = specialize(power, "@main")
+    code.save("gen/power.cpp")
+    println(code.code)
+    code.compile("gen/power.cpp")
+    code.eval(0)
+  }
   def main(args: Array[String]): Unit = {
-    val code = specialize(add, "@main")
+    
     // val code = specialize(power, "@main")
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
@@ -734,10 +752,10 @@ object TestStagedLLVM {
     //println(code.code)
     //code.eval(5)
 
-    code.save("gen/add.cpp")
-    println(code.code)
-    // code.compile("gen/add.cpp")
-    code.eval(0)
+    testArrayAccess
+    testPower
+
+    
     println("Done")
   }
 }
