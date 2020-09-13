@@ -298,8 +298,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   import CompileTimeRuntime._
   import Magic._
 
-  def eval(v: LLVMValue): Comp[E, Rep[Value]] = {
+  def eval(v: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
+      // TODO x should be funName + "_" + x
       case LocalId(x) =>
         for { st <- getStack } yield { st.lookup(StackAddr(st, x)) }
       case IntConst(n) => ret(IntV(n))
@@ -314,7 +315,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case GlobalId(id) if funMap.contains(id) =>
         val funDef = funMap(id)
         val params: List[String] = funDef.header.params.map {
-          case TypedParam(ty, attrs, localId) => localId.get
+          case TypedParam(ty, attrs, localId) => funDef.id + "_" + localId.get
         }
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(SList(funMap(id)))
@@ -358,7 +359,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-  def execValueInst(inst: ValueInstruction): Comp[E, Rep[Value]] = {
+  def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
       case AllocaInst(ty, align) =>
         for {
@@ -417,9 +418,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
-          // FIXME: potentially problematic: 
-          // f could be bitCast as well
-          // GW: yes, f could be bitCast, but after the evaluation, fv should be a function, right?
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
           _ <- popFrame(s._2.size)
@@ -459,7 +457,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
   def execTerm(funName: String, inst: Terminator): Comp[E, Rep[Value]] = {
     inst match {
-      case RetTerm(ty, Some(value)) => eval(value)
+      case RetTerm(ty, Some(value)) => eval(value)(funName)
       case RetTerm(ty, None) => ret(IntV(0))
       case BrTerm(lab) =>
         execBlock(funName, lab)
@@ -468,7 +466,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         // TODO: needs to consider the case wehre cnd is a concrete value
         // val cndM: Rep[SMTExpr] = ???
         for {
-          cndVal <- eval(cnd)
+          cndVal <- eval(cnd)(funName)
           v <- choice(
             for {
               _ <- updatePC(cndVal)
@@ -492,24 +490,24 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           }
         }
         for {
-          v <- eval(cndVal)
+          v <- eval(cndVal)(funName)
           s <- getState
           r <- reflect(switchFun(v.int, s, table))
         } yield r
     }
   }
 
-  def execInst(fun: String, inst: Instruction): Comp[E, Rep[Unit]] = {
+  def execInst(inst: Instruction)(implicit fun: String): Comp[E, Rep[Unit]] = {
     inst match {
       case AssignInst(x, valInst) =>
         for {
-          v <- execValueInst(valInst)
-          _ <- stackUpdate(x, v) //FIXME: x is not unique
+          v <- execValueInst(valInst)(fun)
+          _ <- stackUpdate(fun + "_" + x, v) //FIXME: x is not unique
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
-          v1 <- eval(val1)
-          v2 <- eval(val2)
+          v1 <- eval(val1)(fun)
+          v2 <- eval(val2)(fun)
           _ <- updateMem(v2, v1)
         } yield ()
       case CallInst(ty, f, args) =>
@@ -519,8 +517,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
-          // FIXME: potentially problematic: 
-          // f could be bitCast as well
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
           _ <- popFrame(s._2.size)
@@ -584,7 +580,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
       for {
-        _ <- mapM(is)(execInst(funName, _))
+        _ <- mapM(is)(execInst(_)(funName))
         v <- execTerm(funName, term)
       } yield v
     }
@@ -621,17 +617,16 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-  def exec(m: Module, fname: String): Rep[List[(SS, Value)]] = {
+  def exec(m: Module, fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
     CompileTimeRuntime.funMap = m.funcDefMap
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
     val heap0 = precompileHeap(emptyMem)
-    // TODO: put the initial frame mem
     val comp = for {
-      fv <- eval(GlobalId(fname))
+      fv <- eval(GlobalId(fname))(fname)
       s <- getState
-      v <- reflect(fv.fun(s, List()))
+      v <- reflect(fv.fun(s, args))
       _ <- popFrame(s._2.size)
     } yield v
     val initState: Rep[SS] = (heap0, emptyMem, Set[SMTExpr]())
@@ -704,8 +699,9 @@ object TestStagedLLVM {
         // val s = Map(FrameLoc("f_%a") -> IntV(5),
         // FrameLoc("f_%b") -> IntV(6),
         //FrameLoc("f_%c") -> IntV(7))
+        val args: Rep[List[Value]] = List()
         val s = Map()
-        val res = exec(m, fname)
+        val res = exec(m, fname, args)
         println(res.size)
       }
     }
