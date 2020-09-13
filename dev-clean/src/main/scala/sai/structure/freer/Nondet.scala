@@ -113,11 +113,22 @@ object NondetList {
 
   // def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, ( => ) => Rep[List[A]]] =
 
+  object BinChoice$ {
+    def unapply[K, R](n: (Nondet[K], K => R)): Option[(Unit, Boolean => R)] = n match {
+      case (BinChoice, k) => Some(((), k))
+      case _ => None
+    }
+  }
   def run[E <: Eff, A]: Comp[Nondet ⊗ E, A] => Comp[E, List[A]] =
     handler[Nondet, E, A, List[A]] {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, E, List[A]] {
       def apply[X] = (_, _) match {
+        case BinChoice$((), k) =>
+          for {
+            xs <- k(true)
+            ys <- k(false)
+          } yield xs ++ ys
         case NondetList$(??(xs, k)) =>
           xs.foldLeft[Comp[E, List[A]]](ret(List())) { case (comp, x) =>
             for {
