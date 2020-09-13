@@ -136,9 +136,10 @@ trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
 
 trait CppCodeGen_Set extends ExtendedCCodeGen {
   override def remap(m: Manifest[_]): String = {
+    val ns = ""; //"immer::"
     if (m.runtimeClass.getName == "scala.collection.immutable.Set") {
       val kty = m.typeArguments(0)
-      s"immer::set<${remap(kty)}>"
+      s"${ns}set<${remap(kty)}>"
     } else { super.remap(m) }
   }
 

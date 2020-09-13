@@ -90,6 +90,8 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     val src = run(name, ng)
     emitHeaders(stream)
 
+    emitln("using namespace immer;")
+
     emitFunctionDecls(stream)
 
     if (SMT_DEBUG) emitln("VC vc = vc_createValidityChecker();")

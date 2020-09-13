@@ -40,13 +40,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   // TODO: if there is no dyanmic heap allocation, the object
   //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
   type Heap = Mem
-  type Frame = (String, Mem)
+  // type Frame = (String, Mem)
+  trait Frame
+
   type PC = Set[SMTExpr]
   type Stack = List[Frame]
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
-  lazy val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt-mem"))
+  lazy val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
 
   // TODO: can be Comp[E, Unit]?
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
@@ -65,8 +67,11 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   } yield ()
 
   def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
+
   def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
-  def pushFrame(f: String): Comp[E, Rep[Unit]] = pushFrame((f, emptyMem))
+  
+  def pushFrame(f: String): Comp[E, Rep[Unit]] =
+    pushFrame(Frame(f))
   def pushFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] =
     for {
       s <- getState
@@ -77,131 +82,142 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       s <- getState
       _ <- putState((s._1, s._2.tail, s._3))
     } yield ()
-  def curFrameName: Comp[E, Rep[String]] = for {
-    f <- curFrame
-  } yield f._1 //counit(f._1)
   def replaceCurrentFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] = for {
     _ <- popFrame
     _ <- pushFrame(f)
   } yield ()
 
-  def counit[A](x: Rep[A]): A =
-    Unwrap(x) match {
-      case Backend.Const(x) => x.asInstanceOf[A]
+  // it seems that heapEnv can be static
+  // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
+  def frameEnv(s: String): Comp[E, Rep[Addr]] = for {
+    f <- curFrame
+  } yield f.addrLookup(s)
+
+  def frameAlloc(size: Int): Comp[E, Rep[Addr]] = {
+    /*
+     for {
+     f <- curFrame
+     val (f_, a) = frameAlloc(f, size)
+     _ <- replaceCurrentFrame(f_)
+     } yield a
+     */
+    // Note: using val keyword in monadic style seems having some trouble
+    curFrame.flatMap { f =>
+      val (f_, a) = f.alloc(size)
+      replaceCurrentFrame(f_).map { _ => a }
     }
+  }
 
-  object Mem {
-    import Addr._
+  def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
+    for {
+      f <- curFrame
+      _ <- replaceCurrentFrame(Frame(f.name, f.mem.update(k, v)))
+    } yield ()
+  def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
+    addr <- frameEnv(x)
+    _ <- frameUpdate(addr, v)
+  } yield ()
+  def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
+    // TODO: improve this
+    if (xs.isEmpty) ret(())
+    else {
+      val x = xs.head
+      val v = vs.head
+      for {
+        _ <- frameUpdate(x, v)
+        _ <- frameUpdate(xs.tail, vs.tail)
+      } yield ()
+    }
+  }
+  def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = {
+    // if v is a HeapAddr, update heap, otherwise update its frame memory
+    // v should be a LocV and wrap an actual location
+    for {
+      s <- getState
+      _ <- {
+        val newState = Wrap[SS](Adapter.g.reflect("update_mem", Unwrap(s), Unwrap(k), Unwrap(v)))
+        putState(newState)
+      }
+    } yield ()
+  }
 
-    // TODO: be careful of overwriting
-    def envLookup(f: Rep[String], x: Rep[String]): Rep[Addr] =
-      // FIXME: seems can be using a current stage map
-      Wrap[Addr](Adapter.g.reflect("env-lookup", Unwrap(f), Unwrap(x)))
+  object Frame {
+    def apply(f: String): Rep[Frame] =
+      Wrap[Frame](Adapter.g.reflect("new_frame", Backend.Const(f)))
+    def apply(f: Rep[String], m: Rep[Mem]): Rep[Frame] =
+      Wrap[Frame](Adapter.g.reflect("new_frame", Unwrap(f), Unwrap(m)))
+  }
 
-    // it seems that heapEnv can be static
-    // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
-    def frameEnv(s: String): Comp[E, Rep[Addr]] = for {
-      f <- curFrameName
-    } yield envLookup(f, s)
+  implicit class FrameOps(f: Rep[Frame]) {
+    def name: Rep[String] =
+      Wrap[String](Adapter.g.reflect("frame_name", Unwrap(f)))
+    def mem: Rep[Mem] =
+      Wrap[Mem](Adapter.g.reflect("frame_mem", Unwrap(f)))
+    def alloc(size: Int): (Rep[Frame], Rep[Addr]) = {
+      val (σ, a) = f.mem.alloc(size)
+      (Frame(f.name, σ), a)
+    }
+    def lookup(a: Rep[Addr]): Rep[Value] = f.mem.lookup(a)
 
-    def lookup(σ: Rep[Mem], a: Rep[Addr]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflect("mem-lookup", Unwrap(σ), Unwrap(a)))
-    def frameLookup(f: Rep[Frame], a: Rep[Addr]): Rep[Value] = lookup(f._2, a)
+    def addrLookup(x: Rep[String]): Rep[Addr] =
+      Wrap[Addr](Adapter.g.reflect("env_lookup", Unwrap(f), Unwrap(x)))
+  }
 
-    def alloc(σ: Rep[Mem], size: Int): (Rep[Mem], Rep[Addr]) = {
-      // FIXME: 
-      val m = Wrap[Mem](Adapter.g.reflect("alloc", Unwrap(σ), Backend.Const(size)))
-      val a = Wrap[Addr](Adapter.g.reflect("alloc", Unwrap(σ), Backend.Const(size)))
+  implicit class MemOps(σ: Rep[Mem]) {
+    def alloc(size: Int): (Rep[Mem], Rep[Addr]) = {
+      val a = Wrap[Addr](Adapter.g.reflect("mem_fresh", Unwrap(σ)))
+      val m = Wrap[Mem](Adapter.g.reflect("mem_alloc", Unwrap(σ), Backend.Const(size)))
       (m, a)
     }
+    def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("mem_size", Unwrap(σ)))
 
-    def frameAlloc(f: Rep[Frame], size: Int): (Rep[Frame], Rep[Addr]) = {
-      val (σ, a) = alloc(f._2, size)
-      ((f._1, σ), a)
-    }
-    def frameAlloc(size: Int): Comp[E, Rep[Addr]] = {
-      /* 
-       for {
-         f <- curFrame
-         val (f_, a) = frameAlloc(f, size)
-         _ <- replaceCurrentFrame(f_)
-       } yield a
-       */
-      // Note: using val keyword in monadic style seems having some trouble
-      curFrame.flatMap { f =>
-        val (f_, a) = frameAlloc(f, size)
-        replaceCurrentFrame(f_).map { _ => a }
-      }
-    }
+    def lookup(a: Rep[Addr]): Rep[Value] =
+      Wrap[Value](Adapter.g.reflect("mem_lookup", Unwrap(σ), Unwrap(a)))
 
-    def update(σ: Rep[Mem], k: Rep[Addr], v: Rep[Value]): Rep[Mem] =
-      Wrap[Mem](Adapter.g.reflect("mem-update", Unwrap(σ), Unwrap(k), Unwrap(v)))
-    def updateL(σ: Rep[Mem], k: Rep[Addr], v: Rep[List[Value]]): Rep[Mem] =
-      Wrap[Mem](Adapter.g.reflect("mem-updateL", Unwrap(σ), Unwrap(k), Unwrap(v)))
-    def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
-      for {
-        f <- curFrame
-        _ <- replaceCurrentFrame((f._1, update(f._2, k, v)))
-      } yield ()
-    def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
-      addr <- frameEnv(x)
-      _ <- frameUpdate(addr, v)
-    } yield ()
-    def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
-      // TODO: improve this
-      if (xs.isEmpty) ret(())
-      else {
-        val x = xs.head
-        val v = vs.head
-        for {
-          _ <- frameUpdate(x, v)
-          _ <- frameUpdate(xs.tail, vs.tail)
-        } yield ()
-      }
-    }
+    def update(k: Rep[Addr], v: Rep[Value]): Rep[Mem] =
+      Wrap[Mem](Adapter.g.reflect("mem_update", Unwrap(σ), Unwrap(k), Unwrap(v)))
 
-    def selectMem(v: Rep[Value]): Comp[E, Rep[Mem]] = {
-      // if v is a HeapAddr, return heap, otherwise return its frame memory
-      ret(Wrap[Mem](Adapter.g.reflect("select-mem", Unwrap(v))))
-    }
-    def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = {
-      // if v is a HeapAddr, update heap, otherwise update its frame memory
-      // v should be a LocV and wrap an actual location
-      // FIXME:
-      ret(())
-    }
+    // Note: only used for the global memory
+    def updateL(k: Rep[Addr], v: Rep[List[Value]]): Rep[Mem] =
+      Wrap[Mem](Adapter.g.reflect("mem_updateL", Unwrap(σ), Unwrap(k), Unwrap(v)))
   }
 
   object Addr {
-    def localAddr(f: Rep[Frame], x: String): Rep[Addr] = {
-      Wrap[Addr](Adapter.g.reflect("local-addr", Unwrap(f), Backend.Const(x)))
+    def apply(f: Rep[Frame], x: String): Rep[Addr] = {
+      Wrap[Addr](Adapter.g.reflect("local_addr", Unwrap(f), Backend.Const(x)))
     }
-    def heapAddr(x: String): Rep[Addr] = {
-      Wrap[Addr](Adapter.g.reflect("heap-addr", Backend.Const(x)))
-    }
-    
-    implicit class AddrOP(a: Rep[Addr]) {
-      def +(x: Int): Rep[Addr] =
-        Wrap[Addr](Adapter.g.reflect("addr-+", Unwrap(a), Backend.Const(x)))
+    def apply(x: String): Rep[Addr] = {
+      Wrap[Addr](Adapter.g.reflect("heap_addr", Backend.Const(x)))
     }
   }
+  
+  implicit class AddrOps(a: Rep[Addr]) {
+    def +(x: Int): Rep[Addr] =
+      Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Backend.Const(x)))
+  }
 
-  object Value {
-    def IntV(i: Rep[Int]): Rep[Value] = IntV(i, 32)
-    def IntV(i: Rep[Int], bw: Int): Rep[Value] =
+  object IntV {
+    def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
+    def apply(i: Rep[Int], bw: Int): Rep[Value] =
       Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i), Backend.Const(bw)))
-    def LocV(l: Rep[Addr]): Rep[Value] = 
+  }
+  object LocV {
+    def apply(l: Rep[Addr]): Rep[Value] = 
       Wrap[Value](Adapter.g.reflect("LocV", Unwrap(l)))
-    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = Wrap[Value](Unwrap(f))
-      // Wrap[Value](Adapter.g.reflect("FunV", Unwrap(f)))
+  }
+  object FunV {
+    def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = Wrap[Value](Unwrap(f))
+  }
 
-    def projLocV(v: Rep[Value]): Rep[Addr] =
-      Wrap[Addr](Adapter.g.reflect("proj-LocV", Unwrap(v)))
-    def projIntV(v: Rep[Value]): Rep[Int] =
-      Wrap[Int](Adapter.g.reflect("proj-IntV", Unwrap(v)))
-    def projFunV(v: Rep[Value]): Rep[(SS, List[Value]) => List[(SS, Value)]] =
+  implicit class ValueOps(v: Rep[Value]) {
+    // if v is a HeapAddr, return heap, otherwise return its frame memory
+    def selectMem: Comp[E, Rep[Mem]] =
+      ret(Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v))))
+
+    def loc: Rep[Addr] = Wrap[Addr](Adapter.g.reflect("proj_LocV", Unwrap(v)))
+    def int: Rep[Int] = Wrap[Int](Adapter.g.reflect("proj_IntV", Unwrap(v)))
+    def fun: Rep[(SS, List[Value]) => List[(SS, Value)]] =
       Wrap[(SS, List[Value]) => List[(SS, Value)]](Unwrap(v))
-      // Wrap[(SS, List[Value]) => List[(SS, Value)]](Adapter.g.reflect("proj-FunV", Unwrap(v)))
   }
 
   object CompileTimeRuntime {
@@ -249,7 +265,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   object Primitives {
-    import Value._
     def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       // generate printf
       ???
@@ -293,16 +308,14 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   // ICmpInst
   // PhiInst, record branches in SS
   // SwitchTerm
-  import Mem._
   import Addr._
-  import Value._
   import CompileTimeRuntime._
   import Magic._
 
   def eval(v: LLVMValue): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) => 
-        for { f <- curFrame } yield { frameLookup(f, localAddr(f, x)) }
+        for { f <- curFrame } yield { f.lookup(Addr(f, x)) }
       case IntConst(n) => ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
@@ -340,7 +353,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
-        for { h <- getHeap } yield lookup(h, heapAddr(id))
+        for { h <- getHeap } yield h.lookup(Addr(id))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         val indexValue: List[Int] = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
         val offset = calculateOffset(ptrType, indexValue)
@@ -348,7 +361,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
           case _ => for {
             lV <- eval(const)
-          } yield LocV(projLocV(lV) + offset)
+          } yield LocV(lV.loc + offset)
         }
       case ZeroInitializerConst => ret(IntV(0))
     }
@@ -364,25 +377,30 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case LoadInst(valTy, ptrTy, value, align) =>
         for {
           v <- eval(value)
-          σ <- selectMem(v)
-        } yield lookup(σ, projLocV(v))
+          σ <- v.selectMem
+        } yield σ.lookup(v.loc)
       case AddInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
-        } yield IntV(projIntV(v1) + projIntV(v2))
+        } yield IntV(v1.int + v2.int)
       case SubInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
-        } yield IntV(projIntV(v1) - projIntV(v2))
+        } yield IntV(v1.int - v2.int)
+      case MulInst(ty, lhs, rhs, _) =>
+        for {
+          v1 <- eval(lhs)
+          v2 <- eval(rhs)
+        } yield IntV(v1.int * v2.int)
       case ICmpInst(pred, ty, lhs, rhs) =>
         for {
           val1 <- eval(lhs)
           val2 <- eval(rhs)
         } yield {
-          val v1 = projIntV(val1)
-          val v2 = projIntV(val2)
+          val v1 = val1.int
+          val v2 = val2.int
           pred match {
             case EQ => IntV(if (v1 == v2) 1 else 0)
             case NE => IntV(if (v1 != v2) 1 else 0)
@@ -398,10 +416,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
       case ZExtInst(from, value, to) => for {
         v <- eval(value)
-      } yield IntV(projIntV(v), to.asInstanceOf[IntType].size)
+      } yield IntV(v.int, to.asInstanceOf[IntType].size)
       case SExtInst(from, value, to) =>  for {
         v <- eval(value)
-      } yield IntV(projIntV(v), to.asInstanceOf[IntType].size)
+      } yield IntV(v.int, to.asInstanceOf[IntType].size)
       case CallInst(ty, f, args) => 
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
@@ -414,7 +432,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           // GW: yes, f could be bitCast, but after the evaluation, fv should be a function, right?
           _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
-          v <- reflect(projFunV(fv)(s, List(vs:_*)))
+          v <- reflect(fv.fun(s, List(vs:_*)))
           _ <- popFrame
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
@@ -425,7 +443,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
           case _ => for {
             lV <- eval(ptrValue)
-          } yield LocV(projLocV(lV) + offset)
+          } yield LocV(lV.loc + offset)
         }
       case PhiInst(ty, incs) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
@@ -482,7 +500,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           v <- eval(cndVal)
           s <- getState
-          r <- reflect(switchFun(projIntV(v), s, table))
+          r <- reflect(switchFun(v.int, s, table))
         } yield r
     }
   }
@@ -511,7 +529,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           // f could be bitCast as well
           _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
-          v <- reflect(projFunV(fv)(s, List(vs:_*)))
+          v <- reflect(fv.fun(s, List(vs:_*)))
           _ <- popFrame
         } yield ()
     }
@@ -557,9 +575,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
 
     CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
-      val (allocH, addr) = alloc(h, getTySize(v.typ))
+      val (allocH, addr) = h.alloc(getTySize(v.typ))
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
-      updateL(allocH, addr, List(evalConst(v.const):_*))
+      allocH.updateL(addr, List(evalConst(v.const):_*))
     }
   }
 
@@ -582,7 +600,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
 
     for (b <- blocks) {
-      // FIXME: topFun or fun?
       if (CompileTimeRuntime.BBFuns.contains(b)) {
         System.err.println("Already compiled " + b)
       } else {
@@ -606,7 +623,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       if (CompileTimeRuntime.FunFuns.contains(f.id)) {
         System.err.println("Already compiled " + f)
       } else {
-        // FIXME: topFun or fun?
         CompileTimeRuntime.FunFuns(f.id) = repRunFun(f)
       }
     }
@@ -627,7 +643,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       fv <- eval(GlobalId(fname))
       _ <- pushFrame(fname)
       s <- getState
-      v <- reflect(projFunV(fv)(s, List()))
+      v <- reflect(fv.fun(s, List()))
       _ <- popFrame
     } yield v
     // ST: Why empty mem instead of heap0?
@@ -672,6 +688,7 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
       else if (m.toString.endsWith("$Value")) "Value"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
+      else if (m.toString.endsWith("$Frame")) "Frame"
       else super.remap(m)
     }
   }
@@ -685,7 +702,6 @@ object TestStagedLLVM {
 
   val add = parse("llvm/benchmarks/add.ll")
   val power = parse("llvm/benchmarks/power.ll")
-  // 
   val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
   val multipath= parse("llvm/benchmarks/multipath.ll")
@@ -708,12 +724,14 @@ object TestStagedLLVM {
 
   def main(args: Array[String]): Unit = {
     // val code = specialize(add, "@main")
+    val code = specialize(power, "@main")
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
-    val code = specialize(multipath, "@f")
+    //val code = specialize(multipath, "@f")
     //println(code.code)
     //code.eval(5)
-    code.save("gen/multipath.cpp")
+
+    code.save("gen/power.cpp")
     println(code.code)
     println("Done")
   }

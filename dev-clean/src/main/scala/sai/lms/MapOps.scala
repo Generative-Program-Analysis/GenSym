@@ -191,10 +191,11 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
   registerHeader("./headers", "<sai.hpp>")
 
   override def remap(m: Manifest[_]): String = {
+    val ns = ""; // "immer::"
     if (m.runtimeClass.getName == "scala.collection.immutable.Map") {
       val kty = m.typeArguments(0)
       val vty = m.typeArguments(1)
-      s"immer::map<${remap(kty)}, ${remap(vty)}>"
+      s"${ns}map<${remap(kty)}, ${remap(vty)}>"
     } else { super.remap(m) }
   }
 

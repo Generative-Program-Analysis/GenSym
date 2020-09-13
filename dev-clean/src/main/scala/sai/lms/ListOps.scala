@@ -195,10 +195,12 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
   registerHeader("../immer", "<immer/algorithm.hpp>")
   registerHeader("./headers", "<sai.hpp>")
 
+  val ns = ""; //"immer::"
+
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.List") {
       val kty = m.typeArguments(0)
-      s"immer::flex_vector<${remap(kty)}>"
+      s"${ns}flex_vector<${remap(kty)}>"
     } else { super.remap(m) }
   }
 
@@ -225,7 +227,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
-      emit("immer::flex_vector<")
+      emit(s"${ns}flex_vector<")
       emit(remap(mA))
       emit(">")
       emit("{")
