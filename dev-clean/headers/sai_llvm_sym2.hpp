@@ -15,7 +15,7 @@
  * Mem := flex_vector<Value>
  * Addr := Int
  * Value := IntV | SymV | LocV
- * TODO: proj_SMTExpr
+ * TODO: proj_SMTExpr, SymV
  * Not necessary?: heap_addr, mem_alloc
  * Done: make_IntV, make_LocV, proj_LocV, proj_IntV, mt_mem, mem_take, mem_size, mem_lookup, mem_update
  *       mem_updateL
@@ -83,8 +83,11 @@ inline Mem mt_mem() { return immer::flex_vector<PtrVal>{}; }
 #define mem_alloc(m, size) m
 
 Mem mem_update(Mem m, unsigned int addr, PtrVal v) {
-  if (m.size() <= addr) // TODO: or <=?
+  if (m.size() == addr) {
+    std::cout << "Update via appending" << std::endl;
     return m.push_back(v);
+  }
+  std::cout << "Update via replacing" << std::endl;
   return m.update(addr, [&](auto l) { return v; });
 }
 
@@ -94,8 +97,14 @@ Mem mem_updateL(Mem m, unsigned int addr, immer::flex_vector<PtrVal> vals) {
 
 Mem select_mem(PtrVal v, Mem heap, Mem stack) {
   auto loc = std::dynamic_pointer_cast<LocV>(v);
+  if (loc == nullptr) {
+    std::cout << "Value is not a location value!" << std::endl;
+  }
+  return heap;
+  /*
   if (loc->k == LocV::kStack) return stack;
   return heap;
+  */
 }
 
 static std::map<String, int> stack_env{};
