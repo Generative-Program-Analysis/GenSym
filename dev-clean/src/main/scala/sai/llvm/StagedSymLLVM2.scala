@@ -306,9 +306,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   def eval(v: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
-      // TODO x should be funName + "_" + x
       case LocalId(x) =>
-        for { st <- getStack } yield { st.lookup(StackAddr(st, x)) }
+        for { st <- getStack } yield { st.lookup(StackAddr(st, funName + "_" + x)) }
       case IntConst(n) => ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
