@@ -114,7 +114,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       _ <- replaceCurrentFrame(Frame(f.name, f.mem.update(k, v)))
     } yield ()
   def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
-    addr <- frameEnv(x)
+    addr <- frameAlloc(1)
+    // how to do this properly?
+    // _ <- frameEnvUpdate(x, addr)
     _ <- frameUpdate(addr, v)
   } yield ()
   def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
@@ -192,8 +194,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
   
   implicit class AddrOps(a: Rep[Addr]) {
-    def +(x: Int): Rep[Addr] =
-      Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Backend.Const(x)))
+    def +(x: Rep[Int]): Rep[Addr] =
+      Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Unwrap(x)))
   }
 
   object IntV {
@@ -239,7 +241,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case _ => 1
     }
 
-    def calculateOffset(ty: LLVMType, index: List[Int]): Int = {
+    def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
       if (index.isEmpty) 0 else ty match {
         case PtrType(ety, addrSpace) =>
           index.head * getTySize(ety) + calculateOffset(ety, index.tail)
@@ -355,13 +357,18 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case GlobalId(id) if globalDefMap.contains(id) =>
         for { h <- getHeap } yield h.lookup(Addr(id))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
-        val indexValue: List[Int] = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-        val offset = calculateOffset(ptrType, indexValue)
-        const match {
-          case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
-          case _ => for {
-            lV <- eval(const)
-          } yield LocV(lV.loc + offset)
+        // typedConst are not all int, could be local id
+        val indexLLVMValue = typedConsts.map(tv => tv.const)
+        for {
+          vs <- mapM(indexLLVMValue)(eval)
+          lV <- eval(const)
+        } yield {
+          val indexValue = vs.map(v => v.int)
+          val offset = calculateOffset(ptrType, indexValue)
+          const match {
+            case GlobalId(id) => LocV(heapEnv(id) + offset)
+            case _ => LocV(lV.loc + offset)
+          }
         }
       case ZeroInitializerConst => ret(IntV(0))
     }
@@ -437,13 +444,17 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
-        val indexValue: List[Int] = typedValues.map(tv => tv.value.asInstanceOf[IntConst].n)
-        val offset = calculateOffset(ptrType, indexValue)
-        ptrValue match {
-          case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
-          case _ => for {
-            lV <- eval(ptrValue)
-          } yield LocV(lV.loc + offset)
+        val indexLLVMValue = typedValues.map(tv => tv.value)
+        for {
+          vs <- mapM(indexLLVMValue)(eval)
+          lV <- eval(ptrValue)
+        } yield {
+          val indexValue = vs.map(v => v.int)
+          val offset = calculateOffset(ptrType, indexValue)
+          ptrValue match {
+            case GlobalId(id) => LocV(heapEnv(id) + offset)
+            case _ => LocV(lV.loc + offset)
+          }
         }
       case PhiInst(ty, incs) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
