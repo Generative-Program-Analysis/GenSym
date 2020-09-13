@@ -14,7 +14,8 @@ trait ListOps { b: Base =>
     def apply[A: Manifest](xs: Rep[A]*)(implicit pos: SourceContext) = {
       val mA = Backend.Const(manifest[A])
       val unwrapped_xs = Seq(mA) ++ xs.map(Unwrap)
-      Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xs:_*))
+      // Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xs:_*))
+      Wrap[List[A]](Adapter.g.reflectWrite("list-new", unwrapped_xs:_*)(Adapter.CTRL))
     }
   }
 

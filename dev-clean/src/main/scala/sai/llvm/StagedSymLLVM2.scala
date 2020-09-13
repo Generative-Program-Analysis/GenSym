@@ -31,20 +31,17 @@ import scala.collection.immutable.{Map => SMap}
 
 @virtualize
 trait StagedSymExecEff extends SAIOps with RepNondet {
-  // FIXME: concrete representation of Mem and Expr
   trait Mem
-  trait Addr
   trait Value
+  type Addr = Int
   type SMTExpr = Value // Temp changes
 
   // TODO: if there is no dyanmic heap allocation, the object
   //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
   type Heap = Mem
-  // type Frame = (String, Mem)
-  // trait Frame
+  type Stack = Mem
 
   type PC = Set[SMTExpr]
-  type Stack = Mem // List[Frame]
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
@@ -79,11 +76,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     } yield ()
 
   def stackAlloc(size: Int): Comp[E, Rep[Addr]] = {
-    // Note: using val keyword in monadic style seems having some trouble
-    getStack.flatMap { st =>
-      val (st_, a) = st.alloc(size)
-      putStack(st_).map { _ => a }
-    }
+    for {
+      st <- getStack
+      a <- {
+        val (st_, a) = st.alloc(size)
+        putStack(st_).map { _ => a }
+      }
+    } yield a
   }
 
   def stackUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
@@ -92,7 +91,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       _ <- putStack(st.update(k, v))
     } yield ()
 
-  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = stackUpdate(StackAddr(x), v)
+  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] =
+    for {
+      st <- getStack
+      _ <- {
+        val (st_, a) = st.alloc(1)
+        StackAddr.save(x, a)
+        putStack(st_.update(a, v))
+      }
+    } yield ()
 
   def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
     // TODO: improve this
@@ -121,8 +128,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   implicit class MemOps(σ: Rep[Mem]) {
     def alloc(size: Int): (Rep[Mem], Rep[Addr]) = {
-      val a = Wrap[Addr](Adapter.g.reflect("mem_fresh", Unwrap(σ)))
-      val m = Wrap[Mem](Adapter.g.reflect("mem_alloc", Unwrap(σ), Backend.Const(size)))
+      val a = σ.size //Wrap[Addr](Adapter.g.reflect("fresh_addr", Unwrap(σ)))
+      val m = σ //Wrap[Mem](Adapter.g.reflect("mem_alloc", Unwrap(σ), Backend.Const(size)))
+      //Note: allocation is now noop
       (m, a)
     }
     def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("mem_size", Unwrap(σ)))
@@ -130,11 +138,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def lookup(a: Rep[Addr]): Rep[Value] =
       Wrap[Value](Adapter.g.reflect("mem_lookup", Unwrap(σ), Unwrap(a)))
 
-    def addrLookup(x: Rep[String]): Rep[Addr] =
-      Wrap[Addr](Adapter.g.reflect("env_lookup", Unwrap(σ), Unwrap(x)))
-
-    def update(k: Rep[Addr], v: Rep[Value]): Rep[Mem] =
+    def update(k: Rep[Addr], v: Rep[Value]): Rep[Mem] = {
+      // Note: since allocation doesn't put anything at `k`,
+      //       we need to check if `k` is a valid address.
+      //       Most of the cases, σ.size == k, and we can just append `v`.
       Wrap[Mem](Adapter.g.reflect("mem_update", Unwrap(σ), Unwrap(k), Unwrap(v)))
+    }
 
     // Note: only used for the global memory
     def updateL(k: Rep[Addr], v: Rep[List[Value]]): Rep[Mem] =
@@ -145,10 +154,23 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   object StackAddr {
-    def apply(x: String): Rep[Addr] = {
-      Wrap[Addr](Adapter.g.reflectWrite("stack_addr", Backend.Const(x))(Adapter.CTRL))
+    def save(x: String, a: Rep[Addr]): Rep[Unit] = {
+      Wrap[Unit](Adapter.g.reflectWrite("stack_addr_save", Backend.Const(x), Unwrap(a))(Adapter.CTRL))
+    }
+    def apply(st: Rep[Mem], x: String): Rep[Addr] = {
+      /*
+      if (!CompileTimeRuntime.env.contains(x)) {
+        System.err.println(s"Not allocated $x!")
+      } else {
+        System.err.println(s"Hit $x!")
+        System.err.println(CompileTimeRuntime.env(x))
+        CompileTimeRuntime.env(x)
+      }
+      */
+      Wrap[Addr](Adapter.g.reflectWrite("stack_addr", Unwrap(st), Backend.Const(x))(Adapter.CTRL))
     }
   }
+
   object HeapAddr {
     def apply(x: String): Rep[Addr] = {
       Wrap[Addr](Adapter.g.reflectWrite("heap_addr", Backend.Const(x))(Adapter.CTRL))
@@ -156,18 +178,19 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
   
   implicit class AddrOps(a: Rep[Addr]) {
-    def +(x: Rep[Int]): Rep[Addr] =
-      Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Unwrap(x)))
+    def +(x: Rep[Int]): Rep[Addr] = x + a
+      // Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Unwrap(x)))
   }
 
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
-      Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i), Backend.Const(bw)))
+      Wrap[Value](Adapter.g.reflectWrite("make_IntV", Unwrap(i), Backend.Const(bw))(Adapter.CTRL))
   }
   object LocV {
+    //FIXME: track heap addr vs stack addr
     def apply(l: Rep[Addr]): Rep[Value] = 
-      Wrap[Value](Adapter.g.reflect("LocV", Unwrap(l)))
+      Wrap[Value](Adapter.g.reflectWrite("make_LocV", Unwrap(l))(Adapter.CTRL))
   }
   object FunV {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = Wrap[Value](Unwrap(f))
@@ -175,8 +198,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   implicit class ValueOps(v: Rep[Value]) {
     // if v is a HeapAddr, return heap, otherwise return its frame memory
-    def selectMem: Comp[E, Rep[Mem]] =
-      ret(Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v))))
+    def selectMem: Comp[E, Rep[Mem]] = for {
+      s <- getState
+    } yield Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v), Unwrap(s._1), Unwrap(s._2)))
 
     def loc: Rep[Addr] = Wrap[Addr](Adapter.g.reflect("proj_LocV", Unwrap(v)))
     def int: Rep[Int] = Wrap[Int](Adapter.g.reflect("proj_IntV", Unwrap(v)))
@@ -194,6 +218,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
     val FunFuns: collection.mutable.HashMap[String, Rep[SS] => Rep[List[(SS, Value)]]] =
       new collection.mutable.HashMap[String, Rep[SS] => Rep[List[(SS, Value)]]]
+
+    val env: collection.mutable.HashMap[String, Rep[Addr]] =
+      new collection.mutable.HashMap[String, Rep[Addr]]
 
     def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
       case ArrayType(size, ety) =>
@@ -267,19 +294,14 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-  // TODO:
-  // eval ArrayConst
-  // ICmpInst
-  // PhiInst, record branches in SS
-  // SwitchTerm
+  // TODO: PhiInst, record branches in SS
   import CompileTimeRuntime._
   import Magic._
 
   def eval(v: LLVMValue): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
-        for { s <- getStack } yield { s.lookup(StackAddr(x)) }
-        // for { f <- curFrame } yield { f.lookup(Addr(f, x)) }
+        for { st <- getStack } yield { st.lookup(StackAddr(st, x)) }
       case IntConst(n) => ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
@@ -317,7 +339,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
-        for { h <- getHeap } yield h.lookup(HeapAddr(id))
+        for { h <- getHeap } yield h.lookup(CompileTimeRuntime.heapEnv(id))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -398,7 +420,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           // FIXME: potentially problematic: 
           // f could be bitCast as well
           // GW: yes, f could be bitCast, but after the evaluation, fv should be a function, right?
-          // _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
           _ <- popFrame(s._2.size)
@@ -462,6 +483,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
+        // Note: this is now a concrete switch
         def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
@@ -482,7 +504,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case AssignInst(x, valInst) =>
         for {
           v <- execValueInst(valInst)
-          _ <- stackUpdate(x, v)
+          _ <- stackUpdate(x, v) //FIXME: x is not unique
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
@@ -499,7 +521,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           vs <- mapM(argValues)(eval)
           // FIXME: potentially problematic: 
           // f could be bitCast as well
-          // _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
           _ <- popFrame(s._2.size)
@@ -605,21 +626,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
-    // val Some(f) = m.lookupFuncDef(fname)
-    // precompileFunctions(SList(f))
-    // val repf: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(fname)
-
     val heap0 = precompileHeap(emptyMem)
     // TODO: put the initial frame mem
     val comp = for {
       fv <- eval(GlobalId(fname))
-      // _ <- pushFrame(fname)
       s <- getState
       v <- reflect(fv.fun(s, List()))
       _ <- popFrame(s._2.size)
     } yield v
-    // ST: Why empty mem instead of heap0?
-    val initState: Rep[SS] = (emptyMem, emptyMem, Set[SMTExpr]())
+    val initState: Rep[SS] = (heap0, emptyMem, Set[SMTExpr]())
     reify[Value](initState)(comp)
   }
 }
