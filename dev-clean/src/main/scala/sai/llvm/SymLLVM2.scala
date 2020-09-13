@@ -26,7 +26,7 @@ import scala.collection.immutable.Nil
 import lms.core.Backend.Sym
 
 
-trait SymExecEff2 {
+object SymExecEff2 {
   type Mem = List[Value]
 
   abstract class Addr {
@@ -42,14 +42,25 @@ trait SymExecEff2 {
     def toInt: Int = i
   }
 
-  abstract class Value
-  case object BotV extends Value
-  case class IntV(x: Int) extends Value
+  abstract class Value {
+    def toSMTExpr: SMTExpr
+  }
+  case object BotV extends Value {
+    def toSMTExpr: SMTExpr = ???
+  }
+  case class IntV(x: Int) extends Value {
+    def toSMTExpr: SMTExpr = if (x == 1) "true" else "false" 
+  }
   case class LocV(l: Addr) extends Value {
+    def toSMTExpr: SMTExpr = ???
     def +(i: Int): LocV = LocV(l + i)
   }
-  case class FunV(f: (SS, List[Value]) => List[(SS, Value)]) extends Value
-  case class SymV(x: String) extends Value 
+  case class FunV(f: (SS, List[Value]) => List[(SS, Value)]) extends Value {
+    def toSMTExpr: SMTExpr = ???
+  }
+  case class SymV(x: String) extends Value {
+    def toSMTExpr: SMTExpr = x
+  }
 
   type SMTExpr = String
 
@@ -105,6 +116,11 @@ trait SymExecEff2 {
       f <- curFrame
     } yield FrameLoc(f._3(s), f._1)
 
+    def frameEnvUpdate(s: String, a: Addr) = for {
+      f <- curFrame
+      _ <- replaceCurrentFrame((f._1, f._2, f._3 + (s -> a.toInt)))
+    } yield ()
+
     def lookup(σ: Mem, a: Addr): Value = σ(a.toInt)
     def frameLookup(f: Frame, a: Addr): Value = lookup(f._2, a)
 
@@ -145,7 +161,8 @@ trait SymExecEff2 {
         _ <- replaceCurrentFrame((f._1, update(f._2, k, v), f._3))
       } yield ()
     def frameUpdate(x: String, v: Value): Comp[E, Unit] = for {
-      addr <- frameEnv(x)
+      addr <- frameAlloc(1)
+      _ <- frameEnvUpdate(x, addr)
       _ <- frameUpdate(addr, v)
     } yield ()
     def frameUpdate(xs: List[String], vs: List[Value]): Comp[E, Unit] = {
@@ -225,6 +242,15 @@ trait SymExecEff2 {
       findFundef(fname).body.blocks(0)
     }
     def findFundef(fname: String) = funMap.get(fname).get
+
+    def clean = {
+      funMap = Map()
+      funDeclMap = Map()
+      globalDefMap = Map()
+      heapEnv = Map()
+      BBFuns.clear()
+      FunFuns.clear()
+    }
   }
 
   object Primitives {
@@ -316,14 +342,18 @@ trait SymExecEff2 {
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
         for { h <- getHeap } yield lookup(h, heapEnv(id))
-      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
-        val indexValue: List[Int] = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-        val offset = calculateOffset(ptrType, indexValue)
-        const match {
-          case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
-          case _ => for {
-            lV <- eval(const)
-          } yield lV.asInstanceOf[LocV] + offset
+      case GetElemPtrExpr(_, baseType, ptrType, ptrValue, typedValues) => 
+        val indexLLVMValue = typedValues.map(tv => tv.const)
+        for {
+          vs <- mapM(indexLLVMValue)(eval)
+          lV <- eval(ptrValue)
+        } yield {
+          val indexValue = vs.map(v => v.asInstanceOf[IntV].x)
+          val offset = calculateOffset(ptrType, indexValue)
+          ptrValue match {
+            case GlobalId(id) => LocV(heapEnv(id) + offset)
+            case _ => lV.asInstanceOf[LocV] + offset
+          }
         }
       case ZeroInitializerConst => ret(IntV(0))
     }
@@ -348,35 +378,69 @@ trait SymExecEff2 {
         } yield {
           (v1, v2) match {
             case (IntV(x), IntV(y)) => IntV(x + y)
-            case (SymV(x), IntV(y)) => SymV(s"($x) + $y")
-            case (IntV(x), SymV(y)) => SymV(s"$x + ($y)")
-            case (SymV(x), SymV(y)) => SymV(s"($x) + ($y)")
+            case (SymV(x), IntV(y)) => SymV(s"$x + $y")
+            case (IntV(x), SymV(y)) => SymV(s"$x + $y")
+            case (SymV(x), SymV(y)) => SymV(s"$x + $y")
           }
         }
       case SubInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
-        } yield IntV(v1.asInstanceOf[IntV].x - v2.asInstanceOf[IntV].x)
+        } yield {
+          (v1, v2) match {
+            case (IntV(x), IntV(y)) => IntV(x - y)
+            case (SymV(x), IntV(y)) => SymV(s"$x - $y")
+            case (IntV(x), SymV(y)) => SymV(s"$x - $y")
+            case (SymV(x), SymV(y)) => SymV(s"$x - $y")
+          }
+        }
+      case MulInst(ty, lhs, rhs, _) => 
+        for {
+          v1 <- eval(lhs)
+          v2 <- eval(rhs)
+        } yield {
+          (v1, v2) match {
+            case (IntV(x), IntV(y)) => IntV(x * y)
+            case (SymV(x), IntV(y)) => SymV(s"($x) * $y")
+            case (IntV(x), SymV(y)) => SymV(s"$x * ($y)")
+            case (SymV(x), SymV(y)) => SymV(s"($x) * ($y)")
+          }
+        }
       case ICmpInst(pred, ty, lhs, rhs) =>
         for {
           val1 <- eval(lhs)
           val2 <- eval(rhs)
         } yield {
-          val v1 = val1.asInstanceOf[IntV].x
-          val v2 = val2.asInstanceOf[IntV].x
-          pred match {
-            case EQ => IntV(if (v1 == v2) 1 else 0)
-            case NE => IntV(if (v1 != v2) 1 else 0)
-            case SLT => IntV(if (v1 < v2) 1 else 0)
-            case SLE => IntV(if (v1 <= v2) 1 else 0)
-            case SGT => IntV(if (v1 > v2) 1 else 0)
-            case SGE => IntV(if (v1 >= v2) 1 else 0)
-            case ULT => IntV(if (v1 < v2) 1 else 0)
-            case ULE => IntV(if (v1 <= v2) 1 else 0)
-            case UGT => IntV(if (v1 > v2) 1 else 0)
-            case UGE => IntV(if (v1 >= v2) 1 else 0)
+          def cmpVal(val1: Value, val2: Value): Value = (val1, val2) match {
+            case (IntV(v1), IntV(v2)) => pred match {
+              case EQ => IntV(if (v1 == v2) 1 else 0)
+              case NE => IntV(if (v1 != v2) 1 else 0)
+              case SLT => IntV(if (v1 < v2) 1 else 0)
+              case SLE => IntV(if (v1 <= v2) 1 else 0)
+              case SGT => IntV(if (v1 > v2) 1 else 0)
+              case SGE => IntV(if (v1 >= v2) 1 else 0)
+              case ULT => IntV(if (v1 < v2) 1 else 0)
+              case ULE => IntV(if (v1 <= v2) 1 else 0)
+              case UGT => IntV(if (v1 > v2) 1 else 0)
+              case UGE => IntV(if (v1 >= v2) 1 else 0)
+            }
+            case (SymV(v1), SymV(v2)) => pred match {
+              case EQ => SymV(v1 + " == " + v2)
+              case NE => SymV(v1 + " != " + v2)
+              case SLE => SymV(v1 + " <= " + v2)
+              case SLT => SymV(v1 + " < " + v2)
+              case SGT => SymV(v1 + " > " + v2)
+              case SGE => SymV(v1 + " >= " + v2)
+              case ULE => SymV(v1 + " <= " + v2)
+              case ULT => SymV(v1 + " < " + v2)
+              case UGT => SymV(v1 + " > " + v2)
+              case UGE => SymV(v1 + " >= " + v2)
+            }
+            case (IntV(v1), SymV(v2)) => cmpVal(SymV(v1.toString), SymV(v2))
+            case (SymV(v1), IntV(v2)) => cmpVal(SymV(v1), SymV(v2.toString))
           }
+          cmpVal(val1, val2)
         }
       case ZExtInst(from, value, to) => for {
         v <- eval(value)
@@ -401,24 +465,29 @@ trait SymExecEff2 {
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
-        val indexValue: List[Int] = typedValues.map(tv => tv.value.asInstanceOf[IntConst].n)
-        val offset = calculateOffset(ptrType, indexValue)
-        ptrValue match {
-          case GlobalId(id) => ret(LocV(heapEnv(id) + offset))
-          case _ => for {
-            lV <- eval(ptrValue)
-          } yield lV.asInstanceOf[LocV] + offset
+        val indexLLVMValue = typedValues.map(tv => tv.value)
+        for {
+          vs <- mapM(indexLLVMValue)(eval)
+          lV <- eval(ptrValue)
+        } yield {
+          val indexValue = vs.map(v => v.asInstanceOf[IntV].x)
+          val offset = calculateOffset(ptrType, indexValue)
+          ptrValue match {
+            case GlobalId(id) => LocV(heapEnv(id) + offset)
+            case _ => lV.asInstanceOf[LocV] + offset
+          }
         }
       case PhiInst(ty, incs) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         for {
+          cnd <- eval(cndVal)
           v <- choice(
             for {
-              _ <- updatePC(cndVal.toString())
+              _ <- updatePC(cnd.toSMTExpr)
               v <- eval(thnVal)
             } yield v,
             for {
-              _ <- updatePC("not" + cndVal.toString())
+              _ <- updatePC("not " + cnd.toSMTExpr)
               v <- eval(elsVal)
             } yield v
           )
@@ -439,11 +508,11 @@ trait SymExecEff2 {
           cndVal <- eval(cnd)
           v <- {
             val m1 = for {
-              _ <- updatePC(cndVal match { case IntV(x) => ""; case SymV(x) => x })
+              _ <- updatePC(cndVal.toSMTExpr)
               v <- execBlock(funName, thnLab)
             } yield v
             val m2 = for {
-              _ <- updatePC(cndVal match { case IntV(x) => ""; case SymV(x) => "not " + x })
+              _ <- updatePC("not " + cndVal.toSMTExpr)
               v <- execBlock(funName, elsLab)
             } yield v
             cndVal match {
@@ -596,7 +665,8 @@ trait SymExecEff2 {
     }
   }
 
-  def exec(m: Module, fname: String): List[(SS, Value)] = {
+  def exec(m: Module, fname: String, args: List[Value]): List[(SS, Value)] = {
+    CompileTimeRuntime.clean
     CompileTimeRuntime.funMap = m.funcDefMap
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
@@ -611,53 +681,83 @@ trait SymExecEff2 {
       fv <- eval(GlobalId(fname))
       _ <- pushFrame(fname)
       s <- getState
-      v <- reflect(fv.asInstanceOf[FunV].f(s, List()))
+      v <- reflect(fv.asInstanceOf[FunV].f(s, args))
       _ <- popFrame
     } yield v
     // ST: Why empty mem instead of heap0?
-    val initState: SS = (emptyMem, List[Frame](), Set[SMTExpr]())
+    val initState: SS = (heap0, List[Frame](), Set[SMTExpr]())
     reify[Value](initState)(comp)
   }
 }
 
 
 object TestSymLLVM {
+  import SymExecEff2._
   def parse(file: String): Module = {
     val input = scala.io.Source.fromFile(file).mkString
     sai.llvm.LLVMTest.parse(input)
   }
 
-  val add = parse("llvm/benchmarks/add.ll")
-  val power = parse("llvm/benchmarks/power.ll")
-  // 
-  val singlepath = parse("llvm/benchmarks/single_path5.ll")
-  val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multipath.ll")
+  //val singlepath = parse("llvm/benchmarks/single_path5.ll")
 
-  def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
-    new CppSymStagedLLVMDriver[Int, Unit] {
-      def snippet(u: Rep[Int]) = {
-        //def exec(m: Module, fname: String, s0: Rep[Map[Loc, Value]]): Rep[List[(SS, Value)]]
-        //val s = Map(FrameLoc("f_%x") -> IntV(5), FrameLoc("f_%y") -> IntV(2))
-        //val s = Map(FrameLoc("%x") -> IntV(5))
-        // val s = Map(FrameLoc("f_%a") -> IntV(5),
-        // FrameLoc("f_%b") -> IntV(6),
-        //FrameLoc("f_%c") -> IntV(7))
+  def testAdd = {
+    val add = parse("llvm/benchmarks/add.ll")
+    val e = exec(add, "@add", List(IntV(1), IntV(2)))
+    println(e)
+  }
 
-        val res = exec(m, fname)
-        println(res.size)
-      }
-    }
+  def testBranch2 = {
+    val branch = parse("llvm/benchmarks/branch2.ll")
+    val br2 = exec(branch, "@f", List(SymV("x"), SymV("z")))
+    println(br2)
+  }
+  
+  def testPower = {
+    val power = parse("llvm/benchmarks/power.ll")
+    val p = exec(power, "@main", List())
+    println(p)
+  }
+
+  def testMultiPathConc = {
+    val multipath = parse("llvm/benchmarks/multipath.ll")
+    val mpConc = exec(multipath, "@f", List(IntV(1), SymV("b"), SymV("c")))
+    println(mpConc)
+  }
+
+  def testMultiPathSym = {
+    val multipath = parse("llvm/benchmarks/multipath.ll")
+    val mpSym = exec(multipath, "@f", List(SymV("a"), IntV(1), IntV(2)))
+    println(mpSym)
+  }
+
+  def testArrayAccess = {
+    val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
+    val ac = exec(arrayAccess, "@main", List())
+    println(ac)
+  }
+
+  def testArrayAccessLocal = {
+    val arrayAccessLocal = parse("llvm/benchmarks/arrayAccessLocal.ll")
+    val acl = exec(arrayAccessLocal, "@main", List())
+    println(acl)
+  }
+
+  def testArrayGetSet = {
+    val arrayGetSet = parse("llvm/benchmarks/arrayGetSet.ll")
+    val ags = exec(arrayGetSet, "@main", List())
+    println(ags)
+  }
+
+  def testArraySetLocal = {
+    val arraySetLocal = parse("llvm/benchmarks/arraySetLocal.ll")
+    val ags = exec(arraySetLocal, "@main", List())
+    println(ags)
+  }
 
   def main(args: Array[String]): Unit = {
-    // val code = specialize(add, "@main")
-    //val code = specialize(singlepath, "@singlepath")
-    // val code = specialize(branch, "@f")
-    val code = specialize(multipath, "@f")
-    //println(code.code)
-    //code.eval(5)
-    code.save("gen/multipath.cpp")
-    println(code.code)
+    
+    testArraySetLocal
+
     println("Done")
   }
 }
