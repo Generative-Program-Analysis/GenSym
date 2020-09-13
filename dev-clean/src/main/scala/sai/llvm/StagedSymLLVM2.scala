@@ -33,8 +33,8 @@ import scala.collection.immutable.{Map => SMap}
 trait StagedSymExecEff extends SAIOps with RepNondet {
   trait Mem
   trait Value
+  trait SMTExpr
   type Addr = Int
-  type SMTExpr = Value // Temp changes
 
   // TODO: if there is no dyanmic heap allocation, the object
   //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
@@ -45,7 +45,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
-  lazy val emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
+  def emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
 
   // TODO: can be Comp[E, Unit]?
   def putState(s: Rep[SS]): Comp[E, Unit] = for { _ <- put[Rep[SS], E](s) } yield ()
@@ -178,7 +178,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
   
   implicit class AddrOps(a: Rep[Addr]) {
-    def +(x: Rep[Int]): Rep[Addr] = x + a
+    // def +(x: Rep[Int]): Rep[Addr] = x + a
       // Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Unwrap(x)))
   }
 
@@ -188,9 +188,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Value](Adapter.g.reflectWrite("make_IntV", Unwrap(i), Backend.Const(bw))(Adapter.CTRL))
   }
   object LocV {
-    //FIXME: track heap addr vs stack addr
-    def apply(l: Rep[Addr]): Rep[Value] = 
-      Wrap[Value](Adapter.g.reflectWrite("make_LocV", Unwrap(l))(Adapter.CTRL))
+    def kStack: Rep[Int] =
+      Wrap[Int](Adapter.g.reflectWrite("kStack")(Adapter.CTRL))
+    def kHeap: Rep[Int] =
+      Wrap[Int](Adapter.g.reflectWrite("kHeap")(Adapter.CTRL))
+    def apply(l: Rep[Addr], kind: Rep[Int]): Rep[Value] = 
+      Wrap[Value](Adapter.g.reflectWrite("make_LocV", Unwrap(l), Unwrap(kind))(Adapter.CTRL))
   }
   object FunV {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = Wrap[Value](Unwrap(f))
@@ -206,6 +209,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def int: Rep[Int] = Wrap[Int](Adapter.g.reflect("proj_IntV", Unwrap(v)))
     def fun: Rep[(SS, List[Value]) => List[(SS, Value)]] =
       Wrap[(SS, List[Value]) => List[(SS, Value)]](Unwrap(v))
+
+    def toSMT: Rep[SMTExpr] =
+      Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
   }
 
   object CompileTimeRuntime {
@@ -351,8 +357,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
           const match {
-            case GlobalId(id) => LocV(heapEnv(id) + offset)
-            case _ => LocV(lV.loc + offset)
+            case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
+            case _ => LocV(lV.loc + offset, LocV.kStack)
           }
         }
       case ZeroInitializerConst => ret(IntV(0))
@@ -364,7 +370,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case AllocaInst(ty, align) =>
         for {
           a <- stackAlloc(getTySize(ty, align.n))
-        } yield LocV(a)
+        } yield LocV(a, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
         for {
           v <- eval(value)
@@ -432,8 +438,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
           ptrValue match {
-            case GlobalId(id) => LocV(heapEnv(id) + offset)
-            case _ => LocV(lV.loc + offset)
+            case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
+            case _ => LocV(lV.loc + offset, LocV.kStack)
           }
         }
       case PhiInst(ty, incs) => ???
@@ -442,11 +448,11 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           cnd <- eval(cndVal)
           v <- choice(
             for {
-              _ <- updatePC(cnd)
+              _ <- updatePC(cnd.toSMT)
               v <- eval(thnVal)
             } yield v,
             for {
-              _ <- updatePC(/* not */cnd)
+              _ <- updatePC(/* not */cnd.toSMT)
               v <- eval(elsVal)
             } yield v
           )
@@ -465,6 +471,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         // TODO: needs to consider the case wehre cnd is a concrete value
         // val cndM: Rep[SMTExpr] = ???
+        /*
         for {
           cndVal <- eval(cnd)(funName)
           v <- choice(
@@ -477,6 +484,19 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
               // update branches
               v <- execBlock(funName, elsLab)
             } yield v)
+        } yield v
+         */
+        // Temp: concrete execution below:
+        for {
+          cndVal <- eval(cnd)
+          s <- getState
+          v <- {
+            reflect(if (cndVal.int == 1) {
+              reify(s)(execBlock(funName, thnLab))
+            } else {
+              reify(s)(execBlock(funName, elsLab))
+            })
+          }
         } yield v
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
@@ -669,9 +689,10 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
 
     override def remap(m: Manifest[_]): String = {
       if (m.toString == "java.lang.String") "String"
-      else if (m.toString.endsWith("$Value")) "Value"
+      else if (m.toString.endsWith("$Value")) "PtrVal"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
+      else if (m.toString.endsWith("SMTExpr")) "PtrVal" //FIXME
       else super.remap(m)
     }
   }
@@ -707,16 +728,17 @@ object TestStagedLLVM {
     }
 
   def main(args: Array[String]): Unit = {
-    // val code = specialize(add, "@main")
-    val code = specialize(power, "@main")
+    val code = specialize(add, "@main")
+    // val code = specialize(power, "@main")
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
     //val code = specialize(multipath, "@f")
     //println(code.code)
     //code.eval(5)
 
-    code.save("gen/power.cpp")
+    code.save("gen/add.cpp")
     println(code.code)
+    code.compile("gen/add.cpp")
     println("Done")
   }
 }
