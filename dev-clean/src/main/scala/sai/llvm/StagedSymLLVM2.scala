@@ -41,10 +41,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
   type Heap = Mem
   // type Frame = (String, Mem)
-  trait Frame
+  // trait Frame
 
   type PC = Set[SMTExpr]
-  type Stack = List[Frame]
+  type Stack = Mem // List[Frame]
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
@@ -67,68 +67,46 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   } yield ()
 
   def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
-
-  def curFrame: Comp[E, Rep[Frame]] = for { fs <- getStack } yield fs.head
-  
-  def pushFrame(f: String): Comp[E, Rep[Unit]] =
-    pushFrame(Frame(f))
-  def pushFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] =
-    for {
-      s <- getState
-      _ <- putState((s._1, f :: s._2, s._3))
-    } yield ()
-  def popFrame: Comp[E, Rep[Unit]] =
-    for {
-      s <- getState
-      _ <- putState((s._1, s._2.tail, s._3))
-    } yield ()
-  def replaceCurrentFrame(f: Rep[Frame]): Comp[E, Rep[Unit]] = for {
-    _ <- popFrame
-    _ <- pushFrame(f)
+  def putStack(st: Rep[Stack]): Comp[E, Rep[Unit]] = for {
+    s <- getState
+    _ <- putState((s._1, st, s._3))
   } yield ()
 
-  // it seems that heapEnv can be static
-  // def heapEnv(s: Rep[String]): Comp[E, Rep[Addr]] = ???
-  def frameEnv(s: String): Comp[E, Rep[Addr]] = for {
-    f <- curFrame
-  } yield f.addrLookup(s)
+  def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] =
+    for {
+      s <- getState
+      _ <- putState((s._1, s._2.take(keep), s._3))
+    } yield ()
 
-  def frameAlloc(size: Int): Comp[E, Rep[Addr]] = {
-    /*
-     for {
-     f <- curFrame
-     val (f_, a) = frameAlloc(f, size)
-     _ <- replaceCurrentFrame(f_)
-     } yield a
-     */
+  def stackAlloc(size: Int): Comp[E, Rep[Addr]] = {
     // Note: using val keyword in monadic style seems having some trouble
-    curFrame.flatMap { f =>
-      val (f_, a) = f.alloc(size)
-      replaceCurrentFrame(f_).map { _ => a }
+    getStack.flatMap { st =>
+      val (st_, a) = st.alloc(size)
+      putStack(st_).map { _ => a }
     }
   }
 
-  def frameUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
+  def stackUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
     for {
-      f <- curFrame
-      _ <- replaceCurrentFrame(Frame(f.name, f.mem.update(k, v)))
+      st <- getStack
+      _ <- putStack(st.update(k, v))
     } yield ()
-  def frameUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = for {
-    addr <- frameEnv(x)
-    _ <- frameUpdate(addr, v)
-  } yield ()
-  def frameUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
+
+  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = stackUpdate(StackAddr(x), v)
+
+  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
     // TODO: improve this
     if (xs.isEmpty) ret(())
     else {
       val x = xs.head
       val v = vs.head
       for {
-        _ <- frameUpdate(x, v)
-        _ <- frameUpdate(xs.tail, vs.tail)
+        _ <- stackUpdate(x, v)
+        _ <- stackUpdate(xs.tail, vs.tail)
       } yield ()
     }
   }
+
   def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = {
     // if v is a HeapAddr, update heap, otherwise update its frame memory
     // v should be a LocV and wrap an actual location
@@ -139,28 +117,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         putState(newState)
       }
     } yield ()
-  }
-
-  object Frame {
-    def apply(f: String): Rep[Frame] =
-      Wrap[Frame](Adapter.g.reflect("new_frame", Backend.Const(f)))
-    def apply(f: Rep[String], m: Rep[Mem]): Rep[Frame] =
-      Wrap[Frame](Adapter.g.reflect("new_frame", Unwrap(f), Unwrap(m)))
-  }
-
-  implicit class FrameOps(f: Rep[Frame]) {
-    def name: Rep[String] =
-      Wrap[String](Adapter.g.reflect("frame_name", Unwrap(f)))
-    def mem: Rep[Mem] =
-      Wrap[Mem](Adapter.g.reflect("frame_mem", Unwrap(f)))
-    def alloc(size: Int): (Rep[Frame], Rep[Addr]) = {
-      val (σ, a) = f.mem.alloc(size)
-      (Frame(f.name, σ), a)
-    }
-    def lookup(a: Rep[Addr]): Rep[Value] = f.mem.lookup(a)
-
-    def addrLookup(x: Rep[String]): Rep[Addr] =
-      Wrap[Addr](Adapter.g.reflect("env_lookup", Unwrap(f), Unwrap(x)))
   }
 
   implicit class MemOps(σ: Rep[Mem]) {
@@ -174,18 +130,26 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def lookup(a: Rep[Addr]): Rep[Value] =
       Wrap[Value](Adapter.g.reflect("mem_lookup", Unwrap(σ), Unwrap(a)))
 
+    def addrLookup(x: Rep[String]): Rep[Addr] =
+      Wrap[Addr](Adapter.g.reflect("env_lookup", Unwrap(σ), Unwrap(x)))
+
     def update(k: Rep[Addr], v: Rep[Value]): Rep[Mem] =
       Wrap[Mem](Adapter.g.reflect("mem_update", Unwrap(σ), Unwrap(k), Unwrap(v)))
 
     // Note: only used for the global memory
     def updateL(k: Rep[Addr], v: Rep[List[Value]]): Rep[Mem] =
       Wrap[Mem](Adapter.g.reflect("mem_updateL", Unwrap(σ), Unwrap(k), Unwrap(v)))
+
+    def take(n: Rep[Int]): Rep[Mem] =
+      Wrap[Mem](Adapter.g.reflect("mem_take", Unwrap(σ), Unwrap(n)))
   }
 
-  object Addr {
-    def apply(f: Rep[Frame], x: String): Rep[Addr] = {
-      Wrap[Addr](Adapter.g.reflect("local_addr", Unwrap(f), Backend.Const(x)))
+  object StackAddr {
+    def apply(x: String): Rep[Addr] = {
+      Wrap[Addr](Adapter.g.reflect("stack_addr", Backend.Const(x)))
     }
+  }
+  object HeapAddr {
     def apply(x: String): Rep[Addr] = {
       Wrap[Addr](Adapter.g.reflect("heap_addr", Backend.Const(x)))
     }
@@ -308,14 +272,14 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   // ICmpInst
   // PhiInst, record branches in SS
   // SwitchTerm
-  import Addr._
   import CompileTimeRuntime._
   import Magic._
 
   def eval(v: LLVMValue): Comp[E, Rep[Value]] = {
     v match {
-      case LocalId(x) => 
-        for { f <- curFrame } yield { f.lookup(Addr(f, x)) }
+      case LocalId(x) =>
+        for { s <- getStack } yield { s.lookup(StackAddr(x)) }
+        // for { f <- curFrame } yield { f.lookup(Addr(f, x)) }
       case IntConst(n) => ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
@@ -336,7 +300,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         val f: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(id)
         def repf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
           val m: Comp[E, Rep[Value]] = for {
-            _ <- frameUpdate(params, args)
+            _ <- stackUpdate(params, args)
             s <- getState
             v <- reflect(f(s))
           } yield v
@@ -353,7 +317,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
-        for { h <- getHeap } yield h.lookup(Addr(id))
+        for { h <- getHeap } yield h.lookup(HeapAddr(id))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         val indexValue: List[Int] = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
         val offset = calculateOffset(ptrType, indexValue)
@@ -371,8 +335,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     inst match {
       case AllocaInst(ty, align) =>
         for {
-          f <- curFrame
-          a <- frameAlloc(getTySize(ty, align.n))
+          a <- stackAlloc(getTySize(ty, align.n))
         } yield LocV(a)
       case LoadInst(valTy, ptrTy, value, align) =>
         for {
@@ -430,10 +393,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           // FIXME: potentially problematic: 
           // f could be bitCast as well
           // GW: yes, f could be bitCast, but after the evaluation, fv should be a function, right?
-          _ <- pushFrame(f.asInstanceOf[GlobalId].id)
+          // _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame
+          _ <- popFrame(s._2.size)
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
@@ -510,7 +473,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case AssignInst(x, valInst) =>
         for {
           v <- execValueInst(valInst)
-          _ <- frameUpdate(x, v)
+          _ <- stackUpdate(x, v)
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
@@ -527,10 +490,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           vs <- mapM(argValues)(eval)
           // FIXME: potentially problematic: 
           // f could be bitCast as well
-          _ <- pushFrame(f.asInstanceOf[GlobalId].id)
+          // _ <- pushFrame(f.asInstanceOf[GlobalId].id)
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame
+          _ <- popFrame(s._2.size)
         } yield ()
     }
   }
@@ -641,13 +604,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     // TODO: put the initial frame mem
     val comp = for {
       fv <- eval(GlobalId(fname))
-      _ <- pushFrame(fname)
+      // _ <- pushFrame(fname)
       s <- getState
       v <- reflect(fv.fun(s, List()))
-      _ <- popFrame
+      _ <- popFrame(s._2.size)
     } yield v
     // ST: Why empty mem instead of heap0?
-    val initState: Rep[SS] = (emptyMem, List[Frame](), Set[SMTExpr]())
+    val initState: Rep[SS] = (emptyMem, emptyMem, Set[SMTExpr]())
     reify[Value](initState)(comp)
   }
 }
@@ -658,6 +621,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, name, _, _) if name.startsWith("IntV") => false
     case Node(_, name, _, _) if name.startsWith("LocV") => false
+    case Node(_, "stack_addr", _, _) => true
+    case Node(_, "heap_addr", _, _) => true
     case _ => super.mayInline(n)
   }
 
@@ -688,7 +653,6 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
       else if (m.toString.endsWith("$Value")) "Value"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
-      else if (m.toString.endsWith("$Frame")) "Frame"
       else super.remap(m)
     }
   }
