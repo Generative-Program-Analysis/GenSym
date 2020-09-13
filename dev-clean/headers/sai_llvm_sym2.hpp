@@ -15,7 +15,7 @@
  * Mem := flex_vector<Value>
  * Addr := Int
  * Value := IntV | SymV | LocV
- * TODO: proj_SMTExpr, SymV
+ * TODO: proj_SMTExpr, SymV, select_mem
  * Not necessary?: heap_addr, mem_alloc
  * Done: make_IntV, make_LocV, proj_LocV, proj_IntV, mt_mem, mem_take, mem_size, mem_lookup, mem_update
  *       mem_updateL
@@ -80,19 +80,22 @@ inline Mem mt_mem() { return immer::flex_vector<PtrVal>{}; }
 #define mem_take(m, n) m.take(n)
 #define mem_size(m) m.size()
 #define mem_lookup(m, a) m.at(a)
-#define mem_alloc(m, size) m
+#define fresh_addr(m) m.size()
+
+Mem mem_alloc(Mem m, int size) {
+  return m + immer::flex_vector<PtrVal>(size, nullptr);
+}
 
 Mem mem_update(Mem m, unsigned int addr, PtrVal v) {
-  if (m.size() == addr) {
-    std::cout << "Update via appending" << std::endl;
-    return m.push_back(v);
-  }
-  std::cout << "Update via replacing" << std::endl;
   return m.update(addr, [&](auto l) { return v; });
 }
 
 Mem mem_updateL(Mem m, unsigned int addr, immer::flex_vector<PtrVal> vals) {
-  return m + vals;
+  immer::flex_vector<PtrVal> res = m;
+  for (int i = 0; i < vals.size(); i++) {
+    res = res.update(addr + i, [&](auto l) { return vals.at(i); } );
+  }
+  return res;
 }
 
 Mem select_mem(PtrVal v, Mem heap, Mem stack) {
@@ -100,7 +103,7 @@ Mem select_mem(PtrVal v, Mem heap, Mem stack) {
   if (loc == nullptr) {
     std::cout << "Value is not a location value!" << std::endl;
   }
-  return heap;
+  return stack;
   /*
   if (loc->k == LocV::kStack) return stack;
   return heap;

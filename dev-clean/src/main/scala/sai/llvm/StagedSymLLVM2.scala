@@ -128,9 +128,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   implicit class MemOps(σ: Rep[Mem]) {
     def alloc(size: Int): (Rep[Mem], Rep[Addr]) = {
-      val a = σ.size //Wrap[Addr](Adapter.g.reflect("fresh_addr", Unwrap(σ)))
-      val m = σ //Wrap[Mem](Adapter.g.reflect("mem_alloc", Unwrap(σ), Backend.Const(size)))
-      //Note: allocation is now noop
+      val a = Wrap[Addr](Adapter.g.reflectWrite("fresh_addr", Unwrap(σ))(Adapter.CTRL))
+      val m = Wrap[Mem](Adapter.g.reflectWrite("mem_alloc", Unwrap(σ), Backend.Const(size))(Adapter.CTRL))
       (m, a)
     }
     def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("mem_size", Unwrap(σ)))
@@ -705,7 +704,7 @@ object TestStagedLLVM {
 
   val add = parse("llvm/benchmarks/add.ll")
   val power = parse("llvm/benchmarks/power.ll")
-  val singlepath = parse("llvm/benchmarks/single_path5.ll")
+  // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
   val multipath= parse("llvm/benchmarks/multipath.ll")
 
@@ -737,7 +736,8 @@ object TestStagedLLVM {
 
     code.save("gen/add.cpp")
     println(code.code)
-    code.compile("gen/add.cpp")
+    // code.compile("gen/add.cpp")
+    code.eval(0)
     println("Done")
   }
 }
