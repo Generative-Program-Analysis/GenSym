@@ -567,20 +567,28 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     } yield v
   }
 
-  def precompileHeap(heap: Rep[Heap]): Rep[Heap] = {
-    def evalConst(v: Constant): List[Rep[Value]] = v match {
-      case BoolConst(b) =>
-        SList(IntV(if (b) 1 else 0, 1))
-      case IntConst(n) =>
-        SList(IntV(n))
-      case ZeroInitializerConst =>
-        SList(IntV(0))
-      case ArrayConst(cs) =>
-        flattenArray(v).flatMap(c => evalConst(c))
-      case CharArrayConst(s) =>
-        s.map(c => IntV(c.toInt, 8)).toList
-    }
+  def evalConst(v: Constant): List[Rep[Value]] = v match {
+    case BoolConst(b) =>
+      SList(IntV(if (b) 1 else 0, 1))
+    case IntConst(n) =>
+      SList(IntV(n))
+    case ZeroInitializerConst =>
+      SList(IntV(0))
+    case ArrayConst(cs) =>
+      flattenArray(v).flatMap(c => evalConst(c))
+    case CharArrayConst(s) =>
+      s.map(c => IntV(c.toInt, 8)).toList
+  }
 
+  def precompileHeap: SList[Rep[Value]] = {
+    CompileTimeRuntime.globalDefMap.foldRight(SList[Rep[Value]]()) {case ((k, v), h) =>
+      val addr = h.size
+      CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
+      h ++ evalConst(v.const)
+    }
+  }
+
+  def precompileHeap(heap: Rep[Heap]): Rep[Heap] = {
     CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
       val (allocH, addr) = h.alloc(getTySize(v.typ))
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
@@ -640,7 +648,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
-    val heap0 = precompileHeap(emptyMem)
+    val preHeap: Rep[List[Value]] = List(precompileHeap:_*) // (emptyMem)
+    val heap0 = Wrap[Mem](Unwrap(preHeap))
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
       s <- getState
@@ -743,19 +752,24 @@ object TestStagedLLVM {
     code.compile("gen/power.cpp")
     code.eval(0)
   }
+
   def main(args: Array[String]): Unit = {
     
     // val code = specialize(power, "@main")
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
     //val code = specialize(multipath, "@f")
-    //println(code.code)
-    //code.eval(5)
+
+    /*
+    val code = specialize(add, "@main")
+    code.save("gen/add.cpp")
+    println(code.code)
+    code.compile("gen/add.cpp")
+    code.eval(5)
+     */
 
     testArrayAccess
-    testPower
-
-    
+    //testPower
     println("Done")
   }
 }
