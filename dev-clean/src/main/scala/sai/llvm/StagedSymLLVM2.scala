@@ -265,27 +265,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
   object Primitives extends java.io.Serializable {
     def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      // generate printf
       Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_printf", Unwrap(s), Unwrap(args)))
     }
     def printf: Rep[Value] = FunV(topFun(__printf))
-
-    /*
-    def read(args: List[Value]): Value = {
-      //FIXME: args(0) is not handled
-      val LocValue(start) = args(1)
-      val IntValue(len) = args(2)
-      // FIXME: This would corrupt the memory
-      val rawInput = "ssssddddwwaawwddddssssddwwww"
-      val inputStr = rawInput.take(Math.min(len, rawInput.length))
-      for (i <- 0 until inputStr.length) {
-        start.mem(start + i) = IntValue(inputStr(i).toInt)
-      }
-      start.mem(start + inputStr.length) = IntValue(0)
-      VoidValue
-      //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
-     }
-     */
 
     def __concreteReadForMaze(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       Wrap[List[(SS, Value)]](Adapter.g.reflect("read_maze", Unwrap(s), Unwrap(args)))
@@ -766,6 +748,7 @@ object TestStagedLLVM {
   val power = parse("llvm/benchmarks/power.ll")
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
+  val multipath= parse("llvm/benchmarks/multipath_1048576.ll")
   val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
   val maze = parse("llvm/benchmarks/maze.ll")
 
@@ -824,6 +807,10 @@ object TestStagedLLVM {
     code.save("gen/maze.cpp")
     println(code.code)
     code.compile("gen/maze.cpp")
+    //code.save("gen/multipath_1048576.cpp")
+    //println(code.code)
+    //code.compile("gen/multipath_1048576.cpp")
+
     // testArrayAccess
     // testPower
     // println("Done")
