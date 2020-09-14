@@ -480,22 +480,21 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         // TODO: needs to consider the case wehre cnd is a concrete value
         // val cndM: Rep[SMTExpr] = ???
-        /*
         for {
           cndVal <- eval(cnd)(funName)
           v <- choice(
             for {
-              _ <- updatePC(cndVal)
+              _ <- updatePC(cndVal.toSMT)
               v <- execBlock(funName, thnLab)
             } yield v,
             for {
-              _ <- updatePC(/* not */cndVal)
+              _ <- updatePC(/* not */cndVal.toSMT)
               // update branches
               v <- execBlock(funName, elsLab)
             } yield v)
         } yield v
-         */
         // Temp: concrete execution below:
+        /*
         for {
           cndVal <- eval(cnd)(funName)
           s <- getState
@@ -507,6 +506,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             })
           }
         } yield v
+         */
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
@@ -741,7 +741,7 @@ object TestStagedLLVM {
         // val s = Map(FrameLoc("f_%a") -> IntV(5),
         // FrameLoc("f_%b") -> IntV(6),
         //FrameLoc("f_%c") -> IntV(7))
-        val args: Rep[List[Value]] = List[Value]()
+        val args: Rep[List[Value]] = List[Value](IntV(1), IntV(2), IntV(3))
         // val s = Map()
         val res = exec(m, fname, args)
         println(res.size)
@@ -771,18 +771,15 @@ object TestStagedLLVM {
     // val code = specialize(power, "@main")
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
-    //val code = specialize(multipath, "@f")
+    // val code = specialize(add, "@main")
+    val code = specialize(multipath, "@f")
 
-    /*
-    val code = specialize(add, "@main")
-    code.save("gen/add.cpp")
+    code.save("gen/multipath.cpp")
     println(code.code)
-    code.compile("gen/add.cpp")
-    code.eval(5)
-     */
+    code.compile("gen/multipath.cpp")
 
     // testArrayAccess
-    testPower
+    // testPower
     println("Done")
   }
 }

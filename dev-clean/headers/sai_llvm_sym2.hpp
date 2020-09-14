@@ -68,6 +68,18 @@ inline unsigned int proj_LocV(Ptr<Value> v) {
 inline LocV::Kind kStack() { return LocV::kStack; }
 inline LocV::Kind kHeap() { return LocV::kHeap; }
 
+struct SymV : Value {
+  
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "SymV(" << "FIXME" << ")";
+  }
+};
+
+Ptr<Value> proj_SMTExpr(Ptr<Value> v) {
+  // FIXME
+  return v;
+}
+
 using PtrVal = Ptr<Value>;
 using SMTExpr = Ptr<Value>; //FIXME
 using PC = immer::set<SMTExpr>;
