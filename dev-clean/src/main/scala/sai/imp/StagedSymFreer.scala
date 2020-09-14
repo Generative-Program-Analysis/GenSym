@@ -473,6 +473,26 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
         } yield ()
       case While(e, s) =>
         val k = 4
+        def loop(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
+          val m = for {
+            v <- eval(e)
+            st <- get[Rep[SS], E]
+            u <- reflect {
+              if (v.getBool) {
+                val m = for {
+                  _ <- exec(s)
+                  st1 <- get[Rep[SS], E]
+                  r <- reflect(reploop(st1))
+                } yield r
+                reify(st)(m)
+              } else {
+                reify(st)(exec(Skip()))
+              }
+            }
+          } yield u
+          reify(ss)(m)
+        }
+        def reploop: Rep[SS=>List[(SS, Unit)]] = fun(loop)
         exec(unfold(While(e, s), k))
       case Assert(e) =>
         updatePathCond(e)
