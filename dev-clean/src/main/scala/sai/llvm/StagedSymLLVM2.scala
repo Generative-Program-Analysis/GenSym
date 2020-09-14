@@ -171,12 +171,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Mem](Adapter.g.reflect("mem_take", Unwrap(σ), Unwrap(n)))
   }
 
-  // implicit class EnvOps(e: Rep[Env]) {
-    
-  // }
-
-
-
   object HeapAddr {
     def apply(x: String): Rep[Addr] = {
       Wrap[Addr](Adapter.g.reflectWrite("heap_addr", Backend.Const(x))(Adapter.CTRL))
@@ -270,14 +264,42 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   object Primitives {
     def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       // generate printf
-      ???
+      Wrap[List[(SS, Value)]]("sym_printf", Unwrap(s), Unwrap(args))
     }
-    def printf: Rep[Value] = FunV(fun(__printf))
+    def printf: Rep[Value] = FunV(topFun(__printf))
 
-    def __read(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      ???
+    /*
+    def read(args: List[Value]): Value = {
+      //FIXME: args(0) is not handled
+      val LocValue(start) = args(1)
+      val IntValue(len) = args(2)
+      // FIXME: This would corrupt the memory
+      val rawInput = "ssssddddwwaawwddddssssddwwww"
+      val inputStr = rawInput.take(Math.min(len, rawInput.length))
+      for (i <- 0 until inputStr.length) {
+        start.mem(start + i) = IntValue(inputStr(i).toInt)
+      }
+      start.mem(start + inputStr.length) = IntValue(0)
+      VoidValue
+      //eval(CharArrayConst("ssssddddwwaawwddddssssddwwww"))
+     }
+     */
+
+    def __concreteReadForMaze(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      Wrap[List[(SS, Value)]]("read_maze", Unwrap(s), Unwrap(args))
     }
-    def read: Rep[Value] = FunV(fun(__read))
+
+    def read: Rep[Value] = FunV(topFun(__concreteReadForMaze))
+
+    def __exit(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      return List[(SS, Value)]();
+    }
+    def exit: Rep[Value] = FunV(topFun(__exit))
+
+    def __sleep(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      return List[(SS, Value)]((s, IntV(0)));
+    }
+    def sleep: Rep[Value] = FunV(topFun(__sleep))
   }
 
   object Magic {
@@ -349,8 +371,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         val v = id match {
           case "@printf" => Primitives.printf
           case "@read" => Primitives.read
-          case "@exit" => ??? // returns nondet fail? this should be something like a break
-          case "@sleep" => ??? //noop
+          case "@exit" => Primitives.exit
+          case "@sleep" => Primitives.sleep
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
