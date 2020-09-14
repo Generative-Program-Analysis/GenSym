@@ -116,8 +116,21 @@ Mem select_mem(PtrVal v, Mem heap, Mem stack) {
   if (loc == nullptr) {
     std::cout << "Value is not a location value!" << std::endl;
   }
-  if (loc->k == LocV::kStack) return stack;
+  if (loc->k == LocV::kStack) {
+    return stack;
+  }
   return heap;
+}
+
+LocV::Kind select_loc(PtrVal v) {
+  auto loc = std::dynamic_pointer_cast<LocV>(v);
+  if (loc == nullptr) {
+    std::cout << "Value is not a location value!" << std::endl;
+  }
+  if (loc->k == LocV::kStack) {
+    return LocV::kStack;
+  }
+  return LocV::kHeap;
 }
 
 static std::map<String, int> stack_env{};

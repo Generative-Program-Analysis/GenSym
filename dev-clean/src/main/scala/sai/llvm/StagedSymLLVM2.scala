@@ -192,6 +192,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Int](Adapter.g.reflectWrite("kStack")(Adapter.CTRL))
     def kHeap: Rep[Int] =
       Wrap[Int](Adapter.g.reflectWrite("kHeap")(Adapter.CTRL))
+    def select_loc(v: Rep[Value]): Rep[Int] =
+      Wrap[Int](Adapter.g.reflectWrite("select_loc", Unwrap(v))(Adapter.CTRL))
     def apply(l: Rep[Addr], kind: Rep[Int]): Rep[Value] = 
       Wrap[Value](Adapter.g.reflectWrite("make_LocV", Unwrap(l), Unwrap(kind))(Adapter.CTRL))
   }
@@ -261,10 +263,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def findFundef(fname: String) = funMap.get(fname).get
   }
 
-  object Primitives {
+  object Primitives extends java.io.Serializable {
     def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       // generate printf
-      Wrap[List[(SS, Value)]]("sym_printf", Unwrap(s), Unwrap(args))
+      Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_printf", Unwrap(s), Unwrap(args)))
     }
     def printf: Rep[Value] = FunV(topFun(__printf))
 
@@ -286,7 +288,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
      */
 
     def __concreteReadForMaze(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      Wrap[List[(SS, Value)]]("read_maze", Unwrap(s), Unwrap(args))
+      Wrap[List[(SS, Value)]](Adapter.g.reflect("read_maze", Unwrap(s), Unwrap(args)))
     }
 
     def read: Rep[Value] = FunV(topFun(__concreteReadForMaze))
@@ -388,7 +390,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           val offset = calculateOffset(ptrType, indexValue)
           const match {
             case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-            case _ => LocV(lV.loc + offset, LocV.kStack)
+            case _ => LocV(lV.loc + offset, LocV.select_loc(lV))
           }
         }
       case ZeroInitializerConst => ret(IntV(0))
@@ -470,10 +472,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           val offset = calculateOffset(ptrType, indexValue)
           ptrValue match {
             case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-            case _ => LocV(lV.loc + offset, LocV.kStack)
+            case _ => LocV(lV.loc + offset, LocV.select_loc(lV))
           }
         }
-      case PhiInst(ty, incs) => ???
+      // TODO change
+      case PhiInst(ty, incs) => for {
+        v <- eval(incs.head.value)
+      } yield v 
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         for {
           cnd <- eval(cndVal)
@@ -494,6 +499,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
   def execTerm(funName: String, inst: Terminator): Comp[E, Rep[Value]] = {
     inst match {
+      // FIXME: unreachable
+      case Unreachable => ret(IntV(-1))
       case RetTerm(ty, Some(value)) => eval(value)(funName)
       case RetTerm(ty, None) => ret(IntV(0))
       case BrTerm(lab) =>
@@ -750,8 +757,8 @@ object TestStagedLLVM {
   val power = parse("llvm/benchmarks/power.ll")
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multipath.ll")
   val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
+  val maze = parse("llvm/benchmarks/maze.ll")
 
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
@@ -763,7 +770,7 @@ object TestStagedLLVM {
         // val s = Map(FrameLoc("f_%a") -> IntV(5),
         // FrameLoc("f_%b") -> IntV(6),
         //FrameLoc("f_%c") -> IntV(7))
-        val args: Rep[List[Value]] = List[Value](IntV(1), IntV(2), IntV(3))
+        val args: Rep[List[Value]] = List[Value](IntV(0), IntV(0))
         // val s = Map()
         val res = exec(m, fname, args)
         println(res.size)
@@ -794,11 +801,12 @@ object TestStagedLLVM {
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
     // val code = specialize(add, "@main")
-    val code = specialize(multipath, "@f")
+    // val code = specialize(multipath, "@f")
+    val code = specialize(maze, "@main")
 
-    code.save("gen/multipath.cpp")
+    code.save("gen/maze.cpp")
     println(code.code)
-    code.compile("gen/multipath.cpp")
+    code.compile("gen/maze.cpp")
 
     // testArrayAccess
     // testPower
