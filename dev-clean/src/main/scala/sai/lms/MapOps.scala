@@ -26,7 +26,7 @@ trait MapOps { b: Base =>
       val mK = Backend.Const(manifest[K])
       val mV = Backend.Const(manifest[V])
       val unwrapped_kvs: Seq[Backend.Exp] = Seq(mK, mV) ++ kvs.map(Unwrap).toSeq
-      Wrap[Map[K, V]](Adapter.g.reflect("map-new", unwrapped_kvs:_*))
+      Wrap[Map[K, V]](Adapter.g.reflectWrite("map-new", unwrapped_kvs:_*)(Adapter.CTRL))
     }
     def empty[K: Manifest, V: Manifest](implicit pos: SourceContext) = {
       val mK = Backend.Const(manifest[K])

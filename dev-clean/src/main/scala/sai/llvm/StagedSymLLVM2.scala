@@ -39,17 +39,30 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   // TODO: if there is no dyanmic heap allocation, the object
   //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
   type Heap = Mem
-  type Stack = Mem
+  type Env = Map[String, Int]
+  type FEnv = List[Env]
+  type Stack = (Mem, FEnv)
 
   type PC = Set[SMTExpr]
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
   def emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
+  // def emptyEnv: Rep[Env] = Wrap[Env](Adapter.g.reflect("mt_env"))
 
   // TODO: can be Comp[E, Unit]?
   def putState(s: Rep[SS]): Comp[E, Unit] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
+
+  def getCurEnv: Comp[E, Rep[Env]] = for { s <- getState } yield s._2._2.head
+  def setCurEnv(e: Rep[Env]): Comp[E, Rep[Unit]] = for {
+    s <- getState
+    _ <- putState((s._1, Tuple2(s._2._1, e :: s._2._2.tail), s._3))
+  } yield ()
+  def pushEmptyEnv: Comp[E, Rep[Unit]] = for {
+    s <- getState
+    _ <- putState((s._1, Tuple2(s._2._1, Map[String, Int]() :: s._2._2), s._3))
+  } yield ()
 
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
   def putHeap(h: Rep[Heap]) = for {
@@ -69,35 +82,41 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     _ <- putState((s._1, st, s._3))
   } yield ()
 
+  def getStackMem: Comp[E, Rep[Mem]] = for { s <- getStack } yield s._1
+  def putStackMem(st: Rep[Mem]): Comp[E, Rep[Unit]] = for {
+    s <- getState
+    _ <- putState((s._1, Tuple2(st, s._2._2), s._3))
+  } yield ()
+
   def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] =
     for {
       s <- getState
-      _ <- putState((s._1, s._2.take(keep), s._3))
+      _ <- putState((s._1, Tuple2(s._2._1.take(keep), s._2._2.tail), s._3))
     } yield ()
 
   def stackAlloc(size: Int): Comp[E, Rep[Addr]] = {
     for {
-      st <- getStack
+      st <- getStackMem
       a <- {
         val (st_, a) = st.alloc(size)
-        putStack(st_).map { _ => a }
+        putStackMem(st_).map { _ => a }
       }
     } yield a
   }
 
   def stackUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
     for {
-      st <- getStack
-      _ <- putStack(st.update(k, v))
+      st <- getStackMem
+      _ <- putStackMem(st.update(k, v))
     } yield ()
 
   def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] =
     for {
-      st <- getStack
+      st <- getStackMem
+      env <- getCurEnv
       _ <- {
         val (st_, a) = st.alloc(1)
-        StackAddr.save(x, a)
-        putStack(st_.update(a, v))
+        setCurEnv(env + (x -> a)).flatMap(_ => putStackMem(st_.update(a, v)))
       }
     } yield ()
 
@@ -152,23 +171,11 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Mem](Adapter.g.reflect("mem_take", Unwrap(σ), Unwrap(n)))
   }
 
-  object StackAddr {
-    def save(x: String, a: Rep[Addr]): Rep[Unit] = {
-      Wrap[Unit](Adapter.g.reflectWrite("stack_addr_save", Backend.Const(x), Unwrap(a))(Adapter.CTRL))
-    }
-    def apply(st: Rep[Mem], x: String): Rep[Addr] = {
-      /*
-      if (!CompileTimeRuntime.env.contains(x)) {
-        System.err.println(s"Not allocated $x!")
-      } else {
-        System.err.println(s"Hit $x!")
-        System.err.println(CompileTimeRuntime.env(x))
-        CompileTimeRuntime.env(x)
-      }
-      */
-      Wrap[Addr](Adapter.g.reflectWrite("stack_addr", Unwrap(st), Backend.Const(x))(Adapter.CTRL))
-    }
-  }
+  // implicit class EnvOps(e: Rep[Env]) {
+    
+  // }
+
+
 
   object HeapAddr {
     def apply(x: String): Rep[Addr] = {
@@ -306,7 +313,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def eval(v: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
-        for { st <- getStack } yield { st.lookup(StackAddr(st, funName + "_" + x)) }
+        for { 
+          st <- getStackMem
+          env <- getCurEnv
+      } yield { st.lookup(env(funName + "_" + x)) }
       case IntConst(n) => ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
@@ -422,9 +432,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
+          _ <- pushEmptyEnv
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame(s._2.size)
+          _ <- popFrame(s._2._1.size)
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
@@ -535,9 +546,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
+          _ <- pushEmptyEnv
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame(s._2.size)
+          _ <- popFrame(s._2._1.size)
         } yield ()
     }
   }
@@ -652,11 +664,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     val heap0 = Wrap[Mem](Unwrap(preHeap))
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
+      _ <- pushEmptyEnv
       s <- getState
       v <- reflect(fv.fun(s, args))
-      _ <- popFrame(s._2.size)
+      _ <- popFrame(s._2._1.size)
     } yield v
-    val initState: Rep[SS] = (heap0, emptyMem, Set[SMTExpr]())
+    val initState: Rep[SS] = (heap0, Tuple2(emptyMem, List[Map[String, Int]]()), Set[SMTExpr]())
     reify[Value](initState)(comp)
   }
 }
@@ -768,8 +781,8 @@ object TestStagedLLVM {
     code.eval(5)
      */
 
-    testArrayAccess
-    //testPower
+    // testArrayAccess
+    testPower
     println("Done")
   }
 }
