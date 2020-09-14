@@ -462,19 +462,20 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         v <- eval(incs.head.value)
       } yield v 
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
-        // for {
-        //   cnd <- eval(cndVal)
-        //   v <- choice(
-        //     for {
-        //       _ <- updatePC(cnd.toSMT)
-        //       v <- eval(thnVal)
-        //     } yield v,
-        //     for {
-        //       _ <- updatePC(/* not */cnd.toSMT)
-        //       v <- eval(elsVal)
-        //     } yield v
-        //   )
-        // } yield v
+        for {
+          cnd <- eval(cndVal)
+          v <- choice(
+            for {
+              _ <- updatePC(cnd.toSMT)
+              v <- eval(thnVal)
+            } yield v,
+            for {
+              _ <- updatePC(/* not */cnd.toSMT)
+              v <- eval(elsVal)
+            } yield v
+          )
+        } yield v
+        /*
         for {
           cnd <- eval(cndVal)
           s <- getState
@@ -486,6 +487,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             })
           }
         } yield v
+         */
     }
   }
 
@@ -501,19 +503,20 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         // TODO: needs to consider the case wehre cnd is a concrete value
         // val cndM: Rep[SMTExpr] = ???
-        // for {
-        //   cndVal <- eval(cnd)(funName)
-        //   v <- choice(
-        //     for {
-        //       _ <- updatePC(cndVal.toSMT)
-        //       v <- execBlock(funName, thnLab)
-        //     } yield v,
-        //     for {
-        //       _ <- updatePC(/* not */cndVal.toSMT)
-        //       // update branches
-        //       v <- execBlock(funName, elsLab)
-        //     } yield v)
-        // } yield v
+        for {
+          cndVal <- eval(cnd)(funName)
+          v <- choice(
+            for {
+              _ <- updatePC(cndVal.toSMT)
+              v <- execBlock(funName, thnLab)
+            } yield v,
+            for {
+              _ <- updatePC(/* not */cndVal.toSMT)
+              // update branches
+              v <- execBlock(funName, elsLab)
+            } yield v)
+        } yield v
+        /*
         // Temp: concrete execution below:
         for {
           cndVal <- eval(cnd)(funName)
@@ -526,7 +529,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             })
           }
         } yield v
-
+         */
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
@@ -648,7 +651,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
     for (b <- blocks) {
       if (CompileTimeRuntime.BBFuns.contains(b)) {
-        System.err.println("Already compiled " + b)
+        //System.err.println("Already compiled " + b)
       } else {
         // val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
         val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
@@ -668,7 +671,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
     for (f <- funs) {
       if (CompileTimeRuntime.FunFuns.contains(f.id)) {
-        System.err.println("Already compiled " + f)
+        //System.err.println("Already compiled " + f)
       } else {
         CompileTimeRuntime.FunFuns(f.id) = repRunFun(f)
       }
@@ -756,14 +759,7 @@ object TestStagedLLVM {
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
     new CppSymStagedLLVMDriver[Int, Unit] {
       def snippet(u: Rep[Int]) = {
-        //def exec(m: Module, fname: String, s0: Rep[Map[Loc, Value]]): Rep[List[(SS, Value)]]
-        //val s = Map(FrameLoc("f_%x") -> IntV(5), FrameLoc("f_%y") -> IntV(2))
-        //val s = Map(FrameLoc("%x") -> IntV(5))
-        // val s = Map(FrameLoc("f_%a") -> IntV(5),
-        // FrameLoc("f_%b") -> IntV(6),
-        //FrameLoc("f_%c") -> IntV(7))
-        val args: Rep[List[Value]] = List[Value]()
-        // val s = Map()
+        val args: Rep[List[Value]] = List[Value](IntV(1), IntV(2), IntV(3))
         val res = exec(m, fname, args)
         println(res.size)
       }
@@ -801,15 +797,19 @@ object TestStagedLLVM {
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
     // val code = specialize(add, "@main")
-    // val code = specialize(multipath, "@f")
-    val code = specialize(maze, "@main")
+    val code = specialize(multipath, "@f")
+    //val code = specialize(maze, "@main")
 
+    /*
     code.save("gen/maze.cpp")
     println(code.code)
     code.compile("gen/maze.cpp")
-    //code.save("gen/multipath_1048576.cpp")
-    //println(code.code)
-    //code.compile("gen/multipath_1048576.cpp")
+     */
+    val res = sai.evaluation.utils.Utils.time {
+      code.save("gen/multipath_1048576.cpp")
+    }
+    println(res)
+    //code.compile("gen/multipath_1024.cpp")
 
     // testArrayAccess
     // testPower

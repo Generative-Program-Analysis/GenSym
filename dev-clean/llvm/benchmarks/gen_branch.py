@@ -5,7 +5,7 @@ def gen():
     print("int x = a;")
     print("int y = b;")
     print("int z = c;")
-    for i in range(1, 21):
+    for i in range(1, 11):
         r1 = random.randrange(0, 100)
         r2 = random.randrange(0, 100)
         print("if (x > {}) ".format(i) + "{")
