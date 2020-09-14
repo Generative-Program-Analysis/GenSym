@@ -127,10 +127,7 @@ LocV::Kind select_loc(PtrVal v) {
   if (loc == nullptr) {
     std::cout << "Value is not a location value!" << std::endl;
   }
-  if (loc->k == LocV::kStack) {
-    return LocV::kStack;
-  }
-  return LocV::kHeap;
+  return loc->k;
 }
 
 static std::map<String, int> stack_env{};
