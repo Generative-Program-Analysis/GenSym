@@ -480,18 +480,29 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         v <- eval(incs.head.value)
       } yield v 
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
+        // for {
+        //   cnd <- eval(cndVal)
+        //   v <- choice(
+        //     for {
+        //       _ <- updatePC(cnd.toSMT)
+        //       v <- eval(thnVal)
+        //     } yield v,
+        //     for {
+        //       _ <- updatePC(/* not */cnd.toSMT)
+        //       v <- eval(elsVal)
+        //     } yield v
+        //   )
+        // } yield v
         for {
           cnd <- eval(cndVal)
-          v <- choice(
-            for {
-              _ <- updatePC(cnd.toSMT)
-              v <- eval(thnVal)
-            } yield v,
-            for {
-              _ <- updatePC(/* not */cnd.toSMT)
-              v <- eval(elsVal)
-            } yield v
-          )
+          s <- getState
+          v <- {
+            reflect(if (cnd.int == 1) {
+              reify(s)(eval(thnVal))
+            } else {
+              reify(s)(eval(elsVal))
+            })
+          }
         } yield v
     }
   }
@@ -505,7 +516,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case RetTerm(ty, None) => ret(IntV(0))
       case BrTerm(lab) =>
         execBlock(funName, lab)
-        // branches = lab :: branches
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         // TODO: needs to consider the case wehre cnd is a concrete value
         // val cndM: Rep[SMTExpr] = ???
@@ -769,7 +779,7 @@ object TestStagedLLVM {
         // val s = Map(FrameLoc("f_%a") -> IntV(5),
         // FrameLoc("f_%b") -> IntV(6),
         //FrameLoc("f_%c") -> IntV(7))
-        val args: Rep[List[Value]] = List[Value](IntV(0), IntV(0))
+        val args: Rep[List[Value]] = List[Value]()
         // val s = Map()
         val res = exec(m, fname, args)
         println(res.size)
@@ -794,6 +804,14 @@ object TestStagedLLVM {
     code.eval(0)
   }
 
+  def testWhile {
+    val code = specialize(parse("llvm/benchmarks/whileTest.ll"), "@main")
+    code.save("gen/while.cpp")
+    println(code.code)
+    code.compile("gen/while.cpp")
+    code.eval(0)
+  }
+
   def main(args: Array[String]): Unit = {
     
     // val code = specialize(power, "@main")
@@ -806,9 +824,8 @@ object TestStagedLLVM {
     code.save("gen/maze.cpp")
     println(code.code)
     code.compile("gen/maze.cpp")
-
     // testArrayAccess
     // testPower
-    println("Done")
+    // println("Done")
   }
 }
