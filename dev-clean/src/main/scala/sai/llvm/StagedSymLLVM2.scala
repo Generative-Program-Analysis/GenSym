@@ -209,7 +209,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     // if v is a HeapAddr, return heap, otherwise return its frame memory
     def selectMem: Comp[E, Rep[Mem]] = for {
       s <- getState
-    } yield Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v), Unwrap(s._1), Unwrap(s._2)))
+    } yield Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v), Unwrap(s._1), Unwrap(s._2._1)))
 
     def loc: Rep[Addr] = Wrap[Addr](Adapter.g.reflect("proj_LocV", Unwrap(v)))
     def int: Rep[Int] = Wrap[Int](Adapter.g.reflect("proj_IntV", Unwrap(v)))
@@ -742,7 +742,7 @@ object TestStagedLLVM {
         // FrameLoc("f_%b") -> IntV(6),
         //FrameLoc("f_%c") -> IntV(7))
         val args: Rep[List[Value]] = List[Value]()
-        val s = Map()
+        // val s = Map()
         val res = exec(m, fname, args)
         println(res.size)
       }
