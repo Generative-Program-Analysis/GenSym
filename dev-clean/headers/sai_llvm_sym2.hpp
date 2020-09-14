@@ -167,14 +167,13 @@ SS update_mem(SS state, PtrVal k, PtrVal v) {
 immer::flex_vector<std::pair<SS, PtrVal>> read_maze(SS state, immer::flex_vector<PtrVal> args) {
   // TODO: be careful if addr is used later, or make a copy of args.at(1)
   auto addr = std::dynamic_pointer_cast<LocV>(args.at(1));
-  auto len = std::dynamic_pointer_cast<IntV>(args.at(0));
+  auto len = std::dynamic_pointer_cast<IntV>(args.at(2));
   String raw_input = "ssssddddwwaawwddddssssddwwww";
   // val inputStr = rawInput.take(Math.min(len, rawInput.length))
   for (int i = 0; i < raw_input.size(); i++) {
-    addr->l = addr->l + i;
-    state = update_mem(state, addr, make_IntV(atoi(&raw_input.at(i))));
+    state = update_mem(state, addr, make_IntV(raw_input.at(i)));
+    addr->l = addr->l + 1;
   }
-  addr->l = addr->l + 1;
   state = update_mem(state, addr, make_IntV(0));
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }

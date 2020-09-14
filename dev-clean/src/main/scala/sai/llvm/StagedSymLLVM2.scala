@@ -509,21 +509,20 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         // TODO: needs to consider the case wehre cnd is a concrete value
         // val cndM: Rep[SMTExpr] = ???
-        for {
-          cndVal <- eval(cnd)(funName)
-          v <- choice(
-            for {
-              _ <- updatePC(cndVal.toSMT)
-              v <- execBlock(funName, thnLab)
-            } yield v,
-            for {
-              _ <- updatePC(/* not */cndVal.toSMT)
-              // update branches
-              v <- execBlock(funName, elsLab)
-            } yield v)
-        } yield v
+        // for {
+        //   cndVal <- eval(cnd)(funName)
+        //   v <- choice(
+        //     for {
+        //       _ <- updatePC(cndVal.toSMT)
+        //       v <- execBlock(funName, thnLab)
+        //     } yield v,
+        //     for {
+        //       _ <- updatePC(/* not */cndVal.toSMT)
+        //       // update branches
+        //       v <- execBlock(funName, elsLab)
+        //     } yield v)
+        // } yield v
         // Temp: concrete execution below:
-        /*
         for {
           cndVal <- eval(cnd)(funName)
           s <- getState
@@ -535,7 +534,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             })
           }
         } yield v
-         */
+
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
