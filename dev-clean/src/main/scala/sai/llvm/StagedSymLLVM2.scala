@@ -28,12 +28,13 @@ import sai.imp.{RepNondet}
 
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
+import sai.lmsx.smt.SMTBool
 
 @virtualize
 trait StagedSymExecEff extends SAIOps with RepNondet {
   trait Mem
   trait Value
-  trait SMTExpr
+  type SMTExpr = SMTBool
   type Addr = Int
 
   // TODO: if there is no dyanmic heap allocation, the object
@@ -770,7 +771,8 @@ object TestStagedLLVM {
           SymV("x6"), SymV("x7"), SymV("x8")
         )
         val res = exec(m, fname, args)
-        println(res.head._1._3)
+        res.head._1._3.toList.foreach(assert(_))
+        handle(query(lit(false)))
         println(res.size)
       }
     }

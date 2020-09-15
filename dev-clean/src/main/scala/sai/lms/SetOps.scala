@@ -179,7 +179,7 @@ trait CppCodeGen_Set extends ExtendedCCodeGen {
     case Node(_, "set-tail", List(s), _) =>
       ???
     case Node(_, "set-toList", List(s), _) =>
-      ???
+      emit("set_to_list("); shallow(s); emit(")")
     case Node(_, "set-++", List(s1, s2), _) =>
       emit("Set::join(")
       shallow(s1); emit(", ")

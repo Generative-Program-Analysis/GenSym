@@ -110,6 +110,14 @@ void print_pcset(immer::set<Expr>& s) {
   std::cout << "}";
 }
 
+immer::flex_vector<Expr> set_to_list(immer::set<Expr>& s) {
+  auto res = immer::flex_vector<Expr>{};
+  for (auto x : s) {
+    res = res.push_back(x);
+  }
+  return res;
+}
+
 Ptr<Value> op_2(String op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   auto i2 = std::dynamic_pointer_cast<IntV>(v2);
