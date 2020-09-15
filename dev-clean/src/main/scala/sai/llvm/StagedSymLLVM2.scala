@@ -476,7 +476,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
               v <- eval(thnVal)
             } yield v,
             for {
-              _ <- updatePC(/* not */cnd.toSMT)
+              _ <- updatePC(not(cnd.toSMT))
               v <- eval(elsVal)
             } yield v
           )
@@ -517,7 +517,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
               v <- execBlock(funName, thnLab)
             } yield v,
             for {
-              _ <- updatePC(/* not */cndVal.toSMT)
+              _ <- updatePC(not(cndVal.toSMT))
               // update branches
               v <- execBlock(funName, elsLab)
             } yield v)
@@ -757,7 +757,7 @@ object TestStagedLLVM {
   val power = parse("llvm/benchmarks/power.ll")
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multi_path_65536_sym.ll")
+  val multipath= parse("llvm/benchmarks/multi_path_1048576_sym.ll")
   val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
   val maze = parse("llvm/benchmarks/maze.ll")
 
@@ -769,12 +769,13 @@ object TestStagedLLVM {
           SymV("x0"), SymV("x1"), SymV("x2"), 
           SymV("x3"), SymV("x4"), SymV("x5"),
           SymV("x6"), SymV("x7"), SymV("x8"),
-          SymV("x9"), SymV("x10"), SymV("x11"),
-          SymV("x12"), SymV("x13"), SymV("x14"),
-          SymV("x15")
+          SymV("x9"),SymV("x10"), SymV("x11"), SymV("x12"), 
+          SymV("x13"), SymV("x14"), SymV("x15"),
+          SymV("x16"), SymV("x17"), SymV("x18"),
+          SymV("x19")
         )
         val res = exec(m, fname, args)
-        res.head._1._3.toList.foreach(assert(_))
+        res.tail(3)._1._3.toList.foreach(assert(_))
         handle(query(lit(false)))
         println(res.size)
       }
@@ -820,10 +821,10 @@ object TestStagedLLVM {
     code.compile("gen/maze.cpp")
      */
     val res = sai.evaluation.utils.Utils.time {
-      code.save("gen/multi_path_65536_sym.cpp")
+      code.save("gen/multi_path_1048576_sym.cpp")
     }
     println(res)
-    code.compile("gen/multi_path_65536_sym.cpp")
+    code.compile("gen/multi_path_1048576_sym.cpp")
 
     // testArrayAccess
     // testPower
