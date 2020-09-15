@@ -792,7 +792,6 @@ object TestStagedLLVM {
   }
 
   def main(args: Array[String]): Unit = {
-    
     // val code = specialize(power, "@main")
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")

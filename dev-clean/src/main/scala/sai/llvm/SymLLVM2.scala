@@ -725,9 +725,12 @@ object TestSymLLVM {
   }
 
   def testMultiPathSym = {
-    val multipath = parse("llvm/benchmarks/multipath.ll")
-    val mpSym = exec(multipath, "@f", List(SymV("a"), IntV(1), IntV(2)))
-    println(mpSym)
+    val multipath = parse("llvm/benchmarks/multipath_1048576.ll")
+    val res = sai.evaluation.utils.Utils.time {
+      val mpSym = exec(multipath, "@f", List(SymV("a"), SymV("b"), SymV("c")))
+      println(mpSym.size)
+    }
+    println(res)
   }
 
   def testArrayAccess = {
@@ -756,7 +759,8 @@ object TestSymLLVM {
 
   def main(args: Array[String]): Unit = {
     
-    testArraySetLocal
+    // testArraySetLocal
+    testMultiPathSym
 
     println("Done")
   }
