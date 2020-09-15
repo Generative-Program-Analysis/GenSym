@@ -30,6 +30,9 @@ import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 import sai.lmsx.smt.SMTBool
 
+// TODO
+// Add Primitive: make_symbolic and assert
+
 // TODO to make maze run symbolically
 // make switch symbolic
 // make select, condbr mixing conc and sym
