@@ -1,13 +1,5 @@
-int f() {
-int x0 = 8;
-int x1 = 6;
-int x2 = 5;
-int x3 = 2;
-int x4 = 3;
-int x5 = 8;
-int x6 = 1;
-int x7 = 2;
-int x8 = 0;
+int f(int x0, int x1, int x2, int x3, int x4, int x5, int x6, int x7, int x8) {
+
 if (x0 > 0) {
   x0 = x4 + x4 + 28;
 }
@@ -39,6 +31,5 @@ return x6 + x8;
 }
 
 int main() {
-  f();
   return 0;
 }

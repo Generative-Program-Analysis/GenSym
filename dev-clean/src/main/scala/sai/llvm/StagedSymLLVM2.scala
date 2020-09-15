@@ -200,6 +200,13 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   object FunV {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = Wrap[Value](Unwrap(f))
   }
+  object SymV {
+    def apply(s: Rep[String]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("make_SymV", Unwrap(s))(Adapter.CTRL))
+  }
+
+  object Op2 {
+    def apply(op: Rep[String], o1: Rep[Value], o2: Rep[Value]) = Wrap[Value](Adapter.g.reflect("op_2", Unwrap(op), Unwrap(o1), Unwrap(o2)))
+  }
 
   implicit class ValueOps(v: Rep[Value]) {
     // if v is a HeapAddr, return heap, otherwise return its frame memory
@@ -394,35 +401,33 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
-        } yield IntV(v1.int + v2.int)
+        } yield Op2("+", v1, v2)
       case SubInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
-        } yield IntV(v1.int - v2.int)
+        } yield Op2("-", v1, v2)
       case MulInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
           v2 <- eval(rhs)
-        } yield IntV(v1.int * v2.int)
+        } yield Op2("*", v1, v2)
       case ICmpInst(pred, ty, lhs, rhs) =>
         for {
-          val1 <- eval(lhs)
-          val2 <- eval(rhs)
+          v1 <- eval(lhs)
+          v2 <- eval(rhs)
         } yield {
-          val v1 = val1.int
-          val v2 = val2.int
           pred match {
-            case EQ => IntV(if (v1 == v2) 1 else 0)
-            case NE => IntV(if (v1 != v2) 1 else 0)
-            case SLT => IntV(if (v1 < v2) 1 else 0)
-            case SLE => IntV(if (v1 <= v2) 1 else 0)
-            case SGT => IntV(if (v1 > v2) 1 else 0)
-            case SGE => IntV(if (v1 >= v2) 1 else 0)
-            case ULT => IntV(if (v1 < v2) 1 else 0)
-            case ULE => IntV(if (v1 <= v2) 1 else 0)
-            case UGT => IntV(if (v1 > v2) 1 else 0)
-            case UGE => IntV(if (v1 >= v2) 1 else 0)
+            case EQ => Op2("=", v1, v2)
+            case NE => Op2("!=", v1, v2)
+            case SLT => Op2("<", v1, v2)
+            case SLE => Op2("<=", v1, v2)
+            case SGT => Op2(">", v1, v2)
+            case SGE => Op2(">=", v1, v2)
+            case ULT => Op2("<", v1, v2)
+            case ULE => Op2("<=", v1, v2)
+            case UGT => Op2(">", v1, v2)
+            case UGE => Op2("<=", v1, v2)
           }
         }
       case ZExtInst(from, value, to) => for {
@@ -735,7 +740,7 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
       else if (m.toString.endsWith("$Value")) "PtrVal"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
-      else if (m.toString.endsWith("SMTExpr")) "PtrVal" //FIXME
+      else if (m.toString.endsWith("SMTExpr")) "Expr" //FIXME
       else super.remap(m)
     }
   }
@@ -751,7 +756,7 @@ object TestStagedLLVM {
   val power = parse("llvm/benchmarks/power.ll")
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multipath_1048576.ll")
+  val multipath= parse("llvm/benchmarks/multi_path_512_sym.ll")
   val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
   val maze = parse("llvm/benchmarks/maze.ll")
 
@@ -759,8 +764,13 @@ object TestStagedLLVM {
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
     new CppSymStagedLLVMDriver[Int, Unit] {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = List[Value](IntV(1), IntV(2), IntV(3))
+        val args: Rep[List[Value]] = List[Value](
+          SymV("x0"), SymV("x1"), SymV("x2"), 
+          SymV("x3"), SymV("x4"), SymV("x5"),
+          SymV("x6"), SymV("x7"), SymV("x8")
+        )
         val res = exec(m, fname, args)
+        println(res.head._1._3)
         println(res.size)
       }
     }
@@ -805,10 +815,10 @@ object TestStagedLLVM {
     code.compile("gen/maze.cpp")
      */
     val res = sai.evaluation.utils.Utils.time {
-      code.save("gen/multipath_1048576.cpp")
+      code.save("gen/multi_path_512_sym.cpp")
     }
     println(res)
-    //code.compile("gen/multipath_1024.cpp")
+    code.compile("gen/multi_path_512_sym.cpp")
 
     // testArrayAccess
     // testPower

@@ -1,24 +1,5 @@
-int f() {
-int x0 = 1;
-int x1 = 2;
-int x2 = 0;
-int x3 = 7;
-int x4 = 17;
-int x5 = 13;
-int x6 = 16;
-int x7 = 7;
-int x8 = 7;
-int x9 = 16;
-int x10 = 2;
-int x11 = 9;
-int x12 = 7;
-int x13 = 0;
-int x14 = 2;
-int x15 = 7;
-int x16 = 17;
-int x17 = 18;
-int x18 = 17;
-int x19 = 6;
+int f(int x0, int x1, int x2, int x3, int x4, int x5, int x6, int x7, int x8, int x9, int x10, int x11, int x12, int x13, int x14, int x15, int x16, int x17, int x18, int x19) {
+
 if (x0 > 0) {
   x0 = x19 + x10 + 60;
 }
@@ -83,6 +64,5 @@ return x10 + x10;
 }
 
 int main() {
-  f();
   return 0;
 }

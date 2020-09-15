@@ -7,6 +7,8 @@
 
 #include <immer/flex_vector.hpp>
 #include <sai.hpp>
+#include <stp/c_interface.h>
+#include <stp_handle.hpp>
 
 #ifndef SAI_LLVM_SYM_HEADERS
 #define SAI_LLVM_SYM_HEADERS
@@ -20,6 +22,9 @@
  * Done: make_IntV, make_LocV, proj_LocV, proj_IntV, mt_mem, mem_take, mem_size, mem_lookup, mem_update
  *       mem_updateL
  */
+
+extern VC vc;
+int bitwidth = 32;
 
 struct Value {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
@@ -69,19 +74,101 @@ inline LocV::Kind kStack() { return LocV::kStack; }
 inline LocV::Kind kHeap() { return LocV::kHeap; }
 
 struct SymV : Value {
-  
+  Expr v;
+  SymV(Expr v) : v(v) {}
   virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "SymV(" << "FIXME" << ")";
+    return os << "SymV(" << v << ")";
   }
 };
 
-Ptr<Value> proj_SMTExpr(Ptr<Value> v) {
-  // FIXME
-  return v;
+
+Ptr<Value> make_SymV(String n) {
+  // TODO type
+  return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
+}
+
+Expr proj_SMTExpr(Ptr<Value> v) {
+  auto i = std::dynamic_pointer_cast<IntV>(v);
+  auto sym = std::dynamic_pointer_cast<SymV>(v);
+  if (i) {
+    return vc_bvConstExprFromInt(vc, 32, i->i);
+  } else if (sym) {
+    return sym->v;
+  } else {
+    std::cout << "Value is not SMTExpr" << std::endl;
+  }
+}
+
+void print_pcset(immer::set<Expr>& s) {
+  std::cout << "{";
+  int i = 0;
+  for (auto x : s) {
+    vc_printExpr(vc, x);
+    if (i != s.size()-1) std::cout << ", ";
+    i = i + 1;
+  }
+  std::cout << "}";
+}
+
+Ptr<Value> op_2(String op, Ptr<Value> v1, Ptr<Value> v2) {
+  auto i1 = std::dynamic_pointer_cast<IntV>(v1);
+  auto i2 = std::dynamic_pointer_cast<IntV>(v2);
+
+  if (i1 && i2) {
+    if (op == "+") {
+      return make_IntV(i1->i + i2->i);
+    } else if (op == "-") {
+      return make_IntV(i1->i - i2->i);
+    } else if (op == "*") {
+      return make_IntV(i1->i * i2->i);
+    } else if (op == "/") {
+      return make_IntV(i1->i / i2->i);
+    } else if (op == "=") {
+      return make_IntV(i1->i == i2->i);
+    } else if (op == ">=") {
+      return make_IntV(i1->i >= i2->i);
+    } else if (op == ">") {
+      return make_IntV(i1->i > i2->i);
+    } else if (op == "<=") {
+      return make_IntV(i1->i <= i2->i);
+    } else if (op == "<") {
+      return make_IntV(i1->i < i2->i);
+    } else if (op == "!=") {
+      return make_IntV(i1->i != i2->i);
+    } else {
+      ASSERT(false, "invalid operator");
+    }
+  } else {
+    Expr e1 = proj_SMTExpr(v1);
+    Expr e2 = proj_SMTExpr(v2);
+    if (op == "+") {
+      return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
+    } else if (op == "-") {
+      return std::make_shared<SymV>(vc_bv32MinusExpr(vc, e1, e2));
+    } else if (op == "*") {
+      return std::make_shared<SymV>(vc_bv32MultExpr(vc, e1, e2));
+    } else if (op == "/") {
+      return std::make_shared<SymV>(vc_bvDivExpr(vc, 32, e1, e2));
+    } else if (op == "=") {
+      return std::make_shared<SymV>(vc_eqExpr(vc, e1, e2));
+    } else if (op == ">=") {
+      return std::make_shared<SymV>(vc_bvGeExpr(vc, e1, e2));
+    } else if (op == ">") {
+      return std::make_shared<SymV>(vc_bvGtExpr(vc, e1, e2));
+    } else if (op == "<=") {
+      return std::make_shared<SymV>(vc_sbvLeExpr(vc, e1, e2));
+    } else if (op == "<") {
+      return std::make_shared<SymV>(vc_sbvLtExpr(vc, e1, e2));
+    } else if (op == "!=") {
+      return std::make_shared<SymV>(vc_notExpr(vc, vc_eqExpr(vc, e1, e2)));
+    } else {
+      ASSERT(false, "invalid operator");
+    }
+  }
 }
 
 using PtrVal = Ptr<Value>;
-using SMTExpr = Ptr<Value>; //FIXME
+using SMTExpr = Expr; //FIXME
 using PC = immer::set<SMTExpr>;
 using Mem = immer::flex_vector<PtrVal>;
 using Env = immer::map<String, int>;

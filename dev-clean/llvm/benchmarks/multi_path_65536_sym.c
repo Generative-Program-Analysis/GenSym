@@ -1,20 +1,4 @@
-int f() {
-int x0 = 10;
-int x1 = 9;
-int x2 = 1;
-int x3 = 2;
-int x4 = 4;
-int x5 = 7;
-int x6 = 6;
-int x7 = 8;
-int x8 = 9;
-int x9 = 6;
-int x10 = 5;
-int x11 = 4;
-int x12 = 15;
-int x13 = 12;
-int x14 = 12;
-int x15 = 3;
+int f(int x0, int x1, int x2, int x3, int x4, int x5, int x6, int x7, int x8, int x9, int x10, int x11, int x12, int x13, int x14, int x15) {
 if (x0 > 0) {
   x0 = x13 + x3 + 56;
 }

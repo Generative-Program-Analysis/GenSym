@@ -94,7 +94,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     emitFunctionDecls(stream)
 
-    if (SMT_DEBUG) emitln("VC vc = vc_createValidityChecker();")
+    if (SMT_DEBUG) emitln("extern VC vc = vc_createValidityChecker();")
 
     emitDatastructures(stream)
     emitFunctions(stream)
