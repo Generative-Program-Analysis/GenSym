@@ -757,7 +757,7 @@ object TestStagedLLVM {
   val power = parse("llvm/benchmarks/power.ll")
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multi_path_512_sym.ll")
+  val multipath= parse("llvm/benchmarks/multi_path_65536_sym.ll")
   val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
   val maze = parse("llvm/benchmarks/maze.ll")
 
@@ -768,7 +768,10 @@ object TestStagedLLVM {
         val args: Rep[List[Value]] = List[Value](
           SymV("x0"), SymV("x1"), SymV("x2"), 
           SymV("x3"), SymV("x4"), SymV("x5"),
-          SymV("x6"), SymV("x7"), SymV("x8")
+          SymV("x6"), SymV("x7"), SymV("x8"),
+          SymV("x9"), SymV("x10"), SymV("x11"),
+          SymV("x12"), SymV("x13"), SymV("x14"),
+          SymV("x15")
         )
         val res = exec(m, fname, args)
         res.head._1._3.toList.foreach(assert(_))
@@ -817,10 +820,10 @@ object TestStagedLLVM {
     code.compile("gen/maze.cpp")
      */
     val res = sai.evaluation.utils.Utils.time {
-      code.save("gen/multi_path_512_sym.cpp")
+      code.save("gen/multi_path_65536_sym.cpp")
     }
     println(res)
-    code.compile("gen/multi_path_512_sym.cpp")
+    code.compile("gen/multi_path_65536_sym.cpp")
 
     // testArrayAccess
     // testPower
