@@ -30,21 +30,25 @@ import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 import sai.lmsx.smt.SMTBool
 
+// TODO to make maze run symbolically
+// make switch symbolic
+// make select, condbr mixing conc and sym
+// Primitives.read should take in Symbolic value
+// When call exit(1), invoke solver to gen input
+
 @virtualize
 trait StagedSymExecEff extends SAIOps with RepNondet {
   trait Mem
   trait Value
-  type SMTExpr = SMTBool
+  trait SMTExpr
   type Addr = Int
 
-  // TODO: if there is no dyanmic heap allocation, the object
-  //       Heap can be a Map[Rep[Addr], Rep[Value]] (or maybe Array[Rep[Value]])
   type Heap = Mem
   type Env = Map[String, Int]
   type FEnv = List[Env]
   type Stack = (Mem, FEnv)
 
-  type PC = Set[SMTExpr]
+  type PC = Set[SMTBool]
   type SS = (Heap, Stack, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
@@ -72,7 +76,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   } yield ()
 
   def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._3
-  def updatePC(x: Rep[SMTExpr]): Comp[E, Rep[Unit]] = for { 
+  def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = for { 
     s <- getState
     _ <- putState((s._1, s._2, s._3 ++ Set(x)))
   } yield ()
@@ -203,6 +207,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("make_SymV", Unwrap(s))(Adapter.CTRL))
+    def apply(s: Rep[String], bw: Int): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("make_SymV", Unwrap(s), Backend.Const(bw))(Adapter.CTRL))
   }
 
   object Op2 {
@@ -220,8 +225,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def fun: Rep[(SS, List[Value]) => List[(SS, Value)]] =
       Wrap[(SS, List[Value]) => List[(SS, Value)]](Unwrap(v))
 
-    def toSMT: Rep[SMTExpr] =
+    def toSMTExpr: Rep[SMTExpr] =
       Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
+    def toSMTBool: Rep[SMTBool] =
+      Wrap[SMTBool](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
   }
 
   object CompileTimeRuntime {
@@ -320,7 +327,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
-  // TODO: PhiInst, record branches in SS
   import CompileTimeRuntime._
   import Magic._
 
@@ -358,7 +364,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           reify(s)(m)
         }
         ret(FunV(topFun(repf)))
-        // ret(FunV(fun(repf)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
           case "@printf" => Primitives.printf
@@ -472,11 +477,11 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           cnd <- eval(cndVal)
           v <- choice(
             for {
-              _ <- updatePC(cnd.toSMT)
+              _ <- updatePC(cnd.toSMTBool)
               v <- eval(thnVal)
             } yield v,
             for {
-              _ <- updatePC(not(cnd.toSMT))
+              _ <- updatePC(not(cnd.toSMTBool))
               v <- eval(elsVal)
             } yield v
           )
@@ -507,17 +512,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case BrTerm(lab) =>
         execBlock(funName, lab)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
-        // TODO: needs to consider the case wehre cnd is a concrete value
-        // val cndM: Rep[SMTExpr] = ???
         for {
           cndVal <- eval(cnd)(funName)
           v <- choice(
             for {
-              _ <- updatePC(cndVal.toSMT)
+              _ <- updatePC(cndVal.toSMTBool)
               v <- execBlock(funName, thnLab)
             } yield v,
             for {
-              _ <- updatePC(not(cndVal.toSMT))
+              _ <- updatePC(not(cndVal.toSMTBool))
               // update branches
               v <- execBlock(funName, elsLab)
             } yield v)
@@ -539,7 +542,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
-        // Note: this is now a concrete switch
         def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
@@ -560,7 +562,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case AssignInst(x, valInst) =>
         for {
           v <- execValueInst(valInst)(fun)
-          _ <- stackUpdate(fun + "_" + x, v) //FIXME: x is not unique
+          _ <- stackUpdate(fun + "_" + x, v)
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
@@ -698,7 +700,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       v <- reflect(fv.fun(s, args))
       _ <- popFrame(s._2._1.size)
     } yield v
-    val initState: Rep[SS] = (heap0, Tuple2(emptyMem, List[Map[String, Int]]()), Set[SMTExpr]())
+    val initState: Rep[SS] = (heap0, Tuple2(emptyMem, List[Map[String, Int]]()), Set[SMTBool]())
     reify[Value](initState)(comp)
   }
 }
@@ -719,9 +721,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case _ => super.quote(s)
   }
 
-  // Note: depends on the concrete representation of Mem, we can emit different code
   override def shallow(n: Node): Unit = n match {
-    // case Node(s, "mem-lookup", List(σ, a), _) =>
     case _ => super.shallow(n)
   }
 }
@@ -782,7 +782,6 @@ object TestStagedLLVM {
     }
 
   def testArrayAccess = {
-    // problem: heap loc undefined in other functions
     val code = specialize(arrayAccess, "@main")
     code.save("gen/arrayAccess.cpp")
     println(code.code)
@@ -791,7 +790,6 @@ object TestStagedLLVM {
   }
 
   def testPower = {
-    // problem: FrameEnv override in recursive call
     val code = specialize(power, "@main")
     code.save("gen/power.cpp")
     println(code.code)
