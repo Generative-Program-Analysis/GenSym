@@ -88,11 +88,9 @@ Ptr<Value> make_SymV(String n) {
 }
 
 Expr proj_SMTExpr(Ptr<Value> v) {
-  auto i = std::dynamic_pointer_cast<IntV>(v);
-  auto sym = std::dynamic_pointer_cast<SymV>(v);
-  if (i) {
+  if (auto i = std::dynamic_pointer_cast<IntV>(v)) {
     return vc_bvConstExprFromInt(vc, 32, i->i);
-  } else if (sym) {
+  } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;
   } else {
     std::cout << "Value is not SMTExpr" << std::endl;
@@ -118,30 +116,43 @@ immer::flex_vector<Expr> set_to_list(immer::set<Expr>& s) {
   return res;
 }
 
-Ptr<Value> op_2(String op, Ptr<Value> v1, Ptr<Value> v2) {
+enum kOP {
+  op_plus,
+  op_minus,
+  op_mult,
+  op_div,
+  op_eq,
+  op_ge,
+  op_gt,
+  op_le,
+  op_lt,
+  op_neq,
+};
+
+Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   auto i2 = std::dynamic_pointer_cast<IntV>(v2);
 
   if (i1 && i2) {
-    if (op == "+") {
+    if (op == op_plus) {
       return make_IntV(i1->i + i2->i);
-    } else if (op == "-") {
+    } else if (op == op_minus) {
       return make_IntV(i1->i - i2->i);
-    } else if (op == "*") {
+    } else if (op == op_mult) {
       return make_IntV(i1->i * i2->i);
-    } else if (op == "/") {
+    } else if (op == op_div) {
       return make_IntV(i1->i / i2->i);
-    } else if (op == "=") {
+    } else if (op == op_eq) {
       return make_IntV(i1->i == i2->i);
-    } else if (op == ">=") {
+    } else if (op == op_ge) {
       return make_IntV(i1->i >= i2->i);
-    } else if (op == ">") {
+    } else if (op == op_gt) {
       return make_IntV(i1->i > i2->i);
-    } else if (op == "<=") {
+    } else if (op == op_le) {
       return make_IntV(i1->i <= i2->i);
-    } else if (op == "<") {
+    } else if (op == op_lt) {
       return make_IntV(i1->i < i2->i);
-    } else if (op == "!=") {
+    } else if (op == op_neq) {
       return make_IntV(i1->i != i2->i);
     } else {
       ASSERT(false, "invalid operator");
@@ -149,25 +160,25 @@ Ptr<Value> op_2(String op, Ptr<Value> v1, Ptr<Value> v2) {
   } else {
     Expr e1 = proj_SMTExpr(v1);
     Expr e2 = proj_SMTExpr(v2);
-    if (op == "+") {
+    if (op == op_plus) {
       return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
-    } else if (op == "-") {
+    } else if (op == op_minus) {
       return std::make_shared<SymV>(vc_bv32MinusExpr(vc, e1, e2));
-    } else if (op == "*") {
+    } else if (op == op_mult) {
       return std::make_shared<SymV>(vc_bv32MultExpr(vc, e1, e2));
-    } else if (op == "/") {
+    } else if (op == op_div) {
       return std::make_shared<SymV>(vc_bvDivExpr(vc, 32, e1, e2));
-    } else if (op == "=") {
+    } else if (op == op_eq) {
       return std::make_shared<SymV>(vc_eqExpr(vc, e1, e2));
-    } else if (op == ">=") {
+    } else if (op == op_ge) {
       return std::make_shared<SymV>(vc_bvGeExpr(vc, e1, e2));
-    } else if (op == ">") {
+    } else if (op == op_gt) {
       return std::make_shared<SymV>(vc_bvGtExpr(vc, e1, e2));
-    } else if (op == "<=") {
+    } else if (op == op_le) {
       return std::make_shared<SymV>(vc_sbvLeExpr(vc, e1, e2));
-    } else if (op == "<") {
+    } else if (op == op_lt) {
       return std::make_shared<SymV>(vc_sbvLtExpr(vc, e1, e2));
-    } else if (op == "!=") {
+    } else if (op == op_neq) {
       return std::make_shared<SymV>(vc_notExpr(vc, vc_eqExpr(vc, e1, e2)));
     } else {
       ASSERT(false, "invalid operator");
@@ -179,7 +190,7 @@ using PtrVal = Ptr<Value>;
 using SMTExpr = Expr; //FIXME
 using PC = immer::set<SMTExpr>;
 using Mem = immer::flex_vector<PtrVal>;
-using Env = immer::map<String, int>;
+using Env = immer::map<int, int>;
 using SS = std::tuple<Mem, std::pair<Mem, immer::flex_vector<Env>>, PC>;
 
 // static Mem mt_mem = immer::flex_vector<PtrVal>{};

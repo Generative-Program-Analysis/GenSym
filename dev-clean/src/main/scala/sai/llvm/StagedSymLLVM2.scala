@@ -47,7 +47,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   type Addr = Int
 
   type Heap = Mem
-  type Env = Map[String, Int]
+  type Env = Map[Int, Int]
   type FEnv = List[Env]
   type Stack = (Mem, FEnv)
 
@@ -63,13 +63,24 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
 
   def getCurEnv: Comp[E, Rep[Env]] = for { s <- getState } yield s._2._2.head
+  def lookupCurEnv(x: String): Comp[E, Rep[Addr]] = for {
+    env <- getCurEnv
+  } yield env(x.hashCode)
   def setCurEnv(e: Rep[Env]): Comp[E, Rep[Unit]] = for {
     s <- getState
     _ <- putState((s._1, Tuple2(s._2._1, e :: s._2._2.tail), s._3))
   } yield ()
+  def updateCurEnv(x: String, a: Rep[Addr]): Comp[E, Rep[Unit]] = for {
+    s <- getState
+    _ <- {
+      val newEnv = s._2._2.head + (x.hashCode -> a)
+      putState((s._1, Tuple2(s._2._1, newEnv :: s._2._2.tail), s._3))
+    }
+  } yield ()
+
   def pushEmptyEnv: Comp[E, Rep[Unit]] = for {
     s <- getState
-    _ <- putState((s._1, Tuple2(s._2._1, Map[String, Int]() :: s._2._2), s._3))
+    _ <- putState((s._1, Tuple2(s._2._1, Map[Int, Int]() :: s._2._2), s._3))
   } yield ()
 
   def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
@@ -121,10 +132,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] =
     for {
       st <- getStackMem
-      env <- getCurEnv
       _ <- {
         val (st_, a) = st.alloc(1)
-        setCurEnv(env + (x -> a)).flatMap(_ => putStackMem(st_.update(a, v)))
+        for {
+          _ <- updateCurEnv(x, a)
+          _ <- putStackMem(st_.update(a, v))
+        } yield ()
       }
     } yield ()
 
@@ -214,7 +227,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   object Op2 {
-    def apply(op: Rep[String], o1: Rep[Value], o2: Rep[Value]) = Wrap[Value](Adapter.g.reflect("op_2", Unwrap(op), Unwrap(o1), Unwrap(o2)))
+    def apply(op: String, o1: Rep[Value], o2: Rep[Value]) =
+      Wrap[Value](Adapter.g.reflect("op_2", Backend.Const(op), Unwrap(o1), Unwrap(o2)))
   }
 
   implicit class ValueOps(v: Rep[Value]) {
@@ -338,8 +352,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case LocalId(x) =>
         for { 
           st <- getStackMem
-          env <- getCurEnv
-      } yield { st.lookup(env(funName + "_" + x)) }
+          a <- lookupCurEnv(funName + "_" + x)
+      } yield { st.lookup(a) }
       case IntConst(n) => ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
@@ -427,6 +441,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           v2 <- eval(rhs)
         } yield {
           pred match {
+            // TODO: distinguish signed and unsigned comparsion
             case EQ => Op2("=", v1, v2)
             case NE => Op2("!=", v1, v2)
             case SLT => Op2("<", v1, v2)
@@ -703,7 +718,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       v <- reflect(fv.fun(s, args))
       _ <- popFrame(s._2._1.size)
     } yield v
-    val initState: Rep[SS] = (heap0, Tuple2(emptyMem, List[Map[String, Int]]()), Set[SMTBool]())
+    val initState: Rep[SS] = ??? //(heap0, Tuple2(emptyMem, List[Map[Int, Int]]()), Set[SMTExpr]())
     reify[Value](initState)(comp)
   }
 }
@@ -724,7 +739,24 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case _ => super.quote(s)
   }
 
+  def quoteOp(op: String): String = {
+    op match {
+      case "+"  => "op_plus"
+      case "-"  => "op_minus"
+      case "*"  => "op_mult"
+      case "/"  => "op_div"
+      case "="  => "op_eq"
+      case "!=" => "op_neq"
+      case ">=" => "op_ge"
+      case ">"  => "op_gt"
+      case "<=" => "op_le"
+      case "<"  => "op_lt"
+    }
+  }
+
   override def shallow(n: Node): Unit = n match {
+    case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
+      es"op_2(${quoteOp(op)}, $x, $y)"
     case _ => super.shallow(n)
   }
 }
