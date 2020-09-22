@@ -24,6 +24,19 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
   val SMT_DEBUG = true
 
+  override def quoteBlockPReturn(f: => Unit) = {
+    def wraper(numStms: Int, l: Option[Node], y: Block)(f: => Unit) = {
+      emitln("{")
+      f
+      // Return a a monostate value, otherwise g++ -O3 will generate a binary with core dump
+      if (y.res == Const(())) es"return std::monostate{};"
+      else es"return ${y.res};"
+      emitln(quoteEff(y.eff))
+      emit("}")
+    }
+    withWraper(wraper _)(f)
+  }
+
   override def mayInline(n: Node): Boolean = n match {
     case Node(s, "?", _, _) => false // ternary condition
     case Node(s, "λ", _, _) => false

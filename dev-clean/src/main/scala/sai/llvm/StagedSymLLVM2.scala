@@ -761,6 +761,7 @@ object TestStagedLLVM {
   // val singlepath = parse("llvm/benchmarks/single_path5.ll")
   val branch = parse("llvm/benchmarks/branch2.ll")
   val multipath= parse("llvm/benchmarks/multi_path_1048576_sym.ll")
+  //val multipath= parse("llvm/benchmarks/multi_path_65536_sym.ll")
   val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
   val maze = parse("llvm/benchmarks/maze.ll")
 
@@ -772,10 +773,12 @@ object TestStagedLLVM {
           SymV("x0"), SymV("x1"), SymV("x2"), 
           SymV("x3"), SymV("x4"), SymV("x5"),
           SymV("x6"), SymV("x7"), SymV("x8"),
-          SymV("x9"),SymV("x10"), SymV("x11"), SymV("x12"), 
-          SymV("x13"), SymV("x14"), SymV("x15"),
-          SymV("x16"), SymV("x17"), SymV("x18"),
-          SymV("x19")
+          SymV("x9"), SymV("x10"), SymV("x11"),
+          SymV("x12"), SymV("x13"), SymV("x14"),
+          SymV("x15")
+          /*, SymV("x16"), SymV("x17"),
+          SymV("x18"), SymV("x19")
+           */
         )
         val res = exec(m, fname, args)
         res.tail(3)._1._3.toList.foreach(assert(_))
@@ -783,6 +786,15 @@ object TestStagedLLVM {
         println(res.size)
       }
     }
+
+  def testMultipath(n: Int): Unit = {
+    val multipath= parse(s"llvm/benchmarks/multi_path_${n}_sym.ll")
+    val code = specialize(multipath, "@f")
+    val res = sai.evaluation.utils.Utils.time {
+      code.save(s"gen/multi_path_${n}_sym.cpp")
+    }
+    println(res)
+  }
 
   def testArrayAccess = {
     val code = specialize(arrayAccess, "@main")
@@ -813,22 +825,15 @@ object TestStagedLLVM {
     //val code = specialize(singlepath, "@singlepath")
     // val code = specialize(branch, "@f")
     // val code = specialize(add, "@main")
-    val code = specialize(multipath, "@f")
     //val code = specialize(maze, "@main")
 
-    /*
-    code.save("gen/maze.cpp")
-    println(code.code)
-    code.compile("gen/maze.cpp")
-     */
-    val res = sai.evaluation.utils.Utils.time {
-      code.save("gen/multi_path_1048576_sym.cpp")
-    }
-    println(res)
-    code.compile("gen/multi_path_1048576_sym.cpp")
+    //code.save("gen/maze.cpp")
+    //println(code.code)
+    //code.compile("gen/maze.cpp")
 
     // testArrayAccess
     // testPower
     // println("Done")
+    testMultipath(65536)
   }
 }
