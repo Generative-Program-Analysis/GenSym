@@ -718,7 +718,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       v <- reflect(fv.fun(s, args))
       _ <- popFrame(s._2._1.size)
     } yield v
-    val initState: Rep[SS] = ??? //(heap0, Tuple2(emptyMem, List[Map[Int, Int]]()), Set[SMTExpr]())
+    val inner: Rep[(Mem, FEnv)] = (emptyMem, List[Env]())
+    val initState: Rep[SS] = (heap0, inner, Set[SMTBool]())
     reify[Value](initState)(comp)
   }
 }
