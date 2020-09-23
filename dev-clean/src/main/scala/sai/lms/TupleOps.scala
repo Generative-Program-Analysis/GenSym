@@ -26,8 +26,8 @@ trait TupleOps { b: Base =>
     Tuple2[A, B](unit[A](t._1), unit[B](t._2))
 
   implicit class Tuple2Ops[A: Manifest, B: Manifest](t: Rep[(A, B)]) {
-    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple2-1", Unwrap(t)))
-    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple2-2", Unwrap(t)))
+    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple-1", Unwrap(t)))
+    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple-2", Unwrap(t)))
     def swap: Rep[(B, A)] = Wrap[(B, A)](Adapter.g.reflect("tuple2-swap", Unwrap(t)))
     def unlift: (Rep[A], Rep[B]) = (this._1, this._2)
   }
@@ -57,13 +57,32 @@ trait TupleOps { b: Base =>
     Tuple3[A, B, C](unit(t._1), unit(t._2), unit(t._3))
 
   implicit class Tuple3Ops[A: Manifest, B: Manifest, C: Manifest](t: Rep[(A, B, C)]) {
-    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
-    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple3-2", Unwrap(t)))
-    def _3: Rep[C] = Wrap[C](Adapter.g.reflect("tuple3-3", Unwrap(t)))
+    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple-1", Unwrap(t)))
+    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple-2", Unwrap(t)))
+    def _3: Rep[C] = Wrap[C](Adapter.g.reflect("tuple-3", Unwrap(t)))
     def unliftLeft: ((Rep[A], Rep[B]), Rep[C]) =
       ((this._1, this._2), this._3)
     def unliftRight: (Rep[A], (Rep[B], Rep[C])) =
       (this._1, (this._2, this._3))
+  }
+
+  // Tuple 4
+
+  object Tuple4 {
+    def apply[A: Manifest, B: Manifest, C: Manifest, D: Manifest](a: Rep[A], b: Rep[B], c: Rep[C], d: Rep[D]) =
+      Wrap[Tuple4[A, B, C, D]](Adapter.g.reflect("tuple4-new", Unwrap(a), Unwrap(b), Unwrap(c), Unwrap(d)))
+  }
+
+  implicit def __liftTuple4RepAll[A: Manifest, B: Manifest, C: Manifest, D: Manifest](t: (Rep[A], Rep[B], Rep[C], Rep[D])) =
+    Tuple4[A, B, C, D](t._1, t._2, t._3, t._4)
+  implicit def __liftTuple4[A: Manifest, B: Manifest, C: Manifest, D: Manifest](t: (A, B, C, D)) =
+    Tuple4[A, B, C, D](unit(t._1), unit(t._2), unit(t._3), unit(t._4))
+
+  implicit class Tuple4Ops[A: Manifest, B: Manifest, C: Manifest, D: Manifest](t: Rep[(A, B, C, D)]) {
+    def _1: Rep[A] = Wrap[A](Adapter.g.reflect("tuple-1", Unwrap(t)))
+    def _2: Rep[B] = Wrap[B](Adapter.g.reflect("tuple-2", Unwrap(t)))
+    def _3: Rep[C] = Wrap[C](Adapter.g.reflect("tuple-3", Unwrap(t)))
+    def _4: Rep[D] = Wrap[D](Adapter.g.reflect("tuple-4", Unwrap(t)))
   }
 }
 
@@ -83,17 +102,40 @@ trait TupleOpsOpt extends TupleOps { b: Base =>
     override def _1: Rep[A] = Unwrap(t) match {
       case Adapter.g.Def("tuple3-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp)) =>
         Wrap[A](t1)
-      case _ => Wrap[A](Adapter.g.reflect("tuple3-1", Unwrap(t)))
+      case _ => super._1
     }
     override def _2: Rep[B] = Unwrap(t) match {
       case Adapter.g.Def("tuple3-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp)) =>
         Wrap[B](t2)
-      case _ => Wrap[B](Adapter.g.reflect("tuple3-2", Unwrap(t)))
+      case _ => super._2
     }
     override def _3: Rep[C] = Unwrap(t) match {
       case Adapter.g.Def("tuple3-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp)) =>
         Wrap[C](t3)
-      case _ => Wrap[C](Adapter.g.reflect("tuple3-3", Unwrap(t)))
+      case _ => super._3
+    }
+  }
+
+  implicit class Tuple4OpsOpt[A: Manifest, B: Manifest, C: Manifest, D: Manifest](t: Rep[(A, B, C, D)]) extends Tuple4Ops[A, B, C, D](t) {
+    override def _1: Rep[A] = Unwrap(t) match {
+      case Adapter.g.Def("tuple4-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp, t4: Backend.Exp)) =>
+        Wrap[A](t1)
+      case _ => super._1
+    }
+    override def _2: Rep[B] = Unwrap(t) match {
+      case Adapter.g.Def("tuple4-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp, t4: Backend.Exp)) =>
+        Wrap[B](t2)
+      case _ => super._2
+    }
+    override def _3: Rep[C] = Unwrap(t) match {
+      case Adapter.g.Def("tuple4-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp, t4: Backend.Exp)) =>
+        Wrap[C](t3)
+      case _ => super._3
+    }
+    override def _4: Rep[D] = Unwrap(t) match {
+      case Adapter.g.Def("tuple4-new", List(t1: Backend.Exp, t2: Backend.Exp, t3: Backend.Exp, t4: Backend.Exp)) =>
+        Wrap[D](t4)
+      case _ => super._4
     }
   }
 }
@@ -102,14 +144,20 @@ trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
   override def remap(m: Manifest[_]): String = {
     val typeStr = m.runtimeClass.getName
     if (typeStr == "scala.Tuple2") {
-      val fst = m.typeArguments(0)
-      val snd = m.typeArguments(1)
-      s"Tuple2[${remap(fst)}, ${remap(snd)}]"
+      val t0 = remap(m.typeArguments(0))
+      val t1 = remap(m.typeArguments(1))
+      s"Tuple2[$t0, $t1]"
     } else if (typeStr == "scala.Tuple3") {
-      val fst = m.typeArguments(0)
-      val snd = m.typeArguments(1)
-      val thd = m.typeArguments(2)
-      s"Tuple3[${remap(fst)}, ${remap(snd)}, ${remap(thd)}]"
+      val t0 = remap(m.typeArguments(0))
+      val t1 = remap(m.typeArguments(1))
+      val t2 = remap(m.typeArguments(2))
+      s"Tuple3[$t0, $t1, $t2]"
+    } else if (typeStr == "scala.Tuple4") {
+      val t0 = remap(m.typeArguments(0))
+      val t1 = remap(m.typeArguments(1))
+      val t2 = remap(m.typeArguments(2))
+      val t3 = remap(m.typeArguments(3))
+      s"Tuple4[$t0, $t1, $t2, $t3]"
     } else {
       super.remap(m)
     }
@@ -120,31 +168,24 @@ trait ScalaCodeGen_Tuple extends ExtendedScalaCodeGen {
       "(" + quote(Const(t._1)) + ", " + quote(Const(t._2)) + ")"
     case Const(t: Tuple3[_, _, _]) =>
       "(" + quote(Const(t._1)) + ", " + quote(Const(t._2)) + ", " + quote(Const(t._3)) + ")"
+    case Const(t: Tuple4[_, _, _, _]) =>
+      "(" + quote(Const(t._1)) + ", " + quote(Const(t._2)) + ", " + quote(Const(t._3)) + ", " + quote(Const(t._4)) + ")"
     case _ => super.quote(s)
   }
 
   override def shallow(n: Node): Unit = n match {
+    // Projections
+    case Node(s, "tuple-1", List(t), _) => es"$t._1"
+    case Node(s, "tuple-2", List(t), _) => es"$t._2"
+    case Node(s, "tuple-3", List(t), _) => es"$t._3"
+    case Node(s, "tuple-4", List(t), _) => es"$t._4"
     // Tuple2
-    case Node(s, "tuple2-new", List(fst, snd), _) =>
-      emit("("); shallow(fst); emit(", "); shallow(snd); emit(")")
-    case Node(s, "tuple2-1", List(t), _) =>
-      shallow(t); emit("._1")
-    case Node(s, "tuple2-2", List(t), _) =>
-      shallow(t); emit("._2")
-    case Node(s, "tuple2-swap", List(t), _) =>
-      shallow(t); emit(".swap")
+    case Node(s, "tuple2-new", List(t1, t2), _) => es"($t1, $t2)"
+    case Node(s, "tuple2-swap", List(t), _) => es"$t.swap"
     // Tuple3
-    case Node(s, "tuple3-new", List(fst, snd, trd), _) =>
-      emit("(")
-      shallow(fst); emit(", ")
-      shallow(snd); emit(", ")
-      shallow(trd); emit(")")
-    case Node(s, "tuple3-1", List(t), _) =>
-      shallow(t); emit("._1")
-    case Node(s, "tuple3-2", List(t), _) =>
-      shallow(t); emit("._2")
-    case Node(s, "tuple3-3", List(t), _) =>
-      shallow(t); emit("._3")
+    case Node(s, "tuple3-new", List(t1, t2, t3), _) => es"($t1, $t2, $t3)"
+    // Tuple4
+    case Node(s, "tuple4-new", List(t1, t2, t3, t4), _) => es"($t1, $t2, $t3, $t4)"
     case _ => super.shallow(n)
   }
 }
@@ -155,14 +196,20 @@ trait CppCodeGen_Tuple extends ExtendedCCodeGen {
   override def remap(m: Manifest[_]): String = {
     val typeStr = m.runtimeClass.getName
     if (typeStr == "scala.Tuple2") {
-      val fst = remap(m.typeArguments(0))
-      val snd = remap(m.typeArguments(1))
-      s"std::pair<$fst, $snd>"
+      val t0 = remap(m.typeArguments(0))
+      val t1 = remap(m.typeArguments(1))
+      s"std::pair<$t0, $t1>"
     } else if (typeStr == "scala.Tuple3") {
-      val fst = remap(m.typeArguments(0))
-      val snd = remap(m.typeArguments(1))
-      val thd = remap(m.typeArguments(2))
-      s"std::tuple<$fst, $snd, $thd>"
+      val t0 = remap(m.typeArguments(0))
+      val t1 = remap(m.typeArguments(1))
+      val t2 = remap(m.typeArguments(2))
+      s"std::tuple<$t0, $t1, $t2>"
+    } else if (typeStr == "scala.Tuple4") {
+      val t0 = remap(m.typeArguments(0))
+      val t1 = remap(m.typeArguments(1))
+      val t2 = remap(m.typeArguments(2))
+      val t3 = remap(m.typeArguments(3))
+      s"std::tuple<$t0, $t1, $t2, $t3>"
     } else {
       super.remap(m)
     }
@@ -170,41 +217,36 @@ trait CppCodeGen_Tuple extends ExtendedCCodeGen {
 
   override def quote(s: Def): String = s match {
     case Const(t: Tuple2[_, _]) =>
-      val fst = quote(Const(t._1)) 
-      val snd = quote(Const(t._2)) 
-      s"std::make_pair($fst, $snd)"
+      val t1 = quote(Const(t._1))
+      val t2 = quote(Const(t._2))
+      s"std::make_pair($t1, $t2)"
     case Const(t: Tuple3[_, _, _]) =>
-      val fst = quote(Const(t._1)) 
-      val snd = quote(Const(t._2))
-      val thd = quote(Const(t._3))
-      s"std::make_tuple($fst, $snd, $thd)"
+      val t1 = quote(Const(t._1))
+      val t2 = quote(Const(t._2))
+      val t3 = quote(Const(t._3))
+      s"std::make_tuple($t1, $t2, $t3)"
+    case Const(t: Tuple4[_, _, _, _]) =>
+      val t1 = quote(Const(t._1))
+      val t2 = quote(Const(t._2))
+      val t3 = quote(Const(t._3))
+      val t4 = quote(Const(t._4))
+      s"std::make_tuple($t1, $t2, $t3, $t4)"
     case _ => super.quote(s)
   }
 
   override def shallow(n: Node): Unit = n match {
+    // Projections
+    case Node(s, "tuple-1", List(t), _) => es"std::get<0>($t)"
+    case Node(s, "tuple-2", List(t), _) => es"std::get<1>($t)"
+    case Node(s, "tuple-3", List(t), _) => es"std::get<2>($t)"
+    case Node(s, "tuple-4", List(t), _) => es"std::get<3>($t)"
     // Tuple2
-    case Node(s, "tuple2-new", List(fst, snd), _) =>
-      //emit("std::make_tuple("); shallow(fst); emit(", "); shallow(snd); emit(")")
-      emit("{"); shallow(fst); emit(", "); shallow(snd); emit("}")
-    case Node(s, "tuple2-1", List(t), _) =>
-      emit("std::get<0>("); shallow(t); emit(")")
-    case Node(s, "tuple2-2", List(t), _) =>
-      emit("std::get<1>("); shallow(t); emit(")")
-    case Node(s, "tuple2-swap", List(t), _) =>
-      emit("Pair::swap("); shallow(t); emit(")")
+    case Node(s, "tuple2-new", List(t1, t2), _) => es"{$t1, $t2}"
+    case Node(s, "tuple2-swap", List(t), _) => es"Pair::swap($t)"
     // Tuple3
-    case Node(s, "tuple3-new", List(fst, snd, trd), _) =>
-      emit("{") //emit("std::make_tuple(")
-      shallow(fst); emit(", ")
-      shallow(snd); emit(", ")
-      shallow(trd); emit("}") //emit(")")
-    case Node(s, "tuple3-1", List(t), _) =>
-      emit("std::get<0>("); shallow(t); emit(")")
-    case Node(s, "tuple3-2", List(t), _) =>
-      emit("std::get<1>("); shallow(t); emit(")")
-    case Node(s, "tuple3-3", List(t), _) =>
-      emit("std::get<2>("); shallow(t); emit(")")
+    case Node(s, "tuple3-new", List(t1, t2, t3), _) => es"{$t1, $t2, $t3}"
+    // Tuple4
+    case Node(s, "tuple4-new", List(t1, t2, t3, t4), _) => es"{$t1, $t2, $t3, $t4}"
     case _ => super.shallow(n)
   }
-
 }

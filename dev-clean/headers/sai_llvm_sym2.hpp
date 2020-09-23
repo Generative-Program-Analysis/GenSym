@@ -252,6 +252,7 @@ LocV::Kind select_loc(PtrVal v) {
   return loc->k;
 }
 
+/*
 static std::map<String, int> stack_env{};
 
 void stack_addr_save(String x, int addr) {
@@ -267,6 +268,7 @@ int stack_addr(Mem m, String x) {
   }
   return stack_env.at(x);
 }
+*/
 
 SS update_mem(SS state, PtrVal k, PtrVal v) {
   auto loc = std::dynamic_pointer_cast<LocV>(k);
