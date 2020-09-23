@@ -14,5 +14,10 @@ dev-clean/solvers/solver
 dev-clean/constraints.smt2
 dev-clean/solvers/snippet
 dev-clean/solvers/snippet.smt2
+dev-clean/gen/*
 TODO
 
+dev-clean/project/project/metals.sbt
+dev-clean/project/.bloop/dev-clean-build.json
+dev-clean/project/.bloop/bloop.settings.json
+dev-clean/.vscode/settings.json
