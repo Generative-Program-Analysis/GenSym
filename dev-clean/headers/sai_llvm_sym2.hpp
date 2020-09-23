@@ -25,6 +25,7 @@
 
 extern VC vc;
 int bitwidth = 32;
+static int var_name = 0;
 
 struct Value {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
@@ -287,9 +288,9 @@ immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_ve
   auto addr = std::dynamic_pointer_cast<LocV>(args.at(0));
   auto tempaddr = make_LocV(addr -> l, addr -> k);
   auto len = std::dynamic_pointer_cast<IntV>(args.at(1));
+  //std::cout << "Some variable is made symbolic" << std::endl;
   for (int i = 0; i < len->i; i++) {
-    // TODO change dummy to useful stuff
-    state = update_mem(state, addr, make_SymV("dummy"));
+    state = update_mem(state, addr, make_SymV("x" + std::to_string(var_name++)));
     tempaddr->l = tempaddr->l + 1;
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};

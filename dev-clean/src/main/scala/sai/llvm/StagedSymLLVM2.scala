@@ -316,8 +316,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
     // should we directly generate code for this or?
     def __assert_false(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      push
       s._3.toList.foreach(assert(_))
       handle(query(lit(false)))
+      pop
       return List[(SS, Value)]((s, IntV(0)));
     }
 
@@ -849,6 +851,6 @@ object TestStagedLLVM {
   }
 
   def main(args: Array[String]): Unit = {
-    testM("llvm/symbolic_test/simple1.ll", "@main")
+    testM("llvm/symbolic_test/makeSymbolicDouble.ll", "@main")
   }
 }
