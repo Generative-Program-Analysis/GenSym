@@ -20,7 +20,7 @@ trait SMTBaseOps extends SMTBaseInterface with StagedSMTBase {
   def boolVar(x: String): Rep[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("smt-var", Backend.Const(x), BOOL))
   def lit(b: Boolean): Rep[SMTBool] =
-    Wrap[SMTBool](Adapter.g.reflect("smt-lit", Backend.Const(b)))
+    Wrap[SMTBool](Adapter.g.reflectWrite("smt-lit", Backend.Const(b))(Adapter.CTRL))
   def lit(b: Rep[Boolean]): Rep[SMTBool] =
     if (b) lit(true) else lit(false)
   def not(x: Rep[SMTBool]): Rep[SMTBool] =

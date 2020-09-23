@@ -87,13 +87,28 @@ Ptr<Value> make_SymV(String n) {
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
 
+Expr proj_SMTBool(Ptr<Value> v) {
+  if (auto i = std::dynamic_pointer_cast<IntV>(v)) {
+    if (i -> i) vc_trueExpr(vc);
+    else return vc_falseExpr(vc);
+  } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
+    return sym->v;
+  } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)){
+    std::cout << "Value is LocV" << std::endl;
+  } else {
+    std::cout << "Value is ???" << std::endl;
+  }
+}
+
 Expr proj_SMTExpr(Ptr<Value> v) {
   if (auto i = std::dynamic_pointer_cast<IntV>(v)) {
     return vc_bvConstExprFromInt(vc, 32, i->i);
   } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;
+  } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)){
+    std::cout << "Value is LocV" << std::endl;
   } else {
-    std::cout << "Value is not SMTExpr" << std::endl;
+    std::cout << "Value is ???" << std::endl;
   }
 }
 
@@ -266,6 +281,19 @@ SS update_mem(SS state, PtrVal k, PtrVal v) {
     return {new_heap, std::get<1>(state), std::get<2>(state)};
   }
 }
+
+// primitive functions
+immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_vector<PtrVal> args) {
+  auto addr = std::dynamic_pointer_cast<LocV>(args.at(0));
+  auto len = std::dynamic_pointer_cast<IntV>(args.at(1));
+  for (int i = 0; i < len->i; i++) {
+    // TODO change dummy to useful stuff
+    state = update_mem(state, addr, make_SymV("dummy"));
+    addr->l = addr->l + 1;
+  }
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
 
 immer::flex_vector<std::pair<SS, PtrVal>> read_maze(SS state, immer::flex_vector<PtrVal> args) {
   // TODO: be careful if addr is used later, or make a copy of args.at(1)

@@ -242,10 +242,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def fun: Rep[(SS, List[Value]) => List[(SS, Value)]] =
       Wrap[(SS, List[Value]) => List[(SS, Value)]](Unwrap(v))
 
+    def isConc: Rep[Boolean] =
+      Wrap[Boolean](Adapter.g.reflect("isConc", Unwrap(v)))
     def toSMTExpr: Rep[SMTExpr] =
       Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
     def toSMTBool: Rep[SMTBool] =
-      Wrap[SMTBool](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
+      Wrap[SMTBool](Adapter.g.reflect("proj_SMTBool", Unwrap(v)))
   }
 
   object CompileTimeRuntime {
@@ -295,7 +297,14 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def findFundef(fname: String) = funMap.get(fname).get
   }
 
+  // how to make symbolic?
   object Primitives extends java.io.Serializable {
+
+    def __make_symbolic(s: Rep[SS], args: Rep[List[Value]]) = {
+      Wrap[List[(SS, Value)]](Adapter.g.reflect("make_symbolic", Unwrap(s), Unwrap(args)))
+    }
+    def make_symbolic: Rep[Value] = FunV(topFun(__make_symbolic))
+
     def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_printf", Unwrap(s), Unwrap(args)))
     }
@@ -304,6 +313,15 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def __concreteReadForMaze(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       Wrap[List[(SS, Value)]](Adapter.g.reflect("read_maze", Unwrap(s), Unwrap(args)))
     }
+
+    // should we directly generate code for this or?
+    def __assert_false(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      s._3.toList.foreach(assert(_))
+      handle(query(lit(false)))
+      return List[(SS, Value)]((s, IntV(0)));
+    }
+
+    def assert_false: Rep[Value] = FunV(topFun(__assert_false))
 
     def read: Rep[Value] = FunV(topFun(__concreteReadForMaze))
 
@@ -387,6 +405,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           case "@read" => Primitives.read
           case "@exit" => Primitives.exit
           case "@sleep" => Primitives.sleep
+          case "@assert" => Primitives.assert_false
+          case "@make_symbolic" => Primitives.make_symbolic
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
@@ -539,7 +559,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             } yield v,
             for {
               _ <- updatePC(not(cndVal.toSMTBool))
-              // update branches
               v <- execBlock(funName, elsLab)
             } yield v)
         } yield v
@@ -789,33 +808,24 @@ object TestStagedLLVM {
     sai.llvm.LLVMTest.parse(input)
   }
 
-  val add = parse("llvm/benchmarks/add.ll")
-  val power = parse("llvm/benchmarks/power.ll")
-  // val singlepath = parse("llvm/benchmarks/single_path5.ll")
-  val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multi_path_1048576_sym.ll")
-  //val multipath= parse("llvm/benchmarks/multi_path_65536_sym.ll")
-  val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
   val maze = parse("llvm/benchmarks/maze.ll")
+  val symbolic_single = parse("llvm/symbolic_test/symbolic_single.ll")
 
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
     new CppSymStagedLLVMDriver[Int, Unit] {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = List[Value](
-          SymV("x0"), SymV("x1"), SymV("x2"), 
-          SymV("x3"), SymV("x4"), SymV("x5"),
-          SymV("x6"), SymV("x7"), SymV("x8"),
-          SymV("x9"), SymV("x10"), SymV("x11"),
-          SymV("x12"), SymV("x13"), SymV("x14"),
-          SymV("x15")
-          /*, SymV("x16"), SymV("x17"),
-          SymV("x18"), SymV("x19")
-           */
+          // SymV("x0"), SymV("x1"), SymV("x2"), 
+          // SymV("x3"), SymV("x4"), SymV("x5"),
+          // SymV("x6"), SymV("x7"), SymV("x8"),
+          // SymV("x9"), SymV("x10"), SymV("x11"),
+          // SymV("x12"), SymV("x13"), SymV("x14"),
+          // SymV("x15"), SymV("x16"), SymV("x17"),
+          // SymV("x18"), SymV("x19")
+          
         )
         val res = exec(m, fname, args)
-        res.tail(3)._1._3.toList.foreach(assert(_))
-        handle(query(lit(false)))
         println(res.size)
       }
     }
@@ -829,44 +839,16 @@ object TestStagedLLVM {
     println(res)
   }
 
-  def testArrayAccess = {
-    val code = specialize(arrayAccess, "@main")
-    code.save("gen/arrayAccess.cpp")
-    println(code.code)
-    code.compile("gen/arrayAccess.cpp")
-    code.eval(0)
-  }
+  def testArrayAccess = testM("llvm/benchmarks/arrayAccess.ll", "@main")
+  def testPower = testM("llvm/benchmarks/power.ll", "@main")
 
-  def testPower = {
-    val code = specialize(power, "@main")
-    code.save("gen/power.cpp")
-    println(code.code)
-    code.compile("gen/power.cpp")
-    code.eval(0)
-  }
-
-  def testWhile {
-    val code = specialize(parse("llvm/benchmarks/whileTest.ll"), "@main")
-    code.save("gen/while.cpp")
-    println(code.code)
-    code.compile("gen/while.cpp")
+  def testM(path: String, fname: String) {
+    val code = specialize(parse(path), fname)
+    code.save(s"gen/${path.split("/").last}.cpp")
     code.eval(0)
   }
 
   def main(args: Array[String]): Unit = {
-    // val code = specialize(power, "@main")
-    //val code = specialize(singlepath, "@singlepath")
-    // val code = specialize(branch, "@f")
-    // val code = specialize(add, "@main")
-    //val code = specialize(maze, "@main")
-
-    //code.save("gen/maze.cpp")
-    //println(code.code)
-    //code.compile("gen/maze.cpp")
-
-    // testArrayAccess
-    // testPower
-    // println("Done")
-    testMultipath(65536)
+    testM("llvm/symbolic_test/simple1.ll", "@main")
   }
 }
