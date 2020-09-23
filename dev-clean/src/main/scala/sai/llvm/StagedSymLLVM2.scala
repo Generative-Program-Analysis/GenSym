@@ -851,6 +851,6 @@ object TestStagedLLVM {
   }
 
   def main(args: Array[String]): Unit = {
-    testM("llvm/symbolic_test/makeSymbolicDouble.ll", "@main")
+    testM("llvm/symbolic_test/makeSymbolicArray.ll", "@main")
   }
 }

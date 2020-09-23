@@ -9,7 +9,6 @@ std::monostate handle_query(VC vc, int n) {
   switch (n) {
     case 0:
       std::cout << "Query is invalid" << std::endl;
-      std::cout << "Counter example:\n";
       vc_printCounterExample(vc);
       break;
     case 1:
