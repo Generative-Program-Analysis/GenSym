@@ -285,11 +285,12 @@ SS update_mem(SS state, PtrVal k, PtrVal v) {
 // primitive functions
 immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_vector<PtrVal> args) {
   auto addr = std::dynamic_pointer_cast<LocV>(args.at(0));
+  auto tempaddr = make_LocV(addr -> l, addr -> k);
   auto len = std::dynamic_pointer_cast<IntV>(args.at(1));
   for (int i = 0; i < len->i; i++) {
     // TODO change dummy to useful stuff
     state = update_mem(state, addr, make_SymV("dummy"));
-    addr->l = addr->l + 1;
+    tempaddr->l = tempaddr->l + 1;
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
