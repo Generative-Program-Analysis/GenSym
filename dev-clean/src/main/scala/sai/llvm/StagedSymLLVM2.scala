@@ -52,8 +52,21 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   type Stack = (Mem, FEnv)
 
   type PC = Set[SMTBool]
-  type SS = (Heap, Stack, PC)
+  type SS = (Heap, Mem, FEnv, PC)
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
+
+  implicit class SSOps(ss: Rep[SS]) {
+    def heap: Rep[Heap] = ss._1
+    def stackMem: Rep[Mem] = ss._2
+    def stackEnv: Rep[FEnv] = ss._3
+    def pc: Rep[PC] = ss._4
+
+    def withHeap(h: Rep[Heap]): Rep[SS] = (h, stackMem, stackEnv, pc)
+    def withStack(m: Rep[Mem], e: Rep[FEnv]): Rep[SS] = (heap, m, e, pc)
+    def withStackMem(s: Rep[Mem]): Rep[SS] = (heap, s, stackEnv, pc)
+    def withStackEnv(e: Rep[FEnv]): Rep[SS] = (heap, stackMem, e, pc)
+    def withPC(p: Rep[PC]): Rep[SS] = (heap, stackMem, stackEnv, p)
+  }
 
   def emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
   // def emptyEnv: Rep[Env] = Wrap[Env](Adapter.g.reflect("mt_env"))
@@ -62,55 +75,49 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def putState(s: Rep[SS]): Comp[E, Unit] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
 
-  def getCurEnv: Comp[E, Rep[Env]] = for { s <- getState } yield s._2._2.head
+  def getCurEnv: Comp[E, Rep[Env]] = for { s <- getState } yield s.stackEnv.head
   def lookupCurEnv(x: String): Comp[E, Rep[Addr]] = for {
     env <- getCurEnv
   } yield env(x.hashCode)
   def setCurEnv(e: Rep[Env]): Comp[E, Rep[Unit]] = for {
     s <- getState
-    _ <- putState((s._1, Tuple2(s._2._1, e :: s._2._2.tail), s._3))
+    _ <- putState(s.withStackEnv(e :: s.stackEnv.tail))
   } yield ()
   def updateCurEnv(x: String, a: Rep[Addr]): Comp[E, Rep[Unit]] = for {
     s <- getState
     _ <- {
-      val newEnv = s._2._2.head + (x.hashCode -> a)
-      putState((s._1, Tuple2(s._2._1, newEnv :: s._2._2.tail), s._3))
+      val newEnv = s.stackEnv.head + (x.hashCode -> a)
+      putState(s.withStackEnv(newEnv :: s.stackEnv.tail))
     }
   } yield ()
 
   def pushEmptyEnv: Comp[E, Rep[Unit]] = for {
     s <- getState
-    _ <- putState((s._1, Tuple2(s._2._1, Map[Int, Int]() :: s._2._2), s._3))
+    _ <- putState(s.withStackEnv(Map[Int, Int]() :: s.stackEnv))
   } yield ()
 
-  def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s._1
+  def getHeap: Comp[E, Rep[Heap]] = for { s <- get[Rep[SS], E] } yield s.heap
   def putHeap(h: Rep[Heap]) = for {
     s <- get[Rep[SS], E]
-    _ <- put[Rep[SS], E]((h, s._2, s._3))
+    _ <- put[Rep[SS], E](s.withHeap(h))
   } yield ()
 
-  def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._3
+  def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s.pc
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = for { 
     s <- getState
-    _ <- putState((s._1, s._2, s._3 ++ Set(x)))
+    _ <- putState(s.withPC(s.pc ++ Set(x)))
   } yield ()
 
-  def getStack: Comp[E, Rep[Stack]] = for { s <- get[Rep[SS], E] } yield s._2
-  def putStack(st: Rep[Stack]): Comp[E, Rep[Unit]] = for {
-    s <- getState
-    _ <- putState((s._1, st, s._3))
-  } yield ()
-
-  def getStackMem: Comp[E, Rep[Mem]] = for { s <- getStack } yield s._1
+  def getStackMem: Comp[E, Rep[Mem]] = for { s <- getState } yield s.stackMem
   def putStackMem(st: Rep[Mem]): Comp[E, Rep[Unit]] = for {
     s <- getState
-    _ <- putState((s._1, Tuple2(st, s._2._2), s._3))
+    _ <- putState(s.withStackMem(st))
   } yield ()
 
   def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] =
     for {
       s <- getState
-      _ <- putState((s._1, Tuple2(s._2._1.take(keep), s._2._2.tail), s._3))
+      _ <- putState(s.withStack(s.stackMem.take(keep), s.stackEnv.tail))
     } yield ()
 
   def stackAlloc(size: Int): Comp[E, Rep[Addr]] = {
@@ -235,7 +242,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     // if v is a HeapAddr, return heap, otherwise return its frame memory
     def selectMem: Comp[E, Rep[Mem]] = for {
       s <- getState
-    } yield Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v), Unwrap(s._1), Unwrap(s._2._1)))
+    } yield Wrap[Mem](Adapter.g.reflect("select_mem", Unwrap(v), Unwrap(s.heap), Unwrap(s.stackMem)))
 
     def loc: Rep[Addr] = Wrap[Addr](Adapter.g.reflect("proj_LocV", Unwrap(v)))
     def int: Rep[Int] = Wrap[Int](Adapter.g.reflect("proj_IntV", Unwrap(v)))
@@ -317,7 +324,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     // should we directly generate code for this or?
     def __assert_false(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       push
-      s._3.toList.foreach(assert(_))
+      s.pc.toList.foreach(assert(_))
       handle(query(lit(false)))
       pop
       return List[(SS, Value)]((s, IntV(0)));
@@ -343,7 +350,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
         State.run2[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
       val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
-      val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet(p2)
+      val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
       p3
     }
 
@@ -492,7 +499,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           _ <- pushEmptyEnv
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame(s._2._1.size)
+          _ <- popFrame(s.stackMem.size)
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
@@ -619,7 +626,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
           _ <- pushEmptyEnv
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame(s._2._1.size)
+          _ <- popFrame(s.stackMem.size)
         } yield ()
     }
   }
@@ -737,10 +744,9 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       _ <- pushEmptyEnv
       s <- getState
       v <- reflect(fv.fun(s, args))
-      _ <- popFrame(s._2._1.size)
+      _ <- popFrame(s.stackMem.size)
     } yield v
-    val inner: Rep[(Mem, FEnv)] = (emptyMem, List[Env]())
-    val initState: Rep[SS] = (heap0, inner, Set[SMTBool]())
+    val initState: Rep[SS] = (heap0, emptyMem, List[Env](), Set[SMTBool]())
     reify[Value](initState)(comp)
   }
 }
@@ -818,14 +824,14 @@ object TestStagedLLVM {
     new CppSymStagedLLVMDriver[Int, Unit] {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = List[Value](
-          // SymV("x0"), SymV("x1"), SymV("x2"), 
-          // SymV("x3"), SymV("x4"), SymV("x5"),
-          // SymV("x6"), SymV("x7"), SymV("x8"),
-          // SymV("x9"), SymV("x10"), SymV("x11"),
-          // SymV("x12"), SymV("x13"), SymV("x14"),
-          // SymV("x15"), SymV("x16"), SymV("x17"),
+          SymV("x0"), SymV("x1"), SymV("x2"), 
+          SymV("x3"), SymV("x4"), SymV("x5"),
+          SymV("x6"), SymV("x7"), SymV("x8"),
+          SymV("x9"), SymV("x10"), SymV("x11"),
+          SymV("x12"), SymV("x13"), SymV("x14"),
+          SymV("x15"),
+          //SymV("x16"), SymV("x17"),
           // SymV("x18"), SymV("x19")
-          
         )
         val res = exec(m, fname, args)
         println(res.size)
@@ -851,6 +857,7 @@ object TestStagedLLVM {
   }
 
   def main(args: Array[String]): Unit = {
-    testM("llvm/symbolic_test/makeSymbolicArray.ll", "@main")
+    //testM("llvm/symbolic_test/makeSymbolicArray.ll", "@main")
+    testMultipath(65536)
   }
 }

@@ -207,7 +207,7 @@ using SMTExpr = Expr; //FIXME
 using PC = immer::set<SMTExpr>;
 using Mem = immer::flex_vector<PtrVal>;
 using Env = immer::map<int, int>;
-using SS = std::tuple<Mem, std::pair<Mem, immer::flex_vector<Env>>, PC>;
+using SS = std::tuple<Mem, Mem, immer::flex_vector<Env>, PC>;
 
 // static Mem mt_mem = immer::flex_vector<PtrVal>{};
 inline Mem mt_mem() { return immer::flex_vector<PtrVal>{}; }
@@ -273,15 +273,13 @@ int stack_addr(Mem m, String x) {
 SS update_mem(SS state, PtrVal k, PtrVal v) {
   auto loc = std::dynamic_pointer_cast<LocV>(k);
   if (loc->k == LocV::kStack) {
-    auto stack_env = std::get<1>(state);
-    auto stack = std::get<0>(stack_env);
-    auto env = std::get<1>(stack_env);
+    auto stack = std::get<1>(state);
     auto new_stack = mem_update(stack, loc->l, v);
-    return {std::get<0>(state), {new_stack, env}, std::get<2>(state)};
+    return {std::get<0>(state), new_stack, std::get<2>(state), std::get<3>(state)};
   } else {
     auto heap = std::get<0>(state);
     auto new_heap = mem_update(heap, loc->l, v);
-    return {new_heap, std::get<1>(state), std::get<2>(state)};
+    return {new_heap, std::get<1>(state), std::get<2>(state), std::get<3>(state)};
   }
 }
 
