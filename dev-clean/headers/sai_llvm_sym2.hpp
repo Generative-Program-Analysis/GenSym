@@ -46,6 +46,7 @@ struct IntV : Value {
 inline Ptr<Value> make_IntV(int i) {
   return std::make_shared<IntV>(i);
 }
+
 inline Ptr<Value> make_IntV(int i, int bw) {
   //FIXME, bit width
   return std::make_shared<IntV>(i);
@@ -216,28 +217,23 @@ inline Mem mt_mem() { return immer::flex_vector<PtrVal>{}; }
 #define mem_size(m) m.size()
 #define mem_lookup(m, a) m.at(a)
 #define fresh_addr(m) m.size()
+#define mem_update(m, a, v) m.set(a, v)
 
-Mem mem_alloc(Mem m, int size) {
+inline Mem mem_alloc(Mem m, int size) {
   return m + immer::flex_vector<PtrVal>(size, nullptr);
 }
 
-Mem mem_update(Mem m, unsigned int addr, PtrVal v) {
-  return m.update(addr, [&](auto l) { return v; });
-}
-
 Mem mem_updateL(Mem m, unsigned int addr, immer::flex_vector<PtrVal> vals) {
+  // TODO: could use transient
   immer::flex_vector<PtrVal> res = m;
   for (int i = 0; i < vals.size(); i++) {
-    res = res.update(addr + i, [&](auto l) { return vals.at(i); } );
+    res = res.set(addr + i, vals.at(i));
   }
   return res;
 }
 
-Mem select_mem(PtrVal v, Mem heap, Mem stack) {
+inline Mem select_mem(PtrVal v, Mem heap, Mem stack) {
   auto loc = std::dynamic_pointer_cast<LocV>(v);
-  if (loc == nullptr) {
-    std::cout << "Value is not a location value!" << std::endl;
-  }
   if (loc->k == LocV::kStack) {
     return stack;
   }
@@ -246,9 +242,6 @@ Mem select_mem(PtrVal v, Mem heap, Mem stack) {
 
 LocV::Kind select_loc(PtrVal v) {
   auto loc = std::dynamic_pointer_cast<LocV>(v);
-  if (loc == nullptr) {
-    std::cout << "Value is not a location value!" << std::endl;
-  }
   return loc->k;
 }
 
@@ -273,14 +266,13 @@ int stack_addr(Mem m, String x) {
 SS update_mem(SS state, PtrVal k, PtrVal v) {
   auto loc = std::dynamic_pointer_cast<LocV>(k);
   if (loc->k == LocV::kStack) {
-    auto stack = std::get<1>(state);
-    auto new_stack = mem_update(stack, loc->l, v);
-    return {std::get<0>(state), new_stack, std::get<2>(state), std::get<3>(state)};
+    auto new_stack = mem_update(std::get<1>(state), loc->l, v);
+    std::get<1>(state) = new_stack;
   } else {
-    auto heap = std::get<0>(state);
-    auto new_heap = mem_update(heap, loc->l, v);
-    return {new_heap, std::get<1>(state), std::get<2>(state), std::get<3>(state)};
+    auto new_heap = mem_update(std::get<0>(state), loc->l, v);
+    std::get<0>(state) = new_heap;
   }
+  return state;
 }
 
 // primitive functions
