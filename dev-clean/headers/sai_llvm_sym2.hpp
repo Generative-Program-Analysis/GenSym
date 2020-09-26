@@ -24,8 +24,8 @@
  */
 
 extern VC vc;
-int bitwidth = 32;
-static int var_name = 0;
+static unsigned int bitwidth = 32;
+static unsigned int var_name = 0;
 
 struct Value {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
