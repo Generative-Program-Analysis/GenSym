@@ -75,14 +75,12 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   def putState(s: Rep[SS]): Comp[E, Unit] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
 
-  def getCurEnv: Comp[E, Rep[Env]] = for { s <- getState } yield s.stackEnv.head
   def lookupCurEnv(x: String): Comp[E, Rep[Addr]] = for {
-    env <- getCurEnv
-  } yield env(x.hashCode)
-  def setCurEnv(e: Rep[Env]): Comp[E, Rep[Unit]] = for {
     s <- getState
-    _ <- putState(s.withStackEnv(e :: s.stackEnv.tail))
-  } yield ()
+  } yield {
+    val env = s.stackEnv.head
+    env(x.hashCode)
+  }
   def updateCurEnv(x: String, a: Rep[Addr]): Comp[E, Rep[Unit]] = for {
     s <- getState
     _ <- {
@@ -185,9 +183,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       Wrap[Value](Adapter.g.reflect("mem_lookup", Unwrap(σ), Unwrap(a)))
 
     def update(k: Rep[Addr], v: Rep[Value]): Rep[Mem] = {
-      // Note: since allocation doesn't put anything at `k`,
-      //       we need to check if `k` is a valid address.
-      //       Most of the cases, σ.size == k, and we can just append `v`.
       Wrap[Mem](Adapter.g.reflect("mem_update", Unwrap(σ), Unwrap(k), Unwrap(v)))
     }
 
@@ -677,6 +672,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     }
   }
 
+  /*
   def precompileHeap(heap: Rep[Heap]): Rep[Heap] = {
     CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
       val (allocH, addr) = h.alloc(getTySize(v.typ))
@@ -684,13 +680,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       allocH.updateL(addr, List(evalConst(v.const):_*))
     }
   }
-
-  def precompileHeapM: Comp[E, Rep[Unit]] = {
-    for {
-      h <- getHeap
-      _ <- putHeap(precompileHeap(h))
-    } yield ()
-  }
+   */
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
