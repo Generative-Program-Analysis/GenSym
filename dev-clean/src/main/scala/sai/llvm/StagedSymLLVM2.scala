@@ -101,6 +101,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   } yield ()
 
   def getPC: Comp[E, Rep[PC]] = for { s <- get[Rep[SS], E] } yield s.pc
+  def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = for { 
+    s <- getState
+    _ <- putState(s.withPC(s.pc ++ x))
+  } yield ()
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = for { 
     s <- getState
     _ <- putState(s.withPC(s.pc ++ Set(x)))
@@ -554,6 +558,28 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case BrTerm(lab) =>
         execBlock(funName, lab)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
+        // for {
+        //   ss <- getState
+        //   cndVal <- eval(cnd)(funName)
+        //   u <- reflect {
+        //     if (cndVal.isConc) {
+        //       if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
+        //       else reify(ss)(execBlock(funName, elsLab))
+        //     } else {
+        //       reify(ss) {choice(
+        //         for {
+        //           _ <- updatePC(cndVal.toSMTBool)
+        //           v <- execBlock(funName, thnLab)
+        //         } yield v,
+        //         for {
+        //           _ <- updatePC(not(cndVal.toSMTBool))
+        //           v <- execBlock(funName, elsLab)
+        //         } yield v)
+        //       }
+        //     }
+        //   }
+        // } yield u
+        val brLabel: String = funName + thnLab + elsLab      
         for {
           cndVal <- eval(cnd)(funName)
           v <- choice(
@@ -566,20 +592,8 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
               v <- execBlock(funName, elsLab)
             } yield v)
         } yield v
-        /*
-        // Temp: concrete execution below:
-        for {
-          cndVal <- eval(cnd)(funName)
-          s <- getState
-          v <- {
-            reflect(if (cndVal.int == 1) {
-              reify(s)(execBlock(funName, thnLab))
-            } else {
-              reify(s)(execBlock(funName, elsLab))
-            })
-          }
-        } yield v
-         */
+
+        
       case SwitchTerm(cndTy, cndVal, default, table) =>
         // TODO: cndVal can be either concrete or symbolic
         // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
@@ -590,10 +604,32 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             else switchFun(v, s, table.tail)
           }
         }
+
+        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] = {
+          if (table.isEmpty) reify(s)(for {
+              _ <- updatePCSet(pc)
+              u <- execBlock(funName, default)
+            } yield u)
+          else {
+            val headPC = Op2("=", v, IntV(table.head.n)).toSMTBool
+            reify(s)(choice(
+              for {
+                _ <- updatePC(headPC)
+                u <- execBlock(funName, table.head.label)
+              } yield u,
+              reflect(switchFunSym(v, s, table.tail, pc ++ Set(not(headPC))))
+            ))
+          }
+        }
+
         for {
           v <- eval(cndVal)(funName)
           s <- getState
-          r <- reflect(switchFun(v.int, s, table))
+          r <- reflect(if (v.isConc) {
+            switchFun(v.int, s, table)
+          } else {
+            switchFunSym(v, s, table)
+          })
         } yield r
     }
   }
@@ -842,12 +878,12 @@ object TestStagedLLVM {
 
   def testM(path: String, fname: String) {
     val code = specialize(parse(path), fname)
-    code.save(s"gen/${path.split("/").last}.cpp")
+    val filename = path.split("/").last
+    code.save(s"gen/${filename.take(filename.indexOf("."))}.cpp")
     code.eval(0)
   }
 
   def main(args: Array[String]): Unit = {
-    //testM("llvm/symbolic_test/makeSymbolicArray.ll", "@main")
-    testMultipath(65536)
+    testM("llvm/symbolic_test/switchTestSimple.ll", "@main")
   }
 }

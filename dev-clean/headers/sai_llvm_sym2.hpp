@@ -35,6 +35,7 @@ struct Value {
 };
 
 struct IntV : Value {
+  // Expr i;
   int i;
   IntV(int i) : i(i) {}
   IntV(const IntV& v) { i = v.i; }
@@ -83,6 +84,15 @@ struct SymV : Value {
   }
 };
 
+bool isConc(Ptr<Value> v) {
+  if (std::dynamic_pointer_cast<IntV>(v)) {
+    return true;
+  } else if (std::dynamic_pointer_cast<SymV>(v)) {
+    return false;
+  } else if (std::dynamic_pointer_cast<LocV>(v)){
+    std::cout << "isConc: Value is LocV" << std::endl;
+  }
+}
 
 Ptr<Value> make_SymV(String n) {
   // TODO type
@@ -96,7 +106,7 @@ Expr proj_SMTBool(Ptr<Value> v) {
   } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;
   } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)){
-    std::cout << "Value is LocV" << std::endl;
+    std::cout << "proj_SMTBool: Value is LocV" << std::endl;
   } else {
     std::cout << "Value is ???" << std::endl;
   }
@@ -108,7 +118,7 @@ Expr proj_SMTExpr(Ptr<Value> v) {
   } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;
   } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)){
-    std::cout << "Value is LocV" << std::endl;
+    std::cout << "proj_SMTExpr: Value is LocV" << std::endl;
   } else {
     std::cout << "Value is ???" << std::endl;
   }
