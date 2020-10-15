@@ -520,29 +520,43 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         v <- eval(incs.head.value)
       } yield v 
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
+        // symbolic
         // for {
         //   cnd <- eval(cndVal)
-        //   v <- choice(
-        //     for {
-        //       _ <- updatePC(cnd.toSMTBool)
-        //       v <- eval(thnVal)
-        //     } yield v,
-        //     for {
-        //       _ <- updatePC(not(cnd.toSMTBool))
-        //       v <- eval(elsVal)
-        //     } yield v
-        //   )
+        // v <- choice(
+        //   for {
+        //     _ <- updatePC(cnd.toSMTBool)
+        //     v <- eval(thnVal)
+        //   } yield v,
+        //   for {
+        //     _ <- updatePC(not(cnd.toSMTBool))
+        //     v <- eval(elsVal)
+        //   } yield v
+        // )
         // } yield v
 
         for {
           cnd <- eval(cndVal)
           s <- getState
-          v <- {
-            reflect(if (cnd.int == 1) {
-              reify(s)(eval(thnVal))
+          v <- reflect {
+            if (cnd.isConc) {
+              if (cnd.int == 1) {
+                reify(s)(eval(thnVal))
+              } else {
+                reify(s)(eval(elsVal))
+              }
             } else {
-              reify(s)(eval(elsVal))
-            })
+              reify(s) {choice(
+                for {
+                  _ <- updatePC(cnd.toSMTBool)
+                  v <- eval(thnVal)
+                } yield v,
+                for {
+                  _ <- updatePC(not(cnd.toSMTBool))
+                  v <- eval(elsVal)
+                } yield v
+              )}
+            }
           }
         } yield v
 
@@ -559,41 +573,40 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case BrTerm(lab) =>
         execBlock(funName, lab)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
-        // Mix: WIP
-        // for {
-        //   ss <- getState
-        //   cndVal <- eval(cnd)(funName)
-        //   u <- reflect {
-        //     if (cndVal.isConc) {
-        //       if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
-        //       else reify(ss)(execBlock(funName, elsLab))
-        //     } else {
-        //       reify(ss) {choice(
-        //         for {
-        //           _ <- updatePC(cndVal.toSMTBool)
-        //           v <- execBlock(funName, thnLab)
-        //         } yield v,
-        //         for {
-        //           _ <- updatePC(not(cndVal.toSMTBool))
-        //           v <- execBlock(funName, elsLab)
-        //         } yield v)
-        //       }
-        //     }
-        //   }
-        // } yield u
+        for {
+          ss <- getState
+          cndVal <- eval(cnd)(funName)
+          u <- reflect {
+            if (cndVal.isConc) {
+              if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
+              else reify(ss)(execBlock(funName, elsLab))
+            } else {
+              reify(ss) {choice(
+                for {
+                  _ <- updatePC(cndVal.toSMTBool)
+                  v <- execBlock(funName, thnLab)
+                } yield v,
+                for {
+                  _ <- updatePC(not(cndVal.toSMTBool))
+                  v <- execBlock(funName, elsLab)
+                } yield v)
+              }
+            }
+          }
+        } yield u
         
         // Concrete
-        for {
-          cndVal <- eval(cnd)(funName)
-          s <- getState
-          v <- {
-            reflect(if (cndVal.int == 1) {
-              reify(s)(execBlock(funName, thnLab))
-            } else {
-              reify(s)(execBlock(funName, elsLab))
-            })
-          }
-        } yield v
+        // for {
+        //   cndVal <- eval(cnd)(funName)
+        //   s <- getState
+        //   v <- {
+        //     reflect(if (cndVal.int == 1) {
+        //       reify(s)(execBlock(funName, thnLab))
+        //     } else {
+        //       reify(s)(execBlock(funName, elsLab))
+        //     })
+        //   }
+        // } yield v
 
         // Symbolic
         // val brLabel: String = funName + thnLab + elsLab      
@@ -612,8 +625,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
         
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        // TODO: cndVal can be either concrete or symbolic
-        // TODO: if symbolic, update PC here, for default, take the negation of all other conditions
         def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
