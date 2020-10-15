@@ -334,7 +334,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def read: Rep[Value] = FunV(topFun(__concreteReadForMaze))
 
     def __exit(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      return List[(SS, Value)]();
+      return List[(SS, Value)]((s, IntV(0)));
     }
     def exit: Rep[Value] = FunV(topFun(__exit))
 
@@ -484,10 +484,11 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         }
       case ZExtInst(from, value, to) => for {
         v <- eval(value)
-      } yield IntV(v.int, to.asInstanceOf[IntType].size)
+      } yield v
+      // TODO return original for symbolic
       case SExtInst(from, value, to) =>  for {
         v <- eval(value)
-      } yield IntV(v.int, to.asInstanceOf[IntType].size)
+      } yield v
       case CallInst(ty, f, args) => 
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
@@ -519,20 +520,20 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         v <- eval(incs.head.value)
       } yield v 
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
-        for {
-          cnd <- eval(cndVal)
-          v <- choice(
-            for {
-              _ <- updatePC(cnd.toSMTBool)
-              v <- eval(thnVal)
-            } yield v,
-            for {
-              _ <- updatePC(not(cnd.toSMTBool))
-              v <- eval(elsVal)
-            } yield v
-          )
-        } yield v
-        /*
+        // for {
+        //   cnd <- eval(cndVal)
+        //   v <- choice(
+        //     for {
+        //       _ <- updatePC(cnd.toSMTBool)
+        //       v <- eval(thnVal)
+        //     } yield v,
+        //     for {
+        //       _ <- updatePC(not(cnd.toSMTBool))
+        //       v <- eval(elsVal)
+        //     } yield v
+        //   )
+        // } yield v
+
         for {
           cnd <- eval(cndVal)
           s <- getState
@@ -544,7 +545,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             })
           }
         } yield v
-         */
+
     }
   }
 
@@ -558,6 +559,7 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
       case BrTerm(lab) =>
         execBlock(funName, lab)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
+        // Mix: WIP
         // for {
         //   ss <- getState
         //   cndVal <- eval(cnd)(funName)
@@ -579,19 +581,34 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         //     }
         //   }
         // } yield u
-        val brLabel: String = funName + thnLab + elsLab      
+        
+        // Concrete
         for {
           cndVal <- eval(cnd)(funName)
-          v <- choice(
-            for {
-              _ <- updatePC(cndVal.toSMTBool)
-              v <- execBlock(funName, thnLab)
-            } yield v,
-            for {
-              _ <- updatePC(not(cndVal.toSMTBool))
-              v <- execBlock(funName, elsLab)
-            } yield v)
+          s <- getState
+          v <- {
+            reflect(if (cndVal.int == 1) {
+              reify(s)(execBlock(funName, thnLab))
+            } else {
+              reify(s)(execBlock(funName, elsLab))
+            })
+          }
         } yield v
+
+        // Symbolic
+        // val brLabel: String = funName + thnLab + elsLab      
+        // for {
+        //   cndVal <- eval(cnd)(funName)
+        //   v <- choice(
+        //     for {
+        //       _ <- updatePC(cndVal.toSMTBool)
+        //       v <- execBlock(funName, thnLab)
+        //     } yield v,
+        //     for {
+        //       _ <- updatePC(not(cndVal.toSMTBool))
+        //       v <- execBlock(funName, elsLab)
+        //     } yield v)
+        // } yield v
 
         
       case SwitchTerm(cndTy, cndVal, default, table) =>
@@ -884,6 +901,6 @@ object TestStagedLLVM {
   }
 
   def main(args: Array[String]): Unit = {
-    testM("llvm/symbolic_test/switchTestSimple.ll", "@main")
+    testM("llvm/symbolic_test/maze_test.ll", "@main")
   }
 }
