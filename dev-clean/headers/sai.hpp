@@ -1,6 +1,8 @@
 #include <tuple>
 #include <cassert>
 #include <cstdarg>
+#include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <functional>
@@ -25,6 +27,18 @@
 // Auxiliary definitions
 
 using String = std::string;
+
+void initRand() {
+  srand((unsigned) time(0));
+}
+
+int randInt(int ub) {
+  int r =  (rand() % ub) + 1;
+#ifdef DEBUG
+  std::cout << "rand number: " << r << std::endl;
+#endif
+  return r;
+}
 
 template <typename T>
 using Ptr = std::shared_ptr<T>;

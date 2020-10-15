@@ -120,6 +120,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     |End of C Generated Code
     |*******************************************/
     |int main(int argc, char *argv[]) {
+    |  initRand();
     |  if (argc != 2) {
     |    printf("usage: %s <arg>\n", argv[0]);
     |    return 0;

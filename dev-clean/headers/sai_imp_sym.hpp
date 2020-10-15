@@ -52,6 +52,10 @@ inline bool proj_BoolV(Ptr<Value>& v) {
   return std::dynamic_pointer_cast<BoolV>(v)->b;
 }
 
+inline bool is_BoolV(Ptr<Value>& v) {
+  return std::dynamic_pointer_cast<BoolV>(v) != nullptr;
+}
+
 struct SymV : Value {
   String s;
   SymV(String s) : s(s) {}

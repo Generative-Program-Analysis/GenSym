@@ -117,8 +117,8 @@ Expr proj_SMTExpr(Ptr<Value> v) {
     return vc_bvConstExprFromInt(vc, 32, i->i);
   } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;
-  } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)){
-    std::cout << "proj_SMTExpr: Value is LocV" << std::endl;
+  } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)) {
+    std::cout << "Value is LocV" << std::endl;
   } else {
     std::cout << "Value is ???" << std::endl;
   }
