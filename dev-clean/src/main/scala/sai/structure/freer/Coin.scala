@@ -1,10 +1,9 @@
 package sai.structure.freer
 
 import sai.structure.freer.Coin.{Coin, Coin$, biasedCoin, coinChoice}
-import sai.structure.freer3.Eff.{Eff, ∅, ⊗}
+import sai.structure.freer3.Eff._
 import sai.structure.freer3.Freer._
-import sai.structure.freer3.Handlers.{DeepHO, HO, Handler}
-import sai.structure.freer3.Nondet.{Choice$, Fail$, Nondet, fail}
+import sai.structure.freer3.Handlers._
 import sai.structure.freer3.OpenUnion._
 import ∈._
 
@@ -13,6 +12,8 @@ import scala.collection.mutable
 import scala.util.Random
 
 object Coin {
+  import sai.structure.freer3.Nondet.{Choice$, Fail$, Nondet, fail}
+
   sealed trait Coin[K]
   case class FlipCoin(weight : Float) extends Coin[Boolean] {
     assert(0f <= weight)
@@ -28,6 +29,8 @@ object Coin {
     }
   }
 
+  def biasedCoin(p: Float): Boolean = Random.nextInt(100) + 1 <= p * 100
+
   def coinChoice[E <: Eff, A](p : Float) =
     Handler[A, Nondet ⊗ E , A, Coin ⊗ (Nondet ⊗ E)].! {
       case Return(x) => ret(x)
@@ -35,22 +38,72 @@ object Coin {
       case Choice$((), k) =>
         //TODO do not understand why perform(Coin$(p)) requires explicit proof
         perform(Coin$(p))(member[Coin, Coin ⊗ (Nondet ⊗ E)]) >>= k
-
       case Fail$() => fail
     })
-
-  def biasedCoin(p: Float): Boolean = Random.nextInt(100) + 1 <= p * 100
 
   def coinH[E <: Eff, A] =
     Handler[A,Coin ⊗ E,A,E].! {
       case Return(x) => ret(x)
     } {
-      case Coin$(p, k) =>
-        k (biasedCoin(p) )
+      case Coin$(p, k) => k(biasedCoin(p))
     }
 }
 
+object CoinList {
+  import sai.structure.freer3.NondetList._
+
+  sealed trait Coin[K]
+  case class FlipCoin[A](w: Float) extends Coin[A]
+
+  object Coin$ {
+    def apply[A](weight : Float): FlipCoin[A] = FlipCoin(weight)
+
+    def unapply[X,R](p : (Coin[X], X => R)) : Option[(Float, Boolean => R)] = p match {
+      case (FlipCoin(w), k) => Some(w, k.asInstanceOf[Boolean => R])
+      case _ => None
+    }
+  }
+
+  def biasedCoin(p: Float): Boolean = Random.nextInt(100) + 1 <= p * 100
+
+  def biasedCoinList[A](xs: List[A], ps: List[Float]): A = {
+    assert(ps.foldLeft(0.0f)(_ + _) == 1.0f)
+    val r: Int = Random.nextInt(100) + 1
+    val acc: Float = 0
+    for ((x, p) <- xs.zip(ps)) {
+      if (r <= (acc + p) * 100)
+        return x
+    }
+    throw new RuntimeException("cannot interpret probabilities: " + ps)
+  }
+
+  import NondetPList$.??
+
+  def run_with_mt[A]: Comp[Nondet ⊗ ∅, A] => Comp[∅, List[A]] =
+    handler[Nondet, ∅, A, List[A]] {
+      case Return(x) => ret(List(x))
+    } (new DeepH[Nondet, ∅, List[A]] {
+      def apply[X] = (_, _) match {
+        case NondetPList$(??(xs, ps, k)) =>
+          k(biasedCoinList(xs, ps))
+      }
+    })
+
+  // not using List[A]
+  def run_with_mt_single[A]: Comp[Nondet ⊗ ∅, A] => Comp[∅, A] =
+    handler[Nondet, ∅, A, A] {
+      case Return(x) => ret(x)
+    } (new DeepH[Nondet, ∅, A] {
+      def apply[X] = (_, _) match {
+        case NondetPList$(??(xs, ps, k)) =>
+          k(biasedCoinList(xs, ps))
+      }
+    })
+}
+
 object Prob {
+  import sai.structure.freer3.Nondet.{Choice$, Fail$, Nondet, fail}
+
   sealed trait Prob[K]
   case class Weight(w: Float) extends Prob[Unit] {
     assert(0f <= w)

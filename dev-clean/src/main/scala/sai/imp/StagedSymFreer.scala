@@ -374,8 +374,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[Unit])] =
       State.run2[Nondet ⊗ ∅, Rep[SS], Rep[Unit]](s)(comp)
     val p2: Comp[Nondet ⊗ ∅, Rep[(SS, Unit)]] = p1.map(a => a)
-    //val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p2)
-    val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet3(p2)
+    val p3: Comp[∅, Rep[List[(SS, Unit)]]] = runRepNondet(p2)
     p3
   }
 
@@ -415,6 +414,15 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
       _ <- exec(s)
     } yield ()
 
+  def if_updown(s: Rep[SS], cnd: => Rep[Boolean], e1: => SymEff[Rep[Unit]], e2: => SymEff[Rep[Unit]]): SymEff[Rep[Unit]] = {
+    reflect(if (cnd) reify(s)(e1) else reify(s)(e2))
+  }
+
+  def probChoice(s: Rep[SS], e1: => SymEff[Rep[Unit]], e2: => SymEff[Rep[Unit]]): SymEff[Rep[Unit]] = {
+    val r: Rep[Int] = Wrap[Int](Adapter.g.reflectWrite("randInt", Unwrap(unit(100)))(Adapter.CTRL))
+    if_updown(s, r <= 50, e1, e2)
+  }
+
   def exec(s: Stmt): SymEff[Rep[Unit]] =
     s match {
       case Skip() => ret(())
@@ -424,47 +432,15 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
           _ <- updateStore(x, v)
         } yield ()
       case Cond(e, s1, s2) =>
-        /* generating breath-first exploring code */
         for {
-          ss <- get[Rep[SS], E]
-          u <- reflect(reify(ss)(execWithPC(s1, e)) ++ reify(ss)(execWithPC(s2, Op1("-", e))))
-        } yield u
-        /* generating depth-first exploring code */
-        choice(execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
-        /* mixing concrete evaluation of condition (a little code duplication) */
-        for {
-          v <- eval(e)
-          ss <- get[Rep[SS], E]
-          u <- reflect {
-            if (v.isBool) {
-              if (v.getBool) reify(ss)(exec(s1))
-              else reify(ss)(exec(s2))
-            } else {
-              reify(ss)(choice(execWithPC(s1, e), execWithPC(s2, Op1("-", e))))
-            }
-          }
-        } yield u
-        /* mixing concrete evaluation of condition, but reify branches to functions */
-        /// TODO: LMS does not correctly lifts functions, seems due to the nested `if`
-        def then_br(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
-          reify(ss)(execWithPC(s1, e))
-        }
-        def else_br(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
-          reify(ss)(execWithPC(s2, Op1("-", e)))
-        }
-        // fun: (Rep[A] => Rep[B]) => Rep[A => B]
-        val rep_then_br: Rep[SS => List[(SS, Unit)]] = fun(then_br)
-        val rep_else_br: Rep[SS => List[(SS, Unit)]] = fun(else_br)
-        for {
-          v <- eval(e)
-          ss <- get[Rep[SS], E]
-          u <- reflect {
-            if (v.isBool) {
-              if (v.getBool) rep_then_br(ss) else rep_else_br(ss)
-            } else {
-              rep_then_br(ss) ++ rep_else_br(ss)
-            }
-          }
+          b <- eval(e)
+          s <- get[Rep[SS], E]
+          u <- if_updown(s, b.isBool,
+            if_updown(s, b.getBool,
+              execWithPC(s1, e),
+              execWithPC(s2, Op1("-", e))),
+            probChoice(s, execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
+          )
         } yield u
       case Seq(s1, s2) =>
         for {
@@ -550,12 +526,11 @@ object StagedSymFreer {
 
   def main(args: Array[String]): Unit = {
     import Examples._
-    val code = specKnapsack
-    // val code = specSymCpp(cond3)
-    // val code = specSymCpp(cond3)
-    println(code.code)
-    // code.eval(4)
-
+    //val code = specKnapsack
+    val code = specSymCpp(cond3)
+    code.save("cond3.cpp")
+    //println(code.code)
+    code.eval(4)
   }
 }
 

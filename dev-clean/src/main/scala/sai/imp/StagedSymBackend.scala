@@ -97,6 +97,10 @@ trait CppSymStagedImpGen extends CppSAICodeGenBase {
       emit("proj_BoolV(")
       shallow(i)
       emit(")")
+    case Node(s, "BoolV-pred", List(i), _) =>
+      emit("is_BoolV(")
+      shallow(i)
+      emit(")")
     case Node(s, "SymV", List(x), _) =>
       emit("make_SymV(")
       shallow(x)

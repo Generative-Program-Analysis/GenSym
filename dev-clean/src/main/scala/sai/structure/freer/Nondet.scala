@@ -11,6 +11,7 @@ object NondetList {
 
   sealed trait Nondet[K]
   case class NondetList[A](xs: List[A]) extends Nondet[A]
+  case class NondetPList[A](xs: List[A], ps: List[Float]) extends Nondet[A]
   case object BinChoice extends Nondet[Boolean]
 
   //for some reason, the implicit resolution will try to prove NondetList ∈ R and fail
@@ -28,6 +29,12 @@ object NondetList {
 
   def select[R <: Eff, A](xs: List[A])(implicit I: Nondet ∈ R): Comp[R, A] =
     perform[Nondet, R, A](NondetList(xs))
+
+  def pselect[R <: Eff, A](xs: List[A], ps: List[Float])(implicit I: Nondet ∈ R): Comp[R, A] =
+    perform[Nondet, R, A](NondetPList(xs, ps))
+
+  def pchoice[R <: Eff, A](x: A, y: A)(implicit I: Nondet ∈ R): Comp[R, A] =
+    pselect(List(x, y), List(0.5f, 0.5f))
 
   object Fail$ {
     def unapply[X, A, R](n: (Nondet[X], X => R)): Boolean = n match {
@@ -82,6 +89,27 @@ object NondetList {
       def unapply[A](arg: Result[A]): Option[(List[arg.K], arg.K => A)] = Some(arg.get)
     }
   }
+
+  object NondetPList$ {
+    trait Result[+R] {
+      type K
+      def get: (List[K], List[Float], K => R)
+    }
+    def unapply[X, R](n: (Nondet[X], X => R)): Option[Result[R]] =
+      n match {
+        case (NondetPList(xs, ps), k) =>
+          val r = new Result[R] {
+            type K = Any
+            override def get = (xs.asInstanceOf[List[K]], ps, k.asInstanceOf[K => R])
+          }
+          Some(r)
+        case _ => None
+      }
+    object ?? {
+      def unapply[A](r: Result[A]): Option[(List[r.K], List[Float], r.K => A)] = Some(r.get)
+    }
+  }
+
   import NondetList$.??
   def run_with_mt[A]: Comp[Nondet ⊗ ∅, A] => Comp[∅, List[A]] =
     handler[Nondet, ∅, A, List[A]] {
