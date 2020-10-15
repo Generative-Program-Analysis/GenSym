@@ -4,21 +4,6 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 @maze = dso_local global [7 x [11 x i8]] [[11 x i8] c"+-+---+---+", [11 x i8] c"| |     |#|", [11 x i8] c"| | --+ | |", [11 x i8] c"| |   | | |", [11 x i8] c"| +-- | | |", [11 x i8] c"|     |   |", [11 x i8] c"+-----+---+"], align 16
-@.str = private unnamed_addr constant [3 x i8] c"%c\00", align 1
-@.str.1 = private unnamed_addr constant [2 x i8] c"\0A\00", align 1
-@.str.2 = private unnamed_addr constant [24 x i8] c"Maze dimensions: %dx%d\0A\00", align 1
-@.str.3 = private unnamed_addr constant [19 x i8] c"Player pos: %dx%d\0A\00", align 1
-@.str.4 = private unnamed_addr constant [18 x i8] c"Iteration no. %d\0A\00", align 1
-@.str.5 = private unnamed_addr constant [67 x i8] c"Program the player moves with a sequence of 'w', 's', 'a' and 'd'\0A\00", align 1
-@.str.6 = private unnamed_addr constant [28 x i8] c"Try to reach the price(#)!\0A\00", align 1
-@.str.7 = private unnamed_addr constant [40 x i8] c"Wrong command!(only w,s,a,d accepted!)\0A\00", align 1
-@.str.8 = private unnamed_addr constant [12 x i8] c"You loose!\0A\00", align 1
-@.str.9 = private unnamed_addr constant [10 x i8] c"You win!\0A\00", align 1
-@.str.10 = private unnamed_addr constant [22 x i8] c"Your solution <%42s>\0A\00", align 1
-@.str.11 = private unnamed_addr constant [34 x i8] c"Iteration no. %d. Action: %c. %s\0A\00", align 1
-@.str.12 = private unnamed_addr constant [9 x i8] c"Blocked!\00", align 1
-@.str.13 = private unnamed_addr constant [1 x i8] zeroinitializer, align 1
-@.str.14 = private unnamed_addr constant [11 x i8] c"You loose\0A\00", align 1
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local void @draw() #0 {
@@ -28,10 +13,10 @@ entry:
   store i32 0, i32* %i, align 4
   br label %for.cond
 
-for.cond:                                         ; preds = %for.inc7, %entry
+for.cond:                                         ; preds = %for.inc4, %entry
   %0 = load i32, i32* %i, align 4
   %cmp = icmp slt i32 %0, 7
-  br i1 %cmp, label %for.body, label %for.end9
+  br i1 %cmp, label %for.body, label %for.end6
 
 for.body:                                         ; preds = %for.cond
   store i32 0, i32* %j, align 4
@@ -43,39 +28,26 @@ for.cond1:                                        ; preds = %for.inc, %for.body
   br i1 %cmp2, label %for.body3, label %for.end
 
 for.body3:                                        ; preds = %for.cond1
-  %2 = load i32, i32* %i, align 4
-  %idxprom = sext i32 %2 to i64
-  %arrayidx = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom
-  %3 = load i32, i32* %j, align 4
-  %idxprom4 = sext i32 %3 to i64
-  %arrayidx5 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx, i64 0, i64 %idxprom4
-  %4 = load i8, i8* %arrayidx5, align 1
-  %conv = sext i8 %4 to i32
-  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str, i64 0, i64 0), i32 %conv)
   br label %for.inc
 
 for.inc:                                          ; preds = %for.body3
-  %5 = load i32, i32* %j, align 4
-  %inc = add nsw i32 %5, 1
+  %2 = load i32, i32* %j, align 4
+  %inc = add nsw i32 %2, 1
   store i32 %inc, i32* %j, align 4
   br label %for.cond1
 
 for.end:                                          ; preds = %for.cond1
-  %call6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @.str.1, i64 0, i64 0))
-  br label %for.inc7
+  br label %for.inc4
 
-for.inc7:                                         ; preds = %for.end
-  %6 = load i32, i32* %i, align 4
-  %inc8 = add nsw i32 %6, 1
-  store i32 %inc8, i32* %i, align 4
+for.inc4:                                         ; preds = %for.end
+  %3 = load i32, i32* %i, align 4
+  %inc5 = add nsw i32 %3, 1
+  store i32 %inc5, i32* %i, align 4
   br label %for.cond
 
-for.end9:                                         ; preds = %for.cond
-  %call10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([2 x i8], [2 x i8]* @.str.1, i64 0, i64 0))
+for.end6:                                         ; preds = %for.cond
   ret void
 }
-
-declare dso_local i32 @printf(i8*, ...) #1
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @main(i32 %argc, i8** %argv) #0 {
@@ -102,198 +74,157 @@ entry:
   %idxprom1 = sext i32 %1 to i64
   %arrayidx2 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx, i64 0, i64 %idxprom1
   store i8 88, i8* %arrayidx2, align 1
-  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @.str.2, i64 0, i64 0), i32 11, i32 7)
-  %2 = load i32, i32* %x, align 4
-  %3 = load i32, i32* %y, align 4
-  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([19 x i8], [19 x i8]* @.str.3, i64 0, i64 0), i32 %2, i32 %3)
-  %4 = load i32, i32* %i, align 4
-  %call4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([18 x i8], [18 x i8]* @.str.4, i64 0, i64 0), i32 %4)
-  %call5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([67 x i8], [67 x i8]* @.str.5, i64 0, i64 0))
-  %call6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([28 x i8], [28 x i8]* @.str.6, i64 0, i64 0))
   call void @draw()
   %arraydecay = getelementptr inbounds [28 x i8], [28 x i8]* %program, i64 0, i64 0
-  %call7 = call i32 (i8*, i32, ...) bitcast (i32 (...)* @make_symbolic to i32 (i8*, i32, ...)*)(i8* %arraydecay, i32 29)
+  %call = call i32 (i8*, i32, ...) bitcast (i32 (...)* @make_symbolic to i32 (i8*, i32, ...)*)(i8* %arraydecay, i32 29)
   br label %while.cond
 
-while.cond:                                       ; preds = %if.end69, %entry
-  %5 = load i32, i32* %i, align 4
-  %cmp = icmp slt i32 %5, 28
+while.cond:                                       ; preds = %if.end49, %entry
+  %2 = load i32, i32* %i, align 4
+  %cmp = icmp slt i32 %2, 28
   br i1 %cmp, label %while.body, label %while.end
 
 while.body:                                       ; preds = %while.cond
-  %6 = load i32, i32* %x, align 4
-  store i32 %6, i32* %ox, align 4
-  %7 = load i32, i32* %y, align 4
-  store i32 %7, i32* %oy, align 4
-  %8 = load i32, i32* %i, align 4
-  %idxprom8 = sext i32 %8 to i64
-  %arrayidx9 = getelementptr inbounds [28 x i8], [28 x i8]* %program, i64 0, i64 %idxprom8
-  %9 = load i8, i8* %arrayidx9, align 1
-  %conv = sext i8 %9 to i32
+  %3 = load i32, i32* %x, align 4
+  store i32 %3, i32* %ox, align 4
+  %4 = load i32, i32* %y, align 4
+  store i32 %4, i32* %oy, align 4
+  %5 = load i32, i32* %i, align 4
+  %idxprom3 = sext i32 %5 to i64
+  %arrayidx4 = getelementptr inbounds [28 x i8], [28 x i8]* %program, i64 0, i64 %idxprom3
+  %6 = load i8, i8* %arrayidx4, align 1
+  %conv = sext i8 %6 to i32
   switch i32 %conv, label %sw.default [
     i32 119, label %sw.bb
-    i32 115, label %sw.bb10
-    i32 97, label %sw.bb11
-    i32 100, label %sw.bb13
+    i32 115, label %sw.bb5
+    i32 97, label %sw.bb6
+    i32 100, label %sw.bb8
   ]
 
 sw.bb:                                            ; preds = %while.body
-  %10 = load i32, i32* %y, align 4
-  %dec = add nsw i32 %10, -1
+  %7 = load i32, i32* %y, align 4
+  %dec = add nsw i32 %7, -1
   store i32 %dec, i32* %y, align 4
   br label %sw.epilog
 
-sw.bb10:                                          ; preds = %while.body
-  %11 = load i32, i32* %y, align 4
-  %inc = add nsw i32 %11, 1
+sw.bb5:                                           ; preds = %while.body
+  %8 = load i32, i32* %y, align 4
+  %inc = add nsw i32 %8, 1
   store i32 %inc, i32* %y, align 4
   br label %sw.epilog
 
-sw.bb11:                                          ; preds = %while.body
-  %12 = load i32, i32* %x, align 4
-  %dec12 = add nsw i32 %12, -1
-  store i32 %dec12, i32* %x, align 4
+sw.bb6:                                           ; preds = %while.body
+  %9 = load i32, i32* %x, align 4
+  %dec7 = add nsw i32 %9, -1
+  store i32 %dec7, i32* %x, align 4
   br label %sw.epilog
 
-sw.bb13:                                          ; preds = %while.body
-  %13 = load i32, i32* %x, align 4
-  %inc14 = add nsw i32 %13, 1
-  store i32 %inc14, i32* %x, align 4
+sw.bb8:                                           ; preds = %while.body
+  %10 = load i32, i32* %x, align 4
+  %inc9 = add nsw i32 %10, 1
+  store i32 %inc9, i32* %x, align 4
   br label %sw.epilog
 
 sw.default:                                       ; preds = %while.body
-  %call15 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([40 x i8], [40 x i8]* @.str.7, i64 0, i64 0))
-  %call16 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str.8, i64 0, i64 0))
   call void @exit(i32 -1) #3
   unreachable
 
-sw.epilog:                                        ; preds = %sw.bb13, %sw.bb11, %sw.bb10, %sw.bb
-  %14 = load i32, i32* %y, align 4
-  %idxprom17 = sext i32 %14 to i64
-  %arrayidx18 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom17
-  %15 = load i32, i32* %x, align 4
-  %idxprom19 = sext i32 %15 to i64
-  %arrayidx20 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx18, i64 0, i64 %idxprom19
-  %16 = load i8, i8* %arrayidx20, align 1
-  %conv21 = sext i8 %16 to i32
-  %cmp22 = icmp eq i32 %conv21, 35
-  br i1 %cmp22, label %if.then, label %if.end
+sw.epilog:                                        ; preds = %sw.bb8, %sw.bb6, %sw.bb5, %sw.bb
+  %11 = load i32, i32* %y, align 4
+  %idxprom10 = sext i32 %11 to i64
+  %arrayidx11 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom10
+  %12 = load i32, i32* %x, align 4
+  %idxprom12 = sext i32 %12 to i64
+  %arrayidx13 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx11, i64 0, i64 %idxprom12
+  %13 = load i8, i8* %arrayidx13, align 1
+  %conv14 = sext i8 %13 to i32
+  %cmp15 = icmp eq i32 %conv14, 35
+  br i1 %cmp15, label %if.then, label %if.end
 
 if.then:                                          ; preds = %sw.epilog
-  %call24 = call i32 (...) @assert()
-  %call25 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str.9, i64 0, i64 0))
-  %arraydecay26 = getelementptr inbounds [28 x i8], [28 x i8]* %program, i64 0, i64 0
-  %call27 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([22 x i8], [22 x i8]* @.str.10, i64 0, i64 0), i8* %arraydecay26)
+  %call17 = call i32 (...) @assert()
   call void @exit(i32 1) #3
   unreachable
 
 if.end:                                           ; preds = %sw.epilog
-  %17 = load i32, i32* %y, align 4
-  %idxprom28 = sext i32 %17 to i64
-  %arrayidx29 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom28
-  %18 = load i32, i32* %x, align 4
-  %idxprom30 = sext i32 %18 to i64
-  %arrayidx31 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx29, i64 0, i64 %idxprom30
-  %19 = load i8, i8* %arrayidx31, align 1
-  %conv32 = sext i8 %19 to i32
-  %cmp33 = icmp ne i32 %conv32, 32
-  br i1 %cmp33, label %land.lhs.true, label %if.end52
+  %14 = load i32, i32* %y, align 4
+  %idxprom18 = sext i32 %14 to i64
+  %arrayidx19 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom18
+  %15 = load i32, i32* %x, align 4
+  %idxprom20 = sext i32 %15 to i64
+  %arrayidx21 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx19, i64 0, i64 %idxprom20
+  %16 = load i8, i8* %arrayidx21, align 1
+  %conv22 = sext i8 %16 to i32
+  %cmp23 = icmp ne i32 %conv22, 32
+  br i1 %cmp23, label %land.lhs.true, label %if.end42
 
 land.lhs.true:                                    ; preds = %if.end
-  %20 = load i32, i32* %y, align 4
-  %cmp35 = icmp eq i32 %20, 2
-  br i1 %cmp35, label %land.lhs.true37, label %if.then51
+  %17 = load i32, i32* %y, align 4
+  %cmp25 = icmp eq i32 %17, 2
+  br i1 %cmp25, label %land.lhs.true27, label %if.then41
 
-land.lhs.true37:                                  ; preds = %land.lhs.true
-  %21 = load i32, i32* %y, align 4
-  %idxprom38 = sext i32 %21 to i64
-  %arrayidx39 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom38
+land.lhs.true27:                                  ; preds = %land.lhs.true
+  %18 = load i32, i32* %y, align 4
+  %idxprom28 = sext i32 %18 to i64
+  %arrayidx29 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom28
+  %19 = load i32, i32* %x, align 4
+  %idxprom30 = sext i32 %19 to i64
+  %arrayidx31 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx29, i64 0, i64 %idxprom30
+  %20 = load i8, i8* %arrayidx31, align 1
+  %conv32 = sext i8 %20 to i32
+  %cmp33 = icmp eq i32 %conv32, 124
+  br i1 %cmp33, label %land.lhs.true35, label %if.then41
+
+land.lhs.true35:                                  ; preds = %land.lhs.true27
+  %21 = load i32, i32* %x, align 4
+  %cmp36 = icmp sgt i32 %21, 0
+  br i1 %cmp36, label %land.lhs.true38, label %if.then41
+
+land.lhs.true38:                                  ; preds = %land.lhs.true35
   %22 = load i32, i32* %x, align 4
-  %idxprom40 = sext i32 %22 to i64
-  %arrayidx41 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx39, i64 0, i64 %idxprom40
-  %23 = load i8, i8* %arrayidx41, align 1
-  %conv42 = sext i8 %23 to i32
-  %cmp43 = icmp eq i32 %conv42, 124
-  br i1 %cmp43, label %land.lhs.true45, label %if.then51
+  %cmp39 = icmp slt i32 %22, 11
+  br i1 %cmp39, label %if.end42, label %if.then41
 
-land.lhs.true45:                                  ; preds = %land.lhs.true37
-  %24 = load i32, i32* %x, align 4
-  %cmp46 = icmp sgt i32 %24, 0
-  br i1 %cmp46, label %land.lhs.true48, label %if.then51
+if.then41:                                        ; preds = %land.lhs.true38, %land.lhs.true35, %land.lhs.true27, %land.lhs.true
+  %23 = load i32, i32* %ox, align 4
+  store i32 %23, i32* %x, align 4
+  %24 = load i32, i32* %oy, align 4
+  store i32 %24, i32* %y, align 4
+  br label %if.end42
 
-land.lhs.true48:                                  ; preds = %land.lhs.true45
-  %25 = load i32, i32* %x, align 4
-  %cmp49 = icmp slt i32 %25, 11
-  br i1 %cmp49, label %if.end52, label %if.then51
+if.end42:                                         ; preds = %if.then41, %land.lhs.true38, %if.end
+  %25 = load i32, i32* %ox, align 4
+  %26 = load i32, i32* %x, align 4
+  %cmp43 = icmp eq i32 %25, %26
+  br i1 %cmp43, label %land.lhs.true45, label %if.end49
 
-if.then51:                                        ; preds = %land.lhs.true48, %land.lhs.true45, %land.lhs.true37, %land.lhs.true
-  %26 = load i32, i32* %ox, align 4
-  store i32 %26, i32* %x, align 4
+land.lhs.true45:                                  ; preds = %if.end42
   %27 = load i32, i32* %oy, align 4
-  store i32 %27, i32* %y, align 4
-  br label %if.end52
+  %28 = load i32, i32* %y, align 4
+  %cmp46 = icmp eq i32 %27, %28
+  br i1 %cmp46, label %if.then48, label %if.end49
 
-if.end52:                                         ; preds = %if.then51, %land.lhs.true48, %if.end
-  %28 = load i32, i32* %x, align 4
-  %29 = load i32, i32* %y, align 4
-  %call53 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([19 x i8], [19 x i8]* @.str.3, i64 0, i64 0), i32 %28, i32 %29)
-  %30 = load i32, i32* %i, align 4
-  %31 = load i32, i32* %i, align 4
-  %idxprom54 = sext i32 %31 to i64
-  %arrayidx55 = getelementptr inbounds [28 x i8], [28 x i8]* %program, i64 0, i64 %idxprom54
-  %32 = load i8, i8* %arrayidx55, align 1
-  %conv56 = sext i8 %32 to i32
-  %33 = load i32, i32* %ox, align 4
-  %34 = load i32, i32* %x, align 4
-  %cmp57 = icmp eq i32 %33, %34
-  br i1 %cmp57, label %land.rhs, label %land.end
-
-land.rhs:                                         ; preds = %if.end52
-  %35 = load i32, i32* %oy, align 4
-  %36 = load i32, i32* %y, align 4
-  %cmp59 = icmp eq i32 %35, %36
-  br label %land.end
-
-land.end:                                         ; preds = %land.rhs, %if.end52
-  %37 = phi i1 [ false, %if.end52 ], [ %cmp59, %land.rhs ]
-  %38 = zext i1 %37 to i64
-  %cond = select i1 %37, i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.12, i64 0, i64 0), i8* getelementptr inbounds ([1 x i8], [1 x i8]* @.str.13, i64 0, i64 0)
-  %call61 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([34 x i8], [34 x i8]* @.str.11, i64 0, i64 0), i32 %30, i32 %conv56, i8* %cond)
-  %39 = load i32, i32* %ox, align 4
-  %40 = load i32, i32* %x, align 4
-  %cmp62 = icmp eq i32 %39, %40
-  br i1 %cmp62, label %land.lhs.true64, label %if.end69
-
-land.lhs.true64:                                  ; preds = %land.end
-  %41 = load i32, i32* %oy, align 4
-  %42 = load i32, i32* %y, align 4
-  %cmp65 = icmp eq i32 %41, %42
-  br i1 %cmp65, label %if.then67, label %if.end69
-
-if.then67:                                        ; preds = %land.lhs.true64
-  %call68 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.14, i64 0, i64 0))
+if.then48:                                        ; preds = %land.lhs.true45
   call void @exit(i32 -2) #3
   unreachable
 
-if.end69:                                         ; preds = %land.lhs.true64, %land.end
-  %43 = load i32, i32* %y, align 4
-  %idxprom70 = sext i32 %43 to i64
-  %arrayidx71 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom70
-  %44 = load i32, i32* %x, align 4
-  %idxprom72 = sext i32 %44 to i64
-  %arrayidx73 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx71, i64 0, i64 %idxprom72
-  store i8 88, i8* %arrayidx73, align 1
+if.end49:                                         ; preds = %land.lhs.true45, %if.end42
+  %29 = load i32, i32* %y, align 4
+  %idxprom50 = sext i32 %29 to i64
+  %arrayidx51 = getelementptr inbounds [7 x [11 x i8]], [7 x [11 x i8]]* @maze, i64 0, i64 %idxprom50
+  %30 = load i32, i32* %x, align 4
+  %idxprom52 = sext i32 %30 to i64
+  %arrayidx53 = getelementptr inbounds [11 x i8], [11 x i8]* %arrayidx51, i64 0, i64 %idxprom52
+  store i8 88, i8* %arrayidx53, align 1
   call void @draw()
-  %45 = load i32, i32* %i, align 4
-  %inc74 = add nsw i32 %45, 1
-  store i32 %inc74, i32* %i, align 4
-  %call75 = call i32 (i32, ...) bitcast (i32 (...)* @sleep to i32 (i32, ...)*)(i32 1)
+  %31 = load i32, i32* %i, align 4
+  %inc54 = add nsw i32 %31, 1
+  store i32 %inc54, i32* %i, align 4
   br label %while.cond
 
 while.end:                                        ; preds = %while.cond
-  %call76 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.14, i64 0, i64 0))
-  %46 = load i32, i32* %retval, align 4
-  ret i32 %46
+  %32 = load i32, i32* %retval, align 4
+  ret i32 %32
 }
 
 declare dso_local i32 @make_symbolic(...) #1
@@ -302,8 +233,6 @@ declare dso_local i32 @make_symbolic(...) #1
 declare dso_local void @exit(i32) #2
 
 declare dso_local i32 @assert(...) #1
-
-declare dso_local i32 @sleep(...) #1
 
 attributes #0 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

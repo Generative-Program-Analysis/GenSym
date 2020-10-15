@@ -8,6 +8,7 @@
 #include<string.h>
 #include<stdio.h>
 #include<stdlib.h>
+#include <klee/klee.h>
 
 
 /**
@@ -53,7 +54,6 @@ int main (int argc, char *argv[])
   #define ITERS 28
   char program[ITERS];
 
-  
   //Initial position
   x = 1;
   y = 1;
@@ -69,7 +69,7 @@ int main (int argc, char *argv[])
   //Draw the maze
   draw ();    
   //Read the directions 'program' to execute...
-  make_symbolic(program, 29);
+  klee_make_symbolic(program,ITERS,"program");
 
   //Iterate and run 'program'
   while(i < ITERS)
@@ -101,9 +101,9 @@ int main (int argc, char *argv[])
     //If hit the price, You Win!!   
     if (maze[y][x] == '#')
     {
-      assert();
       // printf ("You win!\n");
       // printf ("Your solution <%42s>\n",program);
+      klee_assert(0);
       exit (1);
     }
     //If something is wrong do not advance
