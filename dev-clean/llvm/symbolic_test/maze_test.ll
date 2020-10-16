@@ -76,7 +76,7 @@ entry:
   store i8 88, i8* %arrayidx2, align 1
   call void @draw()
   %arraydecay = getelementptr inbounds [28 x i8], [28 x i8]* %program, i64 0, i64 0
-  %call = call i32 (i8*, i32, ...) bitcast (i32 (...)* @make_symbolic to i32 (i8*, i32, ...)*)(i8* %arraydecay, i32 29)
+  %call = call i32 (i8*, i32, ...) bitcast (i32 (...)* @make_symbolic to i32 (i8*, i32, ...)*)(i8* %arraydecay, i32 28)
   br label %while.cond
 
 while.cond:                                       ; preds = %if.end49, %entry
@@ -223,8 +223,8 @@ if.end49:                                         ; preds = %land.lhs.true45, %i
   br label %while.cond
 
 while.end:                                        ; preds = %while.cond
-  %32 = load i32, i32* %retval, align 4
-  ret i32 %32
+  call void @exit(i32 -2) #3
+  unreachable
 }
 
 declare dso_local i32 @make_symbolic(...) #1

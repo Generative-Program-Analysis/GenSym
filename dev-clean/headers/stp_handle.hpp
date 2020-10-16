@@ -5,7 +5,11 @@
 #include <iostream>
 #include <variant>
 
+int queries = 0;
+
 std::monostate handle_query(VC vc, int n) {
+  queries++;
+  std::cout << "Query number: " << queries << std::endl;
   switch (n) {
     case 0:
       std::cout << "Query is invalid" << std::endl;

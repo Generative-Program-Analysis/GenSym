@@ -69,7 +69,7 @@ int main (int argc, char *argv[])
   //Draw the maze
   draw ();    
   //Read the directions 'program' to execute...
-  make_symbolic(program, 29);
+  make_symbolic(program, ITERS);
 
   //Iterate and run 'program'
   while(i < ITERS)
@@ -135,4 +135,5 @@ int main (int argc, char *argv[])
   }
   //You couldn't make it! You loose!	  
   // printf("You loose\n");
+  exit(-2);
 }

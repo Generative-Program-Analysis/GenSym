@@ -322,10 +322,10 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
 
     // should we directly generate code for this or?
     def __assert_false(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      push
-      s.pc.toList.foreach(assert(_))
-      handle(query(lit(false)))
-      pop
+      // push
+      // s.pc.toList.foreach(assert(_))
+      // handle(query(lit(false)))
+      // pop
       return List[(SS, Value)]((s, IntV(0)));
     }
 
@@ -334,12 +334,16 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
     def read: Rep[Value] = FunV(topFun(__concreteReadForMaze))
 
     def __exit(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      push
+      s.pc.toList.foreach(assert(_))
+      handle(query(lit(false)))
+      pop
       return List[(SS, Value)]((s, IntV(0)));
     }
     def exit: Rep[Value] = FunV(topFun(__exit))
 
     def __sleep(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      return List[(SS, Value)]((s, IntV(0)));
+      return List[(SS, Value)]();
     }
     def sleep: Rep[Value] = FunV(topFun(__sleep))
   }
