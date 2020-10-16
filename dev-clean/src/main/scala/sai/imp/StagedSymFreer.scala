@@ -423,6 +423,17 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     if_updown(s, r <= 50, e1, e2)
   }
 
+  def genSelect[A: Manifest, B: Manifest](i: Rep[Int], xs: List[Rep[A]], k: Rep[A] => Rep[B]): Rep[Int => Rep[B]] = {
+    def select(xs: List[(Rep[A], Int)]): Rep[B] = {
+      if (xs.isEmpty) unchecked[B]("???")
+      else {
+        if (i == xs.head._2) k(xs.head._1)
+        else select(xs.tail)
+      }
+    }
+    ???
+  }
+
   def exec(s: Stmt): SymEff[Rep[Unit]] =
     s match {
       case Skip() => ret(())
