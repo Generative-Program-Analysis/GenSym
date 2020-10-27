@@ -2,6 +2,7 @@ package sai.llvm
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.lang.llvm.Parser._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -9,7 +10,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.immutable.Nil
 
-// An imperative implementation of concrete execution
+/* An imperative implementation of LLVM IR concrete execution.
+ * It uses a map from "abstract locations" to values to represent
+ * the heap, and a list of Frames to represent the stack.
+ */
+
 object Debug {
   val debug = false
 }
@@ -314,102 +319,45 @@ object ConcExec {
   }
 }
 
-object TestMaze {
+object TestConcrete {
   import ConcExec._
-  def testNoArg(file: String, main: String)(f: Option[Value] => Unit): Unit = {
-    val testInput = scala.io.Source.fromFile(file).mkString
-    if (Debug.debug) printAst(testInput)
-    val m = parse(testInput)
-    val result = ConcExec.exec(m, main, Map())
+
+  def test(m: Module, main: String, mem: Map[Loc, Value] = Map())(f: Option[Value] => Unit): Unit = {
+    val result = ConcExec.exec(m, main, mem)
     println(result)
     f(result)
   }
 
-  def testAdd = testNoArg("llvm/benchmarks/add.ll", "@main") {
+  def testAdd = test(Benchmarks.add, "@main") {
     case Some(IntValue(3)) =>
   }
 
-  def testArrayAccess = testNoArg("llvm/benchmarks/arrayAccess.ll", "@main") {
+  def testArrayAccess = test(Benchmarks.arrayAccess, "@main") {
     case Some(IntValue(4)) =>
   }
 
-  def testArrayAccessLocal = testNoArg("llvm/benchmarks/arrayAccessLocal.ll", "@main") {
+  def testArrayAccessLocal = test(Benchmarks.arrayAccessLocal, "@main") {
     case Some(IntValue(4)) =>
   }
 
-  def testArrayGetSet = testNoArg("llvm/benchmarks/arrayGetSet.ll", "@main") {
+  def testArrayGetSet = test(Benchmarks.arrayGetSet, "@main") {
     case Some(IntValue(636)) =>
   }
 
-
-  def testPower = testNoArg("llvm/benchmarks/power.ll", "@main") {
+  def testPower = test(Benchmarks.power, "@main") {
     case Some(IntValue(27)) =>
   }
 
-  def testSinglePath = {
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/single_path.ll").mkString
-    val m = parse(testInput)
-    printAst(testInput)
-    val result = ConcExec.exec(m, "@main", Map())
-    println(result)
-  }
+  def testSinglePath = test(Benchmarks.sp1, "@main"){_ => }
 
-  def testSimpleBranch = {
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/branch.ll").mkString
-    val m = parse(testInput)
+  def testSimpleBranch =
+    test(Benchmarks.branch, "@f", Map(FrameLoc("%x", curFrame.fname) -> IntValue(5))){_ => }
 
-    val result = ConcExec.exec(m, "@f", Map(
-      FrameLoc("%x", curFrame.fname) -> IntValue(5)))
-    println(result)
-  }
-
-  def printBB(bb: BB): Unit = {
-    println("  Block: ")
-    println(s"    Label: ${bb.label}")
-    println()
-    println("    Inst:")
-    bb.ins.foreach(u => println(s"      ${u}"))
-    println()
-    println("    Term:")
-    println(s"      ${bb.term}")
-    println()
-    println()
-  }
-
-  def printAst(input: String): Unit = {
-    parse(input).es foreach {u => u match {
-      case FunctionDef(id, linkage, metadata, header, body) => 
-        println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
-        body.blocks foreach(printBB(_))
-      case _ => println(u)
-    }}
-    println("------------------endofAST--------------------")
-  }
-
-  def parse(input: String): Module = {
-    val charStream = new ANTLRInputStream(input)
-    val lexer = new LLVMLexer(charStream)
-    val tokens = new CommonTokenStream(lexer)
-    val parser = new LLVMParser(tokens)
-
-    val visitor = new MyVisitor()
-    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    //println(res.es(3))
-    //println(res)
-    res
-  }
-
-  def testMaze = {
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
-    printAst(testInput)
-    val m = parse(testInput)
-
-    val result = ConcExec.exec(m, "@main", Map(
+  def testMaze =
+    test(Benchmarks.maze, "@main", Map(
       (FrameLoc("%argc", "@main") -> IntValue(5)),
       (FrameLoc("%argv", "@main") -> IntValue(5))
-      ))
-    println(result)
-  }
+    )){_ => }
 
   def main(args: Array[String]): Unit = {
     testArrayGetSet
@@ -417,6 +365,6 @@ object TestMaze {
     testArrayAccess
     testAdd
     testPower
-    //testMaze
+    testMaze
   }
 }

@@ -1,7 +1,8 @@
-package sai.llvm.se
+package sai.llvm
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.lang.llvm.Parser._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -24,7 +25,6 @@ import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 import scala.collection.immutable.Nil
 import lms.core.Backend.Sym
-
 
 object SymExecEff2 {
   type Mem = List[Value]
@@ -197,7 +197,6 @@ object SymExecEff2 {
         } yield ()
       }
     }
-
   }
 
   object CompileTimeRuntime {
@@ -293,8 +292,6 @@ object SymExecEff2 {
   }
 
   // TODO:
-  // eval ArrayConst
-  // ICmpInst
   // PhiInst, record branches in SS
   // SwitchTerm
   import Mem._
@@ -684,48 +681,33 @@ object SymExecEff2 {
       v <- reflect(fv.asInstanceOf[FunV].f(s, args))
       _ <- popFrame
     } yield v
-    // ST: Why empty mem instead of heap0?
     val initState: SS = (heap0, List[Frame](), Set[SMTExpr]())
     reify[Value](initState)(comp)
   }
 }
 
-
-object TestSymLLVM {
+object TestUnstagedSymExec {
   import SymExecEff2._
-  def parse(file: String): Module = {
-    val input = scala.io.Source.fromFile(file).mkString
-    sai.llvm.LLVMTest.parse(input)
+
+  def test(m: Module, main: String, args: List[Value]): Unit = {
+    val result = exec(m, main, args)
+    println(result)
   }
 
-  //val singlepath = parse("llvm/benchmarks/single_path5.ll")
+  def testAdd = test(Benchmarks.add, "@add", List(IntV(1), IntV(2)))
 
-  def testAdd = {
-    val add = parse("llvm/benchmarks/add.ll")
-    val e = exec(add, "@add", List(IntV(1), IntV(2)))
-    println(e)
-  }
-
-  def testBranch2 = {
-    val branch = parse("llvm/benchmarks/branch2.ll")
-    val br2 = exec(branch, "@f", List(SymV("x"), SymV("z")))
-    println(br2)
-  }
+  def testBranch2 = test(Benchmarks.branch, "@f", List(SymV("x"), SymV("z")))
   
-  def testPower = {
-    val power = parse("llvm/benchmarks/power.ll")
-    val p = exec(power, "@main", List())
-    println(p)
-  }
+  def testPower = test(Benchmarks.power, "@main", List())
 
-  def testMultiPathConc = {
-    val multipath = parse("llvm/benchmarks/multipath.ll")
-    val mpConc = exec(multipath, "@f", List(IntV(1), SymV("b"), SymV("c")))
-    println(mpConc)
-  }
+  def testArrayAccess = test(Benchmarks.arrayAccess, "@main", List())
+
+  def testArrayAccessLocal = test(Benchmarks.arrayAccessLocal, "@main", List())
+
+  def testArrayGetSet = test(Benchmarks.arrayGetSet, "@main", List())
 
   def testMultiPathSym(n: Int) = {
-    val multipath = parse(s"llvm/benchmarks/old/multi_path_${n}_sym.ll")
+    val multipath = OOPSLA20Benchmarks.mp1024
     val res = sai.utils.Utils.time {
       val mpSym = exec(multipath, "@f",
         List(
@@ -745,34 +727,7 @@ object TestSymLLVM {
     println(res)
   }
 
-  def testArrayAccess = {
-    val arrayAccess = parse("llvm/benchmarks/arrayAccess.ll")
-    val ac = exec(arrayAccess, "@main", List())
-    println(ac)
-  }
-
-  def testArrayAccessLocal = {
-    val arrayAccessLocal = parse("llvm/benchmarks/arrayAccessLocal.ll")
-    val acl = exec(arrayAccessLocal, "@main", List())
-    println(acl)
-  }
-
-  def testArrayGetSet = {
-    val arrayGetSet = parse("llvm/benchmarks/arrayGetSet.ll")
-    val ags = exec(arrayGetSet, "@main", List())
-    println(ags)
-  }
-
-  def testArraySetLocal = {
-    val arraySetLocal = parse("llvm/benchmarks/arraySetLocal.ll")
-    val ags = exec(arraySetLocal, "@main", List())
-    println(ags)
-  }
-
   def main(args: Array[String]): Unit = {
-    
-    // testArraySetLocal
     testMultiPathSym(1048576)
-    println("Done")
   }
 }

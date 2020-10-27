@@ -1,7 +1,8 @@
-package sai.llvm
+package sai.llvm.discard
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.lang.llvm.Parser._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -26,6 +27,8 @@ import sai.structure.lattices.Lattices._
 
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
+
+// The first draft of staged symbolic interpreter of LLVM. Discarded.
 
 // TODO refactor using SMT backend
 // TODO Implementing missing cases
@@ -322,15 +325,6 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
 }
 
 object TestStagedLLVM {
-  def parse(file: String): Module = {
-    val input = scala.io.Source.fromFile(file).mkString
-    LLVMTest.parse(input)
-  }
-  val add = parse("llvm/benchmarks/add.ll")
-  val singlepath = parse("llvm/benchmarks/single_path5.ll")
-  val branch = parse("llvm/benchmarks/branch2.ll")
-  val multipath= parse("llvm/benchmarks/multipath.ll")
-
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
     new CppSymStagedLLVMDriver[Int, Unit] {
@@ -345,15 +339,4 @@ object TestStagedLLVM {
         println(res.size)
       }
     }
-
-  def main(args: Array[String]): Unit = {
-    //val code = specialize(add, "@add")
-    //val code = specialize(singlepath, "@singlepath")
-    //val code = specialize(branch, "@f")
-    val code = specialize(multipath, "@f")
-    //println(code.code)
-    //code.eval(5)
-    code.save("multipath1024.cpp")
-    println("Done")
-  }
 }

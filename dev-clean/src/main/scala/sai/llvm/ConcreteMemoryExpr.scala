@@ -2,6 +2,7 @@ package sai.llvm
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.lang.llvm.Parser._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -9,7 +10,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.immutable.Nil
 
-// An imperative implementation of concrete execution
+/* Another imperative implementation of LLVM IR concrete execution.
+ * Different than the `ConcreteLLVM.scala` implementation,
+ * this file uses mutatable arrays to represent memory objects.
+ */
+
 object ConcExecMemory {
   type Store = Map[String, Value]
   type Stack = List[Frame]
@@ -320,10 +325,8 @@ object ConcExecMemory {
           case LocValue(l@HeapLoc(_)) => Heap(l)
         }
       case GetElemPtrInst(_, baseTy, ptrTy, ptrVal, typedValues) =>
-        // getElmPtr Note:
-        // typedValues will contain an "extra" parameter compares to C
+        // NOTE: typedValues will contain an "extra" parameter compares to C
         // why? see https://llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
-        
         val index = typedValues.map(v => eval(v.value).asInstanceOf[IntValue].x)
         val offset = calculateOffset(ptrTy, index)
         ptrVal match {
@@ -392,13 +395,6 @@ object ConcExecMemory {
     execTerm(term)
   }
 
-  /*
-  val mainStore0 = Map(
-    FrameFrameLoc("%0", curFrame.fname) -> IntValue(0),
-    FrameFrameLoc("%1", curFrame.fname) -> LocValue(SpecialFrameLoc("argv")),
-    SpecialFrameLoc("argc") -> ArrayValue(List(IntValue(0))))
-   */
-
   def exec(m: Module, fname: String, initStore: => Store): Option[Value] = {
     val Some(f) = m.lookupFuncDef(fname)
     funMap = m.funcDefMap
@@ -418,80 +414,45 @@ object ConcExecMemory {
   }
 }
 
-object TestMemory {
+object TestConcMem {
   import ConcExecMemory._
-  def testNoArg(file: String, main: String)(f: Option[Value] => Unit): Unit = {
-    val testInput = scala.io.Source.fromFile(file).mkString
-    val m = parse(testInput)
-    val result = ConcExecMemory.exec(m, main, Map())
+
+  def test(m: Module, main: String, mem: Store = Map())(f: Option[Value] => Unit): Unit = {
+    val result = ConcExecMemory.exec(m, main, mem)
     println(result)
     f(result)
   }
 
-  def testAdd = testNoArg("llvm/benchmarks/add.ll", "@main") {
+  def testAdd = test(Benchmarks.add, "@main") {
     case Some(IntValue(3)) =>
   }
 
-  def testArrayAccess = testNoArg("llvm/benchmarks/arrayAccess.ll", "@main") {
+  def testArrayAccess = test(Benchmarks.arrayAccess, "@main") {
     case Some(IntValue(4)) =>
   }
 
-  def testArrayAccessLocal = testNoArg("llvm/benchmarks/arrayAccessLocal.ll", "@main") {
+  def testArrayAccessLocal = test(Benchmarks.arrayAccessLocal, "@main") {
     case Some(IntValue(4)) =>
   }
 
-  // should this work?
-  def testArraySetLocal = testNoArg("llvm/benchmarks/arraySetLocal.ll", "@main") {
-    case Some(IntValue(42)) =>
-  }
-
-  def testArrayGetSet = testNoArg("llvm/benchmarks/arrayGetSet.ll", "@main") {
+  def testArrayGetSet = test(Benchmarks.arrayGetSet, "@main") {
     case Some(IntValue(636)) =>
   }
 
-
-  def testPower = testNoArg("llvm/benchmarks/power.ll", "@main") {
+  def testPower = test(Benchmarks.power, "@main") {
     case Some(IntValue(27)) =>
   }
 
-  def testSinglePath = {
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/single_path.ll").mkString
-    val m = parse(testInput)
-    val result = ConcExecMemory.exec(m, "@main", Map())
-    println(result)
-  }
+  def testSinglePath = test(Benchmarks.sp1, "@main"){_ => }
 
-  def testSimpleBranch = {
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/branch.ll").mkString
-    val m = parse(testInput)
+  def testSimpleBranch =
+    test(Benchmarks.branch, "@f", Map("%x" -> IntValue(5))){_ => }
 
-    val result = ConcExecMemory.exec(m, "@f", Map(
-     "%x" -> IntValue(5)))
-    println(result)
-  }
-
-  def parse(input: String): Module = {
-    val charStream = new ANTLRInputStream(input)
-    val lexer = new LLVMLexer(charStream)
-    val tokens = new CommonTokenStream(lexer)
-    val parser = new LLVMParser(tokens)
-
-    val visitor = new MyVisitor()
-    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    //println(res.es(3))
-    //println(res)
-    res
-  }
-
-  def testMaze = {
-    val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze.ll").mkString
-    val m = parse(testInput)
-    val result = ConcExecMemory.exec(m, "@main", Map(
+  def testMaze =
+    test(Benchmarks.maze, "@main", Map(
       "%argc" -> IntValue(5),
       "%argv" -> IntValue(5)
-      ))
-    println(result)
-  }
+    )){_ => }
 
   def testMazeNoPhi = {
     val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze_nophi.ll").mkString
@@ -507,7 +468,6 @@ object TestMemory {
     // testArrayAccess
     // testArrayGetSet
     // testArrayAccessLocal
-
     // testAdd
     // testPower
     testMaze

@@ -1,7 +1,8 @@
-package sai.llvm.se
+package sai.llvm
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.lang.llvm.Parser._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -69,7 +70,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
   }
 
   def emptyMem: Rep[Mem] = Wrap[Mem](Adapter.g.reflect("mt_mem"))
-  // def emptyEnv: Rep[Env] = Wrap[Env](Adapter.g.reflect("mt_env"))
 
   // TODO: can be Comp[E, Unit]?
   def putState(s: Rep[SS]): Comp[E, Unit] = for { _ <- put[Rep[SS], E](s) } yield ()
@@ -563,7 +563,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
             }
           }
         } yield v
-
     }
   }
 
@@ -626,7 +625,6 @@ trait StagedSymExecEff extends SAIOps with RepNondet {
         //       v <- execBlock(funName, elsLab)
         //     } yield v)
         // } yield v
-
         
       case SwitchTerm(cndTy, cndVal, default, table) =>
         def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
@@ -868,15 +866,7 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
   }
 }
 
-object TestStagedLLVM {
-  def parse(file: String): Module = {
-    val input = scala.io.Source.fromFile(file).mkString
-    sai.llvm.LLVMTest.parse(input)
-  }
-
-  val maze = parse("llvm/benchmarks/maze.ll")
-  val symbolic_single = parse("llvm/symbolic_test/symbolic_single.ll")
-
+object TestStagedSymExec {
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
     new CppSymStagedLLVMDriver[Int, Unit] {
@@ -901,32 +891,22 @@ object TestStagedLLVM {
       }
     }
 
-  def testMultipath(n: Int): Unit = {
-    val multipath= parse(s"llvm/benchmarks/old/multi_path_${n}_sym.ll")
+  def testM(m: Module, output: String, fname: String) {
     val res = sai.utils.Utils.time {
-      val code = specialize(multipath, "@f")
-      code.save(s"gen/multi_path_${n}_sym.cpp")
-    }
-    println(res)
-  }
-
-  def testArrayAccess = testM("llvm/benchmarks/arrayAccess.ll", "@main")
-  def testPower = testM("llvm/benchmarks/power.ll", "@main")
-
-  def testM(path: String, fname: String) {
-    val filename = path.split("/").last
-    val res = sai.utils.Utils.time {
-      val code = specialize(parse(path), fname)
-      code.save(s"gen/${filename.take(filename.indexOf("."))}.cpp")
+      val code = specialize(m, fname)
+      code.save(s"gen/$output")
     }
     println(res)
     //code.eval(0)
   }
 
+  def testArrayAccess = testM(Benchmarks.arrayAccess, "array_access.cpp", "@main")
+  def testPower = testM(Benchmarks.power, "power.cpp", "@main")
+
   def main(args: Array[String]): Unit = {
-    //testM("llvm/symbolic_test/maze_test.ll", "@main")
-    //testMultipath(1024)
-    //testMultipath(65536)
-    testMultipath(1048576)
+    testM(OOPSLA20Benchmarks.maze, "maze_sym.cpp", "@main")
+    testM(OOPSLA20Benchmarks.mp1024, "mp1024_sym.cpp", "@f")
+    testM(OOPSLA20Benchmarks.mp65536, "mp65536_sym.cpp", "@f")
+    testM(OOPSLA20Benchmarks.mp1048576, "mp1048576_sym.cpp", "@f")
   }
 }

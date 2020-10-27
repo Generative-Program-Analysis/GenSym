@@ -57,8 +57,8 @@ trait MapOps { b: Base =>
     def isEmpty: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("map-isEmpty", Unwrap(m)))
     def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], (Rep[K], Rep[V])) => Rep[B]) = {
       def block2 = Adapter.g.reify(2, { syms =>
-        val k = Wrap[K](Adapter.g.reflect("tuple2-1", syms(1)))
-        val v = Wrap[V](Adapter.g.reflect("tuple2-2", syms(1)))
+        val k = Wrap[K](Adapter.g.reflect("tuple-1", syms(1)))
+        val v = Wrap[V](Adapter.g.reflect("tuple-2", syms(1)))
         Unwrap(f(Wrap[B](syms(0)), (k, v)))
       })
       val block3 = Adapter.g.reify(3, syms =>
