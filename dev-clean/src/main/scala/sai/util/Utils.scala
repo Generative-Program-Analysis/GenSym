@@ -1,4 +1,4 @@
-package sai.evaluation.utils
+package sai.utils
 
 object Utils {
   def time[R](block: => R): (R, Double) = {

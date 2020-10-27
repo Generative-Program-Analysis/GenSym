@@ -1,4 +1,4 @@
-package sai.evaluation.parser
+package sai.oopsla19.parser
 
 trait Read[A] {
   def read(s: String): Option[A]

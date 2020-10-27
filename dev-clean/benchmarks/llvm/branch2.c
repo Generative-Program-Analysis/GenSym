@@ -1,4 +1,4 @@
-#include <klee/klee.h>
+//#include <klee/klee.h>
 int f(int x, int z) {
   int y = 0;
   if (x > 0) {
@@ -19,8 +19,8 @@ int f(int x, int z) {
 
 int main() {
   int a;
-  klee_make_symbolic(&a, sizeof(a), "a");
+  //klee_make_symbolic(&a, sizeof(a), "a");
   int b;
-  klee_make_symbolic(&b, sizeof(b), "b");
+  //klee_make_symbolic(&b, sizeof(b), "b");
   return f(a, b);
 }

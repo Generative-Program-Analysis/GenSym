@@ -1,6 +1,6 @@
 package sai.lmsx.smt
 
-import sai.util.symbol.Symbol
+import sai.utils.symbol.Symbol
 
 import lms.core._
 import lms.util._

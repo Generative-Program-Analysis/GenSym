@@ -1,4 +1,4 @@
-package sai.evaluation
+package sai.oopsla19
 
 import lms.core._
 import lms.core.stub._
@@ -10,7 +10,7 @@ import sai.lmsx._
 import sai.structure.monad._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
-import sai.evaluation.parser._
+import sai.oopsla19.parser._
 
 @virtualize
 trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
@@ -306,7 +306,7 @@ trait StagedSchemeAnalyzerGen extends SAICodeGenBase {
     else if (ms.endsWith("$ZCFAAddr")) "ZCFAAddr"
     else if (ms.endsWith("$Addr")) "Addr"
     else if (ms.endsWith("$Expr")) "Expr"
-    else if (ms.endsWith("sai.evaluation.parser.Expr")) "Expr"
+    else if (ms.endsWith("sai.oopsla19.parser.Expr")) "Expr"
     else if (ms.startsWith("scala.collection.immutable.Map[java.lang.String,")
       && ms.endsWith("$Addr]")) "Env"
     else super.remap(m)
@@ -352,8 +352,8 @@ trait StagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with StagedScheme
   }
 
   override val prelude = """
-import sai.evaluation.parser._
-import sai.evaluation.SAIRuntimeOpt._
+import sai.oopsla19.parser._
+import sai.oopsla19.SAIRuntimeOpt._
 """
 }
 

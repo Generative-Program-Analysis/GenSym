@@ -71,6 +71,17 @@ object ImpLang {
                     Seq(Assign("fact", Op2("*", Var("fact"), Var("i"))),
                       Assign("i", Op2("+", Var("i"), Lit(1)))))))
 
+    val w2 = 
+      While(Op2("<=", Var("i"), Var("x")),
+        While(Op2("<=", Var("i"), Var("x")),
+          Assign("x", Op2("-", Var("x"), Lit(1)))))
+
+    val w3 = 
+      While(Op2("<=", Var("i"), Var("x")),
+        While(Op2("<=", Var("i"), Var("x")),
+          While(Op2("<=", Var("i"), Var("x")),
+            Assign("x", Op2("-", Var("x"), Lit(1))))))
+
     val another_fact5 =
       let_("i", 1){ i =>
         let_("fact", 1){ fact =>
@@ -153,6 +164,49 @@ object ImpLang {
             Assign("z", Op2("+", z, Lit(3)))),
           Skip())))))
 
+  }
+}
+
+object UnfoldTest {
+  import ImpLang._
+  import Examples._
+  def unfoldW(w: While, k: Int): Stmt =
+    if (k == 0) Skip()
+    else w match {
+      case While(e, b) =>
+        Cond(e, Seq(b, unfoldW(w, k-1)), Skip())
+    }
+
+  def unfold(s: Stmt, k: Int): Stmt = {
+    s match {
+      case While(e, b) =>
+        val ub = unfold(b, k)
+        unfoldW(While(e, ub), k)
+      case Seq(s1, s2) =>
+        Seq(unfold(s1, k), unfold(s2, k))
+      case _ => s
+    }
+  }
+
+  def numAssign(s: Stmt): Int = {
+    s match {
+      case Skip() => 0
+      case Assign(x, e) => 1
+      case Cond(e, s1, s2) => numAssign(s1) + numAssign(s2)
+      case Seq(s1, s2) => numAssign(s1) + numAssign(s2)
+      case While(e, b) => numAssign(b)
+    }
+  }
+
+  def main(args: Array[String]): Unit = {
+    for (i <- 0 until 10) {
+      val u = unfold(w2, i)
+      println("k: " + i + ", " + numAssign(w2) + ", " + numAssign(u))
+    }
+    for (i <- 0 until 10) {
+      val u = unfold(w3, i)
+      println("k: " + i + ", " + numAssign(w3) + ", " + numAssign(u))
+    }
   }
 }
 

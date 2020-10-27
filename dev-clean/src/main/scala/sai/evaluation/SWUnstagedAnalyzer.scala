@@ -1,10 +1,10 @@
-package sai.evaluation
+package sai.oopsla19
 
 import sai.lmsx._
 import sai.structure.monad._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
-import sai.evaluation.parser._
+import sai.oopsla19.parser._
 
 // Unstaged 0CFA for Scheme, with store widening
 object SWUnstagedSchemeAnalyzer extends AbstractComponents {

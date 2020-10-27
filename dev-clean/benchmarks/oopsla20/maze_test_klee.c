@@ -69,7 +69,7 @@ int main (int argc, char *argv[])
   //Draw the maze
   draw ();    
   //Read the directions 'program' to execute...
-  klee_make_symbolic(program,ITERS,"program");
+  klee_make_symbolic(program, ITERS, "program");
 
   //Iterate and run 'program'
   while(i < ITERS)
@@ -103,7 +103,7 @@ int main (int argc, char *argv[])
     {
       // printf ("You win!\n");
       // printf ("Your solution <%42s>\n",program);
-      klee_assert(0);
+      // klee_assert(0);
       exit (1);
     }
     //If something is wrong do not advance

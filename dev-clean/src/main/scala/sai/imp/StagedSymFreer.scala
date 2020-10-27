@@ -20,7 +20,7 @@ import lms.core.Backend._
 import sai.lmsx._
 
 import scala.collection.immutable.{List => SList}
-import sai.util.symbol._
+import sai.utils.symbol._
 
 @virtualize
 trait RepBinaryNondet extends SAIOps {

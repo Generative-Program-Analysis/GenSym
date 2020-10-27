@@ -1,4 +1,4 @@
-package sai.util.symbol
+package sai.utils.symbol
 
 object Symbol {
   private val counters = scala.collection.mutable.HashMap[String,Int]()

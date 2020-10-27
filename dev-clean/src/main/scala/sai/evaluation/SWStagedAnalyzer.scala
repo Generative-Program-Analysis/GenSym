@@ -1,4 +1,4 @@
-package sai.evaluation
+package sai.oopsla19
 
 import lms.core._
 import lms.core.stub._
@@ -10,7 +10,7 @@ import sai.lmsx._
 import sai.structure.monad._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
-import sai.evaluation.parser._
+import sai.oopsla19.parser._
 
 @virtualize
 trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
@@ -305,8 +305,8 @@ trait SWStagedSchemeAnalyzerDriver extends SAIDriver[Unit, Unit] with SWStagedSc
   }
 
   override val prelude = """
-import sai.evaluation.parser._
-import sai.evaluation.SWSAIRuntime._
+import sai.oopsla19.parser._
+import sai.oopsla19.SWSAIRuntime._
 """
 }
 

@@ -885,21 +885,26 @@ object TestStagedLLVM {
           SymV("x0"), SymV("x1"), SymV("x2"), 
           SymV("x3"), SymV("x4"), SymV("x5"),
           SymV("x6"), SymV("x7"), SymV("x8"),
-          SymV("x9"), SymV("x10"), SymV("x11"),
+          SymV("x9"),
+          SymV("x10"), SymV("x11"),
           SymV("x12"), SymV("x13"), SymV("x14"),
           SymV("x15"),
-          //SymV("x16"), SymV("x17"),
-          // SymV("x18"), SymV("x19")
+          SymV("x16"), SymV("x17"),
+          SymV("x18"), SymV("x19")
         )
         val res = exec(m, fname, args)
+        // query a single test
+        res.head._1.pc.toList.foreach(assert(_))
+        handle(query(lit(false)))
+
         println(res.size)
       }
     }
 
   def testMultipath(n: Int): Unit = {
-    val multipath= parse(s"llvm/benchmarks/multi_path_${n}_sym.ll")
-    val code = specialize(multipath, "@f")
-    val res = sai.evaluation.utils.Utils.time {
+    val multipath= parse(s"llvm/benchmarks/old/multi_path_${n}_sym.ll")
+    val res = sai.utils.Utils.time {
+      val code = specialize(multipath, "@f")
       code.save(s"gen/multi_path_${n}_sym.cpp")
     }
     println(res)
@@ -909,13 +914,19 @@ object TestStagedLLVM {
   def testPower = testM("llvm/benchmarks/power.ll", "@main")
 
   def testM(path: String, fname: String) {
-    val code = specialize(parse(path), fname)
     val filename = path.split("/").last
-    code.save(s"gen/${filename.take(filename.indexOf("."))}.cpp")
-    code.eval(0)
+    val res = sai.utils.Utils.time {
+      val code = specialize(parse(path), fname)
+      code.save(s"gen/${filename.take(filename.indexOf("."))}.cpp")
+    }
+    println(res)
+    //code.eval(0)
   }
 
   def main(args: Array[String]): Unit = {
-    testM("llvm/symbolic_test/maze_test.ll", "@main")
+    //testM("llvm/symbolic_test/maze_test.ll", "@main")
+    //testMultipath(1024)
+    //testMultipath(65536)
+    testMultipath(1048576)
   }
 }

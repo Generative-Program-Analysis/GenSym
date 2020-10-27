@@ -1,12 +1,12 @@
-package sai.evaluation.parser
+package sai.oopsla19.parser
 
 /* Author: Yuxuan Chen */
 
 import scala.util.parsing.combinator._
 import scala.io.Source
 
-import sai.evaluation.utils.TestTrait
-import sai.evaluation.parser.ASTUtils._
+import sai.oopsla19.utils.TestTrait
+import sai.oopsla19.parser.ASTUtils._
 
 trait SchemeParserTrait extends SchemeTokenParser {
   def id[T](x: T) = x
@@ -260,14 +260,14 @@ object SchemeParserTest extends TestTrait {
     }
 
     test("toplas98_boyer") {
-      val fileName = "benchmarks/toplas98/boyer.sch"
+      val fileName = "benchmarks/scm/toplas98/boyer.sch"
       val program = Source.fromFile(fileName).mkString
       assert(SchemeParser(program) != None)
     }
 
     test("toplas98_nbody_comments") {
-      val fileName1 = "benchmarks/toplas98/nbody.sch"
-      val fileName2 = "benchmarks/toplas98/nbody-processed.sch"
+      val fileName1 = "benchmarks/scm/toplas98/nbody.sch"
+      val fileName2 = "benchmarks/scm/toplas98/nbody-processed.sch"
       val program1 = Source.fromFile(fileName1).mkString
       val program2 = Source.fromFile(fileName2).mkString
 
@@ -275,8 +275,8 @@ object SchemeParserTest extends TestTrait {
     }
 
     test("toplas98_lattice_comments") {
-      val fileName1 = "benchmarks/toplas98/lattice.scm"
-      val fileName2 = "benchmarks/toplas98/lattice-processed.scm"
+      val fileName1 = "benchmarks/scm/toplas98/lattice.scm"
+      val fileName2 = "benchmarks/scm/toplas98/lattice-processed.scm"
       val program1 = Source.fromFile(fileName1).mkString
       val program2 = Source.fromFile(fileName2).mkString
 

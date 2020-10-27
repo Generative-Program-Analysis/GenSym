@@ -1,4 +1,4 @@
-package sai.evaluation
+package sai.oopsla19
 
 import lms.core._
 import lms.core.stub.{Timing => _, _}
@@ -7,10 +7,11 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 
 import sai.lmsx._
-import sai.evaluation.utils._
-import sai.evaluation.parser._
-import sai.evaluation.TestPrograms._
-import sai.evaluation.parser.ASTUtils._
+import sai.utils._
+
+import sai.oopsla19.parser._
+import sai.oopsla19.TestPrograms._
+import sai.oopsla19.parser.ASTUtils._
 
 import scala.io.Source
 
@@ -156,5 +157,4 @@ object Evaluation {
     val dropTs = times.sorted.drop(dropN).take(n - dropN*2)
     (ress(0), Timing(dropTs))
   }
-
 }
