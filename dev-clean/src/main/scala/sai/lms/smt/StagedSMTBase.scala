@@ -10,7 +10,7 @@ import lms.macros.SourceContext
 // Staged interfaces and operations
 
 trait StagedSMTBase extends Base { self: SMTBaseInterface =>
-  type R[+T] = Rep[T]
+  type BT[+T] = Rep[T]
 }
 
 @virtualize
@@ -61,7 +61,7 @@ trait SMTBaseOps extends SMTBaseInterface with StagedSMTBase {
   def printExpr(x: Rep[SMTExpr]): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("smt-print", Unwrap(x))(Adapter.CTRL))
 
-  def handle(n: R[Int]): R[Unit] =
+  def handle(n: BT[Int]): BT[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("smt-handle", Unwrap(n))(Adapter.CTRL))
 }
 

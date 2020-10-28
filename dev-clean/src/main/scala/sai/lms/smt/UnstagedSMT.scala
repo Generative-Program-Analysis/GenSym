@@ -3,7 +3,7 @@ package sai.lmsx.smt
 // Unstaged interfaces and operations
 
 trait UnstagedSMTBase { self: SMTBaseInterface =>
-  type R[+T] = T
+  type BT[+T] = T
 }
 
 trait UnstagedSMTBaseOps extends UnstagedSMTBase with SMTBaseInterface {

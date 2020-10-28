@@ -25,7 +25,7 @@ trait SWStagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   def mValue: Manifest[Value] = manifest[Value]
   def mAddr: Manifest[Addr] = manifest[Addr]
 
-  // type R[T] = Rep[T]
+  type R[T] = Rep[T]
   type EnvT[F[_], B] = ReaderT[F, Env, B]
   type NdStoreInOutCacheM[T] = SetStateReaderStateM[Cache, Store, Cache, T]
   type AnsM[T] = EnvT[NdStoreInOutCacheM, T]

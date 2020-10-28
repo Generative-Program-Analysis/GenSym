@@ -8,55 +8,55 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 
 trait SMTBitVecOps extends SMTBitVecInterface with  StagedSMTBase {
-  def lit(i: Int)(implicit width: Int): R[BV] = lit(unit(i))
-  def lit(i: R[Int])(implicit width: Int): R[BV] =
+  def lit(i: Int)(implicit width: Int): BT[BV] = lit(unit(i))
+  def lit(i: BT[Int])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-lit", Unwrap(i), Backend.Const(width)))
 
-  def bvFromStr(s: String)(implicit width: Int): R[BV] = bvFromStr(unit(s))
-  def bvFromStr(s: Rep[String])(implicit width: Int): R[BV] =
+  def bvFromStr(s: String)(implicit width: Int): BT[BV] = bvFromStr(unit(s))
+  def bvFromStr(s: Rep[String])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-str", Unwrap(s), Backend.Const(width)))
 
-  def bvFromBool(x: R[SMTBool]): R[BV] =
+  def bvFromBool(x: BT[SMTBool]): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-bool", Unwrap(x)))
 
-  def bvVar(s: String)(implicit width: Int): R[BV] =
+  def bvVar(s: String)(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-var", Backend.Const(s), Backend.Const(width)))
 
   // bv arith
-  def bvPlus(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+  def bvPlus(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-plus", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  def bvMul(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+  def bvMul(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-mul", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  def bvDiv(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+  def bvDiv(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-div", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  def bvMinus(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+  def bvMinus(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-minus", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  def bvMod(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+  def bvMod(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  def bvRem(x: R[BV], y: R[BV])(implicit width: Int): R[BV] =
+  def bvRem(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-rem", Unwrap(x), Unwrap(y), Backend.Const(width)))
   
   // bv compare
-  def bvLt(x: R[BV], y: R[BV]): R[SMTBool] =
+  def bvLt(x: BT[BV], y: BT[BV]): BT[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("bv-lt", Unwrap(x), Unwrap(y)))
-  def bvLe(x: R[BV], y: R[BV]): R[SMTBool] =
+  def bvLe(x: BT[BV], y: BT[BV]): BT[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("bv-le", Unwrap(x), Unwrap(y)))
-  def bvGt(x: R[BV], y: R[BV]): R[SMTBool] =
+  def bvGt(x: BT[BV], y: BT[BV]): BT[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("bv-gt", Unwrap(x), Unwrap(y)))
-  def bvGe(x: R[BV], y: R[BV]): R[SMTBool] =
+  def bvGe(x: BT[BV], y: BT[BV]): BT[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("bv-ge", Unwrap(x), Unwrap(y)))
 
   // bv bitwise
-  def bvAnd(x: R[BV], y: R[BV]): R[BV] =
+  def bvAnd(x: BT[BV], y: BT[BV]): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-and", Unwrap(x), Unwrap(y)))
-  def bvOr(x: R[BV], y: R[BV]): R[BV] =
+  def bvOr(x: BT[BV], y: BT[BV]): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-or", Unwrap(x), Unwrap(y)))
-  def bvXor(x: R[BV], y: R[BV]): R[BV] =
+  def bvXor(x: BT[BV], y: BT[BV]): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-xor", Unwrap(x), Unwrap(y)))
-  def bvNot(x: R[BV]): R[BV] =
+  def bvNot(x: BT[BV]): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-not", Unwrap(x)))
 
-  def bvToInt(x: R[BV]): R[Int] =
+  def bvToInt(x: BT[BV]): BT[Int] =
     Wrap[Int](Adapter.g.reflect("bv-2int", Unwrap(x)))
 }
 

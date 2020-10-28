@@ -8,48 +8,48 @@ trait SMTArray extends SMTExpr
 // Stage-polymorphic interfaces and operations
 
 trait SMTBaseInterface { op =>
-  type R[+T]
+  type BT[+T]
 
-  def boolVar(x: String): R[SMTBool]
-  def lit(b: Boolean): R[SMTBool]
-  def not(x: R[SMTBool]): R[SMTBool]
-  def or(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
-  def and(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
-  def xor(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
-  def iff(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
-  def imply(x: R[SMTBool], y: R[SMTBool]): R[SMTBool]
+  def boolVar(x: String): BT[SMTBool]
+  def lit(b: Boolean): BT[SMTBool]
+  def not(x: BT[SMTBool]): BT[SMTBool]
+  def or(x: BT[SMTBool], y: BT[SMTBool]): BT[SMTBool]
+  def and(x: BT[SMTBool], y: BT[SMTBool]): BT[SMTBool]
+  def xor(x: BT[SMTBool], y: BT[SMTBool]): BT[SMTBool]
+  def iff(x: BT[SMTBool], y: BT[SMTBool]): BT[SMTBool]
+  def imply(x: BT[SMTBool], y: BT[SMTBool]): BT[SMTBool]
 
   // Note: the operands of `eq` cannot be SMTBool
-  def eq(x: R[SMTExpr], y: R[SMTExpr]): R[SMTBool]
-  def ite(x: R[SMTBool], y: R[SMTExpr], z: R[SMTExpr]): R[SMTExpr]
+  def eq(x: BT[SMTExpr], y: BT[SMTExpr]): BT[SMTBool]
+  def ite(x: BT[SMTBool], y: BT[SMTExpr], z: BT[SMTExpr]): BT[SMTExpr]
 
-  def push: R[Unit]
-  def pop: R[Unit]
-  def assert(x: R[SMTBool]): R[Unit]
-  def printExpr(x: R[SMTExpr]): R[Unit]
+  def push: BT[Unit]
+  def pop: BT[Unit]
+  def assert(x: BT[SMTBool]): BT[Unit]
+  def printExpr(x: BT[SMTExpr]): BT[Unit]
 
-  def isValid(x: R[SMTBool]): R[Boolean]
-  def isSat(x: R[SMTBool]): R[Boolean]
-  def query(x: R[SMTBool]): R[Int]
+  def isValid(x: BT[SMTBool]): BT[Boolean]
+  def isSat(x: BT[SMTBool]): BT[Boolean]
+  def query(x: BT[SMTBool]): BT[Int]
 
-  def getCounterEx(x: R[SMTExpr]): R[SMTExpr]
-  def printCounterEx: R[Unit]
+  def getCounterEx(x: BT[SMTExpr]): BT[SMTExpr]
+  def printCounterEx: BT[Unit]
 
   object SyntaxSAT {
-    implicit def __lit(b: Boolean): R[SMTBool] = lit(b)
-    implicit class ExprOps(x: R[SMTExpr]) {
-      def ≡(y: R[SMTExpr]): R[SMTBool] = op.eq(x, y)
+    implicit def __lit(b: Boolean): BT[SMTBool] = lit(b)
+    implicit class ExprOps(x: BT[SMTExpr]) {
+      def ≡(y: BT[SMTExpr]): BT[SMTBool] = op.eq(x, y)
     }
-    implicit class BOps(x: R[SMTBool]) {
-      def <=>(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
-      def or(y: R[SMTBool]): R[SMTBool] = op.or(x, y)
-      def ∨(y: R[SMTBool]): R[SMTBool] = op.or(x, y)
-      def unary_!(): R[SMTBool] = op.not(x)
-      def and(y: R[SMTBool]): R[SMTBool] = op.and(x, y)
-      def ∧(y: R[SMTBool]): R[SMTBool] = op.and(x, y)
-      def xor(y: R[SMTBool]): R[SMTBool] = op.xor(x, y)
-      def ⇔(y: R[SMTBool]): R[SMTBool] = op.iff(x, y)
-      def ==>(y: R[SMTBool]): R[SMTBool] = op.imply(x, y)
+    implicit class BOps(x: BT[SMTBool]) {
+      def <=>(y: BT[SMTBool]): BT[SMTBool] = op.iff(x, y)
+      def or(y: BT[SMTBool]): BT[SMTBool] = op.or(x, y)
+      def ∨(y: BT[SMTBool]): BT[SMTBool] = op.or(x, y)
+      def unary_!(): BT[SMTBool] = op.not(x)
+      def and(y: BT[SMTBool]): BT[SMTBool] = op.and(x, y)
+      def ∧(y: BT[SMTBool]): BT[SMTBool] = op.and(x, y)
+      def xor(y: BT[SMTBool]): BT[SMTBool] = op.xor(x, y)
+      def ⇔(y: BT[SMTBool]): BT[SMTBool] = op.iff(x, y)
+      def ==>(y: BT[SMTBool]): BT[SMTBool] = op.imply(x, y)
     }
   }
 }
@@ -58,69 +58,69 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
   type BV = SMTBitVec
 
   // BV constructors
-  def lit(i: Int)(implicit width: Int): R[BV]
-  def lit(i: R[Int])(implicit width: Int): R[BV]
+  def lit(i: Int)(implicit width: Int): BT[BV]
+  def lit(i: BT[Int])(implicit width: Int): BT[BV]
 
-  def bvFromStr(s: String)(implicit width: Int): R[BV]
-  def bvFromStr(s: R[String])(implicit width: Int): R[BV]
+  def bvFromStr(s: String)(implicit width: Int): BT[BV]
+  def bvFromStr(s: BT[String])(implicit width: Int): BT[BV]
 
-  def bvFromBool(x: R[SMTBool]): R[BV]
+  def bvFromBool(x: BT[SMTBool]): BT[BV]
 
-  def bvVar(s: String)(implicit width: Int): R[BV]
+  def bvVar(s: String)(implicit width: Int): BT[BV]
 
   // BV arithmetics
   // TODO: signed operations?
-  def bvPlus(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
-  def bvMul(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
-  def bvDiv(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
-  def bvMinus(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
-  def bvMod(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
-  def bvRem(x: R[BV], y: R[BV])(implicit width: Int): R[BV]
+  def bvPlus(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
+  def bvMul(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
+  def bvDiv(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
+  def bvMinus(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
+  def bvMod(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
+  def bvRem(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
   
   // BV comparisons
-  def bvLt(x: R[BV], y: R[BV]): R[SMTBool]
-  def bvLe(x: R[BV], y: R[BV]): R[SMTBool]
-  def bvGt(x: R[BV], y: R[BV]): R[SMTBool]
-  def bvGe(x: R[BV], y: R[BV]): R[SMTBool]
+  def bvLt(x: BT[BV], y: BT[BV]): BT[SMTBool]
+  def bvLe(x: BT[BV], y: BT[BV]): BT[SMTBool]
+  def bvGt(x: BT[BV], y: BT[BV]): BT[SMTBool]
+  def bvGe(x: BT[BV], y: BT[BV]): BT[SMTBool]
 
   // BV bitwise operations
-  def bvAnd(x: R[BV], y: R[BV]): R[BV]
-  def bvOr(x: R[BV], y: R[BV]): R[BV]
-  def bvXor(x: R[BV], y: R[BV]): R[BV]
+  def bvAnd(x: BT[BV], y: BT[BV]): BT[BV]
+  def bvOr(x: BT[BV], y: BT[BV]): BT[BV]
+  def bvXor(x: BT[BV], y: BT[BV]): BT[BV]
   // TODO: bvNot vs bvUMinus, sign bit?
-  def bvNot(x: R[BV]): R[BV]
+  def bvNot(x: BT[BV]): BT[BV]
 
-  def bvToInt(x: R[BV]): R[Int]
+  def bvToInt(x: BT[BV]): BT[Int]
 
   object SyntaxSMT {
-    implicit def __int(n: Int)(implicit bitWidth: Int): R[BV] = lit(n)(bitWidth)
-    implicit def __asBV(x: R[SMTExpr]): R[BV] = x.asInstanceOf[R[BV]]
+    implicit def __int(n: Int)(implicit bitWidth: Int): BT[BV] = lit(n)(bitWidth)
+    implicit def __asBV(x: BT[SMTExpr]): BT[BV] = x.asInstanceOf[BT[BV]]
 
-    implicit class BVOps(x: R[BV]) {
+    implicit class BVOps(x: BT[BV]) {
       // compare
-      def ≡(y: R[BV]): R[SMTBool] = op.eq(x, y)
-      def >(y: R[BV]): R[SMTBool] = op.bvGt(x, y)
-      def <(y: R[BV]): R[SMTBool] = op.bvLt(x, y)
-      def ≥(y: R[BV]): R[SMTBool] = op.bvGe(x, y)
-      def ≤(y: R[BV]): R[SMTBool] = op.bvLe(x, y)
-      def ≠(y: R[BV]): R[SMTBool] = op.not(op.eq(x, y))
+      def ≡(y: BT[BV]): BT[SMTBool] = op.eq(x, y)
+      def >(y: BT[BV]): BT[SMTBool] = op.bvGt(x, y)
+      def <(y: BT[BV]): BT[SMTBool] = op.bvLt(x, y)
+      def ≥(y: BT[BV]): BT[SMTBool] = op.bvGe(x, y)
+      def ≤(y: BT[BV]): BT[SMTBool] = op.bvLe(x, y)
+      def ≠(y: BT[BV]): BT[SMTBool] = op.not(op.eq(x, y))
 
-      def +(y: R[BV])(implicit bitWidth: Int) = op.bvPlus(x, y)(bitWidth)
-      def -(y: R[BV])(implicit bitWidth: Int) = op.bvMinus(x, y)(bitWidth)
-      def *(y: R[BV])(implicit bitWidth: Int) = op.bvMul(x, y)(bitWidth)
-      def /(y: R[BV])(implicit bitWidth: Int) = op.bvDiv(x, y)(bitWidth)
-      def %(y: R[BV])(implicit bitWidth: Int) = op.bvMod(x, y)(bitWidth)
+      def +(y: BT[BV])(implicit bitWidth: Int) = op.bvPlus(x, y)(bitWidth)
+      def -(y: BT[BV])(implicit bitWidth: Int) = op.bvMinus(x, y)(bitWidth)
+      def *(y: BT[BV])(implicit bitWidth: Int) = op.bvMul(x, y)(bitWidth)
+      def /(y: BT[BV])(implicit bitWidth: Int) = op.bvDiv(x, y)(bitWidth)
+      def %(y: BT[BV])(implicit bitWidth: Int) = op.bvMod(x, y)(bitWidth)
 
-      def &(y: R[BV]) = op.bvAnd(x, y)
-      def |(y: R[BV]) = op.bvOr(x, y)
-      def ⊕(y: R[BV]) = op.bvXor(x, y)
+      def &(y: BT[BV]) = op.bvAnd(x, y)
+      def |(y: BT[BV]) = op.bvOr(x, y)
+      def ⊕(y: BT[BV]) = op.bvXor(x, y)
       // TODO not
     }
   }
 }
 
 trait SMTArrayInterface extends SMTBaseInterface with SMTBitVecInterface { op =>
-  def arrayCreate(s: String, indexBW: Int, valueBW: Int, length: Int): R[SMTArray]
-  def arrayRead(a: R[SMTArray], idx: R[BV]): R[BV]
-  def arrayWrite(a: R[SMTArray], idx: R[BV], value: R[BV]): R[SMTArray]
+  def arrayCreate(s: String, indexBW: Int, valueBW: Int, length: Int): BT[SMTArray]
+  def arrayRead(a: BT[SMTArray], idx: BT[BV]): BT[BV]
+  def arrayWrite(a: BT[SMTArray], idx: BT[BV], value: BT[BV]): BT[SMTArray]
 }

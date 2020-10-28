@@ -20,7 +20,7 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
   type StoreT[F[_], T] = StateT[F, Store, T]
   type StoreM[T] = StoreT[IdM, T]
 
-  // type R[T] = Rep[T]
+  type R[T] = Rep[T]
   type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
 
   // Code generation
