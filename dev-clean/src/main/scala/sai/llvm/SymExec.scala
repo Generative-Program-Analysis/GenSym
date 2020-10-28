@@ -7,7 +7,7 @@ import sai.lang.llvm.Parser._
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
 
-import sai.structure.freer3._
+import sai.structure.freer._
 import Eff._
 import Freer._
 import Handlers._
@@ -19,14 +19,12 @@ import sai.lmsx._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 
-import sai.imp.{RepNondet}
-
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 import scala.collection.immutable.Nil
 import lms.core.Backend.Sym
 
-object SymExecEff2 {
+object SymExecEff {
   type Mem = List[Value]
 
   abstract class Addr {
@@ -270,7 +268,7 @@ object SymExecEff2 {
       val p1: Comp[Nondet ⊗ ∅, (SS, T)] =
         State.run2[Nondet ⊗ ∅, SS, T](s)(comp)
       val p2: Comp[Nondet ⊗ ∅, (SS, T)] = p1.map(a => a)
-      val p3: Comp[∅, List[(SS, T)]] = sai.structure.freer3.NondetList.run(p2)
+      val p3: Comp[∅, List[(SS, T)]] = sai.structure.freer.NondetList.run(p2)
       p3
     }
 
@@ -492,7 +490,6 @@ object SymExecEff2 {
     }
   }
 
-  // Note: Comp[E, Value] vs Comp[E, Rep[Option[Value]]]?
   def execTerm(funName: String, inst: Terminator): Comp[E, Value] = {
     inst match {
       case RetTerm(ty, Some(value)) => eval(value)
@@ -636,7 +633,6 @@ object SymExecEff2 {
       if (CompileTimeRuntime.BBFuns.contains(b)) {
         System.err.println("Already compiled " + b)
       } else {
-        // val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
         val repRunBlock: SS => List[(SS, Value)] = runBlock(b)
         CompileTimeRuntime.BBFuns(b) = repRunBlock
       }
@@ -668,12 +664,7 @@ object SymExecEff2 {
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
-    // val Some(f) = m.lookupFuncDef(fname)
-    // precompileFunctions(SList(f))
-    // val repf: SS => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(fname)
-
     val heap0 = precompileHeap(emptyMem)
-    // TODO: put the initial frame mem
     val comp = for {
       fv <- eval(GlobalId(fname))
       _ <- pushFrame(fname)
@@ -687,7 +678,7 @@ object SymExecEff2 {
 }
 
 object TestUnstagedSymExec {
-  import SymExecEff2._
+  import SymExecEff._
 
   def test(m: Module, main: String, args: List[Value]): Unit = {
     val result = exec(m, main, args)

@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 // The first draft of unstaged symbolic interpreter of LLVM. Discarded.
 
 object SymExecEff {
-  import sai.structure.freer3._
+  import sai.structure.freer._
   import Eff._
   import Freer._
   import Handlers._

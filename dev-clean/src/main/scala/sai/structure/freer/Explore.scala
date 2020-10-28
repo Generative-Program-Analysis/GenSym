@@ -1,14 +1,15 @@
 package sai.structure.freer
 
-import scala.language.higherKinds
 import lms.core.virtualize
-import sai.imp.RepNondet
-import sai.lmsx.SAIOps
-import sai.structure.freer3.Eff.{Eff, ∅, ⊗}
-import sai.structure.freer3.Freer
-import sai.structure.freer3.Freer.{Comp, Op, Return, ret}
-import sai.structure.freer3.OpenUnion.decomp
+import lms.macros.SourceContext
 
+import sai.lmsx.SAIOps
+import sai.structure.freer.Eff.{Eff, ∅, ⊗}
+import sai.structure.freer.Freer
+import sai.structure.freer.Freer.{Comp, Op, Return, ret}
+import sai.structure.freer.OpenUnion.decomp
+
+import scala.language.higherKinds
 import scala.collection.immutable.Queue
 
 trait Explore {
@@ -38,8 +39,6 @@ trait Explore {
   def sol_join(sol : □[Sol], sol2 : □[Sol]): □[Sol]
   def acc(sol : □[Sol], x : □[In]) : C[□[Sol]]
 }
-
-import lms.macros.SourceContext
 
 //old version that tries to support effects coming after nondet
 @virtualize
@@ -223,8 +222,8 @@ trait StagedDFSExplore extends StagedListExplore { self : RepNondet with SAIOps 
 
 //TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
 class Exhaustive[E <: Eff, A] extends Explore {
-  import sai.structure.freer3.NondetList.NondetList$.??
-  import sai.structure.freer3.NondetList.{Fail$, Nondet, NondetList, NondetList$}
+  import sai.structure.freer.NondetList.NondetList$.??
+  import sai.structure.freer.NondetList.{Fail$, Nondet, NondetList, NondetList$}
   type □[X] = X
   type Row = E
   type N[X] = Nondet[X]

@@ -4,6 +4,8 @@ import sai.lang.ImpLang._
 import sai.structure.monad._
 import sai.structure.monad.CpsM._
 
+// A concrete semantics of Imp using monad transformers.
+
 object ImpSemantics {
   trait Value
   case class IntV(i: Int) extends Value

@@ -1,4 +1,4 @@
-package sai.structure
+package sai.structure.freer.discard
 
 import scala.language.{higherKinds, implicitConversions}
 
@@ -411,7 +411,6 @@ import lms.core.stub._
 import lms.macros._
 import lms.core.Backend._
 import sai.lmsx._
-import sai.structure.monad.free.{StagedImpEffGen, StagedImpEffDriver}
 
 object StagedFreerExample {
   import Eff._
@@ -432,10 +431,10 @@ object StagedFreerExample {
     }
   }
 
+  /*
   @virtualize
   def specialize(): SAIDriver[Int, Int] =
     new StagedImpEffDriver[Int, Int] {
-
       def scond[R <: Eff, A: Manifest](c: Rep[Boolean], a: Comp[R, Rep[A]], b: Comp[R, Rep[A]])
         (implicit I: Cnd ∈ R, IF: Selector[Rep]): Comp[R, Rep[A]] = {
         perform[Cnd, R, Rep[Boolean]](BranchBy(c)) >>= { x =>
@@ -508,6 +507,7 @@ object StagedFreerExample {
          */
       }
     }
+   */
 
   def unstagedCondTest() = {
     def prog1[R <: Eff](implicit I: State[Int, *] ∈ R): Comp[R, Int] =
@@ -548,17 +548,6 @@ object StagedFreerExample {
 
     println(res)
   }
-
-  def main(args: Array[String]) {
-    // Unstaged cond
-    unstagedCondTest()
-
-    // Staged cond
-    val code = specialize()
-    println(code.code)
-    println(code.eval(5))
-  }
-
 }
 
 object FreerExample {

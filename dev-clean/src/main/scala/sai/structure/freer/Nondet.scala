@@ -1,4 +1,4 @@
-package sai.structure.freer3
+package sai.structure.freer
 
 import scala.language.{higherKinds, implicitConversions, existentials}
 
@@ -260,5 +260,4 @@ object Nondet {
           ret(xs ++ ys)
       }
     })
-
 }

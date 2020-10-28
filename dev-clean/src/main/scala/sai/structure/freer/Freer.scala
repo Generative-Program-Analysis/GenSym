@@ -1,4 +1,4 @@
-package sai.structure.freer3
+package sai.structure.freer
 
 import scala.annotation.implicitNotFound
 import scala.language.{higherKinds, implicitConversions}
@@ -201,8 +201,6 @@ object Handlers {
         Op(op.weaken[F]) { x => ohandler(ret)(h)(k(x)) }
     }
   }
-
-
 
   /**
    * The point of this is to have a designated handler type having

@@ -7,12 +7,11 @@ import sai.lang.llvm.Parser._
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
 
-import sai.structure.freer3._
+import sai.structure.freer._
 import Eff._
 import Freer._
 import Handlers._
 import OpenUnion._
-import Nondet._
 import State._
 
 import lms.core._
@@ -24,8 +23,6 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
-
-import sai.imp.{RepNondet}
 
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}

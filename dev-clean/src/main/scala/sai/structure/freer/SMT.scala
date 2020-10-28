@@ -1,13 +1,13 @@
-package sai.structure.freer3
+package sai.structure.freer
+
+import Eff._
+import Freer._
+import Handlers._
+import OpenUnion._
 
 import scala.language.{higherKinds, implicitConversions}
 
 object SMT {
-  import Eff._
-  import Freer._
-  import Handlers._
-  import OpenUnion._
-
   sealed trait SMT[K]
   case class IsSAT(e: String) extends SMT[Boolean]
   case class Concretize(e: String, x: String) extends SMT[Option[Int]]

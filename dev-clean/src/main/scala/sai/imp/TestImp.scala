@@ -17,7 +17,6 @@ object TestImp {
   import ImpLang.Examples._
 
   @virtualize
-  //def specialize(e: Expr): SAIDriver[Unit, Unit] = new StagedImpDriver {
   def specializeExpr(e: Expr): CppSAIDriver[Int, Int] =
     new CppStagedImpDriver[Int, Int] {
       def snippet(u: Rep[Int]) = {
@@ -28,7 +27,6 @@ object TestImp {
     }
 
   @virtualize
-  //def specialize(s: Stmt): SAIDriver[Unit, Unit] = new StagedImpDriver {
   def specialize(s: Stmt): CppSAIDriver[Int, Int] =
     new CppStagedImpDriver[Int, Int] {
       def snippet(u: Rep[Int]) = {
