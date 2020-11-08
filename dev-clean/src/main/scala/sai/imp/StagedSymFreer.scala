@@ -79,7 +79,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
       }
   }
 
-  def op_neg(v: Rep[Value]): Rep[Value] = {
+  def opNeg(v: Rep[Value]): Rep[Value] = {
     Unwrap(v) match {
       case IntVConst(i) => IntV(-i)
       case SymVConst(i) => SymV(unit("-"+i))
@@ -98,24 +98,16 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
   def getStore: SymEff[Rep[Store]] = for { s <- get[Rep[SS], E] } yield s._1
   def getPC: SymEff[Rep[PC]] = for { s <- get[Rep[SS], E] } yield s._2
 
-  def updateStore(x: Rep[String], v: Rep[Value]): SymEff[Rep[Unit]] =
+  def putStore(x: Rep[String], v: Rep[Value]): SymEff[Rep[Unit]] =
     for {
       s <- get[Rep[SS], E]
-      _ <- {
-        val σ: Rep[Store] = s._1 + (x -> v)
-        val ss: Rep[SS] = (σ, s._2)
-        put[Rep[SS], E](ss)
-      }
+      _ <- put[Rep[SS], E]((s._1 + (x -> v), s._2))
     } yield ()
 
-  def updatePathCond(e: Expr): SymEff[Rep[Unit]] =
+  def putPathCond(e: Expr): SymEff[Rep[Unit]] =
     for {
       s <- get[Rep[SS], E]
-      _ <- {
-        val pc: Rep[PC] = Set(e) ++ s._2
-        val ss: Rep[SS] = (s._1, pc)
-        put[Rep[SS], E](ss)
-      }
+      _ <- put[Rep[SS], E]((s._1, Set(e) ++ s._2))
     } yield ()
 
   def reify(s: Rep[SS])(comp: Comp[E, Rep[Unit]]): Rep[List[(SS, Unit)]] = {
@@ -126,12 +118,11 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     p3
   }
 
-  def reflect(res: Rep[List[(SS, Unit)]]): Comp[E, Rep[Unit]] = {
+  def reflect(res: Rep[List[(SS, Unit)]]): Comp[E, Rep[Unit]] =
     for {
       ssu <- select[E, (SS, Unit)](res)
       _ <- put[Rep[SS], E](ssu._1)
     } yield ssu._2
-  }
 
   def unfold(w: While, k: Int): Stmt =
     if (k == 0) Skip()
@@ -147,7 +138,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     case Var(x) => σ(x)
     case Op1("-", e) =>
       val v = eval(e, σ)
-      op_neg(v)
+      opNeg(v)
     case Op2(op, e1, e2) =>
       val v1 = eval(e1, σ)
       val v2 = eval(e2, σ)
@@ -158,7 +149,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
 
   def execWithPC(s: Stmt, pc: Expr): Comp[E, Rep[Unit]] =
     for {
-      _ <- updatePathCond(pc)
+      _ <- putPathCond(pc)
       _ <- exec(s)
     } yield ()
 
@@ -182,13 +173,28 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     ???
   }
 
+  // Statically unfold the While to Cond for k times
+  def execWhileUnfold(exec: Stmt => SymEff[Rep[Unit]])(k: Int, w: While): SymEff[Rep[Unit]] = {
+    exec(unfold(w, k))
+  }
+
+  def continue(c: Rep[Value]): SymEff[Rep[Value]] = {
+    ret(Wrap[Value](Adapter.g.reflectWrite("continue_loop", Unwrap(c))(Adapter.CTRL)))
+  }
+
+  // TODO: write
   def exec(s: Stmt): SymEff[Rep[Unit]] =
     s match {
       case Skip() => ret(())
       case Assign(x, e) =>
         for {
           v <- eval(e)
-          _ <- updateStore(x, v)
+          _ <- putStore(x, v)
+        } yield ()
+      case Seq(s1, s2) =>
+        for {
+          _ <- exec(s1)
+          _ <- exec(s2)
         } yield ()
       case Cond(e, s1, s2) =>
         for {
@@ -198,39 +204,32 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
             if_updown(s, b.getBool,
               execWithPC(s1, e),
               execWithPC(s2, Op1("-", e))),
-            probChoice(s, execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
+            choice(execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
+            //probChoice(s, execWithPC(s1, e), execWithPC(s2, Op1("-", e)))
           )
         } yield u
-      case Seq(s1, s2) =>
-        for {
-          _ <- exec(s1)
-          _ <- exec(s2)
-        } yield ()
       case While(e, s) =>
-        val k = 4
-        def loop(ss: Rep[SS]): Rep[List[(SS, Unit)]] = {
-          val m = for {
-            v <- eval(e)
-            st <- get[Rep[SS], E]
-            u <- reflect {
-              if (v.getBool) {
-                val m = for {
-                  _ <- exec(s)
-                  st1 <- get[Rep[SS], E]
-                  r <- reflect(reploop(st1))
-                } yield r
-                reify(st)(m)
-              } else {
-                reify(st)(exec(Skip()))
-              }
-            }
-          } yield u
-          reify(ss)(m)
+        def loop: Rep[SS => List[(SS, Unit)]] = fun { ss =>
+          reify(ss)(for {
+            c <- eval(e)
+            v <- continue(c)
+            u <- if_updown(ss, v.getBool,
+              for {
+                _ <- execWithPC(s, e)
+                ss_* <- get[Rep[SS], E]
+                r <- reflect(loop(ss_*))
+              } yield r,
+              for {
+                r <- execWithPC(Skip(), Op1("-", e))
+              } yield r)
+          } yield u)
         }
-        def reploop: Rep[SS=>List[(SS, Unit)]] = fun(loop)
-        exec(unfold(While(e, s), k))
+        for {
+          s <- get[Rep[SS], E]
+          r <- reflect(loop(s))
+        } yield r
       case Assert(e) =>
-        updatePathCond(e)
+        putPathCond(e)
     }
 }
 
@@ -266,15 +265,22 @@ object StagedSymFreer {
         // println(v)
         println("path number: ")
         println(v.size)
+        println(v(0)._1._1)
       }
     }
 
   def main(args: Array[String]): Unit = {
     import Examples._
-    //val code = specKnapsack
-    val code = specSymCpp(cond3)
-    code.save("cond3.cpp")
-    //println(code.code)
-    code.eval(4)
+    {
+      val code = specSymCpp(unboundLoop)
+      code.save("uloop.cpp")
+      //println(code.code)
+      code.eval(1)
+    }
+    {
+      val code = specSymCpp(cond3)
+      code.save("cond3.cpp")
+      //code.eval(1)
+    }
   }
 }

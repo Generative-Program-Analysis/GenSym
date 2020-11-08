@@ -65,18 +65,20 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::Backend.Const("val")::_, _) =>
       ???
-    case n @ Node(f, "λ", (b: Block), _) =>
-      // case n @ Node(f, "λ", (b: Block)::_, _) =>
+    case n @ Node(f, "λ", (b: Block)::rest, _) =>
+      // TODO: what are the rest?
       // TODO: regression test
       /* Note: generate a declaration with full type annotation first,
        * and then generate the actual closure.
        */
       val retType = remap(typeBlockRes(b.res))
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
-      emitln(s"std::function<$retType(${argTypes}&)> ${quote(f)};")
+      emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
+      // TODO: pass by ref vs pass by val?
+      //emitln(s"std::function<$retType(${argTypes})&> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      // quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List("&")))
-      quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List.fill(b.in.length)("&")))
+      //quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List.fill(b.in.length)("&")))
+      quoteTypedBlock(b, false, true, capture = "&")
       emitln(";")
       //super.traverse(n)
     case _ => super.traverse(n)

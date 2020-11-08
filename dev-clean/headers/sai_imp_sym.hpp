@@ -32,9 +32,7 @@ inline Ptr<IntV> make_IntV(int i) {
   return std::make_shared<IntV>(i);
 }
 
-inline int proj_IntV(Ptr<Value>& v) {
-  return std::dynamic_pointer_cast<IntV>(v)->i;
-}
+#define proj_IntV(v) (std::dynamic_pointer_cast<IntV>(v)->i)
 
 struct BoolV : Value {
   bool b;
@@ -48,9 +46,7 @@ inline Ptr<BoolV> make_BoolV(bool b) {
   return std::make_shared<BoolV>(b);
 }
 
-inline bool proj_BoolV(Ptr<Value>& v) {
-  return std::dynamic_pointer_cast<BoolV>(v)->b;
-}
+#define proj_BoolV(v) (std::dynamic_pointer_cast<BoolV>(v)->b)
 
 inline bool is_BoolV(Ptr<Value>& v) {
   return std::dynamic_pointer_cast<BoolV>(v) != nullptr;
@@ -245,6 +241,21 @@ namespace std {
       return h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
     }
   };
+}
+
+static int loop_count = 0;
+const static int loop_upperbound = 10;
+
+Ptr<Value> continue_loop(Ptr<Value> c) {
+  std::cout << *c << std::endl;
+  if (is_BoolV(c))
+    return c;
+  if (loop_count < loop_upperbound) {
+    loop_count++;
+    return make_BoolV(true);
+  } else {
+    return make_BoolV(false);
+  }
 }
 
 /**********************************************************/

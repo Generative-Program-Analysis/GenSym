@@ -152,6 +152,10 @@ object ImpLang {
             Assign("z", Op2("+", z, Lit(3)))),
           Skip())))))
 
+    val unboundLoop =
+      Seq(Assign("i", Input()),
+        While(Op2("<", i, Lit(42)),
+          Assign("i", Op2("+", i, Lit(1)))))
   }
 }
 
