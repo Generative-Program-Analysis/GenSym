@@ -1,21 +1,20 @@
 package sai.structure.freer
 
+import Eff._
+import Freer._
+import Handlers._
+import OpenUnion._
 import scala.language.{higherKinds, implicitConversions}
 
 object IO {
-  import Eff._
-  import Freer._
-  import Handlers._
-  import OpenUnion._
-
   sealed trait IO[K]
   case class ReadInt() extends IO[Int]
-  case class WriteStr(x: String) extends IO[Unit]
+  case class WriteInt(x: Int) extends IO[Unit]
 
   def readInt[R <: Eff](implicit I: IO ∈ R): Comp[R, Int] =
     perform[IO, R, Int](ReadInt())
-  def writeStr[R <: Eff](n: String)(implicit I: IO ∈ R): Comp[R, Unit] =
-    perform[IO, R, Unit](WriteStr(n))
+  def writeInt[R <: Eff](n: Int)(implicit I: IO ∈ R): Comp[R, Unit] =
+    perform[IO, R, Unit](WriteInt(n))
 
   object ReadInt$ {
     def unapply[K, R](n: (IO[K], K => R)): Option[(Unit, Int => R)] = n match {
@@ -24,9 +23,9 @@ object IO {
     }
   }
 
-  object WriteStr${
-    def unapply[K, R](n: (IO[K], K => R)): Option[(String, Unit => R)] = n match {
-      case (WriteStr(x), k) => Some((x, k))
+  object WriteInt${
+    def unapply[K, R](n: (IO[K], K => R)): Option[(Int, Unit => R)] = n match {
+      case (WriteInt(x), k) => Some((x, k))
       case _ => None
     }
   }
@@ -38,8 +37,9 @@ object IO {
       case ReadInt$((), k) =>
         val n = scala.io.StdIn.readInt()
         k(n)
-      case WriteStr$(x, k) =>
+      case WriteInt$(x, k) =>
         System.out.println(x)
         k(())
     })
 }
+

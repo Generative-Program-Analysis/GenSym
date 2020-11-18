@@ -42,7 +42,7 @@ trait Explore {
 
 //old version that tries to support effects coming after nondet
 @virtualize
-trait StagedExplore2 { self : RepNondet with SAIOps =>
+trait StagedExplore2 { self : StagedNondet with SAIOps =>
   import NondetListEx$.??
   implicit val msol   : Manifest[Sol]    = implicitly
   implicit val min    : Manifest[In]     = implicitly
@@ -125,7 +125,7 @@ trait StagedExplore2 { self : RepNondet with SAIOps =>
 }
 
 @virtualize
-trait StagedExplore { self : RepNondet with SAIOps =>
+trait StagedExplore { self : StagedNondet with SAIOps =>
   import NondetListEx$.??
   implicit val msol   : Manifest[Sol]    = implicitly
   implicit val min    : Manifest[In]     = implicitly
@@ -184,7 +184,7 @@ trait StagedExplore { self : RepNondet with SAIOps =>
 }
 
 @virtualize
-trait StagedListExplore extends StagedExplore { self : RepNondet with SAIOps =>
+trait StagedListExplore extends StagedExplore { self : StagedNondet with SAIOps =>
   type Worlds = List[World]
   type Sol    = List[In]
 
@@ -201,7 +201,7 @@ trait StagedListExplore extends StagedExplore { self : RepNondet with SAIOps =>
 }
 
 @virtualize
-trait StagedBFSExplore extends StagedListExplore { self : RepNondet with SAIOps =>
+trait StagedBFSExplore extends StagedListExplore { self : StagedNondet with SAIOps =>
   override def ext[A : Manifest](xs: □[List[A]], k : □[Kont[A]]): □[Unit] = {
     def mkWorld(x: □[A]): □[World] = fun({ _: □[Unit] => k(x) })
     __assign(worlds, worlds ++ (xs.map(mkWorld(_)) ))
@@ -211,7 +211,7 @@ trait StagedBFSExplore extends StagedListExplore { self : RepNondet with SAIOps 
 }
 
 @virtualize
-trait StagedDFSExplore extends StagedListExplore { self : RepNondet with SAIOps =>
+trait StagedDFSExplore extends StagedListExplore { self : StagedNondet with SAIOps =>
   override def ext[A : Manifest](xs: □[List[A]], k : □[Kont[A]]): □[Unit] = {
     def mkWorld(x: □[A]): □[World] = fun({ _: □[Unit] => k(x) })
     __assign(worlds, (xs.map(mkWorld(_)) ++ worlds ))

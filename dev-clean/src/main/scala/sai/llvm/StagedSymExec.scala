@@ -38,7 +38,7 @@ import sai.lmsx.smt.SMTBool
 // When call exit(1), invoke solver to gen input
 
 @virtualize
-trait StagedSymExecEff extends SAIOps with RepNondet {
+trait StagedSymExecEff extends SAIOps with StagedNondet {
   trait Mem
   trait Value
   trait SMTExpr
@@ -857,7 +857,7 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with StagedSymExec
       else if (m.toString.endsWith("$Value")) "PtrVal"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
-      else if (m.toString.endsWith("SMTExpr")) "Expr" //FIXME
+      else if (m.toString.endsWith("SMTExpr")) "Expr"
       else super.remap(m)
     }
   }

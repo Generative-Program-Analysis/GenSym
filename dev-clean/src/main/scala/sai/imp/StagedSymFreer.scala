@@ -21,17 +21,14 @@ import sai.lmsx._
 import scala.collection.immutable.{List => SList}
 import sai.utils.symbol._
 
+// Basic value representation and their constructors/matchers
+
 @virtualize
-trait StagedSymImpEff extends SAIOps with RepNondet {
-  // Basic value representation and their constructors/matchers
+trait Vals extends SAIOps {
   abstract class Value
   implicit class ValueOps(v: Rep[Value]) {
     def isBool: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("BoolV-pred", Unwrap(v)))
     def getBool: Rep[Boolean] = BoolV.unapply(v).get
-  }
-
-  def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
   }
 
   object IntV {
@@ -78,6 +75,55 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
         case _ => None
       }
   }
+}
+
+// Staged symbolic IO effect
+
+@virtualize
+trait StagedIO extends Vals with SAIOps {
+  sealed trait IO[K]
+  case class ReadInt() extends IO[Rep[Value]]
+  case class WriteInt(x: Rep[Value]) extends IO[Rep[Unit]]
+
+  def readInt[R <: Eff](implicit I: IO ∈ R): Comp[R, Rep[Value]] =
+    perform[IO, R, Rep[Value]](ReadInt())
+  def writeInt[R <: Eff](n: Rep[Value])(implicit I: IO ∈ R): Comp[R, Rep[Unit]] =
+    perform[IO, R, Rep[Unit]](WriteInt(n))
+
+  object ReadInt$ {
+    def unapply[K, R](n: (IO[K], K => R)): Option[(Unit, Rep[Value] => R)] = n match {
+      case (ReadInt(), k) => Some(((), k))
+      case _ => None
+    }
+  }
+
+  object WriteInt$ {
+    def unapply[K, R](n: (IO[K], K => R)): Option[(Rep[Value], Rep[Unit] => R)] = n match {
+      case (WriteInt(x), k) => Some((x, k))
+      case _ => None
+    }
+  }
+
+  def run[E <: Eff, A]: Comp[IO ⊗ E, A] => Comp[E, A] =
+    handler[IO, E, A, A] {
+      case Return(x) => ret(x)
+    } (ν[DeepH[IO, E, A]] {
+      case ReadInt$((), k) =>
+        val n = SymV(Symbol.freshName("x"))
+        k(n)
+      case WriteInt$(x, k) =>
+        val u = Wrap[Unit](Adapter.g.reflectWrite("write_value", Unwrap(x))(Adapter.CTRL))
+        k(u)
+    })
+}
+
+// Staged SMT effect (using STP)
+
+@virtualize
+trait StagedSymImpEff extends Vals with SAIOps with StagedNondet {
+  def evalOp2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
+    Wrap[Value](Adapter.g.reflect("op", Unwrap(unit(op)), Unwrap(v1), Unwrap(v2)))
+  }
 
   def opNeg(v: Rep[Value]): Rep[Value] = {
     Unwrap(v) match {
@@ -118,7 +164,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     p3
   }
 
-  def reflect(res: Rep[List[(SS, Unit)]]): Comp[E, Rep[Unit]] =
+  def reflect(res: Rep[List[(SS, Unit)]]): SymEff[Rep[Unit]] =
     for {
       ssu <- select[E, (SS, Unit)](res)
       _ <- put[Rep[SS], E](ssu._1)
@@ -142,7 +188,7 @@ trait StagedSymImpEff extends SAIOps with RepNondet {
     case Op2(op, e1, e2) =>
       val v1 = eval(e1, σ)
       val v2 = eval(e2, σ)
-      op_2(op, v1, v2)
+      evalOp2(op, v1, v2)
   }
 
   def eval(e: Expr): SymEff[Rep[Value]] = for { σ <- getStore } yield eval(e, σ)

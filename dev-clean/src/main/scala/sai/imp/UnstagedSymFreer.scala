@@ -100,7 +100,7 @@ object FreerUnstagedImp {
         loop
       case Output(e) => for {
         v <- eval(e)
-        _ <- writeStr(v.toString)
+        _ <- writeInt(v.asInstanceOf[IntV].i)
       } yield ()
     }
 

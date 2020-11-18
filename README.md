@@ -1,4 +1,4 @@
-# Staged Abstract Interpreters
+# Staged Program Analyzers
 
 Improving the performance of static analysis by meta-programming/multi-stage programming.
 
@@ -17,7 +17,12 @@ Improving the performance of static analysis by meta-programming/multi-stage pro
 
 ### Publications
 
+* Compiling Symbolic Execution with Staging and Algebraic Effect
+  Guannan Wei, Oliver Bračevac, Shangyin Tan, Tiark Rompf
+  Proceedings of the ACM on Programming Languages, Volume 4 (OOPSLA 2020). Online
+  [PDF (ACM DL)](https://dl.acm.org/doi/10.1145/3428232)
+
 * Staged Abstract Interpreters: Fast and Modular Whole-Program Analysis via Meta-Programming  
   Guannan Wei, Yuxuan Chen, Tiark Rompf  
   Proceedings of the ACM on Programming Languages, Volume 3 (OOPSLA 2019). Athens, Greece  
-  [PDF](https://dl.acm.org/citation.cfm?id=3360552)
+  [PDF (ACM DL)](https://dl.acm.org/doi/10.1145/3360552)

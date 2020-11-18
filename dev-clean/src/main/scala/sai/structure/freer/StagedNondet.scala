@@ -2,7 +2,6 @@ package sai.structure.freer
 
 import scala.language.{higherKinds, implicitConversions, existentials}
 
-import sai.structure.freer._
 import sai.structure.freer.Eff._
 import sai.structure.freer.Freer._
 import sai.structure.freer.Handlers._
@@ -15,35 +14,7 @@ import lms.core.Backend._
 import sai.lmsx._
 
 @virtualize
-trait RepBinaryNondet extends SAIOps {
-  import sai.structure.freer.Nondet._
-
-  def run_with_mt[A: Manifest]: Comp[Nondet ⊗ ∅, Rep[A]] => Comp[∅, Rep[List[A]]] =
-    handler[Nondet, ∅, Rep[A], Rep[List[A]]] {
-      case Return(x) => ret(List(x))
-    } (new DeepH[Nondet, ∅, Rep[List[A]]] {
-      def apply[X] = (_, _) match {
-        case Fail$() => ret(List())
-        case Choice$((), k) =>
-          val xs: Rep[List[A]] = k(true)
-          val ys: Rep[List[A]] = k(false)
-          ret(xs ++ ys)
-          /*
-          val r: Rep[Int] = // make choice depending p, could be 0 or 1
-          __if (r == 0) {
-            val xs: Rep[List[A]] = k(true)
-            ret(xs)
-          } else {
-            val ys: Rep[List[A]] = k(false)
-            ret(ys)
-          }
-           */
-      }
-    })
-}
-
-@virtualize
-trait RepNondet extends SAIOps {
+trait StagedNondet extends SAIOps {
 
   // def f[B: Manifest](x: Rep[List[B]]): Rep[List[B]] = x ++ x
   // def ++[A: Manifest](xs: Rep[List[A]], ys: Rep[List[A]]): Rep[List[A]] =
@@ -109,7 +80,8 @@ trait RepNondet extends SAIOps {
       case Return(x) => ret(List(x))
     } (new DeepH[Nondet, ∅, Rep[List[A]]] {
       def apply[X] = {
-        case NondetList$(xs, k) => //xs : Rep[List[B]], k : Rep[B] => Comp[∅, Rep[List[A]]], need manifest of B?
+        case NondetList$(xs, k) =>
+          //xs : Rep[List[B]], k : Rep[B] => Comp[∅, Rep[List[A]]], need manifest of B?
           ret(xs.foldLeft(List[A]()) { case (acc, x) =>
             acc ++ k(x)
           })
@@ -123,9 +95,28 @@ trait RepNondet extends SAIOps {
     h(comp)
   }
 
+  def runRepNondet2[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = comp match {
+    case Return(x) => ret(List(x))
+    case Op(u, k) => decomp(u) match {
+      case Right(nd) => nd match {
+        case NondetList(xs) =>
+          ret(xs.foldLeft(List[A]()) { case (acc, x) =>
+            acc ++ extract(runRepNondet2(k(x)))
+          })
+        case BinChoice =>
+          for {
+            xs <- runRepNondet2(k(true))
+            ys <- runRepNondet2(k(false))
+          } yield xs ++ ys
+      }
+      case Left(u) =>
+        Op(u) { x => runRepNondet2(k(x)) }
+    }
+  }
+
   //implicit def manifestfromndet[A](nl : NondetList[A]): Manifest[A] = nl.m
   //implicit def manifestfromresult[A](r : NondetListEx$.Result[A]): Manifest[r.K] = r.m
-
+  // TODO: Doesn't work yet
   def runRepNondet3[E <: Eff, A: Manifest](comp: Comp[Nondet ⊗ E, Rep[A]]): Comp[E, Rep[List[A]]] = {
     import NondetListEx$.??
     comp match {
@@ -157,25 +148,6 @@ trait RepNondet extends SAIOps {
         case Left(u) =>
           Op(u) { x => runRepNondet3(k(x)) }
       }
-    }
-  }
-
-  def runRepNondet2[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = comp match {
-    case Return(x) => ret(List(x))
-    case Op(u, k) => decomp(u) match {
-      case Right(nd) => nd match {
-        case NondetList(xs) =>
-          ret(xs.foldLeft(List[A]()) { case (acc, x) =>
-            acc ++ extract(runRepNondet2(k(x)))
-          })
-        case BinChoice =>
-          for {
-            xs <- runRepNondet2(k(true))
-            ys <- runRepNondet2(k(false))
-          } yield xs ++ ys
-      }
-      case Left(u) =>
-        Op(u) { x => runRepNondet2(k(x)) }
     }
   }
 }
