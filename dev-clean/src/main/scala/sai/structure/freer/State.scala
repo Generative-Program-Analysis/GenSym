@@ -46,15 +46,15 @@ object State {
     })
 
   // TODO: Double check this
-  def run2[E <: Eff, S, A](s: S): Comp[State[S, *] ⊗ E, A] => Comp[E, (S, A)] = {
+  def runState[E <: Eff, S, A](s: S): Comp[State[S, *] ⊗ E, A] => Comp[E, (S, A)] = {
     case Return(x) => ret((s, x))
     case Op(u, k) => decomp[State[S, *], E, Any](u) match {
       case Right(op) => op match {
-        case Get() => run2(s)(k(s))
-        case Put(s1) => run2(s1)(k(()))
+        case Get() => runState(s)(k(s))
+        case Put(s1) => runState(s1)(k(()))
       }
       case Left(op) =>
-        Op(op) { x => run2(s)(k(x)) }
+        Op(op) { x => runState(s)(k(x)) }
     }
   }
 }

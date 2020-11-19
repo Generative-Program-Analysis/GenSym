@@ -348,7 +348,7 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
   object Magic {
     def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
       val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
-        State.run2[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
+        State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
       val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
       val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
       p3

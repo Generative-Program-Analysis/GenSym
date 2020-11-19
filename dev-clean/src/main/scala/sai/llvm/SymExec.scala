@@ -266,7 +266,7 @@ object SymExecEff {
   object Magic {
     def reify[T: Manifest](s: SS)(comp: Comp[E, T]): List[(SS, T)] = {
       val p1: Comp[Nondet ⊗ ∅, (SS, T)] =
-        State.run2[Nondet ⊗ ∅, SS, T](s)(comp)
+        State.runState[Nondet ⊗ ∅, SS, T](s)(comp)
       val p2: Comp[Nondet ⊗ ∅, (SS, T)] = p1.map(a => a)
       val p3: Comp[∅, List[(SS, T)]] = sai.structure.freer.NondetList.run(p2)
       p3
