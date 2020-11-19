@@ -28,13 +28,7 @@ import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 import sai.lmsx.smt.SMTBool
 
-// TODO
-// Add Primitive: make_symbolic and assert
-
-// TODO to make maze run symbolically
-// make switch symbolic
-// make select, condbr mixing conc and sym
-// Primitives.read should take in Symbolic value
+// TODO: Primitives.read should take in Symbolic value
 // When call exit(1), invoke solver to gen input
 
 @virtualize
@@ -119,7 +113,7 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
       _ <- putState(s.withStack(s.stackMem.take(keep), s.stackEnv.tail))
     } yield ()
 
-  def stackAlloc(size: Int): Comp[E, Rep[Addr]] = {
+  def stackAlloc(size: Int): Comp[E, Rep[Addr]] =
     for {
       st <- getStackMem
       a <- {
@@ -127,7 +121,6 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
         putStackMem(st_).map { _ => a }
       }
     } yield a
-  }
 
   def stackUpdate(k: Rep[Addr], v: Rep[Value]): Comp[E, Rep[Unit]] =
     for {
@@ -147,18 +140,13 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
       }
     } yield ()
 
-  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = {
-    // TODO: improve this
+  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] =
     if (xs.isEmpty) ret(())
-    else {
-      val x = xs.head
-      val v = vs.head
+    else
       for {
-        _ <- stackUpdate(x, v)
+        _ <- stackUpdate(xs.head, vs.head)
         _ <- stackUpdate(xs.tail, vs.tail)
       } yield ()
-    }
-  }
 
   def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = {
     // if v is a HeapAddr, update heap, otherwise update its frame memory
@@ -187,7 +175,6 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
       Wrap[Mem](Adapter.g.reflect("mem_update", Unwrap(σ), Unwrap(k), Unwrap(v)))
     }
 
-    // Note: only used for the global memory
     def updateL(k: Rep[Addr], v: Rep[List[Value]]): Rep[Mem] =
       Wrap[Mem](Adapter.g.reflect("mem_updateL", Unwrap(σ), Unwrap(k), Unwrap(v)))
 
@@ -201,11 +188,6 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
     }
   }
   
-  implicit class AddrOps(a: Rep[Addr]) {
-    // def +(x: Rep[Int]): Rep[Addr] = x + a
-      // Wrap[Addr](Adapter.g.reflect("addr_plus", Unwrap(a), Unwrap(x)))
-  }
-
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
@@ -516,36 +498,21 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
             case _ => LocV(lV.loc + offset, LocV.select_loc(lV))
           }
         }
-      // TODO change
-      case PhiInst(ty, incs) => for {
-        v <- eval(incs.head.value)
-      } yield v 
+      case PhiInst(ty, incs) =>
+        /*
+        for {
+          v <- eval(incs.head.value)
+        } yield v
+         */
+        ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
-        // symbolic
-        // for {
-        //   cnd <- eval(cndVal)
-        // v <- choice(
-        //   for {
-        //     _ <- updatePC(cnd.toSMTBool)
-        //     v <- eval(thnVal)
-        //   } yield v,
-        //   for {
-        //     _ <- updatePC(not(cnd.toSMTBool))
-        //     v <- eval(elsVal)
-        //   } yield v
-        // )
-        // } yield v
-
         for {
           cnd <- eval(cndVal)
           s <- getState
           v <- reflect {
             if (cnd.isConc) {
-              if (cnd.int == 1) {
-                reify(s)(eval(thnVal))
-              } else {
-                reify(s)(eval(elsVal))
-              }
+              if (cnd.int == 1) reify(s)(eval(thnVal))
+              else reify(s)(eval(elsVal))
             } else {
               reify(s) {choice(
                 for {
@@ -633,7 +600,8 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
         }
 
         def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] = {
-          if (table.isEmpty) reify(s)(for {
+          if (table.isEmpty)
+            reify(s)(for {
               _ <- updatePCSet(pc)
               u <- execBlock(funName, default)
             } yield u)
@@ -735,16 +703,6 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
     }
   }
 
-  /*
-  def precompileHeap(heap: Rep[Heap]): Rep[Heap] = {
-    CompileTimeRuntime.globalDefMap.foldRight(heap) {case ((k, v), h) =>
-      val (allocH, addr) = h.alloc(getTySize(v.typ))
-      CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
-      allocH.updateL(addr, List(evalConst(v.const):_*))
-    }
-  }
-   */
-
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
       for {
@@ -760,7 +718,6 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
       if (CompileTimeRuntime.BBFuns.contains(b)) {
         //System.err.println("Already compiled " + b)
       } else {
-        // val repRunBlock: Rep[SS => List[(SS, Value)]] = fun(runBlock(b))
         val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
         CompileTimeRuntime.BBFuns(b) = repRunBlock
       }
@@ -772,9 +729,8 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
       precompileBlocks(f.id, f.blocks)
       execBlock(f.id, f.blocks(0))
     }
-    def repRunFun(f: FunctionDef)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+    def repRunFun(f: FunctionDef)(ss: Rep[SS]): Rep[List[(SS, Value)]] =
       reify[Value](ss)(runFunction(f))
-    }
 
     for (f <- funs) {
       if (CompileTimeRuntime.FunFuns.contains(f.id)) {

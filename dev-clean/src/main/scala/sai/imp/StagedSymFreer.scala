@@ -40,7 +40,7 @@ trait Vals extends SAIOps {
   object IntVConst {
     def unapply(v: Rep[Value]): Option[Rep[Int]] =
       v match {
-        case Adapter.g.Def("IntV", collection.immutable.List(v: Backend.Exp)) =>
+        case Adapter.g.Def("IntV", SList(v: Backend.Exp)) =>
           Some(Wrap[Int](v))
         case _ => None
       }
@@ -248,17 +248,6 @@ trait StagedSymImpEff extends Vals with SAIOps with StagedNondet with StagedIO w
   def probChoice(s: Rep[SS], e1: => SymEff[Rep[Unit]], e2: => SymEff[Rep[Unit]]): SymEff[Rep[Unit]] = {
     val r: Rep[Int] = Wrap[Int](Adapter.g.reflectWrite("randInt", Unwrap(unit(100)))(Adapter.CTRL))
     if_updown(s, r <= 50, e1, e2)
-  }
-
-  def genSelect[A: Manifest, B: Manifest](i: Rep[Int], xs: List[Rep[A]], k: Rep[A] => Rep[B]): Rep[Int => Rep[B]] = {
-    def select(xs: List[(Rep[A], Int)]): Rep[B] = {
-      if (xs.isEmpty) unchecked[B]("???")
-      else {
-        if (i == xs.head._2) k(xs.head._1)
-        else select(xs.tail)
-      }
-    }
-    ???
   }
 
   // Statically unfold the While to Cond for k times
