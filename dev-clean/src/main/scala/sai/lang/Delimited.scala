@@ -111,8 +111,14 @@ object Eval {
     println(eval(IsNil(Cons(Lit(1), Cons(Lit(2), Cons(Lit(3), Nil()))))))
     println(eval(If0(IsNil(Cons(Lit(1), Cons(Lit(2), Cons(Lit(3), Nil())))), Lit(1), Lit(2))))
 
+    // Y ≡ (λf.λF.F1 (λx.f1 f1 F1 x)) (λf.λF.F1 (λx.f1 f1 F1 x))
     val Y = App(Lam("f1", Lam("F1", App(Var("F1"), Lam("x", App(App(App(Var("f1"), Var("f1")), Var("F1")), Var("x")))))),
                 Lam("f2", Lam("F2", App(Var("F2"), Lam("y", App(App(App(Var("f2"), Var("f2")), Var("F2")), Var("y")))))))
+    // Y2 = λt.(λf.t(λz.f f z)) (λf.t(λz.f f z))
+    val Y2 = Lam("t", App(
+      Lam("f", App(Var("t"), Lam("z", App(App(Var("f"), Var("f")), Var("z"))))),
+      Lam("f", App(Var("t"), Lam("z", App(App(Var("f"), Var("f")), Var("z")))))))
+
     val fact = Lam("g", Lam("n", If0(Var("n"), Lit(1), Mult(Var("n"), App(Var("g"), Minus(Var("n"), Lit(1)))))))
     println(eval(App(App(Y, fact), Lit(5))))
 
