@@ -35,14 +35,20 @@ struct Value {
 };
 
 struct IntV : Value {
-  // Expr i;
-  int i;
-  IntV(int i) : i(i) {}
+  Expr i;
+  // int i;
+  IntV(Expr e) {i = e;}
+  IntV(int i) {i = vc_bvConstExprFromInt(vc, 32, i);}
+  IntV(int i, int bw) {i = vc_bvConstExprFromInt(vc, bw, i);}
   IntV(const IntV& v) { i = v.i; }
   virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "IntV(" << i << ")";
+    return os << "IntV(" << getBVInt(i) << ")";
   }
 };
+
+inline Ptr<Value> make_IntV(Expr e) {
+  return std::make_shared<IntV>(e);
+}
 
 inline Ptr<Value> make_IntV(int i) {
   return std::make_shared<IntV>(i);
@@ -50,7 +56,7 @@ inline Ptr<Value> make_IntV(int i) {
 
 inline Ptr<Value> make_IntV(int i, int bw) {
   //FIXME, bit width
-  return std::make_shared<IntV>(i);
+  return std::make_shared<IntV>(i, bw);
 }
 
 inline int proj_IntV(Ptr<Value> v) {
@@ -94,9 +100,16 @@ bool isConc(Ptr<Value> v) {
   }
 }
 
+Ptr<Value> make_SymV(String n, int bw) {
+  return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bvType(vc, bw)));
+}
+
 Ptr<Value> make_SymV(String n) {
-  // TODO type
-  return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
+  return make_SymV(n, 32);
+}
+
+Ptr<Value> make_SymV(Expr e) {
+  return std::make_shared<SymV>(e);
 }
 
 Expr proj_SMTBool(Ptr<Value> v) {
@@ -114,9 +127,21 @@ Expr proj_SMTBool(Ptr<Value> v) {
 
 Expr proj_SMTExpr(Ptr<Value> v) {
   if (auto i = std::dynamic_pointer_cast<IntV>(v)) {
-    return vc_bvConstExprFromInt(vc, 32, i->i);
+    return i->i;
   } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;
+  } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)) {
+    std::cout << "Value is LocV" << std::endl;
+  } else {
+    std::cout << "Value is ???" << std::endl;
+  }
+}
+
+Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
+  if (auto i = std::dynamic_pointer_cast<IntV>(v)) {
+    return make_IntV(vc_bvConstExprFromInt(vc, bw, getBVInt(i->i)));
+  } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
+    return make_SymV(vc_bvSignExtend(vc, sym->v, bw));
   } else if (auto loc = std::dynamic_pointer_cast<LocV>(v)) {
     std::cout << "Value is LocV" << std::endl;
   } else {
@@ -187,14 +212,18 @@ Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
   } else {
     Expr e1 = proj_SMTExpr(v1);
     Expr e2 = proj_SMTExpr(v2);
+    int bw1 = getBVLength(e1);
+    int bw2 = getBVLength(e2);
+    if (bw1 != bw2)
+      ASSERT(false, "bv length different");
     if (op == op_plus) {
-      return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
+      return std::make_shared<SymV>(vc_bvPlusExpr(vc, bw1, e1, e2));
     } else if (op == op_minus) {
-      return std::make_shared<SymV>(vc_bv32MinusExpr(vc, e1, e2));
+      return std::make_shared<SymV>(vc_bvMinusExpr(vc, bw1, e1, e2));
     } else if (op == op_mult) {
-      return std::make_shared<SymV>(vc_bv32MultExpr(vc, e1, e2));
+      return std::make_shared<SymV>(vc_bvMultExpr(vc, bw1, e1, e2));
     } else if (op == op_div) {
-      return std::make_shared<SymV>(vc_bvDivExpr(vc, 32, e1, e2));
+      return std::make_shared<SymV>(vc_bvDivExpr(vc, bw1, e1, e2));
     } else if (op == op_eq) {
       return std::make_shared<SymV>(vc_eqExpr(vc, e1, e2));
     } else if (op == op_ge) {
@@ -202,9 +231,9 @@ Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
     } else if (op == op_gt) {
       return std::make_shared<SymV>(vc_bvGtExpr(vc, e1, e2));
     } else if (op == op_le) {
-      return std::make_shared<SymV>(vc_sbvLeExpr(vc, e1, e2));
+      return std::make_shared<SymV>(vc_bvLeExpr(vc, e1, e2));
     } else if (op == op_lt) {
-      return std::make_shared<SymV>(vc_sbvLtExpr(vc, e1, e2));
+      return std::make_shared<SymV>(vc_bvLtExpr(vc, e1, e2));
     } else if (op == op_neq) {
       return std::make_shared<SymV>(vc_notExpr(vc, vc_eqExpr(vc, e1, e2)));
     } else {
@@ -291,6 +320,7 @@ immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_ve
   auto tempaddr = make_LocV(addr -> l, addr -> k);
   auto len = std::dynamic_pointer_cast<IntV>(args.at(1));
   
+  auto bw = std::dynamic_pointer_cast<IntV>(args.at(2));
   for (int i = 0; i < len->i; i++) {
     // std::cout << "Some variable is made symbolic" << std::endl;
     // should name corresponds to original name?
