@@ -418,8 +418,6 @@ namespace Set {
     }
     return res;
   }
-
-  
 }
 
 #endif
