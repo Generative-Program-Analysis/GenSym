@@ -131,6 +131,15 @@ object Freer {
   implicit def extract[A](c: Comp[∅, A]): A = c match {
     case Return(a) => a
   }
+
+  def mapM[E <: Eff, A, B](xs: List[A])(f: A => Comp[E, B]): Comp[E, List[B]] = xs match {
+    case Nil => ret(List())
+    case x::xs =>
+      for {
+        b <- f(x)
+        bs <- mapM(xs)(f)
+      } yield b::bs
+  }
 }
 
 object Handlers {
