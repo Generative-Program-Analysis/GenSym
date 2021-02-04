@@ -14,6 +14,7 @@
 [submodule "stp"]
 	path = stp
 	url = git@github.com:stp/stp.git
+
 [submodule "coreutils"]
 	path = coreutils
 	url = git@github.com:coreutils/coreutils.git
