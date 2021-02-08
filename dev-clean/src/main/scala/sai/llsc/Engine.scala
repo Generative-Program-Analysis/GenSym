@@ -461,8 +461,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
-    val preHeap: Rep[List[Value]] = List(precompileHeap:_*) // (emptyMem)
-    val heap0 = preHeap.asRepOf[Mem] //Wrap[Mem](Unwrap(preHeap))
+    val preHeap: Rep[List[Value]] = List(precompileHeap:_*)
+    val heap0 = preHeap.asRepOf[Mem]
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
       _ <- stackPush

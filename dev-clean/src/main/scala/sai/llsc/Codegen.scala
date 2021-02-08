@@ -31,14 +31,27 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
 
   override def mayInline(n: Node): Boolean = n match {
-    case Node(_, name, _, _) if name.startsWith("IntV") => false
-    case Node(_, name, _, _) if name.startsWith("LocV") => false
     case _ => super.mayInline(n)
   }
 
   override def quote(s: Def): String = s match {
     case Const(()) => "std::monostate{}";
     case _ => super.quote(s)
+  }
+
+  override def primitive(t: String): String = t match {
+    case "Unit" => "std::monostate"
+    case _ => super.primitive(t)
+  }
+
+  override def remap(m: Manifest[_]): String = {
+    if (m.toString == "java.lang.String") "String"
+    else if (m.toString.endsWith("$Value")) "PtrVal"
+    else if (m.toString.endsWith("$Addr")) "Addr"
+    else if (m.toString.endsWith("$Mem")) "Mem"
+    else if (m.toString.endsWith("$SS")) "SS"
+    else if (m.toString.endsWith("SMTExpr")) "Expr"
+    else super.remap(m)
   }
 
   def quoteOp(op: String): String = {

@@ -17,12 +17,10 @@
  *   pass const argument?
  */
 
-//Reference: https://bartoszmilewski.com/2013/11/13/functional-data-structures-in-c-lists/
-
 #ifndef SAI_HEADERS
 #define SAI_HEADERS
 
-#define DEBUG
+// #define DEBUG
 
 // Auxiliary definitions
 
@@ -50,7 +48,7 @@ using Ptr = std::shared_ptr<T>;
     } while (false)
 
 
-#ifndef NDEBUG
+#ifdef DEBUG
 #   define ASSERT(condition, message) \
     do { \
       if (! (condition)) { \

@@ -12,33 +12,17 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 
-trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with LLSCEngine { q =>
+trait LLSCDriver[A, B] extends CppSAIDriver[A, B] with LLSCEngine { q =>
   override val codegen = new CGenBase with SymStagedLLVMGen {
     val IR: q.type = q
     import IR._
-
-    override def primitive(t: String): String = t match {
-      case "Unit" => "std::monostate"
-      case _ => super.primitive(t)
-    }
-
-    // TODO: move to code gen?
-    override def remap(m: Manifest[_]): String = {
-      if (m.toString == "java.lang.String") "String"
-      else if (m.toString.endsWith("$Value")) "PtrVal"
-      else if (m.toString.endsWith("$Addr")) "Addr"
-      else if (m.toString.endsWith("$Mem")) "Mem"
-      else if (m.toString.endsWith("$SS")) "SS"
-      else if (m.toString.endsWith("SMTExpr")) "Expr"
-      else super.remap(m)
-    }
   }
 }
 
 object TestStagedSymExec {
   @virtualize
   def specialize(m: Module, fname: String): CppSAIDriver[Int, Unit] =
-    new CppSymStagedLLVMDriver[Int, Unit] {
+    new LLSCDriver[Int, Unit] {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = List[Value](
           SymV("x0"), SymV("x1"), SymV("x2"), 

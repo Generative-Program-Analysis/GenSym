@@ -67,88 +67,72 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def init(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   }
 
-  implicit class SSOps(ss: Rep[SS]) {
+  class SSOps(ss: Rep[SS]) {
     def lookup(x: String): Rep[Value] = "ss-lookup-stack".reflectWith[Value](ss, x.hashCode)
-    def lookup(addr: Rep[Value]): Rep[Value] = "ss-lookup-addr".reflectWith[Value](ss, addr)
-    def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
     def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] =
       "ss-assign-seq".reflectWith[SS](ss, xs.map(_.hashCode), vs)
+
+    def lookup(addr: Rep[Value]): Rep[Value] = "ss-lookup-addr".reflectWith[Value](ss, addr)
+    def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
+    def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
+
+    def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
+
     def stackSize: Rep[Int] = "ss-stack-size".reflectWith[Int](ss)
     def freshStackAddr: Rep[Addr] = stackSize
-    def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
-    def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
+
     def push: Rep[SS] = "ss-push".reflectWith[SS](ss)
     def pop(keep: Rep[Int]): Rep[SS] = "ss-pop".reflectWith[SS](ss, keep)
     def addPC(e: Rep[SMTBool]): Rep[SS] = "ss-addpc".reflectWith[SS](ss, e)
     def addPCSet(es: Rep[Set[SMTBool]]): Rep[SS] = "ss-addpcset".reflectWith[SS](ss, es)
   }
 
+  implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
+    private def lookupOpt(x: Int, s: Backend.Def, default: => Rep[Value], bound: Int): Rep[Value] =
+      if (bound == 0) default
+      else s match {
+        case Adapter.g.Def("ss-assign", ss0::Backend.Const(y)::(v: Backend.Sym)::Nil) if y == x => Wrap[Value](v)
+        case Adapter.g.Def("ss-assign", ss0::Backend.Const(y)::(v: Backend.Sym)::Nil) => lookupOpt(x, ss0, default, bound-1)
+        // TODO: ss-assign-seq?
+        case _ => default
+      }
+
+    override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
+  }
+
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
   def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
 
-  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] =
+  def updateState(f: Rep[SS] => Rep[SS]): Comp[E, Rep[Unit]] =
     for {
       ss <- getState
-      _ <- putState(ss.assign(xs, vs))
-    } yield ()
-  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] =
-    for {
-      ss <- getState
-      _ <- putState(ss.assign(x, v))
+      _ <- putState(f(ss))
     } yield ()
 
-  def stackPush: Comp[E, Rep[Unit]] =
-    for {
-      ss <- getState
-      _ <- putState(ss.push)
-    } yield ()
-
-  def stackPop(keep: Rep[Int]): Comp[E, Rep[Unit]] =
-    for {
-      ss <- getState
-      _ <- putState(ss.pop(keep))
-    } yield ()
-
-  def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] =
-    for {
-      ss <- getState
-      _ <- putState(ss.update(k, v))
-    } yield ()
-
-  def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] =
-    for {
-      s <- getState
-      _ <- putState(s.addPCSet(x))
-    } yield ()
-
-  def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] =
-    for {
-      s <- getState
-      _ <- putState(s.addPC(x))
-    } yield ()
+  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
+  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
+  def stackPush: Comp[E, Rep[Unit]] = updateState(_.push)
+  def stackPop(keep: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.pop(keep))
+  def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.update(k, v))
+  def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
+  def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
 
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
-    def apply(i: Rep[Int], bw: Int): Rep[Value] =
-      Wrap[Value](Adapter.g.reflectWrite("make_IntV", Unwrap(i), Backend.Const(bw))(Adapter.CTRL))
+    def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
   }
   object LocV {
-    def kStack: Rep[Int] =
-      Wrap[Int](Adapter.g.reflectWrite("kStack")(Adapter.CTRL))
-    def kHeap: Rep[Int] =
-      Wrap[Int](Adapter.g.reflectWrite("kHeap")(Adapter.CTRL))
-    def apply(l: Rep[Addr], kind: Rep[Int]): Rep[Value] = 
-      Wrap[Value](Adapter.g.reflectWrite("make_LocV", Unwrap(l), Unwrap(kind))(Adapter.CTRL))
+    def kStack: Rep[Int] = "kStack".reflectWriteWith[Int]()(Adapter.CTRL)
+    def kHeap: Rep[Int] = "kHeap".reflectWriteWith[Int]()(Adapter.CTRL)
+    def apply(l: Rep[Addr], kind: Rep[Int]): Rep[Value] = "make_LocV".reflectWriteWith[Value](l, kind)(Adapter.CTRL)
   }
   object FunV {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
-    def apply(s: Rep[String]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflectWrite("make_SymV", Unwrap(s))(Adapter.CTRL))
-    def apply(s: Rep[String], bw: Int): Rep[Value] =
-      Wrap[Value](Adapter.g.reflectWrite("make_SymV", Unwrap(s), Backend.Const(bw))(Adapter.CTRL))
+    def apply(s: Rep[String]): Rep[Value] = "make_SymV".reflectWriteWith[Value](s)(Adapter.CTRL)
+    def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
   }
 
   object Op2 {
@@ -162,14 +146,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
 
+    def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
     def toSMTBool: Rep[SMTBool] = "to-SMTBool".reflectWith[SMTBool](v)
 
     // TODO: toSMTBool vs toSMTExpr?
     //def toSMTExpr: Rep[SMTExpr] =
     //  Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
-
-    def bv_sext(bw: Rep[Int]): Rep[Value] = 
-      Wrap[Value](Adapter.g.reflect("bv_sext", Unwrap(v), Unwrap(bw)))
   }
 }
