@@ -260,7 +260,7 @@ class SS {
     PC pc;
   public:
     SS(Mem heap, Stack stack, PC pc) : heap(heap), stack(stack), pc(pc) {}
-    PtrVal stack_lookup(Id id) { return stack.lookup_id(id); }
+    PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
@@ -293,5 +293,8 @@ static Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 static Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
 static PC mt_pc = PC(immer::set<Expr>{});
 static SS mt_ss = SS(mt_mem, mt_stack, mt_pc);
+
+static const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
+  immer::flex_vector<std::pair<SS, PtrVal>>{};
 
 #endif

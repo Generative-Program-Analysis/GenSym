@@ -1,7 +1,5 @@
 package sai.llsc
 
-import scala.collection.JavaConverters._
-
 import sai.structure.freer._
 import Eff._
 import Freer._
@@ -16,11 +14,6 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import sai.structure.lattices._
-import sai.structure.lattices.Lattices._
-
-import scala.collection.immutable.{List => SList}
-import scala.collection.immutable.{Map => SMap}
 import sai.lmsx.smt.SMTBool
 
 /* Naming convention for IR nodes:
@@ -67,10 +60,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   class SSOps(ss: Rep[SS]) {
-    def lookup(x: String): Rep[Value] = "ss-lookup-stack".reflectWith[Value](ss, x.hashCode)
+    private def assignSeq(xs: List[Int], vs: Rep[List[Value]]): Rep[SS] =
+      "ss-assign-seq".reflectWith[SS](ss, xs, vs)
+
+    def lookup(x: String): Rep[Value] = "ss-lookup-env".reflectWith[Value](ss, x.hashCode)
     def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
-    def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] =
-      "ss-assign-seq".reflectWith[SS](ss, xs.map(_.hashCode), vs)
+    def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
 
     def lookup(addr: Rep[Value]): Rep[Value] = "ss-lookup-addr".reflectWith[Value](ss, addr)
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
@@ -98,6 +93,16 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       }
 
     override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
+    override def assign(x: String, v: Rep[Value]): Rep[SS] = Unwrap(ss) match {
+      /*
+      case Adapter.g.Def("ss-assign", ss0::Backend.Const(y: Int)::(w: Backend.Exp)::Nil) =>
+        val hs: Rep[List[Int]] = List(y, x.hashCode)
+        val vs: Rep[List[Value]] = List(Wrap[Value](w), v)
+        // s.lookup(x) if x != s0.assign(x, v)
+        Wrap[SS](Adapter.g.reflect("ss-assign-seq", ss0, Unwrap(hs), Unwrap(vs)))
+       */
+      case _ => super.assign(x, v)
+    }
   }
 
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()

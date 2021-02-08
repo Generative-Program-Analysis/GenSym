@@ -1,18 +1,5 @@
 package sai.llsc
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
-
-import scala.collection.JavaConverters._
-
-import sai.structure.freer._
-import Eff._
-import Freer._
-import Handlers._
-import OpenUnion._
-import State._
-
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
@@ -20,17 +7,12 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import sai.structure.lattices._
-import sai.structure.lattices.Lattices._
-
-import scala.collection.immutable.{List => SList}
-import scala.collection.immutable.{Map => SMap}
-import sai.lmsx.smt.SMTBool
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
 
   override def mayInline(n: Node): Boolean = n match {
+    case Node(_, "list-new", _, _) => true
     case _ => super.mayInline(n)
   }
 
@@ -70,11 +52,19 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   }
 
   override def shallow(n: Node): Unit = n match {
+    /*
+    case Node(s, "list-new", Const(mA: Manifest[_])::Nil, _) =>
+      if (mA.runtimeClass.getName == "scala.Tuple2" &&
+        remap(mA.typeArguments(0)) == "SS" &&
+        remap(mA.typeArguments(1)) == "PtrVal") {
+        emit("mt_path_result")
+      } else super.shallow(n)
+    */
     case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
       es"op_2(${quoteOp(op)}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
     case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc)"
-    case Node(s, "ss-lookup-stack", List(ss, x), _) => es"$ss.stack_lookup($x)"
+    case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a), _) => es"$ss.at($a)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
     case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"

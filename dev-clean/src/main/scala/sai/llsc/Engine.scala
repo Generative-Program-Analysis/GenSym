@@ -21,9 +21,6 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import sai.structure.lattices._
-import sai.structure.lattices.Lattices._
-
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
 import sai.lmsx.smt.SMTBool
@@ -163,23 +160,18 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case SubInst(ty, lhs, rhs, _) => evalIntOp2("-", lhs, rhs)
       case MulInst(ty, lhs, rhs, _) => evalIntOp2("*", lhs, rhs)
       case ICmpInst(pred, ty, lhs, rhs) =>
-        for {
-          v1 <- eval(lhs)
-          v2 <- eval(rhs)
-        } yield {
-          pred match {
-            // TODO: distinguish signed and unsigned comparsion
-            case EQ => Op2("=", v1, v2)
-            case NE => Op2("!=", v1, v2)
-            case SLT => Op2("<", v1, v2)
-            case SLE => Op2("<=", v1, v2)
-            case SGT => Op2(">", v1, v2)
-            case SGE => Op2(">=", v1, v2)
-            case ULT => Op2("<", v1, v2)
-            case ULE => Op2("<=", v1, v2)
-            case UGT => Op2(">", v1, v2)
-            case UGE => Op2("<=", v1, v2)
-          }
+        pred match {
+          // TODO: distinguish signed and unsigned comparsion
+          case EQ => evalIntOp2("=", lhs, rhs)
+          case NE => evalIntOp2("!=", lhs, rhs)
+          case SLT => evalIntOp2("<", lhs, rhs)
+          case SLE => evalIntOp2("<=", lhs, rhs)
+          case SGT => evalIntOp2(">", lhs, rhs)
+          case SGE => evalIntOp2(">=", lhs, rhs)
+          case ULT => evalIntOp2("<", lhs, rhs)
+          case ULE => evalIntOp2("<=", lhs, rhs)
+          case UGT => evalIntOp2(">", lhs, rhs)
+          case UGE => evalIntOp2("<=", lhs, rhs)
         }
       case ZExtInst(from, value, to) => for {
         v <- eval(value)
