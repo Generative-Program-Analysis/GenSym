@@ -35,13 +35,20 @@ struct Value {
 };
 
 struct IntV : Value {
-  int i;
-  IntV(int i) : i(i) {}
+  Expr i;	  int i;
+  // int i;	  IntV(int i) : i(i) {}
+  IntV(Expr e) {i = e;}
+  IntV(int i) {i = vc_bvConstExprFromInt(vc, 32, i);}
+  IntV(int i, int bw) {i = vc_bvConstExprFromInt(vc, bw, i);}
   IntV(const IntV& v) { i = v.i; }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << getBVInt(i) << ")";
   }
 };
+
+inline Ptr<Value> make_IntV(Expr e) {
+  return std::make_shared<IntV>(e);
+}
 
 inline Ptr<Value> make_IntV(int i) {
   return std::make_shared<IntV>(i);
