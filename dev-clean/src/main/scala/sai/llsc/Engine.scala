@@ -470,6 +470,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       v <- reflect(fv.fun(s, args))
       _ <- stackPop(s.stackSize)
     } yield v
-    reify[Value](SS.init)(comp)
+    reify[Value](SS.init(heap0))(comp)
   }
 }

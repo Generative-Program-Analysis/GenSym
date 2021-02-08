@@ -63,7 +63,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
   object SS {
-    def init: Rep[SS] = "init-ss".reflectWriteWith()(Adapter.CTRL)
+    def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
+    def init(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   }
 
   implicit class SSOps(ss: Rep[SS]) {

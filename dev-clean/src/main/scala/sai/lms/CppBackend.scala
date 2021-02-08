@@ -104,13 +104,8 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     val src = run(name, ng)
     emitHeaders(stream)
-
     emitln("using namespace immer;")
-
     emitFunctionDecls(stream)
-
-    //if (SMT_DEBUG) emitln("extern VC vc = vc_createValidityChecker();")
-
     emitDatastructures(stream)
     emitFunctions(stream)
     emitInit(stream)
@@ -149,7 +144,7 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
     (source.toString, statics)
   }
 
-  val compilerCommand = "g++ -std=c++17 -O3 -Winline"
+  val compilerCommand = "g++ -std=c++17 -O3"
 
   def save(to: String): Unit = {
     val out = new java.io.PrintStream("./"+to)

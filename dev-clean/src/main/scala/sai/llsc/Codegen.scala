@@ -59,7 +59,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
       es"op_2(${quoteOp(op)}, $x, $y)"
-    case Node(s, "init-ss", _, _) => es"mt_ss"
+    case Node(s, "init-ss", List(), _) => es"mt_ss"
+    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc)"
     case Node(s, "ss-lookup-stack", List(ss, x), _) => es"$ss.stack_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a), _) => es"$ss.at($a)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
