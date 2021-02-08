@@ -131,6 +131,22 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
+  def evalConst(v: Constant): List[Rep[Value]] = v match {
+    case BoolConst(b) =>
+      SList(IntV(if (b) 1 else 0, 1))
+    case IntConst(n) =>
+      SList(IntV(n))
+    case ZeroInitializerConst =>
+      SList(IntV(0))
+    case ArrayConst(cs) =>
+      flattenArray(v).flatMap(c => evalConst(c))
+    case CharArrayConst(s) =>
+      s.map(c => IntV(c.toInt, 8)).toList
+  }
+
+  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
+    for { v1 <- eval(lhs); v2 <- eval(rhs) } yield Op2(op, v1, v2)
+
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
       case AllocaInst(ty, align) =>
@@ -143,21 +159,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           v <- eval(value)
           ss <- getState
         } yield ss.lookup(v)
-      case AddInst(ty, lhs, rhs, _) =>
-        for {
-          v1 <- eval(lhs)
-          v2 <- eval(rhs)
-        } yield Op2("+", v1, v2)
-      case SubInst(ty, lhs, rhs, _) =>
-        for {
-          v1 <- eval(lhs)
-          v2 <- eval(rhs)
-        } yield Op2("-", v1, v2)
-      case MulInst(ty, lhs, rhs, _) =>
-        for {
-          v1 <- eval(lhs)
-          v2 <- eval(rhs)
-        } yield Op2("*", v1, v2)
+      case AddInst(ty, lhs, rhs, _) => evalIntOp2("+", lhs, rhs)
+      case SubInst(ty, lhs, rhs, _) => evalIntOp2("-", lhs, rhs)
+      case MulInst(ty, lhs, rhs, _) => evalIntOp2("*", lhs, rhs)
       case ICmpInst(pred, ty, lhs, rhs) =>
         for {
           v1 <- eval(lhs)
@@ -183,7 +187,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       } yield v
       case SExtInst(from, value, to) =>  for {
         v <- eval(value)
-      } yield v.bv_sext(to.asInstanceOf[IntType].size);
+      } yield v.bv_sext(to.asInstanceOf[IntType].size)
       case CallInst(ty, f, args) => 
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
@@ -243,18 +247,17 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(funName: String, inst: Terminator): Comp[E, Rep[Value]] = {
+  def execTerm(inst: Terminator)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
       // FIXME: unreachable
       case Unreachable => ret(IntV(-1))
-      case RetTerm(ty, Some(value)) => eval(value)(funName)
+      case RetTerm(ty, Some(value)) => eval(value)
       case RetTerm(ty, None) => ret(IntV(0))
-      case BrTerm(lab) =>
-        execBlock(funName, lab)
+      case BrTerm(lab) => execBlock(funName, lab)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         for {
           ss <- getState
-          cndVal <- eval(cnd)(funName)
+          cndVal <- eval(cnd)
           u <- reflect {
             if (cndVal.isConc) {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
@@ -273,35 +276,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             }
           }
         } yield u
-        
-        // Concrete
-        // for {
-        //   cndVal <- eval(cnd)(funName)
-        //   s <- getState
-        //   v <- {
-        //     reflect(if (cndVal.int == 1) {
-        //       reify(s)(execBlock(funName, thnLab))
-        //     } else {
-        //       reify(s)(execBlock(funName, elsLab))
-        //     })
-        //   }
-        // } yield v
-
-        // Symbolic
-        // val brLabel: String = funName + thnLab + elsLab      
-        // for {
-        //   cndVal <- eval(cnd)(funName)
-        //   v <- choice(
-        //     for {
-        //       _ <- updatePC(cndVal.toSMTBool)
-        //       v <- execBlock(funName, thnLab)
-        //     } yield v,
-        //     for {
-        //       _ <- updatePC(not(cndVal.toSMTBool))
-        //       v <- execBlock(funName, elsLab)
-        //     } yield v)
-        // } yield v
-        
       case SwitchTerm(cndTy, cndVal, default, table) =>
         def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
@@ -330,13 +304,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
 
         for {
-          v <- eval(cndVal)(funName)
+          v <- eval(cndVal)
           s <- getState
-          r <- reflect(if (v.isConc) {
-            switchFun(v.int, s, table)
-          } else {
-            switchFunSym(v, s, table)
-          })
+          r <- reflect {
+            if (v.isConc) switchFun(v.int, s, table)
+            else switchFunSym(v, s, table)
+          }
         } yield r
     }
   }
@@ -394,19 +367,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     } yield v
   }
 
-  def evalConst(v: Constant): List[Rep[Value]] = v match {
-    case BoolConst(b) =>
-      SList(IntV(if (b) 1 else 0, 1))
-    case IntConst(n) =>
-      SList(IntV(n))
-    case ZeroInitializerConst =>
-      SList(IntV(0))
-    case ArrayConst(cs) =>
-      flattenArray(v).flatMap(c => evalConst(c))
-    case CharArrayConst(s) =>
-      s.map(c => IntV(c.toInt, 8)).toList
-  }
-
   def precompileHeap: SList[Rep[Value]] = {
     CompileTimeRuntime.globalDefMap.foldRight(SList[Rep[Value]]()) {case ((k, v), h) =>
       val addr = h.size
@@ -419,7 +379,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
       for {
         _ <- mapM(is)(execInst(_)(funName))
-        v <- execTerm(funName, term)
+        v <- execTerm(term)(funName)
       } yield v
     }
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {

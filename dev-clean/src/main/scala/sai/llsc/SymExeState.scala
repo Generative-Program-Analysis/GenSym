@@ -58,7 +58,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   trait SS
 
   type Addr = Int
-  type Heap = Mem
   type PC = Set[SMTBool]
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
