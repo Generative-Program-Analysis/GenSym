@@ -65,6 +65,9 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::Backend.Const("val")::_, _) =>
       ???
+    case n @ Node(f, "λ", (b: Block)::Const(0)::_, _) =>
+      // Note: top-level functions
+      super.traverse(n)
     case n @ Node(f, "λ", (b: Block)::rest, _) =>
       // TODO: what are the rest?
       // TODO: regression test
