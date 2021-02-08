@@ -227,8 +227,7 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
     def fun: Rep[(SS, List[Value]) => List[(SS, Value)]] =
       Wrap[(SS, List[Value]) => List[(SS, Value)]](Unwrap(v))
 
-    def isConc: Rep[Boolean] =
-      Wrap[Boolean](Adapter.g.reflect("isConc", Unwrap(v)))
+    def isConc: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("isConc", Unwrap(v)))
     def toSMTExpr: Rep[SMTExpr] =
       Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
     def toSMTBool: Rep[SMTBool] =

@@ -28,13 +28,11 @@ import scala.collection.immutable.{Map => SMap}
 import sai.lmsx.smt.SMTBool
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
-  registerHeader("./headers", "<sai_llvm_sym2.hpp>")
+  registerHeader("./headers", "<llsc.hpp>")
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, name, _, _) if name.startsWith("IntV") => false
     case Node(_, name, _, _) if name.startsWith("LocV") => false
-    case Node(_, "stack_addr", _, _) => true
-    case Node(_, "heap_addr", _, _) => true
     case _ => super.mayInline(n)
   }
 
@@ -61,6 +59,21 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
       es"op_2(${quoteOp(op)}, $x, $y)"
+    case Node(s, "init-ss", _, _) => es"mt_ss"
+    case Node(s, "ss-lookup-stack", List(ss, x), _) => es"$ss.stack_lookup($x)"
+    case Node(s, "ss-lookup-addr", List(ss, a), _) => es"$ss.at($a)"
+    case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
+    case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
+    case Node(s, "ss-assign-seq", List(ss, ks, vs), _) => es"$ss.assign_seq($ks, $vs)"
+    case Node(s, "ss-stack-size", List(ss), _) => es"$ss.stack_size()"
+    case Node(s, "ss-alloc-stack", List(ss, n), _) => es"$ss.alloc_stack($n)"
+    case Node(s, "ss-update", List(ss, k, v), _) => es"$ss.update($k, $v)"
+    case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
+    case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
+    case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.addPC($e)"
+    case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.addPCSet($es)"
+    case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
+    case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"
     case _ => super.shallow(n)
   }
 }

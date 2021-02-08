@@ -31,6 +31,21 @@ trait SAIOps extends Base
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
 
+  implicit class RepOps[A: Manifest](a: Rep[A]) {
+    def asRepOf[B: Manifest]: Rep[B] = Wrap[B](Unwrap(a))
+    def reflectOp[B: Manifest](op: String): Rep[B] = Wrap[B](Adapter.g.reflect(op, Unwrap(a)))
+  }
+
+  implicit class StringOps(op: String) {
+    def reflectWith[T: Manifest](rs: Rep[_]*): Rep[T] = Wrap[T](Adapter.g.reflect(op, rs.map(Unwrap):_*))
+    def reflectReadWith[T: Manifest](rs: Rep[_]*)(es: Backend.Exp*): Rep[T] =
+      Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es:_*))
+    def reflectWriteWith[T: Manifest](rs: Rep[_]*)(es: Backend.Exp*): Rep[T] =
+      Wrap[T](Adapter.g.reflectWrite(op, rs.map(Unwrap):_*)(es:_*))
+    def reflectMutableWith[T: Manifest](rs: Rep[_]*): Rep[T] =
+      Wrap[T](Adapter.g.reflectMutable(op, rs.map(Unwrap):_*))
+  }
+
   override def __fun[T: Manifest](f: AnyRef, arity: Int, gf: List[Backend.Exp] => Backend.Exp, captures: Backend.Exp*): Backend.Exp = {
     // No λforward
     val can = canonicalize(f)

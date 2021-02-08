@@ -30,9 +30,10 @@ import sai.lmsx.smt.SMTBool
 
 // TODO: Primitives.read should take in Symbolic value
 // When call exit(1), invoke solver to gen input
+// TODO: better way to define primitives
 
 @virtualize
-trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
+trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   import Magic._
 
   object CompileTimeRuntime {
@@ -55,53 +56,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
   }
   import CompileTimeRuntime._
 
-  // how to make symbolic?
-  // FIXME(GW): why extends Serializable?
-  object Primitives extends java.io.Serializable {
-    // Function make_symbolic(LocV l, IntV len, IntV bw)
-    // This function will make from LocV l, len numbers of elements to symbolic bit vector of bitwidth bw 
-    def __make_symbolic(s: Rep[SS], args: Rep[List[Value]]) = {
-      Wrap[List[(SS, Value)]](Adapter.g.reflect("make_symbolic", Unwrap(s), Unwrap(args)))
-    }
-    def make_symbolic: Rep[Value] = FunV(topFun(__make_symbolic))
-
-    def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_printf", Unwrap(s), Unwrap(args)))
-    }
-    def printf: Rep[Value] = FunV(topFun(__printf))
-
-    def __concreteReadForMaze(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      Wrap[List[(SS, Value)]](Adapter.g.reflect("read_maze", Unwrap(s), Unwrap(args)))
-    }
-
-    // should we directly generate code for this or?
-    def __assert_false(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      // push
-      // s.pc.toList.foreach(assert(_))
-      // handle(query(lit(false)))
-      // pop
-      return List[(SS, Value)]((s, IntV(0)));
-    }
-
-    def assert_false: Rep[Value] = FunV(topFun(__assert_false))
-
-    def read: Rep[Value] = FunV(topFun(__concreteReadForMaze))
-
-    def __exit(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      push
-      s.pc.toList.foreach(assert(_))
-      handle(query(lit(false)))
-      pop
-      return List[(SS, Value)]((s, IntV(0)));
-    }
-    def exit: Rep[Value] = FunV(topFun(__exit))
-
-    def __sleep(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      return List[(SS, Value)]();
-    }
-    def sleep: Rep[Value] = FunV(topFun(__sleep))
-  }
-
   def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
     if (index.isEmpty) 0 else ty match {
       case PtrType(ety, addrSpace) =>
@@ -115,11 +69,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
   def eval(v: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
-        for { 
-          st <- getStackMem
-          a <- lookupCurEnv(funName + "_" + x)
-      } yield { st.lookup(a) }
-      case IntConst(n) => ret(IntV(n))
+        for { ss <- getState } yield ss.lookup(funName + "_" + x)
+      case IntConst(n) =>
+        ret(IntV(n))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
         eval(const)
@@ -148,16 +100,19 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
         ret(FunV(topFun(repf)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
+          /*
           case "@printf" => Primitives.printf
           case "@read" => Primitives.read
           case "@exit" => Primitives.exit
           case "@sleep" => Primitives.sleep
           case "@assert" => Primitives.assert_false
           case "@make_symbolic" => Primitives.make_symbolic
+           */
+          case _ => ???
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
-        for { h <- getHeap } yield h.lookup(CompileTimeRuntime.heapEnv(id))
+        for { ss <- getState } yield ss.heapLookup(CompileTimeRuntime.heapEnv(id))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -169,7 +124,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
           val offset = calculateOffset(ptrType, indexValue)
           const match {
             case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-            case _ => LocV(lV.loc + offset, LocV.select_loc(lV))
+            case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
       case ZeroInitializerConst => ret(IntV(0))
@@ -180,13 +135,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
     inst match {
       case AllocaInst(ty, align) =>
         for {
-          a <- stackAlloc(getTySize(ty, align.n))
-        } yield LocV(a, LocV.kStack)
+          ss <- getState
+          _ <- putState(ss.allocStack(getTySize(ty, align.n)))
+        } yield LocV(ss.stackSize, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
         for {
           v <- eval(value)
-          σ <- v.selectMem
-        } yield σ.lookup(v.loc)
+          ss <- getState
+        } yield ss.lookup(v)
       case AddInst(ty, lhs, rhs, _) =>
         for {
           v1 <- eval(lhs)
@@ -235,10 +191,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
-          _ <- pushEmptyEnv
+          _ <- stackPush
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame(s.stackMem.size)
+          _ <- stackPop(s.stackSize)
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
@@ -251,7 +207,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
           val offset = calculateOffset(ptrType, indexValue)
           ptrValue match {
             case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-            case _ => LocV(lV.loc + offset, LocV.select_loc(lV))
+            case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
       case PhiInst(ty, incs) =>
@@ -405,10 +361,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
-          _ <- pushEmptyEnv
+          _ <- stackPush
           s <- getState
           v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- popFrame(s.stackMem.size)
+          _ <- stackPop(s.stackSize)
         } yield ()
     }
   }
@@ -467,6 +423,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
       } yield v
     }
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+      unchecked("// compiling block: " + funName + " - " + b.label.get)
       reify[Value](ss)(runInstList(b.ins, b.term))
     }
 
@@ -485,8 +442,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
       precompileBlocks(f.id, f.blocks)
       execBlock(f.id, f.blocks(0))
     }
-    def repRunFun(f: FunctionDef)(ss: Rep[SS]): Rep[List[(SS, Value)]] =
+    def repRunFun(f: FunctionDef)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+      unchecked("// compiling function: " + f.id)
       reify[Value](ss)(runFunction(f))
+    }
 
     for (f <- funs) {
       if (CompileTimeRuntime.FunFuns.contains(f.id)) {
@@ -503,15 +462,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeState {
     CompileTimeRuntime.globalDefMap = m.globalDefMap
 
     val preHeap: Rep[List[Value]] = List(precompileHeap:_*) // (emptyMem)
-    val heap0 = Wrap[Mem](Unwrap(preHeap))
+    val heap0 = preHeap.asRepOf[Mem] //Wrap[Mem](Unwrap(preHeap))
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
-      _ <- pushEmptyEnv
+      _ <- stackPush
       s <- getState
       v <- reflect(fv.fun(s, args))
-      _ <- popFrame(s.stackMem.size)
+      _ <- stackPop(s.stackSize)
     } yield v
-    val initState: Rep[SS] = (heap0, emptyMem, List[Env](), Set[SMTBool]())
-    reify[Value](initState)(comp)
+    reify[Value](SS.init)(comp)
   }
 }

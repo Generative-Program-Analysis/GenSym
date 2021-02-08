@@ -35,20 +35,13 @@ struct Value {
 };
 
 struct IntV : Value {
-  Expr i;
-  // int i;
-  IntV(Expr e) {i = e;}
-  IntV(int i) {i = vc_bvConstExprFromInt(vc, 32, i);}
-  IntV(int i, int bw) {i = vc_bvConstExprFromInt(vc, bw, i);}
+  int i;
+  IntV(int i) : i(i) {}
   IntV(const IntV& v) { i = v.i; }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << getBVInt(i) << ")";
   }
 };
-
-inline Ptr<Value> make_IntV(Expr e) {
-  return std::make_shared<IntV>(e);
-}
 
 inline Ptr<Value> make_IntV(int i) {
   return std::make_shared<IntV>(i);
@@ -114,7 +107,7 @@ Ptr<Value> make_SymV(Expr e) {
 
 Expr proj_SMTBool(Ptr<Value> v) {
   if (auto i = std::dynamic_pointer_cast<IntV>(v)) {
-    if (i -> i) vc_trueExpr(vc);
+    if (i -> i) return vc_trueExpr(vc);
     else return vc_falseExpr(vc);
   } else if (auto sym = std::dynamic_pointer_cast<SymV>(v)) {
     return sym->v;

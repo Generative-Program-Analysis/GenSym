@@ -98,7 +98,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     emitln("""
     |/*****************************************
-    |Emitting C Generated Code
+    |Emitting Generated Code
     |*******************************************/
     """.stripMargin)
 
@@ -109,7 +109,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     emitFunctionDecls(stream)
 
-    if (SMT_DEBUG) emitln("extern VC vc = vc_createValidityChecker();")
+    //if (SMT_DEBUG) emitln("extern VC vc = vc_createValidityChecker();")
 
     emitDatastructures(stream)
     emitFunctions(stream)
@@ -119,7 +119,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     emit(src)
     emitln("""
     |/*****************************************
-    |End of C Generated Code
+    |End of Generated Code
     |*******************************************/
     |int main(int argc, char *argv[]) {
     |  initRand();

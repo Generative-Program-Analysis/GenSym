@@ -43,14 +43,21 @@ int randInt(int ub) {
 template <typename T>
 using Ptr = std::shared_ptr<T>;
 
+#   define ABORT(message) \
+    do { \
+      std::cerr << "Abort at " << __FILE__ << " line " << __LINE__ \
+                << ": " << message << std::endl; \
+    } while (false)
+
+
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \
     do { \
-        if (! (condition)) { \
-            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
-                      << " line " << __LINE__ << ": " << message << std::endl; \
-            std::terminate(); \
-        } \
+      if (! (condition)) { \
+        std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                  << " line " << __LINE__ << ": " << message << std::endl; \
+        std::terminate(); \
+      } \
     } while (false)
 #else
 #   define ASSERT(condition, message) do { } while (false)

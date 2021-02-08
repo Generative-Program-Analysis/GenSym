@@ -28,6 +28,7 @@ trait CppSymStagedLLVMDriver[A, B] extends CppSAIDriver[A, B] with LLSCEngine { 
       else if (m.toString.endsWith("$Value")) "PtrVal"
       else if (m.toString.endsWith("$Addr")) "Addr"
       else if (m.toString.endsWith("$Mem")) "Mem"
+      else if (m.toString.endsWith("$SS")) "SS"
       else if (m.toString.endsWith("SMTExpr")) "Expr"
       else super.remap(m)
     }
@@ -52,19 +53,25 @@ object TestStagedSymExec {
         )
         val res = exec(m, fname, args)
         // query a single test
-        res.head._1.pc.toList.foreach(assert(_))
-        handle(query(lit(false)))
+        //res.head._1.pc.toList.foreach(assert(_))
+        //handle(query(lit(false)))
 
         println(res.size)
       }
     }
 
-  def testM(m: Module, output: String, fname: String) {
+  def testModule(m: Module, output: String, fname: String) {
     val res = sai.utils.Utils.time {
       val code = specialize(m, fname)
-      code.save(s"gen/$output")
+      code.save(s"llsc_gen/$output")
+      code.compile(s"llsc_gen/$output")
     }
     println(res)
     //code.eval(0)
+  }
+
+  def main(args: Array[String]): Unit = {
+    //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
+    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1048576_sym.cpp", "@f")
   }
 }
