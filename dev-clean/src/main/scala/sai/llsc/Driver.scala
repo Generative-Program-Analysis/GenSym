@@ -13,63 +13,68 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 
-abstract class LLSCDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
-  val codegen = new CGenBase with SymStagedLLVMGen {
+abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String = ".") extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
+  val codegen = new SymStagedLLVMGen {
     val IR: q.type = q
-    import IR._
+    val codegenFolder = s"$folder/$name/"
   }
-
-  lazy val (code, statics) = {
-    val source = new java.io.ByteArrayOutputStream()
-    val statics = codegen.emitSource[A, B](wrapper, "Snippet", new java.io.PrintStream(source))
-    (source.toString, statics)
-  }
-
   val compilerCommand = "g++ -std=c++17 -O3"
 
-  def save(to: String): Unit = {
-    val out = new java.io.PrintStream("./"+to)
-    out.println(code)
-    out.close
+  def genSource: Unit = {
+    (new java.io.File(codegen.codegenFolder)).mkdir
+    val mainStream = new java.io.PrintStream(s"$folder/$name/$name.cpp")
+    val statics = Adapter.emitCommon1(name, codegen, mainStream)(manifest[A], manifest[B])(x => Unwrap(wrapper(Wrap[A](x))))
+    mainStream.close
   }
 
-  def compile(to: String): String = {
-    import scala.sys.process._
+  // TODO: export LD_LIBRARY_PATH=../stp/build/lib
+  // TODO: properly handle include/path path
+  def genMakefile: Unit = {
+    val out = new java.io.PrintStream(s"$folder/$name/Makefile")
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.joinPaths(codegen.includePaths, "-I")
     val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
 
-    val bin = to.split('.')(0)
-    (new java.io.File(bin)).delete
-    val pb = s"$compilerCommand $to -o $bin $libraries $includes $libraryPaths"
-    System.out.println("Compile command: " + pb)
-    time("cc-compile") { (pb: ProcessBuilder).lines.foreach(Console.println _) }
-    bin
+    out.println(s"""|BUILD_DIR = build
+    |SRC_DIR = .
+    |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp")
+    |TARGET = main
+    |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
+    |CC = g++ -std=c++17 -O3
+    |CXXFLAGS = $includes
+    |LDFLAGS = $libraryPaths
+    |LDLIBS = $libraries
+    |
+    |default: $$(TARGET)
+    |
+    |.SECONDEXPANSION:
+    |
+    |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@)
+    |\tmkdir -p $$(@D)
+    |\t$$(CC) -c -o $$@ $$< $$(CXXFLAGS)
+    |
+    |$$(TARGET): $$(OBJECTS)
+    |\t$$(CC) -o $$@ $$(CXXFLAGS) $$^ $$(LDFLAGS) $$(LDLIBS)
+    |
+    |clean:
+    |\t@rm main 2>/dev/null || true
+    |\t@rm build -rf 2>/dev/null || true
+    |
+    |.PHONY: default clean
+    |""".stripMargin)
+    out.close
   }
 
-  def saveCompileRun(to: String): A => Unit = {
-    import scala.sys.process._
-    save(to)
-    val bin = compile(to)
-
-    (a: A) => {
-      System.out.println(s"Running ./$bin $a")
-      // FIXME: LD_LIBRARY_PATH?
-      // export LD_LIBRARY_PATH=../stp/build/lib
-      Process(s"./$bin $a", None, "LD_LIBRARY_PATH"->"../stp/build/lib").lines.foreach(Console.println _)
-    }
-  }
-
-  def eval(a: A): Unit = {
-    val g = saveCompileRun("snippet.c")
-    time("eval")(g(a))
+  def genAll: Unit = {
+    genSource
+    genMakefile
   }
 }
 
 object TestStagedSymExec {
   @virtualize
-  def specialize(m: Module, fname: String): LLSCDriver[Int, Unit] =
-    new LLSCDriver[Int, Unit] {
+  def specialize(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
+    new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = List[Value](
           SymV("x0"), SymV("x1"), SymV("x2"), 
@@ -91,18 +96,16 @@ object TestStagedSymExec {
       }
     }
 
-  def testModule(m: Module, output: String, fname: String) {
+  def testModule(m: Module, name: String, fname: String) {
     val res = sai.utils.Utils.time {
-      val code = specialize(m, fname)
-      code.save(s"llsc_gen/$output")
-      code.compile(s"llsc_gen/$output")
+      val code = specialize(m, name, fname)
+      code.genAll
     }
     println(res)
-    //code.eval(0)
   }
 
   def main(args: Array[String]): Unit = {
     //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
-    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1048576_sym.cpp", "@f")
+    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
   }
 }

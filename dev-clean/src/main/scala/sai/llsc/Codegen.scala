@@ -13,6 +13,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
   registerLibraryPath("../stp/build/lib")
 
+  val codegenFolder: String
+
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "list-new", _, _) => true
     case _ => super.mayInline(n)
@@ -76,31 +78,58 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case _ => super.shallow(n)
   }
 
+  override def registerTopLevelFunction(id: String, streamId: String = "general")(f: => Unit) =
+    if (!registeredFunctions(id)) {
+      if (ongoingFun(streamId)) ???
+      ongoingFun += streamId
+      registeredFunctions += id
+      withStream(functionsStreams.getOrElseUpdate(id, {
+        val functionsStream = new java.io.ByteArrayOutputStream()
+        val functionsWriter = new java.io.PrintStream(functionsStream)
+        (functionsWriter, functionsStream)
+      })._1)(f)
+      ongoingFun -= streamId
+    }
+
+  def emitHeaderFile: Unit = {
+    val filename = codegenFolder + "/common.h"
+    val out = new java.io.PrintStream(filename)
+    withStream(out) {
+      emitln("/* Emitting header file */")
+      emitHeaders(stream)
+      emitln("using namespace immer;")
+      emitFunctionDecls(stream)
+      emitDatastructures(stream)
+      emitln("/* End of header file */")
+    }
+    out.close
+  }
+
+  def emitFunctionFiles: Unit = {
+    for ((f, (_, funStream)) <- functionsStreams) {
+      val filename = s"$codegenFolder/$f.cpp"
+      val out = new java.io.PrintStream(filename)
+      out.println("#include \"common.h\"")
+      funStream.writeTo(out)
+      out.close
+    }
+  }
+
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
     val ng = init(g)
     val efs = ""
     val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
 
-    emitln("""
-    |/*****************************************
-    |Emitting Generated Code
-    |*******************************************/
-    """.stripMargin)
-
     val src = run(name, ng)
-    emitHeaders(stream)
-    emitln("using namespace immer;")
-    emitFunctionDecls(stream)
-    emitDatastructures(stream)
-    emitFunctions(stream)
+
+    emitHeaderFile
+    emitFunctionFiles
     emitInit(stream)
 
-    emitln(s"\n/**************** $name ****************/")
+    emitln(s"/* Generated main file: $name */")
+    emitln("#include \"common.h\"")
     emit(src)
     emitln("""
-    |/*****************************************
-    |End of Generated Code
-    |*******************************************/
     |int main(int argc, char *argv[]) {
     |  initRand();
     |  if (argc != 2) {
