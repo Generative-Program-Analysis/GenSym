@@ -9,9 +9,6 @@ import lms.core.virtualize
 import lms.core.utils.time
 import lms.macros.SourceContext
 
-import sai.structure.lattices._
-import sai.structure.monad._
-
 import sai.lmsx.smt._
 
 trait CppSAICodeGenBase extends ExtendedCPPCodeGen
@@ -19,10 +16,29 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_Set  with STPCodeGen_SMTBase with STPCodeGen_SMTBV 
     with STPCodeGen_SMTArray {
 
-  //override def remap(m: Manifest[_]): String = super.remap(m)
-  registerLibraryPath("../stp/build/lib")
+  override def quote(s: Def): String = s match {
+    case Const(()) => "std::monostate{}";
+    case _ => super.quote(s)
+  }
 
-  val SMT_DEBUG = true
+  override def primitive(t: String): String = t match {
+    case "Unit" => "std::monostate"
+    case "java.lang.String" => "std::string"
+    case _ => super.primitive(t)
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(s, "?", _, _) => false
+    case Node(s, "λ", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
+    case _ => super.shallow(n)
+  }
+
+  override def function(sig: List[Manifest[_]]): String = "auto"
 
   override def quoteBlockPReturn(f: => Unit) = {
     def wraper(numStms: Int, l: Option[Node], y: Block)(f: => Unit) = {
@@ -37,31 +53,8 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     withWraper(wraper _)(f)
   }
 
-  override def mayInline(n: Node): Boolean = n match {
-    case Node(s, "?", _, _) => false // ternary condition
-    case Node(s, "λ", _, _) => false
-    case Node(s, "sai-ap-clo", _, _) => false
-    case Node(s, "sai-comp-clo", _, _) => false
-    case _ => super.mayInline(n)
-  }
-
-  override def shallow(n: Node): Unit = n match {
-    case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
-    case _ => super.shallow(n)
-  }
-
-  override def primitive(rawType: String): String =
-    rawType match {
-      case "java.lang.String" => "std::string"
-      case "Unit" => "void" //FIXME
-      case _ => super.primitive(rawType)
-    }
-
-  override def function(sig: List[Manifest[_]]): String = "auto"
-
   override def traverse(n: Node): Unit = n match {
-    case n @ Node(f, "λ", (b: Block)::Backend.Const("val")::_, _) =>
-      ???
+    case n @ Node(f, "λ", (b: Block)::Backend.Const("val")::_, _) => ???
     case n @ Node(f, "λ", (b: Block)::Const(0)::_, _) =>
       // Note: top-level functions
       super.traverse(n)
@@ -104,7 +97,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
     val src = run(name, ng)
     emitHeaders(stream)
-    emitln("using namespace immer;")
+    //emitln("using namespace immer;")
     emitFunctionDecls(stream)
     emitDatastructures(stream)
     emitFunctions(stream)
@@ -173,9 +166,7 @@ abstract class CppSAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] w
 
     (a: A) => {
       System.out.println(s"Running ./$bin $a")
-      // FIXME: LD_LIBRARY_PATH?
-      // export LD_LIBRARY_PATH=../stp/build/lib
-      Process(s"./$bin $a", None, "LD_LIBRARY_PATH"->"../stp/build/lib").lines.foreach(Console.println _)
+      Process(s"./$bin $a").lines.foreach(Console.println _)
     }
   }
 

@@ -69,6 +69,7 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
   registerHeader("../stp/build/include", "<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")
   registerLibrary("-lstp")
+  registerLibraryPath("../stp/build/lib")
 
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName

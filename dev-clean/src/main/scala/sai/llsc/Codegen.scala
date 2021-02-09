@@ -7,23 +7,15 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
+import sai.lmsx.smt._
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
+  registerLibraryPath("../stp/build/lib")
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "list-new", _, _) => true
     case _ => super.mayInline(n)
-  }
-
-  override def quote(s: Def): String = s match {
-    case Const(()) => "std::monostate{}";
-    case _ => super.quote(s)
-  }
-
-  override def primitive(t: String): String = t match {
-    case "Unit" => "std::monostate"
-    case _ => super.primitive(t)
   }
 
   override def remap(m: Manifest[_]): String = {
@@ -60,6 +52,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
         emit("mt_path_result")
       } else super.shallow(n)
      */
+    case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
     case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
@@ -82,5 +75,46 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"
     case _ => super.shallow(n)
   }
+
+  override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
+    val ng = init(g)
+    val efs = ""
+    val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
+
+    emitln("""
+    |/*****************************************
+    |Emitting Generated Code
+    |*******************************************/
+    """.stripMargin)
+
+    val src = run(name, ng)
+    emitHeaders(stream)
+    emitln("using namespace immer;")
+    emitFunctionDecls(stream)
+    emitDatastructures(stream)
+    emitFunctions(stream)
+    emitInit(stream)
+
+    emitln(s"\n/**************** $name ****************/")
+    emit(src)
+    emitln("""
+    |/*****************************************
+    |End of Generated Code
+    |*******************************************/
+    |int main(int argc, char *argv[]) {
+    |  initRand();
+    |  if (argc != 2) {
+    |    printf("usage: %s <arg>\n", argv[0]);
+    |    return 0;
+    |  }""".stripMargin)
+    if (initStream.size > 0)
+      emitln("if (init()) return 0;")
+    emitln(s"""
+    |  // TODO: what is the right way to pass arguments?
+    |  $name(${convert("argv[1]", m1)});
+    |  return 0;
+    |}""".stripMargin)
+  }
+
 }
 
