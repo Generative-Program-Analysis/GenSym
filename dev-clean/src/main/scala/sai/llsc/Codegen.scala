@@ -59,7 +59,9 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
         remap(mA.typeArguments(1)) == "PtrVal") {
         emit("mt_path_result")
       } else super.shallow(n)
-    */
+     */
+    case Node(s,"kStack", _, _) => emit("LocV::kStack")
+    case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
     case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
       es"op_2(${quoteOp(op)}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"

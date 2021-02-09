@@ -46,10 +46,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   }
 
   override def shallow(n: Node): Unit = n match {
-    case n @ Node(s, "P", List(x), _) =>
-      emit("std::cout << ")
-      shallow(x)
-      emit(" << std::endl")
+    case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case _ => super.shallow(n)
   }
 

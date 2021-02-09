@@ -5,9 +5,9 @@
 #include <iostream>
 #include <variant>
 
-int queries = 0;
+inline int queries = 0;
 
-std::monostate handle_query(VC vc, int n) {
+inline std::monostate handle_query(VC vc, int n) {
   queries++;
   std::cout << "Query number: " << queries << std::endl;
   switch (n) {
@@ -29,7 +29,7 @@ std::monostate handle_query(VC vc, int n) {
   return std::monostate{};
 }
 
-bool stp_is_valid(VC vc, Expr e) {
+inline bool stp_is_valid(VC vc, Expr e) {
   int n = vc_query(vc, e);
   switch (n) {
     case 0: return false;
@@ -40,7 +40,7 @@ bool stp_is_valid(VC vc, Expr e) {
   }
 }
 
-bool stp_is_sat(VC vc, Expr e) {
+inline bool stp_is_sat(VC vc, Expr e) {
   Expr not_e = vc_notExpr(vc, e);
   int n = vc_query(vc, not_e);
   switch (n) {

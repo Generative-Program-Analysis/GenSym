@@ -12,9 +12,9 @@
 #ifndef LLSC_HEADERS
 #define LLSC_HEADERS
 
-static VC vc = vc_createValidityChecker();
-static unsigned int bitwidth = 32;
-static unsigned int var_name = 0;
+inline VC vc = vc_createValidityChecker();
+inline unsigned int bitwidth = 32;
+inline unsigned int var_name = 0;
 
 using Id = int;
 using Addr = unsigned int;
@@ -88,11 +88,9 @@ inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k) {
 inline unsigned int proj_LocV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
-LocV::Kind proj_LocV_kind(Ptr<Value> v) {
+inline LocV::Kind proj_LocV_kind(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
-inline LocV::Kind kStack() { return LocV::kStack; }
-inline LocV::Kind kHeap() { return LocV::kHeap; }
 
 struct SymV : Value {
   Expr v;
@@ -116,7 +114,7 @@ enum kOP {
   op_eq, op_ge, op_gt, op_le, op_lt, op_neq,
 };
 
-Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
+inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   auto i2 = std::dynamic_pointer_cast<IntV>(v2);
 
@@ -289,12 +287,12 @@ class SS {
     SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s)); }
 };
 
-static Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
-static Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-static PC mt_pc = PC(immer::set<Expr>{});
-static SS mt_ss = SS(mt_mem, mt_stack, mt_pc);
+inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
+inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
+inline const PC mt_pc = PC(immer::set<Expr>{});
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc);
 
-static const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
+inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};
 
 #endif
