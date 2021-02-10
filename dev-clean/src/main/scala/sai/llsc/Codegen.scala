@@ -144,6 +144,5 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     |  return 0;
     |}""".stripMargin)
   }
-
 }
 

@@ -28,12 +28,12 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
   }
 
   // TODO: export LD_LIBRARY_PATH=../stp/build/lib
-  // TODO: properly handle include/path path
   def genMakefile: Unit = {
     val out = new java.io.PrintStream(s"$folder/$name/Makefile")
+    val curDir = new java.io.File(".").getCanonicalPath
     val libraries = codegen.libraryFlags.mkString(" ")
-    val includes = codegen.joinPaths(codegen.includePaths, "-I")
-    val libraryPaths = codegen.joinPaths(codegen.libraryPaths, "-L")
+    val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
+    val libraryPaths = codegen.libraryPaths.map(s"-L $curDir/" + _).mkString(" ")
 
     out.println(s"""|BUILD_DIR = build
     |SRC_DIR = .
