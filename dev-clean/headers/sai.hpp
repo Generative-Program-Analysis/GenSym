@@ -45,6 +45,7 @@ using Ptr = std::shared_ptr<T>;
     do { \
       std::cerr << "Abort at " << __FILE__ << " line " << __LINE__ \
                 << ": " << message << std::endl; \
+      exit(-1); \
     } while (false)
 
 
