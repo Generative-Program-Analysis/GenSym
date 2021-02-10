@@ -14,6 +14,8 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 
 abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String = ".") extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
+  import java.io.{File, PrintStream}
+
   val codegen = new SymStagedLLVMGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$name/"
@@ -21,16 +23,18 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
   val compilerCommand = "g++ -std=c++17 -O3"
 
   def genSource: Unit = {
-    (new java.io.File(codegen.codegenFolder)).mkdir
-    val mainStream = new java.io.PrintStream(s"$folder/$name/$name.cpp")
+    val folderFile = new File(folder)
+    if (!folderFile.exists()) folderFile.mkdir
+    (new File(codegen.codegenFolder)).mkdir
+    val mainStream = new PrintStream(s"$folder/$name/$name.cpp")
     val statics = Adapter.emitCommon1(name, codegen, mainStream)(manifest[A], manifest[B])(x => Unwrap(wrapper(Wrap[A](x))))
     mainStream.close
   }
 
   // TODO: export LD_LIBRARY_PATH=../stp/build/lib
   def genMakefile: Unit = {
-    val out = new java.io.PrintStream(s"$folder/$name/Makefile")
-    val curDir = new java.io.File(".").getCanonicalPath
+    val out = new PrintStream(s"$folder/$name/Makefile")
+    val curDir = new File(".").getCanonicalPath
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
     val libraryPaths = codegen.libraryPaths.map(s"-L $curDir/" + _).mkString(" ")
@@ -38,7 +42,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
     out.println(s"""|BUILD_DIR = build
     |SRC_DIR = .
     |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp")
-    |TARGET = main
+    |TARGET = $name
     |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
     |CC = g++ -std=c++17 -O3
     |CXXFLAGS = $includes

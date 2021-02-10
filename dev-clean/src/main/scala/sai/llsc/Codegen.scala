@@ -80,15 +80,15 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
 
   override def registerTopLevelFunction(id: String, streamId: String = "general")(f: => Unit) =
     if (!registeredFunctions(id)) {
-      if (ongoingFun(streamId)) ???
-      ongoingFun += streamId
+      //if (ongoingFun(streamId)) ???
+      //ongoingFun += streamId
       registeredFunctions += id
       withStream(functionsStreams.getOrElseUpdate(id, {
         val functionsStream = new java.io.ByteArrayOutputStream()
         val functionsWriter = new java.io.PrintStream(functionsStream)
         (functionsWriter, functionsStream)
       })._1)(f)
-      ongoingFun -= streamId
+      //ongoingFun -= streamId
     }
 
   def emitHeaderFile: Unit = {

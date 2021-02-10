@@ -41,8 +41,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     val BBFuns: collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]] =
       new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
-    val FunFuns: collection.mutable.HashMap[String, Rep[SS] => Rep[List[(SS, Value)]]] =
-      new collection.mutable.HashMap[String, Rep[SS] => Rep[List[(SS, Value)]]]
+    val FunFuns: collection.mutable.HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
+      new collection.mutable.HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
 
     val env: collection.mutable.HashMap[String, Rep[Addr]] =
       new collection.mutable.HashMap[String, Rep[Addr]]
@@ -78,23 +78,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
       // case CharArrayConst(s) => 
       case GlobalId(id) if funMap.contains(id) =>
-        val funDef = funMap(id)
-        val params: List[String] = funDef.header.params.map {
-          case TypedParam(ty, attrs, localId) => funDef.id + "_" + localId.get
-        }
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(SList(funMap(id)))
         }
-        val f: Rep[SS] => Rep[List[(SS, Value)]] = CompileTimeRuntime.FunFuns(id)
-        def repf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-          val m: Comp[E, Rep[Value]] = for {
-            _ <- stackUpdate(params, args)
-            s <- getState
-            v <- reflect(f(s))
-          } yield v
-          reify(s)(m)
-        }
-        ret(FunV(topFun(repf)))
+        ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
           /*
@@ -368,15 +355,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
-    def runInstList(is: List[Instruction], term: Terminator): Comp[E, Rep[Value]] = {
-      for {
-        _ <- mapM(is)(execInst(_)(funName))
-        v <- execTerm(term)(funName)
-      } yield v
-    }
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
-      reify[Value](ss)(runInstList(b.ins, b.term))
+      val runInstList: Comp[E, Rep[Value]] = for {
+        _ <- mapM(b.ins)(execInst(_)(funName))
+        v <- execTerm(b.term)(funName)
+      } yield v
+      reify[Value](ss)(runInstList)
     }
 
     for (b <- blocks) {
@@ -390,20 +375,28 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileFunctions(funs: List[FunctionDef]): Unit = {
-    def runFunction(f: FunctionDef): Comp[E, Rep[Value]] = {
-      precompileBlocks(f.id, f.blocks)
-      execBlock(f.id, f.blocks(0))
-    }
-    def repRunFun(f: FunctionDef)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+    def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      val params: List[String] = f.header.params.map {
+        case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
+      }
       unchecked("// compiling function: " + f.id)
-      reify[Value](ss)(runFunction(f))
+      val m: Comp[E, Rep[Value]] = for {
+        _ <- stackUpdate(params, args)
+        s <- getState
+        v <- {
+          precompileBlocks(f.id, f.blocks)
+          execBlock(f.id, f.blocks(0))
+        }
+      } yield v
+      reify(ss)(m)
     }
 
     for (f <- funs) {
       if (CompileTimeRuntime.FunFuns.contains(f.id)) {
         //System.err.println("Already compiled " + f)
       } else {
-        CompileTimeRuntime.FunFuns(f.id) = repRunFun(f)
+        val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+        CompileTimeRuntime.FunFuns(f.id) = repRunFun
       }
     }
   }
