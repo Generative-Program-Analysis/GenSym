@@ -28,21 +28,19 @@ import sai.lmsx.smt.SMTBool
 
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
-  object Magic {
-    def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
-      val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
-        State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
-      val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
-      val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
-      p3
-    }
+  def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
+    val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
+      State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
+    val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
+    val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
+    p3
+  }
 
-    def reflect[T: Manifest](res: Rep[List[(SS, T)]]): Comp[E, Rep[T]] = {
-      for {
-        ssu <- select[E, (SS, T)](res)
-        _ <- put[Rep[SS], E](ssu._1)
-      } yield ssu._2
-    }
+  def reflect[T: Manifest](res: Rep[List[(SS, T)]]): Comp[E, Rep[T]] = {
+    for {
+      ssu <- select[E, (SS, T)](res)
+      _ <- put[Rep[SS], E](ssu._1)
+    } yield ssu._2
   }
 
   trait Mem
@@ -116,8 +114,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 
   def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
   def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
-  def stackPush: Comp[E, Rep[Unit]] = updateState(_.push)
-  def stackPop(keep: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.pop(keep))
+  def pushFrame: Comp[E, Rep[Unit]] = updateState(_.push)
+  def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.pop(keep))
   def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.update(k, v))
   def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
@@ -132,7 +130,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(l: Rep[Addr], kind: Rep[Int]): Rep[Value] = "make_LocV".reflectWriteWith[Value](l, kind)(Adapter.CTRL)
   }
   object FunV {
-    def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
+    def FunV(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = "make_SymV".reflectWriteWith[Value](s)(Adapter.CTRL)
@@ -146,9 +144,11 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   implicit class ValueOps(v: Rep[Value]) {
     def loc: Rep[Addr] = "proj_LocV".reflectWith[Addr](v)
     def int: Rep[Int] = "proj_IntV".reflectWith[Int](v)
-    def fun: Rep[(SS, List[Value]) => List[(SS, Value)]] =
-      v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
+    def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
+      f(s, args)
+    }
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)

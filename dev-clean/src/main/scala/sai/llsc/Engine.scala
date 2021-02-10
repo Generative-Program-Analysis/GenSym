@@ -31,21 +31,23 @@ import sai.lmsx.smt.SMTBool
 
 @virtualize
 trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
-  import Magic._
-
   object CompileTimeRuntime {
-    var funMap: collection.immutable.Map[String, FunctionDef] = SMap()
-    var funDeclMap: collection.immutable.Map[String, FunctionDecl] = SMap()
-    var globalDefMap: collection.immutable.Map[String, GlobalDef] = SMap()
-    var heapEnv: collection.immutable.Map[String, Rep[Addr]] = SMap()
+    import collection.mutable.HashMap
+    var funMap: SMap[String, FunctionDef] = SMap()
+    var funDeclMap: SMap[String, FunctionDecl] = SMap()
+    var globalDefMap: SMap[String, GlobalDef] = SMap()
+    var heapEnv: SMap[String, Rep[Addr]] = SMap()
 
-    val BBFuns: collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]] =
-      new collection.mutable.HashMap[BB, Rep[SS => List[(SS, Value)]]]
-    val FunFuns: collection.mutable.HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
-      new collection.mutable.HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
+    val BBFuns: HashMap[BB, Rep[SS => List[(SS, Value)]]] = new HashMap[BB, Rep[SS => List[(SS, Value)]]]
+    val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
+      new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
 
-    val env: collection.mutable.HashMap[String, Rep[Addr]] =
-      new collection.mutable.HashMap[String, Rep[Addr]]
+    def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
+      if (!CompileTimeRuntime.BBFuns.contains(b)) {
+        precompileBlocks(funName, SList(b))
+      }
+      BBFuns(b)
+    }
 
     def findBlock(fname: String, lab: String): Option[BB] = funMap.get(fname).get.lookupBlock(lab)
     def findFirstBlock(fname: String): BB = findFundef(fname).body.blocks(0)
@@ -174,10 +176,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
-          _ <- stackPush
+          _ <- pushFrame
           s <- getState
-          v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- stackPop(s.stackSize)
+          v <- reflect(fv(s, List(vs:_*)))
+          _ <- popFrame(s.stackSize)
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         // it seems that typedValues must be IntConst
@@ -193,13 +195,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
-      case PhiInst(ty, incs) =>
-        /*
-        for {
-          v <- eval(incs.head.value)
-        } yield v
-         */
-        ???
+      case PhiInst(ty, incs) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         for {
           cnd <- eval(cndVal)
@@ -313,36 +309,24 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         for {
           fv <- eval(f)
           vs <- mapM(argValues)(eval)
-          _ <- stackPush
+          _ <- pushFrame
           s <- getState
-          v <- reflect(fv.fun(s, List(vs:_*)))
-          _ <- stackPop(s.stackSize)
+          v <- reflect(fv(s, List(vs:_*)))
+          _ <- popFrame(s.stackSize)
         } yield ()
     }
   }
 
-  def execBlock(funName: String, label: String, s: Rep[SS]): Rep[List[(SS, Value)]] = {
-    val Some(block) = findBlock(funName, label)
-    execBlock(funName, block, s)
-  }
+  def execBlock(funName: String, label: String, s: Rep[SS]): Rep[List[(SS, Value)]] =
+    CompileTimeRuntime.getBBFun(funName, findBlock(funName, label).get)(s)
 
-  def execBlock(funName: String, bb: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
-    if (!CompileTimeRuntime.BBFuns.contains(bb)) {
-      precompileBlocks(funName, SList(bb))
-    }
-    val f = CompileTimeRuntime.BBFuns(bb)
-    f(s)
-  }
+  def execBlock(funName: String, label: String): Comp[E, Rep[Value]] =
+    execBlock(funName, findBlock(funName, label).get)
 
-  def execBlock(funName: String, label: String): Comp[E, Rep[Value]] = {
-    val Some(block) = findBlock(funName, label)
-    execBlock(funName, block)
-  }
-
-  def execBlock(funName: String, bb: BB): Comp[E, Rep[Value]] = {
+  def execBlock(funName: String, block: BB): Comp[E, Rep[Value]] = {
     for {
       s <- getState
-      v <- reflect(execBlock(funName, bb, s))
+      v <- reflect(CompileTimeRuntime.getBBFun(funName, block)(s))
     } yield v
   }
 
@@ -365,12 +349,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
 
     for (b <- blocks) {
-      if (CompileTimeRuntime.BBFuns.contains(b)) {
-        //System.err.println("Already compiled " + b)
-      } else {
-        val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
-        CompileTimeRuntime.BBFuns(b) = repRunBlock
-      }
+      Predef.assert(!CompileTimeRuntime.BBFuns.contains(b))
+      val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
+      CompileTimeRuntime.BBFuns(b) = repRunBlock
     }
   }
 
@@ -383,21 +364,15 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState
-        v <- {
-          precompileBlocks(f.id, f.blocks)
-          execBlock(f.id, f.blocks(0))
-        }
+        v <- execBlock(f.id, f.blocks(0))
       } yield v
       reify(ss)(m)
     }
 
     for (f <- funs) {
-      if (CompileTimeRuntime.FunFuns.contains(f.id)) {
-        //System.err.println("Already compiled " + f)
-      } else {
-        val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
-        CompileTimeRuntime.FunFuns(f.id) = repRunFun
-      }
+      Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
+      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+      CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
 
@@ -410,10 +385,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     val heap0 = preHeap.asRepOf[Mem]
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
-      _ <- stackPush
+      _ <- pushFrame
       s <- getState
-      v <- reflect(fv.fun(s, args))
-      _ <- stackPop(s.stackSize)
+      v <- reflect(fv(s, args))
+      _ <- popFrame(s.stackSize)
     } yield v
     reify[Value](SS.init(heap0))(comp)
   }

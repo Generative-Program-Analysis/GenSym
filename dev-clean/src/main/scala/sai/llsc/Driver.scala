@@ -58,7 +58,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
     |\t$$(CC) -c -o $$@ $$< $$(CXXFLAGS)
     |
     |$$(TARGET): $$(OBJECTS)
-    |\t$$(CC) -o $$@ $$(CXXFLAGS) $$^ $$(LDFLAGS) $$(LDLIBS)
+    |\t$$(CC) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
     |
     |clean:
     |\t@rm main 2>/dev/null || true
