@@ -15,7 +15,7 @@ trait ListOps { b: Base =>
       val mA = Backend.Const(manifest[A])
       val unwrapped_xs = Seq(mA) ++ xs.map(Unwrap)
       // Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xs:_*))
-      Wrap[List[A]](Adapter.g.reflectWrite("list-new", unwrapped_xs:_*)(Adapter.CTRL))
+      Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xs:_*))
     }
   }
 
@@ -97,7 +97,26 @@ trait ListOpsOpt extends ListOps { b: Base =>
       Unwrap(xs) match {
         case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) =>
           xs.map(Wrap[A](_)).foldLeft(z)(f)
-        case _ => super.foldLeft(z)(f)
+        case _ =>
+          // TODO: simplify this code
+          // foldLeft(xs, List(), (acc, x) => acc ++ List(x)) ==> xs
+          Unwrap(z) match {
+            case Adapter.g.Def("list-new", _::Nil) if manifest[A] == manifest[B].typeArguments(0) =>
+              val block = Adapter.g.reify((x, y) => Unwrap(f(Wrap[B](x), Wrap[A](y))))
+              block.res match {
+                case Adapter.g.Def("list-concat", x1::x2::Nil) =>
+                  x2 match {
+                    case Adapter.g.Def("list-new", _::x3::Nil) =>
+                      //System.out.println(block.in)
+                      //System.out.println(x1, x3)
+                      if (block.in(0) == x1 && block.in(1) == x3) Wrap[B](Unwrap(xs))
+                      else Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block))
+                    case _ => Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block))
+                  }
+                case _ => Wrap[B](Adapter.g.reflect("list-foldLeft", Unwrap(xs), Unwrap(z), block))
+              }
+            case _ => super.foldLeft(z)(f)
+          }
       }
   }
 }

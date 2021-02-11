@@ -81,8 +81,7 @@ object TestStagedSymExec {
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = List[Value](
-          IntV(10000),
-          /*
+          //IntV(10000),
           SymV("x0"), SymV("x1"), SymV("x2"), 
           SymV("x3"), SymV("x4"), SymV("x5"),
           SymV("x6"), SymV("x7"), SymV("x8"),
@@ -92,7 +91,6 @@ object TestStagedSymExec {
           SymV("x15"),
           SymV("x16"), SymV("x17"),
           SymV("x18"), SymV("x19")
-           */
         )
         val res = exec(m, fname, args)
         // query a single test
@@ -113,7 +111,7 @@ object TestStagedSymExec {
 
   def main(args: Array[String]): Unit = {
     //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
-    //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
-    testModule(sai.llvm.Benchmarks.largeStackArray, "largeStackArray", "@f")
+    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
+    //testModule(sai.llvm.Benchmarks.largeStackArray, "largeStackArray", "@f")
   }
 }

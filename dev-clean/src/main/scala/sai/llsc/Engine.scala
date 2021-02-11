@@ -326,7 +326,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def execBlock(funName: String, block: BB): Comp[E, Rep[Value]] = {
     for {
       s <- getState
-      v <- reflect(CompileTimeRuntime.getBBFun(funName, block)(s))
+      v <- {
+        unchecked("// jump to block: " + block.label.get)
+        reflect(CompileTimeRuntime.getBBFun(funName, block)(s))
+      }
     } yield v
   }
 

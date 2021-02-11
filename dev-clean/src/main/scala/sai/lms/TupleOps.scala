@@ -12,7 +12,13 @@ trait TupleOps { b: Base =>
   // Tuple2
   object Tuple2 {
     def apply[A: Manifest, B: Manifest](a: Rep[A], b: Rep[B]) = {
-      Wrap[Tuple2[A, B]](Adapter.g.reflect("tuple2-new", Unwrap(a), Unwrap(b)))
+      (Unwrap(a), Unwrap(b)) match {
+        case (Adapter.g.Def("tuple-1", List(x: Backend.Exp)),
+              Adapter.g.Def("tuple-2", List(y: Backend.Exp))) if x == y =>
+          Wrap[Tuple2[A, B]](x)
+        case _ =>
+          Wrap[Tuple2[A, B]](Adapter.g.reflect("tuple2-new", Unwrap(a), Unwrap(b)))
+      }
     }
   }
 
