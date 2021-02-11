@@ -131,7 +131,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     emit(src)
     emitln("""
     |int main(int argc, char *argv[]) {
-    |  initRand();
+    |  init_rand();
     |  if (argc != 2) {
     |    printf("usage: %s <arg>\n", argv[0]);
     |    return 0;

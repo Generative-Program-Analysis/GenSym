@@ -26,11 +26,11 @@
 
 using String = std::string;
 
-inline void initRand() {
+inline void init_rand() {
   srand((unsigned) time(0));
 }
 
-inline int randInt(int ub) {
+inline int rand_int(int ub) {
   int r =  (rand() % ub) + 1;
 #ifdef DEBUG
   std::cout << "rand number: " << r << std::endl;

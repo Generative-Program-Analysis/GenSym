@@ -1,3 +1,5 @@
+#include <sys/resource.h>
+
 #include <ostream>
 #include <variant>
 #include <string>
@@ -6,6 +8,7 @@
 #include <map>
 
 #include <sai.hpp>
+#include <immer/flex_vector_transient.hpp>
 #include <stp/c_interface.h>
 #include <stp_handle.hpp>
 
@@ -19,6 +22,8 @@ inline unsigned int var_name = 0;
 using Id = int;
 using Addr = unsigned int;
 
+/* Value representations */
+
 struct Value {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
@@ -29,6 +34,8 @@ struct Value {
   virtual Expr to_SMTBool() const = 0;
   virtual bool is_conc() const = 0;
 };
+
+using PtrVal = std::shared_ptr<Value>;
 
 struct IntV : Value {
   int i;
@@ -171,7 +178,7 @@ inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
   }
 }
 
-using PtrVal = std::shared_ptr<Value>;
+/* Memory, stack, and symbolic state representation */
 
 // TODO(GW): using a byte-oriented memory?
 template <class V>
@@ -185,7 +192,11 @@ class PreMem {
     PreMem<V> update(size_t idx, V val) { return PreMem<V>(mem.set(idx, val)); }
     PreMem<V> append(V val) { return PreMem<V>(mem.push_back(val)); }
     PreMem<V> append(immer::flex_vector<V> vs) { return PreMem<V>(mem + vs); }
-    PreMem<V> alloc(size_t size) { return PreMem<V>(mem + immer::flex_vector<V>(size, nullptr)); }
+    PreMem<V> alloc(size_t size) {
+      auto m = mem.transient();
+      for (int i = 0; i < size; i++) { m.push_back(nullptr); }
+      return PreMem<V>(m.persistent());
+    }
     PreMem<V> take(size_t keep) { return PreMem<V>(mem.take(keep)); }
 };
 
@@ -289,5 +300,28 @@ inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc);
 
 inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};
+
+/* Stack manipulation */
+
+#define STACKSIZE_16MB (16 * 1024 * 1024)
+#define STACKSIZE_32MB (32 * 1024 * 1024)
+#define STACKSIZE_64MB (64 * 1024 * 1024)
+#define STACKSIZE_128MB (128 * 1024 * 1024)
+
+inline void inc_stack(rlim_t lim) {
+  struct rlimit rl;
+  int result;
+
+  result = getrlimit(RLIMIT_STACK, &rl);
+  if (result == 0) {
+    if (rl.rlim_cur < lim) {
+      rl.rlim_cur = lim;
+      result = setrlimit(RLIMIT_STACK, &rl);
+      if (result != 0) {
+        fprintf(stderr, "setrlimit returned result = %d\n", result);
+      }
+    }
+  }
+}
 
 #endif
