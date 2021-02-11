@@ -133,7 +133,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
-    def apply(s: Rep[String]): Rep[Value] = "make_SymV".reflectWriteWith[Value](s)(Adapter.CTRL)
+    def apply(s: Rep[String]): Rep[Value] = "make_SymV".reflectWith[Value](s)
     def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
   }
 

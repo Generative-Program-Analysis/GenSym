@@ -374,7 +374,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = fun(runFun(f))
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }

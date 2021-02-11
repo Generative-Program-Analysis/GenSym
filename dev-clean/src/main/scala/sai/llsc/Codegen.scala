@@ -17,6 +17,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "list-new", _, _) => true
+    case Node(_, "make_SymV", _, _) => true
+    case Node(_, "make_IntV", _, _) => true
     case _ => super.mayInline(n)
   }
 
