@@ -193,22 +193,19 @@ using Mem = PreMem<PtrVal>;
 
 class Frame {
   public:
-    using Env = immer::map<Id, Addr>;
+    using Env = immer::map<Id, PtrVal>;
   private:
     Env env;
   public:
     Frame(Env env) : env(env) {}
-    Frame() : env(immer::map<Id, Addr>{}) {}
+    Frame() : env(immer::map<Id, PtrVal>{}) {}
     size_t size() { return env.size(); }
-    Addr lookup_id(Id id) const { return env.at(id); }
-    Frame assign(Id id, Addr a) const {
-      ASSERT(env.count(id) == 0, "Exist variable " << id << " in env");
-      return Frame(env.insert({id, a})); 
-    }
-    Frame assign_seq(immer::flex_vector<Id> ids, size_t offset) const {
+    PtrVal lookup_id(Id id) const { return env.at(id); }
+    Frame assign(Id id, PtrVal v) const { return Frame(env.insert({id, v})); }
+    Frame assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) const {
       Env env1 = env;
       for (size_t i = 0; i < ids.size(); i++) {
-        env1 = env1.insert({ids.at(i), offset+i});
+        env1 = env1.insert({ids.at(i), vals.at(i)});
       }
       return Frame(env1);
     }
@@ -227,14 +224,12 @@ class Stack {
     Stack push(Frame f) { return Stack(mem, env.push_back(f)); }
 
     Stack assign(Id id, PtrVal val) {
-      Mem mem1 = mem.append(val);
-      return Stack(mem1, env.drop(1).push_back(env.back().assign(id, mem1.size()-1)));
+      return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }));
     }
     Stack assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      Mem mem1 = mem.append(vals);
-      return Stack(mem1, env.drop(1).push_back(env.back().assign_seq(ids, mem.size())));
+      return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, vals); }));
     }
-    PtrVal lookup_id(Id id) { return mem.at(env.back().lookup_id(id)); }
+    PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
     PtrVal at(size_t idx) { return mem.at(idx); }
     Stack update(size_t idx, PtrVal val) { return Stack(mem.update(idx, val), env); }
