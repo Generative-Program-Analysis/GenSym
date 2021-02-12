@@ -1132,7 +1132,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     }
   }
 
-  override def visitIndex(ctx: IndexContext): LAST = {
+  override def visitIndex(ctx: LLVMParser.IndexContext): LAST = {
     IntConst(ctx.INT_LIT.getText.toInt)
   }
 
