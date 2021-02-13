@@ -29,9 +29,21 @@ import sai.lmsx.smt.SMTBool
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
   object Coverage {
-    def setBlockNum(n: Int): Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](n)(Adapter.CTRL)
+    import scala.collection.mutable.HashMap
+    private var counter: Int = 0
+    private val blockMap: HashMap[String, Int] = HashMap[String, Int]()
+    def getBlockId(s: String): Int =
+      if (blockMap.contains(s)) blockMap(s)
+      else {
+        val id = counter
+        blockMap(s) = id
+        counter += 1
+        return id
+      }
+
+    def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](counter)(Adapter.CTRL)
     def incBlock(funName: String, label: String): Rep[Unit] = {
-      val blockId = (funName + label).hashCode
+      val blockId = getBlockId(funName + label)
       "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
     }
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)

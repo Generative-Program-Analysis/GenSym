@@ -376,7 +376,8 @@ struct CoverageMonitor {
     // Total number of blocks
     std::uint64_t num_blocks;
     // The number of execution for each block
-    std::map<BlockId, std::uint64_t> block_cov;
+    //std::map<BlockId, std::uint64_t> block_cov;
+    std::vector<std::uint64_t> block_cov;
     steady_clock::time_point start;
     std::mutex m;
   public:
@@ -384,26 +385,27 @@ struct CoverageMonitor {
     CoverageMonitor(std::uint64_t num_blocks) : num_blocks(num_blocks), start(steady_clock::now()) {}
     void set_num_blocks(std::uint64_t n) {
       num_blocks = n;
+      block_cov.resize(n, 0);
     }
     void inc_block(BlockId b) {
       std::unique_lock<std::mutex> lk(m);
-      auto t = block_cov.find(b);
-      if (t != block_cov.end()) block_cov[b] = t->second + 1;
-      else block_cov[b] = 1;
+      block_cov[b]++;
     }
     void print_block_cov() {
       steady_clock::time_point now = steady_clock::now();
       std::cout << "[" << (duration_cast<milliseconds>(now - start).count() / 1000.0) << " s] ";
+      size_t covered = 0;
+      for (auto v : block_cov) { if (v != 0) covered++; }
       std::cout << "Block coverage: "
-                << block_cov.size() << "/"
+                << covered << "/"
                 << num_blocks << "\n"
                 << std::flush;
     }
     void print_block_cov_detail() {
       print_block_cov();
-      for (auto& p : block_cov) {
-        std::cout << "Block: " << p.first << "; "
-                  << "visited: " << p.second << "\n"
+      for (int i = 0; i < block_cov.size(); i++) {
+        std::cout << "Block: " << i << "; "
+                  << "visited: " << block_cov[i] << "\n"
                   << std::flush;
       }
     }

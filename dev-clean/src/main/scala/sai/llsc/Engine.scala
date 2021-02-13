@@ -38,8 +38,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var globalDefMap: SMap[String, GlobalDef] = SMap()
     var heapEnv: SMap[String, Rep[Addr]] = SMap()
 
-    var blockNum: Int = 0
-
     val BBFuns: HashMap[BB, Rep[SS => List[(SS, Value)]]] = new HashMap[BB, Rep[SS => List[(SS, Value)]]]
     val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
       new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
@@ -373,7 +371,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     for (b <- blocks) {
       Predef.assert(!CompileTimeRuntime.BBFuns.contains(b))
-      CompileTimeRuntime.blockNum += 1
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
       CompileTimeRuntime.BBFuns(b) = repRunBlock
     }
@@ -414,7 +411,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       v <- reflect(fv(s, args))
       _ <- popFrame(s.stackSize)
     } yield v
-    Coverage.setBlockNum(CompileTimeRuntime.blockNum)
+    Coverage.setBlockNum
     Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
   }
