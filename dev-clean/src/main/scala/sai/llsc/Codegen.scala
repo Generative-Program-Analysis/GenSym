@@ -65,6 +65,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
       es"op_2(${quoteOp(op)}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
     case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc)"
+
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a), _) => es"$ss.at($a)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
@@ -77,10 +78,14 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
     case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.addPC($e)"
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.addPCSet($es)"
+
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"
+
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov.set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov.inc_block($id)"
+    case Node(s, "cov-start-mon", _, _) => es"cov.start_monitor()"
+
     case Node(s, "tp-async", List(b: Block), _) =>
       //emit("std::async(std::launch::async, [&]")
       emit("create_async<flex_vector<std::pair<SS, PtrVal>>>([&]")

@@ -34,6 +34,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       val blockId = (funName + label).hashCode
       "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
     }
+    def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
   }
 
   trait Future[T]

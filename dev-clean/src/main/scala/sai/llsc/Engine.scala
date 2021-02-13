@@ -415,6 +415,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       _ <- popFrame(s.stackSize)
     } yield v
     Coverage.setBlockNum(CompileTimeRuntime.blockNum)
+    Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
   }
 }
