@@ -29,6 +29,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$Mem")) "Mem"
     else if (m.toString.endsWith("$SS")) "SS"
     else if (m.toString.endsWith("SMTExpr")) "Expr"
+    else if (m.runtimeClass.getName.endsWith("Future"))
+      s"std::future<${remap(m.typeArguments(0))}>"
     else super.remap(m)
   }
 
@@ -77,6 +79,19 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.addPCSet($es)"
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"
+    case Node(s, "cov-set-blocknum", List(n), _) => es"cov.set_num_blocks($n)"
+    case Node(s, "cov-inc-block", List(id), _) => es"cov.inc_block($id)"
+    case Node(s, "tp-async", List(b: Block), _) =>
+      //emit("std::async(std::launch::async, [&]")
+      emit("create_async<flex_vector<std::pair<SS, PtrVal>>>([&]")
+      quoteBlockPReturn(traverse(b))
+      emit(")")
+    case Node(s, "tp-enqueue", List(b: Block), _) =>
+      // FIXME: lms cannot correctly generate closure with unit/monostate argument
+      emit("pool.enqueue([&]")
+      quoteBlockPReturn(traverse(b))
+      emit(")")
+    case Node(s, "tp-future-get", List(f), _) => es"$f.get()"
     case _ => super.shallow(n)
   }
 

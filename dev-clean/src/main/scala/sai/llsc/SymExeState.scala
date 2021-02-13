@@ -28,11 +28,51 @@ import sai.lmsx.smt.SMTBool
 
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
+  object Coverage {
+    def setBlockNum(n: Int): Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](n)(Adapter.CTRL)
+    def incBlock(funName: String, label: String): Rep[Unit] = {
+      val blockId = (funName + label).hashCode
+      "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
+    }
+  }
+
+  trait Future[T]
+  object ThreadPool {
+    def enqueue[T: Manifest](f: Rep[Unit] => Rep[T]): Rep[Future[T]] = {
+      val block = Adapter.g.reify(x => Unwrap(f(Wrap[Unit](x))))
+      Wrap[Future[T]](Adapter.g.reflectWrite("tp-enqueue", block)(Adapter.CTRL))
+    }
+    def async[T: Manifest](f: Rep[Unit] => Rep[T]): Rep[Future[T]] = {
+      val block = Adapter.g.reify(x => Unwrap(f(Wrap[Unit](x))))
+      Wrap[Future[T]](Adapter.g.reflectWrite("tp-async", block)(Adapter.CTRL))
+    }
+    def get[T: Manifest](f: Rep[Future[T]]): Rep[T] =
+      "tp-future-get".reflectWriteWith[T](f)(Adapter.CTRL)
+  }
+
+  def runParRepNondet[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = {
+    (handler[Nondet, ∅, Rep[A], Rep[List[A]]] {
+      case Return(x) => ret(List(x))
+    } (new DeepH[Nondet, ∅, Rep[List[A]]] {
+      def apply[X] = {
+        case NondetList$(xs, k) => ret(xs.foldLeft(List[A]()) { case (acc, x) => acc ++ k(x) })
+        case BinChoice$((), k) =>
+          for {
+            xs <- k(true)
+            ys <- k(false)
+          } yield {
+            //System.out.println(xs, ys)
+            xs ++ ys
+          }
+      }
+    }))(comp)
+  }
+
   def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
     val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
       State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
     val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
-    val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
+    val p3: Comp[∅, Rep[List[(SS, T)]]] = runParRepNondet[(SS, T)](p2)
     p3
   }
 

@@ -1,3 +1,6 @@
+#ifndef LLSC_HEADERS
+#define LLSC_HEADERS
+
 #include <sys/resource.h>
 
 #include <ostream>
@@ -6,21 +9,35 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <cstdint>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
 
 #include <sai.hpp>
 #include <immer/flex_vector_transient.hpp>
+
+//#define STR_SYMV
+
+#ifndef STR_SYMV
 #include <stp/c_interface.h>
 #include <stp_handle.hpp>
+#endif
 
-#ifndef LLSC_HEADERS
-#define LLSC_HEADERS
+using namespace std::chrono;
 
-inline VC vc = vc_createValidityChecker();
 inline unsigned int bitwidth = 32;
 inline unsigned int var_name = 0;
 
 using Id = int;
 using Addr = unsigned int;
+
+#ifdef STR_SYMV
+using Expr = std::string;
+#else
+inline VC vc = vc_createValidityChecker();
+#endif
 
 /* Value representations */
 
@@ -45,11 +62,19 @@ struct IntV : Value {
     return os << "IntV(" << i << ")";
   }
   virtual Expr to_SMTExpr() const override {
+#ifdef STR_SYMV
+    return "dummy";
+#else
     return vc_bvConstExprFromInt(vc, 32, i);
+#endif
   }
   virtual Expr to_SMTBool() const override {
+#ifdef STR_SYMV
+    return "dummy";
+#else
     if (i) return vc_trueExpr(vc);
     else return vc_falseExpr(vc);
+#endif
   }
   virtual bool is_conc() const override { return true; }
 };
@@ -99,6 +124,7 @@ inline LocV::Kind proj_LocV_kind(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
 
+#ifdef STR_SYMV
 struct SymV : Value {
   Expr v;
   SymV(Expr v) : v(v) {}
@@ -110,11 +136,24 @@ struct SymV : Value {
   virtual Expr to_SMTBool() const override { return v; }
   virtual bool is_conc() const override { return false; }
 };
-
+inline Ptr<Value> make_SymV(String n) { return std::make_shared<SymV>(n); }
+#else
+struct SymV : Value {
+  Expr v;
+  SymV(Expr v) : v(v) {}
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "SymV(" << v << ")";
+  }
+  virtual Expr to_SMTExpr() const override { return v; }
+  // TODO(GW): how do we know this is a bool?
+  virtual Expr to_SMTBool() const override { return v; }
+  virtual bool is_conc() const override { return false; }
+};
 inline Ptr<Value> make_SymV(String n) {
   // TODO type, width
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
+#endif
 
 enum kOP {
   op_plus, op_minus, op_mult, op_div,
@@ -150,6 +189,9 @@ inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
       ABORT("invalid operator");
     }
   } else {
+#ifdef STR_SYMV
+    return make_SymV("unknown");
+#else
     Expr e1 = v1->to_SMTExpr();
     Expr e2 = v2->to_SMTExpr();
     if (op == op_plus) {
@@ -175,6 +217,7 @@ inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
     } else {
       ABORT("invalid operator");
     }
+#endif
   }
 }
 
@@ -323,5 +366,49 @@ inline void inc_stack(rlim_t lim) {
     }
   }
 }
+
+/* Coverage information */
+
+// TODO: branch coverage
+struct CoverageMonitor {
+  private:
+    using BlockId = std::int64_t;
+    // Total number of blocks
+    std::uint64_t num_blocks;
+    // The number of execution for each block
+    std::map<BlockId, std::uint64_t> block_cov;
+    steady_clock::time_point start;
+    std::mutex m;
+  public:
+    CoverageMonitor() : num_blocks(0), start(steady_clock::now()) {}
+    CoverageMonitor(std::uint64_t num_blocks) : num_blocks(num_blocks), start(steady_clock::now()) {}
+    void set_num_blocks(std::uint64_t n) {
+      num_blocks = n;
+    }
+    void inc_block(BlockId b) {
+      std::unique_lock<std::mutex> lk(m);
+      auto t = block_cov.find(b);
+      if (t != block_cov.end()) t++;
+      else block_cov[b] = 1;
+    }
+    void print_block_cov() {
+      steady_clock::time_point now = steady_clock::now();
+      std::cout << "[" << (duration_cast<milliseconds>(now - start).count() / 1000.0) << " s] ";
+      std::cout << "Block coverage: "
+                << block_cov.size() << "/"
+                << num_blocks << "\n"
+                << std::flush;
+    }
+    void start_monitor() {
+      std::thread([this]{
+        while (this->block_cov.size() <= this->num_blocks) {
+          this->print_block_cov();
+          std::this_thread::sleep_for(seconds(1));
+        }
+      }).detach();
+    }
+};
+
+inline CoverageMonitor cov;
 
 #endif

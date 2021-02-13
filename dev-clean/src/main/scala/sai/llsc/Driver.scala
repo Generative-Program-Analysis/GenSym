@@ -47,7 +47,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
     |CC = g++ -std=c++17 -O3
     |CXXFLAGS = $includes
     |LDFLAGS = $libraryPaths
-    |LDLIBS = $libraries
+    |LDLIBS = $libraries -lpthread
     |
     |default: $$(TARGET)
     |

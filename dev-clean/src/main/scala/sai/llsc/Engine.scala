@@ -38,6 +38,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var globalDefMap: SMap[String, GlobalDef] = SMap()
     var heapEnv: SMap[String, Rep[Addr]] = SMap()
 
+    var blockNum: Int = 0
+
     val BBFuns: HashMap[BB, Rep[SS => List[(SS, Value)]]] = new HashMap[BB, Rep[SS => List[(SS, Value)]]]
     val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
       new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
@@ -238,6 +240,25 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
               else reify(ss)(execBlock(funName, elsLab))
             } else {
+              /*
+              val b1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
+                println("async created")
+                reify(ss) {
+                  for {
+                    //_ <- updatePC(cndVal.toSMTBool)
+                    v <- execBlock(funName, thnLab)
+                  } yield v
+                }
+              }
+              //val b2: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
+              val b2 = reify(ss) {
+                for {
+                  //_ <- updatePC(not(cndVal.toSMTBool))
+                  v <- execBlock(funName, elsLab)
+                } yield v
+              }
+              ThreadPool.get(b1) ++ b2
+              */
               reify(ss) {choice(
                 for {
                   _ <- updatePC(cndVal.toSMTBool)
@@ -323,7 +344,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def execBlock(funName: String, label: String): Comp[E, Rep[Value]] =
     execBlock(funName, findBlock(funName, label).get)
 
-  def execBlock(funName: String, block: BB): Comp[E, Rep[Value]] = {
+  def execBlock(funName: String, block: BB): Comp[E, Rep[Value]] =
     for {
       s <- getState
       v <- {
@@ -331,19 +352,18 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         reflect(CompileTimeRuntime.getBBFun(funName, block)(s))
       }
     } yield v
-  }
 
-  def precompileHeap: SList[Rep[Value]] = {
-    CompileTimeRuntime.globalDefMap.foldRight(SList[Rep[Value]]()) {case ((k, v), h) =>
+  def precompileHeap: SList[Rep[Value]] =
+    CompileTimeRuntime.globalDefMap.foldRight(SList[Rep[Value]]()) { case ((k, v), h) =>
       val addr = h.size
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
       h ++ evalConst(v.const)
     }
-  }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
+      Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
         v <- execTerm(b.term)(funName)
@@ -353,6 +373,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     for (b <- blocks) {
       Predef.assert(!CompileTimeRuntime.BBFuns.contains(b))
+      CompileTimeRuntime.blockNum += 1
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
       CompileTimeRuntime.BBFuns(b) = repRunBlock
     }
@@ -374,7 +395,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = fun(runFun(f))
+      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
@@ -393,6 +414,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       v <- reflect(fv(s, args))
       _ <- popFrame(s.stackSize)
     } yield v
+    Coverage.setBlockNum(CompileTimeRuntime.blockNum)
     reify[Value](SS.init(heap0))(comp)
   }
 }
