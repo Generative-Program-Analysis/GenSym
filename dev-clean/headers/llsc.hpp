@@ -388,7 +388,7 @@ struct CoverageMonitor {
     void inc_block(BlockId b) {
       std::unique_lock<std::mutex> lk(m);
       auto t = block_cov.find(b);
-      if (t != block_cov.end()) t++;
+      if (t != block_cov.end()) block_cov[b] = t->second + 1;
       else block_cov[b] = 1;
     }
     void print_block_cov() {
@@ -398,6 +398,14 @@ struct CoverageMonitor {
                 << block_cov.size() << "/"
                 << num_blocks << "\n"
                 << std::flush;
+    }
+    void print_block_cov_detail() {
+      print_block_cov();
+      for (auto& p : block_cov) {
+        std::cout << "Block: " << p.first << "; "
+                  << "visited: " << p.second << "\n"
+                  << std::flush;
+      }
     }
     void start_monitor() {
       std::thread([this]{
