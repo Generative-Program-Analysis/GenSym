@@ -256,7 +256,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                 } yield v
               }
               ThreadPool.get(b1) ++ b2
-              */
+               */
+              Coverage.incPath(1)
               reify(ss) {choice(
                 for {
                   _ <- updatePC(cndVal.toSMTBool)
@@ -412,6 +413,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       _ <- popFrame(s.stackSize)
     } yield v
     Coverage.setBlockNum
+    Coverage.incPath(1)
     Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
   }

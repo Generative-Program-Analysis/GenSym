@@ -46,6 +46,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       val blockId = getBlockId(funName + label)
       "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
     }
+    def incPath(n: Int): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
   }
 
