@@ -22,10 +22,29 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
   }
   val compilerCommand = "g++ -std=c++17 -O3"
 
+  // Assuming the working directory only contains subdir "build"
+  def createNewDir: Boolean = {
+    val codegenFolderFile = new File(codegen.codegenFolder)
+    if (!codegenFolderFile.exists()) codegenFolderFile.mkdir
+    else {
+      val entries = codegenFolderFile.list()
+      entries.map(x => {
+        if (x == "build") {
+          val build_dir = new File(codegenFolderFile.getPath, x)
+          build_dir.list.map(x => new File(build_dir.getPath, x).delete)
+          build_dir.delete
+        }
+        else new File(codegenFolderFile.getPath, x).delete
+      })
+      codegenFolderFile.delete
+      codegenFolderFile.mkdir
+    }
+  }
+
   def genSource: Unit = {
     val folderFile = new File(folder)
     if (!folderFile.exists()) folderFile.mkdir
-    (new File(codegen.codegenFolder)).mkdir
+    createNewDir
     val mainStream = new PrintStream(s"$folder/$name/$name.cpp")
     val statics = Adapter.emitCommon1(name, codegen, mainStream)(manifest[A], manifest[B])(x => Unwrap(wrapper(Wrap[A](x))))
     mainStream.close
@@ -90,8 +109,8 @@ object TestStagedSymExec {
           SymV("x12"), SymV("x13"), SymV("x14"),
           SymV("x15"),
           SymV("x16"), SymV("x17"),
-          SymV("x18"), SymV("x19")
-        )
+          SymV("x18"), SymV("x19")        
+          )
         val res = exec(m, fname, args)
         // query a single test
         //res.head._1.pc.toList.foreach(assert(_))
