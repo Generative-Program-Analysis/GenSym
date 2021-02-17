@@ -387,24 +387,7 @@ package IR {
   case object UGT extends IPredicate
   case object UGE extends IPredicate
 
-  abstract class FPredicate extends LAST
-  case object FALSE extends FPredicate
-  case object OEQ extends FPredicate
-  case object OGE extends FPredicate
-  case object OGT extends FPredicate
-  case object OLE extends FPredicate
-  case object OLT extends FPredicate
-  case object ONE extends FPredicate
-  case object ORD extends FPredicate
-  case object TRUE extends FPredicate
-  case object UEQ extends FPredicate
-  // conflict?
-  case object UGEF extends FPredicate
-  case object UGTF extends FPredicate
-  case object ULEF extends FPredicate
-  case object ULTF extends FPredicate
-  case object UNE extends FPredicate
-  case object UNO extends FPredicate
+  case class FPredicate(op: String) extends LAST
   
 }
 
@@ -1523,22 +1506,22 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitFpred(ctx: LLVMParser.FpredContext): LAST = {
-    if (ctx.FALSE != null) FALSE
-    else if (ctx.OEQ != null) OEQ
-    else if (ctx.OGE != null) OGE
-    else if (ctx.OGT != null) OGT
-    else if (ctx.OLE != null) OLE
-    else if (ctx.OLT != null) OLT
-    else if (ctx.ONE != null) ONE
-    else if (ctx.ORD != null) ORD
-    else if (ctx.TRUE != null) TRUE
-    else if (ctx.UEQ != null) UEQ
-    else if (ctx.UGE != null) UGEF
-    else if (ctx.UGT != null) UGTF
-    else if (ctx.ULE != null) ULEF
-    else if (ctx.ULT != null) ULTF
-    else if (ctx.UNE != null) UNE
-    else if (ctx.UNO != null) UNO
+    if (ctx.FALSE != null) FPredicate("false")
+    else if (ctx.OEQ != null) FPredicate("oeq")
+    else if (ctx.OGE != null) FPredicate("oge")
+    else if (ctx.OGT != null) FPredicate("ogt")
+    else if (ctx.OLE != null) FPredicate("ole")
+    else if (ctx.OLT != null) FPredicate("olt")
+    else if (ctx.ONE != null) FPredicate("one")
+    else if (ctx.ORD != null) FPredicate("ord")
+    else if (ctx.TRUE != null) FPredicate("true")
+    else if (ctx.UEQ != null) FPredicate("ueq")
+    else if (ctx.UGE != null) FPredicate("uge")
+    else if (ctx.UGT != null) FPredicate("ugt")
+    else if (ctx.ULE != null) FPredicate("ule")
+    else if (ctx.ULT != null) FPredicate("ult")
+    else if (ctx.UNE != null) FPredicate("une")
+    else if (ctx.UNO != null) FPredicate("uno")
     else error
   }
 
