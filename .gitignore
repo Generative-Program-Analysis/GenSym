@@ -4,16 +4,5 @@ target
 *.scala~
 *.log
 *.class
-dev-clean/.metals
-dev-clean/.bloop
-dev-clean/project/metals.sbt
 .metals
-dev-clean/snippet.c
-dev-clean/snippet
-dev-clean/gen/*
-TODO
 
-dev-clean/project/project/metals.sbt
-dev-clean/project/.bloop/dev-clean-build.json
-dev-clean/project/.bloop/bloop.settings.json
-dev-clean/.vscode/settings.json

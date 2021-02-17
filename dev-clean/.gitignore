@@ -1,1 +1,10 @@
 output
+llsc_gen/*
+benchmarks/*/*.ll
+.metals
+.bloop
+project/metals.sbt
+project/project/metals.sbt
+project/.bloop/dev-clean-build.json
+project/.bloop/bloop.settings.json
+.vscode/settings.json
