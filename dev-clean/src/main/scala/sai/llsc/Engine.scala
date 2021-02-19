@@ -71,6 +71,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         for { ss <- getState } yield ss.lookup(funName + "_" + x)
       case IntConst(n) =>
         ret(IntV(n))
+      case FloatConst(f) =>
+        ret(FloatV(f))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
         eval(const)
@@ -122,6 +124,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       SList(IntV(if (b) 1 else 0, 1))
     case IntConst(n) =>
       SList(IntV(n))
+    case FloatConst(f) => 
+      SList(FloatV(f))
     case ZeroInitializerConst =>
       SList(IntV(0))
     case ArrayConst(cs) =>
@@ -131,7 +135,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
-    for { v1 <- eval(lhs); v2 <- eval(rhs) } yield Op2(op, v1, v2)
+    for { v1 <- eval(lhs); v2 <- eval(rhs) } yield IntOp2(op, v1, v2)
+
+  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
+    for { v1 <- eval(lhs); v2 <- eval(rhs) } yield FloatOp2(op, v1, v2)
 
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
@@ -145,27 +152,21 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           v <- eval(value)
           ss <- getState
         } yield ss.lookup(v)
-      case AddInst(ty, lhs, rhs, _) => evalIntOp2("+", lhs, rhs)
-      case SubInst(ty, lhs, rhs, _) => evalIntOp2("-", lhs, rhs)
-      case MulInst(ty, lhs, rhs, _) => evalIntOp2("*", lhs, rhs)
-      case ICmpInst(pred, ty, lhs, rhs) =>
-        pred match {
-          // TODO: distinguish signed and unsigned comparsion
-          case EQ => evalIntOp2("=", lhs, rhs)
-          case NE => evalIntOp2("!=", lhs, rhs)
-          case SLT => evalIntOp2("<", lhs, rhs)
-          case SLE => evalIntOp2("<=", lhs, rhs)
-          case SGT => evalIntOp2(">", lhs, rhs)
-          case SGE => evalIntOp2(">=", lhs, rhs)
-          case ULT => evalIntOp2("<", lhs, rhs)
-          case ULE => evalIntOp2("<=", lhs, rhs)
-          case UGT => evalIntOp2(">", lhs, rhs)
-          case UGE => evalIntOp2("<=", lhs, rhs)
-        }
-      case ZExtInst(from, value, to) => for {
-        v <- eval(value)
-        // TODO Zero ext
-      } yield v
+      case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs)
+      case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs)
+      case MulInst(ty, lhs, rhs, _) => evalIntOp2("mul", lhs, rhs)
+      case SDivInst(ty, lhs, rhs) => evalIntOp2("sdiv", lhs, rhs)
+      case UDivInst(ty, lhs, rhs) => evalIntOp2("udiv", lhs, rhs)
+      case FAddInst(ty, lhs, rhs) => evalFloatOp2("fadd", lhs, rhs)
+      case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs)
+      case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs)
+      case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs)
+      case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs)
+      case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs)
+      case ZExtInst(from, value, to) => 
+        for {
+          v <- eval(value)
+        } yield v
       case SExtInst(from, value, to) =>  for {
         v <- eval(value)
       } yield v.bv_sext(to.asInstanceOf[IntType].size)
@@ -182,7 +183,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- popFrame(s.stackSize)
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
-        // it seems that typedValues must be IntConst
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
           vs <- mapM(indexLLVMValue)(eval)
@@ -287,7 +287,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               u <- execBlock(funName, default)
             } yield u)
           else {
-            val headPC = Op2("=", v, IntV(table.head.n)).toSMTBool
+            val headPC = IntOp2("=", v, IntV(table.head.n)).toSMTBool
             reify(s)(choice(
               for {
                 _ <- updatePC(headPC)

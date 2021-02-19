@@ -133,16 +133,16 @@ trait StagedSymExecEff extends SAIOps {
           val v1 = ProjInt(val1)
           val v2 = ProjInt(val2)
           pred match {
-            case EQ => IntV(if (v1 == v2) 1 else 0)
-            case NE => IntV(if (v1 != v2) 1 else 0)
-            case SLT => IntV(if (v1 < v2) 1 else 0)
-            case SLE => IntV(if (v1 <= v2) 1 else 0)
-            case SGT => IntV(if (v1 > v2) 1 else 0)
-            case SGE => IntV(if (v1 >= v2) 1 else 0)
-            case ULT => IntV(if (v1 < v2) 1 else 0)
-            case ULE => IntV(if (v1 <= v2) 1 else 0)
-            case UGT => IntV(if (v1 > v2) 1 else 0)
-            case UGE => IntV(if (v1 >= v2) 1 else 0)
+            case IPredicate("eq")  => IntV(if (v1 == v2) 1 else 0)
+            case IPredicate("neq")  => IntV(if (v1 != v2) 1 else 0)
+            case IPredicate("slt")  => IntV(if (v1 < v2) 1 else 0)
+            case IPredicate("sle")  => IntV(if (v1 <= v2) 1 else 0)
+            case IPredicate("sgt")  => IntV(if (v1 > v2) 1 else 0)
+            case IPredicate("sge") => IntV(if (v1 >= v2) 1 else 0)
+            case IPredicate("ult")  => IntV(if (v1 < v2) 1 else 0)
+            case IPredicate("ule")  => IntV(if (v1 <= v2) 1 else 0)
+            case IPredicate("ugt")  => IntV(if (v1 > v2) 1 else 0)
+            case IPredicate("uge")  => IntV(if (v1 >= v2) 1 else 0)
           }
         }
       case ZExtInst(from, value, to) => ???

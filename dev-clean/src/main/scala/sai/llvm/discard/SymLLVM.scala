@@ -119,16 +119,16 @@ object SymExecEff {
           val v1 = val1.asInstanceOf[IntValue].x
           val v2 = val2.asInstanceOf[IntValue].x
           pred match {
-            case EQ => IntValue(if (v1 == v2) 1 else 0)
-            case NE => IntValue(if (v1 != v2) 1 else 0)
-            case SLT => IntValue(if (v1 < v2) 1 else 0)
-            case SLE => IntValue(if (v1 <= v2) 1 else 0)
-            case SGT => IntValue(if (v1 > v2) 1 else 0)
-            case SGE => IntValue(if (v1 >= v2) 1 else 0)
-            case ULT => IntValue(if (v1 < v2) 1 else 0)
-            case ULE => IntValue(if (v1 <= v2) 1 else 0)
-            case UGT => IntValue(if (v1 > v2) 1 else 0)
-            case UGE => IntValue(if (v1 >= v2) 1 else 0)
+            case IPredicate("eq")  => IntValue(if (v1 == v2) 1 else 0)
+            case IPredicate("neq")  => IntValue(if (v1 != v2) 1 else 0)
+            case IPredicate("slt")  => IntValue(if (v1 < v2) 1 else 0)
+            case IPredicate("sle")  => IntValue(if (v1 <= v2) 1 else 0)
+            case IPredicate("sgt")  => IntValue(if (v1 > v2) 1 else 0)
+            case IPredicate("sge") => IntValue(if (v1 >= v2) 1 else 0)
+            case IPredicate("ult")  => IntValue(if (v1 < v2) 1 else 0)
+            case IPredicate("ule")  => IntValue(if (v1 <= v2) 1 else 0)
+            case IPredicate("ugt")  => IntValue(if (v1 > v2) 1 else 0)
+            case IPredicate("uge")  => IntValue(if (v1 >= v2) 1 else 0)
           }
         }
       case ZExtInst(from, value, to) => ???

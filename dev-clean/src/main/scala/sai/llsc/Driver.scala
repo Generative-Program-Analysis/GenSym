@@ -114,7 +114,7 @@ object TestStagedSymExec {
         val res = exec(m, fname, args)
         // query a single test
         //res.head._1.pc.toList.foreach(assert(_))
-        //handle(query(lit(false)))
+        handle(query(lit(false)))
 
         println(res.size)
       }
@@ -130,7 +130,8 @@ object TestStagedSymExec {
 
   def main(args: Array[String]): Unit = {
     //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
-    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
+    //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
+    testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
     //testModule(sai.llvm.Benchmarks.largeStackArray, "largeStackArray", "@f")
   }
 }

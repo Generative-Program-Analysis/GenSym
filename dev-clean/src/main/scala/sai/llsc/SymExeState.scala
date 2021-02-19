@@ -178,6 +178,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
   }
+  object FloatV {
+    // TODO: shall we keep float kinds?
+    def apply(f: Rep[Float]): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f)(Adapter.CTRL)
+  }
   object LocV {
     def kStack: Rep[Int] = "kStack".reflectWriteWith[Int]()(Adapter.CTRL)
     def kHeap: Rep[Int] = "kHeap".reflectWriteWith[Int]()(Adapter.CTRL)
@@ -191,8 +195,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
   }
 
-  object Op2 {
-    def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "op_2".reflectWith[Value](op, o1, o2)
+  object IntOp2 {
+    def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "int_op_2".reflectWith[Value](op, o1, o2)
+  }
+
+  object FloatOp2 {
+    def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "float_op_2".reflectWith[Value](op, o1, o2)
   }
 
   implicit class ValueOps(v: Rep[Value]) {

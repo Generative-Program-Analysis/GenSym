@@ -457,16 +457,16 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
         } yield {
           pred match {
             // TODO: distinguish signed and unsigned comparsion
-            case EQ => Op2("=", v1, v2)
-            case NE => Op2("!=", v1, v2)
-            case SLT => Op2("<", v1, v2)
-            case SLE => Op2("<=", v1, v2)
-            case SGT => Op2(">", v1, v2)
-            case SGE => Op2(">=", v1, v2)
-            case ULT => Op2("<", v1, v2)
-            case ULE => Op2("<=", v1, v2)
-            case UGT => Op2(">", v1, v2)
-            case UGE => Op2("<=", v1, v2)
+            case IPredicate("eq")  => Op2("=", v1, v2)
+            case IPredicate("neq")  => Op2("!=", v1, v2)
+            case IPredicate("slt")  => Op2("<", v1, v2)
+            case IPredicate("sle")  => Op2("<=", v1, v2)
+            case IPredicate("sgt")  => Op2(">", v1, v2)
+            case IPredicate("sge") => Op2(">=", v1, v2)
+            case IPredicate("ult")  => Op2("<", v1, v2)
+            case IPredicate("ule")  => Op2("<=", v1, v2)
+            case IPredicate("ugt")  => Op2(">", v1, v2)
+            case IPredicate("uge")  => Op2("<=", v1, v2)
           }
         }
       case ZExtInst(from, value, to) => for {

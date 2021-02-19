@@ -155,33 +155,35 @@ inline Ptr<Value> make_SymV(String n) {
 }
 #endif
 
-enum kOP {
-  op_plus, op_minus, op_mult, op_div,
-  op_eq, op_ge, op_gt, op_le, op_lt, op_neq,
+enum iOP {
+  op_add, op_sub, op_mul, op_sdiv, op_udiv,
+  op_eq, op_uge, op_ugt, op_ule, op_ult, 
+  op_sge, op_sgt, op_sle, op_slt, op_neq
 };
 
-inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
+inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   auto i2 = std::dynamic_pointer_cast<IntV>(v2);
 
   if (i1 && i2) {
-    if (op == op_plus) {
+    if (op == op_add) {
       return make_IntV(i1->i + i2->i);
-    } else if (op == op_minus) {
+    } else if (op == op_sub) {
       return make_IntV(i1->i - i2->i);
-    } else if (op == op_mult) {
+    } else if (op == op_mul) {
       return make_IntV(i1->i * i2->i);
-    } else if (op == op_div) {
+    // FIXME: singed and unsigned div
+    } else if (op == op_sdiv || op == op_udiv) {
       return make_IntV(i1->i / i2->i);
     } else if (op == op_eq) {
       return make_IntV(i1->i == i2->i);
-    } else if (op == op_ge) {
+    } else if (op == op_uge || op == op_sge) {
       return make_IntV(i1->i >= i2->i);
-    } else if (op == op_gt) {
+    } else if (op == op_ugt || op == op_sgt) {
       return make_IntV(i1->i > i2->i);
-    } else if (op == op_le) {
+    } else if (op == op_ule || op == op_sle) {
       return make_IntV(i1->i <= i2->i);
-    } else if (op == op_lt) {
+    } else if (op == op_ult || op == op_slt) {
       return make_IntV(i1->i < i2->i);
     } else if (op == op_neq) {
       return make_IntV(i1->i != i2->i);
@@ -194,23 +196,23 @@ inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
 #else
     Expr e1 = v1->to_SMTExpr();
     Expr e2 = v2->to_SMTExpr();
-    if (op == op_plus) {
+    if (op == op_add) {
       return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
-    } else if (op == op_minus) {
+    } else if (op == op_sub) {
       return std::make_shared<SymV>(vc_bv32MinusExpr(vc, e1, e2));
-    } else if (op == op_mult) {
+    } else if (op == op_mul) {
       return std::make_shared<SymV>(vc_bv32MultExpr(vc, e1, e2));
-    } else if (op == op_div) {
+    } else if (op == op_sdiv || op == op_udiv) {
       return std::make_shared<SymV>(vc_bvDivExpr(vc, 32, e1, e2));
     } else if (op == op_eq) {
       return std::make_shared<SymV>(vc_eqExpr(vc, e1, e2));
-    } else if (op == op_ge) {
+    } else if (op == op_uge || op == op_sge) {
       return std::make_shared<SymV>(vc_bvGeExpr(vc, e1, e2));
-    } else if (op == op_gt) {
+    } else if (op == op_ugt || op == op_sgt) {
       return std::make_shared<SymV>(vc_bvGtExpr(vc, e1, e2));
-    } else if (op == op_le) {
+    } else if (op == op_ule || op == op_sle) {
       return std::make_shared<SymV>(vc_sbvLeExpr(vc, e1, e2));
-    } else if (op == op_lt) {
+    } else if (op == op_ult || op == op_slt) {
       return std::make_shared<SymV>(vc_sbvLtExpr(vc, e1, e2));
     } else if (op == op_neq) {
       return std::make_shared<SymV>(vc_notExpr(vc, vc_eqExpr(vc, e1, e2)));
@@ -220,6 +222,10 @@ inline Ptr<Value> op_2(kOP op, Ptr<Value> v1, Ptr<Value> v2) {
 #endif
   }
 }
+
+enum fOP {
+  op_fadd, op_fsub, op_fmul, op_fdiv
+};
 
 /* Memory, stack, and symbolic state representation */
 

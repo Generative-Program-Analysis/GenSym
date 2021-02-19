@@ -375,18 +375,8 @@ package IR {
   case class LLVMCase(ty: LLVMType, n: Int, label: String) extends LAST
   case class CaseList(cs: List[LLVMCase]) extends LAST
 
-  abstract class IPredicate extends LAST
-  case object EQ extends IPredicate
-  case object NE extends IPredicate
-  case object SLT extends IPredicate
-  case object SLE extends IPredicate
-  case object SGT extends IPredicate
-  case object SGE extends IPredicate
-  case object ULT extends IPredicate
-  case object ULE extends IPredicate
-  case object UGT extends IPredicate
-  case object UGE extends IPredicate
-
+  // check visitIPred and visitFpred for available ops
+  case class IPredicate(op: String) extends LAST
   case class FPredicate(op: String) extends LAST
   
 }
@@ -1492,16 +1482,16 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitIPred(ctx: LLVMParser.IPredContext): LAST = {
-    if (ctx.EQ != null) EQ
-    else if (ctx.NE != null) NE
-    else if (ctx.SLT != null) SLT
-    else if (ctx.SLE != null) SLE
-    else if (ctx.SGT != null) SGT
-    else if (ctx.SGE != null) SGE
-    else if (ctx.ULT != null) ULT
-    else if (ctx.ULE != null) ULE
-    else if (ctx.UGT != null) UGT
-    else if (ctx.UGE != null) UGE
+    if (ctx.EQ != null) IPredicate("eq")
+    else if (ctx.NE != null) IPredicate("neq")
+    else if (ctx.SLT != null) IPredicate("slt")
+    else if (ctx.SLE != null) IPredicate("sle")
+    else if (ctx.SGT != null) IPredicate("sgt")
+    else if (ctx.SGE != null) IPredicate("sge")
+    else if (ctx.ULT != null) IPredicate("ult")
+    else if (ctx.ULE != null) IPredicate("ule")
+    else if (ctx.UGT != null) IPredicate("ugt")
+    else if (ctx.UGE != null) IPredicate("uge")
     else error
   }
 

@@ -34,20 +34,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     else super.remap(m)
   }
 
-  def quoteOp(op: String): String = {
-    op match {
-      case "+"  => "op_plus"
-      case "-"  => "op_minus"
-      case "*"  => "op_mult"
-      case "/"  => "op_div"
-      case "="  => "op_eq"
-      case "!=" => "op_neq"
-      case ">=" => "op_ge"
-      case ">"  => "op_gt"
-      case "<=" => "op_le"
-      case "<"  => "op_lt"
-    }
-  }
+  // FIXME: should pass ops directly
+  def quoteOp(op: String): String = "op_" + op
 
   override def shallow(n: Node): Unit = n match {
     /*
@@ -61,8 +49,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
-    case Node(s, "op_2", List(Backend.Const(op: String), x, y), _) =>
-      es"op_2(${quoteOp(op)}, $x, $y)"
+    case Node(s, "int_op_2", List(Backend.Const(op: String), x, y), _) =>
+      es"int_op_2(${quoteOp(op)}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
     case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc)"
 
