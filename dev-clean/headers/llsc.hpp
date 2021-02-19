@@ -303,6 +303,7 @@ class PC {
     PC(immer::set<Expr> pc) : pc(pc) {}
     PC add(Expr e) { return PC(pc.insert(e)); }
     PC addSet(immer::set<Expr> new_pc) { return PC(Set::join(pc, new_pc)); }
+    immer::set<Expr> getPC() { return pc; }
     void print() { print_set(pc); }
 };
 
@@ -340,6 +341,7 @@ class SS {
     }
     SS addPC(Expr e) { return SS(heap, stack, pc.add(e)); }
     SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s)); }
+    immer::set<Expr> getPC() { return pc.getPC(); }
 };
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
@@ -442,5 +444,14 @@ struct CoverageMonitor {
 };
 
 inline CoverageMonitor cov;
+
+/* temp util functions */
+inline immer::flex_vector<Expr> set_to_list(immer::set<Expr> s) {
+  auto res = immer::flex_vector<Expr>{};
+  for (auto x : s) {
+    res = res.push_back(x);
+  }
+  return res;
+}
 
 #endif

@@ -66,6 +66,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
     case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.addPC($e)"
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.addPCSet($es)"
+    case Node(s, "get-pc", List(ss), _) => es"$ss.getPC()"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"

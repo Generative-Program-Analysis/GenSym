@@ -132,6 +132,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def pop(keep: Rep[Int]): Rep[SS] = "ss-pop".reflectWith[SS](ss, keep)
     def addPC(e: Rep[SMTBool]): Rep[SS] = "ss-addpc".reflectWith[SS](ss, e)
     def addPCSet(es: Rep[Set[SMTBool]]): Rep[SS] = "ss-addpcset".reflectWith[SS](ss, es)
+    def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
   }
 
   implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
