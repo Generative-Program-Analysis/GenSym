@@ -96,6 +96,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case "@assert" => Primitives.assert_false
           case "@make_symbolic" => Primitives.make_symbolic
            */
+          case "@sym_print" => TestPrint.print
           case _ => ???
         }
         ret(v)
@@ -142,6 +143,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
+      // Memory Access Instructions 
       case AllocaInst(ty, align) =>
         for {
           ss <- getState
@@ -152,36 +154,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           v <- eval(value)
           ss <- getState
         } yield ss.lookup(v)
-      case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs)
-      case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs)
-      case MulInst(ty, lhs, rhs, _) => evalIntOp2("mul", lhs, rhs)
-      case SDivInst(ty, lhs, rhs) => evalIntOp2("sdiv", lhs, rhs)
-      case UDivInst(ty, lhs, rhs) => evalIntOp2("udiv", lhs, rhs)
-      case FAddInst(ty, lhs, rhs) => evalFloatOp2("fadd", lhs, rhs)
-      case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs)
-      case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs)
-      case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs)
-      case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs)
-      case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs)
-      case ZExtInst(from, value, to) => 
-        for {
-          v <- eval(value)
-        } yield v
-      case SExtInst(from, value, to) =>  for {
-        v <- eval(value)
-      } yield v.bv_sext(to.asInstanceOf[IntType].size)
-      case CallInst(ty, f, args) => 
-        val argValues: List[LLVMValue] = args.map {
-          case TypedArg(ty, attrs, value) => value
-        }
-        for {
-          fv <- eval(f)
-          vs <- mapM(argValues)(eval)
-          _ <- pushFrame
-          s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
-          _ <- popFrame(s.stackSize)
-        } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
@@ -195,6 +167,63 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
+
+      // Arith Binary Operations
+      case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs)
+      case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs)
+      case MulInst(ty, lhs, rhs, _) => evalIntOp2("mul", lhs, rhs)
+      case SDivInst(ty, lhs, rhs) => evalIntOp2("sdiv", lhs, rhs)
+      case UDivInst(ty, lhs, rhs) => evalIntOp2("udiv", lhs, rhs)
+      case FAddInst(ty, lhs, rhs) => evalFloatOp2("fadd", lhs, rhs)
+      case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs)
+      case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs)
+      case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs)
+      case URemInst(ty, lhs, rhs) => evalIntOp2("urem", lhs, rhs)
+      case SRemInst(ty, lhs, rhs) => evalIntOp2("srem", lhs, rhs)
+
+      // Bitwise Operations
+      case ShlInst(ty, lhs, rhs) => evalIntOp2("shl", lhs, rhs)
+      case LshrInst(ty, lhs, rhs) => evalIntOp2("lshr", lhs, rhs)
+      case AshrInst(ty, lhs, rhs) => evalIntOp2("ashr", lhs, rhs)
+      case AndInst(ty, lhs, rhs) => evalIntOp2("and", lhs, rhs)
+      case OrInst(ty, lhs, rhs) => evalIntOp2("or", lhs, rhs)
+      case XorInst(ty, lhs, rhs) => evalIntOp2("xor", lhs, rhs)
+
+      // Conversion Operations
+      case ZExtInst(from, value, to) => 
+        for {
+          v <- eval(value)
+        } yield v
+      case SExtInst(from, value, to) =>  for {
+        v <- eval(value)
+      } yield v.bv_sext(to.asInstanceOf[IntType].size)
+      case TruncInst(from, value, to) => ???
+      case FpExtInst(from, value, to) => for { v <- eval(value) } yield v
+      case FpToUIInst(from, value, to) => ???
+      case FpToSIInst(from, value, to) => ???
+      case UiToFPInst(from, value, to) => ???
+      case SiToFPInst(from, value, to) => ???
+      case PtrToIntInst(from, value, to) => ???
+      case IntToPtrInst(from, value, to) => ???
+
+      // Aggregate Operations
+      case ExtractValueInst(ty, struct, indices) => ???
+
+      // Other operations
+      case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs)
+      case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs)
+      case CallInst(ty, f, args) => 
+        val argValues: List[LLVMValue] = args.map {
+          case TypedArg(ty, attrs, value) => value
+        }
+        for {
+          fv <- eval(f)
+          vs <- mapM(argValues)(eval)
+          _ <- pushFrame
+          s <- getState
+          v <- reflect(fv(s, List(vs:_*)))
+          _ <- popFrame(s.stackSize)
+        } yield v
       case PhiInst(ty, incs) => ???
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         for {

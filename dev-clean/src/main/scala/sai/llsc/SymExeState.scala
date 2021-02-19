@@ -194,6 +194,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = "make_SymV".reflectWith[Value](s)
     def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
+    def makeSymVList(i: Int): Rep[List[Value]] = {
+      List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
+    }
   }
 
   object IntOp2 {
@@ -207,6 +210,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   implicit class ValueOps(v: Rep[Value]) {
     def loc: Rep[Addr] = "proj_LocV".reflectWith[Addr](v)
     def int: Rep[Int] = "proj_IntV".reflectWith[Int](v)
+    def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
@@ -221,4 +225,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     //def toSMTExpr: Rep[SMTExpr] =
     //  Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
   }
+
+  object TestPrint extends java.io.Serializable {
+    def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_print", Unwrap(s), Unwrap(args)))
+    }
+    def print: Rep[Value] = FunV(topFun(__printf))
+  }
+  
 }

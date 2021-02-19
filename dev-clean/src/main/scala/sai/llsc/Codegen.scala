@@ -51,6 +51,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
     case Node(s, "int_op_2", List(Backend.Const(op: String), x, y), _) =>
       es"int_op_2(${quoteOp(op)}, $x, $y)"
+    case Node(s, "float_op_2", List(Backend.Const(op: String), x, y), _) =>
+      es"float_op_2(${quoteOp(op)}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
     case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc)"
 

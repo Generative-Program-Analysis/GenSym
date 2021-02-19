@@ -253,7 +253,7 @@ package IR {
   case class FloatConst(f: Float) extends Constant
   case object NullConst extends Constant
   case object NoneConst extends Constant
-  case class StructConst() extends Constant // Skipped
+  case class StructConst(cs: List[TypedConst]) extends Constant 
   case class ArrayConst(cs: List[TypedConst]) extends Constant
   case class CharArrayConst(s: String) extends Constant {
     override def toString = s
@@ -696,7 +696,15 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitFloatConst(ctx: LLVMParser.FloatConstContext): LAST = {
-    FloatConst(ctx.FLOAT_LIT.getText.toFloat)
+    val floatStr = ctx.FLOAT_LIT.getText
+    if (floatStr.contains('.')) FloatConst(floatStr.toFloat)
+    else if (floatStr.startsWith("0x")) {
+      // Does not work, need to parse "0x3FF4CCCCC0000000" as 1.3
+      // val i = java.lang.Long.parseLong(floatStr.substring(2), 16)
+      // FloatConst(java.lang.Float.intBitsToFloat(i.intValue()))
+      ???
+    } 
+    else ???
   }
 
   override def visitArrayConst(ctx: LLVMParser.ArrayConstContext): LAST = {
@@ -726,7 +734,8 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitStructConst(ctx: LLVMParser.StructConstContext): LAST = {
-    ??? //Skipped
+    val cs = visit(ctx.typeConstList).asInstanceOf[TypedConstList].cs
+    StructConst(cs)
   }
 
   override def visitZeroInitializerConst(ctx: LLVMParser.ZeroInitializerConstContext): LAST = {
@@ -1602,6 +1611,13 @@ package parser {
     }
   }
 
+  object TestParser extends App {
+    import PPrinter._
+    import Parser._
+
+    printAst(parseFile("benchmarks/llvm/floatArith.ll"))
+  }
+
   object PPrinter {
     def printBB(bb: BB): Unit = {
       println("  Block: ")
@@ -1616,8 +1632,8 @@ package parser {
       println()
     }
 
-    def printAst(input: String): Unit = {
-      Parser.parse(input).es foreach {u => u match {
+    def printAst(m: Module): Unit = {
+      m.es foreach {u => u match {
         case FunctionDef(id, linkage, metadata, header, body) =>
           println(s"Fundef: id: ${id}; linkage: ${linkage}; metadata: ${metadata};\n FunctionHeader: ${header}")
           body.blocks foreach(printBB(_))

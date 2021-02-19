@@ -92,6 +92,30 @@ inline int proj_IntV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<IntV>(v)->i;
 }
 
+struct FloatV : Value {
+  float f;
+  FloatV(float f) : f(f) {}
+  FloatV(const FloatV& v) { f = v.f; }
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "FloatV(" << f << ")";
+  }
+  virtual Expr to_SMTExpr() const override {
+    ABORT("to_SMTBool: unexpected value FloatV.");
+  }
+  virtual Expr to_SMTBool() const override {
+    ABORT("to_SMTBool: unexpected value FloatV.");
+  }
+  virtual bool is_conc() const override { return true; }
+};
+
+inline Ptr<Value> make_FloatV(float f) {
+  return std::make_shared<FloatV>(f);
+}
+
+inline int proj_FloatV(Ptr<Value> v) {
+  return std::dynamic_pointer_cast<FloatV>(v)->f;
+}
+
 struct LocV : Value {
   enum Kind { kStack, kHeap };
   Addr l;
@@ -158,7 +182,8 @@ inline Ptr<Value> make_SymV(String n) {
 enum iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
   op_eq, op_uge, op_ugt, op_ule, op_ult, 
-  op_sge, op_sgt, op_sle, op_slt, op_neq
+  op_sge, op_sgt, op_sle, op_slt, op_neq,
+  op_shl, op_lshr, op_ashr, op_and, op_or, op_xor
 };
 
 inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
@@ -226,6 +251,23 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
 enum fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv
 };
+
+inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
+  auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
+  auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
+
+  if (f1 && f2) {
+    if (op == op_fadd) { return make_FloatV(f1->f + f2->f); }
+    else if (op == op_fsub) { return make_FloatV(f1->f - f2->f); }
+    else if (op == op_fmul) { return make_FloatV(f1->f * f2->f); }
+    else if (op == op_fdiv) { return make_FloatV(f1->f / f2->f); }
+    // FIXME: Float cmp operations
+    else { return make_IntV(1); }
+
+  } else {
+    ABORT("Non-concrete Float Detected");
+  }
+}
 
 /* Memory, stack, and symbolic state representation */
 
@@ -452,6 +494,18 @@ inline immer::flex_vector<Expr> set_to_list(immer::set<Expr> s) {
     res = res.push_back(x);
   }
   return res;
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
+  PtrVal x = args.at(0);
+  if (std::dynamic_pointer_cast<FloatV>(x)) {
+    std::cout << std::dynamic_pointer_cast<FloatV>(x)->f << std::endl;
+  } else if (std::dynamic_pointer_cast<IntV>(x)) {
+    std::cout << std::dynamic_pointer_cast<IntV>(x)->i << std::endl;
+  } else {
+    ABORT("Unimplemented");
+  }
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
 #endif
