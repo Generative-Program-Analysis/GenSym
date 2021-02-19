@@ -100,8 +100,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case _ => ???
         }
         ret(v)
+      // now the only case GlobalId(id) in globalDefMap gets evaled
+      // is when we "load x GlobalId(id)", so we should return addr in heap
       case GlobalId(id) if globalDefMap.contains(id) =>
-        for { ss <- getState } yield ss.heapLookup(CompileTimeRuntime.heapEnv(id))
+        ret(LocV(heapEnv(id), LocV.kHeap))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)

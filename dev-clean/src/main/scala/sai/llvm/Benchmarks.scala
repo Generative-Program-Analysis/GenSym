@@ -25,7 +25,8 @@ object Benchmarks {
   lazy val sp4 = parseFile("benchmarks/llvm/single_path4.ll")
   lazy val sp5 = parseFile("benchmarks/llvm/single_path5.ll")
 
-  lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll");
+  lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
+  lazy val global = parseFile("benchmarks/llvm/global.ll")
 }
 
 object OOPSLA20Benchmarks {
