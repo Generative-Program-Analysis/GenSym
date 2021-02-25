@@ -36,6 +36,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var funMap: SMap[String, FunctionDef] = SMap()
     var funDeclMap: SMap[String, FunctionDecl] = SMap()
     var globalDefMap: SMap[String, GlobalDef] = SMap()
+    var typeDefMap: SMap[String, LLVMType] = SMap()
     var heapEnv: SMap[String, Rep[Addr]] = SMap()
 
     val BBFuns: HashMap[BB, Rep[SS => List[(SS, Value)]]] = new HashMap[BB, Rep[SS => List[(SS, Value)]]]
@@ -55,12 +56,32 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
   import CompileTimeRuntime._
 
+  def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
+    case ArrayType(size, ety) =>
+      val rawSize = size * getTySize(ety, align)
+      if (rawSize % align == 0) rawSize
+      else (rawSize / align + 1) * align
+    case Struct(types) => types.foldRight(0)((ty, n) => getTySize(ty, align) + n)
+    case NamedType(id) => getTySize(typeDefMap.get(id).get, align)
+    case _ => 1
+  }
+
   def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
     if (index.isEmpty) 0 else ty match {
       case PtrType(ety, addrSpace) =>
         index.head * getTySize(ety) + calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
         index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+      case NamedType(id) => 
+        calculateOffset(typeDefMap.get(id).get, index)
+      case Struct(types) => 
+      /* FIXME:
+        val size = 0
+        for i <- 0 to index.head:
+          size += getTySize(types(i))
+        return size + calculateOffset(types(i), index.tail)
+      */
+        index.head
       case _ => ???
     }
   }
@@ -132,9 +153,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case ZeroInitializerConst =>
       SList(IntV(0))
     case ArrayConst(cs) =>
-      flattenArray(v).flatMap(c => evalConst(c))
+      flattenAS(v).flatMap(c => evalConst(c))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList
+    case StructConst(cs) => 
+      flattenAS(v).flatMap(c => evalConst(c))
+
   }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
@@ -437,7 +461,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.funMap = m.funcDefMap
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
-
+    CompileTimeRuntime.typeDefMap = m.typeDefMap
+    
     val preHeap: Rep[List[Value]] = List(precompileHeap:_*)
     val heap0 = preHeap.asRepOf[Mem]
     val comp = for {

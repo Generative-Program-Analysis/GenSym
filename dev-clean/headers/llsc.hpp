@@ -499,9 +499,9 @@ inline immer::flex_vector<Expr> set_to_list(immer::set<Expr> s) {
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<FloatV>(x)) {
-    std::cout << std::dynamic_pointer_cast<FloatV>(x)->f << std::endl;
+    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")" << std::endl;
   } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << std::dynamic_pointer_cast<IntV>(x)->i << std::endl;
+    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")" << std::endl;
   } else {
     ABORT("Unimplemented");
   }

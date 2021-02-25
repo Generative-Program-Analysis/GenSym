@@ -27,6 +27,7 @@ object Benchmarks {
 
   lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
   lazy val global = parseFile("benchmarks/llvm/global.ll")
+  lazy val struct1 = parseFile("benchmarks/llvm/struct1.ll")
 }
 
 object OOPSLA20Benchmarks {

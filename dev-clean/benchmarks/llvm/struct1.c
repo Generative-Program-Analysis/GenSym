@@ -9,9 +9,10 @@ struct Coord {
   int y;
 };
 
+struct Coord cglobal = { 3, {1, 2}, 4 };
 
 int main() {
-  struct Coord clocal = { 3, {1, 2}, 4 };
-  int a = clocal.c.x;
+  int a = cglobal.c.x;
+  sym_print(a);
   return 0;
 }

@@ -15,6 +15,8 @@ package IR {
       es.filter(_.isInstanceOf[FunctionDecl]).asInstanceOf[List[FunctionDecl]].map(f => (f.id, f)).toMap
     val globalDefMap: Map[String, GlobalDef] =
       es.filter(_.isInstanceOf[GlobalDef]).asInstanceOf[List[GlobalDef]].map(d => (d.id, d)).toMap
+    val typeDefMap: Map[String, LLVMType] = 
+      es.filter(_.isInstanceOf[TypeDef]).asInstanceOf[List[TypeDef]].map(d => (d.id, d.ty)).toMap
 
     def lookupFuncDef(id: String): Option[FunctionDef] = funcDefMap.get(id)
     def lookupFuncDecl(id: String): Option[FunctionDecl] = funcDeclMap.get(id)
@@ -39,7 +41,10 @@ package IR {
   case class SourceFilename(name: String) extends TopLevelEntity
   case class TargetDefinition(ty: String, value: String) extends TopLevelEntity
   case class ModuleAsm(ctx: LLVMParser.ModuleAsmContext) extends TopLevelEntity
-  case class TypeDef(ctx: LLVMParser.TypeDefContext) extends TopLevelEntity
+  case class TypeDef(
+    id: String,
+    ty: LLVMType
+  ) extends TopLevelEntity
   case class ComdatDef(ctx: LLVMParser.ComdatDefContext) extends TopLevelEntity
   case class GlobalDecl(ctx: LLVMParser.GlobalDeclContext) extends TopLevelEntity
   case class GlobalDef(
@@ -231,6 +236,7 @@ package IR {
   case object SwiftErro extends ParamAttr
   case object SwiftSelf extends ParamAttr
   case object WriteOnly extends ParamAttr
+  case object ReadOnly extends ParamAttr
 
   trait GlobalAttr extends Attr
 
@@ -414,7 +420,14 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitModuleAsm(ctx: LLVMParser.ModuleAsmContext): LAST = { ModuleAsm(ctx) }
 
-  override def visitTypeDef(ctx: LLVMParser.TypeDefContext): LAST = { TypeDef(ctx) }
+  override def visitTypeDef(ctx: LLVMParser.TypeDefContext): LAST = { 
+    val id = ctx.localIdent.LOCAL_IDENT.getText
+    if (ctx.opaqueType != null) ???
+    else {
+      val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+      TypeDef(id, ty)
+    }
+  }
 
   override def visitComdatDef(ctx: LLVMParser.ComdatDefContext): LAST = { ComdatDef(ctx) }
 
@@ -582,7 +595,8 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitNamedType(ctx: LLVMParser.NamedTypeContext): LAST = {
-    ???
+    val id = ctx.localIdent.LOCAL_IDENT.getText
+    NamedType(id)
   }
 
   override def visitMmxType(ctx: LLVMParser.MmxTypeContext): LAST = {
@@ -656,8 +670,12 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.NOALIAS() != null) NoAlias
     else if (ctx.NOCAPTURE() != null) NoCapture
     else if (ctx.NONNULL() != null) NonNull
+    else if (ctx.WRITEONLY() != null) WriteOnly
+    else if (ctx.READONLY() != null) ReadOnly
+    else if (ctx.alignment() != null) {
+      visit(ctx.alignment)
+    }
     else {
-      println(ctx.stringLit.STRING_LIT.getText)
       ???
     }
     // ?immarg??
