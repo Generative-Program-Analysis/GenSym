@@ -134,7 +134,9 @@ object TestStagedSymExec {
 
   def main(args: Array[String]): Unit = {
     //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
-    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
+    //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
+    //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
+    testModule(sai.llvm.Benchmarks.global, "global", "@main")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
     //testModule(parseFile("benchmarks/llvm/floatArith.ll"), "floatArithNew", "@main")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")

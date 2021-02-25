@@ -646,7 +646,21 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitParamAttr(ctx: LLVMParser.ParamAttrContext): LAST = {
     // Return ParamAttr
-    ???
+    
+    if (ctx.ZEROEXT() != null) ZeroExt
+    else if (ctx.SIGNEXT() != null) SignExt
+    else if (ctx.INREG() != null) InReg
+    else if (ctx.BYVAL() != null) ByVal
+    else if (ctx.INALLOCA() != null) InAlloca
+    else if (ctx.SRET() != null) SRet
+    else if (ctx.NOALIAS() != null) NoAlias
+    else if (ctx.NOCAPTURE() != null) NoCapture
+    else if (ctx.NONNULL() != null) NonNull
+    else {
+      println(ctx.stringLit.STRING_LIT.getText)
+      ???
+    }
+    // ?immarg??
   }
 
   override def visitLlvmType(ctx: LLVMParser.LlvmTypeContext): LAST = {
@@ -1615,7 +1629,7 @@ package parser {
     import PPrinter._
     import Parser._
 
-    printAst(parseFile("benchmarks/llvm/floatArith.ll"))
+    printAst(parseFile("benchmarks/llvm/struct1.ll"))
   }
 
   object PPrinter {

@@ -1,7 +1,7 @@
 int main() {
   float c, d, e;
   float a = 1.25f;
-  float b = 1.5f;
+  float b = 1.3f;
   c = a + b;
   sym_print(c);
   d = a - b;

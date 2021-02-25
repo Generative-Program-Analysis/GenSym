@@ -180,10 +180,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs)
       case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs)
       case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs)
+      /* Backend Work Needed */
       case URemInst(ty, lhs, rhs) => evalIntOp2("urem", lhs, rhs)
       case SRemInst(ty, lhs, rhs) => evalIntOp2("srem", lhs, rhs)
 
       // Bitwise Operations
+      /* Backend Work Needed */
       case ShlInst(ty, lhs, rhs) => evalIntOp2("shl", lhs, rhs)
       case LshrInst(ty, lhs, rhs) => evalIntOp2("lshr", lhs, rhs)
       case AshrInst(ty, lhs, rhs) => evalIntOp2("ashr", lhs, rhs)
@@ -192,6 +194,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case XorInst(ty, lhs, rhs) => evalIntOp2("xor", lhs, rhs)
 
       // Conversion Operations
+      /* Backend Work Needed */
       case ZExtInst(from, value, to) => 
         for {
           v <- eval(value)
@@ -209,6 +212,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case IntToPtrInst(from, value, to) => ???
 
       // Aggregate Operations
+      /* Backend Work Needed */
       case ExtractValueInst(ty, struct, indices) => ???
 
       // Other operations
@@ -318,7 +322,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               u <- execBlock(funName, default)
             } yield u)
           else {
-            val headPC = IntOp2("=", v, IntV(table.head.n)).toSMTBool
+            val headPC = IntOp2("eq", v, IntV(table.head.n)).toSMTBool
             reify(s)(choice(
               for {
                 _ <- updatePC(headPC)
