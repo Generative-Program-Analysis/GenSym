@@ -237,6 +237,7 @@ package IR {
   case object SwiftSelf extends ParamAttr
   case object WriteOnly extends ParamAttr
   case object ReadOnly extends ParamAttr
+  case object Immarg extends ParamAttr
 
   trait GlobalAttr extends Attr
 
@@ -672,6 +673,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.NONNULL() != null) NonNull
     else if (ctx.WRITEONLY() != null) WriteOnly
     else if (ctx.READONLY() != null) ReadOnly
+    else if (ctx.IMMARG() != null) Immarg
     else if (ctx.alignment() != null) {
       visit(ctx.alignment)
     }

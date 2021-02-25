@@ -4045,6 +4045,7 @@ paramAttr
     | dereferenceable
     | stringLit
     | 'byval'
+    | 'immarg'
     | 'inalloca'
     | 'inreg'
     | 'nest'
