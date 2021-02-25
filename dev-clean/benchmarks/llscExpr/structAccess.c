@@ -12,7 +12,7 @@ struct Coord {
 struct Coord cglobal = { 3, {1, 2}, 4 };
 
 int main() {
-  int a = cglobal.c.x;
+  int a = cglobal.y;
   sym_print(a);
   return 0;
 }
