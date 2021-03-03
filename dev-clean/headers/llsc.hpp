@@ -179,6 +179,29 @@ inline Ptr<Value> make_SymV(String n) {
 }
 #endif
 
+struct StructV : Value {
+  immer::flex_vector<PtrVal> fs;
+  StructV(immer::flex_vector<Ptr<Value>> fs) : fs(fs) {}
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "StructV(..)";
+  }
+  virtual Expr to_SMTExpr() const override {
+    ABORT("to_SMTExpr: unexpected value StructV.");
+  }
+  virtual Expr to_SMTBool() const override {
+    ABORT("to_SMTBool: unexpected value StructV.");
+  }
+  virtual bool is_conc() const override {
+    ABORT("is_conc: unexpected value StructV.");
+  }
+};
+
+inline PtrVal structV_at(PtrVal v, int idx) {
+  auto sv = std::dynamic_pointer_cast<StructV>(v);
+  if (sv) return (sv->fs).at(idx);
+  else ABORT("StructV_at: non StructV value");
+}
+
 enum iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
   op_eq, op_uge, op_ugt, op_ule, op_ult, 
@@ -289,6 +312,8 @@ class PreMem {
       return PreMem<V>(m.persistent());
     }
     PreMem<V> take(size_t keep) { return PreMem<V>(mem.take(keep)); }
+    PreMem<V> drop(size_t d) { return PreMem<V>(mem.drop(d)); }
+    immer::flex_vector<V> getMem() { return mem; }
 };
 
 using Mem = PreMem<PtrVal>;
@@ -334,6 +359,9 @@ class Stack {
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
     PtrVal at(size_t idx) { return mem.at(idx); }
+    PtrVal at(size_t idx, int size) {
+      return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
+    }
     Stack update(size_t idx, PtrVal val) { return Stack(mem.update(idx, val), env); }
     Stack alloc(size_t size) { return Stack(mem.alloc(size), env); }
 };
@@ -365,6 +393,12 @@ class SS {
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l);
       return heap.at(loc->l);
+    }
+    PtrVal at(PtrVal addr, int size) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return stack.at(loc->l, size);
+      return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc); }
@@ -499,9 +533,9 @@ inline immer::flex_vector<Expr> set_to_list(immer::set<Expr> s) {
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<FloatV>(x)) {
-    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")" << std::endl;
+    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
   } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")" << std::endl;
+    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")\n";
   } else {
     ABORT("Unimplemented");
   }

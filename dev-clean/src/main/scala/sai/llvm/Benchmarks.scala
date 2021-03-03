@@ -30,6 +30,10 @@ object Benchmarks {
   lazy val struct1 = parseFile("benchmarks/llvm/struct1.ll")
 }
 
+object LLSCExpr {
+  lazy val structReturnLong = parseFile("benchmarks/llscExpr/structReturnLong.ll")
+}
+
 object OOPSLA20Benchmarks {
   lazy val maze = parseFile("benchmarks/oopsla20/maze_test.ll")
   lazy val mp1024 = parseFile("benchmarks/oopsla20/multipath_1024_sym.ll")

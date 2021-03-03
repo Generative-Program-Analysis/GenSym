@@ -329,6 +329,7 @@ package IR {
     ptrValue: LLVMValue,
     typedValues: List[TypedValue]
   ) extends ValueInstruction
+  case class BitCastInst(from: LLVMType, value: LLVMValue, to: LLVMType) extends ValueInstruction
   case class ICmpInst(pred: IPredicate, ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue) extends ValueInstruction
   case class FCmpInst(pred: FPredicate, ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue) extends ValueInstruction
   case class TruncInst(from: LLVMType, value: LLVMValue, to: LLVMType) extends ValueInstruction
@@ -1182,6 +1183,13 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     GetElemPtrInst(inBounds, baseTy, ptrTy, ptrVal, typedValues)
   }
 
+  override def visitBitCastInst(ctx: LLVMParser.BitCastInstContext): LAST = {
+    val from = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val value = visit(ctx.value).asInstanceOf[LLVMValue]
+    val to = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    BitCastInst(from, value, to)
+  }
+
   override def visitICmpInst(ctx: LLVMParser.ICmpInstContext): LAST = {
     // Skipped optCommaSepMetadataAttachmentList
     // 'icmp' iPred llvmType value ',' value
@@ -1649,7 +1657,7 @@ package parser {
     import PPrinter._
     import Parser._
 
-    printAst(parseFile("benchmarks/llvm/struct1.ll"))
+    printAst(parseFile("benchmarks/llscExpr/structReturnLong.ll"))
   }
 
   object PPrinter {

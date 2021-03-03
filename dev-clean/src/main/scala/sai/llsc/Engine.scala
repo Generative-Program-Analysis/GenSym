@@ -56,6 +56,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
   import CompileTimeRuntime._
 
+  def getRealType(vt: LLVMType): LLVMType = vt match {
+    case NamedType(id) => typeDefMap.get(id).get
+    case _ => vt
+  }
+
   def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
     case ArrayType(size, ety) =>
       val rawSize = size * getTySize(ety, align)
@@ -64,6 +69,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case Struct(types) => types.foldRight(0)((ty, n) => getTySize(ty, align) + n)
     case NamedType(id) => getTySize(typeDefMap.get(id).get, align)
     case _ => 1
+  }
+
+  def calculateExtractValueOffest(ty: LLVMType, index: List[Int]): Int = {
+    if (index.isEmpty) 0 else ty match {
+      case Struct(types) =>
+        val prev = Range(0, index.head).foldRight(0)((sum, i) => getTySize(types(i)) + sum)
+        prev + calculateExtractValueOffest(types(index.head), index.tail)
+      case ArrayType(size, ety) => 
+        index.head * getTySize(ety) + calculateExtractValueOffest(ety, index.tail)
+      case NamedType(id) => 
+        calculateExtractValueOffest(typeDefMap.get(id).get, index)
+      case _ => ???
+    }
+    
   }
 
   def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
@@ -75,11 +94,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case NamedType(id) => 
         calculateOffset(typeDefMap.get(id).get, index)
       case Struct(types) => 
+      // Range(0, index.head).foldRight(0)((i, sum) => getTySize(types(i)) + sum) 
+      //   + calculateExtractValueOffest(types(index.head), index.tail)
       /* FIXME:
-        val size = 0
+        var size = 0
         for i <- 0 to index.head:
           size += getTySize(types(i))
-        return size + calculateOffset(types(i), index.tail)
+        return size + calculateOffset(types(index.head), index.tail)
       */
         index.head
       case _ => ???
@@ -167,6 +188,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
     for { v1 <- eval(lhs); v2 <- eval(rhs) } yield FloatOp2(op, v1, v2)
 
+  
+
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
       // Memory Access Instructions 
@@ -176,10 +199,19 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- putState(ss.allocStack(getTySize(ty, align.n)))
         } yield LocV(ss.stackSize, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
-        for {
-          v <- eval(value)
-          ss <- getState
-        } yield ss.lookup(v)
+        getRealType(valTy) match {
+          case Struct(types) => 
+            for {
+              v <- eval(value)
+              ss <- getState
+            } yield ss.lookupStruct(v, getTySize(valTy))
+          case _ => 
+            for {
+              v <- eval(value)
+              ss <- getState
+            } yield ss.lookup(v)
+        }
+        
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
@@ -226,18 +258,46 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case SExtInst(from, value, to) =>  for {
         v <- eval(value)
       } yield v.bv_sext(to.asInstanceOf[IntType].size)
-      case TruncInst(from, value, to) => ???
-      case FpExtInst(from, value, to) => for { v <- eval(value) } yield v
-      case FpToUIInst(from, value, to) => ???
-      case FpToSIInst(from, value, to) => ???
-      case UiToFPInst(from, value, to) => ???
-      case SiToFPInst(from, value, to) => ???
-      case PtrToIntInst(from, value, to) => ???
+      case TruncInst(from, value, to) => 
+        for { v <- eval(value) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
+      case FpExtInst(from, value, to) => 
+        for { v <- eval(value) } yield v
+      case FpToUIInst(from, value, to) => 
+        for { v <- eval(value) } yield v.fp_toui(to.asInstanceOf[IntType].size)
+      case FpToSIInst(from, value, to) => 
+        for { v <- eval(value) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
+      case UiToFPInst(from, value, to) => 
+        for { v <- eval(value) } yield v.ui_tofp
+      case SiToFPInst(from, value, to) => 
+        for { v <- eval(value) } yield v.si_tofp
+      case PtrToIntInst(from, value, to) => 
+        // FIXME: Tricky
+        ???
       case IntToPtrInst(from, value, to) => ???
+      case BitCastInst(from, value, to) => eval(value)
 
       // Aggregate Operations
       /* Backend Work Needed */
-      case ExtractValueInst(ty, struct, indices) => ???
+      case ExtractValueInst(ty, struct, indices) => 
+        /* FIXME:
+        Struct is tricky. Consider the following code snippet
+        a:
+          %call = call { i64, i64 } @get_stat_atime(%struct.stat* %2)
+          %5 = extractvalue { i64, i64 } %call, 0
+
+        as a result, b should return a backend Struct value
+        b:
+          %retval = alloca %struct.timespec, align 8
+          %3 = bitcast %struct.timespec* %retval to { i64, i64 }*
+          %4 = load { i64, i64 }, { i64, i64 }* %3, align 8
+          ret { i64, i64 } %4
+        */
+        val idxList = indices.asInstanceOf[List[IntConst]].map(x => x.n)
+        val idx = calculateExtractValueOffest(ty, idxList)
+        for {
+          // v is expected to be StructV in backend
+          v <- eval(struct)
+        } yield v.structAt(idx)
 
       // Other operations
       case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs)

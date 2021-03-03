@@ -120,6 +120,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
 
     def lookup(addr: Rep[Value]): Rep[Value] = "ss-lookup-addr".reflectWith[Value](ss, addr)
+    def lookupStruct(addr: Rep[Value], size: Int) = "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
     def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
 
@@ -212,6 +213,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def int: Rep[Int] = "proj_IntV".reflectWith[Int](v)
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
+    def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
     def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
       f(s, args)
@@ -224,6 +226,13 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     // TODO: toSMTBool vs toSMTExpr?
     //def toSMTExpr: Rep[SMTExpr] =
     //  Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
+  
+    def fp_toui(to: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, to)
+    def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
+    def ui_tofp: Rep[Value] = "ui_tofp".reflectWith[Value](v)
+    def si_tofp: Rep[Value] = "si_tofp".reflectWith[Value](v)
+    def trunc(from: Int, to: Int): Rep[Value] =
+      "trunc".reflectWith[Value](from, to)
   }
 
   object TestPrint extends java.io.Serializable {

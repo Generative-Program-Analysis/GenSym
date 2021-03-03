@@ -58,6 +58,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
 
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a), _) => es"$ss.at($a)"
+    case Node(s, "ss-lookup-addr-struct", List(ss, a, sz), _) => es"$ss.at($a, $sz)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
     case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
     case Node(s, "ss-assign-seq", List(ss, ks, vs), _) => es"$ss.assign_seq($ks, $vs)"
