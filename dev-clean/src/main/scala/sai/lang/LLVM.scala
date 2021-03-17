@@ -173,9 +173,10 @@ package IR {
   case class VectorType(size: Int, ety: LLVMType) extends LLVMType
   case object LabelType extends LLVMType
   case class ArrayType(size: Int, ety: LLVMType) extends LLVMType
+
   abstract class StructType extends LLVMType
-    case class Struct(types: List[LLVMType]) extends StructType
-    case class PackedStruct(types: List[LLVMType]) extends StructType
+  case class Struct(types: List[LLVMType]) extends StructType
+  case class PackedStruct(types: List[LLVMType]) extends StructType
   case class NamedType(id: String) extends LLVMType
   case object MMXType extends LLVMType
   case object TokenType extends LLVMType

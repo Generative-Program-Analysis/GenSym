@@ -57,7 +57,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   import CompileTimeRuntime._
 
   def getRealType(vt: LLVMType): LLVMType = vt match {
-    case NamedType(id) => typeDefMap.get(id).get
+    case NamedType(id) => typeDefMap(id)
     case _ => vt
   }
 
@@ -66,23 +66,24 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       val rawSize = size * getTySize(ety, align)
       if (rawSize % align == 0) rawSize
       else (rawSize / align + 1) * align
-    case Struct(types) => types.foldRight(0)((ty, n) => getTySize(ty, align) + n)
-    case NamedType(id) => getTySize(typeDefMap.get(id).get, align)
+    case Struct(types) =>
+      types.map(getTySize(_, align)).sum
+    case NamedType(id) =>
+      getTySize(typeDefMap(id), align)
     case _ => 1
   }
 
   def calculateExtractValueOffest(ty: LLVMType, index: List[Int]): Int = {
     if (index.isEmpty) 0 else ty match {
       case Struct(types) =>
-        val prev = Range(0, index.head).foldRight(0)((sum, i) => getTySize(types(i)) + sum)
+        val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
         prev + calculateExtractValueOffest(types(index.head), index.tail)
       case ArrayType(size, ety) => 
         index.head * getTySize(ety) + calculateExtractValueOffest(ety, index.tail)
       case NamedType(id) => 
-        calculateExtractValueOffest(typeDefMap.get(id).get, index)
+        calculateExtractValueOffest(typeDefMap(id), index)
       case _ => ???
     }
-    
   }
 
   def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
@@ -91,18 +92,22 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         index.head * getTySize(ety) + calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
         index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case NamedType(id) => 
-        calculateOffset(typeDefMap.get(id).get, index)
-      case Struct(types) => 
-      // Range(0, index.head).foldRight(0)((i, sum) => getTySize(types(i)) + sum) 
-      //   + calculateExtractValueOffest(types(index.head), index.tail)
-      /* FIXME:
-        var size = 0
-        for i <- 0 to index.head:
-          size += getTySize(types(i))
-        return size + calculateOffset(types(index.head), index.tail)
-      */
-        index.head
+      case NamedType(id) =>
+        calculateOffset(typeDefMap(id), index)
+      case Struct(types) =>
+        // https://llvm.org/docs/LangRef.html#getelementptr-instruction
+        // "When indexing into a (optionally packed) structure, only i32 integer
+        //  constants are allowed"
+        // TODO: the align argument for getTySize
+        // TODO: test this
+        // TODO: generalize this function?
+        def extractConstIntList(xs: List[Rep[Int]]): List[Int] =
+          xs match {
+            case Nil => Nil
+            case IntV(v, bw)::xs => v :: extractConstIntList(xs)
+            case _ => throw new Exception("Not a constant integer list")
+          }
+        unit(calculateExtractValueOffest(ty, extractConstIntList(index)))
       case _ => ???
     }
   }
@@ -188,8 +193,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
     for { v1 <- eval(lhs); v2 <- eval(rhs) } yield FloatOp2(op, v1, v2)
 
-  
-
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
       // Memory Access Instructions 
@@ -199,19 +202,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- putState(ss.allocStack(getTySize(ty, align.n)))
         } yield LocV(ss.stackSize, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
-        getRealType(valTy) match {
-          case Struct(types) => 
-            for {
-              v <- eval(value)
-              ss <- getState
-            } yield ss.lookupStruct(v, getTySize(valTy))
-          case _ => 
-            for {
-              v <- eval(value)
-              ss <- getState
-            } yield ss.lookup(v)
-        }
-        
+        for {
+          v <- eval(value)
+          ss <- getState
+        } yield ss.lookup(v, getTySize(valTy))
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {

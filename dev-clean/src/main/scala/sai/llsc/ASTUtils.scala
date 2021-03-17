@@ -5,8 +5,7 @@ import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
 
 object ASTUtils {
-  def flattenTypedList(xs: List[TypedConst]) = 
-    xs.map(typC => typC.const).foldRight(List[Constant]())((con, ls) => flattenAS(con) ++ ls)
+  def flattenTypedList(xs: List[TypedConst]) = xs.map(c => flattenAS(c.const)).flatten
 
   def flattenAS(cst: Constant): List[Constant] = cst match {
     case ArrayConst(xs) =>

@@ -100,7 +100,7 @@ struct FloatV : Value {
     return os << "FloatV(" << f << ")";
   }
   virtual Expr to_SMTExpr() const override {
-    ABORT("to_SMTBool: unexpected value FloatV.");
+    ABORT("to_SMTExpr: unexpected value FloatV.");
   }
   virtual Expr to_SMTBool() const override {
     ABORT("to_SMTBool: unexpected value FloatV.");

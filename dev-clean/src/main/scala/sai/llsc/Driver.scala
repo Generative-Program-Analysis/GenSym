@@ -13,14 +13,14 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 
-abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String = ".") extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
+abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String = ".")
+    extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
   import java.io.{File, PrintStream}
 
   val codegen = new SymStagedLLVMGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$name/"
   }
-  val compilerCommand = "g++ -std=c++17 -O3"
 
   // Assuming the working directory only contains subdir "build"
   def createNewDir: Boolean = {

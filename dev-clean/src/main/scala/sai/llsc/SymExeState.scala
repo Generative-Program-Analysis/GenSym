@@ -1,5 +1,8 @@
 package sai.llsc
 
+import sai.lang.llvm._
+import sai.lang.llvm.IR._
+
 import sai.structure.freer._
 import Eff._
 import Freer._
@@ -15,6 +18,8 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
+
+import scala.collection.immutable.{List => SList}
 
 /* Naming convention for IR nodes:
    - If the node can be and should be handled by the default case of the codegen,
@@ -118,9 +123,13 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def lookup(x: String): Rep[Value] = "ss-lookup-env".reflectWith[Value](ss, x.hashCode)
     def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
-
-    def lookup(addr: Rep[Value]): Rep[Value] = "ss-lookup-addr".reflectWith[Value](ss, addr)
-    def lookupStruct(addr: Rep[Value], size: Int) = "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
+    def lookup(addr: Rep[Value], size: Int = 1): Rep[Value] = {
+      // if size == 1, returns a scalar value
+      // if size > 1, returns a (flat) struct value
+      require(size > 0)
+      if (size == 1) "ss-lookup-addr".reflectWith[Value](ss, addr)
+      else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
+    }
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
     def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
 
@@ -179,6 +188,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
+    def unapply(v: Rep[Value]): Option[(Int, Int)] = v match {
+      case Adapter.g.Def("make_IntV", SList(Backend.Const(v: Int), Backend.Const(bw: Int))) => Some((v, bw))
+      case _ => None
+    }
   }
   object FloatV {
     // TODO: shall we keep float kinds?
@@ -241,5 +254,4 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     }
     def print: Rep[Value] = FunV(topFun(__printf))
   }
-  
 }
