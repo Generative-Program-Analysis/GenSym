@@ -397,6 +397,7 @@ VTABLEHOLDERCOLON : 'vtableHolder:' ;
 WEAK : 'weak' ;
 WEAK_ODR : 'weak_odr' ;
 WEBKIT_JSCC : 'webkit_jscc' ;
+WILLRETURN : 'willreturn' ;
 WIN64CC : 'win64cc' ;
 WITHIN : 'within' ;
 WRITEONLY : 'writeonly' ;

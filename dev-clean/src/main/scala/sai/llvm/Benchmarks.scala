@@ -32,6 +32,7 @@ object Benchmarks {
 
 object LLSCExpr {
   lazy val structReturnLong = parseFile("benchmarks/llscExpr/structReturnLong.ll")
+  lazy val complexStruct = parseFile("benchmarks/llscExpr/complexStruct.ll")
 }
 
 object OOPSLA20Benchmarks {

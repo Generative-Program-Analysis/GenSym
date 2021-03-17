@@ -99,14 +99,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        // TODO: generalize this function?
-        def extractConstIntList(xs: List[Rep[Int]]): List[Int] =
-          xs match {
-            case Nil => Nil
-            case IntV(v, bw)::xs => v :: extractConstIntList(xs)
-            case _ => throw new Exception("Not a constant integer list")
-          }
-        unit(calculateExtractValueOffest(ty, extractConstIntList(index)))
+        val indexCst: List[Int] = index.map { case IntV(v, bw) => v }
+        unit(calculateExtractValueOffest(ty, indexCst))
       case _ => ???
     }
   }
@@ -143,7 +137,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case "@make_symbolic" => Primitives.make_symbolic
            */
           case "@sym_print" => TestPrint.print
-          case _ => ???
+          case id if id.startsWith("@llvm.memcpy") => ???
+          case _ =>
+            throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
         }
         ret(v)
       // now the only case GlobalId(id) in globalDefMap gets evaled

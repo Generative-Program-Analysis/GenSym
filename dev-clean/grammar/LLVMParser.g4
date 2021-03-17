@@ -3903,6 +3903,7 @@ funcAttr
     | 'sspstrong'
     | 'strictfp'
     | 'uwtable'
+    | 'willreturn'
     | 'writeonly'
 ;
 

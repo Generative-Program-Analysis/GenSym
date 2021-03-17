@@ -99,7 +99,7 @@ object TestStagedSymExec {
   def specialize(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = SymV.makeSymVList(0)
+        val args: Rep[List[Value]] = List() //SymV.makeSymVList(0)
         /*
         val args: Rep[List[Value]] = List[Value](
           //IntV(10000),
@@ -136,7 +136,8 @@ object TestStagedSymExec {
     //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
     //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
-    testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
+    //testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
+    testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
   }
 }
