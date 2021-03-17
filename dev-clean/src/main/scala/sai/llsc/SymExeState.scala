@@ -19,7 +19,7 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
-import scala.collection.immutable.{List => SList}
+import scala.collection.immutable.{List => StaticList}
 
 /* Naming convention for IR nodes:
    - If the node can be and should be handled by the default case of the codegen,
@@ -189,7 +189,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = v match {
-      case Adapter.g.Def("make_IntV", SList(Backend.Const(v: Int), Backend.Const(bw: Int))) => Some((v, bw))
+      case Adapter.g.Def("make_IntV", StaticList(Backend.Const(v: Int), Backend.Const(bw: Int))) => Some((v, bw))
       case _ => None
     }
   }

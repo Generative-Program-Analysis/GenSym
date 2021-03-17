@@ -21,8 +21,7 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import scala.collection.immutable.{List => SList}
-import scala.collection.immutable.{Map => SMap}
+import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 // TODO: Primitives.read should take in Symbolic value
@@ -33,11 +32,11 @@ import sai.lmsx.smt.SMTBool
 trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
-    var funMap: SMap[String, FunctionDef] = SMap()
-    var funDeclMap: SMap[String, FunctionDecl] = SMap()
-    var globalDefMap: SMap[String, GlobalDef] = SMap()
-    var typeDefMap: SMap[String, LLVMType] = SMap()
-    var heapEnv: SMap[String, Rep[Addr]] = SMap()
+    var funMap: StaticMap[String, FunctionDef] = StaticMap()
+    var funDeclMap: StaticMap[String, FunctionDecl] = StaticMap()
+    var globalDefMap: StaticMap[String, GlobalDef] = StaticMap()
+    var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
+    var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
     val BBFuns: HashMap[BB, Rep[SS => List[(SS, Value)]]] = new HashMap[BB, Rep[SS => List[(SS, Value)]]]
     val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
@@ -45,7 +44,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
       if (!CompileTimeRuntime.BBFuns.contains(b)) {
-        precompileBlocks(funName, SList(b))
+        precompileBlocks(funName, StaticList(b))
       }
       BBFuns(b)
     }
@@ -130,7 +129,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       // case CharArrayConst(s) => 
       case GlobalId(id) if funMap.contains(id) =>
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
-          precompileFunctions(SList(funMap(id)))
+          precompileFunctions(StaticList(funMap(id)))
         }
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
@@ -171,13 +170,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def evalConst(v: Constant): List[Rep[Value]] = v match {
     case BoolConst(b) =>
-      SList(IntV(if (b) 1 else 0, 1))
+      StaticList(IntV(if (b) 1 else 0, 1))
     case IntConst(n) =>
-      SList(IntV(n))
+      StaticList(IntV(n))
     case FloatConst(f) => 
-      SList(FloatV(f))
+      StaticList(FloatV(f))
     case ZeroInitializerConst =>
-      SList(IntV(0))
+      StaticList(IntV(0))
     case ArrayConst(cs) =>
       flattenAS(v).flatMap(c => evalConst(c))
     case CharArrayConst(s) =>
@@ -465,8 +464,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
     } yield v
 
-  def precompileHeap: SList[Rep[Value]] =
-    CompileTimeRuntime.globalDefMap.foldRight(SList[Rep[Value]]()) { case ((k, v), h) =>
+  def precompileHeap: StaticList[Rep[Value]] =
+    CompileTimeRuntime.globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
       val addr = h.size
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
       h ++ evalConst(v.const)
