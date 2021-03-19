@@ -166,6 +166,7 @@ package IR {
 
   abstract class LLVMType extends LAST
   case object VoidType extends LLVMType
+  case object OpaqueType extends LLVMType
   case class IntType(size: Int) extends LLVMType {
     override def toString = "i" + size.toString
   }
@@ -425,7 +426,9 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitTypeDef(ctx: LLVMParser.TypeDefContext): LAST = { 
     val id = ctx.localIdent.LOCAL_IDENT.getText
-    if (ctx.opaqueType != null) ???
+    if (ctx.opaqueType != null) {
+      TypeDef(id, OpaqueType)
+    }
     else {
       val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
       TypeDef(id, ty)
