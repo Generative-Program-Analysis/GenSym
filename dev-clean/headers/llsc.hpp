@@ -148,6 +148,10 @@ inline LocV::Kind proj_LocV_kind(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
 
+inline Ptr<Value> make_LocV_inc(Ptr<Value> loc, int i) {
+  return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc));
+}
+
 #ifdef STR_SYMV
 struct SymV : Value {
   Expr v;
@@ -536,8 +540,10 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex
     std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
   } else if (std::dynamic_pointer_cast<IntV>(x)) {
     std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")\n";
+  } else if (std::dynamic_pointer_cast<LocV>(x)){
+    ABORT("Unimplemented LOCV");
   } else {
-    ABORT("Unimplemented");
+    ABORT("Unimplemented ???");
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }

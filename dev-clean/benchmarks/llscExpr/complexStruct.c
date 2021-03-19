@@ -18,7 +18,10 @@ int *foo(struct ST *s) {
 int main() {
   struct RT rt = {3, {10, 11, 12}, 4};
   struct ST st = {1, 2, rt};
+  sym_print(st.Z.A);
+  sym_print(st.Z.B[2]);
+  sym_print(*(&st.Z.B[2]));
   int *x = foo(&st);
-  //printf("%d\n", *x);
+  sym_print(*x);
   return *x;
 }

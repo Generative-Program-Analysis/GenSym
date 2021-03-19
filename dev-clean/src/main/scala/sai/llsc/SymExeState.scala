@@ -123,11 +123,11 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def lookup(x: String): Rep[Value] = "ss-lookup-env".reflectWith[Value](ss, x.hashCode)
     def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
-    def lookup(addr: Rep[Value], size: Int = 1): Rep[Value] = {
+    def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       // if size == 1, returns a scalar value
       // if size > 1, returns a (flat) struct value
       require(size > 0)
-      if (size == 1) "ss-lookup-addr".reflectWith[Value](ss, addr)
+      if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr)
       else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
     }
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
@@ -253,5 +253,18 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_print", Unwrap(s), Unwrap(args)))
     }
     def print: Rep[Value] = FunV(topFun(__printf))
+  }
+
+  object Intrinsic extends java.io.Serializable {
+    def __memcopy(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] =  {
+      // val destLoc = args(0).loc
+      // val srcLoc = args(1).loc
+      // val bytes = args(2).int
+
+      // copy bytes num of memory from destloc to srcloc
+      // ???
+      Wrap[List[(SS, Value)]](Adapter.g.reflect("llvm_memcpy", Unwrap(s), Unwrap(args)));
+    }
+    def llvm_memcopy: Rep[Value] = FunV(topFun(__memcopy))
   }
 }

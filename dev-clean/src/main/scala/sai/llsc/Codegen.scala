@@ -11,6 +11,7 @@ import sai.lmsx.smt._
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
+  registerHeader("./headers", "<intrinsics.hpp>")
   registerLibraryPath("../stp/build/lib")
 
   val codegenFolder: String

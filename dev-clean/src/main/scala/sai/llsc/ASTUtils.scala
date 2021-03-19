@@ -14,4 +14,12 @@ object ASTUtils {
       flattenTypedList(xs)
     case _ => List(cst)
   }
+
+  def flattenTy(ty: LLVMType): List[LLVMType] = ty match {
+    case Struct(types) => 
+      types.flatMap(flattenTy(_))
+    case ArrayType(size, ety) => 
+      List.fill(size)(flattenTy(ety)).flatten
+    case _ => List(ty)
+  }
 }

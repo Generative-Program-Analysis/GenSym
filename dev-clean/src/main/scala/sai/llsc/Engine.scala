@@ -69,7 +69,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       types.map(getTySize(_, align)).sum
     case NamedType(id) =>
       getTySize(typeDefMap(id), align)
-    case _ => 1
+    case IntType(size) =>
+      size / 8
+    case PtrType(ty, addrSpace) => 
+      1
+    case _ => ???
   }
 
   def calculateExtractValueOffest(ty: LLVMType, index: List[Int]): Int = {
@@ -137,7 +141,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case "@make_symbolic" => Primitives.make_symbolic
            */
           case "@sym_print" => TestPrint.print
-          case id if id.startsWith("@llvm.memcpy") => ???
+          case id if id.startsWith("@llvm.memcpy") => Intrinsic.llvm_memcopy
           case _ =>
             throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
         }
@@ -164,22 +168,23 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def evalConst(v: Constant): List[Rep[Value]] = v match {
+  def evalConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
     case BoolConst(b) =>
       StaticList(IntV(if (b) 1 else 0, 1))
     case IntConst(n) =>
-      StaticList(IntV(n))
+      StaticList(IntV(n)) ++ StaticList.fill(getTySize(ty) - 1)(IntV(0))
+    // FIXME: Float width
     case FloatConst(f) => 
       StaticList(FloatV(f))
     case ZeroInitializerConst =>
       StaticList(IntV(0))
     case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalConst(c))
+      flattenAS(v).flatMap(c => evalConst(c, ty))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList
     case StructConst(cs) => 
-      flattenAS(v).flatMap(c => evalConst(c))
 
+      flattenAS(v).zip(flattenTy(ty)).flatMap { case (c, t) => evalConst(c, t)}
   }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
@@ -197,24 +202,38 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- putState(ss.allocStack(getTySize(ty, align.n)))
         } yield LocV(ss.stackSize, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
+        val isStruct = getRealType(valTy) match {
+          case Struct(types) => 1
+          case _ => 0
+        }
         for {
           v <- eval(value)
           ss <- getState
-        } yield ss.lookup(v, getTySize(valTy))
+        } yield ss.lookup(v, getTySize(valTy), isStruct)
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
           vs <- mapM(indexLLVMValue)(eval)
           lV <- eval(ptrValue)
         } yield {
-          val indexValue = vs.map(v => v.int)
-          val offset = calculateOffset(ptrType, indexValue)
-          ptrValue match {
-            case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-            case _ => LocV(lV.loc + offset, lV.kind)
+          // FIXME: how to stop lms from reusing int?
+          getRealType(baseType) match {
+            case _: StructType => 
+              val idxList = indexLLVMValue.asInstanceOf[List[IntConst]].map(x => x.n)
+              val offset = calculateExtractValueOffest(baseType, idxList.tail)
+              ptrValue match {
+                case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
+                case _ => LocV(lV.loc + offset, lV.kind)
+              }
+            case _ => 
+              val indexValue = vs.map(v => v.int)
+              val offset = calculateOffset(ptrType, indexValue)
+              ptrValue match {
+                case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
+                case _ => LocV(lV.loc + offset, lV.kind)
+              }
           }
         }
-
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs)
       case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs)
@@ -464,7 +483,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
       val addr = h.size
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
-      h ++ evalConst(v.const)
+      h ++ evalConst(v.const, getRealType(v.typ))
     }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {

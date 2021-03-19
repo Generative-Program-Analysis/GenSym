@@ -99,7 +99,7 @@ object TestStagedSymExec {
   def specialize(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = List() //SymV.makeSymVList(0)
+        val args: Rep[List[Value]] = List[Value]() //SymV.makeSymVList(0)
         /*
         val args: Rep[List[Value]] = List[Value](
           //IntV(10000),
