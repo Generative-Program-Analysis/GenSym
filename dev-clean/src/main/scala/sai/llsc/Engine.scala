@@ -71,9 +71,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       getTySize(typeDefMap(id), align)
     case IntType(size) =>
       size / 8
-    // ??? how long?
+    // FIXME: how long?
     case PtrType(ty, addrSpace) => 
-      1
+      8
     case _ => ???
   }
 
@@ -280,15 +280,17 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case SiToFPInst(from, value, to) => 
         for { v <- eval(value) } yield v.si_tofp
       case PtrToIntInst(from, value, to) => 
-        // FIXME: Tricky
-        ???
-      case IntToPtrInst(from, value, to) => ???
+        // TODO: Test
+        for { v <- eval(value) } yield IntV(v.int)
+      // TODO: kind
+      case IntToPtrInst(from, value, to) =>
+        for { v <- eval(value) } yield LocV(v.loc, LocV.kStack)
       case BitCastInst(from, value, to) => eval(value)
 
       // Aggregate Operations
       /* Backend Work Needed */
       case ExtractValueInst(ty, struct, indices) => 
-        /* FIXME:
+        /*
         Struct is tricky. Consider the following code snippet
         a:
           %call = call { i64, i64 } @get_stat_atime(%struct.stat* %2)
