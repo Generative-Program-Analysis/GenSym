@@ -71,6 +71,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       getTySize(typeDefMap(id), align)
     case IntType(size) =>
       size / 8
+    // ??? how long?
     case PtrType(ty, addrSpace) => 
       1
     case _ => ???
@@ -171,6 +172,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
     case BoolConst(b) =>
       StaticList(IntV(if (b) 1 else 0, 1))
+    // change intv0 to nullptr
     case IntConst(n) =>
       StaticList(IntV(n)) ++ StaticList.fill(getTySize(ty) - 1)(IntV(0))
     // FIXME: Float width
@@ -183,7 +185,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList
     case StructConst(cs) => 
-
       flattenAS(v).zip(flattenTy(ty)).flatMap { case (c, t) => evalConst(c, t)}
   }
 

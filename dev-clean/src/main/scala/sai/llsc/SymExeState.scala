@@ -124,8 +124,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
-      // if size == 1, returns a scalar value
-      // if size > 1, returns a (flat) struct value
       require(size > 0)
       if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr)
       else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
@@ -188,7 +186,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
-    def unapply(v: Rep[Value]): Option[(Int, Int)] = v match {
+    def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
       case Adapter.g.Def("make_IntV", StaticList(Backend.Const(v: Int), Backend.Const(bw: Int))) => Some((v, bw))
       case _ => None
     }
