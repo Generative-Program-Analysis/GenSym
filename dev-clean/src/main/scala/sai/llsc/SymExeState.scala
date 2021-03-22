@@ -226,8 +226,13 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
     def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
-      f(s, args)
+      Unwrap(v) match {
+        case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+          Wrap[List[(SS, Value)]](Adapter.g.reflectEffect(f, Unwrap(s), Unwrap(args))()())
+        case _ =>
+          val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
+          f(s, args)
+      }
     }
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
@@ -246,23 +251,11 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       "trunc".reflectWith[Value](from, to)
   }
 
-  object TestPrint extends java.io.Serializable {
-    def __printf(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      Wrap[List[(SS, Value)]](Adapter.g.reflect("sym_print", Unwrap(s), Unwrap(args)))
-    }
-    def print: Rep[Value] = FunV(topFun(__printf))
+  object External {
+    def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
   }
 
-  object Intrinsic extends java.io.Serializable {
-    def __memcopy(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] =  {
-      // val destLoc = args(0).loc
-      // val srcLoc = args(1).loc
-      // val bytes = args(2).int
-
-      // copy bytes num of memory from destloc to srcloc
-      // ???
-      Wrap[List[(SS, Value)]](Adapter.g.reflect("llvm_memcpy", Unwrap(s), Unwrap(args)));
-    }
-    def llvm_memcopy: Rep[Value] = FunV(topFun(__memcopy))
+  object Intrinsics {
+    def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
   }
 }

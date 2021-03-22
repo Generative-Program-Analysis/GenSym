@@ -141,8 +141,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case "@assert" => Primitives.assert_false
           case "@make_symbolic" => Primitives.make_symbolic
            */
-          case "@sym_print" => TestPrint.print
-          case id if id.startsWith("@llvm.memcpy") => Intrinsic.llvm_memcopy
+          case "@sym_print" => External.print
+          case id if id.startsWith("@llvm.memcpy") => Intrinsics.llvm_memcopy
           case _ =>
             throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
         }
