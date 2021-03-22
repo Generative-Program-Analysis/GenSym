@@ -187,7 +187,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
     def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
-      case Adapter.g.Def("make_IntV", StaticList(Backend.Const(v: Int), Backend.Const(bw: Int))) => Some((v, bw))
+      case Adapter.g.Def("make_IntV", Backend.Const(v: Int)::Backend.Const(bw: Int)::_) =>
+        Some((v, bw))
       case _ => None
     }
   }
@@ -220,8 +221,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   implicit class ValueOps(v: Rep[Value]) {
+    // TODO: optimization like int
     def loc: Rep[Addr] = "proj_LocV".reflectWith[Addr](v)
-    def int: Rep[Int] = "proj_IntV".reflectWith[Int](v)
+    def int: Rep[Int] = v match {
+      case IntV(n, bw) => unit(n)
+      case _ => "proj_IntV".reflectWith[Int](v)
+    }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)

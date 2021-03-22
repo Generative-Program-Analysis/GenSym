@@ -55,6 +55,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
   import CompileTimeRuntime._
 
+  final val byteSize: Int = 8
+
   def getRealType(vt: LLVMType): LLVMType = vt match {
     case NamedType(id) => typeDefMap(id)
     case _ => vt
@@ -70,10 +72,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case NamedType(id) =>
       getTySize(typeDefMap(id), align)
     case IntType(size) =>
-      size / 8
-    // FIXME: how long?
-    case PtrType(ty, addrSpace) => 
-      8
+      size / byteSize
+    case PtrType(ty, addrSpace) =>
+      64 / byteSize // Assuming a 64-bit machine
     case _ => ???
   }
 
@@ -104,7 +105,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        val indexCst: List[Int] = index.map { case IntV(v, bw) => v }
+        val indexCst: List[Int] = index.map { case Wrap(Backend.Const(n: Int)) => n }
         unit(calculateExtractValueOffest(ty, indexCst))
       case _ => ???
     }
@@ -147,9 +148,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
         }
         ret(v)
-      // now the only case GlobalId(id) in globalDefMap gets evaled
-      // is when we "load x GlobalId(id)", so we should return addr in heap
       case GlobalId(id) if globalDefMap.contains(id) =>
+        // now the only case GlobalId(id) in globalDefMap gets evaled
+        // is when we "load x GlobalId(id)", so we should return addr in heap
         ret(LocV(heapEnv(id), LocV.kHeap))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
@@ -218,21 +219,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           lV <- eval(ptrValue)
         } yield {
           // FIXME: how to stop lms from reusing int?
-          getRealType(baseType) match {
-            case _: StructType => 
-              val idxList = indexLLVMValue.asInstanceOf[List[IntConst]].map(x => x.n)
-              val offset = calculateExtractValueOffest(baseType, idxList.tail)
-              ptrValue match {
-                case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-                case _ => LocV(lV.loc + offset, lV.kind)
-              }
-            case _ => 
-              val indexValue = vs.map(v => v.int)
-              val offset = calculateOffset(ptrType, indexValue)
-              ptrValue match {
-                case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-                case _ => LocV(lV.loc + offset, lV.kind)
-              }
+          val indexValue = vs.map(v => v.int)
+          val offset = calculateOffset(ptrType, indexValue)
+          ptrValue match {
+            case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
+            case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
       // Arith Binary Operations
