@@ -131,7 +131,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        System.out.println(FunV(CompileTimeRuntime.FunFuns(id)))
+        FunName.bindings(Unwrap(CompileTimeRuntime.FunFuns(id)).asInstanceOf[Backend.Sym].n) = id.tail
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {

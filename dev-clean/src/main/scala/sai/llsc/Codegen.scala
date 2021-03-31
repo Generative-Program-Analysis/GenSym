@@ -16,6 +16,11 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
 
   val codegenFolder: String
 
+  override def quote(s: Def): String = s match {
+    case Sym(n) if FunName.bindings.contains(n) => FunName.bindings(n)
+    case _ => super.quote(s)
+  }
+
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "list-new", _, _) => true
     case Node(_, "make_SymV", _, _) => true

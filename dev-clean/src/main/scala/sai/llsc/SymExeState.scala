@@ -19,7 +19,8 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
-import scala.collection.immutable.{List => StaticList}
+import scala.collection.immutable.{List => StaticList, Map => StaticMap}
+import scala.collection.mutable.{Map => MultableMap}
 import scala.collection.immutable.{Set => StaticSet}
 
 /* Naming convention for IR nodes:
@@ -272,4 +273,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object Intrinsics {
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
   }
+}
+
+object FunName {
+  val bindings: MultableMap[Int, String] = MultableMap()
 }
