@@ -137,7 +137,8 @@ object TestStagedSymExec {
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
     //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    testModule(sai.llvm.LLSCExpr.strcmp, "strcmp", "@strcmp")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
   }
 }

@@ -20,6 +20,7 @@ import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
 import scala.collection.immutable.{List => StaticList}
+import scala.collection.immutable.{Set => StaticSet}
 
 /* Naming convention for IR nodes:
    - If the node can be and should be handled by the default case of the codegen,
@@ -107,6 +108,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   trait Stack
   trait SS
 
+  type BlockLabel = Int
   type Addr = Int
   type PC = Set[SMTBool]
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
@@ -141,6 +143,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def addPC(e: Rep[SMTBool]): Rep[SS] = "ss-addpc".reflectWith[SS](ss, e)
     def addPCSet(es: Rep[Set[SMTBool]]): Rep[SS] = "ss-addpcset".reflectWith[SS](ss, es)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
+
+    def addIncomingBlock(x: String): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, x.hashCode)
+    def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
   }
 
   implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
@@ -182,6 +187,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.update(k, v))
   def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
+  def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
 
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
@@ -257,6 +263,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object External {
+    val modeled_external: StaticSet[String] = StaticSet(
+      "sym_print"
+    )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
   }
 

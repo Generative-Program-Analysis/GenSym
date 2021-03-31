@@ -30,6 +30,7 @@ using namespace std::chrono;
 inline unsigned int bitwidth = 32;
 inline unsigned int var_name = 0;
 
+using BlockLabel = int;
 using Id = int;
 using Addr = unsigned int;
 
@@ -296,6 +297,11 @@ inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
   }
 }
 
+// FIXME: 
+Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
+  return v;
+}
+
 /* Memory, stack, and symbolic state representation */
 
 // TODO(GW): using a byte-oriented memory?
@@ -386,8 +392,9 @@ class SS {
     Mem heap;
     Stack stack;
     PC pc;
+    BlockLabel bb;
   public:
-    SS(Mem heap, Stack stack, PC pc) : heap(heap), stack(stack), pc(pc) {}
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
@@ -405,29 +412,32 @@ class SS {
       return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc); }
+    BlockLabel incoming_block() { return bb; }
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb); }
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc);
-      return SS(heap.update(loc->l, val), stack, pc);
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb);
+      return SS(heap.update(loc->l, val), stack, pc, bb);
     }
-    SS push() { return SS(heap, stack.push(), pc); }
-    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc); }
-    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc); }
+    SS push() { return SS(heap, stack.push(), pc, bb); }
+    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb); }
+    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      return SS(heap, stack.assign_seq(ids, vals), pc);
+      return SS(heap, stack.assign_seq(ids, vals), pc, bb);
     }
-    SS addPC(Expr e) { return SS(heap, stack, pc.add(e)); }
-    SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s)); }
+    SS addPC(Expr e) { return SS(heap, stack, pc.add(e), bb); }
+    SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s), bb); }
+    SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
     immer::set<Expr> getPC() { return pc.getPC(); }
 };
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
 inline const PC mt_pc = PC(immer::set<Expr>{});
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc);
+inline const BlockLabel mt_bb = 0;
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 
 inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};

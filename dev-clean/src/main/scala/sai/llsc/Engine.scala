@@ -131,6 +131,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
+        System.out.println(FunV(CompileTimeRuntime.FunFuns(id)))
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
@@ -142,8 +143,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case "@assert" => Primitives.assert_false
           case "@make_symbolic" => Primitives.make_symbolic
            */
-          case "@sym_print" => External.print
+          case id if External.modeled_external.contains(id.tail) => 
+            "llsc-external-wrapper".reflectWith[Value](id.tail)
           case id if id.startsWith("@llvm.memcpy") => Intrinsics.llvm_memcopy
+          // Should be a noop
           case _ =>
             throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
         }
@@ -218,7 +221,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           vs <- mapM(indexLLVMValue)(eval)
           lV <- eval(ptrValue)
         } yield {
-          // FIXME: how to stop lms from reusing int?
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
           ptrValue match {
@@ -316,7 +318,19 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           v <- reflect(fv(s, List(vs:_*)))
           _ <- popFrame(s.stackSize)
         } yield v
-      case PhiInst(ty, incs) => ???
+
+      case PhiInst(ty, incs) => 
+        def selectValue(bb: Rep[BlockLabel], vs: List[Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
+          if (bb == labels(0) || labels.length == 1) vs(0)
+          else selectValue(bb, vs.tail, labels.tail)
+        }
+        val incsValues: List[LLVMValue] = incs.map(inc => inc.value)
+        val incsLabels: List[BlockLabel] = incs.map(inc => inc.label.hashCode)
+        
+        for {
+          vs <- mapM(incsValues)(eval)
+          s <- getState
+        } yield selectValue(s.incomingBlock, vs, incsLabels)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         for {
           cnd <- eval(cndVal)
@@ -343,15 +357,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(inst: Terminator)(implicit funName: String): Comp[E, Rep[Value]] = {
+  def execTerm(inst: Terminator, incomingBlock: String)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
       // FIXME: unreachable
       case Unreachable => ret(IntV(-1))
       case RetTerm(ty, Some(value)) => eval(value)
       case RetTerm(ty, None) => ret(IntV(0))
-      case BrTerm(lab) => execBlock(funName, lab)
+      case BrTerm(lab) => 
+        for {
+          _ <- updateIncomingBlock(incomingBlock)
+          v <- execBlock(funName, lab)
+        } yield v
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         for {
+          _ <- updateIncomingBlock(incomingBlock)
           ss <- getState
           cndVal <- eval(cnd)
           u <- reflect {
@@ -420,6 +439,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
 
         for {
+          _ <- updateIncomingBlock(incomingBlock)
           v <- eval(cndVal)
           s <- getState
           r <- reflect {
@@ -486,7 +506,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
-        v <- execTerm(b.term)(funName)
+        v <- execTerm(b.term, b.label.getOrElse(""))(funName)
       } yield v
       reify[Value](ss)(runInstList)
     }
