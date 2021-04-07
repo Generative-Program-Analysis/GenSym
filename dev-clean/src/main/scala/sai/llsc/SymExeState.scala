@@ -135,6 +135,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
+    def heapSize: Rep[Int] = "ss-heap-size".reflectWith[Int](ss)
+    def heapAppend(vs: Rep[List[Value]]) = "ss-heap-append".reflectWith[SS](ss, vs)
 
     def stackSize: Rep[Int] = "ss-stack-size".reflectWith[Int](ss)
     def freshStackAddr: Rep[Addr] = stackSize
@@ -181,6 +183,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       _ <- putState(f(ss))
     } yield ()
 
+  def heapAppend(vs: Rep[List[Value]]): Comp[E, Rep[Unit]]  = updateState(_.heapAppend(vs))
   def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
   def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
   def pushFrame: Comp[E, Rep[Unit]] = updateState(_.push)

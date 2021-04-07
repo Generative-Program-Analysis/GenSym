@@ -298,7 +298,7 @@ inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
 }
 
 // FIXME: 
-Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
+inline Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
   return v;
 }
 
@@ -396,6 +396,7 @@ class SS {
   public:
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
+    size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
@@ -426,6 +427,9 @@ class SS {
     SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
       return SS(heap, stack.assign_seq(ids, vals), pc, bb);
+    }
+    SS heap_append(immer::flex_vector<PtrVal> vals) {
+      return SS(heap.append(vals), stack, pc, bb);
     }
     SS addPC(Expr e) { return SS(heap, stack, pc.add(e), bb); }
     SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s), bb); }

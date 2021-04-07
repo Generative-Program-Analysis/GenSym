@@ -44,7 +44,6 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     else super.remap(m)
   }
 
-  // FIXME: should pass ops directly
   def quoteOp(op: String): String = "op_" + op
 
   override def shallow(n: Node): Unit = n match {
@@ -72,6 +71,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
     case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
     case Node(s, "ss-assign-seq", List(ss, ks, vs), _) => es"$ss.assign_seq($ks, $vs)"
+    case Node(s, "ss-heap-size", List(ss), _) => es"$ss.heap_size()"
+    case Node(s, "ss-heap-append", List(ss, vs), _) => es"$ss.heap_append($vs)"
     case Node(s, "ss-stack-size", List(ss), _) => es"$ss.stack_size()"
     case Node(s, "ss-alloc-stack", List(ss, n), _) => es"$ss.alloc_stack($n)"
     case Node(s, "ss-update", List(ss, k, v), _) => es"$ss.update($k, $v)"

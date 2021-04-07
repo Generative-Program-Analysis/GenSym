@@ -12,6 +12,7 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
+import scala.collection.immutable.{List => StaticList}
 
 abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String = ".")
     extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
@@ -124,6 +125,23 @@ object TestStagedSymExec {
       }
     }
 
+  @virtualize
+  def specializeFun(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
+    new LLSCDriver[Int, Unit](name, "./llsc_gen") {
+      def snippet(u: Rep[Int]) = {
+        val res = execExternal(m, fname)
+        println(res)
+      }
+  }
+
+  def testFunGen(m: Module, name: String, fname: String) {
+    val res = sai.utils.Utils.time {
+      val code = specializeFun(m, name + "gen", fname)
+      code.genAll
+    }
+    println(res._2)
+  }
+  
   def testModule(m: Module, name: String, fname: String) {
     val res = sai.utils.Utils.time {
       val code = specialize(m, name, fname)
@@ -138,7 +156,8 @@ object TestStagedSymExec {
     //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
     //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    testModule(sai.llvm.LLSCExpr.strcmp, "strcmp", "@strcmp")
+    //testFunGen(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
   }
 }

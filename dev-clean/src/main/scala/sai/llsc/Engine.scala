@@ -184,7 +184,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case ZeroInitializerConst =>
       StaticList(IntV(0))
     case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalConst(c, ty))
+      flattenAS(v).flatMap(c => evalConst(c, ty.asInstanceOf[ArrayType].ety))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList
     case StructConst(cs) => 
@@ -562,5 +562,63 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     Coverage.incPath(1)
     Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
+  }
+
+
+  def precompileExternalFun(externalFun: FunctionDef): Unit = {
+    def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      def precompileHeapExternal: StaticList[Rep[Value]] = {
+        val preHeapSize = ss.heapSize
+        // TODO should k change with fun name? 
+        // e.g. if two external function have same global variable name?
+        CompileTimeRuntime.globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
+          // FIXME: Here when addr is referenced in later blocks
+          // the later block will be generated within this function's scope
+          val addr = h.size + preHeapSize
+          CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
+          h ++ evalConst(v.const, getRealType(v.typ))
+        }
+      }
+      val params: List[String] = f.header.params.map {
+        case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
+      }
+      unchecked("// compiling function: " + f.id)
+      val m: Comp[E, Rep[Value]] = for {
+        _ <- heapAppend(List(precompileHeapExternal: _*))
+        _ <- stackUpdate(params, args)
+        s <- getState
+        v <- execBlock(f.id, f.blocks(0))
+      } yield v
+      reify(ss)(m)
+    }
+
+    Predef.assert(!CompileTimeRuntime.FunFuns.contains(externalFun.id))
+    val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(externalFun))
+    val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
+    FunName.bindings(n) = if(externalFun.id != "@main") externalFun.id.tail else "llsc_main"
+    CompileTimeRuntime.FunFuns(externalFun.id) = repRunFun
+  }
+  
+  def execExternal(m: Module, fname: String): Rep[Int] = {
+    CompileTimeRuntime.funMap = m.funcDefMap
+    CompileTimeRuntime.funDeclMap = m.funcDeclMap
+    CompileTimeRuntime.globalDefMap = m.globalDefMap
+    CompileTimeRuntime.typeDefMap = m.typeDefMap
+    
+    precompileExternalFun(m.funcDefMap(fname))
+
+    // how to just generate this node?
+    val comp = for {
+      fv <- eval(GlobalId(fname))(fname)
+      _ <- pushFrame
+      s <- getState
+      v <- reflect(fv(s, List[Value]()))
+      _ <- popFrame(s.stackSize)
+    } yield v
+    Coverage.setBlockNum
+    Coverage.incPath(1)
+    Coverage.startMonitor
+    reify[Value](SS.init(List[Value]().asRepOf[Mem]))(comp)
+    0
   }
 }

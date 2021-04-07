@@ -36,6 +36,7 @@ object LLSCExpr {
   lazy val strcmpCaller = parseFile("benchmarks/llscExpr/externalTest/strcmpCaller.ll")
   lazy val strcmp = parseFile("benchmarks/llscExpr/externalTest/strcmp.ll")
   lazy val strcpy = parseFile("benchmarks/llscExpr/externalTest/strcpy.ll")
+  lazy val externalFun = parseFile("benchmarks/llscExpr/externalTest/externalFun.ll")
 }
 
 object Coreutils {
