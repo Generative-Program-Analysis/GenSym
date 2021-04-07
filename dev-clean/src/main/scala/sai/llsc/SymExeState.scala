@@ -277,4 +277,5 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 
 object FunName {
   val bindings: MultableMap[Int, String] = MultableMap()
+  val blockBindings: MultableMap[Int, String] = MultableMap()
 }

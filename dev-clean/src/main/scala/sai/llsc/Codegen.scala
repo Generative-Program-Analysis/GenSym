@@ -17,7 +17,10 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   val codegenFolder: String
 
   override def quote(s: Def): String = s match {
-    case Sym(n) if FunName.bindings.contains(n) => FunName.bindings(n)
+    case Sym(n) =>
+      FunName.bindings.getOrElse(n, {
+        FunName.blockBindings.getOrElse(n, super.quote(s))
+      })
     case _ => super.quote(s)
   }
 
@@ -107,7 +110,12 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
       //if (ongoingFun(streamId)) ???
       //ongoingFun += streamId
       registeredFunctions += id
-      withStream(functionsStreams.getOrElseUpdate(id, {
+
+      val funName = if (FunName.blockBindings.values.exists(_ == id)) {
+        id.substring(0, id.indexOf("_Block"))
+      } else id
+
+      withStream(functionsStreams.getOrElseUpdate(funName, {
         val functionsStream = new java.io.ByteArrayOutputStream()
         val functionsWriter = new java.io.PrintStream(functionsStream)
         (functionsWriter, functionsStream)

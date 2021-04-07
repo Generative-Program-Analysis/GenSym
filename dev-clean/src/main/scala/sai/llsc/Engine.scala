@@ -131,7 +131,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        FunName.bindings(Unwrap(CompileTimeRuntime.FunFuns(id)).asInstanceOf[Backend.Sym].n) = id.tail
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
@@ -514,6 +513,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     for (b <- blocks) {
       Predef.assert(!CompileTimeRuntime.BBFuns.contains(b))
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
+      val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
+      val realFunName = if (funName != "@main") funName.tail else "llsc_main"
+      FunName.blockBindings(n) = s"${realFunName}_Block$n"
       CompileTimeRuntime.BBFuns(b) = repRunBlock
     }
   }
@@ -535,6 +537,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+      val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
+      FunName.bindings(n) = if(f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
