@@ -15,6 +15,8 @@ package IR {
       es.filter(_.isInstanceOf[FunctionDecl]).asInstanceOf[List[FunctionDecl]].map(f => (f.id, f)).toMap
     val globalDefMap: Map[String, GlobalDef] =
       es.filter(_.isInstanceOf[GlobalDef]).asInstanceOf[List[GlobalDef]].map(d => (d.id, d)).toMap
+    val globalDeclMap: Map[String, GlobalDecl] =
+      es.filter(_.isInstanceOf[GlobalDecl]).asInstanceOf[List[GlobalDecl]].map(d => (d.id, d)).toMap
     val typeDefMap: Map[String, LLVMType] = 
       es.filter(_.isInstanceOf[TypeDef]).asInstanceOf[List[TypeDef]].map(d => (d.id, d.ty)).toMap
 
@@ -46,7 +48,21 @@ package IR {
     ty: LLVMType
   ) extends TopLevelEntity
   case class ComdatDef(ctx: LLVMParser.ComdatDefContext) extends TopLevelEntity
-  case class GlobalDecl(ctx: LLVMParser.GlobalDeclContext) extends TopLevelEntity
+  case class GlobalDecl(
+    id: String,
+    linkage: ExternalLinkage,
+    preemptionSpec: Option[PreemptionSpec],
+    visibility: Option[Visibility],
+    dllStorageClass: Option[DllStorageClass],
+    threadLocal: Option[ThreadLocal],
+    unnamedAddr: Option[UnnamedAddr],
+    addrSpace: Option[AddrSpace],
+    externInit: Option[ExternInitialized],
+    immutable: Immutable,
+    typ: LLVMType,
+    globalAttrs: List[GlobalAttr],
+    funcAttrs: List[FuncAttr],
+  ) extends TopLevelEntity
   case class GlobalDef(
     id: String,
     linkage: Option[Linkage],
@@ -130,6 +146,10 @@ package IR {
   case object Private extends Linkage
   case object Weak extends Linkage
   case object WeakOdr extends Linkage
+
+  abstract class ExternalLinkage extends LAST
+  case object ExternalWeak extends ExternalLinkage
+  case object External extends ExternalLinkage
 
   // Visibility
 
@@ -437,7 +457,35 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitComdatDef(ctx: LLVMParser.ComdatDefContext): LAST = { ComdatDef(ctx) }
 
-  override def visitGlobalDecl(ctx: LLVMParser.GlobalDeclContext): LAST = { GlobalDecl(ctx) }
+  override def visitGlobalDecl(ctx: LLVMParser.GlobalDeclContext): LAST = { 
+    val id = ctx.globalIdent.GLOBAL_IDENT.getText
+    val linkage = visit(ctx.externLinkage).asInstanceOf[ExternalLinkage]
+    val preem = None // TODO: Skipped optPreemptionSpecifier
+    val dll = None // TODO: Skipped optDLLStorageClass
+    val addrSpace =
+      if (ctx.optAddrSpace.addrSpace != null)
+        Some(visit(ctx.optAddrSpace.addrSpace).asInstanceOf[AddrSpace])
+      else None
+    val externInit =
+      if (ctx.optExternallyInitialized.EXTERNALLY_INITIALIZED != null)
+        Some(ExternInitialized()) else None
+    val immutable = visit(ctx.immutable).asInstanceOf[Immutable]
+    val typ = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val globalAttrs = visit(ctx.globalAttrs).asInstanceOf[GlobalAttrList].as
+    val funcAttrs = visit(ctx.funcAttrs).asInstanceOf[FuncAttrList].as
+    val vis =
+      if (ctx.visibility != null)
+        Some(visit(ctx.visibility).asInstanceOf[Visibility])
+      else None
+    val thread = None // TODO: Skipped threadLocal
+    val unnamedAddr =
+      if (ctx.unnamedAddr != null)
+        Some(visit(ctx.unnamedAddr).asInstanceOf[UnnamedAddr])
+      else None
+    GlobalDecl(id, linkage, preem, vis, dll,
+      thread, unnamedAddr, addrSpace,
+      externInit, immutable, typ, globalAttrs, funcAttrs)
+  }
 
   override def visitGlobalDef(ctx: LLVMParser.GlobalDefContext): LAST =  {
     val id = ctx.globalIdent.GLOBAL_IDENT.getText
@@ -509,6 +557,12 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.PRIVATE != null) Private
     else if (ctx.WEAK != null) Weak
     else if (ctx.WEAK_ODR != null) WeakOdr
+    else error
+  }
+
+  override def visitExternLinkage(ctx: LLVMParser.ExternLinkageContext): LAST = {
+    if (ctx.EXTERNAL != null) External
+    else if (ctx.EXTERN_WEAK != null) ExternalWeak
     else error
   }
 

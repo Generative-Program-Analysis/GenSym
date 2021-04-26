@@ -8,10 +8,12 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import sai.lmsx.smt._
+import java.io.FileOutputStream
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
   registerHeader("./headers", "<intrinsics.hpp>")
+  registerHeader("./headers", "<external.hpp>")
   registerLibraryPath("../stp/build/lib")
 
   val codegenFolder: String
@@ -111,12 +113,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
       //if (ongoingFun(streamId)) ???
       //ongoingFun += streamId
       registeredFunctions += id
-
-      val funName = if (FunName.blockBindings.values.exists(_ == id)) {
-        id.substring(0, id.indexOf("_Block"))
-      } else id
-
-      withStream(functionsStreams.getOrElseUpdate(funName, {
+      withStream(functionsStreams.getOrElseUpdate(id, {
         val functionsStream = new java.io.ByteArrayOutputStream()
         val functionsWriter = new java.io.PrintStream(functionsStream)
         (functionsWriter, functionsStream)
@@ -138,13 +135,26 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     out.close
   }
 
+  // 2 pass
   def emitFunctionFiles: Unit = {
     for ((f, (_, funStream)) <- functionsStreams) {
-      val filename = s"$codegenFolder/$f.cpp"
-      val out = new java.io.PrintStream(filename)
-      out.println("#include \"common.h\"")
-      funStream.writeTo(out)
-      out.close
+      if (!FunName.blockBindings.values.exists(_ == f)) {
+        val filename = s"$codegenFolder/$f.cpp"
+        val out = new java.io.PrintStream(filename)
+        out.println("#include \"common.h\"")
+        funStream.writeTo(out)
+        out.close
+      }
+    }
+
+    for ((f, (_, funStream)) <- functionsStreams) {
+      if (FunName.blockBindings.values.exists(_ == f)) {
+        val funName = f.substring(0, f.indexOf("_Block"))
+        val filename = s"$codegenFolder/$funName.cpp"
+        val out = new java.io.PrintStream(new FileOutputStream(filename, true))
+        funStream.writeTo(out)
+        out.close 
+      }
     }
   }
 

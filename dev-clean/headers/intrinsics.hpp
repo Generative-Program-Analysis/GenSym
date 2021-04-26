@@ -17,3 +17,18 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::fl
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
 }
+
+// args 0: LocV to {i32, i32, i8*, i8*}
+// in memory {4, 4, 8, 8}
+inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_va_start(SS state, immer::flex_vector<PtrVal> args) {
+  PtrVal va_list = args.at(0);
+  PtrVal va_arg = state.getVarargLoc();
+  SS res = state;
+
+  res = res.update(make_LocV_inc(va_list, 0), make_IntV(0));
+  res = res.update(make_LocV_inc(va_list, 4), make_IntV(0));
+  res = res.update(make_LocV_inc(va_list, 8), make_LocV_inc(va_arg, 40));
+  res = res.update(make_LocV_inc(va_list, 16), va_arg);
+
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
+}

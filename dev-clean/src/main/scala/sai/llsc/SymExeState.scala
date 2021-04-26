@@ -271,10 +271,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       "sym_print"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
+    def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")
   }
 
   object Intrinsics {
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
+    def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
   }
 }
 

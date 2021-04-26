@@ -35,6 +35,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
     var funDeclMap: StaticMap[String, FunctionDecl] = StaticMap()
     var globalDefMap: StaticMap[String, GlobalDef] = StaticMap()
+    var globalDeclMap: StaticMap[String, GlobalDecl] = StaticMap()
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
@@ -145,6 +146,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case id if External.modeled_external.contains(id.tail) => 
             "llsc-external-wrapper".reflectWith[Value](id.tail)
           case id if id.startsWith("@llvm.memcpy") => Intrinsics.llvm_memcopy
+          case id if id.startsWith("@llvm.va_start") => Intrinsics.llvm_va_start
+          case id if id.startsWith("@llvm.va_end") => External.noop
           // Should be a noop
           case _ =>
             throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
@@ -154,6 +157,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         // now the only case GlobalId(id) in globalDefMap gets evaled
         // is when we "load x GlobalId(id)", so we should return addr in heap
         ret(LocV(heapEnv(id), LocV.kHeap))
+      case GlobalId(id) if globalDeclMap.contains(id) => ???
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -492,8 +496,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
     } yield v
 
-  def precompileHeap: StaticList[Rep[Value]] =
-    CompileTimeRuntime.globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
+  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef]): StaticList[Rep[Value]] =
+    globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
       val addr = h.size
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
       h ++ evalConst(v.const, getRealType(v.typ))
@@ -524,6 +528,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
+        case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
@@ -543,13 +548,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def exec(m: Module, fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-    CompileTimeRuntime.funMap = m.funcDefMap
-    CompileTimeRuntime.funDeclMap = m.funcDeclMap
-    CompileTimeRuntime.globalDefMap = m.globalDefMap
-    CompileTimeRuntime.typeDefMap = m.typeDefMap
+  def exec(main: Module, fname: String, args: Rep[List[Value]], modules: StaticList[Module]): Rep[List[(SS, Value)]] = {
+    CompileTimeRuntime.funMap = main.funcDefMap
+    CompileTimeRuntime.funDeclMap = main.funcDeclMap
+    CompileTimeRuntime.globalDefMap = main.globalDefMap
+    CompileTimeRuntime.globalDeclMap = main.globalDeclMap
+    CompileTimeRuntime.typeDefMap = main.typeDefMap
     
-    val preHeap: Rep[List[Value]] = List(precompileHeap:_*)
+    val preHeap: Rep[List[Value]] = List(precompileHeap(CompileTimeRuntime.globalDefMap):_*)
     val heap0 = preHeap.asRepOf[Mem]
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
@@ -562,63 +568,5 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     Coverage.incPath(1)
     Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
-  }
-
-
-  def precompileExternalFun(externalFun: FunctionDef): Unit = {
-    def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      def precompileHeapExternal: StaticList[Rep[Value]] = {
-        val preHeapSize = ss.heapSize
-        // TODO should k change with fun name? 
-        // e.g. if two external function have same global variable name?
-        CompileTimeRuntime.globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-          // FIXME: Here when addr is referenced in later blocks
-          // the later block will be generated within this function's scope
-          val addr = h.size + preHeapSize
-          CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> addr)
-          h ++ evalConst(v.const, getRealType(v.typ))
-        }
-      }
-      val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
-      }
-      unchecked("// compiling function: " + f.id)
-      val m: Comp[E, Rep[Value]] = for {
-        _ <- heapAppend(List(precompileHeapExternal: _*))
-        _ <- stackUpdate(params, args)
-        s <- getState
-        v <- execBlock(f.id, f.blocks(0))
-      } yield v
-      reify(ss)(m)
-    }
-
-    Predef.assert(!CompileTimeRuntime.FunFuns.contains(externalFun.id))
-    val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(externalFun))
-    val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-    FunName.bindings(n) = if(externalFun.id != "@main") externalFun.id.tail else "llsc_main"
-    CompileTimeRuntime.FunFuns(externalFun.id) = repRunFun
-  }
-  
-  def execExternal(m: Module, fname: String): Rep[Int] = {
-    CompileTimeRuntime.funMap = m.funcDefMap
-    CompileTimeRuntime.funDeclMap = m.funcDeclMap
-    CompileTimeRuntime.globalDefMap = m.globalDefMap
-    CompileTimeRuntime.typeDefMap = m.typeDefMap
-    
-    precompileExternalFun(m.funcDefMap(fname))
-
-    // how to just generate this node?
-    val comp = for {
-      fv <- eval(GlobalId(fname))(fname)
-      _ <- pushFrame
-      s <- getState
-      v <- reflect(fv(s, List[Value]()))
-      _ <- popFrame(s.stackSize)
-    } yield v
-    Coverage.setBlockNum
-    Coverage.incPath(1)
-    Coverage.startMonitor
-    reify[Value](SS.init(List[Value]().asRepOf[Mem]))(comp)
-    0
   }
 }

@@ -315,6 +315,10 @@ class PreMem {
     V at(size_t idx) { return mem.at(idx); }
     PreMem<V> update(size_t idx, V val) { return PreMem<V>(mem.set(idx, val)); }
     PreMem<V> append(V val) { return PreMem<V>(mem.push_back(val)); }
+    PreMem<V> append(V val, size_t padding) {
+      size_t idx = mem.size();
+      return PreMem<V>(alloc(padding + 1).update(idx, val)); 
+    }
     PreMem<V> append(immer::flex_vector<V> vs) { return PreMem<V>(mem + vs); }
     PreMem<V> alloc(size_t size) {
       auto m = mem.transient();
@@ -356,6 +360,7 @@ class Stack {
     Stack(Mem mem, immer::flex_vector<Frame> env) : mem(mem), env(env) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
+    PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
     Stack pop(size_t keep) { return Stack(mem.take(keep), env.take(env.size()-1)); }
     Stack push() { return Stack(mem, env.push_back(Frame())); }
     Stack push(Frame f) { return Stack(mem, env.push_back(f)); }
@@ -364,7 +369,22 @@ class Stack {
       return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }));
     }
     Stack assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, vals); }));
+      // varargs
+      size_t id_size = ids.size();
+      if (id_size == 0) return Stack(mem, env);
+      if (ids.at(id_size - 1) == 0) {
+        auto updated_mem = mem;
+        for (size_t i = id_size - 1; i < vals.size(); i++) {
+          // FIXME: magic value 8, as vararg is retrived from +8 address
+          updated_mem = updated_mem.append(vals.at(i), 7);
+        }
+        if (updated_mem.size() == mem.size()) updated_mem = updated_mem.alloc(8);
+        auto updated_vals = vals.take(id_size - 1).push_back(make_LocV(mem.size(), LocV::kStack));
+        auto stack = Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }));
+        return Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }));
+      } else {
+        return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, vals); }));
+      }
     }
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
@@ -435,6 +455,8 @@ class SS {
     SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s), bb); }
     SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
     immer::set<Expr> getPC() { return pc.getPC(); }
+    // TODO temp solution
+    PtrVal getVarargLoc() {return stack.getVarargLoc(); }
 };
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
@@ -538,28 +560,5 @@ struct CoverageMonitor {
 };
 
 inline CoverageMonitor cov;
-
-/* temp util functions */
-inline immer::flex_vector<Expr> set_to_list(immer::set<Expr> s) {
-  auto res = immer::flex_vector<Expr>{};
-  for (auto x : s) {
-    res = res.push_back(x);
-  }
-  return res;
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
-  PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<FloatV>(x)) {
-    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
-  } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")\n";
-  } else if (std::dynamic_pointer_cast<LocV>(x)){
-    ABORT("Unimplemented LOCV");
-  } else {
-    ABORT("Unimplemented ???");
-  }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
-}
 
 #endif
