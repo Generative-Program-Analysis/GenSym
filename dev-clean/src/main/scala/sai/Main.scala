@@ -73,6 +73,7 @@ object Main {
 
       @virtualize
       def listget(xs: Rep[List[Int]]): Rep[Int] = {
+        /*
         val plusone = xs.map { case x: Rep[Int] =>
           val y = x + 1
           val z = y - 1
@@ -95,8 +96,14 @@ object Main {
         println(twolist.foldLeft(1) { case (x, ys) =>
           x * (ys.foldLeft(0) { case (a, b) => a + b })
         })
-
         plusone(2) + plustwo.tail.head + zss.head + bs(0)
+        */
+
+        for (i <- range_until(0, xs(0))) {
+          println(i)
+          //if (i == xs(1)) return i+1;
+        }
+        0
       }
 
       //def snippet(b: Rep[Int]) = power(b, 10)
@@ -245,7 +252,6 @@ object Main {
 
   def main(args: Array[String]) {
     /*
-    test_list()
     test_map()
     test_set()
     test_opt()
@@ -253,6 +259,7 @@ object Main {
     //test_either()
     //test_power_c()
     //test_list_c()
-    test_map_c()
+    test_list()
+    //test_map_c()
   }
 }

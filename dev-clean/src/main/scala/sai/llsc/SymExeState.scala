@@ -114,6 +114,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   type PC = Set[SMTBool]
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
 
+  final val BYTE_SIZE: Int = 8
+  final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
+
   object SS {
     def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
     def init(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
@@ -194,8 +197,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
 
   object IntV {
-    def apply(i: Rep[Int]): Rep[Value] = IntV(i, 32)
-    def apply(i: Rep[Int], bw: Int): Rep[Value] = "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
+    def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
+    def apply(i: Rep[Int], bw: Int): Rep[Value] =
+      "make_IntV".reflectWriteWith[Value](i, bw)()
+      //"make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
       case Adapter.g.Def("make_IntV", Backend.Const(v: Int)::Backend.Const(bw: Int)::_) =>
         Some((v, bw))
@@ -215,7 +220,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
-    def apply(s: Rep[String]): Rep[Value] = "make_SymV".reflectWith[Value](s)
+    def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
     def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
     def makeSymVList(i: Int): Rep[List[Value]] = {
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
@@ -243,7 +248,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       Unwrap(v) match {
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
-          Wrap[List[(SS, Value)]](Adapter.g.reflectEffect(f, Unwrap(s), Unwrap(args))()())
+          f.reflectWith[List[(SS, Value)]](s, args)
         case _ =>
           val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
           f(s, args)

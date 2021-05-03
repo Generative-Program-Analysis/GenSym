@@ -14,16 +14,23 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
 
-abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String = ".")
+abstract class LLSCLibDriver[A: Manifest, B: Manifest](libFunName: String, folder: String = ".")
+    extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
+
+}
+
+abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
     extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
   import java.io.{File, PrintStream}
 
   val codegen = new SymStagedLLVMGen {
     val IR: q.type = q
-    val codegenFolder = s"$folder/$name/"
+    val codegenFolder = s"$folder/$appName/"
   }
 
   // Assuming the working directory only contains subdir "build"
+  // TODO: what it is special about `build`
+  // TODO: remove this to somewhere for utilities
   def createNewDir: Boolean = {
     val codegenFolderFile = new File(codegen.codegenFolder)
     if (!codegenFolderFile.exists()) codegenFolderFile.mkdir
@@ -46,14 +53,14 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
     val folderFile = new File(folder)
     if (!folderFile.exists()) folderFile.mkdir
     createNewDir
-    val mainStream = new PrintStream(s"$folder/$name/$name.cpp")
-    val statics = Adapter.emitCommon1(name, codegen, mainStream)(manifest[A], manifest[B])(x => Unwrap(wrapper(Wrap[A](x))))
+    val mainStream = new PrintStream(s"$folder/$appName/$appName.cpp")
+    val statics = Adapter.emitCommon1(appName, codegen, mainStream)(manifest[A], manifest[B])(x => Unwrap(wrapper(Wrap[A](x))))
     mainStream.close
   }
 
   // TODO: export LD_LIBRARY_PATH=../stp/build/lib
   def genMakefile: Unit = {
-    val out = new PrintStream(s"$folder/$name/Makefile")
+    val out = new PrintStream(s"$folder/$appName/Makefile")
     val curDir = new File(".").getCanonicalPath
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
@@ -62,7 +69,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](name: String, folder: String
     out.println(s"""|BUILD_DIR = build
     |SRC_DIR = .
     |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp")
-    |TARGET = $name
+    |TARGET = $appName
     |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
     |CC = g++ -std=c++17 -O3
     |CXXFLAGS = $includes
@@ -161,4 +168,3 @@ object TestStagedSymExec {
     //testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
   }
-}

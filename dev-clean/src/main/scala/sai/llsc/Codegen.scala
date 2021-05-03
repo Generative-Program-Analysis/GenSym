@@ -33,6 +33,13 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case _ => super.mayInline(n)
   }
 
+  /*
+  override def mustInline(n: Node): Boolean = n match {
+    case Node(_, "make_IntV", _, _) => true 
+    case _ => super.mustInline(n)
+  }
+   */
+
   override def remap(m: Manifest[_]): String = {
     if (m.toString == "java.lang.String") "String"
     else if (m.toString.endsWith("$Value")) "PtrVal"

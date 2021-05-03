@@ -56,7 +56,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
   import CompileTimeRuntime._
 
-  final val byteSize: Int = 8
 
   def getRealType(vt: LLVMType): LLVMType = vt match {
     case NamedType(id) => typeDefMap(id)
@@ -73,9 +72,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case NamedType(id) =>
       getTySize(typeDefMap(id), align)
     case IntType(size) =>
-      size / byteSize
+      size / BYTE_SIZE
     case PtrType(ty, addrSpace) =>
-      64 / byteSize // Assuming a 64-bit machine
+      64 / BYTE_SIZE // Assuming a 64-bit machine
     case _ => ???
   }
 
