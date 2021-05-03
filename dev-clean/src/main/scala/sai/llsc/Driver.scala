@@ -14,13 +14,9 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
 
-abstract class LLSCLibDriver[A: Manifest, B: Manifest](libFunName: String, folder: String = ".")
-    extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
-
-}
-
 abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
     extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
+
   import java.io.{File, PrintStream}
 
   val codegen = new SymStagedLLVMGen {
@@ -107,8 +103,7 @@ object TestStagedSymExec {
   def specialize(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = List[Value]() //SymV.makeSymVList(0)
-        /*
+        //val args: Rep[List[Value]] = List[Value]() //SymV.makeSymVList(0)
         val args: Rep[List[Value]] = List[Value](
           //IntV(10000),
           SymV("x0"), SymV("x1"), SymV("x2"), 
@@ -119,9 +114,8 @@ object TestStagedSymExec {
           SymV("x12"), SymV("x13"), SymV("x14"),
           SymV("x15"),
           SymV("x16"), SymV("x17"),
-          SymV("x18"), SymV("x19")a
+          SymV("x18"), SymV("x19")
         )
-        */
 
         val res = exec(m, fname, args, StaticList[Module]())
         // query a single test
@@ -159,12 +153,14 @@ object TestStagedSymExec {
 
   def main(args: Array[String]): Unit = {
     //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
-    //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
+    testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
     //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    testModule(sai.llvm.LLSCExpr.varargInt, "varargInt", "@main")
+    //testModule(sai.llvm.LLSCExpr.varargInt, "varargInt", "@main")
     //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //testFunGen(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")
+    //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
   }
+}

@@ -179,7 +179,10 @@ struct SymV : Value {
   virtual bool is_conc() const override { return false; }
 };
 inline Ptr<Value> make_SymV(String n) {
-  // TODO type, width
+  return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
+}
+inline Ptr<Value> make_SymV(String n, int bw) { 
+  // FIXME: make bit vector of bw bits
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
 #endif

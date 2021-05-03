@@ -116,6 +116,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 
   final val BYTE_SIZE: Int = 8
   final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
+  final val ARCH_WORD_SIZE: Int = 64
 
   object SS {
     def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
@@ -199,8 +200,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
-      "make_IntV".reflectWriteWith[Value](i, bw)()
-      //"make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
+      "make_IntV".reflectWriteWith[Value](i, bw)(Adapter.CTRL)
+      //"make_IntV".reflectWriteWith[Value](i, bw)()
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
       case Adapter.g.Def("make_IntV", Backend.Const(v: Int)::Backend.Const(bw: Int)::_) =>
         Some((v, bw))
