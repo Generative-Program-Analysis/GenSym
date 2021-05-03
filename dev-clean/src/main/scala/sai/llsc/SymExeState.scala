@@ -22,6 +22,7 @@ import sai.lmsx.smt.SMTBool
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import scala.collection.mutable.{Map => MultableMap}
 import scala.collection.immutable.{Set => StaticSet}
+import scala.collection.mutable.{Set => MultableSet}
 
 /* Naming convention for IR nodes:
    - If the node can be and should be handled by the default case of the codegen,
@@ -273,7 +274,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object External {
-    val modeled_external: StaticSet[String] = StaticSet(
+    val modeled_external: MultableSet[String] = MultableSet(
       "sym_print"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
@@ -281,6 +282,14 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object Intrinsics {
+    def match_intrinsics(id: String): Rep[Value] = id match {
+      case id if id.startsWith("@llvm.va_start") => llvm_va_start
+      case id if id.startsWith("@llvm.memcpy") => llvm_memcopy
+      case _ => {
+        System.out.println(s"Warning: intrinsic $id is ignored")
+        External.noop
+      }
+    }
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
     def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
   }

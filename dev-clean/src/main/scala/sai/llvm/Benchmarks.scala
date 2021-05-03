@@ -41,7 +41,7 @@ object LLSCExpr {
 }
 
 object Coreutils {
-
+  lazy val echo = parseFile("benchmarks/coreutils/echo/echo.ll")
 }
 
 object OOPSLA20Benchmarks {

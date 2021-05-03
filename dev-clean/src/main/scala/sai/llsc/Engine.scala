@@ -144,12 +144,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
            */
           case id if External.modeled_external.contains(id.tail) => 
             "llsc-external-wrapper".reflectWith[Value](id.tail)
-          case id if id.startsWith("@llvm.memcpy") => Intrinsics.llvm_memcopy
-          case id if id.startsWith("@llvm.va_start") => Intrinsics.llvm_va_start
-          case id if id.startsWith("@llvm.va_end") => External.noop
+          case id if id.startsWith("@llvm") => Intrinsics.match_intrinsics(id)
           // Should be a noop
-          case _ =>
-            throw new RuntimeException(s"Staging Engine: Global Id $id is not handled")
+          case _ => {
+            System.out.println(s"Warning: function $id is ignored")
+            External.noop
+          }
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
@@ -495,12 +495,35 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
     } yield v
 
-  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef]): StaticList[Rep[Value]] =
+  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] =
     globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-      val addr = h.size
+      val addr = h.size + prevSize
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
       h ++ evalConst(v.const, getRealType(v.typ))
     }
+  
+  def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl], 
+    prevSize: Int, mname: String): StaticList[Rep[Value]] =
+    globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
+      // TODO external_weak linkage
+      val realID = mname + "_" + v.id
+      val addr = h.size + prevSize
+      CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (realID -> unit(addr))
+      h ++ StaticList.fill(getTySize(v.typ))(IntV(0))
+    }
+
+  def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
+    var heapSize = 0;
+    var heapTmp: StaticList[Rep[Value]] = StaticList()
+    for (module <- modules) {
+      heapTmp = heapTmp ++ precompileHeap(module.globalDefMap, heapTmp.size)
+      if (!module.globalDeclMap.isEmpty) {
+        heapTmp = heapTmp ++ precompileHeapDecl(module.globalDeclMap, heapTmp.size, module.mname)
+      }
+    }
+    heapTmp
+  }
+    
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
@@ -554,7 +577,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.globalDeclMap = main.globalDeclMap
     CompileTimeRuntime.typeDefMap = main.typeDefMap
     
-    val preHeap: Rep[List[Value]] = List(precompileHeap(CompileTimeRuntime.globalDefMap):_*)
+    val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::modules):_*)
     val heap0 = preHeap.asRepOf[Mem]
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)

@@ -9,6 +9,7 @@ package IR {
   // Module
 
   case class Module(es: List[TopLevelEntity]) extends LAST {
+    var mname: String = ""
     val funcDefMap: Map[String, FunctionDef] =
       es.filter(_.isInstanceOf[FunctionDef]).asInstanceOf[List[FunctionDef]].map(f => (f.id, f)).toMap
     val funcDeclMap: Map[String, FunctionDecl] =
@@ -273,7 +274,6 @@ package IR {
   abstract class LLVMValue extends LAST
 
   case class LocalId(x: String) extends LLVMValue
-
   case class InlineASM(/*TODO*/) extends LLVMValue
 
   abstract class Constant extends LLVMValue
@@ -781,6 +781,8 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   // Note: there is a duplication of intConst and intLit in the grammar
   override def visitIntConst(ctx: LLVMParser.IntConstContext): LAST = {
+    
+    // TODO potentially long
     IntConst(ctx.INT_LIT.getText.toInt)
   }
 
@@ -1480,7 +1482,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
       visitConstant(ctx.constant)
     } else {
       // inlineAsm
-      ???
+      InlineASM()
     }
   }
 
@@ -1707,15 +1709,19 @@ package parser {
 
     def parseFile(filepath: String): Module = {
       val input = scala.io.Source.fromFile(filepath).mkString
-      parse(input)
+      val m = parse(input)
+      m.mname = filepath.substring(filepath.lastIndexOf("/") + 1)
+      m
     }
   }
 
   object TestParser extends App {
     import PPrinter._
     import Parser._
+    //printAst(parseFile("/home/shangyint/research/sai/dev-clean/external/strcmp.ll"))
 
-    printAst(parseFile("benchmarks/llscExpr/structReturnLong.ll"))
+    printAst(parseFile("benchmarks/coreutils/echo/echo.ll"))
+    //printAst(parseFile("benchmarks/coreutils/libc7.ll"))
   }
 
   object PPrinter {

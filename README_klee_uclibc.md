@@ -8,3 +8,5 @@
 2. Follow the building procedure of KLEE-uClibc.
 
 3. After building, the LLVM bitcode are `.os` files. To reterive the `.ll` file, do `llvm-dis foo.os -o foo.ll`.
+
+4. To link several `.os` file use `llvm-link $(find . -type f -name "*.os" -printf "%p ") -S -o filename.ll`
