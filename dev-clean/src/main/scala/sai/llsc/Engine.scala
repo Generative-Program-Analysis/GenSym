@@ -395,36 +395,22 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               else reify(ss)(execBlock(funName, elsLab))
             } else {
               Coverage.incPath(1)
+              val b1 = for {
+                //_ <- updatePC(cndVal.toSMTBool)
+                v <- execBlock(funName, thnLab)
+              } yield v
+              val b2 = for {
+                //_ <- updatePC(not(cndVal.toSMTBool))
+                v <- execBlock(funName, elsLab)
+              } yield v
               if (ThreadPool.canPar) {
-                val b1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
+                val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
                   //println("async created")
-                  reify(ss) {
-                    for {
-                      //_ <- updatePC(cndVal.toSMTBool)
-                      v <- execBlock(funName, thnLab)
-                    } yield v
-                  }
+                  reify(ss) { b1 }
                 }
-                //val b2: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
-                val b2 = reify(ss) {
-                  for {
-                    //_ <- updatePC(not(cndVal.toSMTBool))
-                    v <- execBlock(funName, elsLab)
-                  } yield v
-                }
-                ThreadPool.get(b1) ++ b2
-              } else {
-                reify(ss) {choice(
-                  for {
-                    //_ <- updatePC(cndVal.toSMTBool)
-                    v <- execBlock(funName, thnLab)
-                  } yield v,
-                  for {
-                    //_ <- updatePC(not(cndVal.toSMTBool))
-                    v <- execBlock(funName, elsLab)
-                  } yield v)
-                }
-              }
+                val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
+                ThreadPool.get(asyncb1) ++ rb2
+              } else reify(ss) { choice(b1, b2) }
             }
           }
         } yield u

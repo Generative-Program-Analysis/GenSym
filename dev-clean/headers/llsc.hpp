@@ -507,7 +507,7 @@ inline void inc_stack(rlim_t lim) {
 
 /* Async */
 
-#define MAX_ASYNC 8
+#define MAX_ASYNC 7
 inline std::mutex m;
 //inline std::condition_variable cv;
 inline std::atomic<unsigned int> num_async = 0;
