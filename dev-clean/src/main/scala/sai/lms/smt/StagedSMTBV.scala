@@ -61,8 +61,8 @@ trait SMTBitVecOps extends SMTBitVecInterface with  StagedSMTBase {
 }
 
 trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
-  registerHeader("../stp/build/include", "<stp/c_interface.h>")
-  registerHeader("./headers", "<stp_handle.hpp>")
+  //registerHeader("../stp/build/include", "<stp/c_interface.h>")
+  //registerHeader("./headers", "<stp_handle.hpp>")
   registerLibrary("-lstp")
 
   override def mayInline(n: Node): Boolean = n match {

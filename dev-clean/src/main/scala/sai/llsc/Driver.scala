@@ -144,11 +144,11 @@ object TestStagedSymExec {
   // }
   
   def testModule(m: Module, name: String, fname: String) {
-    val res = sai.utils.Utils.time {
+    val (_, t) = sai.utils.Utils.time {
       val code = specialize(m, name, fname)
       code.genAll
     }
-    println(res)
+    println(s"compiling name, time $t ms")
   }
 
   def main(args: Array[String]): Unit = {
@@ -156,7 +156,7 @@ object TestStagedSymExec {
     testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
     //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    testModule(sai.llvm.Coreutils.echo, "echo", "@main")
+    //testModule(sai.llvm.Coreutils.echo, "echo", "@main")
     //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //testFunGen(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")

@@ -15,10 +15,17 @@
 #include <condition_variable>
 #include <chrono>
 
+#include <memory>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+
 #include <sai.hpp>
+#include <thread_pool.hpp>
 #include <immer/flex_vector_transient.hpp>
 
-//#define STR_SYMV
+#define STR_SYMV
 
 #ifndef STR_SYMV
 #include <stp/c_interface.h>
@@ -166,6 +173,10 @@ struct SymV : Value {
   virtual bool is_conc() const override { return false; }
 };
 inline Ptr<Value> make_SymV(String n) { return std::make_shared<SymV>(n); }
+inline Ptr<Value> make_SymV(String n, int bw) { 
+  // ignore the bw
+  return std::make_shared<SymV>(n);
+}
 #else
 struct SymV : Value {
   Expr v;
@@ -494,6 +505,37 @@ inline void inc_stack(rlim_t lim) {
   }
 }
 
+/* Async */
+
+#define MAX_ASYNC 8
+inline std::mutex m;
+//inline std::condition_variable cv;
+inline std::atomic<unsigned int> num_async = 0;
+inline std::atomic<unsigned int> tt_num_async = 0;
+
+inline bool can_par() {
+  return num_async < MAX_ASYNC;
+}
+
+template<class T>
+auto create_async(std::function<T()> f) -> std::future<T> {
+  std::unique_lock<std::mutex> lk(m);
+  num_async++;
+  tt_num_async++;
+  lk.unlock();
+
+  std::future<T> fu = std::async(std::launch::async, [&]{
+    T t = f();
+    std::unique_lock<std::mutex> lk(m);
+    num_async--;
+    lk.unlock();
+    return t;
+  });
+  //cv.notify_one();
+  return fu;
+}
+
+
 /* Coverage information */
 
 // TODO: branch coverage
@@ -527,16 +569,14 @@ struct CoverageMonitor {
       num_paths += n;
     }
     void print_path_cov() {
-      print_time();
-      std::cout << "Paths discovered: " << num_paths << "\n" << std::flush;
+      std::cout << "Paths discovered: " << num_paths << "; " << std::flush;
     }
     void print_block_cov() {
-      print_time();
       size_t covered = 0;
       for (auto v : block_cov) { if (v != 0) covered++; }
       std::cout << "Block coverage: "
                 << covered << "/"
-                << num_blocks << "\n"
+                << num_blocks << "; "
                 << std::flush;
     }
     void print_block_cov_detail() {
@@ -547,6 +587,9 @@ struct CoverageMonitor {
                   << std::flush;
       }
     }
+    void print_async() {
+      std::cout << "current #async: " << num_async << " total #async: " << tt_num_async << "\n";
+    }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();
       std::cout << "[" << (duration_cast<milliseconds>(now - start).count() / 1000.0) << " s] ";
@@ -554,8 +597,10 @@ struct CoverageMonitor {
     void start_monitor() {
       std::thread([this]{
         while (this->block_cov.size() <= this->num_blocks) {
+          print_time();
           print_block_cov();
           print_path_cov();
+          print_async();
           std::this_thread::sleep_for(seconds(1));
         }
       }).detach();

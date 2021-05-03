@@ -112,6 +112,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
       quoteBlockPReturn(traverse(b))
       emit(")")
     case Node(s, "tp-future-get", List(f), _) => es"$f.get()"
+    case Node(s, "can-par", _, _) => es"can_par()"
     case _ => super.shallow(n)
   }
 

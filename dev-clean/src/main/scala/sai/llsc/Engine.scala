@@ -394,35 +394,36 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
               else reify(ss)(execBlock(funName, elsLab))
             } else {
-              /*
-              val b1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
-                println("async created")
-                reify(ss) {
+              Coverage.incPath(1)
+              if (ThreadPool.canPar) {
+                val b1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
+                  //println("async created")
+                  reify(ss) {
+                    for {
+                      //_ <- updatePC(cndVal.toSMTBool)
+                      v <- execBlock(funName, thnLab)
+                    } yield v
+                  }
+                }
+                //val b2: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
+                val b2 = reify(ss) {
+                  for {
+                    //_ <- updatePC(not(cndVal.toSMTBool))
+                    v <- execBlock(funName, elsLab)
+                  } yield v
+                }
+                ThreadPool.get(b1) ++ b2
+              } else {
+                reify(ss) {choice(
                   for {
                     //_ <- updatePC(cndVal.toSMTBool)
                     v <- execBlock(funName, thnLab)
-                  } yield v
+                  } yield v,
+                  for {
+                    //_ <- updatePC(not(cndVal.toSMTBool))
+                    v <- execBlock(funName, elsLab)
+                  } yield v)
                 }
-              }
-              //val b2: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
-              val b2 = reify(ss) {
-                for {
-                  //_ <- updatePC(not(cndVal.toSMTBool))
-                  v <- execBlock(funName, elsLab)
-                } yield v
-              }
-              ThreadPool.get(b1) ++ b2
-               */
-              Coverage.incPath(1)
-              reify(ss) {choice(
-                for {
-                  _ <- updatePC(cndVal.toSMTBool)
-                  v <- execBlock(funName, thnLab)
-                } yield v,
-                for {
-                  _ <- updatePC(not(cndVal.toSMTBool))
-                  v <- execBlock(funName, elsLab)
-                } yield v)
               }
             }
           }

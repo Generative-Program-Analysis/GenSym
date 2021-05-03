@@ -70,6 +70,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     }
     def get[T: Manifest](f: Rep[Future[T]]): Rep[T] =
       "tp-future-get".reflectWriteWith[T](f)(Adapter.CTRL)
+
+    def canPar: Rep[Boolean] = "can-par".reflectWriteWith[Boolean]()(Adapter.CTRL)
   }
 
   def runParRepNondet[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = {
