@@ -228,6 +228,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
     }
   }
+  object NullV {
+    // for now
+    def apply(): Rep[Value] = IntV(0)
+  }
 
   object IntOp2 {
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "int_op_2".reflectWith[Value](op, o1, o2)
@@ -274,6 +278,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object External {
+    val warned_external = MultableSet[String]()
     val modeled_external: MultableSet[String] = MultableSet(
       "sym_print"
     )
@@ -282,11 +287,15 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object Intrinsics {
+    val warned_set = MultableSet[String]()
     def match_intrinsics(id: String): Rep[Value] = id match {
       case id if id.startsWith("@llvm.va_start") => llvm_va_start
       case id if id.startsWith("@llvm.memcpy") => llvm_memcopy
       case _ => {
-        System.out.println(s"Warning: intrinsic $id is ignored")
+        if (!warned_set.contains(id)) {
+          System.out.println(s"Warning: intrinsic $id is ignored")
+          warned_set.add(id)
+        }
         External.noop
       }
     }

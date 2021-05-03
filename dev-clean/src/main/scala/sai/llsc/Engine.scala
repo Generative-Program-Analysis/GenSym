@@ -78,15 +78,17 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case _ => ???
   }
 
-  def calculateExtractValueOffest(ty: LLVMType, index: List[Int]): Int = {
+  def calculateOffsetStatic(ty: LLVMType, index: List[Int]): Int = {
     if (index.isEmpty) 0 else ty match {
       case Struct(types) =>
         val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
-        prev + calculateExtractValueOffest(types(index.head), index.tail)
+        prev + calculateOffsetStatic(types(index.head), index.tail)
       case ArrayType(size, ety) => 
-        index.head * getTySize(ety) + calculateExtractValueOffest(ety, index.tail)
+        index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
       case NamedType(id) => 
-        calculateExtractValueOffest(typeDefMap(id), index)
+        calculateOffsetStatic(typeDefMap(id), index)
+      case PtrType(ety, addrSpace) =>
+        index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
       case _ => ???
     }
   }
@@ -106,7 +108,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         // TODO: the align argument for getTySize
         // TODO: test this
         val indexCst: List[Int] = index.map { case Wrap(Backend.Const(n: Int)) => n }
-        unit(calculateExtractValueOffest(ty, indexCst))
+        unit(calculateOffsetStatic(ty, indexCst))
       case _ => ???
     }
   }
@@ -134,29 +136,24 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
-          /*
-          case "@printf" => Primitives.printf
-          case "@read" => Primitives.read
-          case "@exit" => Primitives.exit
-          case "@sleep" => Primitives.sleep
-          case "@assert" => Primitives.assert_false
-          case "@make_symbolic" => Primitives.make_symbolic
-           */
           case id if External.modeled_external.contains(id.tail) => 
             "llsc-external-wrapper".reflectWith[Value](id.tail)
           case id if id.startsWith("@llvm") => Intrinsics.match_intrinsics(id)
           // Should be a noop
           case _ => {
-            System.out.println(s"Warning: function $id is ignored")
+            if (!External.warned_external.contains(id)) {
+              System.out.println(s"Warning: function $id is ignored")
+              External.warned_external.add(id)
+            }
             External.noop
           }
         }
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
-        // now the only case GlobalId(id) in globalDefMap gets evaled
-        // is when we "load x GlobalId(id)", so we should return addr in heap
         ret(LocV(heapEnv(id), LocV.kHeap))
-      case GlobalId(id) if globalDeclMap.contains(id) => ???
+      case GlobalId(id) if globalDeclMap.contains(id) => 
+        System.out.println(s"Warning: globalDecl $id is ignored")
+        ret(IntV(0))
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -172,10 +169,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           }
         }
       case ZeroInitializerConst => ret(IntV(0))
+      case NullConst => ret(IntV(0))
     }
   }
 
-  def evalConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
+  def padding(v: Rep[Value], pad: Int): StaticList[Rep[Value]] = ???
+
+  def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
     case BoolConst(b) =>
       StaticList(IntV(if (b) 1 else 0, 1))
     // change intv0 to nullptr
@@ -184,14 +184,28 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     // FIXME: Float width
     case FloatConst(f) => 
       StaticList(FloatV(f))
-    case ZeroInitializerConst =>
-      StaticList(IntV(0))
+    case ZeroInitializerConst => ty match {
+      case ArrayType(size, ety) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
+      case Struct(types) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
+      case _ => StaticList.fill(getTySize(ty))(IntV(0))
+    }
     case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalConst(c, ty.asInstanceOf[ArrayType].ety))
+      flattenAS(v).flatMap(c => evalHeapConst(c, ty.asInstanceOf[ArrayType].ety))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList
     case StructConst(cs) => 
-      flattenAS(v).zip(flattenTy(ty)).flatMap { case (c, t) => evalConst(c, t)}
+      cs.flatMap { case c => evalHeapConst(c.const, c.ty)}
+    case NullConst => ty match {
+      case PtrType(ty, addrSpace) => StaticList(NullV())
+    }
+    case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
+      val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
+      LocV(heapEnv(const.asInstanceOf[GlobalId].id) + 
+        calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
+    }
+    case GlobalId(id) => 
+      LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
+    
   }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
@@ -299,7 +313,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           ret { i64, i64 } %4
         */
         val idxList = indices.asInstanceOf[List[IntConst]].map(x => x.n)
-        val idx = calculateExtractValueOffest(ty, idxList)
+        val idx = calculateOffsetStatic(ty, idxList)
         for {
           // v is expected to be StructV in backend
           v <- eval(struct)
@@ -495,12 +509,21 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
     } yield v
 
-  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] =
-    globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-      val addr = h.size + prevSize
+  def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
+    var addr: Int = prevSize
+    globalDefMap.foreach { case (k, v) =>
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
-      h ++ evalConst(v.const, getRealType(v.typ))
+      addr = addr + getTySize(v.typ)
     }
+  }
+
+  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] = {
+    precomputeHeapAddr(globalDefMap, prevSize)
+    globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
+      h ++ evalHeapConst(v.const, getRealType(v.typ))
+    }
+  }
+    
   
   def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl], 
     prevSize: Int, mname: String): StaticList[Rep[Value]] =
