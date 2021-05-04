@@ -781,8 +781,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   // Note: there is a duplication of intConst and intLit in the grammar
   override def visitIntConst(ctx: LLVMParser.IntConstContext): LAST = {
-    
-    // TODO potentially long
     IntConst(ctx.INT_LIT.getText.toInt)
   }
 

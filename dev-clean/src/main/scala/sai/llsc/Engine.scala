@@ -72,7 +72,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case NamedType(id) =>
       getTySize(typeDefMap(id), align)
     case IntType(size) =>
-      size / BYTE_SIZE
+      (size + BYTE_SIZE - 1) / BYTE_SIZE
     case PtrType(ty, addrSpace) =>
       ARCH_WORD_SIZE / BYTE_SIZE
     case _ => ???
