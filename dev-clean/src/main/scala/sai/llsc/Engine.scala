@@ -403,11 +403,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                 //_ <- updatePC(not(cndVal.toSMTBool))
                 v <- execBlock(funName, elsLab)
               } yield v
+              // TODO: randomly select a branch
               if (ThreadPool.canPar) {
-                val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ =>
-                  //println("async created")
-                  reify(ss) { b1 }
-                }
+                val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ => reify(ss) { b1 } }
                 val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
                 ThreadPool.get(asyncb1) ++ rb2
               } else reify(ss) { choice(b1, b2) }

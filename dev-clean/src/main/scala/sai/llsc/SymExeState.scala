@@ -96,7 +96,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
       State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
     val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
-    val p3: Comp[∅, Rep[List[(SS, T)]]] = runParRepNondet[(SS, T)](p2)
+    val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
     p3
   }
 

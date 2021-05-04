@@ -22,7 +22,7 @@
 #include <future>
 
 #include <sai.hpp>
-#include <thread_pool.hpp>
+//#include <thread_pool.hpp>
 #include <immer/flex_vector_transient.hpp>
 
 #define STR_SYMV
@@ -507,14 +507,21 @@ inline void inc_stack(rlim_t lim) {
 
 /* Async */
 
-#define MAX_ASYNC 7
+#define MAX_ASYNC 4
 inline std::mutex m;
 //inline std::condition_variable cv;
 inline std::atomic<unsigned int> num_async = 0;
 inline std::atomic<unsigned int> tt_num_async = 0;
+//inline thread_pool pool(4);
 
 inline bool can_par() {
   return num_async < MAX_ASYNC;
+  //return pool.can_enqueue();
+}
+
+template <typename F, typename... Ts>
+inline auto really_async(F&& f, Ts&&... params) {
+  return std::async(std::launch::async, std::forward<F>(f), std::forward<Ts>(params)...);
 }
 
 template<class T>
@@ -523,7 +530,7 @@ auto create_async(std::function<T()> f) -> std::future<T> {
   num_async++;
   tt_num_async++;
   lk.unlock();
-
+  
   std::future<T> fu = std::async(std::launch::async, [&]{
     T t = f();
     std::unique_lock<std::mutex> lk(m);
@@ -531,8 +538,8 @@ auto create_async(std::function<T()> f) -> std::future<T> {
     lk.unlock();
     return t;
   });
-  //cv.notify_one();
   return fu;
+  //return pool.enqueue(f);
 }
 
 
@@ -589,6 +596,7 @@ struct CoverageMonitor {
     }
     void print_async() {
       std::cout << "current #async: " << num_async << " total #async: " << tt_num_async << "\n";
+      //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();
