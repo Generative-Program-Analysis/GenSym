@@ -266,6 +266,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
     def toSMTBool: Rep[SMTBool] = "to-SMTBool".reflectWith[SMTBool](v)
+    def toSMTBoolNeg: Rep[SMTBool] = "to-SMTBoolNeg".reflectWith[SMTBool](v)
 
     // TODO: toSMTBool vs toSMTExpr?
     //def toSMTExpr: Rep[SMTExpr] =

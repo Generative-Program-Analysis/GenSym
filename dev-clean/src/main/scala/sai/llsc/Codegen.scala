@@ -95,6 +95,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"
+    case Node(s, "to-SMTBoolNeg", List(v), _) => es"to_SMTBoolNeg($v)"
 
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov.set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov.inc_block($id)"
@@ -180,20 +181,23 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     emitln(s"/* Generated main file: $name */")
     emitln("#include \"common.h\"")
     emit(src)
-    emitln("""
+    emitln(s"""
     |int main(int argc, char *argv[]) {
     |  init_rand();
-    |  if (argc != 2) {
-    |    printf("usage: %s <arg>\n", argv[0]);
+    |  if (argc > 2) {
+    |    printf("usage: %s <#threads>\\n", argv[0]);
     |    return 0;
-    |  }""".stripMargin)
-    if (initStream.size > 0)
-      emitln("if (init()) return 0;")
-    emitln(s"""
-    |  // TODO: what is the right way to pass arguments?
-    |  $name(${convert("argv[1]", m1)});
+    |  }
+    |  if (argc == 2) {
+    |    MAX_ASYNC = atoi(argv[1]) - 1;
+    |  } else {
+    |    MAX_ASYNC = 0;
+    |  }
+    |  $name(0);
     |  return 0;
-    |}""".stripMargin)
+    |} """.stripMargin)
+    //if (initStream.size > 0)
+    //  emitln("if (init()) return 0;")
   }
 }
 

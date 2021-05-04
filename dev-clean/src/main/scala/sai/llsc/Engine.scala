@@ -362,7 +362,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                   v <- eval(thnVal)
                 } yield v,
                 for {
-                  _ <- updatePC(not(cnd.toSMTBool))
+                  _ <- updatePC(cnd.toSMTBoolNeg)
                   v <- eval(elsVal)
                 } yield v
               )}
@@ -400,7 +400,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                 v <- execBlock(funName, thnLab)
               } yield v
               val b2 = for {
-                //_ <- updatePC(not(cndVal.toSMTBool))
+                //_ <- updatePC(cndVal.toSMTBoolNeg)
                 v <- execBlock(funName, elsLab)
               } yield v
               // TODO: randomly select a branch
@@ -409,6 +409,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                 val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
                 ThreadPool.get(asyncb1) ++ rb2
               } else reify(ss) { choice(b1, b2) }
+              //reify(ss) { choice(b1, b2) }
             }
           }
         } yield u
@@ -428,13 +429,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               u <- execBlock(funName, default)
             } yield u)
           else {
-            val headPC = IntOp2("eq", v, IntV(table.head.n)).toSMTBool
+            val headPC = IntOp2("eq", v, IntV(table.head.n))
             reify(s)(choice(
               for {
-                _ <- updatePC(headPC)
+                _ <- updatePC(headPC.toSMTBool)
                 u <- execBlock(funName, table.head.label)
               } yield u,
-              reflect(switchFunSym(v, s, table.tail, pc ++ Set(not(headPC))))
+              reflect(switchFunSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg)))
             ))
           }
         }

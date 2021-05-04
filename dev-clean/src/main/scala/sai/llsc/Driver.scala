@@ -148,7 +148,7 @@ object TestStagedSymExec {
       val code = specialize(m, name, fname)
       code.genAll
     }
-    println(s"compiling name, time $t ms")
+    println(s"compiling $name, time $t ms")
   }
 
   def main(args: Array[String]): Unit = {

@@ -44,6 +44,7 @@ using Addr = unsigned int;
 #ifdef STR_SYMV
 using Expr = std::string;
 #else
+inline std::mutex vc_lock;
 inline VC vc = vc_createValidityChecker();
 #endif
 
@@ -73,6 +74,7 @@ struct IntV : Value {
 #ifdef STR_SYMV
     return "dummy";
 #else
+    std::unique_lock<std::mutex> lk(vc_lock);
     return vc_bvConstExprFromInt(vc, 32, i);
 #endif
   }
@@ -80,6 +82,7 @@ struct IntV : Value {
 #ifdef STR_SYMV
     return "dummy";
 #else
+    std::unique_lock<std::mutex> lk(vc_lock);
     if (i) return vc_trueExpr(vc);
     else return vc_falseExpr(vc);
 #endif
@@ -190,11 +193,18 @@ struct SymV : Value {
   virtual bool is_conc() const override { return false; }
 };
 inline Ptr<Value> make_SymV(String n) {
+  std::unique_lock<std::mutex> lk(vc_lock);
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
 inline Ptr<Value> make_SymV(String n, int bw) { 
   // FIXME: make bit vector of bw bits
+  std::unique_lock<std::mutex> lk(vc_lock);
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
+}
+inline Expr to_SMTBoolNeg(PtrVal v) {
+  auto e = v->to_SMTBool();
+  std::unique_lock<std::mutex> lk(vc_lock);
+  return vc_notExpr(vc, e);
 }
 #endif
 
@@ -263,6 +273,7 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
 #else
     Expr e1 = v1->to_SMTExpr();
     Expr e2 = v2->to_SMTExpr();
+    std::unique_lock<std::mutex> lk(vc_lock);
     if (op == op_add) {
       return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
     } else if (op == op_sub) {
@@ -507,7 +518,7 @@ inline void inc_stack(rlim_t lim) {
 
 /* Async */
 
-#define MAX_ASYNC 4
+inline size_t MAX_ASYNC = 4;
 inline std::mutex m;
 //inline std::condition_variable cv;
 inline std::atomic<unsigned int> num_async = 0;
@@ -576,12 +587,12 @@ struct CoverageMonitor {
       num_paths += n;
     }
     void print_path_cov() {
-      std::cout << "Paths discovered: " << num_paths << "; " << std::flush;
+      std::cout << "#paths: " << num_paths << "; " << std::flush;
     }
     void print_block_cov() {
       size_t covered = 0;
       for (auto v : block_cov) { if (v != 0) covered++; }
-      std::cout << "Block coverage: "
+      std::cout << "#blocks: "
                 << covered << "/"
                 << num_blocks << "; "
                 << std::flush;
@@ -595,7 +606,7 @@ struct CoverageMonitor {
       }
     }
     void print_async() {
-      std::cout << "current #async: " << num_async << " total #async: " << tt_num_async << "\n";
+      std::cout << "#threads: " << num_async + 1 << " #async created: " << tt_num_async << "\n";
       //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
     void print_time() {
