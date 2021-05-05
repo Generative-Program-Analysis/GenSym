@@ -287,6 +287,19 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
     def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")
+    def __malloc(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      val ns = s.heapAppend(List.fill(args(0).int)(IntV(0)))
+      val mloc = LocV(s.heapSize, LocV.kHeap)
+      List((ns, mloc))
+    }
+    def malloc: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(__malloc)
+
+    def __realloc(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      val ns = s.heapAppend(List.fill(args(1).int)(IntV(0)))
+      val src_addr = args(0).loc
+      val src_kind = args(0).kind
+      ???
+    }
   }
 
   object Intrinsics {
@@ -294,6 +307,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def match_intrinsics(id: String): Rep[Value] = id match {
       case id if id.startsWith("@llvm.va_start") => llvm_va_start
       case id if id.startsWith("@llvm.memcpy") => llvm_memcopy
+      case id if id.startsWith("@llvm.memset") => llvm_memset
       case _ => {
         if (!warned_set.contains(id)) {
           System.out.println(s"Warning: intrinsic $id is ignored")
@@ -304,6 +318,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     }
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
     def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
+    def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")
   }
 }
 

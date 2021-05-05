@@ -168,8 +168,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
-      case ZeroInitializerConst => ret(IntV(0))
+      case ZeroInitializerConst => {
+        System.out.println("Warning: Evaluate zeroinitialize in body")
+        ret(IntV(0))
+      }
       case NullConst => ret(IntV(0))
+      case NoneConst => ret(IntV(0))
     }
   }
 
@@ -192,19 +196,25 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case ArrayConst(cs) =>
       flattenAS(v).flatMap(c => evalHeapConst(c, ty.asInstanceOf[ArrayType].ety))
     case CharArrayConst(s) =>
-      s.map(c => IntV(c.toInt, 8)).toList
+      s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(IntV(0))
     case StructConst(cs) => 
       cs.flatMap { case c => evalHeapConst(c.const, c.ty)}
-    case NullConst => ty match {
-      case PtrType(ty, addrSpace) => StaticList(NullV())
-    }
+    case NullConst => StaticList.fill(getTySize(ty))(NullV())
     case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-      LocV(heapEnv(const.asInstanceOf[GlobalId].id) + 
+      // FIX!!!
+      LocV(heapEnv(
+        const match {
+          case GlobalId(id) => id
+          case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
+        }
+      ) + 
         calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
     }
     case GlobalId(id) => 
       LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
+    case BitCastExpr(from, const, to) => 
+      evalHeapConst(const, to)
     
   }
 

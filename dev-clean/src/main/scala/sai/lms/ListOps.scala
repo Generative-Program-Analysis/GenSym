@@ -17,6 +17,10 @@ trait ListOps { b: Base =>
       // Wrap[List[A]](Adapter.g.reflect("list-new", unwrapped_xs:_*))
       Wrap[List[A]](Adapter.g.reflectWrite("list-new", unwrapped_xs:_*)(Adapter.CTRL))
     }
+    def fill[A: Manifest](x: Rep[Int])(e: Rep[A])(implicit pos: SourceContext) = {
+      val mA = Backend.Const(manifest[A])
+      Wrap[List[A]](Adapter.g.reflectWrite("list-fill", mA, Unwrap(x), Unwrap(e))(Adapter.CTRL))
+    }
   }
 
   implicit def __liftConstList[A: Manifest](xs: List[A]): ListOps[A] = new ListOps(unit(xs))
