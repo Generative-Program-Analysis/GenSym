@@ -280,10 +280,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       "trunc".reflectWith[Value](from, to)
   }
 
-  object External {
+  object External extends Serializable {
     val warned_external = MultableSet[String]()
     val modeled_external: MultableSet[String] = MultableSet(
-      "sym_print"
+      "sym_print", "malloc", "realloc"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
     def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")
@@ -293,13 +293,22 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       List((ns, mloc))
     }
     def malloc: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(__malloc)
+    def mallocV: Rep[Value] = malloc.asRepOf[Value]
 
     def __realloc(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      val ns = s.heapAppend(List.fill(args(1).int)(IntV(0)))
+      val num_bt = args(1).int
+      var ns: Rep[SS] = s.heapAppend(List.fill(num_bt)(IntV(0)))
       val src_addr = args(0).loc
       val src_kind = args(0).kind
-      ???
+      for (i <- (0 until num_bt)) {
+        ns = ns.update(LocV(s.heapSize + i, LocV.kHeap), 
+          ns.lookup(LocV(src_addr + i, src_kind)))
+      }
+      List((ns, LocV(s.heapSize, LocV.kHeap)))
     }
+    def realloc: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(__realloc)
+    def reallocV: Rep[Value] = realloc.asRepOf[Value]
+
   }
 
   object Intrinsics {

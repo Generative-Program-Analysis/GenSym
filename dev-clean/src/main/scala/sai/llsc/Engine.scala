@@ -136,8 +136,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) => 
         val v = id match {
-          case id if External.modeled_external.contains(id.tail) => 
-            "llsc-external-wrapper".reflectWith[Value](id.tail)
+          case id if External.modeled_external.contains(id.tail) => id.tail match {
+            // case "malloc" => External.mallocV
+            // case "realloc" => External.reallocV
+            case _ => "llsc-external-wrapper".reflectWith[Value](id.tail)
+          } 
           case id if id.startsWith("@llvm") => Intrinsics.match_intrinsics(id)
           // Should be a noop
           case _ => {

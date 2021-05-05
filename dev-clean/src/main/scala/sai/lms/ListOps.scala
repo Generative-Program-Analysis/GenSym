@@ -260,6 +260,10 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
         if (i != xs.length-1) emit(", ")
       }
       emit("}")
+    case Node(s, "list-fill", List(Const(mA: Manifest[_]), x, e), _) =>
+      emit(s"${ns}flex_vector<")
+      emit(remap(mA))
+      emit(">("); shallow(x); emit(", "); shallow(e); emit(")")
     case Node(s, "list-apply", List(xs, i), _) =>
       shallow(xs); emit(".at("); shallow(i); emit(")")
     case Node(s, "list-head", List(xs), _) =>
