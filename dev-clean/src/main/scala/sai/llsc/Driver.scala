@@ -140,26 +140,7 @@ object TestStagedSymExec {
     //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
     //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
     //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //testFunGen(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")
-    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    //runLLSC(sai.llvm.LLSCExpr.malloc, "malloc", "@main")
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
   }
-
-  // @virtualize
-  // def specializeFun(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
-  //   new LLSCDriver[Int, Unit](name, "./llsc_gen") {
-  //     def snippet(u: Rep[Int]) = {
-  //       val res = execExternal(m, fname)
-  //       println(res)
-  //     }
-  // }
-
-  // def testFunGen(m: Module, name: String, fname: String) {
-  //   val res = sai.utils.Utils.time {
-  //     val code = specializeFun(m, name + "gen", fname)
-  //     code.genAll
-  //   }
-  //   println(res._2)
-  // }
 }

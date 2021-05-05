@@ -131,8 +131,9 @@ struct LocV : Value {
   enum Kind { kStack, kHeap };
   Addr l;
   Kind k;
+  int size;
 
-  LocV(unsigned int l, Kind k) : l(l), k(k) {}
+  LocV(unsigned int l, Kind k, int size) : l(l), k(k), size(size) {}
   LocV(const LocV& v) { l = v.l; }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "LocV(" << l << ")";
@@ -148,8 +149,12 @@ struct LocV : Value {
   }
 };
 
+inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k, int size) {
+  return std::make_shared<LocV>(i, k, size);
+}
+
 inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k) {
-  return std::make_shared<LocV>(i, k);
+  return std::make_shared<LocV>(i, k, -1);
 }
 
 inline unsigned int proj_LocV(Ptr<Value> v) {
@@ -158,9 +163,12 @@ inline unsigned int proj_LocV(Ptr<Value> v) {
 inline LocV::Kind proj_LocV_kind(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
+inline int proj_LocV_size(Ptr<Value> v) {
+  return std::dynamic_pointer_cast<LocV>(v)->size;
+}
 
 inline Ptr<Value> make_LocV_inc(Ptr<Value> loc, int i) {
-  return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc));
+  return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
 
 #ifdef STR_SYMV
