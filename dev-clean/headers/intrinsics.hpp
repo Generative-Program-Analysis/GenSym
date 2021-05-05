@@ -1,5 +1,7 @@
 #include <llsc.hpp>
 
+static PtrVal IntV0 = make_IntV(0);
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
@@ -15,7 +17,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::fl
   for (int i = 0; i < bytes_int; i++) {
     res = res.update(make_LocV_inc(dest, i), res.at(make_LocV_inc(src, i)));
   }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memset(SS state, immer::flex_vector<PtrVal> args) {
@@ -32,9 +34,9 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memset(SS state, immer::fl
   // Optmize
   // flex_vector_transient
   for (int i = 0; i < bytes_int; i++) {
-    res = res.update(make_LocV_inc(dest, i), IntV(0)));
+    res = res.update(make_LocV_inc(dest, i), IntV0);
   }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
 }
 
 // args 0: LocV to {i32, i32, i8*, i8*}
@@ -44,10 +46,10 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_va_start(SS state, immer::
   PtrVal va_arg = state.getVarargLoc();
   SS res = state;
 
-  res = res.update(make_LocV_inc(va_list, 0), make_IntV(0));
-  res = res.update(make_LocV_inc(va_list, 4), make_IntV(0));
+  res = res.update(make_LocV_inc(va_list, 0), IntV0);
+  res = res.update(make_LocV_inc(va_list, 4), IntV0);
   res = res.update(make_LocV_inc(va_list, 8), make_LocV_inc(va_arg, 40));
   res = res.update(make_LocV_inc(va_list, 16), va_arg);
 
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
 }

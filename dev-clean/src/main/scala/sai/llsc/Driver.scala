@@ -100,31 +100,51 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
 
 object TestStagedSymExec {
   @virtualize
-  def specialize(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
+  def specialize(m: Module, name: String, fname: String, nSym: Int): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = List[Value]() //SymV.makeSymVList(0)
-        // val args: Rep[List[Value]] = List[Value](
-        //   //IntV(10000),
-        //   SymV("x0"), SymV("x1"), SymV("x2"), 
-        //   SymV("x3"), SymV("x4"), SymV("x5"),
-        //   SymV("x6"), SymV("x7"), SymV("x8"),
-        //   SymV("x9"),
-        //   SymV("x10"), SymV("x11"),
-        //   SymV("x12"), SymV("x13"), SymV("x14"),
-        //   SymV("x15"),
-        //   SymV("x16"), SymV("x17"),
-        //   SymV("x18"), SymV("x19")
-        // )
-
+        val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val res = exec(m, fname, args, StaticList[Module]())
         // query a single test
         // res.head._1.pc.toList.foreach(assert(_))
         // handle(query(lit(false)))
-
         println(res.size)
       }
     }
+  
+  def runLLSC(m: Module, name: String, fname: String, nSym: Int = 0) {
+    val (_, t) = sai.utils.Utils.time {
+      val code = specialize(m, name, fname, nSym)
+      code.genAll
+    }
+    println(s"compiling $name, time $t ms")
+  }
+
+  def main(args: Array[String]): Unit = {
+    val usage = """
+    Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
+    """
+    if (args.size < 3) {
+      println(usage)
+    } else {
+      val filepath = args(0)
+      val appName = args(1)
+      val fun = args(2)
+      val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
+      runLLSC(parseFile(filepath), appName, fun, nSym)
+    }
+
+    //runLLSC(sai.llvm.Benchmarks.add, "add.cpp", "@add")
+    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
+    //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
+    //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
+    //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
+    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    //testFunGen(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    //testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")
+    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
+    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
+  }
 
   // @virtualize
   // def specializeFun(m: Module, name: String, fname: String): LLSCDriver[Int, Unit] =
@@ -142,25 +162,4 @@ object TestStagedSymExec {
   //   }
   //   println(res._2)
   // }
-  
-  def testModule(m: Module, name: String, fname: String) {
-    val (_, t) = sai.utils.Utils.time {
-      val code = specialize(m, name, fname)
-      code.genAll
-    }
-    println(s"compiling $name, time $t ms")
-  }
-
-  def main(args: Array[String]): Unit = {
-    //testModule(sai.llvm.Benchmarks.add, "add.cpp", "@add")
-    //testModule(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f")
-    //testModule(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
-    //testModule(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    //testModule(sai.llvm.Coreutils.echo, "echo", "@main")
-    //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //testFunGen(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //testFunGen(sai.llvm.LLSCExpr.externalFun, "externalFun", "@externalFun")
-    //testModule(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //testModule(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
-  }
 }

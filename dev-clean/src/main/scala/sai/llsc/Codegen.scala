@@ -191,7 +191,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     |  if (argc == 2) {
     |    int t = std::stoi(argv[1]);
     |    if (t <= 0) {
-    |      std::cout << "Invalid #threads, use 1 instead.\n";
+    |      std::cout << "Invalid #threads, use 1 instead.\\n";
     |      MAX_ASYNC = 0;
     |    } else {
     |      MAX_ASYNC = t - 1;
