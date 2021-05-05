@@ -189,7 +189,13 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     |    return 0;
     |  }
     |  if (argc == 2) {
-    |    MAX_ASYNC = atoi(argv[1]) - 1;
+    |    int t = std::stoi(argv[1]);
+    |    if (t <= 0) {
+    |      std::cout << "Invalid #threads, use 1 instead.\n";
+    |      MAX_ASYNC = 0;
+    |    } else {
+    |      MAX_ASYNC = t - 1;
+    |    }
     |  } else {
     |    MAX_ASYNC = 0;
     |  }
