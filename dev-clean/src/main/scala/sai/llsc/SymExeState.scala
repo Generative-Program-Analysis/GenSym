@@ -112,6 +112,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   trait Stack
   trait SS
 
+  type IntData = Long
   type BlockLabel = Int
   type Addr = Int
   type PC = Set[SMTBool]
@@ -277,14 +278,14 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
     def ui_tofp: Rep[Value] = "ui_tofp".reflectWith[Value](v)
     def si_tofp: Rep[Value] = "si_tofp".reflectWith[Value](v)
-    def trunc(from: Int, to: Int): Rep[Value] =
-      "trunc".reflectWith[Value](from, to)
+    def trunc(from: Rep[Int], to: Rep[Int]): Rep[Value] =
+      "trunc".reflectWith[Value](v, from, to)
   }
 
   object External extends Serializable {
     val warned_external = MultableSet[String]()
     val modeled_external: MultableSet[String] = MultableSet(
-      "sym_print", "malloc", "realloc"
+      "sym_print", "malloc", "realloc", "llsc_assert"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
     def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")

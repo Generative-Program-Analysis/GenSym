@@ -40,6 +40,7 @@ inline unsigned int var_name = 0;
 using BlockLabel = int;
 using Id = int;
 using Addr = unsigned int;
+using IntData = int;
 
 #ifdef STR_SYMV
 using Expr = std::string;
@@ -58,14 +59,15 @@ struct Value {
   //TODO(GW): toSMTExpr vs toSMTBool?
   virtual Expr to_SMTExpr() const = 0;
   virtual Expr to_SMTBool() const = 0;
+  virtual Ptr<Value> to_IntV() const = 0;
   virtual bool is_conc() const = 0;
 };
 
 using PtrVal = std::shared_ptr<Value>;
 
 struct IntV : Value {
-  int i;
-  IntV(int i) : i(i) {}
+  IntData i;
+  IntV(IntData i) : i(i) {}
   IntV(const IntV& v) { i = v.i; }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << i << ")";
@@ -87,19 +89,20 @@ struct IntV : Value {
     else return vc_falseExpr(vc);
 #endif
   }
+  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i); }
   virtual bool is_conc() const override { return true; }
 };
 
-inline Ptr<Value> make_IntV(int i) {
+inline Ptr<Value> make_IntV(IntData i) {
   return std::make_shared<IntV>(i);
 }
 
-inline Ptr<Value> make_IntV(int i, int bw) {
+inline Ptr<Value> make_IntV(IntData i, int bw) {
   //FIXME, bit width
   return std::make_shared<IntV>(i);
 }
 
-inline int proj_IntV(Ptr<Value> v) {
+inline IntData proj_IntV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<IntV>(v)->i;
 }
 
@@ -117,6 +120,7 @@ struct FloatV : Value {
     ABORT("to_SMTBool: unexpected value FloatV.");
   }
   virtual bool is_conc() const override { return true; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
 
 inline Ptr<Value> make_FloatV(float f) {
@@ -147,6 +151,7 @@ struct LocV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
+  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(l); }
 };
 
 inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k, int size) {
@@ -182,6 +187,7 @@ struct SymV : Value {
   // TODO(GW): how do we know this is a bool?
   virtual Expr to_SMTBool() const override { return v; }
   virtual bool is_conc() const override { return false; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
 inline Ptr<Value> make_SymV(String n) { return std::make_shared<SymV>(n); }
 inline Ptr<Value> make_SymV(String n, int bw) { 
@@ -199,6 +205,7 @@ struct SymV : Value {
   // TODO(GW): how do we know this is a bool?
   virtual Expr to_SMTBool() const override { return v; }
   virtual bool is_conc() const override { return false; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
 inline Ptr<Value> make_SymV(String n) {
   std::unique_lock<std::mutex> lk(vc_lock);
@@ -231,6 +238,7 @@ struct StructV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");
   }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
 
 inline PtrVal structV_at(PtrVal v, int idx) {
@@ -243,13 +251,14 @@ enum iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
   op_eq, op_uge, op_ugt, op_ule, op_ult, 
   op_sge, op_sgt, op_sle, op_slt, op_neq,
-  op_shl, op_lshr, op_ashr, op_and, op_or, op_xor
+  op_shl, op_lshr, op_ashr, op_and, op_or, op_xor, 
+  op_urem, op_srem
 };
 
 inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
-  auto i1 = std::dynamic_pointer_cast<IntV>(v1);
-  auto i2 = std::dynamic_pointer_cast<IntV>(v2);
-
+  auto i1 = std::dynamic_pointer_cast<IntV>(v1->to_IntV());
+  auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV())
+;
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i);
@@ -272,6 +281,8 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
       return make_IntV(i1->i < i2->i);
     } else if (op == op_neq) {
       return make_IntV(i1->i != i2->i);
+    } else if (op == op_urem || op == op_srem) {
+      return make_IntV(i1->i % i2->i);
     } else {
       ABORT("invalid operator");
     }
@@ -333,6 +344,22 @@ inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
 // FIXME: 
 inline Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
   return v;
+}
+
+inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
+  auto i1 = std::dynamic_pointer_cast<IntV>(v1);
+  if (i1) {
+    IntData i = i1->i;
+    i = i << (from - to);
+    i = i >> (from - to);
+    return make_IntV(i);
+  } else {
+    auto s1 = std::dynamic_pointer_cast<SymV>(v1);
+    if (s1) {
+      ABORT("Truncate a symvalue, needs work!");
+    }
+    ABORT("Truncate a ??? value, exit");
+  }
 }
 
 /* Memory, stack, and symbolic state representation */

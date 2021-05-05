@@ -10,7 +10,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::fl
   SS res = state;
   Addr dest_addr = proj_LocV(dest);
   Addr src_addr = proj_LocV(src);
-  int bytes_int = proj_IntV(bytes);
+  IntData bytes_int = proj_IntV(bytes);
   
   // Optmize
   // flex_vector_transient
@@ -29,7 +29,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memset(SS state, immer::fl
   Addr dest_addr = proj_LocV(dest);
   // what could be other set value?
   int setInt = 0;
-  int bytes_int = proj_IntV(bytes);
+  IntData bytes_int = proj_IntV(bytes);
   
   // Optmize
   // flex_vector_transient

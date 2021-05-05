@@ -1273,7 +1273,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val to = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
     val value = visit(ctx.value).asInstanceOf[LLVMValue]
     // Skipped optCommaSepMetadataAttachmentList
-    ZExtInst(from, value, to)
+    TruncInst(from, value, to)
   }
   
   override def visitZExtInst(ctx: LLVMParser.ZExtInstContext): LAST = {
@@ -1718,7 +1718,7 @@ package parser {
     import Parser._
     //printAst(parseFile("/home/shangyint/research/sai/dev-clean/external/strcmp.ll"))
 
-    printAst(parseFile("benchmarks/coreutils/echo/echo.ll"))
+    printAst(parseFile("benchmarks/llscExpr/trunc.ll"))
     //printAst(parseFile("benchmarks/coreutils/libc7.ll"))
   }
 

@@ -289,11 +289,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case SExtInst(from, value, to) =>  for {
         v <- eval(value)
       } yield v.bv_sext(to.asInstanceOf[IntType].size)
-      case TruncInst(from, value, to) => 
+      case TruncInst(from, value, to) =>
         for { v <- eval(value) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
-      case FpExtInst(from, value, to) => 
+      case FpExtInst(from, value, to) =>
         for { v <- eval(value) } yield v
-      case FpToUIInst(from, value, to) => 
+      case FpToUIInst(from, value, to) =>
         for { v <- eval(value) } yield v.fp_toui(to.asInstanceOf[IntType].size)
       case FpToSIInst(from, value, to) => 
         for { v <- eval(value) } yield v.fp_tosi(to.asInstanceOf[IntType].size)

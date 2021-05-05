@@ -39,6 +39,7 @@ object LLSCExpr {
   lazy val externalFun = parseFile("benchmarks/llscExpr/externalTest/externalFun.ll")
   lazy val varargInt = parseFile("benchmarks/llscExpr/varArgInt.ll")
   lazy val malloc = parseFile("benchmarks/llscExpr/externalTest/malloc.ll")
+  lazy val trunc = parseFile("benchmarks/llscExpr/trunc.ll")
 }
 
 object Coreutils {
