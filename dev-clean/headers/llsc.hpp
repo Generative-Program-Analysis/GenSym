@@ -518,6 +518,21 @@ class SS {
     SS addPC(Expr e) { return SS(heap, stack, pc.add(e), bb); }
     SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s), bb); }
     SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
+    SS init_arg(int len) {
+      ASSERT(stack.mem_size() == 0, "Stack Not New");
+      // FIXME: ptr size magic
+      auto res_stack = stack.alloc(17 + len + 1);
+      res_stack = res_stack.update(0, make_LocV(16, LocV::kStack));
+      res_stack = res_stack.update(8, make_LocV(17, LocV::kStack));
+      res_stack = res_stack.update(16, make_IntV(0));
+      int arg_index = 17;
+      for (int i = 0; i < len; i++) {
+        res_stack = res_stack.update(arg_index, make_SymV("ARG" + std::to_string(i)));
+        arg_index++;
+      }
+      res_stack = res_stack.update(arg_index, make_IntV(0));
+      return SS(heap, res_stack, pc, bb);
+    }
     immer::set<Expr> getPC() { return pc.getPC(); }
     // TODO temp solution
     PtrVal getVarargLoc() {return stack.getVarargLoc(); }

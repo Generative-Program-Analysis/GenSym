@@ -592,23 +592,35 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def exec(main: Module, fname: String, args: Rep[List[Value]], modules: StaticList[Module]): Rep[List[(SS, Value)]] = {
+  def exec(main: Module, fname: String, args: Rep[List[Value]], 
+    isCommandLine: Boolean=false, symarg: Int=0): Rep[List[(SS, Value)]] = {
     CompileTimeRuntime.funMap = main.funcDefMap
     CompileTimeRuntime.funDeclMap = main.funcDeclMap
     CompileTimeRuntime.globalDefMap = main.globalDefMap
     CompileTimeRuntime.globalDeclMap = main.globalDeclMap
     CompileTimeRuntime.typeDefMap = main.typeDefMap
     
-    val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::modules):_*)
+    val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
-    val comp = for {
-      fv <- eval(GlobalId(fname))(fname)
-      _ <- pushFrame
-      // TODO: construct argv and push onto stack?
-      s <- getState
-      v <- reflect(fv(s, args))
-      _ <- popFrame(s.stackSize)
-    } yield v
+    val comp = if (!isCommandLine) {
+      for {
+        fv <- eval(GlobalId(fname))(fname)
+        _ <- pushFrame
+        s <- getState
+        v <- reflect(fv(s, args))
+        _ <- popFrame(s.stackSize)
+      } yield v 
+    } else {
+      val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
+      for {
+        fv <- eval(GlobalId(fname))(fname)
+        _ <- pushFrame
+        _ <- initializeArg(symarg)
+        s <- getState
+        v <- reflect(fv(s, commandLineArgs))
+        _ <- popFrame(s.stackSize)
+      } yield v
+    }
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor

@@ -94,6 +94,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.addPCSet($es)"
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.addIncomingBlock($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
+    case Node(s, "ss-arg", List(ss, i), _) => es"$ss.init_arg($i)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.getPC()"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"

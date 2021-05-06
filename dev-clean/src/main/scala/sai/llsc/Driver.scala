@@ -105,7 +105,7 @@ object TestStagedSymExec {
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
-        val res = exec(m, fname, args, StaticList[Module]())
+        val res = exec(m, fname, args, true, 4)
         // query SMT
         res.foreach { s =>
           //println(r._2.deref)
@@ -151,7 +151,7 @@ object TestStagedSymExec {
     //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
     //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
     //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.malloc, "malloc", "@main")
-    runLLSC(sai.llvm.KleeExamples.regexp, "regexp", "@main")
+    runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
+    //runLLSC(sai.llvm.KleeExamples.regexp, "regexp", "@main")
   }
 }

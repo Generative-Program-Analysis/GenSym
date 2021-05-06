@@ -49,7 +49,7 @@ using Ptr = std::shared_ptr<T>;
     } while (false)
 
 
-#ifdef DEBUG
+#ifndef DEBUG
 #   define ASSERT(condition, message) \
     do { \
       if (! (condition)) { \
