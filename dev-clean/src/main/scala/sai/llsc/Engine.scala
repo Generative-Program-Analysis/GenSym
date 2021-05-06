@@ -608,7 +608,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         _ <- pushFrame
         s <- getState
         v <- reflect(fv(s, args))
-        _ <- popFrame(s.stackSize)
+        // Optimization: for entrance function, no need to pop
+        //_ <- popFrame(s.stackSize)
       } yield v 
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
@@ -618,7 +619,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         _ <- initializeArg(symarg)
         s <- getState
         v <- reflect(fv(s, commandLineArgs))
-        _ <- popFrame(s.stackSize)
+        //_ <- popFrame(s.stackSize)
       } yield v
     }
     Coverage.setBlockNum

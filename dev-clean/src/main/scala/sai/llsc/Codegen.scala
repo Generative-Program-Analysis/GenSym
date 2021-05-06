@@ -208,6 +208,9 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     |    MAX_ASYNC = 0;
     |  }
     |  $name(0);
+    |   Coverage.printTime
+    |   Coverage.printBlockCov
+    |   Coverage.printPathCov
     |  return 0;
     |} """.stripMargin)
     //if (initStream.size > 0)
