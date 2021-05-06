@@ -105,17 +105,14 @@ object TestStagedSymExec {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val res = exec(m, fname, args, false, 4) // FIXME: pass isCommandLine, symarg=4 seems doesn't work on mp1p?
-        // query SMT
+        // query SMT for 1 test
+        SS.checkPCToFile(res(0)._1)
+        /*
         res.foreach { s =>
           //println(r._2.deref)
           SS.checkPCToFile(s._1)
-          /*
-          push
-          r._1.pc.toList.foreach(assert(_))
-          handle(query(lit(false)))
-          pop
-          */
         }
+        */
       }
     }
   
