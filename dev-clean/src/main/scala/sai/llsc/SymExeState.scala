@@ -56,6 +56,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     }
     def incPath(n: Int): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
+    def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
+    def printPathCov: Rep[Unit] = "print-path-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
+    def printTime: Rep[Unit] = "print-time".reflectWriteWith[Unit]()(Adapter.CTRL)
   }
 
   trait Future[T]
@@ -287,7 +290,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object External extends Serializable {
     val warned_external = MultableSet[String]()
     val modeled_external: MultableSet[String] = MultableSet(
-      "sym_print", "malloc", "realloc", "llsc_assert"
+      "sym_print", "malloc", "realloc", "llsc_assert", "make_symbolic",
+      "__assert_fail"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
     def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")
@@ -299,6 +303,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       case id if id.startsWith("@llvm.va_start") => llvm_va_start
       case id if id.startsWith("@llvm.memcpy") => llvm_memcopy
       case id if id.startsWith("@llvm.memset") => llvm_memset
+      case id if id.startsWith("@llvm.memmove") => llvm_memset
       case _ => {
         if (!warned_set.contains(id)) {
           System.out.println(s"Warning: intrinsic $id is ignored")
@@ -310,6 +315,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
     def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
     def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")
+    def llvm_memmove: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memmove")
   }
 }
 

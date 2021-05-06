@@ -101,7 +101,6 @@ int main (int argc, char *argv[])
     //If hit the price, You Win!!   
     if (maze[y][x] == '#')
     {
-      assert();
       // printf ("You win!\n");
       // printf ("Your solution <%42s>\n",program);
       exit (1);

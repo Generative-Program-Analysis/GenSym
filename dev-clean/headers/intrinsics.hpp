@@ -20,6 +20,27 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::fl
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
 }
 
+inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memmove(SS state, immer::flex_vector<PtrVal> args) {
+  PtrVal dest = args.at(0);
+  PtrVal src = args.at(1);
+  PtrVal bytes = args.at(2);
+
+  SS res = state;
+  IntData bytes_int = proj_IntV(bytes);
+  
+  // Optmize
+  // flex_vector_transient
+  auto temp_mem = immer::flex_vector<PtrVal>{};
+  for (int i = 0; i < bytes_int; i++) {
+    temp_mem = temp_mem.push_back(res.at(make_LocV_inc(src, i)));
+  }
+  for (int i = 0; i < bytes_int; i++) {
+    res = res.update(make_LocV_inc(dest, i), temp_mem.at(i));
+  }
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
+}
+
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memset(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal dest = args.at(0);
   PtrVal seti8 = args.at(1);

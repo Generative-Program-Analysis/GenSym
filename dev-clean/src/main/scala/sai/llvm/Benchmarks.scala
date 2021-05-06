@@ -53,3 +53,8 @@ object OOPSLA20Benchmarks {
   lazy val mp65536 = parseFile("benchmarks/oopsla20/multipath_65536_sym.ll")
   lazy val mp1048576 = parseFile("benchmarks/oopsla20/multipath_1048576_sym.ll")
 }
+
+object KleeExamples{
+  lazy val sort = parseFile("benchmarks/klee_examples/sort.ll")
+  lazy val regexp = parseFile("benchmarks/klee_examples/regexp.ll")
+}

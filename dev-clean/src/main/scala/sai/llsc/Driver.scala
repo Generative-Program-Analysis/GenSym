@@ -117,7 +117,9 @@ object TestStagedSymExec {
           pop
           */
         }
-        ()
+        Coverage.printTime
+        Coverage.printBlockCov
+        Coverage.printPathCov
       }
     }
   
@@ -150,6 +152,6 @@ object TestStagedSymExec {
     //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
     //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //runLLSC(sai.llvm.LLSCExpr.malloc, "malloc", "@main")
-    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65536", "@f")
+    runLLSC(sai.llvm.KleeExamples.regexp, "regexp", "@main")
   }
 }

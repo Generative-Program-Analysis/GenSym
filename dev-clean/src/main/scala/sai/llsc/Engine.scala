@@ -39,15 +39,15 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
-    val BBFuns: HashMap[BB, Rep[SS => List[(SS, Value)]]] = new HashMap[BB, Rep[SS => List[(SS, Value)]]]
+    val BBFuns: HashMap[(String, BB), Rep[SS => List[(SS, Value)]]] = new HashMap[(String, BB), Rep[SS => List[(SS, Value)]]]
     val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
       new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
 
     def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
-      if (!CompileTimeRuntime.BBFuns.contains(b)) {
+      if (!CompileTimeRuntime.BBFuns.contains((funName, b))) {
         precompileBlocks(funName, StaticList(b))
       }
-      BBFuns(b)
+      BBFuns((funName, b))
     }
 
     def findBlock(fname: String, lab: String): Option[BB] = funMap.get(fname).get.lookupBlock(lab)
@@ -559,12 +559,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
 
     for (b <- blocks) {
-      Predef.assert(!CompileTimeRuntime.BBFuns.contains(b))
+      Predef.assert(!CompileTimeRuntime.BBFuns.contains((funName, b)))
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
       FunName.blockBindings(n) = s"${realFunName}_Block$n"
-      CompileTimeRuntime.BBFuns(b) = repRunBlock
+      CompileTimeRuntime.BBFuns((funName, b)) = repRunBlock
     }
   }
 
