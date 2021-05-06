@@ -288,6 +288,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def si_tofp: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Rep[Int], to: Rep[Int]): Rep[Value] =
       "trunc".reflectWith[Value](v, from, to)
+    def to_IntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
   }
 
   object External extends Serializable {

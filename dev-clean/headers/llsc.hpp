@@ -365,7 +365,14 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
       return make_IntV(i1->i != i2->i);
     } else if (op == op_urem || op == op_srem) {
       return make_IntV(i1->i % i2->i);
-    } else {
+    } else if (op == op_and) {
+      return make_IntV(i1->i & i2->i);
+    } else if (op == op_or) {
+      return make_IntV(i1->i | i2->i);
+    } else if (op == op_xor) {
+      return make_IntV(i1->i ^ i2->i);
+     }else {
+      std::cout << op << std::endl;
       ABORT("invalid operator");
     }
   } else {

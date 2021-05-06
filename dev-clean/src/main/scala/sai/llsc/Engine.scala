@@ -302,11 +302,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case SiToFPInst(from, value, to) => 
         for { v <- eval(value) } yield v.si_tofp
       case PtrToIntInst(from, value, to) => 
-        // TODO: Test
-        for { v <- eval(value) } yield IntV(v.int)
-      // TODO: kind
+        for { v <- eval(value) } yield v.to_IntV
       case IntToPtrInst(from, value, to) =>
-        for { v <- eval(value) } yield LocV(v.loc, LocV.kStack)
+        for { v <- eval(value) } yield LocV(v.int, LocV.kStack)
       case BitCastInst(from, value, to) => eval(value)
 
       // Aggregate Operations

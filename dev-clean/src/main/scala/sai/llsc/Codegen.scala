@@ -101,7 +101,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"
     case Node(s, "to-SMTBoolNeg", List(v), _) => es"to_SMTBoolNeg($v)"
     case Node(s, "ValPtr-deref", List(v), _) => es"*$v"
-
+    case Node(s, "to-IntV", List(v), _) => es"$v->to_IntV()"
+    
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov.set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov.inc_block($id)"
     case Node(s, "cov-inc-path", List(n), _) => es"cov.inc_path($n)"
