@@ -50,23 +50,68 @@ using Id = int;
 using Addr = unsigned int;
 using IntData = int;
 
+enum iOP {
+  op_add, op_sub, op_mul, op_sdiv, op_udiv,
+  op_eq, op_uge, op_ugt, op_ule, op_ult,
+  op_sge, op_sgt, op_sle, op_slt, op_neq,
+  op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
+  op_urem, op_srem, op_neg
+};
+
+inline std::string int_op2string(iOP op) {
+  switch (op) {
+    case op_add: return "+";
+    case op_sub: return "-";
+    case op_mul: return "*";
+    case op_sdiv: return "s/";
+    case op_udiv: return "u/";
+    case op_eq:  return "=";
+    case op_uge: return "u>=";
+    case op_ugt: return "u>";
+    case op_ule: return "u<=";
+    case op_ult: return "u<";
+    case op_sge: return "s>e";
+    case op_sgt: return "s>";
+    case op_sle: return "s<=";
+    case op_slt: return "s<";
+    case op_neq: return "!=";
+    case op_shl: return "shl";
+    case op_lshr: return "lshr";
+    case op_ashr: return "ashr";
+    case op_and: return "/\\";
+    case op_or: return "\\/";
+    case op_xor: return "xor";
+    case op_urem: return "u%";
+    case op_srem: return "s%";
+    case op_neg: return "!";
+  }
+  return "unknown op";
+}
+
+struct Value;
+
 #ifdef STR_SYMV
-using Expr = std::string;
+using SExpr = std::string;
 #else
+#ifdef LAZY_SYMV
+using SExpr = std::shared_ptr<Value>;
+#else
+using SExpr = Expr;
 inline std::mutex vc_lock;
 inline VC vc = vc_createValidityChecker();
+#endif
 #endif
 
 /* Value representations */
 
-struct Value {
+struct Value : public std::enable_shared_from_this<Value> {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
   }
   virtual std::ostream& toString(std::ostream& os) const = 0;
   //TODO(GW): toSMTExpr vs toSMTBool?
-  virtual Expr to_SMTExpr() const = 0;
-  virtual Expr to_SMTBool() const = 0;
+  virtual SExpr to_SMTExpr() = 0;
+  virtual SExpr to_SMTBool() = 0;
   virtual Ptr<Value> to_IntV() const = 0;
   virtual bool is_conc() const = 0;
 };
@@ -80,22 +125,30 @@ struct IntV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << i << ")";
   }
-  virtual Expr to_SMTExpr() const override {
+  virtual SExpr to_SMTExpr() override {
 #ifdef STR_SYMV
     return "dummy";
 #else
+#ifdef LAZY_SYMV
+    return shared_from_this();
+#else
     return vc_bvConstExprFromInt(vc, 32, i);
 #endif
+#endif
   }
-  virtual Expr to_SMTBool() const override {
+  virtual SExpr to_SMTBool() override {
 #ifdef STR_SYMV
     return "dummy";
+#else
+#ifdef LAZY_SYMV
+    ABORT("to_SMTBool: unexpected value IntV.");
 #else
     ABORT("to_SMTBool: unexpected value IntV.");
     /*
     if (i) return vc_trueExpr(vc);
     else return vc_falseExpr(vc);
     */
+#endif
 #endif
   }
   virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i); }
@@ -122,10 +175,10 @@ struct FloatV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "FloatV(" << f << ")";
   }
-  virtual Expr to_SMTExpr() const override {
+  virtual SExpr to_SMTExpr() override {
     ABORT("to_SMTExpr: unexpected value FloatV.");
   }
-  virtual Expr to_SMTBool() const override {
+  virtual SExpr to_SMTBool() override {
     ABORT("to_SMTBool: unexpected value FloatV.");
   }
   virtual bool is_conc() const override { return true; }
@@ -151,10 +204,10 @@ struct LocV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "LocV(" << l << ")";
   }
-  virtual Expr to_SMTExpr() const override {
+  virtual SExpr to_SMTExpr() override {
     ABORT("to_SMTExpr: unexpected value LocV.");
   }
-  virtual Expr to_SMTBool() const override {
+  virtual SExpr to_SMTBool() override {
     ABORT("to_SMTBool: unexpected value LocV.");
   }
   virtual bool is_conc() const override {
@@ -187,14 +240,14 @@ inline Ptr<Value> make_LocV_inc(Ptr<Value> loc, int i) {
 
 #ifdef STR_SYMV
 struct SymV : Value {
-  Expr v;
-  SymV(Expr v) : v(v) {}
+  SExpr v;
+  SymV(SExpr v) : v(v) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "SymV(" << v << ")";
   }
-  virtual Expr to_SMTExpr() const override { return v; }
+  virtual SExpr to_SMTExpr() override { return v; }
   // TODO(GW): how do we know this is a bool?
-  virtual Expr to_SMTBool() const override { return v; }
+  virtual SExpr to_SMTBool() override { return v; }
   virtual bool is_conc() const override { return false; }
   virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
@@ -204,15 +257,46 @@ inline Ptr<Value> make_SymV(String n, int bw) {
   return std::make_shared<SymV>(n);
 }
 #else
+#ifdef LAZY_SYMV
 struct SymV : Value {
-  Expr v;
-  SymV(Expr v) : v(v) {}
+  String name;
+  iOP rator;
+  immer::flex_vector<PtrVal> rands;
+  SymV(String name) : name(name) {}
+  SymV(iOP rator, immer::flex_vector<PtrVal> rands) : rator(rator), rands(rands) {}
+  virtual std::ostream& toString(std::ostream& os) const override {
+    if (!name.empty()) return os << "SymV(" << name << ")";
+    os << "SymV(" << int_op2string(rator) << ", ";
+    for (auto e : rands) {
+      os << *e << ", ";
+    }
+    return os << ")";
+  }
+  virtual SExpr to_SMTExpr() override { return shared_from_this(); }
+  virtual SExpr to_SMTBool() override { return shared_from_this(); }
+  virtual bool is_conc() const override { return false; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
+};
+inline Ptr<Value> make_SymV(String n) {
+  return std::make_shared<SymV>(n);
+}
+inline Ptr<Value> make_SymV(String n, int bw) {
+  // FIXME: make bit vector of bw bits
+  return std::make_shared<SymV>(n);
+}
+inline SExpr to_SMTBoolNeg(PtrVal v) {
+  return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }));
+}
+#else
+struct SymV : Value {
+  SExpr v;
+  SymV(SExpr v) : v(v) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "SymV(" << v << ")";
   }
-  virtual Expr to_SMTExpr() const override { return v; }
+  virtual SExpr to_SMTExpr() override { return v; }
   // TODO(GW): how do we know this is a bool?
-  virtual Expr to_SMTBool() const override { return v; }
+  virtual SExpr to_SMTBool() override { return v; }
   virtual bool is_conc() const override { return false; }
   virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
@@ -223,10 +307,11 @@ inline Ptr<Value> make_SymV(String n, int bw) {
   // FIXME: make bit vector of bw bits
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
-inline Expr to_SMTBoolNeg(PtrVal v) {
+inline SExpr to_SMTBoolNeg(PtrVal v) {
   auto e = v->to_SMTBool();
   return vc_notExpr(vc, e);
 }
+#endif
 #endif
 
 struct StructV : Value {
@@ -235,10 +320,10 @@ struct StructV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
   }
-  virtual Expr to_SMTExpr() const override {
+  virtual SExpr to_SMTExpr() override {
     ABORT("to_SMTExpr: unexpected value StructV.");
   }
-  virtual Expr to_SMTBool() const override {
+  virtual SExpr to_SMTBool() override {
     ABORT("to_SMTBool: unexpected value StructV.");
   }
   virtual bool is_conc() const override {
@@ -253,18 +338,9 @@ inline PtrVal structV_at(PtrVal v, int idx) {
   else ABORT("StructV_at: non StructV value");
 }
 
-enum iOP {
-  op_add, op_sub, op_mul, op_sdiv, op_udiv,
-  op_eq, op_uge, op_ugt, op_ule, op_ult, 
-  op_sge, op_sgt, op_sle, op_slt, op_neq,
-  op_shl, op_lshr, op_ashr, op_and, op_or, op_xor, 
-  op_urem, op_srem
-};
-
 inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1->to_IntV());
-  auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV())
-;
+  auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i);
@@ -296,8 +372,13 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
 #ifdef STR_SYMV
     return make_SymV("unknown");
 #else
-    Expr e1 = v1->to_SMTExpr();
-    Expr e2 = v2->to_SMTExpr();
+#ifdef LAZY_SYMV
+    SExpr e1 = v1->to_SMTExpr();
+    SExpr e2 = v2->to_SMTExpr();
+    return std::make_shared<SymV>(op, immer::flex_vector({ e1, e2 }));
+#else
+    SExpr e1 = v1->to_SMTExpr();
+    SExpr e2 = v2->to_SMTExpr();
     if (op == op_add) {
       return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
     } else if (op == op_sub) {
@@ -321,6 +402,7 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
     } else {
       ABORT("invalid operator");
     }
+#endif
 #endif
   }
 }
@@ -462,12 +544,12 @@ class Stack {
 
 class PC {
   private:
-    immer::set<Expr> pc;
+    immer::set<SExpr> pc;
   public:
-    PC(immer::set<Expr> pc) : pc(pc) {}
-    PC add(Expr e) { return PC(pc.insert(e)); }
-    PC addSet(immer::set<Expr> new_pc) { return PC(Set::join(pc, new_pc)); }
-    immer::set<Expr> getPC() { return pc; }
+    PC(immer::set<SExpr> pc) : pc(pc) {}
+    PC add(SExpr e) { return PC(pc.insert(e)); }
+    PC addSet(immer::set<SExpr> new_pc) { return PC(Set::join(pc, new_pc)); }
+    immer::set<SExpr> getPC() { return pc; }
     void print() { print_set(pc); }
 };
 
@@ -515,8 +597,8 @@ class SS {
     SS heap_append(immer::flex_vector<PtrVal> vals) {
       return SS(heap.append(vals), stack, pc, bb);
     }
-    SS addPC(Expr e) { return SS(heap, stack, pc.add(e), bb); }
-    SS addPCSet(immer::set<Expr> s) { return SS(heap, stack, pc.addSet(s), bb); }
+    SS addPC(SExpr e) { return SS(heap, stack, pc.add(e), bb); }
+    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, pc.addSet(s), bb); }
     SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
@@ -533,14 +615,14 @@ class SS {
       res_stack = res_stack.update(arg_index, make_IntV(0));
       return SS(heap, res_stack, pc, bb);
     }
-    immer::set<Expr> getPC() { return pc.getPC(); }
+    immer::set<SExpr> getPC() { return pc.getPC(); }
     // TODO temp solution
     PtrVal getVarargLoc() {return stack.getVarargLoc(); }
 };
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-inline const PC mt_pc = PC(immer::set<Expr>{});
+inline const PC mt_pc = PC(immer::set<SExpr>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 
@@ -685,12 +767,93 @@ inline CoverageMonitor cov;
 // STP interaction
 inline unsigned int query_id = 0;
 
+inline Expr construct_STP_expr(VC vc, std::map<std::string, Expr>* env, Ptr<Value> e) {
+  auto int_e = std::dynamic_pointer_cast<IntV>(e);
+  if (int_e) {
+    return vc_bvConstExprFromInt(vc, 32, int_e->i);
+  }
+  auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+  if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
+
+  if (!sym_e->name.empty()) {
+    auto name = sym_e->name;
+    auto it = env->find(name);
+    if (it == env->end()) {
+      Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bv32Type(vc));
+      env->insert(std::make_pair(name, stp_expr));
+      return stp_expr;
+    }
+    return it->second;
+  }
+
+  std::vector<Expr> expr_rands;
+  for (auto e : sym_e->rands) {
+    expr_rands.push_back(construct_STP_expr(vc, env, e));
+  }
+  switch (sym_e->rator) {
+    case op_add:
+      return vc_bv32PlusExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_sub:
+      return vc_bv32MinusExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_mul:
+      return vc_bv32MultExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_sdiv:
+    case op_udiv:
+      return vc_bvDivExpr(vc, 32, expr_rands.at(0),expr_rands.at(1));
+    case op_uge:
+      return vc_bvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_sge:
+      return vc_sbvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_ugt:
+      return vc_bvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_sgt:
+      return vc_sbvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_ule:
+      return vc_bvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_sle:
+      return vc_sbvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_ult:
+      return vc_bvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_slt:
+      return vc_sbvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_eq:
+      return vc_eqExpr(vc, expr_rands.at(0),expr_rands.at(1));
+    case op_neq:
+      return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1)));
+    case op_neg:
+      return vc_notExpr(vc, expr_rands.at(0));
+    case op_shl:
+    case op_lshr:
+    case op_ashr:
+    case op_and:
+    case op_or:
+    case op_xor: 
+    case op_urem:
+    case op_srem:
+    default: break;
+  }
+  ABORT("unkown operator when constructing STP expr");
+}
+
+inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
+  std::map<std::string, Expr> env;
+  for (auto e : pc) {
+    Expr stp_expr = construct_STP_expr(vc, &env, e);
+    vc_assertFormula(vc, stp_expr);
+    //vc_printExprFile(vc, e, out_fd); 
+    //std::string smt_rep = vc_printSMTLIB(vc, e);
+    //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
+    //    n = write(out_fd, "\n", 1);
+  }
+}
+
 inline void check_pc_to_file(SS state) {
-  vc_push(vc);
+  VC vc = vc_createValidityChecker();
+  //vc_push(vc);
   query_id++;
 
   if (mkdir("tests", 0777) == -1) {
-    if (errno == EEXIST) { /* okay */ }
+    if (errno == EEXIST) { }
     else {
       ABORT("Cannot create the folder tests, abort.\n");
     }
@@ -703,19 +866,13 @@ inline void check_pc_to_file(SS state) {
       ABORT("Cannot create the test case file, abort.\n");
   }
 
-  Set::foreach(state.getPC(), [&](auto e) {
-    vc_assertFormula(vc, e);
-    /* debug */
-    vc_printExprFile(vc, e, out_fd); 
-    int n = write(out_fd, "\n", 1);
-    /* debug */
-  });
-
   std::stringstream output;
   output << "Query number: " << query_id << std::endl;
-
+  
+  construct_STP_constraints(vc, state.getPC());
   Expr fls = vc_falseExpr(vc);
   int result = vc_query(vc, fls);
+
   switch (result) {
   case 0:
     output << "Query is invalid" << std::endl;
@@ -732,9 +889,10 @@ inline void check_pc_to_file(SS state) {
   }
   int n = write(out_fd, output.str().c_str(), output.str().size());
   //vc_printCounterExample(vc);
-  vc_printCounterExampleFile(vc, out_fd);
+  if (result == 0) vc_printCounterExampleFile(vc, out_fd);
   close(out_fd);
-  vc_pop(vc);
+  vc_Destroy(vc);
+  //vc_pop(vc);
 }
 
 #endif

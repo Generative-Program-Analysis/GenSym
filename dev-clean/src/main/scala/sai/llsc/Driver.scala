@@ -24,8 +24,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
     val codegenFolder = s"$folder/$appName/"
   }
 
-  // Assuming the working directory only contains subdir "build"
-  // TODO: what it is special about `build`
+  // Assuming the working directory only contains subdir "build" or "tests"
   // TODO: remove this to somewhere for utilities
   def createNewDir: Boolean = {
     val codegenFolderFile = new File(codegen.codegenFolder)
@@ -33,7 +32,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
     else {
       val entries = codegenFolderFile.list()
       entries.map(x => {
-        if (x == "build") {
+        if (x == "build" || x == "tests") {
           val build_dir = new File(codegenFolderFile.getPath, x)
           build_dir.list.map(x => new File(build_dir.getPath, x).delete)
           build_dir.delete

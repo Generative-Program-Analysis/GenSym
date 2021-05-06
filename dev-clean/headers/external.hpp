@@ -1,8 +1,8 @@
 #include <llsc.hpp>
 
 /* temp util functions */
-inline immer::flex_vector<Expr> set_to_list(immer::set<Expr> s) {
-  auto res = immer::flex_vector<Expr>{};
+inline immer::flex_vector<SExpr> set_to_list(immer::set<SExpr> s) {
+  auto res = immer::flex_vector<SExpr>{};
   for (auto x : s) {
     res = res.push_back(x);
   }
@@ -50,12 +50,12 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
 }
 
-inline void handle_pc(immer::set<Expr> pc) {
+inline void handle_pc(immer::set<SExpr> pc) {
 
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
-  immer::set<Expr> pc = state.getPC();
+  immer::set<SExpr> pc = state.getPC();
   handle_pc(pc);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }

@@ -46,6 +46,8 @@ trait SAIOps extends Base
       Wrap[T](Adapter.g.reflectMutable(op, rs.map(Unwrap):_*))
   }
 
+  def print(x: Rep[Any]): Unit = Adapter.g.reflectWrite("print",Unwrap(x))(Adapter.CTRL)
+
   override def __fun[T: Manifest](f: AnyRef, arity: Int, gf: List[Backend.Exp] => Backend.Exp, captures: Backend.Exp*): Backend.Exp = {
     // No λforward
     val can = canonicalize(f)

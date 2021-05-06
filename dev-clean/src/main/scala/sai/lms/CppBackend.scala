@@ -35,6 +35,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
   override def shallow(n: Node): Unit = n match {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
+    case n @ Node(s, "print", List(x), _) => es"std::cout << $x"
     case _ => super.shallow(n)
   }
 
