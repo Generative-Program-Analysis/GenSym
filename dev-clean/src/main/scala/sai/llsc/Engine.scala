@@ -409,11 +409,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             } else {
               Coverage.incPath(1)
               val b1 = for {
-                //_ <- updatePC(cndVal.toSMTBool)
+                _ <- updatePC(cndVal.toSMTBool)
                 v <- execBlock(funName, thnLab)
               } yield v
               val b2 = for {
-                //_ <- updatePC(cndVal.toSMTBoolNeg)
+                _ <- updatePC(cndVal.toSMTBoolNeg)
                 v <- execBlock(funName, elsLab)
               } yield v
               // TODO: randomly select a branch
@@ -604,6 +604,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     val comp = for {
       fv <- eval(GlobalId(fname))(fname)
       _ <- pushFrame
+      // TODO: construct argv and push onto stack?
       s <- getState
       v <- reflect(fv(s, args))
       _ <- popFrame(s.stackSize)

@@ -1,11 +1,8 @@
-int f(int x) {
-  int y = 0;
-  if (x == 0) {
-    y = x + 1;
-    y = y + y;
+int f(int x, int y) {
+  if (x <= 0 || y <= 0) return -1;
+  if (x * x + y * y == 25) {
+    return 1;
   } else {
-    y = x + 2;
-    y = y - y;
+    return 0;
   }
-  return y;
 }

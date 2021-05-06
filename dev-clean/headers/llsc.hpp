@@ -1,9 +1,9 @@
 #ifndef LLSC_HEADERS
 #define LLSC_HEADERS
 
-#include <sys/resource.h>
 
 #include <ostream>
+#include <fstream>
 #include <variant>
 #include <string>
 #include <vector>
@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <thread>
 #include <mutex>
-#include <condition_variable>
 #include <chrono>
 
 #include <memory>
@@ -21,11 +20,20 @@
 #include <condition_variable>
 #include <future>
 
+#include<unistd.h>
+#include <fcntl.h>
+#include <bits/stdc++.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/resource.h>
+
 #include <sai.hpp>
 //#include <thread_pool.hpp>
 #include <immer/flex_vector_transient.hpp>
 
-#define STR_SYMV
+//#define STR_SYMV // using dummy string for symbolic value, just for debugging
+
+#define LAZY_SYMV // lazily construct SMT expression only when discharging the PC
 
 #ifndef STR_SYMV
 #include <stp/c_interface.h>
@@ -76,7 +84,6 @@ struct IntV : Value {
 #ifdef STR_SYMV
     return "dummy";
 #else
-    std::unique_lock<std::mutex> lk(vc_lock);
     return vc_bvConstExprFromInt(vc, 32, i);
 #endif
   }
@@ -84,9 +91,11 @@ struct IntV : Value {
 #ifdef STR_SYMV
     return "dummy";
 #else
-    std::unique_lock<std::mutex> lk(vc_lock);
+    ABORT("to_SMTBool: unexpected value IntV.");
+    /*
     if (i) return vc_trueExpr(vc);
     else return vc_falseExpr(vc);
+    */
 #endif
   }
   virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i); }
@@ -208,17 +217,14 @@ struct SymV : Value {
   virtual Ptr<Value> to_IntV() const override { return nullptr; }
 };
 inline Ptr<Value> make_SymV(String n) {
-  std::unique_lock<std::mutex> lk(vc_lock);
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
 inline Ptr<Value> make_SymV(String n, int bw) { 
   // FIXME: make bit vector of bw bits
-  std::unique_lock<std::mutex> lk(vc_lock);
   return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
 }
 inline Expr to_SMTBoolNeg(PtrVal v) {
   auto e = v->to_SMTBool();
-  std::unique_lock<std::mutex> lk(vc_lock);
   return vc_notExpr(vc, e);
 }
 #endif
@@ -292,7 +298,6 @@ inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
 #else
     Expr e1 = v1->to_SMTExpr();
     Expr e2 = v2->to_SMTExpr();
-    std::unique_lock<std::mutex> lk(vc_lock);
     if (op == op_add) {
       return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
     } else if (op == op_sub) {
@@ -335,7 +340,6 @@ inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
     else if (op == op_fdiv) { return make_FloatV(f1->f / f2->f); }
     // FIXME: Float cmp operations
     else { return make_IntV(1); }
-
   } else {
     ABORT("Non-concrete Float Detected");
   }
@@ -662,5 +666,60 @@ struct CoverageMonitor {
 };
 
 inline CoverageMonitor cov;
+
+// STP interaction
+inline unsigned int query_id = 0;
+
+inline void check_pc_to_file(SS state) {
+  vc_push(vc);
+  query_id++;
+
+  if (mkdir("tests", 0777) == -1) {
+    if (errno == EEXIST) { /* okay */ }
+    else {
+      ABORT("Cannot create the folder tests, abort.\n");
+    }
+  }
+
+  std::stringstream filename;
+  filename << "tests/" << query_id << ".test";
+  int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
+  if (out_fd == -1) {
+      ABORT("Cannot create the test case file, abort.\n");
+  }
+
+  Set::foreach(state.getPC(), [&](auto e) {
+    vc_assertFormula(vc, e);
+    /* debug */
+    vc_printExprFile(vc, e, out_fd); 
+    int n = write(out_fd, "\n", 1);
+    /* debug */
+  });
+
+  std::stringstream output;
+  output << "Query number: " << query_id << std::endl;
+
+  Expr fls = vc_falseExpr(vc);
+  int result = vc_query(vc, fls);
+  switch (result) {
+  case 0:
+    output << "Query is invalid" << std::endl;
+    break;
+  case 1:
+    output << "Query is Valid" << std::endl;
+    break;
+  case 2:
+    output << "Could not answer the query" << std::endl;
+    break;
+  case 3:
+    output << "timeout" << std::endl;
+    break;
+  }
+  int n = write(out_fd, output.str().c_str(), output.str().size());
+  //vc_printCounterExample(vc);
+  vc_printCounterExampleFile(vc, out_fd);
+  close(out_fd);
+  vc_pop(vc);
+}
 
 #endif

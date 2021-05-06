@@ -84,8 +84,9 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
     |\t$$(CC) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
     |
     |clean:
-    |\t@rm main 2>/dev/null || true
+    |\t@rm $appName 2>/dev/null || true
     |\t@rm build -rf 2>/dev/null || true
+    |\t@rm tests -rf 2>/dev/null || true
     |
     |.PHONY: default clean
     |""".stripMargin)
@@ -105,10 +106,17 @@ object TestStagedSymExec {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val res = exec(m, fname, args, StaticList[Module]())
-        // query a single test
-        // res.head._1.pc.toList.foreach(assert(_))
-        // handle(query(lit(false)))
-        println(res.size)
+        // query SMT
+        res.foreach { s =>
+          //println(r._2.deref)
+          SS.checkPCToFile(s._1)
+          /*
+          push
+          r._1.pc.toList.foreach(assert(_))
+          handle(query(lit(false)))
+          pop
+          */
+        }
       }
     }
   

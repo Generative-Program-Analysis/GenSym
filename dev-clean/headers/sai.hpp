@@ -399,11 +399,16 @@ namespace Set {
 
   template<typename S, typename T, typename Fn>
   inline immer::set<S> map(immer::set<T> s, Fn f) {
-    static_assert(std::is_convertible<Fn, std::function<bool(T)>>::value,
+    static_assert(std::is_convertible<Fn, std::function<S(T)>>::value,
       "Set::map requires a function of type S(T)");
     auto res = immer::set<S>();
     for (auto x : s) { res = res.insert(f(x)); }
     return res;
+  }
+
+  template<typename T, typename Fn>
+  inline void foreach(immer::set<T> s, Fn f) {
+    for (auto x : s) { f(x); }
   }
 
   template<typename S, typename T, typename Fn>
