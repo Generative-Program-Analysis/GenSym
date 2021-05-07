@@ -1,4 +1,4 @@
-
+#include "klee/klee.h"
 #define SIZE 5
 
 int d[SIZE];
@@ -28,7 +28,8 @@ void qsort(int l, int r)
 
 int main()
 {
-	make_symbolic(d, sizeof(int) * SIZE);
+	//make_symbolic(d, sizeof(int) * SIZE);
+  klee_make_symbolic(d, sizeof d, "data");
 	qsort(0, SIZE-1);
 	return 0;
 }
