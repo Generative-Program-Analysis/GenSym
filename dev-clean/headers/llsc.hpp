@@ -450,7 +450,13 @@ inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
   } else {
     auto s1 = std::dynamic_pointer_cast<SymV>(v1);
     if (s1) {
-      ABORT("Truncate a symvalue, needs work!");
+#ifdef LAZY_SYMV
+      ABORT("Truncate a LAZY_SYMV, needs work!");
+#else
+      // if we model
+      // should be vc_bvExtract(vc, s1->v, to - 1, 0)
+      return s1;
+#endif
     }
     ABORT("Truncate a ??? value, exit");
   }

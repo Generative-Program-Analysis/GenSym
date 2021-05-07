@@ -28,6 +28,10 @@ object Benchmarks {
   lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
   lazy val global = parseFile("benchmarks/llvm/global.ll")
   lazy val struct1 = parseFile("benchmarks/llvm/struct1.ll")
+
+  lazy val bubbleSort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
+  lazy val quickSort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
+
 }
 
 object LLSCExpr {
@@ -46,6 +50,7 @@ object LLSCExpr {
 object Coreutils {
   lazy val echo = parseFile("benchmarks/coreutils/echo/echo.ll")
   lazy val echoWithLib = parseFile("benchmarks/coreutils/echo/echoStdlibString.ll")
+  lazy val trueWithLib = parseFile("benchmarks/coreutils/trueWithLib.ll")
 }
 
 object OOPSLA20Benchmarks {
@@ -58,4 +63,5 @@ object OOPSLA20Benchmarks {
 object KleeExamples{
   lazy val sort = parseFile("benchmarks/klee_examples/sort.ll")
   lazy val regexp = parseFile("benchmarks/klee_examples/regexp.ll")
+  lazy val bin_search = parseFile("benchmarks/klee_examples/bin_search.ll")
 }
