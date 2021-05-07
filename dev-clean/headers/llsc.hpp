@@ -864,13 +864,19 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 }
 
 // returns true if it is sat, otherwise false
+// FIXME: multithread issue, refer to something on the stack of another thread...
 inline bool check_pc(immer::set<PtrVal> pc) {
-  std::unique_lock<std::mutex> lock(vc_lock);
+  int result = -1;
+  {
+  //std::unique_lock<std::mutex> lock(vc_lock);
+  //std::cout << "lock\n";
   vc_push(vc);
   construct_STP_constraints(vc, pc);
   Expr fls = vc_falseExpr(vc);
-  int result = vc_query(vc, fls);
+  result = vc_query(vc, fls);
   vc_pop(vc);
+  //std::cout << "unlock\n";
+  }
   return result == 0;
 }
 
