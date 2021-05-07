@@ -64,6 +64,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::
   PtrVal make_loc = args.at(0);
   IntData len = proj_IntV(args.at(1));
   SS res = state;
+  std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
   for (int i = 0; i < len; i++) {
     res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
   }

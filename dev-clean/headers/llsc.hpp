@@ -95,6 +95,7 @@ using SExpr = std::string;
 #else
 #ifdef LAZY_SYMV
 using SExpr = std::shared_ptr<Value>;
+inline VC vc = vc_createValidityChecker();
 #else
 using SExpr = Expr;
 inline std::mutex vc_lock;
@@ -855,8 +856,8 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 }
 
 inline void check_pc_to_file(SS state) {
-  VC vc = vc_createValidityChecker();
-  //vc_push(vc);
+  //VC vc = vc_createValidityChecker();
+  vc_push(vc);
   query_id++;
 
   if (mkdir("tests", 0777) == -1) {
@@ -891,15 +892,15 @@ inline void check_pc_to_file(SS state) {
     output << "Could not answer the query" << std::endl;
     break;
   case 3:
-    output << "timeout" << std::endl;
+    output << "Timeout" << std::endl;
     break;
   }
   int n = write(out_fd, output.str().c_str(), output.str().size());
   //vc_printCounterExample(vc);
   if (result == 0) vc_printCounterExampleFile(vc, out_fd);
   close(out_fd);
-  vc_Destroy(vc);
-  //vc_pop(vc);
+  //vc_Destroy(vc);
+  vc_pop(vc);
 }
 
 #endif
