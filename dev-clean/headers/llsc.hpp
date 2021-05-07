@@ -649,6 +649,7 @@ inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
 #define STACKSIZE_32MB (32 * 1024 * 1024)
 #define STACKSIZE_64MB (64 * 1024 * 1024)
 #define STACKSIZE_128MB (128 * 1024 * 1024)
+#define STACKSIZE_1GB (128 * 1024 * 1024 * 8)
 
 inline void inc_stack(rlim_t lim) {
   struct rlimit rl;
