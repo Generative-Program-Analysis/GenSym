@@ -527,7 +527,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] = {
     precomputeHeapAddr(globalDefMap, prevSize)
-    globalDefMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
+    globalDefMap.foldLeft(StaticList[Rep[Value]]()) { case (h, (k, v)) =>
       h ++ evalHeapConst(v.const, getRealType(v.typ))
     }
   }
