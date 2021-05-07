@@ -1,6 +1,6 @@
 //#include "klee/klee.h"
 
-#define SIZE 8
+#define SIZE 4
 
 void bubble_sort(int *d, int n)
 {

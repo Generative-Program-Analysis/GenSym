@@ -405,7 +405,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
               else reify(ss)(execBlock(funName, elsLab))
             } else {
-              Coverage.incPath(1)
+              val tpc = ss.pc ++ Set[SMTBool](cndVal.toSMTBool)
+              val fpc = ss.pc ++ Set[SMTBool](cndVal.toSMTBoolNeg)
+              val tpcSat = SS.checkPC(tpc)
+              val fpcSat = SS.checkPC(fpc)
               val b1 = for {
                 _ <- updatePC(cndVal.toSMTBool)
                 v <- execBlock(funName, thnLab)
@@ -414,13 +417,21 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                 _ <- updatePC(cndVal.toSMTBoolNeg)
                 v <- execBlock(funName, elsLab)
               } yield v
-              // TODO: randomly select a branch
-              if (ThreadPool.canPar) {
-                val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ => reify(ss) { b1 } }
-                val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
-                ThreadPool.get(asyncb1) ++ rb2
-              } else reify(ss) { choice(b1, b2) }
-              //reify(ss) { choice(b1, b2) }
+              if (tpcSat && fpcSat) {
+                Coverage.incPath(1)
+                // TODO: randomly select a branch
+                if (ThreadPool.canPar) {
+                  val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ => reify(ss) { b1 } }
+                  val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
+                  ThreadPool.get(asyncb1) ++ rb2
+                } else reify(ss) { choice(b1, b2) }
+              } else if (tpcSat) {
+                reify(ss) { b1 }
+              } else if (fpcSat) {
+                reify(ss) { b2 }
+              } else {
+                List[(SS, Value)]()
+              }
             }
           }
         } yield u

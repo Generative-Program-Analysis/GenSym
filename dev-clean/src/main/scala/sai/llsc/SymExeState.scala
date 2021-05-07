@@ -129,6 +129,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
     def init(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
     def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
+    def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
   }
 
   class SSOps(ss: Rep[SS]) {

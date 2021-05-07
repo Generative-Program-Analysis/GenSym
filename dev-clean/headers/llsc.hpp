@@ -95,6 +95,7 @@ using SExpr = std::string;
 #else
 #ifdef LAZY_SYMV
 using SExpr = std::shared_ptr<Value>;
+inline std::mutex vc_lock;
 inline VC vc = vc_createValidityChecker();
 #else
 using SExpr = Expr;
@@ -781,8 +782,9 @@ inline CoverageMonitor cov;
 
 // STP interaction
 inline unsigned int query_id = 0;
+inline std::map<std::string, Expr> stp_env;
 
-inline Expr construct_STP_expr(VC vc, std::map<std::string, Expr>* env, Ptr<Value> e) {
+inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
     return vc_bvConstExprFromInt(vc, 32, int_e->i);
@@ -792,10 +794,10 @@ inline Expr construct_STP_expr(VC vc, std::map<std::string, Expr>* env, Ptr<Valu
 
   if (!sym_e->name.empty()) {
     auto name = sym_e->name;
-    auto it = env->find(name);
-    if (it == env->end()) {
+    auto it = stp_env.find(name);
+    if (it == stp_env.end()) {
       Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bv32Type(vc));
-      env->insert(std::make_pair(name, stp_expr));
+      stp_env.insert(std::make_pair(name, stp_expr));
       return stp_expr;
     }
     return it->second;
@@ -803,7 +805,7 @@ inline Expr construct_STP_expr(VC vc, std::map<std::string, Expr>* env, Ptr<Valu
 
   std::vector<Expr> expr_rands;
   for (auto e : sym_e->rands) {
-    expr_rands.push_back(construct_STP_expr(vc, env, e));
+    expr_rands.push_back(construct_STP_expr(vc, e));
   }
   switch (sym_e->rator) {
     case op_add:
@@ -851,15 +853,25 @@ inline Expr construct_STP_expr(VC vc, std::map<std::string, Expr>* env, Ptr<Valu
 }
 
 inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
-  std::map<std::string, Expr> env;
   for (auto e : pc) {
-    Expr stp_expr = construct_STP_expr(vc, &env, e);
+    Expr stp_expr = construct_STP_expr(vc, e);
     vc_assertFormula(vc, stp_expr);
     //vc_printExprFile(vc, e, out_fd); 
     //std::string smt_rep = vc_printSMTLIB(vc, e);
     //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
     //    n = write(out_fd, "\n", 1);
   }
+}
+
+// returns true if it is sat, otherwise false
+inline bool check_pc(immer::set<PtrVal> pc) {
+  std::unique_lock<std::mutex> lock(vc_lock);
+  vc_push(vc);
+  construct_STP_constraints(vc, pc);
+  Expr fls = vc_falseExpr(vc);
+  int result = vc_query(vc, fls);
+  vc_pop(vc);
+  return result == 0;
 }
 
 inline void check_pc_to_file(SS state) {
