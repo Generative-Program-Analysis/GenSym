@@ -864,7 +864,6 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 inline void check_pc_to_file(SS state) {
   //VC vc = vc_createValidityChecker();
   vc_push(vc);
-  query_id++;
 
   if (mkdir("tests", 0777) == -1) {
     if (errno == EEXIST) { }
@@ -873,15 +872,8 @@ inline void check_pc_to_file(SS state) {
     }
   }
 
-  std::stringstream filename;
-  filename << "tests/" << query_id << ".test";
-  int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
-  if (out_fd == -1) {
-      ABORT("Cannot create the test case file, abort.\n");
-  }
-
   std::stringstream output;
-  output << "Query number: " << query_id << std::endl;
+  output << "Query number: " << (query_id+1) << std::endl;
   
   construct_STP_constraints(vc, state.getPC());
   Expr fls = vc_falseExpr(vc);
@@ -901,10 +893,21 @@ inline void check_pc_to_file(SS state) {
     output << "Timeout" << std::endl;
     break;
   }
-  int n = write(out_fd, output.str().c_str(), output.str().size());
-  //vc_printCounterExample(vc);
-  if (result == 0) vc_printCounterExampleFile(vc, out_fd);
-  close(out_fd);
+  
+  if (result == 0) {
+    query_id++;
+    std::stringstream filename;
+    filename << "tests/" << query_id << ".test";
+    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
+    if (out_fd == -1) {
+        ABORT("Cannot create the test case file, abort.\n");
+    }
+
+    int n = write(out_fd, output.str().c_str(), output.str().size());
+    //vc_printCounterExample(vc);
+    vc_printCounterExampleFile(vc, out_fd);
+    close(out_fd);
+  }
   //vc_Destroy(vc);
   vc_pop(vc);
 }
