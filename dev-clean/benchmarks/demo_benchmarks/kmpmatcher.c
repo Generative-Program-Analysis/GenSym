@@ -1,7 +1,7 @@
 #define SIZE 10
-char T[SIZE];
 
-int pi[SIZE];
+
+int pi[4];
 int lt, lp;
 
 void compute_prefix_function(char * P)
@@ -25,7 +25,7 @@ void compute_prefix_function(char * P)
 	}
 }
 
-void KMP_matcher(char * P)
+void KMP_matcher(char * P, char * T)
 {
 	compute_prefix_function(P);
 	
@@ -53,12 +53,13 @@ void KMP_matcher(char * P)
 
 int main()
 {
-  char P[5] = "llsc"; 
-  make_symbolic(T, SIZE, "k");
+  char P[5] = "llsc";
+	char T[SIZE];
+  make_symbolic(T, SIZE);
 	lt = SIZE-1;
 	lp = 4;
 
-	KMP_matcher(P);
+	KMP_matcher(P, T);
 	
 	return 0;
 }
