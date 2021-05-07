@@ -31,7 +31,7 @@ object Benchmarks {
 
   lazy val bubbleSort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
   lazy val quickSort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
-
+  lazy val kmpmatcher = parseFile("benchmarks/demo_benchmarks/kmpmatcher.ll")
 }
 
 object LLSCExpr {
