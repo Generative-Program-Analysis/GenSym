@@ -1,6 +1,5 @@
 #define SIZE 10
 
-
 int pi[4];
 int lt, lp;
 

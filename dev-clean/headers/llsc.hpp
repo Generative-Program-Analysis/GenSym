@@ -705,83 +705,9 @@ auto create_async(std::function<T()> f) -> std::future<T> {
   //return pool.enqueue(f);
 }
 
-
-/* Coverage information */
-
-// TODO: branch coverage
-// Some note on overhead: recording coverage 1m path/block exec poses ~2.5sec overhead.
-struct CoverageMonitor {
-  private:
-    using BlockId = std::int64_t;
-    // Total number of blocks
-    std::uint64_t num_blocks;
-    // The number of execution for each block
-    std::vector<std::uint64_t> block_cov;
-    // Number of discovered paths
-    std::uint64_t num_paths;
-    // Starting time
-    steady_clock::time_point start;
-    std::mutex bm;
-    std::mutex pm;
-  public:
-    CoverageMonitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
-    CoverageMonitor(std::uint64_t num_blocks) : num_blocks(num_blocks), start(steady_clock::now()) {}
-    void set_num_blocks(std::uint64_t n) {
-      num_blocks = n;
-      block_cov.resize(n, 0);
-    }
-    void inc_block(BlockId b) {
-      std::unique_lock<std::mutex> lk(bm);
-      block_cov[b]++;
-    }
-    void inc_path(size_t n) {
-      std::unique_lock<std::mutex> lk(pm);
-      num_paths += n;
-    }
-    void print_path_cov() {
-      std::cout << "#paths: " << num_paths << "; " << std::flush;
-    }
-    void print_block_cov() {
-      size_t covered = 0;
-      for (auto v : block_cov) { if (v != 0) covered++; }
-      std::cout << "#blocks: "
-                << covered << "/"
-                << num_blocks << "; "
-                << std::flush;
-    }
-    void print_block_cov_detail() {
-      print_block_cov();
-      for (int i = 0; i < block_cov.size(); i++) {
-        std::cout << "Block: " << i << "; "
-                  << "visited: " << block_cov[i] << "\n"
-                  << std::flush;
-      }
-    }
-    void print_async() {
-      std::cout << "#threads: " << num_async + 1 << " #async created: " << tt_num_async << "\n";
-      //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
-    }
-    void print_time() {
-      steady_clock::time_point now = steady_clock::now();
-      std::cout << "[" << (duration_cast<milliseconds>(now - start).count() / 1000.0) << " s] ";
-    }
-    void start_monitor() {
-      std::thread([this]{
-        while (this->block_cov.size() <= this->num_blocks) {
-          print_time();
-          print_block_cov();
-          print_path_cov();
-          print_async();
-          std::this_thread::sleep_for(seconds(1));
-        }
-      }).detach();
-    }
-};
-
-inline CoverageMonitor cov;
-
 // STP interaction
-inline unsigned int query_id = 0;
+inline unsigned int test_query_num = 0;
+inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
 inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
@@ -866,17 +792,13 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 // returns true if it is sat, otherwise false
 // FIXME: multithread issue, refer to something on the stack of another thread...
 inline bool check_pc(immer::set<PtrVal> pc) {
+  br_query_num++;
   int result = -1;
-  {
-  //std::unique_lock<std::mutex> lock(vc_lock);
-  //std::cout << "lock\n";
   vc_push(vc);
   construct_STP_constraints(vc, pc);
   Expr fls = vc_falseExpr(vc);
   result = vc_query(vc, fls);
   vc_pop(vc);
-  //std::cout << "unlock\n";
-  }
   return result == 0;
 }
 
@@ -892,7 +814,7 @@ inline void check_pc_to_file(SS state) {
   }
 
   std::stringstream output;
-  output << "Query number: " << (query_id+1) << std::endl;
+  output << "Query number: " << (test_query_num+1) << std::endl;
   
   construct_STP_constraints(vc, state.getPC());
   Expr fls = vc_falseExpr(vc);
@@ -914,9 +836,9 @@ inline void check_pc_to_file(SS state) {
   }
   
   if (result == 0) {
-    query_id++;
+    test_query_num++;
     std::stringstream filename;
-    filename << "tests/" << query_id << ".test";
+    filename << "tests/" << test_query_num << ".test";
     int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
     if (out_fd == -1) {
         ABORT("Cannot create the test case file, abort.\n");
@@ -930,5 +852,83 @@ inline void check_pc_to_file(SS state) {
   //vc_Destroy(vc);
   vc_pop(vc);
 }
+
+/* Coverage information */
+
+// TODO: branch coverage
+// Some note on overhead: recording coverage 1m path/block exec poses ~2.5sec overhead.
+struct CoverageMonitor {
+  private:
+    using BlockId = std::int64_t;
+    // Total number of blocks
+    std::uint64_t num_blocks;
+    // The number of execution for each block
+    std::vector<std::uint64_t> block_cov;
+    // Number of discovered paths
+    std::uint64_t num_paths;
+    // Starting time
+    steady_clock::time_point start;
+    std::mutex bm;
+    std::mutex pm;
+  public:
+    CoverageMonitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
+    CoverageMonitor(std::uint64_t num_blocks) : num_blocks(num_blocks), start(steady_clock::now()) {}
+    void set_num_blocks(std::uint64_t n) {
+      num_blocks = n;
+      block_cov.resize(n, 0);
+    }
+    void inc_block(BlockId b) {
+      std::unique_lock<std::mutex> lk(bm);
+      block_cov[b]++;
+    }
+    void inc_path(size_t n) {
+      std::unique_lock<std::mutex> lk(pm);
+      num_paths += n;
+    }
+    void print_path_cov() {
+      std::cout << "#paths: " << num_paths << "; " << std::flush;
+    }
+    void print_block_cov() {
+      size_t covered = 0;
+      for (auto v : block_cov) { if (v != 0) covered++; }
+      std::cout << "#blocks: "
+                << covered << "/"
+                << num_blocks << "; "
+                << std::flush;
+    }
+    void print_block_cov_detail() {
+      print_block_cov();
+      for (int i = 0; i < block_cov.size(); i++) {
+        std::cout << "Block: " << i << "; "
+                  << "visited: " << block_cov[i] << "\n"
+                  << std::flush;
+      }
+    }
+    void print_async() {
+      std::cout << "#threads: " << num_async + 1 << " #async created: " << tt_num_async << "; ";
+      //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
+    }
+    void print_query_num() {
+      std::cout << "#queries: " << br_query_num << "/" << test_query_num << "\n";
+    }
+    void print_time() {
+      steady_clock::time_point now = steady_clock::now();
+      std::cout << "[" << (duration_cast<milliseconds>(now - start).count() / 1000.0) << " s] ";
+    }
+    void start_monitor() {
+      std::thread([this]{
+        while (this->block_cov.size() <= this->num_blocks) {
+          print_time();
+          print_block_cov();
+          print_path_cov();
+          print_async();
+          print_query_num();
+          std::this_thread::sleep_for(seconds(1));
+        }
+      }).detach();
+    }
+};
+
+inline CoverageMonitor cov;
 
 #endif
