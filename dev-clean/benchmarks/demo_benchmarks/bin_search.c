@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
-//#include "klee/klee.h"
+#ifdef KLEE
+#include "klee/klee.h"
+#endif
  
 void print_data(int arr[], int size, int target) {
     printf("searching for %d in:\n[", target);
@@ -33,10 +35,13 @@ int binary_search(int arr[], int size, int target) {
 int main() {
   int a[10];
   int x;
+#ifdef KLEE
+  klee_make_symbolic(&a, sizeof(a), "a");
+  klee_make_symbolic(&x, sizeof(x), "x");
+#else
   make_symbolic(&a, sizeof(a));
   make_symbolic(&x, sizeof(x));
-  //klee_make_symbolic(&a, sizeof(a), "a");
-  //klee_make_symbolic(&x, sizeof(x), "x");
+#endif
   int result = binary_search(a, 10, x);
   printf("result = %d\n", result);
   // check correctness

@@ -1,3 +1,7 @@
+#ifdef KLEE
+#include "klee/klee.h"
+#endif
+
 #define SIZE 10
 
 int pi[4];
@@ -54,7 +58,11 @@ int main()
 {
   char P[5] = "llsc";
 	char T[SIZE];
+#ifdef KLEE
+  klee_make_symbolic(T, SIZE, "T");
+#else
   make_symbolic(T, SIZE);
+#endif
 	lt = SIZE-1;
 	lp = 4;
 
