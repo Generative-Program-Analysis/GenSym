@@ -905,7 +905,7 @@ struct CoverageMonitor {
       }
     }
     void print_async() {
-      std::cout << "#threads: " << num_async + 1 << " #async created: " << tt_num_async << "; ";
+      std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; ";
       //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
     void print_query_num() {

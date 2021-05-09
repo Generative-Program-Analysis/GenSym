@@ -16,7 +16,6 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % 
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.27"
 
 libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.9.1"
-//libraryDependencies += "org.antlr" % "stringtemplate" % "4.3"
 
 libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
 
@@ -40,7 +39,8 @@ addCompilerPlugin("org.scala-lang.plugins" % "scala-continuations-plugin_2.12.0"
 
 parallelExecution in Test := false
 
-lazy val sai = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
-
 lazy val lms = ProjectRef(file("../lms-clean"), "lms-clean")
   // .settings(fork := true)
+
+lazy val sai = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
+                                     .settings(assembly / mainClass := Some("sai.llsc.RunLLSC"))

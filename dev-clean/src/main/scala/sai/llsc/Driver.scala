@@ -98,7 +98,7 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
   }
 }
 
-object TestStagedSymExec {
+object RunLLSC {
   @virtualize
   def specialize(m: Module, name: String, fname: String, nSym: Int): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
