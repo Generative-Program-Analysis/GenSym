@@ -6,3 +6,5 @@ target
 *.class
 .metals
 .vscode
+klee-out-*
+*.bc
