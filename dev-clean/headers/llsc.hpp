@@ -706,6 +706,7 @@ auto create_async(std::function<T()> f) -> std::future<T> {
 }
 
 // STP interaction
+inline bool use_solver = true;
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
@@ -792,6 +793,7 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 // returns true if it is sat, otherwise false
 // FIXME: multithread issue, refer to something on the stack of another thread...
 inline bool check_pc(immer::set<PtrVal> pc) {
+  if (!use_solver) return true;
   br_query_num++;
   int result = -1;
   vc_push(vc);
@@ -804,6 +806,9 @@ inline bool check_pc(immer::set<PtrVal> pc) {
 
 inline void check_pc_to_file(SS state) {
   //VC vc = vc_createValidityChecker();
+  if (!use_solver) {
+    return;
+  }
   vc_push(vc);
 
   if (mkdir("tests", 0777) == -1) {
@@ -930,5 +935,23 @@ struct CoverageMonitor {
 };
 
 inline CoverageMonitor cov;
+
+// XXX: can also specify symbolic argument here?
+inline void handle_cli_args(int argc, char** argv) {
+  if (argc < 2 || argc > 3) {
+    printf("usage: %s <#threads> [--disable-solver]\n", argv[0]);
+    exit(-1);
+  }
+  int t = std::stoi(argv[1]);
+  if (t <= 0) {
+    std::cout << "Invalid #threads, use 1 instead.\\n";
+    MAX_ASYNC = 0;
+  } else {
+    MAX_ASYNC = t - 1;
+  }
+  if (argc == 3 && std::string(argv[2]) == "--disable-solver") {
+    use_solver = false;
+  }
+}
 
 #endif

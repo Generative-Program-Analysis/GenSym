@@ -193,25 +193,11 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     emitln(s"""
     |int main(int argc, char *argv[]) {
     |  init_rand();
-    |  if (argc > 2) {
-    |    printf("usage: %s <#threads>\\n", argv[0]);
-    |    return 0;
-    |  }
-    |  if (argc == 2) {
-    |    int t = std::stoi(argv[1]);
-    |    if (t <= 0) {
-    |      std::cout << "Invalid #threads, use 1 instead.\\n";
-    |      MAX_ASYNC = 0;
-    |    } else {
-    |      MAX_ASYNC = t - 1;
-    |    }
-    |  } else {
-    |    MAX_ASYNC = 0;
-    |  }
+    |  handle_cli_args(argc, argv);
     |  $name(0);
-    |   cov.print_time();
-    |   cov.print_block_cov();
-    |   cov.print_path_cov();
+    |  cov.print_time();
+    |  cov.print_block_cov();
+    |  cov.print_path_cov();
     |  return 0;
     |} """.stripMargin)
     //if (initStream.size > 0)
