@@ -51,6 +51,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$Mem")) "Mem"
     else if (m.toString.endsWith("$SS")) "SS"
     else if (m.toString.endsWith("SMTExpr")) "SExpr"
+    else if (m.toString.endsWith("SMTBool")) "SExpr"
     else if (m.runtimeClass.getName.endsWith("Future"))
       s"std::future<${remap(m.typeArguments(0))}>"
     else super.remap(m)

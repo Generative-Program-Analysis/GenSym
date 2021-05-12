@@ -211,14 +211,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case GlobalId(id) => id
           case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
         }
-      ) + 
-        calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
+      ) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
     }
     case GlobalId(id) => 
       LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
     case BitCastExpr(from, const, to) => 
       evalHeapConst(const, to)
-    
   }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
@@ -359,6 +357,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           s <- getState
         } yield selectValue(s.incomingBlock, vs, incsLabels)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
+        // TODO: check cond via solver
         for {
           cnd <- eval(cndVal)
           s <- getState
@@ -401,14 +400,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           ss <- getState
           cndVal <- eval(cnd)
           u <- reflect {
+            // XXX: consider shifting/abstracting this logic into backend
             if (cndVal.isConc) {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
               else reify(ss)(execBlock(funName, elsLab))
             } else {
-              val tpc = ss.pc ++ Set[SMTBool](cndVal.toSMTBool)
-              val fpc = ss.pc ++ Set[SMTBool](cndVal.toSMTBoolNeg)
-              val tpcSat = SS.checkPC(tpc)
-              val fpcSat = SS.checkPC(fpc)
+              val tpcSat = SS.checkPC(ss.pc + cndVal.toSMTBool)
+              val fpcSat = SS.checkPC(ss.pc + cndVal.toSMTBoolNeg)
               val b1 = for {
                 _ <- updatePC(cndVal.toSMTBool)
                 v <- execBlock(funName, thnLab)

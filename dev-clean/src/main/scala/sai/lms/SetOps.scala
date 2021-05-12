@@ -28,6 +28,7 @@ trait SetOps { b: Base =>
     def head: Rep[A] = Wrap[A](Adapter.g.reflect("set-head", Unwrap(s)))
     def tail: Rep[Set[A]] = Wrap[Set[A]](Adapter.g.reflect("set-tail", Unwrap(s)))
     def toList: Rep[List[A]] = Wrap[List[A]](Adapter.g.reflect("set-toList", Unwrap(s)))
+    def +(x: Rep[A]): Rep[Set[A]] = Wrap[Set[A]](Adapter.g.reflect("set-+", Unwrap(s), Unwrap(x)))
     def ++(s1: Rep[Set[A]]): Rep[Set[A]] = Wrap[Set[A]](Adapter.g.reflect("set-++", Unwrap(s), Unwrap(s1)))
     def intersect(s1: Rep[Set[A]]): Rep[Set[A]] =
       Wrap[Set[A]](Adapter.g.reflect("set-intersect", Unwrap(s), Unwrap(s1)))
@@ -115,6 +116,8 @@ trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
       shallow(s); emit(".tail")
     case Node(_, "set-toList", List(s), _) =>
       shallow(s); emit(".toList")
+    case Node(_, "set-++", List(s1, x), _) =>
+      shallow(s1); emit(" + "); shallow(x)
     case Node(_, "set-++", List(s1, s2), _) =>
       shallow(s1); emit(" ++ "); shallow(s2)
     case Node(_, "set-intersect", List(s1, s2), _) =>
@@ -136,7 +139,8 @@ trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
 
 trait CppCodeGen_Set extends ExtendedCCodeGen {
   override def remap(m: Manifest[_]): String = {
-    val ns = ""; //"immer::"
+    //Note: assuming the backend already uses namespace "immer::".
+    val ns = "";
     if (m.runtimeClass.getName == "scala.collection.immutable.Set") {
       val kty = m.typeArguments(0)
       s"${ns}set<${remap(kty)}>"
@@ -180,37 +184,24 @@ trait CppCodeGen_Set extends ExtendedCCodeGen {
       ???
     case Node(_, "set-toList", List(s), _) =>
       emit("set_to_list("); shallow(s); emit(")")
+    case Node(_, "set-+", List(s1, x), _) =>
+      es"$s1.insert($x)"
     case Node(_, "set-++", List(s1, s2), _) =>
-      emit("Set::join(")
-      shallow(s1); emit(", ")
-      shallow(s2); emit(")")
+      es"Set::join($s1, $s2)"
     case Node(_, "set-intersect", List(s1, s2), _) =>
-      emit("Set::intersect(")
-      shallow(s1); emit(", ")
-      shallow(s2); emit(")")
+      es"Set::intersect($s1, $s2)"
     case Node(_, "set-union", List(s1, s2), _) =>
-      emit("Set::join(")
-      shallow(s1); emit(", ")
-      shallow(s2); emit(")")
+      es"Set::join($s1, $s2)"
     case Node(_, "set-subsetOf", List(s1, s2), _) =>
-      emit("Set::subsetOf(")
-      shallow(s1); emit(", ")
-      shallow(s2); emit(")")
+      es"Set::subsetOf($s1, $s2)"
     case Node(_, "set-map", List(s, b: Block), _) =>
       val tty = remap(typeBlockRes(b.res))
-      emit(s"Set::map<$tty>(")
-      shallow(s); emit(", ")
-      shallow(b); emit(")")
+      es"Set::map<$tty>($s, $b)"
     case Node(_, "set-foldLeft", List(s, z, b: Block), _) =>
       val tty = remap(typeBlockRes(b.res))
-      emit(s"Set::foldLeft<$tty>(")
-      shallow(s); emit(", ")
-      shallow(z); emit(", ")
-      shallow(b); emit(")")
+      es"Set::foldLeft<$tty>($s, $z, $b)"
     case Node(_, "set-filter", List(s, b), _) =>
-      emit("Set::filter(")
-      shallow(s); emit(", ")
-      shallow(b); emit(")")
+      es"Set::filter($s, $b)"
     case _ => super.shallow(n)
   }
 }

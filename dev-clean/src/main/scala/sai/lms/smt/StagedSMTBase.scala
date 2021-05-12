@@ -73,11 +73,8 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
 
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName
-    // FIXME!
-    if (name.endsWith("SMTBool")) "SExpr"
-    else if (name.endsWith("SMTExpr")) "SExpr"
-    //if (name.endsWith("SMTBool")) "Expr"
-    //else if (name.endsWith("SMTExpr")) "Expr"
+    if (name.endsWith("SMTBool")) "Expr"
+    else if (name.endsWith("SMTExpr")) "Expr"
     else super.remap(m)
   }
 
