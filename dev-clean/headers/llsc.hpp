@@ -889,7 +889,7 @@ struct CoverageMonitor {
     std::mutex pm;
   public:
     CoverageMonitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
-    CoverageMonitor(std::uint64_t num_blocks) : num_blocks(num_blocks), start(steady_clock::now()) {}
+    CoverageMonitor(std::uint64_t num_blocks) : num_blocks(num_blocks), num_paths(0), start(steady_clock::now()) {}
     void set_num_blocks(std::uint64_t n) {
       num_blocks = n;
       block_cov.resize(n, 0);
