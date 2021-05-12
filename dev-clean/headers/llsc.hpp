@@ -96,11 +96,11 @@ using SExpr = std::string;
 #ifdef LAZY_SYMV
 using SExpr = std::shared_ptr<Value>;
 inline std::mutex vc_lock;
-inline VC vc = vc_createValidityChecker();
+inline VC global_vc = vc_createValidityChecker();
 #else
 using SExpr = Expr;
 inline std::mutex vc_lock;
-inline VC vc = vc_createValidityChecker();
+inline VC global_vc = vc_createValidityChecker();
 #endif
 #endif
 
@@ -672,14 +672,12 @@ inline void inc_stack(rlim_t lim) {
 
 inline size_t MAX_ASYNC = 4;
 inline std::mutex m;
-//inline std::condition_variable cv;
 inline std::atomic<unsigned int> num_async = 0;
 inline std::atomic<unsigned int> tt_num_async = 0;
 //inline thread_pool pool(4);
 
 inline bool can_par() {
   return num_async < MAX_ASYNC;
-  //return pool.can_enqueue();
 }
 
 template <typename F, typename... Ts>
@@ -702,11 +700,11 @@ auto create_async(std::function<T()> f) -> std::future<T> {
     return t;
   });
   return fu;
-  //return pool.enqueue(f);
 }
 
 // STP interaction
 inline bool use_solver = true;
+inline bool use_global_solver = false;
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
@@ -720,14 +718,15 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
 
   if (!sym_e->name.empty()) {
+    // TODO: does STP already cache var expr?
     auto name = sym_e->name;
-    auto it = stp_env.find(name);
-    if (it == stp_env.end()) {
-      Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bv32Type(vc));
-      stp_env.insert(std::make_pair(name, stp_expr));
-      return stp_expr;
-    }
-    return it->second;
+    //auto it = stp_env.find(name);
+    //if (it == stp_env.end()) {
+    Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bv32Type(vc));
+      //stp_env.insert(std::make_pair(name, stp_expr));
+    return stp_expr;
+    //}
+    //return it->second;
   }
 
   std::vector<Expr> expr_rands;
@@ -791,25 +790,36 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 }
 
 // returns true if it is sat, otherwise false
-// FIXME: multithread issue, refer to something on the stack of another thread...
+// XXX: should explore paths with timeout/no-answer cond?
 inline bool check_pc(immer::set<PtrVal> pc) {
   if (!use_solver) return true;
   br_query_num++;
   int result = -1;
-  vc_push(vc);
+  VC vc;
+  if (use_global_solver) {
+    vc = global_vc;
+    vc_push(vc);
+  } else vc = vc_createValidityChecker();
   construct_STP_constraints(vc, pc);
   Expr fls = vc_falseExpr(vc);
   result = vc_query(vc, fls);
-  vc_pop(vc);
+  if (use_global_solver) {
+    vc_pop(vc);
+  } else {
+    vc_Destroy(vc);
+  }
   return result == 0;
 }
 
 inline void check_pc_to_file(SS state) {
-  //VC vc = vc_createValidityChecker();
   if (!use_solver) {
     return;
   }
-  vc_push(vc);
+  VC vc;
+  if (use_global_solver) {
+    vc = global_vc;
+    vc_push(vc);
+  } else vc = vc_createValidityChecker();
 
   if (mkdir("tests", 0777) == -1) {
     if (errno == EEXIST) { }
@@ -850,12 +860,14 @@ inline void check_pc_to_file(SS state) {
     }
 
     int n = write(out_fd, output.str().c_str(), output.str().size());
-    //vc_printCounterExample(vc);
     vc_printCounterExampleFile(vc, out_fd);
     close(out_fd);
   }
-  //vc_Destroy(vc);
-  vc_pop(vc);
+  if (use_global_solver) {
+    vc_pop(vc);
+  } else {
+    vc_Destroy(vc);
+  }
 }
 
 /* Coverage information */
@@ -948,6 +960,10 @@ inline void handle_cli_args(int argc, char** argv) {
     MAX_ASYNC = 0;
   } else {
     MAX_ASYNC = t - 1;
+  }
+  if (MAX_ASYNC == 0) {
+    // It is safe the reuse the global_vc object within one thread, but not otherwise.
+    use_global_solver = true;
   }
   if (argc == 3 && std::string(argv[2]) == "--disable-solver") {
     use_solver = false;
