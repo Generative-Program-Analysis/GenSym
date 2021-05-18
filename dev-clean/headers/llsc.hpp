@@ -465,7 +465,7 @@ inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
 
 /* Memory, stack, and symbolic state representation */
 
-// TODO(GW): using a byte-oriented memory?
+// Note (5/17): now using a byte-oriented layout
 template <class V>
 class PreMem {
   private:
