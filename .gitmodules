@@ -1,7 +1,3 @@
-[submodule "abscomp-racket"]
-	path = abscomp-racket
-	url = git@github.com:Kraks/abscomp.git
-	ignore = dirty
 [submodule "lms-clean"]
 	path = lms-clean
 	url = git@github.com:TiarkRompf/lms-clean.git
