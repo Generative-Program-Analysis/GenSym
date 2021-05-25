@@ -22,7 +22,7 @@ object Main {
     }
 
     println(snippet.code)
-    assert(snippet.eval(2) == 32)
+    //assert(snippet.eval(2) == 32)
   }
 
   def test_power_c() = {
@@ -257,9 +257,9 @@ object Main {
     test_opt()
      */
     //test_either()
-    //test_power_c()
+    test_power()
     //test_list_c()
-    test_list()
+    //test_list()
     //test_map_c()
   }
 }

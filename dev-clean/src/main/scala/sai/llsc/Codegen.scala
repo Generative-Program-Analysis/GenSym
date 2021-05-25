@@ -23,8 +23,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
 
   override def quote(s: Def): String = s match {
     case Sym(n) =>
-      FunName.bindings.getOrElse(n, {
-        FunName.blockBindings.getOrElse(n, super.quote(s))
+      FunName.funMap.getOrElse(n, {
+        FunName.blockMap.getOrElse(n, super.quote(s))
       })
     case _ => super.quote(s)
   }
@@ -157,7 +157,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   // 2 pass
   def emitFunctionFiles: Unit = {
     for ((f, (_, funStream)) <- functionsStreams) {
-      if (!FunName.blockBindings.values.exists(_ == f)) {
+      if (!FunName.blockMap.values.exists(_ == f)) {
         val filename = s"$codegenFolder/$f.cpp"
         val out = new java.io.PrintStream(filename)
         out.println("#include \"common.h\"")
@@ -167,7 +167,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     }
 
     for ((f, (_, funStream)) <- functionsStreams) {
-      if (FunName.blockBindings.values.exists(_ == f)) {
+      if (FunName.blockMap.values.exists(_ == f)) {
         val funName = f.substring(0, f.indexOf("_Block"))
         val filename = s"$codegenFolder/$funName.cpp"
         val out = new java.io.PrintStream(new FileOutputStream(filename, true))

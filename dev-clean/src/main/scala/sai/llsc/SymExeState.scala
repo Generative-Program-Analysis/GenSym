@@ -208,6 +208,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
 
+  def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String = {
+    FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
+  }
 
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
@@ -324,6 +327,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 }
 
 object FunName {
-  val bindings: MultableMap[Int, String] = MultableMap()
-  val blockBindings: MultableMap[Int, String] = MultableMap()
+  // Maps LMS node ids to real function names
+  val funMap: MultableMap[Int, String] = MultableMap()
+  val blockMap: MultableMap[Int, String] = MultableMap()
 }

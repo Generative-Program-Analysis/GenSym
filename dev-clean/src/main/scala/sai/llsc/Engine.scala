@@ -43,6 +43,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
       new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
 
+    def getBBFun(funName: String, blockLab: String): Rep[SS => List[(SS, Value)]] = {
+      getBBFun(funName, findBlock(funName, blockLab).get)
+    }
+
     def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
       if (!CompileTimeRuntime.BBFuns.contains((funName, b))) {
         precompileBlocks(funName, StaticList(b))
@@ -50,12 +54,24 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       BBFuns((funName, b))
     }
 
-    def findBlock(fname: String, lab: String): Option[BB] = funMap.get(fname).get.lookupBlock(lab)
-    def findFirstBlock(fname: String): BB = findFundef(fname).body.blocks(0)
-    def findFundef(fname: String) = funMap.get(fname).get
+    def findBlock(funName: String, lab: String): Option[BB] = funMap.get(funName).get.lookupBlock(lab)
+    def findFirstBlock(funName: String): BB = findFundef(funName).body.blocks(0)
+    def findFundef(funName: String) = funMap.get(funName).get
   }
   import CompileTimeRuntime._
 
+  def execBr(ss: Rep[SS], cndVal: Rep[Value], tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
+    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
+    "exec_br".reflectWith[List[(SS, Value)]](ss, cndVal, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
+  }
+
+  def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
+    tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
+    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
+    "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
+  }
 
   def getRealType(vt: LLVMType): LLVMType = vt match {
     case NamedType(id) => typeDefMap(id)
@@ -400,11 +416,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           ss <- getState
           cndVal <- eval(cnd)
           u <- reflect {
-            // XXX: consider shifting/abstracting this logic into backend
             if (cndVal.isConc) {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
               else reify(ss)(execBlock(funName, elsLab))
             } else {
+              symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
+              /*
               val tpcSat = SS.checkPC(ss.pc + cndVal.toSMTBool)
               val fpcSat = SS.checkPC(ss.pc + cndVal.toSMTBoolNeg)
               val b1 = for {
@@ -430,6 +447,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
               } else {
                 List[(SS, Value)]()
               }
+              */
             }
           }
         } yield u
@@ -570,7 +588,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-      FunName.blockBindings(n) = s"${realFunName}_Block$n"
+      FunName.blockMap(n) = s"${realFunName}_Block$n"
       CompileTimeRuntime.BBFuns((funName, b)) = repRunBlock
     }
   }
@@ -594,13 +612,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      FunName.bindings(n) = if(f.id != "@main") f.id.tail else "llsc_main"
+      FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
 
-  def exec(main: Module, fname: String, args: Rep[List[Value]], 
-    isCommandLine: Boolean=false, symarg: Int=0): Rep[List[(SS, Value)]] = {
+  def exec(main: Module, fname: String, args: Rep[List[Value]],
+    isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
     CompileTimeRuntime.funMap = main.funcDefMap
     CompileTimeRuntime.funDeclMap = main.funcDeclMap
     CompileTimeRuntime.globalDefMap = main.globalDefMap
