@@ -244,7 +244,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
   object NullV {
     // for now
-    def apply(): Rep[Value] = IntV(0)
+    def apply(): Rep[Value] = "null-v".reflectWith[Value]()
   }
 
   object IntOp2 {

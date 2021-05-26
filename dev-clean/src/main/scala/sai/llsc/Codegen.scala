@@ -33,6 +33,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(_, "list-new", _, _) => true
     case Node(_, "make_SymV", _, _) => true
     case Node(_, "make_IntV", _, _) => true
+    case Node(_, "null-v", _, _) => true
     case _ => super.mayInline(n)
   }
 
@@ -97,6 +98,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
     case Node(s, "ss-arg", List(ss, i), _) => es"$ss.init_arg($i)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.getPC()"
+    case Node(s, "null-v", _, _) => es"nullptr"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTBool", List(v), _) => es"$v->to_SMTBool()"

@@ -196,15 +196,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def padding(v: Rep[Value], pad: Int): StaticList[Rep[Value]] = ???
-
+  // FIXME: Alignment: CharArrayConst, ArrayConst
+  // Float Type
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
     case BoolConst(b) =>
       StaticList(IntV(if (b) 1 else 0, 1))
     // change intv0 to nullptr
     case IntConst(n) =>
-      StaticList(IntV(n)) ++ StaticList.fill(getTySize(ty) - 1)(IntV(0))
-    // FIXME: Float width
+      StaticList(IntV(n, ty.asInstanceOf[IntType].size)) ++ StaticList.fill(getTySize(ty) - 1)(NullV())
     case FloatConst(f) => 
       StaticList(FloatV(f))
     case ZeroInitializerConst => ty match {
@@ -215,7 +214,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case ArrayConst(cs) =>
       flattenAS(v).flatMap(c => evalHeapConst(c, ty.asInstanceOf[ArrayType].ety))
     case CharArrayConst(s) =>
-      s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(IntV(0))
+      s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
     case StructConst(cs) => 
       cs.flatMap { case c => evalHeapConst(c.const, c.ty)}
     case NullConst => StaticList.fill(getTySize(ty))(NullV())
@@ -223,14 +222,15 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
       // FIX!!!
       LocV(heapEnv(
+        // is this one exclusive?
         const match {
           case GlobalId(id) => id
           case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
         }
-      ) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
+      ) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
     }
     case GlobalId(id) => 
-      LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(IntV(0))
+      LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
     case BitCastExpr(from, const, to) => 
       evalHeapConst(const, to)
   }
