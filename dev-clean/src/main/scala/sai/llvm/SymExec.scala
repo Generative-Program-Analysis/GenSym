@@ -301,7 +301,7 @@ object SymExecEff {
       case LocalId(x) => 
         for { f <- curFrame } 
         yield { frameLookup(f, FrameLoc(f._3(x), f._1)) }
-      case IntConst(n) => ret(IntV(n))
+      case IntConst(n) => ret(IntV(n.toInt))
       case BitCastExpr(from, const, to) =>
         eval(const)
       case BoolConst(b) => b match {
@@ -594,7 +594,7 @@ object SymExecEff {
       case BoolConst(b) =>
         List(IntV(if (b) 1 else 0))
       case IntConst(n) =>
-        List(IntV(n))
+        List(IntV(n.toInt))
       case ZeroInitializerConst =>
         List(IntV(0))
       case ArrayConst(cs) =>

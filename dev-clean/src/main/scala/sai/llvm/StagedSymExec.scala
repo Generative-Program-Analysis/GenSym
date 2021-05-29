@@ -367,7 +367,7 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
           st <- getStackMem
           a <- lookupCurEnv(funName + "_" + x)
       } yield { st.lookup(a) }
-      case IntConst(n) => ret(IntV(n))
+      case IntConst(n) => ret(IntV(n.toInt))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
         eval(const)
@@ -690,7 +690,7 @@ trait StagedSymExecEff extends SAIOps with StagedNondet {
     case BoolConst(b) =>
       SList(IntV(if (b) 1 else 0, 1))
     case IntConst(n) =>
-      SList(IntV(n))
+      SList(IntV(n.toInt))
     case ZeroInitializerConst =>
       SList(IntV(0))
     case ArrayConst(cs) =>

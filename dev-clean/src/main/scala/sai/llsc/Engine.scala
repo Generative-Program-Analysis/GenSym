@@ -24,10 +24,6 @@ import sai.lmsx._
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
-// TODO: Primitives.read should take in Symbolic value
-// When call exit(1), invoke solver to gen input
-// TODO: better way to define primitives
-
 @virtualize
 trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   object CompileTimeRuntime {
@@ -94,7 +90,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case _ => ???
   }
 
-  def calculateOffsetStatic(ty: LLVMType, index: List[Int]): Int = {
+  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Int = {
     if (index.isEmpty) 0 else ty match {
       case Struct(types) =>
         val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
@@ -123,26 +119,28 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        val indexCst: List[Int] = index.map { case Wrap(Backend.Const(n: Int)) => n }
+        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Long)) => n }
         unit(calculateOffsetStatic(ty, indexCst))
       case _ => ???
     }
   }
 
-  def eval(v: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] = {
+  // Note: now ty is mainly for eval IntConst to contain bit width
+  // does it have some other implications?
+  def eval(v: LLVMValue)(ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
         for { ss <- getState } yield ss.lookup(funName + "_" + x)
       case IntConst(n) =>
-        ret(IntV(n))
+        ret(IntV(n, ty.asInstanceOf[IntType].size))
       case FloatConst(f) =>
         ret(FloatV(f))
       // case ArrayConst(cs) => 
       case BitCastExpr(from, const, to) =>
-        eval(const)
+        eval(const)(to)
       case BoolConst(b) => b match {
-        case true => ret(IntV(1))
-        case false => ret(IntV(0))
+        case true => ret(IntV(1, 1))
+        case false => ret(IntV(0, 1))
       }
       // case CharArrayConst(s) => 
       case GlobalId(id) if funMap.contains(id) =>
@@ -172,13 +170,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ret(LocV(heapEnv(id), LocV.kHeap))
       case GlobalId(id) if globalDeclMap.contains(id) => 
         System.out.println(s"Warning: globalDecl $id is ignored")
-        ret(IntV(0))
+        ret(NullV())
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
         for {
-          vs <- mapM(indexLLVMValue)(eval)
-          lV <- eval(const)
+          vs <- mapM(indexLLVMValue)(eval(_)(IntType(32)))
+          lV <- eval(const)(ptrType)
         } yield {
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
@@ -189,10 +187,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
       case ZeroInitializerConst => {
         System.out.println("Warning: Evaluate zeroinitialize in body")
-        ret(IntV(0))
+        ret(NullV())
       }
-      case NullConst => ret(IntV(0))
-      case NoneConst => ret(IntV(0))
+      case NullConst => ret(NullV())
+      case NoneConst => ret(NullV())
     }
   }
 
@@ -201,7 +199,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
     case BoolConst(b) =>
       StaticList(IntV(if (b) 1 else 0, 1))
-    // change intv0 to nullptr
     case IntConst(n) =>
       StaticList(IntV(n, ty.asInstanceOf[IntType].size)) ++ StaticList.fill(getTySize(ty) - 1)(NullV())
     case FloatConst(f) => 
@@ -220,7 +217,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case NullConst => StaticList.fill(getTySize(ty))(NullV())
     case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-      // FIX!!!
       LocV(heapEnv(
         // is this one exclusive?
         const match {
@@ -235,11 +231,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       evalHeapConst(const, to)
   }
 
-  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
-    for { v1 <- eval(lhs); v2 <- eval(rhs) } yield IntOp2(op, v1, v2)
+  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] =
+    for { v1 <- eval(lhs)(ty); v2 <- eval(rhs)(ty) } yield IntOp2(op, v1, v2)
 
-  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue)(implicit funName: String): Comp[E, Rep[Value]] =
-    for { v1 <- eval(lhs); v2 <- eval(rhs) } yield FloatOp2(op, v1, v2)
+  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] =
+    for { v1 <- eval(lhs)(ty); v2 <- eval(rhs)(ty) } yield FloatOp2(op, v1, v2)
 
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
@@ -255,14 +251,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           case _ => 0
         }
         for {
-          v <- eval(value)
+          v <- eval(value)(ptrTy)
           ss <- getState
         } yield ss.lookup(v, getTySize(valTy), isStruct)
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
-          vs <- mapM(indexLLVMValue)(eval)
-          lV <- eval(ptrValue)
+          vs <- mapM(indexLLVMValue)(eval(_)(IntType(32)))
+          lV <- eval(ptrValue)(ptrType)
         } yield {
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
@@ -272,54 +268,54 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           }
         }
       // Arith Binary Operations
-      case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs)
-      case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs)
-      case MulInst(ty, lhs, rhs, _) => evalIntOp2("mul", lhs, rhs)
-      case SDivInst(ty, lhs, rhs) => evalIntOp2("sdiv", lhs, rhs)
-      case UDivInst(ty, lhs, rhs) => evalIntOp2("udiv", lhs, rhs)
-      case FAddInst(ty, lhs, rhs) => evalFloatOp2("fadd", lhs, rhs)
-      case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs)
-      case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs)
-      case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs)
+      case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs, ty)
+      case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs, ty)
+      case MulInst(ty, lhs, rhs, _) => evalIntOp2("mul", lhs, rhs, ty)
+      case SDivInst(ty, lhs, rhs) => evalIntOp2("sdiv", lhs, rhs, ty)
+      case UDivInst(ty, lhs, rhs) => evalIntOp2("udiv", lhs, rhs, ty)
+      case FAddInst(ty, lhs, rhs) => evalFloatOp2("fadd", lhs, rhs, ty)
+      case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs, ty)
+      case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs, ty)
+      case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs, ty)
       /* Backend Work Needed */
-      case URemInst(ty, lhs, rhs) => evalIntOp2("urem", lhs, rhs)
-      case SRemInst(ty, lhs, rhs) => evalIntOp2("srem", lhs, rhs)
+      case URemInst(ty, lhs, rhs) => evalIntOp2("urem", lhs, rhs, ty)
+      case SRemInst(ty, lhs, rhs) => evalIntOp2("srem", lhs, rhs, ty)
 
       // Bitwise Operations
       /* Backend Work Needed */
-      case ShlInst(ty, lhs, rhs) => evalIntOp2("shl", lhs, rhs)
-      case LshrInst(ty, lhs, rhs) => evalIntOp2("lshr", lhs, rhs)
-      case AshrInst(ty, lhs, rhs) => evalIntOp2("ashr", lhs, rhs)
-      case AndInst(ty, lhs, rhs) => evalIntOp2("and", lhs, rhs)
-      case OrInst(ty, lhs, rhs) => evalIntOp2("or", lhs, rhs)
-      case XorInst(ty, lhs, rhs) => evalIntOp2("xor", lhs, rhs)
+      case ShlInst(ty, lhs, rhs) => evalIntOp2("shl", lhs, rhs, ty)
+      case LshrInst(ty, lhs, rhs) => evalIntOp2("lshr", lhs, rhs, ty)
+      case AshrInst(ty, lhs, rhs) => evalIntOp2("ashr", lhs, rhs, ty)
+      case AndInst(ty, lhs, rhs) => evalIntOp2("and", lhs, rhs, ty)
+      case OrInst(ty, lhs, rhs) => evalIntOp2("or", lhs, rhs, ty)
+      case XorInst(ty, lhs, rhs) => evalIntOp2("xor", lhs, rhs, ty)
 
       // Conversion Operations
       /* Backend Work Needed */
       case ZExtInst(from, value, to) => 
         for {
-          v <- eval(value)
+          v <- eval(value)(from)
         } yield v
       case SExtInst(from, value, to) =>  for {
-        v <- eval(value)
+        v <- eval(value)(from)
       } yield v.bv_sext(to.asInstanceOf[IntType].size)
       case TruncInst(from, value, to) =>
-        for { v <- eval(value) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
+        for { v <- eval(value)(from) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
       case FpExtInst(from, value, to) =>
-        for { v <- eval(value) } yield v
+        for { v <- eval(value)(from) } yield v
       case FpToUIInst(from, value, to) =>
-        for { v <- eval(value) } yield v.fp_toui(to.asInstanceOf[IntType].size)
+        for { v <- eval(value)(from) } yield v.fp_toui(to.asInstanceOf[IntType].size)
       case FpToSIInst(from, value, to) => 
-        for { v <- eval(value) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
+        for { v <- eval(value)(from) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
       case UiToFPInst(from, value, to) => 
-        for { v <- eval(value) } yield v.ui_tofp
+        for { v <- eval(value)(from) } yield v.ui_tofp
       case SiToFPInst(from, value, to) => 
-        for { v <- eval(value) } yield v.si_tofp
+        for { v <- eval(value)(from) } yield v.si_tofp
       case PtrToIntInst(from, value, to) => 
-        for { v <- eval(value) } yield v.to_IntV
+        for { v <- eval(value)(from) } yield v.to_IntV
       case IntToPtrInst(from, value, to) =>
-        for { v <- eval(value) } yield LocV(v.int, LocV.kStack)
-      case BitCastInst(from, value, to) => eval(value)
+        for { v <- eval(value)(from) } yield LocV(v.int, LocV.kStack)
+      case BitCastInst(from, value, to) => eval(value)(to)
 
       // Aggregate Operations
       /* Backend Work Needed */
@@ -341,19 +337,22 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val idx = calculateOffsetStatic(ty, idxList)
         for {
           // v is expected to be StructV in backend
-          v <- eval(struct)
+          v <- eval(struct)(ty)
         } yield v.structAt(idx)
 
       // Other operations
-      case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs)
-      case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs)
+      case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs, ty)
+      case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs, ty)
       case CallInst(ty, f, args) => 
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
         }
+        val argTypes: List[LLVMType] = args.map {
+          case TypedArg(ty, attrs, value) => ty
+        }
         for {
-          fv <- eval(f)
-          vs <- mapM(argValues)(eval)
+          fv <- eval(f)(VoidType)
+          vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
           v <- reflect(fv(s, List(vs:_*)))
@@ -369,27 +368,27 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val incsLabels: List[BlockLabel] = incs.map(inc => inc.label.hashCode)
         
         for {
-          vs <- mapM(incsValues)(eval)
+          vs <- mapM(incsValues)(eval(_)(ty))
           s <- getState
         } yield selectValue(s.incomingBlock, vs, incsLabels)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         // TODO: check cond via solver
         for {
-          cnd <- eval(cndVal)
+          cnd <- eval(cndVal)(cndTy)
           s <- getState
           v <- reflect {
             if (cnd.isConc) {
-              if (cnd.int == 1) reify(s)(eval(thnVal))
-              else reify(s)(eval(elsVal))
+              if (cnd.int == 1) reify(s)(eval(thnVal)(thnTy))
+              else reify(s)(eval(elsVal)(elsTy))
             } else {
               reify(s) {choice(
                 for {
                   _ <- updatePC(cnd.toSMTBool)
-                  v <- eval(thnVal)
+                  v <- eval(thnVal)(thnTy)
                 } yield v,
                 for {
                   _ <- updatePC(cnd.toSMTBoolNeg)
-                  v <- eval(elsVal)
+                  v <- eval(elsVal)(elsTy)
                 } yield v
               )}
             }
@@ -403,8 +402,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     inst match {
       // FIXME: unreachable
       case Unreachable => ret(IntV(-1))
-      case RetTerm(ty, Some(value)) => eval(value)
-      case RetTerm(ty, None) => ret(IntV(0))
+      case RetTerm(ty, Some(value)) => eval(value)(ty)
+      case RetTerm(ty, None) => ret(NullV())
       case BrTerm(lab) => 
         for {
           _ <- updateIncomingBlock(incomingBlock)
@@ -414,7 +413,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         for {
           _ <- updateIncomingBlock(incomingBlock)
           ss <- getState
-          cndVal <- eval(cnd)
+          cndVal <- eval(cnd)(ty)
           u <- reflect {
             if (cndVal.isConc) {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
@@ -480,7 +479,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
         for {
           _ <- updateIncomingBlock(incomingBlock)
-          v <- eval(cndVal)
+          v <- eval(cndVal)(cndTy)
           s <- getState
           r <- reflect {
             if (v.isConc) switchFun(v.int, s, table)
@@ -499,17 +498,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
-          v1 <- eval(val1)
-          v2 <- eval(val2)
+          v1 <- eval(val1)(ty1)
+          v2 <- eval(val2)(ty2)
           _ <- updateMem(v2, v1)
         } yield ()
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
         }
+        val argTypes: List[LLVMType] = args.map {
+          case TypedArg(ty, attrs, value) => ty
+        }
         for {
-          fv <- eval(f)
-          vs <- mapM(argValues)(eval)
+          fv <- eval(f)(VoidType)
+          vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
           v <- reflect(fv(s, List(vs:_*)))
@@ -629,7 +631,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     val heap0 = preHeap.asRepOf[Mem]
     val comp = if (!isCommandLine) {
       for {
-        fv <- eval(GlobalId(fname))(fname)
+        fv <- eval(GlobalId(fname))(VoidType)(fname)
         _ <- pushFrame
         s <- getState
         v <- reflect(fv(s, args))
@@ -639,7 +641,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
       for {
-        fv <- eval(GlobalId(fname))(fname)
+        fv <- eval(GlobalId(fname))(VoidType)(fname)
         _ <- pushFrame
         _ <- initializeArg(symarg)
         s <- getState

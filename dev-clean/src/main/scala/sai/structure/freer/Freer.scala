@@ -140,6 +140,15 @@ object Freer {
         bs <- mapM(xs)(f)
       } yield b::bs
   }
+
+  def mapM2[E <: Eff, A, B, C](xs: List[A])(ls: List[C])(f: A => C => Comp[E, B]): Comp[E, List[B]] = xs match {
+    case Nil => ret(List())
+    case x::xs =>
+      for {
+        b <- f(x)(ls.head)
+        bs <- mapM2(xs)(ls.tail)(f)
+      } yield b::bs
+  }
 }
 
 object Handlers {

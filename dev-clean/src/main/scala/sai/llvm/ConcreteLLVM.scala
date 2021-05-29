@@ -96,7 +96,7 @@ object ConcExec {
   def eval(v: LLVMValue): Value = {
     v match {
       case LocalId(x) => curFrame(x)
-      case IntConst(n) => IntValue(n)
+      case IntConst(n) => IntValue(n.toInt)
       case GlobalId(id) if (funMap.contains(id)) =>
         val funDef = funMap(id)
         val paramNames: List[String] = funDef.header.params.map {

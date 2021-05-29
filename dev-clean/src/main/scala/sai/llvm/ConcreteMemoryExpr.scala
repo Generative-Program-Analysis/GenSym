@@ -198,7 +198,7 @@ object ConcExecMemory {
   def eval(v: LLVMValue): Value = {
     v match {
       case LocalId(x) => curFrame(x)
-      case IntConst(n) => IntValue(n)
+      case IntConst(n) => IntValue(n.toInt)
       case BoolConst(b) => if (b) IntValue(1) else IntValue(0)
       case ArrayConst(cs) =>
         ArrayValue(ArrayType(cs.length, cs.head.ty), cs.map(v => eval(v.const)))

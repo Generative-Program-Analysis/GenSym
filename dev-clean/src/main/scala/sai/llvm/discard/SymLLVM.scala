@@ -29,7 +29,7 @@ object SymExecEff {
 
   abstract class Value
   case object BotValue extends Value
-  case class IntValue(x: Int) extends Value
+  case class IntValue(x: Long) extends Value
   case class LocValue(loc: Loc) extends Value
   case class ArrayValue(vs: List[Value]) extends Value
   

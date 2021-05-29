@@ -216,6 +216,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
       "make_IntV".reflectMutableWith[Value](i, bw)
+    def apply(i: Rep[Long])(implicit d: DummyImplicit): Rep[Value] = IntV(i, DEFAULT_INT_BW)
+    def apply(i: Rep[Long], bw: Int)(implicit d: DummyImplicit): Rep[Value] =
+      "make_IntV".reflectMutableWith[Value](i, bw)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
       case Adapter.g.Def("make_IntV", Backend.Const(v: Int)::Backend.Const(bw: Int)::_) =>
         Some((v, bw))

@@ -278,7 +278,7 @@ package IR {
 
   abstract class Constant extends LLVMValue
   case class BoolConst(b: Boolean) extends Constant
-  case class IntConst(n: Int) extends Constant
+  case class IntConst(n: Long) extends Constant
   case class FloatConst(f: Float) extends Constant
   case object NullConst extends Constant
   case object NoneConst extends Constant
@@ -781,11 +781,11 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   // Note: there is a duplication of intConst and intLit in the grammar
   override def visitIntConst(ctx: LLVMParser.IntConstContext): LAST = {
-    IntConst(ctx.INT_LIT.getText.toInt)
+    IntConst(ctx.INT_LIT.getText.toLong)
   }
 
   override def visitIntLit(ctx: LLVMParser.IntLitContext): LAST = {
-    IntConst(ctx.INT_LIT.getText.toInt)
+    IntConst(ctx.INT_LIT.getText.toLong)
   }
 
   override def visitFloatConst(ctx: LLVMParser.FloatConstContext): LAST = {
@@ -1463,7 +1463,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitLlvmCase(ctx: LLVMParser.LlvmCaseContext): LAST = {
     val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
-    val n = visit(ctx.intConst).asInstanceOf[IntConst].n
+    val n = visit(ctx.intConst).asInstanceOf[IntConst].n.toInt
     val lab = ctx.localIdent.LOCAL_IDENT.getText
     LLVMCase(ty, n, lab)
   }
