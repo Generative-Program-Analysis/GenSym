@@ -91,7 +91,7 @@ trait StagedSymExecEff extends SAIOps {
         σ <- getStore
       } yield { σ(FrameLoc("f_"+x)) }
       case IntConst(n) =>
-        ret(IntV(n))
+        ret(IntV(n.toInt))
       case ArrayConst(cs) => ???
       case BitCastExpr(from, const, to) => ???
       case BoolConst(b) => ???
