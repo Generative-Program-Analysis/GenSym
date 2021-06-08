@@ -127,6 +127,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   // Note: now ty is mainly for eval IntConst to contain bit width
   // does it have some other implications?
+  // ty remove curring + can be optional?
   def eval(v: LLVMValue)(ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
@@ -292,6 +293,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
       // Conversion Operations
       /* Backend Work Needed */
+      // TODO zext to type
       case ZExtInst(from, value, to) => 
         for {
           v <- eval(value)(from)
