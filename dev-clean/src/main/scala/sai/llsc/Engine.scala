@@ -95,9 +95,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case Struct(types) =>
         val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
         prev + calculateOffsetStatic(types(index.head), index.tail)
-      case ArrayType(size, ety) => 
+      case ArrayType(size, ety) =>
         index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
-      case NamedType(id) => 
+      case NamedType(id) =>
         calculateOffsetStatic(typeDefMap(id), index)
       case PtrType(ety, addrSpace) =>
         index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
@@ -136,26 +136,26 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ret(IntV(n, ty.asInstanceOf[IntType].size))
       case FloatConst(f) =>
         ret(FloatV(f))
-      // case ArrayConst(cs) => 
+      // case ArrayConst(cs) =>
       case BitCastExpr(from, const, to) =>
         eval(const)(to)
       case BoolConst(b) => b match {
         case true => ret(IntV(1, 1))
         case false => ret(IntV(0, 1))
       }
-      // case CharArrayConst(s) => 
+      // case CharArrayConst(s) =>
       case GlobalId(id) if funMap.contains(id) =>
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
         ret(FunV(CompileTimeRuntime.FunFuns(id)))
-      case GlobalId(id) if funDeclMap.contains(id) => 
+      case GlobalId(id) if funDeclMap.contains(id) =>
         val v = id match {
           case id if External.modeled_external.contains(id.tail) => id.tail match {
             // case "malloc" => External.mallocV
             // case "realloc" => External.reallocV
             case _ => "llsc-external-wrapper".reflectWith[Value](id.tail)
-          } 
+          }
           case id if id.startsWith("@llvm") => Intrinsics.match_intrinsics(id)
           // Should be a noop
           case _ => {
@@ -169,10 +169,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ret(v)
       case GlobalId(id) if globalDefMap.contains(id) =>
         ret(LocV(heapEnv(id), LocV.kHeap))
-      case GlobalId(id) if globalDeclMap.contains(id) => 
+      case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")
         ret(NullV())
-      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) => 
+      case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
         for {
@@ -202,7 +202,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       StaticList(IntV(if (b) 1 else 0, 1))
     case IntConst(n) =>
       StaticList(IntV(n, ty.asInstanceOf[IntType].size)) ++ StaticList.fill(getTySize(ty) - 1)(NullV())
-    case FloatConst(f) => 
+    case FloatConst(f) =>
       StaticList(FloatV(f))
     case ZeroInitializerConst => ty match {
       case ArrayType(size, ety) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
@@ -213,22 +213,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       flattenAS(v).flatMap(c => evalHeapConst(c, ty.asInstanceOf[ArrayType].ety))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
-    case StructConst(cs) => 
+    case StructConst(cs) =>
       cs.flatMap { case c => evalHeapConst(c.const, c.ty)}
     case NullConst => StaticList.fill(getTySize(ty))(NullV())
     case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-      LocV(heapEnv(
-        // is this one exclusive?
-        const match {
-          case GlobalId(id) => id
-          case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
-        }
-      ) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
+      val id = const match { // is this one exclusive?
+        case GlobalId(id) => id
+        case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
+      }
+      LocV(heapEnv(id) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
     }
-    case GlobalId(id) => 
+    case GlobalId(id) =>
       LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
-    case BitCastExpr(from, const, to) => 
+    case BitCastExpr(from, const, to) =>
       evalHeapConst(const, to)
   }
 
@@ -240,7 +238,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
     inst match {
-      // Memory Access Instructions 
+      // Memory Access Instructions
       case AllocaInst(ty, align) =>
         for {
           ss <- getState
@@ -294,7 +292,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       // Conversion Operations
       /* Backend Work Needed */
       // TODO zext to type
-      case ZExtInst(from, value, to) => 
+      case ZExtInst(from, value, to) =>
         for {
           v <- eval(value)(from)
         } yield v
@@ -307,13 +305,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         for { v <- eval(value)(from) } yield v
       case FpToUIInst(from, value, to) =>
         for { v <- eval(value)(from) } yield v.fp_toui(to.asInstanceOf[IntType].size)
-      case FpToSIInst(from, value, to) => 
+      case FpToSIInst(from, value, to) =>
         for { v <- eval(value)(from) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
-      case UiToFPInst(from, value, to) => 
+      case UiToFPInst(from, value, to) =>
         for { v <- eval(value)(from) } yield v.ui_tofp
-      case SiToFPInst(from, value, to) => 
+      case SiToFPInst(from, value, to) =>
         for { v <- eval(value)(from) } yield v.si_tofp
-      case PtrToIntInst(from, value, to) => 
+      case PtrToIntInst(from, value, to) =>
         for { v <- eval(value)(from) } yield v.to_IntV
       case IntToPtrInst(from, value, to) =>
         for { v <- eval(value)(from) } yield LocV(v.int, LocV.kStack)
@@ -321,7 +319,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
       // Aggregate Operations
       /* Backend Work Needed */
-      case ExtractValueInst(ty, struct, indices) => 
+      case ExtractValueInst(ty, struct, indices) =>
         /*
         Struct is tricky. Consider the following code snippet
         a:
@@ -345,7 +343,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       // Other operations
       case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs, ty)
       case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs, ty)
-      case CallInst(ty, f, args) => 
+      case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
         }
@@ -361,14 +359,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- popFrame(s.stackSize)
         } yield v
 
-      case PhiInst(ty, incs) => 
+      case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)
           else selectValue(bb, vs.tail, labels.tail)
         }
         val incsValues: List[LLVMValue] = incs.map(inc => inc.value)
         val incsLabels: List[BlockLabel] = incs.map(inc => inc.label.hashCode)
-        
+
         for {
           vs <- mapM(incsValues)(eval(_)(ty))
           s <- getState
@@ -406,7 +404,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case Unreachable => ret(IntV(-1))
       case RetTerm(ty, Some(value)) => eval(value)(ty)
       case RetTerm(ty, None) => ret(NullV())
-      case BrTerm(lab) => 
+      case BrTerm(lab) =>
         for {
           _ <- updateIncomingBlock(incomingBlock)
           v <- execBlock(funName, lab)
@@ -551,9 +549,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       h ++ evalHeapConst(v.const, getRealType(v.typ))
     }
   }
-    
-  
-  def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl], 
+
+
+  def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
     prevSize: Int, mname: String): StaticList[Rep[Value]] =
     globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
       // TODO external_weak linkage
@@ -574,7 +572,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
     heapTmp
   }
-    
+
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
@@ -628,7 +626,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.globalDefMap = main.globalDefMap
     CompileTimeRuntime.globalDeclMap = main.globalDeclMap
     CompileTimeRuntime.typeDefMap = main.typeDefMap
-    
+
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
     val comp = if (!isCommandLine) {
@@ -639,7 +637,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         v <- reflect(fv(s, args))
         // Optimization: for entrance function, no need to pop
         //_ <- popFrame(s.stackSize)
-      } yield v 
+      } yield v
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
       for {

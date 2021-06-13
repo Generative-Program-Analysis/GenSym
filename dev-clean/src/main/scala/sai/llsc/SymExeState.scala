@@ -232,7 +232,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   object LocV {
     def kStack: Rep[Int] = "kStack".reflectWriteWith[Int]()(Adapter.CTRL)
     def kHeap: Rep[Int] = "kHeap".reflectWriteWith[Int]()(Adapter.CTRL)
-    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int]=unit(-1)): 
+    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int]=unit(-1)):
       Rep[Value] = "make_LocV".reflectWriteWith[Value](l, kind, size)(Adapter.CTRL)
   }
   object FunV {
@@ -247,7 +247,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
   object NullV {
     // for now
-    def apply(): Rep[Value] = "null-v".reflectWith[Value]()
+    def apply(): Rep[Value] = "null-v".reflectMutableWith[Value]()
   }
 
   object IntOp2 {
@@ -287,7 +287,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     // TODO: toSMTBool vs toSMTExpr?
     //def toSMTExpr: Rep[SMTExpr] =
     //  Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
-  
+
     def fp_toui(to: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, to)
     def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
     def ui_tofp: Rep[Value] = "ui_tofp".reflectWith[Value](v)
