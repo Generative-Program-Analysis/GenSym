@@ -230,10 +230,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(f: Rep[Float]): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f)(Adapter.CTRL)
   }
   object LocV {
-    def kStack: Rep[Int] = "kStack".reflectWriteWith[Int]()(Adapter.CTRL)
-    def kHeap: Rep[Int] = "kHeap".reflectWriteWith[Int]()(Adapter.CTRL)
-    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int]=unit(-1)):
-      Rep[Value] = "make_LocV".reflectWriteWith[Value](l, kind, size)(Adapter.CTRL)
+    def kStack: Rep[Int] = "kStack".reflectMutableWith[Int]()
+    def kHeap: Rep[Int] = "kHeap".reflectMutableWith[Int]()
+    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int] = unit(-1)):
+      Rep[Value] = "make_LocV".reflectMutableWith[Value](l, kind, size)
   }
   object FunV {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
