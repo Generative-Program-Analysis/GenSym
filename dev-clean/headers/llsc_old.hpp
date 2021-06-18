@@ -30,6 +30,10 @@
 //#include <thread_pool.hpp>
 #include <immer/flex_vector_transient.hpp>
 
+//#define STR_SYMV // using dummy string for symbolic value, just for debugging
+
+#define LAZY_SYMV // lazily construct SMT expression only when discharging the PC
+
 #ifndef STR_SYMV
 #include <stp/c_interface.h>
 #include <stp_handle.hpp>
@@ -38,20 +42,19 @@
 using namespace std::chrono;
 
 inline unsigned int bitwidth = 32;
-inline unsigned int addr_bw = 64;
 inline unsigned int var_name = 0;
 
 using BlockLabel = int;
 using Id = int;
 using Addr = unsigned int;
-using IntData = long long int;
+using IntData = int;
 
 enum iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
   op_eq, op_uge, op_ugt, op_ule, op_ult,
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
-  op_urem, op_srem, op_neg, op_sext
+  op_urem, op_srem, op_neg
 };
 
 inline std::string int_op2string(iOP op) {
@@ -80,17 +83,25 @@ inline std::string int_op2string(iOP op) {
     case op_urem: return "u%";
     case op_srem: return "s%";
     case op_neg: return "!";
-    case op_sext: return "sext";
   }
   return "unknown op";
 }
 
 struct Value;
-// lazy construction of all the SMT expressions
+
+#ifdef STR_SYMV
+using SExpr = std::string;
+#else
+#ifdef LAZY_SYMV
 using SExpr = std::shared_ptr<Value>;
 inline std::mutex vc_lock;
 inline VC global_vc = vc_createValidityChecker();
-
+#else
+using SExpr = Expr;
+inline std::mutex vc_lock;
+inline VC global_vc = vc_createValidityChecker();
+#endif
+#endif
 
 /* Value representations */
 
@@ -104,37 +115,54 @@ struct Value : public std::enable_shared_from_this<Value> {
   virtual SExpr to_SMTBool() = 0;
   virtual Ptr<Value> to_IntV() const = 0;
   virtual bool is_conc() const = 0;
-  virtual int get_bw() const = 0;
 };
 
 using PtrVal = std::shared_ptr<Value>;
 
 struct IntV : Value {
-  int bw;
   IntData i;
-  IntV(IntData i, int bw) : i(i), bw(bw) {}
-  IntV(const IntV& v) { i = v.i; bw = v.bw; }
+  IntV(IntData i) : i(i) {}
+  IntV(const IntV& v) { i = v.i; }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << i << ")";
   }
   virtual SExpr to_SMTExpr() override {
+#ifdef STR_SYMV
+    return "dummy";
+#else
+#ifdef LAZY_SYMV
     return shared_from_this();
+#else
+    return vc_bvConstExprFromInt(vc, 32, i);
+#endif
+#endif
   }
   virtual SExpr to_SMTBool() override {
+#ifdef STR_SYMV
+    return "dummy";
+#else
+#ifdef LAZY_SYMV
     ABORT("to_SMTBool: unexpected value IntV.");
+#else
+    ABORT("to_SMTBool: unexpected value IntV.");
+    /*
+    if (i) return vc_trueExpr(vc);
+    else return vc_falseExpr(vc);
+    */
+#endif
+#endif
   }
-  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i, bw); }
+  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i); }
   virtual bool is_conc() const override { return true; }
-  virtual int get_bw() const override { return bw; }
 };
 
 inline Ptr<Value> make_IntV(IntData i) {
-  return std::make_shared<IntV>(i, bitwidth);
+  return std::make_shared<IntV>(i);
 }
 
 inline Ptr<Value> make_IntV(IntData i, int bw) {
   //FIXME, bit width
-  return std::make_shared<IntV>(i, bw);
+  return std::make_shared<IntV>(i);
 }
 
 inline IntData proj_IntV(Ptr<Value> v) {
@@ -156,7 +184,6 @@ struct FloatV : Value {
   }
   virtual bool is_conc() const override { return true; }
   virtual Ptr<Value> to_IntV() const override { return nullptr; }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
 };
 
 inline Ptr<Value> make_FloatV(float f) {
@@ -187,8 +214,7 @@ struct LocV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
-  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
+  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(l); }
 };
 
 inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k, int size) {
@@ -213,13 +239,32 @@ inline Ptr<Value> make_LocV_inc(Ptr<Value> loc, int i) {
   return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
 
+#ifdef STR_SYMV
+struct SymV : Value {
+  SExpr v;
+  SymV(SExpr v) : v(v) {}
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "SymV(" << v << ")";
+  }
+  virtual SExpr to_SMTExpr() override { return v; }
+  // TODO(GW): how do we know this is a bool?
+  virtual SExpr to_SMTBool() override { return v; }
+  virtual bool is_conc() const override { return false; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
+};
+inline Ptr<Value> make_SymV(String n) { return std::make_shared<SymV>(n); }
+inline Ptr<Value> make_SymV(String n, int bw) { 
+  // ignore the bw
+  return std::make_shared<SymV>(n);
+}
+#else
+#ifdef LAZY_SYMV
 struct SymV : Value {
   String name;
-  int bw;
   iOP rator;
   immer::flex_vector<PtrVal> rands;
-  SymV(String name, int bw) : name(name), bw(bw) {}
-  SymV(iOP rator, immer::flex_vector<PtrVal> rands, int bw) : rator(rator), rands(rands), bw(bw) {}
+  SymV(String name) : name(name) {}
+  SymV(iOP rator, immer::flex_vector<PtrVal> rands) : rator(rator), rands(rands) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     if (!name.empty()) return os << "SymV(" << name << ")";
     os << "SymV(" << int_op2string(rator) << ", ";
@@ -232,19 +277,43 @@ struct SymV : Value {
   virtual SExpr to_SMTBool() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
   virtual Ptr<Value> to_IntV() const override { return nullptr; }
-  virtual int get_bw() const override { return bw; }
 };
 inline Ptr<Value> make_SymV(String n) {
-  return std::make_shared<SymV>(n, bitwidth);
+  return std::make_shared<SymV>(n);
 }
 inline Ptr<Value> make_SymV(String n, int bw) {
-  return std::make_shared<SymV>(n, bw);
+  // FIXME: make bit vector of bw bits
+  return std::make_shared<SymV>(n);
 }
 inline SExpr to_SMTBoolNeg(PtrVal v) {
-  int bw = v->get_bw();
-  return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), bw);
+  return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }));
 }
-
+#else
+struct SymV : Value {
+  SExpr v;
+  SymV(SExpr v) : v(v) {}
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "SymV(" << v << ")";
+  }
+  virtual SExpr to_SMTExpr() override { return v; }
+  // TODO(GW): how do we know this is a bool?
+  virtual SExpr to_SMTBool() override { return v; }
+  virtual bool is_conc() const override { return false; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
+};
+inline Ptr<Value> make_SymV(String n) {
+  return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
+}
+inline Ptr<Value> make_SymV(String n, int bw) { 
+  // FIXME: make bit vector of bw bits
+  return std::make_shared<SymV>(vc_varExpr(vc, n.c_str(), vc_bv32Type(vc)));
+}
+inline SExpr to_SMTBoolNeg(PtrVal v) {
+  auto e = v->to_SMTBool();
+  return vc_notExpr(vc, e);
+}
+#endif
+#endif
 
 struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
@@ -262,7 +331,6 @@ struct StructV : Value {
     ABORT("is_conc: unexpected value StructV.");
   }
   virtual Ptr<Value> to_IntV() const override { return nullptr; }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 };
 
 inline PtrVal structV_at(PtrVal v, int idx) {
@@ -274,47 +342,76 @@ inline PtrVal structV_at(PtrVal v, int idx) {
 inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1->to_IntV());
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
-  int bw1 = v1->get_bw();
-  int bw2 = v2->get_bw();
-  ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
   if (i1 && i2) {
     if (op == op_add) {
-      return make_IntV(i1->i + i2->i, bw1);
+      return make_IntV(i1->i + i2->i);
     } else if (op == op_sub) {
-      return make_IntV(i1->i - i2->i, bw1);
+      return make_IntV(i1->i - i2->i);
     } else if (op == op_mul) {
-      return make_IntV(i1->i * i2->i, bw1);
+      return make_IntV(i1->i * i2->i);
     // FIXME: singed and unsigned div
     } else if (op == op_sdiv || op == op_udiv) {
-      return make_IntV(i1->i / i2->i, bw1);
+      return make_IntV(i1->i / i2->i);
     } else if (op == op_eq) {
-      return make_IntV(i1->i == i2->i, bw1);
+      return make_IntV(i1->i == i2->i);
     } else if (op == op_uge || op == op_sge) {
-      return make_IntV(i1->i >= i2->i, bw1);
+      return make_IntV(i1->i >= i2->i);
     } else if (op == op_ugt || op == op_sgt) {
-      return make_IntV(i1->i > i2->i, bw1);
+      return make_IntV(i1->i > i2->i);
     } else if (op == op_ule || op == op_sle) {
-      return make_IntV(i1->i <= i2->i, bw1);
+      return make_IntV(i1->i <= i2->i);
     } else if (op == op_ult || op == op_slt) {
-      return make_IntV(i1->i < i2->i, bw1);
+      return make_IntV(i1->i < i2->i);
     } else if (op == op_neq) {
-      return make_IntV(i1->i != i2->i, bw1);
+      return make_IntV(i1->i != i2->i);
     } else if (op == op_urem || op == op_srem) {
-      return make_IntV(i1->i % i2->i, bw1);
+      return make_IntV(i1->i % i2->i);
     } else if (op == op_and) {
-      return make_IntV(i1->i & i2->i, bw1);
+      return make_IntV(i1->i & i2->i);
     } else if (op == op_or) {
-      return make_IntV(i1->i | i2->i, bw1);
+      return make_IntV(i1->i | i2->i);
     } else if (op == op_xor) {
-      return make_IntV(i1->i ^ i2->i, bw1);
+      return make_IntV(i1->i ^ i2->i);
      }else {
       std::cout << op << std::endl;
       ABORT("invalid operator");
     }
   } else {
+#ifdef STR_SYMV
+    return make_SymV("unknown");
+#else
+#ifdef LAZY_SYMV
     SExpr e1 = v1->to_SMTExpr();
     SExpr e2 = v2->to_SMTExpr();
-    return std::make_shared<SymV>(op, immer::flex_vector({ e1, e2 }), bw1);
+    return std::make_shared<SymV>(op, immer::flex_vector({ e1, e2 }));
+#else
+    SExpr e1 = v1->to_SMTExpr();
+    SExpr e2 = v2->to_SMTExpr();
+    if (op == op_add) {
+      return std::make_shared<SymV>(vc_bv32PlusExpr(vc, e1, e2));
+    } else if (op == op_sub) {
+      return std::make_shared<SymV>(vc_bv32MinusExpr(vc, e1, e2));
+    } else if (op == op_mul) {
+      return std::make_shared<SymV>(vc_bv32MultExpr(vc, e1, e2));
+    } else if (op == op_sdiv || op == op_udiv) {
+      return std::make_shared<SymV>(vc_bvDivExpr(vc, 32, e1, e2));
+    } else if (op == op_eq) {
+      return std::make_shared<SymV>(vc_eqExpr(vc, e1, e2));
+    } else if (op == op_uge || op == op_sge) {
+      return std::make_shared<SymV>(vc_bvGeExpr(vc, e1, e2));
+    } else if (op == op_ugt || op == op_sgt) {
+      return std::make_shared<SymV>(vc_bvGtExpr(vc, e1, e2));
+    } else if (op == op_ule || op == op_sle) {
+      return std::make_shared<SymV>(vc_sbvLeExpr(vc, e1, e2));
+    } else if (op == op_ult || op == op_slt) {
+      return std::make_shared<SymV>(vc_sbvLtExpr(vc, e1, e2));
+    } else if (op == op_neq) {
+      return std::make_shared<SymV>(vc_notExpr(vc, vc_eqExpr(vc, e1, e2)));
+    } else {
+      ABORT("invalid operator");
+    }
+#endif
+#endif
   }
 }
 
@@ -338,22 +435,9 @@ inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
   }
 }
 
+// FIXME: 
 inline Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
-  auto i1 = std::dynamic_pointer_cast<IntV>(v);
-  if (i1) {
-    return make_IntV(i1->i, bw);
-  } else {
-    auto s1 = std::dynamic_pointer_cast<SymV>(v);
-    if (s1) {
-      // Note: instead of passing new bw as an operand
-      // we override the original bw here
-      SExpr e1 = s1->to_SMTExpr();
-      return std::make_shared<SymV>(op_sext, 
-        immer::flex_vector({ e1 }), bw);
-    } else {
-      ABORT("Sext an invalid value, exit");
-    }
-  }
+  return v;
 }
 
 inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
@@ -362,14 +446,19 @@ inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
     IntData i = i1->i;
     i = i << (from - to);
     i = i >> (from - to);
-    return make_IntV(i, to);
+    return make_IntV(i);
   } else {
     auto s1 = std::dynamic_pointer_cast<SymV>(v1);
     if (s1) {
-      // FIXME: Trunc
+#ifdef LAZY_SYMV
       ABORT("Truncate a LAZY_SYMV, needs work!");
+#else
+      // if we model
+      // should be vc_bvExtract(vc, s1->v, to - 1, 0)
+      return s1;
+#endif
     }
-    ABORT("Truncate an invalid value, exit");
+    ABORT("Truncate a ??? value, exit");
   }
 }
 
@@ -619,12 +708,10 @@ inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
-
-// TODO: fix stp construct with bitwidth
 inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
-    return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);
+    return vc_bvConstExprFromInt(vc, 32, int_e->i);
   }
   auto sym_e = std::dynamic_pointer_cast<SymV>(e);
   if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
@@ -634,7 +721,7 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
     auto name = sym_e->name;
     //auto it = stp_env.find(name);
     //if (it == stp_env.end()) {
-    Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
+    Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bv32Type(vc));
       //stp_env.insert(std::make_pair(name, stp_expr));
     return stp_expr;
     //}
@@ -642,20 +729,19 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   }
 
   std::vector<Expr> expr_rands;
-  int bw = sym_e->bw;
   for (auto e : sym_e->rands) {
     expr_rands.push_back(construct_STP_expr(vc, e));
   }
   switch (sym_e->rator) {
     case op_add:
-      return vc_bvPlusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bv32PlusExpr(vc, expr_rands.at(0),expr_rands.at(1));
     case op_sub:
-      return vc_bvMinusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bv32MinusExpr(vc, expr_rands.at(0),expr_rands.at(1));
     case op_mul:
-      return vc_bvMultExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bv32MultExpr(vc, expr_rands.at(0),expr_rands.at(1));
     case op_sdiv:
     case op_udiv:
-      return vc_bvDivExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvDivExpr(vc, 32, expr_rands.at(0),expr_rands.at(1));
     case op_uge:
       return vc_bvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
     case op_sge:
@@ -678,8 +764,6 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
       return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1)));
     case op_neg:
       return vc_notExpr(vc, expr_rands.at(0));
-    case op_sext:
-      return vc_bvSignExtend(vc, expr_rands.at(0), bw);
     case op_shl:
     case op_lshr:
     case op_ashr:
