@@ -178,12 +178,13 @@ object Concolic {
     while (workList.nonEmpty) {
       val input = workList.head
       workList.remove(input)
-      println(s"Starting Iteration $i, input is $input")
+      println(s"Starting Iteration $i, input is ${input._1}, ${input._2}")
       i += 1
       val childInputs = expandExec(p, input)
       childInputs.foreach(workList.add(_))
       tests = tests ++ childInputs
     }
+    println(s"${tests.size} testcases are generated")
     tests
   }
 
@@ -199,7 +200,6 @@ object Concolic {
     }
     for (j <- bound until π.length) {
       val π_prime = π.take(j) :+ toNegSExp(π(j), z3)
-      println(π_prime)
       newinputs += gen_new_input((δ, μ, γ, η, j + 1), π_prime, z3) 
     }
     newinputs.flatten
@@ -244,17 +244,20 @@ object Concolic {
 
 object TestConcolic extends App {
   import Concolic._, ConcolicV._
+  
+  /* input: y <- Int
+    x = 5
+    if (x < y) halt
+    else if (x < 2 * y) halt
+    else halt
+  */
   val ex1 = Prog(List(
       Assign("x", Lit(5)),
-      Cond(BinOp("<", Var("x"), Var("y")),
-        Lit(2),
-        Lit(4)),
+      Cond(BinOp("<", Var("x"), Var("y")), Lit(2), Lit(4)),
       Output("x < y"),
       Halt(Var("x")),
       Output("x >= y"),
-      Cond(BinOp("<", Var("x"), BinOp("*", Lit(2), Var("y"))),
-        Lit(6),
-        Lit(8)),
+      Cond(BinOp("<", Var("x"), BinOp("*", Lit(2), Var("y"))), Lit(6), Lit(8)),
       Output("x < 2* y"),
       Halt(Var("x")),
       Output("x >= 2 * y"),
@@ -262,7 +265,38 @@ object TestConcolic extends App {
     )
   )
 
-  runConcolic(ex1, Some((Map(("y" -> IntV(8))), Map(), Set("y"), Set(), 0)))
+  /* input: x <- Int, y <- Int
+    if (x < y) {
+      if (x < y - 5) halt
+      else halt
+    } else {
+      if (x < 2 * y) halt
+      else halt
+    }
+  */
+  val ex2 = Prog(List(
+      Output("start prog"),
+      Cond(BinOp("<", Var("x"), Var("y")), Lit(2), Lit(8)),
+      Output("x < y"),
+      Cond(BinOp("<", Var("x"), BinOp("-", Var("y"), Lit(5))), Lit(4), Lit(6)),
+      Output("x < y - 5"),
+      Halt(Var("x")),
+      Output("x >= y - 5"),
+      Halt(Var("x")),
+      Cond(BinOp("<", Var("x"), BinOp("*", Lit(2), Var("y"))), Lit(9), Lit(11)),
+      Output("x < 2* y"),
+      Halt(Var("x")),
+      Output("x >= 2 * y"),
+      Halt(Var("x"))
+    )
+  )
+  
+  def main() {
+    runConcolic(ex1, Some((Map(("y" -> IntV(8))), Map(), Set("y"), Set(), 0)))
+    runConcolic(ex2, Some((Map(("x" -> IntV(3)), ("y" -> IntV(8))), Map(), Set("y", "x"), Set(), 0)))
+  }
+  
+  main()
 }
 
 object ScalaZ3Test extends App {
@@ -275,7 +309,6 @@ object ScalaZ3Test extends App {
     solver.assertCnstr(z3.mkEq(i, k))
     val check = solver.check
     val model = solver.getModel
-    Z3NumeralIntAST(Some(1))
     println(model.evalAs[Int](i))
     println(z3.modelToString(model))
     println("finished")
