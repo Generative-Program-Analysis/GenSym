@@ -19,6 +19,7 @@ libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.9.1"
 
 libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
 
+}
 scalacOptions ++= Seq(
   "-Xcheckinit",
   "-deprecation",
