@@ -42,12 +42,12 @@ object Concolic {
   // Δ concrete env, μ concrete store
   // γ symbolic env, η symbolic store
   def exec(s: Stmt, Δ: Env, μ: Store, Π: PCond, pc: PC, Σ: Prg, γ: Env, η: Store, z3: Z3Context): Result = s match {
-    case Assign(x, e) => 
+    case Assign(x, e) =>
       val v = eval(e, Δ, μ)
       val Δ_* = Δ + (x → v)
       val sv = seval(e, Δ, μ, γ, η, z3)
       val γ_* = sv match {
-        case IntV(x) => γ
+        case IntV(i) => if (γ.contains(x)) γ - x else γ
         case SymV(e) => γ + (x → sv)
       }
       exec(Σ(pc+1), Δ_*, μ, Π, pc+1, Σ, γ_*, η, z3)
@@ -55,11 +55,10 @@ object Concolic {
       val v1 = eval(e1, Δ, μ)
       val v2 = eval(e2, Δ, μ)
       val sv2 = seval(e2, Δ, μ, γ, η, z3)
+      val α = v1 match { case IntV(α) => α }
       val η_* = sv2 match {
-        case IntV(x) => η
-        case SymV(e) => v1 match {
-          case IntV(α) => η + (α → sv2)
-        }
+        case IntV(i) => if (η.contains(α)) η - α else η
+        case SymV(e) => η + (α → sv2)
       }
       val μ_* = v1 match {
         case IntV(α) => μ + (α → v2)
@@ -166,7 +165,8 @@ object Concolic {
     case "~" => SymV(z3.mkSub(z3.mkInt(0, z3.mkIntSort), e))
   }
 
-  // see https://patricegodefroid.github.io/public_psfiles/ndss2008.pdf
+  // see Automated Whitebox Fuzz Testing
+  // https://patricegodefroid.github.io/public_psfiles/ndss2008.pdf
   def runConcolic(p: Prog, input: Option[Input]): Set[Input] = {
     val (δ, μ, γ, η, _) = input match {
       case None => gen_initial_state(p)
@@ -245,6 +245,8 @@ object Concolic {
 object TestConcolic extends App {
   import Concolic._, ConcolicV._
   
+  // TODO: Try loop
+
   /* input: y <- Int
     x = 5
     if (x < y) halt
@@ -275,7 +277,7 @@ object TestConcolic extends App {
     }
   */
   val ex2 = Prog(List(
-      Output("start prog"),
+      Output("starting program:"),
       Cond(BinOp("<", Var("x"), Var("y")), Lit(2), Lit(8)),
       Output("x < y"),
       Cond(BinOp("<", Var("x"), BinOp("-", Var("y"), Lit(5))), Lit(4), Lit(6)),
@@ -291,12 +293,8 @@ object TestConcolic extends App {
     )
   )
   
-  def main() {
-    runConcolic(ex1, Some((Map(("y" -> IntV(8))), Map(), Set("y"), Set(), 0)))
-    runConcolic(ex2, Some((Map(("x" -> IntV(3)), ("y" -> IntV(8))), Map(), Set("y", "x"), Set(), 0)))
-  }
-  
-  main()
+  // runConcolic(ex1, Some((Map(("y" -> IntV(8))), Map(), Set("y"), Set(), 0)))
+  runConcolic(ex2, Some((Map(("x" -> IntV(3)), ("y" -> IntV(8))), Map(), Set("x", "y"), Set(), 0)))
 }
 
 object ScalaZ3Test extends App {
