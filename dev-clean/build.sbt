@@ -47,4 +47,3 @@ lazy val lms = ProjectRef(file("../lms-clean"), "lms-clean")
   // .settings(fork := true)
 
 lazy val sai = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
-                                     .settings(assembly / mainClass := Some("sai.llsc.RunLLSC"))
