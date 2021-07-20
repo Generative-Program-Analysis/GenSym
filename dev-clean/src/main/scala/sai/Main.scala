@@ -15,10 +15,11 @@ object Main {
   def test_power() = {
     val snippet = new SAIDriver[Int, Int] {
       @virtualize
+      // b^x
       def power(b: Rep[Int], x: Int): Rep[Int] =
         if (x == 0) 1
         else b * power(b, x - 1)
-      def snippet(b: Rep[Int]): Rep[Int] = power(b, 5)
+      def snippet(b: Rep[Int]): Rep[Int] = power(b, 5) // x * x * x * x * x
     }
 
     println(snippet.code)
