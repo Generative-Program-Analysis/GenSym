@@ -14,7 +14,7 @@ trait SMTArrayOps extends SMTArrayInterface with StagedSMTBase with SMTBitVecOps
 
   // lengthMap maps array representations to pairs of its 2nd-dim length and index domain bit-width.
   val lengthMap = collection.mutable.Map[Rep[SMTArray], (Int, Int)]()
-  
+
   def arrayCreate(s: String, indexBW: Int, valueBW: Int, length: Int = 0): Rep[SMTArray] = {
     val array = Wrap[SMTArray](Adapter.g.reflect("smt-array-create-var",
       Backend.Const(s), Backend.Const(indexBW), Backend.Const(valueBW)))
@@ -56,7 +56,7 @@ trait SMTArrayOps extends SMTArrayInterface with StagedSMTBase with SMTBitVecOps
       arrayRead(array, lit(i))
     def apply(i: Int, j: Int): Rep[BV] =
       arrayRead(array, lit(i * length + j))
-    
+
     def update(i: Rep[BV], v: Rep[BV]): Rep[SMTArray] =
       arrayWrite(array, i, v)
     def update(i: Rep[BV], j: Rep[BV])(v: Rep[BV]): Rep[SMTArray] = {
@@ -72,7 +72,7 @@ trait SMTArrayOps extends SMTArrayInterface with StagedSMTBase with SMTBitVecOps
 }
 
 trait STPCodeGen_SMTArray extends ExtendedCPPCodeGen {
-  //registerHeader("../stp/build/include", "<stp/c_interface.h>")
+  //registerHeader("<stp/c_interface.h>")
   //registerHeader("./headers", "<stp_handle.hpp>")
   registerLibrary("-lstp")
 

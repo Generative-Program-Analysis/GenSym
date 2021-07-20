@@ -35,7 +35,7 @@ trait SMTBitVecOps extends SMTBitVecInterface with  StagedSMTBase {
     Wrap[BV](Adapter.g.reflect("bv-mod", Unwrap(x), Unwrap(y), Backend.Const(width)))
   def bvRem(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV] =
     Wrap[BV](Adapter.g.reflect("bv-rem", Unwrap(x), Unwrap(y), Backend.Const(width)))
-  
+
   // bv compare
   def bvLt(x: BT[BV], y: BT[BV]): BT[SMTBool] =
     Wrap[SMTBool](Adapter.g.reflect("bv-lt", Unwrap(x), Unwrap(y)))
@@ -61,8 +61,7 @@ trait SMTBitVecOps extends SMTBitVecInterface with  StagedSMTBase {
 }
 
 trait STPCodeGen_SMTBV extends ExtendedCPPCodeGen {
-  //registerHeader("../stp/build/include", "<stp/c_interface.h>")
-  //registerHeader("./headers", "<stp_handle.hpp>")
+  //registerHeader("<stp/c_interface.h>")
   registerLibrary("-lstp")
 
   override def mayInline(n: Node): Boolean = n match {

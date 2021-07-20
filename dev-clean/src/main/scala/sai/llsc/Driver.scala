@@ -53,7 +53,6 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
     mainStream.close
   }
 
-  // TODO: export LD_LIBRARY_PATH=../stp/build/lib
   def genMakefile: Unit = {
     val out = new PrintStream(s"$folder/$appName/Makefile")
     val curDir = new File(".").getCanonicalPath
@@ -114,7 +113,7 @@ object RunLLSC {
         ()
       }
     }
-  
+
   def runLLSC(m: Module, name: String, fname: String, nSym: Int = 0) {
     val (_, t) = sai.utils.Utils.time {
       val code = specialize(m, name, fname, nSym)

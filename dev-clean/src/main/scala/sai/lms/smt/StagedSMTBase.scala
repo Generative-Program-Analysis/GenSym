@@ -66,10 +66,10 @@ trait SMTBaseOps extends SMTBaseInterface with StagedSMTBase {
 }
 
 trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
-  //registerHeader("../stp/build/include", "<stp/c_interface.h>")
+  //registerHeader("<stp/c_interface.h>")
   //registerHeader("./headers", "<stp_handle.hpp>")
+  //registerLibraryPath("../stp/build/lib")
   registerLibrary("-lstp")
-  registerLibraryPath("../stp/build/lib")
 
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName
@@ -84,7 +84,7 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
   }
 
   override def traverse(n: Node): Unit = n match {
-    case Node(s, "smt-assert", List(x), _) => 
+    case Node(s, "smt-assert", List(x), _) =>
       emit("vc_assertFormula(vc, "); shallow(x); emitln(");")
     case Node(s, "smt-push", _, _) =>
       emitln("vc_push(vc);")
@@ -100,13 +100,13 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
   }
 
   override def shallow(n: Node) = n match {
-    case Node(s, "smt-var", Const(id: String)::Const("bool")::Nil, _) => 
+    case Node(s, "smt-var", Const(id: String)::Const("bool")::Nil, _) =>
       emit(s"""vc_varExpr(vc, \"$id\", vc_boolType(vc))""")
     case Node(s, "smt-lit", Const(true)::Nil, _) =>
       emit("vc_trueExpr(vc)")
     case Node(s, "smt-lit", Const(false)::Nil, _) =>
       emit("vc_falseExpr(vc)")
-    case Node(s, "smt-not", List(x), _) => 
+    case Node(s, "smt-not", List(x), _) =>
       emit("vc_notExpr(vc, "); shallow(x); emit(")")
     case Node(s, "smt-or", List(l, r), _) =>
       emit("vc_orExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
@@ -120,13 +120,13 @@ trait STPCodeGen_SMTBase extends ExtendedCPPCodeGen {
       emit("vc_iteExpr(vc, "); shallow(c); emit(", "); shallow(t); emit(", "); shallow(e); emit(")")
     case Node(s, "smt-imply", List(l, r), _) =>
       emit("vc_impliesExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
-    case Node(s, "smt-eq", List(l, r), _) => 
+    case Node(s, "smt-eq", List(l, r), _) =>
       emit("vc_eqExpr(vc, "); shallow(l); emit(", "); shallow(r); emit(")")
     case Node(s, "smt-is-valid", List(x), _) =>
       emit("stp_is_valid(vc, "); shallow(x); emit(")")
     case Node(s, "smt-is-sat", List(x), _) =>
       emit("stp_is_sat(vc, "); shallow(x); emit(")")
-    case Node(s, "smt-query", List(x), _) => 
+    case Node(s, "smt-query", List(x), _) =>
       emit("vc_query(vc, "); shallow(x); emit(")")
     case Node(s, "smt-get-cex", List(x), _) =>
       emit("vc_getCounterExample(vc, "); shallow(x); emit(")");
