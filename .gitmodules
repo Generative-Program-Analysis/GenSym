@@ -10,7 +10,3 @@
 [submodule "stp"]
 	path = stp
 	url = https://github.com/stp/stp.git
-
-[submodule "coreutils"]
-	path = coreutils
-	url = https://ithub.com/coreutils/coreutils.git
