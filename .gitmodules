@@ -1,16 +1,16 @@
 [submodule "lms-clean"]
 	path = lms-clean
-	url = git@github.com:TiarkRompf/lms-clean.git
+	url = https://github.com/TiarkRompf/lms-clean.git
 	ignore = dirty
 [submodule "immer"]
 	path = immer
-	url = git@github.com:arximboldi/immer.git
+	url = https://github.com/arximboldi/immer.git
 	ignore = dirty
 
 [submodule "stp"]
 	path = stp
-	url = git@github.com:stp/stp.git
+	url = https://github.com/stp/stp.git
 
 [submodule "coreutils"]
 	path = coreutils
-	url = git@github.com:coreutils/coreutils.git
+	url = https://ithub.com/coreutils/coreutils.git
