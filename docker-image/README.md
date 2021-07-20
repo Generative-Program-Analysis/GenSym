@@ -1,6 +1,6 @@
 ## Build the Docker Image
 
-run `docker build -t <tag> .` under this directory.
+Run `docker build -t <tag> .` under this directory.
 
 ## Get the Prebuild Docker Image
 
