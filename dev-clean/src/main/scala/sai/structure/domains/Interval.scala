@@ -8,10 +8,10 @@ import scala.Double.{NegativeInfinity, PositiveInfinity}
 import sai.structure.lattices.Lattices._
 
 object Interval {
-  private val `+∞` = Double.PositiveInfinity
-  private val `-∞` = Double.NegativeInfinity
+  private val infPos = Double.PositiveInfinity
+  private val infNeg = Double.NegativeInfinity
 
-  val ⊤ = Interval(`-∞`, `+∞`)
+  val ⊤ = Interval(infNeg, infPos)
   val ⊥ = Interval(Double.NaN, Double.NaN)
 
   import NumD._
@@ -39,9 +39,9 @@ object Interval {
         case Interval(lb2, ub2) if !(lb2 <= 0 && 0 <= ub2) =>
           Interval(1/ub2, 1/lb2)
         case Interval(lb2, 0) =>
-          Interval(`-∞`, 1/lb2)
+          Interval(infNeg, 1/lb2)
         case Interval(0, ub2) =>
-          Interval(1/ub2, `+∞`)
+          Interval(1/ub2, infPos)
         case  _ => ⊤
       }
       x * rhs

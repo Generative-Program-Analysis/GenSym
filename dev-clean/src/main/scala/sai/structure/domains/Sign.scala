@@ -15,10 +15,10 @@ trait Sign {
 }
 
 object Signs {
-  val pos = `ℤ+`
-  val neg = `ℤ-`
+  val pos = IntPos
+  val neg = IntNeg
   val zero = O
-  
+
   implicit def SignDomainInstance: NumD[Sign] = new NumD[Sign] {
     def +(x: Sign, y: Sign): Sign = x.+(y)
     def -(x: Sign, y: Sign): Sign = x.-(y)
@@ -78,90 +78,90 @@ case object O extends Sign {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ O
-    case `ℤ+` ⇒ `ℤ+`
-    case `ℤ-` ⇒ `ℤ-`
+    case IntPos ⇒ IntPos
+    case IntNeg ⇒ IntNeg
   }
   def -(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ O
-    case `ℤ+` ⇒ `ℤ-`
-    case `ℤ-` ⇒ `ℤ+`
+    case IntPos ⇒ IntNeg
+    case IntNeg ⇒ IntPos
   }
   def *(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ O
     case O ⇒ O
-    case `ℤ+` ⇒ O
-    case `ℤ-` ⇒ O
+    case IntPos ⇒ O
+    case IntNeg ⇒ O
   }
   def /(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ ⊥
-    case `ℤ+` ⇒ O
-    case `ℤ-` ⇒ O
+    case IntPos ⇒ O
+    case IntNeg ⇒ O
   }
 }
 
-case object `ℤ+` extends Sign {
+case object IntPos extends Sign {
   def +(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
-    case O ⇒ `ℤ+`
-    case `ℤ+` ⇒ `ℤ+`
-    case `ℤ-` ⇒ ⊤
+    case O ⇒ IntPos
+    case IntPos ⇒ IntPos
+    case IntNeg ⇒ ⊤
   }
   def -(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
-    case O ⇒ `ℤ+`
-    case `ℤ+` ⇒ ⊤
-    case `ℤ-` ⇒ `ℤ+`
+    case O ⇒ IntPos
+    case IntPos ⇒ ⊤
+    case IntNeg ⇒ IntPos
   }
   def *(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ O
-    case `ℤ+` ⇒ `ℤ+`
-    case `ℤ-` ⇒ `ℤ-`
+    case IntPos ⇒ IntPos
+    case IntNeg ⇒ IntNeg
   }
   def /(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ ⊥
-    case `ℤ+` ⇒ `ℤ+`
-    case `ℤ-` ⇒ `ℤ-`
+    case IntPos ⇒ IntPos
+    case IntNeg ⇒ IntNeg
   }
 }
 
-case object `ℤ-` extends Sign {
+case object IntNeg extends Sign {
   def +(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
-    case O ⇒ `ℤ-`
-    case `ℤ+` ⇒ ⊤
-    case `ℤ-` ⇒ `ℤ-`
+    case O ⇒ IntNeg
+    case IntPos ⇒ ⊤
+    case IntNeg ⇒ IntNeg
   }
   def -(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
-    case O ⇒ `ℤ-`
-    case `ℤ+` ⇒ `ℤ-`
-    case `ℤ-` ⇒ ⊤
+    case O ⇒ IntNeg
+    case IntPos ⇒ IntNeg
+    case IntNeg ⇒ ⊤
   }
   def *(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ O
-    case `ℤ+` ⇒ `ℤ-`
-    case `ℤ-` ⇒ `ℤ+`
+    case IntPos ⇒ IntNeg
+    case IntNeg ⇒ IntPos
   }
   def /(s: Sign): Sign = s match {
     case ⊥ ⇒ ⊥
     case ⊤ ⇒ ⊤
     case O ⇒ ⊥
-    case `ℤ+` ⇒ `ℤ-`
-    case `ℤ-` ⇒ `ℤ+`
+    case IntPos ⇒ IntNeg
+    case IntNeg ⇒ IntPos
   }
 }
