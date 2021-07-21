@@ -483,7 +483,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           s <- getState
           r <- reflect {
             if (v.isConc) switchFun(v.int, s, table)
-            else switchFunSym(v, s, table)
+            else {
+              Coverage.incPath(table.size)
+              switchFunSym(v, s, table)
+            }
           }
         } yield r
     }
