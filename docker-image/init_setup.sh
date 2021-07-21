@@ -31,6 +31,7 @@ cd build
 cmake ..
 make
 make install
+ldconfig
 
 # SAI/LLSC
 cd /llsc
