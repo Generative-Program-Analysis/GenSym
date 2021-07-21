@@ -18,6 +18,10 @@ curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89
 apt-get update
 apt-get install sbt
 
+cd /llsc
+curl https://downloads.lightbend.com/scala/2.12.10/scala-2.12.10.tgz --output scala-2.12.10.tgz
+tar xvf scala-2.12.10.tgz
+
 # STP
 cd /llsc
 git clone --depth 1 --branch 2.3.3 https://github.com/stp/stp.git
