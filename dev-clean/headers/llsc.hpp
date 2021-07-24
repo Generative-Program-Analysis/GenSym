@@ -619,8 +619,6 @@ inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
-
-// TODO: fix stp construct with bitwidth
 inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {

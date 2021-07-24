@@ -95,19 +95,17 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     }))(comp)
   }
 
-  def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
-    val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
-      State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)
-    val p2: Comp[Nondet ⊗ ∅, Rep[(SS, T)]] = p1.map(a => a)
-    val p3: Comp[∅, Rep[List[(SS, T)]]] = runRepNondet[(SS, T)](p2)
-    p3
+  def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[(SS, T)] = {
+    val p1: Comp[∅, (Rep[SS], Rep[T])] =
+      State.runState[∅, Rep[SS], Rep[T]](s)(comp)
+    val p2: Comp[∅, Rep[(SS, T)]] = p1.map(a => a)
+    p2
   }
 
-  def reflect[T: Manifest](res: Rep[List[(SS, T)]]): Comp[E, Rep[T]] = {
+  def reflect[T: Manifest](res: Rep[(SS, T)]): Comp[E, Rep[T]] = {
     for {
-      ssu <- select[E, (SS, T)](res)
-      _ <- put[Rep[SS], E](ssu._1)
-    } yield ssu._2
+      _ <- put[Rep[SS], E](res._1)
+    } yield res._2
   }
 
   trait Mem
@@ -119,7 +117,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   type BlockLabel = Int
   type Addr = Int
   type PC = Set[SMTBool]
-  type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
+  type E = State[Rep[SS], *] ⊗ ∅
 
   final val BYTE_SIZE: Int = 8
   final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
@@ -208,7 +206,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
 
-  def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String = {
+  def getRealBlockFunName(bf: Rep[SS => (SS, Value)]): String = {
     FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
 
@@ -236,7 +234,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       Rep[Value] = "make_LocV".reflectMutableWith[Value](l, kind, size)
   }
   object FunV {
-    def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
+    def apply(f: Rep[(SS, List[Value]) => (SS, Value)]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
@@ -268,12 +266,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
-    def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+    def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[(SS, Value)] = {
       Unwrap(v) match {
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
-          f.reflectWith[List[(SS, Value)]](s, args)
+          f.reflectWith[(SS, Value)](s, args)
         case _ =>
-          val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
+          val f = v.asRepOf[(SS, List[Value]) => (SS, Value)]
           f(s, args)
       }
     }

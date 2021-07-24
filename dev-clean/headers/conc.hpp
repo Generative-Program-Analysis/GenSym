@@ -482,10 +482,13 @@ class SS {
   private:
     Mem heap;
     Stack stack;
+    Mem sheap;
+    Stack sstack;
     PC pc;
     BlockLabel bb;
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {}
+    SS(Mem heap, Stack stack, Mem sheap, Stack sstack, PC pc, BlockLabel bb)
+      : heap(heap), stack(stack), sheap(sheap), sstack(sstack), pc(pc), bb(bb) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
@@ -505,29 +508,36 @@ class SS {
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb); }
+    // symbolic heap and stack should grow with concrete ones
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack.alloc(size), pc, bb); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, sheap.alloc(size), sstack, pc, bb); }
+    // whenever we update the concrete mem, we should update symbolic ones as well
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb);
-      return SS(heap.update(loc->l, val), stack, pc, bb);
+      if (loc->k == LocV::kStack)
+        return SS(heap, stack.update(loc->l, val), sheap, sstack.update(loc->l, val), pc, bb);
+      return SS(heap.update(loc->l, val), stack, sheap.update(loc->l, val), sstack, pc, bb);
     }
-    SS push() { return SS(heap, stack.push(), pc, bb); }
-    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb); }
-    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb); }
+    // symbolic heap and stack should grow with concrete ones
+    SS push() { return SS(heap, stack.push(), sheap, sstack.push(), pc, bb); }
+    SS pop(size_t keep) { return SS(heap, stack.pop(keep), sheap, sstack.pop(keep), pc, bb); }
+    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), sheap, sstack.assign(id, val), pc, bb); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      return SS(heap, stack.assign_seq(ids, vals), pc, bb);
+      return SS(heap, stack.assign_seq(ids, vals), sheap, sstack.assign_seq(ids, vals), pc, bb);
     }
     SS heap_append(immer::flex_vector<PtrVal> vals) {
-      return SS(heap.append(vals), stack, pc, bb);
+      return SS(heap.append(vals), stack, sheap.append(vals), sstack, pc, bb);
     }
-    SS addPC(SExpr e) { return SS(heap, stack, pc.add(e), bb); }
-    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, pc.addSet(s), bb); }
-    SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
+    SS addPC(SExpr e) { return SS(heap, stack, sheap, sstack, pc.add(e), bb); }
+    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, sheap, sstack, pc.addSet(s), bb); }
+    SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, sheap, sstack, pc, blabel); }
+    // TODO: this function needs rework under concolic situation
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
       // FIXME: ptr size magic
+      // This magic function is mimic the behavior of commandline argument
+      // it creates a symbolic command line arguments of length len
       auto res_stack = stack.alloc(17 + len + 1);
       res_stack = res_stack.update(0, make_LocV(16, LocV::kStack));
       res_stack = res_stack.update(8, make_LocV(17, LocV::kStack));
@@ -538,10 +548,9 @@ class SS {
         arg_index++;
       }
       res_stack = res_stack.update(arg_index, make_IntV(0));
-      return SS(heap, res_stack, pc, bb);
+      return SS(heap, res_stack, sheap, sstack, pc, bb);
     }
     immer::set<SExpr> getPC() { return pc.getPC(); }
-    // TODO temp solution
     PtrVal getVarargLoc() {return stack.getVarargLoc(); }
 };
 
@@ -549,7 +558,7 @@ inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
 inline const PC mt_pc = PC(immer::set<SExpr>{});
 inline const BlockLabel mt_bb = 0;
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_mem, mt_stack, mt_pc, mt_bb);
 
 inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};
@@ -619,8 +628,6 @@ inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
-
-// TODO: fix stp construct with bitwidth
 inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
