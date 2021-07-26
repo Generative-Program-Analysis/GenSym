@@ -133,16 +133,27 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   class SSOps(ss: Rep[SS]) {
     private def assignSeq(xs: List[Int], vs: Rep[List[Value]]): Rep[SS] =
       "ss-assign-seq".reflectWith[SS](ss, xs, vs)
+    private def sassignSeq(xs: List[Int], vs: Rep[List[Value]]): Rep[SS] =
+      "ss-sassign-seq".reflectWith[SS](ss, xs, vs)
 
     def lookup(x: String): Rep[Value] = "ss-lookup-env".reflectWith[Value](ss, x.hashCode)
+    def slookup(x: String): Rep[Value] = "ss-slookup-env".reflectWith[Value](ss, x.hashCode)
     def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
+    def sassign(x: String, v: Rep[Value]): Rep[SS] = "ss-sassign".reflectWith[SS](ss, x.hashCode, v)
+    def sassign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = sassignSeq(xs.map(_.hashCode), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       require(size > 0)
       if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr)
       else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
     }
+    def slookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
+      require(size > 0)
+      if (isStruct == 0) "ss-slookup-addr".reflectWith[Value](ss, addr)
+      else "ss-slookup-addr-struct".reflectWith[Value](ss, addr, size)
+    }
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
+    def supdate(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-supdate".reflectWith[SS](ss, a, v)
     def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
@@ -198,9 +209,12 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def heapAppend(vs: Rep[List[Value]]): Comp[E, Rep[Unit]]  = updateState(_.heapAppend(vs))
   def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
   def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
+  def sstackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.sassign(x, v))
+  def sstackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.sassign(xs, vs))
   def pushFrame: Comp[E, Rep[Unit]] = updateState(_.push)
   def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.pop(keep))
   def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.update(k, v))
+  def supdateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.supdate(k, v))
   def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
@@ -234,7 +248,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       Rep[Value] = "make_LocV".reflectMutableWith[Value](l, kind, size)
   }
   object FunV {
-    def apply(f: Rep[(SS, List[Value]) => (SS, Value)]): Rep[Value] = f.asRepOf[Value]
+    def apply(f: Rep[(SS, List[Value], List[Value]) => (SS, Value)]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
@@ -266,13 +280,13 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
-    def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[(SS, Value)] = {
+    def apply(s: Rep[SS], args: Rep[List[Value]], sargs: Rep[List[Value]]): Rep[(SS, Value)] = {
       Unwrap(v) match {
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
-          f.reflectWith[(SS, Value)](s, args)
+          f.reflectWith[(SS, Value)](s, args, sargs)
         case _ =>
-          val f = v.asRepOf[(SS, List[Value]) => (SS, Value)]
-          f(s, args)
+          val f = v.asRepOf[(SS, List[Value], List[Value]) => (SS, Value)]
+          f(s, args, sargs)
       }
     }
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)

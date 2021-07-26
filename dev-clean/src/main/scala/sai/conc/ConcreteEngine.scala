@@ -146,7 +146,7 @@ trait ConcreteBaseEngine extends SAIOps with StagedNondet with SymExeDefs {
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        ret(FunV(CompileTimeRuntime.FunFuns(id)))
+        ret(IntV(0) /* FunV(CompileTimeRuntime.FunFuns(id))*/)
       case GlobalId(id) if funDeclMap.contains(id) =>
         val v = id match {
           case id if External.modeled_external.contains(id.tail) => id.tail match {
@@ -351,7 +351,7 @@ trait ConcreteBaseEngine extends SAIOps with StagedNondet with SymExeDefs {
           vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(fv(s, List(vs:_*), List(vs:_*)))
           _ <- popFrame(s.stackSize)
         } yield v
 
@@ -446,7 +446,7 @@ trait ConcreteBaseEngine extends SAIOps with StagedNondet with SymExeDefs {
           vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(fv(s, List(vs:_*), List(vs:_*)))
           _ <- popFrame(s.stackSize)
         } yield ()
     }
@@ -566,7 +566,7 @@ trait ConcreteBaseEngine extends SAIOps with StagedNondet with SymExeDefs {
         fv <- eval(GlobalId(fname))(VoidType)(fname)
         _ <- pushFrame
         s <- getState
-        v <- reflect(fv(s, args))
+        v <- reflect(fv(s, args, args))
         // Optimization: for entrance function, no need to pop
         //_ <- popFrame(s.stackSize)
       } yield v
@@ -577,7 +577,7 @@ trait ConcreteBaseEngine extends SAIOps with StagedNondet with SymExeDefs {
         _ <- pushFrame
         _ <- initializeArg(symarg)
         s <- getState
-        v <- reflect(fv(s, commandLineArgs))
+        v <- reflect(fv(s, commandLineArgs, args))
         //_ <- popFrame(s.stackSize)
       } yield v
     }

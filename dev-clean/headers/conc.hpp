@@ -490,6 +490,7 @@ class SS {
     SS(Mem heap, Stack stack, Mem sheap, Stack sstack, PC pc, BlockLabel bb)
       : heap(heap), stack(stack), sheap(sheap), sstack(sstack), pc(pc), bb(bb) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
+    PtrVal senv_lookup(Id id) { return sstack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
@@ -500,34 +501,57 @@ class SS {
       if (loc->k == LocV::kStack) return stack.at(loc->l);
       return heap.at(loc->l);
     }
+    // if a size is specified, we want to retreive a struct value
     PtrVal at(PtrVal addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l, size);
       return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
+    PtrVal sat(PtrVal addr) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return sstack.at(loc->l);
+      return sheap.at(loc->l);
+    }
+    PtrVal sat(PtrVal addr, int size) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return sstack.at(loc->l, size);
+      return std::make_shared<StructV>(sheap.take(loc->l + size).drop(loc->l).getMem());
+    }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
     // symbolic heap and stack should grow with concrete ones
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack.alloc(size), pc, bb); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, sheap.alloc(size), sstack, pc, bb); }
-    // whenever we update the concrete mem, we should update symbolic ones as well
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack)
-        return SS(heap, stack.update(loc->l, val), sheap, sstack.update(loc->l, val), pc, bb);
-      return SS(heap.update(loc->l, val), stack, sheap.update(loc->l, val), sstack, pc, bb);
+        return SS(heap, stack.update(loc->l, val), sheap, sstack, pc, bb);
+      return SS(heap.update(loc->l, val), stack, sheap, sstack, pc, bb);
+    }
+    SS supdate(PtrVal addr, PtrVal val) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack)
+        return SS(heap, stack, sheap, sstack.update(loc->l, val), pc, bb);
+      return SS(heap, stack, sheap.update(loc->l, val), sstack, pc, bb);
     }
     // symbolic heap and stack should grow with concrete ones
     SS push() { return SS(heap, stack.push(), sheap, sstack.push(), pc, bb); }
     SS pop(size_t keep) { return SS(heap, stack.pop(keep), sheap, sstack.pop(keep), pc, bb); }
-    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), sheap, sstack.assign(id, val), pc, bb); }
+    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), sheap, sstack, pc, bb); }
+    SS sassign(Id id, PtrVal val) { return SS(heap, stack, sheap, sstack.assign(id, val), pc, bb); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      return SS(heap, stack.assign_seq(ids, vals), sheap, sstack.assign_seq(ids, vals), pc, bb);
+      return SS(heap, stack.assign_seq(ids, vals), sheap, sstack, pc, bb);
+    }
+    SS sassign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
+      return SS(heap, stack, sheap, sstack.assign_seq(ids, vals), pc, bb);
     }
     SS heap_append(immer::flex_vector<PtrVal> vals) {
-      return SS(heap.append(vals), stack, sheap.append(vals), sstack, pc, bb);
+      return SS(heap.append(vals), stack, sheap, sstack, pc, bb);
     }
     SS addPC(SExpr e) { return SS(heap, stack, sheap, sstack, pc.add(e), bb); }
     SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, sheap, sstack, pc.addSet(s), bb); }

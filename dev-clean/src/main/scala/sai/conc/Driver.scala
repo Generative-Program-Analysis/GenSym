@@ -15,7 +15,7 @@ import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
 
 abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
-    extends SAISnippet[A, B] with SAIOps with ConcreteBaseEngine { q =>
+    extends SAISnippet[A, B] with SAIOps with ConcolicEngine { q =>
 
   import java.io.{File, PrintStream}
 
@@ -102,8 +102,9 @@ object RunConc {
   def specialize(m: Module, name: String, fname: String, nSym: Int): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./conc") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
-        val res = exec(m, fname, args, false, 4) // FIXME: pass isCommandLine, symarg=4 seems doesn't work on mp1p?
+        val args: Rep[List[Value]] = List.fill(nSym)(IntV(0))
+        val sargs: Rep[List[Value]] = SymV.makeSymVList(nSym)
+        val res = exec(m, fname, args, sargs, false, 4) // FIXME: pass isCommandLine, symarg=4 seems doesn't work on mp1p?
         // query SMT for 1 test
         //SS.checkPCToFile(res(0)._1)
         ()

@@ -36,8 +36,8 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
     val BBFuns: HashMap[(String, BB), Rep[SS => (SS, Value)]] = new HashMap[(String, BB), Rep[SS => (SS, Value)]]
-    val FunFuns: HashMap[String, Rep[(SS, List[Value]) => (SS, Value)]] =
-      new HashMap[String, Rep[(SS, List[Value]) => (SS, Value)]]
+    val FunFuns: HashMap[String, Rep[(SS, List[Value], List[Value]) => (SS, Value)]] =
+      new HashMap[String, Rep[(SS, List[Value], List[Value]) => (SS, Value)]]
 
     def getBBFun(funName: String, blockLab: String): Rep[SS => (SS, Value)] = {
       getBBFun(funName, findBlock(funName, blockLab).get)
@@ -119,22 +119,25 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
   // Note: now ty is mainly for eval IntConst to contain bit width
   // does it have some other implications?
   // ty remove curring + can be optional?
-  def eval(v: LLVMValue)(ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] = {
+  def eval(v: LLVMValue, ty: LLVMType)(implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
-        for { ss <- getState } yield ss.lookup(funName + "_" + x)
+        for { ss <- getState } yield {
+          if (isSym) ss.slookup(funName + "_" + x)
+          else ss.lookup(funName + "_" + x)
+        }
       case IntConst(n) =>
         ret(IntV(n, ty.asInstanceOf[IntType].size))
       case FloatConst(f) =>
         ret(FloatV(f))
       // case ArrayConst(cs) =>
       case BitCastExpr(from, const, to) =>
-        eval(const)(to)
+        eval(const, to)
       case BoolConst(b) => b match {
         case true => ret(IntV(1, 1))
         case false => ret(IntV(0, 1))
       }
-      // case CharArrayConst(s) =>
+      // TODO: two set of functions?
       case GlobalId(id) if funMap.contains(id) =>
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
@@ -167,8 +170,8 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
         for {
-          vs <- mapM(indexLLVMValue)(eval(_)(IntType(32)))
-          lV <- eval(const)(ptrType)
+          vs <- mapM(indexLLVMValue)(eval(_, IntType(32)))
+          lV <- eval(const, ptrType)
         } yield {
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
@@ -219,15 +222,16 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
       evalHeapConst(const, to)
   }
 
-  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] =
-    for { v1 <- eval(lhs)(ty); v2 <- eval(rhs)(ty) } yield IntOp2(op, v1, v2)
+  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)
+    (implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] =
+    for { v1 <- eval(lhs, ty); v2 <- eval(rhs, ty) } yield IntOp2(op, v1, v2)
 
-  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] =
-    for { v1 <- eval(lhs)(ty); v2 <- eval(rhs)(ty) } yield FloatOp2(op, v1, v2)
+  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)
+    (implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] =
+    for { v1 <- eval(lhs, ty); v2 <- eval(rhs, ty) } yield FloatOp2(op, v1, v2)
 
-  def execValueInst(inst: ValueInstruction)(implicit funName: String): Comp[E, Rep[Value]] = {
+  def execValueInst(inst: ValueInstruction)(implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] = {
     inst match {
-      // Memory Access Instructions
       case AllocaInst(ty, align) =>
         for {
           ss <- getState
@@ -239,14 +243,20 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
           case _ => 0
         }
         for {
-          v <- eval(value)(ptrTy)
+          v <- eval(value, ptrTy)
           ss <- getState
-        } yield ss.lookup(v, getTySize(valTy), isStruct)
+        } yield {
+          if (isSym)
+            ss.lookup(v, getTySize(valTy), isStruct)
+          else
+            ss.slookup(v, getTySize(valTy), isStruct)
+        }
+      // We are not modeling symbolic address
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
-          vs <- mapM(indexLLVMValue)(eval(_)(IntType(32)))
-          lV <- eval(ptrValue)(ptrType)
+          vs <- mapM(indexLLVMValue)(eval(_, IntType(32)))
+          lV <- eval(ptrValue, ptrType)
         } yield {
           val indexValue = vs.map(v => v.int)
           val offset = calculateOffset(ptrType, indexValue)
@@ -283,28 +293,28 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
       // TODO zext to type
       case ZExtInst(from, value, to) =>
         for {
-          v <- eval(value)(from)
+          v <- eval(value, from)
         } yield v
       case SExtInst(from, value, to) =>  for {
-        v <- eval(value)(from)
+        v <- eval(value, from)
       } yield v.bv_sext(to.asInstanceOf[IntType].size)
       case TruncInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
+        for { v <- eval(value, from) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
       case FpExtInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v
+        for { v <- eval(value, from) } yield v
       case FpToUIInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v.fp_toui(to.asInstanceOf[IntType].size)
+        for { v <- eval(value, from) } yield v.fp_toui(to.asInstanceOf[IntType].size)
       case FpToSIInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
+        for { v <- eval(value, from) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
       case UiToFPInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v.ui_tofp
+        for { v <- eval(value, from) } yield v.ui_tofp
       case SiToFPInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v.si_tofp
+        for { v <- eval(value, from) } yield v.si_tofp
       case PtrToIntInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield v.to_IntV
+        for { v <- eval(value, from) } yield v.to_IntV
       case IntToPtrInst(from, value, to) =>
-        for { v <- eval(value)(from) } yield LocV(v.int, LocV.kStack)
-      case BitCastInst(from, value, to) => eval(value)(to)
+        for { v <- eval(value, from) } yield LocV(v.int, LocV.kStack)
+      case BitCastInst(from, value, to) => eval(value, to)
 
       // Aggregate Operations
       /* Backend Work Needed */
@@ -326,7 +336,7 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         val idx = calculateOffsetStatic(ty, idxList)
         for {
           // v is expected to be StructV in backend
-          v <- eval(struct)(ty)
+          v <- eval(struct, ty)
         } yield v.structAt(idx)
 
       // Other operations
@@ -339,12 +349,23 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         val argTypes: List[LLVMType] = args.map {
           case TypedArg(ty, attrs, value) => ty
         }
+        // FIXME: Question: Consider program
+        // def @id x = x
+        // In main function:
+        // %a = call @id %x // %x has symbolic value
+        // condbr a l1 l2
+        // we should not allow symbolically execute f, but how to track x?
+
+        // idea 1: precompile one function to two version,
+        // one return concrete value, one return symbolic value
+        implicit val isSym = false
         for {
-          fv <- eval(f)(VoidType)
-          vs <- mapM2(argValues)(argTypes)(eval)
+          fv <- eval(f, VoidType)
+          vs <- mapM2N(argValues)(argTypes)(eval)
+          svs <- mapM2N(argValues)(argTypes)(eval(_, _)(funName, true))
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(fv(s, List(vs:_*), List(svs:_*)))
           _ <- popFrame(s.stackSize)
         } yield v
 
@@ -357,26 +378,50 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         val incsLabels: List[BlockLabel] = incs.map(inc => inc.label.hashCode)
 
         for {
-          vs <- mapM(incsValues)(eval(_)(ty))
+          vs <- mapM(incsValues)(eval(_, ty))
           s <- getState
         } yield selectValue(s.incomingBlock, vs, incsLabels)
+      // for select we must eval cnd concretely, then we can eval each branch symbolically
+      // TODO: THIS IS TOO UGLY!!
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         for {
-          cnd <- eval(cndVal)(cndTy)
+          cnd <- eval(cndVal, cndTy)(funName, false)
+          scnd <- eval(cndVal, cndTy)(funName, true)
           s <- getState
           v <- reflect {
-            if (cnd.int == 1) reify(s)(eval(thnVal)(thnTy))
-            else reify(s)(eval(elsVal)(elsTy))
+            if (cnd.int == 1) {
+              if (!isSym) reify(s)(eval(thnVal, thnTy)(funName, false))
+              else {
+                if (scnd.isConc) reify(s)(eval(thnVal, thnTy))
+                else reify(s) {
+                  for {
+                    _ <- updatePC(scnd.toSMTBool)
+                    v <- eval(thnVal, thnTy)(funName, true)
+                  } yield v
+                }
+              }
+            } else {
+              if (!isSym) reify(s)(eval(elsVal, elsTy)(funName, false))
+              else {
+                if (scnd.isConc) reify(s)(eval(elsVal, elsTy))
+                else reify(s) {
+                  for {
+                    _ <- updatePC(scnd.toSMTBool)
+                    v <- eval(elsVal, elsTy)(funName, true)
+                  } yield v
+                }
+              }
+            }
           }
         } yield v
     }
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(inst: Terminator, incomingBlock: String)(implicit funName: String): Comp[E, Rep[Value]] = {
+  def execTerm(inst: Terminator, incomingBlock: String)(implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] = {
     inst match {
       case Unreachable => ret(NullV())
-      case RetTerm(ty, Some(value)) => eval(value)(ty)
+      case RetTerm(ty, Some(value)) => eval(value, ty)
       case RetTerm(ty, None) => ret(NullV())
       case BrTerm(lab) =>
         for {
@@ -387,10 +432,26 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         for {
           _ <- updateIncomingBlock(incomingBlock)
           ss <- getState
-          cndVal <- eval(cnd)(ty)
+          cndVal <- eval(cnd, ty)
+          scndVal <- eval(cnd, ty)(funName, true)
           u <- reflect {
-            if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
-            else reify(ss)(execBlock(funName, elsLab))
+            if (cndVal.int == 1) {
+              if (scndVal.isConc) reify(ss)(execBlock(funName, thnLab))
+              else reify(ss) {
+                for {
+                  _ <- updatePC(scndVal.toSMTBool)
+                  v <- execBlock(funName, thnLab)
+                } yield v
+              }
+            } else {
+              if (scndVal.isConc) reify(ss)(execBlock(funName, elsLab))
+              else reify(ss) {
+                for {
+                  _ <- updatePC(scndVal.toSMTBool)
+                  v <- execBlock(funName, elsLab)
+                } yield v
+              }
+            }
           }
         } yield u
       case SwitchTerm(cndTy, cndVal, default, table) =>
@@ -404,7 +465,7 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
 
         for {
           _ <- updateIncomingBlock(incomingBlock)
-          v <- eval(cndVal)(cndTy)
+          v <- eval(cndVal, cndTy)
           s <- getState
           r <- reflect {
             switchFun(v.int, s, table)
@@ -417,15 +478,18 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
     inst match {
       case AssignInst(x, valInst) =>
         for {
-          v <- execValueInst(valInst)(fun)
-          // sv <- execValueInstSymb(valInst)(fun)
+          v <- execValueInst(valInst)(fun, false)
+          sv <- execValueInst(valInst)(fun, true)
           _ <- stackUpdate(fun + "_" + x, v)
+          _ <- sstackUpdate(fun + "_" + x, sv)
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
-          v1 <- eval(val1)(ty1)
-          v2 <- eval(val2)(ty2)
+          v1 <- eval(val1, ty1)(fun, false)
+          sv1 <- eval(val1, ty1)(fun, true)
+          v2 <- eval(val2, ty2)(fun, false)
           _ <- updateMem(v2, v1)
+          _ <- supdateMem(v2, sv1)
         } yield ()
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
@@ -434,12 +498,14 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         val argTypes: List[LLVMType] = args.map {
           case TypedArg(ty, attrs, value) => ty
         }
+        implicit val isSym = false
         for {
-          fv <- eval(f)(VoidType)
-          vs <- mapM2(argValues)(argTypes)(eval)
+          fv <- eval(f, VoidType)
+          vs <- mapM2N(argValues)(argTypes)(eval)
+          svs <- mapM2N(argValues)(argTypes)(eval(_, _)(fun, true))
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(fv(s, List(vs:_*), List(svs:_*)))
           _ <- popFrame(s.stackSize)
         } yield ()
     }
@@ -479,7 +545,6 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
   def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
     prevSize: Int, mname: String): StaticList[Rep[Value]] =
     globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-      // TODO external_weak linkage
       val realID = mname + "_" + v.id
       val addr = h.size + prevSize
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (realID -> unit(addr))
@@ -505,7 +570,7 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
       Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
-        v <- execTerm(b.term, b.label.getOrElse(""))(funName)
+        v <- execTerm(b.term, b.label.getOrElse(""))(funName, false)
       } yield v
       reify[Value](ss)(runInstList)
     }
@@ -521,7 +586,7 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileFunctions(funs: List[FunctionDef]): Unit = {
-    def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[(SS, Value)] = {
+    def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]], sargs: Rep[List[Value]]): Rep[(SS, Value)] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
@@ -529,6 +594,7 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
       unchecked("// compiling function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
+        _ <- sstackUpdate(params, sargs)
         s <- getState
         v <- execBlock(f.id, f.blocks(0))
       } yield v
@@ -537,14 +603,14 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value]) => (SS, Value)] = topFun(runFun(f))
+      val repRunFun: Rep[(SS, List[Value], List[Value]) => (SS, Value)] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
       FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
 
-  def exec(main: Module, fname: String, args: Rep[List[Value]],
+  def exec(main: Module, fname: String, args: Rep[List[Value]], sargs: Rep[List[Value]],
     isCommandLine: Boolean = false, symarg: Int = 0): Rep[(SS, Value)] = {
     CompileTimeRuntime.funMap = main.funcDefMap
     CompileTimeRuntime.funDeclMap = main.funcDeclMap
@@ -556,21 +622,21 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
     val heap0 = preHeap.asRepOf[Mem]
     val comp = if (!isCommandLine) {
       for {
-        fv <- eval(GlobalId(fname))(VoidType)(fname)
+        fv <- eval(GlobalId(fname), VoidType)(fname, false)
         _ <- pushFrame
         s <- getState
-        v <- reflect(fv(s, args))
+        v <- reflect(fv(s, args, sargs))
         // Optimization: for entrance function, no need to pop
         //_ <- popFrame(s.stackSize)
       } yield v
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
       for {
-        fv <- eval(GlobalId(fname))(VoidType)(fname)
+        fv <- eval(GlobalId(fname), VoidType)(fname, false)
         _ <- pushFrame
         _ <- initializeArg(symarg)
         s <- getState
-        v <- reflect(fv(s, commandLineArgs))
+        v <- reflect(fv(s, commandLineArgs, sargs))
         //_ <- popFrame(s.stackSize)
       } yield v
     }
