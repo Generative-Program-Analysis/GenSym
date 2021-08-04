@@ -452,7 +452,7 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
               if (scndVal.isConc) reify(ss)(execBlock(funName, elsLab))
               else reify(ss) {
                 for {
-                  _ <- updatePC(scndVal.toSMTBool)
+                  _ <- updatePC(scndVal.toSMTBoolNeg)
                   v <- execBlock(funName, elsLab)
                 } yield v
               }

@@ -743,7 +743,7 @@ inline void construct_STP_constraints(VC vc, immer::flex_vector<PtrVal> pc) {
     //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
     //    n = write(out_fd, "\n", 1);
   }
-  if (concolic_debug) vc_printAsserts(vc, 1);
+  if (concolic_debug) vc_printAsserts(vc, 0);
 }
 
 // returns true if it is sat, otherwise false
@@ -907,11 +907,13 @@ struct CoverageMonitor {
     void start_monitor() {
       std::thread([this]{
         while (this->block_cov.size() <= this->num_blocks) {
+        if (!concolic_debug) {
           print_time();
           print_block_cov();
           print_path_cov();
           print_async();
           print_query_num();
+        }
           std::this_thread::sleep_for(seconds(1));
         }
       }).detach();
@@ -928,7 +930,7 @@ inline void handle_cli_args(int argc, char** argv) {
   }
   int t = std::stoi(argv[1]);
   if (t <= 0) {
-    std::cout << "Invalid #threads, use 1 instead.\\n";
+    std::cout << "Invalid #threads, use 1 instead.\n";
     MAX_ASYNC = 0;
   } else {
     MAX_ASYNC = t - 1;
@@ -1032,6 +1034,12 @@ inline immer::flex_vector<CInput> gen_new_input(Input args, Input sargs,
 
 inline immer::flex_vector<CInput> expand_exec(CInput input) {
   auto [bound, args, sargs] = input;
+  if (concolic_debug) {
+    for (int i = 0; i < args.size(); i++) {
+      std::cout << std::dynamic_pointer_cast<IntV>(args[i])->i << " ";
+    }
+    std::cout << std::endl;
+  }
   immer::flex_vector<SExpr> this_pc = conc_exec(args, sargs);
   immer::flex_vector<CInput> new_inputs = immer::flex_vector<CInput>{};
   for (int i = bound; i < this_pc.size(); i++) {
