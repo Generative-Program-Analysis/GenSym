@@ -11,9 +11,9 @@ import sai.lmsx.smt._
 import java.io.FileOutputStream
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
-  registerHeader("./headers", "<llsc.hpp>")
-  registerHeader("./headers", "<intrinsics.hpp>")
-  registerHeader("./headers", "<external.hpp>")
+  registerHeader("./headers", "<conc.hpp>")
+  // registerHeader("./headers", "<intrinsics.hpp>")
+  // registerHeader("./headers", "<external.hpp>")
 
   registerHeader("<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")
@@ -21,6 +21,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   val codegenFolder: String
 
   override def quote(s: Def): String = s match {
+    case Sym(n) if n == FunName.conc_exec => "conc_exec" 
     case Sym(n) =>
       FunName.funMap.getOrElse(n, {
         FunName.blockMap.getOrElse(n, super.quote(s))
@@ -86,13 +87,15 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-slookup-addr-struct", List(ss, a, sz), _) => es"$ss.sat($a, $sz)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
     case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
-    case Node(s, "ss-sassign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
+    case Node(s, "ss-sassign", List(ss, k, v), _) => es"$ss.sassign($k, $v)"
     case Node(s, "ss-assign-seq", List(ss, ks, vs), _) => es"$ss.assign_seq($ks, $vs)"
     case Node(s, "ss-sassign-seq", List(ss, ks, vs), _) => es"$ss.sassign_seq($ks, $vs)"
     case Node(s, "ss-heap-size", List(ss), _) => es"$ss.heap_size()"
     case Node(s, "ss-heap-append", List(ss, vs), _) => es"$ss.heap_append($vs)"
     case Node(s, "ss-stack-size", List(ss), _) => es"$ss.stack_size()"
+    case Node(s, "ss-sstack-size", List(ss), _) => es"$ss.sstack_size()"
     case Node(s, "ss-alloc-stack", List(ss, n), _) => es"$ss.alloc_stack($n)"
+    case Node(s, "ss-alloc-sstack", List(ss, n), _) => es"$ss.alloc_sstack($n)"
     case Node(s, "ss-update", List(ss, k, v), _) => es"$ss.update($k, $v)"
     case Node(s, "ss-supdate", List(ss, k, v), _) => es"$ss.supdate($k, $v)"
     case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
@@ -165,11 +168,15 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   def emitFunctionFiles: Unit = {
     for ((f, (_, funStream)) <- functionsStreams) {
       if (!FunName.blockMap.values.exists(_ == f)) {
-        val filename = s"$codegenFolder/$f.cpp"
-        val out = new java.io.PrintStream(filename)
-        out.println("#include \"common.h\"")
-        funStream.writeTo(out)
-        out.close
+        if (f == "conc_exec") {
+          funStream.writeTo(stream)
+        } else {
+          val filename = s"$codegenFolder/$f.cpp"
+          val out = new java.io.PrintStream(filename)
+          out.println("#include \"common.h\"")
+          funStream.writeTo(out)
+          out.close
+        }
       }
     }
 
@@ -192,7 +199,6 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     val src = run(name, ng)
 
     emitHeaderFile
-    emitFunctionFiles
     emitInit(stream)
 
     emitln(s"/* Generated main file: $name */")
@@ -208,6 +214,8 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     |  cov.print_path_cov();
     |  return 0;
     |} """.stripMargin)
+
+    emitFunctionFiles
     //if (initStream.size > 0)
     //  emitln("if (init()) return 0;")
   }

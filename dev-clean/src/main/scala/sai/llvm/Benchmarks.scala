@@ -13,6 +13,8 @@ object Benchmarks {
   lazy val arrayGetSet = parseFile("benchmarks/llvm/arrayGetSet.ll")
   lazy val loop = parseFile("benchmarks/llvm/loopTest.ll")
   lazy val branch = parseFile("benchmarks/llvm/branch.ll")
+  lazy val branch2 = parseFile("benchmarks/llvm/branch2.ll")
+  lazy val branch3 = parseFile("benchmarks/llvm/branch3.ll")
   lazy val makeSymbolicArray = parseFile("benchmarks/llvm/makeSymbolicArray.ll")
   lazy val makeSymbolicDouble = parseFile("benchmarks/llvm/makeSymbolicDouble.ll")
   lazy val switchTestConc = parseFile("benchmarks/llvm/switchTestConc.ll")

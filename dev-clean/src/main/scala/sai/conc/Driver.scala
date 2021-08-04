@@ -14,7 +14,7 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
 
-abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
+abstract class ConcDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
     extends SAISnippet[A, B] with SAIOps with ConcolicEngine { q =>
 
   import java.io.{File, PrintStream}
@@ -99,16 +99,47 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
 
 object RunConc {
   @virtualize
-  def specialize(m: Module, name: String, fname: String, nSym: Int): LLSCDriver[Int, Unit] =
-    new LLSCDriver[Int, Unit](name, "./conc") {
+  def specialize(m: Module, name: String, fname: String, nSym: Int): ConcDriver[Int, Unit] =
+    new ConcDriver[Int, Unit](name, "./conc_gen") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = List.fill(nSym)(IntV(0))
-        val sargs: Rep[List[Value]] = SymV.makeSymVList(nSym)
-        val res = exec(m, fname, args, sargs, false, 4) // FIXME: pass isCommandLine, symarg=4 seems doesn't work on mp1p?
-        // query SMT for 1 test
-        //SS.checkPCToFile(res(0)._1)
-        ()
+        val args: Rep[List[Value]] = gen_init_args(false)
+        val sargs: Rep[List[Value]] = gen_init_args(true)
+        val s_conc_exec = topFun(conc_exec(_,_))
+        FunName.conc_exec = Unwrap(s_conc_exec).asInstanceOf[Backend.Sym].n
+        // hack to force invoke conc_exec function
+        if (repFalse) s_conc_exec(args, sargs)
+        conc_main(args, sargs)
       }
+
+      def get_args_num: Int = m.funcDefMap(fname).header.params.size
+
+      def gen_init_args(isSym: Boolean): Rep[List[Value]] = {
+        val param_list = m.funcDefMap(fname).header.params.asInstanceOf[List[TypedParam]]
+        var x: Int = 0
+        val initList = param_list map { u =>
+          u.ty match {
+            case IntType(size) =>
+              if (!isSym) IntV(0, size) else {
+                x = x + 1
+                SymV("arg" + x, size)
+              }
+            case PtrType(ty, addrSpace) => ???
+          }
+        }
+        List[Value](initList: _*)
+      }
+
+      def conc_exec(args: Rep[List[Value]], sargs: Rep[List[Value]]) = {
+        val res = exec(m, fname, args, sargs)
+        res._1.pc
+      }
+
+      // val s_conc_exec = hardFun(conc_exec(_,_))
+
+      def conc_main(args: Rep[List[Value]], sargs: Rep[List[Value]]): Rep[Unit] =
+        "conc_main".reflectWriteWith[Unit](args, sargs)(Adapter.CTRL)
+
+      def repFalse = unchecked[Boolean]("false")
     }
 
   def runLLSC(m: Module, name: String, fname: String, nSym: Int = 0) {
@@ -133,7 +164,7 @@ object RunConc {
       runLLSC(parseFile(filepath), appName, fun, nSym)
     }
 
-    //runLLSC(sai.llvm.Benchmarks.add, "add.cpp", "@add")
+    runLLSC(sai.llvm.Benchmarks.branch3, "branch3Test", "@f")
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
     //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")

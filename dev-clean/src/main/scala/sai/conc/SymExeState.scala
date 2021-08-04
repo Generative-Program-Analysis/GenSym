@@ -34,8 +34,21 @@ import scala.collection.mutable.{Set => MultableSet}
      not a valid use of identifiers.
  */
 
+trait SymExeTypes extends SAIOps with StagedNondet {
+  trait Mem
+  trait Value
+  trait Stack
+  trait SS
+
+  type IntData = Long
+  type BlockLabel = Int
+  type Addr = Int
+  type PC = List[SMTBool]
+  type E = State[Rep[SS], *] ⊗ ∅
+}
+
 @virtualize
-trait SymExeDefs extends SAIOps with StagedNondet {
+trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
   object Coverage {
     import scala.collection.mutable.HashMap
     private var counter: Int = 0
@@ -108,16 +121,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     } yield res._2
   }
 
-  trait Mem
-  trait Value
-  trait Stack
-  trait SS
-
-  type IntData = Long
-  type BlockLabel = Int
-  type Addr = Int
-  type PC = Set[SMTBool]
-  type E = State[Rep[SS], *] ⊗ ∅
 
   final val BYTE_SIZE: Int = 8
   final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
@@ -155,12 +158,14 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
     def supdate(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-supdate".reflectWith[SS](ss, a, v)
     def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
+    def allocsStack(n: Rep[Int]): Rep[SS] = "ss-alloc-sstack".reflectWith[SS](ss, n)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
     def heapSize: Rep[Int] = "ss-heap-size".reflectWith[Int](ss)
     def heapAppend(vs: Rep[List[Value]]) = "ss-heap-append".reflectWith[SS](ss, vs)
 
     def stackSize: Rep[Int] = "ss-stack-size".reflectWith[Int](ss)
+    def sstackSize: Rep[Int] = "ss-sstack-size".reflectWith[Int](ss)
     def freshStackAddr: Rep[Addr] = stackSize
 
     def push: Rep[SS] = "ss-push".reflectWith[SS](ss)
@@ -345,4 +350,5 @@ object FunName {
   // Maps LMS node ids to real function names
   val funMap: MultableMap[Int, String] = MultableMap()
   val blockMap: MultableMap[Int, String] = MultableMap()
+  var conc_exec: Int = _
 }

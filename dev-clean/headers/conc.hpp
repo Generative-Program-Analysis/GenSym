@@ -469,13 +469,13 @@ class Stack {
 
 class PC {
   private:
-    immer::set<SExpr> pc;
+    immer::flex_vector<SExpr> pc;
   public:
-    PC(immer::set<SExpr> pc) : pc(pc) {}
-    PC add(SExpr e) { return PC(pc.insert(e)); }
-    PC addSet(immer::set<SExpr> new_pc) { return PC(Set::join(pc, new_pc)); }
-    immer::set<SExpr> getPC() { return pc; }
-    void print() { print_set(pc); }
+    PC(immer::flex_vector<SExpr> pc) : pc(pc) {}
+    PC add(SExpr e) { return PC(pc.push_back(e)); }
+    PC addSet(immer::flex_vector<SExpr> new_pc) { return PC(pc + new_pc); }
+    immer::flex_vector<SExpr> getPC() { return pc; }
+    void print() { print_vec(pc); }
 };
 
 class SS {
@@ -487,12 +487,15 @@ class SS {
     PC pc;
     BlockLabel bb;
   public:
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb)
+      : heap(heap), stack(stack), sheap(heap), sstack(stack), pc(pc), bb(bb) {}
     SS(Mem heap, Stack stack, Mem sheap, Stack sstack, PC pc, BlockLabel bb)
       : heap(heap), stack(stack), sheap(sheap), sstack(sstack), pc(pc), bb(bb) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     PtrVal senv_lookup(Id id) { return sstack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
+    size_t sstack_size() { return sstack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
     PtrVal at(PtrVal addr) {
@@ -523,8 +526,9 @@ class SS {
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
     // symbolic heap and stack should grow with concrete ones
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack.alloc(size), pc, bb); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, sheap.alloc(size), sstack, pc, bb); }
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack, pc, bb); }
+    SS alloc_sstack(size_t size) { return SS(heap, stack, sheap, sstack.alloc(size), pc, bb); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, heap, sstack, pc, bb); }
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
@@ -554,7 +558,7 @@ class SS {
       return SS(heap.append(vals), stack, sheap, sstack, pc, bb);
     }
     SS addPC(SExpr e) { return SS(heap, stack, sheap, sstack, pc.add(e), bb); }
-    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, sheap, sstack, pc.addSet(s), bb); }
+    SS addPCSet(immer::flex_vector<SExpr> s) { return SS(heap, stack, sheap, sstack, pc.addSet(s), bb); }
     SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, sheap, sstack, pc, blabel); }
     // TODO: this function needs rework under concolic situation
     SS init_arg(int len) {
@@ -574,13 +578,13 @@ class SS {
       res_stack = res_stack.update(arg_index, make_IntV(0));
       return SS(heap, res_stack, sheap, sstack, pc, bb);
     }
-    immer::set<SExpr> getPC() { return pc.getPC(); }
+    immer::flex_vector<SExpr> getPC() { return pc.getPC(); }
     PtrVal getVarargLoc() {return stack.getVarargLoc(); }
 };
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-inline const PC mt_pc = PC(immer::set<SExpr>{});
+inline const PC mt_pc = PC(immer::flex_vector<SExpr>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_mem, mt_stack, mt_pc, mt_bb);
 
@@ -646,6 +650,7 @@ auto create_async(std::function<T()> f) -> std::future<T> {
 }
 
 // STP interaction
+#define concolic_debug 1
 inline bool use_solver = true;
 inline bool use_global_solver = false;
 inline unsigned int test_query_num = 0;
@@ -660,16 +665,21 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   auto sym_e = std::dynamic_pointer_cast<SymV>(e);
   if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
 
+  // if (!sym_e->name.empty()) {
+  //   auto name = sym_e->name;
+  //   auto it = stp_env.find(name);
+  //   if (it == stp_env.end()) {
+  //     Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
+  //     stp_env.insert(std::make_pair(name, stp_expr));
+  //     return stp_expr;
+  //   }
+  //   return it->second;
+  // }
+
   if (!sym_e->name.empty()) {
-    // TODO: does STP already cache var expr?
     auto name = sym_e->name;
-    //auto it = stp_env.find(name);
-    //if (it == stp_env.end()) {
     Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-      //stp_env.insert(std::make_pair(name, stp_expr));
     return stp_expr;
-    //}
-    //return it->second;
   }
 
   std::vector<Expr> expr_rands;
@@ -679,32 +689,32 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   }
   switch (sym_e->rator) {
     case op_add:
-      return vc_bvPlusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvPlusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_sub:
-      return vc_bvMinusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvMinusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_mul:
-      return vc_bvMultExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvMultExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_sdiv:
     case op_udiv:
-      return vc_bvDivExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvDivExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_uge:
-      return vc_bvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_sge:
-      return vc_sbvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_sbvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_ugt:
-      return vc_bvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_sgt:
-      return vc_sbvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_sbvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_ule:
-      return vc_bvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_sle:
-      return vc_sbvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_sbvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_ult:
-      return vc_bvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_bvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_slt:
-      return vc_sbvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_sbvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_eq:
-      return vc_eqExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      return vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1));
     case op_neq:
       return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1)));
     case op_neg:
@@ -724,7 +734,7 @@ inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   ABORT("unkown operator when constructing STP expr");
 }
 
-inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
+inline void construct_STP_constraints(VC vc, immer::flex_vector<PtrVal> pc) {
   for (auto e : pc) {
     Expr stp_expr = construct_STP_expr(vc, e);
     vc_assertFormula(vc, stp_expr);
@@ -733,11 +743,12 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
     //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
     //    n = write(out_fd, "\n", 1);
   }
+  if (concolic_debug) vc_printAsserts(vc, 1);
 }
 
 // returns true if it is sat, otherwise false
 // XXX: should explore paths with timeout/no-answer cond?
-inline bool check_pc(immer::set<PtrVal> pc) {
+inline bool check_pc(immer::flex_vector<PtrVal> pc) {
   if (!use_solver) return true;
   br_query_num++;
   int result = -1;
@@ -755,6 +766,21 @@ inline bool check_pc(immer::set<PtrVal> pc) {
     vc_Destroy(vc);
   }
   return result == 0;
+}
+
+// Note this function does not restore the state of VC
+inline std::pair<bool, VC> check_pc_with_vc(immer::flex_vector<PtrVal> pc, VC vc) {
+  if (!use_solver) return std::make_pair(false, vc);
+  br_query_num++;
+  int result = -1;
+  if (use_global_solver) {
+    vc = global_vc;
+    vc_push(vc);
+  } else vc = vc_createValidityChecker();
+  construct_STP_constraints(vc, pc);
+  Expr fls = vc_falseExpr(vc);
+  result = vc_query(vc, fls);
+  return std::make_pair(result == 0, vc);
 }
 
 inline void check_pc_to_file(SS state) {
@@ -921,8 +947,8 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
   auto pc = ss.getPC();
-  auto tbr_sat = check_pc(pc.insert(t_cond));
-  auto fbr_sat = check_pc(pc.insert(f_cond));
+  auto tbr_sat = check_pc(pc.push_back(t_cond));
+  auto fbr_sat = check_pc(pc.push_back(f_cond));
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
     SS tbr_ss = ss.addPC(t_cond);
@@ -955,6 +981,77 @@ exec_br(SS ss, PtrVal cndVal,
     return ff(ss);
   }
   return sym_exec_br(ss, cndVal->to_SMTBool(), to_SMTBoolNeg(cndVal), tf, ff);
+}
+
+/* Concolic Worker */
+
+using Input = immer::flex_vector<PtrVal>;
+using CInput = std::tuple<int, Input, Input>;
+
+inline immer::flex_vector<SExpr> conc_exec(Input, Input);
+
+// TODO: Optimization: use option istead of flex_vector
+inline immer::flex_vector<CInput> gen_new_input(Input args, Input sargs,
+  immer::flex_vector<SExpr> pc, int bound) {
+  VC vc;
+  // stp_env.clear();
+  auto [isSat, newvc] = check_pc_with_vc(pc, vc);
+  if (isSat) {
+    ASSERT(args.size() == sargs.size(), "argument size not equal");
+    auto wc = vc_getWholeCounterExample(newvc);
+    if (concolic_debug) vc_printCounterExample(newvc);
+    for (int i = 0; i < sargs.size(); i++) {
+      if (!sargs[i]->is_conc()) {
+        Expr recon_arg = vc_simplify(newvc, construct_STP_expr(newvc, sargs[i]));
+        Expr new_arg_expr = vc_getTermFromCounterExample(newvc, recon_arg, wc);
+        // Note: why getBVInt? How to get long.
+        // There are get unsigned long long in stp interface?
+        int new_arg_int = getBVInt(new_arg_expr);
+        auto new_arg = make_IntV(new_arg_int, sargs[i]->get_bw());
+        args = args.set(i, new_arg);
+      }
+      // if (concolic_debug) print_vec(args);
+    }
+    if (use_global_solver) {
+      vc_pop(newvc);
+    } else {
+      vc_Destroy(newvc);
+    }
+    return immer::flex_vector<CInput>{std::make_tuple(bound, args, sargs)};
+  } else {
+    if (newvc) {
+      if (use_global_solver) {
+        vc_pop(newvc);
+      } else {
+        vc_Destroy(newvc);
+      }
+    }
+    return immer::flex_vector<CInput>{};
+  }
+}
+
+inline immer::flex_vector<CInput> expand_exec(CInput input) {
+  auto [bound, args, sargs] = input;
+  immer::flex_vector<SExpr> this_pc = conc_exec(args, sargs);
+  immer::flex_vector<CInput> new_inputs = immer::flex_vector<CInput>{};
+  for (int i = bound; i < this_pc.size(); i++) {
+    auto pc_prime = this_pc.take(i).push_back(to_SMTBoolNeg(this_pc[i]));
+    new_inputs = new_inputs + gen_new_input(args, sargs, pc_prime, i + 1);
+  }
+  return new_inputs;
+}
+
+inline void conc_main(Input args, Input sargs) {
+  auto work_list = immer::flex_vector<CInput>{std::make_tuple(0, args, sargs)};
+  auto result_inputs = immer::flex_vector<CInput>{std::make_tuple(0, args, sargs)};
+  while (!work_list.empty()) {
+    CInput input = work_list.front();
+    work_list = work_list.drop(1);
+    immer::flex_vector<CInput> child_input = expand_exec(input);
+    work_list = work_list + child_input;
+    result_inputs = result_inputs + child_input;
+  }
+  std::cout << "Generated " <<result_inputs.size() << " inputs"<< std::endl;
 }
 
 #endif

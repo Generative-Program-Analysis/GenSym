@@ -1,4 +1,4 @@
-all: fact_lms fact_plain sym_test conc_test
+all: fact_lms fact_plain sym_test conc_test stp_test
 
 fact_lms: fact_lms.cpp ../sai.hpp ../sai_imp_concrete.hpp
 	g++ -std=c++17 -O3 -Winline -finline-functions ./fact_lms.cpp -o ./fact_lms  -I ../ -I ../../../immer
@@ -15,7 +15,11 @@ llsc_test: llsc_test.cpp ../llsc.hpp
 conc_test: conc_test.cpp ../conc.hpp 
 	g++ -std=c++17 conc_test.cpp -o conc_test  -I ../ -I ../../../immer -I ../../../stp/build/include/ -L ../../../stp/build/lib/ -lstp -fPIC
 
+stp_test: stp_test.cpp
+	g++ -std=c++17 stp_test.cpp -o stp_test -I ../../../stp/build/include/ -L ../../../stp/build/lib/ -lstp
 clean:
 	rm fact_lms
 	rm fact_plain
 	rm sym_test
+	rm conc_test
+	rm stp_test

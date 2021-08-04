@@ -232,11 +232,16 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def execValueInst(inst: ValueInstruction)(implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] = {
     inst match {
-      case AllocaInst(ty, align) =>
+      case AllocaInst(ty, align) if !isSym =>
         for {
           ss <- getState
           _ <- putState(ss.allocStack(getTySize(ty, align.n)))
         } yield LocV(ss.stackSize, LocV.kStack)
+      case AllocaInst(ty, align) if isSym =>
+        for {
+          ss <- getState
+          _ <- putState(ss.allocsStack(getTySize(ty, align.n)))
+        } yield LocV(ss.sstackSize, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
@@ -247,9 +252,9 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
           ss <- getState
         } yield {
           if (isSym)
-            ss.lookup(v, getTySize(valTy), isStruct)
-          else
             ss.slookup(v, getTySize(valTy), isStruct)
+          else
+            ss.lookup(v, getTySize(valTy), isStruct)
         }
       // We are not modeling symbolic address
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
@@ -626,8 +631,6 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
         _ <- pushFrame
         s <- getState
         v <- reflect(fv(s, args, sargs))
-        // Optimization: for entrance function, no need to pop
-        //_ <- popFrame(s.stackSize)
       } yield v
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
