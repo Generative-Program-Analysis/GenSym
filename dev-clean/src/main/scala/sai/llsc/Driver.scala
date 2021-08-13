@@ -136,7 +136,7 @@ object RunLLSC {
       runLLSC(parseFile(filepath), appName, fun, nSym)
     }
 
-    //runLLSC(sai.llvm.Benchmarks.add, "add.cpp", "@add")
+    //runLLSC(sai.llvm.Benchmarks.add, "addTest", "@add")
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
     //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")

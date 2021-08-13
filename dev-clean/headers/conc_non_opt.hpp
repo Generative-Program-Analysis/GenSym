@@ -21,7 +21,6 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#include <bits/stdc++.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
@@ -40,13 +39,6 @@ using namespace std::chrono;
 inline unsigned int bitwidth = 32;
 inline unsigned int addr_bw = 64;
 inline unsigned int var_name = 0;
-
-union Data {
-  int i;
-  long long int l;
-  short s;
-  char c;
-};
 
 using BlockLabel = int;
 using Id = int;
@@ -101,8 +93,6 @@ inline VC global_vc = vc_createValidityChecker();
 
 /* Value representations */
 
-using PtrVal = std::shared_ptr<Value>;
-
 struct Value : public std::enable_shared_from_this<Value> {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
@@ -111,12 +101,13 @@ struct Value : public std::enable_shared_from_this<Value> {
   //TODO(GW): toSMTExpr vs toSMTBool?
   virtual SExpr to_SMTExpr() = 0;
   virtual SExpr to_SMTBool() = 0;
-  virtual PtrVal to_IntV() const = 0;
+  virtual Ptr<Value> to_IntV() const = 0;
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
 };
 
-// Try union for int data
+using PtrVal = std::shared_ptr<Value>;
+
 struct IntV : Value {
   int bw;
   IntData i;
@@ -131,21 +122,21 @@ struct IntV : Value {
   virtual SExpr to_SMTBool() override {
     ABORT("to_SMTBool: unexpected value IntV.");
   }
-  virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(i, bw); }
+  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i, bw); }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
 };
 
-inline PtrVal make_IntV(IntData i) {
+inline Ptr<Value> make_IntV(IntData i) {
   return std::make_shared<IntV>(i, bitwidth);
 }
 
-inline PtrVal make_IntV(IntData i, int bw) {
+inline Ptr<Value> make_IntV(IntData i, int bw) {
   //FIXME, bit width
   return std::make_shared<IntV>(i, bw);
 }
 
-inline IntData proj_IntV(PtrVal v) {
+inline IntData proj_IntV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<IntV>(v)->i;
 }
 
@@ -163,15 +154,15 @@ struct FloatV : Value {
     ABORT("to_SMTBool: unexpected value FloatV.");
   }
   virtual bool is_conc() const override { return true; }
-  virtual PtrVal to_IntV() const override { return nullptr; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
 };
 
-inline PtrVal make_FloatV(float f) {
+inline Ptr<Value> make_FloatV(float f) {
   return std::make_shared<FloatV>(f);
 }
 
-inline int proj_FloatV(PtrVal v) {
+inline int proj_FloatV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<FloatV>(v)->f;
 }
 
@@ -193,31 +184,31 @@ struct LocV : Value {
     ABORT("to_SMTBool: unexpected value LocV.");
   }
   virtual bool is_conc() const override {
-    return true;
+    ABORT("is_conc: unexpected value LocV.");
   }
-  virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
+  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
 };
 
-inline PtrVal make_LocV(unsigned int i, LocV::Kind k, int size) {
+inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k, int size) {
   return std::make_shared<LocV>(i, k, size);
 }
 
-inline PtrVal make_LocV(unsigned int i, LocV::Kind k) {
+inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k) {
   return std::make_shared<LocV>(i, k, -1);
 }
 
-inline unsigned int proj_LocV(PtrVal v) {
+inline unsigned int proj_LocV(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
-inline LocV::Kind proj_LocV_kind(PtrVal v) {
+inline LocV::Kind proj_LocV_kind(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
-inline int proj_LocV_size(PtrVal v) {
+inline int proj_LocV_size(Ptr<Value> v) {
   return std::dynamic_pointer_cast<LocV>(v)->size;
 }
 
-inline PtrVal make_LocV_inc(PtrVal loc, int i) {
+inline Ptr<Value> make_LocV_inc(Ptr<Value> loc, int i) {
   return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
 
@@ -239,13 +230,13 @@ struct SymV : Value {
   virtual SExpr to_SMTExpr() override { return shared_from_this(); }
   virtual SExpr to_SMTBool() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
-  virtual PtrVal to_IntV() const override { return nullptr; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 };
-inline PtrVal make_SymV(String n) {
+inline Ptr<Value> make_SymV(String n) {
   return std::make_shared<SymV>(n, bitwidth);
 }
-inline PtrVal make_SymV(String n, int bw) {
+inline Ptr<Value> make_SymV(String n, int bw) {
   return std::make_shared<SymV>(n, bw);
 }
 inline SExpr to_SMTBoolNeg(PtrVal v) {
@@ -254,57 +245,9 @@ inline SExpr to_SMTBoolNeg(PtrVal v) {
 }
 
 
-struct PairV : Value {
-  PtrVal first, second;
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "PairV(..)";
-  }
-  virtual SExpr to_SMTExpr() override {
-    ABORT("to_SMTExpr: unexpected value PairV.");
-  }
-  virtual SExpr to_SMTBool() override {
-    ABORT("to_SMTBool: unexpected value PairV.");
-  }
-  virtual bool is_conc() const override {
-    ABORT("is_conc: unexpected value PairV.");
-  }
-  virtual PtrVal to_IntV() const override { return nullptr; }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value PairV."); }
-};
-
-inline PtrVal first(PtrVal v) {
-  return std::dynamic_pointer_cast<PairV>(v)->first;
-}
-
-inline PtrVal second(PtrVal v) {
-  return std::dynamic_pointer_cast<PairV>(v)->second;
-}
-
-
-struct FailV : Value {
-  FailV() {}
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "FailV(..)";
-  }
-  virtual SExpr to_SMTExpr() override {
-    ABORT("to_SMTExpr: unexpected value FailV.");
-  }
-  virtual SExpr to_SMTBool() override {
-    ABORT("to_SMTBool: unexpected value FailV.");
-  }
-  virtual bool is_conc() const override {
-    return true;
-  }
-  virtual PtrVal to_IntV() const override {
-    ABORT("to_IntV: unexpected value FailV.");
-  }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value FailV."); }
-};
-
-
 struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
-  StructV(immer::flex_vector<PtrVal> fs) : fs(fs) {}
+  StructV(immer::flex_vector<Ptr<Value>> fs) : fs(fs) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
   }
@@ -317,7 +260,7 @@ struct StructV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");
   }
-  virtual PtrVal to_IntV() const override { return nullptr; }
+  virtual Ptr<Value> to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 };
 
@@ -327,7 +270,7 @@ inline PtrVal structV_at(PtrVal v, int idx) {
   else ABORT("StructV_at: non StructV value");
 }
 
-inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
+inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1->to_IntV());
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
@@ -378,7 +321,7 @@ enum fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv
 };
 
-inline PtrVal float_op_2(fOP op, PtrVal v1, PtrVal v2) {
+inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
   auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
   auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
 
@@ -394,7 +337,7 @@ inline PtrVal float_op_2(fOP op, PtrVal v1, PtrVal v2) {
   }
 }
 
-inline PtrVal bv_sext(PtrVal v, int bw) {
+inline Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
     return make_IntV(i1->i, bw);
@@ -412,7 +355,7 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
   }
 }
 
-inline PtrVal trunc(PtrVal v1, int from, int to) {
+inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {
     IntData i = i1->i;
@@ -523,111 +466,6 @@ class Stack {
     Stack alloc(size_t size) { return Stack(mem.alloc(size), env); }
 };
 
-template <class V>
-class SPreMem {
-  private:
-    immer::map<size_t, V> mem;
-  public:
-    SPreMem(immer::map<size_t, V> mem) : mem(mem) {}
-    size_t size() { return mem.size(); }
-    const V* find(size_t idx) { return mem.find(idx); }
-    V at(size_t idx) { return mem.at(idx); }
-    SPreMem<V> update(size_t idx, V val) { return SPreMem<V>(mem.insert({idx, val})); }
-    // PreMem<V> append(V val) { return PreMem<V>(mem.push_back(val)); }
-    // PreMem<V> append(V val, size_t padding) {
-    //   size_t idx = mem.size();
-    //   return PreMem<V>(alloc(padding + 1).update(idx, val)); 
-    // }
-    // PreMem<V> append(immer::flex_vector<V> vs) { return PreMem<V>(mem + vs); }
-    // PreMem<V> alloc(size_t size) {
-    //   auto m = mem.transient();
-    //   for (int i = 0; i < size; i++) { m.push_back(nullptr); }
-    //   return PreMem<V>(m.persistent());
-    // }
-    // PreMem<V> take(size_t keep) { return PreMem<V>(mem.take(keep)); }
-    // PreMem<V> drop(size_t d) { return PreMem<V>(mem.drop(d)); }
-    immer::flex_vector<V> getMem() { return mem; }
-};
-
-using SMem = SPreMem<PtrVal>;
-
-class SFrame {
-  public:
-    using Env = immer::map<Id, PtrVal>;
-  private:
-    Env env;
-  public:
-    SFrame(Env env) : env(env) {}
-    SFrame() : env(immer::map<Id, PtrVal>{}) {}
-    size_t size() { return env.size(); }
-    PtrVal lookup_id(Id id) const {
-      if (env.find(id)) return env.at(id);
-      else return std::make_shared<FailV>();
-    }
-    SFrame assign(Id id, PtrVal v) const { return SFrame(env.insert({id, v})); }
-    SFrame assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) const {
-      Env env1 = env;
-      for (size_t i = 0; i < ids.size(); i++) {
-        if (!vals.at(i)->is_conc())
-          env1 = env1.insert({ids.at(i), vals.at(i)});
-      }
-      return SFrame(env1);
-    }
-};
-
-// Note: do we really need FailV? 
-// One other solution could be use IntV. And any non-symbolic
-// value retreived from symbolic enviornment should be discarded
-class SStack {
-  private:
-    SMem mem;
-    immer::flex_vector<SFrame> env;
-  public:
-    SStack(SMem mem, immer::flex_vector<SFrame> env) : mem(mem), env(env) {}
-    size_t mem_size() { return mem.size(); }
-    size_t frame_depth() { return env.size(); }
-    PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
-    // what should we do about smem?
-    SStack pop(size_t keep) { return SStack(mem, env.take(env.size()-1)); }
-    SStack push() { return SStack(mem, env.push_back(SFrame())); }
-    SStack push(SFrame f) { return SStack(mem, env.push_back(f)); }
-
-    SStack assign(Id id, PtrVal val) {
-      return SStack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }));
-    }
-    SStack assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      // varargs
-      size_t id_size = ids.size();
-      if (id_size == 0) return SStack(mem, env);
-      if (ids.at(id_size - 1) == 0) {
-        ABORT("Varargs in symbolic mode");
-        // auto updated_mem = mem;
-        // for (size_t i = id_size - 1; i < vals.size(); i++) {
-        //   // FIXME: magic value 8, as vararg is retrived from +8 address
-        //   updated_mem = updated_mem.append(vals.at(i), 7);
-        // }
-        // if (updated_mem.size() == mem.size()) updated_mem = updated_mem.alloc(8);
-        // auto updated_vals = vals.take(id_size - 1).push_back(make_LocV(mem.size(), LocV::kStack));
-        // auto stack = Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }));
-        // return Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }));
-      } else {
-        return SStack(mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, vals); }));
-      }
-    }
-    PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
-
-    PtrVal at(size_t idx) {
-      if (mem.find(idx)) return mem.at(idx);
-      else return std::make_shared<FailV>();
-    }
-    // How to handle structV?
-    // PtrVal at(size_t idx, int size) {
-    //   return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
-    // }
-    SStack update(size_t idx, PtrVal val) { return SStack(mem.update(idx, val), env); }
-    // SStack alloc(size_t size) { return SStack(mem.alloc(size), env); }
-};
-
 class PC {
   private:
     immer::flex_vector<SExpr> pc;
@@ -643,18 +481,17 @@ class SS {
   private:
     Mem heap;
     Stack stack;
-    SMem sheap;
-    SStack sstack;
+    Mem sheap;
+    Stack sstack;
     PC pc;
     BlockLabel bb;
   public:
-    SS(Mem heap, Stack stack, SMem sheap, SStack sstack, PC pc, BlockLabel bb)
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb)
+      : heap(heap), stack(stack), sheap(heap), sstack(stack), pc(pc), bb(bb) {}
+    SS(Mem heap, Stack stack, Mem sheap, Stack sstack, PC pc, BlockLabel bb)
       : heap(heap), stack(stack), sheap(sheap), sstack(sstack), pc(pc), bb(bb) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
-    PtrVal senv_lookup(Id id) {
-      auto temp_val = sstack.lookup_id(id);
-      return (temp_val->is_conc()) ? stack.lookup_id(id) : temp_val;
-    }
+    PtrVal senv_lookup(Id id) { return sstack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
     size_t sstack_size() { return sstack.mem_size(); }
@@ -676,25 +513,21 @@ class SS {
     PtrVal sat(PtrVal addr) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) {
-        auto temp_sval = sstack.at(loc->l);
-        return (temp_sval->is_conc()) ? stack.at(loc->l) : temp_sval;
-      }
-      auto temp_hval = sheap.at(loc->l);
-      return (temp_hval->is_conc()) ? heap.at(loc->l) : temp_hval;
+      if (loc->k == LocV::kStack) return sstack.at(loc->l);
+      return sheap.at(loc->l);
     }
-    // PtrVal sat(PtrVal addr, int size) {
-    //   auto loc = std::dynamic_pointer_cast<LocV>(addr);
-    //   ASSERT(loc != nullptr, "Lookup an non-address value");
-    //   if (loc->k == LocV::kStack) return sstack.at(loc->l, size);
-    //   return std::make_shared<StructV>(sheap.take(loc->l + size).drop(loc->l).getMem());
-    // }
+    PtrVal sat(PtrVal addr, int size) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return sstack.at(loc->l, size);
+      return std::make_shared<StructV>(sheap.take(loc->l + size).drop(loc->l).getMem());
+    }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
-    // symbolic heap and stack does not grow with concrete ones
+    // symbolic heap and stack should grow with concrete ones
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack, pc, bb); }
-    // SS alloc_sstack(size_t size) { return SS(heap, stack, sheap, sstack.alloc(size), pc, bb); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, sheap, sstack, pc, bb); }
+    SS alloc_sstack(size_t size) { return SS(heap, stack, sheap, sstack.alloc(size), pc, bb); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, heap, sstack, pc, bb); }
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
@@ -703,9 +536,6 @@ class SS {
       return SS(heap.update(loc->l, val), stack, sheap, sstack, pc, bb);
     }
     SS supdate(PtrVal addr, PtrVal val) {
-      if (val->is_conc()) {
-        return SS(heap, stack, sheap, sstack, pc, bb);
-      }
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack)
@@ -716,10 +546,7 @@ class SS {
     SS push() { return SS(heap, stack.push(), sheap, sstack.push(), pc, bb); }
     SS pop(size_t keep) { return SS(heap, stack.pop(keep), sheap, sstack.pop(keep), pc, bb); }
     SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), sheap, sstack, pc, bb); }
-    SS sassign(Id id, PtrVal val) {
-      if (val->is_conc()) return SS(heap, stack, sheap, sstack, pc, bb);
-      return SS(heap, stack, sheap, sstack.assign(id, val), pc, bb);
-    }
+    SS sassign(Id id, PtrVal val) { return SS(heap, stack, sheap, sstack.assign(id, val), pc, bb); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
       return SS(heap, stack.assign_seq(ids, vals), sheap, sstack, pc, bb);
     }
@@ -756,11 +583,9 @@ class SS {
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-inline const SMem mt_smem = SMem(immer::map<size_t, PtrVal>{});
-inline const SStack mt_sstack = SStack(mt_smem, immer::flex_vector<SFrame>{});
 inline const PC mt_pc = PC(immer::flex_vector<SExpr>{});
 inline const BlockLabel mt_bb = 0;
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_smem, mt_sstack, mt_pc, mt_bb);
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_mem, mt_stack, mt_pc, mt_bb);
 
 inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};
@@ -831,7 +656,7 @@ inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
-inline Expr construct_STP_expr(VC vc, PtrVal e) {
+inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
     return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);

@@ -94,6 +94,8 @@ inline VC global_vc = vc_createValidityChecker();
 
 /* Value representations */
 
+using PtrVal = std::shared_ptr<Value>;
+
 struct Value : public std::enable_shared_from_this<Value> {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
@@ -106,8 +108,6 @@ struct Value : public std::enable_shared_from_this<Value> {
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
 };
-
-using PtrVal = std::shared_ptr<Value>;
 
 struct IntV : Value {
   int bw;
