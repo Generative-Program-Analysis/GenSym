@@ -102,7 +102,7 @@ struct Value : public std::enable_shared_from_this<Value> {
   //TODO(GW): toSMTExpr vs toSMTBool?
   virtual SExpr to_SMTExpr() = 0;
   virtual SExpr to_SMTBool() = 0;
-  virtual Ptr<Value> to_IntV() const = 0;
+  virtual PtrVal to_IntV() const = 0;
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
 };
@@ -123,21 +123,21 @@ struct IntV : Value {
   virtual SExpr to_SMTBool() override {
     ABORT("to_SMTBool: unexpected value IntV.");
   }
-  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(i, bw); }
+  virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(i, bw); }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
 };
 
-inline Ptr<Value> make_IntV(IntData i) {
+inline PtrVal make_IntV(IntData i) {
   return std::make_shared<IntV>(i, bitwidth);
 }
 
-inline Ptr<Value> make_IntV(IntData i, int bw) {
+inline PtrVal make_IntV(IntData i, int bw) {
   //FIXME, bit width
   return std::make_shared<IntV>(i, bw);
 }
 
-inline IntData proj_IntV(Ptr<Value> v) {
+inline IntData proj_IntV(PtrVal v) {
   return std::dynamic_pointer_cast<IntV>(v)->i;
 }
 
@@ -155,15 +155,15 @@ struct FloatV : Value {
     ABORT("to_SMTBool: unexpected value FloatV.");
   }
   virtual bool is_conc() const override { return true; }
-  virtual Ptr<Value> to_IntV() const override { return nullptr; }
+  virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
 };
 
-inline Ptr<Value> make_FloatV(float f) {
+inline PtrVal make_FloatV(float f) {
   return std::make_shared<FloatV>(f);
 }
 
-inline int proj_FloatV(Ptr<Value> v) {
+inline int proj_FloatV(PtrVal v) {
   return std::dynamic_pointer_cast<FloatV>(v)->f;
 }
 
@@ -187,29 +187,29 @@ struct LocV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
-  virtual Ptr<Value> to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
+  virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
 };
 
-inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k, int size) {
+inline PtrVal make_LocV(unsigned int i, LocV::Kind k, int size) {
   return std::make_shared<LocV>(i, k, size);
 }
 
-inline Ptr<Value> make_LocV(unsigned int i, LocV::Kind k) {
+inline PtrVal make_LocV(unsigned int i, LocV::Kind k) {
   return std::make_shared<LocV>(i, k, -1);
 }
 
-inline unsigned int proj_LocV(Ptr<Value> v) {
+inline unsigned int proj_LocV(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
-inline LocV::Kind proj_LocV_kind(Ptr<Value> v) {
+inline LocV::Kind proj_LocV_kind(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
-inline int proj_LocV_size(Ptr<Value> v) {
+inline int proj_LocV_size(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->size;
 }
 
-inline Ptr<Value> make_LocV_inc(Ptr<Value> loc, int i) {
+inline PtrVal make_LocV_inc(PtrVal loc, int i) {
   return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
 
@@ -231,13 +231,13 @@ struct SymV : Value {
   virtual SExpr to_SMTExpr() override { return shared_from_this(); }
   virtual SExpr to_SMTBool() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
-  virtual Ptr<Value> to_IntV() const override { return nullptr; }
+  virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 };
-inline Ptr<Value> make_SymV(String n) {
+inline PtrVal make_SymV(String n) {
   return std::make_shared<SymV>(n, bitwidth);
 }
-inline Ptr<Value> make_SymV(String n, int bw) {
+inline PtrVal make_SymV(String n, int bw) {
   return std::make_shared<SymV>(n, bw);
 }
 inline SExpr to_SMTBoolNeg(PtrVal v) {
@@ -248,7 +248,7 @@ inline SExpr to_SMTBoolNeg(PtrVal v) {
 
 struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
-  StructV(immer::flex_vector<Ptr<Value>> fs) : fs(fs) {}
+  StructV(immer::flex_vector<PtrVal> fs) : fs(fs) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
   }
@@ -261,7 +261,7 @@ struct StructV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");
   }
-  virtual Ptr<Value> to_IntV() const override { return nullptr; }
+  virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 };
 
@@ -271,7 +271,7 @@ inline PtrVal structV_at(PtrVal v, int idx) {
   else ABORT("StructV_at: non StructV value");
 }
 
-inline Ptr<Value> int_op_2(iOP op, Ptr<Value> v1, Ptr<Value> v2) {
+inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1->to_IntV());
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
@@ -322,7 +322,7 @@ enum fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv
 };
 
-inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
+inline PtrVal float_op_2(fOP op, PtrVal v1, PtrVal v2) {
   auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
   auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
 
@@ -338,7 +338,7 @@ inline Ptr<Value> float_op_2(fOP op, Ptr<Value> v1, Ptr<Value> v2) {
   }
 }
 
-inline Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
+inline PtrVal bv_sext(PtrVal v, int bw) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
     return make_IntV(i1->i, bw);
@@ -356,7 +356,7 @@ inline Ptr<Value> bv_sext(Ptr<Value> v, int bw) {
   }
 }
 
-inline Ptr<Value> trunc(PtrVal v1, int from, int to) {
+inline PtrVal trunc(PtrVal v1, int from, int to) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {
     IntData i = i1->i;
@@ -619,7 +619,7 @@ inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
-inline Expr construct_STP_expr(VC vc, Ptr<Value> e) {
+inline Expr construct_STP_expr(VC vc, PtrVal e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
     return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);

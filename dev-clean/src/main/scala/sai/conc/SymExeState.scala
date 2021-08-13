@@ -262,6 +262,11 @@ trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
     }
   }
+
+  object PairV {
+    def apply(a: Rep[Value], b: Rep[Value]) = "make_PairV".reflectWriteWith[Value](a, b)(Adapter.CTRL)
+  }
+
   object NullV {
     // for now
     def apply(): Rep[Value] = "null-v".reflectMutableWith[Value]()
@@ -282,6 +287,9 @@ trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
       case IntV(n, bw) => unit(n)
       case _ => "proj_IntV".reflectWith[Int](v)
     }
+    def first = "first".reflectWith[Value](v)
+    def second = "second".reflectWith[Value](v)
+
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
