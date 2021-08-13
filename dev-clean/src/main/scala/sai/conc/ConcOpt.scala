@@ -136,7 +136,6 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
         case true => ret(IntV(1, 1))
         case false => ret(IntV(0, 1))
       }
-      // TODO: two set of functions?
       case GlobalId(id) if funMap.contains(id) =>
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))

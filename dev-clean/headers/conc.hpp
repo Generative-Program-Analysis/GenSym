@@ -574,7 +574,9 @@ class SFrame {
     }
 };
 
-
+// Note: do we really need FailV? 
+// One other solution could be use IntV. And any non-symbolic
+// value retreived from symbolic enviornment should be discarded
 class SStack {
   private:
     SMem mem;
@@ -690,7 +692,7 @@ class SS {
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
-    // symbolic heap and stack should grow with concrete ones
+    // symbolic heap and stack does not grow with concrete ones
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack, pc, bb); }
     // SS alloc_sstack(size_t size) { return SS(heap, stack, sheap, sstack.alloc(size), pc, bb); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, heap, sstack, pc, bb); }
