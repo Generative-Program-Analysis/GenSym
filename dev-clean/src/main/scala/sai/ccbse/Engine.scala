@@ -22,10 +22,11 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
+import scala.collection.mutable.{Map => StaticMutMap, Queue => StaticQueue, Set => StaticSet}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
+trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
@@ -34,6 +35,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var globalDeclMap: StaticMap[String, GlobalDecl] = StaticMap()
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+
+    // callee graph: callee -> (caller -> distance to main)
+    val callGraph: StaticMutMap[String, StaticMutMap[String, Int]] = StaticMutMap()
 
     val BBFuns: HashMap[(String, BB), Rep[SS => List[(SS, Value)]]] = new HashMap[(String, BB), Rep[SS => List[(SS, Value)]]]
     val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
@@ -118,7 +122,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         // "When indexing into a (optionally packed) structure, only i32 integer
         //  constants are allowed"
         // TODO: the align argument for getTySize
-        // TODO: test this
         val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Long)) => n }
         unit(calculateOffsetStatic(ty, indexCst))
       case _ => ???
@@ -506,6 +509,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- updateMem(v2, v1)
         } yield ()
       case CallInst(ty, f, args) =>
+        // if (f.isInstanceOf[GlobalId] && f.asInstanceOf[GlobalId].id == "@backward_term") {
+        //   ret
+        // }
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
         }
@@ -624,11 +630,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def exec(main: Module, fname: String, args: Rep[List[Value]],
     isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
-    CompileTimeRuntime.funMap = main.funcDefMap
-    CompileTimeRuntime.funDeclMap = main.funcDeclMap
-    CompileTimeRuntime.globalDefMap = main.globalDefMap
-    CompileTimeRuntime.globalDeclMap = main.globalDeclMap
-    CompileTimeRuntime.typeDefMap = main.typeDefMap
 
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
@@ -656,5 +657,46 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     Coverage.incPath(1)
     Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
+  }
+
+  def analyze_fun(m: Module, fname: String): Unit = {
+    CompileTimeRuntime.funMap = m.funcDefMap
+    CompileTimeRuntime.funDeclMap = m.funcDeclMap
+    CompileTimeRuntime.globalDefMap = m.globalDefMap
+    CompileTimeRuntime.globalDeclMap = m.globalDeclMap
+    CompileTimeRuntime.typeDefMap = m.typeDefMap
+
+    val callerGraph: StaticMutMap[String, StaticSet[String]] = StaticMutMap()
+    CompileTimeRuntime.funMap foreach { case (s, caller) =>
+      caller.blocks foreach { case b =>
+        b.ins foreach { case i =>
+          var callee: String = ""
+          i match {
+            case CallInst(ty, f, args) =>
+              callee = f.asInstanceOf[GlobalId].id
+            case AssignInst(x, CallInst(ty, f, args)) =>
+              callee = f.asInstanceOf[GlobalId].id
+          }
+          CompileTimeRuntime.callGraph(callee)(caller.id) = -1
+          callerGraph(caller.id) += callee
+        }
+      }
+    }
+
+    val distance = StaticMutMap[String, Int](("main" -> 0))
+    var workList: StaticQueue[String] = StaticQueue("main")
+    while (workList.nonEmpty) {
+      val caller = workList.dequeue
+      callerGraph(caller) foreach { callee =>
+        if (!distance.contains(callee)) {
+          distance(callee) = distance(caller) + 1
+          workList.enqueue(caller)
+        }
+      }
+    }
+
+    callGraph foreach {case (callee, m) =>
+      m.keySet.foreach(caller => m.update(caller, distance(caller)))
+    }
   }
 }

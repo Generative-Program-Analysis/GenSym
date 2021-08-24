@@ -15,7 +15,7 @@ import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
 
 abstract class CCBSEDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
-    extends SAISnippet[A, B] with SAIOps with LLSCEngine { q =>
+    extends SAISnippet[A, B] with SAIOps with CCBSEEngine { q =>
 
   import java.io.{File, PrintStream}
 
@@ -97,11 +97,28 @@ abstract class CCBSEDriver[A: Manifest, B: Manifest](appName: String, folder: St
   }
 }
 
-object RunLLSC {
+/* example
+what is the call-chain distance to main?
+1) main 0, g 1 does this make sense?
+2) main 2, g 1?
+
+f:
+  target
+
+g:
+  call f
+
+main:
+  call g
+  call f
+*/
+
+object RunCCBSE {
   @virtualize
   def specialize(m: Module, name: String, fname: String, location: (Int, Int)): CCBSEDriver[Int, Unit] =
     new CCBSEDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
+        analyze_fun(m, fname)
         val res = exec(m, fname, SymV.makeSymVList(get_args_num), false, 4)
         // query SMT for 1 test
         //SS.checkPCToFile(res(0)._1)
@@ -138,13 +155,5 @@ object RunLLSC {
       runCCBSE(parseFile(filepath), appName, fun, (bbNum, instrNum))
     }
 
-    //runLLSC(sai.llvm.Benchmarks.add, "addTest", "@add")
-    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
-    //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
-    //runLLSC(sai.llvm.KleeExamples.regexp, "regexp", "@main")
   }
 }
