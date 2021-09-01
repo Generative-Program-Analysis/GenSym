@@ -13,6 +13,7 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
+import scala.collection.mutable.{Map => StaticMutMap, Queue => StaticQueue, Set => StaticSet}
 
 abstract class CCBSEDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
     extends SAISnippet[A, B] with SAIOps with CCBSEEngine { q =>
@@ -115,27 +116,34 @@ main:
 
 object RunCCBSE {
   @virtualize
-  def specialize(m: Module, name: String, fname: String, location: (Int, Int)): CCBSEDriver[Int, Unit] =
-    new CCBSEDriver[Int, Unit](name, "./llsc_gen") {
+  def specialize(m: Module, name: String, fname: String): CCBSEDriver[Int, Unit] =
+    new CCBSEDriver[Int, Unit](name, "./ccbse_gen") {
       def snippet(u: Rep[Int]) = {
+        prepareCompileTimeRuntime(m)
         analyze_fun(m, fname)
-        var currFun: String = fname
-        val res = exec(m, fname, SymV.makeSymVList(get_args_num))
+        // (caller, callee)
+        var workList: StaticList[(String, String)] = StaticList((fname, ""))
+        while (workList.nonEmpty) {
+          val currFun = workList.head._1
+          val fromFun = workList.head._2
+          workList = CompileTimeRuntime.callGraph.getOrElse(currFun, StaticMutMap()).toList.sortBy(_._2).map{
+            case (s, i) => (s, currFun)
+          } ++ workList.tail
+          val res = exec(m, currFun, SymV.makeSymVList(get_args_num(currFun), currFun))
+          println(res.size)
+        }
+
         // query SMT for 1 test
         //SS.checkPCToFile(res(0)._1)
-        res.foreach { s =>
-          //println(r._2.deref)
-          SS.checkPCToFile(s._1)
-        }
         ()
       }
 
-      def get_args_num: Int = m.funcDefMap(fname).header.params.size
+      def get_args_num(fname: String): Int = m.funcDefMap(fname).header.params.size
     }
 
-  def runCCBSE(m: Module, name: String, fname: String, location: (Int, Int)) {
+  def runCCBSE(m: Module, name: String, fname: String) {
     val (_, t) = sai.utils.Utils.time {
-      val code = specialize(m, name, fname, location)
+      val code = specialize(m, name, fname)
       code.genAll
     }
     println(s"compiling $name, time $t ms")
@@ -153,8 +161,10 @@ object RunCCBSE {
       val fun = args(2)
       val bbNum = args(3).toInt
       val instrNum = args(4).toInt
-      runCCBSE(parseFile(filepath), appName, fun, (bbNum, instrNum))
+      runCCBSE(parseFile(filepath), appName, fun)
     }
+
+    runCCBSE(sai.llvm.TestCCBSE.simple1, "simple1", "@f")
 
   }
 }

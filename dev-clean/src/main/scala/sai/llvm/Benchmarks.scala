@@ -34,6 +34,10 @@ object Benchmarks {
   lazy val bubbleSort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
   lazy val quickSort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
   lazy val kmpmatcher = parseFile("benchmarks/demo_benchmarks/kmpmatcher.ll")
+
+  lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
+  lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
+  lazy val simple2 = parseFile("benchmarks/ccbse/simple_2.ll")
 }
 
 object LLSCExpr {
@@ -66,4 +70,10 @@ object KleeExamples{
   lazy val sort = parseFile("benchmarks/klee_examples/sort.ll")
   lazy val regexp = parseFile("benchmarks/klee_examples/regexp.ll")
   lazy val bin_search = parseFile("benchmarks/klee_examples/bin_search.ll")
+}
+
+object TestCCBSE {
+  lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
+  lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
+  lazy val simple2 = parseFile("benchmarks/ccbse/simple_2.ll")
 }

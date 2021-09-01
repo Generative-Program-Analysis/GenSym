@@ -35,6 +35,8 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     var globalDeclMap: StaticMap[String, GlobalDecl] = StaticMap()
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+    var concreteHeap: Rep[List[Value]] = List()
+    var symbolicHeap: Rep[List[Value]] = List()
 
     // callee graph: callee -> (caller -> distance to main)
     val callGraph: StaticMutMap[String, StaticMutMap[String, Int]] = StaticMutMap()
@@ -195,6 +197,42 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
       case NullConst => ret(NullV())
       case NoneConst => ret(NullV())
+    }
+  }
+
+  def evalHeapConstSym(v: Constant, ty: LLVMType, num: Int): List[Rep[Value]] = v match {
+    case BoolConst(b) =>
+      StaticList(SymV("Heap" + num.toString, 1))
+    case IntConst(n) =>
+      StaticList(SymV("Heap" + num.toString, ty.asInstanceOf[IntType].size)) ++ StaticList.fill(getTySize(ty) - 1)(NullV())
+    case ZeroInitializerConst => ???
+    // ty match {
+    //   case ArrayType(size, ety) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
+    //   case Struct(types) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
+    //   case _ => StaticList.fill(getTySize(ty))(IntV(0))
+    // }
+    case ArrayConst(cs) =>
+      var anum: Int = num - 1
+      flattenAS(v).flatMap(c => {
+        anum += 1
+        evalHeapConstSym(c, ty.asInstanceOf[ArrayType].ety, anum)
+      })
+    case CharArrayConst(s) =>
+      var anum: Int = num - 1
+      s.map(c => {
+        anum += 1
+        SymV("Heap" + num.toString, 8)
+      }).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
+    case StructConst(cs) =>
+      var anum: Int = num - 1
+      cs.flatMap(c => {
+        anum += 1
+        evalHeapConstSym(c.const, c.ty, anum)
+      })
+    case NullConst => StaticList.fill(getTySize(ty))(NullV())
+    case _ => {
+      new RuntimeException("unknown heapConstSym: " + ty.toString)
+      StaticList()
     }
   }
 
@@ -559,6 +597,11 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
+  def precompileHeapSym(globalDefMap: StaticMap[String, GlobalDef]): StaticList[Rep[Value]] = {
+    globalDefMap.foldLeft(StaticList[Rep[Value]]()) { case (h, (k, v)) =>
+      h ++ evalHeapConstSym(v.const, getRealType(v.typ), h.size)
+    }
+  }
 
   def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
     prevSize: Int, mname: String): StaticList[Rep[Value]] =
@@ -629,30 +672,31 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def exec(main: Module, fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-
-    val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
+    val preHeap: Rep[List[Value]] = if (fname == "@main") CompileTimeRuntime.concreteHeap else CompileTimeRuntime.symbolicHeap
     val heap0 = preHeap.asRepOf[Mem]
     val comp = for {
         fv <- eval(GlobalId(fname))(VoidType)(fname)
         _ <- pushFrame
         s <- getState
         v <- reflect(fv(s, args))
-        // Optimization: for entrance function, no need to pop
-        //_ <- popFrame(s.stackSize)
+        // _ <- popFrame(s.stackSize)
       } yield v
-    Coverage.setBlockNum
-    Coverage.incPath(1)
-    Coverage.startMonitor
     reify[Value](SS.init(heap0))(comp)
   }
 
-  def analyze_fun(m: Module, fname: String): Unit = {
+  def prepareCompileTimeRuntime(m: Module): Unit = {
     CompileTimeRuntime.funMap = m.funcDefMap
     CompileTimeRuntime.funDeclMap = m.funcDeclMap
     CompileTimeRuntime.globalDefMap = m.globalDefMap
     CompileTimeRuntime.globalDeclMap = m.globalDeclMap
     CompileTimeRuntime.typeDefMap = m.typeDefMap
 
+    CompileTimeRuntime.concreteHeap = List(precompileHeapLists(m::Nil):_*)
+    CompileTimeRuntime.symbolicHeap = List(precompileHeapSym(CompileTimeRuntime.globalDefMap):_*)
+
+  }
+
+  def analyze_fun(m: Module, fname: String): Unit = {
     val callerGraph: StaticMutMap[String, StaticSet[String]] = StaticMutMap()
     CompileTimeRuntime.funMap foreach { case (s, caller) =>
       caller.blocks foreach { case b =>
@@ -663,15 +707,20 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
               callee = f.asInstanceOf[GlobalId].id
             case AssignInst(x, CallInst(ty, f, args)) =>
               callee = f.asInstanceOf[GlobalId].id
+            case _ => ()
           }
-          CompileTimeRuntime.callGraph(callee)(caller.id) = -1
-          callerGraph(caller.id) += callee
+          if (callee != "") {
+            CompileTimeRuntime.callGraph.getOrElseUpdate(callee, StaticMutMap(caller.id -> -1))(caller.id) = -1
+            if (callerGraph.contains(caller.id))
+              callerGraph(caller.id) += callee
+            else callerGraph(caller.id) = StaticSet(callee)
+          }
         }
       }
     }
 
-    val distance = StaticMutMap[String, Int](("main" -> 0))
-    var workList: StaticQueue[String] = StaticQueue("main")
+    val distance = StaticMutMap[String, Int](("@main" -> 0))
+    var workList: StaticQueue[String] = StaticQueue("@main")
     while (workList.nonEmpty) {
       val caller = workList.dequeue
       callerGraph(caller) foreach { callee =>

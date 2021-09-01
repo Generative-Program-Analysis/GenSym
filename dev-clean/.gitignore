@@ -11,3 +11,4 @@ project/.bloop/bloop.settings.json
 .bsp
 test
 conc_gen/*
+ccbse_gen/*

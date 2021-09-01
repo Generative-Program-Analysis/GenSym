@@ -895,6 +895,19 @@ inline void handle_cli_args(int argc, char** argv) {
   }
 }
 
+inline immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>> funSum = immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>>{};
+
+inline immer::flex_vector<std::pair<SS, PtrVal>>
+sym_re_exec_fun(SS ss, immer::flex_vector<std::pair<SS, PtrVal>> (*f)(SS, immer::flex_vector<PtrVal>), immer::flex_vector<PtrVal> argList)) {
+  immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
+  immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = funSum.at(f);
+  for (int i = 0; i < ffunSum.size(); i++) {
+    SS newss = SS.addPCSet(std::get<0>(ffunSum(i)).getPC());
+    res = res + f(newss, argList);
+  }
+  return res;
+}
+
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),

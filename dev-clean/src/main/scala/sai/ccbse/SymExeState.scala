@@ -239,10 +239,16 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
+    var x = 0
+    def fresh(prefix: String = "x", bw: Int = DEFAULT_INT_BW) = {
+      val res = apply(prefix + x.toString, bw)
+      x += 1
+      res
+    }
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
     def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
-    def makeSymVList(i: Int): Rep[List[Value]] = {
-      List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
+    def makeSymVList(i: Int, fname: String = "x"): Rep[List[Value]] = {
+      List[Value](Range(0, i).map(x => apply(fname + x.toString)):_*)
     }
   }
   object NullV {
