@@ -628,13 +628,11 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def exec(main: Module, fname: String, args: Rep[List[Value]],
-    isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
+  def exec(main: Module, fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
 
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
-    val comp = if (!isCommandLine) {
-      for {
+    val comp = for {
         fv <- eval(GlobalId(fname))(VoidType)(fname)
         _ <- pushFrame
         s <- getState
@@ -642,17 +640,6 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
         // Optimization: for entrance function, no need to pop
         //_ <- popFrame(s.stackSize)
       } yield v
-    } else {
-      val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
-      for {
-        fv <- eval(GlobalId(fname))(VoidType)(fname)
-        _ <- pushFrame
-        _ <- initializeArg(symarg)
-        s <- getState
-        v <- reflect(fv(s, commandLineArgs))
-        //_ <- popFrame(s.stackSize)
-      } yield v
-    }
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor

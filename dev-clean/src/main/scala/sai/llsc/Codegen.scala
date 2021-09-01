@@ -12,8 +12,8 @@ import java.io.FileOutputStream
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<llsc.hpp>")
-  registerHeader("./headers", "<llscintrinsics.hpp>")
-  registerHeader("./headers", "<llscexternal.hpp>")
+  registerHeader("./headers", "<llsc_intrinsics.hpp>")
+  registerHeader("./headers", "<llsc_external.hpp>")
 
   registerHeader("<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")

@@ -119,7 +119,8 @@ object RunCCBSE {
     new CCBSEDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         analyze_fun(m, fname)
-        val res = exec(m, fname, SymV.makeSymVList(get_args_num), false, 4)
+        var currFun: String = fname
+        val res = exec(m, fname, SymV.makeSymVList(get_args_num))
         // query SMT for 1 test
         //SS.checkPCToFile(res(0)._1)
         res.foreach { s =>
@@ -142,7 +143,7 @@ object RunCCBSE {
 
   def main(args: Array[String]): Unit = {
     val usage = """
-    Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
+    Usage: ccbse <.ll-filepath> <app-name>
     """
     if (args.size < 3) {
       println(usage)
