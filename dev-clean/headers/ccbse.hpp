@@ -484,8 +484,15 @@ class SS {
     Stack stack;
     PC pc;
     BlockLabel bb;
+    bool target;
+    bool from_main;
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {}
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {
+      contains_target = false;
+      from_main = false;
+    }
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb, bool target, bool from_main)
+      : heap(heap), stack(stack), pc(pc), bb(bb), target(target), from_main(from_main) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
@@ -541,6 +548,11 @@ class SS {
       return SS(heap, res_stack, pc, bb);
     }
     immer::set<SExpr> getPC() { return pc.getPC(); }
+    bool contains_target() {return target;}
+    bool is_from_main() {return from_main;}
+    SS set_target() {return SS(heap, stack, pc, bb, true, from_main);}
+    SS set_main() {return SS(heap, stack, pc, bb, target, true);}
+
     // TODO temp solution
     PtrVal getVarargLoc() {return stack.getVarargLoc(); }
 };
