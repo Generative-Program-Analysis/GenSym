@@ -138,6 +138,8 @@ object RunCCBSE {
           addArgSize(fun.id, sizes)
           addFun(fun.id, getRealFunName(CompileTimeRuntime.FunFuns(fun.id)))
         }
+        // Note: may need to add external fun as well
+        addFun("@target", "target")
 
         // (caller, callee)
         var workList: Rep[List[(String, Int)]] = List((fname, 0))

@@ -738,6 +738,20 @@ inline bool check_pc(immer::set<PtrVal> pc) {
   return result == 0;
 }
 
+
+inline void print_pc(immer::set<PtrVal> pc) {
+  br_query_num++;
+  int result = -1;
+  VC vc;
+  if (use_global_solver) {
+    vc = global_vc;
+    vc_push(vc);
+  } else vc = vc_createValidityChecker();
+  construct_STP_constraints(vc, pc);
+  vc_printVarDecls(vc);
+  vc_printAsserts(vc);
+}
+
 inline void check_pc_to_file(SS state) {
   if (!use_solver) {
     return;
@@ -927,7 +941,7 @@ struct CCBSERunTimeUtils {
     WorkList getWL() { return wl; }
     std::pair<String, int> popWL() { auto res = wl.at(0); wl = wl.drop(1); return res; }
     CallGraph getCG() { return cg; }
-    WorkList getWLinCG(String s) { ASSERT(cg.find(s), "CG can't find fun"); return cg.at(s); }
+    WorkList getWLinCG(String s) { if(cg.find(s)) return cg.at(s); else return immer::flex_vector<std::pair<String, int>>(); }
     bool nonEmptyWL() { return wl.size() != 0; }
     void setWL(WorkList swl) { wl = swl; }
     void setCG(CallGraph scg) { cg = scg; }

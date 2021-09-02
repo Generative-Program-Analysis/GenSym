@@ -78,9 +78,9 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> target(SS state, immer::flex_vector<PtrVal> args) {
-  if (state.contains_target() && state.is_from_main()) {
+  if (state.is_from_main()) {
     if (check_pc(state.getPC())) {
-      std::cout << "Target reached, exit." << std::endl;
+      std::cout << "Target reached from main, exit." << std::endl;
       check_pc_to_file(state);
       exit(0);
     }

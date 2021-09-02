@@ -528,7 +528,6 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
           r <- reflect {
             if (v.isConc) switchFun(v.int, s, table)
             else {
-              Coverage.incPath(table.size)
               switchFunSym(v, s, table)
             }
           }
@@ -632,7 +631,6 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
-      Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
         v <- execTerm(b.term, b.label.getOrElse(""))(funName)
@@ -657,6 +655,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
+      unchecked("std::cout << \"entering fun: " + f.id + "\" << std::endl")
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState

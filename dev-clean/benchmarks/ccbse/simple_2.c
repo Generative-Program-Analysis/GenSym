@@ -10,7 +10,7 @@ int g(int x) {
 }
 
 int main(int x) {
-    f(x);
     g(x);
+    f(x);
     return 0;
 }
