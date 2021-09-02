@@ -256,6 +256,7 @@ inline SExpr to_SMTBoolNeg(PtrVal v) {
 
 struct PairV : Value {
   PtrVal first, second;
+  PairV(PtrVal first, PtrVal second) : first(first), second(second) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "PairV(..)";
   }
@@ -280,6 +281,9 @@ inline PtrVal second(PtrVal v) {
   return std::dynamic_pointer_cast<PairV>(v)->second;
 }
 
+inline PtrVal make_PairV(PtrVal v1, PtrVal v2) {
+  return std::make_shared<PairV>(v1, v2);
+}
 
 struct FailV : Value {
   FailV() {}

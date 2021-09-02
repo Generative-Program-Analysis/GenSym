@@ -77,7 +77,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "float_op_2", List(Backend.Const(op: String), x, y), _) =>
       es"float_op_2(${quoteOp(op)}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
-    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_bb)"
+    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_smem, mt_sstack, mt_pc, mt_bb)"
 
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-slookup-env", List(ss, x), _) => es"$ss.senv_lookup($x)"

@@ -15,7 +15,7 @@ import sai.lmsx._
 import scala.collection.immutable.{List => StaticList}
 
 abstract class ConcDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
-    extends SAISnippet[A, B] with SAIOps with ConcolicEngine { q =>
+    extends SAISnippet[A, B] with SAIOps with ConcolicOptEngine { q =>
 
   import java.io.{File, PrintStream}
 

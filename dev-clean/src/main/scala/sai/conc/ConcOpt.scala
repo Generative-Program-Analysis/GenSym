@@ -23,7 +23,6 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
-import scalaz.Alpha
 
 @virtualize
 trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
@@ -230,11 +229,12 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def execValueInst(inst: ValueInstruction)(implicit funName: String, isSym: Boolean): Comp[E, Rep[Value]] = {
     inst match {
-      case AllocaInst(ty, align) =>
+      case AllocaInst(ty, align) if !isSym =>
         for {
           ss <- getState
           _ <- putState(ss.allocStack(getTySize(ty, align.n)))
         } yield LocV(ss.stackSize, LocV.kStack)
+      case AllocaInst(ty, align) if isSym => ret(IntV(0))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
