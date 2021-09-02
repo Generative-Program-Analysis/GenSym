@@ -75,6 +75,10 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
   }
 
+  def symExecFun(ss: Rep[SS], args: Rep[List[Value]], callee: String, caller: String): Rep[List[(SS, Value)]] = {
+    "sym_exec_fun".reflectWith[List[(SS, Value)]](ss, args, callee, caller)
+  }
+
   def getRealType(vt: LLVMType): LLVMType = vt match {
     case NamedType(id) => typeDefMap(id)
     case _ => vt
@@ -392,11 +396,10 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
-          fv <- eval(f)(VoidType)
           vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(symExecFun(s, List(vs:_*), f.asInstanceOf[GlobalId].id, funName))
           _ <- popFrame(s.stackSize)
         } yield v
 

@@ -76,4 +76,7 @@ object TestCCBSE {
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
   lazy val simple2 = parseFile("benchmarks/ccbse/simple_2.ll")
+  lazy val simple3 = parseFile("benchmarks/ccbse/simple_3.ll")
+  lazy val simple4 = parseFile("benchmarks/ccbse/simple_4.ll")
+
 }

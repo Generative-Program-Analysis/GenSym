@@ -21,7 +21,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#include <bits/stdc++.h>
+//#include <bits/stdc++.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
@@ -475,7 +475,7 @@ class PC {
     PC(immer::set<SExpr> pc) : pc(pc) {}
     PC add(SExpr e) { return PC(pc.insert(e)); }
     PC addSet(immer::set<SExpr> new_pc) { return PC(Set::join(pc, new_pc)); }
-    immer::set<SExpr> getPC() { return pc; }
+    const immer::set<SExpr> getPC() { return pc; }
     void print() { print_set(pc); }
 };
 
@@ -488,6 +488,11 @@ class SS {
     bool target;
     bool from_main;
   public:
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb)
+      : heap(heap), stack(stack), pc(pc), bb(bb) {
+        target = false;
+        from_main = false;
+      }
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb, bool target, bool from_main)
       : heap(heap), stack(stack), pc(pc), bb(bb), target(target), from_main(from_main) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
@@ -544,7 +549,7 @@ class SS {
       res_stack = res_stack.update(arg_index, make_IntV(0));
       return SS(heap, res_stack, pc, bb, target, from_main);
     }
-    immer::set<SExpr> getPC() { return pc.getPC(); }
+    const immer::set<SExpr> getPC() { return pc.getPC(); }
     bool contains_target() {return target;}
     bool is_from_main() {return from_main;}
     SS set_target() {return SS(heap, stack, pc, bb, true, from_main);}
@@ -558,7 +563,7 @@ inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
 inline const PC mt_pc = PC(immer::set<SExpr>{});
 inline const BlockLabel mt_bb = 0;
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb, false, false);
 
 inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};
@@ -895,7 +900,7 @@ inline void handle_cli_args(int argc, char** argv) {
 //inline immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>> funSum = immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>>{};
 /* CCBSE runtime */
 
-typedef immer::flex_vector<std::pair<SS, PtrVal>> ftyp(SS, immer::flex_vector<PtrVal);
+typedef immer::flex_vector<std::pair<SS, PtrVal>> ftyp(SS, immer::flex_vector<PtrVal>);
 typedef ftyp* pftyp;
 
 using WorkList = immer::flex_vector<std::pair<String, int>>;
@@ -916,7 +921,7 @@ struct CCBSERunTimeUtils {
     ) {
       wl = immer::flex_vector<std::pair<String, int>>{};
       cg = immer::map<String, immer::flex_vector<std::pair<String, int>>>{};
-      argSum = immer::map<String, immer::flex_vector<int>>{};
+      argSizes = immer::map<String, immer::flex_vector<int>>{};
     }
 
     WorkList getWL() { return wl; }
@@ -935,7 +940,7 @@ struct CCBSERunTimeUtils {
     // Future optimization: bin search
     void insertWL(WorkList iwl) {
       int prevSize = wl.size();
-      int prev = 0
+      int prev = 0;
       for (int i = 0; i < iwl.size(); i++) {
         int dist = iwl.at(i).second;
         bool inserted = false;
@@ -982,31 +987,32 @@ struct CCBSERunTimeUtils {
       ASSERT(funSum.find(s), "Panic: can't find fun sum");
       return funSum.at(s);
     }
-}
+};
 
 inline CCBSERunTimeUtils ccbse_runtime;
 
 // call + manage_targets
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_re_exec_fun(SS ss, String fs, immer::flex_vector<PtrVal> argList), String currFun) {
-  immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector();
+sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFun) {
+  immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
   pftyp f = ccbse_runtime.getFun(fs);
   if (ccbse_runtime.containsFunSum(fs)) {
-    immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = ccbse_runtime.getFunSum(f);
+    immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = ccbse_runtime.getFunSum(fs);
     for (int i = 0; i < ffunSum.size(); i++) {
       // Add pc for arg = sarg
-      SS newSS = SS;
+      SS newSS = ss;
       for (int j = 0; j < argList.size(); j++) {
         auto arg = argList.at(i);
         int bw = arg->get_bw();
         SExpr e1 = arg->to_SMTExpr();
         SExpr e2 = make_SymV(fs + std::to_string(i), bw)->to_SMTExpr();
-        newSS = newSS.addPC(std::make_shared<SymV>(op, immer::flex_vector({ e1, e2 }), bw));
+        newSS = newSS.addPC(std::make_shared<SymV>(op_eq, immer::flex_vector({ e1, e2 }), bw));
       }
-      newSS = newSS.addPCSet(std::get<0>(ffunSum.at(i)).getPC());
+      auto ffss = ffunSum.at(i).first;
+      newSS = newSS.addPCSet(ffss.getPC());
       auto tempRes = f(newSS, argList);
       // update paths
-      for (int j = 0; j < tempRes.size(); j++)) {
+      for (int j = 0; j < tempRes.size(); j++) {
         auto thisRes = tempRes.at(j);
         SS resSS = std::get<0>(thisRes);
         if (resSS.contains_target()) {
@@ -1021,7 +1027,7 @@ sym_re_exec_fun(SS ss, String fs, immer::flex_vector<PtrVal> argList), String cu
     }
   } else {
     auto tempRes = f(ss, argList);
-    for (int j = 0; j < tempRes.size(); j++)) {
+    for (int j = 0; j < tempRes.size(); j++) {
       auto thisRes = tempRes.at(j);
       SS resSS = std::get<0>(thisRes);
       if (resSS.contains_target()) {
@@ -1089,7 +1095,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>>
     argL = argL.push_back(make_SymV(fname+std::to_string(i), argSize.at(i)));
   }
 
-  std::pair<SS, PtrVal> res = f(ss, argL);
+  immer::flex_vector<std::pair<SS, PtrVal>> res = f(ss, argL);
   return res;
 }
 
@@ -1101,7 +1107,7 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
   ccbse_runtime.setWL(wl);
   ccbse_runtime.setCG(cg);
   std::pair<String, int> p = ccbse_runtime.popWL();
-  String fname = p.second;
+  String fname = p.first;
   if (fname == "@main") {
     ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
     return;
@@ -1111,7 +1117,7 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
 
   while (ccbse_runtime.nonEmptyWL()) {
     p = ccbse_runtime.popWL();
-    fname = p.second;
+    fname = p.first;
     if (fname == "@main") {
       ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
       return;

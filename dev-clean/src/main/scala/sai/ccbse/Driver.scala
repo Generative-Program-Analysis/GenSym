@@ -135,7 +135,7 @@ object RunCCBSE {
               case PtrType(ty, addrSpace) => ???
             }
           }
-          addArgSize(sizes)
+          addArgSize(fun.id, sizes)
           addFun(fun.id, getRealFunName(CompileTimeRuntime.FunFuns(fun.id)))
         }
 
@@ -144,6 +144,11 @@ object RunCCBSE {
 
         ccbse_main(workList, runtimeCallGraph, CompileTimeRuntime.concreteHeap,
           CompileTimeRuntime.symbolicHeap)
+
+        exec(m, "@main", SymV.makeSymVList(1))
+        exec(m, "@f", SymV.makeSymVList(1))
+        exec(m, "@g", SymV.makeSymVList(1))
+
         // while (workList.nonEmpty) {
         //   val currFun = workList.head._1
         //   val fromFun = workList.head._2
@@ -173,8 +178,8 @@ object RunCCBSE {
         ch: Rep[List[Value]], sh: Rep[List[Value]]): Rep[Unit] =
         "ccbse_main".reflectWriteWith[Unit](res, callGraph, ch, sh)(Adapter.CTRL)
 
-      def addArgSize(size: Rep[List[Int]]): Rep[Unit] =
-        "add-arg-size".reflectWriteWith[Unit](size)(Adapter.CTRL)
+      def addArgSize(fname: String, size: Rep[List[Int]]): Rep[Unit] =
+        "add-arg-size".reflectWriteWith[Unit](fname, size)(Adapter.CTRL)
       def addFun(fname: String, fp: String): Rep[Unit] =
         "add-fun".reflectWriteWith[Unit](fname, unchecked[String](fp))(Adapter.CTRL)
     }
@@ -202,7 +207,7 @@ object RunCCBSE {
       runCCBSE(parseFile(filepath), appName, fun)
     }
 
-    runCCBSE(sai.llvm.TestCCBSE.simple1, "simple1", "@f")
+    runCCBSE(sai.llvm.TestCCBSE.simple2, "simple2", "@f")
 
   }
 }

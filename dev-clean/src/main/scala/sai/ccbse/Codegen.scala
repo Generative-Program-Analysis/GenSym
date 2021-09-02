@@ -12,7 +12,7 @@ import java.io.FileOutputStream
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<ccbse.hpp>")
-  registerHeader("./headers", "<llsc_intrinsics.hpp>")
+  // registerHeader("./headers", "<llsc_intrinsics.hpp>")
   registerHeader("./headers", "<ccbse_external.hpp>")
 
   registerHeader("<stp/c_interface.h>")
@@ -113,7 +113,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "print-time", _, _) => es"cov.print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov.print_path_cov()"
 
-    case Node(s, "add-arg-size", List(v), _) => es"ccbse_runtime.setArgSize($v)"
+    case Node(s, "add-arg-size", List(f, v), _) => es"ccbse_runtime.setArgSize($f, $v)"
     case Node(s, "add-fun", List(n, f), _) => es"ccbse_runtime.addFun($n, $f)"
 
 
