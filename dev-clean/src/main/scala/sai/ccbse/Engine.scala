@@ -641,7 +641,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
       Predef.assert(!CompileTimeRuntime.BBFuns.contains((funName, b)))
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
-      val realFunName = if (funName != "@main") funName.tail else "llsc_main"
+      val realFunName = if (funName != "@main") funName.tail else "target_main"
       FunName.blockMap(n) = s"${realFunName}_Block$n"
       CompileTimeRuntime.BBFuns((funName, b)) = repRunBlock
     }
@@ -666,7 +666,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+      FunName.funMap(n) = if (f.id != "@main") f.id.tail else "target_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
@@ -694,6 +694,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.concreteHeap = List(precompileHeapLists(m::Nil):_*)
     CompileTimeRuntime.symbolicHeap = List(precompileHeapSym(CompileTimeRuntime.globalDefMap):_*)
 
+    precompileFunctions(funMap.values.toList)
   }
 
   def analyze_fun(m: Module, fname: String): Unit = {
@@ -730,7 +731,9 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
       }
     }
-
+  
+    // TODO optimization: only maintain a call graph that reaches target fun
+    // This can reduce generated code size
     callGraph foreach {case (callee, m) =>
       m.keySet.foreach(caller => m.update(caller, distance(caller)))
     }

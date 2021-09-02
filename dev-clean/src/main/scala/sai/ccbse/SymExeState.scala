@@ -212,6 +212,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
 
+  def getRealFunName(bf: Rep[(SS, List[Value]) => List[(SS, Value)]]): String = {
+    FunName.funMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
+  }
+
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =

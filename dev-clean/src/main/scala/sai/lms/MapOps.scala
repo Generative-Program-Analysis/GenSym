@@ -190,12 +190,13 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
   registerHeader("../immer", "<immer/map.hpp>")
   registerHeader("./headers", "<sai.hpp>")
 
+  val ms = ""; // "immer::"
+
   override def remap(m: Manifest[_]): String = {
-    val ns = ""; // "immer::"
     if (m.runtimeClass.getName == "scala.collection.immutable.Map") {
       val kty = m.typeArguments(0)
       val vty = m.typeArguments(1)
-      s"${ns}map<${remap(kty)}, ${remap(vty)}>"
+      s"${ms}map<${remap(kty)}, ${remap(vty)}>"
     } else { super.remap(m) }
   }
 
@@ -212,7 +213,7 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
       val mM = Adapter.typeMap(s.asInstanceOf[Backend.Exp])
       val keyType = remap(mM.typeArguments(0))
       val valType = remap(mM.typeArguments(1))
-      s"Map::make_map<$keyType, $valType>({" + kvs.mkString(", ") + "})"
+      s"${ms}map<$keyType, $valType>({" + kvs.mkString(", ") + "})"
     case _ => super.quote(s)
   }
 
@@ -221,7 +222,7 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
     case Node(s, "map-new", Const(mK: Manifest[_])::Const(mV: Manifest[_])::kvs, _) =>
       val kty = remap(mK)
       val vty = remap(mV)
-      emit("Map::make_map<")
+      emit(s"${ms}map<")
       emit(kty); emit(", "); emit(vty)
       emit(">({")
       kvs.zipWithIndex.map { case (kv, i) =>

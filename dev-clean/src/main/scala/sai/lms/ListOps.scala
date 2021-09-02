@@ -234,7 +234,9 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
 
   override def quote(s: Def): String = s match {
     case Const(xs: List[_]) =>
-      "{" + xs.map(x => quote(Const(x))).mkString(", ") + "}"
+      val mA = Adapter.typeMap(s.asInstanceOf[Backend.Exp])
+      val smA = remap(mA)
+      smA + "{" + xs.map(x => quote(Const(x))).mkString(", ") + "}"
     case _ => super.quote(s)
   }
 

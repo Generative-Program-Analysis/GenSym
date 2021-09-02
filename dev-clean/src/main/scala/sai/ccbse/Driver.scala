@@ -121,17 +121,43 @@ object RunCCBSE {
       def snippet(u: Rep[Int]) = {
         prepareCompileTimeRuntime(m)
         analyze_fun(m, fname)
-        // (caller, callee)
-        var workList: StaticList[(String, String)] = StaticList((fname, ""))
-        while (workList.nonEmpty) {
-          val currFun = workList.head._1
-          val fromFun = workList.head._2
-          workList = CompileTimeRuntime.callGraph.getOrElse(currFun, StaticMutMap()).toList.sortBy(_._2).map{
-            case (s, i) => (s, currFun)
-          } ++ workList.tail
-          val res = exec(m, currFun, SymV.makeSymVList(get_args_num(currFun), currFun))
-          println(res.size)
+        var runtimeCallGraph: Rep[Map[String, List[(String, Int)]]] = Map[String, List[(String, Int)]]()
+        CompileTimeRuntime.callGraph.foreach { case ((s, m)) =>
+          val tempList = m.toList.sortBy(_._2)
+          runtimeCallGraph = runtimeCallGraph + (s -> (tempList))
         }
+
+        for (fun <- CompileTimeRuntime.funMap.values) {
+          val param_list = fun.header.params.asInstanceOf[List[TypedParam]]
+          val sizes = param_list map { u =>
+            u.ty match {
+              case IntType(size) => size
+              case PtrType(ty, addrSpace) => ???
+            }
+          }
+          addArgSize(sizes)
+          addFun(fun.id, getRealFunName(CompileTimeRuntime.FunFuns(fun.id)))
+        }
+
+        // (caller, callee)
+        var workList: Rep[List[(String, Int)]] = List((fname, 0))
+
+        ccbse_main(workList, runtimeCallGraph, CompileTimeRuntime.concreteHeap,
+          CompileTimeRuntime.symbolicHeap)
+        // while (workList.nonEmpty) {
+        //   val currFun = workList.head._1
+        //   val fromFun = workList.head._2
+
+        //   val res = exec(m, currFun, SymV.makeSymVList(get_args_num(currFun), currFun))
+          
+        //   if (contains_target(res)) {
+        //     workList = (CompileTimeRuntime.callGraph.getOrElse(currFun, StaticMutMap()).map{
+        //       case (s, i) => (s, currFun)
+        //     }.toList ++ workList.tail).sortBy(_._2)
+        //     println(res.size)
+        //   } else {}
+        //   if (currFun == "@main") workList = StaticList()
+        // }
 
         // query SMT for 1 test
         //SS.checkPCToFile(res(0)._1)
@@ -139,6 +165,18 @@ object RunCCBSE {
       }
 
       def get_args_num(fname: String): Int = m.funcDefMap(fname).header.params.size
+
+      def contains_target(res: Rep[List[(SS, Value)]]): Rep[Boolean] =
+        "contains_target".reflectReadWith[Boolean](res)(Adapter.CTRL)
+      def ccbse_main(res: Rep[List[(String, Int)]],
+        callGraph: Rep[Map[String, List[(String, Int)]]],
+        ch: Rep[List[Value]], sh: Rep[List[Value]]): Rep[Unit] =
+        "ccbse_main".reflectWriteWith[Unit](res, callGraph, ch, sh)(Adapter.CTRL)
+
+      def addArgSize(size: Rep[List[Int]]): Rep[Unit] =
+        "add-arg-size".reflectWriteWith[Unit](size)(Adapter.CTRL)
+      def addFun(fname: String, fp: String): Rep[Unit] =
+        "add-fun".reflectWriteWith[Unit](fname, unchecked[String](fp))(Adapter.CTRL)
     }
 
   def runCCBSE(m: Module, name: String, fname: String) {

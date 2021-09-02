@@ -46,6 +46,7 @@ using Id = int;
 using Addr = unsigned int;
 using IntData = long long int;
 
+
 enum iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
   op_eq, op_uge, op_ugt, op_ule, op_ult,
@@ -487,10 +488,6 @@ class SS {
     bool target;
     bool from_main;
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {
-      contains_target = false;
-      from_main = false;
-    }
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb, bool target, bool from_main)
       : heap(heap), stack(stack), pc(pc), bb(bb), target(target), from_main(from_main) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
@@ -512,26 +509,26 @@ class SS {
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb); }
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb, target, from_main); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb, target, from_main); }
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb);
-      return SS(heap.update(loc->l, val), stack, pc, bb);
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb, target, from_main);
+      return SS(heap.update(loc->l, val), stack, pc, bb, target, from_main);
     }
-    SS push() { return SS(heap, stack.push(), pc, bb); }
-    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb); }
-    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb); }
+    SS push() { return SS(heap, stack.push(), pc, bb, target, from_main); }
+    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb, target, from_main); }
+    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb, target, from_main); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      return SS(heap, stack.assign_seq(ids, vals), pc, bb);
+      return SS(heap, stack.assign_seq(ids, vals), pc, bb, target, from_main);
     }
     SS heap_append(immer::flex_vector<PtrVal> vals) {
-      return SS(heap.append(vals), stack, pc, bb);
+      return SS(heap.append(vals), stack, pc, bb, target, from_main);
     }
-    SS addPC(SExpr e) { return SS(heap, stack, pc.add(e), bb); }
-    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, pc.addSet(s), bb); }
-    SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
+    SS addPC(SExpr e) { return SS(heap, stack, pc.add(e), bb, target, from_main); }
+    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, pc.addSet(s), bb, target, from_main); }
+    SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel, target, from_main); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
       // FIXME: ptr size magic
@@ -545,7 +542,7 @@ class SS {
         arg_index++;
       }
       res_stack = res_stack.update(arg_index, make_IntV(0));
-      return SS(heap, res_stack, pc, bb);
+      return SS(heap, res_stack, pc, bb, target, from_main);
     }
     immer::set<SExpr> getPC() { return pc.getPC(); }
     bool contains_target() {return target;}
@@ -895,16 +892,149 @@ inline void handle_cli_args(int argc, char** argv) {
   }
 }
 
-inline immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>> funSum = immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>>{};
+//inline immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>> funSum = immer::map<???, immer::flex_vector<std::pair<SS, PtrVal>>>{};
+/* CCBSE runtime */
 
+typedef immer::flex_vector<std::pair<SS, PtrVal>> ftyp(SS, immer::flex_vector<PtrVal);
+typedef ftyp* pftyp;
+
+using WorkList = immer::flex_vector<std::pair<String, int>>;
+using CallGraph = immer::map<String, immer::flex_vector<std::pair<String, int>>>;
+
+struct CCBSERunTimeUtils {
+  private:
+    immer::map<String, pftyp> funNameMap;
+    immer::map<String, immer::flex_vector<std::pair<SS, PtrVal>>> funSum;
+    WorkList wl;
+    CallGraph cg;
+    // f(i32, i64, i8) : f -> (32, 64, 8)
+    // for symbolically construct arguments
+    immer::map<String, immer::flex_vector<int>> argSizes;
+  public:
+    CCBSERunTimeUtils() : funNameMap(immer::map<String, pftyp>{}), funSum(
+       immer::map<String, immer::flex_vector<std::pair<SS, PtrVal>>>{}
+    ) {
+      wl = immer::flex_vector<std::pair<String, int>>{};
+      cg = immer::map<String, immer::flex_vector<std::pair<String, int>>>{};
+      argSum = immer::map<String, immer::flex_vector<int>>{};
+    }
+
+    WorkList getWL() { return wl; }
+    std::pair<String, int> popWL() { auto res = wl.at(0); wl = wl.drop(1); return res; }
+    CallGraph getCG() { return cg; }
+    WorkList getWLinCG(String s) { ASSERT(cg.find(s), "CG can't find fun"); return cg.at(s); }
+    bool nonEmptyWL() { return wl.size() != 0; }
+    void setWL(WorkList swl) { wl = swl; }
+    void setCG(CallGraph scg) { cg = scg; }
+    void setArgSize(String fname, immer::flex_vector<int> argSize) {
+      argSizes = argSizes.set(fname, argSize);
+    }
+    immer::flex_vector<int> getArgSize(String fname) {
+      return argSizes.at(fname);
+    }
+    // Future optimization: bin search
+    void insertWL(WorkList iwl) {
+      int prevSize = wl.size();
+      int prev = 0
+      for (int i = 0; i < iwl.size(); i++) {
+        int dist = iwl.at(i).second;
+        bool inserted = false;
+        for (; prev < wl.size(); prev++) {
+          if (dist < wl.at(prev).second) {
+            wl = wl.insert(prev, iwl.at(i));
+            inserted = true;
+            prev++;
+            break;
+          }
+        }
+        if (!inserted) {
+          wl = wl + iwl.drop(i);
+          break;
+        }
+      }
+      ASSERT(prevSize+iwl.size()==wl.size(), "inserting into WL incorrect");
+    }
+
+    void addFun(String s, pftyp f) { funNameMap = funNameMap.insert({s, f}); }
+    pftyp getFun(String s) {
+      ASSERT(funNameMap.find(s), "Panic: can't find fun pointer");
+      return funNameMap.at(s);
+    }
+    void updateFunSum(String s, immer::flex_vector<std::pair<SS, PtrVal>> sum) {
+      if (!funSum.find(s)) {
+        funSum = funSum.set(s,  sum);
+      } else {
+        funSum = funSum.set(s,  funSum.at(s) + sum);
+      }
+    }
+    void updateFunSum(String s, std::pair<SS, PtrVal> sum) {
+      if (!funSum.find(s)) {
+        funSum = funSum.set(s,  immer::flex_vector<std::pair<SS, PtrVal>>{sum});
+      } else {
+        funSum = funSum.set(s,  funSum.at(s).push_back(sum));
+      }
+    }
+    bool containsFunSum(String s) {
+      if (funSum.find(s) && funSum.at(s).size() > 0) return true;
+      else return false;
+    }
+    immer::flex_vector<std::pair<SS, PtrVal>> getFunSum(String s) {
+      ASSERT(funSum.find(s), "Panic: can't find fun sum");
+      return funSum.at(s);
+    }
+}
+
+inline CCBSERunTimeUtils ccbse_runtime;
+
+// call + manage_targets
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_re_exec_fun(SS ss, immer::flex_vector<std::pair<SS, PtrVal>> (*f)(SS, immer::flex_vector<PtrVal>), immer::flex_vector<PtrVal> argList)) {
-  immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
-  immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = funSum.at(f);
-  for (int i = 0; i < ffunSum.size(); i++) {
-    SS newss = SS.addPCSet(std::get<0>(ffunSum(i)).getPC());
-    res = res + f(newss, argList);
+sym_re_exec_fun(SS ss, String fs, immer::flex_vector<PtrVal> argList), String currFun) {
+  immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector();
+  pftyp f = ccbse_runtime.getFun(fs);
+  if (ccbse_runtime.containsFunSum(fs)) {
+    immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = ccbse_runtime.getFunSum(f);
+    for (int i = 0; i < ffunSum.size(); i++) {
+      // Add pc for arg = sarg
+      SS newSS = SS;
+      for (int j = 0; j < argList.size(); j++) {
+        auto arg = argList.at(i);
+        int bw = arg->get_bw();
+        SExpr e1 = arg->to_SMTExpr();
+        SExpr e2 = make_SymV(fs + std::to_string(i), bw)->to_SMTExpr();
+        newSS = newSS.addPC(std::make_shared<SymV>(op, immer::flex_vector({ e1, e2 }), bw));
+      }
+      newSS = newSS.addPCSet(std::get<0>(ffunSum.at(i)).getPC());
+      auto tempRes = f(newSS, argList);
+      // update paths
+      for (int j = 0; j < tempRes.size(); j++)) {
+        auto thisRes = tempRes.at(j);
+        SS resSS = std::get<0>(thisRes);
+        if (resSS.contains_target()) {
+          if (!ccbse_runtime.containsFunSum(currFun)) {
+            // add_callers(sf, worklist)
+            ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
+          }
+          ccbse_runtime.updateFunSum(currFun, thisRes);
+          res = res.push_back(thisRes);
+        }
+      }
+    }
+  } else {
+    auto tempRes = f(ss, argList);
+    for (int j = 0; j < tempRes.size(); j++)) {
+      auto thisRes = tempRes.at(j);
+      SS resSS = std::get<0>(thisRes);
+      if (resSS.contains_target()) {
+        if (!ccbse_runtime.containsFunSum(currFun)) {
+          // add_callers(sf, worklist)
+          ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
+        }
+        ccbse_runtime.updateFunSum(currFun, thisRes);
+        res = res.push_back(thisRes);
+      }
+    }
   }
+
   return res;
 }
 
@@ -947,6 +1077,51 @@ exec_br(SS ss, PtrVal cndVal,
     return ff(ss);
   }
   return sym_exec_br(ss, cndVal->to_SMTBool(), to_SMTBoolNeg(cndVal), tf, ff);
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>>
+  ccbse_exec(SS ss, String fname) {
+
+  pftyp f = ccbse_runtime.getFun(fname);
+  immer::flex_vector<PtrVal> argL = immer::flex_vector<PtrVal>{};
+  immer::flex_vector<int> argSize = ccbse_runtime.getArgSize(fname);
+  for (int i = 0; i < argSize.size(); i++) {
+    argL = argL.push_back(make_SymV(fname+std::to_string(i), argSize.at(i)));
+  }
+
+  std::pair<SS, PtrVal> res = f(ss, argL);
+  return res;
+}
+
+// To consider a more general case
+// for multiple targets or multiple function contains target
+// fs can be retrived from ccbse_runtime.cg.at("target")
+inline void ccbse_main(WorkList wl, CallGraph cg, 
+  immer::flex_vector<PtrVal> ch, immer::flex_vector<PtrVal> sh) {
+  ccbse_runtime.setWL(wl);
+  ccbse_runtime.setCG(cg);
+  std::pair<String, int> p = ccbse_runtime.popWL();
+  String fname = p.second;
+  if (fname == "@main") {
+    ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
+    return;
+  }
+  else
+    ccbse_exec(SS(sh, mt_stack, mt_pc, mt_bb, false, false).push(), fname);
+
+  while (ccbse_runtime.nonEmptyWL()) {
+    p = ccbse_runtime.popWL();
+    fname = p.second;
+    if (fname == "@main") {
+      ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
+      return;
+    }
+    else
+      ccbse_exec(SS(sh, mt_stack, mt_pc, mt_bb, false, false).push(), fname);
+
+  }
+
+  return;
 }
 
 #endif

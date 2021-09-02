@@ -113,6 +113,10 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "print-time", _, _) => es"cov.print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov.print_path_cov()"
 
+    case Node(s, "add-arg-size", List(v), _) => es"ccbse_runtime.setArgSize($v)"
+    case Node(s, "add-fun", List(n, f), _) => es"ccbse_runtime.addFun($n, $f)"
+
+
     case Node(s, "tp-async", List(b: Block), _) =>
       //emit("std::async(std::launch::async, [&]")
       emit("create_async<flex_vector<std::pair<SS, PtrVal>>>([&]")
