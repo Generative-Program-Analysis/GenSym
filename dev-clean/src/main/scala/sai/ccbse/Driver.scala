@@ -140,6 +140,7 @@ object RunCCBSE {
         }
         // Note: may need to add external fun as well
         addFun("@target", "target")
+        addFun("@make_symbolic", "make_symbolic")
 
         // (caller, callee)
         var workList: Rep[List[(String, Int)]] = List((fname, 0))
@@ -209,7 +210,7 @@ object RunCCBSE {
       runCCBSE(parseFile(filepath), appName, fun)
     }
 
-    runCCBSE(sai.llvm.TestCCBSE.simple2, "simple2", "@f")
+    runCCBSE(parseFile("benchmarks/ccbse/otter_example4.ll"), "example", "@g")
 
   }
 }

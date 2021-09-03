@@ -750,6 +750,11 @@ inline void print_pc(immer::set<PtrVal> pc) {
   construct_STP_constraints(vc, pc);
   vc_printVarDecls(vc);
   vc_printAsserts(vc);
+  if (use_global_solver) {
+    vc_pop(vc);
+  } else {
+    vc_Destroy(vc);
+  }
 }
 
 inline void check_pc_to_file(SS state) {
@@ -1008,9 +1013,12 @@ inline CCBSERunTimeUtils ccbse_runtime;
 // call + manage_targets
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFun) {
+    std::cout << "calling " + fs + " from " + currFun << std::endl;
+
   immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
   pftyp f = ccbse_runtime.getFun(fs);
   if (ccbse_runtime.containsFunSum(fs)) {
+    std::cout << "calling precomputed" + fs + " from " + currFun << std::endl;
     immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = ccbse_runtime.getFunSum(fs);
     for (int i = 0; i < ffunSum.size(); i++) {
       // Add pc for arg = sarg
@@ -1031,6 +1039,7 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
         SS resSS = std::get<0>(thisRes);
         if (resSS.contains_target()) {
           if (!ccbse_runtime.containsFunSum(currFun)) {
+            std::cout << "adding" + currFun + " to computed fun"<< std::endl;
             // add_callers(sf, worklist)
             ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
           }
@@ -1040,6 +1049,7 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
       }
     }
   } else {
+    std::cout << "calling" + fs + " from " + currFun << std::endl;
     auto tempRes = f(ss, argList);
     for (int j = 0; j < tempRes.size(); j++) {
       auto thisRes = tempRes.at(j);
@@ -1047,6 +1057,7 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
       if (resSS.contains_target()) {
         if (!ccbse_runtime.containsFunSum(currFun)) {
           // add_callers(sf, worklist)
+          std::cout << "adding" + currFun + " to computed fun"<< std::endl;
           ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
         }
         ccbse_runtime.updateFunSum(currFun, thisRes);

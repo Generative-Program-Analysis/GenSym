@@ -131,7 +131,7 @@ object RunConc {
 
       def conc_exec(args: Rep[List[Value]], sargs: Rep[List[Value]]) = {
         val res = exec(m, fname, args, sargs)
-        println("This return value is: " + res._2.int)
+        // println("This return value is: " + res._2.int.toString)
         res._1.pc
       }
 

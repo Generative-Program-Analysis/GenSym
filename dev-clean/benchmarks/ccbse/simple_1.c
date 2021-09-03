@@ -7,7 +7,7 @@ void g() {
 }
 
 int main () {
-  f();
   g();
+  f();
   return 0;
 }

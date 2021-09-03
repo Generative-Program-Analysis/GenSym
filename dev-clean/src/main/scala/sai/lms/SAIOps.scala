@@ -63,7 +63,8 @@ trait SAIOps extends Base
         val fn = Backend.Sym(Adapter.g.fresh)
         Adapter.funTable = (fn, can)::Adapter.funTable
         val block = Adapter.g.reify(arity, gf)
-        val res = Adapter.g.reflect(fn, "λ", block, Backend.Const(0), Backend.Const(decorator))(hardHardSummary(fn))
+        // val res = Adapter.g.reflect(fn, "λ", block, Backend.Const(0), Backend.Const(decorator))(hardHardSummary(fn))
+        val res = Adapter.g.reflectEffect(fn, "λ", block, Backend.Const(0), Backend.Const(decorator))()(Adapter.CTRL)
         topLevelFunctions.getOrElseUpdate(can, fn)
         fn
     }

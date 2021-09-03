@@ -396,10 +396,22 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
+          // fv <- eval(f)(VoidType)
           vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(symExecFun(s, List(vs:_*), f.asInstanceOf[GlobalId].id, funName))
+          v <- reflect{
+            val callee = f match {
+              case GlobalId(id) => id
+              case BitCastExpr(from, const, to) => const match {
+                case GlobalId(id) => id
+                case _ => ???
+              }
+              case _ => ???
+            }
+            symExecFun(s, List(vs:_*), callee, funName)
+          }
+          
           _ <- popFrame(s.stackSize)
         } yield v
 
@@ -549,9 +561,6 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
           _ <- updateMem(v2, v1)
         } yield ()
       case CallInst(ty, f, args) =>
-        // if (f.isInstanceOf[GlobalId] && f.asInstanceOf[GlobalId].id == "@backward_term") {
-        //   ret
-        // }
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
         }
@@ -559,11 +568,21 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
-          fv <- eval(f)(VoidType)
+          // fv <- eval(f)(VoidType)
           vs <- mapM2(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect{
+            val callee = f match {
+              case GlobalId(id) => id
+              case BitCastExpr(from, const, to) => const match {
+                case GlobalId(id) => id
+                case _ => ???
+              }
+              case _ => ???
+            }
+            symExecFun(s, List(vs:_*), callee, fun)
+          }
           _ <- popFrame(s.stackSize)
         } yield ()
     }
@@ -666,7 +685,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = hardTopFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
       FunName.funMap(n) = if (f.id != "@main") f.id.tail else "target_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
@@ -707,9 +726,23 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
           var callee: String = ""
           i match {
             case CallInst(ty, f, args) =>
-              callee = f.asInstanceOf[GlobalId].id
+              callee = f match {
+                case GlobalId(id) => id
+                case BitCastExpr(from, const, to) => const match {
+                  case GlobalId(id) => id
+                  case _ => ???
+                }
+                case _ => ???
+              }
             case AssignInst(x, CallInst(ty, f, args)) =>
-              callee = f.asInstanceOf[GlobalId].id
+              callee = f match {
+                case GlobalId(id) => id
+                case BitCastExpr(from, const, to) => const match {
+                  case GlobalId(id) => id
+                  case _ => ???
+                }
+                case _ => ???
+              }
             case _ => ()
           }
           if (callee != "") {
@@ -726,10 +759,10 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     var workList: StaticQueue[String] = StaticQueue("@main")
     while (workList.nonEmpty) {
       val caller = workList.dequeue
-      callerGraph(caller) foreach { callee =>
+      callerGraph.getOrElse(caller, StaticSet()) foreach { callee =>
         if (!distance.contains(callee)) {
           distance(callee) = distance(caller) + 1
-          workList.enqueue(caller)
+          workList.enqueue(callee)
         }
       }
     }
