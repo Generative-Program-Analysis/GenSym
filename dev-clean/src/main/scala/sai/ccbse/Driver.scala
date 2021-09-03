@@ -148,9 +148,10 @@ object RunCCBSE {
         ccbse_main(workList, runtimeCallGraph, CompileTimeRuntime.concreteHeap,
           CompileTimeRuntime.symbolicHeap)
 
-        exec(m, "@main", SymV.makeSymVList(1))
-        exec(m, "@f", SymV.makeSymVList(1))
-        exec(m, "@g", SymV.makeSymVList(1))
+        unchecked[String]("exit(0);")
+        // exec(m, "@main", SymV.makeSymVList(1))
+        // exec(m, "@f", SymV.makeSymVList(1))
+        // exec(m, "@g", SymV.makeSymVList(1))
 
         // while (workList.nonEmpty) {
         //   val currFun = workList.head._1
