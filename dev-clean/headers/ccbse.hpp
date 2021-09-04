@@ -642,15 +642,16 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
   if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
 
   if (!sym_e->name.empty()) {
-    // TODO: does STP already cache var expr?
     auto name = sym_e->name;
-    //auto it = stp_env.find(name);
-    //if (it == stp_env.end()) {
-    Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-      //stp_env.insert(std::make_pair(name, stp_expr));
-    return stp_expr;
-    //}
-    //return it->second;
+    auto it = stp_env.find(name);
+    if (it == stp_env.end()) {
+      Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
+      stp_env.insert(std::make_pair(name, stp_expr));
+      // std::cout << "constructed symv: " << name << std::endl;
+      return stp_expr;
+    }
+    // std::cout << "constructed cached symv: " << name << std::endl;
+    return it->second;
   }
 
   std::vector<Expr> expr_rands;
@@ -706,6 +707,8 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
 }
 
 inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
+  // std::cout << "printing this construction:"<< std::flush;
+  stp_env = std::map<std::string, Expr>{};
   for (auto e : pc) {
     Expr stp_expr = construct_STP_expr(vc, e);
     vc_assertFormula(vc, stp_expr);
@@ -714,6 +717,7 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
     //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
     //    n = write(out_fd, "\n", 1);
   }
+  // std::cout << std::flush;
 }
 
 // returns true if it is sat, otherwise false
@@ -750,6 +754,7 @@ inline void print_pc(immer::set<PtrVal> pc) {
   construct_STP_constraints(vc, pc);
   vc_printVarDecls(vc);
   vc_printAsserts(vc);
+  vc_clearDecls(vc);
   if (use_global_solver) {
     vc_pop(vc);
   } else {
@@ -934,6 +939,9 @@ struct CCBSERunTimeUtils {
     // f(i32, i64, i8) : f -> (32, 64, 8)
     // for symbolically construct arguments
     immer::map<String, immer::flex_vector<int>> argSizes;
+    // function summary can only be updated
+    // when we backwardly execute it using symb arguments
+    String backwardFun;
   public:
     CCBSERunTimeUtils() : funNameMap(immer::map<String, pftyp>{}), funSum(
        immer::map<String, immer::flex_vector<std::pair<SS, PtrVal>>>{}
@@ -941,6 +949,7 @@ struct CCBSERunTimeUtils {
       wl = immer::flex_vector<std::pair<String, int>>{};
       cg = immer::map<String, immer::flex_vector<std::pair<String, int>>>{};
       argSizes = immer::map<String, immer::flex_vector<int>>{};
+      backwardFun = "";
     }
 
     WorkList getWL() { return wl; }
@@ -953,6 +962,8 @@ struct CCBSERunTimeUtils {
     void setArgSize(String fname, immer::flex_vector<int> argSize) {
       argSizes = argSizes.set(fname, argSize);
     }
+    bool canUpdateFunSum(String fname) { return fname == backwardFun; }
+    void setUpdateFunSum(String fname) { backwardFun = fname; }
     immer::flex_vector<int> getArgSize(String fname) {
       return argSizes.at(fname);
     }
@@ -966,15 +977,10 @@ struct CCBSERunTimeUtils {
         for (; prev < wl.size(); prev++) {
           if (dist < wl.at(prev).second) {
             wl = wl.insert(prev, iwl.at(i));
-            inserted = true;
-            prev++;
-            break;
+            inserted = true; prev++; break;
           }
         }
-        if (!inserted) {
-          wl = wl + iwl.drop(i);
-          break;
-        }
+        if (!inserted) { wl = wl + iwl.drop(i); break; }
       }
       ASSERT(prevSize+iwl.size()==wl.size(), "inserting into WL incorrect");
     }
@@ -985,17 +991,15 @@ struct CCBSERunTimeUtils {
       return funNameMap.at(s);
     }
     void updateFunSum(String s, immer::flex_vector<std::pair<SS, PtrVal>> sum) {
-      if (!funSum.find(s)) {
-        funSum = funSum.set(s,  sum);
-      } else {
-        funSum = funSum.set(s,  funSum.at(s) + sum);
+      if (canUpdateFunSum(s)) {
+        funSum = (!funSum.find(s)) ? funSum.set(s, sum) : funSum.set(s, funSum.at(s) + sum);
+        std::cout << "added path for " + s << std::endl;
       }
     }
     void updateFunSum(String s, std::pair<SS, PtrVal> sum) {
-      if (!funSum.find(s)) {
-        funSum = funSum.set(s,  immer::flex_vector<std::pair<SS, PtrVal>>{sum});
-      } else {
-        funSum = funSum.set(s,  funSum.at(s).push_back(sum));
+      if (canUpdateFunSum(s)) {
+        funSum = (!funSum.find(s)) ? funSum.set(s, immer::flex_vector<std::pair<SS, PtrVal>>{sum}) : funSum.set(s,  funSum.at(s).push_back(sum));
+        std::cout << "added path for " + s << std::endl;
       }
     }
     bool containsFunSum(String s) {
@@ -1013,7 +1017,7 @@ inline CCBSERunTimeUtils ccbse_runtime;
 // call + manage_targets
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFun) {
-    std::cout << "calling " + fs + " from " + currFun << std::endl;
+  std::cout << "calling " + fs + " from " + currFun << std::endl;
 
   immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
   pftyp f = ccbse_runtime.getFun(fs);
@@ -1024,10 +1028,10 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
       // Add pc for arg = sarg
       SS newSS = ss;
       for (int j = 0; j < argList.size(); j++) {
-        auto arg = argList.at(i);
+        auto arg = argList.at(j);
         int bw = arg->get_bw();
         SExpr e1 = arg->to_SMTExpr();
-        SExpr e2 = make_SymV(fs + std::to_string(i), bw)->to_SMTExpr();
+        SExpr e2 = make_SymV(fs + std::to_string(j), bw)->to_SMTExpr();
         newSS = newSS.addPC(std::make_shared<SymV>(op_eq, immer::flex_vector({ e1, e2 }), bw));
       }
       auto ffss = ffunSum.at(i).first;
@@ -1044,8 +1048,8 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
             ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
           }
           ccbse_runtime.updateFunSum(currFun, thisRes);
-          res = res.push_back(thisRes);
         }
+        res = res.push_back(thisRes);
       }
     }
   } else {
@@ -1061,8 +1065,8 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
           ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
         }
         ccbse_runtime.updateFunSum(currFun, thisRes);
-        res = res.push_back(thisRes);
       }
+      res = res.push_back(thisRes);
     }
   }
 
@@ -1112,7 +1116,8 @@ exec_br(SS ss, PtrVal cndVal,
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
   ccbse_exec(SS ss, String fname) {
-
+  std::cout << "executing: " + fname << std::endl;
+  ccbse_runtime.setUpdateFunSum(fname);
   pftyp f = ccbse_runtime.getFun(fname);
   immer::flex_vector<PtrVal> argL = immer::flex_vector<PtrVal>{};
   immer::flex_vector<int> argSize = ccbse_runtime.getArgSize(fname);
@@ -1136,9 +1141,9 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
   if (fname == "@main") {
     ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
     return;
-  }
-  else
+  } else {
     ccbse_exec(SS(sh, mt_stack, mt_pc, mt_bb, false, false).push(), fname);
+  }
 
   while (ccbse_runtime.nonEmptyWL()) {
     p = ccbse_runtime.popWL();
@@ -1146,10 +1151,9 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
     if (fname == "@main") {
       ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
       return;
-    }
-    else
+    } else {
       ccbse_exec(SS(sh, mt_stack, mt_pc, mt_bb, false, false).push(), fname);
-
+    }
   }
 
   return;
