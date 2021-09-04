@@ -247,7 +247,7 @@ trait CppCodeGen_Tuple extends ExtendedCCodeGen {
     case Node(s, "tuple-3", List(t), _) => es"std::get<2>($t)"
     case Node(s, "tuple-4", List(t), _) => es"std::get<3>($t)"
     // Tuple2
-    case Node(s, "tuple2-new", List(t1, t2), _) => es"{$t1, $t2}"
+    case Node(s, "tuple2-new", List(t1, t2), _) => es"std::make_pair($t1, $t2)"
     case Node(s, "tuple2-swap", List(t), _) => es"Pair::swap($t)"
     // Tuple3
     case Node(s, "tuple3-new", List(t1, t2, t3), _) => es"{$t1, $t2, $t3}"

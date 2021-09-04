@@ -11,9 +11,9 @@ import sai.lmsx.smt._
 import java.io.FileOutputStream
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
-  registerHeader("./headers", "<conc.hpp>")
+  registerHeader("./headers", "<conc_global_solver.hpp>")
   // registerHeader("./headers", "<intrinsics.hpp>")
-  // registerHeader("./headers", "<external.hpp>")
+  registerHeader("./headers", "<conc_external.hpp>")
 
   registerHeader("<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")
@@ -101,6 +101,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
     case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
     case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.addPC($e)"
+    case Node(s, "ss-addpcq", List(ss, e), _) => es"$ss.addPCQuery($e)"
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.addPCSet($es)"
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.addIncomingBlock($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"

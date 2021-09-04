@@ -37,7 +37,7 @@
 
 using namespace std::chrono;
 
-#define concolic_debug 1
+#define concolic_debug 0
 
 inline unsigned int bitwidth = 32;
 inline unsigned int addr_bw = 64;
@@ -213,6 +213,9 @@ inline unsigned int proj_LocV(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
 inline LocV::Kind proj_LocV_kind(PtrVal v) {
+  if (!std::dynamic_pointer_cast<LocV>(v)) {
+    
+  }
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
 inline int proj_LocV_size(PtrVal v) {
@@ -590,15 +593,15 @@ class SFrame {
 // value retreived from symbolic enviornment should be discarded
 class SStack {
   private:
-    SMem mem;
+    Mem mem;
     immer::flex_vector<SFrame> env;
   public:
-    SStack(SMem mem, immer::flex_vector<SFrame> env) : mem(mem), env(env) {}
+    SStack(Mem mem, immer::flex_vector<SFrame> env) : mem(mem), env(env) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
     PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
     // what should we do about smem?
-    SStack pop(size_t keep) { return SStack(mem, env.take(env.size()-1)); }
+    SStack pop(size_t keep) { return SStack(mem.take(keep), env.take(env.size()-1)); }
     SStack push() { return SStack(mem, env.push_back(SFrame())); }
     SStack push(SFrame f) { return SStack(mem, env.push_back(f)); }
 
@@ -626,21 +629,41 @@ class SStack {
     }
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
-    PtrVal at(size_t idx) {
-      if (mem.find(idx)) return mem.at(idx);
-      else return std::make_shared<FailV>();
-    }
+    PtrVal at(size_t idx) { if (!mem.at(idx) || mem.at(idx)->is_conc()) return std::make_shared<FailV>(); else return mem.at(idx); }
     // How to handle structV?
     // PtrVal at(size_t idx, int size) {
     //   return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
     // }
     SStack update(size_t idx, PtrVal val) { return SStack(mem.update(idx, val), env); }
-    // SStack alloc(size_t size) { return SStack(mem.alloc(size), env); }
+    SStack alloc(size_t size) { return SStack(mem.alloc(size), env); }
 };
+
+// STP interaction
+inline bool use_solver = true;
+inline bool use_global_solver = false;
+inline unsigned int test_query_num = 0;
+inline unsigned int br_query_num = 0;
+inline std::map<std::string, Expr> stp_env;
 
 inline bool check_pc_to_file(immer::flex_vector<SExpr> pc);
 inline void print_pc(immer::flex_vector<PtrVal> pc);
+inline Expr construct_STP_expr(VC vc, PtrVal e);
 inline bool check_pc(immer::flex_vector<PtrVal> pc);
+inline bool check_pc_to_file(SExpr pc);
+inline bool add_pc_to_solver(SExpr e) {
+  bool success = false;
+  if (!use_solver) {
+    return false;
+  }
+  ASSERT(use_global_solver, "non-global solver unsupported in conc");
+  VC vc = global_vc;
+
+  Expr stp_expr = construct_STP_expr(vc, e);
+  vc_assertFormula(vc, stp_expr);
+
+  return success;
+}
+
 
 class PC {
   private:
@@ -706,7 +729,7 @@ class SS {
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
     // symbolic heap and stack does not grow with concrete ones
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack, pc, bb); }
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), sheap, sstack.alloc(size), pc, bb); }
     // SS alloc_sstack(size_t size) { return SS(heap, stack, sheap, sstack.alloc(size), pc, bb); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, sheap, sstack, pc, bb); }
     SS update(PtrVal addr, PtrVal val) {
@@ -746,13 +769,13 @@ class SS {
     SS addPC(SExpr e) { return SS(heap, stack, sheap, sstack, pc.add(e), bb); }
     SS addPCQuery(SExpr e) {
       auto solvpc = pc.add(to_SMTBoolNeg(e)).getPC();
-      check_pc_to_file(solvpc);
+      check_pc_to_file(to_SMTBoolNeg(e));
       if (concolic_debug) {
-        std::cout << "Now printing asserts:"  << std::boolalpha << check_pc(solvpc) << std::endl;
+        std::cout << "Now printing asserts:" << std::boolalpha << check_pc(solvpc) << std::endl;
         print_pc(solvpc);
         std::cout << std::endl<< std::endl << std::endl;
-
       }
+      add_pc_to_solver(e);
       return SS(heap, stack, sheap, sstack, pc.add(e), bb);
     }
     SS addPCSet(immer::flex_vector<SExpr> s) { return SS(heap, stack, sheap, sstack, pc.addSet(s), bb); }
@@ -782,7 +805,7 @@ class SS {
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
 inline const SMem mt_smem = SMem(immer::map<size_t, PtrVal>{});
-inline const SStack mt_sstack = SStack(mt_smem, immer::flex_vector<SFrame>{});
+inline const SStack mt_sstack = SStack(mt_mem, immer::flex_vector<SFrame>{});
 inline const PC mt_pc = PC(immer::flex_vector<SExpr>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_smem, mt_sstack, mt_pc, mt_bb);
@@ -847,13 +870,6 @@ auto create_async(std::function<T()> f) -> std::future<T> {
   });
   return fu;
 }
-
-// STP interaction
-inline bool use_solver = true;
-inline bool use_global_solver = false;
-inline unsigned int test_query_num = 0;
-inline unsigned int br_query_num = 0;
-inline std::map<std::string, Expr> stp_env;
 
 inline Expr construct_STP_expr(VC vc, PtrVal e) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
@@ -1075,11 +1091,78 @@ inline bool check_pc_to_file(immer::flex_vector<SExpr> pc) {
       ABORT("Cannot create the folder tests, abort.\n");
     }
   }
-
+  std::cerr<<"here"<<std::endl;
   std::stringstream output;
   output << "Query number: " << (test_query_num+1) << std::endl;
   
   construct_STP_constraints(vc, pc);
+  Expr fls = vc_falseExpr(vc);
+  int result = vc_query(vc, fls);
+
+  switch (result) {
+  case 0:
+    output << "Query is invalid" << std::endl;
+    std::cerr<<"here success"<<std::endl;
+
+    success = true;
+    break;
+  case 1:
+    output << "Query is Valid" << std::endl;
+    break;
+  case 2:
+    output << "Could not answer the query" << std::endl;
+    break;
+  case 3:
+    output << "Timeout" << std::endl;
+    break;
+  }
+  
+  if (result == 0) {
+    test_query_num++;
+    std::stringstream filename;
+    filename << "tests/" << test_query_num << ".test";
+    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
+    if (out_fd == -1) {
+        ABORT("Cannot create the test case file, abort.\n");
+    }
+
+    int n = write(out_fd, output.str().c_str(), output.str().size());
+    vc_printCounterExampleFile(vc, out_fd);
+    close(out_fd);
+  }
+  if (use_global_solver) {
+    vc_pop(vc);
+  } else {
+    vc_Destroy(vc);
+  }
+
+  return success;
+}
+
+
+
+
+inline bool check_pc_to_file(SExpr e) {
+  bool success = false;
+  if (!use_solver) {
+    return false;
+  }
+  ASSERT(use_global_solver, "non-global solver unsupported in conc");
+  VC vc = global_vc;
+  vc_push(vc);
+
+  if (mkdir("tests", 0777) == -1) {
+    if (errno == EEXIST) { }
+    else {
+      ABORT("Cannot create the folder tests, abort.\n");
+    }
+  }
+
+  std::stringstream output;
+  output << "Query number: " << (test_query_num+1) << std::endl;
+  
+  Expr stp_expr = construct_STP_expr(vc, e);
+  vc_assertFormula(vc, stp_expr);
   Expr fls = vc_falseExpr(vc);
   int result = vc_query(vc, fls);
 

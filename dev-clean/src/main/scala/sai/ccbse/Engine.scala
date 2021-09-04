@@ -686,6 +686,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = hardTopFun(runFun(f))
+      System.out.println("hardTopFuned ", f.id)
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
       FunName.funMap(n) = if (f.id != "@main") f.id.tail else "target_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
@@ -766,7 +767,8 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
       }
     }
-  
+
+
     // TODO optimization: only maintain a call graph that reaches target fun
     // This can reduce generated code size
     callGraph foreach {case (callee, m) =>

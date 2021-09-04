@@ -171,6 +171,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
     def push: Rep[SS] = "ss-push".reflectWith[SS](ss)
     def pop(keep: Rep[Int]): Rep[SS] = "ss-pop".reflectWith[SS](ss, keep)
     def addPC(e: Rep[SMTBool]): Rep[SS] = "ss-addpc".reflectWith[SS](ss, e)
+    def addPCAndQuery(e: Rep[SMTBool]): Rep[SS] = "ss-addpcq".reflectWith[SS](ss, e)
     def addPCSet(es: Rep[Set[SMTBool]]): Rep[SS] = "ss-addpcset".reflectWith[SS](ss, es)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
     def updateArg(l: Rep[Int]): Rep[SS] = "ss-arg".reflectWith[SS](ss, l)
@@ -222,6 +223,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
   def supdateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.supdate(k, v))
   def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
+  def updatePCAndQuery(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPCAndQuery(x))
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
 
@@ -289,6 +291,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
     }
     def first = "first".reflectWith[Value](v)
     def second = "second".reflectWith[Value](v)
+    def isPairV = "isPairV".reflectWith[Boolean](v)
 
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
@@ -326,7 +329,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with SymExeTypes {
     val warned_external = MultableSet[String]()
     val modeled_external: MultableSet[String] = MultableSet(
       "sym_print", "malloc", "realloc", "llsc_assert", "make_symbolic",
-      "__assert_fail"
+      "__assert_fail", "mark_symbolic"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
     def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")

@@ -999,6 +999,7 @@ struct CCBSERunTimeUtils {
     void updateFunSum(String s, std::pair<SS, PtrVal> sum) {
       if (canUpdateFunSum(s)) {
         funSum = (!funSum.find(s)) ? funSum.set(s, immer::flex_vector<std::pair<SS, PtrVal>>{sum}) : funSum.set(s,  funSum.at(s).push_back(sum));
+        print_pc(std::get<0>(sum).getPC());
         std::cout << "added path for " + s << std::endl;
       }
     }
@@ -1036,20 +1037,22 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
       }
       auto ffss = ffunSum.at(i).first;
       newSS = newSS.addPCSet(ffss.getPC());
-      auto tempRes = f(newSS, argList);
-      // update paths
-      for (int j = 0; j < tempRes.size(); j++) {
-        auto thisRes = tempRes.at(j);
-        SS resSS = std::get<0>(thisRes);
-        if (resSS.contains_target()) {
-          if (!ccbse_runtime.containsFunSum(currFun)) {
-            std::cout << "adding" + currFun + " to computed fun"<< std::endl;
-            // add_callers(sf, worklist)
-            ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
+      if (check_pc(newSS.getPC())) {
+        auto tempRes = f(newSS, argList);
+        // update paths
+        for (int j = 0; j < tempRes.size(); j++) {
+          auto thisRes = tempRes.at(j);
+          SS resSS = std::get<0>(thisRes);
+          if (resSS.contains_target()) {
+            if (!ccbse_runtime.containsFunSum(currFun)) {
+              std::cout << "adding" + currFun + " to computed fun"<< std::endl;
+              // add_callers(sf, worklist)
+              ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
+            }
+            ccbse_runtime.updateFunSum(currFun, thisRes);
           }
-          ccbse_runtime.updateFunSum(currFun, thisRes);
+          res = res.push_back(thisRes);
         }
-        res = res.push_back(thisRes);
       }
     }
   } else {
@@ -1070,6 +1073,7 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
     }
   }
 
+  if (res.size() == 0) return immer::flex_vector<std::pair<SS, PtrVal>>{std::make_pair(ss, make_IntV(0))};
   return res;
 }
 
@@ -1126,6 +1130,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>>
   }
 
   immer::flex_vector<std::pair<SS, PtrVal>> res = f(ss, argL);
+  std::cout << fname << res.size() <<std::endl;
   return res;
 }
 
@@ -1148,6 +1153,7 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
   while (ccbse_runtime.nonEmptyWL()) {
     p = ccbse_runtime.popWL();
     fname = p.first;
+    std::cout<<fname<<std::endl;
     if (fname == "@main") {
       ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
       return;

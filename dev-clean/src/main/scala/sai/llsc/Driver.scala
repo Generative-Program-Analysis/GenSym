@@ -143,6 +143,6 @@ object RunLLSC {
     //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
     //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
-    runLLSC(sai.llvm.Benchmarks.branch3, "branch3Test", "@f")
+    runLLSC(parseFile("benchmarks/demo_benchmarks/bubblesort.ll"), "bubble", "@main")
   }
 }

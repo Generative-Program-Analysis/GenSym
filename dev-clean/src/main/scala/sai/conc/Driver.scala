@@ -99,16 +99,16 @@ abstract class ConcDriver[A: Manifest, B: Manifest](appName: String, folder: Str
 
 object RunConc {
   @virtualize
-  def specialize(m: Module, name: String, fname: String, nSym: Int): ConcDriver[Int, Unit] =
+  def specialize(m: Module, name: String, fname: String, cargs: List[Int]=Nil): ConcDriver[Int, Unit] =
     new ConcDriver[Int, Unit](name, "./conc_gen") {
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = gen_init_args(false)
+        val args: Rep[List[Value]] = if (cargs.isEmpty) gen_init_args(false) else List(cargs.map(IntV(_)):_*)
         val sargs: Rep[List[Value]] = gen_init_args(true)
         val s_conc_exec = topFun(conc_exec(_,_))
         FunName.conc_exec = Unwrap(s_conc_exec).asInstanceOf[Backend.Sym].n
         // hack to force invoke conc_exec function
         if (repFalse) s_conc_exec(args, sargs)
-        conc_main(args, sargs)
+        conc_main_single(args, sargs)
       }
 
       def get_args_num: Int = m.funcDefMap(fname).header.params.size
@@ -140,32 +140,50 @@ object RunConc {
       def conc_main(args: Rep[List[Value]], sargs: Rep[List[Value]]): Rep[Unit] =
         "conc_main".reflectWriteWith[Unit](args, sargs)(Adapter.CTRL)
 
+      def conc_main_single(args: Rep[List[Value]], sargs: Rep[List[Value]]): Rep[Unit] =
+        "conc_main_single".reflectWriteWith[Unit](args, sargs)(Adapter.CTRL)
+
       def repFalse = unchecked[Boolean]("false")
     }
 
-  def runLLSC(m: Module, name: String, fname: String, nSym: Int = 0) {
+  def runLLSC(m: Module, name: String, fname: String, args: List[Int]=Nil) {
     val (_, t) = sai.utils.Utils.time {
-      val code = specialize(m, name, fname, nSym)
+      val code = specialize(m, name, fname, args)
       code.genAll
     }
     println(s"compiling $name, time $t ms")
   }
 
-  def main(args: Array[String]): Unit = {
-    val usage = """
-    Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
-    """
-    if (args.size < 3) {
-      println(usage)
-    } else {
-      val filepath = args(0)
-      val appName = args(1)
-      val fun = args(2)
-      val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
-      runLLSC(parseFile(filepath), appName, fun, nSym)
+  def calcConcTime(m: Module, name: String, fname: String, args: List[Int]=Nil): Double = {
+    val (_, t) = sai.utils.Utils.time {
+      val code = specialize(m, name, fname, args)
+      code.genAll
     }
+    t
+  }
 
-    runLLSC(sai.llvm.Benchmarks.branch3, "branch3Test", "@f")
+  def main(args: Array[String]): Unit = {
+    // val usage = """
+    // Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
+    // """
+    // if (args.size < 3) {
+    //   println(usage)
+    // } else {
+    //   val filepath = args(0)
+    //   val appName = args(1)
+    //   val fun = args(2)
+    //   val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
+    //   runLLSC(parseFile(filepath), appName, fun, nSym)
+    // }
+
+    runLLSC(parseFile("benchmarks/concolic/conc/bin_search.ll"), "bs", "@main")
+
+    for (i <- Range(0, 20)) {
+      val t = calcConcTime(parseFile("benchmarks/concolic/conc/bin_search.ll"), "bs", "@main")
+       System.out.print(t.toInt); 
+       System.out.print(","); 
+   }
+    
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
     //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")

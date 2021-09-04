@@ -149,9 +149,10 @@ object RunCCBSE {
           CompileTimeRuntime.symbolicHeap)
 
         unchecked[String]("exit(0);")
-        // exec(m, "@main", SymV.makeSymVList(1))
-        // exec(m, "@f", SymV.makeSymVList(1))
-        // exec(m, "@g", SymV.makeSymVList(1))
+        exec(m, "@main", SymV.makeSymVList(0, "main"))
+        exec(m, "@f", SymV.makeSymVList(2, "f"))
+
+        
 
         // while (workList.nonEmpty) {
         //   val currFun = workList.head._1
@@ -197,21 +198,23 @@ object RunCCBSE {
   }
 
   def main(args: Array[String]): Unit = {
-    val usage = """
-    Usage: ccbse <.ll-filepath> <app-name>
-    """
-    if (args.size < 3) {
-      println(usage)
-    } else {
-      val filepath = args(0)
-      val appName = args(1)
-      val fun = args(2)
-      val bbNum = args(3).toInt
-      val instrNum = args(4).toInt
-      runCCBSE(parseFile(filepath), appName, fun)
-    }
+    // val usage = """
+    // Usage: ccbse <.ll-filepath> <app-name>
+    // """
+    // if (args.size < 3) {
+    //   println(usage)
+    // } else {
+    //   val filepath = args(0)
+    //   val appName = args(1)
+    //   val fun = args(2)
+    //   val bbNum = args(3).toInt
+    //   val instrNum = args(4).toInt
+    //   runCCBSE(parseFile(filepath), appName, fun)
+    // }
 
-    runCCBSE(parseFile("benchmarks/ccbse/otter_example4.ll"), "example", "@g")
+    runCCBSE(parseFile("benchmarks/ccbse/NarrowBridge.ll"), "NarrowBridge", "@f")
+    runCCBSE(parseFile("benchmarks/ccbse/NarrowBridge.ll"), "NarrowBridge", "@f")
+
 
   }
 }

@@ -234,7 +234,10 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
           ss <- getState
           _ <- putState(ss.allocStack(getTySize(ty, align.n)))
         } yield LocV(ss.stackSize, LocV.kStack)
-      case AllocaInst(ty, align) if isSym => ret(IntV(0))
+      case AllocaInst(ty, align) if isSym => 
+        for {
+          ss <- getState
+        } yield LocV(ss.stackSize-getTySize(ty, align.n), LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
@@ -365,10 +368,7 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
           s <- getState
           v <- reflect(fv(s, List(vs:_*), List(svs:_*)))
           _ <- popFrame(s.stackSize)
-        } yield {
-          if (isSym) v.second
-          else v.first
-        }
+        } yield v
 
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
@@ -440,11 +440,11 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
           cndVal <- eval(cnd, ty)
           scndVal <- eval(cnd, ty)(funName, true)
           u <- reflect {
-            if (cndVal.int == 1) {
+            if (cndVal.int != 0) {
               if (scndVal.isConc) reify(ss)(execBlock(funName, thnLab))
               else reify(ss) {
                 for {
-                  _ <- updatePC(scndVal.toSMTBool)
+                  _ <- updatePCAndQuery(scndVal.toSMTBool)
                   v <- execBlock(funName, thnLab)
                 } yield v
               }
@@ -452,7 +452,7 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
               if (scndVal.isConc) reify(ss)(execBlock(funName, elsLab))
               else reify(ss) {
                 for {
-                  _ <- updatePC(scndVal.toSMTBoolNeg)
+                  _ <- updatePCAndQuery(scndVal.toSMTBoolNeg)
                   v <- execBlock(funName, elsLab)
                 } yield v
               }
@@ -487,16 +487,29 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
   def execInst(inst: Instruction)(implicit fun: String): Comp[E, Rep[Unit]] = {
     inst match {
       case AssignInst(x, valInst) =>
-        for {
+        for { 
           v <- execValueInst(valInst)(fun, false)
-          sv <- execValueInst(valInst)(fun, true)
-          _ <- stackUpdate(fun + "_" + x, v)
+          ss <- getState
+          cv <-  reflect { 
+             if (v.isPairV) (ss, v.first) else (ss, v)
+          }
+          sv <- reflect {
+            if (v.isPairV) (ss, v.second) else
+            reify(ss)(execValueInst(valInst)(fun, true))
+          }
+          _ <- stackUpdate(fun + "_" + x, cv)
           _ <- sstackUpdate(fun + "_" + x, sv)
         } yield ()
       case StoreInst(ty1, val1, ty2, val2, align) =>
         for {
           v1 <- eval(val1, ty1)(fun, false)
           sv1 <- eval(val1, ty1)(fun, true)
+          // cv1 <- reflect { 
+          //   if (v1.isPairV) (ss, v1.first) else (ss, v1)
+          // }
+          // sv1 <- reflect {
+          //   if (v1.isPairV) (ss, v1.second) else reify(ss)(eval(val1, ty1)(fun, true))
+          // }
           v2 <- eval(val2, ty2)(fun, false)
           _ <- updateMem(v2, v1)
           _ <- supdateMem(v2, sv1)
