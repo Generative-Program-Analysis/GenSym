@@ -1,6 +1,7 @@
 [submodule "lms-clean"]
 	path = lms-clean
 	url = https://github.com/TiarkRompf/lms-clean.git
+	branch = reflectEffect-mod
 	ignore = dirty
 [submodule "immer"]
 	path = immer
