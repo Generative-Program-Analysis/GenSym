@@ -126,7 +126,7 @@ object RunCCBSE {
         val ggg: Rep[(Int, Int) => Int] = hardTopFun { (x: Rep[Int], y: Rep[Int]) =>
           x * y
         }
-         */
+        */
         prepareCompileTimeRuntime(m)
         analyze_fun(m, fname)
         var runtimeCallGraph: Rep[Map[String, List[(String, Int)]]] = Map[String, List[(String, Int)]]()
@@ -160,8 +160,6 @@ object RunCCBSE {
         unchecked[String]("exit(0);")
         exec(m, "@main", SymV.makeSymVList(0, "main"))
         exec(m, "@f", SymV.makeSymVList(2, "f"))
-
-        
 
         // while (workList.nonEmpty) {
         //   val currFun = workList.head._1
