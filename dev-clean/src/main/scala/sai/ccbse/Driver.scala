@@ -119,9 +119,18 @@ object RunCCBSE {
   def specialize(m: Module, name: String, fname: String): CCBSEDriver[Int, Unit] =
     new CCBSEDriver[Int, Unit](name, "./ccbse_gen") {
       def snippet(u: Rep[Int]) = {
+        /*
+        val fff: Rep[(Int, Int) => Int] = hardTopFun { (x: Rep[Int], y: Rep[Int]) =>
+          x + y
+        }
+        val ggg: Rep[(Int, Int) => Int] = hardTopFun { (x: Rep[Int], y: Rep[Int]) =>
+          x * y
+        }
+         */
         prepareCompileTimeRuntime(m)
         analyze_fun(m, fname)
         var runtimeCallGraph: Rep[Map[String, List[(String, Int)]]] = Map[String, List[(String, Int)]]()
+
         CompileTimeRuntime.callGraph.foreach { case ((s, m)) =>
           val tempList = m.toList.sortBy(_._2)
           runtimeCallGraph = runtimeCallGraph + (s -> (tempList))
@@ -159,7 +168,7 @@ object RunCCBSE {
         //   val fromFun = workList.head._2
 
         //   val res = exec(m, currFun, SymV.makeSymVList(get_args_num(currFun), currFun))
-          
+
         //   if (contains_target(res)) {
         //     workList = (CompileTimeRuntime.callGraph.getOrElse(currFun, StaticMutMap()).map{
         //       case (s, i) => (s, currFun)

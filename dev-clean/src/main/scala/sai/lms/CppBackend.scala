@@ -13,7 +13,7 @@ import sai.lmsx.smt._
 
 trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple   with CppCodeGen_Map
-    with CppCodeGen_Set  with STPCodeGen_SMTBase with STPCodeGen_SMTBV 
+    with CppCodeGen_Set  with STPCodeGen_SMTBase with STPCodeGen_SMTBV
     with STPCodeGen_SMTArray {
 
   override def quote(s: Def): String = s match {
@@ -56,13 +56,18 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::Const("val")::_, _) => ???
-    case n @ Node(f, "λ", (b: Block)::Const(0)::_, _) =>
+    case n @ Node(f, "top-λ", (b: Block)::Const(0)::Const(dec: String)::Nil, _) =>
       // Note: top-level functions
-      super.traverse(n)
+      registerTopLevelFunctionDecl(quote(f)) {
+        emitFunctionSignature(quote(f), b, argNames = false, ending = ";\n")
+      }
+      registerTopLevelFunction(quote(f)) {
+        emitFunction(quote(f), b, dec)
+      }
     case n @ Node(f, "λ", (b: Block)::rest, _) =>
       // TODO: what are the rest?
       // TODO: regression test
-      /* Note: generate a declaration with full type annotation first,
+      /* Note: First, generate a function declaration with full type annotation,
        * and then generate the actual closure.
        */
       val retType = remap(typeBlockRes(b.res))
@@ -71,10 +76,8 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
       // TODO: pass by ref vs pass by val?
       //emitln(s"std::function<$retType(${argTypes})&> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      //quoteTypedBlock(b, false, true, capture = "&", argMod = Some(List.fill(b.in.length)("&")))
       quoteTypedBlock(b, false, true, capture = "&")
       emitln(";")
-      //super.traverse(n)
     case _ => super.traverse(n)
   }
 

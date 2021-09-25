@@ -50,10 +50,11 @@ trait SAIOps extends Base
 
   def print(x: Rep[Any]): Unit = Adapter.g.reflectWrite("print",Unwrap(x))(Adapter.CTRL)
 
+  def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B]): Rep[A => B] =
+    Wrap[A=>B](__hardTopFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0))))))
+
   def hardTopFun[A:Manifest,B:Manifest,C:Manifest](f: (Rep[A], Rep[B]) => Rep[C]): Rep[(A, B) => C] =
     Wrap[(A,B)=>C](__hardTopFun(f, 2, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1))))))
-
-  final def hardHardSummary(s: Backend.Sym) = EffectSummary(SSet(), SSet(s), SSet(), SSet(Adapter.CTRL))
 
   def __hardTopFun(f: AnyRef, arity: Int, gf: List[Backend.Exp] => Backend.Exp, decorator: String = ""): Backend.Exp = {
     val can = canonicalize(f)
@@ -63,14 +64,12 @@ trait SAIOps extends Base
         val fn = Backend.Sym(Adapter.g.fresh)
         Adapter.funTable = (fn, can)::Adapter.funTable
         val block = Adapter.g.reify(arity, gf)
-        // val res = Adapter.g.reflect(fn, "λ", block, Backend.Const(0), Backend.Const(decorator))(hardHardSummary(fn))
-        val res = Adapter.g.reflectEffect(fn, "λ", block, Backend.Const(0), Backend.Const(decorator))()(Adapter.CTRL)
+        val res = Adapter.g.reflectEffect(fn, "top-λ", block, Backend.Const(0), Backend.Const(decorator))()(Adapter.CTRL)
         topLevelFunctions.getOrElseUpdate(can, fn)
         fn
     }
   }
 
-  // add CTRL to wkeys in hardSummary.
   override def __fun[T: Manifest](f: AnyRef, arity: Int, gf: List[Backend.Exp] => Backend.Exp, captures: Backend.Exp*): Backend.Exp = {
     // No λforward
     val can = canonicalize(f)
@@ -88,6 +87,7 @@ trait SAIOps extends Base
     }
   }
 
+  // Experiment below -- do not use.
   // type CloseFun[A, B] = Rep[B] => Rep[A => B]
   // def close[A: Manifest, B: Manifest, M[_], C: Manifest, N[_], D: Manifest]
   // (f: Rep[A] => M[Rep[B]], k: (CloseFun[A, C], M[Rep[B]]) => N[Rep[C]]): N[D] = {

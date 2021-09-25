@@ -411,7 +411,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
             }
             symExecFun(s, List(vs:_*), callee, funName)
           }
-          
+
           _ <- popFrame(s.stackSize)
         } yield v
 
@@ -767,7 +767,6 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
       }
     }
-
 
     // TODO optimization: only maintain a call graph that reaches target fun
     // This can reduce generated code size
