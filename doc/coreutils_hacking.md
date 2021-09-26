@@ -20,7 +20,7 @@ CC=wllvm ../configure --disable-nls CFLAGS="-O1 -Xclang -disable-llvm-passes -fn
 make
 ```
 Note `-D__NO_STRING_INLINES -D_FORTIFY_SOURCE=0 -U__OPTIMIZE__` will stop `clang` from replacing certain library functions with safer version.\
-Now `src` folder will contain `coreutils` executable. `wllvm` provide a tool `extract-bc` to collect and regenerate bitcode from executales. Then, `llvm-dis` is a `llvm` disassembler to tranlaste bitcode to `.ll` code. 
+Now `src` folder will contain `coreutils` executable. `wllvm` provide a tool `extract-bc` to collect and regenerate bitcode from executables. Then, `llvm-dis` is a `llvm` disassembler to translate bitcode to `.ll` code. 
 ```
 cd src
 find . -executable -type f | xargs -I '{}' extract-bc '{}'
