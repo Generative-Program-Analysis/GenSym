@@ -348,7 +348,7 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
       SExpr e1 = s1->to_SMTExpr();
-      return std::make_shared<SymV>(op_sext, 
+      return std::make_shared<SymV>(op_sext,
         immer::flex_vector({ e1 }), bw);
     } else {
       ABORT("Sext an invalid value, exit");
@@ -388,7 +388,7 @@ class PreMem {
     PreMem<V> append(V val) { return PreMem<V>(mem.push_back(val)); }
     PreMem<V> append(V val, size_t padding) {
       size_t idx = mem.size();
-      return PreMem<V>(alloc(padding + 1).update(idx, val)); 
+      return PreMem<V>(alloc(padding + 1).update(idx, val));
     }
     PreMem<V> append(immer::flex_vector<V> vs) { return PreMem<V>(mem + vs); }
     PreMem<V> alloc(size_t size) {
@@ -601,7 +601,7 @@ auto create_async(std::function<T()> f) -> std::future<T> {
   num_async++;
   tt_num_async++;
   lk.unlock();
-  
+
   std::future<T> fu = std::async(std::launch::async, [&]{
     T t = f();
     std::unique_lock<std::mutex> lk(m);
@@ -683,7 +683,7 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
     case op_ashr:
     case op_and:
     case op_or:
-    case op_xor: 
+    case op_xor:
     case op_urem:
     case op_srem:
     default: break;
@@ -695,17 +695,20 @@ inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
   for (auto e : pc) {
     Expr stp_expr = construct_STP_expr(vc, e);
     vc_assertFormula(vc, stp_expr);
-    //vc_printExprFile(vc, e, out_fd); 
+    //vc_printExprFile(vc, e, out_fd);
     //std::string smt_rep = vc_printSMTLIB(vc, e);
     //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
     //    n = write(out_fd, "\n", 1);
   }
 }
 
+inline duration<long long, std::milli> solver_time = std::chrono::milliseconds::zero();
+
 // returns true if it is sat, otherwise false
 // XXX: should explore paths with timeout/no-answer cond?
 inline bool check_pc(immer::set<PtrVal> pc) {
   if (!use_solver) return true;
+  auto start = steady_clock::now();
   br_query_num++;
   int result = -1;
   VC vc;
@@ -721,6 +724,8 @@ inline bool check_pc(immer::set<PtrVal> pc) {
   } else {
     vc_Destroy(vc);
   }
+  auto end = steady_clock::now();
+  solver_time += duration_cast<milliseconds>(end - start);
   return result == 0;
 }
 
@@ -728,6 +733,7 @@ inline void check_pc_to_file(SS state) {
   if (!use_solver) {
     return;
   }
+  auto start = steady_clock::now();
   VC vc;
   if (use_global_solver) {
     vc = global_vc;
@@ -743,7 +749,7 @@ inline void check_pc_to_file(SS state) {
 
   std::stringstream output;
   output << "Query number: " << (test_query_num+1) << std::endl;
-  
+
   construct_STP_constraints(vc, state.getPC());
   Expr fls = vc_falseExpr(vc);
   int result = vc_query(vc, fls);
@@ -762,7 +768,7 @@ inline void check_pc_to_file(SS state) {
     output << "Timeout" << std::endl;
     break;
   }
-  
+
   if (result == 0) {
     test_query_num++;
     std::stringstream filename;
@@ -781,6 +787,8 @@ inline void check_pc_to_file(SS state) {
   } else {
     vc_Destroy(vc);
   }
+  auto end = steady_clock::now();
+  solver_time += duration_cast<milliseconds>(end - start);
 }
 
 /* Coverage information */
@@ -843,7 +851,8 @@ struct CoverageMonitor {
     }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();
-      std::cout << "[" << (duration_cast<milliseconds>(now - start).count() / 1000.0) << " s] ";
+      std::cout << "[" << (solver_time.count() / 1000.0) << "s/"
+                << (duration_cast<milliseconds>(now - start).count() / 1000.0) << "s] ";
     }
     void start_monitor() {
       std::thread([this]{
