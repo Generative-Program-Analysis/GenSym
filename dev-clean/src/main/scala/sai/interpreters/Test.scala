@@ -60,26 +60,25 @@ object mainGeneric {
 
   def toString(i: Int): String = i.toString
   def toDouble(i: Int): Double = i.toDouble
-
+  /*
   def combine_fix[A, B, C](f: A => B, g: A => C)(ev: (A => (B, C)) => (A => (B, C)) => A => (B, C)): A => (B, C) =
     a => ev(a => (f(a), g(a)))(combine_fix(f, g)(ev))(a)
-
-  def main(args: Array[String]): Unit = {
-    val f = combine_fix(toString, toDouble) {
+  val f = combine_fix(toString, toDouble) {
       eval_base => eval_rec => {
         case n if n > 0 => eval_rec(n-1)
         case 0 => eval_base(0)
       } }
     println(f(5))
     println(f(0))
-    /*
+  */
+
+  def main(args: Array[String]): Unit = {
     args(0) match {
       case "concrete" => testConcrete()
       case "staged-concrete" => testStagedConcrete()
       case "abstract" => testAbstract()
       case "staged-abstract" => testStagedAbstract()
     }
-    */
   }
 
 }
