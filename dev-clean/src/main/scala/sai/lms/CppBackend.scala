@@ -64,6 +64,8 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
       registerTopLevelFunction(quote(f)) {
         emitFunction(quote(f), b, dec)
       }
+    case n @ Node(f, "λ", (b: Block)::Const(0)::rest, _) =>
+      super.traverse(n)
     case n @ Node(f, "λ", (b: Block)::rest, _) =>
       // TODO: what are the rest?
       // TODO: regression test
