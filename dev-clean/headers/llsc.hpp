@@ -96,6 +96,51 @@ inline VC global_vc = vc_createValidityChecker();
 
 using PtrVal = std::shared_ptr<Value>;
 
+enum class ValueType {
+  tyInt,
+  tyFloat,
+  tyLoc,
+  tySym,
+  tyStruct
+};
+
+template<typename T>
+struct Compare3Ways {
+  int operator()(const T &a, const T &b) const {
+    return a == b ? 0 : (a < b ? -1 : 1);
+  }
+};
+
+template<typename T>
+inline int compare_3ways(const T &a, const T &b) {
+  return Compare3Ways<T>()(a, b);
+}
+
+#define COMPARE_3WAYS(a, b) \
+  do { \
+    int ret = compare_3ways(a, b); \
+    if (ret) return ret; \
+  } while (0)
+
+template<template<typename> typename T>
+struct Compare3Ways< T<PtrVal> > {
+  int operator()(const T<PtrVal> &a, const T<PtrVal> &b) const {
+    COMPARE_3WAYS(a.size(), b.size());
+    for (int i = 0; i < a.size(); i++)
+      COMPARE_3WAYS(a[i], b[i]);
+    return 0;
+  }
+};
+
+template<>
+struct Compare3Ways<PtrVal>;
+
+struct PtrValCmp {
+  bool operator()(const PtrVal &lhs, const PtrVal &rhs) const {
+    return compare_3ways(lhs, rhs) < 0;
+  }
+};
+
 struct Value : public std::enable_shared_from_this<Value> {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
@@ -107,6 +152,7 @@ struct Value : public std::enable_shared_from_this<Value> {
   virtual PtrVal to_IntV() const = 0;
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
+  virtual ValueType get_type() const = 0;
 };
 
 struct IntV : Value {
@@ -126,6 +172,8 @@ struct IntV : Value {
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(i, bw); }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
+  virtual ValueType get_type() const override { return ValueType::tyInt; }
+  int compare(const IntV *that) const { return compare_3ways(this->i, that->i); }
 };
 
 inline PtrVal make_IntV(IntData i) {
@@ -157,6 +205,8 @@ struct FloatV : Value {
   virtual bool is_conc() const override { return true; }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
+  virtual ValueType get_type() const override { return ValueType::tyFloat; }
+  int compare(const FloatV *that) const { return compare_3ways(this->f, that->f); }
 };
 
 inline PtrVal make_FloatV(float f) {
@@ -189,6 +239,11 @@ struct LocV : Value {
   }
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
+  virtual ValueType get_type() const override { return ValueType::tyLoc; }
+  int compare(const LocV *that) const {
+    COMPARE_3WAYS(this->k, that->k);
+    return compare_3ways(this->l, that->l);
+  }
 };
 
 inline PtrVal make_LocV(unsigned int i, LocV::Kind k, int size) {
@@ -233,6 +288,20 @@ struct SymV : Value {
   virtual bool is_conc() const override { return false; }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
+  virtual ValueType get_type() const override { return ValueType::tySym; }
+
+  int compare(const SymV *that) const {
+    int kind1 = this->name.empty(), kind2 = that->name.empty();
+    COMPARE_3WAYS(kind1, kind2);
+    if (!kind1) {  // symbol
+      return compare_3ways(this->name, that->name);
+    }
+    else {  // expression
+      COMPARE_3WAYS(this->bw, that->bw);
+      COMPARE_3WAYS(this->rator, that->rator);
+      return compare_3ways(this->rands, that->rands);
+    }
+  }
 };
 inline PtrVal make_SymV(String n) {
   return std::make_shared<SymV>(n, bitwidth);
@@ -263,6 +332,39 @@ struct StructV : Value {
   }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
+  virtual ValueType get_type() const override { return ValueType::tyStruct; }
+
+  int compare(const StructV *that) const { return compare_3ways(this->fs, that->fs); }
+};
+
+template<>
+struct Compare3Ways<PtrVal> {
+  int operator()(const PtrVal &lhs, const PtrVal &rhs) const {
+    auto tylhs = lhs->get_type();
+    auto tyrhs = rhs->get_type();
+    COMPARE_3WAYS(tylhs, tyrhs);
+    switch (tylhs) {
+      case ValueType::tyInt:
+        return safe_compare<IntV>(lhs, rhs);
+      case ValueType::tyFloat:
+        return safe_compare<FloatV>(lhs, rhs);
+      case ValueType::tyLoc:
+        return safe_compare<LocV>(lhs, rhs);
+      case ValueType::tySym:
+        return safe_compare<SymV>(lhs, rhs);
+      case ValueType::tyStruct:
+        return safe_compare<StructV>(lhs, rhs);
+      default:
+        return 0;  // dead!
+    }
+  }
+
+  template<typename T>
+  int safe_compare(const PtrVal &lhs, const PtrVal &rhs) const {
+    auto lhs2 = reinterpret_cast<const T*>(lhs.get());
+    auto rhs2 = reinterpret_cast<const T*>(rhs.get());
+    return lhs2->compare(rhs2);
+  }
 };
 
 inline PtrVal structV_at(PtrVal v, int idx) {
@@ -619,7 +721,7 @@ inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
 
-inline Expr construct_STP_expr(VC vc, PtrVal e) {
+inline Expr construct_STP_expr(VC vc, PtrVal e, std::map<std::string, Expr> &varmap) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
     return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);
@@ -633,6 +735,7 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
     //auto it = stp_env.find(name);
     //if (it == stp_env.end()) {
     Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
+    varmap[name] = stp_expr;
       //stp_env.insert(std::make_pair(name, stp_expr));
     return stp_expr;
     //}
@@ -642,7 +745,7 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
   std::vector<Expr> expr_rands;
   int bw = sym_e->bw;
   for (auto e : sym_e->rands) {
-    expr_rands.push_back(construct_STP_expr(vc, e));
+    expr_rands.push_back(construct_STP_expr(vc, e, varmap));
   }
   switch (sym_e->rator) {
     case op_add:
@@ -691,18 +794,24 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
   ABORT("unkown operator when constructing STP expr");
 }
 
-inline void construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
+inline std::map<std::string, Expr>
+construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
+  std::map<std::string, Expr> ret;
   for (auto e : pc) {
-    Expr stp_expr = construct_STP_expr(vc, e);
+    Expr stp_expr = construct_STP_expr(vc, e, ret);
     vc_assertFormula(vc, stp_expr);
     //vc_printExprFile(vc, e, out_fd);
     //std::string smt_rep = vc_printSMTLIB(vc, e);
     //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
     //    n = write(out_fd, "\n", 1);
   }
+  return ret;
 }
 
 inline duration<long long, std::milli> solver_time = std::chrono::milliseconds::zero();
+// void vc_printAssertsToStream(VC, std::ostream&, int);
+inline std::map< std::set<PtrVal, PtrValCmp>, std::map<std::string, Expr> > cachemap;
+inline std::mutex cachemutex;
 
 // returns true if it is sat, otherwise false
 // XXX: should explore paths with timeout/no-answer cond?
@@ -710,15 +819,32 @@ inline bool check_pc(immer::set<PtrVal> pc) {
   if (!use_solver) return true;
   auto start = steady_clock::now();
   br_query_num++;
+  std::set<PtrVal, PtrValCmp> pc2(pc.begin(), pc.end());
+  do {
+    std::lock_guard cachelock(cachemutex);
+    auto it = cachemap.find(pc2);
+    if (it != cachemap.end())
+      return true;
+  } while (0);
   int result = -1;
   VC vc;
   if (use_global_solver) {
     vc = global_vc;
     vc_push(vc);
   } else vc = vc_createValidityChecker();
-  construct_STP_constraints(vc, pc);
+  auto varmap = construct_STP_constraints(vc, pc);
   Expr fls = vc_falseExpr(vc);
   result = vc_query(vc, fls);
+  if (result == 0) {
+    for (auto &pair: varmap) {
+      auto val = vc_getCounterExample(vc, pair.second);
+      pair.second = val;
+    }
+    do {
+      std::lock_guard cachelock(cachemutex);
+      cachemap[pc2] = varmap;
+    } while (0);
+  }
   if (use_global_solver) {
     vc_pop(vc);
   } else {
@@ -753,6 +879,7 @@ inline void check_pc_to_file(SS state) {
   construct_STP_constraints(vc, state.getPC());
   Expr fls = vc_falseExpr(vc);
   int result = vc_query(vc, fls);
+  // vc_printAssertsToStream(vc, output, 0);
 
   switch (result) {
   case 0:
