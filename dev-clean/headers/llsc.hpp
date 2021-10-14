@@ -719,8 +719,9 @@ inline bool use_global_solver = false;
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
+typedef std::set< std::shared_ptr<SymV> > VarSet;
 
-inline Expr construct_STP_expr(VC vc, PtrVal e, std::set< std::shared_ptr<SymV> > &vars) {
+inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
     return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);
@@ -815,9 +816,8 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, std::set< std::shared_ptr<SymV> 
   ABORT("unkown operator when constructing STP expr");
 }
 
-inline std::set< std::shared_ptr<SymV> >
-construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
-  std::set< std::shared_ptr<SymV> > ret;
+inline VarSet construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
+  VarSet ret;
   for (auto e : pc) {
     Expr stp_expr = construct_STP_expr(vc, e, ret);
     vc_assertFormula(vc, stp_expr);
@@ -832,34 +832,45 @@ construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
 
 inline duration<long long, std::milli> solver_time = std::chrono::milliseconds::zero();
 // void vc_printAssertsToStream(VC, std::ostream&, int);
-inline std::map< std::set<PtrVal, PtrValCmp>, std::map<std::shared_ptr<SymV>, IntData> > cachemap;
+typedef std::set<PtrVal, PtrValCmp> CacheKey;
+typedef std::map<std::shared_ptr<SymV>, IntData> CexType;
+typedef std::pair<int, CexType> CacheResult;
+inline std::map<CacheKey, CacheResult> cachemap;
 inline std::mutex cachemutex;
 
-// returns true if it is sat, otherwise false
-// XXX: should explore paths with timeout/no-answer cond?
-inline bool check_pc(immer::set<PtrVal> pc) {
-  if (!use_solver) return true;
-  auto start = steady_clock::now();
-  br_query_num++;
-  std::set<PtrVal, PtrValCmp> pc2(pc.begin(), pc.end());
-  do {
-    std::lock_guard cachelock(cachemutex);
-    auto it = cachemap.find(pc2);
-    if (it != cachemap.end())
-      return true;
-  } while (0);
-  int result = -1;
+struct Checker {
+  VarSet variables;
+  const CexType *cex;
   VC vc;
-  if (use_global_solver) {
-    vc = global_vc;
-    vc_push(vc);
-  } else vc = vc_createValidityChecker();
-  auto variables = construct_STP_constraints(vc, pc);
-  Expr fls = vc_falseExpr(vc);
-  result = vc_query(vc, fls);
-  vc_DeleteExpr(fls);
-  if (result == 0) {
-    std::map< std::shared_ptr<SymV>, IntData> cex;
+
+  Checker(): cex(nullptr) {
+    if (use_global_solver) {
+      vc = global_vc;
+      vc_push(vc);
+    }
+    else {
+      vc = vc_createValidityChecker();
+    }
+  }
+
+  ~Checker() {
+    if (use_global_solver) {
+      vc_pop(vc);
+    }
+    else {
+      vc_Destroy(vc);
+    }
+  }
+
+  int make_STP_query(immer::set<PtrVal> pc) {
+    variables = construct_STP_constraints(vc, pc);
+    Expr fls = vc_falseExpr(vc);
+    int result = vc_query(vc, fls);
+    vc_DeleteExpr(fls);
+    return result;
+  }
+
+  void get_STP_counterexample(CexType &cex) {
     for (auto &var: variables) {
       auto expr = vc_varExpr(vc, var->name.c_str(), vc_bvType(vc, var->bw));
       auto val = vc_getCounterExample(vc, expr);
@@ -867,16 +878,39 @@ inline bool check_pc(immer::set<PtrVal> pc) {
       vc_DeleteExpr(expr);
       vc_DeleteExpr(val);
     }
+  }
+
+  int make_query(immer::set<PtrVal> pc) {
+    CacheKey key(pc.begin(), pc.end());
+    std::pair<decltype(cachemap)::iterator, bool> entry;
+    CacheResult *ret;
     do {
       std::lock_guard cachelock(cachemutex);
-      cachemap[pc2] = cex;
+      entry = cachemap.emplace(key, CacheResult());
+      ret = &(entry.first->second);
     } while (0);
+    if (entry.second) {  // newly inserted
+      ret->first = make_STP_query(pc);
+      if (ret->first == 0)
+        get_STP_counterexample(ret->second);
+    }
+    cex = &(ret->second);
+    return ret->first;
   }
-  if (use_global_solver) {
-    vc_pop(vc);
-  } else {
-    vc_Destroy(vc);
+
+  const CexType* get_counterexample() {
+    return cex;
   }
+};
+
+// returns true if it is sat, otherwise false
+// XXX: should explore paths with timeout/no-answer cond?
+inline bool check_pc(immer::set<PtrVal> pc) {
+  if (!use_solver) return true;
+  auto start = steady_clock::now();
+  br_query_num++;
+  Checker c;
+  auto result = c.make_query(pc);
   auto end = steady_clock::now();
   solver_time += duration_cast<milliseconds>(end - start);
   return result == 0;
@@ -887,11 +921,7 @@ inline void check_pc_to_file(SS state) {
     return;
   }
   auto start = steady_clock::now();
-  VC vc;
-  if (use_global_solver) {
-    vc = global_vc;
-    vc_push(vc);
-  } else vc = vc_createValidityChecker();
+  Checker c;
 
   if (mkdir("tests", 0777) == -1) {
     if (errno == EEXIST) { }
@@ -903,11 +933,7 @@ inline void check_pc_to_file(SS state) {
   std::stringstream output;
   output << "Query number: " << (test_query_num+1) << std::endl;
 
-  construct_STP_constraints(vc, state.getPC());
-  Expr fls = vc_falseExpr(vc);
-  int result = vc_query(vc, fls);
-  vc_DeleteExpr(fls);
-  // vc_printAssertsToStream(vc, output, 0);
+  auto result = c.make_query(state.getPC());
 
   switch (result) {
   case 0:
@@ -933,14 +959,13 @@ inline void check_pc_to_file(SS state) {
         ABORT("Cannot create the test case file, abort.\n");
     }
 
+    auto &cex = *c.get_counterexample();
+    for (auto &kv: cex) {
+      output << kv.first->name << " == " << kv.second << std::endl;
+    }
     int n = write(out_fd, output.str().c_str(), output.str().size());
-    vc_printCounterExampleFile(vc, out_fd);
+    // vc_printCounterExampleFile(vc, out_fd);
     close(out_fd);
-  }
-  if (use_global_solver) {
-    vc_pop(vc);
-  } else {
-    vc_Destroy(vc);
   }
   auto end = steady_clock::now();
   solver_time += duration_cast<milliseconds>(end - start);
