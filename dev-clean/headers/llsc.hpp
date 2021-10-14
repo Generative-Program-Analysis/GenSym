@@ -104,43 +104,6 @@ enum class ValueType {
   tyStruct
 };
 
-template<typename T>
-struct Compare3Ways {
-  int operator()(const T &a, const T &b) const {
-    return a == b ? 0 : (a < b ? -1 : 1);
-  }
-};
-
-template<typename T>
-inline int compare_3ways(const T &a, const T &b) {
-  return Compare3Ways<T>()(a, b);
-}
-
-#define COMPARE_3WAYS(a, b) \
-  do { \
-    int ret = compare_3ways(a, b); \
-    if (ret) return ret; \
-  } while (0)
-
-template<template<typename> typename T>
-struct Compare3Ways< T<PtrVal> > {
-  int operator()(const T<PtrVal> &a, const T<PtrVal> &b) const {
-    COMPARE_3WAYS(a.size(), b.size());
-    for (int i = 0; i < a.size(); i++)
-      COMPARE_3WAYS(a[i], b[i]);
-    return 0;
-  }
-};
-
-template<>
-struct Compare3Ways<PtrVal>;
-
-struct PtrValCmp {
-  bool operator()(const PtrVal &lhs, const PtrVal &rhs) const {
-    return compare_3ways(lhs, rhs) < 0;
-  }
-};
-
 struct Value : public std::enable_shared_from_this<Value> {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
@@ -153,6 +116,48 @@ struct Value : public std::enable_shared_from_this<Value> {
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
   virtual ValueType get_type() const = 0;
+  virtual int compare(const Value *v) const = 0;
+};
+
+template<typename T>
+struct Compare3Ways {
+  int operator()(const T &a, const T &b) const {
+    return a == b ? 0 : (a < b ? -1 : 1);
+  }
+};
+
+template<typename T>
+inline int compare_3ways(const T &a, const T &b) {
+  return Compare3Ways<T>()(a, b);
+}
+
+#define COMPARE_3WAYS_EAGER(a, b) \
+  do { \
+    int ret = compare_3ways(a, b); \
+    if (ret) return ret; \
+  } while (0)
+
+template<>
+struct Compare3Ways<PtrVal> {
+  int operator()(const PtrVal &a, const PtrVal &b) const {
+    return a->compare(b.get());
+  }
+};
+
+template<template<typename> typename T>
+struct Compare3Ways< T<PtrVal> > {
+  int operator()(const T<PtrVal> &a, const T<PtrVal> &b) const {
+    COMPARE_3WAYS_EAGER(a.size(), b.size());
+    for (int i = 0; i < a.size(); i++)
+      COMPARE_3WAYS_EAGER(a[i], b[i]);
+    return 0;
+  }
+};
+
+struct PtrValCmp {
+  bool operator()(const PtrVal &lhs, const PtrVal &rhs) const {
+    return compare_3ways(lhs, rhs) < 0;
+  }
 };
 
 struct IntV : Value {
@@ -172,8 +177,14 @@ struct IntV : Value {
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(i, bw); }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
-  virtual ValueType get_type() const override { return ValueType::tyInt; }
-  int compare(const IntV *that) const { return compare_3ways(this->i, that->i); }
+
+  static const ValueType type_tag = ValueType::tyInt;
+  virtual ValueType get_type() const override { return type_tag; }
+  virtual int compare(const Value *v) const override {
+    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    auto that = reinterpret_cast<decltype(this)>(v);
+    return compare_3ways(this->i, that->i);
+  }
 };
 
 inline PtrVal make_IntV(IntData i) {
@@ -205,8 +216,14 @@ struct FloatV : Value {
   virtual bool is_conc() const override { return true; }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
-  virtual ValueType get_type() const override { return ValueType::tyFloat; }
-  int compare(const FloatV *that) const { return compare_3ways(this->f, that->f); }
+
+  static const ValueType type_tag = ValueType::tyFloat;
+  virtual ValueType get_type() const override { return type_tag; }
+  virtual int compare(const Value *v) const override {
+    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    auto that = reinterpret_cast<decltype(this)>(v);
+    return compare_3ways(this->f, that->f);
+  }
 };
 
 inline PtrVal make_FloatV(float f) {
@@ -239,9 +256,13 @@ struct LocV : Value {
   }
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
-  virtual ValueType get_type() const override { return ValueType::tyLoc; }
-  int compare(const LocV *that) const {
-    COMPARE_3WAYS(this->k, that->k);
+  
+  static const ValueType type_tag = ValueType::tyLoc;
+  virtual ValueType get_type() const override { return type_tag; }
+  virtual int compare(const Value *v) const override {
+    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    auto that = reinterpret_cast<decltype(this)>(v);
+    COMPARE_3WAYS_EAGER(this->k, that->k);
     return compare_3ways(this->l, that->l);
   }
 };
@@ -288,17 +309,20 @@ struct SymV : Value {
   virtual bool is_conc() const override { return false; }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
-  virtual ValueType get_type() const override { return ValueType::tySym; }
-
-  int compare(const SymV *that) const {
+  
+  static const ValueType type_tag = ValueType::tySym;
+  virtual ValueType get_type() const override { return type_tag; }
+  virtual int compare(const Value *v) const override {
+    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    auto that = reinterpret_cast<decltype(this)>(v);
     int kind1 = this->name.empty(), kind2 = that->name.empty();
-    COMPARE_3WAYS(kind1, kind2);
+    COMPARE_3WAYS_EAGER(kind1, kind2);
     if (!kind1) {  // symbol
       return compare_3ways(this->name, that->name);
     }
     else {  // expression
-      COMPARE_3WAYS(this->bw, that->bw);
-      COMPARE_3WAYS(this->rator, that->rator);
+      COMPARE_3WAYS_EAGER(this->bw, that->bw);
+      COMPARE_3WAYS_EAGER(this->rator, that->rator);
       return compare_3ways(this->rands, that->rands);
     }
   }
@@ -332,38 +356,13 @@ struct StructV : Value {
   }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
-  virtual ValueType get_type() const override { return ValueType::tyStruct; }
-
-  int compare(const StructV *that) const { return compare_3ways(this->fs, that->fs); }
-};
-
-template<>
-struct Compare3Ways<PtrVal> {
-  int operator()(const PtrVal &lhs, const PtrVal &rhs) const {
-    auto tylhs = lhs->get_type();
-    auto tyrhs = rhs->get_type();
-    COMPARE_3WAYS(tylhs, tyrhs);
-    switch (tylhs) {
-      case ValueType::tyInt:
-        return safe_compare<IntV>(lhs, rhs);
-      case ValueType::tyFloat:
-        return safe_compare<FloatV>(lhs, rhs);
-      case ValueType::tyLoc:
-        return safe_compare<LocV>(lhs, rhs);
-      case ValueType::tySym:
-        return safe_compare<SymV>(lhs, rhs);
-      case ValueType::tyStruct:
-        return safe_compare<StructV>(lhs, rhs);
-      default:
-        return 0;  // dead!
-    }
-  }
-
-  template<typename T>
-  int safe_compare(const PtrVal &lhs, const PtrVal &rhs) const {
-    auto lhs2 = reinterpret_cast<const T*>(lhs.get());
-    auto rhs2 = reinterpret_cast<const T*>(rhs.get());
-    return lhs2->compare(rhs2);
+  
+  static const ValueType type_tag = ValueType::tyStruct;
+  virtual ValueType get_type() const override { return type_tag; }
+  virtual int compare(const Value *v) const override {
+    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    auto that = reinterpret_cast<decltype(this)>(v);
+    return compare_3ways(this->fs, that->fs);
   }
 };
 
