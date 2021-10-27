@@ -91,7 +91,6 @@ using SExpr = std::shared_ptr<Value>;
 inline std::mutex vc_lock;
 inline VC global_vc = vc_createValidityChecker();
 
-
 /* Value representations */
 
 using PtrVal = std::shared_ptr<Value>;
@@ -131,7 +130,7 @@ inline int compare_3ways(const T &a, const T &b) {
   return Compare3Ways<T>()(a, b);
 }
 
-#define COMPARE_3WAYS_EAGER(a, b) \
+#define COMPARE_3WAYS_RET(a, b) \
   do { \
     int ret = compare_3ways(a, b); \
     if (ret) return ret; \
@@ -147,9 +146,9 @@ struct Compare3Ways<PtrVal> {
 template<template<typename> typename T>
 struct Compare3Ways< T<PtrVal> > {
   int operator()(const T<PtrVal> &a, const T<PtrVal> &b) const {
-    COMPARE_3WAYS_EAGER(a.size(), b.size());
+    COMPARE_3WAYS_RET(a.size(), b.size());
     for (int i = 0; i < a.size(); i++)
-      COMPARE_3WAYS_EAGER(a[i], b[i]);
+      COMPARE_3WAYS_RET(a[i], b[i]);
     return 0;
   }
 };
@@ -181,7 +180,7 @@ struct IntV : Value {
   static const ValueType type_tag = ValueType::tyInt;
   virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    COMPARE_3WAYS_RET(type_tag, v->get_type());
     auto that = reinterpret_cast<decltype(this)>(v);
     return compare_3ways(this->i, that->i);
   }
@@ -220,7 +219,7 @@ struct FloatV : Value {
   static const ValueType type_tag = ValueType::tyFloat;
   virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    COMPARE_3WAYS_RET(type_tag, v->get_type());
     auto that = reinterpret_cast<decltype(this)>(v);
     return compare_3ways(this->f, that->f);
   }
@@ -256,13 +255,13 @@ struct LocV : Value {
   }
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
-  
+
   static const ValueType type_tag = ValueType::tyLoc;
   virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    COMPARE_3WAYS_RET(type_tag, v->get_type());
     auto that = reinterpret_cast<decltype(this)>(v);
-    COMPARE_3WAYS_EAGER(this->k, that->k);
+    COMPARE_3WAYS_RET(this->k, that->k);
     return compare_3ways(this->l, that->l);
   }
 };
@@ -309,20 +308,20 @@ struct SymV : Value {
   virtual bool is_conc() const override { return false; }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
-  
+
   static const ValueType type_tag = ValueType::tySym;
   virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    COMPARE_3WAYS_RET(type_tag, v->get_type());
     auto that = reinterpret_cast<decltype(this)>(v);
     int kind1 = this->name.empty(), kind2 = that->name.empty();
-    COMPARE_3WAYS_EAGER(kind1, kind2);
+    COMPARE_3WAYS_RET(kind1, kind2);
     if (!kind1) {  // symbol
       return compare_3ways(this->name, that->name);
     }
     else {  // expression
-      COMPARE_3WAYS_EAGER(this->bw, that->bw);
-      COMPARE_3WAYS_EAGER(this->rator, that->rator);
+      COMPARE_3WAYS_RET(this->bw, that->bw);
+      COMPARE_3WAYS_RET(this->rator, that->rator);
       return compare_3ways(this->rands, that->rands);
     }
   }
@@ -356,11 +355,11 @@ struct StructV : Value {
   }
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
-  
+
   static const ValueType type_tag = ValueType::tyStruct;
   virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_EAGER(type_tag, v->get_type());
+    COMPARE_3WAYS_RET(type_tag, v->get_type());
     auto that = reinterpret_cast<decltype(this)>(v);
     return compare_3ways(this->fs, that->fs);
   }
@@ -719,7 +718,7 @@ inline bool use_global_solver = false;
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline std::map<std::string, Expr> stp_env;
-typedef std::set< std::shared_ptr<SymV> > VarSet;
+using VarSet = std::set<std::shared_ptr<SymV>>;
 
 inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
@@ -730,16 +729,10 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
   if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
 
   if (!sym_e->name.empty()) {
-    // TODO: does STP already cache var expr?
     auto name = sym_e->name;
-    //auto it = stp_env.find(name);
-    //if (it == stp_env.end()) {
     Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
     vars.insert(sym_e);
-      //stp_env.insert(std::make_pair(name, stp_expr));
     return stp_expr;
-    //}
-    //return it->second;
   }
 
   std::vector<Expr> expr_rands;
@@ -830,13 +823,12 @@ inline VarSet construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
   return ret;
 }
 
+using CacheKey = std::set<PtrVal, PtrValCmp>;
+using CexType = std::map<std::shared_ptr<SymV>, IntData>;
+using CacheResult = std::pair<int, CexType>;
+inline std::map<CacheKey, CacheResult> cache_map;
+inline std::mutex cache_mutex;
 inline duration<long long, std::milli> solver_time = std::chrono::milliseconds::zero();
-// void vc_printAssertsToStream(VC, std::ostream&, int);
-typedef std::set<PtrVal, PtrValCmp> CacheKey;
-typedef std::map<std::shared_ptr<SymV>, IntData> CexType;
-typedef std::pair<int, CexType> CacheResult;
-inline std::map<CacheKey, CacheResult> cachemap;
-inline std::mutex cachemutex;
 
 struct Checker {
   VarSet variables;
@@ -882,13 +874,13 @@ struct Checker {
 
   int make_query(immer::set<PtrVal> pc) {
     CacheKey key(pc.begin(), pc.end());
-    std::pair<decltype(cachemap)::iterator, bool> entry;
+    std::pair<decltype(cache_map)::iterator, bool> entry;
     CacheResult *ret;
-    do {
-      std::lock_guard cachelock(cachemutex);
-      entry = cachemap.emplace(key, CacheResult());
+    {
+      std::lock_guard cachelock(cache_mutex);
+      entry = cache_map.emplace(key, CacheResult());
       ret = &(entry.first->second);
-    } while (0);
+    }
     if (entry.second) {  // newly inserted
       ret->first = make_STP_query(pc);
       if (ret->first == 0)
@@ -898,9 +890,7 @@ struct Checker {
     return ret->first;
   }
 
-  const CexType* get_counterexample() {
-    return cex;
-  }
+  const CexType* get_counterexample() { return cex; }
 };
 
 // returns true if it is sat, otherwise false
