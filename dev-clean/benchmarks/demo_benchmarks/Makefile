@@ -9,7 +9,7 @@ llsc:
 
 klee:
 	for SRC in $(SRC_FILES) ; do \
-	  clang-9 -D KLEE -I $(KLEE_INCLUDE) -S -emit-llvm -c -g -O0 -Xclang -disable-O0-optnone $$SRC ; \
+	  clang-9 -D KLEE -I $(KLEE_INCLUDE) -emit-llvm -c -g -O0 -Xclang -disable-O0-optnone $$SRC ; \
 	done
 
 clean:
