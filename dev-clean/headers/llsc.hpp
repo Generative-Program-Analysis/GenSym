@@ -95,14 +95,6 @@ inline VC global_vc = vc_createValidityChecker();
 
 using PtrVal = std::shared_ptr<Value>;
 
-enum class ValueType {
-  tyInt,
-  tyFloat,
-  tyLoc,
-  tySym,
-  tyStruct
-};
-
 struct Value : public std::enable_shared_from_this<Value> {
   friend std::ostream& operator<<(std::ostream&os, const Value& v) {
     return v.toString(os);
@@ -114,7 +106,6 @@ struct Value : public std::enable_shared_from_this<Value> {
   virtual PtrVal to_IntV() const = 0;
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
-  virtual ValueType get_type() const = 0;
   virtual int compare(const Value *v) const = 0;
 };
 
@@ -139,6 +130,7 @@ inline int compare_3ways(const T &a, const T &b) {
 template<>
 struct Compare3Ways<PtrVal> {
   int operator()(const PtrVal &a, const PtrVal &b) const {
+    COMPARE_3WAYS_RET(std::type_index(typeid(a.get())), std::type_index(typeid(b.get())));
     return a->compare(b.get());
   }
 };
@@ -177,12 +169,8 @@ struct IntV : Value {
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
 
-  static const ValueType type_tag = ValueType::tyInt;
-  virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_RET(type_tag, v->get_type());
-    auto that = reinterpret_cast<decltype(this)>(v);
-    return compare_3ways(this->i, that->i);
+    return compare_3ways(i, static_cast<decltype(this)>(v)->i);
   }
 };
 
@@ -216,12 +204,8 @@ struct FloatV : Value {
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
 
-  static const ValueType type_tag = ValueType::tyFloat;
-  virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_RET(type_tag, v->get_type());
-    auto that = reinterpret_cast<decltype(this)>(v);
-    return compare_3ways(this->f, that->f);
+    return compare_3ways(f, static_cast<decltype(this)>(v)->f);
   }
 };
 
@@ -256,11 +240,8 @@ struct LocV : Value {
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
 
-  static const ValueType type_tag = ValueType::tyLoc;
-  virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_RET(type_tag, v->get_type());
-    auto that = reinterpret_cast<decltype(this)>(v);
+    auto that = static_cast<decltype(this)>(v);
     COMPARE_3WAYS_RET(this->k, that->k);
     return compare_3ways(this->l, that->l);
   }
@@ -309,11 +290,8 @@ struct SymV : Value {
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 
-  static const ValueType type_tag = ValueType::tySym;
-  virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_RET(type_tag, v->get_type());
-    auto that = reinterpret_cast<decltype(this)>(v);
+    auto that = static_cast<decltype(this)>(v);
     int kind1 = this->name.empty(), kind2 = that->name.empty();
     COMPARE_3WAYS_RET(kind1, kind2);
     if (!kind1) {  // symbol
@@ -326,6 +304,7 @@ struct SymV : Value {
     }
   }
 };
+
 inline PtrVal make_SymV(String n) {
   return std::make_shared<SymV>(n, bitwidth);
 }
@@ -336,7 +315,6 @@ inline SExpr to_SMTBoolNeg(PtrVal v) {
   int bw = v->get_bw();
   return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), bw);
 }
-
 
 struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
@@ -356,11 +334,8 @@ struct StructV : Value {
   virtual PtrVal to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 
-  static const ValueType type_tag = ValueType::tyStruct;
-  virtual ValueType get_type() const override { return type_tag; }
   virtual int compare(const Value *v) const override {
-    COMPARE_3WAYS_RET(type_tag, v->get_type());
-    auto that = reinterpret_cast<decltype(this)>(v);
+    auto that = static_cast<decltype(this)>(v);
     return compare_3ways(this->fs, that->fs);
   }
 };
