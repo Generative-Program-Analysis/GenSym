@@ -803,7 +803,7 @@ using CexType = std::map<std::shared_ptr<SymV>, IntData>;
 using CacheResult = std::pair<int, CexType>;
 inline std::map<CacheKey, CacheResult> cache_map;
 inline std::mutex cache_mutex;
-inline duration<long long, std::milli> solver_time = std::chrono::milliseconds::zero();
+inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
 
 struct Checker {
   VarSet variables;
@@ -847,6 +847,21 @@ struct Checker {
     }
   }
 
+// #define NOCACHE
+#ifdef NOCACHE
+  CacheResult fakecache;
+
+  int make_query(immer::set<PtrVal> pc) {
+    fakecache.first = make_STP_query(pc);
+    return fakecache.first;
+  }
+
+  const CexType* get_counterexample() {
+    if (fakecache.first == 0)
+      get_STP_counterexample(fakecache.second);
+    return &(fakecache.second);
+  }
+#else
   int make_query(immer::set<PtrVal> pc) {
     CacheKey key(pc.begin(), pc.end());
     std::pair<decltype(cache_map)::iterator, bool> entry;
@@ -866,6 +881,7 @@ struct Checker {
   }
 
   const CexType* get_counterexample() { return cex; }
+#endif  // NOCACHE
 };
 
 // returns true if it is sat, otherwise false
@@ -877,7 +893,7 @@ inline bool check_pc(immer::set<PtrVal> pc) {
   Checker c;
   auto result = c.make_query(pc);
   auto end = steady_clock::now();
-  solver_time += duration_cast<milliseconds>(end - start);
+  solver_time += duration_cast<microseconds>(end - start);
   return result == 0;
 }
 
@@ -933,7 +949,7 @@ inline void check_pc_to_file(SS state) {
     close(out_fd);
   }
   auto end = steady_clock::now();
-  solver_time += duration_cast<milliseconds>(end - start);
+  solver_time += duration_cast<microseconds>(end - start);
 }
 
 /* Coverage information */
@@ -996,7 +1012,7 @@ struct CoverageMonitor {
     }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();
-      std::cout << "[" << (solver_time.count() / 1000.0) << "s/"
+      std::cout << "[" << (solver_time.count() / 1.0e6) << "s/"
                 << (duration_cast<milliseconds>(now - start).count() / 1000.0) << "s] ";
     }
     void start_monitor() {
