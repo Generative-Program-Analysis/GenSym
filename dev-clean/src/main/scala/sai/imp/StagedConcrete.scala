@@ -13,32 +13,16 @@ import scala.collection.immutable.{List => SList}
 
 @virtualize
 trait StagedImpSemantics extends SAIOps {
-  //import CpsM._
   import StateT._
 
   type Ans = Store
   type Store = Map[String, Value]
   type M[T] = StateT[IdM, Ans, T]
   val M = Monad[M]
-  //import M._
-
-  //
-  def fix[A: Manifest, B: Manifest](f: Rep[A => B] => Rep[A => B]): Rep[A => B] = {
-    def g: Rep[A => B] = fun({ case (a: Rep[A]) => f(g)(a) })
-    g
-  }
-  def power(x: Rep[Int])(f: Rep[Int => Int]): Rep[Int => Int] = fun({ (n: Rep[Int]) =>
-    if (n == 0) 1
-    else x * f(n - 1)
-  })
-  def power3: Rep[Int => Int] = fix(power(3))
-  //
 
   trait Value
-  def IntV(i: Rep[Int]): Rep[Value] =
-    Wrap[Value](Adapter.g.reflect("IntV", Unwrap(i)))
-  def BoolV(b: Rep[Boolean]): Rep[Value] =
-    Wrap[Value](Adapter.g.reflect("BoolV", Unwrap(b)))
+  def IntV(i: Rep[Int]): Rep[Value] = "IntV".reflectWith[Value](i)
+  def BoolV(b: Rep[Boolean]): Rep[Value] = "BoolV".reflectWith[Value](b)
 
   implicit def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
@@ -102,18 +86,17 @@ trait StagedImpSemantics extends SAIOps {
       _ <- exec(s1); _ <- exec(s2)
     } yield ()
     case While(e, b) =>
-      def f: Rep[Store => Store] = fun({ s =>
+      def loop: Rep[Store => Store] = fun { s =>
         val ans = for {
           cnd <- evalM(e)
           σ <- get_state
-          //_ <- br(cnd, exec(σ), exec(Skip()))
-          rt <- lift_state(if (cnd) f(exec(b)(σ).run._2) else σ)
+          rt <- lift_state(if (cnd) loop(exec(b)(σ).run._2) else σ)
         } yield ()
         ans(s).run._2
-      })
+      }
       for {
         σ <- get_state
-        _ <- lift_state(f(σ))
+        _ <- lift_state(loop(σ))
       } yield ()
     case Output(e) => ???
     case Assert(e) => ???

@@ -80,17 +80,8 @@ object FreerUnstagedImp {
           else if (v == BoolV(false)) exec(s2)
           else choice(exec(s1), exec(s2))
         } yield ()
-      case Seq(s1, s2) => for {_ <- exec(s1); _ <- exec(s2)} yield ()
+      case Seq(s1, s2) => for { _ <- exec(s1); _ <- exec(s2) } yield ()
       case While(e, s) =>
-        /*
-         for {
-         v <- eval(e)
-         _ <- if (v == BoolV(true)) exec(Seq(s, While(e, s)))
-         else if (v == BoolV(false)) exec(Skip())
-         else choice(exec(Seq(s, While(e, s))), exec(Skip()))
-         } yield ()
-         */
-        // TODO: define an "unroll" effect?
         def loop: Comp[R, Unit] = for {
           v <- eval(e)
           _ <- if (v == BoolV(true)) for { _ <- exec(s); _ <- loop } yield ()

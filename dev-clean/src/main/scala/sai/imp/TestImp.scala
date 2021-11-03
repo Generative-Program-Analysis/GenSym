@@ -16,6 +16,7 @@ object TestImp {
   import ImpLang._
   import ImpLang.Examples._
 
+  // Testing concrete evaluation of expressions
   @virtualize
   def specializeExpr(e: Expr): CppSAIDriver[Int, Int] =
     new CppStagedImpDriver[Int, Int] {
@@ -26,6 +27,7 @@ object TestImp {
       }
     }
 
+  // Testing concrete execution of statements
   @virtualize
   def specialize(s: Stmt): CppSAIDriver[Int, Int] =
     new CppStagedImpDriver[Int, Int] {
@@ -35,6 +37,7 @@ object TestImp {
       }
     }
 
+  // Testing symbolic execution of statements using `StagedSymMonad`
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] =
     new SymStagedImpDriver[Unit, Unit] {
@@ -49,6 +52,7 @@ object TestImp {
       }
     }
 
+  // Testing symbolic execution of statements using `StagedSymMonad`
   @virtualize
   def specSymCpp(s: Stmt): CppSAIDriver[Int, Unit] =
     new CppSymStagedImpDriver[Int, Unit] {
@@ -79,8 +83,8 @@ object TestImp {
      */
 
     /* Symbolic execution */
-    val code = specSymCpp(condAssert)
+    val code = specSym(condAssert)
     println(code.code)
-    code.eval(0)
+    //code.eval(0)
   }
 }

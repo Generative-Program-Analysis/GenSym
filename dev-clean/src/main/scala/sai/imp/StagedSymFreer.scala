@@ -259,7 +259,6 @@ trait StagedSymImpEff extends Vals with SAIOps with StagedNondet with StagedIO w
     ret(Wrap[Value](Adapter.g.reflectWrite("continue_loop", Unwrap(c))(Adapter.CTRL)))
   }
 
-  // TODO: write
   def exec(s: Stmt): SymEff[Rep[Unit]] =
     s match {
       case Skip() => ret(())
@@ -319,7 +318,7 @@ trait StagedSymImpEffDriver[A, B] extends GenericSymStagedImpDriver[A, B] with S
 
 trait StagedCppSymImpEffDriver[A, B] extends GenericCppSymStagedImpDriver[A, B] with StagedSymImpEff
 
-object StagedSymFreer {
+object TestStagedSymFreer {
   @virtualize
   def specSym(s: Stmt): SAIDriver[Unit, Unit] =
     new StagedSymImpEffDriver[Unit, Unit] {
@@ -351,7 +350,7 @@ object StagedSymFreer {
       }
     }
 
-  def main(args: Array[String]): Unit = {
+  def test: Unit = {
     import Examples._
     {
       val code = specSymCpp(unboundLoop)

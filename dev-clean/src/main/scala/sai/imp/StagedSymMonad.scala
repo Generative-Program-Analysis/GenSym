@@ -11,10 +11,9 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt._
 
-import scala.collection.immutable.{List => SList}
+import scala.collection.immutable.{List => SList, Set => SSet}
 
 /* Staged symbolic execution for Imp using monad transformers
- * This one also use SMT backend?
  */
 
 @virtualize
@@ -23,31 +22,12 @@ trait SymStagedImp extends SAIOps {
   import ListT._
 
   implicit val bw: Int = 32
-  // FIXME: are we allowing Boolean exp?
-  val boolOp:Set[String] = scala.collection.immutable.Set()
 
   type Value = SMTExpr
   def IntV(i: Rep[Int]): Rep[Value] = lit(i)
   def BoolV(b: Rep[Boolean]): Rep[Value] = lit(b)
   def SymVBV(x: String): Rep[Value] = bvVar(x)
   def SymVBool(x: String): Rep[Value] = boolVar(x)
-
-  /*
-  def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
-    case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
-      Wrap[Int](v)
-    case _ =>
-      Wrap[Int](Adapter.g.reflect("IntV-proj", Unwrap(i)))
-  }
-
-  def rep_bool_proj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
-    case Adapter.g.Def("BoolV", scala.collection.immutable.List(v: Backend.Exp)) =>
-      Wrap[Boolean](v)
-    case _ =>
-      Wrap[Boolean](Adapter.g.reflect("BoolV-proj", Unwrap(b)))
-  }
-   */
-  // TODO Change
 
   def op_neg(v: Rep[Value]): Rep[Value] = {
     Adapter.typeMap.get(Unwrap(v)).get.runtimeClass.getName match {
@@ -61,53 +41,34 @@ trait SymStagedImp extends SAIOps {
   }
 
   def op_2(op: String, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    if (boolOp.contains(op)) {
-      // import SyntaxSAT._
-      // val v1B: Rep[SATBool] = v1.asInstanceOf[Rep[SATBool]]
-      // val v2B: Rep[SATBool] = v2.asInstanceOf[Rep[SATBool]]
-      // op match {
-      //   case "==" => v1B ≡ v2B
-      //   case "<=" => v1B <= v2B
-      //   case ">=" => v1B >= v2B
-      //   case "<" => v1B < v2B
-      //   case ">" => v1B > v2B
-      // }
-      ???
-    } else {
-      import SyntaxSMT._
-      val v1BV = v1.asInstanceOf[Rep[BV]]
-      val v2BV = v2.asInstanceOf[Rep[BV]]
-      op match {
-        case "==" => v1BV ≡ v2BV
-        case "<=" => v1BV ≤ v2BV
-        case ">=" => v1BV ≥ v2BV
-        case "<" => v1BV < v2BV
-        case ">" => v1BV > v2BV
-        case "+" => v1BV + v2BV
-        case "-" => v1BV - v2BV
-        case "*" => v1BV * v2BV
-        case "/" => v1BV / v2BV
-      }
+    import SyntaxSMT._
+    val v1BV = v1.asInstanceOf[Rep[BV]]
+    val v2BV = v2.asInstanceOf[Rep[BV]]
+    op match {
+      case "==" => v1BV ≡ v2BV
+      case "<=" => v1BV ≤ v2BV
+      case ">=" => v1BV ≥ v2BV
+      case "<" => v1BV < v2BV
+      case ">" => v1BV > v2BV
+      case "+" => v1BV + v2BV
+      case "-" => v1BV - v2BV
+      case "*" => v1BV * v2BV
+      case "/" => v1BV / v2BV
     }
   }
-
-  // def to_smt(v: Rep[Value]): Rep[SMTExpr] = {
-  //   Unwrap(v) match {
-  //     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
-  //       val v1: Rep[BV] = 
-  //       IntV(-v1)
-  //     case Adapter.g.Def("SymV", scala.collection.immutable.List(v: Backend.Exp)) =>
-  //       val v1: Rep[String] = Wrap[String](v)
-  //       SymV(unit("-" + v1))
-  //     case Adapter.g.Def
-  //   }
-  // }
 
   type PC = Set[SMTBool]
   type Store = Map[String, Value]
   type Ans = (Store, PC)
-  type M[T] = StateT[ListM, Ans, T] // List[(Unit, (Store, PC))]
+  type M[T] = StateT[ListM, Ans, T] // result type List[(T, (Store, PC))]
   val M = Monad[M]
+
+  var n: Int = 0
+  def fresh: String = {
+    val x = "x" + n.toString
+    n = n + 1 
+    x
+  }
 
   def eval(e: Expr, σ: Rep[Store]): Rep[Value] = e match {
     case Lit(i: Int) => IntV(i)
@@ -120,7 +81,7 @@ trait SymStagedImp extends SAIOps {
       val v1 = eval(e1, σ)
       val v2 = eval(e2, σ)
       op_2(op, v1, v2)
-    case Input() => ???
+    case Input() => SymVBV(fresh)
   }
 
   def evalM(e: Expr): M[Value] = for {
@@ -161,17 +122,12 @@ trait SymStagedImp extends SAIOps {
 
   def exec(s: Stmt): M[Unit] = s match {
     case Skip() => M.pure(())
-    case Assign(x, Input()) => for {
-      // TODO: name of the fresh variable
-      _ <- update_store(x, SymVBV(x))
-    } yield ()
     case Assign(x, e) => for {
       v <- evalM(e)
       _ <- update_store(x, v)
     } yield ()
     case Cond(e, s1, s2) => for {
       cnd <- evalM(e)
-      //σ <- get_store
       _ <- select(e, exec(s1), exec(s2))
     } yield ()
     case Seq(s1, s2) => for {
@@ -179,17 +135,6 @@ trait SymStagedImp extends SAIOps {
       _ <- exec(s2)
     } yield ()
     case While(e, b) =>
-      // TODO: add break
-      /*
-      def f: Rep[Ans => List[(Unit, Ans)]] = fix { s =>
-        val ans = for {
-          cnd <- evalM(e)
-          σ <- get_store
-          _ <- br(e, exec(b), exec(Skip()))
-        } yield ()
-        ans.run(s).run
-      }
-      */
       val k = 4
       exec(unfold(While(e, b), k))
     case Assert(e) => for {

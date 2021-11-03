@@ -85,7 +85,7 @@ object ImpFree {
       } yield ()
   }
 
-  def main(args: Array[String]): Unit = {
+  def test: Unit = {
     import Examples._
     import VoidEff.VoidFunctor
     import StateEff.StateFunctor
@@ -93,7 +93,6 @@ object ImpFree {
 
     //implicit val F1 = Functor[(State[Store, ?] ⊕ ∅)#t]
     implicit val F2 = Functor[(Nondet ⊕ ∅)#t]
-    //println(fact5)
 
     // concrete execution
     println(VoidEff.run(NondetEff.run(StateEff.run(Map[String, Value](), exec[(State[Store, ?] ⊕ (Nondet ⊕ ∅)#t)#t](fact5)))))
