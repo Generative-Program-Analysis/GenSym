@@ -40,10 +40,12 @@ trait SAIOps extends Base
 
   implicit class StringOps(op: String) {
     def reflectWith[T: Manifest](rs: Rep[_]*): Rep[T] = Wrap[T](Adapter.g.reflect(op, rs.map(Unwrap):_*))
-    def reflectReadWith[T: Manifest](rs: Rep[_]*)(es: Backend.Exp*): Rep[T] =
-      Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es:_*))
-    def reflectWriteWith[T: Manifest](rs: Rep[_]*)(es: Backend.Exp*): Rep[T] =
-      Wrap[T](Adapter.g.reflectWrite(op, rs.map(Unwrap):_*)(es:_*))
+    def reflectReadWith[T: Manifest](rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
+      Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
+    def reflectWriteWith[T: Manifest](rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
+      Wrap[T](Adapter.g.reflectWrite(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
+    def reflectRWWith[T: Manifest](rs: Rep[_]*)(rk: Rep[_]*)(wk: Rep[_]*): Rep[T] =
+      Wrap[T](Adapter.g.reflectEffect(op, rs.map(Unwrap):_*)(rk.map(Unwrap):_*)(wk.map(Unwrap):_*))
     def reflectMutableWith[T: Manifest](rs: Rep[_]*): Rep[T] =
       Wrap[T](Adapter.g.reflectMutable(op, rs.map(Unwrap):_*))
   }

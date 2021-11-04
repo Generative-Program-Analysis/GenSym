@@ -159,7 +159,7 @@ object ImpLang {
   }
 }
 
-object UnfoldTest {
+object UnfoldUtils {
   import ImpLang._
   import Examples._
   def unfoldW(w: While, k: Int): Stmt =

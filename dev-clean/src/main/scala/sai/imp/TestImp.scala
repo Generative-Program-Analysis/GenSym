@@ -83,8 +83,13 @@ object TestImp {
      */
 
     /* Symbolic execution */
+    /*
     val code = specSym(condAssert)
     println(code.code)
-    //code.eval(0)
+    code.eval(0)
+     */
+
+    /* Generating impure code using a single state thread */
+    ImpureStagedImpTest.test
   }
 }

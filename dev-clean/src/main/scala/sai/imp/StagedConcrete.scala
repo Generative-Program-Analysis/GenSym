@@ -24,14 +24,14 @@ trait StagedImpSemantics extends SAIOps {
   def IntV(i: Rep[Int]): Rep[Value] = "IntV".reflectWith[Value](i)
   def BoolV(b: Rep[Boolean]): Rep[Value] = "BoolV".reflectWith[Value](b)
 
-  implicit def rep_int_proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
+  implicit def repIntProj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
     case Adapter.g.Def("IntV", scala.collection.immutable.List(v: Backend.Exp)) =>
       Wrap[Int](v)
     case _ =>
       Wrap[Int](Adapter.g.reflect("IntV-proj", Unwrap(i)))
   }
 
-  implicit def rep_bool_proj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
+  implicit def repBoolProj(b: Rep[Value]): Rep[Boolean] = Unwrap(b) match {
     case Adapter.g.Def("BoolV", scala.collection.immutable.List(v: Backend.Exp)) =>
       Wrap[Boolean](v)
     case _ =>
