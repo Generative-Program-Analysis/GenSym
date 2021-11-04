@@ -94,7 +94,7 @@ trait ImpureStagedImpDriver[A, B] extends SAIDriver[A, B] with ImpureStagedImpSe
     import IR._
     override def remap(m: Manifest[_]): String = {
       if (m.toString.endsWith("$Value")) "Value"
-      if (m.toString.endsWith("$MutState")) "MutState"
+      else if (m.toString.endsWith("$MutState")) "MutState"
       else super.remap(m)
     }
   }
