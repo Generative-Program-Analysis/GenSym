@@ -222,6 +222,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
       case Adapter.g.Def("make_IntV", Backend.Const(v: Int)::Backend.Const(bw: Int)::_) =>
         Some((v, bw))
+      case Adapter.g.Def("make_IntV", Backend.Const(v: Long)::Backend.Const(bw: Int)::_) =>
+        Some((v, bw))
       case _ => None
     }
   }

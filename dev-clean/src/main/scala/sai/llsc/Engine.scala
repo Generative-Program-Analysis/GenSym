@@ -119,7 +119,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Long)) => n }
+        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Int)) => n.toLong }
         unit(calculateOffsetStatic(ty, indexCst))
       case _ => ???
     }
