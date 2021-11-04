@@ -130,7 +130,7 @@ inline int compare_3ways(const T &a, const T &b) {
 template<>
 struct Compare3Ways<PtrVal> {
   int operator()(const PtrVal &a, const PtrVal &b) const {
-    COMPARE_3WAYS_RET(std::type_index(typeid(a.get())), std::type_index(typeid(b.get())));
+    COMPARE_3WAYS_RET(std::type_index(typeid(*a.get())), std::type_index(typeid(*b.get())));
     return a->compare(b.get());
   }
 };
@@ -351,7 +351,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
+  // ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i, bw1);
@@ -382,7 +382,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
       return make_IntV(i1->i | i2->i, bw1);
     } else if (op == op_xor) {
       return make_IntV(i1->i ^ i2->i, bw1);
-     }else {
+    } else {
       std::cout << op << std::endl;
       ABORT("invalid operator");
     }
@@ -984,8 +984,9 @@ struct CoverageMonitor {
       std::unique_lock<std::mutex> lk(pm);
       num_paths += n;
     }
-    void print_path_cov() {
+    void print_path_cov(bool ending = true) {
       std::cout << "#paths: " << num_paths << "; " << std::flush;
+      if (ending) std::cout << std::endl;
     }
     void print_block_cov() {
       size_t covered = 0;
@@ -1020,7 +1021,7 @@ struct CoverageMonitor {
         while (this->block_cov.size() <= this->num_blocks) {
           print_time();
           print_block_cov();
-          print_path_cov();
+          print_path_cov(false);
           print_async();
           print_query_num();
           std::this_thread::sleep_for(seconds(1));
