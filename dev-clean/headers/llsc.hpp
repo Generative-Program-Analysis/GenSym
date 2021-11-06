@@ -51,7 +51,7 @@ enum iOP {
   op_eq, op_uge, op_ugt, op_ule, op_ult,
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
-  op_urem, op_srem, op_neg, op_sext
+  op_urem, op_srem, op_neg, op_sext, op_trunc
 };
 
 inline std::string int_op2string(iOP op) {
@@ -441,8 +441,8 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
   } else {
     auto s1 = std::dynamic_pointer_cast<SymV>(v1);
     if (s1) {
-      // FIXME: Trunc
-      ABORT("Truncate a LAZY_SYMV, needs work!");
+      return std::make_shared<SymV>(op_trunc,
+        immer::flex_vector({ v1 }), to);
     }
     ABORT("Truncate an invalid value, exit");
   }
@@ -718,44 +718,44 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
   Expr ret = nullptr;
   switch (sym_e->rator) {
     case op_add:
-      ret = vc_bvPlusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvPlusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sub:
-      ret = vc_bvMinusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvMinusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_mul:
-      ret = vc_bvMultExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvMultExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sdiv:
     case op_udiv:
-      ret = vc_bvDivExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvDivExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_uge:
-      ret = vc_bvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sge:
-      ret = vc_sbvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_ugt:
-      ret = vc_bvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sgt:
-      ret = vc_sbvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_ule:
-      ret = vc_bvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sle:
-      ret = vc_sbvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_ult:
-      ret = vc_bvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_slt:
-      ret = vc_sbvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_eq:
-      ret = vc_eqExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_neq:
       ret = vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1)));
@@ -767,13 +767,33 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
       ret = vc_bvSignExtend(vc, expr_rands.at(0), bw);
       break;
     case op_shl:
+      ret = vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_lshr:
+      ret = vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_ashr:
+      ret = vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_and:
+      ret = vc_bvAndExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_or:
+      ret = vc_bvOrExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_xor:
+      ret = vc_bvXorExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_urem:
+      ret = vc_bvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_srem:
+      ret = vc_sbvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
+    case op_trunc:
+      // bvExtract(vc, e, h, l) -> e[l:h+1]
+      ret = vc_bvExtract(vc, expr_rands.at(0), bw-1, 0);
+      break;
     default: break;
   }
   if (ret) {
