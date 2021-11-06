@@ -75,8 +75,8 @@ void print_vec(immer::flex_vector<T>& v) {
   std::cout << "]";
 }
 
-template<typename T>
-void print_set(immer::set<T>& s) {
+template<template <typename U> typename C, typename T>
+void print_set(C<T>& s) {
   std::cout << "{";
   int i = 0;
   for (auto x : s) {
