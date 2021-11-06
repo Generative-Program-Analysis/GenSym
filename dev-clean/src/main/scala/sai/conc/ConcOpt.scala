@@ -362,8 +362,8 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
         implicit val isSym = false
         for {
           fv <- eval(f, VoidType)
-          vs <- mapM2N(argValues)(argTypes)(eval)
-          svs <- mapM2N(argValues)(argTypes)(eval(_, _)(funName, true))
+          vs <- mapM2Tup(argValues)(argTypes)(eval)
+          svs <- mapM2Tup(argValues)(argTypes)(eval(_, _)(funName, true))
           _ <- pushFrame
           s <- getState
           v <- reflect(fv(s, List(vs:_*), List(svs:_*)))
@@ -524,8 +524,8 @@ trait ConcolicOptEngine extends SAIOps with StagedNondet with SymExeDefs {
         implicit val isSym = false
         for {
           fv <- eval(f, VoidType)
-          vs <- mapM2N(argValues)(argTypes)(eval)
-          svs <- mapM2N(argValues)(argTypes)(eval(_, _)(fun, true))
+          vs <- mapM2Tup(argValues)(argTypes)(eval)
+          svs <- mapM2Tup(argValues)(argTypes)(eval(_, _)(fun, true))
           _ <- pushFrame
           s <- getState
           v <- reflect(fv(s, List(vs:_*), List(svs:_*)))
