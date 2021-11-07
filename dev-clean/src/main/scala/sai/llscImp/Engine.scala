@@ -45,8 +45,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
       if (!CompileTimeRuntime.BBFuns.contains((funName, b))) {
-        // XXX
-        //precompileBlocks(funName, StaticList(b))
+        precompileBlocks(funName, StaticList(b))
       }
       BBFuns((funName, b))
     }
@@ -141,8 +140,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       // case CharArrayConst(s) =>
       case GlobalId(id) if funMap.contains(id) =>
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
-          // XXX
-          //precompileFunctions(StaticList(funMap(id)))
+          precompileFunctions(StaticList(funMap(id)))
         }
         FunV(CompileTimeRuntime.FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
@@ -226,7 +224,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-  def execValueInst(inst: ValueInstruction, ss: Rep[SS])(implicit funName: String): Rep[Value] = {
+
+  implicit def lift(v: Rep[Value])(implicit s: Rep[SS]): Rep[List[(SS, Value)]] = List[(SS, Value)]((s, v))
+
+  def execValueInst(inst: ValueInstruction)(implicit ss: Rep[SS], funName: String): Rep[List[(SS, Value)]] = {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
@@ -326,7 +327,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val stackSize = ss.stackSize
         val res = fv(ss, List(vs: _*))
         ss.pop(stackSize)
-        ??? // XXX: deal with nondet, type of res
+        res
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)
@@ -343,27 +344,23 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           if (cnd.int == 1) eval(thnVal, thnTy, ss)
           else eval(elsVal, elsTy, ss)
         } else {
-          val s1 = ss // XXX copy
+          val s1 = ss.copy
           ss.addPC(cnd.toSMTBool)
           val v1 = eval(thnVal, thnTy, ss)
           s1.addPC(cnd.toSMTBoolNeg)
           val v2 = eval(elsVal, elsTy, s1)
-          // XXX: merge
-          ???
+          List((ss, v1), (s1, v2))
         }
     }
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(inst: Terminator, incomingBlock: String, ss: Rep[SS])(implicit funName: String): Rep[List[(SS, Value)]] = {
+  def execTerm(inst: Terminator, incomingBlock: String)(implicit ss: Rep[SS], funName: String): Rep[List[(SS, Value)]] = {
     inst match {
       // FIXME: unreachable
       case Unreachable => IntV(-1)
-        ??? // XXX: lift to list
       case RetTerm(ty, Some(value)) => eval(value, ty, ss)
-        ???
       case RetTerm(ty, None) => NullV()
-        ???
       case BrTerm(lab) =>
         ss.addIncomingBlock(incomingBlock)
         execBlock(funName, lab, ss)
@@ -372,7 +369,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val cndVal = eval(cnd, ty, ss)
         if (cndVal.isConc) {
           if (cndVal.int == 1) execBlock(funName, thnLab, ss)
-          else execBlock(funName, elsLab, ss /* XXX: copy */)
+          else execBlock(funName, elsLab, ss.copy)
         } else {
           symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
         }
@@ -381,7 +378,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s)
-            else switchFun(v, s /* XXX copy */, table.tail)
+            else switchFun(v, s.copy, table.tail)
           }
         }
 
@@ -390,10 +387,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             s.addPCSet(pc)
             execBlock(funName, default, s)
           } else {
-            val s1 = s // XXX: copy
+            val s1 = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s.addPC(headPC.toSMTBool)
-            val u = execBlock(funName, table.head.label, ss)
+            val u = execBlock(funName, table.head.label, s)
             switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
           }
 
@@ -410,8 +407,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def execInst(inst: Instruction, ss: Rep[SS])(implicit fun: String): Rep[Unit] = {
     inst match {
       case AssignInst(x, valInst) =>
-        val v = execValueInst(valInst, ss)
-        ss.assign(fun + "_" + x, v)
+        val v = execValueInst(valInst)(ss, fun)
+        // XXX handle nondet
+        ss.assign(fun + "_" + x, ???)
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
@@ -484,7 +482,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       b.ins.foreach(execInst(_, ss)(funName))
-      execTerm(b.term, b.label.getOrElse(""), ss)(funName)
+      execTerm(b.term, b.label.getOrElse(""))(ss, funName)
     }
 
     for (b <- blocks) {

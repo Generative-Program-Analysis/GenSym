@@ -126,6 +126,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 
     def addIncomingBlock(x: String): Rep[Unit] = reflectWrite[Unit]("ss-add-incoming-block", ss, x.hashCode)(ss)
     def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
+
+    def copy: Rep[SS] = reflectRead[SS]("ss-copy", ss)(ss)
   }
 
   implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
@@ -139,28 +141,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       }
     override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
   }
-
-      /*
-  def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
-  def getState: Comp[E, Rep[SS]] = get[Rep[SS], E]
-
-  def updateState(f: Rep[SS] => Rep[SS]): Comp[E, Rep[Unit]] =
-    for {
-      ss <- getState
-      _ <- putState(f(ss))
-    } yield ()
-
-  def heapAppend(vs: Rep[List[Value]]): Comp[E, Rep[Unit]]  = updateState(_.heapAppend(vs))
-  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
-  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
-  def pushFrame: Comp[E, Rep[Unit]] = updateState(_.push)
-  def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.pop(keep))
-  def updateMem(k: Rep[Value], v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.update(k, v))
-  def updatePCSet(x: Rep[Set[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
-  def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
-  def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
-  def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
-       */
 
   def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String = {
     FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
