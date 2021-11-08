@@ -50,12 +50,12 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
 }
 
-inline void handle_pc(immer::set<SExpr> pc) {
+inline void handle_pc(const std::set<PtrVal>& pc) {
 
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
-  immer::set<SExpr> pc = state.getPC();
+  auto &pc = state.getPC();
   handle_pc(pc);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }

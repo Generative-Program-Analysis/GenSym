@@ -601,7 +601,10 @@ class SS {
     PC pc;
     BlockLabel bb;
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {}
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
+    SS clone() {
+      return *this;
+    }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
@@ -654,9 +657,17 @@ class SS {
       stack.assign_seq(ids, std::move(vals));
       return std::move(*this);
     }
+    SS&& assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
+      return assign_seq(
+        std::vector<Id>(ids.begin(), ids.end()),
+        std::vector<PtrVal>(vals.begin(), vals.end()));
+    }
     SS&& heap_append(const std::vector<PtrVal>& vals) {
       heap.append(vals);
       return std::move(*this);
+    }
+    SS&& heap_append(immer::flex_vector<PtrVal> vals) {
+      return heap_append(std::vector<PtrVal>(vals.begin(), vals.end()));
     }
     SS&& addPC(SExpr e) {
       pc.add(e);
@@ -1125,30 +1136,33 @@ inline void handle_cli_args(int argc, char** argv) {
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
+sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
   auto pc = ss.getPC();
-  auto tbr_sat = check_pc(pc.insert(t_cond));
-  auto fbr_sat = check_pc(pc.insert(f_cond));
+  auto ins = pc.insert(t_cond);
+  auto tbr_sat = check_pc(pc);
+  if (ins.second) pc.erase(ins.first);
+  pc.insert(f_cond);
+  auto fbr_sat = check_pc(pc);
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.addPC(t_cond);
+    SS tbr_ss = ss.clone().addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
     if (can_par()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
-          return tf(tbr_ss);
+          return tf(std::move(tbr_ss));
         });
-      auto ff_res = ff(fbr_ss);
+      auto ff_res = ff(std::move(fbr_ss));
       return tf_res.get() + ff_res;
-    } else return tf(tbr_ss) + ff(fbr_ss);
+    } else return tf(std::move(tbr_ss)) + ff(std::move(fbr_ss));
   } else if (tbr_sat) {
     SS tbr_ss = ss.addPC(t_cond);
-    return tf(tbr_ss);
+    return tf(std::move(tbr_ss));
   } else if (fbr_sat) {
     SS fbr_ss = ss.addPC(f_cond);
-    return ff(fbr_ss);
+    return ff(std::move(fbr_ss));
   } else {
     return immer::flex_vector<std::pair<SS, PtrVal>>{};
   }
