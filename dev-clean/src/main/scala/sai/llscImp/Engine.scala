@@ -359,8 +359,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     inst match {
       // FIXME: unreachable
       case Unreachable => IntV(-1)
-      case RetTerm(ty, Some(value)) => eval(value, ty, ss)
-      case RetTerm(ty, None) => NullV()
+      case RetTerm(ty, v) =>
+        // XXX: check SMT here?
+        v match {
+          case Some(value) => eval(value, ty, ss)
+          case None => NullV()
+        }
       case BrTerm(lab) =>
         ss.addIncomingBlock(incomingBlock)
         execBlock(funName, lab, ss)
@@ -371,6 +375,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           if (cndVal.int == 1) execBlock(funName, thnLab, ss)
           else execBlock(funName, elsLab, ss.copy)
         } else {
+          // XXX: not return but call continuation twice?
           symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
