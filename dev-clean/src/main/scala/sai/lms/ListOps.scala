@@ -42,11 +42,16 @@ trait ListOps { b: Base =>
     def toArray: Rep[Array[A]] = Wrap[Array[A]](Adapter.g.reflect("list-toArray", Unwrap(xs)))
     def toSeq: Rep[Seq[A]] = Wrap[Seq[A]](Adapter.g.reflect("list-toSeq", Unwrap(xs)))
     def map[B: Manifest](f: Rep[A] => Rep[B]): Rep[List[B]] = {
-      // TODO: for those HO functions, what if it has side-effects? any special treatment?
-      val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
-      Wrap[List[B]](Adapter.g.reflect("list-map", Unwrap(xs), block))
+      val block = Adapter.g.reifyHere(x => Unwrap(f(Wrap[A](x))))
+      if (block.isPure) Wrap[List[B]](Adapter.g.reflect("list-map", Unwrap(xs), block))
+      else {
+        val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
+        // XXX: add CTRL as write key, due to the lose of alias information... otherwise this map will be DEC-ed.
+        Wrap[List[B]](Adapter.g.reflectEffectSummaryHere("list-map", Unwrap(xs), block)((rdKeys, wrKeys + Adapter.CTRL)))
+      }
     }
     def flatMap[B: Manifest](f: Rep[A] => Rep[List[B]]): Rep[List[B]] = {
+      // TODO: deal with effects of f
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       val mA = Backend.Const(manifest[A])
       Wrap[List[B]](Adapter.g.reflect("list-flatMap", Unwrap(xs), block, mA))
@@ -95,6 +100,14 @@ trait ListOpsOpt extends ListOps { b: Base =>
       case (_, Adapter.g.Def("list-new", mA::(ys: List[Backend.Exp]))) if ys.isEmpty =>
         xs
       case _ => super.++(ys)
+    }
+    override def map[B: Manifest](f: Rep[A] => Rep[B]): Rep[List[B]] = {
+      val block = Adapter.g.reifyHere(x => Unwrap(f(Wrap[A](x))))
+      Unwrap(xs) match {
+        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) if xs.size == 1 =>
+          List[B](f(Wrap[A](xs(0))))
+        case _ => super.map(f)
+      }
     }
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
       Unwrap(xs) match {

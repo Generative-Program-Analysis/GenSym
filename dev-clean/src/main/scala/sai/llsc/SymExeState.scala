@@ -77,24 +77,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def canPar: Rep[Boolean] = "can-par".reflectWriteWith[Boolean]()(Adapter.CTRL)
   }
 
-  def runParRepNondet[A: Manifest](comp: Comp[Nondet ⊗ ∅, Rep[A]]): Comp[∅, Rep[List[A]]] = {
-    (handler[Nondet, ∅, Rep[A], Rep[List[A]]] {
-      case Return(x) => ret(List(x))
-    } (new DeepH[Nondet, ∅, Rep[List[A]]] {
-      def apply[X] = {
-        case NondetList$(xs, k) => ret(xs.foldLeft(List[A]()) { case (acc, x) => acc ++ k(x) })
-        case BinChoice$((), k) =>
-          for {
-            xs <- k(true)
-            ys <- k(false)
-          } yield {
-            //System.out.println(xs, ys)
-            xs ++ ys
-          }
-      }
-    }))(comp)
-  }
-
   def reify[T: Manifest](s: Rep[SS])(comp: Comp[E, Rep[T]]): Rep[List[(SS, T)]] = {
     val p1: Comp[Nondet ⊗ ∅, (Rep[SS], Rep[T])] =
       State.runState[Nondet ⊗ ∅, Rep[SS], Rep[T]](s)(comp)

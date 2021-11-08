@@ -98,7 +98,6 @@ abstract class LLSCDriver[A: Manifest, B: Manifest](appName: String, folder: Str
 }
 
 object RunLLSC {
-  /*
   @virtualize
   def specialize(m: Module, name: String, fname: String, nSym: Int): LLSCDriver[Int, Unit] =
     new LLSCDriver[Int, Unit](name, "./llsc_gen") {
@@ -124,6 +123,7 @@ object RunLLSC {
   }
 
   def main(args: Array[String]): Unit = {
+    /*
     val usage = """
     Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
     """
@@ -136,15 +136,12 @@ object RunLLSC {
       val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
       runLLSC(parseFile(filepath), appName, fun, nSym)
     }
+     */
 
-    //runLLSC(sai.llvm.Benchmarks.add, "addTest", "@add")
-    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
-    //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
-    //runLLSC(parseFile("benchmarks/demo_benchmarks/bubblesort.ll"), "bubble", "@main")
+    sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.branch, "branch", "@f", 2)
+    runLLSC(sai.llvm.Benchmarks.branch, "branchImp", "@f", 2)
+    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "power", "@main", 0)
+    //runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
+
   }
-   */
 }

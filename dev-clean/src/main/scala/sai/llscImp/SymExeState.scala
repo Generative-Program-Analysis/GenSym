@@ -111,14 +111,14 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def allocStack(n: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-alloc-stack", ss, n)(ss)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = reflectRead[Value]("ss-lookup-heap", ss, addr)(ss)
-    def heapSize: Rep[Int] = "ss-heap-size".reflectWith[Int](ss)
+    def heapSize: Rep[Int] = reflectRead[Int]("ss-heap-size", ss)(ss)
     def heapAppend(vs: Rep[List[Value]]): Rep[Unit] = reflectWrite[Unit]("ss-heap-append", ss, vs)(ss)
 
-    def stackSize: Rep[Int] = "ss-stack-size".reflectWith[Int](ss)
+    def stackSize: Rep[Int] = reflectRead[Int]("ss-stack-size", ss)(ss)
     def freshStackAddr: Rep[Addr] = stackSize
 
     def push: Rep[Unit] = reflectWrite[Unit]("ss-push", ss)(ss)
-    def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss)
+    def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL) // XXX: since pop is used in a map, will be DCE-ed if no CTRL
     def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
     def addPCSet(es: Rep[Set[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
