@@ -227,8 +227,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-
   implicit def lift(v: Rep[Value])(implicit s: Rep[SS]): Rep[List[(SS, Value)]] = List[(SS, Value)]((s, v))
+  implicit def SS2RefSS(s: Rep[SS]): Rep[Ref[SS]] = s.asRepOf[Ref[SS]]
+  implicit def RefSS2SS(s: Rep[Ref[SS]]): Rep[SS] = s.asRepOf[SS]
 
   def execValueInst(inst: ValueInstruction)(implicit ss: Rep[SS], funName: String): Rep[List[(SS, Value)]] = {
     inst match {
@@ -330,7 +331,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val stackSize = ss.stackSize
         val res = fv(ss, List(vs: _*))
         res.map { case sv =>
-          val s: Rep[SS] = sv._1
+          val s = sv._1
           s.pop(stackSize) // XXX: double check here
           (s, sv._2)
         }
@@ -418,7 +419,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case AssignInst(x, valInst) =>
         val svs: Rep[List[(SS, Value)]] = execValueInst(valInst)(ss, fun)
         svs.flatMap { case sv =>
-          val s = sv._1
+          val s: Rep[Ref[SS]] = sv._1 // XXX: opt here
           s.assign(fun + "_" + x, sv._2)
           k(s)
         }
@@ -442,7 +443,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val stackSize = ss.stackSize
         val res: Rep[List[(SS, Value)]] = fv(ss, List(vs: _*))
         res.flatMap { case sv =>
-          val s: Rep[SS] = sv._1
+          val s = sv._1
           s.pop(stackSize)
           k(s)
         }
@@ -454,7 +455,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def execBlock(funName: String, block: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
     unchecked("// jump to block: " + block.label.get)
-    CompileTimeRuntime.getBBFun(funName, block)(s.asRepOf[Ref[SS]])
+    CompileTimeRuntime.getBBFun(funName, block)(s)
   }
 
   def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
@@ -504,7 +505,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     def runBlock(b: BB)(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b, b.ins, b.term, ss.asRepOf[SS])
+      runInst(b, b.ins, b.term, ss)
     }
 
     for (b <- blocks) {
@@ -518,13 +519,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileFunctions(funs: List[FunctionDef]): Unit = {
-    def runFun(f: FunctionDef)(rss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+    def runFun(f: FunctionDef)(ss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
-      val ss = rss.asRepOf[SS]
       ss.assign(params, args)
       execBlock(f.id, f.blocks(0), ss)
     }

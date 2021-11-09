@@ -142,6 +142,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
   }
 
+  implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOpsOpt(ss.asRepOf[SS])
+
   def getRealBlockFunName(bf: Rep[Ref[SS] => List[(SS, Value)]]): String = {
     FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
