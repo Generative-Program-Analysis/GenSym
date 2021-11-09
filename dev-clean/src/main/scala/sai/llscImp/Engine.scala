@@ -328,7 +328,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val res = fv(ss, List(vs: _*))
         res.map { case sv =>
           val s: Rep[SS] = sv._1
-          s.pop(stackSize) // XXX: the generated code seems problematic std::get<0>(x21).pop(x19);
+          s.pop(stackSize) // XXX: double check here
           (s, sv._2)
         }
       case PhiInst(ty, incs) =>
@@ -375,7 +375,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val cndVal = eval(cnd, ty, ss)
         if (cndVal.isConc) {
           if (cndVal.int == 1) execBlock(funName, thnLab, ss)
-          else execBlock(funName, elsLab, ss.copy)
+          else execBlock(funName, elsLab, ss)
         } else {
           symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
         }
