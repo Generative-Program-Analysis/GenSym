@@ -60,15 +60,15 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::fl
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_vector<PtrVal> args) {
+inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS& state, immer::flex_vector<PtrVal> args) {
   PtrVal make_loc = args.at(0);
   IntData len = proj_IntV(args.at(1));
-  SS res = state;
+  SS res = std::move(state);
   //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
+    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
   }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{std::move(res), make_IntV(0)}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::flex_vector<PtrVal> args) {

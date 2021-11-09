@@ -461,7 +461,7 @@ class PreMem {
     size_t size() { return mem.size(); }
     V at(size_t idx) { return mem.at(idx); }
     PreMem&& update(size_t idx, V val) {
-      mem[idx] = val;
+      mem.at(idx) = val;
       return std::move(*this);
     }
     PreMem&& append(V val) {
@@ -531,8 +531,7 @@ class Stack {
       return std::move(*this);
     }
     Stack&& push() {
-      env.push_back(Frame());
-      return std::move(*this);
+      return push(Frame());
     }
     Stack&& push(Frame f) {
       env.push_back(std::move(f));
@@ -571,7 +570,7 @@ class Stack {
       mem.update(idx, val);
       return std::move(*this);
     }
-    Stack alloc(size_t size) {
+    Stack&& alloc(size_t size) {
       mem.alloc(size);
       return std::move(*this);
     }
