@@ -38,6 +38,10 @@ object Benchmarks {
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
   lazy val simple2 = parseFile("benchmarks/ccbse/simple_2.ll")
+
+  lazy val mergesort = parseFile("benchmarks/demo_benchmarks/mergesort.ll")
+  lazy val quicksort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
+  lazy val bubblesort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
 }
 
 object LLSCExpr {

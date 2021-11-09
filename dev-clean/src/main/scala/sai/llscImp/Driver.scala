@@ -138,12 +138,14 @@ object RunLLSC {
     }
     //  */
 
-    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.branch, "branch", "@f", 2)
+    sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.branch, "branch", "@f", 2)
     //runLLSC(sai.llvm.Benchmarks.branch, "branchImp", "@f", 2)
     //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.maze, "maze", "@main", 0)
     //runLLSC(sai.llvm.Benchmarks.maze, "mazeImp", "@main", 0)
-    sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "power", "@main", 0)
-    runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
+    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "powerPure", "@main", 0)
+    //runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
+    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
+    //runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImp", "@main", 0)
 
   }
 }

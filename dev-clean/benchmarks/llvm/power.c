@@ -11,5 +11,5 @@ int power(int x, int n) {
 }
 
 int main() {
-  return power(3, 3);
+  return power(2, 15);
 }

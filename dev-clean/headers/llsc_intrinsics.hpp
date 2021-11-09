@@ -2,22 +2,22 @@
 
 static PtrVal IntV0 = make_IntV(0);
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS& state, immer::flex_vector<PtrVal> args) {
+inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
   PtrVal bytes = args.at(2);
 
-  SS res = std::move(state);
+  SS res = state;
   Addr dest_addr = proj_LocV(dest);
   Addr src_addr = proj_LocV(src);
   IntData bytes_int = proj_IntV(bytes);
-  
+
   // Optmize
   // flex_vector_transient
   for (int i = 0; i < bytes_int; i++) {
-    res.update(make_LocV_inc(dest, i), res.at(make_LocV_inc(src, i)));
+    res = res.update(make_LocV_inc(dest, i), res.at(make_LocV_inc(src, i)));
   }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{std::move(res), IntV0}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memmove(SS state, immer::flex_vector<PtrVal> args) {
@@ -27,7 +27,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memmove(SS state, immer::f
 
   SS res = state;
   IntData bytes_int = proj_IntV(bytes);
-  
+
   // Optmize
   // flex_vector_transient
   auto temp_mem = immer::flex_vector<PtrVal>{};
@@ -51,7 +51,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memset(SS state, immer::fl
   // what could be other set value?
   int setInt = 0;
   IntData bytes_int = proj_IntV(bytes);
-  
+
   // Optmize
   // flex_vector_transient
   for (int i = 0; i < bytes_int; i++) {

@@ -37,7 +37,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_ve
 inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_vector<PtrVal> args) {
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
-  
+
   auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
   std::cout << "realloc size: " << emptyMem.size() << std::endl;
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
@@ -50,25 +50,26 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
 }
 
-inline void handle_pc(const std::set<PtrVal>& pc) {
+inline void handle_pc(immer::set<SExpr> pc) {
 
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
-  auto &pc = state.getPC();
-  handle_pc(pc);
+  // XXX(GW): temporarily commented, should invoke Checker and generate test case properly?
+  //immer::set<SExpr> pc = state.getPC();
+  //handle_pc(pc);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS& state, immer::flex_vector<PtrVal> args) {
+inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal make_loc = args.at(0);
   IntData len = proj_IntV(args.at(1));
-  SS res = std::move(state);
+  SS res = state;
   //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
+    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
   }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{std::move(res), make_IntV(0)}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::flex_vector<PtrVal> args) {
