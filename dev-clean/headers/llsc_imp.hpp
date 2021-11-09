@@ -614,10 +614,11 @@ class SS {
 #endif
 
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
-    SS copy() {
-      return *this;
-    }
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) :
+      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
+    SS(immer::flex_vector<PtrVal> heap, Stack stack, PC pc, BlockLabel bb) :
+      heap(std::move(std::vector(heap.begin(), heap.end()))), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
+    SS copy() { return *this; }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
