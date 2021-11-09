@@ -599,9 +599,23 @@ class SS {
     Stack stack;
     PC pc;
     BlockLabel bb;
+#ifdef LAZYALLOC
+    std::vector< std::pair<std::string, size_t> > pending_allocs;
+
+    void do_allocs() {
+      for (auto &ac: pending_allocs) {
+        if (ac.first == "stack")
+          stack.alloc(ac.second);
+        else
+          heap.alloc(ac.second);
+      }
+      pending_allocs.clear();
+    }
+#endif
+
   public:
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
-    SS clone() {
+    SS copy() {
       return *this;
     }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
@@ -624,11 +638,19 @@ class SS {
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
     SS&& alloc_stack(size_t size) {
+#ifdef LAZYALLOC
+      pending_allocs.push_back({"stack", size});
+#else
       stack.alloc(size);
+#endif
       return std::move(*this);
     }
     SS&& alloc_heap(size_t size) {
+#ifdef LAZYALLOC
+      pending_allocs.push_back({"heap", size});
+#else
       heap.alloc(size);
+#endif
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val) {
@@ -649,6 +671,9 @@ class SS {
       return std::move(*this);
     }
     SS&& assign(Id id, PtrVal val) {
+#ifdef LAZYALLOC
+      do_allocs();
+#endif
       stack.assign(id, val);
       return std::move(*this);
     }
@@ -1146,7 +1171,7 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
   auto fbr_sat = check_pc(pc);
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.clone().addPC(t_cond);
+    SS tbr_ss = ss.copy().addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
     if (can_par()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =

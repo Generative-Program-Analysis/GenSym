@@ -123,7 +123,7 @@ object RunLLSC {
   }
 
   def main(args: Array[String]): Unit = {
-    /*
+    // /*
     val usage = """
     Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
     """
@@ -136,12 +136,14 @@ object RunLLSC {
       val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
       runLLSC(parseFile(filepath), appName, fun, nSym)
     }
-     */
+    //  */
 
     //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.branch, "branch", "@f", 2)
     //runLLSC(sai.llvm.Benchmarks.branch, "branchImp", "@f", 2)
     sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.maze, "maze", "@main", 0)
     runLLSC(sai.llvm.Benchmarks.maze, "mazeImp", "@main", 0)
+    // sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "power", "@main", 0)
+    // runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
 
   }
 }
