@@ -51,10 +51,10 @@ trait ListOps { b: Base =>
       }
     }
     def flatMap[B: Manifest](f: Rep[A] => Rep[List[B]]): Rep[List[B]] = {
-      // TODO: deal with effects of f
-      val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
+      val block = Adapter.g.reifyHere(x => Unwrap(f(Wrap[A](x))))
       val mA = Backend.Const(manifest[A])
-      Wrap[List[B]](Adapter.g.reflect("list-flatMap", Unwrap(xs), block, mA))
+      if (block.isPure) Wrap[List[B]](Adapter.g.reflect("list-flatMap", Unwrap(xs), block, mA))
+      else Wrap[List[B]](Adapter.g.reflectEffectSummaryHere("list-flatMap", Unwrap(xs), block, mA)(Adapter.g.getEffKeys(block)))
     }
     def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] = {
       val block = Adapter.g.reify((x, y) => Unwrap(f(Wrap[B](x), Wrap[A](y))))
@@ -101,14 +101,21 @@ trait ListOpsOpt extends ListOps { b: Base =>
         xs
       case _ => super.++(ys)
     }
-    override def map[B: Manifest](f: Rep[A] => Rep[B]): Rep[List[B]] = {
-      val block = Adapter.g.reifyHere(x => Unwrap(f(Wrap[A](x))))
+
+    override def map[B: Manifest](f: Rep[A] => Rep[B]): Rep[List[B]] =
       Unwrap(xs) match {
         case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) if xs.size == 1 =>
           List[B](f(Wrap[A](xs(0))))
         case _ => super.map(f)
       }
-    }
+
+    override def flatMap[B: Manifest](f: Rep[A] => Rep[List[B]]): Rep[List[B]] =
+      Unwrap(xs) match {
+        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) if xs.size == 1 =>
+          f(Wrap[A](xs(0)))
+        case _ => super.flatMap(f)
+      }
+
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
       Unwrap(xs) match {
         case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) =>

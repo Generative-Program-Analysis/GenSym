@@ -328,7 +328,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val res = fv(ss, List(vs: _*))
         res.map { case sv =>
           val s: Rep[SS] = sv._1
-          s.pop(stackSize)
+          s.pop(stackSize) // XXX: the generated code seems problematic std::get<0>(x21).pop(x19);
           (s, sv._2)
         }
       case PhiInst(ty, incs) =>
@@ -491,10 +491,16 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
+    def runInst(insts: List[Instruction], ss: Rep[List[SS]]): Rep[List[SS]] =
+      insts match {
+        case Nil => ss
+        case i::inst => runInst(inst, ss.flatMap(execInst(i, _)(funName)))
+      }
+
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      b.ins.foreach(execInst(_, ss)(funName))
+      runInst(b.ins, List(ss))
       execTerm(b.term, b.label.getOrElse(""))(ss, funName)
     }
 
