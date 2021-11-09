@@ -142,7 +142,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
   }
 
-  def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String = {
+  def getRealBlockFunName(bf: Rep[Ref[SS] => List[(SS, Value)]]): String = {
     FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
 
@@ -172,7 +172,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
       Rep[Value] = "make_LocV".reflectMutableWith[Value](l, kind, size)
   }
   object FunV {
-    def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
+    def apply(f: Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)

@@ -35,15 +35,16 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
-    val BBFuns: HashMap[(String, BB), Rep[SS => List[(SS, Value)]]] = new HashMap[(String, BB), Rep[SS => List[(SS, Value)]]]
-    val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
-      new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
+    val BBFuns: HashMap[(String, BB), Rep[Ref[SS] => List[(SS, Value)]]] =
+      new HashMap[(String, BB), Rep[Ref[SS] => List[(SS, Value)]]]
+    val FunFuns: HashMap[String, Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]] =
+      new HashMap[String, Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]]
 
-    def getBBFun(funName: String, blockLab: String): Rep[SS => List[(SS, Value)]] = {
+    def getBBFun(funName: String, blockLab: String): Rep[Ref[SS] => List[(SS, Value)]] = {
       getBBFun(funName, findBlock(funName, blockLab).get)
     }
 
-    def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
+    def getBBFun(funName: String, b: BB): Rep[Ref[SS] => List[(SS, Value)]] = {
       if (!CompileTimeRuntime.BBFuns.contains((funName, b))) {
         precompileBlocks(funName, StaticList(b))
       }
@@ -56,11 +57,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
   import CompileTimeRuntime._
 
+  /*
   def execBr(ss: Rep[SS], cndVal: Rep[Value], tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
     val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
     "exec_br".reflectWith[List[(SS, Value)]](ss, cndVal, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
   }
+   */
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
@@ -451,7 +454,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
   def execBlock(funName: String, block: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
     unchecked("// jump to block: " + block.label.get)
-    CompileTimeRuntime.getBBFun(funName, block)(s)
+    CompileTimeRuntime.getBBFun(funName, block)(s.asRepOf[Ref[SS]])
   }
 
   def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
@@ -498,15 +501,15 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         case i::inst => execInst(i, s, s1 => runInst(b, inst, t, s1))(funName)
       }
 
-    def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
+    def runBlock(b: BB)(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b, b.ins, b.term, ss)
+      runInst(b, b.ins, b.term, ss.asRepOf[SS])
     }
 
     for (b <- blocks) {
       Predef.assert(!CompileTimeRuntime.BBFuns.contains((funName, b)))
-      val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
+      val repRunBlock: Rep[Ref[SS] => List[(SS, Value)]] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
       FunName.blockMap(n) = s"${realFunName}_Block$n"
@@ -515,19 +518,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileFunctions(funs: List[FunctionDef]): Unit = {
-    def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+    def runFun(f: FunctionDef)(rss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
+      val ss = rss.asRepOf[SS]
       ss.assign(params, args)
       execBlock(f.id, f.blocks(0), ss)
     }
 
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+      val repRunFun: Rep[(Ref[SS], List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
       FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun

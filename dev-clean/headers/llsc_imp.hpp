@@ -1162,8 +1162,8 @@ inline void handle_cli_args(int argc, char** argv) {
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
-            immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
-            immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
+            immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS&),
+            immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
   auto pc = ss.getPC();
   auto ins = pc.insert(t_cond);
   auto tbr_sat = check_pc(pc);
@@ -1177,17 +1177,17 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
     if (can_par()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
-          return tf(std::move(tbr_ss));
+          return tf(tbr_ss);
         });
-      auto ff_res = ff(std::move(fbr_ss));
+      auto ff_res = ff(fbr_ss);
       return tf_res.get() + ff_res;
-    } else return tf(std::move(tbr_ss)) + ff(std::move(fbr_ss));
+    } else return tf(tbr_ss) + ff(fbr_ss);
   } else if (tbr_sat) {
     SS tbr_ss = ss.addPC(t_cond);
-    return tf(std::move(tbr_ss));
+    return tf(tbr_ss);
   } else if (fbr_sat) {
     SS fbr_ss = ss.addPC(f_cond);
-    return ff(std::move(fbr_ss));
+    return ff(fbr_ss);
   } else {
     return immer::flex_vector<std::pair<SS, PtrVal>>{};
   }
@@ -1195,8 +1195,8 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 exec_br(SS ss, PtrVal cndVal,
-        immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
-        immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
+        immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS&),
+        immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
   if (cndVal->is_conc()) {
     if (proj_IntV(cndVal) == 1) return tf(ss);
     return ff(ss);

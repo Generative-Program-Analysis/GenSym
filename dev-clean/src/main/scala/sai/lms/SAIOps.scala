@@ -89,6 +89,10 @@ trait SAIOps extends Base
     }
   }
 
+  // Exclusively for C++
+
+  abstract class Ref[T: Manifest]
+
   // Experiment below -- do not use.
   // type CloseFun[A, B] = Rep[B] => Rep[A => B]
   // def close[A: Manifest, B: Manifest, M[_], C: Manifest, N[_], D: Manifest]

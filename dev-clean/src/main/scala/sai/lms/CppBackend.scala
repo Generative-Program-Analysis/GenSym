@@ -16,6 +16,13 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_Set  with STPCodeGen_SMTBase with STPCodeGen_SMTBV
     with STPCodeGen_SMTArray {
 
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName.endsWith("$Ref")) {
+      val kty = m.typeArguments(0)
+      s"${remap(kty)}&"
+    } else super.remap(m)
+  }
+
   override def quote(s: Def): String = s match {
     case Const(()) => "std::monostate{}";
     case _ => super.quote(s)
