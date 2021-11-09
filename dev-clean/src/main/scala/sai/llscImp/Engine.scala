@@ -410,20 +410,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def execInst(inst: Instruction, ss: Rep[SS])(implicit fun: String): Rep[List[SS]] = {
+  def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[List[(SS, Value)]])(implicit fun: String): Rep[List[(SS, Value)]] = {
     inst match {
       case AssignInst(x, valInst) =>
         val svs = execValueInst(valInst)(ss, fun)
-        svs.map { case sv =>
+        svs.flatMap { case sv =>
           val s = sv._1
           s.assign(fun + "_" + x, sv._2)
-          s
+          k(s)
         }
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
         ss.update(v2, v1)
-        List(ss)
+        k(ss)
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
@@ -438,9 +438,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ss.push
         val stackSize = ss.stackSize
         val res: Rep[List[(SS, Value)]] = fv(ss, List(vs: _*))
-        res.map { case sv =>
+        res.flatMap { case sv =>
           val s: Rep[SS] = sv._1
-          s.pop(stackSize); s
+          s.pop(stackSize)
+          k(s)
         }
     }
   }
@@ -491,17 +492,16 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
-    def runInst(insts: List[Instruction], ss: Rep[List[SS]]): Rep[List[SS]] =
+    def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
       insts match {
-        case Nil => ss
-        case i::inst => runInst(inst, ss.flatMap(execInst(i, _)(funName)))
+        case Nil => execTerm(t, b.label.getOrElse(""))(s, funName)
+        case i::inst => execInst(i, s, s => runInst(b, inst, t, s))(funName)
       }
 
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b.ins, List(ss))
-      execTerm(b.term, b.label.getOrElse(""))(ss, funName)
+      runInst(b, b.ins, b.term, ss)
     }
 
     for (b <- blocks) {
