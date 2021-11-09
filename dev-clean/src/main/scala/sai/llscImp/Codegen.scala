@@ -11,8 +11,7 @@ import sai.lmsx.smt._
 import java.io.FileOutputStream
 
 trait SymStagedLLVMGen extends CppSAICodeGenBase {
-  // XXX: update headers
-  registerHeader("./headers", "<llsc.hpp>")
+  registerHeader("./headers", "<llsc_imp.hpp>")
   registerHeader("./headers", "<llsc_intrinsics.hpp>")
   registerHeader("./headers", "<llsc_external.hpp>")
 
@@ -82,7 +81,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.addIncomingBlock($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
     case Node(s, "ss-arg", List(ss, i), _) => es"$ss.init_arg($i)"
-    case Node(s, "ss-copy", List(ss), _) => es"$ss.copy()" //XXX: double check here
+    case Node(s, "ss-copy", List(ss), _) => es"$ss.copy()"
 
     case Node(s, "get-pc", List(ss), _) => es"$ss.getPC()"
     case Node(s, "null-v", _, _) => es"nullptr"
