@@ -332,13 +332,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           (s, sv._2)
         }
       case PhiInst(ty, incs) =>
-        def selectValue(bb: Rep[BlockLabel], vs: List[Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
-          if (bb == labels(0) || labels.length == 1) vs(0)
+        def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
+          if (bb == labels(0) || labels.length == 1) vs(0)()
           else selectValue(bb, vs.tail, labels.tail)
         }
-        val incsValues: List[LLVMValue] = incs.map(inc => inc.value)
-        val incsLabels: List[BlockLabel] = incs.map(inc => inc.label.hashCode)
-        val vs = incsValues.map(v => eval(v, ty, ss))
+        val incsValues: List[LLVMValue] = incs.map(_.value)
+        val incsLabels: List[BlockLabel] = incs.map(_.label.hashCode)
+        val vs = incsValues.map(v => () => eval(v, ty, ss))
         selectValue(ss.incomingBlock, vs, incsLabels)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
@@ -543,11 +543,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     CompileTimeRuntime.typeDefMap = main.typeDefMap
 
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
-    val ss = SS.init(preHeap.asRepOf[Mem])
     precompileFunctions(CompileTimeRuntime.funMap.map(_._2).toList)
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor
+    val ss = SS.init(preHeap.asRepOf[Mem])
     if (!isCommandLine) {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       ss.push

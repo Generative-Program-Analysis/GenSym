@@ -206,6 +206,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
     def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       Unwrap(v) match {
+        case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
+          List((s, IntV(0)))
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
           f.reflectWith[List[(SS, Value)]](s, args)
         case _ =>
