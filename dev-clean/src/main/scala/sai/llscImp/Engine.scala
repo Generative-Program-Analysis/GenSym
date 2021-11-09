@@ -413,7 +413,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[List[(SS, Value)]])(implicit fun: String): Rep[List[(SS, Value)]] = {
     inst match {
       case AssignInst(x, valInst) =>
-        val svs = execValueInst(valInst)(ss, fun)
+        val svs: Rep[List[(SS, Value)]] = execValueInst(valInst)(ss, fun)
         svs.flatMap { case sv =>
           val s = sv._1
           s.assign(fun + "_" + x, sv._2)
@@ -495,7 +495,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
       insts match {
         case Nil => execTerm(t, b.label.getOrElse(""))(s, funName)
-        case i::inst => execInst(i, s, s => runInst(b, inst, t, s))(funName)
+        case i::inst => execInst(i, s, s1 => runInst(b, inst, t, s1))(funName)
       }
 
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
@@ -544,6 +544,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
     val ss = SS.init(preHeap.asRepOf[Mem])
+    precompileFunctions(CompileTimeRuntime.funMap.map(_._2).toList)
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor

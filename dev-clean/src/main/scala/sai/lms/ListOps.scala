@@ -113,6 +113,8 @@ trait ListOpsOpt extends ListOps { b: Base =>
       Unwrap(xs) match {
         case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) if xs.size == 1 =>
           f(Wrap[A](xs(0)))
+        case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) if xs.size == 2 =>
+          f(Wrap[A](xs(0))) ++ f(Wrap[A](xs(1)))
         case _ => super.flatMap(f)
       }
 
