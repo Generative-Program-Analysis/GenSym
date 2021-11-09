@@ -505,12 +505,12 @@ class Frame {
     size_t size() { return env.size(); }
     PtrVal lookup_id(Id id) const { return env.at(id); }
     Frame&& assign(Id id, PtrVal v) {
-      env.emplace(id, v);
+      env.insert_or_assign(id, v);
       return std::move(*this);
     }
     Frame&& assign_seq(const std::vector<Id>& ids, const std::vector<PtrVal>& vals) {
       for (size_t i = 0; i < ids.size(); i++) {
-        env.emplace(ids.at(i), vals.at(i));
+        env.insert_or_assign(ids.at(i), vals.at(i));
       }
       return std::move(*this);
     }
