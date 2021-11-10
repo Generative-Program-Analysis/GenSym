@@ -25,7 +25,7 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
+trait CPSLLSCEngine extends SAIOps with SymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
@@ -35,16 +35,16 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
-    val BBFuns: HashMap[(String, BB), Rep[Ref[SS] => List[(SS, Value)]]] =
-      new HashMap[(String, BB), Rep[Ref[SS] => List[(SS, Value)]]]
-    val FunFuns: HashMap[String, Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]] =
-      new HashMap[String, Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]]
+    val BBFuns: HashMap[(String, BB), Rep[(Ref[SS], Cont) => Unit]] =
+      new HashMap[(String, BB), Rep[(Ref[SS], Cont) => Unit]]
+    val FunFuns: HashMap[String, Rep[(Ref[SS], List[Value], Cont) => Unit]] =
+      new HashMap[String, Rep[(Ref[SS], List[Value], Cont) => Unit]]
 
-    def getBBFun(funName: String, blockLab: String): Rep[Ref[SS] => List[(SS, Value)]] = {
+    def getBBFun(funName: String, blockLab: String): Rep[(Ref[SS], Cont) => Unit] = {
       getBBFun(funName, findBlock(funName, blockLab).get)
     }
 
-    def getBBFun(funName: String, b: BB): Rep[Ref[SS] => List[(SS, Value)]] = {
+    def getBBFun(funName: String, b: BB): Rep[(Ref[SS], Cont) => Unit] = {
       if (!CompileTimeRuntime.BBFuns.contains((funName, b))) {
         precompileBlocks(funName, StaticList(b))
       }
@@ -57,19 +57,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
   import CompileTimeRuntime._
 
-  /*
-  def execBr(ss: Rep[SS], cndVal: Rep[Value], tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
-    "exec_br".reflectWith[List[(SS, Value)]](ss, cndVal, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
-  }
-   */
-
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
-    tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
-    "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
+    tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
+    val tBrFunName = getRealBlockFunNameCPS(getBBFun(funName, tBlockLab))
+    val fBrFunName = getRealBlockFunNameCPS(getBBFun(funName, fBlockLab))
+    "sym_exec_br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
   def getRealType(vt: LLVMType): LLVMType = vt match {
@@ -145,7 +137,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         if (!CompileTimeRuntime.FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        FunV(CompileTimeRuntime.FunFuns(id))
+        CPSFunV(CompileTimeRuntime.FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
         if (External.modeled_external.contains(id.tail)) {
           id.tail match {
@@ -154,7 +146,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             case _ => "llsc-external-wrapper".reflectWith[Value](id.tail)
           }
         } else if (id.startsWith("@llvm")) {
-          Intrinsics.get(id)
+          Intrinsics.get (id)
         } else {
           // Should be a noop
           if (!External.warned_external.contains(id)) {
@@ -227,7 +219,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]])(implicit funName: String): Rep[List[(SS, Value)]] = {
+  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[Unit])(implicit funName: String): Rep[Unit] = {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
@@ -326,12 +318,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
         ss.push
         val stackSize = ss.stackSize
-        val res = fv(ss, List(vs: _*))
-        res.flatMap { case sv =>
+        val fK: Rep[Cont] = fun { case sv =>
           val s: Rep[Ref[SS]] = sv._1
           s.pop(stackSize) // XXX: double check here
           k(s, sv._2)
         }
+        fv(ss, List(vs: _*), fK)
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)()
@@ -360,45 +352,46 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(inst: Terminator, incomingBlock: String)(implicit ss: Rep[SS], funName: String): Rep[List[(SS, Value)]] = {
+  def execTerm(inst: Terminator, incomingBlock: String, k: Rep[Cont])(implicit ss: Rep[SS], funName: String): Rep[Unit] = {
     inst match {
       // FIXME: unreachable
-      case Unreachable => IntV(-1)
+      case Unreachable => k(ss, IntV(-1))
       case RetTerm(ty, v) =>
-        v match {
+        val ret = v match {
           case Some(value) => eval(value, ty, ss)
           case None => NullV()
         }
+        k(ss, ret)
       case BrTerm(lab) =>
         ss.addIncomingBlock(incomingBlock)
-        execBlock(funName, lab, ss)
+        execBlock(funName, lab, ss, k)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         ss.addIncomingBlock(incomingBlock)
         val cndVal = eval(cnd, ty, ss)
         if (cndVal.isConc) {
-          if (cndVal.int == 1) execBlock(funName, thnLab, ss)
-          else execBlock(funName, elsLab, ss)
+          if (cndVal.int == 1) execBlock(funName, thnLab, ss, k)
+          else execBlock(funName, elsLab, ss, k)
         } else {
-          symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
+          symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName, k)
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
-          if (table.isEmpty) execBlock(funName, default, s)
+        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] = {
+          if (table.isEmpty) execBlock(funName, default, s, k)
           else {
-            if (v == table.head.n) execBlock(funName, table.head.label, s)
+            if (v == table.head.n) execBlock(funName, table.head.label, s, k)
             else switchFun(v, s.copy, table.tail)
           }
         }
 
-        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] = 
+        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[Unit] = 
           if (table.isEmpty) {
             s.addPCSet(pc)
-            execBlock(funName, default, s)
+            execBlock(funName, default, s, k)
           } else {
             val s1 = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s.addPC(headPC.toSMTBool)
-            val u = execBlock(funName, table.head.label, s)
+            val u = execBlock(funName, table.head.label, s, k)
             switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
           }
 
@@ -412,12 +405,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[List[(SS, Value)]])(implicit fun: String): Rep[List[(SS, Value)]] = {
+  def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[Unit])(implicit funName: String): Rep[Unit] = {
     inst match {
       case AssignInst(x, valInst) =>
         execValueInst(valInst, ss, {
           case (s, v) =>
-            s.assign(fun + "_" + x, v)
+            s.assign(funName + "_" + x, v)
             k(s)
         })
       case StoreInst(ty1, val1, ty2, val2, align) =>
@@ -438,21 +431,21 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
         ss.push
         val stackSize = ss.stackSize
-        val res: Rep[List[(SS, Value)]] = fv(ss, List(vs: _*))
-        res.flatMap { case sv =>
-          val s = sv._1
-          s.pop(stackSize)
+        val fK: Rep[Cont] = fun { case sv =>
+          val s: Rep[Ref[SS]] = sv._1
+          s.pop(stackSize) // XXX: double check here
           k(s)
         }
+        fv(ss, List(vs: _*), fK)
     }
   }
 
-  def execBlock(funName: String, label: String, s: Rep[SS]): Rep[List[(SS, Value)]] =
-    execBlock(funName, findBlock(funName, label).get, s)
+  def execBlock(funName: String, label: String, s: Rep[SS], k: Rep[Cont]): Rep[Unit] =
+    execBlock(funName, findBlock(funName, label).get, s, k)
 
-  def execBlock(funName: String, block: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
+  def execBlock(funName: String, block: BB, s: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
     unchecked("// jump to block: " + block.label.get)
-    CompileTimeRuntime.getBBFun(funName, block)(s)
+    CompileTimeRuntime.getBBFun(funName, block)(s, k)
   }
 
   def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
@@ -493,21 +486,22 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
-    def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
+    def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS], k: Rep[Cont]): Rep[Unit] =
       insts match {
-        case Nil => execTerm(t, b.label.getOrElse(""))(s, funName)
-        case i::inst => execInst(i, s, s1 => runInst(b, inst, t, s1))(funName)
+        case Nil => execTerm(t, b.label.getOrElse(""), k)(s, funName)
+        case i::inst => execInst(i, s, s1 => runInst(b, inst, t, s1, k))(funName)
       }
 
-    def runBlock(b: BB)(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
+    def runBlock(b: BB)(ss: Rep[Ref[SS]], k: Rep[Cont]): Rep[Unit] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
+      //println("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b, b.ins, b.term, ss)
+      runInst(b, b.ins, b.term, ss, k)
     }
 
     for (b <- blocks) {
       Predef.assert(!CompileTimeRuntime.BBFuns.contains((funName, b)))
-      val repRunBlock: Rep[Ref[SS] => List[(SS, Value)]] = topFun(runBlock(b))
+      val repRunBlock: Rep[(Ref[SS], Cont) => Unit] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
       FunName.blockMap(n) = s"${realFunName}_Block$n"
@@ -516,19 +510,20 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def precompileFunctions(funs: List[FunctionDef]): Unit = {
-    def runFun(f: FunctionDef)(ss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+    def runFun(f: FunctionDef)(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
+      //println("// compiling function: " + f.id)
       ss.assign(params, args)
-      execBlock(f.id, f.blocks(0), ss)
+      execBlock(f.id, f.blocks(0), ss, k)
     }
 
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
-      val repRunFun: Rep[(Ref[SS], List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
+      val repRunFun: Rep[(Ref[SS], List[Value], Cont) => Unit] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
       FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
@@ -536,7 +531,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def exec(main: Module, fname: String, args: Rep[List[Value]],
-    isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
+    isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
     CompileTimeRuntime.funMap = main.funcDefMap
     CompileTimeRuntime.funDeclMap = main.funcDeclMap
     CompileTimeRuntime.globalDefMap = main.globalDefMap
@@ -552,13 +547,13 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     if (!isCommandLine) {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       ss.push
-      fv(ss, args)
+      fv(ss, args, k)
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       ss.push
       ss.updateArg(symarg)
-      fv(ss, commandLineArgs)
+      fv(ss, commandLineArgs, k)
     }
   }
 }

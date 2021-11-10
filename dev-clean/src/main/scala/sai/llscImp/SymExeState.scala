@@ -36,6 +36,8 @@ import scala.collection.mutable.{Set => MultableSet}
 
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
+  type Cont = ((Ref[SS], Value) => Unit)
+
   object Coverage {
     import scala.collection.mutable.HashMap
     private var counter: Int = 0
@@ -143,8 +145,15 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOpsOpt(ss.asRepOf[SS])
+  implicit def lift(v: Rep[Value])(implicit s: Rep[SS]): Rep[List[(SS, Value)]] = List[(SS, Value)]((s, v))
+  implicit def SS2RefSS(s: Rep[SS]): Rep[Ref[SS]] = s.asRepOf[Ref[SS]]
+  implicit def RefSS2SS(s: Rep[Ref[SS]]): Rep[SS] = s.asRepOf[SS]
 
   def getRealBlockFunName(bf: Rep[Ref[SS] => List[(SS, Value)]]): String = {
+    FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
+  }
+
+  def getRealBlockFunNameCPS(bf: Rep[(Ref[SS], Cont) => Unit]): String = {
     FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
 
@@ -175,6 +184,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
   object FunV {
     def apply(f: Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
+  }
+  object CPSFunV {
+    def apply(f: Rep[(Ref[SS], List[Value], Cont) => Unit]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
@@ -217,6 +229,21 @@ trait SymExeDefs extends SAIOps with StagedNondet {
           f(s, args)
       }
     }
+    // The CPS version
+    def apply(s: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
+      Unwrap(v) match {
+        case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
+          k(s, IntV(0))
+        case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+          // XXX: if the external function does not diverge, we don' need to
+          // pass the continuation into it, we can just return a pair of state/value.
+          System.out.println("use external function: " + f)
+          f.reflectWith[Unit](s, args, k)
+        case _ =>
+          val f = v.asRepOf[(SS, List[Value], Cont) => Unit]
+          f(s, args, k)
+      }
+    }
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
@@ -249,19 +276,18 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 
   object Intrinsics {
     val warned_set = MultableSet[String]()
-    def match_intrinsics(id: String): Rep[Value] = id match {
-      case id if id.startsWith("@llvm.va_start") => llvm_va_start
-      case id if id.startsWith("@llvm.memcpy") => llvm_memcopy
-      case id if id.startsWith("@llvm.memset") => llvm_memset
-      case id if id.startsWith("@llvm.memmove") => llvm_memset
-      case _ => {
+    def get(id: String): Rep[Value] =
+      if (id.startsWith("@llvm.va_start")) llvm_va_start
+      else if (id.startsWith("@llvm.memcpy")) llvm_memcopy
+      else if (id.startsWith("@llvm.memset")) llvm_memset
+      else if (id.startsWith("@llvm.memmove")) llvm_memset
+      else {
         if (!warned_set.contains(id)) {
           System.out.println(s"Warning: intrinsic $id is ignored")
           warned_set.add(id)
         }
         External.noop
       }
-    }
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
     def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
     def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")

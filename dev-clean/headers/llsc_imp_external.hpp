@@ -27,6 +27,14 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> noop(SS state, immer::flex_vect
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
+inline std::monostate malloc(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+  IntData bytes = proj_IntV(args.at(0));
+  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
+  SS ss = state.heap_append(emptyMem);
+  return k(ss, memLoc);
+}
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_vector<PtrVal> args) {
   IntData bytes = proj_IntV(args.at(0));
   auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
@@ -59,6 +67,17 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::fl
   // auto &pc = state.getPC();
   // handle_pc(pc);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
+inline std::monostate make_symbolic(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+  PtrVal make_loc = args.at(0);
+  IntData len = proj_IntV(args.at(1));
+  SS res = std::move(state);
+  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
+  for (int i = 0; i < len; i++) {
+    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
+  }
+  return k(res, make_IntV(0));
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS& state, immer::flex_vector<PtrVal> args) {

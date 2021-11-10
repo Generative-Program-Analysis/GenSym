@@ -156,7 +156,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             // case "realloc" => External.reallocV
             case _ => "llsc-external-wrapper".reflectWith[Value](id.tail)
           }
-          case id if id.startsWith("@llvm") => Intrinsics.match_intrinsics(id)
+          case id if id.startsWith("@llvm") => Intrinsics.get(id)
           // Should be a noop
           case _ => {
             if (!External.warned_external.contains(id)) {
@@ -580,6 +580,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
+      //println("// compiling block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
@@ -605,6 +606,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
+      //println("// compiling function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState

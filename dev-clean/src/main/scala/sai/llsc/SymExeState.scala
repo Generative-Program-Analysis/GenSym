@@ -295,19 +295,18 @@ trait SymExeDefs extends SAIOps with StagedNondet {
 
   object Intrinsics {
     val warned_set = MultableSet[String]()
-    def match_intrinsics(id: String): Rep[Value] = id match {
-      case id if id.startsWith("@llvm.va_start") => llvm_va_start
-      case id if id.startsWith("@llvm.memcpy") => llvm_memcopy
-      case id if id.startsWith("@llvm.memset") => llvm_memset
-      case id if id.startsWith("@llvm.memmove") => llvm_memset
-      case _ => {
+    def get(id: String): Rep[Value] =
+      if (id.startsWith("@llvm.va_start")) llvm_va_start
+      else if (id.startsWith("@llvm.memcpy")) llvm_memcopy
+      else if (id.startsWith("@llvm.memset")) llvm_memset
+      else if (id.startsWith("@llvm.memmove")) llvm_memset
+      else {
         if (!warned_set.contains(id)) {
           System.out.println(s"Warning: intrinsic $id is ignored")
           warned_set.add(id)
         }
         External.noop
       }
-    }
     def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
     def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
     def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")
