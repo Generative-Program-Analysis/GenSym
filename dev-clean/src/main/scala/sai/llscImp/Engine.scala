@@ -231,78 +231,79 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   implicit def SS2RefSS(s: Rep[SS]): Rep[Ref[SS]] = s.asRepOf[Ref[SS]]
   implicit def RefSS2SS(s: Rep[Ref[SS]]): Rep[SS] = s.asRepOf[SS]
 
-  def execValueInst(inst: ValueInstruction)(implicit ss: Rep[SS], funName: String): Rep[List[(SS, Value)]] = {
+  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]])(implicit funName: String): Rep[List[(SS, Value)]] = {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
         val stackSize = ss.stackSize
         ss.allocStack(getTySize(ty, align.n))
-        LocV(stackSize, LocV.kStack)
+        k(ss, LocV(stackSize, LocV.kStack))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
           case _ => 0
         }
         val v = eval(value, ptrTy, ss)
-        ss.lookup(v, getTySize(valTy), isStruct)
+        k(ss, ss.lookup(v, getTySize(valTy), isStruct))
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val indexLLVMValue = typedValues.map(tv => tv.value)
         val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
         val lV = eval(ptrValue, ptrType, ss)
         val indexValue = vs.map(v => v.int)
         val offset = calculateOffset(ptrType, indexValue)
-        ptrValue match {
+        val v = ptrValue match {
           case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
           case _ => LocV(lV.loc + offset, lV.kind)
         }
+        k(ss, v)
       // Arith Binary Operations
-      case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs, ty, ss)
-      case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs, ty, ss)
-      case MulInst(ty, lhs, rhs, _) => evalIntOp2("mul", lhs, rhs, ty, ss)
-      case SDivInst(ty, lhs, rhs) => evalIntOp2("sdiv", lhs, rhs, ty, ss)
-      case UDivInst(ty, lhs, rhs) => evalIntOp2("udiv", lhs, rhs, ty, ss)
-      case FAddInst(ty, lhs, rhs) => evalFloatOp2("fadd", lhs, rhs, ty, ss)
-      case FSubInst(ty, lhs, rhs) => evalFloatOp2("fsub", lhs, rhs, ty, ss)
-      case FMulInst(ty, lhs, rhs) => evalFloatOp2("fmul", lhs, rhs, ty, ss)
-      case FDivInst(ty, lhs, rhs) => evalFloatOp2("fdiv", lhs, rhs, ty, ss)
+      case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss))
+      case SubInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("sub", lhs, rhs, ty, ss))
+      case MulInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("mul", lhs, rhs, ty, ss))
+      case SDivInst(ty, lhs, rhs) => k(ss, evalIntOp2("sdiv", lhs, rhs, ty, ss))
+      case UDivInst(ty, lhs, rhs) => k(ss, evalIntOp2("udiv", lhs, rhs, ty, ss))
+      case FAddInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fadd", lhs, rhs, ty, ss))
+      case FSubInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fsub", lhs, rhs, ty, ss))
+      case FMulInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fmul", lhs, rhs, ty, ss))
+      case FDivInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fdiv", lhs, rhs, ty, ss))
       /* Backend Work Needed */
-      case URemInst(ty, lhs, rhs) => evalIntOp2("urem", lhs, rhs, ty, ss)
-      case SRemInst(ty, lhs, rhs) => evalIntOp2("srem", lhs, rhs, ty, ss)
+      case URemInst(ty, lhs, rhs) => k(ss, evalIntOp2("urem", lhs, rhs, ty, ss))
+      case SRemInst(ty, lhs, rhs) => k(ss, evalIntOp2("srem", lhs, rhs, ty, ss))
 
       // Bitwise Operations
       /* Backend Work Needed */
-      case ShlInst(ty, lhs, rhs) => evalIntOp2("shl", lhs, rhs, ty, ss)
-      case LshrInst(ty, lhs, rhs) => evalIntOp2("lshr", lhs, rhs, ty, ss)
-      case AshrInst(ty, lhs, rhs) => evalIntOp2("ashr", lhs, rhs, ty, ss)
-      case AndInst(ty, lhs, rhs) => evalIntOp2("and", lhs, rhs, ty, ss)
-      case OrInst(ty, lhs, rhs) => evalIntOp2("or", lhs, rhs, ty, ss)
-      case XorInst(ty, lhs, rhs) => evalIntOp2("xor", lhs, rhs, ty, ss)
+      case ShlInst(ty, lhs, rhs) => k(ss, evalIntOp2("shl", lhs, rhs, ty, ss))
+      case LshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("lshr", lhs, rhs, ty, ss))
+      case AshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("ashr", lhs, rhs, ty, ss))
+      case AndInst(ty, lhs, rhs) => k(ss, evalIntOp2("and", lhs, rhs, ty, ss))
+      case OrInst(ty, lhs, rhs) => k(ss, evalIntOp2("or", lhs, rhs, ty, ss))
+      case XorInst(ty, lhs, rhs) => k(ss, evalIntOp2("xor", lhs, rhs, ty, ss))
 
       // Conversion Operations
       /* Backend Work Needed */
       // TODO zext to type
-      case ZExtInst(from, value, to) => eval(value, from, ss)
+      case ZExtInst(from, value, to) => k(ss, eval(value, from, ss))
       case SExtInst(from, value, to) =>
-        eval(value, from, ss).bv_sext(to.asInstanceOf[IntType].size)
+        k(ss, eval(value, from, ss).bv_sext(to.asInstanceOf[IntType].size))
       case TruncInst(from, value, to) =>
-        eval(value, from, ss).trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
+        k(ss, eval(value, from, ss).trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size))
       case FpExtInst(from, value, to) =>
         // XXX: is it the right semantics?
-        eval(value, from, ss)
+        k(ss, eval(value, from, ss))
       case FpToUIInst(from, value, to) =>
-        eval(value, from, ss).fp_toui(to.asInstanceOf[IntType].size)
+        k(ss, eval(value, from, ss).fp_toui(to.asInstanceOf[IntType].size))
       case FpToSIInst(from, value, to) =>
-        eval(value, from, ss).fp_tosi(to.asInstanceOf[IntType].size)
+        k(ss, eval(value, from, ss).fp_tosi(to.asInstanceOf[IntType].size))
       case UiToFPInst(from, value, to) =>
-        eval(value, from, ss).ui_tofp
+        k(ss, eval(value, from, ss).ui_tofp)
       case SiToFPInst(from, value, to) =>
-        eval(value, from, ss).si_tofp
+        k(ss, eval(value, from, ss).si_tofp)
       case PtrToIntInst(from, value, to) =>
-        eval(value, from, ss).to_IntV
+        k(ss, eval(value, from, ss).to_IntV)
       case IntToPtrInst(from, value, to) =>
         val v = eval(value, from, ss)
-        LocV(v.int, LocV.kStack)
-      case BitCastInst(from, value, to) => eval(value, to, ss)
+        k(ss, LocV(v.int, LocV.kStack))
+      case BitCastInst(from, value, to) => k(ss, eval(value, to, ss))
 
       // Aggregate Operations
       /* Backend Work Needed */
@@ -311,11 +312,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val idx = calculateOffsetStatic(ty, idxList)
         // v is expected to be StructV in backend
         val v = eval(struct, ty, ss)
-        v.structAt(idx)
+        k(ss, v.structAt(idx))
 
       // Other operations
-      case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs, ty, ss)
-      case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs, ty, ss)
+      case FCmpInst(pred, ty, lhs, rhs) => k(ss, evalFloatOp2(pred.op, lhs, rhs, ty, ss))
+      case ICmpInst(pred, ty, lhs, rhs) => k(ss, evalIntOp2(pred.op, lhs, rhs, ty, ss))
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
@@ -330,10 +331,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         ss.push
         val stackSize = ss.stackSize
         val res = fv(ss, List(vs: _*))
-        res.map { case sv =>
-          val s = sv._1
+        res.flatMap { case sv =>
+          val s: Rep[Ref[SS]] = sv._1
           s.pop(stackSize) // XXX: double check here
-          (s, sv._2)
+          k(s, sv._2)
         }
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
@@ -343,7 +344,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         val incsValues: List[LLVMValue] = incs.map(_.value)
         val incsLabels: List[BlockLabel] = incs.map(_.label.hashCode)
         val vs = incsValues.map(v => () => eval(v, ty, ss))
-        selectValue(ss.incomingBlock, vs, incsLabels)
+        k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
         if (cnd.isConc) {
@@ -358,6 +359,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           val v2 = eval(elsVal, elsTy, s1)
           List((ss, v1), (s1, v2))
         }
+        ???
     }
   }
 
@@ -417,12 +419,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[List[(SS, Value)]])(implicit fun: String): Rep[List[(SS, Value)]] = {
     inst match {
       case AssignInst(x, valInst) =>
-        val svs: Rep[List[(SS, Value)]] = execValueInst(valInst)(ss, fun)
-        svs.flatMap { case sv =>
-          val s: Rep[Ref[SS]] = sv._1 // XXX: opt here
-          s.assign(fun + "_" + x, sv._2)
-          k(s)
-        }
+        execValueInst(valInst, ss, {
+          case (s, v) =>
+            s.assign(fun + "_" + x, v)
+            k(s)
+        })
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)

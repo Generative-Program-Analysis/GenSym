@@ -53,6 +53,13 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   def quoteOp(op: String): String = "op_" + op
 
   override def shallow(n: Node): Unit = n match {
+    case Node(s, "list-flatMap", xs::(b: Block)::Const(mA: Manifest[_])::rest, _) =>
+      val retType = remap(typeBlockRes(b.res).typeArguments(0))
+      emit(s"Vec::flatMap<$retType>(")
+      shallow(xs)
+      emit(", ")
+      quoteTypedBlock(b, true, false, capture = "&", argMod = Some(List("&")))
+      emit(")")
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")

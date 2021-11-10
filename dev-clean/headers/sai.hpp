@@ -12,7 +12,7 @@
 #include <immer/set.hpp>
 #include <immer/algorithm.hpp>
 
-/* TODO: 
+/* TODO:
  *   pass by reference: contains, notContains
  *   pass const argument?
  */
@@ -195,11 +195,12 @@ namespace Vec {
 
   template<typename U, typename T, typename Fn>
   inline auto flatMap(immer::flex_vector<T> vec, Fn f) {
-    static_assert(std::is_convertible<Fn, std::function<immer::flex_vector<U>(T)>>::value,
-      "Vec::flatMap requires a function of type flex_vector<U>(T)");
-    auto v1 = vmap<immer::flex_vector<U>>(vec, f);
+    static_assert(std::is_convertible<Fn, std::function<immer::flex_vector<U>(T&)>>::value,
+      "Vec::flatMap requires a function of type flex_vector<U>(T&)");
     auto res = immer::flex_vector<U>();
-    for (int i = 0; i < v1.size(); i++) res = res + v1.at(i);
+    for (int i = 0; i < vec.size(); i++) {
+      res = res + f(vec.at(i));
+    }
     return res;
   }
 
@@ -235,7 +236,7 @@ namespace Tuple {
   inline std::tuple<U, T> swap(std::tuple<T, U> t) {
     return std::make_tuple(std::get<1>(t), std::get<0>(t));
   }
-  
+
   template<typename T, typename U>
   inline std::pair<T, U> to_pair(std::tuple<T, U> t) {
     return std::make_pair(std::get<0>(t), std::get<1>(t));
@@ -243,7 +244,7 @@ namespace Tuple {
 }
 
 namespace Pair {
-  
+
   template<typename T, typename U>
   inline std::tuple<T, U> to_tuple(std::pair<T, U> t) {
     return std::make_tuple(std::get<0>(t), std::get<1>(t));
@@ -294,7 +295,7 @@ namespace Map {
     if (m.count(k) == 0) return v;
     else return m[k];
   }
-  
+
   template<typename K, typename V>
   inline immer::map<K, V> concat(immer::map<K, V> m1, immer::map<K, V> m2) {
     for (auto kv : m2) { m1 = m1.insert(kv); }
@@ -354,7 +355,7 @@ namespace Set {
     for (auto&& x : xs) { set0 = set0.insert(x); }
     return set0;
   }
-  
+
   template<typename T>
   inline bool contains(immer::set<T> s, T t) {
     return s.count(t) == 1;
@@ -371,7 +372,7 @@ namespace Set {
     for (auto x : s) res = res.push_back(x);
     return res;
   }
-  
+
   template<typename T>
   inline immer::set<T> join(immer::set<T> s1, immer::set<T> s2) {
     for (auto x : s2) {
