@@ -55,11 +55,10 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-flatMap", xs::(b: Block)::Const(mA: Manifest[_])::rest, _) =>
       val retType = remap(typeBlockRes(b.res).typeArguments(0))
-      emit(s"Vec::flatMap<$retType>(")
-      shallow(xs)
-      emit(", ")
+      es"Vec::flatMap<$retType>($xs, "
       quoteTypedBlock(b, true, false, capture = "&", argMod = Some(List("&")))
-      emit(")")
+      es")"
+
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")

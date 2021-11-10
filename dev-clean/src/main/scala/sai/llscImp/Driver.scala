@@ -144,7 +144,10 @@ object RunLLSC {
     //runLLSC(sai.llvm.Benchmarks.maze, "mazeImp", "@main", 0)
     //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "powerPure", "@main", 0)
     //runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
-    sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
-    runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImp", "@main", 0)
+    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
+    //runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImp", "@main", 0)
+
+    sai.llsc.RunLLSC.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
+    runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImp", "@f", 16)
   }
 }
