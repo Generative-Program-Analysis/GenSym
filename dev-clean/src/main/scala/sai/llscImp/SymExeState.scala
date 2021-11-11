@@ -127,7 +127,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def updateArg(l: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-arg", ss, l)(ss)
 
     def addIncomingBlock(x: String): Rep[Unit] = reflectWrite[Unit]("ss-add-incoming-block", ss, x.hashCode)(ss)
-    def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
+    def incomingBlock: Rep[BlockLabel] = reflectRead[BlockLabel]("ss-incoming-block", ss)(ss)
 
     def copy: Rep[SS] = reflectRead[SS]("ss-copy", ss)(ss)
   }
