@@ -109,7 +109,7 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
 
 abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with ImpLLSCEngine { q =>
-  val codegen = new ImpureLLSCCodeGen {
+  val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
@@ -119,7 +119,7 @@ abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: 
 
 abstract class CPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with CPSLLSCEngine { q =>
-  val codegen = new ImpureLLSCCodeGen {
+  val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
