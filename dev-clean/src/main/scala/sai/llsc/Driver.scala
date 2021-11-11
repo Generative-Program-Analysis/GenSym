@@ -109,7 +109,17 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
 
 abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with ImpLLSCEngine { q =>
-  val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {
+  val codegen = new ImpureLLSCCodeGen {
+    val IR: q.type = q
+    val codegenFolder = s"$folder/$appName/"
+    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+  }
+}
+
+abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
+   extends GenericLLSCDriver[A, B](appName, folder) with ImpLLSCEngine { q =>
+  val codegen = new ImpureLLSCCodeGen with StdVectorCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
@@ -167,6 +177,19 @@ class ImpLLSC extends LLSC {
     }
 }
 
+class ImpVecLLSC extends LLSC {
+  val insName = "ImpLLSC"
+  def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int) =
+    new ImpVecLLSCDriver[Int, Unit](name, "./llsc_gen") {
+      def snippet(u: Rep[Int]) = {
+        val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
+        val res = exec(m, fname, args, false, 4)
+        res.foreach { s => SS.checkPCToFile(s._1)}
+        ()
+      }
+    }
+}
+
 class CPSLLSC extends LLSC {
   val insName = "CPSLLSC"
   def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int) =
@@ -186,17 +209,21 @@ object RunLLSC {
     val pure = new PureLLSC
     val cps = new CPSLLSC
     val imp = new ImpLLSC
-    pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
-    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImp", "@f", 16)
-    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kCPS", "@f", 16)
+    val impVec = new ImpVecLLSC
 
-    pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mPure", "@f", 20)
-    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mImp", "@f", 20)
-    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mCPS", "@f", 20)
+    //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
+    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpCtrl", "@f", 16)
+    impVec.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpVecCtrl", "@f", 16)
+    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kCPSCtrl", "@f", 16)
 
-    pure.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
-    imp.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImp", "@main", 0)
-    cps.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeCPS", "@main", 0)
+    //pure.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePureCtrl", "@main", 0)
+    imp.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpCtrl", "@main", 0)
+    impVec.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpVecCtrl", "@main", 0)
+    cps.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeCPSCtrl", "@main", 0)
+
+    //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mPure", "@f", 20)
+    //imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mImp", "@f", 20)
+    //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mCPS", "@f", 20)
   }
 
   def main(args: Array[String]): Unit = {

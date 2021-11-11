@@ -74,7 +74,7 @@ trait ImpSymExeDefs extends SAIOps {
    * 1 -- read/write hard dependency
    * 2 -- hard + soft dependency
    */
-  var depLevel: Int = 0
+  var depLevel: Int = 2
 
   // Auxiliary effectful reflect functions for the experiment
   def reflectCtrl[T: Manifest](op: String, rs: Rep[_]*): Rep[T] =
