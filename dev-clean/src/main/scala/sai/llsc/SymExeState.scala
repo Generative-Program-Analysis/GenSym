@@ -190,10 +190,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
 
-  def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String = {
-    FunName.blockMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
-  }
-
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
@@ -284,8 +280,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object External extends Serializable {
-    val warned_external = MultableSet[String]()
-    val modeled_external: MultableSet[String] = MultableSet(
+    val warned = MultableSet[String]()
+    val modeled = MultableSet[String](
       "sym_print", "malloc", "realloc", "llsc_assert", "make_symbolic",
       "__assert_fail"
     )
@@ -294,16 +290,16 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
 
   object Intrinsics {
-    val warned_set = MultableSet[String]()
+    val warned = MultableSet[String]()
     def get(id: String): Rep[Value] =
       if (id.startsWith("@llvm.va_start")) llvm_va_start
       else if (id.startsWith("@llvm.memcpy")) llvm_memcopy
       else if (id.startsWith("@llvm.memset")) llvm_memset
       else if (id.startsWith("@llvm.memmove")) llvm_memset
       else {
-        if (!warned_set.contains(id)) {
+        if (!warned.contains(id)) {
           System.out.println(s"Warning: intrinsic $id is ignored")
-          warned_set.add(id)
+          warned.add(id)
         }
         External.noop
       }
@@ -312,10 +308,4 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")
     def llvm_memmove: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memmove")
   }
-}
-
-object FunName {
-  // Maps LMS node ids to real function names
-  val funMap: MultableMap[Int, String] = MultableMap()
-  val blockMap: MultableMap[Int, String] = MultableMap()
 }

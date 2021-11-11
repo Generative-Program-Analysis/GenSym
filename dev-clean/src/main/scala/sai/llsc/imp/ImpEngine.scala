@@ -1,4 +1,4 @@
-package sai.llscImp
+package sai.llsc.imp
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
@@ -25,7 +25,7 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
+trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
@@ -34,6 +34,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     var globalDeclMap: StaticMap[String, GlobalDecl] = StaticMap()
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+
+    val funNameMap: HashMap[Int, String] = new HashMap()
+    val blockNameMap: HashMap[Int, String] = new HashMap()
 
     val BBFuns: HashMap[(String, BB), Rep[Ref[SS] => List[(SS, Value)]]] =
       new HashMap[(String, BB), Rep[Ref[SS] => List[(SS, Value)]]]
@@ -54,16 +57,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     def findBlock(funName: String, lab: String): Option[BB] = funMap.get(funName).get.lookupBlock(lab)
     def findFirstBlock(funName: String): BB = findFundef(funName).body.blocks(0)
     def findFundef(funName: String) = funMap.get(funName).get
+    def getRealBlockFunName(bf: Rep[Ref[SS] => List[(SS, Value)]]): String =
+      blockNameMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
   import CompileTimeRuntime._
-
-  /*
-  def execBr(ss: Rep[SS], cndVal: Rep[Value], tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
-    "exec_br".reflectWith[List[(SS, Value)]](ss, cndVal, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
-  }
-   */
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
@@ -147,19 +144,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         }
         FunV(CompileTimeRuntime.FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
-        if (External.modeled_external.contains(id.tail)) {
-          id.tail match {
-            // case "malloc" => External.mallocV
-            // case "realloc" => External.reallocV
-            case _ => "llsc-external-wrapper".reflectWith[Value](id.tail)
-          }
-        } else if (id.startsWith("@llvm")) {
-          Intrinsics.get(id)
-        } else {
-          // Should be a noop
-          if (!External.warned_external.contains(id)) {
+        if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
+        else if (id.startsWith("@llvm")) Intrinsics.get(id)
+        else {
+          if (!External.warned.contains(id)) {
             System.out.println(s"Warning: function $id is ignored")
-            External.warned_external.add(id)
+            External.warned.add(id)
           }
           External.noop
         }
@@ -510,7 +500,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       val repRunBlock: Rep[Ref[SS] => List[(SS, Value)]] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-      FunName.blockMap(n) = s"${realFunName}_Block$n"
+      CompileTimeRuntime.blockNameMap(n) = s"${realFunName}_Block$n"
       CompileTimeRuntime.BBFuns((funName, b)) = repRunBlock
     }
   }
@@ -530,7 +520,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(Ref[SS], List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+      CompileTimeRuntime.funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }

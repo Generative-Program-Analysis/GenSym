@@ -10,20 +10,17 @@ import sai.lmsx._
 import sai.lmsx.smt._
 import java.io.FileOutputStream
 
-trait SymStagedLLVMGen extends CppSAICodeGenBase {
-  registerHeader("./headers", "<llsc.hpp>")
-  registerHeader("./headers", "<llsc_intrinsics.hpp>")
-  registerHeader("./headers", "<llsc_external.hpp>")
+import collection.mutable.HashMap
 
-  registerHeader("<stp/c_interface.h>")
-  registerHeader("./headers", "<stp_handle.hpp>")
-
+trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   val codegenFolder: String
+  def funMap: HashMap[Int, String]
+  def blockMap: HashMap[Int, String]
 
   override def quote(s: Def): String = s match {
     case Sym(n) =>
-      FunName.funMap.getOrElse(n, {
-        FunName.blockMap.getOrElse(n, super.quote(s))
+      funMap.getOrElse(n, {
+        blockMap.getOrElse(n, super.quote(s))
       })
     case _ => super.quote(s)
   }
@@ -53,14 +50,6 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   def quoteOp(op: String): String = "op_" + op
 
   override def shallow(n: Node): Unit = n match {
-    /*
-    case Node(s, "list-new", Const(mA: Manifest[_])::Nil, _) =>
-      if (mA.runtimeClass.getName == "scala.Tuple2" &&
-        remap(mA.typeArguments(0)) == "SS" &&
-        remap(mA.typeArguments(1)) == "PtrVal") {
-        emit("mt_path_result")
-      } else super.shallow(n)
-     */
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
@@ -106,18 +95,6 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     case Node(s, "print-time", _, _) => es"cov.print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov.print_path_cov()"
 
-    case Node(s, "tp-async", List(b: Block), _) =>
-      //emit("std::async(std::launch::async, [&]")
-      emit("create_async<flex_vector<std::pair<SS, PtrVal>>>([&]")
-      quoteBlockPReturn(traverse(b))
-      emit(")")
-    case Node(s, "tp-enqueue", List(b: Block), _) =>
-      // FIXME: lms cannot correctly generate closure with unit/monostate argument
-      emit("pool.enqueue([&]")
-      quoteBlockPReturn(traverse(b))
-      emit(")")
-    case Node(s, "tp-future-get", List(f), _) => es"$f.get()"
-    case Node(s, "can-par", _, _) => es"can_par()"
     case _ => super.shallow(n)
   }
 
@@ -151,7 +128,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   // 2 pass
   def emitFunctionFiles: Unit = {
     for ((f, (_, funStream)) <- functionsStreams) {
-      if (!FunName.blockMap.values.exists(_ == f)) {
+      if (!blockMap.values.exists(_ == f)) {
         val filename = s"$codegenFolder/$f.cpp"
         val out = new java.io.PrintStream(filename)
         out.println("#include \"common.h\"")
@@ -161,7 +138,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
     }
 
     for ((f, (_, funStream)) <- functionsStreams) {
-      if (FunName.blockMap.values.exists(_ == f)) {
+      if (blockMap.values.exists(_ == f)) {
         val funName = f.substring(0, f.indexOf("_Block"))
         val filename = s"$codegenFolder/$funName.cpp"
         val out = new java.io.PrintStream(new FileOutputStream(filename, true))
@@ -200,3 +177,41 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   }
 }
 
+trait PureLLSCCodeGen extends GenericLLSCCodeGen {
+  registerHeader("./headers", "<llsc.hpp>")
+  registerHeader("./headers", "<llsc_intrinsics.hpp>")
+  registerHeader("./headers", "<llsc_external.hpp>")
+
+  registerHeader("<stp/c_interface.h>")
+  registerHeader("./headers", "<stp_handle.hpp>")
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "tp-async", List(b: Block), _) =>
+      //emit("std::async(std::launch::async, [&]")
+      emit("create_async<flex_vector<std::pair<SS, PtrVal>>>([&]")
+      quoteBlockPReturn(traverse(b))
+      emit(")")
+    case Node(s, "tp-enqueue", List(b: Block), _) =>
+      // FIXME: lms cannot correctly generate closure with unit/monostate argument
+      emit("pool.enqueue([&]")
+      quoteBlockPReturn(traverse(b))
+      emit(")")
+    case Node(s, "tp-future-get", List(f), _) => es"$f.get()"
+    case Node(s, "can-par", _, _) => es"can_par()"
+    case _ => super.shallow(n)
+  }
+}
+
+trait ImpureLLSCCodeGen extends GenericLLSCCodeGen {
+  registerHeader("./headers", "<llsc_imp.hpp>")
+  registerHeader("./headers", "<llsc_imp_intrinsics.hpp>")
+  registerHeader("./headers", "<llsc_imp_external.hpp>")
+
+  registerHeader("<stp/c_interface.h>")
+  registerHeader("./headers", "<stp_handle.hpp>")
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "ss-copy", List(ss), _) => es"$ss.copy()"
+    case _ => super.shallow(n)
+  }
+}

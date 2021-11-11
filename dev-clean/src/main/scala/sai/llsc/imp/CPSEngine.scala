@@ -1,4 +1,4 @@
-package sai.llscImp
+package sai.llsc.imp
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
@@ -6,13 +6,6 @@ import sai.lang.llvm.parser.Parser._
 import sai.llsc.ASTUtils._
 
 import scala.collection.JavaConverters._
-
-import sai.structure.freer._
-import Eff._
-import Freer._
-import Handlers._
-import OpenUnion._
-import State._
 
 import lms.core._
 import lms.core.Backend._
@@ -25,7 +18,7 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait CPSLLSCEngine extends SAIOps with SymExeDefs {
+trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
@@ -34,6 +27,9 @@ trait CPSLLSCEngine extends SAIOps with SymExeDefs {
     var globalDeclMap: StaticMap[String, GlobalDecl] = StaticMap()
     var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
     var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+
+    val funNameMap: HashMap[Int, String] = new HashMap()
+    val blockNameMap: HashMap[Int, String] = new HashMap()
 
     val BBFuns: HashMap[(String, BB), Rep[(Ref[SS], Cont) => Unit]] =
       new HashMap[(String, BB), Rep[(Ref[SS], Cont) => Unit]]
@@ -54,13 +50,15 @@ trait CPSLLSCEngine extends SAIOps with SymExeDefs {
     def findBlock(funName: String, lab: String): Option[BB] = funMap.get(funName).get.lookupBlock(lab)
     def findFirstBlock(funName: String): BB = findFundef(funName).body.blocks(0)
     def findFundef(funName: String) = funMap.get(funName).get
+    def getRealBlockFunName(bf: Rep[(Ref[SS], Cont) => Unit]): String =
+      blockNameMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
   }
   import CompileTimeRuntime._
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
-    val tBrFunName = getRealBlockFunNameCPS(getBBFun(funName, tBlockLab))
-    val fBrFunName = getRealBlockFunNameCPS(getBBFun(funName, fBlockLab))
+    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
     "sym_exec_br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
@@ -139,19 +137,12 @@ trait CPSLLSCEngine extends SAIOps with SymExeDefs {
         }
         CPSFunV(CompileTimeRuntime.FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
-        if (External.modeled_external.contains(id.tail)) {
-          id.tail match {
-            // case "malloc" => External.mallocV
-            // case "realloc" => External.reallocV
-            case _ => "llsc-external-wrapper".reflectWith[Value](id.tail)
-          }
-        } else if (id.startsWith("@llvm")) {
-          Intrinsics.get (id)
-        } else {
-          // Should be a noop
-          if (!External.warned_external.contains(id)) {
+        if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
+        else if (id.startsWith("@llvm")) Intrinsics.get(id)
+        else {
+          if (!External.warned.contains(id)) {
             System.out.println(s"Warning: function $id is ignored")
-            External.warned_external.add(id)
+            External.warned.add(id)
           }
           External.noop
         }
@@ -504,7 +495,7 @@ trait CPSLLSCEngine extends SAIOps with SymExeDefs {
       val repRunBlock: Rep[(Ref[SS], Cont) => Unit] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-      FunName.blockMap(n) = s"${realFunName}_Block$n"
+      CompileTimeRuntime.blockNameMap(n) = s"${realFunName}_Block$n"
       CompileTimeRuntime.BBFuns((funName, b)) = repRunBlock
     }
   }
@@ -525,7 +516,7 @@ trait CPSLLSCEngine extends SAIOps with SymExeDefs {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(Ref[SS], List[Value], Cont) => Unit] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      FunName.funMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+      CompileTimeRuntime.funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
     }
   }
