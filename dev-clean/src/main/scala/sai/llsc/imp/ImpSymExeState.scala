@@ -70,24 +70,37 @@ trait ImpSymExeDefs extends SAIOps {
   final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
   final val ARCH_WORD_SIZE: Int = 64
 
+  /* 0 -- all control dependency
+   * 1 -- read/write hard dependency
+   * 2 -- hard + soft dependency
+   */
+  var depLevel: Int = 0
+
+  // Auxiliary effectful reflect functions for the experiment
+  def reflectCtrl[T: Manifest](op: String, rs: Rep[_]*): Rep[T] =
+    Wrap[T](Adapter.g.reflectEffect(op, rs.map(Unwrap):_*)(Adapter.CTRL)(Adapter.CTRL))
+  def reflectRW[T: Manifest](op: String, rs: Rep[_]*)(rk: Rep[_]*)(wk: Rep[_]*): Rep[T] =
+    Wrap[T](Adapter.g.reflectEffect(op, rs.map(Unwrap):_*)(rk.map(Unwrap):_*)(wk.map(Unwrap):_*))
+
+  def reflectRead[T: Manifest](op: String, rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
+    if (depLevel == 0) reflectCtrl[T](op, rs:_*)
+    else if (depLevel == 1) reflectRW[T](op, rs:_*)(es:_*)(es:_*)
+    else if (depLevel == 2) Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
+    else ???
+  def reflectWrite[T: Manifest](op: String, rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
+    if (depLevel == 0) reflectCtrl[T](op, rs:_*)
+    else if (depLevel == 1) reflectRW[T](op, rs:_*)(es:_*)(es:_*)
+    else if (depLevel == 2) Wrap[T](Adapter.g.reflectWrite(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
+    else ???
+
+  def currentMethodName: String = Thread.currentThread.getStackTrace()(2).getMethodName
+
   object SS {
     def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
     def init(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
     def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
     def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
   }
-
-  // Auxiliary effectful reflect functions for the experiment
-  def reflectCtrl[T: Manifest](op: String, rs: Rep[_]*): Rep[T] =
-    Wrap[T](Adapter.g.reflectEffect(op, rs.map(Unwrap):_*)(Adapter.CTRL)(Adapter.CTRL))
-  def reflectRead[T: Manifest](op: String, rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
-    Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
-  def reflectWrite[T: Manifest](op: String, rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
-    Wrap[T](Adapter.g.reflectWrite(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
-  def reflectRW[T: Manifest](op: String, rs: Rep[_]*)(rk: Rep[_]*)(wk: Rep[_]*): Rep[T] =
-    Wrap[T](Adapter.g.reflectEffect(op, rs.map(Unwrap):_*)(rk.map(Unwrap):_*)(wk.map(Unwrap):_*))
-
-  def currentMethodName: String = Thread.currentThread.getStackTrace()(2).getMethodName
 
   class SSOps(ss: Rep[SS]) {
     private def assignSeq(xs: List[Int], vs: Rep[List[Value]]): Rep[Unit] =
@@ -174,7 +187,8 @@ trait ImpSymExeDefs extends SAIOps {
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
-    def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL) //XXX: reflectMutable?
+    def apply(s: Rep[String], bw: Int): Rep[Value] =
+      "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL) //XXX: reflectMutable?
     def makeSymVList(i: Int): Rep[List[Value]] = {
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
     }

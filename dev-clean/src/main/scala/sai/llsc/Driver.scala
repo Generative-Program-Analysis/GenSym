@@ -182,6 +182,23 @@ class CPSLLSC extends LLSC {
 }
 
 object RunLLSC {
+  def experiment: Unit = {
+    val pure = new PureLLSC
+    val cps = new CPSLLSC
+    val imp = new ImpLLSC
+    pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
+    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImp", "@f", 16)
+    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kCPS", "@f", 16)
+
+    pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mPure", "@f", 20)
+    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mImp", "@f", 20)
+    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mCPS", "@f", 20)
+
+    pure.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
+    imp.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImp", "@main", 0)
+    cps.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeCPS", "@main", 0)
+  }
+
   def main(args: Array[String]): Unit = {
     val usage = """
     Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
@@ -196,11 +213,7 @@ object RunLLSC {
       val llsc = new PureLLSC
       llsc.runLLSC(parseFile(filepath), appName, fun, nSym)
     }
-
-    val pure = new PureLLSC
-    val cps = new CPSLLSC
-    pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
-    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImp", "@f", 16)
+    experiment
 
     //runLLSC(sai.llvm.Benchmarks.add, "addTest", "@add")
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
@@ -218,7 +231,6 @@ object RunLLSC {
     //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "powerPure", "@main", 0)
     //runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
     //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
-    //runCPSLLSC(sai.llvm.Benchmarks.mergesort, "mergeCpsImp", "@main", 0)
 
     //runCPSLLSC(sai.llvm.Benchmarks.branch, "branchCpsImp", "@f", 2)
     //runCPSLLSC(sai.llvm.Benchmarks.power, "powerCpsImp", "@main", 0)

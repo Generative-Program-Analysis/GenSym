@@ -210,7 +210,26 @@ trait ImpureLLSCCodeGen extends GenericLLSCCodeGen {
   registerHeader("<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")
 
+  // TODO: make std::vector as a standalone codegen trait
+  /*
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.List") {
+      val kty = m.typeArguments(0)
+      s"std::vector<${remap(kty)}>"
+    } else { super.remap(m) }
+  }
+  */
+
   override def shallow(n: Node): Unit = n match {
+    /*
+    case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
+      es"std::vector<${remap(mA)}>{"
+      xs.zipWithIndex.map { case (x, i) =>
+        shallow(x)
+        if (i != xs.length-1) emit(", ")
+      }
+      es"}"
+     */
     case Node(s, "ss-copy", List(ss), _) => es"$ss.copy()"
     case _ => super.shallow(n)
   }

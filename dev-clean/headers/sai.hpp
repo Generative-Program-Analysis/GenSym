@@ -7,6 +7,7 @@
 #include <sstream>
 #include <functional>
 #include <variant>
+#include <vector>
 #include <immer/flex_vector.hpp>
 #include <immer/map.hpp>
 #include <immer/set.hpp>
@@ -95,6 +96,25 @@ inline bool isInstanceOf(const std::variant<Types...>& v) {
 /* Vectors */
 
 namespace Vec {
+
+  // TODO: this works for std::vector, refactor it
+  template<typename U, typename T, typename Fn>
+  inline auto flatMap(std::vector<T> vec, Fn f) {
+    static_assert(std::is_convertible<Fn, std::function<std::vector<U>(T&)>>::value,
+      "Vec::flatMap requires a function of type flex_vector<U>(T&)");
+    auto res = std::vector<U>();
+    for (int i = 0; i < vec.size(); i++) {
+      auto fv = f(vec.at(i));
+      res.insert(res.end(), fv.begin(), fv.end());
+    }
+    return res;
+  }
+  template<typename T, typename Fn>
+  inline void foreach(std::vector<T> vec, Fn f) {
+    for (int i = 0; i < vec.size(); i++) {
+      f(vec.at(i));
+    }
+  }
 
   // Iterative implementation of map
   template<typename U, typename T, typename Fn>
