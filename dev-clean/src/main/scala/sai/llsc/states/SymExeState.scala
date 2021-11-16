@@ -283,6 +283,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     val warned = MultableSet[String]()
     val modeled = MultableSet[String](
       "sym_print", "malloc", "realloc", "llsc_assert", "make_symbolic",
+      "open", "close",
       "__assert_fail"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")

@@ -9,6 +9,9 @@ fact_plain: fact_plain.cpp ../sai.hpp ../sai_imp_concrete.hpp
 sym_test: sym_test.cpp ../sai.hpp ../sai_imp_sym.hpp
 	g++ -std=c++17 sym_test.cpp -o sym_test  -I ../ -I ../../../immer
 
+fs_test: fs_test.cpp ../llsc.hpp
+	g++ -std=c++17 fs_test.cpp -o fs_test  -I ../ -I ../../../immer -I ../../../stp/build/include/ -L ../../../stp/build/lib/ -lstp
+
 llsc_test: llsc_test.cpp ../llsc.hpp 
 	g++ -std=c++17 llsc_test.cpp -o llsc_test  -I ../ -I ../../../immer -I ../../../stp/build/include/ -L ../../../stp/build/lib/ -lstp -fPIC
 
@@ -17,9 +20,11 @@ conc_test: conc_test.cpp ../conc.hpp
 
 stp_test: stp_test.cpp
 	g++ -std=c++17 stp_test.cpp -o stp_test -I ../../../stp/build/include/ -L ../../../stp/build/lib/ -lstp
+
 clean:
-	rm fact_lms
-	rm fact_plain
-	rm sym_test
-	rm conc_test
-	rm stp_test
+	$(RM) fact_lms
+	$(RM) fact_plain
+	$(RM) sym_test
+	$(RM) fs_test
+	$(RM) conc_test
+	$(RM) stp_test

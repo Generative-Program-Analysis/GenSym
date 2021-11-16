@@ -240,7 +240,7 @@ object RunLLSC {
       val llsc = new PureLLSC
       llsc.runLLSC(parseFile(filepath), appName, fun, nSym)
     }
-    experiment
+    // experiment
 
     //runLLSC(sai.llvm.Benchmarks.add, "addTest", "@add")
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)

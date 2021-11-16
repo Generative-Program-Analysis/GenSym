@@ -1,0 +1,19 @@
+#!/bin/bash
+# Usage: test_benchmark.sh <benchmark.ll>
+# Effect: will use RunLLSC to compile and run make subsequently in the llsc_gen folder, finally execute the executable.
+# Requires: bloop cli (https://scalacenter.github.io/bloop/docs/cli/tutorial)
+
+# /some/path/to/xyz.ll
+LL=$1
+
+# Xyz
+HEAD=$LL
+HEAD=${HEAD##*/}
+HEAD=${HEAD%.ll}
+HEAD=${HEAD^}
+
+bloop run sai -m sai.llsc.RunLLSC -- ${LL} ${HEAD} @main 0 &&
+	{ cd llsc_gen/${HEAD};
+		# make clean;
+		make -j2; } &&
+		./${HEAD} 1;

@@ -31,7 +31,13 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_ve
   IntData bytes = proj_IntV(args.at(0));
   auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
+  if (exlib_failure_branch) {
+    // simulating the failed branch
+    PtrVal nullLoc = make_LocV_null();
+    return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}, {state, nullLoc}};
+  } else {
+    return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
+  }
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_vector<PtrVal> args) {
@@ -49,6 +55,39 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
 }
+
+inline std::string get_string(PtrVal ptr, SS state) {
+  std::string name;
+  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  while (c != '\0') {
+    name += c;
+    ptr = make_LocV_inc(ptr, 1); // ptr++
+    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  }
+  return name;
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>> open(SS state, immer::flex_vector<PtrVal> args) {
+  PtrVal ptr = args.at(0);
+  std::string name = get_string(ptr, state);
+  FS& fs = state.get_fs();
+  /* TODO: add flags for open_file <2021-11-03, David Deng> */
+  Fd fd = fs.open_file(name, 0);
+  state.set_fs(fs);
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(fd)}};
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>> close(SS state, immer::flex_vector<PtrVal> args) {
+  Fd fd = proj_IntV(args.at(0));
+  FS& fs = state.get_fs();
+  int status = fs.close_file(fd);
+  state.set_fs(fs);
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(status)}};
+}
+
+/* inline immer::flex_vector<std::pair<SS, PtrVal>> lseek(SS state, immer::flex_vector<PtrVal> args) { */
+
+/* } */
 
 inline void handle_pc(immer::set<SExpr> pc) {
 

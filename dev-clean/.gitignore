@@ -9,6 +9,5 @@ project/.bloop/dev-clean-build.json
 project/.bloop/bloop.settings.json
 .vscode/settings.json
 .bsp
-test
 conc_gen/*
 ccbse_gen/*
