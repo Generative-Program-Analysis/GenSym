@@ -25,6 +25,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
+#include <cstdio>
+#include <cstdlib>
+#include <getopt.h>
 
 #include <sai.hpp>
 //#include <thread_pool.hpp>
@@ -51,7 +54,7 @@ enum iOP {
   op_eq, op_uge, op_ugt, op_ule, op_ult,
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
-  op_urem, op_srem, op_neg, op_sext
+  op_urem, op_srem, op_neg, op_sext, op_trunc
 };
 
 inline std::string int_op2string(iOP op) {
@@ -352,7 +355,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  // ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
+  //ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i, bw1);
@@ -424,8 +427,7 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
       SExpr e1 = s1->to_SMTExpr();
-      return std::make_shared<SymV>(op_sext,
-        immer::flex_vector({ e1 }), bw);
+      return std::make_shared<SymV>(op_sext, immer::flex_vector({ e1 }), bw);
     } else {
       ABORT("Sext an invalid value, exit");
     }
@@ -442,8 +444,8 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
   } else {
     auto s1 = std::dynamic_pointer_cast<SymV>(v1);
     if (s1) {
-      // FIXME: Trunc
-      ABORT("Truncate a LAZY_SYMV, needs work!");
+      return std::make_shared<SymV>(op_trunc,
+        immer::flex_vector({ v1 }), to);
     }
     ABORT("Truncate an invalid value, exit");
   }
@@ -702,6 +704,11 @@ class SS {
       pc.addSet(s);
       return std::move(*this);
     }
+    SS&& addPCSet(const immer::set<SExpr>& s) {
+      std::set cs(s.begin(), s.end());
+      pc.addSet(cs);
+      return std::move(*this);
+    }
     SS&& addIncomingBlock(BlockLabel blabel) {
       bb = blabel;
       return std::move(*this);
@@ -824,44 +831,44 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
   Expr ret = nullptr;
   switch (sym_e->rator) {
     case op_add:
-      ret = vc_bvPlusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvPlusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sub:
-      ret = vc_bvMinusExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvMinusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_mul:
-      ret = vc_bvMultExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvMultExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sdiv:
     case op_udiv:
-      ret = vc_bvDivExpr(vc, bw, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvDivExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_uge:
-      ret = vc_bvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sge:
-      ret = vc_sbvGeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_ugt:
-      ret = vc_bvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sgt:
-      ret = vc_sbvGtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_ule:
-      ret = vc_bvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_sle:
-      ret = vc_sbvLeExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_ult:
-      ret = vc_bvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_bvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_slt:
-      ret = vc_sbvLtExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_sbvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_eq:
-      ret = vc_eqExpr(vc, expr_rands.at(0),expr_rands.at(1));
+      ret = vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1));
       break;
     case op_neq:
       ret = vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1)));
@@ -873,13 +880,33 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
       ret = vc_bvSignExtend(vc, expr_rands.at(0), bw);
       break;
     case op_shl:
+      ret = vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_lshr:
+      ret = vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_ashr:
+      ret = vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_and:
+      ret = vc_bvAndExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_or:
+      ret = vc_bvOrExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_xor:
+      ret = vc_bvXorExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_urem:
+      ret = vc_bvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_srem:
+      ret = vc_sbvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
+    case op_trunc:
+      // bvExtract(vc, e, h, l) -> e[l:h+1]
+      ret = vc_bvExtract(vc, expr_rands.at(0), bw-1, 0);
+      break;
     default: break;
   }
   if (ret) {
@@ -1138,25 +1165,63 @@ struct CoverageMonitor {
 
 inline CoverageMonitor cov;
 
+inline bool exlib_failure_branch = false;
+
 // XXX: can also specify symbolic argument here?
 inline void handle_cli_args(int argc, char** argv) {
-  if (argc < 2 || argc > 3) {
-    printf("usage: %s <#threads> [--disable-solver]\n", argv[0]);
-    exit(-1);
+  int c;
+  while (1) {
+    static struct option long_options[] =
+    {
+      /* These options set a flag. */
+      {"disable-solver",       no_argument, 0, 'd'},
+      {"exlib-failure-branch", no_argument, 0, 'f'},
+      {0,                      0,           0, 0}
+    };
+    int option_index = 0;
+
+    c = getopt_long(argc, argv, "", long_options, &option_index);
+
+    /* Detect the end of the options. */
+    if (c == -1)
+      break;
+
+    switch (c)
+    {
+      case 0:
+        break;
+      case 'd':
+        use_solver = false;
+        break;
+      case 'f':
+        exlib_failure_branch = true;
+        break;
+      case '?':
+        // parsing error, should be printed by getopt
+      default:
+        printf("usage: %s <#threads> [--disable-solver] [--exlib-failure-branch]\n", argv[0]);
+        exit(-1);
+    }
+
   }
-  int t = std::stoi(argv[1]);
-  if (t <= 0) {
-    std::cout << "Invalid #threads, use 1 instead.\\n";
-    MAX_ASYNC = 0;
-  } else {
-    MAX_ASYNC = t - 1;
-  }
-  if (MAX_ASYNC == 0) {
-    // It is safe the reuse the global_vc object within one thread, but not otherwise.
-    use_global_solver = true;
-  }
-  if (argc == 3 && std::string(argv[2]) == "--disable-solver") {
-    use_solver = false;
+  // parsing non-options
+  if (optind < argc) {
+    if (optind != argc - 1) {
+      // more than one non-options
+      printf("usage: %s <#threads> [--disable-solver] [--exlib-failure-branch]\n", argv[0]);
+      exit(-1);
+    }
+    int t = std::stoi(argv[optind]);
+    if (t <= 0) {
+      std::cout << "Invalid #threads, use 1 instead.\\n";
+      MAX_ASYNC = 0;
+    } else {
+      MAX_ASYNC = t - 1;
+    }
+    if (MAX_ASYNC == 0) {
+      // It is safe the reuse the global_vc object within one thread, but not otherwise.
+      use_global_solver = true;
+    }
   }
 }
 
@@ -1272,16 +1337,4 @@ sym_exec_br_k(SS& ss, SExpr t_cond, SExpr f_cond,
   }
 }
 
-/*
-inline immer::flex_vector<std::pair<SS, PtrVal>>
-exec_br(SS ss, PtrVal cndVal,
-        immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS&),
-        immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
-  if (cndVal->is_conc()) {
-    if (proj_IntV(cndVal) == 1) return tf(ss);
-    return ff(ss);
-  }
-  return sym_exec_br(ss, cndVal->to_SMTBool(), to_SMTBoolNeg(cndVal), tf, ff);
-}
-*/
 #endif

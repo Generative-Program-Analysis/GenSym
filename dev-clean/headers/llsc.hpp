@@ -239,7 +239,7 @@ struct LocV : Value {
   LocV(Addr l, Kind k, int size) : l(l), k(k), size(size) {}
   LocV(const LocV& v) { l = v.l; }
   virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "LocV(" << l << ")";
+    return os << "LocV(" << l << ", " << k << ")";
   }
   virtual SExpr to_SMTExpr() override {
     ABORT("to_SMTExpr: unexpected value LocV.");
@@ -371,7 +371,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  // ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
+  //ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i, bw1);
@@ -443,8 +443,7 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
       SExpr e1 = s1->to_SMTExpr();
-      return std::make_shared<SymV>(op_sext,
-        immer::flex_vector({ e1 }), bw);
+      return std::make_shared<SymV>(op_sext, immer::flex_vector({ e1 }), bw);
     } else {
       ABORT("Sext an invalid value, exit");
     }
@@ -824,7 +823,7 @@ class SS {
     }
     immer::set<SExpr> getPC() { return pc.getPC(); }
     // TODO temp solution
-    PtrVal getVarargLoc() {return stack.getVarargLoc(); }
+    PtrVal getVarargLoc() { return stack.getVarargLoc(); }
     void set_fs(FS& new_fs) { fs = new_fs; }
     FS& get_fs() { return fs; }
 };
@@ -1261,7 +1260,6 @@ struct CoverageMonitor {
 
 inline CoverageMonitor cov;
 
-// TODO: move this to llsc_external.hpp?
 inline bool exlib_failure_branch = false;
 
 // XXX: can also specify symbolic argument here?
@@ -1352,15 +1350,5 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
   }
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>>
-exec_br(SS ss, PtrVal cndVal,
-        immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
-        immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
-  if (cndVal->is_conc()) {
-    if (proj_IntV(cndVal) == 1) return tf(ss);
-    return ff(ss);
-  }
-  return sym_exec_br(ss, cndVal->to_SMTBool(), to_SMTBoolNeg(cndVal), tf, ff);
-}
 
 #endif
