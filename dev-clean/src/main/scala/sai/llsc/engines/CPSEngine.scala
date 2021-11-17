@@ -326,9 +326,10 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
+        val repK = fun(k)
         if (cnd.isConc) {
-          if (cnd.int == 1) eval(thnVal, thnTy, ss)
-          else eval(elsVal, elsTy, ss)
+          if (cnd.int == 1) repK(ss, eval(thnVal, thnTy, ss))
+          else repK(ss, eval(elsVal, elsTy, ss))
         } else {
           // TODO: check cond via solver
           val s1 = ss.copy
@@ -336,9 +337,9 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
           val v1 = eval(thnVal, thnTy, ss)
           s1.addPC(cnd.toSMTBoolNeg)
           val v2 = eval(elsVal, elsTy, s1)
-          List((ss, v1), (s1, v2))
+          repK(ss, v1)
+          repK(s1, v2)
         }
-        ???
     }
   }
 
@@ -370,11 +371,11 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
           if (table.isEmpty) execBlock(funName, default, s, k)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s, k)
-            else switchFun(v, s.copy, table.tail)
+            else switchFun(v, s, table.tail)
           }
         }
 
-        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[Unit] = 
+        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[Unit] =
           if (table.isEmpty) {
             s.addPCSet(pc)
             execBlock(funName, default, s, k)
@@ -382,7 +383,7 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
             val s1 = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s.addPC(headPC.toSMTBool)
-            val u = execBlock(funName, table.head.label, s, k)
+            execBlock(funName, table.head.label, s, k)
             switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
           }
 
@@ -485,7 +486,7 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
 
     def runBlock(b: BB)(ss: Rep[Ref[SS]], k: Rep[Cont]): Rep[Unit] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
-      //println("// compiling block: " + funName + " - " + b.label.get)
+      //println("// running function: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       runInst(b, b.ins, b.term, ss, k)
     }
@@ -507,7 +508,7 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
-      //println("// compiling function: " + f.id)
+      //println("// running function: " + f.id)
       ss.assign(params, args)
       execBlock(f.id, f.blocks(0), ss, k)
     }

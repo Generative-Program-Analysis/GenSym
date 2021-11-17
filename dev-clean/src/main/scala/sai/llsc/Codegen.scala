@@ -210,6 +210,11 @@ trait ImpureLLSCCodeGen extends GenericLLSCCodeGen {
   registerHeader("<stp/c_interface.h>")
   registerHeader("./headers", "<stp_handle.hpp>")
 
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, "ss-copy", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
   override def shallow(n: Node): Unit = n match {
     case Node(s, "ss-copy", List(ss), _) => es"$ss.copy()"
     case _ => super.shallow(n)

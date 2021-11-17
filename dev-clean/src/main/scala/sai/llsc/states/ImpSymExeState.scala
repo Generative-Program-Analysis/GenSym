@@ -125,7 +125,8 @@ trait ImpSymExeDefs extends SAIOps {
     def freshStackAddr: Rep[Addr] = stackSize
 
     def push: Rep[Unit] = reflectWrite[Unit]("ss-push", ss)(ss)
-    def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL) // XXX: since pop is used in a map, will be DCE-ed if no CTRL
+    // XXX: since pop is used in a map, will be DCE-ed if no CTRL
+    def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
     def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
     def addPCSet(es: Rep[Set[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
@@ -221,6 +222,7 @@ trait ImpSymExeDefs extends SAIOps {
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
           List((s, IntV(0)))
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+          System.out.println("use external function: " + f)
           f.reflectWith[List[(SS, Value)]](s, args)
         case _ =>
           val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]

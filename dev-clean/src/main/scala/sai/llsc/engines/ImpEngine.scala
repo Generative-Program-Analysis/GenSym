@@ -7,13 +7,6 @@ import sai.llsc.ASTUtils._
 
 import scala.collection.JavaConverters._
 
-import sai.structure.freer._
-import Eff._
-import Freer._
-import Handlers._
-import OpenUnion._
-import State._
-
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
@@ -333,9 +326,10 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
+        val repK = fun(k)
         if (cnd.isConc) {
-          if (cnd.int == 1) eval(thnVal, thnTy, ss)
-          else eval(elsVal, elsTy, ss)
+          if (cnd.int == 1) repK(ss, eval(thnVal, thnTy, ss))
+          else repK(ss, eval(elsVal, elsTy, ss))
         } else {
           // TODO: check cond via solver
           val s1 = ss.copy
@@ -343,9 +337,8 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
           val v1 = eval(thnVal, thnTy, ss)
           s1.addPC(cnd.toSMTBoolNeg)
           val v2 = eval(elsVal, elsTy, s1)
-          List((ss, v1), (s1, v2))
+          repK(ss, v1) ++ repK(s1, v2)
         }
-        ???
     }
   }
 
@@ -376,11 +369,11 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s)
-            else switchFun(v, s.copy, table.tail)
+            else switchFun(v, s, table.tail)
           }
         }
 
-        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] = 
+        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] =
           if (table.isEmpty) {
             s.addPCSet(pc)
             execBlock(funName, default, s)
@@ -389,7 +382,7 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s.addPC(headPC.toSMTBool)
             val u = execBlock(funName, table.head.label, s)
-            switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
+            u ++ switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
           }
 
         ss.addIncomingBlock(incomingBlock)
@@ -491,6 +484,7 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
 
     def runBlock(b: BB)(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
+      //println("// running function: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       runInst(b, b.ins, b.term, ss)
     }
@@ -512,6 +506,7 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
+      //println("// running function: " + f.id)
       ss.assign(params, args)
       execBlock(f.id, f.blocks(0), ss)
     }

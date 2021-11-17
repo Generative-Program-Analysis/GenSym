@@ -212,18 +212,24 @@ object RunLLSC {
     val impVec = new ImpVecLLSC
 
     //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
-    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpCtrl", "@f", 16)
-    impVec.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpVecCtrl", "@f", 16)
-    cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kCPSCtrl", "@f", 16)
+    //imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpCtrl", "@f", 16)
+    //impVec.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpVecCtrl", "@f", 16)
+    //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kCPSCtrl", "@f", 16)
 
     //pure.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePureCtrl", "@main", 0)
-    imp.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpCtrl", "@main", 0)
-    impVec.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpVecCtrl", "@main", 0)
-    cps.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeCPSCtrl", "@main", 0)
+    //imp.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpCtrl", "@main", 0)
+    //impVec.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpVecCtrl", "@main", 0)
+    //cps.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeCPSCtrl", "@main", 0)
 
     //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mPure", "@f", 20)
     //imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mImp", "@f", 20)
     //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mCPS", "@f", 20)
+
+    //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.maze, "mazePure", "@main", 2)
+    //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.maze, "mazeCPS", "@main", 2)
+
+    // FIXME: incorrect code generated for block `if.end48`
+    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.maze, "mazeImp", "@main", 2)
   }
 
   def main(args: Array[String]): Unit = {
@@ -240,9 +246,8 @@ object RunLLSC {
       val llsc = new PureLLSC
       llsc.runLLSC(parseFile(filepath), appName, fun, nSym)
     }
-    // experiment
+    //experiment
 
-    //runLLSC(sai.llvm.Benchmarks.add, "addTest", "@add")
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
     //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
     //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
@@ -250,17 +255,5 @@ object RunLLSC {
     //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
     //runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
     //runLLSC(parseFile("benchmarks/demo_benchmarks/bubblesort.ll"), "bubble", "@main")
-
-    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.branch, "branch", "@f", 2)
-    //runLLSC(sai.llvm.Benchmarks.branch, "branchImp", "@f", 2)
-    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.maze, "maze", "@main", 0)
-    //runLLSC(sai.llvm.Benchmarks.maze, "mazeImp", "@main", 0)
-    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.power, "powerPure", "@main", 0)
-    //runLLSC(sai.llvm.Benchmarks.power, "powerImp", "@main", 0)
-    //sai.llsc.RunLLSC.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePure", "@main", 0)
-
-    //runCPSLLSC(sai.llvm.Benchmarks.branch, "branchCpsImp", "@f", 2)
-    //runCPSLLSC(sai.llvm.Benchmarks.power, "powerCpsImp", "@main", 0)
-
   }
 }
