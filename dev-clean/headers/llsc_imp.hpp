@@ -1118,7 +1118,8 @@ struct CoverageMonitor {
       num_paths += n;
     }
     void print_path_cov(bool ending = true) {
-      std::cout << "#paths: " << num_paths << "; " << std::flush;
+      std::cout << "#paths: " << num_paths << std::flush;
+      if (!ending) std::cout << "; ";
       if (ending) std::cout << std::endl;
     }
     void print_block_cov() {
