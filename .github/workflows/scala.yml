@@ -21,5 +21,9 @@ jobs:
       with:
         java-version: '8'
         distribution: 'adopt'
+    - name: Checkout repository
+      uses: actions/checkout@master
+    - name: Checkout submodules
+      uses: textbook/git-checkout-submodule-action@master
     - name: Run tests
       run: sbt test
