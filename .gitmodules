@@ -1,16 +1,16 @@
 [submodule "lms-clean"]
-	path = lms-clean
-	url = https://github.com/TiarkRompf/lms-clean.git
-	branch = reflectEffect-mod
+  path = lms-clean
+  url = https://github.com/TiarkRompf/lms-clean.git
+  branch = reflectEffect-mod
   ignore = dirty
 
 [submodule "immer"]
-	path = immer
-	url = https://github.com/arximboldi/immer.git
-	ignore = dirty
+  path = immer
+  url = https://github.com/arximboldi/immer.git
+  ignore = dirty
 
 [submodule "stp"]
   path = stp
-  branch = 2.3.3
+  branch = smtcomp2020
   url = https://github.com/stp/stp.git
   ignore = dirty
