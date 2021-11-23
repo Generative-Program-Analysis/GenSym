@@ -29,6 +29,10 @@ class TestPureLLSC extends FunSuite {
   case class TestPrg(m: Module, name: String, f: String, nSym: Int, path: Int)
   val tests: List[TestPrg] = List(
     TestPrg(add, "addTest", "@main", 0, 1),
+    TestPrg(arrayAccess, "arrayAccTest", "@main", 0, 1),
+    TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", 0, 1),
+    TestPrg(arrayGetSet, "arrayGetSetTest", "@main", 0, 1),
+    TestPrg(branch, "branch1", "@f", 2, 4)
   )
 
   val pureLLSC = new PureLLSC
@@ -42,6 +46,7 @@ class TestPureLLSC extends FunSuite {
       val ret = code.run
       assert(ret == path, "Unexpected path number")
       // TODO: check the number of generated test files?
+      // TODO: for concrete runs, also check result?
     }
   }
 

@@ -8,7 +8,7 @@ object Benchmarks {
   lazy val maze = parseFile("benchmarks/llvm/maze.ll")
   lazy val power = parseFile("benchmarks/llvm/power.ll")
   lazy val add = parseFile("benchmarks/llvm/add.ll")
-  lazy val arrayAccess = parseFile("benchmarks/llvm/add.ll")
+  lazy val arrayAccess = parseFile("benchmarks/llvm/arrayAccess.ll")
   lazy val arrayAccessLocal = parseFile("benchmarks/llvm/arrayAccessLocal.ll")
   lazy val arrayGetSet = parseFile("benchmarks/llvm/arrayGetSet.ll")
   lazy val loop = parseFile("benchmarks/llvm/loopTest.ll")
