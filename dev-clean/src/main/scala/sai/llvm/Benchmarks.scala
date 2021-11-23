@@ -42,8 +42,8 @@ object Benchmarks {
   lazy val global = parseFile("benchmarks/llvm/global.ll")
   lazy val struct1 = parseFile("benchmarks/llvm/struct1.ll")
 
-  lazy val bubbleSort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
-  lazy val quickSort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
+  lazy val bubblesort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
+  lazy val quicksort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
   lazy val mergesort = parseFile("benchmarks/demo_benchmarks/mergesort.ll")
   lazy val kmpmatcher = parseFile("benchmarks/demo_benchmarks/kmpmatcher.ll")
   lazy val kth = parseFile("benchmarks/demo_benchmarks/kth.ll")
