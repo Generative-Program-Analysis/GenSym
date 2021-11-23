@@ -34,7 +34,7 @@ jobs:
         cd benchmarks/llvm
         make
         cd ../demo_benchmarks
-        make
+        make llsc
     - name: Compile STP
       run: |
         cd ../stp
