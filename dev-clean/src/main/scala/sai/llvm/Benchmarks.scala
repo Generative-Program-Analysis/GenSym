@@ -27,6 +27,17 @@ object Benchmarks {
   lazy val sp4 = parseFile("benchmarks/llvm/single_path4.ll")
   lazy val sp5 = parseFile("benchmarks/llvm/single_path5.ll")
 
+  lazy val structReturnLong = parseFile("benchmarks/llvm/structReturnLong.ll")
+  lazy val complexStruct = parseFile("benchmarks/llvm/complexStruct.ll")
+  lazy val strcmpCaller = parseFile("benchmarks/llvm/externalTest/strcmpCaller.ll")
+  lazy val strcmp = parseFile("benchmarks/llvm/externalTest/strcmp.ll")
+  lazy val strcpy = parseFile("benchmarks/llvm/externalTest/strcpy.ll")
+  lazy val externalFun = parseFile("benchmarks/llvm/externalTest/externalFun.ll")
+  lazy val varargInt = parseFile("benchmarks/llvm/varArgInt.ll")
+  lazy val malloc = parseFile("benchmarks/llvm/externalTest/malloc.ll")
+  lazy val trunc = parseFile("benchmarks/llvm/trunc.ll")
+  lazy val runCommandLine = parseFile("benchmarks/llvm/runCommandLine.ll")
+
   lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
   lazy val global = parseFile("benchmarks/llvm/global.ll")
   lazy val struct1 = parseFile("benchmarks/llvm/struct1.ll")
@@ -42,19 +53,6 @@ object Benchmarks {
   lazy val mergesort = parseFile("benchmarks/demo_benchmarks/mergesort.ll")
   lazy val quicksort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
   lazy val bubblesort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
-}
-
-object LLSCExpr {
-  lazy val structReturnLong = parseFile("benchmarks/llscExpr/structReturnLong.ll")
-  lazy val complexStruct = parseFile("benchmarks/llscExpr/complexStruct.ll")
-  lazy val strcmpCaller = parseFile("benchmarks/llscExpr/externalTest/strcmpCaller.ll")
-  lazy val strcmp = parseFile("benchmarks/llscExpr/externalTest/strcmp.ll")
-  lazy val strcpy = parseFile("benchmarks/llscExpr/externalTest/strcpy.ll")
-  lazy val externalFun = parseFile("benchmarks/llscExpr/externalTest/externalFun.ll")
-  lazy val varargInt = parseFile("benchmarks/llscExpr/varArgInt.ll")
-  lazy val malloc = parseFile("benchmarks/llscExpr/externalTest/malloc.ll")
-  lazy val trunc = parseFile("benchmarks/llscExpr/trunc.ll")
-  lazy val runCommandLine = parseFile("benchmarks/llscExpr/runCommandLine.ll")
 }
 
 object Coreutils {

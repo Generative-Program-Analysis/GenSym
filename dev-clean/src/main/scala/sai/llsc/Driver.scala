@@ -18,6 +18,8 @@ import scala.collection.mutable.HashMap
 import sai.llsc.imp.ImpLLSCEngine
 import sai.llsc.imp.CPSLLSCEngine
 
+import sys.process._
+
 abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
     extends SAISnippet[A, B] with SAIOps { q =>
   import java.io.{File, PrintStream}
@@ -95,6 +97,16 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     genSource
     genMakefile
   }
+
+  def make: Int = {
+    Process(s"make", new File(s"$folder/$appName")).!
+  }
+
+  // `run` returns the number of paths, obtained by parsing the output
+  def run: Int = {
+    val ret = Process("./" + appName, new File(s"$folder/$appName")).!!
+    ret.split("\n").last.split(" ").last.toInt
+  }
 }
 
 abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
@@ -139,10 +151,10 @@ abstract class CPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: 
 
 trait LLSC {
   val insName: String
-  def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int): GenericLLSCDriver[_, _]
-  def runLLSC(m: Module, name: String, fname: String, nSym: Int = 0) = {
+  def newInstance(m: Module, name: String, fname: String, nSym: Int): GenericLLSCDriver[_, _]
+  def runLLSC(m: Module, name: String, fname: String, nSym: Int = 0): Unit = {
     val (_, t) = time {
-      val code = newLLSCInstance(m, name, fname, nSym)
+      val code = newInstance(m, name, fname, nSym)
       code.genAll
     }
     println(s"[$insName] compiling $name, time $t ms")
@@ -151,7 +163,7 @@ trait LLSC {
 
 class PureLLSC extends LLSC {
   val insName = "PureLLSC"
-  def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int) =
+  def newInstance(m: Module, name: String, fname: String, nSym: Int) =
     new PureLLSCDriver[Int, Unit](name, "./llsc_gen") {
       @virtualize
       def snippet(u: Rep[Int]) = {
@@ -166,7 +178,7 @@ class PureLLSC extends LLSC {
 
 class ImpLLSC extends LLSC {
   val insName = "ImpLLSC"
-  def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int) =
+  def newInstance(m: Module, name: String, fname: String, nSym: Int) =
     new ImpLLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
@@ -179,7 +191,7 @@ class ImpLLSC extends LLSC {
 
 class ImpVecLLSC extends LLSC {
   val insName = "ImpLLSC"
-  def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int) =
+  def newInstance(m: Module, name: String, fname: String, nSym: Int) =
     new ImpVecLLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
@@ -192,7 +204,7 @@ class ImpVecLLSC extends LLSC {
 
 class CPSLLSC extends LLSC {
   val insName = "CPSLLSC"
-  def newLLSCInstance(m: Module, name: String, fname: String, nSym: Int) =
+  def newInstance(m: Module, name: String, fname: String, nSym: Int) =
     new CPSLLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
@@ -246,6 +258,7 @@ object RunLLSC {
       val llsc = new PureLLSC
       llsc.runLLSC(parseFile(filepath), appName, fun, nSym)
     }
+
     //experiment
 
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)

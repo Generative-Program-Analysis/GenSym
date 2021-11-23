@@ -2,12 +2,15 @@
 	path = lms-clean
 	url = https://github.com/TiarkRompf/lms-clean.git
 	branch = reflectEffect-mod
-	ignore = dirty
+  ignore = dirty
+
 [submodule "immer"]
 	path = immer
 	url = https://github.com/arximboldi/immer.git
 	ignore = dirty
 
 [submodule "stp"]
-	path = stp
-	url = https://github.com/stp/stp.git
+  path = stp
+  branch = 2.3.3
+  url = https://github.com/stp/stp.git
+  ignore = dirty
