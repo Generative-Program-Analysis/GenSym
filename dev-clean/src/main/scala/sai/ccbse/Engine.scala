@@ -219,7 +219,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
       var anum: Int = num - 1
       flattenAS(v).flatMap(c => {
         anum += 1
-        evalHeapConstSym(c, ty.asInstanceOf[ArrayType].ety, anum)
+        evalHeapConstSym(c, flattenTy(ty).head, anum)
       })
     case CharArrayConst(s) =>
       var anum: Int = num - 1
@@ -255,7 +255,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
       case _ => StaticList.fill(getTySize(ty))(IntV(0))
     }
     case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalHeapConst(c, ty.asInstanceOf[ArrayType].ety))
+      flattenAS(v).flatMap(c => evalHeapConst(c, flattenTy(ty).head))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
     case StructConst(cs) =>

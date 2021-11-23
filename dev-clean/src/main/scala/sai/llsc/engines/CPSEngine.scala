@@ -184,7 +184,7 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
       case _ => StaticList.fill(getTySize(ty))(IntV(0))
     }
     case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalHeapConst(c, ty.asInstanceOf[ArrayType].ety))
+      flattenAS(v).flatMap(c => evalHeapConst(c, flattenTy(ty).head))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
     case StructConst(cs) =>

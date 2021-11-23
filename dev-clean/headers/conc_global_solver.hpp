@@ -768,9 +768,9 @@ class SS {
     }
     SS addPC(SExpr e) { return SS(heap, stack, sheap, sstack, pc.add(e), bb); }
     SS addPCQuery(SExpr e) {
-      auto solvpc = pc.add(to_SMTBoolNeg(e)).getPC();
       check_pc_to_file(to_SMTBoolNeg(e));
       if (concolic_debug) {
+        auto solvpc = pc.add(to_SMTBoolNeg(e)).getPC();
         std::cout << "Now printing asserts:" << std::boolalpha << check_pc(solvpc) << std::endl;
         print_pc(solvpc);
         std::cout << std::endl<< std::endl << std::endl;
@@ -1143,6 +1143,7 @@ inline bool check_pc_to_file(immer::flex_vector<SExpr> pc) {
 
 
 inline bool check_pc_to_file(SExpr e) {
+  br_query_num++;
   bool success = false;
   if (!use_solver) {
     return false;
