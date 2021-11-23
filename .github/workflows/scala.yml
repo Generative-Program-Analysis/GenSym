@@ -29,5 +29,9 @@ jobs:
       with:
         version: 9
         platform: x64
+    - name: Generate test files
+      run: |
+        cd benchmarks/llvm
+        make
     - name: Run tests
       run: sbt test
