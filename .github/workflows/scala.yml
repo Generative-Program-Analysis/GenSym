@@ -33,5 +33,14 @@ jobs:
       run: |
         cd benchmarks/llvm
         make
+    - name: Compile STP
+      run: |
+        cd stp
+        mkdir build
+        cd build
+        cmake ..
+        make
+        make install
+        ldconfig
     - name: Run tests
       run: sbt test
