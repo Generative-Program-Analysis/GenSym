@@ -35,6 +35,7 @@ jobs:
         make
     - name: Compile STP
       run: |
+        pwd
         cd stp
         mkdir build
         cd build
