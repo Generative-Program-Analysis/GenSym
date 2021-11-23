@@ -33,6 +33,8 @@ jobs:
       run: |
         cd benchmarks/llvm
         make
+        cd ../demo_benchmarks
+        make
     - name: Compile STP
       run: |
         cd ../stp

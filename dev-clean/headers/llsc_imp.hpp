@@ -1118,9 +1118,10 @@ struct CoverageMonitor {
       num_paths += n;
     }
     void print_path_cov(bool ending = true) {
-      std::cout << "#paths: " << num_paths << std::flush;
+      std::cout << "#paths: " << num_paths;
       if (!ending) std::cout << "; ";
       if (ending) std::cout << std::endl;
+      std::cout << std::flush;
     }
     void print_block_cov() {
       size_t covered = 0;
@@ -1139,11 +1140,11 @@ struct CoverageMonitor {
       }
     }
     void print_async() {
-      std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; ";
+      std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; " << std::flush;
       //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
     void print_query_num() {
-      std::cout << "#queries: " << br_query_num << "/" << test_query_num << "\n";
+      std::cout << "#queries: " << br_query_num << "/" << test_query_num << "\n" << std::flush;
     }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();

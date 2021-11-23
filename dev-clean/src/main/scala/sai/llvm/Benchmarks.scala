@@ -44,15 +44,15 @@ object Benchmarks {
 
   lazy val bubbleSort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
   lazy val quickSort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
+  lazy val mergesort = parseFile("benchmarks/demo_benchmarks/mergesort.ll")
   lazy val kmpmatcher = parseFile("benchmarks/demo_benchmarks/kmpmatcher.ll")
+  lazy val kth = parseFile("benchmarks/demo_benchmarks/kth.ll")
+  lazy val binSearch = parseFile("benchmarks/demo_benchmarks/bin_search.ll")
+  lazy val knapsack = parseFile("benchmarks/demo_benchmarks/knapsack.ll")
 
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
   lazy val simple2 = parseFile("benchmarks/ccbse/simple_2.ll")
-
-  lazy val mergesort = parseFile("benchmarks/demo_benchmarks/mergesort.ll")
-  lazy val quicksort = parseFile("benchmarks/demo_benchmarks/quicksort.ll")
-  lazy val bubblesort = parseFile("benchmarks/demo_benchmarks/bubblesort.ll")
 }
 
 object Coreutils {

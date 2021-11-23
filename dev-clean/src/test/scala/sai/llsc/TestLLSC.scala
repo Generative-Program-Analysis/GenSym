@@ -28,11 +28,25 @@ class TestPureLLSC extends FunSuite {
 
   case class TestPrg(m: Module, name: String, f: String, nSym: Int, path: Int)
   val tests: List[TestPrg] = List(
+    // concrete run
     TestPrg(add, "addTest", "@main", 0, 1),
     TestPrg(arrayAccess, "arrayAccTest", "@main", 0, 1),
     TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", 0, 1),
     TestPrg(arrayGetSet, "arrayGetSetTest", "@main", 0, 1),
-    TestPrg(branch, "branch1", "@f", 2, 4)
+    TestPrg(power, "powerTest", "@main", 0, 1),
+    // symbolic run
+    TestPrg(branch, "branch1", "@f", 2, 4),
+    TestPrg(branch2, "branch2", "@f", 2, 4),
+    TestPrg(branch3, "branch3", "@f", 2, 4),
+    //
+    TestPrg(mergesort, "mergeSortTest", "@main", 0, 720),
+    TestPrg(bubblesort, "bubbleSortTest", "@main", 0, 24),
+    TestPrg(quicksort, "quickSortTest", "@main", 0, 120),
+    TestPrg(kmpmatcher, "kmp", "@main", 0, 1287),
+    TestPrg(kth, "k_of_st_arrays", "@main", 0, 252),
+    TestPrg(binSearch, "binSearch", "@main", 0, 92),
+    TestPrg(knapsack, "knapsackTest", "@main", 0, 1666)
+    // TODO: which maze to test?
   )
 
   val pureLLSC = new PureLLSC
