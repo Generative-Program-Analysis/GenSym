@@ -353,11 +353,13 @@ object TestConcrete {
   def testSimpleBranch =
     test(Benchmarks.branch, "@f", Map(FrameLoc("%x", curFrame.fname) -> IntValue(5))){_ => }
 
+  /*
   def testMaze =
     test(Benchmarks.maze, "@main", Map(
       (FrameLoc("%argc", "@main") -> IntValue(5)),
       (FrameLoc("%argv", "@main") -> IntValue(5))
     )){_ => }
+   */
 
   def main(args: Array[String]): Unit = {
     testArrayGetSet
@@ -365,6 +367,6 @@ object TestConcrete {
     testArrayAccess
     testAdd
     testPower
-    testMaze
+    //testMaze
   }
 }

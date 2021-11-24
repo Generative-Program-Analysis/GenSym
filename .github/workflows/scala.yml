@@ -35,6 +35,8 @@ jobs:
         make
         cd ../demo_benchmarks
         make llsc
+        cd ../oopsla20
+        make generate_sse
     - name: Compile STP
       run: |
         cd ../stp

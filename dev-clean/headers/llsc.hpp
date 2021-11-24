@@ -1301,6 +1301,7 @@ inline void handle_cli_args(int argc, char** argv) {
     }
 
   }
+  // FIXME: if #thread is not given, the program silently continues, which should not
   // parsing non-options
   if (optind < argc) {
     if (optind != argc - 1) {
@@ -1309,16 +1310,17 @@ inline void handle_cli_args(int argc, char** argv) {
       exit(-1);
     }
     int t = std::stoi(argv[optind]);
+    std::cout << t << "\n";
     if (t <= 0) {
       std::cout << "Invalid #threads, use 1 instead.\\n";
       MAX_ASYNC = 0;
     } else {
       MAX_ASYNC = t - 1;
     }
-    if (MAX_ASYNC == 0) {
-      // It is safe the reuse the global_vc object within one thread, but not otherwise.
-      use_global_solver = true;
-    }
+  }
+  if (MAX_ASYNC == 0) {
+    // It is safe the reuse the global_vc object within one thread, but not otherwise.
+    use_global_solver = true;
   }
 }
 

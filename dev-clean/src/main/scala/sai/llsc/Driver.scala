@@ -98,14 +98,21 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     genMakefile
   }
 
-  def make: Int = {
-    Process(s"make", new File(s"$folder/$appName")).!
+  def make(j: Int = 1): Int = {
+    Process(s"make -j$j", new File(s"$folder/$appName")).!
   }
 
-  // `run` returns the number of paths, obtained by parsing the output
-  def run: Int = {
-    val ret = Process("./" + appName, new File(s"$folder/$appName")).!!
+  // returns the number of paths, obtained by parsing the output
+  def run(nThread: Int = 1): Int = {
+    val ret = Process(s"./$appName $nThread", new File(s"$folder/$appName")).!!
     ret.split("\n").last.split(" ").last.toInt
+  }
+  // returns the number of paths, and the return status of the process
+  def runWithStatus(nThread: Int = 1): (String, Int) = {
+    import collection.mutable.ListBuffer
+    val output = ListBuffer[String]()
+    val ret = Process(s"./$appName $nThread", new File(s"$folder/$appName")).run(ProcessLogger(r => output += r, e => output += e)).exitValue
+    (output.mkString("\n"), ret)
   }
 }
 

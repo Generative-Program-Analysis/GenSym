@@ -448,11 +448,13 @@ object TestConcMem {
   def testSimpleBranch =
     test(Benchmarks.branch, "@f", Map("%x" -> IntValue(5))){_ => }
 
+  /*
   def testMaze =
     test(Benchmarks.maze, "@main", Map(
       "%argc" -> IntValue(5),
       "%argv" -> IntValue(5)
     )){_ => }
+   */
 
   def testMazeNoPhi = {
     val testInput = scala.io.Source.fromFile("llvm/benchmarks/maze_nophi.ll").mkString
@@ -470,7 +472,7 @@ object TestConcMem {
     // testArrayAccessLocal
     // testAdd
     // testPower
-    testMaze
+    // testMaze
     // testMazeNoPhi
   }
 }
