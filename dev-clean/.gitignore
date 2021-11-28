@@ -1,6 +1,6 @@
 output
 llsc_gen/*
-benchmarks/*/*.ll
+benchmarks/**/*.ll
 .metals
 .bloop
 project/project
