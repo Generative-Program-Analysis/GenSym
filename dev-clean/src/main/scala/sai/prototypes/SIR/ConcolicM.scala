@@ -14,27 +14,28 @@ object ConcolicV {
   type PC = List[Sym]
   type CState = (Env, Mem)
   type SState = (SEnv, SMem, PC)
-  type M[T] = StateM[(CState, SState), T]
+  type State = (CState, SState)
+  type M[T] = StateM[State, T]
   val M = Monad[M]
 
   def get_env: M[Env] = for {
-    ans <- MonadState[M, (CState, SState)].get
+    ans <- MonadState[M, State].get
   } yield ans._1._1
 
   def get_senv: M[SEnv] = for {
-    ans <- MonadState[M, (CState, SState)].get
+    ans <- MonadState[M, State].get
   } yield ans._2._1
 
   def update_env(x: String, v: Value): M[Unit] = for {
-    ans <- MonadState[M, (CState, SState)].get
-    _ <- MonadState[M, (CState, SState)].put(((ans._1._1 + (x -> v), ans._1._2), ans._2))
+    ans <- MonadState[M, State].get
+    _ <- MonadState[M, State].put(((ans._1._1 + (x -> v), ans._1._2), ans._2))
   } yield ()
 
   def update_senv(x: String, v: Option[Sym]): M[Unit] = v match {
     case None => M.pure(())
     case Some(v) => for {
-      ans <- MonadState[M, (CState, SState)].get
-      _ <- MonadState[M, (CState, SState)].put((ans._1, 
+      ans <- MonadState[M, State].get
+      _ <- MonadState[M, State].put((ans._1, 
         (ans._2._1 + (x -> v), ans._2._2, ans._2._3)))
     } yield ()
   }
@@ -42,8 +43,8 @@ object ConcolicV {
   def update_pc(cc: Value, sc: Option[Sym]): M[Unit] = sc match {
     case None => M.pure(())
     case Some(v) => for {
-      ans <- MonadState[M, (CState, SState)].get
-      _ <- MonadState[M, (CState, SState)].put((ans._1, 
+      ans <- MonadState[M, State].get
+      _ <- MonadState[M, State].put((ans._1, 
         (ans._2._1, ans._2._2, ans._2._3 :+ s"(== $cc $sc)")))
     } yield ()
   }
@@ -67,7 +68,7 @@ object Concolic {
   import ConcolicV._
   import sai.structure.monad.Monad.forM
 
-  var blockMap: Map[Label, Block] = _
+  var blockMap: Map[Label, List[Inst]] = _
 
   def evalAtom_c(v: Atom): M[Value] = v match {
     case Lit(i) => M.pure(i)
@@ -77,7 +78,7 @@ object Concolic {
   }
 
   def evalValInst_c(vi: ValInst): M[Value] = vi match {
-    case op2(op, v1, v2) =>  for {
+    case Op2(op, v1, v2) =>  for {
       cv1 <- evalAtom_c(v1)
       cv2 <- evalAtom_c(v2)
     } yield evalBinOp_c(op, cv1, cv2)
@@ -91,11 +92,11 @@ object Concolic {
     case CondBr(c, l1, l2) => for {
       bc <- evalAtom_c(c)
       res <- {
-        if (bc != 0) forM(blockMap(l1).il)(evalInst_c)
-        else forM(blockMap(l2).il)(evalInst_c)
+        if (bc != 0) forM(blockMap(l1))(evalInst_c)
+        else forM(blockMap(l2))(evalInst_c)
       }
     } yield res
-    case Jmp(l) => forM(blockMap(l).il)(evalInst_c)
+    case Jmp(l) => forM(blockMap(l))(evalInst_c)
     case Return(v) => for { res <- evalAtom_c(v) } yield res
   }
 
@@ -107,7 +108,7 @@ object Concolic {
   }
 
   def evalValInst_s(vi: ValInst): M[Option[Sym]] = vi match {
-    case op2(op, v1, v2) =>  for {
+    case Op2(op, v1, v2) =>  for {
       (cv1, sv1) <- evalAtom(v1)
       (cv2, sv2) <- evalAtom(v2)
     } yield {
@@ -133,12 +134,35 @@ object Concolic {
           (cc, sc) <- evalAtom(c)
           _ <- update_pc(cc, sc)
           res <- {
-            if (cc != 0) forM(blockMap(l1).il)(rec)
-            else forM(blockMap(l2).il)(rec)
+            if (cc != 0) forM(blockMap(l1))(rec)
+            else forM(blockMap(l2))(rec)
           }
         } yield res
-        case Jmp(l) => forM(blockMap(l).il)(rec)
+        case Jmp(l) => forM(blockMap(l))(rec)
         case inst => base(inst)
       }
     })
+}
+
+object TestConcolicM extends App {
+  import sai.structure.monad.Monad.forM
+  import ConcolicV._
+  import Concolic._
+
+  val emptyState: State = ((Map(), List()), (Map("x" -> "x"), List(), List()))
+  val prog1 = List(
+    Block("start", List(
+      Assign(Var("x"),
+        Op2("+", Lit(3), Lit(5))), Return(Var("x"))
+      )
+    )
+  )
+
+  def runProg(p: Prog, initState: State = emptyState) = {
+    Concolic.blockMap = p.map(b => (b.l -> b.il)).toMap
+    val comp = forM(prog1.head.il)(evalInst)
+    comp.run(initState)
+  }
+
+  print(runProg(prog1))
 }

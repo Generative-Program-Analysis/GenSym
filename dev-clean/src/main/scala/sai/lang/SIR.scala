@@ -6,7 +6,7 @@ object SIR {
   case class Var(x: String) extends Atom
 
   sealed trait ValInst
-  case class op2(op: String, v1: Atom, v2: Atom) extends ValInst
+  case class Op2(op: String, v1: Atom, v2: Atom) extends ValInst
 
   sealed trait Inst
   case class Assign(x: Var, v: ValInst) extends Inst
