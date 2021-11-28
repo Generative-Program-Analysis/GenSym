@@ -37,6 +37,7 @@ addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVe
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.3" cross CrossVersion.full)
 addCompilerPlugin("com.github.tomasmikula" %% "pascal" % "0.3.5")
 addCompilerPlugin("org.scala-lang.plugins" % "scala-continuations-plugin_2.12.0" % "1.0.3")
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4")
 
 parallelExecution in Test := false
 
