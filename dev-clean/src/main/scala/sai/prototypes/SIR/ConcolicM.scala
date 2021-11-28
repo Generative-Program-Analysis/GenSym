@@ -10,7 +10,7 @@ object ConcolicV {
   type Env = Map[String, Value]
   type Mem = List[Value]
   type SEnv = Map[String, Sym]
-  type SMem = List[Sym]
+  type SMem = List[Option[Sym]]
   type PC = List[Sym]
   type CState = (Env, Mem)
   type SState = (SEnv, SMem, PC)
@@ -26,6 +26,14 @@ object ConcolicV {
     ans <- MonadState[M, State].get
   } yield ans._2._1
 
+  def get_mem: M[Mem] = for {
+    ans <- MonadState[M, State].get
+  } yield ans._1._2
+
+  def get_smem: M[SMem] = for {
+    ans <- MonadState[M, State].get
+  } yield ans._2._2
+
   def update_env(x: String, v: Value): M[Unit] = for {
     ans <- MonadState[M, State].get
     _ <- MonadState[M, State].put(((ans._1._1 + (x -> v), ans._1._2), ans._2))
@@ -39,6 +47,28 @@ object ConcolicV {
         (ans._2._1 + (x -> v), ans._2._2, ans._2._3)))
     } yield ()
   }
+
+  def update_mem(a: Value, v: Value): M[Unit] = for {
+    ans <- MonadState[M, State].get
+    _ <- MonadState[M, State].put(((ans._1._1, ans._1._2.updated(a, v)), ans._2))
+  } yield ()
+
+  def update_smem(a: Value, v: Option[Sym]): M[Unit] = for {
+      ans <- MonadState[M, State].get
+      _ <- MonadState[M, State].put((ans._1, 
+        (ans._2._1, ans._2._2.updated(a, v), ans._2._3)))
+  } yield ()
+
+  def alloca(l: Value): M[Value] = for {
+    ans <- MonadState[M, State].get
+    _ <- MonadState[M, State].put(((ans._1._1, ans._1._2 ++ List.fill(l)(0)), ans._2))
+  } yield ans._1._2.length
+
+  def salloca(l: Value): M[Unit] = for {
+    ans <- MonadState[M, State].get
+    _ <- MonadState[M, State].put((ans._1, 
+      (ans._2._1, ans._2._2 ++ List.fill(l)(None), ans._2._3)))
+  } yield ()
 
   def update_pc(cc: Value, sc: Option[Sym]): M[Unit] = sc match {
     case None => M.pure(())
@@ -82,12 +112,25 @@ object Concolic {
       cv1 <- evalAtom_c(v1)
       cv2 <- evalAtom_c(v2)
     } yield evalBinOp_c(op, cv1, cv2)
+    case Alloca(v) => for {
+      l <- evalAtom_c(v)
+      a <- alloca(l)
+    } yield a
+    case Load(a) => for {
+      ca <- evalAtom_c(a)
+      m <- get_mem
+    } yield m(ca)
   }
 
   def evalInst_c(i: Inst): M[Value] = i match {
     case Assign(x, vi) => for {
       cv <- evalValInst_c(vi)
       _ <- update_env(x.x, cv)
+    } yield cv
+    case Store(a, v) => for {
+      ca <- evalAtom_c(a)
+      cv <- evalAtom_c(v)
+      _ <- update_mem(ca, cv)
     } yield cv
     case CondBr(c, l1, l2) => for {
       bc <- evalAtom_c(c)
@@ -97,7 +140,7 @@ object Concolic {
       }
     } yield res
     case Jmp(l) => forM(blockMap(l))(evalInst_c)
-    case Return(v) => for { res <- evalAtom_c(v) } yield res
+    case Return(v) => evalAtom_c(v)
   }
 
   def evalAtom_s(v: Atom): M[Option[Sym]] = v match {
@@ -115,6 +158,14 @@ object Concolic {
       if (!(sv1.isDefined || sv2.isDefined)) None
       else Some(s"($op ${sv1.getOrElse(cv1)} ${sv2.getOrElse(cv2)})")
     }
+    case Alloca(v) => for {
+      l <- evalAtom_c(v)
+      _ <- salloca(l)
+    } yield None
+    case Load(a) => for {
+      ca <- evalAtom_c(a)
+      sm <- get_smem
+    } yield sm(ca)
   }
 
   def evalInst_s(i: Inst): M[Option[Sym]] = i match {
@@ -122,6 +173,12 @@ object Concolic {
       sv <- evalValInst_s(vi)
       _ <- update_senv(x.x, sv)
     } yield sv
+    case Store(a, v) => for {
+      ca <- evalAtom_c(a)
+      sv <- evalAtom_s(v)
+      _ <- update_smem(ca, sv)
+    } yield sv
+    case Return(v) => evalAtom_s(v)
     case _ => M.pure(None)
   }
 
