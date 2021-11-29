@@ -75,12 +75,20 @@ object ConcolicV {
     case Some(v) => for {
       ans <- MonadState[M, State].get
       _ <- MonadState[M, State].put((ans._1, 
-        (ans._2._1, ans._2._2, ans._2._3 :+ s"(== $cc $sc)")))
+        (ans._2._1, ans._2._2, ans._2._3 :+ s"(== $cc $v)")))
     } yield ()
   }
 
-  def evalBinOp_c(op: String, v1: Value, v2: Value) = op match {
+  implicit def bool2int(b: Boolean) = if (b) 1 else 0
+  implicit def int2Lit(i: Int) = Lit(i)
+  implicit def string2Var(s: String) = Var(s)
+
+  def evalBinOp_c(op: String, v1: Value, v2: Value): Value = op match {
     case "+" => v1 + v2
+    case "-" => v1 - v2
+    case ">" => v1 > v2
+    case "<" => v1 < v2
+    case "==" => v1 == v2
   }
 
   def Δ[A, B, C](f: A => M[B], g: A => M[C]): A => M[(B, C)] = a => for {
@@ -184,7 +192,7 @@ object Concolic {
 
   def evalAtom = Δ(evalAtom_c, evalAtom_s)
   def evalValInst = Δ(evalValInst_c, evalValInst_s)
-  def evalInst: Inst => M[(Value, Option[Sym])] =
+  def evalInst: Inst => M[(Value, Option[Sym])] = {
     Δ_fix[Inst, Value, Option[Sym]](evalInst_c, evalInst_s, {
       base => rec => {
         case CondBr(c, l1, l2) => for {
@@ -199,6 +207,7 @@ object Concolic {
         case inst => base(inst)
       }
     })
+  }
 }
 
 object TestConcolicM extends App {
@@ -206,7 +215,7 @@ object TestConcolicM extends App {
   import ConcolicV._
   import Concolic._
 
-  val emptyState: State = ((Map(), List()), (Map("x" -> "x"), List(), List()))
+  val emptyState: State = ((Map(), List()), (Map(), List(), List()))
   val prog1 = List(
     Block("start", List(
       Assign(Var("x"),
@@ -215,11 +224,65 @@ object TestConcolicM extends App {
     )
   )
 
+  /*
+  pre: y -> 3; y -> "y"
+
+  start:
+    x = 3 + 5
+    if (x > y) truebr else falsebr
+  truebr:
+    return x
+  falsebr
+    return y
+  */
+  val prog2 = List(
+    Block("start", List(
+      Assign("x", Op2("+", 3, 5)),
+      Assign("boolcond", Op2(">", "x", "y")),
+      CondBr("boolcond", "truebr", "falsebr"))
+    ),
+    Block("truebr", List(Return("x"))),
+    Block("falsebr", List(Return("y")))
+  )
+
+  /*
+  pre: y -> 3; y -> "y"
+  start:
+    x = alloca 1
+    store x y
+    z = load x
+    if ( z == 4 ) truebr else falsebr
+  truebr:
+    return z
+  falsebr
+    return y
+  */
+  val prog3 = List(
+    Block("start", List(
+      Assign("x", Alloca(1)),
+      Store("x", "y"),
+      Assign("z", Load("x")),
+      Assign("boolcond", Op2("==", "z", 4)),
+      CondBr("boolcond", "truebr", "falsebr"))
+    ),
+    Block("truebr", List(Return("z"))),
+    Block("falsebr", List(Return("y")))
+  )
+
+
   def runProg(p: Prog, initState: State = emptyState) = {
     Concolic.blockMap = p.map(b => (b.l -> b.il)).toMap
-    val comp = forM(prog1.head.il)(evalInst)
+    val comp = forM(p.head.il)(evalInst)
     comp.run(initState)
   }
 
-  print(runProg(prog1))
+  def testProg2 = {
+    println(runProg(prog2, ((Map(("y" -> 3)), List()), (Map("y" -> "y"), List(), List()))))
+    println(runProg(prog2, ((Map(("y" -> 10)), List()), (Map("y" -> "y"), List(), List()))))
+  }
+
+  def testProg3 = {
+    println(runProg(prog3, ((Map(("y" -> 3)), List()), (Map("y" -> "y"), List(), List()))))
+    println(runProg(prog3, ((Map(("y" -> 4)), List()), (Map("y" -> "y"), List(), List()))))
+  }
 }
