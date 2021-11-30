@@ -90,6 +90,11 @@ inline std::string int_op2string(iOP op) {
   return "unknown op";
 }
 
+template<typename T>
+void hash_combine(size_t &seed, T const& v) {
+  seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 struct Value;
 // lazy construction of all the SMT expressions
 using SExpr = std::shared_ptr<Value>;
@@ -113,56 +118,58 @@ struct Value : public std::enable_shared_from_this<Value> {
   virtual std::shared_ptr<IntV> to_IntV() const = 0;
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
-  virtual int compare(const Value *v) const = 0;
+  virtual bool compare(const Value *v) const = 0;
+
+  size_t hashval;
+  Value() : hashval(0) {}
+  size_t& hash() { return hashval; }
 };
 
-template<typename T>
-struct Compare3Ways {
-  int operator()(const T &a, const T &b) const {
-    return a == b ? 0 : (a < b ? -1 : 1);
+template<>
+struct std::hash<PtrVal> {
+  size_t operator()(PtrVal const& v) const noexcept {
+    return v->hash();
   }
 };
 
-template<typename T>
-inline int compare_3ways(const T &a, const T &b) {
-  return Compare3Ways<T>()(a, b);
-}
-
-#define COMPARE_3WAYS_RET(a, b) \
-  do { \
-    int ret = compare_3ways(a, b); \
-    if (ret) return ret; \
-  } while (0)
-
 template<>
-struct Compare3Ways<PtrVal> {
-  int operator()(const PtrVal &a, const PtrVal &b) const {
-    COMPARE_3WAYS_RET(std::type_index(typeid(*a.get())), std::type_index(typeid(*b.get())));
+struct std::equal_to<PtrVal> {
+  bool operator()(PtrVal const& a, PtrVal const& b) const {
+    if (std::type_index(typeid(*a)) != std::type_index(typeid(*b)))
+      return false;
     return a->compare(b.get());
   }
 };
 
-template<template<typename> typename T>
-struct Compare3Ways< T<PtrVal> > {
-  int operator()(const T<PtrVal> &a, const T<PtrVal> &b) const {
-    COMPARE_3WAYS_RET(a.size(), b.size());
-    for (int i = 0; i < a.size(); i++)
-      COMPARE_3WAYS_RET(a[i], b[i]);
-    return 0;
+template<>
+struct std::hash<std::unordered_set<PtrVal>> {
+  size_t operator()(std::unordered_set<PtrVal> const& k) const {
+    size_t ret = 0;
+    for (auto &i: k) hash_combine(ret, i->hash());
+    return ret;
   }
 };
 
-struct PtrValCmp {
-  bool operator()(const PtrVal &lhs, const PtrVal &rhs) const {
-    return compare_3ways(lhs, rhs) < 0;
+template<>
+struct std::equal_to<immer::flex_vector<PtrVal>> {
+  bool operator()(immer::flex_vector<PtrVal> const& a, immer::flex_vector<PtrVal> const& b) const {
+    if (a.size() != b.size()) return false;
+    std::equal_to<PtrVal> cmp;
+    for (int i = 0; i < a.size(); i++)
+      if (!cmp(a.at(i), b.at(i))) return false;
+    return true;
   }
 };
 
 struct IntV : Value {
   int bw;
   IntData i;
-  IntV(IntData i, int bw) : i(i), bw(bw) {}
-  IntV(const IntV& v) { i = v.i; bw = v.bw; }
+  IntV(IntData i, int bw) : i(i), bw(bw) {
+    hash_combine(hash(), std::string("intv"));
+    hash_combine(hash(), i);
+    hash_combine(hash(), bw);
+  }
+  IntV(const IntV& v) : IntV(v.i, v.bw) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << i << ")";
   }
@@ -176,8 +183,10 @@ struct IntV : Value {
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
 
-  virtual int compare(const Value *v) const override {
-    return compare_3ways(i, static_cast<decltype(this)>(v)->i);
+  virtual bool compare(const Value *v) const override {
+    auto that = static_cast<decltype(this)>(v);
+    if (this->i != that->i) return false;
+    return this->bw == that->bw;
   }
 };
 
@@ -202,8 +211,11 @@ inline char proj_IntV_char(PtrVal v) {
 
 struct FloatV : Value {
   float f;
-  FloatV(float f) : f(f) {}
-  FloatV(const FloatV& v) { f = v.f; }
+  FloatV(float f) : f(f) {
+    hash_combine(hash(), std::string("floatv"));
+    hash_combine(hash(), f);
+  }
+  FloatV(const FloatV& v): FloatV(v.f) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "FloatV(" << f << ")";
   }
@@ -217,8 +229,9 @@ struct FloatV : Value {
   virtual std::shared_ptr<IntV> to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
 
-  virtual int compare(const Value *v) const override {
-    return compare_3ways(f, static_cast<decltype(this)>(v)->f);
+  virtual bool compare(const Value *v) const override {
+    auto that = static_cast<decltype(this)>(v);
+    return this->f == that->f;
   }
 };
 
@@ -236,8 +249,12 @@ struct LocV : Value {
   Kind k;
   int size;
 
-  LocV(Addr l, Kind k, int size) : l(l), k(k), size(size) {}
-  LocV(const LocV& v) { l = v.l; }
+  LocV(Addr l, Kind k, int size) : l(l), k(k), size(size) {
+    hash_combine(hash(), std::string("locv"));
+    hash_combine(hash(), k);
+    hash_combine(hash(), l);
+  }
+  LocV(const LocV& v) : LocV(v.l, v.k, v.size) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "LocV(" << l << ", " << k << ")";
   }
@@ -253,10 +270,10 @@ struct LocV : Value {
   virtual std::shared_ptr<IntV> to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { return addr_bw; }
 
-  virtual int compare(const Value *v) const override {
+  virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
-    COMPARE_3WAYS_RET(this->k, that->k);
-    return compare_3ways(this->l, that->l);
+    if (this->l != that->l) return false;
+    return this->k == that->k;
   }
 };
 
@@ -294,8 +311,17 @@ struct SymV : Value {
   int bw;
   iOP rator;
   immer::flex_vector<PtrVal> rands;
-  SymV(String name, int bw) : name(name), bw(bw) {}
-  SymV(iOP rator, immer::flex_vector<PtrVal> rands, int bw) : rator(rator), rands(rands), bw(bw) {}
+  SymV(String name, int bw) : name(name), bw(bw) {
+    hash_combine(hash(), std::string("symv1"));
+    hash_combine(hash(), name);
+    hash_combine(hash(), bw);
+  }
+  SymV(iOP rator, immer::flex_vector<PtrVal> rands, int bw) : rator(rator), rands(rands), bw(bw) {
+    hash_combine(hash(), std::string("symv2"));
+    hash_combine(hash(), rator);
+    hash_combine(hash(), bw);
+    for (auto &r: rands) hash_combine(hash(), r->hash());
+  }
   virtual std::ostream& toString(std::ostream& os) const override {
     if (!name.empty()) return os << "SymV(" << name << ")";
     os << "SymV(" << int_op2string(rator) << ", ";
@@ -310,18 +336,12 @@ struct SymV : Value {
   virtual std::shared_ptr<IntV> to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 
-  virtual int compare(const Value *v) const override {
+  virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
-    int kind1 = this->name.empty(), kind2 = that->name.empty();
-    COMPARE_3WAYS_RET(kind1, kind2);
-    if (!kind1) {  // symbol
-      return compare_3ways(this->name, that->name);
-    }
-    else {  // expression
-      COMPARE_3WAYS_RET(this->bw, that->bw);
-      COMPARE_3WAYS_RET(this->rator, that->rator);
-      return compare_3ways(this->rands, that->rands);
-    }
+    if (this->bw != that->bw) return false;
+    if (this->name != that->name) return false;
+    if (this->rator != that->rator) return false;
+    return std::equal_to<decltype(rands)>{}(this->rands, that->rands);
   }
 };
 
@@ -338,7 +358,10 @@ inline SExpr to_SMTBoolNeg(PtrVal v) {
 
 struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
-  StructV(immer::flex_vector<PtrVal> fs) : fs(fs) {}
+  StructV(immer::flex_vector<PtrVal> fs) : fs(fs) {
+    hash_combine(hash(), std::string("structv"));
+    for (auto &f: fs) hash_combine(hash(), f->hash());
+  }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
   }
@@ -354,9 +377,9 @@ struct StructV : Value {
   virtual std::shared_ptr<IntV> to_IntV() const override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 
-  virtual int compare(const Value *v) const override {
+  virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
-    return compare_3ways(this->fs, that->fs);
+    return std::equal_to<decltype(fs)>{}(this->fs, that->fs);
   }
 };
 
@@ -911,7 +934,7 @@ struct ExprHandle: public std::shared_ptr<void> {
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-inline std::map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>, PtrValCmp> stp_env;
+inline std::unordered_map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>> stp_env;
 inline ExprHandle construct_STP_expr_internal(VC, PtrVal, std::set<ExprHandle>&);
 
 inline ExprHandle construct_STP_expr(VC vc, PtrVal e, std::set<ExprHandle> &vars) {
@@ -1013,10 +1036,10 @@ inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHand
   ABORT("unkown operator when constructing STP expr");
 }
 
-using CacheKey = std::set<PtrVal, PtrValCmp>;
+using CacheKey = std::unordered_set<PtrVal>;
 using CexType = std::map<ExprHandle, IntData>;
 using CacheResult = std::pair<int, CexType>;
-inline std::map<CacheKey, CacheResult> cache_map;
+inline std::unordered_map<CacheKey, CacheResult> cache_map;
 inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
 
 struct Checker {
