@@ -1035,6 +1035,8 @@ struct Checker {
   }
 
   ~Checker() {
+    variables.clear();
+    cex2.clear();
     if (use_global_solver) {
       vc_pop(vc);
     }
