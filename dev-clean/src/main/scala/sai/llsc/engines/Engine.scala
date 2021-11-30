@@ -90,8 +90,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     case _ => ???
   }
 
-  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Int = {
-    if (index.isEmpty) 0 else ty match {
+  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Long = {
+    if (index.isEmpty) 0L else ty match {
       case Struct(types) =>
         val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
         prev + calculateOffsetStatic(types(index.head), index.tail)
@@ -105,8 +105,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
-    if (index.isEmpty) 0 else ty match {
+  def calculateOffset(ty: LLVMType, index: List[Rep[Long]]): Rep[Long] = {
+    if (index.isEmpty) 0L else ty match {
       case PtrType(ety, addrSpace) =>
         index.head * getTySize(ety) + calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
@@ -119,7 +119,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Int)) => n.toLong }
+        val indexCst = index.map { case Wrap(Backend.Const(n: Long)) => n }
         unit(calculateOffsetStatic(ty, indexCst))
       case _ => ???
     }
@@ -184,7 +184,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         System.out.println("Warning: Evaluate zeroinitialize in body")
         ret(NullV())
       }
-      case NullConst => ret(LocV(-1, LocV.kHeap))
+      case NullConst => ret(LocV(-1L, LocV.kHeap))
       case NoneConst => ret(NullV())
     }
   }
@@ -445,7 +445,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           }
         } yield u
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
+        def switchFun(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s)
@@ -532,15 +532,15 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
     } yield v
 
-  def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
-    var addr: Int = prevSize
+  def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Long): Unit = {
+    var addr: Long = prevSize
     globalDefMap.foreach { case (k, v) =>
       CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
       addr = addr + getTySize(v.typ)
     }
   }
 
-  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] = {
+  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Long): StaticList[Rep[Value]] = {
     precomputeHeapAddr(globalDefMap, prevSize)
     globalDefMap.foldLeft(StaticList[Rep[Value]]()) { case (h, (k, v)) =>
       h ++ evalHeapConst(v.const, getRealType(v.typ))
@@ -549,7 +549,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
 
   def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
-    prevSize: Int, mname: String): StaticList[Rep[Value]] =
+    prevSize: Long, mname: String): StaticList[Rep[Value]] =
     globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
       // TODO external_weak linkage
       val realID = mname + "_" + v.id
@@ -637,7 +637,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         //_ <- popFrame(s.stackSize)
       } yield v
     } else {
-      val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
+      val commandLineArgs = List[Value](IntV(2), LocV(0L, LocV.kStack))
       for {
         fv <- eval(GlobalId(fname), VoidType)(fname)
         _ <- pushFrame
