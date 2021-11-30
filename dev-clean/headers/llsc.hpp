@@ -900,10 +900,42 @@ inline bool use_solver = true;
 inline bool use_global_solver = false;
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
-inline std::map<std::string, Expr> stp_env;
-using VarSet = std::set<std::shared_ptr<SymV>>;
 
-inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
+struct ExprHandle: public std::shared_ptr<void> {
+  typedef std::shared_ptr<void> Base;
+
+  static void freeExpr(Expr e) {
+    vc_DeleteExpr(e);
+  }
+
+  ExprHandle(Expr e): Base(e, freeExpr) {}
+};
+
+inline std::map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>, PtrValCmp> stp_env;
+inline ExprHandle construct_STP_expr_internal(VC, PtrVal, std::set<ExprHandle>&);
+
+inline ExprHandle construct_STP_expr(VC vc, PtrVal e, std::set<ExprHandle> &vars) {
+  // search expr cache
+  if (use_global_solver) {
+    auto it = stp_env.find(e);
+    if (it != stp_env.end()) {
+      auto &vars2 = it->second.second;
+      vars.insert(vars2.begin(), vars2.end());
+      return it->second.first;
+    }
+  }
+  // query internal
+  std::set<ExprHandle> vars2;
+  auto ret = construct_STP_expr_internal(vc, e, vars2);
+  vars.insert(vars2.begin(), vars2.end());
+  // store expr cache
+  if (use_global_solver) {
+    stp_env.emplace(e, std::make_pair(ret, std::move(vars2)));
+  }
+  return ret;
+}
+
+inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHandle> &vars) {
   auto int_e = std::dynamic_pointer_cast<IntV>(e);
   if (int_e) {
     return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);
@@ -913,132 +945,86 @@ inline Expr construct_STP_expr(VC vc, PtrVal e, VarSet &vars) {
 
   if (!sym_e->name.empty()) {
     auto name = sym_e->name;
-    Expr stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-    vars.insert(sym_e);
+    ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
+    vars.insert(stp_expr);
     return stp_expr;
   }
 
-  std::vector<Expr> expr_rands;
+  std::vector<ExprHandle> expr_rands;
   int bw = sym_e->bw;
   for (auto e : sym_e->rands) {
     expr_rands.push_back(construct_STP_expr(vc, e, vars));
   }
-  Expr ret = nullptr;
   switch (sym_e->rator) {
     case op_add:
-      ret = vc_bvPlusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvPlusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_sub:
-      ret = vc_bvMinusExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvMinusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_mul:
-      ret = vc_bvMultExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvMultExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_sdiv:
     case op_udiv:
-      ret = vc_bvDivExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvDivExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_uge:
-      ret = vc_bvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvGeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_sge:
-      ret = vc_sbvGeExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_sbvGeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_ugt:
-      ret = vc_bvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvGtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_sgt:
-      ret = vc_sbvGtExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_sbvGtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_ule:
-      ret = vc_bvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvLeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_sle:
-      ret = vc_sbvLeExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_sbvLeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_ult:
-      ret = vc_bvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvLtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_slt:
-      ret = vc_sbvLtExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_sbvLtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_eq:
-      ret = vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_neq:
-      ret = vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0), expr_rands.at(1)));
-      break;
+      return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get()));
     case op_neg:
-      ret = vc_notExpr(vc, expr_rands.at(0));
-      break;
+      return vc_notExpr(vc, expr_rands.at(0).get());
     case op_sext:
-      ret = vc_bvSignExtend(vc, expr_rands.at(0), bw);
-      break;
+      return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);
     case op_shl:
-      ret = vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_lshr:
-      ret = vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_ashr:
-      ret = vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_and:
-      ret = vc_bvAndExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvAndExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_or:
-      ret = vc_bvOrExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvOrExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_xor:
-      ret = vc_bvXorExpr(vc, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvXorExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_urem:
-      ret = vc_bvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_bvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_srem:
-      ret = vc_sbvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
-      break;
+      return vc_sbvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_trunc:
       // bvExtract(vc, e, h, l) -> e[l:h+1]
-      ret = vc_bvExtract(vc, expr_rands.at(0), bw-1, 0);
-      break;
+      return vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
     default: break;
-  }
-  if (ret) {
-    for (auto e: expr_rands)
-      vc_DeleteExpr(e);
-    return ret;
   }
   ABORT("unkown operator when constructing STP expr");
 }
 
-inline VarSet construct_STP_constraints(VC vc, immer::set<PtrVal> pc) {
-  VarSet ret;
-  for (auto e : pc) {
-    Expr stp_expr = construct_STP_expr(vc, e, ret);
-    vc_assertFormula(vc, stp_expr);
-    vc_DeleteExpr(stp_expr);
-    //vc_printExprFile(vc, e, out_fd);
-    //std::string smt_rep = vc_printSMTLIB(vc, e);
-    //int n = write(out_fd, smt_rep.c_str(), smt_rep.length());
-    //    n = write(out_fd, "\n", 1);
-  }
-  return ret;
-}
-
 using CacheKey = std::set<PtrVal, PtrValCmp>;
-using CexType = std::map<std::shared_ptr<SymV>, IntData>;
+using CexType = std::map<ExprHandle, IntData>;
 using CacheResult = std::pair<int, CexType>;
 inline std::map<CacheKey, CacheResult> cache_map;
-inline std::mutex cache_mutex;
 inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
 
 struct Checker {
-  VarSet variables;
-  const CexType *cex;
+  std::set<ExprHandle> variables;
+  CexType *cex, cex2;
   VC vc;
 
-  Checker(): cex(nullptr) {
+  Checker() {
     if (use_global_solver) {
       vc = global_vc;
       vc_push(vc);
@@ -1058,7 +1044,10 @@ struct Checker {
   }
 
   int make_STP_query(immer::set<PtrVal> pc) {
-    variables = construct_STP_constraints(vc, pc);
+    for (auto e: pc) {
+      ExprHandle stp_expr = construct_STP_expr(vc, e, variables);
+      vc_assertFormula(vc, stp_expr.get());
+    }
     Expr fls = vc_falseExpr(vc);
     int result = vc_query(vc, fls);
     vc_DeleteExpr(fls);
@@ -1066,50 +1055,36 @@ struct Checker {
   }
 
   void get_STP_counterexample(CexType &cex) {
-    for (auto &var: variables) {
-      auto expr = vc_varExpr(vc, var->name.c_str(), vc_bvType(vc, var->bw));
-      auto val = vc_getCounterExample(vc, expr);
-      cex[var] = getBVUnsignedLongLong(val);
-      vc_DeleteExpr(expr);
+    for (auto expr: variables) {
+      auto val = vc_getCounterExample(vc, expr.get());
+      cex[expr] = getBVUnsignedLongLong(val);
       vc_DeleteExpr(val);
     }
   }
 
-// #define NOCACHE
-#ifdef NOCACHE
-  CacheResult fakecache;
-
   int make_query(immer::set<PtrVal> pc) {
-    fakecache.first = make_STP_query(pc);
-    return fakecache.first;
+    CacheResult *result;
+    if (use_global_solver) {
+      auto ins = cache_map.emplace(CacheKey {pc.begin(), pc.end()}, CacheResult {});
+      result = &(ins.first->second);
+      cex = &(result->second);
+      if (!ins.second)
+        return result->first;
+    }
+    auto retcode = make_STP_query(pc);
+    if (use_global_solver) {
+      result->first = retcode;
+      if (retcode == 0)
+        get_STP_counterexample(*cex);
+    }
+    return retcode;
   }
 
   const CexType* get_counterexample() {
-    if (fakecache.first == 0)
-      get_STP_counterexample(fakecache.second);
-    return &(fakecache.second);
+    if (use_global_solver) return cex;
+    get_STP_counterexample(cex2);
+    return &cex2;
   }
-#else
-  int make_query(immer::set<PtrVal> pc) {
-    CacheKey key(pc.begin(), pc.end());
-    std::pair<decltype(cache_map)::iterator, bool> entry;
-    CacheResult *ret;
-    {
-      std::lock_guard cachelock(cache_mutex);
-      entry = cache_map.emplace(key, CacheResult());
-      ret = &(entry.first->second);
-    }
-    if (entry.second) {  // newly inserted
-      ret->first = make_STP_query(pc);
-      if (ret->first == 0)
-        get_STP_counterexample(ret->second);
-    }
-    cex = &(ret->second);
-    return ret->first;
-  }
-
-  const CexType* get_counterexample() { return cex; }
-#endif  // NOCACHE
 };
 
 // returns true if it is sat, otherwise false
@@ -1168,9 +1143,9 @@ inline void check_pc_to_file(SS state) {
         ABORT("Cannot create the test case file, abort.\n");
     }
 
-    auto &cex = *c.get_counterexample();
-    for (auto &kv: cex) {
-      output << kv.first->name << " == " << kv.second << std::endl;
+    auto cex = c.get_counterexample();
+    for (auto &kv: *cex) {
+      output << exprName(kv.first.get()) << " == " << kv.second << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
     // vc_printCounterExampleFile(vc, out_fd);
