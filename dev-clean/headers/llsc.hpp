@@ -128,13 +128,14 @@ struct Value : public std::enable_shared_from_this<Value> {
 template<>
 struct std::hash<PtrVal> {
   size_t operator()(PtrVal const& v) const noexcept {
-    return v->hash();
+    return v ? v->hash() : std::hash<nullptr_t>{}(nullptr);
   }
 };
 
 template<>
 struct std::equal_to<PtrVal> {
   bool operator()(PtrVal const& a, PtrVal const& b) const {
+    if (!a || !b) return a == b;
     if (std::type_index(typeid(*a)) != std::type_index(typeid(*b)))
       return false;
     return a->compare(b.get());
@@ -320,7 +321,7 @@ struct SymV : Value {
     hash_combine(hash(), std::string("symv2"));
     hash_combine(hash(), rator);
     hash_combine(hash(), bw);
-    for (auto &r: rands) hash_combine(hash(), r->hash());
+    for (auto &r: rands) hash_combine(hash(), std::hash<PtrVal>{}(r));
   }
   virtual std::ostream& toString(std::ostream& os) const override {
     if (!name.empty()) return os << "SymV(" << name << ")";
@@ -360,7 +361,7 @@ struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
   StructV(immer::flex_vector<PtrVal> fs) : fs(fs) {
     hash_combine(hash(), std::string("structv"));
-    for (auto &f: fs) hash_combine(hash(), f->hash());
+    for (auto &f: fs) hash_combine(hash(), std::hash<PtrVal>{}(f));
   }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
