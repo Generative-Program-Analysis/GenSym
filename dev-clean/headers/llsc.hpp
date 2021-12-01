@@ -395,7 +395,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  //ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
+  ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i, bw1);
@@ -407,17 +407,17 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
     } else if (op == op_sdiv || op == op_udiv) {
       return make_IntV(i1->i / i2->i, bw1);
     } else if (op == op_eq) {
-      return make_IntV(i1->i == i2->i, bw1);
+      return make_IntV(i1->i == i2->i, 1);
     } else if (op == op_uge || op == op_sge) {
-      return make_IntV(i1->i >= i2->i, bw1);
+      return make_IntV(i1->i >= i2->i, 1);
     } else if (op == op_ugt || op == op_sgt) {
-      return make_IntV(i1->i > i2->i, bw1);
+      return make_IntV(i1->i > i2->i, 1);
     } else if (op == op_ule || op == op_sle) {
-      return make_IntV(i1->i <= i2->i, bw1);
+      return make_IntV(i1->i <= i2->i, 1);
     } else if (op == op_ult || op == op_slt) {
-      return make_IntV(i1->i < i2->i, bw1);
+      return make_IntV(i1->i < i2->i, 1);
     } else if (op == op_neq) {
-      return make_IntV(i1->i != i2->i, bw1);
+      return make_IntV(i1->i != i2->i, 1);
     } else if (op == op_urem || op == op_srem) {
       return make_IntV(i1->i % i2->i, bw1);
     } else if (op == op_and) {
@@ -426,6 +426,10 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
       return make_IntV(i1->i | i2->i, bw1);
     } else if (op == op_xor) {
       return make_IntV(i1->i ^ i2->i, bw1);
+    } else if (op == op_ashr) {
+      return make_IntV((i1->i >> i2->i), bw1);
+    } else if (op == op_shl) {
+      return make_IntV((i1->i << i2->i), bw1);
     } else {
       std::cout << op << std::endl;
       ABORT("invalid operator");

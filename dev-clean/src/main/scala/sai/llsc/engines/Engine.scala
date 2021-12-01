@@ -285,11 +285,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
 
       // Conversion Operations
       /* Backend Work Needed */
-      // TODO zext to type
       case ZExtInst(from, value, to) =>
         for {
           v <- eval(value, from)
-        } yield v
+        } yield v.bv_zext(to.asInstanceOf[IntType].size)
       case SExtInst(from, value, to) =>  for {
         v <- eval(value, from)
       } yield v.bv_sext(to.asInstanceOf[IntType].size)
