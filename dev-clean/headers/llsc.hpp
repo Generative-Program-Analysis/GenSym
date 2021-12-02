@@ -143,15 +143,6 @@ struct std::equal_to<PtrVal> {
 };
 
 template<>
-struct std::hash<std::unordered_set<PtrVal>> {
-  size_t operator()(std::unordered_set<PtrVal> const& k) const {
-    size_t ret = 0;
-    for (auto &i: k) hash_combine(ret, i->hash());
-    return ret;
-  }
-};
-
-template<>
 struct std::equal_to<immer::flex_vector<PtrVal>> {
   bool operator()(immer::flex_vector<PtrVal> const& a, immer::flex_vector<PtrVal> const& b) const {
     if (a.size() != b.size()) return false;
@@ -592,11 +583,13 @@ class Stack {
 class PC {
   private:
     immer::set<SExpr> pc;
+    SExpr last;
   public:
-    PC(immer::set<SExpr> pc) : pc(pc) {}
-    PC add(SExpr e) { return PC(pc.insert(e)); }
+    PC(immer::set<SExpr> pc, SExpr last = nullptr) : pc(pc), last(last) {}
+    PC add(SExpr e) { return PC(pc.insert(e), e); }
     PC addSet(immer::set<SExpr> new_pc) { return PC(Set::join(pc, new_pc)); }
     immer::set<SExpr> getPC() { return pc; }
+    SExpr getLast() { return last; }
     void print() { print_set(pc); }
 };
 
@@ -849,7 +842,7 @@ class SS {
       res_stack = res_stack.update(arg_index, make_IntV(0));
       return SS(heap, res_stack, pc, bb);
     }
-    immer::set<SExpr> getPC() { return pc.getPC(); }
+    PC getPC() { return pc; }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
     void set_fs(FS& new_fs) { fs = new_fs; }
@@ -937,6 +930,22 @@ struct ExprHandle: public std::shared_ptr<void> {
   }
 
   ExprHandle(Expr e): Base(e, freeExpr) {}
+};
+
+template<>
+struct std::hash<ExprHandle> {
+  size_t operator()(ExprHandle const& e) const {
+    return std::hash<void*>{}(e.get());
+  }
+};
+
+template<>
+struct std::hash<std::unordered_set<ExprHandle>> {
+  size_t operator()(std::unordered_set<ExprHandle> const& k) const {
+    size_t ret = 0;
+    for (auto &i: k) hash_combine(ret, std::hash<ExprHandle>{}(i));
+    return ret;
+  }
 };
 
 inline std::unordered_map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>> stp_env;
@@ -1041,8 +1050,8 @@ inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHand
   ABORT("unkown operator when constructing STP expr");
 }
 
-using CacheKey = std::unordered_set<PtrVal>;
-using CexType = std::map<ExprHandle, IntData>;
+using CacheKey = std::unordered_set<ExprHandle>;
+using CexType = std::unordered_map<ExprHandle, IntData>;
 using CacheResult = std::pair<int, CexType>;
 inline std::unordered_map<CacheKey, CacheResult> cache_map;
 inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
@@ -1073,17 +1082,6 @@ struct Checker {
     }
   }
 
-  int make_STP_query(immer::set<PtrVal> pc) {
-    for (auto e: pc) {
-      ExprHandle stp_expr = construct_STP_expr(vc, e, variables);
-      vc_assertFormula(vc, stp_expr.get());
-    }
-    Expr fls = vc_falseExpr(vc);
-    int result = vc_query(vc, fls);
-    vc_DeleteExpr(fls);
-    return result;
-  }
-
   void get_STP_counterexample(CexType &cex) {
     for (auto expr: variables) {
       auto val = vc_getCounterExample(vc, expr.get());
@@ -1092,16 +1090,24 @@ struct Checker {
     }
   }
 
-  int make_query(immer::set<PtrVal> pc) {
+  int make_query(PC pcobj) {
     CacheResult *result;
+    auto pc = pcobj.getPC();
+    auto last = pcobj.getLast();
+    CacheKey pc2;
+    for (auto &e: pc)
+      pc2.insert(construct_STP_expr(vc, e, variables));
     if (use_global_solver) {
-      auto ins = cache_map.emplace(CacheKey {pc.begin(), pc.end()}, CacheResult {});
+      auto ins = cache_map.emplace(pc2, CacheResult {});
       result = &(ins.first->second);
       cex = &(result->second);
       if (!ins.second)
         return result->first;
     }
-    auto retcode = make_STP_query(pc);
+    for (auto &e: pc2)
+      vc_assertFormula(vc, e.get());
+    ExprHandle fls = vc_falseExpr(vc);
+    int retcode = vc_query(vc, fls.get());
     if (use_global_solver) {
       result->first = retcode;
       if (retcode == 0)
@@ -1119,7 +1125,7 @@ struct Checker {
 
 // returns true if it is sat, otherwise false
 // XXX: should explore paths with timeout/no-answer cond?
-inline bool check_pc(immer::set<PtrVal> pc) {
+inline bool check_pc(PC pc) {
   if (!use_solver) return true;
   auto start = steady_clock::now();
   br_query_num++;
@@ -1334,8 +1340,8 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
   auto pc = ss.getPC();
-  auto tbr_sat = check_pc(pc.insert(t_cond));
-  auto fbr_sat = check_pc(pc.insert(f_cond));
+  auto tbr_sat = check_pc(pc.add(t_cond));
+  auto fbr_sat = check_pc(pc.add(f_cond));
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
     SS tbr_ss = ss.addPC(t_cond);
