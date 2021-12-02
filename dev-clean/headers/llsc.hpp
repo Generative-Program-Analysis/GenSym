@@ -932,22 +932,6 @@ struct ExprHandle: public std::shared_ptr<void> {
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-template<>
-struct std::hash<ExprHandle> {
-  size_t operator()(ExprHandle const& e) const {
-    return std::hash<void*>{}(e.get());
-  }
-};
-
-template<>
-struct std::hash<std::unordered_set<ExprHandle>> {
-  size_t operator()(std::unordered_set<ExprHandle> const& k) const {
-    size_t ret = 0;
-    for (auto &i: k) hash_combine(ret, std::hash<ExprHandle>{}(i));
-    return ret;
-  }
-};
-
 inline std::unordered_map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>> stp_env;
 inline ExprHandle construct_STP_expr_internal(VC, PtrVal, std::set<ExprHandle>&);
 
@@ -1050,10 +1034,10 @@ inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHand
   ABORT("unkown operator when constructing STP expr");
 }
 
-using CacheKey = std::unordered_set<ExprHandle>;
-using CexType = std::unordered_map<ExprHandle, IntData>;
+using CacheKey = std::set<ExprHandle>;
+using CexType = std::map<ExprHandle, IntData>;
 using CacheResult = std::pair<int, CexType>;
-inline std::unordered_map<CacheKey, CacheResult> cache_map;
+inline std::map<CacheKey, CacheResult> cache_map;
 inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
 
 struct Checker {
@@ -1095,8 +1079,23 @@ struct Checker {
     auto pc = pcobj.getPC();
     auto last = pcobj.getLast();
     CacheKey pc2;
-    for (auto &e: pc)
-      pc2.insert(construct_STP_expr(vc, e, variables));
+    if (last) {
+      construct_STP_expr(vc, last, variables);
+      for (auto &e: pc) {
+        std::set<ExprHandle> vars2;
+        auto e2 = construct_STP_expr(vc, e, vars2);
+        for (auto &v: vars2)
+          if (variables.find(v) != variables.end()) {
+            variables.insert(vars2.begin(), vars2.end());
+            pc2.insert(e2);
+            break;
+          }
+      }
+    }
+    else {
+      for (auto &e: pc)
+        pc2.insert(construct_STP_expr(vc, e, variables));
+    }
     if (use_global_solver) {
       auto ins = cache_map.emplace(pc2, CacheResult {});
       result = &(ins.first->second);
