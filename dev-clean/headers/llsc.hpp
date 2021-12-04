@@ -1040,6 +1040,17 @@ using CacheResult = std::pair<int, CexType>;
 inline std::map<CacheKey, CacheResult> cache_map;
 inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
 
+template<typename T>
+bool is_set_intersection(std::set<T> const& lhs, std::set<T> const& rhs) {
+  typename std::set<T>::iterator lit = lhs.begin(), rit = rhs.begin();
+  while (lit != lhs.end() && rit != rhs.end()) {
+    if (*lit < *rit) ++lit;
+    else if (*rit < *lit) ++rit;
+    else return true;
+  }
+  return false;
+}
+
 struct Checker {
   std::set<ExprHandle> variables;
   CexType *cex, cex2;
@@ -1084,12 +1095,10 @@ struct Checker {
       for (auto &e: pc) {
         std::set<ExprHandle> vars2;
         auto e2 = construct_STP_expr(vc, e, vars2);
-        for (auto &v: vars2)
-          if (variables.find(v) != variables.end()) {
+        if (is_set_intersection(variables, vars2)) {
             variables.insert(vars2.begin(), vars2.end());
             pc2.insert(e2);
-            break;
-          }
+        }
       }
     }
     else {
