@@ -1040,17 +1040,6 @@ using CacheResult = std::pair<int, CexType>;
 inline std::map<CacheKey, CacheResult> cache_map;
 inline duration<double, std::micro> solver_time = std::chrono::microseconds::zero();
 
-template<typename T>
-bool is_set_intersection(std::set<T> const& lhs, std::set<T> const& rhs) {
-  typename std::set<T>::iterator lit = lhs.begin(), rit = rhs.begin();
-  while (lit != lhs.end() && rit != rhs.end()) {
-    if (*lit < *rit) ++lit;
-    else if (*rit < *lit) ++rit;
-    else return true;
-  }
-  return false;
-}
-
 struct Checker {
   std::set<ExprHandle> variables;
   CexType *cex, cex2;
@@ -1090,14 +1079,32 @@ struct Checker {
     auto pc = pcobj.getPC();
     auto last = pcobj.getLast();
     CacheKey pc2;
-    if (last) {
-      construct_STP_expr(vc, last, variables);
+    // constraint independence
+    if (last && pc.size() > 1) {
+      std::map<ExprHandle, std::set<ExprHandle>> v2q, q2v;
+      std::queue<ExprHandle> queue;
       for (auto &e: pc) {
-        std::set<ExprHandle> vars2;
-        auto e2 = construct_STP_expr(vc, e, vars2);
-        if (is_set_intersection(variables, vars2)) {
-            variables.insert(vars2.begin(), vars2.end());
-            pc2.insert(e2);
+        std::set<ExprHandle> vars;
+        auto q = construct_STP_expr(vc, e, vars);
+        if (e == last)
+          queue.push(q);
+        for (auto &v: vars)
+          v2q[v].insert(q);
+        q2v[q] = std::move(vars);
+      }
+      while (!queue.empty()) {
+        auto q = queue.front(); queue.pop();
+        auto &vars = q2v[q];
+        if (!vars.empty()) {
+          pc2.insert(q);
+          variables.insert(vars.begin(), vars.end());
+          for (auto &v: vars) {
+            for (auto &q2: v2q[v])
+              if (q2 != q)
+                queue.push(q2);
+            v2q[v].clear();
+          }
+          vars.clear();
         }
       }
     }
@@ -1105,6 +1112,7 @@ struct Checker {
       for (auto &e: pc)
         pc2.insert(construct_STP_expr(vc, e, variables));
     }
+    // cex cache: query
     if (use_global_solver) {
       auto ins = cache_map.emplace(pc2, CacheResult {});
       result = &(ins.first->second);
@@ -1112,10 +1120,12 @@ struct Checker {
       if (!ins.second)
         return result->first;
     }
+    // actual solving
     for (auto &e: pc2)
       vc_assertFormula(vc, e.get());
     ExprHandle fls = vc_falseExpr(vc);
     int retcode = vc_query(vc, fls.get());
+    // cex cache: store
     if (use_global_solver) {
       result->first = retcode;
       if (retcode == 0)
