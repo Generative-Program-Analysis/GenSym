@@ -919,8 +919,12 @@ auto create_async(std::function<T()> f) -> std::future<T> {
 // STP interaction
 inline bool use_solver = true;
 inline bool use_global_solver = false;
+inline bool use_objcache = true;
+inline bool use_cexcache = true;
+inline bool use_cons_indep = false;
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
+inline unsigned int cached_query_num = 0;
 
 struct ExprHandle: public std::shared_ptr<void> {
   typedef std::shared_ptr<void> Base;
@@ -937,7 +941,7 @@ inline ExprHandle construct_STP_expr_internal(VC, PtrVal, std::set<ExprHandle>&)
 
 inline ExprHandle construct_STP_expr(VC vc, PtrVal e, std::set<ExprHandle> &vars) {
   // search expr cache
-  if (use_global_solver) {
+  if (use_objcache) {
     auto it = stp_env.find(e);
     if (it != stp_env.end()) {
       auto &vars2 = it->second.second;
@@ -950,7 +954,7 @@ inline ExprHandle construct_STP_expr(VC vc, PtrVal e, std::set<ExprHandle> &vars
   auto ret = construct_STP_expr_internal(vc, e, vars2);
   vars.insert(vars2.begin(), vars2.end());
   // store expr cache
-  if (use_global_solver) {
+  if (use_objcache) {
     stp_env.emplace(e, std::make_pair(ret, std::move(vars2)));
   }
   return ret;
@@ -1080,7 +1084,7 @@ struct Checker {
     auto last = pcobj.getLast();
     CacheKey pc2;
     // constraint independence
-    if (last && pc.size() > 1) {
+    if (use_cons_indep && last && pc.size() > 1) {
       std::map<ExprHandle, std::set<ExprHandle>> v2q, q2v;
       std::queue<ExprHandle> queue;
       for (auto &e: pc) {
@@ -1113,20 +1117,25 @@ struct Checker {
         pc2.insert(construct_STP_expr(vc, e, variables));
     }
     // cex cache: query
-    if (use_global_solver) {
+    if (use_cexcache) {
       auto ins = cache_map.emplace(pc2, CacheResult {});
       result = &(ins.first->second);
       cex = &(result->second);
-      if (!ins.second)
+      if (!ins.second) {
+        cached_query_num++;
         return result->first;
+      }
     }
     // actual solving
+    auto start = steady_clock::now();
     for (auto &e: pc2)
       vc_assertFormula(vc, e.get());
     ExprHandle fls = vc_falseExpr(vc);
     int retcode = vc_query(vc, fls.get());
+    auto end = steady_clock::now();
+    solver_time += duration_cast<microseconds>(end - start);
     // cex cache: store
-    if (use_global_solver) {
+    if (use_cexcache) {
       result->first = retcode;
       if (retcode == 0)
         get_STP_counterexample(*cex);
@@ -1135,7 +1144,7 @@ struct Checker {
   }
 
   const CexType* get_counterexample() {
-    if (use_global_solver) return cex;
+    if (use_cexcache) return cex;
     get_STP_counterexample(cex2);
     return &cex2;
   }
@@ -1145,12 +1154,9 @@ struct Checker {
 // XXX: should explore paths with timeout/no-answer cond?
 inline bool check_pc(PC pc) {
   if (!use_solver) return true;
-  auto start = steady_clock::now();
   br_query_num++;
   Checker c;
   auto result = c.make_query(pc);
-  auto end = steady_clock::now();
-  solver_time += duration_cast<microseconds>(end - start);
   return result == 0;
 }
 
@@ -1158,7 +1164,6 @@ inline void check_pc_to_file(SS state) {
   if (!use_solver) {
     return;
   }
-  auto start = steady_clock::now();
   Checker c;
 
   if (mkdir("tests", 0777) == -1) {
@@ -1205,8 +1210,6 @@ inline void check_pc_to_file(SS state) {
     // vc_printCounterExampleFile(vc, out_fd);
     close(out_fd);
   }
-  auto end = steady_clock::now();
-  solver_time += duration_cast<microseconds>(end - start);
 }
 
 /* Coverage information */
@@ -1268,12 +1271,12 @@ struct CoverageMonitor {
       //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
     void print_query_num() {
-      std::cout << "#queries: " << br_query_num << "/" << test_query_num << "\n" << std::flush;
+      std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
     }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();
       std::cout << "[" << (solver_time.count() / 1.0e6) << "s/"
-                << (duration_cast<milliseconds>(now - start).count() / 1000.0) << "s] ";
+                << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
     void start_monitor() {
       std::thread([this]{
@@ -1302,6 +1305,9 @@ inline void handle_cli_args(int argc, char** argv) {
       /* These options set a flag. */
       {"disable-solver",       no_argument, 0, 'd'},
       {"exlib-failure-branch", no_argument, 0, 'f'},
+      {"no-obj-cache",         no_argument, 0, 'O'},
+      {"no-cex-cache",         no_argument, 0, 'C'},
+      {"cons-indep",           no_argument, 0, 'i'},
       {0,                      0,           0, 0}
     };
     int option_index = 0;
@@ -1321,6 +1327,14 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 'f':
         exlib_failure_branch = true;
+        break;
+      case 'O':
+        use_objcache = false;
+      case 'C':
+        use_cexcache = false;
+        break;
+      case 'i':
+        use_cons_indep = true;
         break;
       case '?':
         // parsing error, should be printed by getopt
@@ -1351,6 +1365,8 @@ inline void handle_cli_args(int argc, char** argv) {
     // It is safe the reuse the global_vc object within one thread, but not otherwise.
     use_global_solver = true;
   }
+  use_objcache = use_objcache && use_global_solver;
+  use_cexcache = use_cexcache && use_global_solver;
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
