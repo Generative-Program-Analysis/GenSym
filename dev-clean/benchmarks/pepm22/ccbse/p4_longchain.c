@@ -34,21 +34,8 @@ void g7(int x, int b) {
   for (int i = 0; i < 6; i++) g6(i, b);
 }
 
-void g8(int x, int b) {
-  for (int i = 0; i < 6; i++) g7(i, b);
-}
-
-void g9(int x, int b) {
-  for (int i = 0; i < 6; i++) g8(i, b);
-}
-
-void g10(int x, int b) {
-  for (int i = 0; i < 6; i++) g9(i, b);
-}
-
-
 int main() {
   int a;
   make_symbolic(&a, 1);
-  g10(2, a);
+  g7(2, a);
 }
