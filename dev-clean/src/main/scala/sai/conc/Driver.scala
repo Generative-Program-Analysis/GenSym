@@ -146,7 +146,7 @@ object RunConc {
       def repFalse = unchecked[Boolean]("false")
     }
 
-  def runLLSC(m: Module, name: String, fname: String, args: List[Int]=Nil) {
+  def runConc(m: Module, name: String, fname: String, args: List[Int]=Nil) {
     val (_, t) = sai.utils.Utils.time {
       val code = specialize(m, name, fname, args)
       code.genAll
@@ -163,33 +163,9 @@ object RunConc {
   }
 
   def main(args: Array[String]): Unit = {
-    // val usage = """
-    // Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
-    // """
-    // if (args.size < 3) {
-    //   println(usage)
-    // } else {
-    //   val filepath = args(0)
-    //   val appName = args(1)
-    //   val fun = args(2)
-    //   val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
-    //   runLLSC(parseFile(filepath), appName, fun, nSym)
-    // }
-
-    runLLSC(parseFile("benchmarks/concolic/conc/bin_search.ll"), "bs", "@main")
-
-    for (i <- Range(0, 20)) {
-      val t = calcConcTime(parseFile("benchmarks/concolic/conc/bin_search.ll"), "bs", "@main")
-       System.out.print(t.toInt); 
-       System.out.print(","); 
-   }
-    
-    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
-    //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
-    //runLLSC(sai.llvm.KleeExamples.regexp, "regexp", "@main")
+    runConc(parseFile("benchmarks/pepm22/concolic/conc/bin_search.ll"), "binary_search_gen", "@main")
+    runConc(parseFile("benchmarks/pepm22/concolic/conc/bubblesort.ll"), "bubblesort_gen", "@main")
+    runConc(parseFile("benchmarks/pepm22/concolic/conc/knapsack.ll"), "knapsack_gen", "@main")
+    runConc(parseFile("benchmarks/pepm22/concolic/conc/quicksort.ll"), "quicksort_gen", "@main")
   }
 }

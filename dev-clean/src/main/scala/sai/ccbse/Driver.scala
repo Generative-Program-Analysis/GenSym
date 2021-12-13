@@ -128,7 +128,7 @@ object RunCCBSE {
         }
         */
         prepareCompileTimeRuntime(m)
-        analyze_fun(m, fname)
+        analyze_fun(m)
         var runtimeCallGraph: Rep[Map[String, List[(String, Int)]]] = Map[String, List[(String, Int)]]()
 
         CompileTimeRuntime.callGraph.foreach { case ((s, m)) =>
@@ -158,8 +158,8 @@ object RunCCBSE {
           CompileTimeRuntime.symbolicHeap)
 
         unchecked[String]("exit(0);")
-        exec(m, "@main", SymV.makeSymVList(0, "main"))
-        exec(m, "@f", SymV.makeSymVList(2, "f"))
+        // exec(m, "@main", SymV.makeSymVList(0, "main"))
+        // exec(m, "@f", SymV.makeSymVList(2, "f"))
 
         // while (workList.nonEmpty) {
         //   val currFun = workList.head._1
@@ -204,24 +204,13 @@ object RunCCBSE {
     println(s"compiling $name, time $t ms")
   }
 
+  // Backward Symbolic execution assumes the entry function to be "main"
+  // The third argument is the target function
   def main(args: Array[String]): Unit = {
-    // val usage = """
-    // Usage: ccbse <.ll-filepath> <app-name>
-    // """
-    // if (args.size < 3) {
-    //   println(usage)
-    // } else {
-    //   val filepath = args(0)
-    //   val appName = args(1)
-    //   val fun = args(2)
-    //   val bbNum = args(3).toInt
-    //   val instrNum = args(4).toInt
-    //   runCCBSE(parseFile(filepath), appName, fun)
-    // }
-
-    runCCBSE(parseFile("benchmarks/ccbse/NarrowBridge.ll"), "NarrowBridge", "@f")
-    runCCBSE(parseFile("benchmarks/ccbse/NarrowBridge.ll"), "NarrowBridge", "@f")
-
-
+    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p1_ccbse.ll"), "p1_ccbse", "@f")
+    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p2_nested_loop.ll"), "p2_nested_loop", "@f")
+    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p3_oneway.ll"), "p3_oneway", "@f")
+    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p4_longchain.ll"), "p4_longchain", "@f1")
+    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p5_narrowbridge.ll"), "p5_narrowbridge", "@f")
   }
 }

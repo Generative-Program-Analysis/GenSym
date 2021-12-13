@@ -9,7 +9,7 @@ void f(int x) {
 
 void g(int x) {
   if (x == 5212) f(x);
-  else while(1) {};
+  else return;
 }
 
 void main() {

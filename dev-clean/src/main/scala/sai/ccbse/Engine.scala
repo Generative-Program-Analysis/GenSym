@@ -686,7 +686,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     for (f <- funs) {
       Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
       val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = hardTopFun(runFun(f))
-      System.out.println("hardTopFuned ", f.id)
+      // System.out.println("hardTopFuned", f.id)
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
       FunName.funMap(n) = if (f.id != "@main") f.id.tail else "target_main"
       CompileTimeRuntime.FunFuns(f.id) = repRunFun
@@ -719,7 +719,7 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
     precompileFunctions(funMap.values.toList)
   }
 
-  def analyze_fun(m: Module, fname: String): Unit = {
+  def analyze_fun(m: Module): Unit = {
     val callerGraph: StaticMutMap[String, StaticSet[String]] = StaticMutMap()
     CompileTimeRuntime.funMap foreach { case (s, caller) =>
       caller.blocks foreach { case b =>
@@ -731,18 +731,14 @@ trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
                 case GlobalId(id) => id
                 case BitCastExpr(from, const, to) => const match {
                   case GlobalId(id) => id
-                  case _ => ???
                 }
-                case _ => ???
               }
             case AssignInst(x, CallInst(ty, f, args)) =>
               callee = f match {
                 case GlobalId(id) => id
                 case BitCastExpr(from, const, to) => const match {
                   case GlobalId(id) => id
-                  case _ => ???
                 }
-                case _ => ???
               }
             case _ => ()
           }

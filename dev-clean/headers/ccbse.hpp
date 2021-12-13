@@ -993,14 +993,14 @@ struct CCBSERunTimeUtils {
     void updateFunSum(String s, immer::flex_vector<std::pair<SS, PtrVal>> sum) {
       if (canUpdateFunSum(s)) {
         funSum = (!funSum.find(s)) ? funSum.set(s, sum) : funSum.set(s, funSum.at(s) + sum);
-        std::cout << "added path for " + s << std::endl;
+        std::cout << "Added paths for " + s << std::endl;
       }
     }
     void updateFunSum(String s, std::pair<SS, PtrVal> sum) {
       if (canUpdateFunSum(s)) {
         funSum = (!funSum.find(s)) ? funSum.set(s, immer::flex_vector<std::pair<SS, PtrVal>>{sum}) : funSum.set(s,  funSum.at(s).push_back(sum));
-        print_pc(std::get<0>(sum).getPC());
-        std::cout << "added path for " + s << std::endl;
+        // print_pc(std::get<0>(sum).getPC());
+        std::cout << "Added path for " + s << std::endl;
       }
     }
     bool containsFunSum(String s) {
@@ -1018,12 +1018,12 @@ inline CCBSERunTimeUtils ccbse_runtime;
 // call + manage_targets
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFun) {
-  std::cout << "calling " + fs + " from " + currFun << std::endl;
+  // std::cout << "calling " + fs + " from " + currFun << std::endl;
 
   immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
   pftyp f = ccbse_runtime.getFun(fs);
   if (ccbse_runtime.containsFunSum(fs)) {
-    std::cout << "calling precomputed" + fs + " from " + currFun << std::endl;
+    std::cout << "Calling precomputed " + fs + " from " + currFun << std::endl;
     immer::flex_vector<std::pair<SS, PtrVal>> ffunSum = ccbse_runtime.getFunSum(fs);
     for (int i = 0; i < ffunSum.size(); i++) {
       // Add pc for arg = sarg
@@ -1056,7 +1056,7 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
       }
     }
   } else {
-    std::cout << "calling" + fs + " from " + currFun << std::endl;
+    std::cout << "Calling new fun " + fs + " from " + currFun << std::endl;
     auto tempRes = f(ss, argList);
     for (int j = 0; j < tempRes.size(); j++) {
       auto thisRes = tempRes.at(j);
@@ -1064,7 +1064,7 @@ sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFu
       if (resSS.contains_target()) {
         if (!ccbse_runtime.containsFunSum(currFun)) {
           // add_callers(sf, worklist)
-          std::cout << "adding" + currFun + " to computed fun"<< std::endl;
+          std::cout << "Adding" + currFun + " to computed fun"<< std::endl;
           ccbse_runtime.insertWL(ccbse_runtime.getWLinCG(currFun));
         }
         ccbse_runtime.updateFunSum(currFun, thisRes);
@@ -1130,7 +1130,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>>
   }
 
   immer::flex_vector<std::pair<SS, PtrVal>> res = f(ss, argL);
-  std::cout << fname << res.size() <<std::endl;
+  // std::cout << fname << res.size() <<std::endl;
   return res;
 }
 
@@ -1153,7 +1153,6 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
   while (ccbse_runtime.nonEmptyWL()) {
     p = ccbse_runtime.popWL();
     fname = p.first;
-    std::cout<<fname<<std::endl;
     if (fname == "@main") {
       ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
       return;
