@@ -82,6 +82,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> target(SS state, immer::flex_ve
   if (state.is_from_main()) {
     if (check_pc(state.getPC())) {
       std::cout << "Target reached from main, exit." << std::endl;
+      cov.print_query_num();
       check_pc_to_file(state);
       exit(0);
     }

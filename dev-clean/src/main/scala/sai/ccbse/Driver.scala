@@ -213,5 +213,6 @@ object RunCCBSE {
     runCCBSE("benchmarks/pepm22/ccbse/p3_oneway.ll", "p3_oneway", "@f")
     runCCBSE("benchmarks/pepm22/ccbse/p4_longchain.ll", "p4_longchain", "@f1")
     runCCBSE("benchmarks/pepm22/ccbse/p5_narrowbridge.ll", "p5_narrowbridge", "@f")
+    runCCBSE("benchmarks/pepm22/ccbse/p6_complexloop.ll", "p6_complexloop", "@f") 
   }
 }

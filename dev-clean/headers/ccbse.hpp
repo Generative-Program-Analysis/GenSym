@@ -52,7 +52,7 @@ enum iOP {
   op_eq, op_uge, op_ugt, op_ule, op_ult,
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
-  op_urem, op_srem, op_neg, op_sext
+  op_urem, op_srem, op_neg, op_sext, op_trunc
 };
 
 inline std::string int_op2string(iOP op) {
@@ -693,14 +693,26 @@ inline Expr construct_STP_expr(VC vc, PtrVal e) {
       return vc_notExpr(vc, expr_rands.at(0));
     case op_sext:
       return vc_bvSignExtend(vc, expr_rands.at(0), bw);
-    case op_shl:
+     case op_shl:
+      return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_lshr:
+      return vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_ashr:
+      return vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     case op_and:
+      return vc_bvAndExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_or:
-    case op_xor: 
+      return vc_bvOrExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
+    case op_xor:
+      return vc_bvXorExpr(vc, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_urem:
+      return vc_bvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
+      break;
     case op_srem:
+      return vc_sbvRemExpr(vc, bw, expr_rands.at(0), expr_rands.at(1));
     default: break;
   }
   ABORT("unkown operator when constructing STP expr");
@@ -853,8 +865,11 @@ struct CoverageMonitor {
       std::unique_lock<std::mutex> lk(pm);
       num_paths += n;
     }
-    void print_path_cov() {
-      std::cout << "#paths: " << num_paths << "; " << std::flush;
+    void print_path_cov(bool ending = true) {
+      std::cout << "#paths: " << num_paths;
+      if (!ending) std::cout << "; ";
+      if (ending) std::cout << std::endl;
+      std::cout << std::flush;
     }
     void print_block_cov() {
       size_t covered = 0;
@@ -873,11 +888,11 @@ struct CoverageMonitor {
       }
     }
     void print_async() {
-      std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; ";
+      std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; " << std::flush;
       //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
     void print_query_num() {
-      std::cout << "#queries: " << br_query_num << "/" << test_query_num << "\n";
+      std::cout << "#queries: " << br_query_num << "/" << test_query_num << "\n" << std::flush;
     }
     void print_time() {
       steady_clock::time_point now = steady_clock::now();
@@ -888,7 +903,7 @@ struct CoverageMonitor {
         while (this->block_cov.size() <= this->num_blocks) {
           print_time();
           print_block_cov();
-          print_path_cov();
+          print_path_cov(false);
           print_async();
           print_query_num();
           std::this_thread::sleep_for(seconds(1));
@@ -1019,7 +1034,7 @@ inline CCBSERunTimeUtils ccbse_runtime;
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_fun(SS ss, immer::flex_vector<PtrVal> argList, String fs, String currFun) {
   // std::cout << "calling " + fs + " from " + currFun << std::endl;
-
+  cov.print_query_num();
   immer::flex_vector<std::pair<SS, PtrVal>> res = immer::flex_vector<std::pair<SS, PtrVal>>{};
   pftyp f = ccbse_runtime.getFun(fs);
   if (ccbse_runtime.containsFunSum(fs)) {
@@ -1130,6 +1145,9 @@ inline immer::flex_vector<std::pair<SS, PtrVal>>
   }
 
   immer::flex_vector<std::pair<SS, PtrVal>> res = f(ss, argL);
+  // for (auto u: res) {
+  //   std::cout << std::get<0>(u).contains_target() << std::endl;
+  // }
   // std::cout << fname << res.size() <<std::endl;
   return res;
 }
@@ -1143,6 +1161,7 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
   ccbse_runtime.setCG(cg);
   std::pair<String, int> p = ccbse_runtime.popWL();
   String fname = p.first;
+  cov.print_query_num();
   if (fname == "@main") {
     ccbse_exec(SS(ch, mt_stack, mt_pc, mt_bb, false, false).set_main().push(), fname);
     return;
@@ -1151,6 +1170,7 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
   }
 
   while (ccbse_runtime.nonEmptyWL()) {
+    cov.print_query_num();
     p = ccbse_runtime.popWL();
     fname = p.first;
     if (fname == "@main") {
@@ -1160,7 +1180,7 @@ inline void ccbse_main(WorkList wl, CallGraph cg,
       ccbse_exec(SS(sh, mt_stack, mt_pc, mt_bb, false, false).push(), fname);
     }
   }
-
+  cov.print_query_num();
   return;
 }
 
