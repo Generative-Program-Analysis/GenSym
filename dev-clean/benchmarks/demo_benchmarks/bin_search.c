@@ -3,7 +3,9 @@
 #ifdef KLEE
 #include "klee/klee.h"
 #endif
- 
+
+#define SIZE 10
+
 void print_data(int arr[], int size, int target) {
     printf("searching for %d in:\n[", target);
     for (int i=0; i < size-1; i++) {
@@ -11,7 +13,7 @@ void print_data(int arr[], int size, int target) {
     }
     printf("%d]\n", arr[size-1]);
 }
- 
+
 int binary_search(int arr[], int size, int target) {
     print_data(arr, size, target);
     int low = 0;
@@ -31,15 +33,15 @@ int binary_search(int arr[], int size, int target) {
     }
     return -1;
 }
- 
+
 int main() {
-  int a[10];
+  int a[SIZE];
   int x;
 #ifdef KLEE
-  klee_make_symbolic(&a, sizeof(a), "a");
+  klee_make_symbolic(&a, SIZE * sizeof(int), "a");
   klee_make_symbolic(&x, sizeof(x), "x");
 #else
-  make_symbolic(&a, sizeof(a));
+  make_symbolic(&a, SIZE * sizeof(int));
   make_symbolic(&x, sizeof(x));
 #endif
   int result = binary_search(a, 10, x);
