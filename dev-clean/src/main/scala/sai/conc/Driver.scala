@@ -146,12 +146,13 @@ object RunConc {
       def repFalse = unchecked[Boolean]("false")
     }
 
-  def runConc(m: Module, name: String, fname: String, args: List[Int]=Nil) {
+  def runConc(f: String, proj: String, fname: String, args: List[Int]=Nil) {
+    val m = parseFile(f)
     val (_, t) = sai.utils.Utils.time {
-      val code = specialize(m, name, fname, args)
+      val code = specialize(m, proj, fname, args)
       code.genAll
     }
-    println(s"compiling $name, time $t ms")
+    println(s"compiling $proj, time $t ms")
   }
 
   def calcConcTime(m: Module, name: String, fname: String, args: List[Int]=Nil): Double = {
@@ -163,9 +164,9 @@ object RunConc {
   }
 
   def main(args: Array[String]): Unit = {
-    runConc(parseFile("benchmarks/pepm22/concolic/conc/bin_search.ll"), "binary_search_gen", "@main")
-    runConc(parseFile("benchmarks/pepm22/concolic/conc/bubblesort.ll"), "bubblesort_gen", "@main")
-    runConc(parseFile("benchmarks/pepm22/concolic/conc/knapsack.ll"), "knapsack_gen", "@main")
-    runConc(parseFile("benchmarks/pepm22/concolic/conc/quicksort.ll"), "quicksort_gen", "@main")
+    runConc("benchmarks/pepm22/concolic/conc/bin_search.ll", "binary_search_gen", "@main")
+    runConc("benchmarks/pepm22/concolic/conc/bubblesort.ll", "bubblesort_gen", "@main")
+    runConc("benchmarks/pepm22/concolic/conc/knapsack.ll", "knapsack_gen", "@main")
+    runConc("benchmarks/pepm22/concolic/conc/quicksort.ll", "quicksort_gen", "@main")
   }
 }

@@ -196,21 +196,22 @@ object RunCCBSE {
         "add-fun".reflectWriteWith[Unit](fname, unchecked[String](fp))(Adapter.CTRL)
     }
 
-  def runCCBSE(m: Module, name: String, fname: String) {
+  def runCCBSE(file: String, proj: String, fname: String) {
+    val m = parseFile(file)
     val (_, t) = sai.utils.Utils.time {
-      val code = specialize(m, name, fname)
+      val code = specialize(m, proj, fname)
       code.genAll
     }
-    println(s"compiling $name, time $t ms")
+    println(s"compiling $proj, time $t ms")
   }
 
   // Backward Symbolic execution assumes the entry function to be "main"
   // The third argument is the target function
   def main(args: Array[String]): Unit = {
-    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p1_ccbse.ll"), "p1_ccbse", "@f")
-    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p2_nested_loop.ll"), "p2_nested_loop", "@f")
-    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p3_oneway.ll"), "p3_oneway", "@f")
-    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p4_longchain.ll"), "p4_longchain", "@f1")
-    runCCBSE(parseFile("benchmarks/pepm22/ccbse/p5_narrowbridge.ll"), "p5_narrowbridge", "@f")
+    runCCBSE("benchmarks/pepm22/ccbse/p1_ccbse.ll", "p1_ccbse", "@f")
+    runCCBSE("benchmarks/pepm22/ccbse/p2_nested_loop.ll", "p2_nested_loop", "@f")
+    runCCBSE("benchmarks/pepm22/ccbse/p3_oneway.ll", "p3_oneway", "@f")
+    runCCBSE("benchmarks/pepm22/ccbse/p4_longchain.ll", "p4_longchain", "@f1")
+    runCCBSE("benchmarks/pepm22/ccbse/p5_narrowbridge.ll", "p5_narrowbridge", "@f")
   }
 }
