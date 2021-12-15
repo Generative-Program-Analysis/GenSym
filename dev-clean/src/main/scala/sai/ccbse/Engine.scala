@@ -25,6 +25,8 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import scala.collection.mutable.{Map => StaticMutMap, Queue => StaticQueue, Set => StaticSet}
 import sai.lmsx.smt.SMTBool
 
+// Note (ST): possible optimization - track path information to branch level
+
 @virtualize
 trait CCBSEEngine extends SAIOps with StagedNondet with SymExeDefs {
   object CompileTimeRuntime {

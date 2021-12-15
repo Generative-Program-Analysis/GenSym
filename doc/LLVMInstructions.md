@@ -1,7 +1,11 @@
-##### Note: bold instructions appear in `coreutils`
+LLVM instructions supported by `llsc/engines/Engine.scala`.
 
->count: 
->>umimplemented: 25\
+THIS IS OUTDATED, NEED UPDATE.
+
+** Note: bold instructions appear in `coreutils` **
+
+>count:
+>>unimplemented: 25\
 >>implemented: 17
 
 >types missing: float, struct
