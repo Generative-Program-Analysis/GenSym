@@ -210,9 +210,7 @@ object RunCCBSE {
   def main(args: Array[String]): Unit = {
     runCCBSE("benchmarks/pepm22/ccbse/p1_ccbse.ll", "p1_ccbse", "@f")
     runCCBSE("benchmarks/pepm22/ccbse/p2_nested_loop.ll", "p2_nested_loop", "@f")
-    runCCBSE("benchmarks/pepm22/ccbse/p3_oneway.ll", "p3_oneway", "@f")
-    runCCBSE("benchmarks/pepm22/ccbse/p4_longchain.ll", "p4_longchain", "@f1")
-    runCCBSE("benchmarks/pepm22/ccbse/p5_narrowbridge.ll", "p5_narrowbridge", "@f")
-    runCCBSE("benchmarks/pepm22/ccbse/p6_complexloop.ll", "p6_complexloop", "@f") 
+    runCCBSE("benchmarks/pepm22/ccbse/p3_narrowbridge.ll", "p3_narrowbridge", "@f")
+    runCCBSE("benchmarks/pepm22/ccbse/p4_complexloop.ll", "p4_complexloop", "@f") 
   }
 }

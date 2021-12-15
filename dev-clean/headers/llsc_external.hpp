@@ -85,6 +85,16 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> close(SS state, immer::flex_vec
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(status)}};
 }
 
+inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
+  cov.print_time();
+  cov.print_block_cov();
+  cov.print_path_cov(false);
+  cov.print_async();
+  cov.print_query_num();
+  check_pc_to_file(state);
+  exit(0);
+}
+
 /* inline immer::flex_vector<std::pair<SS, PtrVal>> lseek(SS state, immer::flex_vector<PtrVal> args) { */
 
 /* } */
