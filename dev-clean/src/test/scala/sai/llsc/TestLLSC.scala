@@ -21,12 +21,12 @@ import sai.llsc.imp.CPSLLSCEngine
 import sys.process._
 
 import org.scalatest.FunSuite
+import sai.llvm.Benchmarks._
+import sai.llvm.OOPSLA20Benchmarks._
 
-class TestPureLLSC extends FunSuite {
-  import sai.llvm.Benchmarks._
-  import sai.llvm.OOPSLA20Benchmarks._
+case class TestPrg(m: Module, name: String, f: String, nSym: Int, nPath: Int, result: Option[Int] = None)
 
-  case class TestPrg(m: Module, name: String, f: String, nSym: Int, path: Int, result: Option[Int] = None)
+object TestCases {
   val tests: List[TestPrg] = List(
     // concrete run
     TestPrg(add, "addTest", "@main", 0, 1),
@@ -64,36 +64,50 @@ class TestPureLLSC extends FunSuite {
     TestPrg(maze, "mazeTest", "@main", 2, 309),
     TestPrg(mp1024, "mp1024Test", "@f", 10, 1024),
 
-    // FIXME: Sext an invalid value
-    // TestPrg(varArgChar, "varArgChar", "@main", 0, 1),
-    // FIXME: out of range
-    // TestPrg(struct, "structTest", "@main", 0, 1),
-    // FIXME: seg fault
-    // TestPrg(largeStackArray, "largeStackArrayTest", "@main", 0, 1),
-    // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", 0, 1),
-    // TestPrg(ptrtoint, "ptrToIntTest", "@main", 0, 1)
-    // FIXME: parsing error
-    // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
   )
+}
 
-  val pureLLSC = new PureLLSC
-
-  tests.foreach { case TestPrg(m, name, f, nSym, expPath, expRetOpt) =>
-    test(name) {
-      val code = pureLLSC.newInstance(m, name, f, nSym)
-      code.genAll
-      val mkRet = code.make(2)
-      assert(mkRet == 0, "make failed")
-      val (output, ret) = code.runWithStatus(1)
-      System.err.println(output)
-      val path = output.split("\n").last.split(" ").last.toInt
-      assert(path == expPath, "Unexpected path number")
-      if (expRetOpt.nonEmpty) {
-        assert(ret == expRetOpt.get, "Unexpected returned status")
+abstract class TestLLSC extends FunSuite {
+  def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = {
+    tests.foreach { case TestPrg(m, name, f, nSym, expPath, expRetOpt) =>
+      test(name) {
+        val code = llsc.newInstance(m, name, f, nSym)
+        code.genAll
+        val mkRet = code.make(2)
+        assert(mkRet == 0, "make failed")
+        val (output, ret) = code.runWithStatus(1)
+        System.err.println(output)
+        val path = output.split("\n").last.split(" ").last.toInt
+        assert(path == expPath, "Unexpected path number")
+        if (expRetOpt.nonEmpty) {
+          assert(ret == expRetOpt.get, "Unexpected returned status")
+        }
+        // TODO: check the number of generated test files?
+        // TODO: for concrete runs, also check result?
       }
-      // TODO: check the number of generated test files?
-      // TODO: for concrete runs, also check result?
     }
   }
+}
 
+class TestPureLLSC extends TestLLSC {
+  // FIXME: Sext an invalid value
+  // TestPrg(varArgChar, "varArgChar", "@main", 0, 1),
+  // FIXME: out of range
+  // TestPrg(struct, "structTest", "@main", 0, 1),
+  // FIXME: seg fault
+  // TestPrg(largeStackArray, "largeStackArrayTest", "@main", 0, 1),
+  // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", 0, 1),
+  // TestPrg(ptrtoint, "ptrToIntTest", "@main", 0, 1)
+  // FIXME: parsing error
+  // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
+
+  testLLSC(new PureLLSC, TestCases.tests)
+}
+
+class TestImpLLSC extends TestLLSC {
+  testLLSC(new ImpLLSC, TestCases.tests)
+}
+
+class TestCPSLLSC extends TestLLSC {
+  testLLSC(new CPSLLSC, TestCases.tests)
 }
