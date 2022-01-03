@@ -158,7 +158,7 @@ struct IntV : Value {
   int bw;
   IntData i;
   IntV(IntData i, int bw) : i(i), bw(bw) {}
-  IntV(const IntV& v) { i = v.i; bw = v.bw; }
+  IntV(const IntV& v) : IntV(v.i, v.bw) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << i << ")";
   }
@@ -193,7 +193,7 @@ inline IntData proj_IntV(PtrVal v) {
 struct FloatV : Value {
   float f;
   FloatV(float f) : f(f) {}
-  FloatV(const FloatV& v) { f = v.f; }
+  FloatV(const FloatV& v): FloatV(v.f) {}
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "FloatV(" << f << ")";
   }
@@ -226,10 +226,10 @@ struct LocV : Value {
   Kind k;
   int size;
 
-  LocV(unsigned int l, Kind k, int size) : l(l), k(k), size(size) {}
-  LocV(const LocV& v) { l = v.l; }
+  LocV(Addr l, Kind k, int size) : l(l), k(k), size(size) {}
+  LocV(const LocV& v) : LocV(v.l, v.k, v.size) {}
   virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "LocV(" << l << ")";
+    return os << "LocV(" << l << ", " << k << ")";
   }
   virtual SExpr to_SMTExpr() override {
     ABORT("to_SMTExpr: unexpected value LocV.");
@@ -241,7 +241,7 @@ struct LocV : Value {
     ABORT("is_conc: unexpected value LocV.");
   }
   virtual PtrVal to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value LocV."); }
+  virtual int get_bw() const override { return addr_bw; }
 
   virtual int compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
@@ -270,6 +270,10 @@ inline int proj_LocV_size(PtrVal v) {
 
 inline PtrVal make_LocV_inc(PtrVal loc, int i) {
   return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
+}
+
+inline PtrVal make_LocV_null() {
+  return make_LocV(-1, LocV::kHeap, -1);
 }
 
 struct SymV : Value {
@@ -355,7 +359,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  //ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
+  ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i, bw1);
@@ -367,17 +371,17 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
     } else if (op == op_sdiv || op == op_udiv) {
       return make_IntV(i1->i / i2->i, bw1);
     } else if (op == op_eq) {
-      return make_IntV(i1->i == i2->i, bw1);
+      return make_IntV(i1->i == i2->i, 1);
     } else if (op == op_uge || op == op_sge) {
-      return make_IntV(i1->i >= i2->i, bw1);
+      return make_IntV(i1->i >= i2->i, 1);
     } else if (op == op_ugt || op == op_sgt) {
-      return make_IntV(i1->i > i2->i, bw1);
+      return make_IntV(i1->i > i2->i, 1);
     } else if (op == op_ule || op == op_sle) {
-      return make_IntV(i1->i <= i2->i, bw1);
+      return make_IntV(i1->i <= i2->i, 1);
     } else if (op == op_ult || op == op_slt) {
-      return make_IntV(i1->i < i2->i, bw1);
+      return make_IntV(i1->i < i2->i, 1);
     } else if (op == op_neq) {
-      return make_IntV(i1->i != i2->i, bw1);
+      return make_IntV(i1->i != i2->i, 1);
     } else if (op == op_urem || op == op_srem) {
       return make_IntV(i1->i % i2->i, bw1);
     } else if (op == op_and) {
@@ -386,6 +390,10 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
       return make_IntV(i1->i | i2->i, bw1);
     } else if (op == op_xor) {
       return make_IntV(i1->i ^ i2->i, bw1);
+    } else if (op == op_ashr) {
+      return make_IntV((i1->i >> i2->i), bw1);
+    } else if (op == op_shl) {
+      return make_IntV((i1->i << i2->i), bw1);
     } else {
       std::cout << op << std::endl;
       ABORT("invalid operator");

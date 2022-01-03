@@ -101,13 +101,18 @@ class TestPureLLSC extends TestLLSC {
   // FIXME: parsing error
   // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
 
-  testLLSC(new PureLLSC, TestCases.tests)
+  //testLLSC(new PureLLSC, TestCases.tests)
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, TestCases.tests)
+  testLLSC(new ImpLLSC, List(
+    TestPrg(ptrpred, "ptrPredTest", "@main", 0, 1),
+    TestPrg(varArgInt, "varArgInt", "@main", 0, 1),
+    TestPrg(binSearch, "binSearch", "@main", 0, 92),
+    TestPrg(maze, "mazeTest", "@main", 2, 309),
+  ))
 }
 
 class TestCPSLLSC extends TestLLSC {
-  testLLSC(new CPSLLSC, TestCases.tests)
+  //testLLSC(new CPSLLSC, TestCases.tests)
 }
