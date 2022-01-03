@@ -21,6 +21,7 @@ import sai.lmsx.smt.SMTBool
 trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
+
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
     var funDeclMap: StaticMap[String, FunctionDecl] = StaticMap()
     var globalDefMap: StaticMap[String, GlobalDef] = StaticMap()
@@ -165,7 +166,7 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullV()
-      case NullConst => NullV()
+      case NullConst => LocV(-1, LocV.kHeap)
       case NoneConst => NullV()
     }
 

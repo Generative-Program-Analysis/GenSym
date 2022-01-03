@@ -165,7 +165,7 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullV()
-      case NullConst => NullV()
+      case NullConst => LocV(-1, LocV.kHeap)
       case NoneConst => NullV()
     }
 

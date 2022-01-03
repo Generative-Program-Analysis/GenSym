@@ -180,10 +180,9 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
             case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
-      case ZeroInitializerConst => {
+      case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         ret(NullV())
-      }
       case NullConst => ret(LocV(-1, LocV.kHeap))
       case NoneConst => ret(NullV())
     }
