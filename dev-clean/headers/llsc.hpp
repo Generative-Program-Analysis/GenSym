@@ -497,7 +497,10 @@ class PreMem {
     PreMem(immer::flex_vector<V> mem) : mem(mem) {}
     size_t size() { return mem.size(); }
     V at(size_t idx) { return mem.at(idx); }
-    PreMem<V> update(size_t idx, V val) { return PreMem<V>(mem.set(idx, val)); }
+    PreMem<V> update(size_t idx, V val) {
+      ASSERT(idx < mem.size(), "PreMem update index out of bound");
+      return PreMem<V>(mem.set(idx, val));
+    }
     PreMem<V> append(V val) { return PreMem<V>(mem.push_back(val)); }
     PreMem<V> append(V val, size_t padding) {
       size_t idx = mem.size();
@@ -1398,6 +1401,5 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
     return immer::flex_vector<std::pair<SS, PtrVal>>{};
   }
 }
-
 
 #endif

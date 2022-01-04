@@ -220,7 +220,8 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
-    def apply(s: Rep[String], bw: Int): Rep[Value] = "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
+    def apply(s: Rep[String], bw: Int): Rep[Value] =
+      "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)
     def makeSymVList(i: Int): Rep[List[Value]] = {
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
     }
@@ -253,6 +254,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
           List((s, IntV(0)))
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+          System.out.println("use external function: " + f)
           f.reflectWith[List[(SS, Value)]](s, args)
         case _ =>
           val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
@@ -262,7 +264,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
-    def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)  // TODO: impl bv_zext in backend
+    // TODO: impl bv_zext in backend
+    // XXX: bv_sext -> bv_zext?
+    def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
     def toSMTBool: Rep[SMTBool] = "to-SMTBool".reflectWith[SMTBool](v)
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTBoolNeg".reflectWith[SMTBool](v)

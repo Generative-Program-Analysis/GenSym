@@ -103,18 +103,31 @@ trait ImpSymExeDefs extends SAIOps {
   }
 
   class SSOps(ss: Rep[SS]) {
+    // Caveat: in the presence of higher-order function (e.g. flatMap, fold),
+    // since we currently lack of aliases information, simply using reflectWrite
+    // might not be enough to preserve some operation, rendering undesired DCE.
+    // `assign` and `update` are currently changed to reflectCtrl to generate correct code
+    // for ImpEngine.
+
     private def assignSeq(xs: List[Int], vs: Rep[List[Value]]): Rep[Unit] =
       reflectWrite[Unit]("ss-assign-seq", ss, xs, vs)(ss)
 
-    def lookup(x: String): Rep[Value] = reflectRead[Value]("ss-lookup-env", ss, x.hashCode)(ss)
-    def assign(x: String, v: Rep[Value]): Rep[Unit] = reflectWrite[Unit]("ss-assign", ss, x.hashCode, v)(ss)
+    def lookup(x: String): Rep[Value] = {
+      //System.out.println("Debug info: " + x + "->" + x.hashCode)
+      reflectRead[Value]("ss-lookup-env", ss, x.hashCode)(ss)
+    }
+    def assign(x: String, v: Rep[Value]): Rep[Unit] =
+      reflectCtrl[Unit]("ss-assign", ss, x.hashCode, v)
+      //reflectWrite[Unit]("ss-assign", ss, x.hashCode, v)(ss)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[Unit] = assignSeq(xs.map(_.hashCode), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       require(size > 0)
       if (isStruct == 0) reflectRead[Value]("ss-lookup-addr", ss, addr)(ss)
       else reflectRead[Value]("ss-lookup-addr-struct", ss, addr, size)(ss)
     }
-    def update(a: Rep[Value], v: Rep[Value]): Rep[Unit] = reflectWrite[Unit]("ss-update", ss, a, v)(ss)
+    def update(a: Rep[Value], v: Rep[Value]): Rep[Unit] =
+      reflectCtrl[Unit]("ss-update", ss, a, v)
+      //reflectWrite[Unit]("ss-update", ss, a, v)(ss)
     def allocStack(n: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-alloc-stack", ss, n)(ss)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = reflectRead[Value]("ss-lookup-heap", ss, addr)(ss)
@@ -247,6 +260,9 @@ trait ImpSymExeDefs extends SAIOps {
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
+    // TODO: impl bv_zext in backend
+    // XXX: bv_sext -> bv_zext?
+    def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
     def toSMTBool: Rep[SMTBool] = "to-SMTBool".reflectWith[SMTBool](v)
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTBoolNeg".reflectWith[SMTBool](v)
@@ -275,16 +291,16 @@ trait ImpSymExeDefs extends SAIOps {
   }
 
   object Intrinsics {
-    val warnedSet = MultableSet[String]()
+    val warned = MultableSet[String]()
     def get(id: String): Rep[Value] =
       if (id.startsWith("@llvm.va_start")) llvm_va_start
       else if (id.startsWith("@llvm.memcpy")) llvm_memcopy
       else if (id.startsWith("@llvm.memset")) llvm_memset
       else if (id.startsWith("@llvm.memmove")) llvm_memset
       else {
-        if (!warnedSet.contains(id)) {
+        if (!warned.contains(id)) {
           System.out.println(s"Warning: intrinsic $id is ignored")
-          warnedSet.add(id)
+          warned.add(id)
         }
         External.noop
       }

@@ -288,9 +288,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         for {
           v <- eval(value, from)
         } yield v.bv_zext(to.asInstanceOf[IntType].size)
-      case SExtInst(from, value, to) =>  for {
-        v <- eval(value, from)
-      } yield v.bv_sext(to.asInstanceOf[IntType].size)
+      case SExtInst(from, value, to) =>
+        for {
+          v <- eval(value, from)
+        } yield v.bv_sext(to.asInstanceOf[IntType].size)
       case TruncInst(from, value, to) =>
         for { v <- eval(value, from) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
       case FpExtInst(from, value, to) =>
@@ -356,9 +357,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           if (bb == labels(0) || labels.length == 1) vs(0)
           else selectValue(bb, vs.tail, labels.tail)
         }
-        val incsValues: List[LLVMValue] = incs.map(inc => inc.value)
-        val incsLabels: List[BlockLabel] = incs.map(inc => inc.label.hashCode)
-
+        val incsValues: List[LLVMValue] = incs.map(_.value)
+        val incsLabels: List[BlockLabel] = incs.map(_.label.hashCode)
         for {
           vs <- mapM(incsValues)(eval(_, ty))
           s <- getState
@@ -394,8 +394,11 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     inst match {
       // FIXME: unreachable
       case Unreachable => ret(IntV(-1))
-      case RetTerm(ty, Some(value)) => eval(value, ty)
-      case RetTerm(ty, None) => ret(NullV())
+      case RetTerm(ty, v) =>
+        v match {
+          case Some(value) => eval(value, ty)
+          case None => ret(NullV())
+        }
       case BrTerm(lab) =>
         for {
           _ <- updateIncomingBlock(incomingBlock)
@@ -443,15 +446,15 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           }
         } yield u
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
+        def switch(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s)
-            else switchFun(v, s, table.tail)
+            else switch(v, s, table.tail)
           }
         }
 
-        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] = {
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] = {
           if (table.isEmpty)
             reify(s)(for {
               _ <- updatePCSet(pc)
@@ -464,7 +467,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
                 _ <- updatePC(headPC.toSMTBool)
                 u <- execBlock(funName, table.head.label)
               } yield u,
-              reflect(switchFunSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg)))
+              reflect(switchSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg)))
             ))
           }
         }
@@ -474,10 +477,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
           v <- eval(cndVal, cndTy)
           s <- getState
           r <- reflect {
-            if (v.isConc) switchFun(v.int, s, table)
+            if (v.isConc) switch(v.int, s, table)
             else {
               Coverage.incPath(table.size)
-              switchFunSym(v, s, table)
+              switchSym(v, s, table)
             }
           }
         } yield r
@@ -545,7 +548,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-
   def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
     prevSize: Int, mname: String): StaticList[Rep[Value]] =
     globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
@@ -571,7 +573,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
-      //println("// compiling block: " + funName + " - " + b.label.get)
+      //println("// running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
@@ -597,7 +599,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         case Vararg => ""
       }
       unchecked("// compiling function: " + f.id)
-      //println("// compiling function: " + f.id)
+      //println("// running function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState

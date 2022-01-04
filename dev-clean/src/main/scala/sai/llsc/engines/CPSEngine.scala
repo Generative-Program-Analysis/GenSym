@@ -367,32 +367,32 @@ trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
           symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName, k)
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] = {
+        def switch(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] = {
           if (table.isEmpty) execBlock(funName, default, s, k)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s, k)
-            else switchFun(v, s, table.tail)
+            else switch(v, s, table.tail)
           }
         }
 
-        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[Unit] =
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[Unit] =
           if (table.isEmpty) {
             s.addPCSet(pc)
             execBlock(funName, default, s, k)
           } else {
             val s1 = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC.toSMTBool)
-            execBlock(funName, table.head.label, s, k)
-            switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
+            s1.addPC(headPC.toSMTBool)
+            execBlock(funName, table.head.label, s1, k)
+            switchSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
           }
 
         ss.addIncomingBlock(incomingBlock)
         val v = eval(cndVal, cndTy, ss)
-        if (v.isConc) switchFun(v.int, ss, table)
+        if (v.isConc) switch(v.int, ss, table)
         else {
           Coverage.incPath(table.size)
-          switchFunSym(v, ss, table)
+          switchSym(v, ss, table)
         }
     }
   }

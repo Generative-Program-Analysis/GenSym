@@ -262,7 +262,8 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
       // Conversion Operations
       /* Backend Work Needed */
       // TODO zext to type
-      case ZExtInst(from, value, to) => k(ss, eval(value, from, ss))
+      case ZExtInst(from, value, to) =>
+        k(ss, eval(value, from, ss).bv_zext(to.asInstanceOf[IntType].size))
       case SExtInst(from, value, to) =>
         k(ss, eval(value, from, ss).bv_sext(to.asInstanceOf[IntType].size))
       case TruncInst(from, value, to) =>
@@ -283,7 +284,8 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
       case IntToPtrInst(from, value, to) =>
         val v = eval(value, from, ss)
         k(ss, LocV(v.int, LocV.kStack))
-      case BitCastInst(from, value, to) => k(ss, eval(value, to, ss))
+      case BitCastInst(from, value, to) =>
+        k(ss, eval(value, to, ss))
 
       // Aggregate Operations
       /* Backend Work Needed */
@@ -366,32 +368,32 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
           symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switchFun(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
+        def switch(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
           if (table.isEmpty) execBlock(funName, default, s)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s)
-            else switchFun(v, s, table.tail)
+            else switch(v, s, table.tail)
           }
         }
 
-        def switchFunSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] =
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] =
           if (table.isEmpty) {
             s.addPCSet(pc)
             execBlock(funName, default, s)
           } else {
             val s1 = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC.toSMTBool)
-            val u = execBlock(funName, table.head.label, s)
-            u ++ switchFunSym(v, s1, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
+            s1.addPC(headPC.toSMTBool)
+            val u = execBlock(funName, table.head.label, s1)
+            u ++ switchSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
           }
 
         ss.addIncomingBlock(incomingBlock)
         val v = eval(cndVal, cndTy, ss)
-        if (v.isConc) switchFun(v.int, ss, table)
+        if (v.isConc) switch(v.int, ss, table)
         else {
           Coverage.incPath(table.size)
-          switchFunSym(v, ss, table)
+          switchSym(v, ss, table)
         }
     }
   }
@@ -485,7 +487,7 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
 
     def runBlock(b: BB)(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
-      //println("// running function: " + funName + " - " + b.label.get)
+      //println("// running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       runInst(b, b.ins, b.term, ss)
     }
