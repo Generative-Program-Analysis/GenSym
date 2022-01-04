@@ -383,4 +383,6 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
   }
 }
 
+inline const PtrVal IntV0 = make_IntV(0);
+
 #endif

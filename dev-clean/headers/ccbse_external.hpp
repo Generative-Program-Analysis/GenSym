@@ -1,14 +1,5 @@
 #include <ccbse.hpp>
 
-/* temp util functions */
-inline immer::flex_vector<SExpr> set_to_list(immer::set<SExpr> s) {
-  auto res = immer::flex_vector<SExpr>{};
-  for (auto x : s) {
-    res = res.push_back(x);
-  }
-  return res;
-}
-
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<FloatV>(x)) {
@@ -37,7 +28,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_ve
 inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_vector<PtrVal> args) {
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
-  
+
   auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
   std::cout << "realloc size: " << emptyMem.size() << std::endl;
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);

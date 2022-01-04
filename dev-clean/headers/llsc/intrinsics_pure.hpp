@@ -1,6 +1,5 @@
-#include <llsc.hpp>
-
-static PtrVal IntV0 = make_IntV(0);
+#ifndef LLSC_INTRINSICS_PURE_HEADERS
+#define LLSC_INTRINSICS_PURE_HEADERS
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_memcpy(SS state, immer::flex_vector<PtrVal> args) {
   PtrVal dest = args.at(0);
@@ -73,3 +72,5 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llvm_va_start(SS state, immer::
 
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, IntV0}};
 }
+
+#endif

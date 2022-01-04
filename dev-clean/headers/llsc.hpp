@@ -45,4 +45,7 @@ using namespace std::chrono;
 #include <llsc/parallel.hpp>
 #include <llsc/smt_stp.hpp>
 
+#include <llsc/external_pure.hpp>
+#include <llsc/intrinsics_pure.hpp>
+
 #endif

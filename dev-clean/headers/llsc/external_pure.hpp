@@ -1,13 +1,5 @@
-#include <llsc.hpp>
-
-/* temp util functions */
-inline immer::flex_vector<SExpr> set_to_list(immer::set<SExpr> s) {
-  auto res = immer::flex_vector<SExpr>{};
-  for (auto x : s) {
-    res = res.push_back(x);
-  }
-  return res;
-}
+#ifndef LLSC_EXTERNAL_PURE_HEADERS
+#define LLSC_EXTERNAL_PURE_HEADERS
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   for (auto x : args) { std::cout << *x << "; "; }
@@ -87,12 +79,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_
   exit(0);
 }
 
-/* inline immer::flex_vector<std::pair<SS, PtrVal>> lseek(SS state, immer::flex_vector<PtrVal> args) { */
-
-/* } */
-
 inline void handle_pc(immer::set<SExpr> pc) {
-
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
@@ -118,3 +105,5 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::
   // std::cout << "Fail: Calling to __assert_fail" << std::endl;
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
+
+#endif

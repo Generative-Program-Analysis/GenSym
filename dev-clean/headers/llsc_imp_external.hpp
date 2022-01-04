@@ -1,14 +1,5 @@
 #include <llsc_imp.hpp>
 
-/* temp util functions */
-inline immer::flex_vector<SExpr> set_to_list(immer::set<SExpr> s) {
-  auto res = immer::flex_vector<SExpr>{};
-  for (auto x : s) {
-    res = res.push_back(x);
-  }
-  return res;
-}
-
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   for (auto x : args) { std::cout << *x << "; "; }
   std::cout << "\n";

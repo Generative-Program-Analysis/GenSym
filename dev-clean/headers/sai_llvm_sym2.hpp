@@ -160,14 +160,6 @@ void print_pcset(immer::set<Expr>& s) {
   std::cout << "}";
 }
 
-immer::flex_vector<Expr> set_to_list(immer::set<Expr>& s) {
-  auto res = immer::flex_vector<Expr>{};
-  for (auto x : s) {
-    res = res.push_back(x);
-  }
-  return res;
-}
-
 enum kOP {
   op_plus,
   op_minus,
@@ -319,7 +311,7 @@ immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_ve
   auto addr = std::dynamic_pointer_cast<LocV>(args.at(0));
   auto tempaddr = make_LocV(addr -> l, addr -> k);
   auto len = std::dynamic_pointer_cast<IntV>(args.at(1));
-  
+
   auto bw = std::dynamic_pointer_cast<IntV>(args.at(2));
   for (int i = 0; i < len->i; i++) {
     // std::cout << "Some variable is made symbolic" << std::endl;

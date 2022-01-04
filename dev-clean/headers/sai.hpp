@@ -88,6 +88,15 @@ void print_set(C<T>& s) {
   std::cout << "}";
 }
 
+template<typename T>
+inline immer::flex_vector<T> set_to_list(immer::set<T> s) {
+  auto res = immer::flex_vector<T>{};
+  for (auto x : s) {
+    res = res.push_back(x);
+  }
+  return res;
+}
+
 template<typename T, class... Types>
 inline bool isInstanceOf(const std::variant<Types...>& v) {
   return std::holds_alternative<T>(v);
