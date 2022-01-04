@@ -72,6 +72,15 @@ object TestCases {
   )
 
   val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall
+
+  // FIXME: out of range
+  // TestPrg(struct, "structTest", "@main", 0, 1),
+  // FIXME: seg fault
+  // TestPrg(largeStackArray, "largeStackArrayTest", "@main", 0, 1),
+  // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", 0, 1),
+  // TestPrg(ptrtoint, "ptrToIntTest", "@main", 0, 1)
+  // FIXME: parsing error
+  // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
 }
 
 abstract class TestLLSC extends FunSuite {
@@ -98,15 +107,6 @@ abstract class TestLLSC extends FunSuite {
 }
 
 class TestPureLLSC extends TestLLSC {
-  // FIXME: out of range
-  // TestPrg(struct, "structTest", "@main", 0, 1),
-  // FIXME: seg fault
-  // TestPrg(largeStackArray, "largeStackArrayTest", "@main", 0, 1),
-  // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", 0, 1),
-  // TestPrg(ptrtoint, "ptrToIntTest", "@main", 0, 1)
-  // FIXME: parsing error
-  // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
-
   testLLSC(new PureLLSC, TestCases.all)
 }
 
@@ -117,5 +117,7 @@ class TestImpLLSC extends TestLLSC {
 }
 
 class TestCPSLLSC extends TestLLSC {
-  //testLLSC(new CPSLLSC, TestCases.tests)
+  import TestCases._
+  // FIXME: varArg has not implemented for CPSLLSC
+  testLLSC(new CPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
 }

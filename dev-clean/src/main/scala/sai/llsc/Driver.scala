@@ -116,6 +116,10 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   }
 }
 
+// Using immer data structures for
+//   1) internal state/memory representation
+//   2) function call argument list
+//   3) function return result list
 abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with LLSCEngine { q =>
   val codegen = new PureLLSCCodeGen {
@@ -126,6 +130,8 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
   }
 }
 
+// Using C++ std containers for internal state/memory representation,
+// but still using immer containers for function call argument lists and result lists.
 abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with ImpLLSCEngine { q =>
   val codegen = new ImpureLLSCCodeGen {
@@ -136,6 +142,9 @@ abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: 
   }
 }
 
+// Using C++ std containers for internal state/memory representation,
+// function call argument lists, and result lists.
+// Note the composition with `StdVectorCodeGen`.
 abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with ImpLLSCEngine { q =>
   val codegen = new ImpureLLSCCodeGen with StdVectorCodeGen {
@@ -146,6 +155,8 @@ abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](appName: String, folde
   }
 }
 
+// Generting CPS code with C++ containers for internal state/memory representation.
+// Function call argument lists and result lists still use immer containers.
 abstract class CPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with CPSLLSCEngine { q =>
   val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {

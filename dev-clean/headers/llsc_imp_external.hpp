@@ -95,6 +95,12 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
+inline std::monostate __assert_fail(SS state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+  // TODO get real argument string
+  // std::cout << "Fail: Calling to __assert_fail" << std::endl;
+  return k(state, make_IntV(0));
+}
+
 // std::vector versions
 // TODO: refactor them using tempaltes?
 
