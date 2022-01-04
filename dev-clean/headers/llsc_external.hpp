@@ -10,16 +10,8 @@ inline immer::flex_vector<SExpr> set_to_list(immer::set<SExpr> s) {
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
-  PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<FloatV>(x)) {
-    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
-  } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")\n";
-  } else if (std::dynamic_pointer_cast<LocV>(x)){
-    ABORT("Unimplemented LOCV");
-  } else if ( x == nullptr ){
-    ABORT("Unimplemented nullptr");
-  }
+  for (auto x : args) { std::cout << *x << "; "; }
+  std::cout << "\n";
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 

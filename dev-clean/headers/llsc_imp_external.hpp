@@ -10,21 +10,26 @@ inline immer::flex_vector<SExpr> set_to_list(immer::set<SExpr> s) {
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
-  PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<FloatV>(x)) {
-    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
-  } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")\n";
-  } else if (std::dynamic_pointer_cast<LocV>(x)){
-    ABORT("Unimplemented LOCV");
-  } else if ( x == nullptr ){
-    ABORT("Unimplemented nullptr");
-  }
+  for (auto x : args) { std::cout << *x << "; "; }
+  std::cout << "\n";
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
+inline std::monostate sym_print(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+  for (auto x : args) { std::cout << *x << "; "; }
+  std::cout << "\n";
+  return k(state, make_IntV(0));
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> noop(SS state, immer::flex_vector<PtrVal> args) {
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_vector<PtrVal> args) {
+  IntData bytes = proj_IntV(args.at(0));
+  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
 }
 
 inline std::monostate malloc(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
@@ -33,13 +38,6 @@ inline std::monostate malloc(SS& state, immer::flex_vector<PtrVal> args, std::fu
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   SS ss = state.heap_append(emptyMem);
   return k(ss, memLoc);
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_vector<PtrVal> args) {
-  IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
-  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_vector<PtrVal> args) {
