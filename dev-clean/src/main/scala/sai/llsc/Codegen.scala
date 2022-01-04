@@ -179,11 +179,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
 
 trait PureLLSCCodeGen extends GenericLLSCCodeGen {
   registerHeader("./headers", "<llsc.hpp>")
-  registerHeader("./headers", "<llsc_intrinsics.hpp>")
-  registerHeader("./headers", "<llsc_external.hpp>")
-
-  registerHeader("<stp/c_interface.h>")
-  registerHeader("./headers", "<stp_handle.hpp>")
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "tp-async", List(b: Block), _) =>
