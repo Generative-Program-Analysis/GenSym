@@ -199,11 +199,6 @@ trait PureLLSCCodeGen extends GenericLLSCCodeGen {
 
 trait ImpureLLSCCodeGen extends GenericLLSCCodeGen {
   registerHeader("./headers", "<llsc_imp.hpp>")
-  registerHeader("./headers", "<llsc_imp_intrinsics.hpp>")
-  registerHeader("./headers", "<llsc_imp_external.hpp>")
-
-  registerHeader("<stp/c_interface.h>")
-  registerHeader("./headers", "<stp_handle.hpp>")
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "ss-copy", _, _) => false

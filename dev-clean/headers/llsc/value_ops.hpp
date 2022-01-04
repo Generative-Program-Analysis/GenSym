@@ -255,6 +255,10 @@ struct StructV : Value {
     hash_combine(hash(), std::string("structv"));
     for (auto &f: fs) hash_combine(hash(), std::hash<PtrVal>{}(f));
   }
+  StructV(std::vector<PtrVal> fs) : fs(fs.begin(), fs.end()) {
+    hash_combine(hash(), std::string("structv"));
+    for (auto &f: fs) hash_combine(hash(), std::hash<PtrVal>{}(f));
+  }
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
   }

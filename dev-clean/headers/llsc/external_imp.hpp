@@ -1,4 +1,5 @@
-#include <llsc_imp.hpp>
+#ifndef LLSC_EXTERNAL_IMP_HEADERS
+#define LLSC_EXTERNAL_IMP_HEADERS
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   for (auto x : args) { std::cout << *x << "; "; }
@@ -92,7 +93,7 @@ inline std::monostate __assert_fail(SS state, immer::flex_vector<PtrVal> args, s
   return k(state, make_IntV(0));
 }
 
-// std::vector versions
+// Belows are the counterparts that use std::vector for argument list and return list
 // TODO: refactor them using tempaltes?
 
 inline std::vector<std::pair<SS, PtrVal>> sym_print(SS state, std::vector<PtrVal> args) {
@@ -178,3 +179,5 @@ inline std::vector<std::pair<SS, PtrVal>> __assert_fail(SS state, std::vector<Pt
   // std::cout << "Fail: Calling to __assert_fail" << std::endl;
   return std::vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
+
+#endif
