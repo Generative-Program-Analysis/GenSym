@@ -41,6 +41,12 @@ class CompileTimeRuntime[Addr, BFTy, FFTy]() {
   var typeDefMap: Map[String, LLVMType] = Map()
   var heapEnv: Map[String, Addr] = Map()
 
+  val funNameMap: HashMap[Int, String] = new HashMap()
+  val blockNameMap: HashMap[Int, String] = new HashMap()
+
+  val BBFuns: HashMap[(String, BB), BFTy] = new HashMap[(String, BB), BFTy]
+  val FunFuns: HashMap[String, FFTy] = new HashMap[String, FFTy]
+
   def reset(main: Module): Unit = {
     funMap = main.funcDefMap
     funDeclMap = main.funcDeclMap
@@ -48,13 +54,8 @@ class CompileTimeRuntime[Addr, BFTy, FFTy]() {
     globalDeclMap = main.globalDeclMap
     typeDefMap = main.typeDefMap
     heapEnv = Map[String, Addr]()
+    funNameMap.clear; blockNameMap.clear; BBFuns.clear; FunFuns.clear
   }
-
-  val funNameMap: HashMap[Int, String] = new HashMap()
-  val blockNameMap: HashMap[Int, String] = new HashMap()
-
-  val BBFuns: HashMap[(String, BB), BFTy] = new HashMap[(String, BB), BFTy]
-  val FunFuns: HashMap[String, FFTy] = new HashMap[String, FFTy]
 
   def findBlock(funName: String, lab: String): Option[BB] = funMap.get(funName).get.lookupBlock(lab)
   def findFirstBlock(funName: String): BB = findFundef(funName).body.blocks(0)
@@ -96,4 +97,5 @@ class CompileTimeRuntime[Addr, BFTy, FFTy]() {
       case _ => ???
     }
   }
+
 }

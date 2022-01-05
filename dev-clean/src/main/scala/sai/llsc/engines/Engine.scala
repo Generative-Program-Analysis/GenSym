@@ -92,7 +92,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
         if (!FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        ret(FunV(FunFuns(id)))
+        ret(FunV[Id](FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) =>
         val v =
           if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)

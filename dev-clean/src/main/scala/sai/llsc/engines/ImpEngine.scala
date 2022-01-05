@@ -80,7 +80,7 @@ trait ImpLLSCEngine extends SAIOps with ImpSymExeDefs {
         if (!FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        FunV(FunFuns(id))
+        FunV[Ref](FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
         if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
         else if (id.startsWith("@llvm")) Intrinsics.get(id)

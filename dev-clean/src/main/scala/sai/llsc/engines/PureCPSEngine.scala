@@ -87,7 +87,7 @@ trait PureCPSLLSCEngine extends SAIOps with SymExeDefs {
         if (!FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        CPSFunV(FunFuns(id))
+        CPSFunV[Id](FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
         if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
         else if (id.startsWith("@llvm")) Intrinsics.get(id)
@@ -258,7 +258,7 @@ trait PureCPSLLSCEngine extends SAIOps with SymExeDefs {
           case (v, t) => eval(v, t, ss)
         }
         val fK: Rep[Cont] = fun { case sv => k(sv._1.pop(ss.stackSize), sv._2) }
-        fv(ss.push, List(vs: _*), fK)
+        fv[Id](ss.push, List(vs: _*), fK)
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)()
@@ -352,7 +352,7 @@ trait PureCPSLLSCEngine extends SAIOps with SymExeDefs {
           case (v, t) => eval(v, t, ss)
         }
         val fK: Rep[Cont] = fun { case sv => k(sv._1.pop(ss.stackSize)) }
-        fv(ss.push, List(vs: _*), fK)
+        fv[Id](ss.push, List(vs: _*), fK)
     }
   }
 
@@ -458,11 +458,11 @@ trait PureCPSLLSCEngine extends SAIOps with SymExeDefs {
     val ss = SS.init(preHeap.asRepOf[Mem])
     if (!isCommandLine) {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
-      fv(ss.push, args, k)
+      fv[Id](ss.push, args, k)
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
-      fv(ss.push.updateArg(symarg), commandLineArgs, k)
+      fv[Id](ss.push.updateArg(symarg), commandLineArgs, k)
     }
   }
 }
