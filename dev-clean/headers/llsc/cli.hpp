@@ -66,7 +66,6 @@ inline void handle_cli_args(int argc, char** argv) {
       exit(-1);
     }
     int t = std::stoi(argv[optind]);
-    std::cout << t << "\n";
     if (t <= 0) {
       std::cout << "Invalid #threads, use 1 instead.\\n";
       MAX_ASYNC = 0;
