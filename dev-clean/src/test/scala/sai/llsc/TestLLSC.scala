@@ -19,7 +19,8 @@ import sys.process._
 
 import org.scalatest.FunSuite
 
-case class TestPrg(m: Module, name: String, f: String, nSym: Int, nPath: Int, result: Option[Int] = None)
+case class TestPrg(m: Module, name: String, f: String, nSym: Int, nPath: Int,
+                   runOpt: String = "", result: Option[Int] = None)
 
 object TestCases {
   val concrete: List[TestPrg] = List(
@@ -66,6 +67,11 @@ object TestCases {
     TestPrg(mp1024, "mp1024Test", "@f", 10, 1024),
   )
 
+  val symbolicLarge: List[TestPrg] = List(
+    TestPrg(mp65536, "mp65kTest", "@f", 16, 65536, "--disable-solver"),
+    TestPrg(mp1048576, "mp1mTest", "@f", 20, 1048576, "--disable-solver"),
+  )
+
   val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall
 
   // FIXME: out of range
@@ -78,15 +84,17 @@ object TestCases {
   // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
 }
 
+import TestCases._
+
 abstract class TestLLSC extends FunSuite {
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
-    val TestPrg(m, name, f, nSym, expPath, expRetOpt) = tst
+    val TestPrg(m, name, f, nSym, expPath, runOpt, expRetOpt) = tst
     test(name) {
-      val code = llsc.newInstance(m, name, f, nSym)
+      val code = llsc.newInstance(m, llsc.insName + "_" + name, f, nSym)
       code.genAll
       val mkRet = code.make(2)
       assert(mkRet == 0, "make failed")
-      val (output, ret) = code.runWithStatus(1)
+      val (output, ret) = code.runWithStatus(1, runOpt)
       System.err.println(output)
       val path = output.split("\n").last.split(" ").last.toInt
       assert(path == expPath, "Unexpected path number")
@@ -103,21 +111,21 @@ abstract class TestLLSC extends FunSuite {
 
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all)
+  //testLLSC(new PureLLSC, symbolicLarge)
 }
 
 class TestImpLLSC extends TestLLSC {
-  import TestCases._
   // FIXME: varArg is problematic for ImpLLSC
   testLLSC(new ImpLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
 }
 
 class TestCPSLLSC extends TestLLSC {
-  import TestCases._
   // FIXME: varArg has not implemented for CPSLLSC
   testLLSC(new CPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  //testLLSC(new ImpCPSLLSC, symbolicLarge)
 }
 
 class TestPureCPSLLSC extends TestLLSC {
-  import TestCases._
   testLLSC(new PureCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  //testLLSC(new PureCPSLLSC, symbolicLarge)
 }

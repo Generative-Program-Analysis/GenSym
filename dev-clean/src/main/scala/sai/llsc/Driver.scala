@@ -103,15 +103,19 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   }
 
   // returns the number of paths, obtained by parsing the output
-  def run(nThread: Int = 1): Int = {
-    val ret = Process(s"./$appName $nThread", new File(s"$folder/$appName")).!!
+  def run(nThread: Int = 1, opt: String = ""): Int = {
+    val cmd = s"./$appName $nThread $opt"
+    System.out.println(s"running $cmd")
+    val ret = Process(cmd, new File(s"$folder/$appName")).!!
     ret.split("\n").last.split(" ").last.toInt
   }
   // returns the number of paths, and the return status of the process
-  def runWithStatus(nThread: Int = 1): (String, Int) = {
+  def runWithStatus(nThread: Int = 1, opt: String = ""): (String, Int) = {
     import collection.mutable.ListBuffer
+    val cmd = s"./$appName $nThread $opt"
+    System.out.println(s"running $cmd")
     val output = ListBuffer[String]()
-    val ret = Process(s"./$appName $nThread", new File(s"$folder/$appName")).run(ProcessLogger(r => output += r, e => output += e)).exitValue
+    val ret = Process(cmd, new File(s"$folder/$appName")).run(ProcessLogger(r => output += r, e => output += e)).exitValue
     (output.mkString("\n"), ret)
   }
 }
