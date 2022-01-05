@@ -2,6 +2,7 @@ package sai.llsc.imp
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.llsc.Constants
 
 import lms.core._
 import lms.core.Backend._
@@ -29,6 +30,8 @@ import scala.collection.mutable.{Set => MultableSet}
 
 @virtualize
 trait ImpSymExeDefs extends SAIOps {
+  import Constants._
+
   type Cont = ((Ref[SS], Value) => Unit)
 
   object Coverage {
@@ -65,10 +68,6 @@ trait ImpSymExeDefs extends SAIOps {
   type BlockLabel = Int
   type Addr = Int
   type PC = Set[SMTBool]
-
-  final val BYTE_SIZE: Int = 8
-  final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
-  final val ARCH_WORD_SIZE: Int = 64
 
   /* 0 -- all control dependency
    * 1 -- read/write hard dependency

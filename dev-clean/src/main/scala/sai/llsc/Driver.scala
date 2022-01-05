@@ -129,8 +129,8 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
   val codegen = new PureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
-    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
-    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+    def funMap: HashMap[Int, String] = q.ctRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.ctRuntime.blockNameMap
   }
 }
 
@@ -139,8 +139,8 @@ abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   val codegen = new PureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
-    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
-    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+    def funMap: HashMap[Int, String] = q.ctRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.ctRuntime.blockNameMap
   }
 }
 
@@ -151,8 +151,8 @@ abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: 
   val codegen = new ImpureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
-    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
-    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+    def funMap: HashMap[Int, String] = q.ctRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.ctRuntime.blockNameMap
   }
 }
 
@@ -164,8 +164,8 @@ abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](appName: String, folde
   val codegen = new ImpureLLSCCodeGen with StdVectorCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
-    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
-    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+    def funMap: HashMap[Int, String] = q.ctRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.ctRuntime.blockNameMap
   }
 }
 
@@ -176,8 +176,8 @@ abstract class ImpCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folde
   val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
-    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
-    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+    def funMap: HashMap[Int, String] = q.ctRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.ctRuntime.blockNameMap
   }
 }
 

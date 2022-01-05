@@ -36,6 +36,8 @@ import scala.collection.mutable.{Set => MultableSet}
 
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
+  import Constants._
+
   type Cont = ((SS, Value) => Unit)
 
   object Coverage {
@@ -104,10 +106,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   type Addr = Int
   type PC = Set[SMTBool]
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
-
-  final val BYTE_SIZE: Int = 8
-  final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
-  final val ARCH_WORD_SIZE: Int = 64
 
   object SS {
     def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)

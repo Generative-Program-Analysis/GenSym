@@ -26,83 +26,27 @@ import sai.lmsx.smt.SMTBool
 
 @virtualize
 trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
-  object CompileTimeRuntime {
-    import collection.mutable.HashMap
+  val ctRuntime: CompileTimeRuntime[Rep[Addr], Rep[SS => List[(SS, Value)]], Rep[(SS, List[Value]) => List[(SS, Value)]]] =
+    new CompileTimeRuntime()
+  import ctRuntime._
 
-    var funMap: StaticMap[String, FunctionDef] = StaticMap()
-    var funDeclMap: StaticMap[String, FunctionDecl] = StaticMap()
-    var globalDefMap: StaticMap[String, GlobalDef] = StaticMap()
-    var globalDeclMap: StaticMap[String, GlobalDecl] = StaticMap()
-    var typeDefMap: StaticMap[String, LLVMType] = StaticMap()
-    var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+  def getBBFun(funName: String, blockLab: String): Rep[SS => List[(SS, Value)]] =
+    getBBFun(funName, findBlock(funName, blockLab).get)
 
-    val funNameMap: HashMap[Int, String] = new HashMap()
-    val blockNameMap: HashMap[Int, String] = new HashMap()
-
-    val BBFuns: HashMap[(String, BB), Rep[SS => List[(SS, Value)]]] = new HashMap[(String, BB), Rep[SS => List[(SS, Value)]]]
-    val FunFuns: HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]] =
-      new HashMap[String, Rep[(SS, List[Value]) => List[(SS, Value)]]]
-
-    def getBBFun(funName: String, blockLab: String): Rep[SS => List[(SS, Value)]] = {
-      getBBFun(funName, findBlock(funName, blockLab).get)
+  def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
+    if (!BBFuns.contains((funName, b))) {
+      precompileBlocks(funName, StaticList(b))
     }
-
-    def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
-      if (!CompileTimeRuntime.BBFuns.contains((funName, b))) {
-        precompileBlocks(funName, StaticList(b))
-      }
-      BBFuns((funName, b))
-    }
-
-    def findBlock(funName: String, lab: String): Option[BB] = funMap.get(funName).get.lookupBlock(lab)
-    def findFirstBlock(funName: String): BB = findFundef(funName).body.blocks(0)
-    def findFundef(funName: String) = funMap.get(funName).get
-    def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String =
-      blockNameMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
+    BBFuns((funName, b))
   }
-  import CompileTimeRuntime._
+  def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String =
+    blockNameMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
     val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
     "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
-  }
-
-  def getRealType(vt: LLVMType): LLVMType = vt match {
-    case NamedType(id) => typeDefMap(id)
-    case _ => vt
-  }
-
-  def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
-    case ArrayType(size, ety) =>
-      val rawSize = size * getTySize(ety, align)
-      if (rawSize % align == 0) rawSize
-      else (rawSize / align + 1) * align
-    case Struct(types) =>
-      types.map(getTySize(_, align)).sum
-    case NamedType(id) =>
-      getTySize(typeDefMap(id), align)
-    case IntType(size) =>
-      (size + BYTE_SIZE - 1) / BYTE_SIZE
-    case PtrType(ty, addrSpace) =>
-      ARCH_WORD_SIZE / BYTE_SIZE
-    case _ => ???
-  }
-
-  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Int = {
-    if (index.isEmpty) 0 else ty match {
-      case Struct(types) =>
-        val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
-        prev + calculateOffsetStatic(types(index.head), index.tail)
-      case ArrayType(size, ety) =>
-        index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
-      case NamedType(id) =>
-        calculateOffsetStatic(typeDefMap(id), index)
-      case PtrType(ety, addrSpace) =>
-        index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
-      case _ => ???
-    }
   }
 
   def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
@@ -145,10 +89,10 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
       // case CharArrayConst(s) =>
       case GlobalId(id) if funMap.contains(id) =>
-        if (!CompileTimeRuntime.FunFuns.contains(id)) {
+        if (!FunFuns.contains(id)) {
           precompileFunctions(StaticList(funMap(id)))
         }
-        ret(FunV(CompileTimeRuntime.FunFuns(id)))
+        ret(FunV(FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) =>
         val v =
           if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
@@ -519,7 +463,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
   }
 
   def execBlock(funName: String, label: String, s: Rep[SS]): Rep[List[(SS, Value)]] =
-    CompileTimeRuntime.getBBFun(funName, findBlock(funName, label).get)(s)
+    getBBFun(funName, findBlock(funName, label).get)(s)
 
   def execBlock(funName: String, label: String): Comp[E, Rep[Value]] =
     execBlock(funName, findBlock(funName, label).get)
@@ -529,14 +473,14 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       s <- getState
       v <- {
         unchecked("// jump to block: " + block.label.get)
-        reflect(CompileTimeRuntime.getBBFun(funName, block)(s))
+        reflect(getBBFun(funName, block)(s))
       }
     } yield v
 
   def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
     var addr: Int = prevSize
     globalDefMap.foreach { case (k, v) =>
-      CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (k -> unit(addr))
+      heapEnv = heapEnv + (k -> unit(addr))
       addr = addr + getTySize(v.typ)
     }
   }
@@ -554,7 +498,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       // TODO external_weak linkage
       val realID = mname + "_" + v.id
       val addr = h.size + prevSize
-      CompileTimeRuntime.heapEnv = CompileTimeRuntime.heapEnv + (realID -> unit(addr))
+      heapEnv = heapEnv + (realID -> unit(addr))
       h ++ StaticList.fill(getTySize(v.typ))(IntV(0))
     }
 
@@ -583,12 +527,12 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
 
     for (b <- blocks) {
-      Predef.assert(!CompileTimeRuntime.BBFuns.contains((funName, b)))
+      Predef.assert(!BBFuns.contains((funName, b)))
       val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
       val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
       val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-      CompileTimeRuntime.blockNameMap(n) = s"${realFunName}_Block$n"
-      CompileTimeRuntime.BBFuns((funName, b)) = repRunBlock
+      blockNameMap(n) = s"${realFunName}_Block$n"
+      BBFuns((funName, b)) = repRunBlock
     }
   }
 
@@ -609,21 +553,17 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
 
     for (f <- funs) {
-      Predef.assert(!CompileTimeRuntime.FunFuns.contains(f.id))
+      Predef.assert(!FunFuns.contains(f.id))
       val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
       val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      CompileTimeRuntime.funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
-      CompileTimeRuntime.FunFuns(f.id) = repRunFun
+      funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+      FunFuns(f.id) = repRunFun
     }
   }
 
   def exec(main: Module, fname: String, args: Rep[List[Value]],
     isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
-    CompileTimeRuntime.funMap = main.funcDefMap
-    CompileTimeRuntime.funDeclMap = main.funcDeclMap
-    CompileTimeRuntime.globalDefMap = main.globalDefMap
-    CompileTimeRuntime.globalDeclMap = main.globalDeclMap
-    CompileTimeRuntime.typeDefMap = main.typeDefMap
+    ctRuntime.reset(main)
 
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
