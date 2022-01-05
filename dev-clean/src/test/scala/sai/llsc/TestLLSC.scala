@@ -121,7 +121,7 @@ class TestImpLLSC extends TestLLSC {
 
 class TestCPSLLSC extends TestLLSC {
   // FIXME: varArg has not implemented for CPSLLSC
-  testLLSC(new CPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  testLLSC(new ImpCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
   //testLLSC(new ImpCPSLLSC, symbolicLarge)
 }
 
