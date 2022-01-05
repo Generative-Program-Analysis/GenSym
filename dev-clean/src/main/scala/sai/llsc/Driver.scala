@@ -134,6 +134,8 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
   }
 }
 
+// Using immer data structures but generating CPS code,
+// avoding reifying the returned nondet list.
 abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
    extends GenericLLSCDriver[A, B](appName, folder) with PureCPSLLSCEngine { q =>
   val codegen = new PureLLSCCodeGen {
@@ -263,33 +265,6 @@ class ImpCPSLLSC extends LLSC {
 }
 
 object RunLLSC {
-  def experiment: Unit = {
-    val pure = new PureLLSC
-    val cps = new ImpCPSLLSC
-    val imp = new ImpLLSC
-    val impVec = new ImpVecLLSC
-
-    //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kPure", "@f", 16)
-    //imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpCtrl", "@f", 16)
-    //impVec.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kImpVecCtrl", "@f", 16)
-    //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp65536, "mp65kCPSCtrl", "@f", 16)
-
-    //pure.runLLSC(sai.llvm.Benchmarks.mergesort, "mergePureCtrl", "@main", 0)
-    //imp.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpCtrl", "@main", 0)
-    //impVec.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeImpVecCtrl", "@main", 0)
-    //cps.runLLSC(sai.llvm.Benchmarks.mergesort, "mergeCPSCtrl", "@main", 0)
-
-    //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mPure", "@f", 20)
-    //imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mImp", "@f", 20)
-    //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1mCPS", "@f", 20)
-
-    //pure.runLLSC(sai.llvm.OOPSLA20Benchmarks.maze, "mazePure", "@main", 2)
-    //cps.runLLSC(sai.llvm.OOPSLA20Benchmarks.maze, "mazeCPS", "@main", 2)
-
-    // FIXME: incorrect code generated for block `if.end48`
-    imp.runLLSC(sai.llvm.OOPSLA20Benchmarks.maze, "mazeImp", "@main", 2)
-  }
-
   def main(args: Array[String]): Unit = {
     val usage = """
     Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
@@ -304,8 +279,6 @@ object RunLLSC {
       val llsc = new PureLLSC
       llsc.runLLSC(parseFile(filepath), appName, fun, nSym)
     }
-
-    //experiment
 
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
     //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
