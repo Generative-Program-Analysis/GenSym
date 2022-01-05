@@ -19,10 +19,8 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
-import scala.collection.immutable.{List => StaticList, Map => StaticMap}
-import scala.collection.mutable.{Map => MultableMap}
-import scala.collection.immutable.{Set => StaticSet}
-import scala.collection.mutable.{Set => MultableSet}
+import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
+import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 /* Naming convention for IR nodes:
    - If the node can be and should be handled by the default case of the codegen,

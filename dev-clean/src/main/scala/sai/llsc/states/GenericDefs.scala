@@ -19,10 +19,8 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
-import scala.collection.immutable.{List => StaticList, Map => StaticMap}
-import scala.collection.mutable.{Map => MultableMap}
-import scala.collection.immutable.{Set => StaticSet}
-import scala.collection.mutable.{Set => MultableSet}
+import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
+import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 trait BasicDefs { self: SAIOps =>
   trait Mem
@@ -73,8 +71,8 @@ trait Coverage { self: SAIOps =>
 
 trait Opaques { self: SAIOps with BasicDefs =>
   object External extends Serializable {
-    val warned = MultableSet[String]()
-    val modeled = MultableSet[String](
+    val warned = MutableSet[String]()
+    val modeled = MutableSet[String](
       "sym_print", "malloc", "realloc", "llsc_assert", "make_symbolic",
       "open", "close", "sym_exit",
       "__assert_fail"
@@ -84,7 +82,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
   }
 
   object Intrinsics {
-    val warned = MultableSet[String]()
+    val warned = MutableSet[String]()
     def get(id: String): Rep[Value] =
       if (id.startsWith("@llvm.va_start")) llvm_va_start
       else if (id.startsWith("@llvm.memcpy")) llvm_memcopy
@@ -106,7 +104,10 @@ trait Opaques { self: SAIOps with BasicDefs =>
 
 trait ValueDefs { self: SAIOps with BasicDefs =>
   import Constants._
+  val bConst = Backend.Const
+  lazy val gNode = Adapter.g.Def
 
+  type bExp = Backend.Exp
   type PCont[W[_]] = ((W[SS], Value) => Unit)
 
   object IntV {
@@ -117,9 +118,9 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def apply(i: Rep[Long], bw: Int)(implicit d: DummyImplicit): Rep[Value] =
       "make_IntV".reflectMutableWith[Value](i, bw)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
-      case Adapter.g.Def("make_IntV", Backend.Const(v: Int)::Backend.Const(bw: Int)::_) =>
+      case gNode("make_IntV", bConst(v: Int)::bConst(bw: Int)::_) =>
         Some((v, bw))
-      case Adapter.g.Def("make_IntV", Backend.Const(v: Long)::Backend.Const(bw: Int)::_) =>
+      case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) =>
         Some((v, bw))
       case _ => None
     }
@@ -131,8 +132,13 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
   object LocV {
     def kStack: Rep[Int] = "kStack".reflectMutableWith[Int]()
     def kHeap: Rep[Int] = "kHeap".reflectMutableWith[Int]()
-    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int] = unit(-1)):
-      Rep[Value] = "make_LocV".reflectMutableWith[Value](l, kind, size)
+    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int] = unit(-1)): Rep[Value] =
+      "make_LocV".reflectMutableWith[Value](l, kind, size)
+    def unapply(v: Rep[Value]): Option[(Rep[Addr], Int, Int)] = Unwrap(v) match {
+      case gNode("make_LocV", (a: bExp)::bConst(k: Int)::bConst(size: Int)::_) =>
+        Some((Wrap[Addr](a), k, size))
+      case _ => None
+    }
   }
   object FunV {
     def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[Value] = f.asRepOf[Value]
@@ -144,12 +150,10 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
     def apply(s: Rep[String], bw: Int): Rep[Value] =
       "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)  //XXX: reflectMutable?
-    def makeSymVList(i: Int): Rep[List[Value]] = {
+    def makeSymVList(i: Int): Rep[List[Value]] =
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
-    }
   }
   object NullV {
-    // for now
     def apply(): Rep[Value] = "null-v".reflectMutableWith[Value]()
   }
 
@@ -162,20 +166,25 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
   }
 
   implicit class ValueOps(v: Rep[Value]) {
-    // TODO: optimization like int
-    def loc: Rep[Addr] = "proj_LocV".reflectWith[Addr](v)
+    def loc: Rep[Addr] = v match {
+      case LocV(a, k, size) => a
+      case _ => "proj_LocV".reflectWith[Addr](v)
+    }
+    def kind: Rep[Int] = v match {
+      case LocV(a, k, size) => k
+      case _ => "proj_LocV_kind".reflectWith[Int](v)
+    }
     def int: Rep[Int] = v match {
       case IntV(n, bw) => unit(n)
       case _ => "proj_IntV".reflectWith[Int](v)
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
-    def kind: Rep[Int] = "proj_LocV_kind".reflectWith[Int](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
     def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       Unwrap(v) match {
-        case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
+        case gNode("llsc-external-wrapper", bConst("noop")::Nil) =>
           List((s, IntV(0)))
-        case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+        case gNode("llsc-external-wrapper", bConst(f: String)::Nil) =>
           System.out.println("use external function: " + f)
           f.reflectWith[List[(SS, Value)]](s, args)
         case _ =>
@@ -187,9 +196,9 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] = {
       Unwrap(v) match {
-        case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
+        case gNode("llsc-external-wrapper", bConst("noop")::Nil) =>
           k(s, IntV(0))
-        case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+        case gNode("llsc-external-wrapper", bConst(f: String)::Nil) =>
           // XXX: if the external function does not diverge, we don't need to
           // pass the continuation into it, we can just return a pair of state/value.
           System.out.println("use external function: " + f)
@@ -205,13 +214,10 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     // TODO: impl bv_zext in backend
     // XXX: bv_sext -> bv_zext?
     def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
+
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
     def toSMTBool: Rep[SMTBool] = "to-SMTBool".reflectWith[SMTBool](v)
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTBoolNeg".reflectWith[SMTBool](v)
-
-    // TODO: toSMTBool vs toSMTExpr?
-    //def toSMTExpr: Rep[SMTExpr] =
-    //  Wrap[SMTExpr](Adapter.g.reflect("proj_SMTExpr", Unwrap(v)))
 
     def fp_toui(to: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, to)
     def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
