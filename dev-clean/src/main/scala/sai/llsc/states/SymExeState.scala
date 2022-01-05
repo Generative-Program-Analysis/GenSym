@@ -36,6 +36,8 @@ import scala.collection.mutable.{Set => MultableSet}
 
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
+  type Cont = ((Ref[SS], Value) => Unit)
+
   object Coverage {
     import scala.collection.mutable.HashMap
     private var counter: Int = 0
@@ -190,6 +192,10 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
 
+  implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOpsOpt(ss.asRepOf[SS])
+  implicit def SS2RefSS(s: Rep[SS]): Rep[Ref[SS]] = s.asRepOf[Ref[SS]]
+  implicit def RefSS2SS(s: Rep[Ref[SS]]): Rep[SS] = s.asRepOf[SS]
+
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
@@ -217,6 +223,9 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
   object FunV {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
+  }
+  object CPSFunV {
+    def apply(f: Rep[(Ref[SS], List[Value], Cont) => Unit]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
@@ -259,6 +268,21 @@ trait SymExeDefs extends SAIOps with StagedNondet {
         case _ =>
           val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
           f(s, args)
+      }
+    }
+    // The CPS version
+    def apply(s: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
+      Unwrap(v) match {
+        case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
+          k(s, IntV(0))
+        case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
+          // XXX: if the external function does not diverge, we don't need to
+          // pass the continuation into it, we can just return a pair of state/value.
+          System.out.println("use external function: " + f)
+          f.reflectWith[Unit](s, args, k)
+        case _ =>
+          val f = v.asRepOf[(SS, List[Value], Cont) => Unit]
+          f(s, args, k)
       }
     }
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)

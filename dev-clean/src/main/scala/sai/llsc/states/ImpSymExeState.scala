@@ -248,7 +248,7 @@ trait ImpSymExeDefs extends SAIOps {
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const("noop")::Nil) =>
           k(s, IntV(0))
         case Adapter.g.Def("llsc-external-wrapper", Backend.Const(f: String)::Nil) =>
-          // XXX: if the external function does not diverge, we don' need to
+          // XXX: if the external function does not diverge, we don't need to
           // pass the continuation into it, we can just return a pair of state/value.
           System.out.println("use external function: " + f)
           f.reflectWith[Unit](s, args, k)

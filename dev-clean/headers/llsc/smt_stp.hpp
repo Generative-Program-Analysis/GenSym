@@ -132,8 +132,7 @@ struct Checker {
     if (use_global_solver) {
       vc = global_vc;
       vc_push(vc);
-    }
-    else {
+    } else {
       vc = vc_createValidityChecker();
     }
   }
@@ -143,8 +142,7 @@ struct Checker {
     cex2.clear();
     if (use_global_solver) {
       vc_pop(vc);
-    }
-    else {
+    } else {
       vc_Destroy(vc);
     }
   }
@@ -190,9 +188,8 @@ struct Checker {
           vars.clear();
         }
       }
-    }
-    else {
-      for (auto &e: pc)
+    } else {
+      for (auto& e: pc)
         pc2.insert(construct_STP_expr(vc, e, variables));
     }
     // cex cache: query

@@ -1,28 +1,23 @@
 package sai.llsc
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
-
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
+import sai.lang.llvm._
+import sai.lang.llvm.IR._
+import sai.lang.llvm.parser.Parser._
+
 import sai.lmsx._
 import sai.utils.Utils.time
-import scala.collection.immutable.{List => StaticList}
-import scala.collection.mutable.HashMap
-
-import sai.llsc.imp.ImpLLSCEngine
-import sai.llsc.imp.CPSLLSCEngine
+import sai.llvm.Benchmarks._
+import sai.llvm.OOPSLA20Benchmarks._
 
 import sys.process._
 
 import org.scalatest.FunSuite
-import sai.llvm.Benchmarks._
-import sai.llvm.OOPSLA20Benchmarks._
 
 case class TestPrg(m: Module, name: String, f: String, nSym: Int, nPath: Int, result: Option[Int] = None)
 
@@ -106,6 +101,7 @@ abstract class TestLLSC extends FunSuite {
   def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = tests.foreach(testLLSC(llsc, _))
 }
 
+/*
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all)
 }
@@ -120,4 +116,11 @@ class TestCPSLLSC extends TestLLSC {
   import TestCases._
   // FIXME: varArg has not implemented for CPSLLSC
   testLLSC(new CPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+}
+ */
+
+class TestPureCPSLLSC extends TestLLSC {
+  import TestCases._
+  testLLSC(new PureCPSLLSC, concrete) // ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  //testLLSC(new PureCPSLLSC, TestPrg(add, "addTest", "@main", 0, 1))
 }

@@ -16,7 +16,7 @@ import scala.collection.immutable.{List => StaticList}
 import scala.collection.mutable.HashMap
 
 import sai.llsc.imp.ImpLLSCEngine
-import sai.llsc.imp.CPSLLSCEngine
+import sai.llsc.imp.ImpCPSLLSCEngine
 
 import sys.process._
 
@@ -130,6 +130,16 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
   }
 }
 
+abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
+   extends GenericLLSCDriver[A, B](appName, folder) with PureCPSLLSCEngine { q =>
+  val codegen = new PureLLSCCodeGen {
+    val IR: q.type = q
+    val codegenFolder = s"$folder/$appName/"
+    def funMap: HashMap[Int, String] = q.CompileTimeRuntime.funNameMap
+    def blockMap: HashMap[Int, String] = q.CompileTimeRuntime.blockNameMap
+  }
+}
+
 // Using C++ std containers for internal state/memory representation,
 // but still using immer containers for function call argument lists and result lists.
 abstract class ImpLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
@@ -157,8 +167,8 @@ abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](appName: String, folde
 
 // Generting CPS code with C++ containers for internal state/memory representation.
 // Function call argument lists and result lists still use immer containers.
-abstract class CPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
-   extends GenericLLSCDriver[A, B](appName, folder) with CPSLLSCEngine { q =>
+abstract class ImpCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
+   extends GenericLLSCDriver[A, B](appName, folder) with ImpCPSLLSCEngine { q =>
   val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
@@ -194,6 +204,20 @@ class PureLLSC extends LLSC {
     }
 }
 
+class PureCPSLLSC extends LLSC {
+  val insName = "PureCPSLLSC"
+  def newInstance(m: Module, name: String, fname: String, nSym: Int) =
+    new PureCPSLLSCDriver[Int, Unit](name, "./llsc_gen") {
+      def snippet(u: Rep[Int]) = {
+        val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
+        val k: Rep[Cont] = fun { case sv =>
+          SS.checkPCToFile(sv._1); ()
+        }
+        exec(m, fname, args, false, 4, k)
+      }
+    }
+}
+
 class ImpLLSC extends LLSC {
   val insName = "ImpLLSC"
   def newInstance(m: Module, name: String, fname: String, nSym: Int) =
@@ -220,10 +244,10 @@ class ImpVecLLSC extends LLSC {
     }
 }
 
-class CPSLLSC extends LLSC {
-  val insName = "CPSLLSC"
+class ImpCPSLLSC extends LLSC {
+  val insName = "ImpCPSLLSC"
   def newInstance(m: Module, name: String, fname: String, nSym: Int) =
-    new CPSLLSCDriver[Int, Unit](name, "./llsc_gen") {
+    new ImpCPSLLSCDriver[Int, Unit](name, "./llsc_gen") {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val k: Rep[Cont] = fun { case sv =>
@@ -237,7 +261,7 @@ class CPSLLSC extends LLSC {
 object RunLLSC {
   def experiment: Unit = {
     val pure = new PureLLSC
-    val cps = new CPSLLSC
+    val cps = new ImpCPSLLSC
     val imp = new ImpLLSC
     val impVec = new ImpVecLLSC
 

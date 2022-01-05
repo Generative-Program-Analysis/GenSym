@@ -18,7 +18,7 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait CPSLLSCEngine extends SAIOps with ImpSymExeDefs {
+trait ImpCPSLLSCEngine extends SAIOps with ImpSymExeDefs {
   object CompileTimeRuntime {
     import collection.mutable.HashMap
     var funMap: StaticMap[String, FunctionDef] = StaticMap()
