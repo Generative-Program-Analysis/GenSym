@@ -18,6 +18,8 @@ struct Monitor {
     steady_clock::time_point start;
     std::mutex bm;
     std::mutex pm;
+    std::thread watcher;
+    std::promise<void> signal_exit;
   public:
     Monitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
     Monitor(std::uint64_t num_blocks) : num_blocks(num_blocks), num_paths(0), start(steady_clock::now()) {}
@@ -33,11 +35,8 @@ struct Monitor {
       std::unique_lock<std::mutex> lk(pm);
       num_paths += n;
     }
-    void print_path_cov(bool ending = true) {
-      std::cout << "#paths: " << num_paths;
-      if (!ending) std::cout << "; ";
-      if (ending) std::cout << std::endl;
-      std::cout << std::flush;
+    void print_path_cov() {
+      std::cout << "#paths: " << num_paths << "; " << std::flush;
     }
     void print_block_cov() {
       size_t covered = 0;
@@ -59,7 +58,7 @@ struct Monitor {
       std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; " << std::flush;
       //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
     }
-    void print_query_num() {
+    void print_query_stat() {
       std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
     }
     void print_time() {
@@ -68,16 +67,24 @@ struct Monitor {
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
     void start_monitor() {
-      std::thread([this]{
-        while (this->block_cov.size() <= this->num_blocks) {
+      std::future<void> future = signal_exit.get_future();
+      watcher = std::thread([this](std::future<void> fut){
+        while (this->block_cov.size() <= this->num_blocks &&
+               fut.wait_for(milliseconds(1)) == std::future_status::timeout) {
           print_time();
           print_block_cov();
-          print_path_cov(false);
+          print_path_cov();
           print_async();
-          print_query_num();
+          print_query_stat();
           std::this_thread::sleep_for(seconds(1));
         }
-      }).detach();
+      }, std::move(future));
+    }
+    void stop_monitor() {
+      signal_exit.set_value();
+      if (watcher.joinable()) {
+        watcher.join();
+      }
     }
 };
 

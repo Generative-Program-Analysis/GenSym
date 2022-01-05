@@ -87,6 +87,11 @@ object TestCases {
 import TestCases._
 
 abstract class TestLLSC extends FunSuite {
+  def parseFinalNumPath(output: String): Int = {
+    // example:
+    // [43.4s/46.0s] #blocks: 12/12; #paths: 1666; #threads: 1; #async created: 0; #queries: 7328/1666 (1996)
+    output.split("\n").last.split(";")(1).split(":").last.trim.toInt
+  }
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
     val TestPrg(m, name, f, nSym, expPath, runOpt, expRetOpt) = tst
     test(name) {
@@ -96,7 +101,7 @@ abstract class TestLLSC extends FunSuite {
       assert(mkRet == 0, "make failed")
       val (output, ret) = code.runWithStatus(1, runOpt)
       System.err.println(output)
-      val path = output.split("\n").last.split(" ").last.toInt
+      val path = parseFinalNumPath(output)
       assert(path == expPath, "Unexpected path number")
       if (expRetOpt.nonEmpty) {
         assert(ret == expRetOpt.get, "Unexpected returned status")

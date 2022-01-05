@@ -167,9 +167,12 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     |  init_rand();
     |  handle_cli_args(argc, argv);
     |  $name(0);
+    |  cov.stop_monitor();
     |  cov.print_time();
     |  cov.print_block_cov();
     |  cov.print_path_cov();
+    |  cov.print_async();
+    |  cov.print_query_stat();
     |  return 0;
     |} """.stripMargin)
     //if (initStream.size > 0)
