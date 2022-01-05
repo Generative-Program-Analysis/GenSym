@@ -114,6 +114,7 @@ inline std::vector<std::pair<SS, PtrVal>> noop(SS state, std::vector<PtrVal> arg
   return std::vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
+// TODO: sync with the malloc in external_pure
 inline std::monostate malloc(SS& state, std::vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
   IntData bytes = proj_IntV(args.at(0));
   auto emptyMem = std::vector<PtrVal>(bytes, make_IntV(0));

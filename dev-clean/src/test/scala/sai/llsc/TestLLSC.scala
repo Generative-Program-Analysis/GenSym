@@ -101,7 +101,6 @@ abstract class TestLLSC extends FunSuite {
   def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = tests.foreach(testLLSC(llsc, _))
 }
 
-/*
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all)
 }
@@ -117,10 +116,8 @@ class TestCPSLLSC extends TestLLSC {
   // FIXME: varArg has not implemented for CPSLLSC
   testLLSC(new CPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
 }
- */
 
 class TestPureCPSLLSC extends TestLLSC {
   import TestCases._
-  testLLSC(new PureCPSLLSC, concrete) // ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
-  //testLLSC(new PureCPSLLSC, TestPrg(add, "addTest", "@main", 0, 1))
+  testLLSC(new PureCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
 }

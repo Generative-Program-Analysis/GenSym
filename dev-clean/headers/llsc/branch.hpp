@@ -34,10 +34,10 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
 }
 
 inline std::monostate
-sym_exec_br_k(SS& ss, SExpr t_cond, SExpr f_cond,
-              std::monostate (*tf)(SS&, std::function<std::monostate(SS&, PtrVal)>),
-              std::monostate (*ff)(SS&, std::function<std::monostate(SS&, PtrVal)>),
-              std::function<std::monostate(SS&, PtrVal)> k) {
+sym_exec_br_k(SS ss, SExpr t_cond, SExpr f_cond,
+              std::monostate (*tf)(SS, std::function<std::monostate(SS, PtrVal)>),
+              std::monostate (*ff)(SS, std::function<std::monostate(SS, PtrVal)>),
+              std::function<std::monostate(SS, PtrVal)> k) {
   auto pc = ss.getPC();
   auto tbr_sat = check_pc(pc.add(t_cond));
   auto fbr_sat = check_pc(pc.add(f_cond));

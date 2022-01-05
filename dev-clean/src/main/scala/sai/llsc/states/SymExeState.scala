@@ -36,7 +36,7 @@ import scala.collection.mutable.{Set => MultableSet}
 
 @virtualize
 trait SymExeDefs extends SAIOps with StagedNondet {
-  type Cont = ((Ref[SS], Value) => Unit)
+  type Cont = ((SS, Value) => Unit)
 
   object Coverage {
     import scala.collection.mutable.HashMap
@@ -192,10 +192,6 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
 
-  implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOpsOpt(ss.asRepOf[SS])
-  implicit def SS2RefSS(s: Rep[SS]): Rep[Ref[SS]] = s.asRepOf[Ref[SS]]
-  implicit def RefSS2SS(s: Rep[Ref[SS]]): Rep[SS] = s.asRepOf[SS]
-
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =
@@ -225,7 +221,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
     def apply(f: Rep[(SS, List[Value]) => List[(SS, Value)]]): Rep[Value] = f.asRepOf[Value]
   }
   object CPSFunV {
-    def apply(f: Rep[(Ref[SS], List[Value], Cont) => Unit]): Rep[Value] = f.asRepOf[Value]
+    def apply(f: Rep[(SS, List[Value], Cont) => Unit]): Rep[Value] = f.asRepOf[Value]
   }
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)

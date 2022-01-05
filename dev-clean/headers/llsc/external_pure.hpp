@@ -1,10 +1,18 @@
 #ifndef LLSC_EXTERNAL_PURE_HEADERS
 #define LLSC_EXTERNAL_PURE_HEADERS
 
+using Cont = std::function<std::monostate(SS, PtrVal)>;
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   for (auto x : args) { std::cout << *x << "; "; }
   std::cout << "\n";
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
+inline std::monostate sym_print(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  for (auto x : args) { std::cout << *x << "; "; }
+  std::cout << "\n";
+  return k(state, make_IntV(0));
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> noop(SS state, immer::flex_vector<PtrVal> args) {
@@ -23,6 +31,21 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_ve
     return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
   }
 }
+
+inline std::monostate malloc(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  IntData bytes = proj_IntV(args.at(0));
+  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
+  if (exlib_failure_branch) {
+    // simulating the failed branch
+    PtrVal nullLoc = make_LocV_null();
+    k(state.heap_append(emptyMem), memLoc);
+    return k(state, nullLoc);
+  } else {
+    return k(state.heap_append(emptyMem), memLoc);
+  }
+}
+
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_vector<PtrVal> args) {
   Addr src = proj_LocV(args.at(0));
@@ -100,10 +123,27 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
 }
 
+inline std::monostate make_symbolic(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  PtrVal make_loc = args.at(0);
+  IntData len = proj_IntV(args.at(1));
+  SS res = state;
+  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
+  for (int i = 0; i < len; i++) {
+    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
+  }
+  return k(res, make_IntV(0));
+}
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::flex_vector<PtrVal> args) {
   // TODO get real argument string
   // std::cout << "Fail: Calling to __assert_fail" << std::endl;
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
+inline std::monostate __assert_fail(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  // TODO get real argument string
+  // std::cout << "Fail: Calling to __assert_fail" << std::endl;
+  return k(state, make_IntV(0));
 }
 
 #endif
