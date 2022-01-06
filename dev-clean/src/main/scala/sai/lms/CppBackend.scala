@@ -57,9 +57,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     def wraper(numStms: Int, l: Option[Node], y: Block)(f: => Unit) = {
       emitln("{")
       f
-      // Return a monostate value, otherwise g++ -O3 will generate a binary with core dump
-      if (y.res == Const(())) es"return std::monostate{};"
-      else es"return ${y.res};"
+      es"return ${y.res};"
       emitln(quoteEff(y.eff))
       emit("}")
     }

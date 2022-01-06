@@ -33,6 +33,10 @@ trait SAIOps extends Base
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
 
+  // Override the LMS Wrap which treats Unit value as void/Const(());
+  // instead, we will treat Unit as std::monostate in C++
+  override def Wrap[A:Manifest](x: lms.core.Backend.Exp): Exp[A] = new Wrap[A](x)
+
   implicit class RepOps[A: Manifest](a: Rep[A]) {
     def asRepOf[B: Manifest]: Rep[B] = Wrap[B](Unwrap(a))
     def reflectOp[B: Manifest](op: String): Rep[B] = Wrap[B](Adapter.g.reflect(op, Unwrap(a)))
