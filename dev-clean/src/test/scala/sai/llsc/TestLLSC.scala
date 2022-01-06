@@ -87,11 +87,34 @@ object TestCases {
 import TestCases._
 
 abstract class TestLLSC extends FunSuite {
-  def parseFinalNumPath(output: String): Int = {
+  case class TestResult(engine: String, testName: String, solverTime: Double,
+    wholeTime: Double, blockCov: Double, pathNum: Int,
+    brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int)
+
+  def parseOutput(engine: String, testName: String, output: String): TestResult = {
     // example:
     // [43.4s/46.0s] #blocks: 12/12; #paths: 1666; #threads: 1; #async created: 0; #queries: 7328/1666 (1996)
-    output.split("\n").last.split(";")(1).split(":").last.trim.toInt
+    val lastLine = output.split("\n").last
+    val groups = lastLine.split(" ")
+    val (solverTime, wholeTime) = {
+      val t = groups(0).drop(1).split("/")
+      val solverTime = t(0).dropRight(1).toDouble
+      val wholeTime = t(1).dropRight(2).toDouble
+      (solverTime, wholeTime)
+    }
+    val blockCov = {
+      val t = groups(2).dropRight(1).split("/")
+      t(0).toDouble / t(1).toDouble
+    }
+    val pathNum = groups(4).dropRight(1).toInt
+    val (brQueryNum, testQueryNum) = {
+      val t = groups(11).split("/")
+      (t(0).toInt, t(1).toInt)
+    }
+    val cexCacheHit = groups(12).drop(1).dropRight(1).toInt
+    TestResult(engine, testName, solverTime, wholeTime, blockCov, pathNum, brQueryNum, testQueryNum, cexCacheHit)
   }
+
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
     val TestPrg(m, name, f, nSym, expPath, runOpt, expRetOpt) = tst
     test(name) {
@@ -101,7 +124,9 @@ abstract class TestLLSC extends FunSuite {
       assert(mkRet == 0, "make failed")
       val (output, ret) = code.runWithStatus(1, runOpt)
       System.err.println(output)
-      val path = parseFinalNumPath(output)
+      val resStat = parseOutput(llsc.insName, name, output)
+      System.err.println(resStat)
+      val path = resStat.pathNum
       assert(path == expPath, "Unexpected path number")
       if (expRetOpt.nonEmpty) {
         assert(ret == expRetOpt.get, "Unexpected returned status")
