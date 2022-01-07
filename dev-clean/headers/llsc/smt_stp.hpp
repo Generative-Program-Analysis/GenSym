@@ -99,6 +99,8 @@ inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHand
       return vc_notExpr(vc, expr_rands.at(0).get());
     case op_sext:
       return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);
+    case op_zext:
+      ABORT("not implemented?");
     case op_shl:
       return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_lshr:

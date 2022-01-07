@@ -370,6 +370,10 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
   }
 }
 
+inline PtrVal bv_zext(PtrVal v, int bw) {
+  ABORT("TODO");
+}
+
 inline PtrVal trunc(PtrVal v1, int from, int to) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {

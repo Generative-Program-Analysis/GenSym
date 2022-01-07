@@ -211,7 +211,6 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
-    // TODO: impl bv_zext in STP backend
     def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_zext".reflectWith[Value](v, bw)
 
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
