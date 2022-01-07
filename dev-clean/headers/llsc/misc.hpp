@@ -4,6 +4,9 @@
 inline void prelude(int argc, char** argv) {
   init_rand();
   handle_cli_args(argc, argv);
+#ifdef Z3
+  cz3.init_solvers();
+#endif
 }
 
 inline void epilogue() {

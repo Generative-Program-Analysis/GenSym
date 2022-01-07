@@ -43,7 +43,13 @@ using namespace std::chrono;
 #include <llsc/value_ops.hpp>
 #include <llsc/filesys.hpp>
 #include <llsc/state_pure.hpp>
+
+#ifdef Z3
+#include <llsc/smt_z3.hpp>
+#else
 #include <llsc/smt_stp.hpp>
+#endif
+
 #include <llsc/branch.hpp>
 
 #include <llsc/external_pure.hpp>
