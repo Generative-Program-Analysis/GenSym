@@ -377,14 +377,12 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
     i = i << (from - to);
     i = i >> (from - to);
     return make_IntV(i, to);
-  } else {
-    auto s1 = std::dynamic_pointer_cast<SymV>(v1);
-    if (s1) {
-      return std::make_shared<SymV>(op_trunc,
-        immer::flex_vector({ v1 }), to);
-    }
-    ABORT("Truncate an invalid value, exit");
   }
+  auto s1 = std::dynamic_pointer_cast<SymV>(v1);
+  if (s1) {
+    return std::make_shared<SymV>(op_trunc, immer::flex_vector({ v1 }), to);
+  }
+  ABORT("Truncate an invalid value, exit");
 }
 
 inline const PtrVal IntV0 = make_IntV(0);
