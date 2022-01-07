@@ -37,15 +37,24 @@ using namespace std::chrono;
 #define IMPURE_STATE
 
 #include <llsc/auxiliary.hpp>
+#include <llsc/parallel.hpp>
 #include <llsc/cli.hpp>
 #include <llsc/monitor.hpp>
 #include <llsc/value_ops.hpp>
 #include <llsc/state_imp.hpp>
-#include <llsc/parallel.hpp>
 #include <llsc/smt_stp.hpp>
 #include <llsc/branch.hpp>
 
 #include <llsc/external_imp.hpp>
 #include <llsc/intrinsics_imp.hpp>
+
+inline void epilogue() {
+  cov.stop_monitor();
+  cov.print_time();
+  cov.print_block_cov();
+  cov.print_path_cov();
+  cov.print_async();
+  cov.print_query_stat();
+}
 
 #endif

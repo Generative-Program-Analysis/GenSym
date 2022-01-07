@@ -3,12 +3,8 @@
 
 /* Thread pool */
 
-#ifdef USE_TP
-
 #include "thread_pool.hpp"
 inline thread_pool tp;
-
-#endif
 
 /* Async */
 
