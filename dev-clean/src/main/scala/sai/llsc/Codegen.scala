@@ -164,8 +164,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     emit(src)
     emitln(s"""
     |int main(int argc, char *argv[]) {
-    |  init_rand();
-    |  handle_cli_args(argc, argv);
+    |  prelude(argc, argv);
     |  $name(0);
     |  epilogue();
     |  return 0;

@@ -21,18 +21,22 @@ inline size_t max_par_num = 0;
 
 class thread_pool {
 private:
-  std::mutex q_lock = {};
   std::atomic<bool> running = true;
   std::atomic<bool> paused = false;
+
+  std::mutex q_lock = {};
   std::queue<std::function<void()>> tasks = {};
+
   size_t thread_num;
   std::unique_ptr<std::thread[]> threads;
+  std::unique_ptr<std::thread::id[]> thread_ids;
+
   size_t sleep_duration = 1000;
   std::atomic<size_t> tasks_num_total = 0;
-
   bool inited = false;
 public:
-  thread_pool(const size_t thread_num) : thread_num(thread_num), threads(new std::thread[thread_num]) {
+  thread_pool(const size_t thread_num) :
+    thread_num(thread_num), threads(new std::thread[thread_num]), thread_ids(new std::thread::id[thread_num]) {
     init(thread_num);
   }
   thread_pool() : thread_num(0) {}
@@ -46,11 +50,16 @@ public:
     if (inited) ABORT("Thread pool is already initialized.");
     thread_num = n;
     threads.reset(new std::thread[thread_num]);
+    thread_ids.reset(new std::thread::id[thread_num]);
     for (size_t i = 0; i < thread_num; i++) {
       std::cout << "create thread " << i << "\n";
       threads[i] = std::thread(&thread_pool::worker, this);
+      thread_ids[i] = threads[i].get_id();
     }
     inited = true;
+  }
+  void with_thread_ids(const std::function<void(std::thread::id)>& f) {
+    for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
   void add_task(const std::function<void()>& f) {
     tasks_num_total++;

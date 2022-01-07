@@ -49,16 +49,6 @@ using namespace std::chrono;
 #include <llsc/external_pure.hpp>
 #include <llsc/intrinsics_pure.hpp>
 
-inline void epilogue() {
-#ifdef USE_TP
-  tp.wait_for_tasks();
-#endif
-  cov.stop_monitor();
-  cov.print_time();
-  cov.print_block_cov();
-  cov.print_path_cov();
-  cov.print_async();
-  cov.print_query_stat();
-}
+#include <llsc/misc.hpp>
 
 #endif

@@ -84,5 +84,4 @@ inline void handle_cli_args(int argc, char** argv) {
   use_cexcache = use_cexcache && use_global_solver;
 }
 
-
 #endif

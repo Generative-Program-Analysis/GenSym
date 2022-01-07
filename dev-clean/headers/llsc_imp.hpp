@@ -48,13 +48,6 @@ using namespace std::chrono;
 #include <llsc/external_imp.hpp>
 #include <llsc/intrinsics_imp.hpp>
 
-inline void epilogue() {
-  cov.stop_monitor();
-  cov.print_time();
-  cov.print_block_cov();
-  cov.print_path_cov();
-  cov.print_async();
-  cov.print_query_stat();
-}
+#include <llsc/misc.hpp>
 
 #endif
