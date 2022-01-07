@@ -1,13 +1,21 @@
 #ifndef LLSC_PAR_HEADERS
 #define LLSC_PAR_HEADERS
 
+/* Thread pool */
+
+#ifdef USE_TP
+
+#include "thread_pool.hpp"
+inline thread_pool tp;
+
+#endif
+
 /* Async */
 
 inline std::mutex m;
-//inline thread_pool pool(4);
 
-inline bool can_par() {
-  return num_async < MAX_ASYNC;
+inline bool can_par_async() {
+  return num_async < max_par_num;
 }
 
 template <typename F, typename... Ts>

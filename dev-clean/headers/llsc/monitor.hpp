@@ -83,6 +83,7 @@ struct Monitor {
     void stop_monitor() {
       signal_exit.set_value();
       if (watcher.joinable()) {
+        // XXX: this is still not idea, since for execution < 1s, we need to wait for watcher to join...
         watcher.join();
       }
     }

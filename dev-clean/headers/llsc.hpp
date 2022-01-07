@@ -37,16 +37,28 @@ using namespace std::chrono;
 #define PURE_STATE
 
 #include <llsc/auxiliary.hpp>
+#include <llsc/parallel.hpp>
 #include <llsc/cli.hpp>
 #include <llsc/monitor.hpp>
 #include <llsc/value_ops.hpp>
 #include <llsc/filesys.hpp>
 #include <llsc/state_pure.hpp>
-#include <llsc/parallel.hpp>
 #include <llsc/smt_stp.hpp>
 #include <llsc/branch.hpp>
 
 #include <llsc/external_pure.hpp>
 #include <llsc/intrinsics_pure.hpp>
+
+inline void epilogue() {
+#ifdef USE_TP
+  tp.wait_for_tasks();
+#endif
+  cov.stop_monitor();
+  cov.print_time();
+  cov.print_block_cov();
+  cov.print_path_cov();
+  cov.print_async();
+  cov.print_query_stat();
+}
 
 #endif

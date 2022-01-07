@@ -88,7 +88,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
       // TODO: pass by ref vs pass by val?
       //emitln(s"std::function<$retType(${argTypes})&> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      quoteTypedBlock(b, false, true, capture = "&")
+      quoteTypedBlock(b, false, true, capture = "=")
       emitln(";")
     case _ => super.traverse(n)
   }

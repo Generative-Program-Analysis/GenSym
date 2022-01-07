@@ -14,7 +14,7 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
     cov.inc_path(1);
     SS tbr_ss = ss.addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
-    if (can_par()) {
+    if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
           return tf(tbr_ss);
@@ -45,7 +45,19 @@ sym_exec_br_k(SS ss, SExpr t_cond, SExpr f_cond,
     cov.inc_path(1);
     SS tbr_ss = ss.addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
-    if (can_par()) {
+#if USE_TP
+    if (max_par_num > 0) {
+      tp.add_task([tf, tbr_ss, t_cond, k]{ tf(tbr_ss, k); });
+      ff(fbr_ss, k);
+      //tp.add_task([ff, fbr_ss, f_cond, k]{ ff(fbr_ss, k); });
+      return std::monostate{};
+    } else {
+      tf(tbr_ss, k);
+      ff(fbr_ss, k);
+      return std::monostate{};
+    }
+#else
+    if (can_par_async()) {
       std::future<std::monostate> tf_res =
         create_async<std::monostate>([&]{
           return tf(tbr_ss, k);
@@ -58,6 +70,7 @@ sym_exec_br_k(SS ss, SExpr t_cond, SExpr f_cond,
       ff(fbr_ss, k);
       return std::monostate{};
     }
+#endif
   } else if (tbr_sat) {
     SS tbr_ss = ss.addPC(t_cond);
     return tf(tbr_ss, k);
@@ -88,7 +101,7 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
     cov.inc_path(1);
     SS tbr_ss = ss.copy().addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
-    if (can_par()) {
+    if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
           return tf(tbr_ss);
@@ -122,7 +135,7 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
     cov.inc_path(1);
     SS tbr_ss = ss.copy().addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
-    if (can_par()) {
+    if (can_par_async()) {
       std::future<std::vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<std::vector<std::pair<SS, PtrVal>>>([&]{
           return tf(tbr_ss);
@@ -163,7 +176,7 @@ sym_exec_br_k(SS& ss, SExpr t_cond, SExpr f_cond,
     cov.inc_path(1);
     SS tbr_ss = ss.copy().addPC(t_cond);
     SS fbr_ss = ss.addPC(f_cond);
-    if (can_par()) {
+    if (can_par_async()) {
       std::future<std::monostate> tf_res =
         create_async<std::monostate>([&]{
           return tf(tbr_ss, k);

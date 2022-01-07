@@ -7,7 +7,6 @@ inline bool use_objcache = true;
 inline bool use_cexcache = true;
 inline bool use_cons_indep = false;
 inline bool exlib_failure_branch = false;
-inline size_t MAX_ASYNC = 4;
 
 // XXX: can also specify symbolic argument here?
 inline void handle_cli_args(int argc, char** argv) {
@@ -67,15 +66,19 @@ inline void handle_cli_args(int argc, char** argv) {
     }
     int t = std::stoi(argv[optind]);
     if (t <= 0) {
-      std::cout << "Invalid #threads, use 1 instead.\\n";
-      MAX_ASYNC = 0;
+      std::cout << "Invalid #threads, use 1 instead.\n";
+      max_par_num = 0;
     } else {
-      MAX_ASYNC = t - 1;
+      max_par_num = t - 1;
     }
   }
-  if (MAX_ASYNC == 0) {
+  if (max_par_num == 0) {
     // It is safe the reuse the global_vc object within one thread, but not otherwise.
+    std::cout << "Use global solver\n";
     use_global_solver = true;
+  } else {
+    std::cout << "Use " << max_par_num << " (additional) threads\n";
+    tp.init(max_par_num);
   }
   use_objcache = use_objcache && use_global_solver;
   use_cexcache = use_cexcache && use_global_solver;

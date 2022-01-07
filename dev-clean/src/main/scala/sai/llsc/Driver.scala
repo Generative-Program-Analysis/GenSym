@@ -25,6 +25,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   import java.io.{File, PrintStream}
 
   val codegen: GenericLLSCCodeGen
+  def extraFlags: String = ""
 
   // Assuming the working directory only contains subdir "build" or "tests"
   // TODO: remove this to somewhere for utilities
@@ -68,7 +69,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     |TARGET = $appName
     |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
     |CC = g++ -std=c++17 -O3
-    |CXXFLAGS = $includes
+    |CXXFLAGS = $includes $extraFlags
     |LDFLAGS = $libraryPaths
     |LDLIBS = $libraries -lpthread
     |
@@ -137,7 +138,8 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
 // Using immer data structures but generating CPS code,
 // avoding reifying the returned nondet list.
 abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
-   extends GenericLLSCDriver[A, B](appName, folder) with PureCPSLLSCEngine { q =>
+    extends GenericLLSCDriver[A, B](appName, folder) with PureCPSLLSCEngine { q =>
+  override def extraFlags = "-D USE_TP"
   val codegen = new PureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
