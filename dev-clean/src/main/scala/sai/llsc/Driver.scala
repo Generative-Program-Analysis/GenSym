@@ -25,7 +25,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   import java.io.{File, PrintStream}
 
   val codegen: GenericLLSCCodeGen
-  def extraFlags: String = ""
+  var extraFlags: String = ""
 
   // Assuming the working directory only contains subdir "build" or "tests"
   // TODO: remove this to somewhere for utilities
@@ -139,7 +139,7 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](appName: String, folder:
 // avoding reifying the returned nondet list.
 abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".")
     extends GenericLLSCDriver[A, B](appName, folder) with PureCPSLLSCEngine { q =>
-  override def extraFlags = "-D USE_TP"
+  extraFlags = "-D USE_TP"
   val codegen = new PureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
@@ -224,6 +224,16 @@ class PureCPSLLSC extends LLSC {
         exec(m, fname, args, false, 4, k)
       }
     }
+}
+
+class PureCPSLLSC_Z3 extends PureCPSLLSC {
+  override val insName = "PureCPSLLSC_Z3"
+  override def newInstance(m: Module, name: String, fname: String, nSym: Int) = {
+    val llsc = super.newInstance(m, name, fname, nSym)
+    llsc.codegen.registerLibrary("-lz3")
+    llsc.extraFlags = "-D USE_TP -D Z3"
+    llsc
+  }
 }
 
 class ImpLLSC extends LLSC {

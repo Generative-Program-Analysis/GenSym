@@ -144,19 +144,25 @@ class TestPureLLSC extends TestLLSC {
   //testLLSC(new PureLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
 }
 
+// FIXME: varArg is problematic for instances other than PureLLSC
+
 class TestPureCPSLLSC extends TestLLSC {
   testLLSC(new PureCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
 }
 
+class TestPureCPSLLSC_Z3 extends TestLLSC {
+  val llsc = new PureCPSLLSC_Z3
+  //testLLSC(llsc, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
+}
+
 class TestImpLLSC extends TestLLSC {
-  // FIXME: varArg is problematic for ImpLLSC
   testLLSC(new ImpLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  // FIXME: varArg has not implemented for CPSLLSC
   testLLSC(new ImpCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
 }
