@@ -5,12 +5,18 @@
   ignore = dirty
 
 [submodule "immer"]
-  path = immer
+	path = third-party/immer
   url = https://github.com/arximboldi/immer.git
   ignore = dirty
 
 [submodule "stp"]
-  path = stp
+	path = third-party/stp
   branch = smtcomp2020
   url = https://github.com/stp/stp.git
+  ignore = dirty
+
+[submodule "z3"]
+  path = third-party/z3
+  branch = z3-4.8.12
+  url = https://github.com/Z3Prover/z3.git
   ignore = dirty
