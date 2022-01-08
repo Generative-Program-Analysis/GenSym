@@ -52,9 +52,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       }
       // case CharArrayConst(s) =>
       case GlobalId(id) if funMap.contains(id) =>
-        if (!FunFuns.contains(id)) {
-          precompileFunctions(StaticList(funMap(id)))
-        }
+        if (!FunFuns.contains(id)) compile(funMap(id))
         CPSFunV[Id](FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
         if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
@@ -297,7 +295,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     getBBFun(funName, block)(s, k)
   }
 
-  override def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
+  override def compile(funName: String, b: BB): Unit = {
     def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS], k: Rep[Cont]): Rep[Unit] =
       insts match {
         case Nil => execTerm(t, b.label.getOrElse(""), k)(s, funName)
@@ -310,18 +308,15 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       Coverage.incBlock(funName, b.label.get)
       runInst(b, b.ins, b.term, ss, k)
     }
-
-    for (b <- blocks) {
-      Predef.assert(!BBFuns.contains((funName, b)))
-      val repRunBlock: Rep[(SS, Cont) => Unit] = topFun(runBlock(b))
-      val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
-      val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-      blockNameMap(n) = s"${realFunName}_Block$n"
-      BBFuns((funName, b)) = repRunBlock
-    }
+    Predef.assert(!BBFuns.contains((funName, b)))
+    val repRunBlock: BFTy = topFun(runBlock(b))
+    val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
+    val realFunName = if (funName != "@main") funName.tail else "llsc_main"
+    blockNameMap(n) = s"${realFunName}_Block$n"
+    BBFuns((funName, b)) = repRunBlock
   }
 
-  def precompileFunctions(funs: List[FunctionDef]): Unit = {
+  override def compile(f: FunctionDef): Unit = {
     def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
@@ -332,20 +327,18 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       execBlock(f.id, f.blocks(0), ss.assign(params, args), k)
     }
 
-    for (f <- funs) {
-      Predef.assert(!FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value], Cont) => Unit] = topFun(runFun(f))
-      val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
-      FunFuns(f.id) = repRunFun
-    }
+    Predef.assert(!FunFuns.contains(f.id))
+    val repRunFun: FFTy = topFun(runFun(f))
+    val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
+    funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+    FunFuns(f.id) = repRunFun
   }
 
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     // XXX: precompile functions here takes some unreachable blocks into account,
     //      leading to spurious number of total blocks.
-    precompileFunctions(funMap.map(_._2).toList)
+    compile(funMap.map(_._2).toList)
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor

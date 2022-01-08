@@ -24,7 +24,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   val m: Module
   type BFTy // Block-function type
   type FFTy // Function-function type
-  def precompileBlocks(funName: String, blocks: List[BB]): Unit
+  def compile(funName: String, block: BB): Unit
+  def compile(f: FunctionDef): Unit
+  def compile(funs: List[FunctionDef]): Unit = funs.foreach(compile)
 
   def funMap: StaticMap[String, FunctionDef] = m.funcDefMap
   def funDeclMap: StaticMap[String, FunctionDecl] = m.funcDeclMap
@@ -44,9 +46,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     getBBFun(funName, findBlock(funName, blockLab).get)
 
   def getBBFun(funName: String, b: BB): BFTy = {
-    if (!BBFuns.contains((funName, b))) {
-      precompileBlocks(funName, StaticList(b))
-    }
+    if (!BBFuns.contains((funName, b))) compile(funName, b)
     BBFuns((funName, b))
   }
 

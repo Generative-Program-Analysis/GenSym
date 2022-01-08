@@ -58,9 +58,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       }
       // case CharArrayConst(s) =>
       case GlobalId(id) if funMap.contains(id) =>
-        if (!FunFuns.contains(id)) {
-          precompileFunctions(StaticList(funMap(id)))
-        }
+        if (!FunFuns.contains(id)) compile(funMap(id))
         ret(FunV[Id](FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) =>
         val v =
@@ -411,7 +409,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       }
     } yield v
 
-  override def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
+  override def compile(funName: String, b: BB): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       //println("// running block: " + funName + " - " + b.label.get)
@@ -422,18 +420,15 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       } yield v
       reify[Value](ss)(runInstList)
     }
-
-    for (b <- blocks) {
-      Predef.assert(!BBFuns.contains((funName, b)))
-      val repRunBlock: Rep[SS => List[(SS, Value)]] = topFun(runBlock(b))
-      val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
-      val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-      blockNameMap(n) = s"${realFunName}_Block$n"
-      BBFuns((funName, b)) = repRunBlock
-    }
+    Predef.assert(!BBFuns.contains((funName, b)))
+    val repRunBlock: BFTy = topFun(runBlock(b))
+    val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
+    val realFunName = if (funName != "@main") funName.tail else "llsc_main"
+    blockNameMap(n) = s"${realFunName}_Block$n"
+    BBFuns((funName, b)) = repRunBlock
   }
 
-  def precompileFunctions(funs: List[FunctionDef]): Unit = {
+  override def compile(f: FunctionDef): Unit = {
     def runFun(f: FunctionDef)(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
@@ -449,13 +444,11 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       reify(ss)(m)
     }
 
-    for (f <- funs) {
-      Predef.assert(!FunFuns.contains(f.id))
-      val repRunFun: Rep[(SS, List[Value]) => List[(SS, Value)]] = topFun(runFun(f))
-      val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-      funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
-      FunFuns(f.id) = repRunFun
-    }
+    Predef.assert(!FunFuns.contains(f.id))
+    val repRunFun: FFTy = topFun(runFun(f))
+    val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
+    funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+    FunFuns(f.id) = repRunFun
   }
 
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
