@@ -28,7 +28,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex libboost-all-dev python
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales clang-9 z3 libz3-dev
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales clang-9
     - name: Generate test files
       run: |
         cd benchmarks/llvm
@@ -37,6 +37,15 @@ jobs:
         make llsc
         cd ../oopsla20
         make generate_sse
+    - name: Compile Z3
+      run: |
+        cd ..
+        git clone -b z3-4.8.12 git@github.com:Z3Prover/z3.git
+        cd z3
+        python scripts/mk_make.py
+        cd build
+        make
+        sudo make install
     - name: Compile STP
       run: |
         cd ../stp

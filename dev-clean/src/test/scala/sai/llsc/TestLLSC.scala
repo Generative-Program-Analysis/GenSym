@@ -154,6 +154,7 @@ class TestPureCPSLLSC extends TestLLSC {
 class TestPureCPSLLSC_Z3 extends TestLLSC {
   val llsc = new PureCPSLLSC_Z3
   //testLLSC(llsc, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  // kmp and maze failed, due to unmatched bv sizes
   testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
 }
 
