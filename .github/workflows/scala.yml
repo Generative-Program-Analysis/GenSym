@@ -43,8 +43,8 @@ jobs:
         wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.12/z3-4.8.12-x64-glibc-2.31.zip
         unzip z3-4.8.12-x64-glibc-2.31.zip
         cd z3-4.8.12-x64-glibc-2.31
-        cp include/* /usr/include/
-        cp bin/libz3.so /usr/lib/x86_64-linux-gnu/
+        sudo cp include/* /usr/include/
+        sudo cp bin/libz3.so /usr/lib/x86_64-linux-gnu/
         sudo ldconfig
     - name: Compile STP
       run: |
