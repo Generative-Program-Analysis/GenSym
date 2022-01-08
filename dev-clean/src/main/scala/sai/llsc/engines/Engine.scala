@@ -25,48 +25,17 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
-  val ctRuntime: CompileTimeRuntime[Rep[Addr], Rep[SS => List[(SS, Value)]], Rep[(SS, List[Value]) => List[(SS, Value)]]] =
-    new CompileTimeRuntime()
-  import ctRuntime._
+trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
+  type BFTy = Rep[SS => List[(SS, Value)]]
+  type FFTy = Rep[(SS, List[Value]) => List[(SS, Value)]]
 
-  def getBBFun(funName: String, blockLab: String): Rep[SS => List[(SS, Value)]] =
-    getBBFun(funName, findBlock(funName, blockLab).get)
-
-  def getBBFun(funName: String, b: BB): Rep[SS => List[(SS, Value)]] = {
-    if (!BBFuns.contains((funName, b))) {
-      precompileBlocks(funName, StaticList(b))
-    }
-    BBFuns((funName, b))
-  }
-  def getRealBlockFunName(bf: Rep[SS => List[(SS, Value)]]): String =
-    blockNameMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
+  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(bf))
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
     val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
     "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
-  }
-
-  def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
-    if (index.isEmpty) 0 else ty match {
-      case PtrType(ety, addrSpace) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case ArrayType(size, ety) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case NamedType(id) =>
-        calculateOffset(typeDefMap(id), index)
-      case Struct(types) =>
-        // https://llvm.org/docs/LangRef.html#getelementptr-instruction
-        // "When indexing into a (optionally packed) structure, only i32 integer
-        //  constants are allowed"
-        // TODO: the align argument for getTySize
-        // TODO: test this
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Int)) => n.toLong }
-        unit(calculateOffsetStatic(ty, indexCst))
-      case _ => ???
-    }
   }
 
   // Note: now ty is mainly for eval IntConst to contain bit width
@@ -130,41 +99,6 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       case NullConst => ret(LocV(-1, LocV.kHeap))
       case NoneConst => ret(NullV())
     }
-  }
-
-  // FIXME: Alignment: CharArrayConst, ArrayConst
-  // Float Type
-  def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
-    case BoolConst(b) =>
-      StaticList(IntV(if (b) 1 else 0, 1))
-    case IntConst(n) =>
-      StaticList(IntV(n, ty.asInstanceOf[IntType].size)) ++ StaticList.fill(getTySize(ty) - 1)(NullV())
-    case FloatConst(f) =>
-      StaticList(FloatV(f))
-    case ZeroInitializerConst => ty match {
-      case ArrayType(size, ety) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
-      case Struct(types) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
-      case _ => StaticList.fill(getTySize(ty))(IntV(0))
-    }
-    case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalHeapConst(c, flattenTy(ty).head))
-    case CharArrayConst(s) =>
-      s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
-    case StructConst(cs) =>
-      cs.flatMap { case c => evalHeapConst(c.const, c.ty)}
-    case NullConst => StaticList.fill(getTySize(ty))(NullV())
-    case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
-      val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-      val id = const match { // is this one exclusive?
-        case GlobalId(id) => id
-        case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
-      }
-      LocV(heapEnv(id) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
-    }
-    case GlobalId(id) =>
-      LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
-    case BitCastExpr(from, const, to) =>
-      evalHeapConst(const, to)
   }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] =
@@ -477,44 +411,7 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
       }
     } yield v
 
-  def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
-    var addr: Int = prevSize
-    globalDefMap.foreach { case (k, v) =>
-      heapEnv = heapEnv + (k -> unit(addr))
-      addr = addr + getTySize(v.typ)
-    }
-  }
-
-  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] = {
-    precomputeHeapAddr(globalDefMap, prevSize)
-    globalDefMap.foldLeft(StaticList[Rep[Value]]()) { case (h, (k, v)) =>
-      h ++ evalHeapConst(v.const, getRealType(v.typ))
-    }
-  }
-
-  def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
-    prevSize: Int, mname: String): StaticList[Rep[Value]] =
-    globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-      // TODO external_weak linkage
-      val realID = mname + "_" + v.id
-      val addr = h.size + prevSize
-      heapEnv = heapEnv + (realID -> unit(addr))
-      h ++ StaticList.fill(getTySize(v.typ))(IntV(0))
-    }
-
-  def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
-    var heapSize = 0;
-    var heapTmp: StaticList[Rep[Value]] = StaticList()
-    for (module <- modules) {
-      heapTmp = heapTmp ++ precompileHeap(module.globalDefMap, heapTmp.size)
-      if (!module.globalDeclMap.isEmpty) {
-        heapTmp = heapTmp ++ precompileHeapDecl(module.globalDeclMap, heapTmp.size, module.mname)
-      }
-    }
-    heapTmp
-  }
-
-  def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
+  override def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runBlock(b: BB)(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       //println("// running block: " + funName + " - " + b.label.get)
@@ -561,11 +458,8 @@ trait LLSCEngine extends SAIOps with StagedNondet with SymExeDefs {
     }
   }
 
-  def exec(main: Module, fname: String, args: Rep[List[Value]],
-    isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
-    ctRuntime.reset(main)
-
-    val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
+  def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
+    val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
     val comp = if (!isCommandLine) {
       for {

@@ -3,7 +3,7 @@ package sai.llsc.imp
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.CompileTimeRuntime
+import sai.llsc.EngineBase
 import sai.llsc.ASTUtils._
 
 import scala.collection.JavaConverters._
@@ -19,42 +19,11 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 import sai.lmsx.smt.SMTBool
 
 @virtualize
-trait ImpCPSLLSCEngine extends SAIOps with ImpSymExeDefs {
-  val ctRuntime: CompileTimeRuntime[Rep[Addr], Rep[(Ref[SS], Cont) => Unit], Rep[(Ref[SS], List[Value], Cont) => Unit]] =
-    new CompileTimeRuntime()
-  import ctRuntime._
+trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
+  type BFTy = Rep[(Ref[SS], Cont) => Unit]
+  type FFTy = Rep[(Ref[SS], List[Value], Cont) => Unit]
 
-  def getBBFun(funName: String, blockLab: String): Rep[(Ref[SS], Cont) => Unit] =
-    getBBFun(funName, findBlock(funName, blockLab).get)
-
-  def getBBFun(funName: String, b: BB): Rep[(Ref[SS], Cont) => Unit] = {
-    if (!BBFuns.contains((funName, b))) {
-      precompileBlocks(funName, StaticList(b))
-    }
-    BBFuns((funName, b))
-  }
-  def getRealBlockFunName(bf: Rep[(Ref[SS], Cont) => Unit]): String =
-    blockNameMap(Unwrap(bf).asInstanceOf[Backend.Sym].n)
-
-  def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
-    if (index.isEmpty) 0 else ty match {
-      case PtrType(ety, addrSpace) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case ArrayType(size, ety) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
-      case NamedType(id) =>
-        calculateOffset(typeDefMap(id), index)
-      case Struct(types) =>
-        // https://llvm.org/docs/LangRef.html#getelementptr-instruction
-        // "When indexing into a (optionally packed) structure, only i32 integer
-        //  constants are allowed"
-        // TODO: the align argument for getTySize
-        // TODO: test this
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Int)) => n.toLong }
-        unit(calculateOffsetStatic(ty, indexCst))
-      case _ => ???
-    }
-  }
+  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(bf))
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
@@ -113,41 +82,6 @@ trait ImpCPSLLSCEngine extends SAIOps with ImpSymExeDefs {
       case NullConst => LocV(-1, LocV.kHeap)
       case NoneConst => NullV()
     }
-
-  // FIXME: Alignment: CharArrayConst, ArrayConst
-  // Float Type
-  def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
-    case BoolConst(b) =>
-      StaticList(IntV(if (b) 1 else 0, 1))
-    case IntConst(n) =>
-      StaticList(IntV(n, ty.asInstanceOf[IntType].size)) ++ StaticList.fill(getTySize(ty) - 1)(NullV())
-    case FloatConst(f) =>
-      StaticList(FloatV(f))
-    case ZeroInitializerConst => ty match {
-      case ArrayType(size, ety) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
-      case Struct(types) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
-      case _ => StaticList.fill(getTySize(ty))(IntV(0))
-    }
-    case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalHeapConst(c, flattenTy(ty).head))
-    case CharArrayConst(s) =>
-      s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
-    case StructConst(cs) =>
-      cs.flatMap { case c => evalHeapConst(c.const, c.ty)}
-    case NullConst => StaticList.fill(getTySize(ty))(NullV())
-    case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
-      val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-      val id = const match { // is this one exclusive?
-        case GlobalId(id) => id
-        case BitCastExpr(from, const, to) => const.asInstanceOf[GlobalId].id
-      }
-      LocV(heapEnv(id) + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
-    }
-    case GlobalId(id) =>
-      LocV(heapEnv(id), LocV.kHeap) :: StaticList.fill(getTySize(ty) - 1)(NullV())
-    case BitCastExpr(from, const, to) =>
-      evalHeapConst(const, to)
-  }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
     IntOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
@@ -385,44 +319,7 @@ trait ImpCPSLLSCEngine extends SAIOps with ImpSymExeDefs {
     getBBFun(funName, block)(s, k)
   }
 
-  def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
-    var addr: Int = prevSize
-    globalDefMap.foreach { case (k, v) =>
-      heapEnv = heapEnv + (k -> unit(addr))
-      addr = addr + getTySize(v.typ)
-    }
-  }
-
-  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] = {
-    precomputeHeapAddr(globalDefMap, prevSize)
-    globalDefMap.foldLeft(StaticList[Rep[Value]]()) { case (h, (k, v)) =>
-      h ++ evalHeapConst(v.const, getRealType(v.typ))
-    }
-  }
-
-  def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
-    prevSize: Int, mname: String): StaticList[Rep[Value]] =
-    globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-      // TODO external_weak linkage
-      val realID = mname + "_" + v.id
-      val addr = h.size + prevSize
-      heapEnv = heapEnv + (realID -> unit(addr))
-      h ++ StaticList.fill(getTySize(v.typ))(IntV(0))
-    }
-
-  def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
-    var heapSize = 0;
-    var heapTmp: StaticList[Rep[Value]] = StaticList()
-    for (module <- modules) {
-      heapTmp = heapTmp ++ precompileHeap(module.globalDefMap, heapTmp.size)
-      if (!module.globalDeclMap.isEmpty) {
-        heapTmp = heapTmp ++ precompileHeapDecl(module.globalDeclMap, heapTmp.size, module.mname)
-      }
-    }
-    heapTmp
-  }
-
-  def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
+  override def precompileBlocks(funName: String, blocks: List[BB]): Unit = {
     def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS], k: Rep[Cont]): Rep[Unit] =
       insts match {
         case Nil => execTerm(t, b.label.getOrElse(""), k)(s, funName)
@@ -467,10 +364,8 @@ trait ImpCPSLLSCEngine extends SAIOps with ImpSymExeDefs {
     }
   }
 
-  def exec(main: Module, fname: String, args: Rep[List[Value]],
-    isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
-    ctRuntime.reset(main)
-    val preHeap: Rep[List[Value]] = List(precompileHeapLists(main::Nil):_*)
+  def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
+    val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     precompileFunctions(funMap.map(_._2).toList)
     Coverage.setBlockNum
     Coverage.incPath(1)

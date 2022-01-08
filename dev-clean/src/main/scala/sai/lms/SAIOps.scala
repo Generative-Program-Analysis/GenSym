@@ -35,7 +35,9 @@ trait SAIOps extends Base
 
   // Override the LMS Wrap which treats Unit value as void/Const(());
   // instead, we will treat Unit as std::monostate in C++
-  override def Wrap[A:Manifest](x: lms.core.Backend.Exp): Exp[A] = new Wrap[A](x)
+  override def Wrap[A: Manifest](x: lms.core.Backend.Exp): Exp[A] = new Wrap[A](x)
+
+  def getBackendSym[T: Manifest](t: Rep[T]): Int = Unwrap(t).asInstanceOf[Backend.Sym].n
 
   implicit class RepOps[A: Manifest](a: Rep[A]) {
     def asRepOf[B: Manifest]: Rep[B] = Wrap[B](Unwrap(a))
