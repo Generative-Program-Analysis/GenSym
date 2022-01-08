@@ -16,7 +16,7 @@
   ignore = dirty
 
 [submodule "z3"]
-  path = third-party/z3
+	path = third-party/z3
   branch = z3-4.8.12
-  url = https://github.com/Z3Prover/z3.git
+  url = https://github.com/Z3Prover/z3
   ignore = dirty

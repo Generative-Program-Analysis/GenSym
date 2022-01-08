@@ -187,7 +187,7 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
 }
 
 trait CppCodeGen_Map extends ExtendedCPPCodeGen {
-  registerHeader("../immer", "<immer/map.hpp>")
+  registerHeader("../third-party/immer", "<immer/map.hpp>")
   registerHeader("./headers", "<sai.hpp>")
 
   val ms = ""; // "immer::"

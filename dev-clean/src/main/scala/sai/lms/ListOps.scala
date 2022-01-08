@@ -236,8 +236,8 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
 trait CppCodeGen_List extends ExtendedCCodeGen {
   // Note: using the Immer C++ library for immutable data structures
 
-  registerHeader("../immer", "<immer/flex_vector.hpp>")
-  registerHeader("../immer", "<immer/algorithm.hpp>")
+  registerHeader("../third-party/immer", "<immer/flex_vector.hpp>")
+  registerHeader("../third-party/immer", "<immer/algorithm.hpp>")
   registerHeader("./headers", "<sai.hpp>")
 
   val ns = ""; //"immer::"

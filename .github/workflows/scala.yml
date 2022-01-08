@@ -39,16 +39,15 @@ jobs:
         make generate_sse
     - name: Compile Z3
       run: |
-        cd ..
-        git clone -b z3-4.8.12 git@github.com:Z3Prover/z3.git
-        cd z3
+        cd ../third-party/z3
         python scripts/mk_make.py
         cd build
         make
         sudo make install
+        sudo ldconfig
     - name: Compile STP
       run: |
-        cd ../stp
+        cd ../third-party/stp
         mkdir build
         cd build
         cmake ..
