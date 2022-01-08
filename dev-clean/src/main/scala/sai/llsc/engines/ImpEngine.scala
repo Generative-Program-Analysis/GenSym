@@ -317,29 +317,25 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     getBBFun(funName, block)(s)
   }
 
-  override def compile(funName: String, b: BB): Unit = {
-    def runInst(b: BB, insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
+  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
+    def runInst(insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
       insts match {
         case Nil => execTerm(t, b.label.getOrElse(""))(s, funName)
-        case i::inst => execInst(i, s, s1 => runInst(b, inst, t, s1))(funName)
+        case i::inst => execInst(i, s, s1 => runInst(inst, t, s1))(funName)
       }
-
-    def runBlock(b: BB)(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
+    def runBlock(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       unchecked("// compiling block: " + funName + " - " + b.label.get)
       //println("// running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b, b.ins, b.term, ss)
+      runInst(b.ins, b.term, ss)
     }
-    Predef.assert(!BBFuns.contains((funName, b)))
-    val repRunBlock: BFTy = topFun(runBlock(b))
-    val n = Unwrap(repRunBlock).asInstanceOf[Backend.Sym].n
-    val realFunName = if (funName != "@main") funName.tail else "llsc_main"
-    blockNameMap(n) = s"${realFunName}_Block$n"
-    BBFuns((funName, b)) = repRunBlock
+    val f: BFTy = topFun(runBlock(_))
+    val n = Unwrap(f).asInstanceOf[Backend.Sym].n
+    (f, n)
   }
 
-  override def compile(f: FunctionDef): Unit = {
-    def runFun(f: FunctionDef)(ss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+  override def repFunFun(f: FunctionDef): (FFTy, Int) = {
+    def runFun(ss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       val params: List[String] = f.header.params.map {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
@@ -349,12 +345,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       ss.assign(params, args)
       execBlock(f.id, f.blocks(0), ss)
     }
-
-    Predef.assert(!FunFuns.contains(f.id))
-    val repRunFun: FFTy = topFun(runFun(f))
-    val n = Unwrap(repRunFun).asInstanceOf[Backend.Sym].n
-    funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
-    FunFuns(f.id) = repRunFun
+    val fn: FFTy = topFun(runFun(_, _))
+    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
+    (fn, n)
   }
 
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {

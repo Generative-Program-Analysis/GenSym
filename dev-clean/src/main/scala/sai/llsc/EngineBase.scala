@@ -21,11 +21,30 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   import collection.mutable.HashMap
   import Constants._
 
+  /* Abstract definitions */
+
   val m: Module
   type BFTy // Block-function type
   type FFTy // Function-function type
-  def compile(funName: String, block: BB): Unit
-  def compile(f: FunctionDef): Unit
+
+  def repBlockFun(funName: String, b: BB): (BFTy, Int)
+  def repFunFun(f: FunctionDef): (FFTy, Int)
+
+  /* Basic functionalities */
+
+  def compile(funName: String, b: BB): Unit = {
+    Predef.assert(!BBFuns.contains((funName, b)))
+    val (f, n) = repBlockFun(funName, b)
+    val realFunName = if (funName != "@main") funName.tail else "llsc_main"
+    blockNameMap(n) = s"${realFunName}_Block$n"
+    BBFuns((funName, b)) = f
+  }
+  def compile(f: FunctionDef): Unit = {
+    Predef.assert(!FunFuns.contains(f.id))
+    val (fn, n) = repFunFun(f)
+    funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+    FunFuns(f.id) = fn
+  }
   def compile(funs: List[FunctionDef]): Unit = funs.foreach(compile)
 
   def funMap: StaticMap[String, FunctionDef] = m.funcDefMap
