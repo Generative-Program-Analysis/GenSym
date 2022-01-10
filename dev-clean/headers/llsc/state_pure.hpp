@@ -101,6 +101,7 @@ class Stack {
 
 class PC {
   private:
+    // XXX: refactor: using a list that records the order of constraints
     immer::set<SExpr> pc;
     SExpr last;
   public:

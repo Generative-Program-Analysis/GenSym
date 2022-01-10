@@ -2,13 +2,68 @@
 
 using namespace z3;
 
-// TODO: define a checker interface
-// TODO: abstract over smt_z3 and smt_stp
+// TODO: refactor smt_stp using this Checker interface
+// TODO: generic caching mechanisms should be shared no matter the solver
+class Checker {
+public:
+  enum solver_result {
+    unsat, sat, unknown
+  };
+  static std::string check_result_to_string(solver_result res) {
+    switch (res) {
+      case sat: return "sat";
+      case unsat: return "unsat";
+      case unknown: return "unknown";
+      default: ABORT("wow");
+    }
+  }
+  virtual void init_solvers() = 0;
+  virtual void destroy_solvers() = 0;
+  virtual solver_result make_query(PC pc) = 0;
+  virtual void push() = 0;
+  virtual void pop() = 0;
+  virtual void reset() = 0;
+  virtual void print_model(std::stringstream&) = 0;
 
-using instance = std::tuple<context*, solver*>;
+  bool check_pc(PC pc) {
+    if (!use_solver) return true;
+    br_query_num++;
+    push();
+    auto r = make_query(pc);
+    pop();
+    return r == sat;
+  }
+  void generate_test(PC pc) {
+    if (!use_solver) return;
+    if (mkdir("tests", 0777) == -1) {
+      if (errno == EEXIST) { }
+      else ABORT("Cannot create the folder tests, abort.\n");
+    }
+    std::stringstream output;
+    output << "Query number: " << (test_query_num+1) << std::endl;
+    push();
+    // XXX: reset harms performance a lot of Z3
+    auto result = make_query(pc);
+    output << "Query is " << check_result_to_string(result) << std::endl;
+    if (result == sat) {
+      test_query_num++;
+      std::stringstream filename;
+      filename << "tests/" << test_query_num << ".test";
+      int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
+      if (out_fd == -1) {
+        ABORT("Cannot create the test case file, abort.\n");
+      }
+      print_model(output);
+      int n = write(out_fd, output.str().c_str(), output.str().size());
+      close(out_fd);
+    }
+    pop();
+  }
+};
 
-class CheckerZ3 {
+class CheckerZ3 : public Checker {
 private:
+  using instance = std::tuple<context*, solver*>;
   std::map<std::thread::id, instance> checker_map;
   instance new_instance() {
     context* c = new context;
@@ -22,14 +77,14 @@ public:
     std::cout << "Using Z3 solver\n";
   }
   ~CheckerZ3() { destroy_solvers(); }
-  void init_solvers() {
+  void init_solvers() override {
     //std::tie(g_ctx, g_solver) = new_instance();
     checker_map[std::this_thread::get_id()] = new_instance();
     tp.with_thread_ids([this](auto id) {
       checker_map[id] = new_instance();
     });
   }
-  void destroy_solvers() {
+  void destroy_solvers() override {
     for (auto& [t, cs] : checker_map) {
       //delete std::get<0>(cs);
       delete std::get<1>(cs);
@@ -38,7 +93,7 @@ public:
   instance get_my_thread_local_instance() {
     return checker_map[std::this_thread::get_id()];
   }
-  check_result make_query(PC pc) {
+  solver_result make_query(PC pc) override {
     auto pc_set = pc.getPC();
     auto start = steady_clock::now();
     context* c; solver* s;
@@ -48,7 +103,7 @@ public:
     auto result = s->check();
     auto end = steady_clock::now();
     solver_time += duration_cast<microseconds>(end - start);
-    return result;
+    return (solver_result) result;
   }
   expr construct_z3_expr(context* c, PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
@@ -125,17 +180,23 @@ public:
     ABORT("unkown operator when constructing STP expr");
     return c->bv_const("x", 32);
   }
-  void push() {
+  void print_model(std::stringstream& output) override {
+    context* c; solver* s;
+    std::tie(c, s) = get_my_thread_local_instance();
+    model m = s->get_model();
+    output << m << std::endl;
+  }
+  void push() override {
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
     s->push();
   }
-  void pop() {
+  void pop() override {
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
     s->pop();
   }
-  void reset() {
+  void reset() override {
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
     s->reset();
@@ -144,56 +205,8 @@ public:
 
 inline CheckerZ3 cz3;
 
-inline bool check_pc(PC pc) {
-  if (!use_solver) return true;
-  br_query_num++;
-  cz3.push();
-  auto r = cz3.make_query(pc);
-  cz3.pop();
-  return r == sat;
-}
+// To be compatible with generated code:
 
-inline std::string check_result_to_string(check_result res) {
-  switch (res) {
-    case sat: return "sat";
-    case unsat: return "unsat";
-    case unknown: return "unknown";
-    default: ABORT("wow");
-  }
-}
-
-inline void check_pc_to_file(SS state) {
-  if (!use_solver) return;
-
-  if (mkdir("tests", 0777) == -1) {
-    if (errno == EEXIST) { }
-    else {
-      ABORT("Cannot create the folder tests, abort.\n");
-    }
-  }
-
-  std::stringstream output;
-  output << "Query number: " << (test_query_num+1) << std::endl;
-  cz3.push();
-  // XXX: reset harms performance a lot
-  auto result = cz3.make_query(state.getPC());
-  output << "Query is " << check_result_to_string(result) << std::endl;
-
-  if (result == sat) {
-    test_query_num++;
-    std::stringstream filename;
-    filename << "tests/" << test_query_num << ".test";
-    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
-    if (out_fd == -1) {
-      ABORT("Cannot create the test case file, abort.\n");
-    }
-    context* c; solver* s;
-    std::tie(c, s) = cz3.get_my_thread_local_instance();
-    model m = s->get_model();
-    output << m << std::endl;
-    int n = write(out_fd, output.str().c_str(), output.str().size());
-    close(out_fd);
-  }
-  cz3.pop();
-}
+inline bool check_pc(PC pc) { return cz3.check_pc(std::move(pc)); }
+inline void check_pc_to_file(SS state) { cz3.generate_test(std::move(state.getPC())); }
 
