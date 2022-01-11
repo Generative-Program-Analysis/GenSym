@@ -147,7 +147,7 @@ private:
 
   int make_query_internal(PC pcobj) {
     CacheResult *result;
-    auto pc = pcobj.getPC();
+    auto pc = pcobj.get_path_conds();
     auto last = pcobj.getLast();
     CacheKey pc2;
     // constraint independence
@@ -259,6 +259,6 @@ inline CheckerSTP cstp;
 // To be compatible with generated code:
 
 inline bool check_pc(PC pc) { return cstp.check_pc(std::move(pc)); }
-inline void check_pc_to_file(SS state) { cstp.generate_test(std::move(state.getPC())); }
+inline void check_pc_to_file(SS state) { cstp.generate_test(std::move(state.get_PC())); }
 
 #endif

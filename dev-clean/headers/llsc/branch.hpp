@@ -4,16 +4,16 @@
 #ifdef PURE_STATE
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
+sym_exec_br(SS ss, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
-  auto pc = ss.getPC();
+  auto pc = ss.get_PC();
   auto tbr_sat = check_pc(pc.add(t_cond));
   auto fbr_sat = check_pc(pc.add(f_cond));
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.addPC(t_cond);
-    SS fbr_ss = ss.addPC(f_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
@@ -23,10 +23,10 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
       return tf_res.get() + ff_res;
     } else return tf(tbr_ss) + ff(fbr_ss);
   } else if (tbr_sat) {
-    SS tbr_ss = ss.addPC(t_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss);
   } else if (fbr_sat) {
-    SS fbr_ss = ss.addPC(f_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
     return immer::flex_vector<std::pair<SS, PtrVal>>{};
@@ -34,17 +34,17 @@ sym_exec_br(SS ss, SExpr t_cond, SExpr f_cond,
 }
 
 inline std::monostate
-sym_exec_br_k(SS ss, SExpr t_cond, SExpr f_cond,
+sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
               std::monostate (*tf)(SS, std::function<std::monostate(SS, PtrVal)>),
               std::monostate (*ff)(SS, std::function<std::monostate(SS, PtrVal)>),
               std::function<std::monostate(SS, PtrVal)> k) {
-  auto pc = ss.getPC();
+  auto pc = ss.get_PC();
   auto tbr_sat = check_pc(pc.add(t_cond));
   auto fbr_sat = check_pc(pc.add(f_cond));
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.addPC(t_cond);
-    SS fbr_ss = ss.addPC(f_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
 #if USE_TP
     if (max_par_num > 0) {
       tp.add_task([tf, tbr_ss, t_cond, k]{ tf(tbr_ss, k); });
@@ -72,10 +72,10 @@ sym_exec_br_k(SS ss, SExpr t_cond, SExpr f_cond,
     }
 #endif
   } else if (tbr_sat) {
-    SS tbr_ss = ss.addPC(t_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss, k);
   } else if (fbr_sat) {
-    SS fbr_ss = ss.addPC(f_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss, k);
   } else {
     return std::monostate{};
@@ -88,10 +88,10 @@ sym_exec_br_k(SS ss, SExpr t_cond, SExpr f_cond,
 
 // use immer::flex_vector as argument list and result list
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
+sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS&),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
-  auto pc = ss.getPC();
+  auto pc = ss.get_path_conds();
   auto ins = pc.insert(t_cond);
   auto tbr_sat = check_pc(pc);
   if (ins.second) pc.erase(ins.first);
@@ -99,8 +99,8 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
   auto fbr_sat = check_pc(pc);
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.copy().addPC(t_cond);
-    SS fbr_ss = ss.addPC(f_cond);
+    SS tbr_ss = ss.copy().add_PC(t_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
@@ -110,10 +110,10 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
       return tf_res.get() + ff_res;
     } else return tf(tbr_ss) + ff(fbr_ss);
   } else if (tbr_sat) {
-    SS tbr_ss = ss.addPC(t_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss);
   } else if (fbr_sat) {
-    SS fbr_ss = ss.addPC(f_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
     return immer::flex_vector<std::pair<SS, PtrVal>>{};
@@ -122,10 +122,10 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
 
 // use std::vector as argument list and result list
 inline std::vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
+sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
             std::vector<std::pair<SS, PtrVal>> (*tf)(SS&),
             std::vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
-  auto pc = ss.getPC();
+  auto pc = ss.get_path_conds();
   auto ins = pc.insert(t_cond);
   auto tbr_sat = check_pc(pc);
   if (ins.second) pc.erase(ins.first);
@@ -133,8 +133,8 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
   auto fbr_sat = check_pc(pc);
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.copy().addPC(t_cond);
-    SS fbr_ss = ss.addPC(f_cond);
+    SS tbr_ss = ss.copy().add_PC(t_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     if (can_par_async()) {
       std::future<std::vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<std::vector<std::pair<SS, PtrVal>>>([&]{
@@ -151,10 +151,10 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
       return tf_vec;
     }
   } else if (tbr_sat) {
-    SS tbr_ss = ss.addPC(t_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss);
   } else if (fbr_sat) {
-    SS fbr_ss = ss.addPC(f_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
     return std::vector<std::pair<SS, PtrVal>>{};
@@ -162,11 +162,11 @@ sym_exec_br(SS& ss, SExpr t_cond, SExpr f_cond,
 }
 
 inline std::monostate
-sym_exec_br_k(SS& ss, SExpr t_cond, SExpr f_cond,
+sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
               std::monostate (*tf)(SS&, std::function<std::monostate(SS&, PtrVal)>),
               std::monostate (*ff)(SS&, std::function<std::monostate(SS&, PtrVal)>),
               std::function<std::monostate(SS&, PtrVal)> k) {
-  auto pc = ss.getPC();
+  auto pc = ss.get_path_conds();
   auto ins = pc.insert(t_cond);
   auto tbr_sat = check_pc(pc);
   if (ins.second) pc.erase(ins.first);
@@ -174,8 +174,8 @@ sym_exec_br_k(SS& ss, SExpr t_cond, SExpr f_cond,
   auto fbr_sat = check_pc(pc);
   if (tbr_sat && fbr_sat) {
     cov.inc_path(1);
-    SS tbr_ss = ss.copy().addPC(t_cond);
-    SS fbr_ss = ss.addPC(f_cond);
+    SS tbr_ss = ss.copy().add_PC(t_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     if (can_par_async()) {
       std::future<std::monostate> tf_res =
         create_async<std::monostate>([&]{
@@ -190,10 +190,10 @@ sym_exec_br_k(SS& ss, SExpr t_cond, SExpr f_cond,
       return std::monostate{};
     }
   } else if (tbr_sat) {
-    SS tbr_ss = ss.addPC(t_cond);
+    SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss, k);
   } else if (fbr_sat) {
-    SS fbr_ss = ss.addPC(f_cond);
+    SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss, k);
   } else {
     return std::monostate{};

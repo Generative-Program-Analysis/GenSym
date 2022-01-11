@@ -102,14 +102,14 @@ class Stack {
 class PC {
   private:
     // XXX: refactor: using a list that records the order of constraints
-    immer::set<SExpr> pc;
-    SExpr last;
+    immer::set<PtrVal> pc;
+    PtrVal last;
   public:
-    PC(immer::set<SExpr> pc, SExpr last = nullptr) : pc(pc), last(last) {}
-    PC add(SExpr e) { return PC(pc.insert(e), e); }
-    PC addSet(immer::set<SExpr> new_pc) { return PC(Set::join(pc, new_pc)); }
-    immer::set<SExpr> getPC() { return pc; }
-    SExpr getLast() { return last; }
+    PC(immer::set<PtrVal> pc, PtrVal last = nullptr) : pc(pc), last(last) {}
+    PC add(PtrVal e) { return PC(pc.insert(e), e); }
+    PC addSet(immer::set<PtrVal> new_pc) { return PC(Set::join(pc, new_pc)); }
+    immer::set<PtrVal> get_path_conds() { return pc; }
+    PtrVal getLast() { return last; }
     void print() { print_set(pc); }
 };
 
@@ -159,9 +159,9 @@ class SS {
     SS heap_append(immer::flex_vector<PtrVal> vals) {
       return SS(heap.append(vals), stack, pc, bb);
     }
-    SS addPC(SExpr e) { return SS(heap, stack, pc.add(e), bb); }
-    SS addPCSet(immer::set<SExpr> s) { return SS(heap, stack, pc.addSet(s), bb); }
-    SS addIncomingBlock(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
+    SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb); }
+    SS add_PC_set(immer::set<PtrVal> s) { return SS(heap, stack, pc.addSet(s), bb); }
+    SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
       // FIXME: ptr size magic
@@ -177,7 +177,7 @@ class SS {
       res_stack = res_stack.update(arg_index, make_IntV(0));
       return SS(heap, res_stack, pc, bb);
     }
-    PC getPC() { return pc; }
+    PC get_PC() { return pc; }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
     void set_fs(FS& new_fs) { fs = new_fs; }
@@ -186,7 +186,7 @@ class SS {
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-inline const PC mt_pc = PC(immer::set<SExpr>{});
+inline const PC mt_pc = PC(immer::set<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 

@@ -38,7 +38,7 @@ public:
     return checker_map[std::this_thread::get_id()];
   }
   solver_result make_query(PC pc) override {
-    auto pc_set = pc.getPC();
+    auto pc_set = pc.get_path_conds();
     auto start = steady_clock::now();
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
@@ -152,6 +152,6 @@ inline CheckerZ3 cz3;
 // To be compatible with generated code:
 
 inline bool check_pc(PC pc) { return cz3.check_pc(std::move(pc)); }
-inline void check_pc_to_file(SS state) { cz3.generate_test(std::move(state.getPC())); }
+inline void check_pc_to_file(SS state) { cz3.generate_test(std::move(state.get_PC())); }
 
 #endif

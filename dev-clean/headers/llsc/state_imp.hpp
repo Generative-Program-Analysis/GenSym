@@ -130,24 +130,24 @@ class Stack {
 
 class PC {
   private:
-    std::set<SExpr> pc;
-    SExpr last;
+    std::set<PtrVal> pc;
+    PtrVal last;
   public:
-    PC(std::set<SExpr> pc, SExpr last = nullptr) : pc(std::move(pc)), last(last) {}
-    PC&& add(SExpr e) {
+    PC(std::set<PtrVal> pc, PtrVal last = nullptr) : pc(std::move(pc)), last(last) {}
+    PC&& add(PtrVal e) {
       pc.insert(e);
       return std::move(*this);
     }
-    PC&& addSet(const std::set<SExpr>& new_pc) {
+    PC&& addSet(const std::set<PtrVal>& new_pc) {
       pc.insert(new_pc.begin(), new_pc.end());
       return std::move(*this);
     }
-    PC&& addSet(const immer::set<SExpr>& new_pc) {
+    PC&& addSet(const immer::set<PtrVal>& new_pc) {
       pc.insert(new_pc.begin(), new_pc.end());
       return std::move(*this);
     }
-    const std::set<SExpr>& getPC() { return pc; }
-    SExpr getLast() { return last; }
+    const std::set<PtrVal>& get_path_conds() { return pc; }
+    PtrVal getLast() { return last; }
     void print() { print_set(pc); }
 };
 
@@ -252,20 +252,20 @@ class SS {
     SS&& heap_append(immer::flex_vector<PtrVal> vals) {
       return heap_append(std::vector<PtrVal>(vals.begin(), vals.end()));
     }
-    SS&& addPC(SExpr e) {
+    SS&& add_PC(PtrVal e) {
       pc.add(e);
       return std::move(*this);
     }
-    SS&& addPCSet(const std::set<SExpr>& s) {
+    SS&& add_PC_cet(const std::set<PtrVal>& s) {
       pc.addSet(s);
       return std::move(*this);
     }
-    SS&& addPCSet(const immer::set<SExpr>& s) {
+    SS&& add_PC_set(const immer::set<PtrVal>& s) {
       std::set cs(s.begin(), s.end());
       pc.addSet(cs);
       return std::move(*this);
     }
-    SS&& addIncomingBlock(BlockLabel blabel) {
+    SS&& add_incoming_block(BlockLabel blabel) {
       bb = blabel;
       return std::move(*this);
     }
@@ -284,14 +284,15 @@ class SS {
       stack.update(arg_index, make_IntV(0));
       return std::move(*this);
     }
-    const std::set<SExpr>& getPC() { return pc.getPC(); }
+    PC get_PC() { return pc; }
+    const std::set<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
 };
 
 inline const Mem mt_mem = Mem(std::vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, std::vector<Frame>{});
-inline const PC mt_pc = PC(std::set<SExpr>{});
+inline const PC mt_pc = PC(std::set<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 

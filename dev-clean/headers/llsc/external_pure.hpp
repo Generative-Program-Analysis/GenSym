@@ -102,12 +102,12 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_
   exit(0);
 }
 
-inline void handle_pc(immer::set<SExpr> pc) {
+inline void handle_pc(immer::set<PtrVal> pc) {
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
   // XXX(GW): temporarily commented, should invoke Checker and generate test case properly?
-  //immer::set<SExpr> pc = state.getPC();
+  //immer::set<PtrVal> pc = state.getPC();
   //handle_pc(pc);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }

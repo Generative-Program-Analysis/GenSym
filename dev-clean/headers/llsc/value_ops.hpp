@@ -3,7 +3,6 @@
 
 struct Value;
 struct IntV;
-using SExpr = std::shared_ptr<Value>;
 using PtrVal = std::shared_ptr<Value>;
 
 /* Value representations */
@@ -13,13 +12,12 @@ struct Value : public std::enable_shared_from_this<Value> {
     return v.toString(os);
   }
   virtual std::ostream& toString(std::ostream& os) const = 0;
-  //TODO(GW): toSMTExpr vs toSMTBool?
-  virtual SExpr to_SMTExpr() = 0;
-  virtual SExpr to_SMTBool() = 0;
-  virtual std::shared_ptr<IntV> to_IntV() const = 0;
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
   virtual bool compare(const Value *v) const = 0;
+
+  virtual PtrVal to_SMT() = 0;
+  virtual std::shared_ptr<IntV> to_IntV() = 0;
 
   size_t hashval;
   Value() : hashval(0) {}
@@ -66,13 +64,13 @@ struct IntV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "IntV(" << i << ")";
   }
-  virtual SExpr to_SMTExpr() override {
-    return shared_from_this();
+  virtual PtrVal to_SMT() override {
+    ABORT("to_SMT: unexpected value IntV.");
   }
-  virtual SExpr to_SMTBool() override {
-    ABORT("to_SMTBool: unexpected value IntV.");
+  virtual std::shared_ptr<IntV> to_IntV() override {
+    auto thisptr = shared_from_this();
+    return std::static_pointer_cast<IntV>(thisptr);
   }
-  virtual std::shared_ptr<IntV> to_IntV() const override { return std::make_shared<IntV>(i, bw); }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
 
@@ -112,14 +110,11 @@ struct FloatV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "FloatV(" << f << ")";
   }
-  virtual SExpr to_SMTExpr() override {
-    ABORT("to_SMTExpr: unexpected value FloatV.");
-  }
-  virtual SExpr to_SMTBool() override {
-    ABORT("to_SMTBool: unexpected value FloatV.");
+  virtual PtrVal to_SMT() override {
+    ABORT("to_SMT: unexpected value FloatV.");
   }
   virtual bool is_conc() const override { return true; }
-  virtual std::shared_ptr<IntV> to_IntV() const override { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
 
   virtual bool compare(const Value *v) const override {
@@ -151,16 +146,13 @@ struct LocV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "LocV(" << l << ", " << k << ")";
   }
-  virtual SExpr to_SMTExpr() override {
-    ABORT("to_SMTExpr: unexpected value LocV.");
-  }
-  virtual SExpr to_SMTBool() override {
-    ABORT("to_SMTBool: unexpected value LocV.");
+  virtual PtrVal to_SMT() override {
+    ABORT("to_SMT: unexpected value LocV.");
   }
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV() const override { return std::make_shared<IntV>(l, addr_bw); }
+  virtual std::shared_ptr<IntV> to_IntV() override { return std::make_shared<IntV>(l, addr_bw); }
   virtual int get_bw() const override { return addr_bw; }
 
   virtual bool compare(const Value *v) const override {
@@ -223,10 +215,9 @@ struct SymV : Value {
     }
     return os << ")";
   }
-  virtual SExpr to_SMTExpr() override { return shared_from_this(); }
-  virtual SExpr to_SMTBool() override { return shared_from_this(); }
+  virtual PtrVal to_SMT() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
-  virtual std::shared_ptr<IntV> to_IntV() const override { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 
   virtual bool compare(const Value *v) const override {
@@ -244,7 +235,7 @@ inline PtrVal make_SymV(String n) {
 inline PtrVal make_SymV(String n, int bw) {
   return std::make_shared<SymV>(n, bw);
 }
-inline SExpr to_SMTBoolNeg(PtrVal v) {
+inline PtrVal to_SMTNeg(PtrVal v) {
   int bw = v->get_bw();
   return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), bw);
 }
@@ -262,16 +253,13 @@ struct StructV : Value {
   virtual std::ostream& toString(std::ostream& os) const override {
     return os << "StructV(..)";
   }
-  virtual SExpr to_SMTExpr() override {
-    ABORT("to_SMTExpr: unexpected value StructV.");
-  }
-  virtual SExpr to_SMTBool() override {
-    ABORT("to_SMTBool: unexpected value StructV.");
+  virtual PtrVal to_SMT() override {
+    ABORT("to_SMT: unexpected value StructV.");
   }
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV() const override { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 
   virtual bool compare(const Value *v) const override {
@@ -287,8 +275,8 @@ inline PtrVal structV_at(PtrVal v, int idx) {
 }
 
 inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
-  auto i1 = std::dynamic_pointer_cast<IntV>(v1->to_IntV());
-  auto i2 = std::dynamic_pointer_cast<IntV>(v2->to_IntV());
+  auto i1 = v1->to_IntV();
+  auto i2 = v2->to_IntV();
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
   ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
@@ -331,9 +319,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
       ABORT("invalid operator");
     }
   } else {
-    SExpr e1 = v1->to_SMTExpr();
-    SExpr e2 = v2->to_SMTExpr();
-    return std::make_shared<SymV>(op, immer::flex_vector({ e1, e2 }), bw1);
+    return std::make_shared<SymV>(op, immer::flex_vector({ v1, v2 }), bw1);
   }
 }
 
@@ -362,11 +348,9 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
     if (s1) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
-      SExpr e1 = s1->to_SMTExpr();
-      return std::make_shared<SymV>(op_sext, immer::flex_vector({ e1 }), bw);
-    } else {
-      ABORT("Sext an invalid value, exit");
+      return std::make_shared<SymV>(op_sext, immer::flex_vector<PtrVal>({ s1 }), bw);
     }
+    ABORT("Sext an invalid value, exit");
   }
 }
 

@@ -214,8 +214,8 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_zext".reflectWith[Value](v, bw)
 
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
-    def toSMTBool: Rep[SMTBool] = "to-SMTBool".reflectWith[SMTBool](v)
-    def toSMTBoolNeg: Rep[SMTBool] = "to-SMTBoolNeg".reflectWith[SMTBool](v)
+    def toSMTBool: Rep[SMTBool] = "to-SMT".reflectWith[SMTBool](v)
+    def toSMTBoolNeg: Rep[SMTBool] = "to-SMTNeg".reflectWith[SMTBool](v)
 
     def fp_toui(to: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, to)
     def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
