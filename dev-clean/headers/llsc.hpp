@@ -44,6 +44,7 @@ using namespace std::chrono;
 #include <llsc/filesys.hpp>
 #include <llsc/state_pure.hpp>
 
+#include <llsc/smt_checker.hpp>
 #ifdef Z3
 #include <llsc/smt_z3.hpp>
 #else

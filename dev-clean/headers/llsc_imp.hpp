@@ -42,6 +42,7 @@ using namespace std::chrono;
 #include <llsc/monitor.hpp>
 #include <llsc/value_ops.hpp>
 #include <llsc/state_imp.hpp>
+#include <llsc/smt_checker.hpp>
 #include <llsc/smt_stp.hpp>
 #include <llsc/branch.hpp>
 

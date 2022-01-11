@@ -4,8 +4,6 @@
 #include <stp/c_interface.h>
 #include <stp_handle.hpp>
 
-inline VC global_vc = vc_createValidityChecker();
-
 struct ExprHandle: public std::shared_ptr<void> {
   typedef std::shared_ptr<void> Base;
 
@@ -16,56 +14,78 @@ struct ExprHandle: public std::shared_ptr<void> {
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-inline std::unordered_map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>> stp_env;
-inline ExprHandle construct_STP_expr_internal(VC, PtrVal, std::set<ExprHandle>&);
+// TODO: refactor the caching mechanism for clarity
+// Note: CheckerSTP does not make use of parallelism and currently doesn't work for async parallelism
+class CheckerSTP : public Checker {
+private:
+  using CacheKey = std::set<ExprHandle>;
+  using CexType = std::map<ExprHandle, IntData>;
+  using CacheResult = std::pair<int, CexType>;
 
-using CacheKey = std::set<ExprHandle>;
-using CexType = std::map<ExprHandle, IntData>;
-using CacheResult = std::pair<int, CexType>;
-inline std::map<CacheKey, CacheResult> cache_map;
+  VC vc;
+  CexType *cex, cex2;
+  std::set<ExprHandle> variables;
+  std::map<CacheKey, CacheResult> cache_map;
+  std::unordered_map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>> stp_env;
 
-inline ExprHandle construct_STP_expr(VC vc, PtrVal e, std::set<ExprHandle> &vars) {
-  // search expr cache
-  if (use_objcache) {
-    auto it = stp_env.find(e);
-    if (it != stp_env.end()) {
-      auto &vars2 = it->second.second;
-      vars.insert(vars2.begin(), vars2.end());
-      return it->second.first;
+  std::mutex g_lock;
+
+  const CexType* get_counterexample() {
+    if (use_cexcache) return cex;
+    get_STP_counterexample(cex2);
+    return &cex2;
+  }
+
+  void get_STP_counterexample(CexType &cex) {
+    for (auto expr: variables) {
+      auto val = vc_getCounterExample(vc, expr.get());
+      cex[expr] = getBVUnsignedLongLong(val);
+      vc_DeleteExpr(val);
     }
   }
-  // query internal
-  std::set<ExprHandle> vars2;
-  auto ret = construct_STP_expr_internal(vc, e, vars2);
-  vars.insert(vars2.begin(), vars2.end());
-  // store expr cache
-  if (use_objcache) {
-    stp_env.emplace(e, std::make_pair(ret, std::move(vars2)));
-  }
-  return ret;
-}
 
-inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHandle> &vars) {
-  auto int_e = std::dynamic_pointer_cast<IntV>(e);
-  if (int_e) {
-    return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);
-  }
-  auto sym_e = std::dynamic_pointer_cast<SymV>(e);
-  if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
-
-  if (!sym_e->name.empty()) {
-    auto name = sym_e->name;
-    ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-    vars.insert(stp_expr);
-    return stp_expr;
+  ExprHandle construct_STP_expr(PtrVal e, std::set<ExprHandle> &vars) {
+    // search expr cache
+    if (use_objcache) {
+      auto it = stp_env.find(e);
+      if (it != stp_env.end()) {
+	auto &vars2 = it->second.second;
+	vars.insert(vars2.begin(), vars2.end());
+	return it->second.first;
+      }
+    }
+    // query internal
+    std::set<ExprHandle> vars2;
+    auto ret = construct_STP_expr_internal(e, vars2);
+    vars.insert(vars2.begin(), vars2.end());
+    // store expr cache
+    if (use_objcache) {
+      stp_env.emplace(e, std::make_pair(ret, std::move(vars2)));
+    }
+    return ret;
   }
 
-  std::vector<ExprHandle> expr_rands;
-  int bw = sym_e->bw;
-  for (auto e : sym_e->rands) {
-    expr_rands.push_back(construct_STP_expr(vc, e, vars));
-  }
-  switch (sym_e->rator) {
+  ExprHandle construct_STP_expr_internal(PtrVal e, std::set<ExprHandle> &vars) {
+    auto int_e = std::dynamic_pointer_cast<IntV>(e);
+    if (int_e) {
+      return vc_bvConstExprFromLL(vc, int_e->bw, int_e->i);
+    }
+    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+    if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
+
+    if (!sym_e->name.empty()) {
+      auto name = sym_e->name;
+      ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
+      vars.insert(stp_expr);
+      return stp_expr;
+    }
+
+    std::vector<ExprHandle> expr_rands;
+    int bw = sym_e->bw;
+    for (auto e : sym_e->rands) {
+      expr_rands.push_back(construct_STP_expr(e, vars));
+    }
+    switch (sym_e->rator) {
     case op_add:
       return vc_bvPlusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_sub:
@@ -121,43 +141,11 @@ inline ExprHandle construct_STP_expr_internal(VC vc, PtrVal e, std::set<ExprHand
       // bvExtract(vc, e, h, l) -> e[l:h+1]
       return vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
     default: break;
-  }
-  ABORT("unkown operator when constructing STP expr");
-}
-
-struct Checker {
-  std::set<ExprHandle> variables;
-  CexType *cex, cex2;
-  VC vc;
-
-  Checker() {
-    if (use_global_solver) {
-      vc = global_vc;
-      vc_push(vc);
-    } else {
-      vc = vc_createValidityChecker();
     }
+    ABORT("unkown operator when constructing STP expr");
   }
 
-  ~Checker() {
-    variables.clear();
-    cex2.clear();
-    if (use_global_solver) {
-      vc_pop(vc);
-    } else {
-      vc_Destroy(vc);
-    }
-  }
-
-  void get_STP_counterexample(CexType &cex) {
-    for (auto expr: variables) {
-      auto val = vc_getCounterExample(vc, expr.get());
-      cex[expr] = getBVUnsignedLongLong(val);
-      vc_DeleteExpr(val);
-    }
-  }
-
-  int make_query(PC pcobj) {
+  int make_query_internal(PC pcobj) {
     CacheResult *result;
     auto pc = pcobj.getPC();
     auto last = pcobj.getLast();
@@ -168,7 +156,7 @@ struct Checker {
       std::queue<ExprHandle> queue;
       for (auto &e: pc) {
         std::set<ExprHandle> vars;
-        auto q = construct_STP_expr(vc, e, vars);
+        auto q = construct_STP_expr(e, vars);
         if (e == last)
           queue.push(q);
         for (auto &v: vars)
@@ -192,7 +180,7 @@ struct Checker {
       }
     } else {
       for (auto& e: pc)
-        pc2.insert(construct_STP_expr(vc, e, variables));
+        pc2.insert(construct_STP_expr(e, variables));
     }
     // cex cache: query
     if (use_cexcache) {
@@ -221,73 +209,56 @@ struct Checker {
     return retcode;
   }
 
-  const CexType* get_counterexample() {
-    if (use_cexcache) return cex;
-    get_STP_counterexample(cex2);
-    return &cex2;
-  }
-};
-
-// returns true if it is sat, otherwise false
-// XXX: should explore paths with timeout/no-answer cond?
-inline bool check_pc(PC pc) {
-  if (!use_solver) return true;
-  br_query_num++;
-  Checker c;
-  auto result = c.make_query(pc);
-  return result == 0;
-}
-
-inline void check_pc_to_file(SS state) {
-  if (!use_solver) {
-    return;
-  }
-  Checker c;
-
-  if (mkdir("tests", 0777) == -1) {
-    if (errno == EEXIST) { }
-    else {
-      ABORT("Cannot create the folder tests, abort.\n");
-    }
+  solver_result to_solver_result(int r) {
+    solver_result mapping[4] = {sat, unsat, unknown, unknown};
+    return mapping[r];
   }
 
-  std::stringstream output;
-  output << "Query number: " << (test_query_num+1) << std::endl;
-
-  auto result = c.make_query(state.getPC());
-
-  switch (result) {
-  case 0:
-    output << "Query is invalid" << std::endl;
-    break;
-  case 1:
-    output << "Query is Valid" << std::endl;
-    break;
-  case 2:
-    output << "Could not answer the query" << std::endl;
-    break;
-  case 3:
-    output << "Timeout" << std::endl;
-    break;
+public:
+  CheckerSTP() {
+    std::cout << "Using STP solver\n";
+    vc = vc_createValidityChecker();
   }
-
-  if (result == 0) {
-    test_query_num++;
-    std::stringstream filename;
-    filename << "tests/" << test_query_num << ".test";
-    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
-    if (out_fd == -1) {
-        ABORT("Cannot create the test case file, abort.\n");
-    }
-
-    auto cex = c.get_counterexample();
+  ~CheckerSTP() {
+    variables.clear();
+    cache_map.clear();
+    stp_env.clear();
+    vc_Destroy(vc);
+  }
+  void init_solvers() override {}
+  void destroy_solvers() override {}
+  solver_result make_query(PC pc) override {
+    int r = make_query_internal(pc);
+    variables.clear();
+    cex2.clear();
+    return to_solver_result(r);
+  }
+  void print_model(std::stringstream& output) override {
+    auto cex = get_counterexample();
     for (auto &kv: *cex) {
       output << exprName(kv.first.get()) << " == " << kv.second << std::endl;
     }
-    int n = write(out_fd, output.str().c_str(), output.str().size());
-    // vc_printCounterExampleFile(vc, out_fd);
-    close(out_fd);
   }
-}
+  void push() override {
+    vc_push(vc);
+  }
+  void pop() override {
+    vc_pop(vc);
+  }
+  void reset() override {
+    variables.clear();
+    cache_map.clear();
+    stp_env.clear();
+    vc_Destroy(vc);
+    vc = vc_createValidityChecker();
+  }
+};
+
+inline CheckerSTP cstp;
+
+// To be compatible with generated code:
+
+inline bool check_pc(PC pc) { return cstp.check_pc(std::move(pc)); }
+inline void check_pc_to_file(SS state) { cstp.generate_test(std::move(state.getPC())); }
 
 #endif
