@@ -146,7 +146,10 @@ class PC {
       return std::move(*this);
     }
     const std::vector<PtrVal>& get_path_conds() { return pc; }
-    PtrVal get_last_cond() { return pc.back(); }
+    PtrVal get_last_cond() {
+      if (pc.size() > 0) return pc.back();
+      return nullptr;
+    }
     void print() { print_set(pc); }
 };
 
@@ -259,7 +262,7 @@ class SS {
       pc.add_set(s);
       return std::move(*this);
     }
-    SS&& add_PC_set(const immer::set<PtrVal>& s) {
+    SS&& add_PC_set(const immer::flex_vector<PtrVal>& s) {
       std::set cs(s.begin(), s.end());
       pc.add_set(cs);
       return std::move(*this);

@@ -107,7 +107,10 @@ class PC {
     PC add(PtrVal e) { return PC(pc.push_back(e)); }
     PC add_set(immer::flex_vector<PtrVal> new_pc) { return PC(pc + new_pc); }
     immer::flex_vector<PtrVal> get_path_conds() { return pc; }
-    PtrVal get_last_cond() { return pc.back(); }
+    PtrVal get_last_cond() {
+      if (pc.size() > 0) return pc.back();
+      return nullptr;
+    }
     void print() { print_vec(pc); }
 };
 
