@@ -330,7 +330,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           }
         }
 
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List()): Rep[List[(SS, Value)]] = {
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List[SMTBool]()): Rep[List[(SS, Value)]] = {
           if (table.isEmpty)
             reify(s)(for {
               _ <- updatePCSet(pc)
@@ -343,7 +343,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
                 _ <- updatePC(headPC.toSMTBool)
                 u <- execBlock(funName, table.head.label)
               } yield u,
-              reflect(switchSym(v, s, table.tail, pc ++ List(headPC.toSMTBoolNeg)))
+              reflect(switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg)))
             ))
           }
         }

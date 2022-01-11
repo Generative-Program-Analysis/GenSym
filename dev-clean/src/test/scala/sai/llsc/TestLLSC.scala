@@ -72,7 +72,11 @@ object TestCases {
     TestPrg(mp1048576, "mp1mTest", "@f", 20, 1048576, "--disable-solver"),
   )
 
-  val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall
+  val external: List[TestPrg] = List(
+    TestPrg(assertTest, "assertTest", "@main", 0, 2)
+  )
+
+  val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall ++ external
 
   // FIXME: out of range
   // TestPrg(struct, "structTest", "@main", 0, 1),
@@ -142,13 +146,15 @@ abstract class TestLLSC extends FunSuite {
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all)
   //testLLSC(new PureLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
+  //testLLSC(new PureLLSC, TestCases.external)
 }
 
 // FIXME: varArg is problematic for instances other than PureLLSC
 
 class TestPureCPSLLSC extends TestLLSC {
-  testLLSC(new PureCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  testLLSC(new PureCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
+  //testLLSC(new PureCPSLLSC, external)
 }
 
 class TestPureCPSLLSC_Z3 extends TestLLSC {
@@ -156,14 +162,17 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
   //testLLSC(llsc, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
   // kmp and maze failed, due to unmatched bv sizes
   testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
+  //testLLSC(llsc, external)
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  testLLSC(new ImpLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
+  //testLLSC(new ImpLLSC, external)
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall)
+  testLLSC(new ImpCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
+  //testLLSC(new ImpCPSLLSC, external)
 }

@@ -93,23 +93,27 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> close(SS state, immer::flex_vec
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
-  cov.print_time();
-  cov.print_block_cov();
-  cov.print_path_cov();
-  cov.print_async();
-  cov.print_query_stat();
   check_pc_to_file(state);
+  epilogue();
   exit(0);
 }
 
-inline void handle_pc(immer::set<PtrVal> pc) {
+inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
+  auto cond = std::make_shared<SymV>(op_eq, immer::flex_vector({ args.at(0), make_IntV(1, 32) }), 1);
+  auto new_s = state.add_PC(cond);
+  if (!check_pc(new_s.get_PC())) {
+    sym_exit(state, args);
+  }
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{new_s, make_IntV(1, 32)}};
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
-  // XXX(GW): temporarily commented, should invoke Checker and generate test case properly?
-  //immer::set<PtrVal> pc = state.getPC();
-  //handle_pc(pc);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  auto cond = std::make_shared<SymV>(op_eq, immer::flex_vector({ args.at(0), make_IntV(1, 32) }), 1);
+  auto new_s = state.add_PC(cond);
+  if (!check_pc(new_s.get_PC())) {
+    sym_exit(state, args);
+  }
+  return k(new_s, make_IntV(1, 32));
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_vector<PtrVal> args) {

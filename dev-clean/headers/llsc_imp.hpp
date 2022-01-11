@@ -46,9 +46,9 @@ using namespace std::chrono;
 #include <llsc/smt_stp.hpp>
 #include <llsc/branch.hpp>
 
+#include <llsc/misc.hpp>
+
 #include <llsc/external_imp.hpp>
 #include <llsc/intrinsics_imp.hpp>
-
-#include <llsc/misc.hpp>
 
 #endif

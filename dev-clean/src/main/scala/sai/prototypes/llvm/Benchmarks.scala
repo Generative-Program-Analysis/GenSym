@@ -61,6 +61,8 @@ object Benchmarks {
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
   lazy val simple2 = parseFile("benchmarks/ccbse/simple_2.ll")
+
+  lazy val assertTest = parseFile("benchmarks/external_lib/assert.ll")
 }
 
 object Coreutils {

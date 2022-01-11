@@ -1,13 +1,15 @@
 #ifndef LLSC_EXTERNAL_IMP_HEADERS
 #define LLSC_EXTERNAL_IMP_HEADERS
 
+using Cont = std::function<std::monostate(SS&, PtrVal)>;
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   for (auto x : args) { std::cout << *x << "; "; }
   std::cout << "\n";
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
-inline std::monostate sym_print(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+inline std::monostate sym_print(SS& state, immer::flex_vector<PtrVal> args, Cont k) {
   for (auto x : args) { std::cout << *x << "; "; }
   std::cout << "\n";
   return k(state, make_IntV(0));
@@ -48,16 +50,34 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
 }
 
-inline void handle_pc(const std::set<PtrVal>& pc) {
-
+inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
+  check_pc_to_file(state);
+  epilogue();
+  exit(0);
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
-  // XXX(GW): temporarily commented, should invoke Checker and generate test case properly?
-  // auto &pc = state.getPC();
-  // handle_pc(pc);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+  auto cond = std::make_shared<SymV>(op_eq, immer::flex_vector({ args.at(0), make_IntV(1, 32) }), 1);
+  auto pc = state.get_PC();
+  pc.add(cond);
+  if (!check_pc(pc)) {
+    sym_exit(state, args);
+  }
+  state.set_PC(pc);
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
 }
+
+inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  auto cond = std::make_shared<SymV>(op_eq, immer::flex_vector({ args.at(0), make_IntV(1, 32) }), 1);
+  auto pc = state.get_PC();
+  pc.add(cond);
+  if (!check_pc(pc)) {
+    sym_exit(state, args);
+  }
+  state.set_PC(pc);
+  return k(state, make_IntV(1, 32));
+}
+
 
 inline std::monostate make_symbolic(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
   PtrVal make_loc = args.at(0);

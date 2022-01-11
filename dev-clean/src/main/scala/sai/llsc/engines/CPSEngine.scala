@@ -252,7 +252,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           }
         }
 
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List()): Rep[Unit] =
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List[SMTBool]()): Rep[Unit] =
           if (table.isEmpty) {
             s.addPCSet(pc)
             execBlock(funName, default, s, k)
@@ -261,7 +261,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s1.addPC(headPC.toSMTBool)
             execBlock(funName, table.head.label, s1, k)
-            switchSym(v, s, table.tail, pc ++ List(headPC.toSMTBoolNeg))
+            switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
           }
 
         ss.addIncomingBlock(incomingBlock)

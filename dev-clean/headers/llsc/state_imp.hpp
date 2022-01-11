@@ -284,6 +284,7 @@ class SS {
       return std::move(*this);
     }
     PC get_PC() { return pc; }
+    void set_PC(PC _pc) { pc = _pc; }
     const std::vector<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }

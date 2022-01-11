@@ -72,6 +72,7 @@ trait Coverage { self: SAIOps =>
 trait Opaques { self: SAIOps with BasicDefs =>
   object External extends Serializable {
     val warned = MutableSet[String]()
+    // TODO: specify the signature of those functions (both in C and Scala)
     val modeled = MutableSet[String](
       "sym_print", "malloc", "realloc", "llsc_assert", "make_symbolic",
       "open", "close", "sym_exit",
