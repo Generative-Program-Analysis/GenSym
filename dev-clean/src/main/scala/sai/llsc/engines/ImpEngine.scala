@@ -252,7 +252,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           }
         }
 
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[List[(SS, Value)]] =
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List()): Rep[List[(SS, Value)]] =
           if (table.isEmpty) {
             s.addPCSet(pc)
             execBlock(funName, default, s)
@@ -261,7 +261,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s1.addPC(headPC.toSMTBool)
             val u = execBlock(funName, table.head.label, s1)
-            u ++ switchSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
+            u ++ switchSym(v, s, table.tail, pc ++ List(headPC.toSMTBoolNeg))
           }
 
         ss.addIncomingBlock(incomingBlock)

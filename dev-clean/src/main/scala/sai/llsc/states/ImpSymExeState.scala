@@ -100,7 +100,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     // XXX: since pop is used in a map, will be DCE-ed if no CTRL
     def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
     def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
-    def addPCSet(es: Rep[Set[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
+    def addPCSet(es: Rep[List[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
     def updateArg(l: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-arg", ss, l)(ss)
 

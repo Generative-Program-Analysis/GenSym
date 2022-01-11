@@ -244,13 +244,13 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           }
         }
 
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[Set[SMTBool]] = Set()): Rep[Unit] =
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List()): Rep[Unit] =
           if (table.isEmpty) {
             execBlock(funName, default, s.addPCSet(pc), k)
           } else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             execBlock(funName, table.head.label, s.addPC(headPC.toSMTBool), k)
-            switchSym(v, s, table.tail, pc ++ Set(headPC.toSMTBoolNeg))
+            switchSym(v, s, table.tail, pc ++ List(headPC.toSMTBoolNeg))
           }
 
         val ss1 = ss.addIncomingBlock(incomingBlock)

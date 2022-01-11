@@ -101,16 +101,14 @@ class Stack {
 
 class PC {
   private:
-    // XXX: refactor: using a list that records the order of constraints
-    immer::set<PtrVal> pc;
-    PtrVal last;
+    immer::flex_vector<PtrVal> pc;
   public:
-    PC(immer::set<PtrVal> pc, PtrVal last = nullptr) : pc(pc), last(last) {}
-    PC add(PtrVal e) { return PC(pc.insert(e), e); }
-    PC addSet(immer::set<PtrVal> new_pc) { return PC(Set::join(pc, new_pc)); }
-    immer::set<PtrVal> get_path_conds() { return pc; }
-    PtrVal getLast() { return last; }
-    void print() { print_set(pc); }
+    PC(immer::flex_vector<PtrVal> pc) : pc(pc) {}
+    PC add(PtrVal e) { return PC(pc.push_back(e)); }
+    PC add_set(immer::flex_vector<PtrVal> new_pc) { return PC(pc + new_pc); }
+    immer::flex_vector<PtrVal> get_path_conds() { return pc; }
+    PtrVal get_last_cond() { return pc.back(); }
+    void print() { print_vec(pc); }
 };
 
 class SS {
@@ -160,7 +158,7 @@ class SS {
       return SS(heap.append(vals), stack, pc, bb);
     }
     SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb); }
-    SS add_PC_set(immer::set<PtrVal> s) { return SS(heap, stack, pc.addSet(s), bb); }
+    SS add_PC_set(immer::flex_vector<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb); }
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
@@ -186,7 +184,7 @@ class SS {
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-inline const PC mt_pc = PC(immer::set<PtrVal>{});
+inline const PC mt_pc = PC(immer::flex_vector<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 

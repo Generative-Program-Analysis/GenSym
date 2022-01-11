@@ -148,7 +148,7 @@ private:
   int make_query_internal(PC pcobj) {
     CacheResult *result;
     auto pc = pcobj.get_path_conds();
-    auto last = pcobj.getLast();
+    auto last = pcobj.get_last_cond();
     CacheKey pc2;
     // constraint independence
     if (use_cons_indep && last && pc.size() > 1) {
