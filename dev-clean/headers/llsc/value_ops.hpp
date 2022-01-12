@@ -279,7 +279,10 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   auto i2 = v2->to_IntV();
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  ASSERT(bw1 == bw2, "IntOp2: bitwidth of operands mismatch");
+  if (bw1 != bw2) {
+    std::cout << *v1 << " " << int_op2string(op) << " " << *v2 << "\n";
+    ABORT("int_op_2: bitwidth of operands mismatch");
+  }
   if (i1 && i2) {
     if (op == op_add) {
       return make_IntV(i1->i + i2->i, bw1);

@@ -73,7 +73,7 @@ object TestCases {
   )
 
   val external: List[TestPrg] = List(
-    TestPrg(assertTest, "assertTest", "@main", 0, 2)
+    TestPrg(assertTest, "assertTest", "@main", 0, 3)
   )
 
   val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall ++ external

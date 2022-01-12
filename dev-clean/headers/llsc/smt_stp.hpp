@@ -194,8 +194,9 @@ private:
     }
     // actual solving
     auto start = steady_clock::now();
-    for (auto &e: pc2)
+    for (auto &e: pc2) {
       vc_assertFormula(vc, e.get());
+    }
     ExprHandle fls = vc_falseExpr(vc);
     int retcode = vc_query(vc, fls.get());
     auto end = steady_clock::now();
