@@ -91,6 +91,18 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       (size + BYTE_SIZE - 1) / BYTE_SIZE
     case PtrType(ty, addrSpace) =>
       ARCH_WORD_SIZE / BYTE_SIZE
+    case FloatType(fk) => {
+      val rawSize = fk match {
+        case FK_Half => 16
+        case FK_BFloat => 16
+        case FK_Float => 32
+        case FK_Double => 64
+        case FK_X86_FP80 => 80
+        case FK_FP128 => 128
+        case FK_PPC_FP1289 => 128
+      }
+      (rawSize + BYTE_SIZE - 1) / BYTE_SIZE
+    }
     case _ => ???
   }
 

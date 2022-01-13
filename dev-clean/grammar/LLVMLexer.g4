@@ -649,5 +649,5 @@ LOCAL_ID
 
 LABEL_IDENT
     : ( LETTER | DECIMAL_DIGIT ) ( LETTER | DECIMAL_DIGIT ) * ':'
-    | QUOTED_STRING ':'
+    /* | QUOTED_STRING ':' */
 ;

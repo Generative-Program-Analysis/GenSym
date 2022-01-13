@@ -212,7 +212,10 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
     def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_zext".reflectWith[Value](v, bw)
 
-    def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
+    def isConc: Rep[Boolean] = v match {
+      case IntV(_, _) => unit(true)
+      case _ => "is-conc".reflectWith[Boolean](v)
+    }
     def toSMTBool: Rep[SMTBool] = "to-SMT".reflectWith[SMTBool](v)
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTNeg".reflectWith[SMTBool](v)
 

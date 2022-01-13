@@ -41,6 +41,7 @@ object Benchmarks {
   lazy val varArgInt = parseFile("benchmarks/llvm/varArgInt.ll")
   lazy val trunc = parseFile("benchmarks/llvm/trunc.ll")
   lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
+  lazy val floatFp80 = parseFile("benchmarks/llvm/floatFp80.ll")
 
   lazy val runCommandLine = parseFile("benchmarks/llvm/runCommandLine.ll")
 

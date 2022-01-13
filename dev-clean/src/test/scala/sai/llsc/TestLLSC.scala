@@ -31,6 +31,9 @@ object TestCases {
     TestPrg(ptrpred, "ptrPredTest", "@main", 0, 1),
     TestPrg(switchTestConc, "switchConcreteTest", "@main", 0, 1),
     TestPrg(trunc, "truncTest", "@main", 0, 1),
+    TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
+    // FIXME: Support parsing fp80 literals <2022-01-12, David Deng> //
+    // TestPrg(floatFp80, "floatFp80Test", "@main", 0, 1),
 
     TestPrg(arrayAccess, "arrayAccTest", "@main", 0, 1),
     TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", 0, 1),
@@ -84,8 +87,6 @@ object TestCases {
   // TestPrg(largeStackArray, "largeStackArrayTest", "@main", 0, 1),
   // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", 0, 1),
   // TestPrg(ptrtoint, "ptrToIntTest", "@main", 0, 1)
-  // FIXME: parsing error
-  // TestPrg(floatArith, "floatArithTest", "@main", 0, 1),
 }
 
 import TestCases._
