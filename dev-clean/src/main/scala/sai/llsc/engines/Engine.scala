@@ -292,8 +292,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
             } else {
               symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
               /*
-              val tpcSat = SS.checkPC(ss.pc + cndVal.toSMTBool)
-              val fpcSat = SS.checkPC(ss.pc + cndVal.toSMTBoolNeg)
+              val tpcSat = checkPC(ss.pc + cndVal.toSMTBool)
+              val fpcSat = checkPC(ss.pc + cndVal.toSMTBoolNeg)
               val b1 = for {
                 _ <- updatePC(cndVal.toSMTBool)
                 v <- execBlock(funName, thnLab)
@@ -471,6 +471,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor
-    reify[Value](SS.init(heap0))(comp)
+    reify[Value](initState(heap0))(comp)
   }
 }

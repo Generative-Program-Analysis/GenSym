@@ -356,7 +356,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     Coverage.setBlockNum
     Coverage.incPath(1)
     Coverage.startMonitor
-    val ss = SS.init(preHeap.asRepOf[Mem])
+    val ss = initState(preHeap.asRepOf[Mem])
     if (!isCommandLine) {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       ss.push

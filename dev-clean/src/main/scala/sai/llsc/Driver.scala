@@ -206,7 +206,7 @@ class PureLLSC extends LLSC {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val res = exec(fname, args, false, 4)
         // FIXME: pass isCommandLine, symarg=4 seems doesn't work on mp1p?
-        res.foreach { s => SS.checkPCToFile(s._1) }
+        res.foreach { s => checkPCToFile(s._1) }
         ()
       }
     }
@@ -219,7 +219,7 @@ class PureCPSLLSC extends LLSC {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val k: Rep[Cont] = fun { case sv =>
-          SS.checkPCToFile(sv._1); ()
+          checkPCToFile(sv._1); ()
         }
         exec(fname, args, false, 4, k)
       }
@@ -243,7 +243,7 @@ class ImpLLSC extends LLSC {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val res = exec(fname, args, false, 4)
-        res.foreach { s => SS.checkPCToFile(s._1)}
+        res.foreach { s => checkPCToFile(s._1)}
         ()
       }
     }
@@ -256,7 +256,7 @@ class ImpVecLLSC extends LLSC {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val res = exec(fname, args, false, 4)
-        res.foreach { s => SS.checkPCToFile(s._1)}
+        res.foreach { s => checkPCToFile(s._1)}
         ()
       }
     }
@@ -269,7 +269,7 @@ class ImpCPSLLSC extends LLSC {
       def snippet(u: Rep[Int]) = {
         val args: Rep[List[Value]] = SymV.makeSymVList(nSym)
         val k: Rep[Cont] = fun { case sv =>
-          SS.checkPCToFile(sv._1); ()
+          checkPCToFile(sv._1); ()
         }
         exec(fname, args, false, 4, k)
       }

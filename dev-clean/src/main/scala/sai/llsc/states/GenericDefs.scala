@@ -34,12 +34,10 @@ trait BasicDefs { self: SAIOps =>
   type PC = Set[SMTBool]
   type Id[T] = T
 
-  object SS {
-    def init: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
-    def init(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
-    def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
-    def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
-  }
+  def initState: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
+  def initState(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
+  def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
+  def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
 }
 
 trait Coverage { self: SAIOps =>
@@ -217,6 +215,8 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def isConc: Rep[Boolean] = "is-conc".reflectWith[Boolean](v)
     def toSMTBool: Rep[SMTBool] = "to-SMT".reflectWith[SMTBool](v)
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTNeg".reflectWith[SMTBool](v)
+
+    def notNull: Rep[Boolean] = "not-null".reflectWith[Boolean](v)
 
     def fp_toui(to: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, to)
     def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
