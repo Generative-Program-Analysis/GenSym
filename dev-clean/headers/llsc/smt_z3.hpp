@@ -96,10 +96,20 @@ public:
         return expr_rands.at(0) != expr_rands.at(1);
       case op_neg:
         return !expr_rands.at(0);
-      case op_sext:
-        return sext(expr_rands.at(0), bw);
-      case op_zext:
-        return zext(expr_rands.at(0), bw);
+      case op_sext: {
+        auto v = expr_rands.at(0);
+        auto ext_size = bw - v.get_sort().bv_size();
+        ASSERT(ext_size >= 0, "negative sign extension size");
+        if (ext_size > 0) return sext(v, ext_size);
+        return v;
+      }
+      case op_zext: {
+        auto v = expr_rands.at(0);
+        auto ext_size = bw - v.get_sort().bv_size();
+        ASSERT(ext_size >= 0, "negative zero extension size");
+        if (ext_size > 0) return zext(v, ext_size);
+        return v;
+      }
       case op_shl:
         return shl(expr_rands.at(0), expr_rands.at(1));
       case op_lshr:

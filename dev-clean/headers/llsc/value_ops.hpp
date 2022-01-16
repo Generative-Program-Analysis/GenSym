@@ -62,7 +62,7 @@ struct IntV : Value {
   }
   IntV(const IntV& v) : IntV(v.i, v.bw) {}
   virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "IntV(" << i << ")";
+    return os << "IntV(" << i << ", " << bw << ")";
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value IntV.");
@@ -208,12 +208,12 @@ struct SymV : Value {
     for (auto &r: rands) hash_combine(hash(), std::hash<PtrVal>{}(r));
   }
   virtual std::ostream& toString(std::ostream& os) const override {
-    if (!name.empty()) return os << "SymV(" << name << ")";
-    os << "SymV(" << int_op2string(rator) << ", ";
+    if (!name.empty()) return os << "SymV(" << name << ", " << bw << ")";
+    os << "SymV(" << int_op2string(rator) << ", {";
     for (auto e : rands) {
       os << *e << ", ";
     }
-    return os << ")";
+    return os << "}, " << bw << ")";
   }
   virtual PtrVal to_SMT() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
