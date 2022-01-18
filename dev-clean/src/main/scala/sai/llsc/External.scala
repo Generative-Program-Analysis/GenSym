@@ -71,6 +71,7 @@ class ExternalLLSCDriver(folder: String = ".") extends SAISnippet[Int, Unit] wit
       val ng = init(g)
       run(name, ng)
       emitln("/* LLSC - External utility functions and library modeling functions */")
+      emitFunctionDecls(stream)
       emitFunctions(stream)
     }
   }
@@ -81,9 +82,38 @@ class ExternalLLSCDriver(folder: String = ".") extends SAISnippet[Int, Unit] wit
     mainStream.close
   }
 
+  // TODO: refactor into SAIOps <2022-01-18, David Deng> //
+
+  def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], s: String): Rep[A => B] = {
+    val unwrapped = __hardTopFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))))
+    if (!s.trim.isEmpty) {
+      val n = unwrapped.asInstanceOf[Backend.Sym].n
+      funNameMap(n) = s
+    }
+    Wrap[A=>B](unwrapped)
+  }
+
+  def hardTopFun[A:Manifest,B:Manifest,C:Manifest](f: (Rep[A], Rep[B]) => Rep[C], s: String): Rep[(A, B) => C] = {
+    val unwrapped = __hardTopFun(f, 2, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)))))
+    if (!s.trim.isEmpty) {
+      val n = unwrapped.asInstanceOf[Backend.Sym].n
+      funNameMap(n) = s
+    }
+    Wrap[(A,B)=>C](unwrapped)
+  }
+
+  def hardTopFun[A:Manifest,B:Manifest,C:Manifest,D:Manifest](f: (Rep[A], Rep[B], Rep[C]) => Rep[D], s: String): Rep[(A, B, C) => D] = {
+    val unwrapped = __hardTopFun(f, 3, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)), Wrap[C](xn(2)))))
+    if (!s.trim.isEmpty) {
+      val n = unwrapped.asInstanceOf[Backend.Sym].n
+      funNameMap(n) = s
+    }
+    Wrap[(A,B,C)=>D](unwrapped)
+  }
+
   def snippet(u: Rep[Int]) = {
-    hardTopFun(llsc_assert(_, _))
-    hardTopFun(llsc_assert_k(_, _, _))
+    hardTopFun(llsc_assert(_,_), "llsc_assert")
+    hardTopFun(llsc_assert_k(_,_,_), "llsc_assert_k")
     ()
   }
 }
