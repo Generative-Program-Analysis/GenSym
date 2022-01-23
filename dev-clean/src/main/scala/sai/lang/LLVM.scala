@@ -303,6 +303,7 @@ package IR {
     typedConsts: List[TypedConst]
   ) extends ConstantExpr
 
+  case class PtrToIntExpr(from: LLVMType, const: Constant, to: LLVMType) extends ConstantExpr
   case class BitCastExpr(from: LLVMType, const: Constant, to: LLVMType) extends ConstantExpr
 
   case class TypedConst(inRange: Option[Boolean], ty: LLVMType, const: Constant) extends LAST
@@ -889,6 +890,13 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
     val const = visit(ctx.constant).asInstanceOf[Constant]
     TypedConst(inRange, ty, const)
+  }
+
+  override def visitPtrToIntExpr(ctx: LLVMParser.PtrToIntExprContext): LAST = {
+    val from = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val const = visit(ctx.constant).asInstanceOf[Constant]
+    val to = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    PtrToIntExpr(from, const, to)
   }
 
   override def visitBitCastExpr(ctx: LLVMParser.BitCastExprContext): LAST = {

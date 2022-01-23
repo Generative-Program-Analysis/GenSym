@@ -177,39 +177,32 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       evalHeapConst(const, to)
   }
 
-
-  def precomputeHeapAddr(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): Unit = {
-    var addr: Int = prevSize
-    globalDefMap.foreach { case (k, v) =>
-      heapEnv = heapEnv + (k -> unit(addr))
-      addr = addr + getTySize(v.typ)
-    }
-  }
-
-  def precompileHeap(globalDefMap: StaticMap[String, GlobalDef], prevSize: Int): StaticList[Rep[Value]] = {
-    precomputeHeapAddr(globalDefMap, prevSize)
-    globalDefMap.foldLeft(StaticList[Rep[Value]]()) { case (h, (k, v)) =>
-      h ++ evalHeapConst(v.const, getRealType(v.typ))
-    }
-  }
-
-  def precompileHeapDecl(globalDeclMap: StaticMap[String, GlobalDecl],
-    prevSize: Int, mname: String): StaticList[Rep[Value]] =
-    globalDeclMap.foldRight(StaticList[Rep[Value]]()) { case ((k, v), h) =>
-      // TODO external_weak linkage
-      val realID = mname + "_" + v.id
-      val addr = h.size + prevSize
-      heapEnv = heapEnv + (realID -> unit(addr))
-      h ++ StaticList.fill(getTySize(v.typ))(IntV(0))
-    }
-
   def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
     var heapSize = 0;
     var heapTmp: StaticList[Rep[Value]] = StaticList()
     for (module <- modules) {
-      heapTmp = heapTmp ++ precompileHeap(module.globalDefMap, heapTmp.size)
-      if (!module.globalDeclMap.isEmpty) {
-        heapTmp = heapTmp ++ precompileHeapDecl(module.globalDeclMap, heapTmp.size, module.mname)
+      module.funcDeclMap.foreach { case (k, v) =>
+        heapEnv += k -> unit(heapSize)
+        heapSize += 8;
+      }
+      module.funcDefMap.foreach { case (k, v) =>
+        heapEnv += k -> unit(heapSize)
+        heapSize += 8;
+      }
+      heapTmp ++= StaticList.fill(heapSize)(NullV())
+      module.globalDeclMap.foreach { case (k, v) =>
+        val realname = module.mname + "_" + v.id
+        heapEnv += realname -> unit(heapSize);
+        val size = getTySize(v.typ)
+        heapSize += size
+        heapTmp ++= StaticList.fill(size)(IntV(0))
+      }
+      module.globalDefMap.foreach { case (k, v) =>
+        heapEnv += k -> unit(heapSize);
+        heapSize += getTySize(v.typ)
+      }
+      module.globalDefMap.foreach { case (k, v) =>
+        heapTmp ++= evalHeapConst(v.const, getRealType(v.typ))
       }
     }
     heapTmp
