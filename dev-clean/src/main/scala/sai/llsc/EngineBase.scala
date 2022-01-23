@@ -147,21 +147,23 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   // FIXME: Alignment: CharArrayConst, ArrayConst
   // Float Type
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = {
-    def evalSingle(v: Constant, ty: LLVMType): Rep[Value] = v match {
+    def evalAddr(v: Constant, ty: LLVMType): Rep[Addr] = v match {
+      case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
+        val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
+        val addr = evalAddr(const, ptrType)
+        addr + calculateOffsetStatic(ptrType, indexLLVMValue)
+      }
+      case GlobalId(id) => heapEnv(id)
+      case BitCastExpr(from, const, to) => evalAddr(const, to)
+    }
+    def evalValue(v: Constant, ty: LLVMType): Rep[Value] = v match {
       case BoolConst(b) => IntV(if (b) 1 else 0, 1)
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
       case FloatConst(f) => FloatV(f)
       case NullConst => NullV()
-      case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
-        val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-        val addr = evalSingle(const, ptrType) match { case LocV(addr, _, _) => addr }
-        LocV(addr + calculateOffsetStatic(ptrType, indexLLVMValue), LocV.kHeap)
-      }
-      case GlobalId(id) => LocV(heapEnv(id), LocV.kHeap)
-      case BitCastExpr(from, const, to) => evalSingle(const, to)
-      case PtrToIntExpr(from, const, to) => evalSingle(const, from) match {
-        case LocV(addr, _, _) => IntV(addr, to.asInstanceOf[IntType].size)
-      }
+      case PtrToIntExpr(from, const, to) => 
+        IntV(evalAddr(const, from), to.asInstanceOf[IntType].size)
+      case _ => LocV(evalAddr(v, ty), LocV.kHeap)
     }
     v match {
       case StructConst(cs) =>
@@ -173,9 +175,10 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       case ZeroInitializerConst => ty match {
         case ArrayType(size, ety) => StaticList.fill(size)(evalHeapConst(ZeroInitializerConst, ety)).flatten
         case Struct(types) => types.flatMap(evalHeapConst(ZeroInitializerConst, _))
+        // TODO: fallback case is not typed
         case _ => IntV(0, getTySize(ty)) :: StaticList.fill(getTySize(ty) - 1)(NullV())
       }
-      case _ => evalSingle(v, ty) :: StaticList.fill(getTySize(ty) - 1)(NullV())
+      case _ => evalValue(v, ty) :: StaticList.fill(getTySize(ty) - 1)(NullV())
     }
   }
 

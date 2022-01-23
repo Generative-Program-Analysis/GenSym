@@ -136,8 +136,6 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def unapply(v: Rep[Value]): Option[(Rep[Addr], Int, Int)] = Unwrap(v) match {
       case gNode("make_LocV", (a: bExp)::bConst(k: Int)::bConst(size: Int)::_) =>
         Some((Wrap[Addr](a), k, size))
-      case gNode("make_LocV", (a: bExp)::gNode("kHeap", Nil)::bConst(size: Int)::_) =>
-        Some((Wrap[Addr](a), 1, size))
       case _ => None
     }
   }
