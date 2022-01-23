@@ -22,7 +22,7 @@ int32_t sub(pair_t arg) {
     return arg.a - arg.b;
 }
 
-option_t optionlist[] = {  // structured global constant
+option_t optionlist[10] = {  // structured global constant, partially zero
     {"hello", 1, add},  // ptrtoint
     {"world", 2, sub}
 };
