@@ -57,6 +57,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         case false => ret(IntV(0, 1))
       }
       // case CharArrayConst(s) =>
+      case GlobalId("@__llsc_indirect") =>
+        ret(FunV[Id](getIndirectHandler))
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
         ret(FunV[Id](FunFuns(id)))
@@ -213,14 +215,22 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs, ty)
       case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs, ty)
       case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = args.map {
+        val f2 = f match {
+          case LocalId(x) => GlobalId("@__llsc_indirect")
+          case _ => f
+        }
+        val args2 = f match {
+          case LocalId(_) => TypedArg(VoidType, Nil, f) :: args
+          case _ => args
+        }
+        val argValues: List[LLVMValue] = args2.map {
           case TypedArg(ty, attrs, value) => value
         }
-        val argTypes: List[LLVMType] = args.map {
+        val argTypes: List[LLVMType] = args2.map {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
-          fv <- eval(f, VoidType)
+          fv <- eval(f2, VoidType)
           vs <- mapM2Tup(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
@@ -443,6 +453,22 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     val fn: FFTy = topFun(runFun(_, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
+  }
+
+  def getIndirectHandler(): FFTy = {
+    if (FunFuns.contains("@__llsc_indirect"))
+      FunFuns("@__llsc_indirect")
+    else {
+      def runFun(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+        // TODO
+        args.map(v => (ss, v))
+      }
+      val fn: FFTy = topFun(runFun(_, _))
+      val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
+      funNameMap(n) = "__llsc_indirect"
+      FunFuns("@__llsc_indirect") = fn
+      fn
+    }
   }
 
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {

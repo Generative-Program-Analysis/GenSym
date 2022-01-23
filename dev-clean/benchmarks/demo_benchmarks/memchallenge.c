@@ -30,7 +30,7 @@ option_t optionlist[10] = {  // structured global constant, partially zero
 int main(int argc, const char** argv) {
     int index;
     make_symbolic(&index, sizeof(index));
-    for (int i = 0; i < sizeof(optionlist) / sizeof(option_t); i++) {
+    for (int i = 0; i < 2; i++) {
         if (optionlist[i].idx == index) {
             func_t fun = optionlist[i].func;  // inttoptr
             pair_t tmp;
