@@ -459,9 +459,25 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     if (FunFuns.contains("@__llsc_indirect"))
       FunFuns("@__llsc_indirect")
     else {
+      // this is just a `flatMap`, ignoring the container type
+      def expandList[A, B: Manifest](list: List[A])(f: A => Rep[List[B]]): Rep[List[B]] = {
+        list match {
+          case head :: tl => f(head) ++ expandList(tl)(f)
+          case Nil => Nil
+        }
+      }
       def runFun(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-        // TODO
-        args.map(v => (ss, v))
+        val tgt: Rep[Addr] = args.head.loc
+        expandList (funcEnv) { case (addr, name) =>
+          if (tgt == addr) {
+            val m: Comp[E, Rep[Value]] = for {
+              fv <- eval(GlobalId(name), VoidType)("@__llsc_indirect")
+              s <- getState
+              v <- reflect(fv(s, args.tail))
+            } yield v
+            reify(ss)(m)
+          } else Nil
+        }
       }
       val fn: FFTy = topFun(runFun(_, _))
       val n = Unwrap(fn).asInstanceOf[Backend.Sym].n

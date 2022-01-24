@@ -54,6 +54,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def typeDefMap: StaticMap[String, LLVMType] = m.typeDefMap
 
   var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+  var funcEnv: StaticList[(Addr, String)] = StaticList()
 
   val funNameMap: HashMap[Int, String] = new HashMap()
   val blockNameMap: HashMap[Int, String] = new HashMap()
@@ -186,13 +187,16 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     var heapSize = 0;
     var heapTmp: StaticList[Rep[Value]] = StaticList()
     for (module <- modules) {
-      module.funcDeclMap.foreach { case (k, v) =>
-        heapEnv += k -> unit(heapSize)
-        heapSize += 8;
-      }
+      // module.funcDeclMap.foreach { case (k, v) =>
+      //   heapEnv += k -> unit(heapSize)
+      //   heapSize += 8;
+      // }
       module.funcDefMap.foreach { case (k, v) =>
-        heapEnv += k -> unit(heapSize)
-        heapSize += 8;
+        if (k != "@main")  {
+          heapEnv += k -> unit(heapSize)
+          funcEnv = (heapSize, k) :: funcEnv
+          heapSize += 8;
+        }
       }
       heapTmp ++= StaticList.fill(heapSize)(NullV())
       module.globalDeclMap.foreach { case (k, v) =>
