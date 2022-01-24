@@ -152,7 +152,9 @@ struct LocV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV() override { return std::make_shared<IntV>(l, addr_bw); }
+  virtual std::shared_ptr<IntV> to_IntV() override {
+    return std::make_shared<IntV>(l + (k == kStack ? (1 << 30) : 0), addr_bw);
+  }
   virtual int get_bw() const override { return addr_bw; }
 
   virtual bool compare(const Value *v) const override {
