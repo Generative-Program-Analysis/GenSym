@@ -81,7 +81,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[Unit] = assignSeq(xs.map(_.hashCode), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       require(size > 0)
-      if (isStruct == 0) reflectRead[Value]("ss-lookup-addr", ss, addr)(ss)
+      if (isStruct == 0) reflectRead[Value]("ss-lookup-addr", ss, addr, size)(ss)
       else reflectRead[Value]("ss-lookup-addr-struct", ss, addr, size)(ss)
     }
     def update(a: Rep[Value], v: Rep[Value]): Rep[Unit] =

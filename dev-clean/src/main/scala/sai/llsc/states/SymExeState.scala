@@ -78,7 +78,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       require(size > 0)
-      if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr)
+      if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr, size)
       else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
     }
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
