@@ -33,6 +33,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   /* Basic functionalities */
 
   def compile(funName: String, b: BB): Unit = {
+    // TODO: convert assertion to warning
     Predef.assert(!BBFuns.contains((funName, b)))
     val (f, n) = repBlockFun(funName, b)
     val realFunName = if (funName != "@main") funName.tail else "llsc_main"
@@ -40,7 +41,10 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     BBFuns((funName, b)) = f
   }
   def compile(f: FunctionDef): Unit = {
-    Predef.assert(!FunFuns.contains(f.id))
+    if (FunFuns.contains(f.id)) {
+      System.out.println(s"Warning: ignoring the recompilation of ${f.id}")
+      return
+    }
     val (fn, n) = repFunFun(f)
     funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
     FunFuns(f.id) = fn

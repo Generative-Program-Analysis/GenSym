@@ -345,4 +345,12 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       fv[Id](ss.push.updateArg(symarg), commandLineArgs, k)
     }
   }
+
+  // super's evalheapConst needs refactor; why not uniformly returning list of values?
+  override def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
+    case GlobalId(id) if funMap.contains(id) =>
+      if (!FunFuns.contains(id)) compile(funMap(id))
+      StaticList(CPSFunV[Id](FunFuns(id))) //XXX: padding?
+    case _ => super.evalHeapConst(v, ty)
+  }
 }

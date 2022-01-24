@@ -3,7 +3,10 @@
 
 struct Value;
 struct IntV;
+struct SS;
+
 using PtrVal = std::shared_ptr<Value>;
+using func_t = std::monostate (*)(SS, immer::flex_vector<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
 
 /* Value representations */
 
@@ -51,6 +54,35 @@ struct std::equal_to<immer::flex_vector<PtrVal>> {
     return true;
   }
 };
+
+struct CPSFunV : Value {
+  func_t f;
+  CPSFunV(func_t f) : f(f) {
+    hash_combine(hash(), std::string("cpsfunv"));
+    hash_combine(hash(), f);
+  }
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "CPSFunV(" << f << ")";
+  }
+  virtual PtrVal to_SMT() override {
+    ABORT("to_SMT: unexpected value CPSFunV.");
+  }
+  virtual std::shared_ptr<IntV> to_IntV() override {
+    ABORT("to_IntV: TODO for CPSFunV?");
+  }
+  virtual bool is_conc() const override { return true; }
+  virtual int get_bw() const override {
+    ABORT("get_bw: TODO for CPSFunV?");
+  }
+  virtual bool compare(const Value *v) const override {
+    auto that = static_cast<decltype(this)>(v);
+    return this->f == that->f;
+  }
+};
+
+inline PtrVal make_CPSFunV(func_t f) {
+  return std::make_shared<CPSFunV>(f);
+}
 
 struct IntV : Value {
   int bw;

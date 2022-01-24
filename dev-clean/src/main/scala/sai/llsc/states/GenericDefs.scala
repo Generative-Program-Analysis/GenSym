@@ -139,12 +139,25 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
       case _ => None
     }
   }
+
   object FunV {
     def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[Value] = f.asRepOf[Value]
   }
+
   object CPSFunV {
-    def apply[W[_]](f: Rep[(W[SS], List[Value], PCont[W]) => Unit])(implicit m: Manifest[W[SS]]): Rep[Value] = f.asRepOf[Value]
+    def apply[W[_]](f: Rep[(W[SS], List[Value], PCont[W]) => Unit])(implicit m: Manifest[W[SS]]): Rep[Value] = {
+      "make_CPSFunV".reflectMutableWith[Value](f)
+    }
+    /*
+    def unapply(v: Rep[Value])(implicit m: Manifest[W[SS]]): Option[Rep[(W[SS], List[Value], PCont[W]) => Unit]] =
+      Unwrap(v) match {
+        case gNode("make_CPSFunV", List(f: bExp)) =>
+          Some(Wrap[(W[SS], List[Value], PCont[W]) => Unit](f))
+        case _ => None
+      }
+     */
   }
+
   object SymV {
     def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
     def apply(s: Rep[String], bw: Int): Rep[Value] =
@@ -202,9 +215,13 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
           // pass the continuation into it, we can just return a pair of state/value.
           System.out.println("use external function: " + f)
           f.reflectWith[Unit](s, args, k)
+        case gNode("make_CPSFunV", (f: bExp)::Nil) =>
+          // direct call
+          val fv = Wrap[(W[SS], List[Value], PCont[W]) => Unit](f)
+          fv(s, args, k)
         case _ =>
-          val f = v.asRepOf[(W[SS], List[Value], PCont[W]) => Unit]
-          f(s, args, k)
+          // indirect call
+          "cps_apply".reflectWith[Unit](v, s, args, k)
       }
     }
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)

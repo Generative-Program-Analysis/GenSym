@@ -30,6 +30,9 @@ object Benchmarks {
   lazy val ptrtoint = parseFile("benchmarks/llvm/ptrtoint.ll")
   lazy val ptrpred = parseFile("benchmarks/llvm/ptrpred.ll")
 
+  lazy val funptr = parseFile("benchmarks/llvm/funptr.ll")
+  lazy val heapFunptr = parseFile("benchmarks/llvm/heapFunptr.ll")
+
   lazy val sp1 = parseFile("benchmarks/llvm/single_path.ll")
   lazy val sp2 = parseFile("benchmarks/llvm/single_path2.ll")
   lazy val sp3 = parseFile("benchmarks/llvm/single_path3.ll")

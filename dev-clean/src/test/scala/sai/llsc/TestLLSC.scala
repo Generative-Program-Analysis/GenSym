@@ -42,6 +42,9 @@ object TestCases {
     TestPrg(structReturnLong, "structReturnLongTest", "@main", 0, 1),
     TestPrg(structAccess, "structAccessTest", "@main", 0, 1),
     TestPrg(structReturn, "structReturnTest", "@main", 0, 1),
+
+    //TestPrg(funptr, "funptr", "@main", 0, 1),
+    //TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1),
   )
 
   val varArg: List[TestPrg] = List(
@@ -161,6 +164,8 @@ class TestPureCPSLLSC extends TestLLSC {
 class TestPureCPSLLSC_Z3 extends TestLLSC {
   val llsc = new PureCPSLLSC_Z3
   testLLSC(llsc, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
+  //testLLSC(llsc, TestPrg(funptr, "funptr", "@main", 0, 1))
+  //testLLSC(llsc, TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1))
 }
 
 class TestImpLLSC extends TestLLSC {
