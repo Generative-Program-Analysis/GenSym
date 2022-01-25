@@ -456,7 +456,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         fv <- eval(GlobalId(fname), VoidType)(fname)
         _ <- pushFrame
         s <- getState
-        v <- reflect(fv(s, args))
+        v <- reflect(fv[Id](s, args))
         // Optimization: for entrance function, no need to pop
         //_ <- popFrame(s.stackSize)
       } yield v
@@ -467,7 +467,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         _ <- pushFrame
         _ <- initializeArg(symarg)
         s <- getState
-        v <- reflect(fv(s, commandLineArgs))
+        v <- reflect(fv[Id](s, commandLineArgs))
         //_ <- popFrame(s.stackSize)
       } yield v
     }

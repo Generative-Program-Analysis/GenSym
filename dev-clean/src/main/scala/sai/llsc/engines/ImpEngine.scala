@@ -188,7 +188,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         }
         ss.push
         val stackSize = ss.stackSize
-        val res = fv[Id](ss, List(vs: _*))
+        val res = fv[Ref](ss, List(vs: _*))
         res.flatMap { case sv =>
           val s: Rep[Ref[SS]] = sv._1
           s.pop(stackSize) // XXX: double check here
@@ -362,13 +362,13 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     if (!isCommandLine) {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       ss.push
-      fv(ss, args)
+      fv[Ref](ss, args)
     } else {
       val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       ss.push
       ss.updateArg(symarg)
-      fv(ss, commandLineArgs)
+      fv[Ref](ss, commandLineArgs)
     }
   }
 }
