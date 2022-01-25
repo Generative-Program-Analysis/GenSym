@@ -6,7 +6,12 @@ struct IntV;
 struct SS;
 
 using PtrVal = std::shared_ptr<Value>;
+#ifdef PURE_STATE
 using func_t = std::monostate (*)(SS, immer::flex_vector<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
+#endif
+#ifdef IMPURE_STATE
+using func_t = std::monostate (*)(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
+#endif
 
 /* Value representations */
 
