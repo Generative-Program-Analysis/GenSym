@@ -136,13 +136,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply(f: Rep[Float]): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f)(Adapter.CTRL)
   }
   object LocV {
-    def kStack: Rep[Int] = "kStack".reflectMutableWith[Int]()
-    def kHeap: Rep[Int] = "kHeap".reflectMutableWith[Int]()
-    def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int] = unit(-1)): Rep[Value] =
+    trait Kind
+    def kStack: Rep[Kind] = "kStack".reflectMutableWith[Kind]()
+    def kHeap: Rep[Kind] = "kHeap".reflectMutableWith[Kind]()
+    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Int] = unit(-1)): Rep[Value] =
       "make_LocV".reflectMutableWith[Value](l, kind, size)
-    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Int], Rep[Int])] = Unwrap(v) match {
+    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Int])] = Unwrap(v) match {
       case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::_) =>
-        Some((Wrap[Addr](a), Wrap[Int](k), Wrap[Int](size)))
+        Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Int](size)))
       case _ => None
     }
   }
@@ -188,9 +189,9 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case LocV(a, k, size) => a
       case _ => "proj_LocV".reflectWith[Addr](v)
     }
-    def kind: Rep[Int] = v match {
+    def kind: Rep[LocV.Kind] = v match {
       case LocV(a, k, size) => k
-      case _ => "proj_LocV_kind".reflectWith[Int](v)
+      case _ => "proj_LocV_kind".reflectWith[LocV.Kind](v)
     }
     def int: Rep[Int] = v match {
       case IntV(n, bw) => unit(n)

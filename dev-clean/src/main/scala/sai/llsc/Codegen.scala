@@ -40,6 +40,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$BlockLabel")) "BlockLabel"
     else if (m.toString.endsWith("$Mem")) "Mem"
     else if (m.toString.endsWith("$SS")) "SS"
+    else if (m.toString.endsWith("$Kind")) "LocV::Kind"
     else if (m.toString.endsWith("SMTExpr")) "PtrVal"
     else if (m.toString.endsWith("SMTBool")) "PtrVal"
     else if (m.runtimeClass.getName.endsWith("Future"))
