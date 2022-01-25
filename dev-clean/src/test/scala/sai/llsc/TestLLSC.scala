@@ -43,8 +43,8 @@ object TestCases {
     TestPrg(structAccess, "structAccessTest", "@main", 0, 1),
     TestPrg(structReturn, "structReturnTest", "@main", 0, 1),
 
-    //TestPrg(funptr, "funptr", "@main", 0, 1),
-    //TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1),
+    TestPrg(funptr, "funptr", "@main", 0, 1),
+    TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1),
   )
 
   val varArg: List[TestPrg] = List(

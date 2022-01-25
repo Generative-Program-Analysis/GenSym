@@ -351,6 +351,8 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     (fn, n)
   }
 
+  override def wrapFunV(f: FFTy): Rep[Value] = CPSFunV[Ref](f)
+
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     compile(funMap.map(_._2).toList)

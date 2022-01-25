@@ -327,6 +327,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     (fn, n)
   }
 
+  override def wrapFunV(f: FFTy): Rep[Value] = CPSFunV[Id](f)
+
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     // XXX: precompile functions here takes some unreachable blocks into account,
@@ -344,13 +346,5 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)
       fv[Id](ss.push.updateArg(symarg), commandLineArgs, k)
     }
-  }
-
-  // super's evalheapConst needs refactor; why not uniformly returning list of values?
-  override def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = v match {
-    case GlobalId(id) if funMap.contains(id) =>
-      if (!FunFuns.contains(id)) compile(funMap(id))
-      StaticList(CPSFunV[Id](FunFuns(id))) //XXX: padding?
-    case _ => super.evalHeapConst(v, ty)
   }
 }

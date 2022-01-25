@@ -29,6 +29,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def repBlockFun(funName: String, b: BB): (BFTy, Int)
   def repFunFun(f: FunctionDef): (FFTy, Int)
+  def wrapFunV(f: FFTy): Rep[Value]
 
   /* Basic functionalities */
 
@@ -60,7 +61,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def typeDefMap: StaticMap[String, LLVMType] = m.typeDefMap
 
   var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
-  var funcEnv: StaticList[(Addr, String)] = StaticList()
 
   val funNameMap: HashMap[Int, String] = new HashMap()
   val blockNameMap: HashMap[Int, String] = new HashMap()
@@ -153,6 +153,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   // FIXME: Alignment: CharArrayConst, ArrayConst
   // Float Type
+  // TODO: refactor
+  //     1. using flat recursion
+  //     2. code reuse with Engine-level eval?
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = {
     def evalAddr(v: Constant, ty: LLVMType): Rep[Addr] = v match {
       case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
@@ -170,6 +173,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       case NullConst => NullV()
       case PtrToIntExpr(from, const, to) => 
         IntV(evalAddr(const, from), to.asInstanceOf[IntType].size)
+      case GlobalId(id) if funMap.contains(id) =>
+        if (!FunFuns.contains(id)) compile(funMap(id))
+        wrapFunV(FunFuns(id)) //XXX: padding?
       case _ => LocV(evalAddr(v, ty), LocV.kHeap)
     }
     v match {
@@ -197,14 +203,14 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       //   heapEnv += k -> unit(heapSize)
       //   heapSize += 8;
       // }
-      module.funcDefMap.foreach { case (k, v) =>
-        if (k != "@main")  {
-          heapEnv += k -> unit(heapSize)
-          funcEnv = (heapSize, k) :: funcEnv
-          heapSize += 8;
-        }
-      }
-      heapTmp ++= StaticList.fill(heapSize)(NullV())
+      // module.funcDefMap.foreach { case (k, v) =>
+      //   if (k != "@main")  {
+      //     heapEnv += k -> unit(heapSize)
+      //     funcEnv = (heapSize, k) :: funcEnv
+      //     heapSize += 8;
+      //   }
+      // }
+      // heapTmp ++= StaticList.fill(heapSize)(NullV())
       module.globalDeclMap.foreach { case (k, v) =>
         val realname = module.mname + "_" + v.id
         heapEnv += realname -> unit(heapSize);

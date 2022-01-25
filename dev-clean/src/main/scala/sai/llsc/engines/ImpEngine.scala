@@ -188,7 +188,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         }
         ss.push
         val stackSize = ss.stackSize
-        val res = fv(ss, List(vs: _*))
+        val res = fv[Id](ss, List(vs: _*))
         res.flatMap { case sv =>
           val s: Rep[Ref[SS]] = sv._1
           s.pop(stackSize) // XXX: double check here
@@ -300,7 +300,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         }
         ss.push
         val stackSize = ss.stackSize
-        val res: Rep[List[(SS, Value)]] = fv(ss, List(vs: _*))
+        val res: Rep[List[(SS, Value)]] = fv[Ref](ss, List(vs: _*))
         res.flatMap { case sv =>
           val s = sv._1
           s.pop(stackSize)
@@ -349,6 +349,8 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
   }
+
+  override def wrapFunV(f: FFTy): Rep[Value] = FunV[Ref](f)
 
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)

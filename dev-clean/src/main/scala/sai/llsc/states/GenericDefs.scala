@@ -153,8 +153,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object FunV {
-    // TODO: refactor as CPSFunV
-    def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[Value] = f.asRepOf[Value]
+    def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[Value] = {
+      "make_FunV".reflectMutableWith[Value](f)
+    }
+    def unapply[W[_]](v: Rep[Value])(implicit m: Manifest[W[SS]]): Option[Rep[(W[SS], List[Value]) => List[(SS, Value)]]] =
+      Unwrap(v) match {
+        case gNode("make_FunV", (f: bExp)::Nil) =>
+          Some(Wrap[(W[SS], List[Value]) => List[(SS, Value)]](f))
+        case _ => None
+      }
   }
 
   object CPSFunV {
@@ -203,16 +210,16 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
-    def apply(s: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-      Unwrap(v) match {
-        case gNode("llsc-external-wrapper", bConst("noop")::Nil) =>
-          List((s, IntV(0)))
-        case gNode("llsc-external-wrapper", bConst(f: String)::Nil) =>
-          System.out.println("use external function: " + f)
-          f.reflectWith[List[(SS, Value)]](s, args)
-        case _ =>
-          val f = v.asRepOf[(SS, List[Value]) => List[(SS, Value)]]
-          f(s, args)
+    def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] = {
+      v match {
+        case ExternalFun(f) =>
+          if (f == "noop") List((s.asRepOf[SS], IntV(0)))
+          else {
+            System.out.println("use external function: " + f)
+            f.reflectWith[List[(SS, Value)]](s, args)
+          }
+        case FunV(f) => f(s, args)
+        case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
     }
     // The CPS version

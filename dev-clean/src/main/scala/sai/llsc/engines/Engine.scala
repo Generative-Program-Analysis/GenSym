@@ -57,8 +57,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         case false => ret(IntV(0, 1))
       }
       // case CharArrayConst(s) =>
-      case GlobalId("@__llsc_indirect") =>
-        ret(FunV[Id](getIndirectHandler))
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
         ret(FunV[Id](FunFuns(id)))
@@ -216,26 +214,18 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs, ty)
       case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs, ty)
       case CallInst(ty, f, args) =>
-        val f2 = f match {
-          case LocalId(x) => GlobalId("@__llsc_indirect")
-          case _ => f
-        }
-        val args2 = f match {
-          case LocalId(_) => TypedArg(VoidType, Nil, f) :: args
-          case _ => args
-        }
-        val argValues: List[LLVMValue] = args2.map {
+        val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value
         }
-        val argTypes: List[LLVMType] = args2.map {
+        val argTypes: List[LLVMType] = args.map {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
-          fv <- eval(f2, VoidType)
+          fv <- eval(f, VoidType)
           vs <- mapM2Tup(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(fv[Id](s, List(vs:_*)))
           _ <- popFrame(s.stackSize)
         } yield v
 
@@ -399,7 +389,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM2Tup(argValues)(argTypes)(eval)
           _ <- pushFrame
           s <- getState
-          v <- reflect(fv(s, List(vs:_*)))
+          v <- reflect(fv[Id](s, List(vs:_*)))
           _ <- popFrame(s.stackSize)
         } yield ()
     }
@@ -456,37 +446,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     (fn, n)
   }
 
-  def getIndirectHandler(): FFTy = {
-    if (FunFuns.contains("@__llsc_indirect"))
-      FunFuns("@__llsc_indirect")
-    else {
-      // this is just a `flatMap`, ignoring the container type
-      def expandList[A, B: Manifest](list: List[A])(f: A => Rep[List[B]]): Rep[List[B]] = {
-        list match {
-          case head :: tl => f(head) ++ expandList(tl)(f)
-          case Nil => Nil
-        }
-      }
-      def runFun(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
-        val tgt: Rep[Addr] = args.head.loc
-        expandList (funcEnv) { case (addr, name) =>
-          if (tgt == addr) {
-            val m: Comp[E, Rep[Value]] = for {
-              fv <- eval(GlobalId(name), VoidType)("@__llsc_indirect")
-              s <- getState
-              v <- reflect(fv(s, args.tail))
-            } yield v
-            reify(ss)(m)
-          } else Nil
-        }
-      }
-      val fn: FFTy = topFun(runFun(_, _))
-      val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-      funNameMap(n) = "__llsc_indirect"
-      FunFuns("@__llsc_indirect") = fn
-      fn
-    }
-  }
+  override def wrapFunV(f: FFTy): Rep[Value] = FunV[Id](f)
 
   def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)

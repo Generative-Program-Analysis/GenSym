@@ -6,12 +6,6 @@ struct IntV;
 struct SS;
 
 using PtrVal = std::shared_ptr<Value>;
-#ifdef PURE_STATE
-using func_t = std::monostate (*)(SS, immer::flex_vector<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
-#endif
-#ifdef IMPURE_STATE
-using func_t = std::monostate (*)(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
-#endif
 
 /* Value representations */
 
@@ -60,6 +54,42 @@ struct std::equal_to<immer::flex_vector<PtrVal>> {
   }
 };
 
+// FunV types:
+//   use template to delay type instantiation
+//   cause SS is currently incomplete, unable to use in containers
+
+template <typename func_t>
+struct FunV : Value {
+  func_t f;
+  FunV(func_t f) : f(f) {
+    hash_combine(hash(), std::string("funv"));
+    hash_combine(hash(), f);
+  }
+  virtual std::ostream& toString(std::ostream& os) const override {
+    return os << "FunV(" << f << ")";
+  }
+  virtual PtrVal to_SMT() override {
+    ABORT("to_SMT: unexpected value FunV.");
+  }
+  virtual std::shared_ptr<IntV> to_IntV() override {
+    ABORT("to_IntV: TODO for FunV?");
+  }
+  virtual bool is_conc() const override { return true; }
+  virtual int get_bw() const override {
+    ABORT("get_bw: TODO for FunV?");
+  }
+  virtual bool compare(const Value *v) const override {
+    auto that = static_cast<decltype(this)>(v);
+    return this->f == that->f;
+  }
+};
+
+template<typename func_t>
+inline PtrVal make_FunV(func_t f) {
+  return std::make_shared<FunV<func_t>>(f);
+}
+
+template<typename func_t>
 struct CPSFunV : Value {
   func_t f;
   CPSFunV(func_t f) : f(f) {
@@ -85,8 +115,9 @@ struct CPSFunV : Value {
   }
 };
 
+template<typename func_t>
 inline PtrVal make_CPSFunV(func_t f) {
-  return std::make_shared<CPSFunV>(f);
+  return std::make_shared<CPSFunV<func_t>>(f);
 }
 
 struct IntV : Value {
