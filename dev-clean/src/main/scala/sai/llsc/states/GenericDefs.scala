@@ -140,9 +140,9 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def kHeap: Rep[Int] = "kHeap".reflectMutableWith[Int]()
     def apply(l: Rep[Addr], kind: Rep[Int], size: Rep[Int] = unit(-1)): Rep[Value] =
       "make_LocV".reflectMutableWith[Value](l, kind, size)
-    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Int], Int)] = Unwrap(v) match {
-      case gNode("make_LocV", (a: bExp)::bConst(k: Int)::bConst(size: Int)::_) =>
-        Some((Wrap[Addr](a), k, size))
+    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Int], Rep[Int])] = Unwrap(v) match {
+      case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::_) =>
+        Some((Wrap[Addr](a), Wrap[Int](k), Wrap[Int](size)))
       case _ => None
     }
   }
