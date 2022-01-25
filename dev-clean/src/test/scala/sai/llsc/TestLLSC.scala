@@ -148,8 +148,8 @@ abstract class TestLLSC extends FunSuite {
 }
 
 class TestPureLLSC extends TestLLSC {
-  //testLLSC(new PureLLSC, TestCases.all)
-  testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", 0, 1))
+  testLLSC(new PureLLSC, TestCases.all)
+  //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", 0, 1))
   //testLLSC(new PureLLSC, TestCases.external)
 }
 
