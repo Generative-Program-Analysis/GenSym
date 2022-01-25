@@ -34,6 +34,10 @@ trait BasicDefs { self: SAIOps =>
   type PC = Set[SMTBool]
   type Id[T] = T
 
+  val bConst = Backend.Const
+  lazy val gNode = Adapter.g.Def
+  type bExp = Backend.Exp
+
   def initState: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
   def initState(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
@@ -99,14 +103,17 @@ trait Opaques { self: SAIOps with BasicDefs =>
     def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")
     def llvm_memmove: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memmove")
   }
+
+  object ExternalFun {
+    def unapply(v: Rep[Value]): Option[String] = Unwrap(v) match {
+      case gNode("llsc-external-wrapper", bConst(f: String)::Nil) => Some(f)
+      case _ => None
+    }
+  }
 }
 
-trait ValueDefs { self: SAIOps with BasicDefs =>
+trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   import Constants._
-  val bConst = Backend.Const
-  lazy val gNode = Adapter.g.Def
-
-  type bExp = Backend.Exp
   type PCont[W[_]] = ((W[SS], Value) => Unit)
 
   object IntV {
@@ -141,6 +148,7 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
   }
 
   object FunV {
+    // TODO: refactor as CPSFunV
     def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[Value] = f.asRepOf[Value]
   }
 
@@ -148,14 +156,12 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     def apply[W[_]](f: Rep[(W[SS], List[Value], PCont[W]) => Unit])(implicit m: Manifest[W[SS]]): Rep[Value] = {
       "make_CPSFunV".reflectMutableWith[Value](f)
     }
-    /*
-    def unapply(v: Rep[Value])(implicit m: Manifest[W[SS]]): Option[Rep[(W[SS], List[Value], PCont[W]) => Unit]] =
+    def unapply[W[_]](v: Rep[Value])(implicit m: Manifest[W[SS]]): Option[Rep[(W[SS], List[Value], PCont[W]) => Unit]] =
       Unwrap(v) match {
-        case gNode("make_CPSFunV", List(f: bExp)) =>
+        case gNode("make_CPSFunV", (f: bExp)::Nil) =>
           Some(Wrap[(W[SS], List[Value], PCont[W]) => Unit](f))
         case _ => None
       }
-     */
   }
 
   object SymV {
@@ -206,24 +212,20 @@ trait ValueDefs { self: SAIOps with BasicDefs =>
     }
     // The CPS version
     // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
-    def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] = {
-      Unwrap(v) match {
-        case gNode("llsc-external-wrapper", bConst("noop")::Nil) =>
-          k(s, IntV(0))
-        case gNode("llsc-external-wrapper", bConst(f: String)::Nil) =>
-          // XXX: if the external function does not diverge, we don't need to
-          // pass the continuation into it, we can just return a pair of state/value.
-          System.out.println("use external function: " + f)
-          f.reflectWith[Unit](s, args, k)
-        case gNode("make_CPSFunV", (f: bExp)::Nil) =>
-          // direct call
-          val fv = Wrap[(W[SS], List[Value], PCont[W]) => Unit](f)
-          fv(s, args, k)
-        case _ =>
-          // indirect call
-          "cps_apply".reflectWith[Unit](v, s, args, k)
+    def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
+      v match {
+        case ExternalFun(f) =>
+          if (f == "noop") k(s, IntV(0))
+          else {
+            // XXX: if the external function does not diverge, we don't need to
+            // pass the continuation into it, we can just return a pair of state/value.
+            System.out.println("use external function: " + f)
+            f.reflectWith[Unit](s, args, k)
+          }
+        case CPSFunV(f) => f(s, args, k)                       // direct call
+        case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
-    }
+    
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
     def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
