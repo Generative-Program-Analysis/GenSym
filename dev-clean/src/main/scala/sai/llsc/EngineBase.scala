@@ -164,7 +164,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         addr + calculateOffsetStatic(ptrType, indexLLVMValue)
       }
       case GlobalId(id) => heapEnv(id)
-      case BitCastExpr(from, const, to) => evalAddr(const, to)
     }
     def evalValue(v: Constant, ty: LLVMType): Rep[Value] = v match {
       case BoolConst(b) => IntV(if (b) 1 else 0, 1)
@@ -176,6 +175,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
         wrapFunV(FunFuns(id)) //XXX: padding?
+      case BitCastExpr(from, const, to) => evalValue(const, to)
       case _ => LocV(evalAddr(v, ty), LocV.kHeap)
     }
     v match {
