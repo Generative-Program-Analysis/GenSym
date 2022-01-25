@@ -124,6 +124,14 @@ class FS {
     Fd next_fd;
 
   public:
+    friend std::ostream& operator<<(std::ostream& os, const FS& fs) {
+      os << "FS(size=" << fs.files.size() << ", files:" << std::endl;
+      for (auto pf: fs.files) {
+        os << pf.second << std::endl << std::endl;
+      }
+      os << ")";
+      return os;
+    }
     FS(): next_fd(3) {
         // default initialize opened_files and files
         /* TODO: set up stdin and stdout using fd 1 and 2 <2021-11-03, David Deng> */
@@ -185,5 +193,8 @@ class FS {
      * what should the interface be? a simple wrapper around Stream's read and write?
      * <2021-11-15, David Deng> */
 };
+
+inline int default_sym_file_size = 5;
+inline FS initial_fs;
 
 #endif

@@ -74,28 +74,44 @@ inline std::string get_string(PtrVal ptr, SS state) {
   return name;
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> open(SS state, immer::flex_vector<PtrVal> args) {
-  PtrVal ptr = args.at(0);
-  std::string name = get_string(ptr, state);
-  FS& fs = state.get_fs();
-  /* TODO: add flags for open_file <2021-11-03, David Deng> */
-  Fd fd = fs.open_file(name, 0);
-  state.set_fs(fs);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(fd)}};
-}
-
 inline immer::flex_vector<std::pair<SS, PtrVal>> close(SS state, immer::flex_vector<PtrVal> args) {
   Fd fd = proj_IntV(args.at(0));
-  FS& fs = state.get_fs();
+  FS fs = state.get_fs();
   int status = fs.close_file(fd);
   state.set_fs(fs);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(status)}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
+  int status;
+  if (args.size() > 0) {
+#ifdef DEBUG
+    std::cout << "sym_exit: *args.at(0) = " << *args.at(0) << std::endl;
+#endif
+    auto v = args.at(0)->to_IntV();
+    if (v) {
+      status = v->i;
+    } else {
+      status = 0; // return 0 in case a non-int value is passed as args.at(0)
+    }
+  } else {
+#ifdef DEBUG
+    std::cout << "sym_exit: no args passed" << std::endl;
+#endif
+    status = 0;
+  }
   check_pc_to_file(state);
   epilogue();
-  exit(0);
+  exit(status);
+}
+
+/* TODO: Generate both versions of sym_exit <2022-01-24, David Deng> */
+inline std::monostate sym_exit(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  auto v = args.at(0)->to_IntV();
+  auto status = v ? v->i : 0;
+  check_pc_to_file(state);
+  epilogue();
+  exit(status);
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {

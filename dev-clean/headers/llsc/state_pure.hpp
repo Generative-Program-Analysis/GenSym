@@ -122,7 +122,7 @@ class SS {
     BlockLabel bb;
     FS fs;
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb) {}
+    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb), fs(initial_fs) {}
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb, FS fs) : heap(heap), stack(stack), pc(pc), bb(bb), fs(fs) {}
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
@@ -181,8 +181,8 @@ class SS {
     PC get_PC() { return pc; }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
-    void set_fs(FS& new_fs) { fs = new_fs; }
-    FS& get_fs() { return fs; }
+    void set_fs(FS new_fs) { fs = new_fs; }
+    FS get_fs() { return fs; }
 };
 
 inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});

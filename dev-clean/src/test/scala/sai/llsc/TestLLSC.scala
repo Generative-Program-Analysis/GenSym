@@ -82,7 +82,12 @@ object TestCases {
     TestPrg(assertTest, "assertTest", "@main", 0, 3)
   )
 
-  val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall ++ external
+  val filesys: List[TestPrg] = List(
+    TestPrg(openTest, "openTestSucc", "@main", 0, 1, "--add-sym-file A", Some(0)),
+    TestPrg(openTest, "openTestFail", "@main", 0, 1, "", Some(1)),
+    )
+
+  val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall ++ external ++ filesys
 
   // FIXME: out of range
   // TestPrg(struct, "structTest", "@main", 0, 1),
@@ -179,3 +184,8 @@ class TestImpCPSLLSC extends TestLLSC {
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
   //testLLSC(new ImpCPSLLSC, external)
 }
+
+class TestFS extends TestLLSC {
+  testLLSC(new PureLLSC, filesys)
+}
+

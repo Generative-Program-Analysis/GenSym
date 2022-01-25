@@ -100,6 +100,8 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
 
     def addIncomingBlock(x: String): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, x.hashCode)
     def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
+    def getFs: Rep[FS] = "ss-get-fs".reflectWith[FS](ss)
+    def setFs(fs: Rep[FS]): Unit = "ss-set-fs".reflectWriteWith[FS](ss, fs)(ss)
   }
 
   implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
@@ -123,6 +125,10 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
        */
       case _ => super.assign(x, v)
     }
+  }
+
+  implicit class FSOps(fs: Rep[FS]) {
+    def openFile(path: Rep[String], flag: Rep[Int]): Rep[Fd] = "fs-open-file".reflectWith[Fd](fs, path, flag)
   }
 
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()

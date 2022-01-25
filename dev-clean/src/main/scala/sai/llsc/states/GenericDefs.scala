@@ -27,12 +27,14 @@ trait BasicDefs { self: SAIOps =>
   trait Value
   trait Stack
   trait SS
+  trait FS
 
   type IntData = Long
   type BlockLabel = Int
   type Addr = Int
   type PC = Set[SMTBool]
   type Id[T] = T
+  type Fd = Int
 
   val bConst = Backend.Const
   lazy val gNode = Adapter.g.Def
@@ -83,6 +85,8 @@ trait Opaques { self: SAIOps with BasicDefs =>
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
     def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")
   }
+
+  def getString(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get-string".reflectWith[String](ptr, s)
 
   object Intrinsics {
     val warned = MutableSet[String]()

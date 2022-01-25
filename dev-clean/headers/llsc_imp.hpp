@@ -38,9 +38,10 @@ using namespace std::chrono;
 
 #include <llsc/auxiliary.hpp>
 #include <llsc/parallel.hpp>
-#include <llsc/cli.hpp>
 #include <llsc/monitor.hpp>
 #include <llsc/value_ops.hpp>
+#include <llsc/filesys.hpp>
+#include <llsc/cli.hpp>
 #include <llsc/state_imp.hpp>
 #include <llsc/smt_checker.hpp>
 #include <llsc/smt_stp.hpp>

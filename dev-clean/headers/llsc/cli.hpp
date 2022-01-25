@@ -10,17 +10,20 @@ inline bool exlib_failure_branch = false;
 
 // XXX: can also specify symbolic argument here?
 inline void handle_cli_args(int argc, char** argv) {
+  extern char *optarg;
   int c;
   while (1) {
     static struct option long_options[] =
     {
       /* These options set a flag. */
-      {"disable-solver",       no_argument, 0, 'd'},
-      {"exlib-failure-branch", no_argument, 0, 'f'},
-      {"no-obj-cache",         no_argument, 0, 'O'},
-      {"no-cex-cache",         no_argument, 0, 'C'},
-      {"cons-indep",           no_argument, 0, 'i'},
-      {0,                      0,           0, 0}
+      {"disable-solver",       no_argument,       0, 'd'},
+      {"exlib-failure-branch", no_argument,       0, 'f'},
+      {"no-obj-cache",         no_argument,       0, 'O'},
+      {"no-cex-cache",         no_argument,       0, 'C'},
+      {"cons-indep",           no_argument,       0, 'i'},
+      {"add-sym-file",         required_argument, 0, '+'},
+      {"sym-file-size",        required_argument, 0, 's'},
+      {0,                      0,                 0, 0  }
     };
     int option_index = 0;
 
@@ -47,6 +50,18 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 'i':
         use_cons_indep = true;
+        break;
+      case '+':
+        initial_fs.add_file(make_SymFile(std::string(optarg), default_sym_file_size));
+#ifdef DEBUG
+        printf("adding symfile: %s with size %d\n", optarg, default_sym_file_size);
+#endif
+        break;
+      case 's':
+        default_sym_file_size = atoi(optarg);
+#ifdef DEBUG
+        printf("set symfile size to %d\n", default_sym_file_size);
+#endif
         break;
       case '?':
         // parsing error, should be printed by getopt
@@ -82,6 +97,9 @@ inline void handle_cli_args(int argc, char** argv) {
   }
   use_objcache = use_objcache && use_global_solver;
   use_cexcache = use_cexcache && use_global_solver;
+#ifdef DEBUG
+  std::cout << initial_fs << std::endl;
+#endif
 }
 
 #endif

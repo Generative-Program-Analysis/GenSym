@@ -240,7 +240,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
   registerHeader("../third-party/immer", "<immer/algorithm.hpp>")
   registerHeader("./headers", "<sai.hpp>")
 
-  val ns = ""; //"immer::"
+  val ns = "immer::"
 
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.List") {

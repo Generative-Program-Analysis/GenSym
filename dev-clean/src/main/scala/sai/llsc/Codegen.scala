@@ -40,6 +40,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$BlockLabel")) "BlockLabel"
     else if (m.toString.endsWith("$Mem")) "Mem"
     else if (m.toString.endsWith("$SS")) "SS"
+    else if (m.toString.endsWith("$FS")) "FS"
     else if (m.toString.endsWith("$Kind")) "LocV::Kind"
     else if (m.toString.endsWith("SMTExpr")) "PtrVal"
     else if (m.toString.endsWith("SMTBool")) "PtrVal"
@@ -79,6 +80,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.add_incoming_block($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
     case Node(s, "ss-arg", List(ss, i), _) => es"$ss.init_arg($i)"
+    case Node(s, "ss-get-fs", List(ss), _) => es"$ss.get_fs()"
+    case Node(s, "ss-set-fs", List(ss, fs), _) => es"$ss.set_fs($fs)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
     case Node(s, "null-v", _, _) => es"nullptr"
 
@@ -95,6 +98,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-block-cov", _, _) => es"cov.print_block_cov()"
     case Node(s, "print-time", _, _) => es"cov.print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov.print_path_cov()"
+    case Node(s, "get-string", List(ptr, ss), _) => es"get_string($ptr, $ss)"
+    case Node(s, "fs-open-file", List(fs, p, f), _) => es"$fs.open_file($p, $f)"
 
     case _ => super.shallow(n)
   }
