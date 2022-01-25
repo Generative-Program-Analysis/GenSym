@@ -33,12 +33,14 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   /* Basic functionalities */
 
   def compile(funName: String, b: BB): Unit = {
-    // TODO: convert assertion to warning
-    Predef.assert(!BBFuns.contains((funName, b)))
-    val (f, n) = repBlockFun(funName, b)
+    if (BBFuns.contains((funName, b))) {
+      System.out.println(s"Warning: ignoring the compilation of $funName - ${b.label}")
+      return
+    }
+    val (fn, n) = repBlockFun(funName, b)
     val realFunName = if (funName != "@main") funName.tail else "llsc_main"
     blockNameMap(n) = s"${realFunName}_Block$n"
-    BBFuns((funName, b)) = f
+    BBFuns((funName, b)) = fn
   }
   def compile(f: FunctionDef): Unit = {
     if (FunFuns.contains(f.id)) {
