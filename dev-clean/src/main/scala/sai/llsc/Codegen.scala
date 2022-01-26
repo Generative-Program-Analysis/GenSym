@@ -115,6 +115,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
         (functionsWriter, functionsStream)
       })._1)(f)
       //ongoingFun -= streamId
+    } else {
+      withStream(functionsStreams(id)._1)(f)
     }
 
   def emitHeaderFile: Unit = {

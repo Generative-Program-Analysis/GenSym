@@ -5,6 +5,7 @@
 
 /************* Function Declarations **************/
 immer::flex_vector<std::pair<SS, PtrVal>> open(SS, immer::flex_vector<PtrVal>);
+std::monostate open(SS, immer::flex_vector<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
 
 /************* Functions **************/
 inline immer::flex_vector<std::pair<SS, PtrVal>> open(SS x1, immer::flex_vector<PtrVal> x2) {
@@ -13,5 +14,12 @@ FS x4 = x1.get_fs();
 int x5 = x4.open_file(get_string(x3, x1), 0);
 x1.set_fs(x4);
 return immer::flex_vector<std::pair<SS, PtrVal>>{std::make_pair(x1, make_IntV(x5, 32))};
+}
+inline std::monostate open(SS x6, immer::flex_vector<PtrVal> x7, std::function<std::monostate(SS, PtrVal)> x8) {
+PtrVal x9 = x7.at(0);
+FS x10 = x6.get_fs();
+int x11 = x10.open_file(get_string(x9, x6), 0);
+x6.set_fs(x10);
+return x8(x6, make_IntV(x11, 32));
 }
 #endif // LLSC_EXTERNAL_HEADERS_GEN

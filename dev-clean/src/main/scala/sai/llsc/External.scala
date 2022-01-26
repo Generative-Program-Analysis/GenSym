@@ -120,7 +120,7 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
     // hardTopFun(llsc_assert(_,_), "llsc_assert")
     // hardTopFun(llsc_assert_k(_,_,_), "llsc_assert_k")
     hardTopFun(open(_,_), "open", "inline")
-    // hardTopFun(open_k(_,_,_), "open_k")
+    hardTopFun(open_k(_,_,_), "open", "inline")
     ()
   }
 }
