@@ -85,11 +85,6 @@ struct FunV : Value {
 };
 
 template<typename func_t>
-inline PtrVal make_FunV(func_t f) {
-  return std::make_shared<FunV<func_t>>(f);
-}
-
-template<typename func_t>
 struct CPSFunV : Value {
   func_t f;
   CPSFunV(func_t f) : f(f) {
@@ -114,11 +109,6 @@ struct CPSFunV : Value {
     return this->f == that->f;
   }
 };
-
-template<typename func_t>
-inline PtrVal make_CPSFunV(func_t f) {
-  return std::make_shared<CPSFunV<func_t>>(f);
-}
 
 struct IntV : Value {
   int bw;

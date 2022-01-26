@@ -302,16 +302,26 @@ inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
   immer::flex_vector<std::pair<SS, PtrVal>>{};
 
+using func_t = immer::flex_vector<std::pair<SS, PtrVal>> (*)(SS&, immer::flex_vector<PtrVal>);
+
+inline PtrVal make_FunV(func_t f) {
+  return std::make_shared<FunV<func_t>>(f);
+}
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> direct_apply(PtrVal v, SS ss, immer::flex_vector<PtrVal> args) {
-  using func_t = immer::flex_vector<std::pair<SS, PtrVal>> (*)(SS&, immer::flex_vector<PtrVal>);
   auto f = std::dynamic_pointer_cast<FunV<func_t>>(v);
   if (f) return f->f(ss, args);
   ABORT("direct_apply: not applicable");
 }
 
+using func_cps_t = std::monostate (*)(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
+
+inline PtrVal make_CPSFunV(func_cps_t f) {
+  return std::make_shared<CPSFunV<func_cps_t>>(f);
+}
+
 inline std::monostate cps_apply(PtrVal v, SS ss, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
-  using func_t = std::monostate (*)(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
-  auto f = std::dynamic_pointer_cast<CPSFunV<func_t>>(v);
+  auto f = std::dynamic_pointer_cast<CPSFunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");
 }
