@@ -10,7 +10,8 @@ immer::flex_vector<std::pair<SS, PtrVal>> open(SS, immer::flex_vector<PtrVal>);
 inline immer::flex_vector<std::pair<SS, PtrVal>> open(SS x1, immer::flex_vector<PtrVal> x2) {
 PtrVal x3 = x2.at(0);
 FS x4 = x1.get_fs();
+int x5 = x4.open_file(get_string(x3, x1), 0);
 x1.set_fs(x4);
-return immer::flex_vector<std::pair<SS, PtrVal>>{std::make_pair(x1, make_IntV(x4.open_file(get_string(x3, x1), 0), 32))};
+return immer::flex_vector<std::pair<SS, PtrVal>>{std::make_pair(x1, make_IntV(x5, 32))};
 }
 #endif // LLSC_EXTERNAL_HEADERS_GEN
