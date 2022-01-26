@@ -93,16 +93,29 @@ struct Stream {
       cursor = new_cursor;
       return cursor;
     }
-    size_t get_cursor() const { return cursor; }
+    inline size_t get_cursor() const { return cursor; }
 
-    /* TODO: implement write, read
-     * ssize_t write(const void *buf, size_t nbytes)
-     * - write from the current cursor, update cursor
-     * - support only concrete values
-     * - can have another function write_sym to handle writing of symbolic values
-     * pair<flex_vector<PtrVal>, ssize_t> read(size_t nbytes);
-     * - read from the current cursor position, update cursor
-     * <2021-11-15, David Deng> */
+    inline std::string get_name() const { return file.get_name(); }
+
+    // used for close. Return by value. Modification should be done through write and other interface function.
+    inline File get_file() const { return file; }
+
+    immer::flex_vector<PtrVal> read(size_t nbytes) {
+      // read from current position, up to nbytes
+      auto content = file.read_at(cursor, nbytes);
+      cursor += content.size();
+      return content;
+    }
+
+    ssize_t write(immer::flex_vector<PtrVal> content, size_t nbytes) {
+      // write nbytes of buf into the stream, return the num of bytes written.
+      // if cursor is beyond the end of file, IntV0 is filled for the hole.
+      /* TODO: when file is opened with O_APPEND flag, write to the end <2022-01-25, David Deng> */
+      auto new_content = content.take(nbytes);
+      file.write_at(new_content, cursor, IntV0);
+      cursor += new_content.size();
+      return new_content.size();
+    }
 };
 
 class FS {
@@ -110,6 +123,10 @@ class FS {
     immer::map<Fd, Stream> opened_files;
     immer::map<std::string, File> files;
     Fd next_fd;
+    Fd get_fresh_fd() {
+      /* TODO: traverse through opened files to find the lowest available fd <2022-01-25, David Deng> */
+      return next_fd++;
+    }
 
   public:
     friend std::ostream& operator<<(std::ostream& os, const FS& fs) {
@@ -130,11 +147,12 @@ class FS {
     FS(immer::map<Fd, Stream> opened_files, immer::map<std::string, File> files, status_t status, Fd next_fd, Fd last_opened_fd) :
       opened_files(opened_files), files(files), next_fd(next_fd) {}
 
-    /* Stream get_stream(Fd fd) { */
-    /*   if (opened_files.find(fd) == nullptr) /1* Handle error here *1/ */
-    /*     ASSERT(false, "cannot get stream that does not exist"); */
-    /*   return opened_files.at(fd); */
-    /* } */
+    inline File get_file(std::string name) {
+      return files.at(name);
+    }
+    inline Stream get_stream(Fd fd) {
+      return opened_files.at(fd);
+    }
 
     void add_file(File file) {
       ASSERT(!has_file(file.get_name()), "FS::add_file: File already exists");
@@ -143,6 +161,8 @@ class FS {
 
     void remove_file(std::string name) {
       ASSERT(has_file(name), "FS::remove_file: File does not exist");
+      // NOTE: should behave correctly if the file is open, 
+      // because the file in opened_files is not removed until it is close_file is called.
       files = files.erase(name);
     };
 
@@ -157,20 +177,39 @@ class FS {
     Fd open_file(std::string name, int mode = O_RDONLY) {
       /* TODO: handle different mode <2021-10-12, David Deng> */
       if (!has_file(name)) return -1;
-      opened_files = opened_files.set(next_fd, Stream(files.at(name)));
-      return next_fd++;
+      Fd fd = get_fresh_fd();
+      opened_files = opened_files.set(fd, Stream(get_file(name)));
+      return fd;
     }
 
     int close_file(Fd fd) {
-      /* TODO: set next_fd the lowest file descriptor? <2021-10-28, David Deng> */
+      // remove the stream associated with fd,
+      // write content to the actual file if the file still exists.
       if (!has_stream(fd)) return -1;
+      auto strm = get_stream(fd);
+      auto name = strm.get_name();
+      if (!has_file(name)) return 0;
+      files = files.set(name, strm.get_file());
       opened_files = opened_files.erase(fd);
       return 0;
     }
 
-    /* TODO: implement read_file, write_file
-     * what should the interface be? a simple wrapper around Stream's read and write?
-     * <2021-11-15, David Deng> */
+
+    std::pair<immer::flex_vector<PtrVal>, ssize_t> read_file(Fd fd, size_t nbytes) {
+      if (!has_stream(fd)) return std::make_pair(immer::flex_vector<PtrVal>{}, -1);
+      auto strm = get_stream(fd);
+      auto content = strm.read(nbytes);
+      return std::make_pair(content, content.size());
+    }
+
+    ssize_t write_file(Fd fd, immer::flex_vector<PtrVal> content, size_t nbytes) {
+      if (!has_stream(fd)) return -1;
+      auto strm = get_stream(fd);
+      auto written = strm.write(content, nbytes);
+      opened_files = opened_files.set(fd, strm);
+      return written;
+    }
+
 };
 
 inline int default_sym_file_size = 5;

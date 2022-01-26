@@ -35,7 +35,6 @@ trait BasicDefs { self: SAIOps =>
   type PC = Set[SMTBool]
   type Id[T] = T
   type Fd = Int
-
   val bConst = Backend.Const
   lazy val gNode = Adapter.g.Def
   type bExp = Backend.Exp

@@ -2,18 +2,18 @@
 #include <assert.h>
 #include "../llsc.hpp"
 
-void test_file() {
-  PtrVal intV_0 = make_IntV(0);
-  PtrVal intV_1 = make_IntV(1);
-  PtrVal intV_2 = make_IntV(2);
-  PtrVal intV_3 = make_IntV(3);
-  PtrVal intV_4 = make_IntV(4);
-  PtrVal intV_5 = make_IntV(5);
-  PtrVal intV_6 = make_IntV(6);
-  PtrVal intV_7 = make_IntV(7);
-  PtrVal intV_8 = make_IntV(8);
-  PtrVal intV_9 = make_IntV(9);
+PtrVal intV_0 = make_IntV(0);
+PtrVal intV_1 = make_IntV(1);
+PtrVal intV_2 = make_IntV(2);
+PtrVal intV_3 = make_IntV(3);
+PtrVal intV_4 = make_IntV(4);
+PtrVal intV_5 = make_IntV(5);
+PtrVal intV_6 = make_IntV(6);
+PtrVal intV_7 = make_IntV(7);
+PtrVal intV_8 = make_IntV(8);
+PtrVal intV_9 = make_IntV(9);
 
+void test_file() {
   {
     // test read_at
     File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2});
@@ -81,10 +81,6 @@ void test_file() {
 }
 
 void test_stream() {
-  PtrVal intV_0 = make_IntV(0);
-  PtrVal intV_1 = make_IntV(1);
-  PtrVal intV_2 = make_IntV(2);
-
   File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2});
   Stream s = Stream(f);
   off_t pos;
@@ -122,6 +118,51 @@ void test_stream() {
     pos = s3.seek_end(-5);
     ASSERT(pos == -1, "should set error");
   }
+  {
+    // test read stream
+    File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2, intV_3, intV_4});
+    Stream s1(f);
+
+    auto content = s1.read(3);
+    ASSERT(content == f.read_at(0, 3), "should read the first three bytes");
+
+    content = s1.read(999);
+    ASSERT(content == f.read_at(3, 2), "should return the rest of the file");
+
+    content = s1.read(999);
+    ASSERT(content == immer::flex_vector<PtrVal>{}, "should return nothing");
+  }
+  {
+    // test write stream
+    File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2, intV_3, intV_4});
+    Stream s1(f);
+    int nbytes;
+
+    nbytes = s1.write(immer::flex_vector<PtrVal>{intV_5, intV_6}, 5);
+    ASSERT(nbytes == 2, "should write two bytes");
+
+    Stream s2(f);
+    nbytes = s2.write(immer::flex_vector<PtrVal>{intV_5, intV_6}, 1);
+    ASSERT(nbytes == 1, "should write one byte");
+    
+    Stream s3(f);
+    s3.write(immer::flex_vector<PtrVal>{intV_5, intV_6}, 2);
+    ASSERT((s3.seek_cur(0) == 2), "cursor should have advanced by two");
+    s3.seek_start(0);
+    ASSERT((s3.read(5) == 
+          immer::flex_vector<PtrVal>{intV_5, intV_6, intV_2, intV_3, intV_4}), 
+        "content should be updated");
+
+    Stream s4(f);
+    s4.seek_end(2);
+    nbytes = s4.write(immer::flex_vector<PtrVal>{intV_5, intV_6}, 2);
+    ASSERT(nbytes == 2, "should have written two bytes");
+    ASSERT((s4.seek_end(0) == 9), "should have 9 bytes in total");
+    s4.seek_start(0);
+    ASSERT((s4.read(999) == 
+          immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2, intV_3, intV_4, IntV0, IntV0, intV_5, intV_6}), 
+        "content should be updated");
+  }
 }
 
 void test_fs() {
@@ -144,6 +185,7 @@ void test_fs() {
     FS fs;
     fs.add_file(file_a);
     Fd fd_a;
+    ssize_t ret;
 
     fd = fs.open_file(file_a.get_name());
     ASSERT((fd != -1), "open_file should return valid fd");
@@ -152,6 +194,23 @@ void test_fs() {
 
     fd = fs.open_file("non-existing-file");
     ASSERT((fd == -1), "open_file should return -1 on non-existing file name");
+
+    // test write_file
+    ret = fs.write_file(fd_a, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5);
+    ASSERT((ret == 2), "should return the correct number of bytes written");
+
+    ret = fs.write_file(-999, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5);
+    ASSERT((ret == -1), "write_file should return -1 on unopened file");
+
+    // test read_file
+    auto retp = fs.read_file(fd_a, 999);
+    ret = retp.second;
+    ASSERT((ret == 3), "should have read the last 3 bytes");
+
+    retp = fs.read_file(-999, 999);
+    ret = retp.second;
+    ASSERT((ret == -1), "read_file should return -1 on unopened file");
+    /* TODO: Check content when seek is implemented <2022-01-25, David Deng> */
 
     // test close_file
     fd = fs.close_file(fd_a);
