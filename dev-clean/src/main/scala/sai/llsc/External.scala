@@ -90,11 +90,9 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
   import java.io.{File, PrintStream}
   import scala.collection.mutable.HashMap
 
-  val funNameMap: HashMap[Int, String] = new HashMap()
-  val blockNameMap: HashMap[Int, String] = new HashMap()
-
   val codegen: GenericLLSCCodeGen = new GenericLLSCCodeGen {
     val codegenFolder: String = folder
+    val blockNameMap: HashMap[Int, String] = new HashMap()
     def funMap: HashMap[Int, String] = funNameMap
     def blockMap: HashMap[Int, String] = blockNameMap
     override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
@@ -116,41 +114,12 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
     mainStream.close
   }
 
-  // TODO: refactor into SAIOps <2022-01-18, David Deng> //
-
-  def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], s: String): Rep[A => B] = {
-    val unwrapped = __hardTopFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))), "inline")
-    if (!s.trim.isEmpty) {
-      val n = unwrapped.asInstanceOf[Backend.Sym].n
-      funNameMap(n) = s
-    }
-    Wrap[A=>B](unwrapped)
-  }
-
-  def hardTopFun[A:Manifest,B:Manifest,C:Manifest](f: (Rep[A], Rep[B]) => Rep[C], s: String): Rep[(A, B) => C] = {
-    val unwrapped = __hardTopFun(f, 2, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)))), "inline")
-    if (!s.trim.isEmpty) {
-      val n = unwrapped.asInstanceOf[Backend.Sym].n
-      funNameMap(n) = s
-    }
-    Wrap[(A,B)=>C](unwrapped)
-  }
-
-  def hardTopFun[A:Manifest,B:Manifest,C:Manifest,D:Manifest](f: (Rep[A], Rep[B], Rep[C]) => Rep[D], s: String): Rep[(A, B, C) => D] = {
-    val unwrapped = __hardTopFun(f, 3, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)), Wrap[C](xn(2)))), "inline")
-    if (!s.trim.isEmpty) {
-      val n = unwrapped.asInstanceOf[Backend.Sym].n
-      funNameMap(n) = s
-    }
-    Wrap[(A,B,C)=>D](unwrapped)
-  }
-
   def snippet(u: Rep[Int]) = {
     // TODO: generate function of same name with multiple signatures? <2022-01-23, David Deng> //
     // TODO: llsc_assert_k depends on sym_exit, which doesn't have a _k version right now <2022-01-23, David Deng> //
     // hardTopFun(llsc_assert(_,_), "llsc_assert")
     // hardTopFun(llsc_assert_k(_,_,_), "llsc_assert_k")
-    hardTopFun(open(_,_), "open")
+    hardTopFun(open(_,_), "open", "inline")
     // hardTopFun(open_k(_,_,_), "open_k")
     ()
   }

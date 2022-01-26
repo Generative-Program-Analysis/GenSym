@@ -29,15 +29,17 @@ trait SAIOps extends Base
     with EitherOps    with RepLattices    with RepMonads
     with SMTBaseOps   with SMTBitVecOps   with SMTArrayOps {
     // with SMTStagedOps {
+  import scala.collection.mutable.HashMap
+
   type Typ[T] = Manifest[T]
   def typ[T: Typ] = manifest[T]
   def manifestTyp[T: Typ] = manifest[T]
 
+  val funNameMap: HashMap[Int, String] = new HashMap()
+
   // Override the LMS Wrap which treats Unit value as void/Const(());
   // instead, we will treat Unit as std::monostate in C++
   override def Wrap[A: Manifest](x: lms.core.Backend.Exp): Exp[A] = new Wrap[A](x)
-
-  def getBackendSym[T: Manifest](t: Rep[T]): Int = Unwrap(t).asInstanceOf[Backend.Sym].n
 
   implicit class RepOps[A: Manifest](a: Rep[A]) {
     def asRepOf[B: Manifest]: Rep[B] = Wrap[B](Unwrap(a))
@@ -66,14 +68,32 @@ trait SAIOps extends Base
 
   def print(x: Rep[Any]): Unit = Adapter.g.reflectWrite("print",Unwrap(x))(Adapter.CTRL)
 
-  def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B]): Rep[A => B] =
-    Wrap[A=>B](__hardTopFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0))))))
+  def getBackendSym[T: Manifest](t: Backend.Exp): Int = t.asInstanceOf[Backend.Sym].n
 
-  def hardTopFun[A:Manifest,B:Manifest,C:Manifest](f: (Rep[A], Rep[B]) => Rep[C]): Rep[(A, B) => C] =
-    Wrap[(A,B)=>C](__hardTopFun(f, 2, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1))))))
+  def addToFunNameMap(name: String, f: Backend.Exp): Unit = {
+    if (!name.trim.isEmpty) {
+      val n = getBackendSym(f)
+      funNameMap(n) = name
+    }
+  }
 
-  def hardTopFun[A:Manifest,B:Manifest,C:Manifest,D:Manifest](f: (Rep[A], Rep[B], Rep[C]) => Rep[D]): Rep[(A, B, C) => D] =
-    Wrap[(A,B,C)=>D](__hardTopFun(f, 3, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)), Wrap[C](xn(2))))))
+  def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], name: String, decorator: String): Rep[A => B] = {
+    val g = Wrap[A=>B](__hardTopFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))), decorator))
+    addToFunNameMap(name, Unwrap(g)); g
+  }
+  def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B]): Rep[A => B] = hardTopFun(f, "", "")
+
+  def hardTopFun[A:Manifest,B:Manifest,C:Manifest](f: (Rep[A], Rep[B]) => Rep[C], name: String, decorator: String): Rep[(A, B) => C] = {
+    val g = Wrap[(A,B)=>C](__hardTopFun(f, 2, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)))), decorator))
+    addToFunNameMap(name, Unwrap(g)); g
+  }
+  def hardTopFun[A:Manifest,B:Manifest,C:Manifest](f: (Rep[A], Rep[B]) => Rep[C]): Rep[(A,B)=>C] = hardTopFun(f, "", "")
+
+  def hardTopFun[A:Manifest,B:Manifest,C:Manifest,D:Manifest](f: (Rep[A], Rep[B], Rep[C]) => Rep[D], name: String, decorator: String): Rep[(A, B, C) => D] = {
+    val g = Wrap[(A,B,C)=>D](__hardTopFun(f, 3, xn => Unwrap(f(Wrap[A](xn(0)), Wrap[B](xn(1)), Wrap[C](xn(2)))), decorator))
+    addToFunNameMap(name, Unwrap(g)); g
+  }
+  def hardTopFun[A:Manifest,B:Manifest,C:Manifest,D:Manifest](f: (Rep[A], Rep[B], Rep[C]) => Rep[D]): Rep[(A, B, C) => D] = hardTopFun(f, "", "")
 
   def __hardTopFun(f: AnyRef, arity: Int, gf: List[Backend.Exp] => Backend.Exp, decorator: String = ""): Backend.Exp = {
     val can = canonicalize(f)

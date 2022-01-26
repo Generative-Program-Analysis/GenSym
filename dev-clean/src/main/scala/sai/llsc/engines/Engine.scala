@@ -29,7 +29,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
   type BFTy = Rep[SS => List[(SS, Value)]]
   type FFTy = Rep[(SS, List[Value]) => List[(SS, Value)]]
 
-  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(bf))
+  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {

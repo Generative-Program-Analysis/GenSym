@@ -29,7 +29,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   type BFTy = Rep[(SS, Cont) => Unit]
   type FFTy = Rep[(SS, List[Value], Cont) => Unit]
 
-  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(bf))
+  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
     tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {

@@ -62,7 +62,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
-  val funNameMap: HashMap[Int, String] = new HashMap()
   val blockNameMap: HashMap[Int, String] = new HashMap()
 
   val BBFuns: HashMap[(String, BB), BFTy] = new HashMap[(String, BB), BFTy]
