@@ -141,28 +141,40 @@ class SS {
       if (loc->k == LocV::kStack) return stack.at(loc->l, size);
       return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
+    immer::flex_vector<PtrVal> at_seq(PtrVal addr, int count) {
+      auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
+      ASSERT(s, "failed to read struct");
+      return s->fs;
+    }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb); }
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb, fs); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb, fs); }
     SS update(PtrVal addr, PtrVal val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb);
-      return SS(heap.update(loc->l, val), stack, pc, bb);
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb, fs);
+      return SS(heap.update(loc->l, val), stack, pc, bb, fs);
     }
-    SS push() { return SS(heap, stack.push(), pc, bb); }
-    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb); }
-    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb); }
+    SS update_seq(PtrVal addr, immer::flex_vector<PtrVal> vals) {
+      SS updated_ss = *this;
+      for (int i = 0; i < vals.size(); i++) {
+        updated_ss = updated_ss.update(make_LocV_inc(addr, i), vals.at(i));
+      }
+      return updated_ss;
+    }
+    SS push() { return SS(heap, stack.push(), pc, bb, fs); }
+    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb, fs); }
+    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb, fs); }
     SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
-      return SS(heap, stack.assign_seq(ids, vals), pc, bb);
+      return SS(heap, stack.assign_seq(ids, vals), pc, bb, fs);
     }
     SS heap_append(immer::flex_vector<PtrVal> vals) {
-      return SS(heap.append(vals), stack, pc, bb);
+      return SS(heap.append(vals), stack, pc, bb, fs);
     }
-    SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb); }
-    SS add_PC_set(immer::flex_vector<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb); }
-    SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel); }
+    SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb, fs); }
+    SS add_PC_set(immer::flex_vector<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb, fs); }
+    SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel, fs); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
       // FIXME: ptr size magic
@@ -176,7 +188,7 @@ class SS {
         arg_index++;
       }
       res_stack = res_stack.update(arg_index, make_IntV(0));
-      return SS(heap, res_stack, pc, bb);
+      return SS(heap, res_stack, pc, bb, fs);
     }
     PC get_PC() { return pc; }
     // TODO temp solution

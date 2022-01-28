@@ -65,6 +65,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a, sz), _) => es"$ss.at($a, $sz)"
     case Node(s, "ss-lookup-addr-struct", List(ss, a, sz), _) => es"$ss.at_struct($a, $sz)"
+    case Node(s, "ss-lookup-addr-seq", List(ss, a, sz), _) => es"$ss.at_seq($a, $sz)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
     case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
     case Node(s, "ss-assign-seq", List(ss, ks, vs), _) => es"$ss.assign_seq($ks, $vs)"
@@ -73,6 +74,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-stack-size", List(ss), _) => es"$ss.stack_size()"
     case Node(s, "ss-alloc-stack", List(ss, n), _) => es"$ss.alloc_stack($n)"
     case Node(s, "ss-update", List(ss, k, v), _) => es"$ss.update($k, $v)"
+    case Node(s, "ss-update-seq", List(ss, k, v), _) => es"$ss.update_seq($k, $v)"
     case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
     case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
     case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.add_PC($e)"
@@ -98,8 +100,11 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-block-cov", _, _) => es"cov.print_block_cov()"
     case Node(s, "print-time", _, _) => es"cov.print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov.print_path_cov()"
-    case Node(s, "get-string", List(ptr, ss), _) => es"get_string($ptr, $ss)"
+
     case Node(s, "fs-open-file", List(fs, p, f), _) => es"$fs.open_file($p, $f)"
+    case Node(s, "fs-close-file", List(fs, fd), _) => es"$fs.close_file($fd)"
+    case Node(s, "fs-read-file", List(fs, fd, n), _) => es"$fs.read_file($fd, $n)"
+    case Node(s, "fs-write-file", List(fs, fd, c, n), _) => es"$fs.write_file($fd, $c, $n)"
 
     case _ => super.shallow(n)
   }

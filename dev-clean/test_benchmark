@@ -5,6 +5,10 @@
 
 # /some/path/to/xyz.ll
 LL=$1
+shift
+OPT=$@
+echo -e "input:\t\t$LL"
+echo -e "options:\t$OPT"
 
 # Xyz
 HEAD=$LL
@@ -16,4 +20,4 @@ bloop run sai -m sai.llsc.RunLLSC -- ${LL} ${HEAD} @main 0 &&
 	{ cd llsc_gen/${HEAD};
 		# make clean;
 		make -j2; } &&
-		./${HEAD} 1;
+		./${HEAD} 1 ${OPT};

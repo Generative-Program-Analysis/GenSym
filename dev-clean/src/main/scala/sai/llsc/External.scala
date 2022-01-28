@@ -29,13 +29,11 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 @virtualize
 trait GenExternal extends SymExeDefs {
-  // TODO: generating functions with proper names, instead of x1, x2 ...
-
   // TODO: sym_exit return type in C should be void
   def sym_exit[T: Manifest](ss: Rep[SS], args: Rep[List[Value]]): Rep[T] =
     "sym_exit".reflectWith[T](ss, args)
 
-  def gen_llsc_assert[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+  def llsc_assert[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val v = args(0)
     if (v.isConc) {
       // Note: we directly project the integer field of v, which is safe if
@@ -49,7 +47,7 @@ trait GenExternal extends SymExeDefs {
     }
   }
 
-  def gen_open[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+  def open[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val ptr = args(0)
     val name: Rep[String] = getString(ptr, ss)
     val flags = args(1)
@@ -60,30 +58,47 @@ trait GenExternal extends SymExeDefs {
     k(ss, IntV(ret, 32))
   }
 
-  def gen_openat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+  def close[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    val fd: Rep[Int] = args(0).to_IntV.int
+    val fs: Rep[FS] = ss.getFs
+    val ret: Rep[Int] = fs.closeFile(fd)
+    ss.setFs(fs)
+    k(ss, IntV(ret, 32))
+  }
+
+  def read[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    val fd: Rep[Int] = args(0).int
+    val buf: Rep[Value] = args(1)
+    val count: Rep[Int] = args(2).int
+    val fs: Rep[FS] = ss.getFs
+    val (content, size): (Rep[List[Value]], Rep[Int]) = fs.readFile(fd, count).unlift
+    val ss1 = ss.updateSeq(buf, content)
+    ss1.setFs(fs)
+    k(ss1, IntV(size, 32))
+  }
+
+  def write[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    val fd: Rep[Int] = args(0).int
+    val buf: Rep[Value] = args(1)
+    val count: Rep[Int] = args(2).int
+    val fs: Rep[FS] = ss.getFs
+    val content: Rep[List[Value]] = ss.lookupSeq(buf, count)
+    val size = fs.writeFile(fd, content, count)
+    ss.setFs(fs)
+    k(ss, IntV(size))
+  }
+
+  def openat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     // TODO: implement this <2022-01-23, David Deng> //
     // int __fd_openat(int basefd, const char *pathname, int flags, mode_t mode);
     // if (fd == AT_FDCWD), call open
     k(ss, IntV(0, 32))
   }
 
-  def llsc_assert(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] =
-    gen_llsc_assert[List[(SS, Value)]](ss, args, { case (s, v) => List[(SS, Value)]((s, v)) })
+  def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]): ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) => ( gen(ss, l, { case (s,v) => k(s,v) }))}
 
-  def llsc_assert_k(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] =
-    gen_llsc_assert[Unit](ss, args, { case (s, v) => k(s, v) })
+  def gen_p(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]]) => Rep[List[(SS, Value)]]): ((Rep[SS], Rep[List[Value]]) => Rep[List[(SS, Value)]]) = { case (ss, l) => ( gen(ss, l, { case (s,v) => List[(SS, Value)]((s,v)) }))}
 
-  def open(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] =
-    gen_open[List[(SS, Value)]](ss, args, { case (s, v) => List[(SS, Value)]((s, v)) })
-
-  def open_k(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] =
-    gen_open[Unit](ss, args, { case (s, v) => k(s, v) })
-
-  def openat(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] =
-    gen_openat[List[(SS, Value)]](ss, args, { case (s, v) => List[(SS, Value)]((s, v)) })
-
-  def openat_k(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] =
-    gen_openat[Unit](ss, args, { case (s, v) => k(s, v) })
 }
 
 class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[Int, Unit] with SAIOps with GenExternal { q =>
@@ -115,12 +130,19 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
   }
 
   def snippet(u: Rep[Int]) = {
-    // TODO: generate function of same name with multiple signatures? <2022-01-23, David Deng> //
     // TODO: llsc_assert_k depends on sym_exit, which doesn't have a _k version right now <2022-01-23, David Deng> //
-    // hardTopFun(llsc_assert(_,_), "llsc_assert")
-    // hardTopFun(llsc_assert_k(_,_,_), "llsc_assert_k")
-    hardTopFun(open(_,_), "open", "inline")
-    hardTopFun(open_k(_,_,_), "open", "inline")
+    // hardTopFun(gen_p(llsc_assert), "llsc_assert", "inline")
+    // hardTopFun(gen_k(llsc_assert), "llsc_assert", "inline")
+    hardTopFun(gen_p(open), "open", "inline")
+    hardTopFun(gen_k(open), "open", "inline")
+    hardTopFun(gen_p(close), "close", "inline")
+    hardTopFun(gen_k(close), "close", "inline")
+    hardTopFun(gen_p(read), "read", "inline")
+    hardTopFun(gen_k(read), "read", "inline")
+    hardTopFun(gen_p(write), "write", "inline")
+    hardTopFun(gen_k(write), "write", "inline")
+    // hardTopFun(gen_p(openat), "openat", "inline")
+    // hardTopFun(gen_k(openat), "openat", "inline")
     ()
   }
 }

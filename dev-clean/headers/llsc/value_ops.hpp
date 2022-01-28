@@ -202,7 +202,7 @@ struct LocV : Value {
   }
   LocV(const LocV& v) : LocV(v.l, v.k, v.size) {}
   virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "LocV(" << l << ", " << k << ")";
+    return os << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value LocV.");

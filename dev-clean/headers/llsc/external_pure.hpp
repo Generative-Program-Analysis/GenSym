@@ -3,6 +3,17 @@
 
 using Cont = std::function<std::monostate(SS, PtrVal)>;
 
+inline std::string get_string(PtrVal ptr, SS state) {
+  std::string name;
+  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  while (c != '\0') {
+    name += c;
+    ptr = make_LocV_inc(ptr, 1); // ptr++
+    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  }
+  return name;
+}
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
   for (auto x : args) { std::cout << *x << "; "; }
   std::cout << "\n";
@@ -12,6 +23,26 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex
 inline std::monostate sym_print(SS state, immer::flex_vector<PtrVal> args, Cont k) {
   for (auto x : args) { std::cout << *x << "; "; }
   std::cout << "\n";
+  return k(state, make_IntV(0));
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>> print_string(SS state, immer::flex_vector<PtrVal> args) {
+  PtrVal x = args.at(0);
+  if (std::dynamic_pointer_cast<LocV>(x)){
+    std::cout << get_string(x, state) << std::endl;
+  } else {
+    ABORT("Cannot print non-LocV value as string");
+  }
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+}
+
+inline std::monostate print_string(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  PtrVal x = args.at(0);
+  if (std::dynamic_pointer_cast<LocV>(x)){
+    std::cout << get_string(x, state) << std::endl;
+  } else {
+    ABORT("Cannot print non-LocV value as string");
+  }
   return k(state, make_IntV(0));
 }
 
@@ -61,25 +92,6 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
     res = res.update(make_LocV_inc(memLoc, i), res.heap_lookup(src + i));
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
-}
-
-inline std::string get_string(PtrVal ptr, SS state) {
-  std::string name;
-  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  while (c != '\0') {
-    name += c;
-    ptr = make_LocV_inc(ptr, 1); // ptr++
-    c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  }
-  return name;
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> close(SS state, immer::flex_vector<PtrVal> args) {
-  Fd fd = proj_IntV(args.at(0));
-  FS fs = state.get_fs();
-  int status = fs.close_file(fd);
-  state.set_fs(fs);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(status)}};
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {

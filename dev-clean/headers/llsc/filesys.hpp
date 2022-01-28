@@ -71,6 +71,10 @@ struct Stream {
     int mode; // a combination of O_RDONLY, O_WRONLY, O_RDWR, etc.
     off_t cursor;
   public:
+    friend std::ostream& operator<<(std::ostream& os, const Stream& s) {
+      os << "Stream(name=" << s.get_name() << ", mode=" << s.mode << ", cursor=" << s.cursor << ")";
+      return os;
+    }
     Stream(const Stream &s): file(s.file), mode(s.mode), cursor(s.cursor) {}
     Stream(File file): file(file), mode(O_RDONLY), cursor(0) {}
     Stream(File file, int mode): file(file), mode(mode), cursor(0) {}
@@ -130,8 +134,13 @@ class FS {
 
   public:
     friend std::ostream& operator<<(std::ostream& os, const FS& fs) {
-      os << "FS(size=" << fs.files.size() << ", files:" << std::endl;
+      os << "FS(nfiles=" << fs.files.size() << ", nstreams=" << fs.opened_files.size() << std::endl;
+      os <<"\tfiles:" << std::endl;
       for (auto pf: fs.files) {
+        os << pf.second << std::endl << std::endl;
+      }
+      os <<"\topened_files:" << std::endl;
+      for (auto pf: fs.opened_files) {
         os << pf.second << std::endl << std::endl;
       }
       os << ")";
@@ -199,6 +208,7 @@ class FS {
       if (!has_stream(fd)) return std::make_pair(immer::flex_vector<PtrVal>{}, -1);
       auto strm = get_stream(fd);
       auto content = strm.read(nbytes);
+      opened_files = opened_files.set(fd, strm);
       return std::make_pair(content, content.size());
     }
 

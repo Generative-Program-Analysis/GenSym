@@ -81,7 +81,10 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr, size)
       else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
     }
+    def lookupSeq(addr: Rep[Value], count: Rep[Int]): Rep[List[Value]] = "ss-lookup-addr-seq".reflectWith[List[Value]](ss, addr, count)
+    
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
+    def updateSeq(a: Rep[Value], v: Rep[List[Value]]): Rep[SS] = "ss-update-seq".reflectWith[SS](ss, a, v)
     def allocStack(n: Rep[Int]): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
@@ -131,6 +134,12 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
   implicit class FSOps(fs: Rep[FS]) {
     def openFile(path: Rep[String], flag: Rep[Int]): Rep[Fd] =
       "fs-open-file".reflectCtrlWith[Fd](fs, path, flag)
+    def closeFile(fd: Rep[Fd]): Rep[Int] =
+      "fs-close-file".reflectCtrlWith[Int](fs, fd)
+    def readFile(fd: Rep[Fd], nbytes: Rep[Int]): Rep[(List[Value], Int)] =
+      "fs-read-file".reflectCtrlWith[(List[Value], Int)](fs, fd, nbytes)
+    def writeFile(fd: Rep[Fd], content: Rep[List[Value]], nbytes: Rep[Int]): Rep[Int] =
+      "fs-write-file".reflectCtrlWith[Int](fs, fd, content, nbytes)
   }
 
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
