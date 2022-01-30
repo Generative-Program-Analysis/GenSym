@@ -1,7 +1,7 @@
 int main() {
   int a, b;
-  make_symbolic(&a, 1);
-  make_symbolic(&b, 1);
+  make_symbolic(&a, 4);
+  make_symbolic(&b, 4);
   if (a > 1) {
     b = b + 1; 
   } else {

@@ -27,7 +27,8 @@ enum iOP {
   op_eq, op_uge, op_ugt, op_ule, op_ult,
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
-  op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc
+  op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc,
+  op_concat, op_extract
 };
 
 enum fOP {
@@ -61,6 +62,8 @@ inline std::string int_op2string(iOP op) {
     case op_srem: return "s%";
     case op_neg: return "!";
     case op_sext: return "sext";
+    case op_zext: return "zext";
+    case op_trunc: return "trunc";
   }
   return "unknown op";
 }

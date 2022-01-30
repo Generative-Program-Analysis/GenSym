@@ -129,6 +129,12 @@ public:
       case op_trunc:
         // XXX is it right?
         return expr_rands.at(0).extract(bw-1, 0);
+      case op_concat:
+        return concat(expr_rands.at(0), expr_rands.at(1));
+      case op_extract:
+        return expr_rands.at(0).extract(
+                                expr_rands.at(1).get_numeral_uint(),
+                                expr_rands.at(2).get_numeral_uint());
       default: break;
     }
     ABORT("unkown operator when constructing STP expr");

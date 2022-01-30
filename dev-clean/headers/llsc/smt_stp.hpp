@@ -120,7 +120,7 @@ private:
     case op_sext:
       return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);
     case op_zext:
-      ABORT("not implemented?");
+      return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);  // TODO
     case op_shl:
       return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case op_lshr:
@@ -140,6 +140,12 @@ private:
     case op_trunc:
       // bvExtract(vc, e, h, l) -> e[l:h+1]
       return vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
+    case op_concat:
+      return vc_bvConcatExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+    case op_extract:
+      return vc_bvExtract(vc, expr_rands.at(0).get(),
+                              getBVInt(expr_rands.at(1).get()),
+                              getBVInt(expr_rands.at(2).get()));
     default: break;
     }
     ABORT("unkown operator when constructing STP expr");

@@ -188,7 +188,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         case ArrayType(size, ety) => StaticList.fill(size)(evalHeapConst(ZeroInitializerConst, ety)).flatten
         case Struct(types) => types.flatMap(evalHeapConst(ZeroInitializerConst, _))
         // TODO: fallback case is not typed
-        case _ => IntV(0, getTySize(ty)) :: StaticList.fill(getTySize(ty) - 1)(NullV())
+        case _ => IntV(0, 8 * getTySize(ty)) :: StaticList.fill(getTySize(ty) - 1)(NullV())
       }
       case _ => evalValue(v, ty) :: StaticList.fill(getTySize(ty) - 1)(NullV())
     }

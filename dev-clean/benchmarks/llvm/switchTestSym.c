@@ -1,6 +1,6 @@
 int main() {
   int a;
-  make_symbolic(&a, 1);
+  make_symbolic(&a, 4);
   switch (a) {
     case 1:
       assert();

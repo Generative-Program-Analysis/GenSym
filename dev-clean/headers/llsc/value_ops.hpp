@@ -76,7 +76,7 @@ struct FunV : Value {
   }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override {
-    ABORT("get_bw: TODO for FunV?");
+    return addr_bw;
   }
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
@@ -102,7 +102,7 @@ struct CPSFunV : Value {
   }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override {
-    ABORT("get_bw: TODO for CPSFunV?");
+    return addr_bw;
   }
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
@@ -173,7 +173,7 @@ struct FloatV : Value {
   }
   virtual bool is_conc() const override { return true; }
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
-  virtual int get_bw() const override { ABORT("get_bw: unexpected value FloatV."); }
+  virtual int get_bw() const override { return 32; }
 
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
@@ -269,7 +269,7 @@ struct SymV : Value {
   }
   virtual std::ostream& toString(std::ostream& os) const override {
     if (!name.empty()) return os << "SymV(" << name << ", " << bw << ")";
-    os << "SymV(" << int_op2string(rator) << ", {";
+    os << "SymV(" << int_op2string(rator) << ", { ";
     for (auto e : rands) {
       os << *e << ", ";
     }
@@ -376,7 +376,9 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
     } else if (op == op_ashr) {
       return make_IntV((i1->i >> i2->i), bw1);
     } else if (op == op_shl) {
-      return make_IntV((i1->i << i2->i), bw1);
+      return make_IntV((i1->i << i2->i) & ((1 << bw1) - 1), bw1);
+    } else if (op == op_lshr) {
+      return make_IntV((uint64_t(i1->i) >> i2->i) & ((1 << bw1) - 1), bw1);
     } else {
       std::cout << op << std::endl;
       ABORT("invalid operator");
@@ -418,7 +420,18 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
 }
 
 inline PtrVal bv_zext(PtrVal v, int bw) {
-  ABORT("TODO");
+  auto i1 = std::dynamic_pointer_cast<IntV>(v);
+  if (i1) {
+    return make_IntV(i1->i, bw);
+  } else {
+    auto s1 = std::dynamic_pointer_cast<SymV>(v);
+    if (s1) {
+      // Note: instead of passing new bw as an operand
+      // we override the original bw here
+      return std::make_shared<SymV>(op_zext, immer::flex_vector<PtrVal>({ s1 }), bw);
+    }
+    ABORT("Zext an invalid value, exit");
+  }
 }
 
 inline PtrVal trunc(PtrVal v1, int from, int to) {
@@ -434,6 +447,36 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
     return std::make_shared<SymV>(op_trunc, immer::flex_vector({ v1 }), to);
   }
   ABORT("Truncate an invalid value, exit");
+}
+
+inline PtrVal bv_extract(PtrVal v1, int hi, int lo) {
+  auto i1 = std::dynamic_pointer_cast<IntV>(v1);
+  if (i1) {
+    uint64_t i = i1->i;
+    i = (i & ((1<<(hi+1)) - 1)) >> lo;
+    return make_IntV(i, hi - lo + 1);
+  }
+  auto s1 = std::dynamic_pointer_cast<SymV>(v1);
+  if (s1) {
+    return std::make_shared<SymV>(op_extract,
+      immer::flex_vector<PtrVal> { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
+  }
+  ABORT("Extract an invalid value, exit");
+}
+
+inline PtrVal bv_concat(PtrVal v1, PtrVal v2) {
+  auto i1 = v1->to_IntV();
+  auto i2 = v2->to_IntV();
+  int bw1 = v1->get_bw();
+  int bw2 = v2->get_bw();
+  assert(bw1 + bw2 <= 64);
+  if (i1 && i2) {
+    return make_IntV(((i1->i & ((1<<bw1)-1)) << bw2) | (i2->i & ((1<<bw2)-1)), bw1 + bw2);
+  }
+  else {
+    return std::make_shared<SymV>(op_concat, immer::flex_vector<PtrVal> { v1, v2 }, bw1 + bw2);
+  }
+  ABORT("Concat on invalid value, exit");
 }
 
 inline const PtrVal IntV0 = make_IntV(0);

@@ -5,35 +5,131 @@
 
 // Note (5/17): now using a byte-oriented layout
 
-template <class V>
+template <class V, class M>
 class PreMem {
-  private:
+  protected:
     immer::flex_vector<V> mem;
   public:
     PreMem(immer::flex_vector<V> mem) : mem(mem) {}
     size_t size() { return mem.size(); }
-    V at(size_t idx) { return mem.at(idx); }
-    PreMem<V> update(size_t idx, V val) {
+    V at(size_t idx, int size) { return mem.at(idx); }
+    M update(size_t idx, V val) {
       ASSERT(idx < mem.size(), "PreMem update index out of bound");
-      return PreMem<V>(mem.set(idx, val));
+      return M(mem.set(idx, val));
     }
-    PreMem<V> append(V val) { return PreMem<V>(mem.push_back(val)); }
-    PreMem<V> append(V val, size_t padding) {
+    M append(V val) { return M(mem.push_back(val)); }
+    M append(V val, size_t padding) {
       size_t idx = mem.size();
-      return PreMem<V>(alloc(padding + 1).update(idx, val));
+      return M(alloc(padding + 1).update(idx, val));
     }
-    PreMem<V> append(immer::flex_vector<V> vs) { return PreMem<V>(mem + vs); }
-    PreMem<V> alloc(size_t size) {
+    M append(immer::flex_vector<V> vs) { return M(mem + vs); }
+    M alloc(size_t size) {
       auto m = mem.transient();
       for (int i = 0; i < size; i++) { m.push_back(nullptr); }
-      return PreMem<V>(m.persistent());
+      return M(m.persistent());
     }
-    PreMem<V> take(size_t keep) { return PreMem<V>(mem.take(keep)); }
-    PreMem<V> drop(size_t d) { return PreMem<V>(mem.drop(d)); }
+    M take(size_t keep) { return M(mem.take(keep)); }
+    M drop(size_t d) { return M(mem.drop(d)); }
     immer::flex_vector<V> getMem() { return mem; }
 };
 
-using Mem = PreMem<PtrVal>;
+class Mem: public PreMem<PtrVal, Mem> {
+  class IterVals {
+    immer::flex_vector<PtrVal> mem;
+    size_t begin0, end0, idx2;
+    bool first;
+
+  public:
+    IterVals(immer::flex_vector<PtrVal> m, size_t idx, int size)
+      : mem(m), begin0(idx), end0(idx + size), first(true) { }
+    
+    std::optional<std::tuple<size_t, PtrVal, size_t>> next() {
+      // assumptions:
+      //   1. values do not overlap
+      //   2. mem is sufficiently long
+      size_t idx; PtrVal ret;
+      if (first) {
+        first = false;
+        for (idx = begin0; idx <= begin0 && !(ret = mem.at(idx)); idx--);
+        if (ret && (idx2 = idx + ret->get_bw() / 8) > begin0)
+          return std::tuple(idx, ret, idx2);
+        else idx2 = begin0;
+      }
+      if ((idx = idx2) < end0) {
+        ret = mem.at(idx);
+        if (ret) {
+          return std::tuple(idx, ret, (idx2 = idx + ret->get_bw()/8));
+        } else {
+          for (idx2 = idx + 1; idx2 < end0 && !mem.at(idx2); idx2++);
+          return std::tuple(idx, PtrVal(nullptr), idx2);
+        }
+      }
+      return std::nullopt;
+    }
+  };
+
+  inline PtrVal q_extract(PtrVal v, size_t end, size_t hi, size_t lo) const {
+    return bv_extract(v, (end - hi) * 8 - 1, (end - lo) * 8);
+  }
+
+public:
+  Mem(immer::flex_vector<PtrVal> mem) : PreMem(mem) { }
+
+  PtrVal at(size_t begin_req, int size_req) {
+    if (size_req == -1) return PreMem::at(begin_req, size_req);
+    IterVals iter(mem, begin_req, size_req);
+    size_t end_req = begin_req + size_req;
+    // first value
+    size_t begin_cur, end_cur; PtrVal v_cur;
+    std::tie(begin_cur, v_cur, end_cur) = *(iter.next());
+    if (begin_cur == begin_req && end_cur == end_req) return v_cur;
+    assert(v_cur);  // otherwise partially undefined
+    if (begin_cur < begin_req || end_req < end_cur)
+      v_cur = q_extract(v_cur, end_cur, begin_req, std::min(end_req, end_cur));
+    // append more values
+    PtrVal v_ret = std::move(v_cur);
+    while (end_cur < end_req) {
+      std::tie(begin_cur, v_cur, end_cur) = *(iter.next());
+      assert(v_cur);  // otherwise partially undefined
+      if (end_cur > end_req)
+        v_cur = q_extract(v_cur, end_cur, begin_cur, end_req);
+      v_ret = bv_concat(v_ret, v_cur);
+    }
+    return v_ret;
+  }
+
+  Mem update(size_t begin_orig, PtrVal v_orig) {
+    if (!v_orig) {  // memcpy cases
+      assert(!mem.at(begin_orig));
+      return PreMem::update(begin_orig, v_orig);
+    }
+    auto mem = this->mem;
+    size_t size_orig = v_orig->get_bw()/8, end_orig = begin_orig + size_orig;
+    IterVals iter(mem, begin_orig, size_orig);
+    auto tmp = iter.next();
+    do {
+      size_t begin_cur, end_cur; PtrVal v_cur;
+      std::tie(begin_cur, v_cur, end_cur) = *tmp;
+      // cut v_new from v_orig
+      size_t begin_new = std::max(begin_orig, begin_cur);
+      size_t end_new = std::min(end_orig, end_cur);
+      PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ? 
+                      q_extract(v_orig, end_orig, begin_new, end_new) : v_orig;
+      // prepend & append
+      if (begin_cur < begin_new) {
+        auto v_head = q_extract(v_cur, end_cur, begin_cur, begin_new);
+        v_new = bv_concat(v_head, v_new);
+      }
+      if (end_new < end_cur) {
+        auto v_tail = q_extract(v_cur, end_cur, end_new, end_cur);
+        v_new = bv_concat(v_new, v_tail);
+      }
+      // store
+      mem = mem.set(begin_cur, v_new);
+    } while (tmp = iter.next());
+    return Mem(mem);
+  }
+};
 
 class Frame {
   public:
@@ -91,8 +187,8 @@ class Stack {
     }
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
-    PtrVal at(size_t idx) { return mem.at(idx); }
-    PtrVal at(size_t idx, int size) {
+    PtrVal at(size_t idx, int size) { return mem.at(idx, size); }
+    PtrVal at_struct(size_t idx, int size) {
       return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
     }
     Stack update(size_t idx, PtrVal val) { return Stack(mem.update(idx, val), env); }
@@ -129,16 +225,16 @@ class SS {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    PtrVal at(PtrVal addr, int size = 1) {
+    PtrVal at(PtrVal addr, int size = -1) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return stack.at(loc->l);
-      return heap.at(loc->l);
+      if (loc->k == LocV::kStack) return stack.at(loc->l, size);
+      return heap.at(loc->l, size);
     }
     PtrVal at_struct(PtrVal addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return stack.at(loc->l, size);
+      if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
       return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
     immer::flex_vector<PtrVal> at_seq(PtrVal addr, int count) {
@@ -146,7 +242,7 @@ class SS {
       ASSERT(s, "failed to read struct");
       return s->fs;
     }
-    PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
+    PtrVal heap_lookup(size_t addr) { return heap.at(addr, -1); }
     BlockLabel incoming_block() { return bb; }
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb, fs); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb, fs); }

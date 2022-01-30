@@ -162,7 +162,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::
   SS res = state;
   //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
+    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{res, make_IntV(0)}};
 }
@@ -173,7 +173,7 @@ inline std::monostate make_symbolic(SS state, immer::flex_vector<PtrVal> args, C
   SS res = state;
   //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++)));
+    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
   }
   return k(res, make_IntV(0));
 }

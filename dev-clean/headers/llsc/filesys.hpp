@@ -55,7 +55,7 @@ class File {
 inline File make_SymFile(std::string name, size_t size) {
   immer::flex_vector<PtrVal> content;
   for (int i = 0; i < size; i++) {
-    content = content.push_back(make_SymV(std::string("FILE_") + name + std::string("_BYTE_") + std::to_string(i)));
+    content = content.push_back(make_SymV(std::string("FILE_") + name + std::string("_BYTE_") + std::to_string(i), 8));
   }
   return File(name, content);
 };
