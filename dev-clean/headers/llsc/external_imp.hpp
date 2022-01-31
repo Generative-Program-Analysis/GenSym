@@ -21,14 +21,14 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> noop(SS state, immer::flex_vect
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_vector<PtrVal> args) {
   IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
+  auto emptyMem = immer::flex_vector<PtrVal>(bytes, nullptr);
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
 }
 
 inline std::monostate malloc(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
   IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
+  auto emptyMem = immer::flex_vector<PtrVal>(bytes, nullptr);
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   SS ss = state.heap_append(emptyMem);
   return k(ss, memLoc);
@@ -38,7 +38,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
 
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
+  auto emptyMem = immer::flex_vector<PtrVal>(bytes, nullptr);
   std::cout << "realloc size: " << emptyMem.size() << std::endl;
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   IntData prevBytes = proj_LocV_size(args.at(0));
@@ -148,7 +148,7 @@ inline std::vector<std::pair<SS, PtrVal>> noop(SS state, std::vector<PtrVal> arg
 // TODO: sync with the malloc in external_pure
 inline std::monostate malloc(SS& state, std::vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
   IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = std::vector<PtrVal>(bytes, make_IntV(0));
+  auto emptyMem = std::vector<PtrVal>(bytes, nullptr);
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   SS ss = state.heap_append(emptyMem);
   return k(ss, memLoc);
@@ -156,7 +156,7 @@ inline std::monostate malloc(SS& state, std::vector<PtrVal> args, std::function<
 
 inline std::vector<std::pair<SS, PtrVal>> malloc(SS state, std::vector<PtrVal> args) {
   IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = std::vector<PtrVal>(bytes, make_IntV(0));
+  auto emptyMem = std::vector<PtrVal>(bytes, nullptr);
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   return std::vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
 }
@@ -165,7 +165,7 @@ inline std::vector<std::pair<SS, PtrVal>> realloc(SS state, std::vector<PtrVal> 
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
 
-  auto emptyMem = std::vector<PtrVal>(bytes, make_IntV(0));
+  auto emptyMem = std::vector<PtrVal>(bytes, nullptr);
   std::cout << "realloc size: " << emptyMem.size() << std::endl;
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   IntData prevBytes = proj_LocV_size(args.at(0));
