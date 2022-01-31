@@ -50,6 +50,12 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> noop(SS state, immer::flex_vect
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
+inline immer::flex_vector<std::pair<SS, PtrVal>> stop(SS state, immer::flex_vector<PtrVal> args) {
+  return immer::flex_vector<std::pair<SS, PtrVal>>{};
+}
+
+inline std::monostate stop(SS state, immer::flex_vector<PtrVal> args, Cont k) { return std::monostate(); }
+
 inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_vector<PtrVal> args) {
   IntData bytes = proj_IntV(args.at(0));
   auto emptyMem = immer::flex_vector<PtrVal>(bytes, make_IntV(0));
@@ -95,23 +101,10 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
-  int status;
-  if (args.size() > 0) {
-#ifdef DEBUG
-    std::cout << "sym_exit: *args.at(0) = " << *args.at(0) << std::endl;
-#endif
-    auto v = args.at(0)->to_IntV();
-    if (v) {
-      status = v->i;
-    } else {
-      status = 0; // return 0 in case a non-int value is passed as args.at(0)
-    }
-  } else {
-#ifdef DEBUG
-    std::cout << "sym_exit: no args passed" << std::endl;
-#endif
-    status = 0;
-  }
+  ASSERT(args.size() == 1, "sym_exit accepts exactly one argument");
+  auto v = args.at(0)->to_IntV();
+  ASSERT(v != nullptr, "sym_exit only accepts integer argument");
+  int status = v->i;
   check_pc_to_file(state);
   epilogue();
   exit(status);
@@ -137,7 +130,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::fl
   // undefined/error if v is a value of other types
   auto cond = to_SMTNeg(v);
   auto new_s = state.add_PC(cond);
-  if (check_pc(new_s.get_PC())) sym_exit(state, args); // check if v == 1 is not valid
+  if (check_pc(new_s.get_PC())) return stop(state, args); // check if v == 1 is not valid
   return immer::flex_vector<std::pair<SS, PtrVal>>{{new_s, make_IntV(1, 32)}};
 }
 
@@ -152,7 +145,7 @@ inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Con
   // undefined/error if v is a value of other types
   auto cond = to_SMTNeg(v);
   auto new_s = state.add_PC(cond);
-  if (check_pc(new_s.get_PC())) sym_exit(state, args); // check if v == 1 is not valid
+  if (check_pc(new_s.get_PC())) stop(state, args); // check if v == 1 is not valid
   return k(new_s, make_IntV(1, 32));
 }
 
