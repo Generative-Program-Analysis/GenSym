@@ -27,6 +27,7 @@ struct coordinate make_coor(int x, int y) {
 int main () {
   struct coordinate c1 = make_coor(1, 3);
   int a1 = make_coor(3, 5).x;
-  struct point3d p1 = make_3dcoor(5);
-  return c1.x + a1 - p1.y;
+  return c1.x + a1;
+  //struct point3d p1 = make_3dcoor(5);
+  //return c1.x + a1 - p1.y;
 }
