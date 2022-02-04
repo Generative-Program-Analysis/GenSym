@@ -87,7 +87,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[Unit] =
       reflectCtrl[Unit]("ss-update", ss, a, v, sz)
       //reflectWrite[Unit]("ss-update", ss, a, v)(ss)
-    def allocStack(n: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-alloc-stack", ss, n)(ss)
+    def allocStack(n: Rep[Int], align: Int): Rep[Unit] = reflectWrite[Unit]("ss-alloc-stack", ss, n)(ss)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = reflectRead[Value]("ss-lookup-heap", ss, addr)(ss)
     def heapSize: Rep[Int] = reflectRead[Int]("ss-heap-size", ss)(ss)

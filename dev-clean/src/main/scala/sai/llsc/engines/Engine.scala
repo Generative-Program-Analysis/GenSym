@@ -109,10 +109,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
+        val typeSize = getTySize(ty)
         for {
           ss <- getState
-          _ <- putState(ss.allocStack(getTySize(ty, align.n)))
-        } yield LocV(ss.stackSize, LocV.kStack)
+          ss2 <- ret(ss.allocStack(typeSize, align.n))
+          _ <- putState(ss2)
+        } yield LocV(ss2.stackSize - typeSize, LocV.kStack)
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1

@@ -91,9 +91,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
-        val stackSize = ss.stackSize
-        ss.allocStack(getTySize(ty, align.n))
-        k(ss, LocV(stackSize, LocV.kStack))
+        val typeSize = getTySize(ty)
+        ss.allocStack(typeSize, align.n)
+        k(ss, LocV(ss.stackSize - typeSize, LocV.kStack))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1

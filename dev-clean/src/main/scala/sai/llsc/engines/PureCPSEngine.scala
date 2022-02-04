@@ -97,7 +97,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
-        k(ss.allocStack(getTySize(ty, align.n)), LocV(ss.stackSize, LocV.kStack))
+        val typeSize = getTySize(ty)
+        k(ss.allocStack(typeSize, align.n), LocV(ss.stackSize - typeSize, LocV.kStack))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
