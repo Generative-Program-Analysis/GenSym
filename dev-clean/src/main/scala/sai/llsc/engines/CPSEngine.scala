@@ -285,7 +285,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
-        ss.update(v2, v1)
+        ss.update(v2, v1, getTySize(ty1))
         k(ss)
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {

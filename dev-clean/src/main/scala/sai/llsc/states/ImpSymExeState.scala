@@ -84,8 +84,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
       if (isStruct == 0) reflectRead[Value]("ss-lookup-addr", ss, addr, size)(ss)
       else reflectRead[Value]("ss-lookup-addr-struct", ss, addr, size)(ss)
     }
-    def update(a: Rep[Value], v: Rep[Value]): Rep[Unit] =
-      reflectCtrl[Unit]("ss-update", ss, a, v)
+    def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[Unit] =
+      reflectCtrl[Unit]("ss-update", ss, a, v, sz)
       //reflectWrite[Unit]("ss-update", ss, a, v)(ss)
     def allocStack(n: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-alloc-stack", ss, n)(ss)
 

@@ -73,7 +73,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-heap-append", List(ss, vs), _) => es"$ss.heap_append($vs)"
     case Node(s, "ss-stack-size", List(ss), _) => es"$ss.stack_size()"
     case Node(s, "ss-alloc-stack", List(ss, n), _) => es"$ss.alloc_stack($n)"
-    case Node(s, "ss-update", List(ss, k, v), _) => es"$ss.update($k, $v)"
+    case Node(s, "ss-update", List(ss, k, v, sz), _) => es"$ss.update($k, $v, $sz)"
     case Node(s, "ss-update-seq", List(ss, k, v), _) => es"$ss.update_seq($k, $v)"
     case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
     case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"

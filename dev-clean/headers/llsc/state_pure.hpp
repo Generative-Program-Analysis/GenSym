@@ -12,7 +12,7 @@ class PreMem {
   public:
     PreMem(immer::flex_vector<V> mem) : mem(mem) {}
     size_t size() { return mem.size(); }
-    V at(size_t idx, int size) { return mem.at(idx); }
+    V at(size_t idx) { return mem.at(idx); }
     M update(size_t idx, V val) {
       ASSERT(idx < mem.size(), "PreMem update index out of bound");
       return M(mem.set(idx, val));
@@ -74,9 +74,10 @@ class Mem: public PreMem<PtrVal, Mem> {
 
 public:
   Mem(immer::flex_vector<PtrVal> mem) : PreMem(mem) { }
+  using PreMem::at;
+  using PreMem::update;
 
   PtrVal at(size_t begin_req, int size_req) {
-    if (size_req == -1) return PreMem::at(begin_req, size_req);
     IterVals iter(mem, begin_req, size_req);
     size_t end_req = begin_req + size_req;
     // first value
@@ -98,13 +99,9 @@ public:
     return v_ret;
   }
 
-  Mem update(size_t begin_orig, PtrVal v_orig) {
-    if (!v_orig) {  // memcpy cases
-      assert(!mem.at(begin_orig));
-      return PreMem::update(begin_orig, v_orig);
-    }
+  Mem update(size_t begin_orig, PtrVal v_orig, int size_orig) {
     auto mem = this->mem;
-    size_t size_orig = v_orig->get_bw()/8, end_orig = begin_orig + size_orig;
+    size_t end_orig = begin_orig + size_orig;
     IterVals iter(mem, begin_orig, size_orig);
     auto tmp = iter.next();
     do {
@@ -187,11 +184,13 @@ class Stack {
     }
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
+    PtrVal at(size_t idx) { return mem.at(idx); }
     PtrVal at(size_t idx, int size) { return mem.at(idx, size); }
     PtrVal at_struct(size_t idx, int size) {
       return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
     }
     Stack update(size_t idx, PtrVal val) { return Stack(mem.update(idx, val), env); }
+    Stack update(size_t idx, PtrVal val, int size) { return Stack(mem.update(idx, val, size), env); }
     Stack alloc(size_t size) { return Stack(mem.alloc(size), env); }
 };
 
@@ -225,7 +224,13 @@ class SS {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    PtrVal at(PtrVal addr, int size = -1) {
+    PtrVal at(PtrVal addr) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return stack.at(loc->l);
+      return heap.at(loc->l);
+    }
+    PtrVal at(PtrVal addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l, size);
@@ -251,6 +256,12 @@ class SS {
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb, fs);
       return SS(heap.update(loc->l, val), stack, pc, bb, fs);
+    }
+    SS update(PtrVal addr, PtrVal val, int size) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, bb, fs);
+      return SS(heap.update(loc->l, val, size), stack, pc, bb, fs);
     }
     SS update_seq(PtrVal addr, immer::flex_vector<PtrVal> vals) {
       SS updated_ss = *this;

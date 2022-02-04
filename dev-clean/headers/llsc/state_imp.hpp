@@ -12,7 +12,7 @@ class PreMem {
   public:
     PreMem(std::vector<V> mem) : mem(std::move(mem)) {}
     size_t size() { return mem.size(); }
-    V at(size_t idx, int size) { return mem.at(idx); }
+    V at(size_t idx) { return mem.at(idx); }
     M&& update(size_t idx, V val) {
       mem.at(idx) = val;
       return move_this();
@@ -86,9 +86,10 @@ class Mem: public PreMem<PtrVal, Mem> {
 
 public:
   Mem(std::vector<PtrVal> mem) : PreMem(std::move(mem)) {}
+  using PreMem::at;
+  using PreMem::update;
 
   PtrVal at(size_t begin_req, int size_req) {
-    if (size_req == -1) return PreMem::at(begin_req, size_req);
     IterVals iter(mem, begin_req, size_req);
     size_t end_req = begin_req + size_req;
     // first value
@@ -110,12 +111,8 @@ public:
     return v_ret;
   }
 
-  Mem&& update(size_t begin_orig, PtrVal v_orig) {
-    if (!v_orig) {  // memcpy cases
-      assert(!mem.at(begin_orig));
-      return PreMem::update(begin_orig, v_orig);
-    }
-    size_t size_orig = v_orig->get_bw()/8, end_orig = begin_orig + size_orig;
+  Mem&& update(size_t begin_orig, PtrVal v_orig, int size_orig) {
+    size_t end_orig = begin_orig + size_orig;
     IterVals iter(mem, begin_orig, size_orig);
     auto tmp = iter.next();
     do {
@@ -210,12 +207,17 @@ class Stack {
     }
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
 
+    PtrVal at(size_t idx) { return mem.at(idx); }
     PtrVal at(size_t idx, int size) { return mem.at(idx, size); }
     PtrVal at_struct(size_t idx, int size) {
       return std::make_shared<StructV>(mem.slice(idx, size).getMem());
     }
     Stack&& update(size_t idx, PtrVal val) {
       mem.update(idx, val);
+      return std::move(*this);
+    }
+    Stack&& update(size_t idx, PtrVal val, int size) {
+      mem.update(idx, val, size);
       return std::move(*this);
     }
     Stack&& alloc(size_t size) {
@@ -280,7 +282,13 @@ class SS {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    PtrVal at(PtrVal addr, int size = -1) {
+    PtrVal at(PtrVal addr) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return stack.at(loc->l);
+      return heap.at(loc->l);
+    }
+    PtrVal at(PtrVal addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l, size);
@@ -317,6 +325,15 @@ class SS {
         stack.update(loc->l, val);
       else
         heap.update(loc->l, val);
+      return std::move(*this);
+    }
+    SS&& update(PtrVal addr, PtrVal val, int size) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack)
+        stack.update(loc->l, val, size);
+      else
+        heap.update(loc->l, val, size);
       return std::move(*this);
     }
     SS&& push() {

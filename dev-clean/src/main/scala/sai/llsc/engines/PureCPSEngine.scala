@@ -270,7 +270,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
-        k(ss.update(v2, v1))
+        k(ss.update(v2, v1, getTySize(ty1)))
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
           case TypedArg(ty, attrs, value) => value

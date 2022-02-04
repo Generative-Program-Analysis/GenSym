@@ -375,7 +375,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         for {
           v1 <- eval(val1, ty1)
           v2 <- eval(val2, ty2)
-          _ <- updateMem(v2, v1)
+          _ <- updateMem(v2, v1, getTySize(ty1))
         } yield ()
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = args.map {
