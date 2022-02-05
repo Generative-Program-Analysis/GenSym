@@ -159,7 +159,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     def evalAddr(v: Constant, ty: LLVMType): Rep[Addr] = v match {
       case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
         val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-        val addr = evalAddr(const, ptrType)
+        val addr = evalAddr(const, getRealType(ptrType))
         addr + calculateOffsetStatic(ptrType, indexLLVMValue)
       }
       case GlobalId(id) => heapEnv(id)
@@ -169,7 +169,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
       case FloatConst(f) => FloatV(f)
       case NullConst => NullV()
-      case PtrToIntExpr(from, const, to) => 
+      case PtrToIntExpr(from, const, to) =>
         IntV(evalAddr(const, from), to.asInstanceOf[IntType].size)
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
@@ -177,20 +177,21 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       case BitCastExpr(from, const, to) => evalValue(const, to)
       case _ => LocV(evalAddr(v, ty), LocV.kHeap)
     }
+    val real_ty = getRealType(ty)
     v match {
       case StructConst(cs) =>
         cs.flatMap { case c => evalHeapConst(c.const, c.ty) }
       case ArrayConst(cs) =>
         cs.flatMap { case c => evalHeapConst(c.const, c.ty) }
       case CharArrayConst(s) =>
-        s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
-      case ZeroInitializerConst => ty match {
+        s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(real_ty) - s.length)(NullV())
+      case ZeroInitializerConst => real_ty match {
         case ArrayType(size, ety) => StaticList.fill(size)(evalHeapConst(ZeroInitializerConst, ety)).flatten
         case Struct(types) => types.flatMap(evalHeapConst(ZeroInitializerConst, _))
         // TODO: fallback case is not typed
-        case _ => IntV(0, 8 * getTySize(ty)) :: StaticList.fill(getTySize(ty) - 1)(NullV())
+        case _ => IntV(0, 8 * getTySize(real_ty)) :: StaticList.fill(getTySize(real_ty) - 1)(NullV())
       }
-      case _ => evalValue(v, ty) :: StaticList.fill(getTySize(ty) - 1)(NullV())
+      case _ => evalValue(v, real_ty) :: StaticList.fill(getTySize(real_ty) - 1)(NullV())
     }
   }
 

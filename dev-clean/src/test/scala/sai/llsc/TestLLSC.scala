@@ -90,6 +90,7 @@ object TestCases {
     TestPrg(read2Test, "readTestPaths", "@main", 0, 3, "--sym-file-size 3 --add-sym-file A", Some(0)),
     TestPrg(write1Test, "writeTestPaths", "@main", 0, 2, "--sym-file-size 10 --add-sym-file A", Some(0)),
     TestPrg(kleefsminiTest, "kleefsmini", "@main", 0, 2, "", Some(0)),
+    TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", 0, 2, "", Some(0)),
   )
 
   val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall ++ external ++ filesys
