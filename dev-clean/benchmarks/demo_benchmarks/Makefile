@@ -1,17 +1,33 @@
 SRC_FILES := $(wildcard ./*.c)
-KLEE_INCLUDE := ../../../../klee_experiment/klee-2.1/include
+
+CC := clang-9
+
+FLAGS := -emit-llvm -O0 -disable-O0-optnone -c
+KLEE_FLAGS := -D KLEE -g -I $(KLEE_INCL)
+LLSC_FLAGS := -fno-discard-value-names -S
+
+KLEE_TARGET := $(SRC_FILES:%.c=%.bc)
+
+KLEE_REPLAY_TARGET := $(SRC_FILES:%.c=%-replay)
+
+KLEE_GEN := $(wildcard ./klee-*)
+
+LLSC_TARGET := $(SRC_FILES:%.c=%.ll)
+
 all: llsc klee
 
-llsc:
-	for SRC in $(SRC_FILES) ; do \
-	  clang-9 $$SRC -O0 -emit-llvm -S -disable-O0-optnone -fno-discard-value-names ; \
-	done
+llsc: $(LLSC_TARGET)
+klee: $(KLEE_TARGET)
+klee-exe: $(KLEE_REPLAY_TARGET)
 
-klee:
-	for SRC in $(SRC_FILES) ; do \
-	  clang-9 -D KLEE -I $(KLEE_INCLUDE) -emit-llvm -c -g -O0 -Xclang -disable-O0-optnone $$SRC ; \
-	done
+$(KLEE_TARGET): %.bc : %.c
+	$(CC) $(KLEE_FLAGS) $(FLAGS) -o $@ $<
+
+$(KLEE_REPLAY_TARGET): %-replay : %.c
+	$(CC) $(KLEE_FLAGS) -o $@ $< -lkleeRuntest
+
+$(LLSC_TARGET): %.ll : %.c
+	$(CC) $(LLSC_FLAGS) $(FLAGS) -o $@ $<
 
 clean:
-	rm -rf *.ll
-	rm -rf *.bc
+	$(RM) -rf $(KLEE_TARGET) $(KLEE_REPLAY_TARGET) $(KLEE_GEN) $(LLSC_TARGET)

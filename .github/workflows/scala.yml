@@ -32,13 +32,13 @@ jobs:
     - name: Generate test files
       run: |
         cd benchmarks/llvm
-        make
+        make llsc
         cd ../demo_benchmarks
+        make llsc
+        cd ../external_lib
         make llsc
         cd ../oopsla20
         make generate_sse
-        cd ../external_lib
-        make llsc
     - name: Install Z3
       run: |
         cd ../third-party
