@@ -15,14 +15,21 @@ inline std::string get_string(PtrVal ptr, SS state) {
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
-  for (auto x : args) { std::cout << *x << "; "; }
-  std::cout << "\n";
+  for (auto x : args) { 
+    std::cout << ptrval_to_string(x) << "; " << std::endl;
+  }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
 inline std::monostate sym_print(SS state, immer::flex_vector<PtrVal> args, Cont k) {
-  for (auto x : args) { std::cout << *x << "; "; }
-  std::cout << "\n";
+  for (auto x : args) { 
+    if (x == nullptr) {
+      std::cout << "nullptr";
+    } else {
+      std::cout << *x;
+    }
+    std::cout << "; " << std::endl;
+  }
   return k(state, make_IntV(0));
 }
 
@@ -145,7 +152,7 @@ inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Con
   // undefined/error if v is a value of other types
   auto cond = to_SMTNeg(v);
   auto new_s = state.add_PC(cond);
-  if (check_pc(new_s.get_PC())) stop(state, args); // check if v == 1 is not valid
+  if (check_pc(new_s.get_PC())) return stop(state, args, k); // check if v == 1 is not valid
   return k(new_s, make_IntV(1, 32));
 }
 

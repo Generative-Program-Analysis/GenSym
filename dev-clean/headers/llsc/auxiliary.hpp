@@ -64,6 +64,8 @@ inline std::string int_op2string(iOP op) {
     case op_sext: return "sext";
     case op_zext: return "zext";
     case op_trunc: return "trunc";
+    case op_concat: return "concat";
+    case op_extract: return "extract";
   }
   return "unknown op";
 }
@@ -97,5 +99,14 @@ template<typename T>
 void hash_combine(size_t& seed, T const& v) {
   seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
+
+class Printable {
+  public:
+    friend std::ostream& operator<<(std::ostream& os, const Printable& p) {
+      return os << p.toString();
+    }
+    virtual std::string toString() const = 0;
+};
+
 
 #endif

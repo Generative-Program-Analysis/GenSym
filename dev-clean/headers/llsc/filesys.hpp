@@ -2,18 +2,19 @@
 #define LLSC_FS_HEADERS
 
 /* TODO: Is the name field necessary? <2021-10-12, David Deng> */
-class File {
+class File: public Printable {
   private:
     std::string name;
     immer::flex_vector<PtrVal> content;
   public:
-    friend std::ostream& operator<<(std::ostream& os, const File& f) {
-      os << "File(name=" << f.name << ", content=[" << std::endl;
-      for (auto ptrval: f.content) {
-        os << "\t" << *ptrval << "," << std::endl;
+    std::string toString() const override {
+      std::ostringstream ss;
+      ss << "File(name=" << name << ", content=[" << std::endl;
+      for (auto ptrval: content) {
+        ss << "\t" << *ptrval << "," << std::endl;
       }
-      os << "])";
-      return os;
+      ss << "])";
+      return ss.str();
     }
     File(std::string name): name(name) {}
     File(std::string name, immer::flex_vector<PtrVal> content): name(name), content(content) {}
@@ -65,15 +66,16 @@ inline File make_SymFile(std::string name, size_t size) {
  * Use a particular data structure? <2021-10-12, David Deng> */
 
 // An opened file
-struct Stream {
+struct Stream: public Printable {
   private:
     File file;
     int mode; // a combination of O_RDONLY, O_WRONLY, O_RDWR, etc.
     off_t cursor;
   public:
-    friend std::ostream& operator<<(std::ostream& os, const Stream& s) {
-      os << "Stream(name=" << s.get_name() << ", mode=" << s.mode << ", cursor=" << s.cursor << ")";
-      return os;
+    std::string toString() const override {
+      std::ostringstream ss;
+      ss << "Stream(name=" << get_name() << ", mode=" << mode << ", cursor=" << cursor << ")";
+      return ss.str();
     }
     Stream(const Stream &s): file(s.file), mode(s.mode), cursor(s.cursor) {}
     Stream(File file): file(file), mode(O_RDONLY), cursor(0) {}
@@ -122,7 +124,7 @@ struct Stream {
     }
 };
 
-class FS {
+class FS: public Printable {
   private:
     immer::map<Fd, Stream> opened_files;
     immer::map<std::string, File> files;
@@ -133,22 +135,23 @@ class FS {
     }
 
   public:
-    friend std::ostream& operator<<(std::ostream& os, const FS& fs) {
-      os << "FS(nfiles=" << fs.files.size() << ", nstreams=" << fs.opened_files.size() << std::endl;
-      os <<"\tfiles:" << std::endl;
-      for (auto pf: fs.files) {
-        os << pf.second << std::endl << std::endl;
+    std::string toString() const override {
+      std::ostringstream ss;
+      ss << "FS(nfiles=" << files.size() << ", nstreams=" << opened_files.size() << std::endl;
+      ss <<"\tfiles:" << std::endl;
+      for (auto pf: files) {
+        ss << pf.second << std::endl << std::endl;
       }
-      os <<"\topened_files:" << std::endl;
-      for (auto pf: fs.opened_files) {
-        os << pf.second << std::endl << std::endl;
+      ss <<"\topened_files:" << std::endl;
+      for (auto pf: opened_files) {
+        ss << pf.second << std::endl << std::endl;
       }
-      os << ")";
-      return os;
+      ss << ")";
+      return ss.str();
     }
     FS() : next_fd(3) {
-        // default initialize opened_files and files
-        /* TODO: set up stdin and stdout using fd 1 and 2 <2021-11-03, David Deng> */
+      // default initialize opened_files and files
+      /* TODO: set up stdin and stdout using fd 1 and 2 <2021-11-03, David Deng> */
     }
 
     FS(const FS &fs) : files(fs.files), opened_files(fs.opened_files), next_fd(3) {}

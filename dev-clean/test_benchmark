@@ -16,7 +16,7 @@ HEAD=${HEAD##*/}
 HEAD=${HEAD%.ll}
 HEAD=${HEAD^}
 
-bloop run sai -m sai.llsc.RunLLSC -- ${LL} ${HEAD} @main 0 &&
+bloop run sai -m sai.llsc.RunLLSC -- -J-Xms4g -J-Xmx8g -J-Xss1024M -J-XX:MaxMetaspaceSize=8G -J-XX:ReservedCodeCacheSize=2048M ${LL} ${HEAD} @main 0 &&
 	{ cd llsc_gen/${HEAD};
 		# make clean;
 		make -j2; } &&

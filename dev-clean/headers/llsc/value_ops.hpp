@@ -9,11 +9,7 @@ using PtrVal = std::shared_ptr<Value>;
 
 /* Value representations */
 
-struct Value : public std::enable_shared_from_this<Value> {
-  friend std::ostream& operator<<(std::ostream&os, const Value& v) {
-    return v.toString(os);
-  }
-  virtual std::ostream& toString(std::ostream& os) const = 0;
+struct Value : public std::enable_shared_from_this<Value>, public Printable {
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
   virtual bool compare(const Value *v) const = 0;
@@ -65,8 +61,10 @@ struct FunV : Value {
     hash_combine(hash(), std::string("funv"));
     hash_combine(hash(), f);
   }
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "FunV(" << f << ")";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "FunV(" << f << ")";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value FunV.");
@@ -91,8 +89,10 @@ struct CPSFunV : Value {
     hash_combine(hash(), std::string("cpsfunv"));
     hash_combine(hash(), f);
   }
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "CPSFunV(" << f << ")";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "CPSFunV(" << f << ")";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value CPSFunV.");
@@ -119,8 +119,10 @@ struct IntV : Value {
     hash_combine(hash(), bw);
   }
   IntV(const IntV& v) : IntV(v.i, v.bw) {}
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "IntV(" << i << ", " << bw << ")";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "IntV(" << i << ", " << bw << ")";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value IntV.");
@@ -165,8 +167,10 @@ struct FloatV : Value {
     hash_combine(hash(), f);
   }
   FloatV(const FloatV& v): FloatV(v.f) {}
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "FloatV(" << f << ")";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "FloatV(" << f << ")";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value FloatV.");
@@ -201,8 +205,10 @@ struct LocV : Value {
     hash_combine(hash(), l);
   }
   LocV(const LocV& v) : LocV(v.l, v.k, v.size) {}
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value LocV.");
@@ -267,13 +273,20 @@ struct SymV : Value {
     hash_combine(hash(), bw);
     for (auto &r: rands) hash_combine(hash(), std::hash<PtrVal>{}(r));
   }
-  virtual std::ostream& toString(std::ostream& os) const override {
-    if (!name.empty()) return os << "SymV(" << name << ", " << bw << ")";
-    os << "SymV(" << int_op2string(rator) << ", { ";
-    for (auto e : rands) {
-      os << *e << ", ";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "SymV(";
+    if (!name.empty()) {
+      ss << name;
+    } else {
+      ss << int_op2string(rator) << ", { ";
+      for (auto e : rands) {
+        ss << *e << ", ";
+      }
+      ss << "}";
     }
-    return os << "}, " << bw << ")";
+    ss << ", " << bw << ")";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
@@ -310,8 +323,10 @@ struct StructV : Value {
     hash_combine(hash(), std::string("structv"));
     for (auto &f: fs) hash_combine(hash(), std::hash<PtrVal>{}(f));
   }
-  virtual std::ostream& toString(std::ostream& os) const override {
-    return os << "StructV(..)";
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "StructV(..)";
+    return ss.str();
   }
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value StructV.");
@@ -480,5 +495,9 @@ inline PtrVal bv_concat(PtrVal v1, PtrVal v2) {
 }
 
 inline const PtrVal IntV0 = make_IntV(0);
+
+inline std::string ptrval_to_string(const PtrVal& ptr) {
+  return std::string(ptr == nullptr ? "nullptr" : ptr->toString());
+}
 
 #endif
