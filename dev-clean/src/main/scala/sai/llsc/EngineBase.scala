@@ -84,19 +84,39 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case _ => vt
   }
 
-  def getTySize(vt: LLVMType, align: Int = 1): Int = vt match {
-    case ArrayType(size, ety) =>
-      val rawSize = size * getTySize(ety, align)
-      if (rawSize % align == 0) rawSize
-      else (rawSize / align + 1) * align
+  object StructCalc {
+    private def padding(size: Int, align: Int): Int =
+      size + (align - size % align) % align
+    
+    private def offset(types: List[LLVMType]): (Int, Int) =
+      types.foldLeft((0, 0)) { case ((size, align), ty) =>
+        val (sz, al) = getTySizeAlign(ty)
+        (padding(size, al) + sz, al max align)
+      }
+    
+    def getSizeAlign(types: List[LLVMType]): (Int, Int) = {
+      val (size, align) = offset(types)
+      (padding(size, align), align)
+    }
+
+    def getFieldOffset(types: List[LLVMType], idx: Int): Int =
+      offset(types.take(idx))._1
+  }
+
+  def getTySizeAlign(vt: LLVMType): (Int, Int) = vt match {
+    case ArrayType(num, ety) =>
+      val (size, align) = getTySizeAlign(ety)
+      (num * size, align)
     case Struct(types) =>
-      types.map(getTySize(_, align)).sum
+      StructCalc.getSizeAlign(types)
     case NamedType(id) =>
-      getTySize(typeDefMap(id), align)
+      getTySizeAlign(typeDefMap(id))
     case IntType(size) =>
-      (size + BYTE_SIZE - 1) / BYTE_SIZE
+      val elemSize = (size + BYTE_SIZE - 1) / BYTE_SIZE
+      (elemSize, elemSize)
     case PtrType(ty, addrSpace) =>
-      ARCH_WORD_SIZE / BYTE_SIZE
+      val elemSize = ARCH_WORD_SIZE / BYTE_SIZE
+      (elemSize, elemSize)
     case FloatType(fk) => {
       val rawSize = fk match {
         case FK_Half => 16
@@ -107,18 +127,21 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         case FK_FP128 => 128
         case FK_PPC_FP1289 => 128
       }
-      (rawSize + BYTE_SIZE - 1) / BYTE_SIZE
+      val elemSize = (rawSize + BYTE_SIZE - 1) / BYTE_SIZE
+      (elemSize, elemSize)
     }
     case PackedStruct(types) =>
-      types.map(getTySize(_, align)).sum
+      (types.map(getTySizeAlign(_)._1).sum, 1)
     case _ => ???
   }
+
+  def getTySize(vt: LLVMType): Int = getTySizeAlign(vt)._1
 
   def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Int = {
     implicit def longToInt(x: Long) = x.toInt
     if (index.isEmpty) 0 else ty match {
       case Struct(types) =>
-        val prev: Int = Range(0, index.head).foldLeft(0)((sum, i) => getTySize(types(i)) + sum)
+        val prev: Int = StructCalc.getFieldOffset(types, index.head)
         prev + calculateOffsetStatic(types(index.head), index.tail)
       case ArrayType(size, ety) =>
         index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)

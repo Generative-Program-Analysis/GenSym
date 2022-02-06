@@ -59,7 +59,7 @@ trait GenExternal extends SymExeDefs {
   }
 
   def close[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val fd: Rep[Int] = args(0).to_IntV.int
+    val fd: Rep[Int] = args(0).to_IntV().int
     val fs: Rep[FS] = ss.getFs
     val ret: Rep[Int] = fs.closeFile(fd)
     ss.setFs(fs)

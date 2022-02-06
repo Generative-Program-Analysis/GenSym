@@ -257,6 +257,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def si_tofp: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Rep[Int], to: Rep[Int]): Rep[Value] =
       "trunc".reflectWith[Value](v, from, to)
-    def to_IntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
+    def to_IntV(bw: Int = -1): Rep[Value] = "to-IntV".reflectWith[Value](v, bw)
+    def to_LocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
   }
 }

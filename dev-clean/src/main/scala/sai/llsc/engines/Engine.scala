@@ -183,10 +183,9 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case SiToFPInst(from, value, to) =>
         for { v <- eval(value, from) } yield v.si_tofp
       case PtrToIntInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.to_IntV
+        for { v <- eval(value, from) } yield v.to_IntV(to.asInstanceOf[IntType].size)
       case IntToPtrInst(from, value, to) =>
-        for { v <- eval(value, from) } 
-        yield LocV(v.int, if (v.int >= (1 << 30)) LocV.kStack else LocV.kHeap)
+        for { v <- eval(value, from) } yield v.to_LocV
       case BitCastInst(from, value, to) => eval(value, to)
 
       // Aggregate Operations

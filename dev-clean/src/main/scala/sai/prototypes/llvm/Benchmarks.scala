@@ -29,6 +29,7 @@ object Benchmarks {
 
   lazy val ptrtoint = parseFile("benchmarks/llvm/ptrtoint.ll")
   lazy val ptrpred = parseFile("benchmarks/llvm/ptrpred.ll")
+  lazy val flexAddr = parseFile("benchmarks/llvm/memchallenge.ll")
 
   lazy val funptr = parseFile("benchmarks/llvm/funptr.ll")
   lazy val heapFunptr = parseFile("benchmarks/llvm/heapFunptr.ll")

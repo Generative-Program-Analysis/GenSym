@@ -42,9 +42,13 @@ object TestCases {
     TestPrg(structReturnLong, "structReturnLongTest", "@main", 0, 1),
     TestPrg(structAccess, "structAccessTest", "@main", 0, 1),
     TestPrg(structReturn, "structReturnTest", "@main", 0, 1),
-
+  )
+    
+  val memModel: List[TestPrg] = List(
     TestPrg(funptr, "funptr", "@main", 0, 1),
     TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1),
+    TestPrg(ptrtoint, "ptrToInt", "@main", 0, 1),
+    TestPrg(flexAddr, "flexAddr", "@main", 0, 1),
   )
 
   val varArg: List[TestPrg] = List(
@@ -93,7 +97,7 @@ object TestCases {
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", 0, 2, "", Some(0)),
   )
 
-  val all: List[TestPrg] = concrete ++ varArg ++ symbolicSimple ++ symbolicSmall ++ external ++ filesys
+  val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external
 
   // FIXME: out of range
   // TestPrg(struct, "structTest", "@main", 0, 1),
@@ -159,7 +163,7 @@ abstract class TestLLSC extends FunSuite {
 }
 
 class TestPureLLSC extends TestLLSC {
-  testLLSC(new PureLLSC, TestCases.all)
+  testLLSC(new PureLLSC, TestCases.all ++ filesys ++ varArg)
   //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", 0, 1))
   //testLLSC(new PureLLSC, TestCases.external)
 }
@@ -167,30 +171,25 @@ class TestPureLLSC extends TestLLSC {
 // FIXME: varArg is problematic for instances other than PureLLSC
 
 class TestPureCPSLLSC extends TestLLSC {
-  testLLSC(new PureCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
+  testLLSC(new PureCPSLLSC, TestCases.all ++ filesys)
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
   //testLLSC(new PureCPSLLSC, external)
 }
 
 class TestPureCPSLLSC_Z3 extends TestLLSC {
-  val llsc = new PureCPSLLSC_Z3
-  testLLSC(llsc, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
+  testLLSC(new PureCPSLLSC_Z3, TestCases.all ++ filesys)
   //testLLSC(llsc, TestPrg(funptr, "funptr", "@main", 0, 1))
   //testLLSC(llsc, TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1))
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
+  testLLSC(new ImpLLSC, TestCases.all)
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
   //testLLSC(new ImpLLSC, external)
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, concrete ++ /* varArg ++*/ symbolicSimple ++ symbolicSmall ++ external)
+  testLLSC(new ImpCPSLLSC, TestCases.all)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
   //testLLSC(new ImpCPSLLSC, external)
-}
-
-class TestFS extends TestLLSC {
-  testLLSC(new PureLLSC, filesys)
 }

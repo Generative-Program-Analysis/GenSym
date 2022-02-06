@@ -156,10 +156,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       case SiToFPInst(from, value, to) =>
         k(ss, eval(value, from, ss).si_tofp)
       case PtrToIntInst(from, value, to) =>
-        k(ss, eval(value, from, ss).to_IntV)
+        k(ss, eval(value, from, ss).to_IntV(to.asInstanceOf[IntType].size))
       case IntToPtrInst(from, value, to) =>
-        val v = eval(value, from, ss)
-        k(ss, LocV(v.int, LocV.kStack))
+        k(ss, eval(value, from, ss).to_LocV)
       case BitCastInst(from, value, to) =>
         k(ss, eval(value, to, ss))
 
