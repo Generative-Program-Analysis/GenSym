@@ -54,7 +54,7 @@ class Mem: public PreMem<PtrVal, Mem> {
   public:
     IterVals(const std::vector<PtrVal>& m, size_t idx, int size)
       : mem(m), begin0(idx), end0(idx + size), first(true) { }
-    
+
     std::optional<std::tuple<size_t, PtrVal, size_t>> next() {
       // assumptions:
       //   1. values do not overlap
@@ -121,7 +121,7 @@ public:
       // cut v_new from v_orig
       size_t begin_new = std::max(begin_orig, begin_cur);
       size_t end_new = std::min(end_orig, end_cur);
-      PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ? 
+      PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ?
                       q_extract(v_orig, end_orig, begin_new, end_new) : v_orig;
       // prepend & append
       if (begin_cur < begin_new) {
@@ -241,6 +241,10 @@ class PC {
     }
     PC&& add_set(const immer::flex_vector<PtrVal>& new_pc) {
       pc.insert(pc.end(), new_pc.begin(), new_pc.end());
+      return std::move(*this);
+    }
+    PC&& pop_back() {
+      pc.pop_back();
       return std::move(*this);
     }
     const std::vector<PtrVal>& get_path_conds() { return pc; }

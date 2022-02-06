@@ -15,14 +15,14 @@ inline std::string get_string(PtrVal ptr, SS state) {
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
-  for (auto x : args) { 
+  for (auto x : args) {
     std::cout << ptrval_to_string(x) << "; " << std::endl;
   }
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
 }
 
 inline std::monostate sym_print(SS state, immer::flex_vector<PtrVal> args, Cont k) {
-  for (auto x : args) { 
+  for (auto x : args) {
     if (x == nullptr) {
       std::cout << "nullptr";
     } else {
@@ -138,7 +138,7 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::fl
   auto cond = to_SMTNeg(v);
   auto new_s = state.add_PC(cond);
   if (check_pc(new_s.get_PC())) return stop(state, args); // check if v == 1 is not valid
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{new_s, make_IntV(1, 32)}};
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state.add_PC(v), make_IntV(1, 32)}};
 }
 
 inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Cont k) {
@@ -153,7 +153,7 @@ inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Con
   auto cond = to_SMTNeg(v);
   auto new_s = state.add_PC(cond);
   if (check_pc(new_s.get_PC())) return stop(state, args, k); // check if v == 1 is not valid
-  return k(new_s, make_IntV(1, 32));
+  return k(state.add_PC(v), make_IntV(1, 32));
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS state, immer::flex_vector<PtrVal> args) {

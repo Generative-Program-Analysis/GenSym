@@ -69,6 +69,8 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::fl
   auto pc = state.get_PC();
   pc.add(cond);
   if (check_pc(pc)) sym_exit(state, args); // check if v == 1 is not valid
+  pc.pop_back();
+  pc.add(v);
   state.set_PC(pc);
   return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
 }
@@ -86,6 +88,8 @@ inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Con
   auto pc = state.get_PC();
   pc.add(cond);
   if (check_pc(pc)) sym_exit(state, args); // check if v == 1 is not valid
+  pc.pop_back();
+  pc.add(v);
   state.set_PC(pc);
   return k(state, make_IntV(1, 32));
 }

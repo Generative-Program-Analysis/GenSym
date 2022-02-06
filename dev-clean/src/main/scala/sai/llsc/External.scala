@@ -43,7 +43,7 @@ trait GenExternal extends SymExeDefs {
     } else {
       val ss1 = ss.addPC(v.toSMTBoolNeg)
       if (checkPC(ss1.pc)) sym_exit[T](ss1, args)
-      else k(ss1, IntV(1, 32))
+      else k(ss.addPC(v.toSMTBool), IntV(1, 32))
     }
   }
 

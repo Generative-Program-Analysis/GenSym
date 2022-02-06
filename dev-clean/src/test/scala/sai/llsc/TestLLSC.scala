@@ -83,7 +83,8 @@ object TestCases {
   )
 
   val external: List[TestPrg] = List(
-    TestPrg(assertTest, "assertTest", "@main", 0, 3)
+    TestPrg(assertTest, "assertTest", "@main", 0, 3),
+    TestPrg(assertfixTest, "assertfix", "@main", 0, 4),
   )
 
   val filesys: List[TestPrg] = List(
