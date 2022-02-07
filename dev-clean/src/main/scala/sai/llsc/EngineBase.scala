@@ -86,21 +86,31 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   object StructCalc {
     private def padding(size: Int, align: Int): Int =
-      size + (align - size % align) % align
-    
-    private def offset(types: List[LLVMType]): (Int, Int) =
-      types.foldLeft((0, 0)) { case ((size, align), ty) =>
-        val (sz, al) = getTySizeAlign(ty)
-        (padding(size, al) + sz, al max align)
+      (align - size % align) % align
+
+    private def fields(types: List[LLVMType]): (Int, Int, Int) =
+      types.foldLeft((0, 0, 0)) { case ((begin, end, maxalign), ty) =>
+        val (size, align) = getTySizeAlign(ty)
+        val new_begin = end + padding(end, align)
+        (new_begin, new_begin + size, align max maxalign)
       }
-    
+
     def getSizeAlign(types: List[LLVMType]): (Int, Int) = {
-      val (size, align) = offset(types)
-      (padding(size, align), align)
+      val (_, size, align) = fields(types)
+      (size + padding(size, align), align)
     }
 
     def getFieldOffset(types: List[LLVMType], idx: Int): Int =
-      offset(types.take(idx))._1
+      fields(types.take(idx+1))._1
+    
+    def concat[E](cs: List[E])(feval: E => (List[Rep[Value]], Int)): (List[Rep[Value]], Int) = {
+      val fill: Int => List[Rep[Value]] = (StaticList.fill(_)(NullV()))
+      val (list, align) = cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((list, maxalign), c) =>
+        val (value, align) = feval(c)
+        (list ++ fill(padding(list.size, align)) ++ value, align max maxalign)
+      }
+      (list ++ fill(padding(list.size, align)), align)
+    }
   }
 
   def getTySizeAlign(vt: LLVMType): (Int, Int) = vt match {
@@ -178,7 +188,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   // TODO: refactor
   //     1. using flat recursion
   //     2. code reuse with Engine-level eval?
-  def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = {
+  def evalHeapConstWithAlign(v: Constant, ty: LLVMType): (List[Rep[Value]], Int) = {
     def evalAddr(v: Constant, ty: LLVMType): Rep[Addr] = v match {
       case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
         val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
@@ -203,20 +213,33 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     val real_ty = getRealType(ty)
     v match {
       case StructConst(cs) =>
-        cs.flatMap { case c => evalHeapConst(c.const, c.ty) }
+        StructCalc.concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
       case ArrayConst(cs) =>
-        cs.flatMap { case c => evalHeapConst(c.const, c.ty) }
+        cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((l0, a0), c) => 
+          val va = evalHeapConstWithAlign(c.const, c.ty)
+          (l0 ++ va._1, va._2)
+        }
       case CharArrayConst(s) =>
-        s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(real_ty) - s.length)(NullV())
+        val (size, align) = getTySizeAlign(real_ty)
+        (s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(size - s.length)(NullV()), align)
       case ZeroInitializerConst => real_ty match {
-        case ArrayType(size, ety) => StaticList.fill(size)(evalHeapConst(ZeroInitializerConst, ety)).flatten
-        case Struct(types) => types.flatMap(evalHeapConst(ZeroInitializerConst, _))
+        case ArrayType(size, ety) =>
+          val (value, align) = evalHeapConstWithAlign(ZeroInitializerConst, ety)
+          (StaticList.fill(size)(value).flatten, align)
+        case Struct(types) =>
+          StructCalc.concat(types) { evalHeapConstWithAlign(ZeroInitializerConst, _) }
         // TODO: fallback case is not typed
-        case _ => IntV(0, 8 * getTySize(real_ty)) :: StaticList.fill(getTySize(real_ty) - 1)(NullV())
+        case _ =>
+          val (size, align) = getTySizeAlign(real_ty)
+          (IntV(0, 8 * size) :: StaticList.fill(size - 1)(NullV()), align)
       }
-      case _ => evalValue(v, real_ty) :: StaticList.fill(getTySize(real_ty) - 1)(NullV())
+      case _ =>
+        val (size, align) = getTySizeAlign(real_ty)
+        (evalValue(v, real_ty) :: StaticList.fill(size - 1)(NullV()), align)
     }
   }
+
+  def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = evalHeapConstWithAlign(v, ty)._1
 
   def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
     var heapSize = 0;

@@ -5,7 +5,16 @@ typedef struct {
 
 typedef struct {
   unsigned n_sym_files; /* number of symbolic input files, excluding stdin */
+  exe_disk_file_t *sym_stdin, *sym_stdout;
+  unsigned stdout_writes; /* how many chars were written to stdout */
   exe_disk_file_t *sym_files;
+  /* --- */
+  /* the maximum number of failures on one path; gets decremented after each failure */
+  unsigned max_failures;
+
+  /* Which read, write etc. call should fail */
+  int *read_fail, *write_fail, *close_fail, *ftruncate_fail, *getcwd_fail;
+  int *chmod_fail, *fchmod_fail;
 } exe_file_system_t;
 
 exe_file_system_t __exe_fs;
