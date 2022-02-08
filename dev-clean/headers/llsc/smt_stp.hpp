@@ -223,7 +223,7 @@ private:
 
 public:
   CheckerSTP() {
-    std::cout << "Using STP solver\n";
+    std::cout << "Use STP solver\n";
     vc = vc_createValidityChecker();
   }
   ~CheckerSTP() {

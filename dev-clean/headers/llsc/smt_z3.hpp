@@ -18,7 +18,7 @@ private:
   solver* g_solver;
 public:
   CheckerZ3() {
-    std::cout << "Using Z3 solver\n";
+    std::cout << "Use Z3 solver\n";
   }
   ~CheckerZ3() { destroy_solvers(); }
   void init_solvers() override {

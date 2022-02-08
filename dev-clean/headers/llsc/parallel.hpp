@@ -11,7 +11,7 @@ inline thread_pool tp;
 inline std::mutex m;
 
 inline bool can_par_async() {
-  return num_async < max_par_num;
+  return num_async < n_thread-1;
 }
 
 template <typename F, typename... Ts>

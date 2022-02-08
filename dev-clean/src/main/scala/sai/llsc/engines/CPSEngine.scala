@@ -357,7 +357,6 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     compile(funMap.map(_._2).toList)
     Coverage.setBlockNum
     Coverage.incPath(1)
-    Coverage.startMonitor
     val ss = initState(preHeap.asRepOf[Mem])
     if (!isCommandLine) {
       val fv = eval(GlobalId(fname), VoidType, ss)(fname)

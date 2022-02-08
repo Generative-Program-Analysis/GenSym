@@ -1,5 +1,6 @@
 #ifndef LLSC_MON_HEADERS
 #define LLSC_MON_HEADERS
+#include<signal.h>
 
 /* Coverage information */
 
@@ -55,8 +56,11 @@ struct Monitor {
       }
     }
     void print_async() {
-      std::cout << "#threads: " << num_async + 1 << "; #async created: " << tt_num_async << "; " << std::flush;
-      //std::cout << "current #async: " << pool.tasks_size() << " total #async: " << tt_num_async << "\n";
+#ifdef USE_TP
+      std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
+#else
+      std::cout << "#threads: " << num_async + 1 << "; #async-created: " << tt_num_async << "; " << std::flush;
+#endif
     }
     void print_query_stat() {
       std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
@@ -66,16 +70,29 @@ struct Monitor {
       std::cout << "[" << (solver_time.count() / 1.0e6) << "s/"
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
+    void print_all() {
+      print_time();
+      print_block_cov();
+      print_path_cov();
+      print_async();
+      print_query_stat();
+    }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();
-      watcher = std::thread([this](std::future<void> fut){
+      watcher = std::thread([this](std::future<void> fut) {
         while (this->block_cov.size() <= this->num_blocks &&
                fut.wait_for(milliseconds(1)) == std::future_status::timeout) {
-          print_time();
-          print_block_cov();
-          print_path_cov();
-          print_async();
-          print_query_stat();
+          steady_clock::time_point now = steady_clock::now();
+          if (duration_cast<seconds>(now - start) > seconds(timeout)) {
+            std::cout << "Timeout, aborting.\n";
+            print_all();
+            _exit(0);
+            // Note: Directly exit may cause other threads in a random state.
+            // When using the thread pool, we could use the following to wait
+            // all other worker threads to finish:
+            // tp.stop_all_tasks(); break;
+          }
+          print_all();
           std::this_thread::sleep_for(seconds(1));
         }
       }, std::move(future));

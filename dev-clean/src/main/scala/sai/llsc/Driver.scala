@@ -104,16 +104,16 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   }
 
   // returns the number of paths, obtained by parsing the output
-  def run(nThread: Int = 1, opt: String = ""): Int = {
-    val cmd = s"./$appName $nThread $opt"
+  def run(opt: String = ""): Int = {
+    val cmd = s"./$appName $opt"
     System.out.println(s"running $cmd")
     val ret = Process(cmd, new File(s"$folder/$appName")).!!
     ret.split("\n").last.split(" ").last.toInt
   }
   // returns the number of paths, and the return status of the process
-  def runWithStatus(nThread: Int = 1, opt: String = ""): (String, Int) = {
+  def runWithStatus(opt: String = ""): (String, Int) = {
     import collection.mutable.ListBuffer
-    val cmd = s"./$appName $nThread $opt"
+    val cmd = s"./$appName $opt"
     System.out.println(s"running $cmd")
     val output = ListBuffer[String]()
     val ret = Process(cmd, new File(s"$folder/$appName")).run(ProcessLogger(r => output += r, e => output += e)).exitValue
@@ -139,7 +139,6 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: 
 // avoding reifying the returned nondet list.
 abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: String, folder: String = ".")
     extends GenericLLSCDriver[A, B](appName, folder) with PureCPSLLSCEngine { q =>
-  extraFlags = "-D USE_TP"
   val codegen = new PureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"

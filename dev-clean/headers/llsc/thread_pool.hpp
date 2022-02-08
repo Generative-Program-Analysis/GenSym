@@ -16,8 +16,17 @@
 #include <type_traits>
 #include <utility>
 
-// the maximal number of additional parallel thread (excluding main thread)
-inline size_t max_par_num = 0;
+struct Task {
+  std::function<void()> f;
+  int weight;
+};
+
+template<>
+struct std::less<Task> {
+  constexpr bool operator()(const Task& lhs, const Task& rhs) const {
+    return lhs.weight < rhs.weight;
+  }
+};
 
 class thread_pool {
 private:
@@ -26,15 +35,17 @@ private:
 
   std::mutex q_lock = {};
   std::queue<std::function<void()>> tasks = {};
+  std::priority_queue<Task> ptasks = {};
 
-  size_t thread_num;
   std::unique_ptr<std::thread[]> threads;
   std::unique_ptr<std::thread::id[]> thread_ids;
 
-  size_t sleep_duration = 1000;
+  size_t sleep_duration = 500;
   std::atomic<size_t> tasks_num_total = 0;
   bool inited = false;
 public:
+  size_t thread_num;
+
   thread_pool(const size_t thread_num) :
     thread_num(thread_num), threads(new std::thread[thread_num]), thread_ids(new std::thread::id[thread_num]) {
     init(thread_num);
@@ -62,32 +73,43 @@ public:
     for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
   void add_task(const std::function<void()>& f) {
+    add_task(f, rand_int(1024));
+  }
+  void add_task(const std::function<void()>& f, int w) {
     tasks_num_total++;
     {
     const std::scoped_lock lock(q_lock);
-    tasks.push(f);
+    //std::cout << "Adding task with weight " << w << "\n";
+    ptasks.push({f, w});
     }
   }
   void worker() {
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     while (running) {
-      //std::cout << "worker running; running tasks " << running_tasks_num()
+      //std::cout << "Running tasks " << running_tasks_num()
       //          << "; queued tasks " << tasks_num_queued() << "\n";
-      std::function<void()> task;
+      struct Task task;
       if (!paused && pop_task(task)) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
-        task();
+        task.f();
+        //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
         tasks_num_total--;
       } else {
         sleep_or_yield();
       }
     }
   }
-  bool pop_task(std::function<void()>& task) {
+  bool pop_task(struct Task& task) {
     const std::scoped_lock lock(q_lock);
-    if (tasks.empty()) return false;
-    task = std::move(tasks.front());
-    tasks.pop();
+    if (ptasks.empty()) return false;
+    task = std::move(ptasks.top());
+    ptasks.pop();
     return true;
+  }
+  void stop_all_tasks() {
+    running = false;
+    paused = true;
   }
   void wait_for_tasks() {
     while (true) {
@@ -104,10 +126,10 @@ public:
   }
   size_t tasks_num_queued() {
     const std::scoped_lock lock(q_lock);
-    return tasks.size();
+    return ptasks.size();
   }
   void sleep_or_yield() {
-    if (sleep_duration) std::this_thread::sleep_for(std::chrono::microseconds(sleep_duration));
+    if (sleep_duration) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_duration));
     else std::this_thread::yield();
   }
 };

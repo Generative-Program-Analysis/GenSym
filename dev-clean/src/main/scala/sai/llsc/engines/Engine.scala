@@ -474,7 +474,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     }
     Coverage.setBlockNum
     Coverage.incPath(1)
-    Coverage.startMonitor
     reify[Value](initState(heap0))(comp)
   }
 }

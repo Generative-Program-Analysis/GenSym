@@ -9,6 +9,7 @@ object Benchmarks {
   lazy val power = parseFile("benchmarks/llvm/power.ll")
   lazy val add = parseFile("benchmarks/llvm/add.ll")
   lazy val loop = parseFile("benchmarks/llvm/loopTest.ll")
+  lazy val unboundedLoop = parseFile("benchmarks/llvm/unboundedLoop.ll")
   lazy val branch = parseFile("benchmarks/llvm/branch.ll")
   lazy val branch2 = parseFile("benchmarks/llvm/branch2.ll")
   lazy val branch3 = parseFile("benchmarks/llvm/branch3.ll")

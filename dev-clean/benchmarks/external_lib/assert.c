@@ -18,7 +18,9 @@ int main() {
   if (x == 2 && y == 3) {
     llsc_assert(x + y == 5); // symbolically valid, so will be ignored.
   }
-  flip(x); // llsc_assert should break, below will be skipped; only one test case will be generated.
+  // the llsc_assert in flip should break.
+  // however with random exploration, we cannot guarantee only one test case will be generated.
+  flip(x);
   if (x < 0) {
     flip(x);
   }

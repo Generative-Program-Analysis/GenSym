@@ -12,13 +12,18 @@ inline unsigned int bitwidth = 32;
 inline unsigned int addr_bw = 64;
 inline unsigned int var_name = 0;
 
-// TODO: refactor those counters into Monitor
+inline std::atomic<std::optional<int>> exit_code;
+
 inline std::atomic<unsigned int> num_async = 0;
 inline std::atomic<unsigned int> tt_num_async = 0;
 
 inline unsigned int test_query_num = 0;
 inline unsigned int br_query_num = 0;
 inline unsigned int cached_query_num = 0;
+
+// the maximal number of total threads (including the main thread)
+inline unsigned int n_thread = 1;
+inline unsigned int timeout = 3600; // in seconds, one hour by default
 
 inline duration<double, std::micro> solver_time = microseconds::zero();
 
@@ -34,6 +39,16 @@ enum iOP {
 enum fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv
 };
+
+// Note: set_exit_code preserves the first value it sets.
+// In execution with thread_pool, this means other paths
+// invoking it later will be discarded and have no effect
+// on `main`'s return code.
+inline void set_exit_code(int code) {
+  if (!exit_code.load().has_value()) {
+    exit_code.store(std::make_optional<int>(code));
+  }
+}
 
 inline std::string int_op2string(iOP op) {
   switch (op) {

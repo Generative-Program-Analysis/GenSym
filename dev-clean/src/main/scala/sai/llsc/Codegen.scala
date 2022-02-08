@@ -179,9 +179,13 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     emitln(s"""
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
+    |#ifdef USE_TP
+    |  tp.add_task([]() { $name(0); });
+    |#else
     |  $name(0);
+    |#endif
     |  epilogue();
-    |  return 0;
+    |  return exit_code.load().value_or(0);
     |} """.stripMargin)
   }
 }
