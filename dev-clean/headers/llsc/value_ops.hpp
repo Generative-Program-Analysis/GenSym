@@ -267,16 +267,15 @@ inline LocV::Kind proj_LocV_kind(PtrVal v) {
 inline int proj_LocV_size(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->size;
 }
-inline bool is_LocV_null(PtrVal v) {
-  return std::dynamic_pointer_cast<LocV>(v)->l == -1;
-}
-
 inline PtrVal make_LocV_inc(PtrVal loc, int i) {
   return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
-
 inline PtrVal make_LocV_null() {
-  return make_LocV(-1, LocV::kHeap, -1);
+  static const PtrVal loc0 = make_LocV(0, LocV::kHeap);
+  return loc0;
+}
+inline bool is_LocV_null(PtrVal v) {
+  return v == make_LocV_null();
 }
 
 struct SymV : Value {
