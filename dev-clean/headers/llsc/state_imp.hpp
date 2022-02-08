@@ -62,10 +62,12 @@ class Mem: public PreMem<PtrVal, Mem> {
       size_t idx; PtrVal ret;
       if (first) {
         first = false;
-        for (idx = begin0; idx <= begin0 && !(ret = mem.at(idx)); idx--);
-        if (ret && (idx2 = idx + ret->get_bw() / 8) > begin0)
+        for (idx = begin0; (ret = mem.at(idx)) == make_ShadowV(); idx--);
+        if (idx < begin0) {
+          idx2 = idx + ret->get_bw() / 8;
           return std::tuple(idx, ret, idx2);
-        else idx2 = begin0;
+        }
+        idx2 = begin0;
       }
       if ((idx = idx2) < end0) {
         ret = mem.at(idx);
@@ -134,6 +136,10 @@ public:
       }
       // store
       mem.at(begin_cur) = v_new;
+      if (!v_cur) {
+        for (size_t i = begin_cur + 1; i < end_cur; i++)
+          mem.at(i) = make_ShadowV();
+      }
     } while (tmp = iter.next());
     return move_this();
   }

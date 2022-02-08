@@ -86,6 +86,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-set-fs", List(ss, fs), _) => es"$ss.set_fs($fs)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
     case Node(s, "null-v", _, _) => es"nullptr"
+    case Node(s, "shadow-v", _, _) => es"make_ShadowV()"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMT", List(v), _) => es"$v->to_SMT()"

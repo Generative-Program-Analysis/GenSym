@@ -231,11 +231,11 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         // TODO: fallback case is not typed
         case _ =>
           val (size, align) = getTySizeAlign(real_ty)
-          (IntV(0, 8 * size) :: StaticList.fill(size - 1)(NullV()), align)
+          (IntV(0, 8 * size) :: StaticList.fill(size - 1)(ShadowV()), align)
       }
       case _ =>
         val (size, align) = getTySizeAlign(real_ty)
-        (evalValue(v, real_ty) :: StaticList.fill(size - 1)(NullV()), align)
+        (evalValue(v, real_ty) :: StaticList.fill(size - 1)(ShadowV()), align)
     }
   }
 

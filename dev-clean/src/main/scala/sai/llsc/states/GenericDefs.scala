@@ -182,6 +182,10 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def makeSymVList(i: Int): Rep[List[Value]] =
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
   }
+  object ShadowV {
+    def apply(): Rep[Value] = "shadow-v".reflectMutableWith[Value]()
+  }
+
   object NullV {
     def apply(): Rep[Value] = "null-v".reflectMutableWith[Value]()
   }

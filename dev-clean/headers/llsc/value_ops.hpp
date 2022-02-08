@@ -50,6 +50,20 @@ struct std::equal_to<immer::flex_vector<PtrVal>> {
   }
 };
 
+struct ShadowV : public Value {
+  virtual bool is_conc() const { return true; };
+  virtual int get_bw() const { return 0; }
+  virtual bool compare(const Value *v) const { return false; }
+  virtual PtrVal to_SMT() { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV(int) { return nullptr; }
+  virtual std::string toString() const { return "ShadowV"; }
+};
+
+inline PtrVal make_ShadowV() {
+  static PtrVal singleton = std::make_shared<ShadowV>();
+  return singleton;
+}
+
 // FunV types:
 //   use template to delay type instantiation
 //   cause SS is currently incomplete, unable to use in containers
