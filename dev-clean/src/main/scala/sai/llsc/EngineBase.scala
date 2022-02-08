@@ -201,7 +201,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       case BoolConst(b) => IntV(if (b) 1 else 0, 1)
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
       case FloatConst(f) => FloatV(f)
-      case NullConst => NullV()
+      case NullConst => LocV(0, LocV.kHeap)
       case PtrToIntExpr(from, const, to) =>
         IntV(evalAddr(const, from), to.asInstanceOf[IntType].size)
       case GlobalId(id) if funMap.contains(id) =>
@@ -242,8 +242,8 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = evalHeapConstWithAlign(v, ty)._1
 
   def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
-    var heapSize = 0;
-    var heapTmp: StaticList[Rep[Value]] = StaticList()
+    var heapSize = 8
+    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(heapSize)(NullV())
     for (module <- modules) {
       // module.funcDeclMap.foreach { case (k, v) =>
       //   heapEnv += k -> unit(heapSize)

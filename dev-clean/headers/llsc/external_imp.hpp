@@ -51,10 +51,18 @@ inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_v
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
+  ASSERT(args.size() == 1, "sym_exit accepts exactly one argument");
+  auto v = args.at(0)->to_IntV();
+  ASSERT(v != nullptr, "sym_exit only accepts integer argument");
+  int status = v->as_signed();
   check_pc_to_file(state);
   epilogue();
-  exit(0);
+  exit(status);
 }
+
+// TODO
+//   1. non-eager assert needs stop
+//   2. state passed to sym_exit is not up-to-date
 
 inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
   auto v = args.at(0);
@@ -88,6 +96,44 @@ inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Con
   auto pc = state.get_PC();
   pc.add(cond);
   if (check_pc(pc)) sym_exit(state, args); // check if v == 1 is not valid
+  pc.pop_back();
+  pc.add(v);
+  state.set_PC(pc);
+  return k(state, make_IntV(1, 32));
+}
+
+inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert_eager(SS state, immer::flex_vector<PtrVal> args) {
+  auto v = args.at(0);
+  auto i = v->to_IntV();
+  if (i) {
+    if (i->i == 0) sym_exit(state, { make_IntV(-1) }); // concrete false - generate the test and exit
+    return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
+  }
+  // otherwise add a symbolic condition that constraints it to be true
+  // undefined/error if v is a value of other types
+  auto cond = to_SMTNeg(v);
+  auto pc = state.get_PC();
+  pc.add(cond);
+  if (check_pc(pc)) sym_exit(state, { make_IntV(-1) }); // check if v == 1 is not valid
+  pc.pop_back();
+  pc.add(v);
+  state.set_PC(pc);
+  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
+}
+
+inline std::monostate llsc_assert_eager(SS state, immer::flex_vector<PtrVal> args, Cont k) {
+  auto v = args.at(0);
+  auto i = v->to_IntV();
+  if (i) {
+    if (i->i == 0) sym_exit(state, { make_IntV(-1) }); // concrete false - generate the test and exit
+    return k(state, make_IntV(1, 32));
+  }
+  // otherwise add a symbolic condition that constraints it to be true
+  // undefined/error if v is a value of other types
+  auto cond = to_SMTNeg(v);
+  auto pc = state.get_PC();
+  pc.add(cond);
+  if (check_pc(pc)) sym_exit(state, { make_IntV(-1) }); // check if v == 1 is not valid
   pc.pop_back();
   pc.add(v);
   state.set_PC(pc);
@@ -136,7 +182,7 @@ inline std::vector<std::pair<SS, PtrVal>> sym_print(SS state, std::vector<PtrVal
   if (std::dynamic_pointer_cast<FloatV>(x)) {
     std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
   } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->i << ")\n";
+    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->as_signed() << ")\n";
   } else if (std::dynamic_pointer_cast<LocV>(x)){
     ABORT("Unimplemented LOCV");
   } else if ( x == nullptr ){

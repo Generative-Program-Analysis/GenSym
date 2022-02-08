@@ -15,7 +15,7 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
   virtual bool compare(const Value *v) const = 0;
 
   virtual PtrVal to_SMT() = 0;
-  virtual std::shared_ptr<IntV> to_IntV(int bw = -1) = 0;
+  virtual std::shared_ptr<IntV> to_IntV() = 0;
 
   size_t hashval;
   Value() : hashval(0) {}
@@ -55,7 +55,7 @@ struct ShadowV : public Value {
   virtual int get_bw() const { return 0; }
   virtual bool compare(const Value *v) const { return false; }
   virtual PtrVal to_SMT() { return nullptr; }
-  virtual std::shared_ptr<IntV> to_IntV(int) { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() { return nullptr; }
   virtual std::string toString() const { return "ShadowV"; }
 };
 
@@ -83,7 +83,7 @@ struct FunV : Value {
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value FunV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override {
+  virtual std::shared_ptr<IntV> to_IntV() override {
     ABORT("to_IntV: TODO for FunV?");
   }
   virtual bool is_conc() const override { return true; }
@@ -111,7 +111,7 @@ struct CPSFunV : Value {
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value CPSFunV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override {
+  virtual std::shared_ptr<IntV> to_IntV() override {
     ABORT("to_IntV: TODO for CPSFunV?");
   }
   virtual bool is_conc() const override { return true; }
@@ -141,7 +141,7 @@ struct IntV : Value {
   virtual PtrVal to_SMT() override {
     ABORT("to_SMT: unexpected value IntV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override {
+  virtual std::shared_ptr<IntV> to_IntV() override {
     auto thisptr = shared_from_this();
     return std::static_pointer_cast<IntV>(thisptr);
   }
@@ -153,19 +153,17 @@ struct IntV : Value {
     if (this->i != that->i) return false;
     return this->bw == that->bw;
   }
+
+  int64_t as_signed() const { return int64_t(i) >> (addr_bw - bw); }
 };
 
-inline PtrVal make_IntV(IntData i) {
-  return std::make_shared<IntV>(i, bitwidth);
-}
-
-inline PtrVal make_IntV(IntData i, int bw) {
-  //FIXME, bit width
-  return std::make_shared<IntV>(i, bw);
+inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true) {
+  return std::make_shared<IntV>(toMSB ? (i << (addr_bw - bw)) : i, bw);
 }
 
 inline IntData proj_IntV(PtrVal v) {
-  return std::dynamic_pointer_cast<IntV>(v)->i;
+  if (v->get_bw() == 1) return std::dynamic_pointer_cast<IntV>(v)->i ? 1 : 0;
+  return std::dynamic_pointer_cast<IntV>(v)->as_signed();
 }
 
 inline char proj_IntV_char(PtrVal v) {
@@ -190,7 +188,7 @@ struct FloatV : Value {
     ABORT("to_SMT: unexpected value FloatV.");
   }
   virtual bool is_conc() const override { return true; }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return 32; }
 
   virtual bool compare(const Value *v) const override {
@@ -209,6 +207,7 @@ inline int proj_FloatV(PtrVal v) {
 
 struct LocV : Value {
   enum Kind { kStack, kHeap };
+  static const int64_t stack_offset = 1LL<<30;
   Addr l;
   Kind k;
   int size;
@@ -230,8 +229,8 @@ struct LocV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override {
-    return std::make_shared<IntV>(l + (k == kStack ? (1 << 30) : 0), bw > 0 ? bw : addr_bw);
+  virtual std::shared_ptr<IntV> to_IntV() override {
+    return std::make_shared<IntV>(l + (k == kStack ? stack_offset : 0), addr_bw);
   }
   virtual int get_bw() const override { return addr_bw; }
 
@@ -240,8 +239,6 @@ struct LocV : Value {
     if (this->l != that->l) return false;
     return this->k == that->k;
   }
-
-  static PtrVal from_IntV(PtrVal v);
 };
 
 inline PtrVal make_LocV(unsigned int i, LocV::Kind k, int size) {
@@ -252,13 +249,13 @@ inline PtrVal make_LocV(unsigned int i, LocV::Kind k) {
   return std::make_shared<LocV>(i, k, -1);
 }
 
-inline PtrVal LocV::from_IntV(PtrVal v) {
+inline PtrVal make_LocV(PtrVal v) {
   auto v2 = std::dynamic_pointer_cast<IntV>(v);
-  assert(v2->get_bw() == 64);
-  if (v2->i >= (1 << 30))
-    return make_LocV(v2->i - (1<<30), kStack);
+  assert(v2->get_bw() == addr_bw);
+  if (v2->i >= LocV::stack_offset)
+    return make_LocV(v2->i - LocV::stack_offset, LocV::kStack);
   else
-    return make_LocV(v2->i, kHeap);
+    return make_LocV(v2->i, LocV::kHeap);
 }
 
 inline unsigned int proj_LocV(PtrVal v) {
@@ -315,7 +312,7 @@ struct SymV : Value {
   }
   virtual PtrVal to_SMT() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 
   virtual bool compare(const Value *v) const override {
@@ -359,7 +356,7 @@ struct StructV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");
   }
-  virtual std::shared_ptr<IntV> to_IntV(int bw) override { return nullptr; }
+  virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 
   virtual bool compare(const Value *v) const override {
@@ -374,14 +371,6 @@ inline PtrVal structV_at(PtrVal v, int idx) {
   else ABORT("StructV_at: non StructV value");
 }
 
-inline int64_t make_signed(IntData val, int bw) {
-  return (int64_t(val) << (64-bw)) >> (64-bw);
-}
-
-inline uint64_t make_unsigned(IntData val, int bw) {
-  return val & ((0ull-1)>>(64-bw));
-}
-
 // assume all values are signed, convert to unsigned if necessary
 // require return value to be signed or non-negative
 inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
@@ -394,44 +383,54 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
     ABORT("int_op_2: bitwidth of operands mismatch");
   }
   if (i1 && i2) {
-    if (op == op_add) {
-      return make_IntV(make_signed(i1->i + i2->i, bw1), bw1);
-    } else if (op == op_sub) {
-      return make_IntV(make_signed(i1->i - i2->i, bw1), bw1);
-    } else if (op == op_mul) {
-      return make_IntV(make_signed(i1->i * i2->i, bw1), bw1);
-    // FIXME: singed and unsigned div
-    } else if (op == op_sdiv) {
-      return make_IntV(make_signed(i1->i / i2->i, bw1), bw1);
-    } else if (op == op_udiv) {
-      return make_IntV(make_unsigned(i1->i, bw1) / make_unsigned(i2->i, bw1), bw1);
-    } else if (op == op_eq) {
+    switch (op) {
+    case op_add:
+      return make_IntV(i1->i + i2->i, bw1, false);
+    case op_sub:
+      return make_IntV(i1->i - i2->i, bw1, false);
+    case op_mul:
+      return make_IntV(i1->i * i2->as_signed(), bw1, false);
+    case op_sdiv:  // divide overflow is hardware exception
+      return make_IntV(int64_t(i1->i) / int64_t(i2->i), bw1);
+    case op_udiv:
+      return make_IntV(uint64_t(i1->i) / uint64_t(i2->i), bw1);
+    case op_srem:
+      return make_IntV(int64_t(i1->i) % int64_t(i2->i), bw1, false);
+    case op_urem:
+      return make_IntV(uint64_t(i1->i) % uint64_t(i2->i), bw1, false);
+    case op_eq:
       return make_IntV(i1->i == i2->i, 1);
-    } else if (op == op_uge || op == op_sge) {
-      return make_IntV(i1->i >= i2->i, 1);
-    } else if (op == op_ugt || op == op_sgt) {
-      return make_IntV(i1->i > i2->i, 1);
-    } else if (op == op_ule || op == op_sle) {
-      return make_IntV(i1->i <= i2->i, 1);
-    } else if (op == op_ult || op == op_slt) {
-      return make_IntV(i1->i < i2->i, 1);
-    } else if (op == op_neq) {
+    case op_neq:
       return make_IntV(i1->i != i2->i, 1);
-    } else if (op == op_urem || op == op_srem) {
-      return make_IntV(i1->i % i2->i, bw1);
-    } else if (op == op_and) {
-      return make_IntV(i1->i & i2->i, bw1);
-    } else if (op == op_or) {
-      return make_IntV(i1->i | i2->i, bw1);
-    } else if (op == op_xor) {
-      return make_IntV(i1->i ^ i2->i, bw1);
-    } else if (op == op_ashr) {
-      return make_IntV((i1->i >> i2->i), bw1);
-    } else if (op == op_shl) {
-      return make_IntV(make_signed(i1->i << i2->i, bw1), bw1);
-    } else if (op == op_lshr) {
-      return make_IntV((make_unsigned(i1->i, bw1) >> i2->i), bw1);
-    } else {
+    case op_uge:
+      return make_IntV(uint64_t(i1->i) >= uint64_t(i2->i), 1);
+    case op_sge:
+      return make_IntV(int64_t(i1->i) >= int64_t(i2->i), 1);
+    case op_ugt:
+      return make_IntV(uint64_t(i1->i) > uint64_t(i2->i), 1);
+    case op_sgt:
+      return make_IntV(int64_t(i1->i) > int64_t(i2->i), 1);
+    case op_ule:
+      return make_IntV(uint64_t(i1->i) <= uint64_t(i2->i), 1);
+    case op_sle:
+      return make_IntV(int64_t(i1->i) <= int64_t(i2->i), 1);
+    case op_ult:
+      return make_IntV(uint64_t(i1->i) < uint64_t(i2->i), 1);
+    case op_slt:
+      return make_IntV(int64_t(i1->i) < int64_t(i2->i), 1);
+    case op_and:
+      return make_IntV(i1->i & i2->i, bw1, false);
+    case op_or:
+      return make_IntV(i1->i | i2->i, bw1, false);
+    case op_xor:
+      return make_IntV(i1->i ^ i2->i, bw1, false);
+    case op_shl:
+      return make_IntV(i1->i << i2->as_signed(), bw1, false);
+    case op_ashr:
+      return make_IntV(int64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
+    case op_lshr:
+      return make_IntV(uint64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
+    default:
       std::cout << op << std::endl;
       ABORT("invalid operator");
     }
@@ -459,7 +458,7 @@ inline PtrVal float_op_2(fOP op, PtrVal v1, PtrVal v2) {
 inline PtrVal bv_sext(PtrVal v, int bw) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
-    return make_IntV(i1->i, bw);
+    return make_IntV(int64_t(i1->i) >> (bw - i1->bw), bw, false);
   } else {
     auto s1 = std::dynamic_pointer_cast<SymV>(v);
     if (s1) {
@@ -474,7 +473,7 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
 inline PtrVal bv_zext(PtrVal v, int bw) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
-    return make_IntV(make_unsigned(i1->i, bw), bw);
+    return make_IntV(uint64_t(i1->i) >> (bw - i1->bw), bw, false);
   } else {
     auto s1 = std::dynamic_pointer_cast<SymV>(v);
     if (s1) {
@@ -489,7 +488,7 @@ inline PtrVal bv_zext(PtrVal v, int bw) {
 inline PtrVal trunc(PtrVal v1, int from, int to) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {
-    return make_IntV(make_signed(i1->i, to), to);
+    return make_IntV(i1->i << (from - to), to, false);
   }
   auto s1 = std::dynamic_pointer_cast<SymV>(v1);
   if (s1) {
@@ -501,9 +500,7 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
 inline PtrVal bv_extract(PtrVal v1, int hi, int lo) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {
-    int64_t i = i1->i;
-    i = (i << (63 - hi)) >> (63 - hi + lo);
-    return make_IntV(i, hi - lo + 1);
+    return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
   }
   auto s1 = std::dynamic_pointer_cast<SymV>(v1);
   if (s1) {
@@ -518,9 +515,9 @@ inline PtrVal bv_concat(PtrVal v1, PtrVal v2) {
   auto i2 = v2->to_IntV();
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
-  assert(bw1 + bw2 <= 64);
+  assert(bw1 + bw2 <= addr_bw);
   if (i1 && i2) {
-    return make_IntV((int64_t(i1->i) << bw2) | make_unsigned(i2->i, bw2), bw1 + bw2);
+    return make_IntV(i1->i | (uint64_t(i2->i) >> bw1), bw1 + bw2, false);
   }
   else {
     return std::make_shared<SymV>(op_concat, immer::flex_vector<PtrVal> { v1, v2 }, bw1 + bw2);

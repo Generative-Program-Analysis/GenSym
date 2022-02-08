@@ -77,7 +77,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullV()
-      case NullConst => LocV(-1, LocV.kHeap)
+      case NullConst => LocV(0, LocV.kHeap)
       case NoneConst => NullV()
     }
 
@@ -155,7 +155,10 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case SiToFPInst(from, value, to) =>
         k(ss, eval(value, from, ss).si_tofp)
       case PtrToIntInst(from, value, to) =>
-        k(ss, eval(value, from, ss).to_IntV(to.asInstanceOf[IntType].size))
+        import sai.llsc.Constants._
+        val v = eval(value, from, ss).to_IntV
+        val toSize = to.asInstanceOf[IntType].size
+        k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize))
       case IntToPtrInst(from, value, to) =>
         k(ss, eval(value, from, ss).to_LocV)
       case BitCastInst(from, value, to) => k(ss, eval(value, to, ss))

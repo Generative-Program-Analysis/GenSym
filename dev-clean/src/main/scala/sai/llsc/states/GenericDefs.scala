@@ -78,7 +78,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
     // TODO: specify the signature of those functions (both in C and Scala)
     val modeled = MutableSet[String](
       "sym_print", "print_string", "malloc", "realloc", "llsc_assert", "make_symbolic",
-      "open", "close", "read", "write", "sym_exit",
+      "open", "close", "read", "write", "sym_exit", "llsc_assert_eager",
       "__assert_fail"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
@@ -261,7 +261,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def si_tofp: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Rep[Int], to: Rep[Int]): Rep[Value] =
       "trunc".reflectWith[Value](v, from, to)
-    def to_IntV(bw: Int = -1): Rep[Value] = "to-IntV".reflectWith[Value](v, bw)
+    def to_IntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
     def to_LocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
   }
 }

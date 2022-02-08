@@ -13,7 +13,7 @@ typedef struct {
     int16_t b;
 } pair2_t;
 
-void llsc_assert(bool);
+void llsc_assert_eager(bool);
 
 int main() {
     do {
@@ -22,15 +22,15 @@ int main() {
         int16_t tmp = st->b;
         st->b = st->c;
         st->c = tmp;
-        llsc_assert(val == 0x12345678cdef90ab);
+        llsc_assert_eager(val == 0x12345678cdef90ab);
     } while(0);
     do {
         pair_t val = { 0x12345678, 0x90ab, 0xcdef };
         int64_t *pt = &val;
         *pt = 0xfedcba0987654321;
-        llsc_assert(val.a == 0xfedcba09);
-        llsc_assert(val.b == (int16_t)0x8765);
-        llsc_assert(val.c == (int16_t)0x4321);
+        llsc_assert_eager(val.a == 0xfedcba09);
+        llsc_assert_eager(val.b == (int16_t)0x8765);
+        llsc_assert_eager(val.c == (int16_t)0x4321);
     } while(0);
     do {
         pair_t p1 = { 0x12345678, 0x90ab, 0xcdef };
