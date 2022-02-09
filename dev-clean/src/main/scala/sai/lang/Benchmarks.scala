@@ -1,4 +1,4 @@
-package sai.llvm
+package sai.lang.llvm
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
