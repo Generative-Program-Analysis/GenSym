@@ -12,8 +12,8 @@ import sai.lang.llvm.parser.Parser._
 
 import sai.lmsx._
 import sai.utils.Utils.time
-import sai.llvm.Benchmarks._
-import sai.llvm.OOPSLA20Benchmarks._
+import sai.lang.llvm.Benchmarks._
+import sai.lang.llvm.OOPSLA20Benchmarks._
 
 import sys.process._
 
