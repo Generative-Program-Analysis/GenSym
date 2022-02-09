@@ -267,15 +267,28 @@ inline LocV::Kind proj_LocV_kind(PtrVal v) {
 inline int proj_LocV_size(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->size;
 }
+
+// FIXME: remove it after refactoring external_imp/intrinsics_imp
 inline PtrVal make_LocV_inc(PtrVal loc, int i) {
   return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
+
 inline PtrVal make_LocV_null() {
   static const PtrVal loc0 = make_LocV(0, LocV::kHeap);
   return loc0;
 }
 inline bool is_LocV_null(PtrVal v) {
   return v == make_LocV_null();
+}
+
+inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
+  if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
+    return make_LocV(loc->l + rhs, loc->k, loc->size);
+  }
+  if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
+    return make_IntV(i->i + rhs, i->bw);
+  }
+  ABORT("Unknown application of operator+");
 }
 
 struct SymV : Value {

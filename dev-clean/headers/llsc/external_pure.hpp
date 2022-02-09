@@ -8,9 +8,10 @@ using Cont = std::function<std::monostate(SS, PtrVal)>;
 inline std::string get_string(PtrVal ptr, SS state) {
   std::string name;
   char c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   while (c != '\0') {
     name += c;
-    ptr = make_LocV_inc(ptr, 1); // ptr++
+    ptr = ptr + 1;
     c = proj_IntV_char(state.at(ptr)); // c = *ptr
   }
   return name;
@@ -102,7 +103,7 @@ inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   std::cout << "prev size: " << prevBytes << std::endl;
   SS res = state.heap_append(emptyMem);
   for (int i = 0; i < prevBytes; i++) {
-    res = res.update(make_LocV_inc(memLoc, i), res.heap_lookup(src + i));
+    res = res.update(memLoc + i, res.heap_lookup(src + i));
   }
   return k(res, memLoc);
 }
@@ -189,12 +190,13 @@ inline std::monostate llsc_assert_eager(SS state, List<PtrVal> args, Cont k) {
 
 template<typename T>
 inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  PtrVal make_loc = args.at(0);
+  PtrVal loc = args.at(0);
+  ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
   IntData len = proj_IntV(args.at(1));
   SS res = state;
-  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
+  //std::cout << "sym array size: " << proj_LocV_size(loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res = res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
+    res = res.update(loc + i, make_SymV("x" + std::to_string(var_name++), 8));
   }
   return k(res, make_IntV(0));
 }
@@ -225,14 +227,13 @@ template<typename T>
 inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
-  PtrVal bytes = args.at(2);
+  IntData bytes_int = proj_IntV(args.at(2));
+  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
+  ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   SS res = state;
-  Addr dest_addr = proj_LocV(dest);
-  Addr src_addr = proj_LocV(src);
-  IntData bytes_int = proj_IntV(bytes);
   // TODO(Opt): flex_vector_transient
   for (int i = 0; i < bytes_int; i++) {
-    res = res.update(make_LocV_inc(dest, i), res.at(make_LocV_inc(src, i)));
+    res = res.update(dest + i, res.at(src + i));
   }
   return k(res, IntV0);
 }
@@ -252,16 +253,17 @@ template<typename T>
 inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
-  PtrVal bytes = args.at(2);
+  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
+  ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   SS res = state;
-  IntData bytes_int = proj_IntV(bytes);
-  // Optmize: flex_vector_transient
+  IntData bytes_int = proj_IntV(args.at(2));
+  // Optimize: flex_vector_transient
   auto temp_mem = List<PtrVal>{};
   for (int i = 0; i < bytes_int; i++) {
-    temp_mem = temp_mem.push_back(res.at(make_LocV_inc(src, i)));
+    temp_mem = temp_mem.push_back(res.at(src + i));
   }
   for (int i = 0; i < bytes_int; i++) {
-    res = res.update(make_LocV_inc(dest, i), temp_mem.at(i));
+    res = res.update(dest + i, temp_mem.at(i));
   }
   return k(res, IntV0);
 }
@@ -279,16 +281,12 @@ inline std::monostate llvm_memmove(SS state, List<PtrVal> args, Cont k) {
 template<typename T>
 inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
-  PtrVal seti8 = args.at(1);
-  PtrVal bytes = args.at(2);
+  IntData bytes_int = proj_IntV(args.at(2));
+  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
   SS res = state;
-  Addr dest_addr = proj_LocV(dest);
-  // what could be other set value?
-  int setInt = 0;
-  IntData bytes_int = proj_IntV(bytes);
-  // Optmize: flex_vector_transient
+  // Optimize: flex_vector_transient
   for (int i = 0; i < bytes_int; i++) {
-    res = res.update(make_LocV_inc(dest, i), IntV0);
+    res = res.update(dest + i, IntV0);
   }
   return k(res, IntV0);
 }
@@ -308,14 +306,13 @@ inline std::monostate llvm_memset(SS state, List<PtrVal> args, Cont k) {
 // in memory {4, 4, 8, 8}
 inline List<SSVal> llvm_va_start(SS state, List<PtrVal> args) {
   PtrVal va_list = args.at(0);
+  ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   PtrVal va_arg = state.getVarargLoc();
   SS res = state;
-
-  res = res.update(make_LocV_inc(va_list, 0), IntV0);
-  res = res.update(make_LocV_inc(va_list, 4), IntV0);
-  res = res.update(make_LocV_inc(va_list, 8), make_LocV_inc(va_arg, 40));
-  res = res.update(make_LocV_inc(va_list, 16), va_arg);
-
+  res = res.update(va_list + 0, IntV0);
+  res = res.update(va_list + 4, IntV0);
+  res = res.update(va_list + 8, va_arg + 40);
+  res = res.update(va_list + 16, va_arg);
   return List<SSVal>{{res, IntV0}};
 }
 

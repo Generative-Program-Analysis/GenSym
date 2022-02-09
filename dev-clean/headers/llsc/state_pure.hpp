@@ -316,7 +316,7 @@ class SS: public Printable {
     SS update_seq(PtrVal addr, List<PtrVal> vals) {
       SS updated_ss = *this;
       for (int i = 0; i < vals.size(); i++) {
-        updated_ss = updated_ss.update(make_LocV_inc(addr, i), vals.at(i));
+        updated_ss = updated_ss.update(addr + i, vals.at(i));
       }
       return updated_ss;
     }
