@@ -34,7 +34,6 @@ private:
   std::atomic<bool> paused = false;
 
   std::mutex q_lock = {};
-  std::queue<std::function<void()>> tasks = {};
   std::priority_queue<Task> ptasks = {};
 
   std::unique_ptr<std::thread[]> threads;

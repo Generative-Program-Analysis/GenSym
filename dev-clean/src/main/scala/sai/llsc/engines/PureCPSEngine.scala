@@ -168,7 +168,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize))
       case IntToPtrInst(from, value, to) =>
         k(ss, eval(value, from, ss).to_LocV)
-      case BitCastInst(from, value, to) => k(ss, eval(value, to, ss))
+      case BitCastInst(from, value, to) =>
+        k(ss, eval(value, to, ss))
 
       // Aggregate Operations
       /* Backend Work Needed */

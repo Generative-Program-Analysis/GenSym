@@ -8,7 +8,7 @@
 template <class V, class M>
 class PreMem: public Printable {
   protected:
-    immer::flex_vector<V> mem;
+    List<V> mem;
   public:
     std::string toString() const override {
       std::ostringstream ss;
@@ -20,7 +20,7 @@ class PreMem: public Printable {
       ss << ")";
       return ss.str();
     }
-    PreMem(immer::flex_vector<V> mem) : mem(mem) {}
+    PreMem(List<V> mem) : mem(mem) {}
     size_t size() { return mem.size(); }
     V at(size_t idx) { return mem.at(idx); }
     M update(size_t idx, V val) {
@@ -32,7 +32,7 @@ class PreMem: public Printable {
       size_t idx = mem.size();
       return M(alloc(padding + 1).update(idx, val));
     }
-    M append(immer::flex_vector<V> vs) { return M(mem + vs); }
+    M append(List<V> vs) { return M(mem + vs); }
     M alloc(size_t size) {
       auto m = mem.transient();
       for (int i = 0; i < size; i++) { m.push_back(nullptr); }
@@ -40,19 +40,19 @@ class PreMem: public Printable {
     }
     M take(size_t keep) { return M(mem.take(keep)); }
     M drop(size_t d) { return M(mem.drop(d)); }
-    immer::flex_vector<V> getMem() { return mem; }
+    List<V> getMem() { return mem; }
 };
 
 class Mem: public PreMem<PtrVal, Mem> {
   class IterVals {
-    immer::flex_vector<PtrVal> mem;
+    List<PtrVal> mem;
     size_t begin0, end0, idx2;
     bool first;
 
   public:
-    IterVals(immer::flex_vector<PtrVal> m, size_t idx, int size)
+    IterVals(List<PtrVal> m, size_t idx, int size)
       : mem(m), begin0(idx), end0(idx + size), first(true) { }
-    
+
     std::optional<std::tuple<size_t, PtrVal, size_t>> next() {
       // assumptions:
       //   1. values do not overlap
@@ -85,7 +85,7 @@ class Mem: public PreMem<PtrVal, Mem> {
   }
 
 public:
-  Mem(immer::flex_vector<PtrVal> mem) : PreMem(mem) { }
+  Mem(List<PtrVal> mem) : PreMem(mem) { }
   using PreMem::at;
   using PreMem::update;
 
@@ -122,7 +122,7 @@ public:
       // cut v_new from v_orig
       size_t begin_new = std::max(begin_orig, begin_cur);
       size_t end_new = std::min(end_orig, end_cur);
-      PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ? 
+      PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ?
                       q_extract(v_orig, end_orig, begin_new, end_new) : v_orig;
       // prepend & append
       if (begin_cur < begin_new) {
@@ -166,7 +166,7 @@ class Frame: public Printable {
     size_t size() { return env.size(); }
     PtrVal lookup_id(Id id) const { return env.at(id); }
     Frame assign(Id id, PtrVal v) const { return Frame(env.insert({id, v})); }
-    Frame assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) const {
+    Frame assign_seq(List<Id> ids, List<PtrVal> vals) const {
       Env env1 = env;
       for (size_t i = 0; i < ids.size(); i++) {
         env1 = env1.insert({ids.at(i), vals.at(i)});
@@ -178,17 +178,17 @@ class Frame: public Printable {
 class Stack: public Printable {
   private:
     Mem mem;
-    immer::flex_vector<Frame> env;
+    List<Frame> env;
   public:
     std::string toString() const override {
       std::ostringstream ss;
       ss << "Stack(" <<
         "mem=" << mem << ", " <<
-        "env=" << vec_to_string(env) << 
+        "env=" << vec_to_string(env) <<
         ")";
       return ss.str();
     }
-    Stack(Mem mem, immer::flex_vector<Frame> env) : mem(mem), env(env) {}
+    Stack(Mem mem, List<Frame> env) : mem(mem), env(env) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
     PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
@@ -199,7 +199,7 @@ class Stack: public Printable {
     Stack assign(Id id, PtrVal val) {
       return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }));
     }
-    Stack assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
+    Stack assign_seq(List<Id> ids, List<PtrVal> vals) {
       // varargs
       size_t id_size = ids.size();
       if (id_size == 0) return Stack(mem, env);
@@ -231,12 +231,12 @@ class Stack: public Printable {
 
 class PC: public Printable {
   private:
-    immer::flex_vector<PtrVal> pc;
+    List<PtrVal> pc;
   public:
-    PC(immer::flex_vector<PtrVal> pc) : pc(pc) {}
+    PC(List<PtrVal> pc) : pc(pc) {}
     PC add(PtrVal e) { return PC(pc.push_back(e)); }
-    PC add_set(immer::flex_vector<PtrVal> new_pc) { return PC(pc + new_pc); }
-    immer::flex_vector<PtrVal> get_path_conds() { return pc; }
+    PC add_set(List<PtrVal> new_pc) { return PC(pc + new_pc); }
+    List<PtrVal> get_path_conds() { return pc; }
     PtrVal get_last_cond() {
       if (pc.size() > 0) return pc.back();
       return nullptr;
@@ -258,7 +258,7 @@ class SS: public Printable {
   public:
     std::string toString() const override {
       std::ostringstream ss;
-      ss << "SS(" << 
+      ss << "SS(" <<
         "stack => {{ " << stack << " }}, " <<
         "heap => {{ " << heap << " }}, " <<
         "pc => {{ " << pc << " }}, " <<
@@ -292,7 +292,7 @@ class SS: public Printable {
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
       return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
-    immer::flex_vector<PtrVal> at_seq(PtrVal addr, int count) {
+    List<PtrVal> at_seq(PtrVal addr, int count) {
       auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
       ASSERT(s, "failed to read struct");
       return s->fs;
@@ -313,7 +313,7 @@ class SS: public Printable {
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, bb, fs);
       return SS(heap.update(loc->l, val, size), stack, pc, bb, fs);
     }
-    SS update_seq(PtrVal addr, immer::flex_vector<PtrVal> vals) {
+    SS update_seq(PtrVal addr, List<PtrVal> vals) {
       SS updated_ss = *this;
       for (int i = 0; i < vals.size(); i++) {
         updated_ss = updated_ss.update(make_LocV_inc(addr, i), vals.at(i));
@@ -323,14 +323,14 @@ class SS: public Printable {
     SS push() { return SS(heap, stack.push(), pc, bb, fs); }
     SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb, fs); }
     SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb, fs); }
-    SS assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
+    SS assign_seq(List<Id> ids, List<PtrVal> vals) {
       return SS(heap, stack.assign_seq(ids, vals), pc, bb, fs);
     }
-    SS heap_append(immer::flex_vector<PtrVal> vals) {
+    SS heap_append(List<PtrVal> vals) {
       return SS(heap.append(vals), stack, pc, bb, fs);
     }
     SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb, fs); }
-    SS add_PC_set(immer::flex_vector<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb, fs); }
+    SS add_PC_set(List<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb, fs); }
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel, fs); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
@@ -354,34 +354,34 @@ class SS: public Printable {
     FS get_fs() { return fs; }
 };
 
-inline const Mem mt_mem = Mem(immer::flex_vector<PtrVal>{});
-inline const Stack mt_stack = Stack(mt_mem, immer::flex_vector<Frame>{});
-inline const PC mt_pc = PC(immer::flex_vector<PtrVal>{});
+using SSVal = std::pair<SS, PtrVal>;
+
+inline const Mem mt_mem = Mem(List<PtrVal>{});
+inline const Stack mt_stack = Stack(mt_mem, List<Frame>{});
+inline const PC mt_pc = PC(List<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
+inline const List<SSVal> mt_path_result = List<SSVal>{};
 
-inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
-  immer::flex_vector<std::pair<SS, PtrVal>>{};
-
-using func_t = immer::flex_vector<std::pair<SS, PtrVal>> (*)(SS, immer::flex_vector<PtrVal>);
+using func_t = List<SSVal> (*)(SS, List<PtrVal>);
 
 inline PtrVal make_FunV(func_t f) {
   return std::make_shared<FunV<func_t>>(f);
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> direct_apply(PtrVal v, SS ss, immer::flex_vector<PtrVal> args) {
+inline List<SSVal> direct_apply(PtrVal v, SS ss, List<PtrVal> args) {
   auto f = std::dynamic_pointer_cast<FunV<func_t>>(v);
   if (f) return f->f(ss, args);
   ABORT("direct_apply: not applicable");
 }
 
-using func_cps_t = std::monostate (*)(SS, immer::flex_vector<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
+using func_cps_t = std::monostate (*)(SS, List<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
 
 inline PtrVal make_CPSFunV(func_cps_t f) {
   return std::make_shared<CPSFunV<func_cps_t>>(f);
 }
 
-inline std::monostate cps_apply(PtrVal v, SS ss, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS, PtrVal)> k) {
+inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::function<std::monostate(SS, PtrVal)> k) {
   auto f = std::dynamic_pointer_cast<CPSFunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");

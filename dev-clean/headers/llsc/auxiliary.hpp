@@ -1,6 +1,8 @@
 #ifndef LLSC_AUX_HEADERS
 #define LLSC_AUX_HEADERS
 
+template<typename T> using List = immer::flex_vector<T>;
+
 using BlockLabel = int;
 using Id = int;
 using Addr = unsigned int;
@@ -13,6 +15,7 @@ inline unsigned int addr_bw = 64;
 inline unsigned int var_name = 0;
 
 inline std::atomic<std::optional<int>> exit_code;
+inline std::mutex exit_code_lock;
 
 inline std::atomic<unsigned int> num_async = 0;
 inline std::atomic<unsigned int> tt_num_async = 0;
@@ -45,6 +48,7 @@ enum fOP {
 // invoking it later will be discarded and have no effect
 // on `main`'s return code.
 inline void set_exit_code(int code) {
+  const std::scoped_lock lock(exit_code_lock);
   if (!exit_code.load().has_value()) {
     exit_code.store(std::make_optional<int>(code));
   }
@@ -123,5 +127,8 @@ class Printable {
     virtual std::string toString() const = 0;
 };
 
+inline std::monostate operator+ (const std::monostate& lhs, const std::monostate& rhs) {
+  return std::monostate{};
+}
 
 #endif
