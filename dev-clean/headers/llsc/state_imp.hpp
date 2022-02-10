@@ -245,7 +245,7 @@ class PC {
       pc.insert(pc.end(), new_pc.begin(), new_pc.end());
       return std::move(*this);
     }
-    PC&& add_set(const immer::flex_vector<PtrVal>& new_pc) {
+    PC&& add_set(const List<PtrVal>& new_pc) {
       pc.insert(pc.end(), new_pc.begin(), new_pc.end());
       return std::move(*this);
     }
@@ -284,7 +284,7 @@ class SS {
   public:
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb) :
       heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
-    SS(immer::flex_vector<PtrVal> heap, Stack stack, PC pc, BlockLabel bb) :
+    SS(List<PtrVal> heap, Stack stack, PC pc, BlockLabel bb) :
       heap(std::move(std::vector(heap.begin(), heap.end()))), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
     SS copy() { return *this; }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
@@ -365,7 +365,7 @@ class SS {
       stack.assign_seq(ids, std::move(vals));
       return std::move(*this);
     }
-    SS&& assign_seq(immer::flex_vector<Id> ids, immer::flex_vector<PtrVal> vals) {
+    SS&& assign_seq(List<Id> ids, List<PtrVal> vals) {
       return assign_seq(
         std::vector<Id>(ids.begin(), ids.end()),
         std::vector<PtrVal>(vals.begin(), vals.end()));
@@ -374,7 +374,7 @@ class SS {
       heap.append(vals);
       return std::move(*this);
     }
-    SS&& heap_append(immer::flex_vector<PtrVal> vals) {
+    SS&& heap_append(List<PtrVal> vals) {
       return heap_append(std::vector<PtrVal>(vals.begin(), vals.end()));
     }
     SS&& add_PC(PtrVal e) {
@@ -385,7 +385,7 @@ class SS {
       pc.add_set(s);
       return std::move(*this);
     }
-    SS&& add_PC_set(const immer::flex_vector<PtrVal>& s) {
+    SS&& add_PC_set(const List<PtrVal>& s) {
       std::set cs(s.begin(), s.end());
       pc.add_set(cs);
       return std::move(*this);
@@ -416,34 +416,36 @@ class SS {
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
 };
 
+using SSVal = std::pair<SS, PtrVal>;
+
 inline const Mem mt_mem = Mem(std::vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, std::vector<Frame>{});
 inline const PC mt_pc = PC(std::vector<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 
-inline const immer::flex_vector<std::pair<SS, PtrVal>> mt_path_result =
-  immer::flex_vector<std::pair<SS, PtrVal>>{};
+inline const List<SSVal> mt_path_result =
+  List<SSVal>{};
 
-using func_t = immer::flex_vector<std::pair<SS, PtrVal>> (*)(SS&, immer::flex_vector<PtrVal>);
+using func_t = List<SSVal> (*)(SS&, List<PtrVal>);
 
 inline PtrVal make_FunV(func_t f) {
   return std::make_shared<FunV<func_t>>(f);
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> direct_apply(PtrVal v, SS ss, immer::flex_vector<PtrVal> args) {
+inline List<SSVal> direct_apply(PtrVal v, SS ss, List<PtrVal> args) {
   auto f = std::dynamic_pointer_cast<FunV<func_t>>(v);
   if (f) return f->f(ss, args);
   ABORT("direct_apply: not applicable");
 }
 
-using func_cps_t = std::monostate (*)(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
+using func_cps_t = std::monostate (*)(SS&, List<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
 
 inline PtrVal make_CPSFunV(func_cps_t f) {
   return std::make_shared<CPSFunV<func_cps_t>>(f);
 }
 
-inline std::monostate cps_apply(PtrVal v, SS ss, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
   auto f = std::dynamic_pointer_cast<CPSFunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");

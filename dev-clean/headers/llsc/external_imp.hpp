@@ -1,93 +1,16 @@
 #ifndef LLSC_EXTERNAL_IMP_HEADERS
 #define LLSC_EXTERNAL_IMP_HEADERS
 
-using Cont = std::function<std::monostate(SS&, PtrVal)>;
+#include "external_shared.hpp"
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> sym_print(SS state, immer::flex_vector<PtrVal> args) {
-  for (auto x : args) { std::cout << *x << "; "; }
-  std::cout << "\n";
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
-}
+/******************************************************************************/
 
-inline std::monostate sym_print(SS& state, immer::flex_vector<PtrVal> args, Cont k) {
-  for (auto x : args) { std::cout << *x << "; "; }
-  std::cout << "\n";
-  return k(state, make_IntV(0));
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> noop(SS state, immer::flex_vector<PtrVal> args) {
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> malloc(SS state, immer::flex_vector<PtrVal> args) {
-  IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, nullptr);
-  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
-}
-
-inline std::monostate malloc(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
-  IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, nullptr);
-  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  SS ss = state.heap_append(emptyMem);
-  return k(ss, memLoc);
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> realloc(SS state, immer::flex_vector<PtrVal> args) {
-  Addr src = proj_LocV(args.at(0));
-  IntData bytes = proj_IntV(args.at(1));
-
-  auto emptyMem = immer::flex_vector<PtrVal>(bytes, nullptr);
-  std::cout << "realloc size: " << emptyMem.size() << std::endl;
-  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  IntData prevBytes = proj_LocV_size(args.at(0));
-  std::cout << "prev size: " << prevBytes << std::endl;
-  SS res = state.heap_append(emptyMem);
-  for (int i = 0; i < prevBytes; i++) {
-    res = res.update(make_LocV_inc(memLoc, i), res.heap_lookup(src + i));
-  }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{res, memLoc}};
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> sym_exit(SS state, immer::flex_vector<PtrVal> args) {
-  ASSERT(args.size() == 1, "sym_exit accepts exactly one argument");
-  auto v = args.at(0)->to_IntV();
-  ASSERT(v != nullptr, "sym_exit only accepts integer argument");
-  int status = v->as_signed();
-  check_pc_to_file(state);
-  epilogue();
-  exit(status);
-}
-
-// TODO
-//   1. non-eager assert needs stop
-//   2. state passed to sym_exit is not up-to-date
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert(SS state, immer::flex_vector<PtrVal> args) {
+template<typename T>
+inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0) sym_exit(state, args); // concrete false - generate the test and exit
-    return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
-  }
-  // otherwise add a symbolic condition that constraints it to be true
-  // undefined/error if v is a value of other types
-  auto cond = to_SMTNeg(v);
-  auto pc = state.get_PC();
-  pc.add(cond);
-  if (check_pc(pc)) sym_exit(state, args); // check if v == 1 is not valid
-  pc.pop_back();
-  pc.add(v);
-  state.set_PC(pc);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
-}
-
-inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Cont k) {
-  auto v = args.at(0);
-  auto i = v->to_IntV();
-  if (i) {
-    if (i->i == 0) sym_exit(state, args); // concrete false - generate the test and exit
+    if (i->i == 0) return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
     return k(state, make_IntV(1, 32));
   }
   // otherwise add a symbolic condition that constraints it to be true
@@ -95,171 +18,151 @@ inline std::monostate llsc_assert(SS state, immer::flex_vector<PtrVal> args, Con
   auto cond = to_SMTNeg(v);
   auto pc = state.get_PC();
   pc.add(cond);
-  if (check_pc(pc)) sym_exit(state, args); // check if v == 1 is not valid
+  if (check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is not valid
   pc.pop_back();
   pc.add(v);
   state.set_PC(pc);
   return k(state, make_IntV(1, 32));
 }
 
-inline immer::flex_vector<std::pair<SS, PtrVal>> llsc_assert_eager(SS state, immer::flex_vector<PtrVal> args) {
-  auto v = args.at(0);
-  auto i = v->to_IntV();
-  if (i) {
-    if (i->i == 0) sym_exit(state, { make_IntV(-1) }); // concrete false - generate the test and exit
-    return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
-  }
-  // otherwise add a symbolic condition that constraints it to be true
-  // undefined/error if v is a value of other types
-  auto cond = to_SMTNeg(v);
-  auto pc = state.get_PC();
-  pc.add(cond);
-  if (check_pc(pc)) sym_exit(state, { make_IntV(-1) }); // check if v == 1 is not valid
-  pc.pop_back();
-  pc.add(v);
-  state.set_PC(pc);
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(1, 32)}};
-}
+/******************************************************************************/
 
-inline std::monostate llsc_assert_eager(SS state, immer::flex_vector<PtrVal> args, Cont k) {
-  auto v = args.at(0);
-  auto i = v->to_IntV();
-  if (i) {
-    if (i->i == 0) sym_exit(state, { make_IntV(-1) }); // concrete false - generate the test and exit
-    return k(state, make_IntV(1, 32));
-  }
-  // otherwise add a symbolic condition that constraints it to be true
-  // undefined/error if v is a value of other types
-  auto cond = to_SMTNeg(v);
-  auto pc = state.get_PC();
-  pc.add(cond);
-  if (check_pc(pc)) sym_exit(state, { make_IntV(-1) }); // check if v == 1 is not valid
-  pc.pop_back();
-  pc.add(v);
-  state.set_PC(pc);
-  return k(state, make_IntV(1, 32));
-}
-
-inline std::monostate make_symbolic(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
-  PtrVal make_loc = args.at(0);
+template<typename T>
+inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  PtrVal loc = args.at(0);
+  ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
   IntData len = proj_IntV(args.at(1));
-  SS res = std::move(state);
-  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
+  //std::cout << "sym array size: " << proj_LocV_size(loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
+    state.update(loc + i, make_SymV("x" + std::to_string(var_name++), 8));
   }
-  return k(res, make_IntV(0));
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> make_symbolic(SS& state, immer::flex_vector<PtrVal> args) {
-  PtrVal make_loc = args.at(0);
-  IntData len = proj_IntV(args.at(1));
-  SS res = std::move(state);
-  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
-  for (int i = 0; i < len; i++) {
-    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
-  }
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{std::move(res), make_IntV(0)}};
-}
-
-inline immer::flex_vector<std::pair<SS, PtrVal>> __assert_fail(SS state, immer::flex_vector<PtrVal> args) {
-  // TODO get real argument string
-  // std::cout << "Fail: Calling to __assert_fail" << std::endl;
-  return immer::flex_vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
-}
-
-inline std::monostate __assert_fail(SS state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
-  // TODO get real argument string
-  // std::cout << "Fail: Calling to __assert_fail" << std::endl;
   return k(state, make_IntV(0));
 }
 
-// Belows are the counterparts that use std::vector for argument list and return list
-// TODO: refactor them using tempaltes?
-
-inline std::vector<std::pair<SS, PtrVal>> sym_print(SS state, std::vector<PtrVal> args) {
-  PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<FloatV>(x)) {
-    std::cout << "FloatV" << std::dynamic_pointer_cast<FloatV>(x)->f << ")\n";
-  } else if (std::dynamic_pointer_cast<IntV>(x)) {
-    std::cout << "IntV(" << std::dynamic_pointer_cast<IntV>(x)->as_signed() << ")\n";
-  } else if (std::dynamic_pointer_cast<LocV>(x)){
-    ABORT("Unimplemented LOCV");
-  } else if ( x == nullptr ){
-    ABORT("Unimplemented nullptr");
-  }
-  return std::vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+inline List<SSVal> make_symbolic(SS& state, List<PtrVal> args) {
+  return __make_symbolic<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
-inline std::vector<std::pair<SS, PtrVal>> noop(SS state, std::vector<PtrVal> args) {
-  return std::vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+inline std::monostate make_symbolic(SS& state, List<PtrVal> args, Cont k) {
+  return __make_symbolic<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
-// TODO: sync with the malloc in external_pure
-inline std::monostate malloc(SS& state, std::vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
+/******************************************************************************/
+
+template<typename T>
+inline T __malloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = std::vector<PtrVal>(bytes, nullptr);
+  auto emptyMem = List<PtrVal>(bytes, nullptr);
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  SS ss = state.heap_append(emptyMem);
-  return k(ss, memLoc);
+  if (exlib_failure_branch)
+    return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
+  return k(state.heap_append(emptyMem), memLoc);
 }
 
-inline std::vector<std::pair<SS, PtrVal>> malloc(SS state, std::vector<PtrVal> args) {
-  IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = std::vector<PtrVal>(bytes, nullptr);
-  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  return std::vector<std::pair<SS, PtrVal>>{{state.heap_append(emptyMem), memLoc}};
+inline List<SSVal> malloc(SS& state, List<PtrVal> args) {
+  return __malloc<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
-inline std::vector<std::pair<SS, PtrVal>> realloc(SS state, std::vector<PtrVal> args) {
+inline std::monostate malloc(SS& state, List<PtrVal> args, Cont k) {
+  return __malloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
-
-  auto emptyMem = std::vector<PtrVal>(bytes, nullptr);
+  auto emptyMem = List<PtrVal>(bytes, nullptr);
   std::cout << "realloc size: " << emptyMem.size() << std::endl;
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   IntData prevBytes = proj_LocV_size(args.at(0));
   std::cout << "prev size: " << prevBytes << std::endl;
-  SS res = state.heap_append(emptyMem);
+  state.heap_append(emptyMem);
   for (int i = 0; i < prevBytes; i++) {
-    res = res.update(make_LocV_inc(memLoc, i), res.heap_lookup(src + i));
+    state.update(memLoc + i, state.heap_lookup(src + i));
   }
-  return std::vector<std::pair<SS, PtrVal>>{{res, memLoc}};
+  return k(state, memLoc);
 }
 
-inline std::vector<std::pair<SS, PtrVal>> llsc_assert(SS state, std::vector<PtrVal> args) {
-  // XXX(GW): temporarily commented, should invoke Checker and generate test case properly?
-  // auto &pc = state.getPC();
-  // handle_pc(pc);
-  return std::vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+inline List<SSVal> realloc(SS& state, List<PtrVal> args) {
+  return __realloc<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
-inline std::monostate make_symbolic(SS& state, std::vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
-  PtrVal make_loc = args.at(0);
-  IntData len = proj_IntV(args.at(1));
-  SS res = std::move(state);
-  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
-  for (int i = 0; i < len; i++) {
-    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
+inline std::monostate realloc(SS& state, List<PtrVal> args, Cont k) {
+  return __realloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  PtrVal dest = args.at(0);
+  PtrVal src = args.at(1);
+  IntData bytes_int = proj_IntV(args.at(2));
+  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
+  ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
+  for (int i = 0; i < bytes_int; i++) {
+    state.update(dest + i, state.at(src + i));
   }
-  return k(res, make_IntV(0));
+  return k(state, IntV0);
 }
 
-inline std::vector<std::pair<SS, PtrVal>> make_symbolic(SS& state, std::vector<PtrVal> args) {
-  PtrVal make_loc = args.at(0);
-  IntData len = proj_IntV(args.at(1));
-  SS res = std::move(state);
-  //std::cout << "sym array size: " << proj_LocV_size(make_loc) << "\n";
-  for (int i = 0; i < len; i++) {
-    res.update(make_LocV_inc(make_loc, i), make_SymV("x" + std::to_string(var_name++), 8));
+inline List<SSVal> llvm_memcpy(SS state, List<PtrVal> args) {
+  return __llvm_memcpy<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llvm_memcpy(SS state, List<PtrVal> args, Cont k) {
+  return __llvm_memcpy<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  PtrVal dest = args.at(0);
+  PtrVal src = args.at(1);
+  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
+  ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
+  IntData bytes_int = proj_IntV(args.at(2));
+  // Optimize: flex_vector_transient
+  auto temp_mem = List<PtrVal>{};
+  for (int i = 0; i < bytes_int; i++) {
+    temp_mem = temp_mem.push_back(state.at(src + i));
   }
-  return std::vector<std::pair<SS, PtrVal>>{{std::move(res), make_IntV(0)}};
+  for (int i = 0; i < bytes_int; i++) {
+    state.update(dest + i, temp_mem.at(i));
+  }
+  return k(state, IntV0);
 }
 
-inline std::vector<std::pair<SS, PtrVal>> __assert_fail(SS state, std::vector<PtrVal> args) {
-  // TODO get real argument string
-  // std::cout << "Fail: Calling to __assert_fail" << std::endl;
-  return std::vector<std::pair<SS, PtrVal>>{{state, make_IntV(0)}};
+inline List<SSVal> llvm_memmove(SS state, List<PtrVal> args) {
+  return __llvm_memmove<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llvm_memmove(SS state, List<PtrVal> args, Cont k) {
+  return __llvm_memmove<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  PtrVal dest = args.at(0);
+  IntData bytes_int = proj_IntV(args.at(2));
+  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
+  for (int i = 0; i < bytes_int; i++) {
+    state.update(dest + i, IntV0);
+  }
+  return k(state, IntV0);
+}
+
+inline List<SSVal> llvm_memset(SS& state, List<PtrVal> args) {
+  return __llvm_memset<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llvm_memset(SS& state, List<PtrVal> args, Cont k) {
+  return __llvm_memset<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
 #endif

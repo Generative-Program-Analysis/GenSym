@@ -52,7 +52,6 @@ using namespace std::chrono;
 #endif
 
 #include <llsc/branch.hpp>
-
 #include <llsc/misc.hpp>
 
 #include <llsc/external_pure.hpp>
