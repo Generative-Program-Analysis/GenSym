@@ -96,34 +96,6 @@ struct FunV : Value {
   }
 };
 
-template<typename func_t>
-struct CPSFunV : Value {
-  func_t f;
-  CPSFunV(func_t f) : f(f) {
-    hash_combine(hash(), std::string("cpsfunv"));
-    hash_combine(hash(), f);
-  }
-  std::string toString() const override {
-    std::ostringstream ss;
-    ss << "CPSFunV(" << f << ")";
-    return ss.str();
-  }
-  virtual PtrVal to_SMT() override {
-    ABORT("to_SMT: unexpected value CPSFunV.");
-  }
-  virtual std::shared_ptr<IntV> to_IntV() override {
-    ABORT("to_IntV: TODO for CPSFunV?");
-  }
-  virtual bool is_conc() const override { return true; }
-  virtual int get_bw() const override {
-    return addr_bw;
-  }
-  virtual bool compare(const Value *v) const override {
-    auto that = static_cast<decltype(this)>(v);
-    return this->f == that->f;
-  }
-};
-
 struct IntV : Value {
   int bw;
   IntData i;
@@ -266,11 +238,6 @@ inline LocV::Kind proj_LocV_kind(PtrVal v) {
 }
 inline int proj_LocV_size(PtrVal v) {
   return std::dynamic_pointer_cast<LocV>(v)->size;
-}
-
-// FIXME: remove it after refactoring external_imp/intrinsics_imp
-inline PtrVal make_LocV_inc(PtrVal loc, int i) {
-  return make_LocV(proj_LocV(loc) + i, proj_LocV_kind(loc), proj_LocV_size(loc));
 }
 
 inline PtrVal make_LocV_null() {

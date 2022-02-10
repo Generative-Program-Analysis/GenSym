@@ -424,8 +424,7 @@ inline const PC mt_pc = PC(std::vector<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
 
-inline const List<SSVal> mt_path_result =
-  List<SSVal>{};
+inline const List<SSVal> mt_path_result = List<SSVal>{};
 
 using func_t = List<SSVal> (*)(SS&, List<PtrVal>);
 
@@ -442,11 +441,11 @@ inline List<SSVal> direct_apply(PtrVal v, SS ss, List<PtrVal> args) {
 using func_cps_t = std::monostate (*)(SS&, List<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
 
 inline PtrVal make_CPSFunV(func_cps_t f) {
-  return std::make_shared<CPSFunV<func_cps_t>>(f);
+  return std::make_shared<FunV<func_cps_t>>(f);
 }
 
 inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> k) {
-  auto f = std::dynamic_pointer_cast<CPSFunV<func_cps_t>>(v);
+  auto f = std::dynamic_pointer_cast<FunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");
 }

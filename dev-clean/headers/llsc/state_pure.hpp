@@ -378,11 +378,11 @@ inline List<SSVal> direct_apply(PtrVal v, SS ss, List<PtrVal> args) {
 using func_cps_t = std::monostate (*)(SS, List<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
 
 inline PtrVal make_CPSFunV(func_cps_t f) {
-  return std::make_shared<CPSFunV<func_cps_t>>(f);
+  return std::make_shared<FunV<func_cps_t>>(f);
 }
 
 inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::function<std::monostate(SS, PtrVal)> k) {
-  auto f = std::dynamic_pointer_cast<CPSFunV<func_cps_t>>(v);
+  auto f = std::dynamic_pointer_cast<FunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");
 }
