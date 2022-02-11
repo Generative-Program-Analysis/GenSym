@@ -107,7 +107,7 @@ struct IntV : Value {
   IntV(const IntV& v) : IntV(v.i, v.bw) {}
   std::string toString() const override {
     std::ostringstream ss;
-    ss << "IntV(" << i << ", " << bw << ")";
+    ss << "IntV(" << as_signed() << ", " << bw << ")";
     return ss.str();
   }
   virtual PtrVal to_SMT() override {

@@ -82,10 +82,10 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       else "ss-lookup-addr-struct".reflectWith[Value](ss, addr, size)
     }
     def lookupSeq(addr: Rep[Value], count: Rep[Int]): Rep[List[Value]] = "ss-lookup-addr-seq".reflectWith[List[Value]](ss, addr, count)
-    
+
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v, sz)
     def updateSeq(a: Rep[Value], v: Rep[List[Value]]): Rep[SS] = "ss-update-seq".reflectWith[SS](ss, a, v)
-    def allocStack(n: Rep[Int], align: Int): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
+    def allocStack(n: Int, align: Int): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = "ss-lookup-heap".reflectWith[Value](ss, addr)
     def heapSize: Rep[Int] = "ss-heap-size".reflectWith[Int](ss)
@@ -112,22 +112,26 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     private def lookupOpt(x: Int, s: Backend.Def, default: => Rep[Value], bound: Int): Rep[Value] =
       if (bound == 0) default
       else s match {
-        case Adapter.g.Def("ss-assign", ss0::Backend.Const(y)::(v: Backend.Sym)::Nil) if y == x => Wrap[Value](v)
-        case Adapter.g.Def("ss-assign", ss0::Backend.Const(y)::(v: Backend.Sym)::Nil) => lookupOpt(x, ss0, default, bound-1)
-        // TODO: ss-assign-seq?
+        case gNode("ss-assign", StaticList(ss0, bConst(y), v: bExp)) if y == x => Wrap[Value](v)
+        case gNode("ss-assign", StaticList(ss0, _, _)) => lookupOpt(x, ss0, default, bound-1)
+        case gNode("ss-alloc-stack", StaticList(ss0, _)) => lookupOpt(x, ss0, default, bound-1)
+        case gNode("ss-update", StaticList(ss0, _, _, _)) => lookupOpt(x, ss0, default, bound-1)
+        case gNode("ss-add-incoming-block", StaticList(ss0, _)) => lookupOpt(x, ss0, default, bound-1)
+        // TODO: ss-assign-seq/update-seq?
         case _ => default
       }
 
-    override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
+    override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 30)
     override def assign(x: String, v: Rep[Value]): Rep[SS] = Unwrap(ss) match {
-      /*
-      case Adapter.g.Def("ss-assign", ss0::Backend.Const(y: Int)::(w: Backend.Exp)::Nil) =>
-        val hs: Rep[List[Int]] = List(y, x.hashCode)
-        val vs: Rep[List[Value]] = List(Wrap[Value](w), v)
-        // s.lookup(x) if x != s0.assign(x, v)
-        Wrap[SS](Adapter.g.reflect("ss-assign-seq", ss0, Unwrap(hs), Unwrap(vs)))
-       */
+      // Idea: coalesce multiple subsequent assign into assign-seq
+      // Idea: dead assignment can be eliminated -- dead: no lookup of it of the whole program
       case _ => super.assign(x, v)
+    }
+
+    override def stackSize: Rep[Int] = Unwrap(ss) match {
+      case gNode("ss-alloc-stack", StaticList(ss0: bExp, bConst(inc: Int))) => Wrap[SS](ss0).stackSize + inc
+      case gNode("ss-assign", StaticList(ss0: bExp, _, _)) => Wrap[SS](ss0).stackSize
+      case _ => super.stackSize
     }
   }
 

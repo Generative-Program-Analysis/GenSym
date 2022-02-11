@@ -48,6 +48,7 @@ import TestPrg._
 object TestCases {
   val concrete: List[TestPrg] = List(
     TestPrg(add, "addTest", "@main", 0, None, nPath(1)),
+    TestPrg(aliasing, "aliasingTest", "@main", 0, None, nPath(1)),
     TestPrg(power, "powerTest", "@main", 0, None, nPath(1)),
     TestPrg(global, "globalTest", "@main", 0, None, nPath(1)),
     TestPrg(ptrpred, "ptrPredTest", "@main", 0, None, nPath(1)),
@@ -232,4 +233,9 @@ class TestImpCPSLLSC extends TestLLSC {
   testLLSC(new ImpCPSLLSC, TestCases.all)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", 0, 720))
   //testLLSC(new ImpCPSLLSC, external)
+}
+
+class Playground extends TestLLSC {
+  testLLSC(new PureCPSLLSC_Z3, TestPrg(mergesort, "mergeSortTest", "@main", 0, None, nPath(720)))
+  //testLLSC(new PureCPSLLSC_Z3, TestPrg(aliasing, "aliasingTest", "@main", 0, None, nPath(1)))
 }

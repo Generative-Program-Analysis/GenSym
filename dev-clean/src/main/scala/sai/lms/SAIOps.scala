@@ -15,15 +15,24 @@ import sai.structure.monad._
 
 import sai.lmsx.smt._
 
-import scala.collection.immutable.{Set => SSet}
+import scala.collection.immutable.{List => StaticList}
 
 abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
   def wrapper(x: Rep[A]): Rep[B] = snippet(x)
   def snippet(x: Rep[A]): Rep[B]
 }
 
+trait PrimitiveOpsOpt extends PrimitiveOps { self: Base =>
+  implicit class IntOpsOpt(x: Rep[Int]) extends PrimitiveMathOpsIntOpsCls(x) {
+    override def -(rhs: Int)(implicit __pos: SourceContext, __imp1: Overloaded79) = Unwrap(x) match {
+      case Adapter.g.Def("+", StaticList(x: Backend.Exp, Backend.Const(y))) if rhs == y => Wrap[Int](x)
+      case _ => super.-(rhs)(__pos, __imp1)
+    }
+  }
+}
+
 trait SAIOps extends Base
-    with PrimitiveOps with LiftPrimitives with Equal with RangeOps
+    with PrimitiveOpsOpt with LiftPrimitives with Equal with RangeOps
     with OrderingOps  with LiftVariables  with TupleOpsOpt
     with ListOpsOpt   with MapOpsOpt      with SetOpsOpt
     with EitherOps    with RepLattices    with RepMonads
