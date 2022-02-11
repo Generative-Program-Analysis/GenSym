@@ -34,6 +34,8 @@ object Benchmarks {
 
   lazy val funptr = parseFile("benchmarks/llvm/funptr.ll")
   lazy val heapFunptr = parseFile("benchmarks/llvm/heapFunptr.ll")
+  lazy val nastyStruct = parseFile("benchmarks/llvm/nastystruct.ll")
+  lazy val arrayFlow = parseFile("benchmarks/llvm/arrayflow.ll")
 
   lazy val sp1 = parseFile("benchmarks/llvm/single_path.ll")
   lazy val sp2 = parseFile("benchmarks/llvm/single_path2.ll")
@@ -63,6 +65,7 @@ object Benchmarks {
   lazy val kth = parseFile("benchmarks/demo_benchmarks/kth.ll")
   lazy val binSearch = parseFile("benchmarks/demo_benchmarks/bin_search.ll")
   lazy val knapsack = parseFile("benchmarks/demo_benchmarks/knapsack.ll")
+  lazy val nqueen = parseFile("benchmarks/demo_benchmarks/nqueen.ll")
 
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")

@@ -62,7 +62,7 @@ class Mem: public PreMem<PtrVal, Mem> {
         first = false;
         for (idx = begin0; (ret = mem.at(idx)) == make_ShadowV(); idx--);
         if (idx < begin0) {
-          idx2 = idx + ret->get_bw() / 8;
+          idx2 = idx + (ret->get_bw() + 7) / 8;
           return std::tuple(idx, ret, idx2);
         }
         idx2 = begin0;
@@ -70,7 +70,7 @@ class Mem: public PreMem<PtrVal, Mem> {
       if ((idx = idx2) < end0) {
         ret = mem.at(idx);
         if (ret) {
-          return std::tuple(idx, ret, (idx2 = idx + ret->get_bw()/8));
+          return std::tuple(idx, ret, (idx2 = idx + (ret->get_bw() + 7) / 8));
         } else {
           for (idx2 = idx + 1; idx2 < end0 && !mem.at(idx2); idx2++);
           return std::tuple(idx, PtrVal(nullptr), idx2);

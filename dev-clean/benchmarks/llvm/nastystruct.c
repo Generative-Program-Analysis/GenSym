@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 struct S {
   char c;
@@ -57,5 +58,6 @@ void func_weird() {
 
 int main() {
   func_ST();
+  func_P();
   return 0;
 }

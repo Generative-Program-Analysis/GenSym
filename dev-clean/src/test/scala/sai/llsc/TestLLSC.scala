@@ -71,6 +71,8 @@ object TestCases {
     TestPrg(heapFunptr, "heapFunptr", "@main", 0, None, nPath(1)),
     TestPrg(ptrtoint, "ptrToInt", "@main", 0, None, nPath(1)),
     TestPrg(flexAddr, "flexAddr", "@main", 0, None, nPath(1)),
+    TestPrg(nastyStruct, "nastyStruct", "@main", 0, None, nPath(1)),
+    // TestPrg(arrayFlow, "arrayFlow", "@main", 0, None, nPath(15)),
   )
 
   val varArg: List[TestPrg] = List(
@@ -95,6 +97,7 @@ object TestCases {
     TestPrg(kth, "k_of_st_arrays", "@main", 0, None, nPath(252)),
     TestPrg(binSearch, "binSearch", "@main", 0, None, nPath(92)),
     TestPrg(knapsack, "knapsackTest", "@main", 0, None, nPath(1666)),
+    TestPrg(nqueen, "nQueens", "@main", 0, None, nPath(1363)),
     // The oopsla20 version of maze
     TestPrg(maze, "mazeTest", "@main", 2, None, nPath(309)),
     TestPrg(mp1024, "mp1024Test", "@f", 10, None, nPath(1024)),
