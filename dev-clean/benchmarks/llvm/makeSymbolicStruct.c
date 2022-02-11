@@ -10,7 +10,7 @@ int main() {
     char f4;
   };
   struct st a;
-  make_symbolic(&a, 11); // make the struct symbolic
+  make_symbolic(&a, sizeof(struct st)); // make the struct symbolic
   a.f2 = 'a'; // assign concrete value to some field
   sym_print(a.f1); // SymV(concat, { SymV(x0, 8), SymV(x1, 8), SymV(x2, 8), SymV(x3, 8) })
   sym_print(a.f2); // IntV(97, 32);
