@@ -165,6 +165,33 @@ void test_stream() {
   }
 }
 
+void test_stat() {
+  Stat st1, st2;
+
+  // test initialization
+  ASSERT((st1.get_struct().size() == Stat::total_size), "stat has correct default size");
+  ASSERT((st1.get_struct().at(0) != nullptr), "stat should not be initialized to nullptr");
+
+  // test read and write field
+  auto field_name = Stat::st_rdev;
+  auto field_pos = Stat::field_pos_size.at(field_name).first;
+  auto field_size = Stat::field_pos_size.at(field_name).second;
+  st1.write_field(field_name, immer::flex_vector<PtrVal>(field_size, intV_0)); // write 0s to the field
+
+  auto field_content = st1.read_field(field_name);
+  ASSERT((field_content.size() == field_size), "the field being read should have the correct size");
+  for (int i=0; i<field_size; i++) {
+    ASSERT((field_content.at(i) == intV_0), "the field should have correct content");
+  }
+
+  // test copy construction
+  st2 = st1;
+  for (int i=0; i<Stat::total_size; i++) {
+    ASSERT((st1.get_struct().at(i) == st2.get_struct().at(i)), 
+        "the two struct instance should have the same content");
+  }
+}
+
 void test_fs() {
   File file_a = make_SymFile("A", 5);
   File file_b = make_SymFile("B", 5);
@@ -181,7 +208,7 @@ void test_fs() {
     ASSERT(!fs.has_file(file_b.get_name()), "file_b is removed");
   }
   {
-    // test open_file
+    // test open_file, write_file, read_file, close_file
     FS fs;
     fs.add_file(file_a);
     Fd fd_a;
@@ -195,14 +222,12 @@ void test_fs() {
     fd = fs.open_file("non-existing-file");
     ASSERT((fd == -1), "open_file should return -1 on non-existing file name");
 
-    // test write_file
     ret = fs.write_file(fd_a, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5);
     ASSERT((ret == 2), "should return the correct number of bytes written");
 
     ret = fs.write_file(-999, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5);
     ASSERT((ret == -1), "write_file should return -1 on unopened file");
 
-    // test read_file
     auto retp = fs.read_file(fd_a, 999);
     ret = retp.second;
     ASSERT((ret == 3), "should have read the last 3 bytes");
@@ -212,7 +237,6 @@ void test_fs() {
     ASSERT((ret == -1), "read_file should return -1 on unopened file");
     /* TODO: Check content when seek is implemented <2022-01-25, David Deng> */
 
-    // test close_file
     fd = fs.close_file(fd_a);
     ASSERT((fd == 0), "close_file should return 0");
 
@@ -221,8 +245,10 @@ void test_fs() {
   }
 }
 
+
 int main() {
-  test_file();
-  test_stream();
-  test_fs();
+  /* test_file(); */
+  /* test_stream(); */
+  /* test_fs(); */
+  test_stat();
 }

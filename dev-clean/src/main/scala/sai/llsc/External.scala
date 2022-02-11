@@ -88,6 +88,21 @@ trait GenExternal extends SymExeDefs {
     k(ss, IntV(size))
   }
 
+  def stat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    val ptr = args(0)
+    val name: Rep[String] = getString(ptr, ss)
+    val buf: Rep[Value] = args(1)
+    val fs: Rep[FS] = ss.getFs
+    val (content, status): (Rep[List[Value]], Rep[Int]) = fs.statFile(name).unlift
+    if (status == 0) {
+      val ss1 = ss.updateSeq(buf, content)
+      ss1.setFs(fs)
+      k(ss1, IntV(status, 32))
+    } else {
+      k(ss, IntV(status, 32))
+    }
+  }
+
   def openat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     // TODO: implement this <2022-01-23, David Deng> //
     // int __fd_openat(int basefd, const char *pathname, int flags, mode_t mode);
@@ -141,6 +156,8 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
     hardTopFun(gen_k(read), "read", "inline")
     hardTopFun(gen_p(write), "write", "inline")
     hardTopFun(gen_k(write), "write", "inline")
+    hardTopFun(gen_p(stat), "stat", "inline")
+    hardTopFun(gen_k(stat), "stat", "inline")
     // hardTopFun(gen_p(openat), "openat", "inline")
     // hardTopFun(gen_k(openat), "openat", "inline")
     ()

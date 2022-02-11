@@ -1,17 +1,99 @@
 #ifndef LLSC_FS_HEADERS
 #define LLSC_FS_HEADERS
 
-/* TODO: Is the name field necessary? <2021-10-12, David Deng> */
+inline unsigned int fs_var_name = 0;
+inline int default_sym_file_size = 5;
+inline PtrVal make_SymV_fs(int bw = 8) {
+  return make_SymV("fs_x" + std::to_string(fs_var_name++), bw);
+}
+
+class Stat: Printable {
+  private:
+    immer::flex_vector<PtrVal> content;
+  public:
+    /***************
+    *  constants  *
+    ***************/
+    static const unsigned total_size = 144;
+    enum st_field_t {
+      st_dev,    // 8 bytes
+      st_ino,    // 8 bytes
+      st_nlink,  // 8 bytes
+      st_mode,   // 4 bytes
+      st_uid,    // 4 bytes
+      st_gid,    // 4 bytes
+      // pad     // 4 bytes
+      st_rdev,   // 8 bytes
+      st_size,   // 8 bytes
+      st_blksi,  // 8 bytes
+      st_block,  // 8 bytes
+      st_atim,   // 16 bytes
+      st_mtim,   // 16 bytes
+      st_ctim,   // 16 bytes
+      // NOTE: last 24 bytes reserved but not used.
+    };
+    inline static const std::map<st_field_t, std::pair<unsigned, unsigned>> field_pos_size = {
+      {Stat::st_dev,   {0,   8  }},
+      {Stat::st_ino,   {8,   8  }},
+      {Stat::st_nlink, {16,  8  }},
+      {Stat::st_mode,  {24,  4  }},
+      {Stat::st_uid,   {28,  4  }},
+      {Stat::st_gid,   {32,  4  }},
+      // padding,      {36,  4  }},
+      {Stat::st_rdev,  {40,  8  }},
+      {Stat::st_size,  {48,  8  }},
+      {Stat::st_blksi, {56,  8  }},
+      {Stat::st_block, {64,  8  }},
+      {Stat::st_atim,  {72,  16 }},
+      {Stat::st_mtim,  {88,  16 }},
+      {Stat::st_ctim,  {104, 16 }}
+    };
+
+    /*************
+    *  methods  *
+    *************/
+    std::string toString() const override {
+      return std::string("Stat()");
+    }
+    Stat(): content(total_size, nullptr) {
+      // default initialize to 44 SymV values
+      for (int i=0; i<total_size; i++) {
+        content = content.set(i, make_SymV_fs());
+      }
+    }
+    Stat(immer::flex_vector<PtrVal> c) {
+      ASSERT(c.size() == total_size, "Stat initialized with wrong sized vector.");
+      content = c;
+    }
+    Stat(const Stat& st): content(st.content) {}
+    immer::flex_vector<PtrVal> get_struct() const {
+      return content;
+    }
+    immer::flex_vector<PtrVal> read_field(st_field_t field) const {
+      unsigned pos, size;
+      std::tie(pos, size) = field_pos_size.at(field);
+      return content.drop(pos).take(size);
+    }
+    void write_field(st_field_t field, immer::flex_vector<PtrVal> c) {
+      unsigned pos, size;
+      std::tie(pos, size) = field_pos_size.at(field);
+      for (int i=0; i<size; i++) {
+        content = content.set(pos+i, c.at(i));
+      }
+    }
+};
+
 class File: public Printable {
   private:
     std::string name;
     immer::flex_vector<PtrVal> content;
+    Stat stat;
   public:
     std::string toString() const override {
       std::ostringstream ss;
-      ss << "File(name=" << name << ", content=[" << std::endl;
+      ss << "File(name=" << name << ", content=[";
       for (auto ptrval: content) {
-        ss << "\t" << *ptrval << "," << std::endl;
+        ss << ptrval_to_string(ptrval) << ", ";
       }
       ss << "])";
       return ss.str();
@@ -19,6 +101,10 @@ class File: public Printable {
     File(std::string name): name(name) {}
     File(std::string name, immer::flex_vector<PtrVal> content): name(name), content(content) {}
     File(const File& f): name(f.name), content(f.content) {}
+
+    Stat& get_stat() {
+      return stat;
+    }
 
     // if writing beyond the last byte, will simply append to the end without filling
     void write_at_no_fill(immer::flex_vector<PtrVal> new_content, size_t pos) {
@@ -53,10 +139,14 @@ class File: public Printable {
 };
 
 // return a symbolic file with size bytes
+/* TODO: add a global fileId counter, and a map from fileId to file instance
+ * Purpose 1: For supporting directory structure
+ * Purpose 2: To avoid potentially conflicting var names in sym values
+ * <2022-02-07, David Deng> */
 inline File make_SymFile(std::string name, size_t size) {
   immer::flex_vector<PtrVal> content;
   for (int i = 0; i < size; i++) {
-    content = content.push_back(make_SymV(std::string("FILE_") + name + std::string("_BYTE_") + std::to_string(i), 8));
+    content = content.push_back(make_SymV_fs());
   }
   return File(name, content);
 };
@@ -127,6 +217,10 @@ struct Stream: public Printable {
 class FS: public Printable {
   private:
     immer::map<Fd, Stream> opened_files;
+    /* TODO: implement directory structure
+     * 1. change the string key to a fileId, similar to inode number 
+     * 2. add a root directory file, with fileId=0
+     * <2022-02-08, David Deng> */
     immer::map<std::string, File> files;
     Fd next_fd;
     Fd get_fresh_fd() {
@@ -137,16 +231,15 @@ class FS: public Printable {
   public:
     std::string toString() const override {
       std::ostringstream ss;
-      ss << "FS(nfiles=" << files.size() << ", nstreams=" << opened_files.size() << std::endl;
-      ss <<"\tfiles:" << std::endl;
+      ss << "FS(nfiles=" << files.size() << ", nstreams=" << opened_files.size() << ", files=[";
       for (auto pf: files) {
-        ss << pf.second << std::endl << std::endl;
+        ss << pf.second << ", ";
       }
-      ss <<"\topened_files:" << std::endl;
+      ss << "], opened_files=[";
       for (auto pf: opened_files) {
-        ss << pf.second << std::endl << std::endl;
+        ss << pf.second << ", ";
       }
-      ss << ")";
+      ss << "])";
       return ss.str();
     }
     FS() : next_fd(3) {
@@ -173,7 +266,7 @@ class FS: public Printable {
 
     void remove_file(std::string name) {
       ASSERT(has_file(name), "FS::remove_file: File does not exist");
-      // NOTE: should behave correctly if the file is open, 
+      // NOTE: should behave correctly if the file is open,
       // because the file in opened_files is not removed until it is close_file is called.
       files = files.erase(name);
     };
@@ -206,7 +299,6 @@ class FS: public Printable {
       return 0;
     }
 
-
     std::pair<immer::flex_vector<PtrVal>, ssize_t> read_file(Fd fd, size_t nbytes) {
       if (!has_stream(fd)) return std::make_pair(immer::flex_vector<PtrVal>{}, -1);
       auto strm = get_stream(fd);
@@ -223,9 +315,15 @@ class FS: public Printable {
       return written;
     }
 
+    std::pair<immer::flex_vector<PtrVal>, int> stat_file(std::string name) {
+      if (!has_file(name)) return std::make_pair(immer::flex_vector<PtrVal>{}, -1);
+      auto file = files.at(name);
+      auto stat = file.get_stat();
+      return std::make_pair(stat.get_struct(), 0);
+    }
+
 };
 
-inline int default_sym_file_size = 5;
 inline FS initial_fs;
 
 #endif

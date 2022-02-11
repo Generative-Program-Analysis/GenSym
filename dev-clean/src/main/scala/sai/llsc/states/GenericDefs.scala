@@ -78,7 +78,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
     // TODO: specify the signature of those functions (both in C and Scala)
     val modeled = MutableSet[String](
       "sym_print", "print_string", "malloc", "realloc", "llsc_assert", "make_symbolic",
-      "open", "close", "read", "write", "sym_exit", "llsc_assert_eager",
+      "open", "close", "read", "write", "stat", "sym_exit", "llsc_assert_eager",
       "__assert_fail"
     )
     def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")

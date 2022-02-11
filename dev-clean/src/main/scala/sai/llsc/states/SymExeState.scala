@@ -140,6 +140,8 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       "fs-read-file".reflectCtrlWith[(List[Value], Int)](fs, fd, nbytes)
     def writeFile(fd: Rep[Fd], content: Rep[List[Value]], nbytes: Rep[Int]): Rep[Int] =
       "fs-write-file".reflectCtrlWith[Int](fs, fd, content, nbytes)
+    def statFile(ptr: Rep[String]): Rep[(List[Value], Int)] =
+      "fs-stat-file".reflectCtrlWith[(List[Value], Int)](fs, ptr)
   }
 
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()
