@@ -44,28 +44,65 @@ class PreMem: public Printable {
 };
 
 class Mem: public PreMem<PtrVal, Mem> {
-  std::tuple<PtrVal, size_t, size_t> lookup(size_t idx, size_t size) {
+  // endian-ness: https://stackoverflow.com/questions/46289636/z3-endian-ness-mixup-between-extract-and-concat
+  static PtrVal q_extract(PtrVal v0, size_t b0, size_t b, size_t e, size_t e0) {
+    return bv_extract(v0, (e - b0) * 8 - 1, (b - b0) * 8);
+  }
+
+  static PtrVal q_concat(PtrVal v1, PtrVal v2) {
+    return bv_concat(v2, v1);
+  }
+
+  struct Segment {
+    PtrVal val; size_t begin, size, end;
+    Segment(PtrVal v, size_t b, size_t s): val(v), begin(b), size(s), end(b + s) { }
+    // assume intersection; no checks
+    Segment intersect(const Segment &rhs) const {
+      size_t b = std::max(begin, rhs.begin), e = std::min(end, rhs.end);
+      PtrVal v = (begin < b || e < end) ? q_extract(val, begin, b, e, end) : val;
+      return {v, b, e - b};
+    }
+    Segment left_sub(const Segment &rhs) const {
+      PtrVal v = (rhs.begin > begin) ? q_extract(val, begin, begin, rhs.begin, end) : nullptr;
+      return {v, begin, rhs.begin};
+    }
+    Segment right_sub(const Segment &lhs) const {
+      PtrVal v = (lhs.end < end) ? q_extract(val, begin, lhs.end, end, end) : nullptr;
+      return {v, lhs.end, end};
+    }
+  };
+
+  Segment lookup(size_t idx, size_t size) const {
     auto cur = mem.at(idx);
     if (!cur) {
       size_t sz = 1;
       while (sz < size && !mem.at(idx + sz)) sz++;
-      return std::make_tuple(cur, idx, sz);
+      return { cur, idx, sz };
     }
     while (cur == make_ShadowV()) cur = mem.at(--idx);
-    return std::make_tuple(cur, idx, (cur->get_bw() + 7) / 8);
+    return { cur, idx, size_t(cur->get_bw() + 7) / 8 };
   }
 
-  inline void possible_partial_undef(PtrVal &v) const {
+  bool is_intact(const Segment &seg) const {
+    for (size_t idx = seg.begin; idx < seg.end; ) {
+      auto s = lookup(idx, seg.end - idx);
+      if (s.begin < seg.begin || s.end > seg.end)
+        return false;
+      idx = s.end;
+    }
+    return true;
+  }
+
+  using ListTransient = List<PtrVal>::transient_type;
+  static void write_back(ListTransient &mem, const Segment &seg, PtrVal v) {
+    mem.set(seg.begin, v);
+    if (!seg.val)
+      for (size_t i = seg.begin + 1; i < seg.end; i++)
+        mem.set(i, make_ShadowV());
+  }
+
+  static void possible_partial_undef(PtrVal &v) {
     assert(v);
-  }
-
-  // endian-ness: https://stackoverflow.com/questions/46289636/z3-endian-ness-mixup-between-extract-and-concat
-  inline PtrVal q_concat(PtrVal v1, PtrVal v2) const {
-    return bv_concat(v2, v1);
-  }
-
-  inline PtrVal q_extract(PtrVal v0, size_t begin0, size_t begin, size_t end, size_t end0) const {
-    return bv_extract(v0, (end - begin0) * 8 - 1, (begin - begin0) * 8);
   }
 
 public:
@@ -74,15 +111,11 @@ public:
   using PreMem::update;
 
   PtrVal at(size_t idx, int size) {
-    PtrVal cur; size_t cidx, csize;
-    std::tie(cur, cidx, csize) = lookup(idx, size);
-    if (cidx < idx || csize > size) {
-      size_t size2 =  std::min<size_t>(size, cidx + csize - idx);
-      cur = q_extract(cur, cidx, idx, idx + size2, cidx + csize);
-      csize = size2;
-    }
-    if (csize < size) {
-      auto next = at(idx + csize, size - csize);
+    auto first = lookup(idx, size);
+    auto part = first.intersect({nullptr, idx, size_t(size)});
+    auto cur = part.val;
+    if (part.size < size) {
+      auto next = at(idx + part.size, size - part.size);
       possible_partial_undef(cur);
       possible_partial_undef(next);
       cur = q_concat(cur, next);
@@ -90,37 +123,31 @@ public:
     return cur;
   }
 
-  Mem update(size_t idx, PtrVal v_orig, int size) {
+  Mem update(size_t idx, PtrVal val, int size) {
     auto mem = this->mem.transient();
-    size_t begin_orig = idx, end_orig = idx + size;
-    while (size > 0) {
-      // load current
-      size_t begin_cur, size_cur; PtrVal v_cur;
-      std::tie(v_cur, begin_cur, size_cur) = lookup(idx, size);
-      size_t end_cur = begin_cur + size_cur;
-      // cut v_new from v_orig
-      size_t begin_new = std::max(begin_orig, begin_cur);
-      size_t end_new = std::min(end_orig, end_cur);
-      PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ?
-                      q_extract(v_orig, begin_orig, begin_new, end_new, end_orig) : v_orig;
-      // prepend & append
-      if (begin_cur < begin_new) {
-        auto v_head = q_extract(v_cur, begin_cur, begin_cur, begin_new, end_cur);
-        v_new = q_concat(v_head, v_new);
+    Segment newval {val, idx, size_t(size)};
+    if (is_intact(newval)) {
+      for (idx = newval.begin; idx < newval.end; ) {
+        auto curval = lookup(idx, newval.end - idx);
+        auto v = (curval.begin == newval.begin) ? newval.val : make_ShadowV();
+        write_back(mem, curval, v);
+        idx = curval.end;
       }
-      if (end_new < end_cur) {
-        auto v_tail = q_extract(v_cur, begin_cur, end_new, end_cur, end_cur);
-        v_new = q_concat(v_new, v_tail);
+    }
+    else {
+      for (idx = newval.begin; idx < newval.end; ) {
+        // load current
+        auto curval = lookup(idx, newval.end - idx);
+        auto newcur = newval.intersect(curval);
+        auto v_new = newcur.val;
+        auto v_head = curval.left_sub(newcur).val;
+        if (v_head) v_new = q_concat(v_head, v_new);
+        auto v_tail = curval.right_sub(newcur).val;
+        if (v_tail) v_new = q_concat(v_new, v_tail);
+        // store & step
+        write_back(mem, curval, v_new);
+        idx = curval.end;
       }
-      // store
-      mem.set(begin_cur, v_new);
-      if (!v_cur) {
-        for (size_t i = begin_cur + 1; i < end_cur; i++)
-          mem.set(i, make_ShadowV());
-      }
-      // step
-      idx = end_new;
-      size = end_orig - end_new;
     }
     return Mem(mem.persistent());
   }
