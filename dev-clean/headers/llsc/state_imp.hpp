@@ -46,44 +46,28 @@ class PreMem {
 };
 
 class Mem: public PreMem<PtrVal, Mem> {
-  class IterVals {
-    const std::vector<PtrVal>& mem;
-    size_t begin0, end0, idx2;
-    bool first;
-
-  public:
-    IterVals(const std::vector<PtrVal>& m, size_t idx, int size)
-      : mem(m), begin0(idx), end0(idx + size), first(true) { }
-
-    std::optional<std::tuple<size_t, PtrVal, size_t>> next() {
-      // assumptions:
-      //   1. values do not overlap
-      //   2. mem is sufficiently long
-      size_t idx; PtrVal ret;
-      if (first) {
-        first = false;
-        for (idx = begin0; (ret = mem.at(idx)) == make_ShadowV(); idx--);
-        if (idx < begin0) {
-          idx2 = idx + (ret->get_bw() + 7) / 8;
-          return std::tuple(idx, ret, idx2);
-        }
-        idx2 = begin0;
-      }
-      if ((idx = idx2) < end0) {
-        ret = mem.at(idx);
-        if (ret) {
-          return std::tuple(idx, ret, (idx2 = idx + (ret->get_bw() + 7)/8));
-        } else {
-          for (idx2 = idx + 1; idx2 < end0 && !mem.at(idx2); idx2++);
-          return std::tuple(idx, PtrVal(nullptr), idx2);
-        }
-      }
-      return std::nullopt;
+  std::tuple<PtrVal, size_t, size_t> lookup(size_t idx, size_t size) {
+    auto cur = mem.at(idx);
+    if (!cur) {
+      size_t sz = 1;
+      while (sz < size && !mem.at(idx + sz)) sz++;
+      return std::make_tuple(cur, idx, sz);
     }
-  };
+    while (cur == make_ShadowV()) cur = mem.at(--idx);
+    return std::make_tuple(cur, idx, (cur->get_bw() + 7) / 8);
+  }
 
-  inline PtrVal q_extract(PtrVal v, size_t end, size_t hi, size_t lo) const {
-    return bv_extract(v, (end - hi) * 8 - 1, (end - lo) * 8);
+  inline void possible_partial_undef(PtrVal &v) const {
+    assert(v);
+  }
+
+  // endian-ness: https://stackoverflow.com/questions/46289636/z3-endian-ness-mixup-between-extract-and-concat
+  inline PtrVal q_concat(PtrVal v1, PtrVal v2) const {
+    return bv_concat(v2, v1);
+  }
+
+  inline PtrVal q_extract(PtrVal v0, size_t begin0, size_t begin, size_t end, size_t end0) const {
+    return bv_extract(v0, (end - begin0) * 8 - 1, (begin - begin0) * 8);
   }
 
 public:
@@ -91,48 +75,43 @@ public:
   using PreMem::at;
   using PreMem::update;
 
-  PtrVal at(size_t begin_req, int size_req) {
-    IterVals iter(mem, begin_req, size_req);
-    size_t end_req = begin_req + size_req;
-    // first value
-    size_t begin_cur, end_cur; PtrVal v_cur;
-    std::tie(begin_cur, v_cur, end_cur) = *(iter.next());
-    if (begin_cur == begin_req && end_cur == end_req) return v_cur;
-    assert(v_cur);  // otherwise partially undefined
-    if (begin_cur < begin_req || end_req < end_cur)
-      v_cur = q_extract(v_cur, end_cur, begin_req, std::min(end_req, end_cur));
-    // append more values
-    PtrVal v_ret = std::move(v_cur);
-    while (end_cur < end_req) {
-      std::tie(begin_cur, v_cur, end_cur) = *(iter.next());
-      assert(v_cur);  // otherwise partially undefined
-      if (end_cur > end_req)
-        v_cur = q_extract(v_cur, end_cur, begin_cur, end_req);
-      v_ret = bv_concat(v_ret, v_cur);
+  PtrVal at(size_t idx, int size) {
+    PtrVal cur; size_t cidx, csize;
+    std::tie(cur, cidx, csize) = lookup(idx, size);
+    if (cidx < idx || csize > size) {
+      size_t size2 =  std::min<size_t>(size, cidx + csize - idx);
+      cur = q_extract(cur, cidx, idx, idx + size2, cidx + csize);
+      csize = size2;
     }
-    return v_ret;
+    if (csize < size) {
+      auto next = at(idx + csize, size - csize);
+      possible_partial_undef(cur);
+      possible_partial_undef(next);
+      cur = q_concat(cur, next);
+    }
+    return cur;
   }
 
-  Mem&& update(size_t begin_orig, PtrVal v_orig, int size_orig) {
-    size_t end_orig = begin_orig + size_orig;
-    IterVals iter(mem, begin_orig, size_orig);
-    auto tmp = iter.next();
-    do {
-      size_t begin_cur, end_cur; PtrVal v_cur;
-      std::tie(begin_cur, v_cur, end_cur) = *tmp;
+  Mem&& update(size_t idx, PtrVal v_orig, int size) {
+    size_t begin_orig = idx, end_orig = idx + size;
+    while (size > 0) {
+      // load current
+      size_t begin_cur, size_cur; PtrVal v_cur;
+      std::tie(v_cur, begin_cur, size_cur) = lookup(idx, size);
+      size_t end_cur = begin_cur + size_cur;
       // cut v_new from v_orig
       size_t begin_new = std::max(begin_orig, begin_cur);
       size_t end_new = std::min(end_orig, end_cur);
       PtrVal v_new = (begin_orig < begin_new || end_new < end_orig) ?
-                      q_extract(v_orig, end_orig, begin_new, end_new) : v_orig;
+                      q_extract(v_orig, begin_orig, begin_new, end_new, end_orig) : v_orig;
       // prepend & append
       if (begin_cur < begin_new) {
-        auto v_head = q_extract(v_cur, end_cur, begin_cur, begin_new);
-        v_new = bv_concat(v_head, v_new);
+        auto v_head = q_extract(v_cur, begin_cur, begin_cur, begin_new, end_cur);
+        v_new = q_concat(v_head, v_new);
       }
       if (end_new < end_cur) {
-        auto v_tail = q_extract(v_cur, end_cur, end_new, end_cur);
-        v_new = bv_concat(v_new, v_tail);
+        auto v_tail = q_extract(v_cur, begin_cur, end_new, end_cur, end_cur);
+        v_new = q_concat(v_new, v_tail);
       }
       // store
       mem.at(begin_cur) = v_new;
@@ -140,7 +119,10 @@ public:
         for (size_t i = begin_cur + 1; i < end_cur; i++)
           mem.at(i) = make_ShadowV();
       }
-    } while (tmp = iter.next());
+      // step
+      idx = end_new;
+      size = end_orig - end_new;
+    }
     return move_this();
   }
 };
