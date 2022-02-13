@@ -68,12 +68,12 @@ object TestCases {
   )
 
   val memModel: List[TestPrg] = List(
-    TestPrg(funptr, "funptr", "@main", 0, None, nPath(1)),
-    TestPrg(heapFunptr, "heapFunptr", "@main", 0, None, nPath(1)),
-    TestPrg(ptrtoint, "ptrToInt", "@main", 0, None, nPath(1)),
-    TestPrg(flexAddr, "flexAddr", "@main", 0, None, nPath(1)),
-    TestPrg(nastyStruct, "nastyStruct", "@main", 0, None, nPath(1)),
-    // TestPrg(arrayFlow, "arrayFlow", "@main", 0, None, nPath(15)),
+    TestPrg(funptr, "funptr", "@main", 0, None, nPath(1)++status(0)),
+    TestPrg(heapFunptr, "heapFunptr", "@main", 0, None, nPath(1)++status(0)),
+    TestPrg(ptrtoint, "ptrToInt", "@main", 0, None, nPath(1)++status(0)),
+    TestPrg(flexAddr, "flexAddr", "@main", 0, None, nPath(1)++status(0)),
+    TestPrg(nastyStruct, "nastyStruct", "@main", 0, None, nPath(1)++status(0)),
+    // TestPrg(arrayFlow, "arrayFlow", "@main", 0, None, nPath(15)++status(0)),
   )
 
   val varArg: List[TestPrg] = List(

@@ -108,16 +108,24 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val v = eval(value, ptrTy, ss)
         k(ss, ss.lookup(v, getTySize(valTy), isStruct))
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
-        val indexLLVMValue = typedValues.map(tv => tv.value)
-        val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
-        val lV = eval(ptrValue, ptrType, ss)
-        val indexValue = vs.map(v => v.int)
-        val offset = calculateOffset(ptrType, indexValue)
-        val v = ptrValue match {
-          case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-          case _ => LocV(lV.loc + offset, lV.kind)
+        (ptrType, typedValues) match {
+          case (PtrType(ArrayType(size, ety), _),
+                TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
+            val base = eval(ptrValue, ptrType, ss)
+            val offset = eval(LocalId(x), iTy, ss)
+            ss.arrayLookup(base, offset, getTySize(ety), size, fun(k))
+          case _ =>
+            val indexLLVMValue = typedValues.map(tv => tv.value)
+            val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
+            val lV = eval(ptrValue, ptrType, ss)
+            val indexValue = vs.map(v => v.int)
+            val offset = calculateOffset(ptrType, indexValue)
+            val v = ptrValue match {
+              case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
+              case _ => LocV(lV.loc + offset, lV.kind)
+            }
+            k(ss, v)
         }
-        k(ss, v)
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss))
       case SubInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("sub", lhs, rhs, ty, ss))

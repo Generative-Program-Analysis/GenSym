@@ -77,6 +77,29 @@ sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
   }
 }
 
+inline std::monostate
+array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize, size_t nsize,
+               std::function<std::monostate(SS, PtrVal)> k) {
+  auto baseaddr = proj_LocV(base);
+  auto basekind = proj_LocV_kind(base);
+  if (offset->to_IntV()) {
+    auto off = proj_IntV(offset);
+    return k(ss, make_LocV(baseaddr + esize * off, basekind));
+  }
+  int cnt = 0;
+  for (size_t idx = 0; idx < nsize; idx++) {
+    auto cond = int_op_2(op_eq, offset, make_IntV(idx, offset->get_bw()));
+    auto ss2 = ss.add_PC(cond);
+    if (check_pc(ss2.get_PC())) {
+      cnt++;
+      k(ss2, make_LocV(baseaddr + esize * idx, basekind));
+    }
+  }
+  assert(cnt > 0);
+  cov.inc_path(cnt - 1);
+  return std::monostate{};
+}
+
 #endif
 
 #ifdef IMPURE_STATE
