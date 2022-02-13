@@ -73,7 +73,7 @@ object TestCases {
     TestPrg(ptrtoint, "ptrToInt", "@main", 0, None, nPath(1)++status(0)),
     TestPrg(flexAddr, "flexAddr", "@main", 0, None, nPath(1)++status(0)),
     TestPrg(nastyStruct, "nastyStruct", "@main", 0, None, nPath(1)++status(0)),
-    // TestPrg(arrayFlow, "arrayFlow", "@main", 0, None, nPath(15)++status(0)),
+    TestPrg(arrayFlow, "arrayFlow", "@main", 0, None, nPath(15)++status(0)),
   )
 
   val varArg: List[TestPrg] = List(

@@ -84,6 +84,12 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
       if (isStruct == 0) reflectRead[Value]("ss-lookup-addr", ss, addr, size)(ss)
       else reflectRead[Value]("ss-lookup-addr-struct", ss, addr, size)(ss)
     }
+
+    def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int, nSize: Int, k: Rep[Cont]): Rep[Unit] =
+      "ss-array-lookup".reflectWith[Unit](ss, base, offset, eSize, nSize, k)
+    def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int, nSize: Int): Rep[List[(SS, Value)]] =
+      "ss-array-lookup".reflectWith[List[(SS, Value)]](ss, base, offset, eSize, nSize)
+
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[Unit] =
       reflectCtrl[Unit]("ss-update", ss, a, v, sz)
       //reflectWrite[Unit]("ss-update", ss, a, v)(ss)

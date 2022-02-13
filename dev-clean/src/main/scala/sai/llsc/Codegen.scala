@@ -68,6 +68,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-lookup-addr-seq", List(ss, a, sz), _) => es"$ss.at_seq($a, $sz)"
     case Node(s, "ss-lookup-heap", List(ss, a), _) => es"$ss.heap_lookup($a)"
     case Node(s, "ss-array-lookup", List(ss, base, off, es, ns, k), _) => es"array_lookup_k($ss, $base, $off, $es, $ns, $k)"
+    case Node(s, "ss-array-lookup", List(ss, base, off, es, ns), _) => es"array_lookup($ss, $base, $off, $es, $ns)"
     case Node(s, "ss-assign", List(ss, k, v), _) => es"$ss.assign($k, $v)"
     case Node(s, "ss-assign-seq", List(ss, ks, vs), _) => es"$ss.assign_seq($ks, $vs)"
     case Node(s, "ss-heap-size", List(ss), _) => es"$ss.heap_size()"
