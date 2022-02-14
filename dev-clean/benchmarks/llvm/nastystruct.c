@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+void llsc_assert_eager(bool);
+
 struct S {
   char c;
   int i;
@@ -12,19 +14,27 @@ struct T {
   int b;
 };
 
-void llsc_assert_eager(bool);
+struct W {
+  uint64_t a;
+  uint64_t b;
+};
 
 void func_ST() {
-  struct S s = { 'a', 512 };
+  struct S s = { 'a', 513 };
   struct S* p = &s;
   char* p2 = &(p->c);
   char w = *(p2+1);
+  printf("%d", w);
 
   struct T t = { 1, 2 };
   char* m = (char*) &(t.b) - 1;
   int i = *((int*)m);
   llsc_assert_eager(i == 512);
-  printf("%d", i);
+
+  struct W w2 = {1, 2};
+  uint32_t* m2 = ((uint32_t*) &(w2.a)) + 1;
+  uint64_t i2 = *((uint64_t*) m2);
+  printf("%ld", i2);
 }
 
 struct P {
@@ -59,5 +69,6 @@ void func_weird() {
 int main() {
   func_ST();
   func_P();
+  //func_weird();
   return 0;
 }
