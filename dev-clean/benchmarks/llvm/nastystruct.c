@@ -24,7 +24,7 @@ void func_ST() {
   struct S* p = &s;
   char* p2 = &(p->c);
   char w = *(p2+1);
-  printf("%d", w);
+  //printf("%d", w);
 
   struct T t = { 1, 2 };
   char* m = (char*) &(t.b) - 1;
@@ -34,7 +34,7 @@ void func_ST() {
   struct W w2 = {1, 2};
   uint32_t* m2 = ((uint32_t*) &(w2.a)) + 1;
   uint64_t i2 = *((uint64_t*) m2);
-  printf("%ld", i2);
+  //printf("%ld", i2);
 }
 
 struct P {
