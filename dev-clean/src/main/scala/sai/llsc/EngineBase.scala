@@ -104,7 +104,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       fields(types.take(idx+1))._1
     
     def concat[E](cs: List[E])(feval: E => (List[Rep[Value]], Int)): (List[Rep[Value]], Int) = {
-      val fill: Int => List[Rep[Value]] = (StaticList.fill(_)(NullV()))
+      val fill: Int => List[Rep[Value]] = (StaticList.fill(_)(uninitValue))
       val (list, align) = cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((list, maxalign), c) =>
         val (value, align) = feval(c)
         (list ++ fill(padding(list.size, align)) ++ value, align max maxalign)
@@ -135,7 +135,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         case FK_Double => 64
         case FK_X86_FP80 => 80
         case FK_FP128 => 128
-        case FK_PPC_FP1289 => 128
+        case FK_PPC_FP128 => 128
       }
       val elemSize = (rawSize + BYTE_SIZE - 1) / BYTE_SIZE
       (elemSize, elemSize)
@@ -183,45 +183,49 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
   }
 
-  // FIXME: Alignment: CharArrayConst, ArrayConst
+  def uninitValue: Rep[Value] = IntV(0, 8) //NullPtr()
+
+  def isAtomicConst(c: Constant): Boolean = c match {
+    case BoolConst(_) | IntConst(_) | FloatConst(_)
+       | NullConst | PtrToIntExpr(_, _, _) | GlobalId(_)
+       | BitCastExpr(_, _, _) | GetElemPtrExpr(_, _, _, _, _) =>
+      true
+    case _ => false
+  }
+
   // Float Type
-  // TODO: refactor
-  //     1. using flat recursion
-  //     2. code reuse with Engine-level eval?
-  def evalHeapConstWithAlign(v: Constant, ty: LLVMType): (List[Rep[Value]], Int) = {
-    def evalAddr(v: Constant, ty: LLVMType): Rep[Addr] = v match {
-      case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) => {
-        val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-        val addr = evalAddr(const, getRealType(ptrType))
-        addr + calculateOffsetStatic(ptrType, indexLLVMValue)
-      }
-      case GlobalId(id) => heapEnv(id)
-    }
-    def evalValue(v: Constant, ty: LLVMType): Rep[Value] = v match {
-      case BoolConst(b) => IntV(if (b) 1 else 0, 1)
-      case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
-      case FloatConst(f) => FloatV(f)
-      case NullConst => LocV(0, LocV.kHeap)
-      case PtrToIntExpr(from, const, to) =>
-        IntV(evalAddr(const, from), to.asInstanceOf[IntType].size)
-      case GlobalId(id) if funMap.contains(id) =>
-        if (!FunFuns.contains(id)) compile(funMap(id))
-        wrapFunV(FunFuns(id)) //XXX: padding?
-      case BitCastExpr(from, const, to) => evalValue(const, to)
-      case _ => LocV(evalAddr(v, ty), LocV.kHeap)
-    }
-    val real_ty = getRealType(ty)
+  def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
+    case BoolConst(b) => IntV(if (b) 1 else 0, 1)
+    case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
+    case FloatConst(f) => FloatV(f)
+    case NullConst => LocV(0, LocV.kHeap)
+    case PtrToIntExpr(from, const, to) =>
+      IntV(evalHeapAtomicConst(const, from).int, to.asInstanceOf[IntType].size)
+    case GlobalId(id) if funMap.contains(id) =>
+      if (!FunFuns.contains(id)) compile(funMap(id))
+      wrapFunV(FunFuns(id))
+    case GlobalId(id) => LocV(heapEnv(id), LocV.kHeap)
+    case BitCastExpr(from, const, to) => evalHeapAtomicConst(const, to)
+    case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) =>
+      val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
+      val base = evalHeapAtomicConst(const, getRealType(ptrType)).int
+      val addr = base + calculateOffsetStatic(ptrType, indexLLVMValue)
+      LocV(addr, LocV.kHeap)
+    case _ => throw new Exception("Not atomic heap constant " + v)
+  }
+
+  def evalHeapComplexConst(v: Constant, real_ty: LLVMType): (List[Rep[Value]], Int) = {
     v match {
       case StructConst(cs) =>
         StructCalc.concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
       case ArrayConst(cs) =>
-        cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((l0, a0), c) => 
+        cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((l0, a0), c) =>
           val va = evalHeapConstWithAlign(c.const, c.ty)
           (l0 ++ va._1, va._2)
         }
       case CharArrayConst(s) =>
         val (size, align) = getTySizeAlign(real_ty)
-        (s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(size - s.length)(NullV()), align)
+        (s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(size-s.length)(uninitValue), align)
       case ZeroInitializerConst => real_ty match {
         case ArrayType(size, ety) =>
           val (value, align) = evalHeapConstWithAlign(ZeroInitializerConst, ety)
@@ -231,19 +235,27 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         // TODO: fallback case is not typed
         case _ =>
           val (size, align) = getTySizeAlign(real_ty)
-          (IntV(0, 8 * size) :: StaticList.fill(size - 1)(ShadowV()), align)
+          (IntV(0, 8 * size).toShadowBytes.toStatic, align)
       }
-      case _ =>
-        val (size, align) = getTySizeAlign(real_ty)
-        (evalValue(v, real_ty) :: StaticList.fill(size - 1)(ShadowV()), align)
+      case _ => throw new Exception("Not complex heap constant: " + v)
     }
   }
+
+  // FIXME: Alignment: CharArrayConst, ArrayConst
+  def evalHeapConstWithAlign(v: Constant, ty: LLVMType): (List[Rep[Value]], Int) =
+    v match {
+      case v if isAtomicConst(v) =>
+        val real_ty = getRealType(ty)
+        val (size, align) = getTySizeAlign(real_ty)
+        (evalHeapAtomicConst(v, real_ty).toShadowBytes.toStatic, align)
+      case _ => evalHeapComplexConst(v, getRealType(ty))
+    }
 
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = evalHeapConstWithAlign(v, ty)._1
 
   def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
     var heapSize = 8
-    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(heapSize)(NullV())
+    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(heapSize)(NullPtr())
     for (module <- modules) {
       // module.funcDeclMap.foreach { case (k, v) =>
       //   heapEnv += k -> unit(heapSize)
@@ -256,7 +268,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       //     heapSize += 8;
       //   }
       // }
-      // heapTmp ++= StaticList.fill(heapSize)(NullV())
+      // heapTmp ++= StaticList.fill(heapSize)(NullPtr())
       module.globalDeclMap.foreach { case (k, v) =>
         val realname = module.mname + "_" + v.id
         heapEnv += realname -> unit(heapSize);

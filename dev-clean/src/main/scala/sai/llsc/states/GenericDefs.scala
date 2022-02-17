@@ -19,7 +19,7 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
-import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
+import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet, Range => StaticRange}
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 trait BasicDefs { self: SAIOps =>
@@ -77,7 +77,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
     val warned = MutableSet[String]()
     // TODO: specify the signature of those functions (both in C and Scala)
     val modeled = MutableSet[String](
-      "sym_print", "print_string", "malloc", "realloc", "llsc_assert", "make_symbolic",
+      "sym_print", "print_string", "malloc", "realloc", "llsc_assert", "make_symbolic", "make_symbolic_whole",
       "open", "close", "read", "write", "stat", "sym_exit", "llsc_assert_eager",
       "__assert_fail"
     )
@@ -135,8 +135,12 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
   }
   object FloatV {
-    // TODO: shall we keep float kinds?
-    def apply(f: Rep[Float]): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f)(Adapter.CTRL)
+    def apply(f: Rep[Float]): Rep[Value] = apply(f, 32)
+    def apply(f: Rep[Float], bw: Int): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f, bw)(Adapter.CTRL)
+    def unapply(v: Rep[Value]): Option[(Float, Int)] = Unwrap(v) match {
+      case gNode("make_FloatV", bConst(f: Float)::bConst(bw: Int)::_) => Some((f, bw))
+      case _ => None
+    }
   }
   object LocV {
     trait Kind
@@ -177,18 +181,43 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object SymV {
-    def apply(s: Rep[String]): Rep[Value] = apply(s, DEFAULT_INT_BW)
-    def apply(s: Rep[String], bw: Int): Rep[Value] =
-      "make_SymV".reflectWriteWith[Value](s, bw)(Adapter.CTRL)  //XXX: reflectMutable?
+    def apply(s: String): Rep[Value] = apply(s, DEFAULT_INT_BW)
+    def apply(s: String, bw: Int): Rep[Value] =
+      "make_SymV".reflectWriteWith[Value](unit(s), bw)(Adapter.CTRL)  //XXX: reflectMutable?
     def makeSymVList(i: Int): Rep[List[Value]] =
       List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
+    def unapply(v: Rep[Value]): Option[(String, Int)] = Unwrap(v) match {
+      case gNode("make_SymV", bConst(x: String)::bConst(bw: Int)::_) => Some((x, bw))
+      case _ => None
+    }
   }
   object ShadowV {
-    def apply(): Rep[Value] = "shadow-v".reflectMutableWith[Value]()
+    def apply(): Rep[Value] = "make_ShadowV".reflectMutableWith[Value]()
+    def apply(i: Int): Rep[Value] = "make_ShadowV".reflectMutableWith[Value](unit(i))
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case gNode("make_ShadowV", _) => true
+      case _ => false
+    }
+    def seq(size: Int): StaticList[Rep[Value]] = {
+      val s = ShadowV()
+      StaticList.fill(size)(s)
+    }
+    def indexSeq(size: Int): StaticList[Rep[Value]] = {
+      require(size >= 0)
+      StaticRange(-size, 0).reverse.map(ShadowV(_)).toList
+    }
   }
 
-  object NullV {
-    def apply(): Rep[Value] = "null-v".reflectMutableWith[Value]()
+  object NullPtr {
+    def apply(): Rep[Value] = "nullptr".reflectMutableWith[Value]()
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case gNode("nullptr", _) => true
+      case _ => false
+    }
+    def seq(size: Int): StaticList[Rep[Value]] = {
+      val s = NullPtr()
+      StaticList.fill(size)(s)
+    }
   }
 
   object IntOp2 {
@@ -198,6 +227,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   object FloatOp2 {
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "float_op_2".reflectWith[Value](op, o1, o2)
   }
+
 
   implicit class ValueOps(v: Rep[Value]) {
     def loc: Rep[Addr] = v match {
@@ -244,8 +274,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
-    def bv_sext(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
-    def bv_zext(bw: Rep[Int]): Rep[Value] =  "bv_zext".reflectWith[Value](v, bw)
+    def sExt(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
+    def zExt(bw: Rep[Int]): Rep[Value] =  "bv_zext".reflectWith[Value](v, bw)
 
     def isConc: Rep[Boolean] = v match {
       case IntV(_, _) => unit(true)
@@ -255,14 +285,24 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTNeg".reflectWith[SMTBool](v)
 
     def notNull: Rep[Boolean] = "not-null".reflectWith[Boolean](v)
-
-    def fp_toui(to: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, to)
-    def fp_tosi(to: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, to)
-    def ui_tofp: Rep[Value] = "ui_tofp".reflectWith[Value](v)
-    def si_tofp: Rep[Value] = "si_tofp".reflectWith[Value](v)
+    def fromFloatToUInt(toSize: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, toSize)
+    def fromFloatToSInt(toSize: Int): Rep[Value] = "fp_tosi".reflectWith[Value](v, toSize)
+    def fromUIntToFloat: Rep[Value] = "ui_tofp".reflectWith[Value](v)
+    def fromSIntToFloat: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Rep[Int], to: Rep[Int]): Rep[Value] =
       "trunc".reflectWith[Value](v, from, to)
-    def to_IntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
-    def to_LocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
+    def toIntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
+    def toLocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
+
+    def toBytes: Rep[List[Value]] = ???
+    def toShadowBytes: Rep[List[Value]] = v match {
+      case ShadowV() => List[Value](v)
+      case IntV(n, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
+      case FloatV(f, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
+      case LocV(_, _, _) | FunV(_) | CPSFunV(_) =>
+        List[Value](v::ShadowV.indexSeq(7):_*)
+      case _ => "to-bytes".reflectWith[List[Value]](v)
+    }
+
   }
 }

@@ -45,7 +45,8 @@ void draw ()
 /**
  * The main function
  */
-int main (int argc, char *argv[])
+//int main (int argc, char *argv[])
+int main()
 {
   int x, y;     //Player position
   int ox, oy;   //Old player position
@@ -53,7 +54,7 @@ int main (int argc, char *argv[])
   #define ITERS 28
   char program[ITERS];
 
-  
+
   //Initial position
   x = 1;
   y = 1;
@@ -67,7 +68,7 @@ int main (int argc, char *argv[])
   // printf ("Try to reach the price(#)!\n");
 
   //Draw the maze
-  draw ();    
+  draw ();
   //Read the directions 'program' to execute...
   make_symbolic(program, ITERS);
 
@@ -98,7 +99,7 @@ int main (int argc, char *argv[])
         exit(-1);
     }
 
-    //If hit the price, You Win!!   
+    //If hit the price, You Win!!
     if (maze[y][x] == '#')
     {
       // printf ("You win!\n");
@@ -132,7 +133,7 @@ int main (int argc, char *argv[])
     //me wait to human
     // sleep(1);
   }
-  //You couldn't make it! You loose!	  
+  //You couldn't make it! You loose!
   // printf("You loose\n");
   exit(-2);
 }

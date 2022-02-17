@@ -66,7 +66,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           else if (id.startsWith("@llvm")) Intrinsics.get(id)
           else {
             if (!External.warned.contains(id)) {
-              System.out.println(s"Warning: function $id is ignored")
+              System.out.println(s"Warning: function $id is treated as noop")
               External.warned.add(id)
             }
             External.noop
@@ -76,7 +76,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         ret(LocV(heapEnv(id), LocV.kHeap))
       case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")
-        ret(NullV())
+        ret(NullPtr())
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -93,9 +93,9 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         }
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
-        ret(NullV())
+        ret(NullPtr()) // FIXME: use uninitValue
       case NullConst => ret(LocV.nullloc)
-      case NoneConst => ret(NullV())
+      case NoneConst => ret(NullPtr())
     }
   }
 
@@ -173,35 +173,31 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
 
       // Conversion Operations
       /* Backend Work Needed */
-      case ZExtInst(from, value, to) =>
-        for {
-          v <- eval(value, from)
-        } yield v.bv_zext(to.asInstanceOf[IntType].size)
-      case SExtInst(from, value, to) =>
-        for {
-          v <- eval(value, from)
-        } yield v.bv_sext(to.asInstanceOf[IntType].size)
-      case TruncInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size)
+      case ZExtInst(from, value, IntType(size)) =>
+        for { v <- eval(value, from) } yield v.zExt(size)
+      case SExtInst(from, value, IntType(size)) =>
+        for { v <- eval(value, from) } yield v.sExt(size)
+      case TruncInst(from@IntType(fromSz), value, IntType(toSz)) =>
+        for { v <- eval(value, from) } yield v.trunc(fromSz, toSz)
       case FpExtInst(from, value, to) =>
         for { v <- eval(value, from) } yield v
-      case FpToUIInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.fp_toui(to.asInstanceOf[IntType].size)
-      case FpToSIInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.fp_tosi(to.asInstanceOf[IntType].size)
+      case FpToUIInst(from, value, IntType(size)) =>
+        for { v <- eval(value, from) } yield v.fromFloatToUInt(size)
+      case FpToSIInst(from, value, IntType(size)) =>
+        for { v <- eval(value, from) } yield v.fromFloatToSInt(size)
       case UiToFPInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.ui_tofp
+        for { v <- eval(value, from) } yield v.fromUIntToFloat
       case SiToFPInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.si_tofp
+        for { v <- eval(value, from) } yield v.fromSIntToFloat
       case PtrToIntInst(from, value, to) =>
         import Constants._
         for { v <- eval(value, from) } yield
           if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size) 
-            v.to_IntV
+            v.toIntV
           else
-            v.to_IntV.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
+            v.toIntV.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
       case IntToPtrInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.to_LocV
+        for { v <- eval(value, from) } yield v.toLocV
       case BitCastInst(from, value, to) => eval(value, to)
 
       // Aggregate Operations
@@ -291,7 +287,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case RetTerm(ty, v) =>
         v match {
           case Some(value) => eval(value, ty)
-          case None => ret(NullV())
+          case None => ret(NullPtr())
         }
       case BrTerm(lab) =>
         for {

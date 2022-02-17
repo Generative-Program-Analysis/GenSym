@@ -81,7 +81,7 @@ class Mem: public PreMem<PtrVal, Mem> {
       while (sz < size && !mem.at(idx + sz)) sz++;
       return { cur, idx, sz };
     }
-    while (cur == make_ShadowV()) cur = mem.at(--idx);
+    while (std::dynamic_pointer_cast<ShadowV>(cur)) cur = mem.at(--idx);
     return { cur, idx, size_t(cur->get_bw() + 7) / 8 };
   }
 

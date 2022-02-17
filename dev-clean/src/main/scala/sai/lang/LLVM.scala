@@ -184,7 +184,7 @@ package IR {
   case object FK_Double extends FloatKind
   case object FK_X86_FP80 extends FloatKind
   case object FK_FP128 extends FloatKind
-  case object FK_PPC_FP1289 extends FloatKind
+  case object FK_PPC_FP128 extends FloatKind
 
   abstract class LLVMType extends LAST
   case object VoidType extends LLVMType
@@ -603,7 +603,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.DOUBLE != null) FK_Double
     else if (ctx.X86_FP80 != null) FK_X86_FP80
     else if (ctx.FP128 != null) FK_FP128
-    else if (ctx.PPC_FP128 != null) FK_PPC_FP1289
+    else if (ctx.PPC_FP128 != null) FK_PPC_FP128
     else error
   }
 

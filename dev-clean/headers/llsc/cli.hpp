@@ -8,6 +8,8 @@ inline bool use_cexcache = true;
 inline bool use_cons_indep = false;
 inline bool exlib_failure_branch = false;
 
+// TODO: "--stack-size" to set stack size using `inc_stack`.
+
 static struct option long_options[] =
 {
   /* These options set a flag. */

@@ -87,8 +87,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-get-fs", List(ss), _) => es"$ss.get_fs()"
     case Node(s, "ss-set-fs", List(ss, fs), _) => es"$ss.set_fs($fs)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
-    case Node(s, "null-v", _, _) => es"nullptr"
-    case Node(s, "shadow-v", _, _) => es"make_ShadowV()"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMT", List(v), _) => es"$v->to_SMT()"
@@ -96,6 +94,9 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ValPtr-deref", List(v), _) => es"*$v"
     case Node(s, "to-IntV", List(v), _) => es"$v->to_IntV()"
     case Node(s, "to-LocV", List(v), _) => es"make_LocV($v)"
+    case Node(s, "nullptr", _, _) => es"nullptr"
+    case Node(s, "to-bytes", List(v), _) => es"$v->to_bytes()"
+    case Node(s, "to-bytes-shadow", List(v), _) => es"$v->to_bytes_shadow()"
 
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov.set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov.inc_block($id)"

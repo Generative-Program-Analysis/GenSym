@@ -131,4 +131,7 @@ inline std::monostate operator+ (const std::monostate& lhs, const std::monostate
   return std::monostate{};
 }
 
+inline std::string fresh(const std::string& x) { return x + std::to_string(var_name++); }
+inline std::string fresh() { return fresh("x"); }
+
 #endif

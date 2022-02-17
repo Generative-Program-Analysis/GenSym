@@ -43,7 +43,125 @@ class PreMem: public Printable {
     List<V> getMem() { return mem; }
 };
 
-class Mem: public PreMem<PtrVal, Mem> {
+/* Mem0 is the base memory model that assumes integer/symbolic values are
+ * stored as sequences of bytes (following little endian), i.e. every IntV/SymV
+ * in an instance of Mem0 has `bw` of 8.
+ * LocV/FunV values are stored with additional ``shadow'' values, which don't
+ * store information but simply serve as placeholders, prohibiting reading or
+ * updating a fragment of a location/function value.
+ * This version also disallows reading uninitialized values (represented by nullptr),
+ * which might be overly constrained.
+ */
+class Mem0 : public PreMem<PtrVal, Mem0> {
+private:
+  bool is_well_formed() const {
+    size_t i = 0;
+    while (i < mem.size()) {
+      auto v = mem.at(i);
+      if (std::dynamic_pointer_cast<IntV>(v) ||
+          std::dynamic_pointer_cast<SymV>(v)) {
+        ASSERT(v->get_bw() <= 8, "Bitwidth too large");
+        i += 1;
+      } else if (std::dynamic_pointer_cast<LocV>(v)) {
+      // FIXME: function value
+      //std::dynamic_pointer_cast<FunV<>(v)) {
+        for (int j = i+1; j <= i + 7; j++) {
+          ASSERT(std::dynamic_pointer_cast<ShadowV>(mem.at(j)),
+                 "Loc/Fun value does not properly shadow its region");
+        }
+        i += 7;
+      } else if (auto fun_v = std::dynamic_pointer_cast<FloatV>(v)) {
+        for (int j = i+1; j <= i + 3; j++) {
+          ASSERT(std::dynamic_pointer_cast<ShadowV>(mem.at(j)),
+                 "Float value does not properly shadow its region");
+        }
+        i += 3;
+      } else if (v == nullptr) {
+        std::cout << "Warning: nullptr at " << i << " of an Mem0\n";
+        i += 1;
+      } else {
+        ABORT("Unknown value");
+      }
+    }
+    return true;
+  }
+public:
+  Mem0(List<PtrVal> mem) : PreMem(mem) {}
+  PtrVal at(size_t idx, size_t byte_size) {
+    auto val = mem.at(idx);
+    if (std::dynamic_pointer_cast<IntV>(val) || std::dynamic_pointer_cast<SymV>(val))
+      return Value::from_bytes(Vec::slice(mem, idx, byte_size));
+    ASSERT(val != nullptr, "Reading an uninitialized (nullptr) value");
+    ASSERT(!std::dynamic_pointer_cast<ShadowV>(val), "Reading a shadowed value");
+    return val;
+  }
+  Mem0 update(size_t idx, PtrVal val, size_t byte_size) {
+    ASSERT(!std::dynamic_pointer_cast<ShadowV>(mem.at(idx)), "Updating a shadowed value");
+    ASSERT(val->get_byte_size() == byte_size, "Mismatched value and size to write");
+    auto bytes = val->to_bytes();
+    ASSERT(bytes.size() == byte_size, "Size of byte-representation of value not equal to argument byte_size");
+    auto mem = this->mem.transient();
+    for (size_t i = 0; i < byte_size; i++) { mem.set(idx+i, bytes.at(i)); }
+    return Mem0(mem.persistent());
+  }
+};
+
+/* MemIdxShadow only works with _indexed_ shadow values.
+ */
+class MemIdxShadow : public PreMem<PtrVal, MemIdxShadow> {
+public:
+  using PreMem::at;
+  using PreMem::update;
+  MemIdxShadow(List<PtrVal> mem) : PreMem(mem) {}
+  PtrVal at(size_t idx, size_t byte_size) {
+    auto val = mem.at(idx);
+    if (std::dynamic_pointer_cast<IntV>(val) || std::dynamic_pointer_cast<SymV>(val)) {
+      auto val_size = val->get_byte_size();
+      if (val_size == byte_size) return val;
+      if (val_size >  byte_size) return Value::from_bytes(val->to_bytes().take(byte_size));
+      if (val_size <  byte_size) return Value::from_bytes_shadow(Vec::slice(mem, idx, byte_size));
+    }
+    if (auto sv = std::dynamic_pointer_cast<ShadowV>(val)) {
+      auto src = mem.at(idx + sv->offset);
+      ASSERT(!std::dynamic_pointer_cast<LocV>(src), "Reading shadow of a LocV"); // XXX function too
+      auto src_bytes = src->to_bytes().drop(-sv->offset);
+      if (src_bytes.size() == byte_size) return Value::from_bytes(std::move(src_bytes));
+      if (src_bytes.size() >  byte_size) return Value::from_bytes(src_bytes.take(byte_size));
+      if (src_bytes.size() <  byte_size)
+        return Value::from_bytes_shadow(src_bytes + Vec::slice(mem, idx+src_bytes.size(), byte_size-src_bytes.size()));
+    }
+    ASSERT(val != nullptr, "Reading a nullptr value");
+    return val;
+  }
+  MemIdxShadow update(size_t idx, PtrVal val, size_t byte_size) {
+    ASSERT(val->get_byte_size() == byte_size, "Mismatched value and size to write: " << val->get_byte_size() << " vs " << byte_size);
+    auto old_val = mem.at(idx);
+    auto mem = this->mem.transient();
+    if (auto sv = std::dynamic_pointer_cast<ShadowV>(old_val)) {
+      auto src_idx = idx + sv->offset;
+      auto src = mem.at(src_idx);
+      auto src_bytes = src->to_bytes();
+      // We don't need to write the whole byte seq of src, since the part of it will be overwritten anyway
+      for (size_t i = 0; i < abs(sv->offset); i++) { mem.set(src_idx+i, src_bytes.at(i)); }
+      for (size_t i = abs(sv->offset)+byte_size; i < src_bytes.size(); i++) { mem.set(src_idx+i, src_bytes.at(i)); }
+    }
+    auto bytes = val->to_bytes_shadow();
+    for (size_t i = 0; i < byte_size; i++) {
+      auto w = mem.at(idx + i);
+      if (w && byte_size-i < w->get_byte_size()) {
+        ASSERT(std::dynamic_pointer_cast<IntV>(w) || std::dynamic_pointer_cast<SymV>(w), "Overwriting a LocV or FunV");
+        // Some value to be overwritten is extended beyond byte_size, needs to reify its shadowed value
+        auto w_bytes = w->to_bytes();
+        // We don't need to write the whole byte seq of w, since the left-hand side part of it will be overwritten anyway
+        for (size_t j = byte_size-i; j < w_bytes.size(); j++) { mem.set(idx + i + j, w_bytes.at(j)); }
+      }
+      mem.set(idx + i, bytes.at(i));
+    }
+    return MemIdxShadow(mem.persistent());
+  }
+};
+
+class MemShadow: public PreMem<PtrVal, MemShadow> {
   // endian-ness: https://stackoverflow.com/questions/46289636/z3-endian-ness-mixup-between-extract-and-concat
   static PtrVal q_extract(PtrVal v0, size_t b0, size_t b, size_t e, size_t e0) {
     return bv_extract(v0, (e - b0) * 8 - 1, (b - b0) * 8);
@@ -79,7 +197,7 @@ class Mem: public PreMem<PtrVal, Mem> {
       while (sz < size && !mem.at(idx + sz)) sz++;
       return { cur, idx, sz };
     }
-    while (cur == make_ShadowV()) cur = mem.at(--idx);
+    while (std::dynamic_pointer_cast<ShadowV>(cur)) cur = mem.at(--idx);
     return { cur, idx, size_t(cur->get_bw() + 7) / 8 };
   }
 
@@ -106,7 +224,7 @@ class Mem: public PreMem<PtrVal, Mem> {
   }
 
 public:
-  Mem(List<PtrVal> mem) : PreMem(mem) { }
+  MemShadow(List<PtrVal> mem) : PreMem(mem) { }
   using PreMem::at;
   using PreMem::update;
 
@@ -123,7 +241,7 @@ public:
     return cur;
   }
 
-  Mem update(size_t idx, PtrVal val, int size) {
+  MemShadow update(size_t idx, PtrVal val, int size) {
     auto mem = this->mem.transient();
     Segment newval {val, idx, size_t(size)};
     if (is_intact(newval)) {
@@ -149,11 +267,12 @@ public:
         idx = curval.end;
       }
     }
-    return Mem(mem.persistent());
+    return MemShadow(mem.persistent());
   }
 };
 
-template class PreMem<PtrVal, Mem>; // instantiate the class
+using Mem = MemIdxShadow;
+//using Mem = MemShadow;
 
 class Frame: public Printable {
   public:

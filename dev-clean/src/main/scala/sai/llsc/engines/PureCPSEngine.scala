@@ -59,7 +59,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         else if (id.startsWith("@llvm")) Intrinsics.get(id)
         else {
           if (!External.warned.contains(id)) {
-            System.out.println(s"Warning: function $id is ignored")
+            System.out.println(s"Warning: function $id is treated as noop")
             External.warned.add(id)
           }
           External.noop
@@ -68,7 +68,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         LocV(heapEnv(id), LocV.kHeap)
       case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")
-        NullV()
+        NullPtr()
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -82,9 +82,9 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         }
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
-        NullV()
+        NullPtr() // FIXME: use uninitValue
       case NullConst => LocV.nullloc
-      case NoneConst => NullV()
+      case NoneConst => NullPtr()
     }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
@@ -151,31 +151,29 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
 
       // Conversion Operations
       /* Backend Work Needed */
-      // TODO zext to type
-      case ZExtInst(from, value, to) =>
-        k(ss, eval(value, from, ss).bv_zext(to.asInstanceOf[IntType].size))
-      case SExtInst(from, value, to) =>
-        k(ss, eval(value, from, ss).bv_sext(to.asInstanceOf[IntType].size))
-      case TruncInst(from, value, to) =>
-        k(ss, eval(value, from, ss).trunc(from.asInstanceOf[IntType].size, to.asInstanceOf[IntType].size))
+      case ZExtInst(from, value, IntType(size)) =>
+        k(ss, eval(value, from, ss).zExt(size))
+      case SExtInst(from, value, IntType(size)) =>
+        k(ss, eval(value, from, ss).sExt(size))
+      case TruncInst(from@IntType(fromSz), value, IntType(toSz)) =>
+        k(ss, eval(value, from, ss).trunc(fromSz, toSz))
       case FpExtInst(from, value, to) =>
         // XXX: is it the right semantics?
         k(ss, eval(value, from, ss))
-      case FpToUIInst(from, value, to) =>
-        k(ss, eval(value, from, ss).fp_toui(to.asInstanceOf[IntType].size))
-      case FpToSIInst(from, value, to) =>
-        k(ss, eval(value, from, ss).fp_tosi(to.asInstanceOf[IntType].size))
+      case FpToUIInst(from, value, IntType(size)) =>
+        k(ss, eval(value, from, ss).fromFloatToUInt(size))
+      case FpToSIInst(from, value, IntType(size)) =>
+        k(ss, eval(value, from, ss).fromFloatToSInt(size))
       case UiToFPInst(from, value, to) =>
-        k(ss, eval(value, from, ss).ui_tofp)
+        k(ss, eval(value, from, ss).fromUIntToFloat)
       case SiToFPInst(from, value, to) =>
-        k(ss, eval(value, from, ss).si_tofp)
-      case PtrToIntInst(from, value, to) =>
+        k(ss, eval(value, from, ss).fromSIntToFloat)
+      case PtrToIntInst(from, value, IntType(toSize)) =>
         import Constants._
-        val v = eval(value, from, ss).to_IntV
-        val toSize = to.asInstanceOf[IntType].size
+        val v = eval(value, from, ss).toIntV
         k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize))
       case IntToPtrInst(from, value, to) =>
-        k(ss, eval(value, from, ss).to_LocV)
+        k(ss, eval(value, from, ss).toLocV)
       case BitCastInst(from, value, to) =>
         k(ss, eval(value, to, ss))
 
@@ -235,7 +233,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case RetTerm(ty, v) =>
         val ret = v match {
           case Some(value) => eval(value, ty, ss)
-          case None => NullV()
+          case None => NullPtr()
         }
         k(ss, ret)
       case BrTerm(lab) =>

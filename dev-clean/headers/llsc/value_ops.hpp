@@ -6,13 +6,27 @@ struct IntV;
 struct SS;
 
 using PtrVal = std::shared_ptr<Value>;
+inline PtrVal bv_extract(PtrVal v1, int hi, int lo);
 
 /* Value representations */
 
 struct Value : public std::enable_shared_from_this<Value>, public Printable {
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
+  size_t get_byte_size() const { return (get_bw() + 7) / 8; }
   virtual bool compare(const Value *v) const = 0;
+
+  /* `to_bytes` produces the memory representation of this value
+   * following 64-bit little-endian data layout.
+   */
+  virtual List<PtrVal> to_bytes() = 0;
+
+  /* `to_bytes_shadow` produces a compact memory representation
+   * of this value, potentially using shadow values.
+   * This should give us an ``optimized'' data layout that
+   * avoids low-level concat or shift.
+   */
+  virtual List<PtrVal> to_bytes_shadow() = 0;
 
   virtual PtrVal to_SMT() = 0;
   virtual std::shared_ptr<IntV> to_IntV() = 0;
@@ -20,6 +34,34 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
   size_t hashval;
   Value() : hashval(0) {}
   size_t& hash() { return hashval; }
+
+  /* Since from_bytes/from_bytes_shadow only concate ``bit-vectors'' (either concrete or symbolic),
+   * and they do not work with location/function values, at some point, we may find that
+   * it doesn't make much sense to distinguish Int and Float as variants of Value...
+   */
+  static PtrVal from_bytes(List<PtrVal>&& xs) {
+    // Note: it should work with a List of SymV/IntV, containing _no_ ShadowV/LocV/FunV
+    // XXX what if v is nullptr/padding
+    return Vec::foldRight(xs.take(xs.size()-1), xs.back(), [](auto&& x, auto&& acc) { return bv_concat(acc, x); });
+  }
+  static PtrVal from_bytes_shadow(List<PtrVal>&& xs) {
+    // Note: it should work with a List of SymV/IntV/ShadowV, containing _no_ LocV/FunV.
+    //       However, the head of xs should not be a Shadow V, if so the List is "incomplete".
+    auto reified = List<PtrVal>{}.transient();
+    for (auto i = 0; i < xs.size(); ) {
+      auto v = xs.at(i);
+      // XXX what if v is nullptr/padding
+      int sz = v->get_byte_size();
+      if (i + sz > xs.size()) {
+        reified.append(v->to_bytes().take(xs.size()-i).transient());
+        break;
+      } else {
+        reified.push_back(std::move(v));
+        i += sz;
+      }
+    }
+    return from_bytes(reified.persistent().take(xs.size()));
+  }
 };
 
 template<>
@@ -51,17 +93,41 @@ struct std::equal_to<immer::flex_vector<PtrVal>> {
 };
 
 struct ShadowV : public Value {
+  int8_t offset;
+  ShadowV() : offset(0) {}
+  ShadowV(int8_t offset) : offset(offset) {}
   virtual bool is_conc() const { return true; };
   virtual int get_bw() const { return 0; }
   virtual bool compare(const Value *v) const { return false; }
   virtual PtrVal to_SMT() { return nullptr; }
   virtual std::shared_ptr<IntV> to_IntV() { return nullptr; }
-  virtual std::string toString() const { return "ShadowV"; }
+  virtual std::string toString() const { return "❏"; }
+  virtual List<PtrVal> to_bytes() { return List<PtrVal>{shared_from_this()}; }
+  virtual List<PtrVal> to_bytes_shadow() { return to_bytes(); }
 };
 
 inline PtrVal make_ShadowV() {
   static PtrVal singleton = std::make_shared<ShadowV>();
   return singleton;
+}
+
+inline PtrVal make_ShadowV(int8_t offset) {
+  ASSERT(-8 < offset && offset < 0, "unexpected ShadowV's offset");
+  static PtrVal shadow_vals[8] = {
+    nullptr,
+    std::make_shared<ShadowV>(-1), std::make_shared<ShadowV>(-2),
+    std::make_shared<ShadowV>(-3), std::make_shared<ShadowV>(-4),
+    std::make_shared<ShadowV>(-5), std::make_shared<ShadowV>(-6),
+    std::make_shared<ShadowV>(-7) };
+  return shadow_vals[-offset];
+}
+
+inline List<PtrVal> make_ShadowV_seq(int8_t size) {
+  auto res = List<PtrVal>{}.transient();
+  for (size_t i = 1; i <= size; i++) {
+    res.push_back(make_ShadowV(-i));
+  }
+  return res.persistent();
 }
 
 // FunV types:
@@ -87,12 +153,16 @@ struct FunV : Value {
     ABORT("to_IntV: TODO for FunV?");
   }
   virtual bool is_conc() const override { return true; }
-  virtual int get_bw() const override {
-    return addr_bw;
-  }
+  virtual int get_bw() const override { return addr_bw; }
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
     return this->f == that->f;
+  }
+  virtual List<PtrVal> to_bytes() {
+    return List<PtrVal>{shared_from_this()} + List<PtrVal>(7, make_ShadowV());
+  }
+  virtual List<PtrVal> to_bytes_shadow() {
+    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(7);
   }
 };
 
@@ -127,6 +197,19 @@ struct IntV : Value {
   }
 
   int64_t as_signed() const { return int64_t(i) >> (addr_bw - bw); }
+
+  virtual List<PtrVal> to_bytes() {
+    if (bw <= 8) return List<PtrVal>{shared_from_this()};
+    auto res = List<PtrVal>{}.transient();
+    for (size_t i = 0; i < bw/8; i++) {
+      res.push_back(bv_extract(shared_from_this(), (i+1)*8-1, i*8));
+    }
+    return res.persistent();
+  }
+  virtual List<PtrVal> to_bytes_shadow() {
+    if (bw <= 8) return List<PtrVal>{shared_from_this()};
+    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(bw/8 - 1);
+  }
 };
 
 inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true) {
@@ -161,15 +244,25 @@ struct FloatV : Value {
   }
   virtual bool is_conc() const override { return true; }
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
-  virtual int get_bw() const override { return 32; }
+  virtual int get_bw() const override { return 32; } //TODO: support bw other than 32
 
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
     return this->f == that->f;
   }
+  virtual List<PtrVal> to_bytes() {
+    return List<PtrVal>{shared_from_this()} + List<PtrVal>(3, make_ShadowV()); // TODO: support bw other than 32
+  }
+  virtual List<PtrVal> to_bytes_shadow() {
+    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(3);
+  }
 };
 
 inline PtrVal make_FloatV(float f) {
+  return std::make_shared<FloatV>(f);
+}
+
+inline PtrVal make_FloatV(float f, size_t bw) {
   return std::make_shared<FloatV>(f);
 }
 
@@ -210,6 +303,12 @@ struct LocV : Value {
     auto that = static_cast<decltype(this)>(v);
     if (this->l != that->l) return false;
     return this->k == that->k;
+  }
+  virtual List<PtrVal> to_bytes() {
+    return List<PtrVal>{shared_from_this()} + List<PtrVal>(7, make_ShadowV());
+  }
+  virtual List<PtrVal> to_bytes_shadow() {
+    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(7);
   }
 };
 
@@ -301,6 +400,18 @@ struct SymV : Value {
     if (this->rator != that->rator) return false;
     return std::equal_to<decltype(rands)>{}(this->rands, that->rands);
   }
+  virtual List<PtrVal> to_bytes() {
+    if (bw <= 8) return List<PtrVal>{shared_from_this()};
+    auto res = List<PtrVal>{}.transient();
+    for (size_t i = bw/8; i > 0; i--) {
+      res.push_back(bv_extract(shared_from_this(), i*8-1, (i-1)*8));
+    }
+    return res.persistent();
+  }
+  virtual List<PtrVal> to_bytes_shadow() {
+    if (bw <= 8) return List<PtrVal>{shared_from_this()};
+    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(bw/8 - 1);
+  }
 };
 
 inline PtrVal make_SymV(String n) {
@@ -342,12 +453,15 @@ struct StructV : Value {
     auto that = static_cast<decltype(this)>(v);
     return std::equal_to<decltype(fs)>{}(this->fs, that->fs);
   }
+
+  virtual List<PtrVal> to_bytes() { ABORT("???"); }
+  virtual List<PtrVal> to_bytes_shadow() { ABORT("???"); }
 };
 
 inline PtrVal structV_at(PtrVal v, int idx) {
   auto sv = std::dynamic_pointer_cast<StructV>(v);
   if (sv) return (sv->fs).at(idx);
-  else ABORT("StructV_at: non StructV value");
+  ABORT("StructV_at: non StructV value");
 }
 
 // assume all values are signed, convert to unsigned if necessary
@@ -495,13 +609,11 @@ inline PtrVal bv_concat(PtrVal v1, PtrVal v2) {
   int bw1 = v1->get_bw();
   int bw2 = v2->get_bw();
   assert(bw1 + bw2 <= addr_bw);
-  if (i1 && i2) {
-    return make_IntV(i1->i | (uint64_t(i2->i) >> bw1), bw1 + bw2, false);
-  }
-  else {
-    return std::make_shared<SymV>(op_concat, immer::flex_vector<PtrVal> { v1, v2 }, bw1 + bw2);
-  }
-  ABORT("Concat on invalid value, exit");
+  if (i1 && i2) return make_IntV(i1->i | (uint64_t(i2->i) >> bw1), bw1 + bw2, false);
+  ASSERT(!std::dynamic_pointer_cast<ShadowV>(v1) && !std::dynamic_pointer_cast<ShadowV>(v2),
+         "Cannot concat ShadowV values");
+  // XXX: also check LocV and FunV?
+  return std::make_shared<SymV>(op_concat, immer::flex_vector<PtrVal> { v1, v2 }, bw1 + bw2);
 }
 
 inline const PtrVal IntV0 = make_IntV(0);

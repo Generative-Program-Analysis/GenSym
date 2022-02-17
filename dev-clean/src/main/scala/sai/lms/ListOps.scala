@@ -81,6 +81,12 @@ trait ListOps { b: Base =>
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       Wrap[List[Unit]](Adapter.g.reflect("list-foreach", Unwrap(xs), block))
     }
+
+    def toStatic: List[Rep[A]] = Unwrap(xs) match {
+      case Adapter.g.Def("list-new",  _::(ys: List[Backend.Exp])) =>
+        ys.map(Wrap[A](_))
+      case _ => throw new Exception("List is not static")
+    }
   }
 }
 
