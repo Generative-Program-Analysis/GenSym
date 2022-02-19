@@ -112,6 +112,15 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "fs-write-file", List(fs, fd, c, n), _) => es"$fs.write_file($fd, $c, $n)"
     case Node(s, "fs-stat-file", List(fs, ptr), _) => es"$fs.stat_file($ptr)"
 
+    case Node(s, "add_tp_task", List(b: Block), _) =>
+      es"tp.add_task("
+      quoteTypedBlock(b, false, true, capture = "=")
+      es")"
+    case Node(s, "async_exec_block", List(b: Block), _) =>
+      es"async_exec_block("
+      quoteTypedBlock(b, false, true, capture = "=")
+      es")"
+
     case _ => super.shallow(n)
   }
 

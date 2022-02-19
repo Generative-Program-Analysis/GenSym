@@ -216,11 +216,14 @@ class TestPureCPSLLSC extends TestLLSC {
 }
 
 class TestPureCPSLLSC_Z3 extends TestLLSC {
-  testLLSC(new PureCPSLLSC_Z3, TestCases.all ++ filesys)
+  import sai.lang.llvm.TestComp._
+  val llsc = new PureCPSLLSC_Z3
+  testLLSC(llsc, TestCases.all ++ filesys)
   //testLLSC(llsc, TestPrg(funptr, "funptr", "@main", 0, 1))
   //testLLSC(llsc, TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1))
-  testLLSC(new PureCPSLLSC_Z3, TestPrg(unboundedLoop, "unboundedLoop", "@main", 0, "--timeout=2", minTest(1)))
-  testLLSC(new PureCPSLLSC_Z3, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", 0, "--thread=2 --timeout=2", minTest(1)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", 0, "--timeout=2", minTest(1)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", 0, "--thread=2 --timeout=2", minTest(1)))
+  testLLSC(llsc, TestPrg(arraySet1, "testCompArraySet1", "@main", 0, None, status(255)))
 }
 
 class TestImpLLSC extends TestLLSC {
@@ -236,7 +239,6 @@ class TestImpCPSLLSC extends TestLLSC {
 }
 
 class Playground extends TestLLSC {
-  testLLSC(new PureCPSLLSC_Z3, TestPrg(mergesort, "mergeSortTest", "@main", 0, None, nPath(720)))
-  testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortImpTest", "@main", 0, None, nPath(720)))
+  //testLLSC(new PureCPSLLSC_Z3, TestPrg(mergesort, "mergeSortTest", "@main", 0, None, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", 20, "--disable-solver", nPath(1048576)))
 }

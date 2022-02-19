@@ -87,6 +87,10 @@ object Benchmarks {
   // lazy val openAtTest = parseFile("benchmarks/external_lib/openat.ll")
 }
 
+object TestComp {
+  lazy val arraySet1 = parseFile("benchmarks/test-comp/array-examples/data_structures_set_multi_proc_ground-1.ll")
+}
+
 object Coreutils {
   lazy val echo = parseFile("benchmarks/coreutils/echo/echo.ll")
   lazy val echoWithLib = parseFile("benchmarks/coreutils/echo/echoStdlibString.ll")

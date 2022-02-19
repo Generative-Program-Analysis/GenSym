@@ -225,7 +225,15 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     }
   }
 
-  // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
+  def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
+    //val blkFunName = getRealBlockFunName(getBBFun(funName, lab))
+    def f(u: Rep[Unit]): Rep[Unit] = execBlock(funName, lab, ss, k)
+    val block = Adapter.g.reifyHere(u => Unwrap(f(Wrap[Unit](u))))
+    val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
+    //Wrap[Unit](Adapter.g.reflectEffectSummaryHere("add_tp_task", block)((rdKeys, wrKeys + Adapter.CTRL)))
+    Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
+  }
+
   def execTerm(inst: Terminator, incomingBlock: String, k: Rep[Cont])(implicit ss: Rep[SS], funName: String): Rep[Unit] = {
     inst match {
       // FIXME: unreachable
@@ -242,8 +250,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val ss1 = ss.addIncomingBlock(incomingBlock)
         val cndVal = eval(cnd, ty, ss1)
         if (cndVal.isConc) {
-          if (cndVal.int == 1) execBlock(funName, thnLab, ss1, k)
-          else execBlock(funName, elsLab, ss1, k)
+          if (cndVal.int == 1) asyncExecBlock(funName, thnLab, ss1, k)
+          else asyncExecBlock(funName, elsLab, ss1, k)
         } else {
           symExecBr(ss1, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName, k)
         }

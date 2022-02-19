@@ -71,6 +71,10 @@ public:
   void with_thread_ids(const std::function<void(std::thread::id)>& f) {
     for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
+  std::monostate add_task(const std::function<std::monostate(std::monostate)>& f) {
+    add_task([f]() { f(std::monostate{}); });
+    return std::monostate{};
+  }
   void add_task(const std::function<void()>& f) {
     add_task(f, rand_int(1024));
   }

@@ -183,6 +183,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
   }
 
+  // Note: we can also assign symbolic values here
   def uninitValue: Rep[Value] = IntV(0, 8) //NullPtr()
 
   def isAtomicConst(c: Constant): Boolean = c match {
@@ -271,12 +272,12 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       // heapTmp ++= StaticList.fill(heapSize)(NullPtr())
       module.globalDeclMap.foreach { case (k, v) =>
         val realname = module.mname + "_" + v.id
-        heapEnv += realname -> unit(heapSize);
+        heapEnv += realname -> unit(heapSize)
         heapSize += getTySize(v.typ)
         heapTmp ++= evalHeapConst(ZeroInitializerConst, v.typ)
       }
       module.globalDefMap.foreach { case (k, v) =>
-        heapEnv += k -> unit(heapSize);
+        heapEnv += k -> unit(heapSize)
         heapSize += getTySize(v.typ)
       }
       module.globalDefMap.foreach { case (k, v) =>

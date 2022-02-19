@@ -39,6 +39,8 @@ jobs:
         make llsc
         cd ../oopsla20
         make generate_sse
+        cd ../test-comp/array-examples
+        make llsc
     - name: Install Z3
       run: |
         cd ../third-party
