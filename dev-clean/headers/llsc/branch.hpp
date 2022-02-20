@@ -117,7 +117,7 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize, size_t nsize,
       cnt++;
       auto addr = make_LocV(baseaddr + esize * idx, basekind);
 #if USE_TP
-      tp.add_task([addr=std::move(addr), ss2, k]{ k(ss2, addr); });
+      tp.add_task([addr=std::move(addr), ss2=std::move(ss2), k]{ k(ss2, addr); });
 #else
       k(ss2, addr);
 #endif
