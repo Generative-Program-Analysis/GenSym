@@ -33,14 +33,14 @@ int main( ) {
   int x;
   int y;
 
-	for (x = 0; x < SIZE; x++)
+  for (x = 0; x < SIZE; x++)
 	{
 	  set[x] = __VERIFIER_nondet_int();
 	}
 
   for ( x = 0 ; x < n ; x++ ) {
     for ( y = x + 1 ; y < n ; y++ ) {
-      __VERIFIER_assert(  set[ x ] != set[ y ] );
+      __VERIFIER_assert( set[ x ] != set[ y ] );
     }
   }
 
@@ -50,7 +50,7 @@ int main( ) {
   // insert them in the array -- note that nothing ensures that values is not containing duplicates!
   int v;
 
-	for (v = 0; v < SIZE; v++)
+  for (v = 0; v < SIZE; v++)
 	{
 	  values[v] = __VERIFIER_nondet_int();
 	}
@@ -68,6 +68,6 @@ int main( ) {
       __VERIFIER_assert( set[ x ] != set[ y ] );
     }
   }
+
   return 0;
 }
-
