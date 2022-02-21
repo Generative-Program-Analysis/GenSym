@@ -27,7 +27,7 @@ public:
     if (!use_solver) return true;
     br_query_num++;
     push();
-    auto r = make_query(pc);
+    auto r = make_query(std::move(pc));
     pop();
     return r == sat;
   }
@@ -41,7 +41,7 @@ public:
     output << "Query number: " << (test_query_num+1) << std::endl;
     push();
     // XXX: reset harms performance a lot of Z3
-    auto result = make_query(pc);
+    auto result = make_query(std::move(pc));
     output << "Query is " << check_result_to_string(result) << std::endl;
     if (result == sat) {
       test_query_num++;

@@ -32,6 +32,7 @@ private:
 
   const CexType* get_counterexample() {
     if (use_cexcache) return cex;
+    cex2.clear();
     get_STP_counterexample(cex2);
     return &cex2;
   }
@@ -49,9 +50,9 @@ private:
     if (use_objcache) {
       auto it = stp_env.find(e);
       if (it != stp_env.end()) {
-	auto &vars2 = it->second.second;
-	vars.insert(vars2.begin(), vars2.end());
-	return it->second.first;
+        auto &vars2 = it->second.second;
+        vars.insert(vars2.begin(), vars2.end());
+        return it->second.first;
       }
     }
     // query internal
@@ -235,9 +236,8 @@ public:
   void init_solvers() override {}
   void destroy_solvers() override {}
   solver_result make_query(PC pc) override {
-    int r = make_query_internal(pc);
     variables.clear();
-    cex2.clear();
+    int r = make_query_internal(std::move(pc));
     return to_solver_result(r);
   }
   void print_model(std::stringstream& output) override {
