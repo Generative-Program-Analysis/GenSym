@@ -349,7 +349,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
 
   override def wrapFunV(f: FFTy): Rep[Value] = CPSFunV[Id](f)
 
-  def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0, k: Rep[Cont]): Rep[Unit] = {
+  def exec(fname: String, args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     // XXX: precompile functions here takes some unreachable blocks into account,
     //      leading to spurious number of total blocks.
@@ -357,13 +357,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     Coverage.setBlockNum
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
-    if (!isCommandLine) {
-      val fv = eval(GlobalId(fname), VoidType, ss)(fname)
-      fv[Id](ss.push, args, k)
-    } else {
-      val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
-      val fv = eval(GlobalId(fname), VoidType, ss)(fname)
-      fv[Id](ss.push.updateArg(symarg), commandLineArgs, k)
-    }
+    val fv = eval(GlobalId(fname), VoidType, ss)(fname)
+    // TODO: remove 0 <2022-02-20, David Deng> //
+    fv[Id](ss.push.updateArg(0), args, k)
   }
 }

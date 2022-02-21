@@ -5,6 +5,8 @@
 #include <fstream>
 #include <variant>
 #include <string>
+#include <regex>
+#include <typeinfo>
 #include <vector>
 #include <iostream>
 #include <map>
@@ -41,6 +43,7 @@ using namespace std::chrono;
 #include <llsc/monitor.hpp>
 #include <llsc/value_ops.hpp>
 #include <llsc/filesys.hpp>
+#include <llsc/args.hpp>
 #include <llsc/cli.hpp>
 #include <llsc/state_pure.hpp>
 

@@ -119,6 +119,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   import Constants._
   type PCont[W[_]] = ((W[SS], Value) => Unit)
 
+  def mainArgs: Rep[List[Value]] = List[Value](unchecked[Value]("g_argc"), unchecked[Value]("g_argv"))
+
   object IntV {
     def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Int], bw: Int): Rep[Value] =

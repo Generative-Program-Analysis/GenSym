@@ -462,18 +462,25 @@ class SS: public Printable {
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel, fs); }
     SS init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
-      // FIXME: ptr size magic
-      auto res_stack = stack.alloc(17 + len + 1);
-      res_stack = res_stack.update(0, make_LocV(16, LocV::kStack));
-      res_stack = res_stack.update(8, make_LocV(17, LocV::kStack));
-      res_stack = res_stack.update(16, make_IntV(0));
-      int arg_index = 17;
-      for (int i = 0; i < len; i++) {
-        res_stack = res_stack.update(arg_index, make_SymV("ARG" + std::to_string(i)));
-        arg_index++;
+      // Todo: Can adapt argv to be located somewhere other than 0 as well. 
+      // Configure a global LocV pointing to it.
+
+      SS updated_ss = *this;
+
+      unsigned num_args = cli_argv.size();
+      auto stack_ptr = stack.mem_size(); // top of the stack
+      updated_ss = updated_ss.alloc_stack((num_args + 1) * 8); // allocate space for the array of pointers
+
+      // copy each argument onto the stack, and update the pointers
+      for (int i = 0; i < num_args; ++i) {
+        auto arg = cli_argv.at(i);
+        auto addr = updated_ss.stack_size(); // top of the stack
+        updated_ss = updated_ss.alloc_stack(arg.size());
+        updated_ss = updated_ss.update_seq(make_LocV(addr, LocV::kStack), arg); // copy the values to the newly allocated space
+        updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * i), LocV::kStack), make_LocV(addr, LocV::kStack)); // copy the pointer value
       }
-      res_stack = res_stack.update(arg_index, make_IntV(0));
-      return SS(heap, res_stack, pc, bb, fs);
+      updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV(-1, LocV::kStack)); // terminate the array of pointers
+      return updated_ss;
     }
     PC get_PC() { return pc; }
     // TODO temp solution
