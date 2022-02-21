@@ -6,7 +6,7 @@
 # /some/path/to/xyz.ll
 LL=$1
 shift
-OPT=$@
+OPT="$@"
 echo -e "input:\t\t$LL"
 echo -e "options:\t$OPT"
 
@@ -20,4 +20,4 @@ bloop run sai -m sai.llsc.RunLLSC -- -J-Xms4g -J-Xmx8g -J-Xss1024M -J-XX:MaxMeta
 	{ cd llsc_gen/${HEAD};
 		# make clean;
 		make -j2; } &&
-		./${HEAD} 1 ${OPT};
+		./${HEAD} 1 "${OPT}";

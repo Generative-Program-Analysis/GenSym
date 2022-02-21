@@ -461,29 +461,17 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
 
   override def wrapFunV(f: FFTy): Rep[Value] = FunV[Id](f)
 
-  def exec(fname: String, args: Rep[List[Value]], isCommandLine: Boolean = false, symarg: Int = 0): Rep[List[(SS, Value)]] = {
+  def exec(fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     val heap0 = preHeap.asRepOf[Mem]
-    val comp = if (!isCommandLine) {
-      for {
-        fv <- eval(GlobalId(fname), VoidType)(fname)
-        _ <- pushFrame
-        s <- getState
-        v <- reflect(fv[Id](s, args))
-        // Optimization: for entrance function, no need to pop
-        //_ <- popFrame(s.stackSize)
-      } yield v
-    } else {
-      val commandLineArgs = List[Value](IntV(2), LocV(0, LocV.kStack))
-      for {
-        fv <- eval(GlobalId(fname), VoidType)(fname)
-        _ <- pushFrame
-        _ <- initializeArg(symarg)
-        s <- getState
-        v <- reflect(fv[Id](s, commandLineArgs))
-        //_ <- popFrame(s.stackSize)
-      } yield v
-    }
+    val comp = for {
+      fv <- eval(GlobalId(fname), VoidType)(fname)
+      _ <- pushFrame
+      // TODO: remove parameter 0 <2022-02-20, David Deng> //
+      _ <- initializeArg(0)
+      s <- getState
+      v <- reflect(fv[Id](s, args))
+    } yield v
     Coverage.setBlockNum
     Coverage.incPath(1)
     reify[Value](initState(heap0))(comp)

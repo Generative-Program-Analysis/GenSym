@@ -275,6 +275,7 @@ class SS {
     Stack stack;
     PC pc;
     BlockLabel bb;
+    FS fs;
 #ifdef LAZYALLOC
     std::vector< std::pair<std::string, size_t> > pending_allocs;
 
@@ -291,9 +292,9 @@ class SS {
 
   public:
     SS(Mem heap, Stack stack, PC pc, BlockLabel bb) :
-      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
+      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb), fs(initial_fs) {}
     SS(List<PtrVal> heap, Stack stack, PC pc, BlockLabel bb) :
-      heap(std::move(std::vector(heap.begin(), heap.end()))), stack(std::move(stack)), pc(std::move(pc)), bb(bb) {}
+      heap(std::move(std::vector(heap.begin(), heap.end()))), stack(std::move(stack)), pc(std::move(pc)), bb(bb), fs(initial_fs)  {}
     SS copy() { return *this; }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
@@ -317,6 +318,11 @@ class SS {
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
       return std::make_shared<StructV>(heap.slice(loc->l, size).getMem());
+    }
+    List<PtrVal> at_seq(PtrVal addr, int count) {
+      auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
+      ASSERT(s, "failed to read struct");
+      return s->fs;
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr, -1); }
     BlockLabel incoming_block() { return bb; }
@@ -352,6 +358,12 @@ class SS {
         stack.update(loc->l, val, size);
       else
         heap.update(loc->l, val, size);
+      return std::move(*this);
+    }
+    SS&& update_seq(PtrVal addr, List<PtrVal> vals) {
+      for (int i = 0; i < vals.size(); i++) {
+        update(addr + i, vals.at(i));
+      }
       return std::move(*this);
     }
     SS&& push() {
@@ -404,17 +416,21 @@ class SS {
     }
     SS&& init_arg(int len) {
       ASSERT(stack.mem_size() == 0, "Stack Not New");
-      // FIXME: ptr size magic
-      stack.alloc(17 + len + 1);
-      stack.update(0, make_LocV(16, LocV::kStack));
-      stack.update(8, make_LocV(17, LocV::kStack));
-      stack.update(16, make_IntV(0));
-      int arg_index = 17;
-      for (int i = 0; i < len; i++) {
-        stack.update(arg_index, make_SymV("ARG" + std::to_string(i)));
-        arg_index++;
+      // Todo: Can adapt argv to be located somewhere other than 0 as well. 
+      // Configure a global LocV pointing to it.
+      unsigned num_args = cli_argv.size();
+      auto stack_ptr = stack.mem_size(); // top of the stack
+      alloc_stack((num_args + 1) * 8); // allocate space for the array of pointers
+
+      // copy each argument onto the stack, and update the pointers
+      for (int i = 0; i < num_args; ++i) {
+        auto arg = cli_argv.at(i);
+        auto addr = stack_size(); // top of the stack
+        alloc_stack(arg.size());
+        update_seq(make_LocV(addr, LocV::kStack), arg); // copy the values to the newly allocated space
+        update(make_LocV(stack_ptr + (8 * i), LocV::kStack), make_LocV(addr, LocV::kStack)); // copy the pointer value
       }
-      stack.update(arg_index, make_IntV(0));
+      update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV(-1, LocV::kStack)); // terminate the array of pointers
       return std::move(*this);
     }
     PC get_PC() { return pc; }
@@ -422,6 +438,8 @@ class SS {
     const std::vector<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
+    void set_fs(FS new_fs) { fs = new_fs; }
+    FS get_fs() { return fs; }
 };
 
 using SSVal = std::pair<SS, PtrVal>;
