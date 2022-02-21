@@ -46,101 +46,102 @@ object TestPrg {
 import TestPrg._
 
 object TestCases {
+  import Config._
   val concrete: List[TestPrg] = List(
-    TestPrg(add, "addTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(aliasing, "aliasingTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(power, "powerTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(global, "globalTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(ptrpred, "ptrPredTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(switchTestConc, "switchConcreteTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(trunc, "truncTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(floatArith, "floatArithTest", "@main", Config(0, false), None, nPath(1)),
+    TestPrg(add, "addTest", "@main", noArg, None, nPath(1)),
+    TestPrg(aliasing, "aliasingTest", "@main", noArg, None, nPath(1)),
+    TestPrg(power, "powerTest", "@main", noArg, None, nPath(1)),
+    TestPrg(global, "globalTest", "@main", noArg, None, nPath(1)),
+    TestPrg(ptrpred, "ptrPredTest", "@main", noArg, None, nPath(1)),
+    TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, None, nPath(1)),
+    TestPrg(trunc, "truncTest", "@main", noArg, None, nPath(1)),
+    TestPrg(floatArith, "floatArithTest", "@main", noArg, None, nPath(1)),
     // FIXME: Support parsing fp80 literals <2022-01-12, David Deng> //
-    // TestPrg(floatFp80, "floatFp80Test", "@main", Config(0, false), 1),
+    // TestPrg(floatFp80, "floatFp80Test", "@main", noArg, 1),
 
-    TestPrg(arrayAccess, "arrayAccTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(arrayGetSet, "arrayGetSetTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(complexStruct, "complexStructTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(structReturnLong, "structReturnLongTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(structAccess, "structAccessTest", "@main", Config(0, false), None, nPath(1)),
-    TestPrg(structReturn, "structReturnTest", "@main", Config(0, false), None, nPath(1)),
+    TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, None, nPath(1)),
+    TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", noArg, None, nPath(1)),
+    TestPrg(arrayGetSet, "arrayGetSetTest", "@main", noArg, None, nPath(1)),
+    TestPrg(complexStruct, "complexStructTest", "@main", noArg, None, nPath(1)),
+    TestPrg(structReturnLong, "structReturnLongTest", "@main", noArg, None, nPath(1)),
+    TestPrg(structAccess, "structAccessTest", "@main", noArg, None, nPath(1)),
+    TestPrg(structReturn, "structReturnTest", "@main", noArg, None, nPath(1)),
   )
 
   val memModel: List[TestPrg] = List(
-    TestPrg(funptr, "funptr", "@main", Config(0, false), None, nPath(1)++status(0)),
-    TestPrg(heapFunptr, "heapFunptr", "@main", Config(0, false), None, nPath(1)++status(0)),
-    TestPrg(ptrtoint, "ptrToInt", "@main", Config(0, false), None, nPath(1)++status(0)),
-    TestPrg(flexAddr, "flexAddr", "@main", Config(0, false), None, nPath(1)++status(0)),
-    TestPrg(nastyStruct, "nastyStruct", "@main", Config(0, false), None, nPath(1)++status(0)),
-    TestPrg(arrayFlow, "arrayFlow", "@main", Config(0, false), None, nPath(15)++status(0)),
+    TestPrg(funptr, "funptr", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(heapFunptr, "heapFunptr", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(ptrtoint, "ptrToInt", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(flexAddr, "flexAddr", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(nastyStruct, "nastyStruct", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(arrayFlow, "arrayFlow", "@main", noArg, None, nPath(15)++status(0)),
   )
 
   val argv: List[TestPrg] = List(
-    TestPrg(argv1Test, "argvConc", "@main", Config(0, true), "--argv=abcdef", nPath(1)++status(0)),
-    TestPrg(argv2Test, "argvSym", "@main", Config(0, true), "--argv=abc#{3}def", nPath(4)++status(0)),
+    TestPrg(argv1Test, "argvConc", "@main", useArgv, "--argv=abcdef", nPath(1)++status(0)),
+    TestPrg(argv2Test, "argvSym", "@main", useArgv, "--argv=abc#{3}def", nPath(4)++status(0)),
   )
 
   val varArg: List[TestPrg] = List(
-    TestPrg(varArgInt, "varArgInt", "@main", Config(0, false), None, nPath(1))
+    TestPrg(varArgInt, "varArgInt", "@main", noArg, None, nPath(1))
     // FIXME(PureLLSC): Sext an invalid value
-    // TestPrg(varArgChar, "varArgChar", "@main", Config(0, false), None, nPath(1))
+    // TestPrg(varArgChar, "varArgChar", "@main", noArg, None, nPath(1))
   )
 
   val symbolicSimple: List[TestPrg] = List(
-    TestPrg(makeSymbolic, "makeSymbolicTest", "@main", Config(0, false), None, nPath(4)),
-    TestPrg(branch, "branch1", "@f", Config(2, false), None, nPath(4)),
-    TestPrg(branch2, "branch2", "@f", Config(2, false), None, nPath(4)),
-    TestPrg(branch3, "branch3", "@f", Config(2, false), None, nPath(4)),
-    TestPrg(switchTestSym, "switchSymTest", "@main", Config(0, false), None, nPath(5)),
+    TestPrg(makeSymbolic, "makeSymbolicTest", "@main", noArg, None, nPath(4)),
+    TestPrg(branch, "branch1", "@f", symArg(2), None, nPath(4)),
+    TestPrg(branch2, "branch2", "@f", symArg(2), None, nPath(4)),
+    TestPrg(branch3, "branch3", "@f", symArg(2), None, nPath(4)),
+    TestPrg(switchTestSym, "switchSymTest", "@main", noArg, None, nPath(5)),
   )
 
   val symbolicSmall: List[TestPrg] = List(
-    TestPrg(mergesort, "mergeSortTest", "@main", Config(0, false), None, nPath(720)),
-    TestPrg(bubblesort, "bubbleSortTest", "@main", Config(0, false), None, nPath(24)),
-    TestPrg(quicksort, "quickSortTest", "@main", Config(0, false), None, nPath(120)),
-    TestPrg(kmpmatcher, "kmp", "@main", Config(0, false), None, nPath(1287)),
-    TestPrg(kth, "k_of_st_arrays", "@main", Config(0, false), None, nPath(252)),
-    TestPrg(binSearch, "binSearch", "@main", Config(0, false), None, nPath(92)),
-    TestPrg(knapsack, "knapsackTest", "@main", Config(0, false), None, nPath(1666)),
-    TestPrg(nqueen, "nQueens", "@main", Config(0, false), None, nPath(1363)),
+    TestPrg(mergesort, "mergeSortTest", "@main", noArg, None, nPath(720)),
+    TestPrg(bubblesort, "bubbleSortTest", "@main", noArg, None, nPath(24)),
+    TestPrg(quicksort, "quickSortTest", "@main", noArg, None, nPath(120)),
+    TestPrg(kmpmatcher, "kmp", "@main", noArg, None, nPath(1287)),
+    TestPrg(kth, "k_of_st_arrays", "@main", noArg, None, nPath(252)),
+    TestPrg(binSearch, "binSearch", "@main", noArg, None, nPath(92)),
+    TestPrg(knapsack, "knapsackTest", "@main", noArg, None, nPath(1666)),
+    TestPrg(nqueen, "nQueens", "@main", noArg, None, nPath(1363)),
     // The oopsla20 version of maze
-    TestPrg(maze, "mazeTest", "@main", Config(0, false), None, nPath(309)),
-    TestPrg(mp1024, "mp1024Test", "@f", Config(10, false), None, nPath(1024)),
+    TestPrg(maze, "mazeTest", "@main", noArg, None, nPath(309)),
+    TestPrg(mp1024, "mp1024Test", "@f", symArg(10), None, nPath(1024)),
   )
 
   val symbolicLarge: List[TestPrg] = List(
-    TestPrg(mp65536, "mp65kTest", "@f", Config(16, false), "--disable-solver", nPath(65536)),
-    TestPrg(mp1048576, "mp1mTest", "@f", Config(20, false), "--disable-solver", nPath(1048576)),
+    TestPrg(mp65536, "mp65kTest", "@f", symArg(16), "--disable-solver", nPath(65536)),
+    TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)),
   )
 
   val external: List[TestPrg] = List(
-    TestPrg(assertTest, "assertTest", "@main", Config(0, false), None, minPath(3)),
-    TestPrg(assertfixTest, "assertfix", "@main", Config(0, false), None, nPath(4)),
+    TestPrg(assertTest, "assertTest", "@main", noArg, None, minPath(3)),
+    TestPrg(assertfixTest, "assertfix", "@main", noArg, None, nPath(4)),
   )
 
   val filesys: List[TestPrg] = List(
-    TestPrg(openTest, "openTestSucc", "@main", Config(0, false), "--add-sym-file A", nPath(1)++status(0)),
-    TestPrg(openTest, "openTestFail", "@main", Config(0, false), None, nPath(1)++status(1)),
-    TestPrg(closeTest, "closeTest", "@main", Config(0, false), None, nPath(1)++status(0)),
-    TestPrg(read1Test, "readTestRetVal", "@main", Config(0, false), "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),
-    TestPrg(read2Test, "readTestPaths", "@main", Config(0, false), "--sym-file-size 3 --add-sym-file A", nPath(3)++status(0)),
-    TestPrg(write1Test, "writeTestPaths", "@main", Config(0, false), "--sym-file-size 10 --add-sym-file A", nPath(2)++status(0)),
-    TestPrg(stat1Test, "statTestAssign", "@main", Config(0, false), "", nPath(1)++status(0)),
-    TestPrg(stat2Test, "statTestRead", "@main", Config(0, false), "--add-sym-file A", nPath(3)++status(0)),
-    TestPrg(stat2Test, "statTestFail", "@main", Config(0, false), "", nPath(1)++status(1)),
-    TestPrg(kleefsminiTest, "kleefsmini", "@main", Config(0, false), None, nPath(2)++status(0)),
-    TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", Config(0, false), None, nPath(2)++status(0)),
+    TestPrg(openTest, "openTestSucc", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
+    TestPrg(openTest, "openTestFail", "@main", noArg, None, nPath(1)++status(1)),
+    TestPrg(closeTest, "closeTest", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(read1Test, "readTestRetVal", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),
+    TestPrg(read2Test, "readTestPaths", "@main", noArg, "--sym-file-size 3 --add-sym-file A", nPath(3)++status(0)),
+    TestPrg(write1Test, "writeTestPaths", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(2)++status(0)),
+    TestPrg(stat1Test, "statTestAssign", "@main", noArg, "", nPath(1)++status(0)),
+    TestPrg(stat2Test, "statTestRead", "@main", noArg, "--add-sym-file A", nPath(3)++status(0)),
+    TestPrg(stat2Test, "statTestFail", "@main", noArg, "", nPath(1)++status(1)),
+    TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, None, nPath(2)++status(0)),
+    TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, None, nPath(2)++status(0)),
   )
 
   val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external
 
   // FIXME: out of range
-  // TestPrg(struct, "structTest", "@main", Config(0, false), 1),
+  // TestPrg(struct, "structTest", "@main", noArg, 1),
   // FIXME: seg fault
-  // TestPrg(largeStackArray, "largeStackArrayTest", "@main", Config(0, false), 1),
-  // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", Config(0, false), 1),
-  // TestPrg(ptrtoint, "ptrToIntTest", "@main", Config(0, false), 1)
+  // TestPrg(largeStackArray, "largeStackArrayTest", "@main", noArg, 1),
+  // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", noArg, 1),
+  // TestPrg(ptrtoint, "ptrToIntTest", "@main", noArg, 1)
 }
 
 import TestCases._
@@ -208,7 +209,7 @@ abstract class TestLLSC extends FunSuite {
 
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", Config(0, false), 1))
+  //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, 1))
   //testLLSC(new PureLLSC, TestCases.external)
 }
 
@@ -216,30 +217,30 @@ class TestPureLLSC extends TestLLSC {
 
 class TestPureCPSLLSC extends TestLLSC {
   testLLSC(new PureCPSLLSC, TestCases.all ++ filesys)
-  //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", Config(0, false), 720))
+  //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new PureCPSLLSC, external)
 }
 
 class TestPureCPSLLSC_Z3 extends TestLLSC {
+  import Config._
   import sai.lang.llvm.TestComp._
+
   val llsc = new PureCPSLLSC_Z3
   testLLSC(llsc, TestCases.all ++ filesys)
-  //testLLSC(llsc, TestPrg(funptr, "funptr", "@main", 0, 1))
-  //testLLSC(llsc, TestPrg(heapFunptr, "heapFunptr", "@main", 0, 1))
-  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", Config(0, false), "--timeout=2", minTest(1)))
-  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", Config(0, false), "--thread=2 --timeout=2", minTest(1)))
-  testLLSC(llsc, TestPrg(arraySet1, "testCompArraySet1", "@main", Config(0, false), None, status(255)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--timeout=2", minTest(1)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2", minTest(1)))
+  testLLSC(llsc, TestPrg(arraySet1, "testCompArraySet1", "@main", noArg, None, status(255)))
 }
 
 class TestImpLLSC extends TestLLSC {
   testLLSC(new ImpLLSC, TestCases.all)
-  //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", Config(0, false), 720))
+  //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new ImpLLSC, external)
 }
 
 class TestImpCPSLLSC extends TestLLSC {
   testLLSC(new ImpCPSLLSC, TestCases.all)
-  //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", Config(0, false), 720))
+  //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new ImpCPSLLSC, external)
 }
 

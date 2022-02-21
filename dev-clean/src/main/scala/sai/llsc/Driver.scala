@@ -196,14 +196,17 @@ trait LLSC {
   }
 }
 
-case class Config(nSym: Int, argv: Boolean /* potentially other compile-time configuration*/) {
-  def args(implicit d: ValueDefs) = {
-    if (argv) {
-      d.mainArgs
-    } else {
-      d.SymV.makeSymVList(nSym)
-    }
-  }
+case class Config(nSym: Int, argv: Boolean) {
+  require(!(nSym > 0 && argv))
+  def args(implicit d: ValueDefs) =
+    if (argv) d.mainArgs
+    else d.SymV.makeSymVList(nSym)
+}
+
+object Config {
+  def symArg(n: Int) = Config(n, false)
+  def useArgv = Config(0, true)
+  def noArg = Config(0, false)
 }
 
 class PureLLSC extends LLSC {
@@ -225,11 +228,7 @@ class PureCPSLLSC extends LLSC {
     new PureCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen") {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
-        val args: Rep[List[Value]] = config.args
-        val k: Rep[Cont] = fun { case sv =>
-          checkPCToFile(sv._1); ()
-        }
-        exec(fname, config.args, k)
+        exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
       }
     }
 }
@@ -250,8 +249,7 @@ class ImpLLSC extends LLSC {
     new ImpLLSCDriver[Int, Unit](m, name, "./llsc_gen") {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
-        val res = exec(fname, config.args)
-        res.foreach { s => checkPCToFile(s._1)}
+        exec(fname, config.args).foreach { s => checkPCToFile(s._1) }
         ()
       }
     }
@@ -263,8 +261,7 @@ class ImpVecLLSC extends LLSC {
     new ImpVecLLSCDriver[Int, Unit](m, name, "./llsc_gen") {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
-        val res = exec(fname, config.args)
-        res.foreach { s => checkPCToFile(s._1)}
+        exec(fname, config.args).foreach { s => checkPCToFile(s._1) }
         ()
       }
     }
@@ -276,10 +273,7 @@ class ImpCPSLLSC extends LLSC {
     new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen") {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
-        val k: Rep[Cont] = fun { case sv =>
-          checkPCToFile(sv._1); ()
-        }
-        exec(fname, config.args, k)
+        exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
       }
     }
 }
