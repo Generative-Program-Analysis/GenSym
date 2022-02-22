@@ -323,7 +323,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     execBlock(funName, findBlock(funName, label).get, s)
 
   def execBlock(funName: String, block: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
-    unchecked("// jump to block: " + block.label.get)
+    info("jump to block: " + block.label.get)
     getBBFun(funName, block)(s)
   }
 
@@ -334,8 +334,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1))(funName)
       }
     def runBlock(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
-      unchecked("// compiling block: " + funName + " - " + b.label.get)
-      //println("// running block: " + funName + " - " + b.label.get)
+      info("running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       runInst(b.ins, b.term, ss)
     }
@@ -350,8 +349,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
       }
-      unchecked("// compiling function: " + f.id)
-      //println("// running function: " + f.id)
+      info("running function: " + f.id)
       ss.assign(params, args)
       execBlock(f.id, f.blocks(0), ss)
     }

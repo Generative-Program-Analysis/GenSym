@@ -76,15 +76,11 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case '+':
         initial_fs.add_file(make_SymFile(std::string(optarg), default_sym_file_size));
-#ifdef DEBUG
-        printf("adding symfile: %s with size %d\n", optarg, default_sym_file_size);
-#endif
+        INFO("adding symfile: " << optarg << " with size " << default_sym_file_size << "%d\n");
         break;
       case 's':
         default_sym_file_size = atoi(optarg);
-#ifdef DEBUG
-        printf("set symfile size to %d\n", default_sym_file_size);
-#endif
+        INFO("set symfile size to " << default_sym_file_size << "\n");
         break;
       case 't': {
         int t = atoi(optarg);
@@ -121,9 +117,7 @@ inline void handle_cli_args(int argc, char** argv) {
 #endif
   use_objcache = use_objcache && use_global_solver;
   use_cexcache = use_cexcache && use_global_solver;
-#ifdef DEBUG
-  std::cout << initial_fs << std::endl;
-#endif
+  INFO(initial_fs);
 }
 
 #endif

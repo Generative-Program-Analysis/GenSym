@@ -418,15 +418,14 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     for {
       s <- getState
       v <- {
-        unchecked("// jump to block: " + block.label.get)
+        info("jump to block: " + block.label.get)
         reflect(getBBFun(funName, block)(s))
       }
     } yield v
 
   override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
     def runBlock(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
-      unchecked("// compiling block: " + funName + " - " + b.label.get)
-      //println("// running block: " + funName + " - " + b.label.get)
+      info("running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       val runInstList: Comp[E, Rep[Value]] = for {
         _ <- mapM(b.ins)(execInst(_)(funName))
@@ -445,8 +444,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
       }
-      unchecked("// compiling function: " + f.id)
-      //println("// running function: " + f.id)
+      info("running function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState

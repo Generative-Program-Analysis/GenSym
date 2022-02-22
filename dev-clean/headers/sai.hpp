@@ -21,8 +21,6 @@
 #ifndef SAI_HEADERS
 #define SAI_HEADERS
 
-// #define DEBUG
-
 // Auxiliary definitions
 
 using String = std::string;
@@ -34,7 +32,7 @@ inline void init_rand() {
 inline int rand_int(int ub) {
   int r =  (rand() % ub) + 1;
 #ifdef DEBUG
-  std::cout << "rand number: " << r << std::endl;
+  std::cout << "Generate a rand number: " << r << std::endl;
 #endif
   return r;
 }
@@ -61,6 +59,16 @@ using Ptr = std::shared_ptr<T>;
     } while (false)
 #else
 #   define ASSERT(condition, message) do { } while (false)
+#endif
+
+#ifdef DEBUG
+#   define INFO(message) \
+    do { \
+      std::cout << "[Info] " << __FILE__ << " line " << __LINE__ \
+                << ": " << message << std::endl; \
+    } while (false)
+#else
+#   define INFO(message) do { } while (false)
 #endif
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };

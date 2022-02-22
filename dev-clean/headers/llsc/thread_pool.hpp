@@ -62,7 +62,7 @@ public:
     threads.reset(new std::thread[thread_num]);
     thread_ids.reset(new std::thread::id[thread_num]);
     for (size_t i = 0; i < thread_num; i++) {
-      std::cout << "create thread " << i << "\n";
+      INFO("Create thread " << i);
       threads[i] = std::thread(&thread_pool::worker, this);
       thread_ids[i] = threads[i].get_id();
     }
@@ -82,7 +82,7 @@ public:
     tasks_num_total++;
     {
     const std::scoped_lock lock(q_lock);
-    //std::cout << "Adding task with weight " << w << "\n";
+    INFO("Adding task with weight " << w);
     ptasks.push({f, w});
     }
   }

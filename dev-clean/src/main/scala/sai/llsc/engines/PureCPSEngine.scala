@@ -311,7 +311,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     execBlock(funName, findBlock(funName, label).get, s, k)
 
   def execBlock(funName: String, block: BB, s: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-    unchecked("// jump to block: " + block.label.get)
+    info("jump to block: " + block.label.get)
     getBBFun(funName, block)(s, k)
   }
 
@@ -322,8 +322,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1, k))(funName)
       }
     def runBlock(ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-      unchecked("// compiling block: " + funName + " - " + b.label.get)
-      //println("// running function: " + funName + " - " + b.label.get)
+      info("running function: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
       runInst(b.ins, b.term, ss, k)
     }
@@ -338,8 +337,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
         case Vararg => ""
       }
-      unchecked("// compiling function: " + f.id)
-      //println("// running function: " + f.id)
+      info("running function: " + f.id)
       execBlock(f.id, f.blocks(0), ss.assign(params, args), k)
     }
     val fn: FFTy = topFun(runFun(_, _, _))

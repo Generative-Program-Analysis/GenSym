@@ -11,12 +11,10 @@
 #include <iostream>
 #include <map>
 #include <cstdint>
-#include <thread>
-#include <mutex>
 #include <chrono>
 
-#include <memory>
 #include <thread>
+#include <memory>
 #include <mutex>
 #include <condition_variable>
 #include <future>

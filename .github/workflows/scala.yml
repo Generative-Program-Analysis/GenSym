@@ -41,6 +41,8 @@ jobs:
         make generate_sse
         cd ../test-comp/array-examples
         make llsc
+        cd ../../test-comp/array-programs
+        make llsc
     - name: Install Z3
       run: |
         cd ../third-party
