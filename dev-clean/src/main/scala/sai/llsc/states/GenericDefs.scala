@@ -31,7 +31,7 @@ trait BasicDefs { self: SAIOps =>
 
   type IntData = Long
   type BlockLabel = Int
-  type Addr = Int
+  type Addr = Long
   type PC = Set[SMTBool]
   type Id[T] = T
   type Fd = Int
@@ -73,45 +73,39 @@ trait Coverage { self: SAIOps =>
 }
 
 trait Opaques { self: SAIOps with BasicDefs =>
-  object External extends Serializable {
-    val warned = MutableSet[String]()
-    // TODO: specify the signature of those functions (both in C and Scala)
-    val modeled = MutableSet[String](
-      "sym_print", "print_string", "malloc", "realloc", "llsc_assert", "make_symbolic", "make_symbolic_whole",
-      "open", "close", "read", "write", "stat", "sym_exit", "llsc_assert_eager",
-      "__assert_fail"
-    )
-    def print: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("sym_print")
-    def noop: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("noop")
-  }
-
-  def getString(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string".reflectWith[String](ptr, s)
-
-  object Intrinsics {
-    val warned = MutableSet[String]()
-    def get(id: String): Rep[Value] =
-      if (id.startsWith("@llvm.va_start")) llvm_va_start
-      else if (id.startsWith("@llvm.memcpy")) llvm_memcopy
-      else if (id.startsWith("@llvm.memset")) llvm_memset
-      else if (id.startsWith("@llvm.memmove")) llvm_memset
-      else {
-        if (!warned.contains(id)) {
-          System.out.println(s"Warning: intrinsic $id is ignored")
-          warned.add(id)
-        }
-        External.noop
-      }
-    def llvm_memcopy: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memcpy")
-    def llvm_va_start: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_va_start")
-    def llvm_memset: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memset")
-    def llvm_memmove: Rep[Value] = "llsc-external-wrapper".reflectWith[Value]("llvm_memmove")
-  }
-
   object ExternalFun {
+    private val warned = MutableSet[String]()
+    private val used = MutableSet[String]()
+    private val modeled = MutableSet[String](
+      "sym_print", "print_string", "malloc", "realloc",
+      "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
+      "make_symbolic", "make_symbolic_whole",
+      "open", "close", "read", "write", "stat",
+    )
+    def apply(f: String): Rep[Value] = {
+      if (!used.contains(f)) {
+        System.out.println(s"Use external function $f.")
+        used.add(f)
+      }
+      "llsc-external-wrapper".reflectWith[Value](f)
+    }
     def unapply(v: Rep[Value]): Option[String] = Unwrap(v) match {
       case gNode("llsc-external-wrapper", bConst(f: String)::Nil) => Some(f)
       case _ => None
     }
+    def get(id: String): Rep[Value] =
+      if (modeled.contains(id.tail)) ExternalFun(id.tail)
+      else if (id.startsWith("@llvm.va_start")) ExternalFun("llvm_va_start")
+      else if (id.startsWith("@llvm.memcpy")) ExternalFun("llvm_memcpy")
+      else if (id.startsWith("@llvm.memset")) ExternalFun("llvm_memset")
+      else if (id.startsWith("@llvm.memmove")) ExternalFun("llvm_memset")
+      else {
+        if (!warned.contains(id)) {
+          System.out.println(s"External function ${id.tail} is treated as a noop.")
+          warned.add(id)
+        }
+        ExternalFun("noop")
+      }
   }
 }
 
@@ -120,17 +114,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   type PCont[W[_]] = ((W[SS], Value) => Unit)
 
   def mainArgs: Rep[List[Value]] = List[Value](unchecked[Value]("g_argc"), unchecked[Value]("g_argv"))
+  implicit def intToLong(i: Int): Long = i.toLong
 
   object IntV {
-    def apply(i: Rep[Int]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
-    def apply(i: Rep[Int], bw: Int): Rep[Value] =
-      "make_IntV".reflectMutableWith[Value](i, bw)
-    def apply(i: Rep[Long])(implicit d: DummyImplicit): Rep[Value] = IntV(i, DEFAULT_INT_BW)
-    def apply(i: Rep[Long], bw: Int)(implicit d: DummyImplicit): Rep[Value] =
-      "make_IntV".reflectMutableWith[Value](i, bw)
+    def apply(i: Long): Rep[Value] = IntV(unit(i), DEFAULT_INT_BW)
+    def apply(i: Long, bw: Int): Rep[Value] = IntV(unit(i), bw)
+    def apply(i: Rep[Long]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
+    def apply(i: Rep[Long], bw: Int): Rep[Value] = "make_IntV".reflectMutableWith[Value](i, bw)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
-      case gNode("make_IntV", bConst(v: Int)::bConst(bw: Int)::_) =>
-        Some((v, bw))
       case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) =>
         Some((v, bw))
       case _ => None
@@ -193,6 +184,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => None
     }
   }
+
   object ShadowV {
     def apply(): Rep[Value] = "make_ShadowV".reflectMutableWith[Value]()
     def apply(i: Int): Rep[Value] = "make_ShadowV".reflectMutableWith[Value](unit(i))
@@ -240,20 +232,17 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case LocV(a, k, size) => k
       case _ => "proj_LocV_kind".reflectWith[LocV.Kind](v)
     }
-    def int: Rep[Int] = v match {
+    def int: Rep[Long] = v match {
       case IntV(n, bw) => unit(n)
       case _ => "proj_IntV".reflectWith[Int](v)
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
-    def structAt(i: Rep[Int]) = "structV_at".reflectWith[Value](v, i)
+    def structAt(i: Rep[Long]) = "structV_at".reflectWith[Value](v, i)
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] = {
       v match {
         case ExternalFun(f) =>
           if (f == "noop") List((s.asRepOf[SS], IntV(0)))
-          else {
-            System.out.println("use external function: " + f)
-            f.reflectWith[List[(SS, Value)]](s, args)
-          }
+          else f.reflectWith[List[(SS, Value)]](s, args)
         case FunV(f) => f(s, args)
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
@@ -264,12 +253,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       v match {
         case ExternalFun(f) =>
           if (f == "noop") k(s, IntV(0))
-          else {
-            // XXX: if the external function does not diverge, we don't need to
-            // pass the continuation into it, we can just return a pair of state/value.
-            System.out.println("use external function: " + f)
-            f.reflectWith[Unit](s, args, k)
-          }
+          else f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
@@ -283,7 +267,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case IntV(_, _) => unit(true)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
-    def toSMTBool: Rep[SMTBool] = "to-SMT".reflectWith[SMTBool](v)
+    def toSMTBool: Rep[SMTBool] = v.asRepOf[SMTBool]
     def toSMTBoolNeg: Rep[SMTBool] = "to-SMTNeg".reflectWith[SMTBool](v)
 
     def notNull: Rep[Boolean] = "not-null".reflectWith[Boolean](v)
@@ -296,14 +280,22 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def toIntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
     def toLocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
 
-    def toBytes: Rep[List[Value]] = ???
+    def toBytes: Rep[List[Value]] = v match {
+      case ShadowV() => List[Value](v)
+      case IntV(n, bw) => ???
+      case FloatV(f, bw) => ???
+      case LocV(_, _, _) | FunV(_) | CPSFunV(_) =>
+        List[Value](v::ShadowV.indexSeq(7):_*)
+      case _ => "to-bytes".reflectWith[List[Value]](v)
+    }
+
     def toShadowBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)
       case IntV(n, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case FloatV(f, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case LocV(_, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
-      case _ => "to-bytes".reflectWith[List[Value]](v)
+      case _ => "to-bytes-shadow".reflectWith[List[Value]](v)
     }
 
   }

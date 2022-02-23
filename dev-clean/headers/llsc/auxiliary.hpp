@@ -6,7 +6,7 @@ template<typename T> using List = immer::flex_vector<T>;
 using BlockLabel = int;
 using Id = int;
 using Addr = unsigned int;
-using IntData = long long int;
+using IntData = int64_t;
 using Fd = int;
 using status_t = unsigned short;
 

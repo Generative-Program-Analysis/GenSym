@@ -49,15 +49,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         if (!FunFuns.contains(id)) compile(funMap(id))
         CPSFunV[Ref](FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
-        if (External.modeled.contains(id.tail)) "llsc-external-wrapper".reflectWith[Value](id.tail)
-        else if (id.startsWith("@llvm")) Intrinsics.get(id)
-        else {
-          if (!External.warned.contains(id)) {
-            System.out.println(s"Warning: function $id is treated as noop")
-            External.warned.add(id)
-          }
-          External.noop
-        }
+        ExternalFun.get(id)
       case GlobalId(id) if globalDefMap.contains(id) =>
         LocV(heapEnv(id), LocV.kHeap)
       case GlobalId(id) if globalDeclMap.contains(id) =>
@@ -255,7 +247,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName, k)
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switch(v: Rep[Int], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] = {
+        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] = {
           if (table.isEmpty) execBlock(funName, default, s, k)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s, k)

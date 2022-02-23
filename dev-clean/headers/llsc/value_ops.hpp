@@ -15,6 +15,7 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
   virtual int get_bw() const = 0;
   size_t get_byte_size() const { return (get_bw() + 7) / 8; }
   virtual bool compare(const Value *v) const = 0;
+  virtual std::shared_ptr<IntV> to_IntV() = 0;
 
   /* `to_bytes` produces the memory representation of this value
    * following 64-bit little-endian data layout.
@@ -27,9 +28,6 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
    * avoids low-level concat or shift.
    */
   virtual List<PtrVal> to_bytes_shadow() = 0;
-
-  virtual PtrVal to_SMT() = 0;
-  virtual std::shared_ptr<IntV> to_IntV() = 0;
 
   size_t hashval;
   Value() : hashval(0) {}
@@ -99,7 +97,6 @@ struct ShadowV : public Value {
   virtual bool is_conc() const { return true; };
   virtual int get_bw() const { return 0; }
   virtual bool compare(const Value *v) const { return false; }
-  virtual PtrVal to_SMT() { return nullptr; }
   virtual std::shared_ptr<IntV> to_IntV() { return nullptr; }
   virtual std::string toString() const { return "❏"; }
   virtual List<PtrVal> to_bytes() { return List<PtrVal>{shared_from_this()}; }
@@ -146,9 +143,6 @@ struct FunV : Value {
     ss << "FunV(" << f << ")";
     return ss.str();
   }
-  virtual PtrVal to_SMT() override {
-    ABORT("to_SMT: unexpected value FunV.");
-  }
   virtual std::shared_ptr<IntV> to_IntV() override {
     ABORT("to_IntV: TODO for FunV?");
   }
@@ -179,9 +173,6 @@ struct IntV : Value {
     std::ostringstream ss;
     ss << "IntV(" << as_signed() << ", " << bw << ")";
     return ss.str();
-  }
-  virtual PtrVal to_SMT() override {
-    ABORT("to_SMT: unexpected value IntV.");
   }
   virtual std::shared_ptr<IntV> to_IntV() override {
     auto thisptr = shared_from_this();
@@ -239,9 +230,6 @@ struct FloatV : Value {
     ss << "FloatV(" << f << ")";
     return ss.str();
   }
-  virtual PtrVal to_SMT() override {
-    ABORT("to_SMT: unexpected value FloatV.");
-  }
   virtual bool is_conc() const override { return true; }
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return 32; } //TODO: support bw other than 32
@@ -288,9 +276,6 @@ struct LocV : Value {
     ss << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
     return ss.str();
   }
-  virtual PtrVal to_SMT() override {
-    ABORT("to_SMT: unexpected value LocV.");
-  }
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value LocV.");
   }
@@ -312,11 +297,11 @@ struct LocV : Value {
   }
 };
 
-inline PtrVal make_LocV(unsigned int i, LocV::Kind k, int size) {
+inline PtrVal make_LocV(Addr i, LocV::Kind k, int size) {
   return std::make_shared<LocV>(i, k, size);
 }
 
-inline PtrVal make_LocV(unsigned int i, LocV::Kind k) {
+inline PtrVal make_LocV(Addr i, LocV::Kind k) {
   return std::make_shared<LocV>(i, k, -1);
 }
 
@@ -388,7 +373,6 @@ struct SymV : Value {
     ss << ", " << bw << ")";
     return ss.str();
   }
-  virtual PtrVal to_SMT() override { return shared_from_this(); }
   virtual bool is_conc() const override { return false; }
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return bw; }
@@ -421,8 +405,7 @@ inline PtrVal make_SymV(String n, int bw) {
   return std::make_shared<SymV>(n, bw);
 }
 inline PtrVal to_SMTNeg(PtrVal v) {
-  int bw = v->get_bw();
-  return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), bw);
+  return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), v->get_bw());
 }
 
 struct StructV : Value {
@@ -439,9 +422,6 @@ struct StructV : Value {
     std::ostringstream ss;
     ss << "StructV(..)";
     return ss.str();
-  }
-  virtual PtrVal to_SMT() override {
-    ABORT("to_SMT: unexpected value StructV.");
   }
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");

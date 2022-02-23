@@ -33,6 +33,8 @@ trait GenExternal extends SymExeDefs {
   def sym_exit[T: Manifest](ss: Rep[SS], args: Rep[List[Value]]): Rep[T] =
     "sym_exit".reflectWith[T](ss, args)
 
+  def getString(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string".reflectWith[String](ptr, s)
+
   def llsc_assert[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val v = args(0)
     if (v.isConc) {
@@ -59,7 +61,8 @@ trait GenExternal extends SymExeDefs {
   }
 
   def close[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val fd: Rep[Int] = args(0).toIntV.int
+    // Only cast by asRepOf when deemed safe
+    val fd: Rep[Int] = args(0).toIntV.int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
     val ret: Rep[Int] = fs.closeFile(fd)
     ss.setFs(fs)
@@ -67,9 +70,9 @@ trait GenExternal extends SymExeDefs {
   }
 
   def read[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val fd: Rep[Int] = args(0).int
+    val fd: Rep[Int] = args(0).int.asRepOf[Int]
     val buf: Rep[Value] = args(1)
-    val count: Rep[Int] = args(2).int
+    val count: Rep[Int] = args(2).int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
     val (content, size): (Rep[List[Value]], Rep[Int]) = fs.readFile(fd, count).unlift
     val ss1 = ss.updateSeq(buf, content)
@@ -78,9 +81,9 @@ trait GenExternal extends SymExeDefs {
   }
 
   def write[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val fd: Rep[Int] = args(0).int
+    val fd: Rep[Int] = args(0).int.asRepOf[Int]
     val buf: Rep[Value] = args(1)
-    val count: Rep[Int] = args(2).int
+    val count: Rep[Int] = args(2).int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
     val content: Rep[List[Value]] = ss.lookupSeq(buf, count)
     val size = fs.writeFile(fd, content, count)

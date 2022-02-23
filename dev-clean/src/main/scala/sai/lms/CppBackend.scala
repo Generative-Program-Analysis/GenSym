@@ -36,6 +36,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   override def primitive(t: String): String = t match {
     case "Unit" => "std::monostate"
     case "java.lang.String" => "std::string"
+    case "Long" => "int64_t"
     case _ => super.primitive(t)
   }
 

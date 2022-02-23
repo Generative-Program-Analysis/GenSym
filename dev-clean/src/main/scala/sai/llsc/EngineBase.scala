@@ -150,7 +150,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def getTySize(vt: LLVMType): Int = getTySizeAlign(vt)._1
 
-  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Int = {
+  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Long = {
     implicit def longToInt(x: Long) = x.toInt
     if (index.isEmpty) 0 else ty match {
       case Struct(types) =>
@@ -166,8 +166,8 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
   }
 
-  def calculateOffset(ty: LLVMType, index: List[Rep[Int]]): Rep[Int] = {
-    if (index.isEmpty) 0 else ty match {
+  def calculateOffset(ty: LLVMType, index: List[Rep[Long]]): Rep[Long] = {
+    if (index.isEmpty) 0.toLong else ty match {
       case PtrType(ety, addrSpace) =>
         index.head * getTySize(ety) + calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
@@ -180,8 +180,8 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Int)) => n.toLong }
-        unit(calculateOffsetStatic(ty, indexCst))
+        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Long)) => n.toLong }
+        calculateOffsetStatic(ty, indexCst)
       case _ => ???
     }
   }
@@ -202,7 +202,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)
     case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
     case FloatConst(f) => FloatV(f)
-    case NullConst => LocV(0, LocV.kHeap)
+    case NullConst => LocV(0.toLong, LocV.kHeap)
     case PtrToIntExpr(from, const, to) =>
       IntV(evalHeapAtomicConst(const, from).int, to.asInstanceOf[IntType].size)
     case GlobalId(id) if funMap.contains(id) =>
