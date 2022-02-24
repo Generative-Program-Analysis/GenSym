@@ -86,6 +86,8 @@ private:
     return true;
   }
 public:
+  using PreMem::at;
+  using PreMem::update;
   Mem0(List<PtrVal> mem) : PreMem(mem) {}
   PtrVal at(size_t idx, size_t byte_size) {
     auto val = mem.at(idx);

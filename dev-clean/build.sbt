@@ -4,7 +4,8 @@ scalaVersion := "2.12.10"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
-libraryDependencies += "org.scalatest" % "scalatest_2.12" % "3.0.8"
+lazy val Bench = config("bench") extend(Test)
+libraryDependencies += "org.scalatest" % "scalatest_2.12" % "3.0.8" % "test,bench"
 libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile"
 libraryDependencies += "org.scala-lang" % "scala-library" % scalaVersion.value % "compile"
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile"
@@ -45,4 +46,6 @@ lazy val lms = ProjectRef(file("../lms-clean"), "lms-clean")
   // .settings(fork := true)
 
 lazy val sai = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
+                                     .configs(Bench)
+                                     .settings(inConfig(Bench)(Defaults.testSettings))
                                      .settings(assembly / mainClass := Some("sai.llsc.RunLLSC"))
