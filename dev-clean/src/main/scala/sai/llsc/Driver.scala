@@ -61,14 +61,14 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     val curDir = new File(".").getCanonicalPath
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
-    val libraryPaths = codegen.libraryPaths.map(s"-L $curDir/" + _).mkString(" ")
+    val libraryPaths = codegen.libraryPaths.map(p => s"-L $curDir/$p -Wl,-rpath $curDir/$p").mkString(" ")
 
     out.println(s"""|BUILD_DIR = build
     |SRC_DIR = .
     |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp")
     |TARGET = $appName
     |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
-    |CC = g++ -std=c++17 -O3
+    |CC = g++ -std=c++17 -O3 -g -fno-omit-frame-pointer
     |CXXFLAGS = $includes $extraFlags
     |LDFLAGS = $libraryPaths
     |LDLIBS = $libraries -lpthread
