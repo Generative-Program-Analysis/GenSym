@@ -462,9 +462,9 @@ class SS: public Printable {
     SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb, fs); }
     SS add_PC_set(List<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb, fs); }
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel, fs); }
-    SS init_arg(int len) {
-      ASSERT(stack.mem_size() == 0, "Stack Not New");
-      // Todo: Can adapt argv to be located somewhere other than 0 as well. 
+    SS init_arg() {
+      ASSERT(stack.mem_size() == 0, "Stack is not new");
+      // Todo: Can adapt argv to be located somewhere other than 0 as well.
       // Configure a global LocV pointing to it.
 
       SS updated_ss = *this;
@@ -481,7 +481,7 @@ class SS: public Printable {
         updated_ss = updated_ss.update_seq(make_LocV(addr, LocV::kStack), arg); // copy the values to the newly allocated space
         updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * i), LocV::kStack), make_LocV(addr, LocV::kStack)); // copy the pointer value
       }
-      updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV(-1, LocV::kStack)); // terminate the array of pointers
+      updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV_null()); // terminate the array of pointers
       return updated_ss;
     }
     PC get_PC() { return pc; }

@@ -104,7 +104,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     def addPC(e: Rep[SMTBool]): Rep[SS] = "ss-addpc".reflectWith[SS](ss, e)
     def addPCSet(es: Rep[List[SMTBool]]): Rep[SS] = "ss-addpcset".reflectWith[SS](ss, es)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
-    def updateArg(l: Rep[Int]): Rep[SS] = "ss-arg".reflectWith[SS](ss, l)
+    def updateArg: Rep[SS] = "ss-arg".reflectWith[SS](ss)
 
     def addIncomingBlock(x: String): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, x.hashCode)
     def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
@@ -171,5 +171,5 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
   def updatePCSet(x: Rep[List[SMTBool]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SMTBool]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
-  def initializeArg(x: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.updateArg(x))
+  def initializeArg: Comp[E, Rep[Unit]] = updateState(_.updateArg)
 }

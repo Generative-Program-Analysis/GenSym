@@ -456,7 +456,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       fv <- eval(GlobalId(fname), VoidType)(fname)
       _ <- pushFrame
       // TODO: remove parameter 0 <2022-02-20, David Deng> //
-      _ <- initializeArg(0)
+      _ <- initializeArg
       s <- getState
       v <- reflect(fv[Id](s, args))
     } yield v

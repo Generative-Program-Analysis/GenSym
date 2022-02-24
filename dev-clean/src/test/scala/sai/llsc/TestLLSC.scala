@@ -137,7 +137,7 @@ object TestCases {
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, None, nPath(2)++status(0)),
   )
 
-  val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external
+  val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external ++ argv
 
   // FIXME: out of range
   // TestPrg(struct, "structTest", "@main", noArg, 1),
@@ -249,7 +249,6 @@ class TestImpCPSLLSC extends TestLLSC {
 class Playground extends TestLLSC {
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
   val llsc = new PureCPSLLSC_Z3
-  testLLSC(new PureCPSLLSC_Z3, TestPrg(mergesort, "mergeSortTest", "@main", noArg, None, nPath(720)))
   //testLLSC(llsc, TestPrg(bubbleSort2Ground, "bubbleSort2Ground", "@main", 0, None, status(255)))
   //testLLSC(llsc, TestPrg(bubbleSortGround2, "bubbleSortGround2", "@main", 0, None, status(255)))
 

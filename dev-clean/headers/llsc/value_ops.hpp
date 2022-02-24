@@ -7,6 +7,7 @@ struct SS;
 
 using PtrVal = std::shared_ptr<Value>;
 inline PtrVal bv_extract(PtrVal v1, int hi, int lo);
+inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true);
 
 /* Value representations */
 
@@ -59,6 +60,14 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
       }
     }
     return from_bytes(reified.persistent().take(xs.size()));
+  }
+
+  static List<PtrVal> from_string(const std::string& str) {
+    immer::flex_vector_transient<PtrVal> res;
+    for (auto& c : str) {
+      res.push_back(make_IntV(c, 8));
+    }
+    return res.persistent();
   }
 };
 
@@ -203,7 +212,7 @@ struct IntV : Value {
   }
 };
 
-inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true) {
+inline PtrVal make_IntV(IntData i, int bw, bool toMSB) {
   return std::make_shared<IntV>(toMSB ? (i << (addr_bw - bw)) : i, bw);
 }
 
@@ -401,8 +410,15 @@ struct SymV : Value {
 inline PtrVal make_SymV(String n) {
   return std::make_shared<SymV>(n, bitwidth);
 }
-inline PtrVal make_SymV(String n, int bw) {
+inline PtrVal make_SymV(String n, size_t bw) {
   return std::make_shared<SymV>(n, bw);
+}
+inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, size_t bw) {
+  immer::flex_vector_transient<PtrVal> res;
+  for (auto i = 0; i < length; i++) {
+    res.push_back(make_SymV(fresh(prefix), bw));
+  }
+  return res.persistent();
 }
 inline PtrVal to_SMTNeg(PtrVal v) {
   return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), v->get_bw());

@@ -349,6 +349,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)(fname)
     // TODO: remove 0 <2022-02-20, David Deng> //
-    fv[Id](ss.push.updateArg(0), args, k)
+    fv[Id](ss.push.updateArg, args, k)
   }
 }

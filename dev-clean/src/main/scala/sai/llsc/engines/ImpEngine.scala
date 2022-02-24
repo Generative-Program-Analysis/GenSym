@@ -360,7 +360,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)(fname)
     ss.push
-    ss.updateArg(0)
+    ss.updateArg
     fv[Ref](ss, args)
   }
 }
