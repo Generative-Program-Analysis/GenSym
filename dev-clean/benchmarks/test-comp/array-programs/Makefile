@@ -2,7 +2,7 @@ SRC_FILES := $(wildcard ./*.c)
 
 CC := clang-9
 
-FLAGS := -emit-llvm -O2 -disable-O0-optnone -c -fno-vectorize
+FLAGS := -emit-llvm -O2 -Xclang -disable-O0-optnone -c -fno-vectorize
 LLSC_FLAGS := -fno-discard-value-names -S
 
 LLSC_TARGET := $(SRC_FILES:%.c=%.ll)

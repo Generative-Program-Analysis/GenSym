@@ -2,7 +2,7 @@ SRC_FILES := $(wildcard ./*.c)
 
 CC := clang-9
 
-FLAGS := -emit-llvm -O0 -disable-O0-optnone -c
+FLAGS := -emit-llvm -O0 -Xclang -disable-O0-optnone -c
 KLEE_FLAGS := -D KLEE -g -I $(KLEE_INCL)
 LLSC_FLAGS := -fno-discard-value-names -S
 
