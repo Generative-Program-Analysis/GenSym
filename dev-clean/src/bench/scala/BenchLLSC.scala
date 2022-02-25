@@ -54,17 +54,47 @@ object TestCases {
 import TestCases._
 
 abstract class TestLLSC extends FunSuite {
-  case class TestResult(engine: String, testName: String, solverTime: Double,
-    wholeTime: Double, blockCov: Double, pathNum: Int,
-    brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int)
+  import java.time.LocalDateTime
+
+  case class TestResult(time: LocalDateTime, commit: String, engine: String, testName: String,
+    solverTime: Double, wholeTime: Double, blockCov: Double,
+    pathNum: Int, brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int) {
+    override def toString() =
+      s"$time,$commit,$engine,$testName,$solverTime,$wholeTime,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
+  }
+  
+  val gitCommit = Process("git rev-parse --short HEAD").!!.strip()
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
     val pattern = raw"\[([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
       case pattern(solverTime, wholeTime, blockCnt, blockAll, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
-        TestResult(engine, testName, solverTime.toDouble, wholeTime.toDouble, blockCnt.toDouble / blockAll.toDouble,
+        TestResult(LocalDateTime.now(), gitCommit, engine, testName,
+                   solverTime.toDouble, wholeTime.toDouble, blockCnt.toDouble / blockAll.toDouble,
                    pathNum.toInt, brQuerynum.toInt, testQueryNum.toInt, cexCacheHit.toInt)
     }
+  }
+
+  def checkResult(resStat: TestResult, ret: Int, exp: Map[String, Any]) = {
+    if (exp.contains(status)) {
+      assert(ret == exp(status), "Unexpected returned status")
+    }
+    if (exp.contains(nPath)) {
+      assert(resStat.pathNum == exp(nPath), "Unexpected path number")
+    }
+    if (exp.contains(minPath)) {
+      assert(resStat.pathNum >= exp(minPath).asInstanceOf[Int], "Unexpected number of least paths")
+    }
+    if (exp.contains(nTest)) {
+      assert(resStat.testQueryNum == exp(nTest), "Unexpected number of test cases")
+    }
+    if (exp.contains(minTest)) {
+      assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
+    }
+    import java.io.{File, FileWriter}
+    val writer = new FileWriter(new File("bench_out.txt"), true)
+    writer.append(s"$resStat\n")
+    writer.close()
   }
 
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
@@ -74,24 +104,13 @@ abstract class TestLLSC extends FunSuite {
       code.genAll
       val mkRet = code.make(4)
       assert(mkRet == 0, "make failed")
-      val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""))
-      System.err.println(output)
-      val resStat = parseOutput(llsc.insName, name, output)
-      System.err.println(resStat)
-      if (exp.contains(status)) {
-        assert(ret == exp(status), "Unexpected returned status")
-      }
-      if (exp.contains(nPath)) {
-        assert(resStat.pathNum == exp(nPath), "Unexpected path number")
-      }
-      if (exp.contains(minPath)) {
-        assert(resStat.pathNum >= exp(minPath).asInstanceOf[Int], "Unexpected number of least paths")
-      }
-      if (exp.contains(nTest)) {
-        assert(resStat.testQueryNum == exp(nTest), "Unexpected number of test cases")
-      }
-      if (exp.contains(minTest)) {
-        assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
+      for (i <- 1 to 10) {
+        Thread.sleep(5 * 1000)
+        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""))
+        System.err.println(output)
+        val resStat = parseOutput(llsc.insName, name, output)
+        System.err.println(resStat)
+        checkResult(resStat, ret, exp)
       }
     }
   }
