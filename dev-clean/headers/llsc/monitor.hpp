@@ -16,7 +16,7 @@ struct Monitor {
     // Number of discovered paths
     std::uint64_t num_paths;
     // Starting time
-    steady_clock::time_point start;
+    steady_clock::time_point start, stop;
     std::mutex bm;
     std::mutex pm;
     std::thread watcher;
@@ -65,13 +65,13 @@ struct Monitor {
     void print_query_stat() {
       std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
     }
-    void print_time() {
-      steady_clock::time_point now = steady_clock::now();
+    void print_time(bool done) {
+      steady_clock::time_point now = done ? stop : steady_clock::now();
       std::cout << "[" << (solver_time.count() / 1.0e6) << "s/"
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
-    void print_all() {
-      print_time();
+    void print_all(bool done = false) {
+      print_time(done);
       print_block_cov();
       print_path_cov();
       print_async();
@@ -98,6 +98,7 @@ struct Monitor {
       }, std::move(future));
     }
     void stop_monitor() {
+      stop = steady_clock::now();
       signal_exit.set_value();
       if (watcher.joinable()) {
         // XXX: this is still not idea, since for execution < 1s, we need to wait for watcher to join...

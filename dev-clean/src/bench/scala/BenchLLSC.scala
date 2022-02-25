@@ -59,27 +59,12 @@ abstract class TestLLSC extends FunSuite {
     brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int)
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
-    // example:
-    // [43.4s/46.0s] #blocks: 12/12; #paths: 1666; #threads: 1; #task-in-q: 0; #queries: 7328/1666 (1996)
-    val lastLine = output.split("\n").last
-    val groups = lastLine.split(" ")
-    val (solverTime, wholeTime) = {
-      val t = groups(0).drop(1).split("/")
-      val solverTime = t(0).dropRight(1).toDouble
-      val wholeTime = t(1).dropRight(2).toDouble
-      (solverTime, wholeTime)
+    val pattern = raw"\[([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    output.split("\n").last match {
+      case pattern(solverTime, wholeTime, blockCnt, blockAll, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
+        TestResult(engine, testName, solverTime.toDouble, wholeTime.toDouble, blockCnt.toDouble / blockAll.toDouble,
+                   pathNum.toInt, brQuerynum.toInt, testQueryNum.toInt, cexCacheHit.toInt)
     }
-    val blockCov = {
-      val t = groups(2).dropRight(1).split("/")
-      t(0).toDouble / t(1).toDouble
-    }
-    val pathNum = groups(4).dropRight(1).toInt
-    val (brQueryNum, testQueryNum) = {
-      val t = groups(10).split("/")
-      (t(0).toInt, t(1).toInt)
-    }
-    val cexCacheHit = groups(11).drop(1).dropRight(1).toInt
-    TestResult(engine, testName, solverTime, wholeTime, blockCov, pathNum, brQueryNum, testQueryNum, cexCacheHit)
   }
 
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
@@ -117,16 +102,16 @@ abstract class TestLLSC extends FunSuite {
 trait LinkSTP extends LLSC {
   abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
     val llsc = super.newInstance(m, name, fname, config)
-    llsc.codegen.registerHeader("../../staged_intp/third-party/stp/build/include", "<stp/c_interface.h>")
+    llsc.codegen.registerIncludePath("../../staged_intp/third-party/stp/build/include")
     llsc.codegen.registerLibraryPath("../../staged_intp/third-party/stp/build/lib")
     llsc
   }
 }
 
-trait LinkZ3 extends LinkSTP {
+trait LinkZ3 extends LLSC {
   abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
     val llsc = super.newInstance(m, name, fname, config)
-    llsc.codegen.registerHeader("../../staged_intp/third-party/z3/src/api", "<z3++.h>")
+    llsc.codegen.registerIncludePath("../../staged_intp/third-party/z3/src/api")
     llsc.codegen.registerLibraryPath("../../staged_intp/third-party/z3/build")
     llsc
   }

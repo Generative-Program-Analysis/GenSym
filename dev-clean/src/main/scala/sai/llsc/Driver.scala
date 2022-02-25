@@ -238,6 +238,7 @@ class PureCPSLLSC_Z3 extends PureCPSLLSC {
   override val insName = "PureCPSLLSC_Z3"
   override def newInstance(m: Module, name: String, fname: String, config: Config) = {
     val llsc = super.newInstance(m, name, fname, config)
+    llsc.codegen.libraryFlags.clear()
     llsc.codegen.registerLibrary("-lz3")
     llsc.extraFlags = "-D USE_TP -D Z3"
     llsc

@@ -16,7 +16,7 @@ inline void epilogue() {
   tp.wait_for_tasks();
 #endif
   cov.stop_monitor();
-  cov.print_all();
+  cov.print_all(true);
 }
 
 #endif
