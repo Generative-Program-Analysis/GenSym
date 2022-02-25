@@ -114,6 +114,32 @@ abstract class TestLLSC extends FunSuite {
   def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = tests.foreach(testLLSC(llsc, _))
 }
 
+trait LinkSTP extends LLSC {
+  abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
+    val llsc = super.newInstance(m, name, fname, config)
+    llsc.codegen.registerHeader("../../staged_intp/third-party/stp/build/include", "<stp/c_interface.h>")
+    llsc.codegen.registerLibraryPath("../../staged_intp/third-party/stp/build/lib")
+    llsc
+  }
+}
+
+trait LinkZ3 extends LinkSTP {
+  abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
+    val llsc = super.newInstance(m, name, fname, config)
+    llsc.codegen.registerHeader("../../staged_intp/third-party/z3/src/api", "<z3++.h>")
+    llsc.codegen.registerLibraryPath("../../staged_intp/third-party/z3/build")
+    llsc
+  }
+}
+
 class BenchPureLLSC extends TestLLSC {
-  testLLSC(new PureLLSC, benchcases)
+  testLLSC(new PureLLSC with LinkSTP, benchcases)
+}
+
+class BenchPureCPSLLSC extends TestLLSC {
+  testLLSC(new PureCPSLLSC with LinkSTP, benchcases)
+}
+
+class BenchPureCPSLLSCZ3 extends TestLLSC {
+  testLLSC(new PureCPSLLSC_Z3 with LinkZ3, benchcases)
 }
