@@ -92,7 +92,7 @@ abstract class TestLLSC extends FunSuite {
       assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
     }
     import java.io.{File, FileWriter}
-    val writer = new FileWriter(new File("benchmarks/perf-mon/bench.csv"), true)
+    val writer = new FileWriter(new File("bench.csv"), true)
     writer.append(s"$resStat\n")
     writer.close()
   }
