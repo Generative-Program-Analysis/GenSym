@@ -107,9 +107,8 @@ abstract class TestLLSC extends FunSuite {
       for (i <- 1 to 10) {
         Thread.sleep(5 * 1000)
         val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""))
-        System.err.println(output)
         val resStat = parseOutput(llsc.insName, name, output)
-        System.err.println(resStat)
+        System.out.println(resStat)
         checkResult(resStat, ret, exp)
       }
     }
