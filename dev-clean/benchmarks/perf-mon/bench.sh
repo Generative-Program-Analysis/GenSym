@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "$(dirname $0)"
-git pull --prune --recurse-submodules
+git pull --quiet --prune --recurse-submodules
 make
 cd ../..
 sbt "Bench / test"
