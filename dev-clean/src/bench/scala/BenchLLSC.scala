@@ -28,6 +28,7 @@ import Config._
  * runOpt: the command line argument to run the compiled executable
  * result: expected return status of the compiled executable
  */
+// TODO: refactor and max share with test/...
 case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Option[String], exp: Map[String, Any])
 object TestPrg {
   val nPath = "nPath"
@@ -62,8 +63,8 @@ abstract class TestLLSC extends FunSuite {
     override def toString() =
       s"$time,$commit,$engine,$testName,$solverTime,$wholeTime,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
   }
-  
-  val gitCommit = Process("git rev-parse --short HEAD").!!.strip()
+
+  val gitCommit = Process("git rev-parse --short HEAD").!!.trim
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
     val pattern = raw"\[([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
@@ -120,8 +121,8 @@ abstract class TestLLSC extends FunSuite {
 trait LinkSTP extends LLSC {
   abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
     val llsc = super.newInstance(m, name, fname, config)
-    llsc.codegen.registerIncludePath("../../staged_intp/third-party/stp/build/include")
-    llsc.codegen.registerLibraryPath("../../staged_intp/third-party/stp/build/lib")
+    llsc.codegen.registerIncludePath("../third-party/stp/build/include")
+    llsc.codegen.registerLibraryPath("../third-party/stp/build/lib")
     llsc
   }
 }
@@ -129,8 +130,8 @@ trait LinkSTP extends LLSC {
 trait LinkZ3 extends LLSC {
   abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
     val llsc = super.newInstance(m, name, fname, config)
-    llsc.codegen.registerIncludePath("../../staged_intp/third-party/z3/src/api")
-    llsc.codegen.registerLibraryPath("../../staged_intp/third-party/z3/build")
+    llsc.codegen.registerIncludePath("../third-party/z3/src/api")
+    llsc.codegen.registerLibraryPath("../third-party/z3/build")
     llsc
   }
 }
