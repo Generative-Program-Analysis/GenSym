@@ -18,7 +18,7 @@ package IR {
       es.filter(_.isInstanceOf[GlobalDef]).asInstanceOf[List[GlobalDef]].map(d => (d.id, d)).toMap
     val globalDeclMap: Map[String, GlobalDecl] =
       es.filter(_.isInstanceOf[GlobalDecl]).asInstanceOf[List[GlobalDecl]].map(d => (d.id, d)).toMap
-    val typeDefMap: Map[String, LLVMType] = 
+    val typeDefMap: Map[String, LLVMType] =
       es.filter(_.isInstanceOf[TypeDef]).asInstanceOf[List[TypeDef]].map(d => (d.id, d.ty)).toMap
 
     def lookupFuncDef(id: String): Option[FunctionDef] = funcDefMap.get(id)
@@ -262,6 +262,7 @@ package IR {
   case object WriteOnly extends ParamAttr
   case object ReadOnly extends ParamAttr
   case object Immarg extends ParamAttr
+  case object UnknownAttr extends ParamAttr
 
   trait GlobalAttr extends Attr
 
@@ -283,7 +284,7 @@ package IR {
   case class FloatConst(f: Float) extends Constant
   case object NullConst extends Constant
   case object NoneConst extends Constant
-  case class StructConst(cs: List[TypedConst]) extends Constant 
+  case class StructConst(cs: List[TypedConst]) extends Constant
   case class ArrayConst(cs: List[TypedConst]) extends Constant
   case class CharArrayConst(s: String) extends Constant {
     override def toString = s
@@ -410,7 +411,7 @@ package IR {
   // check visitIPred and visitFpred for available ops
   case class IPredicate(op: String) extends LAST
   case class FPredicate(op: String) extends LAST
-  
+
 }
 
 import IR._
@@ -421,7 +422,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val es = visit(ctx.topLevelEntities).asInstanceOf[TopLevelEntityList].es
     Module(es)
   }
-  
+
   override def visitTopLevelEntityList(ctx: LLVMParser.TopLevelEntityListContext): LAST = {
     val entity = visit(ctx.topLevelEntity).asInstanceOf[TopLevelEntity]
     if (ctx.topLevelEntityList == null)
@@ -431,22 +432,22 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
       TopLevelEntityList(entities.es ++ List(entity))
     }
   }
-  
+
   override def visitSourceFilename(ctx: LLVMParser.SourceFilenameContext): LAST = {
     SourceFilename(ctx.stringLit.STRING_LIT.getText)
   }
 
-  override def visitTargetDefinition(ctx: LLVMParser.TargetDefinitionContext): LAST = { 
+  override def visitTargetDefinition(ctx: LLVMParser.TargetDefinitionContext): LAST = {
     if (ctx.DATALAYOUT != null)
-      TargetDefinition(ctx.DATALAYOUT.getText, ctx.stringLit.STRING_LIT.getText) 
+      TargetDefinition(ctx.DATALAYOUT.getText, ctx.stringLit.STRING_LIT.getText)
     else if (ctx.TRIPLE != null)
-      TargetDefinition(ctx.TRIPLE.getText, ctx.stringLit.STRING_LIT.getText) 
+      TargetDefinition(ctx.TRIPLE.getText, ctx.stringLit.STRING_LIT.getText)
     else error
   }
 
   override def visitModuleAsm(ctx: LLVMParser.ModuleAsmContext): LAST = { ModuleAsm(ctx) }
 
-  override def visitTypeDef(ctx: LLVMParser.TypeDefContext): LAST = { 
+  override def visitTypeDef(ctx: LLVMParser.TypeDefContext): LAST = {
     val id = ctx.localIdent.LOCAL_IDENT.getText
     if (ctx.opaqueType != null) {
       TypeDef(id, OpaqueType)
@@ -459,7 +460,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitComdatDef(ctx: LLVMParser.ComdatDefContext): LAST = { ComdatDef(ctx) }
 
-  override def visitGlobalDecl(ctx: LLVMParser.GlobalDeclContext): LAST = { 
+  override def visitGlobalDecl(ctx: LLVMParser.GlobalDeclContext): LAST = {
     val id = ctx.globalIdent.GLOBAL_IDENT.getText
     val linkage = visit(ctx.externLinkage).asInstanceOf[ExternalLinkage]
     val preem = None // TODO: Skipped optPreemptionSpecifier
@@ -722,7 +723,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitParamAttr(ctx: LLVMParser.ParamAttrContext): LAST = {
     // Return ParamAttr
-    
+
     if (ctx.ZEROEXT() != null) ZeroExt
     else if (ctx.SIGNEXT() != null) SignExt
     else if (ctx.INREG() != null) InReg
@@ -737,9 +738,9 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.IMMARG() != null) Immarg
     else if (ctx.alignment() != null) {
       visit(ctx.alignment)
-    }
-    else {
-      ???
+    } else {
+      println("Warning: parsing unknown param attr")
+      UnknownAttr
     }
     // ?immarg??
   }
@@ -797,7 +798,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
       val hexString = floatStr.substring(2)
       val longBits = java.lang.Long.parseUnsignedLong(hexString, 16)
       FloatConst(java.lang.Double.longBitsToDouble(longBits).asInstanceOf[Float])
-    } 
+    }
     else ???
   }
 
@@ -1219,7 +1220,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     IntConst(ctx.INT_LIT.getText.toInt)
   }
 
-  
+
 
   override def visitAllocaInst(ctx: LLVMParser.AllocaInstContext): LAST = {
     // Only support the simplest form:
@@ -1283,7 +1284,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     // Skipped optCommaSepMetadataAttachmentList
     TruncInst(from, value, to)
   }
-  
+
   override def visitZExtInst(ctx: LLVMParser.ZExtInstContext): LAST = {
     // Skipped optCommaSepMetadataAttachmentList
     val from = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
