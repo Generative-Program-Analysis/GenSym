@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 cd "$(dirname $0)"
 git pull --quiet --prune --recurse-submodules
 make
