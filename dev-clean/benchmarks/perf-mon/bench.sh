@@ -11,4 +11,5 @@ rm bench.csv
 cd ~/.www/benchllsc
 conda run -n base \
     jupyter nbconvert --to html --execute dataprocess.ipynb \
-                                --output  dataprocess.html
+                                --output  dataprocess.html \
+                      --log-level WARN

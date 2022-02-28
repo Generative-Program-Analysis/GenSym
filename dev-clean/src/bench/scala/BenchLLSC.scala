@@ -131,6 +131,7 @@ trait LinkZ3 extends LLSC {
   abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
     val llsc = super.newInstance(m, name, fname, config)
     llsc.codegen.registerIncludePath("../third-party/z3/src/api")
+    llsc.codegen.registerIncludePath("../third-party/z3/src/api/c++")
     llsc.codegen.registerLibraryPath("../third-party/z3/build")
     llsc
   }
