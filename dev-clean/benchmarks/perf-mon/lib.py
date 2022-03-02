@@ -112,9 +112,11 @@ def verify_signature(func):
     return wrapped
 
 
-def do_check_run(payload):
+def do_check_run(payload, env):
+    os.environ.update(env)
+
     os.chdir(os.path.dirname(__file__))
-    subp.run("git pull --quiet --prune --recurse-submodules".split())
+    subp.run("git pull --quiet --prune --recurse-submodules", shell=True)
     subp.run(["git", "checkout", payload["check_run"]["head_sha"]])
     subp.run(["make"])
 
@@ -127,7 +129,7 @@ def do_check_run(payload):
 
     os.chdir(os.path.dirname(dstfile))
     cmd = "jupyter nbconvert --to html --execute {0}.ipynb --out {0}.html"
-    subp.run(cmd.format("dataprocess").split())
+    subp.run(cmd.format("dataprocess"), shell=True)
 
     client = Client.from_payload(payload)
     client.update_check_run(payload["check_run"]["id"], conclusion="success")
