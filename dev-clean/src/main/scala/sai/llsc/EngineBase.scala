@@ -15,9 +15,49 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
-import scala.collection.immutable.{List => StaticList, Map => StaticMap}
+
+case class CFG(funMap: Map[String, FunctionDef]) {
+  import collection.mutable.HashMap
+  import sai.structure.lattices.Lattices._
+
+  type Fun = String
+  type Label = String
+  type Succs = Map[Label, Set[Label]]
+  type Preds = Map[Label, Set[Label]]
+  type Graph = (Succs, Preds)
+
+  val mtGraph: Graph = Lattice[Graph].bot
+
+  val funCFG: Map[Fun, Graph] = funMap.map({ case (f, d) => (f, construct(d.body.blocks)) }).toMap
+
+  def construct(blocks: List[BB]): Graph = blocks.foldLeft(mtGraph) { case (g, b) =>
+    val from: Label = b.label.get
+    val to: Set[Label] = b.term match {
+      case BrTerm(lab) => Set(lab)
+      case CondBrTerm(ty, cnd, thnLab, elsLab) => Set(thnLab, elsLab)
+      case SwitchTerm(cndTy, cndVal, default, table) => Set(default) ++ table.map(_.label).toSet
+      case _ => Set()
+    }
+    g ⊔ (Map(from → to), to.map(_ → Set(from)).toMap)
+  }
+
+  def prettyPrint: Unit =
+    funCFG.foreach { case (f, g) =>
+      println(s"$f\n  successors:")
+      g._1.foreach { case (from, to) =>
+        val toStr = to.mkString(",")
+        println(s"    $from → {$toStr}")
+      }
+      println("  predecessors:")
+      g._2.foreach { case (to, from) =>
+        val fromStr = from.mkString(",")
+        println(s"    $to → {$fromStr}")
+      }
+    }
+}
 
 trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
+  import scala.collection.immutable.{List => StaticList, Map => StaticMap}
   import collection.mutable.HashMap
   import Constants._
 
@@ -61,6 +101,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def globalDefMap: StaticMap[String, GlobalDef] = m.globalDefMap
   def globalDeclMap: StaticMap[String, GlobalDecl] = m.globalDeclMap
   def typeDefMap: StaticMap[String, LLVMType] = m.typeDefMap
+
+  lazy val cfg: CFG = CFG(funMap)
+  //cfg.prettyPrint
 
   var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
 
