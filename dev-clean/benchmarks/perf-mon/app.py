@@ -34,21 +34,9 @@ def main_handler():
         queue.enqueue(do_check_run, payload, job_timeout=36000)
         return { "result": "updated" }
 
-    def update_run():
-        suite = payload.pop("check_suite")
-        runs = client.list_check_runs(suite["head_sha"], status="in_progress", name=check_name)
-        for run in runs["check_runs"]:
-            if suite["conclusion"] == "success":
-                client.update_check_run(run["id"], status="in_progress")
-                payload["check_run"] = run
-                queue.enqueue(do_check_run, payload, job_timeout=36000)
-            else:
-                client.update_check_run(run["id"], conclusion="cancelled")
-        return { "result": "updated" }
-
     return H.dispatch(payload) or { "result": "unprocessed" }
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARNING)
-    app.run(host='0.0.0.0', port=12321, debug=True)
+    app.run(host='0.0.0.0', port=12321, debug=False)
