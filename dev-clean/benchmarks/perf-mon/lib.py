@@ -116,6 +116,7 @@ def do_check_run(payload, env):
     os.environ.update(env)
 
     os.chdir(os.path.dirname(__file__))
+    subp.run("git checkout master", shell=True)
     subp.run("git pull --quiet --prune --recurse-submodules", shell=True)
     subp.run(["git", "checkout", payload["check_run"]["head_sha"]])
     subp.run(["make"])
