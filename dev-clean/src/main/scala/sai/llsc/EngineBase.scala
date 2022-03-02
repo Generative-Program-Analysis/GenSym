@@ -147,7 +147,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
     def getFieldOffset(types: List[LLVMType], idx: Int): Int =
       fields(types.take(idx+1))._1
-    
+
     def concat[E](cs: List[E])(feval: E => (List[Rep[Value]], Int)): (List[Rep[Value]], Int) = {
       val fill: Int => List[Rep[Value]] = (StaticList.fill(_)(uninitValue))
       val (list, align) = cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((list, maxalign), c) =>
@@ -287,6 +287,17 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         case _ =>
           val (size, align) = getTySizeAlign(real_ty)
           (IntV(0, 8 * size).toShadowBytes.toStatic, align)
+      }
+      case UndefConst => real_ty match {
+        case ArrayType(size, ety) =>
+          val (value, align) = evalHeapConstWithAlign(UndefConst, ety)
+          (StaticList.fill(size)(value).flatten, align)
+        case Struct(types) =>
+          StructCalc.concat(types) { evalHeapConstWithAlign(UndefConst, _) }
+        // TODO: fallback case is not typed
+        case _ =>
+          val (size, align) = getTySizeAlign(real_ty)
+          (StaticList.fill(size)(uninitValue), align)
       }
       case _ => throw new Exception("Not complex heap constant: " + v)
     }

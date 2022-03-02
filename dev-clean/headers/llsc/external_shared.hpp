@@ -51,7 +51,7 @@ template<typename T>
 inline T __print_string(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<LocV>(x)) {
-    std::cout << get_string(x, state) << std::endl;
+    std::cout << get_string(x, state);
     return k(state, make_IntV(0));
   }
   ABORT("Cannot print non-LocV value as string");
@@ -152,19 +152,26 @@ inline std::monostate __assert_fail(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-// FIXME: vaargs and refactor
-// args 0: LocV to {i32, i32, i8*, i8*}
-// in memory {4, 4, 8, 8}
+template<typename T>
+inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k);
+
+template<typename T>
+inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k);
+
 inline List<SSVal> llvm_va_start(SS state, List<PtrVal> args) {
-  PtrVal va_list = args.at(0);
-  ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  PtrVal va_arg = state.getVarargLoc();
-  SS res = state;
-  res = res.update(va_list + 0, IntV0);
-  res = res.update(va_list + 4, IntV0);
-  res = res.update(va_list + 8, va_arg + 40);
-  res = res.update(va_list + 16, va_arg);
-  return List<SSVal>{{res, IntV0}};
+  return __llvm_va_start<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llvm_va_start(SS state, List<PtrVal> args, Cont k) {
+  return __llvm_va_start<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+inline List<SSVal> llvm_va_end(SS state, List<PtrVal> args) {
+  return __llvm_va_end<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llvm_va_end(SS state, List<PtrVal> args, Cont k) {
+  return __llvm_va_end<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
 #endif

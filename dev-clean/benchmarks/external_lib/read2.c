@@ -12,16 +12,16 @@ int main()
   }
   if (buf[0] == 'a') {
     if (buf[1] == 'b') {
-      print_string("path 1/3");
+      print_string("path 1/3\n");
     } else /* buf[0] == 'a', buf[1] != 'b' */ {
-      print_string("path 2/3");
+      print_string("path 2/3\n");
       if (buf[1] == 'b') {
         // should be unreachable, because we know that buf[1] != 'b'
         sym_exit(2);
       }
     }
   } else /* buf[0] != 'a' */ {
-    print_string("path 3/3");
+    print_string("path 3/3\n");
   }
   return 0;
 }

@@ -84,6 +84,7 @@ object Benchmarks {
 
   lazy val kleefsminiTest = parseFile("benchmarks/external_lib/klee_fs_mini.ll")
   lazy val kleefsglobalTest = parseFile("benchmarks/external_lib/klee_fs_mini_global.ll")
+  lazy val kleefslib64Test = parseFile("benchmarks/klee_fs_lib/klee_lib_64.ll")
   // lazy val openAtTest = parseFile("benchmarks/external_lib/openat.ll")
 
   lazy val argv1Test = parseFile("benchmarks/llvm/argv1.ll")

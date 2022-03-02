@@ -86,7 +86,7 @@ object TestCases {
   )
 
   val varArg: List[TestPrg] = List(
-    TestPrg(varArgInt, "varArgInt", "@main", noArg, None, nPath(1))
+    TestPrg(varArgInt, "varArgInt", "@main", noArg, None, nPath(1)++status(0))
     // FIXME(PureLLSC): Sext an invalid value
     // TestPrg(varArgChar, "varArgChar", "@main", noArg, None, nPath(1))
   )
@@ -135,6 +135,7 @@ object TestCases {
     TestPrg(stat2Test, "statTestFail", "@main", noArg, "", nPath(1)++status(1)),
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, None, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, None, nPath(2)++status(0)),
+    TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, None, nPath(10)++status(0)),
   )
 
   val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external ++ argv
@@ -219,14 +220,14 @@ class TestPureLLSC extends TestLLSC {
 // FIXME: varArg is problematic for instances other than PureLLSC
 
 class TestPureCPSLLSC extends TestLLSC {
-  testLLSC(new PureCPSLLSC, TestCases.all ++ filesys)
+  testLLSC(new PureCPSLLSC, TestCases.all ++ filesys ++ varArg)
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new PureCPSLLSC, external)
 }
 
 class TestPureCPSLLSC_Z3 extends TestLLSC {
   val llsc = new PureCPSLLSC_Z3
-  testLLSC(llsc, TestCases.all ++ filesys)
+  testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--timeout=2", minTest(1)))
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2", minTest(1)))
   testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, None, status(255)))
@@ -235,13 +236,13 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, TestCases.all)
+  testLLSC(new ImpLLSC, TestCases.all ++ varArg)
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new ImpLLSC, external)
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, TestCases.all)
+  testLLSC(new ImpCPSLLSC, TestCases.all ++ varArg)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new ImpCPSLLSC, external)
 }

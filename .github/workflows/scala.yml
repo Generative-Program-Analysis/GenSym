@@ -43,6 +43,8 @@ jobs:
         make llsc
         cd ../../test-comp/array-programs
         make llsc
+        cd ../../klee_fs_lib
+        make
     - name: Install Z3
       run: |
         cd ../third-party

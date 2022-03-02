@@ -20,15 +20,15 @@ int main(int argc, char *argv[])
   if (argv[0][3] == 's') {
     if (argv[0][4] == 'y') {
       if (argv[0][5] == 'm') {
-        print_string("path 1");
+        print_string("path 1\n");
       } else /* argv[0][5] != 'm' */ {
-        print_string("path 2");
+        print_string("path 2\n");
       }
     } else /* argv[0][4] != 'y' */ {
-      print_string("path 3");
-    } 
+      print_string("path 3\n");
+    }
   } else /* argv[0][3] != 'm' */ {
-    print_string("path 4");
+    print_string("path 4\n");
   }
   // argv[0][6:8] are concrete
   if (argv[0][6] == 'a') {

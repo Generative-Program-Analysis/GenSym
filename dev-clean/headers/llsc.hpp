@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <cstdio>
 #include <cstdlib>
 #include <getopt.h>

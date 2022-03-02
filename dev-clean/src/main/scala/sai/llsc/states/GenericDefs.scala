@@ -80,7 +80,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "sym_print", "print_string", "malloc", "realloc",
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
-      "open", "close", "read", "write", "stat",
+      "open", "close", "read", "write", "stat", "stop", "syscall"
     )
     def apply(f: String): Rep[Value] = {
       if (!used.contains(f)) {
@@ -96,6 +96,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
     def get(id: String): Rep[Value] =
       if (modeled.contains(id.tail)) ExternalFun(id.tail)
       else if (id.startsWith("@llvm.va_start")) ExternalFun("llvm_va_start")
+      else if (id.startsWith("@llvm.va_end")) ExternalFun("llvm_va_end")
       else if (id.startsWith("@llvm.memcpy")) ExternalFun("llvm_memcpy")
       else if (id.startsWith("@llvm.memset")) ExternalFun("llvm_memset")
       else if (id.startsWith("@llvm.memmove")) ExternalFun("llvm_memset")
@@ -257,7 +258,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
-    
+
     def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
 
     def sExt(bw: Rep[Int]): Rep[Value] =  "bv_sext".reflectWith[Value](v, bw)
