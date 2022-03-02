@@ -1,4 +1,4 @@
-// Generated from LLVMParser.g4 by ANTLR 4.9.1
+// Generated from LLVMParser.g4 by ANTLR 4.9.3
 package sai.lang.llvm;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
@@ -2470,6 +2470,12 @@ public interface LLVMParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitParamAttrList(LLVMParser.ParamAttrListContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link LLVMParser#byval}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitByval(LLVMParser.ByvalContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link LLVMParser#paramAttr}.
 	 * @param ctx the parse tree

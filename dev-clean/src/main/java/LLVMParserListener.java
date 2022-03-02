@@ -1,4 +1,4 @@
-// Generated from LLVMParser.g4 by ANTLR 4.9.1
+// Generated from LLVMParser.g4 by ANTLR 4.9.3
 package sai.lang.llvm;
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
@@ -4107,6 +4107,16 @@ public interface LLVMParserListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitParamAttrList(LLVMParser.ParamAttrListContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link LLVMParser#byval}.
+	 * @param ctx the parse tree
+	 */
+	void enterByval(LLVMParser.ByvalContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link LLVMParser#byval}.
+	 * @param ctx the parse tree
+	 */
+	void exitByval(LLVMParser.ByvalContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link LLVMParser#paramAttr}.
 	 * @param ctx the parse tree

@@ -4041,11 +4041,15 @@ paramAttrList
 //   ::= empty
 //   ::= AttrKind '(' 4 ')'
 
+byval :
+  'byval' '(' llvmType ')'
+;
+
 paramAttr
     : alignment
     | dereferenceable
     | stringLit
-    | 'byval'
+    | byval
     | 'immarg'
     | 'inalloca'
     | 'inreg'

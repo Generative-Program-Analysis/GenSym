@@ -250,7 +250,7 @@ package IR {
   case class Other(s: String) extends Attr with ParamAttr
 
   trait ParamAttr extends Attr
-  case object ByVal extends ParamAttr
+  case class  ByVal(ty: LLVMType) extends ParamAttr
   case object InAlloca extends ParamAttr
   case object Nest extends ParamAttr
   case object NoCapture extends ParamAttr
@@ -721,13 +721,16 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     }
   }
 
+  override def visitByval(ctx: LLVMParser.ByvalContext): LAST = {
+    ByVal(visit(ctx.llvmType).asInstanceOf[LLVMType])
+  }
+
   override def visitParamAttr(ctx: LLVMParser.ParamAttrContext): LAST = {
     // Return ParamAttr
 
     if (ctx.ZEROEXT() != null) ZeroExt
     else if (ctx.SIGNEXT() != null) SignExt
     else if (ctx.INREG() != null) InReg
-    else if (ctx.BYVAL() != null) ByVal
     else if (ctx.INALLOCA() != null) InAlloca
     else if (ctx.SRET() != null) SRet
     else if (ctx.NOALIAS() != null) NoAlias
@@ -736,7 +739,9 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.WRITEONLY() != null) WriteOnly
     else if (ctx.READONLY() != null) ReadOnly
     else if (ctx.IMMARG() != null) Immarg
-    else if (ctx.alignment() != null) {
+    else if (ctx.byval() != null) {
+      visit(ctx.byval)
+    } else if (ctx.alignment() != null) {
       visit(ctx.alignment)
     } else {
       println("Warning: parsing unknown param attr")
@@ -973,7 +978,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
   }
 
   override def visitFuncAttr(ctx: LLVMParser.FuncAttrContext): LAST = {
-    //println(ctx.getText)
     super.visitFuncAttr(ctx)
   }
 
@@ -1514,6 +1518,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
       if (ctx.unnamedAddr != null)
         Some(visit(ctx.unnamedAddr).asInstanceOf[UnnamedAddr])
       else None
+
     val funcAttrs = visit(ctx.funcAttrs).asInstanceOf[FuncAttrList].as //TODO
     val section =
       if (ctx.section != null)

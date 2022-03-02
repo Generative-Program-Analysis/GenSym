@@ -1,6 +1,5 @@
-// Generated from LLVMParser.g4 by ANTLR 4.9.1
+// Generated from LLVMParser.g4 by ANTLR 4.9.3
 package sai.lang.llvm;
-
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -4931,6 +4930,18 @@ public class LLVMParserBaseListener implements LLVMParserListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitParamAttrList(LLVMParser.ParamAttrListContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterByval(LLVMParser.ByvalContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitByval(LLVMParser.ByvalContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

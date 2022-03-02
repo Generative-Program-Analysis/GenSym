@@ -1,4 +1,4 @@
-// Generated from LLVMParser.g4 by ANTLR 4.9.1
+// Generated from LLVMParser.g4 by ANTLR 4.9.3
 package sai.lang.llvm;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 
@@ -2881,6 +2881,13 @@ public class LLVMParserBaseVisitor<T> extends AbstractParseTreeVisitor<T> implem
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
 	@Override public T visitParamAttrList(LLVMParser.ParamAttrListContext ctx) { return visitChildren(ctx); }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation returns the result of calling
+	 * {@link #visitChildren} on {@code ctx}.</p>
+	 */
+	@Override public T visitByval(LLVMParser.ByvalContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *
