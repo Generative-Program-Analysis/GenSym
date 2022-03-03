@@ -131,6 +131,6 @@ def do_check_run(payload, env):
     os.remove("bench.csv")
 
     os.chdir(os.path.dirname(dstfile))
-    cmd = "jupyter nbconvert --to html --execute {0}.ipynb --out {0}.html"
+    cmd = "jupyter nbconvert --to html --execute {0}.ipynb --output {0}.html"
     subp.run(cmd.format("dataprocess"), shell=True)
     client.update_check_run(payload["check_run"]["id"], conclusion="success")
