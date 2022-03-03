@@ -113,6 +113,8 @@ def verify_signature(func):
 
 
 def do_check_run(payload, env):
+    client = Client.from_payload(payload)
+    client.update_check_run(payload["check_run"]["id"], status="in_progress")
     os.environ.update(env)
 
     os.chdir(os.path.dirname(__file__))
@@ -131,6 +133,4 @@ def do_check_run(payload, env):
     os.chdir(os.path.dirname(dstfile))
     cmd = "jupyter nbconvert --to html --execute {0}.ipynb --out {0}.html"
     subp.run(cmd.format("dataprocess"), shell=True)
-
-    client = Client.from_payload(payload)
     client.update_check_run(payload["check_run"]["id"], conclusion="success")

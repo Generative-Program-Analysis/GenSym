@@ -30,11 +30,10 @@ def main_handler():
 
     @H.register(check_run__app__slug="sai-bench", action="created")
     def initiate_run():
-        client.update_check_run(payload["check_run"]["id"], status="in_progress")
         env = { k: v for k, v in os.environ.items()
                 if k.startswith("GITHUB_") or k == "PATH" }
         queue.enqueue(do_check_run, payload, env, job_timeout="10h")
-        return { "result": "updated" }
+        return { "result": "initiated" }
 
     return H.dispatch(payload) or { "result": "unprocessed" }
 
