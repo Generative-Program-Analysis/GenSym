@@ -117,22 +117,29 @@ def do_check_run(payload, env):
     client.update_check_run(payload["check_run"]["id"], status="in_progress")
     os.environ.update(env)
 
-    os.chdir(os.path.dirname(__file__))
-    subp.run("git pull --prune origin master", shell=True)
-    subp.run(["git", "checkout", payload["check_run"]["head_sha"]])
-    subp.run("git submodule update --recursive", shell=True)
-    subp.run(["make"])
+    try:
+        os.chdir(os.path.dirname(__file__))
+        subp.run("git pull origin master", shell=True)
+        subp.run(["git", "checkout", payload["check_run"]["head_sha"]], check=True)
+        subp.run("git submodule update --recursive", shell=True)
+        subp.run(["make"], check=True)
 
-    os.chdir("../..")
-    subp.run(["sbt", "Bench / test"])
-    dstfile = os.path.expanduser("~/.www/benchllsc/bench.csv")
-    with open("bench.csv", "r") as f1, open(dstfile, "a") as f2:
-        shutil.copyfileobj(f1, f2)
-    os.remove("bench.csv")
+        os.chdir("../..")
+        subp.run(["sbt", "Bench / test"], check=True)
+        dstfile = os.path.expanduser("~/.www/benchllsc/bench.csv")
+        with open("bench.csv", "r") as f1, open(dstfile, "a") as f2:
+            shutil.copyfileobj(f1, f2)
+        os.remove("bench.csv")
 
-    os.chdir(os.path.dirname(dstfile))
-    cmd = "jupyter nbconvert --to html --execute {0}.ipynb --output {0}.html"
-    subp.run(cmd.format("dataprocess"), shell=True)
+        os.chdir(os.path.dirname(dstfile))
+        cmd = "jupyter nbconvert --to html --execute {0}.ipynb --output {0}.html"
+        subp.run(cmd.format("dataprocess"), shell=True)
 
-    client = Client.from_payload(payload)
-    client.update_check_run(payload["check_run"]["id"], conclusion="success")
+    except:
+        client = Client.from_payload(payload)
+        client.update_check_run(payload["check_run"]["id"], conclusion="failure")
+        raise
+
+    else:
+        client = Client.from_payload(payload)
+        client.update_check_run(payload["check_run"]["id"], conclusion="success")
