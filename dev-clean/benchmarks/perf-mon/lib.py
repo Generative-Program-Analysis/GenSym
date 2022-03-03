@@ -133,4 +133,6 @@ def do_check_run(payload, env):
     os.chdir(os.path.dirname(dstfile))
     cmd = "jupyter nbconvert --to html --execute {0}.ipynb --output {0}.html"
     subp.run(cmd.format("dataprocess"), shell=True)
+
+    client = Client.from_payload(payload)
     client.update_check_run(payload["check_run"]["id"], conclusion="success")
