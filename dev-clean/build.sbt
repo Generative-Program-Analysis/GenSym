@@ -41,6 +41,7 @@ addCompilerPlugin("org.scala-lang.plugins" % "scala-continuations-plugin_2.12.0"
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4")
 
 parallelExecution in Test := false
+parallelExecution in Bench := false
 
 lazy val lms = ProjectRef(file("../lms-clean"), "lms-clean")
   // .settings(fork := true)

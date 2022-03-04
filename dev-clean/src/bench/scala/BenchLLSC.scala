@@ -19,15 +19,6 @@ import org.scalatest.FunSuite
 
 import Config._
 
-/* m: the parsed LLVM module
- * name: test name
- * f: entrance function name
- * config: compile time configuration
- * nPath: expected number of explored paths
- * nTest: expteted number of test cases generated
- * runOpt: the command line argument to run the compiled executable
- * result: expected return status of the compiled executable
- */
 // TODO: refactor and max share with test/...
 case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Option[String], exp: Map[String, Any])
 object TestPrg {
@@ -47,10 +38,28 @@ object TestPrg {
 import TestPrg._
 
 object TestCases {
+  val prefix = "benchmarks/perf-mon"
   val benchcases: List[TestPrg] = List(
-    TestPrg(parseFile("benchmarks/perf-mon/knapsack.ll"), "knapsackTest", "@main", noArg, None, nPath(1666)),
-    TestPrg(parseFile("benchmarks/perf-mon/nqueen.ll"), "nQueens", "@main", noArg, None, nPath(1363)),
+    TestPrg(parseFile(s"$prefix/knapsack.ll"), "knapsackTest", "@main", noArg, None, nPath(1666)),
+    TestPrg(parseFile(s"$prefix/nqueen.ll"), "nQueens", "@main", noArg, None, nPath(1363)),
+    TestPrg(parseFile(s"$prefix/kmpmatcher.ll"), "kmp", "@main", noArg, None, nPath(1287)),
+    // These benchmarks have a larger input size compared with those in demo_benchmarks
+    TestPrg(parseFile(s"$prefix/mergesort.ll"), "mergeSortTest", "@main", noArg, None, nPath(5040)),
+    TestPrg(parseFile(s"$prefix/bubblesort.ll"), "bubbleSortTest", "@main", noArg, None, nPath(720)),
+    TestPrg(parseFile(s"$prefix/quicksort.ll"), "quickSortTest", "@main", noArg, None, nPath(720)),
+    TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), "mp1m", "@f", symArg(20), "--disable-solver", nPath(1048576)),
   )
+  val paraBenchcases: List[TestPrg] = List(2, 4, 8, 16).flatMap { case tn => 
+    List(
+      TestPrg(parseFile(s"$prefix/knapsack.ll"), s"par${tn}_knapsackTest", "@main", noArg, s"--thread=$tn", nPath(1666)),
+      TestPrg(parseFile(s"$prefix/nqueen.ll"), s"par${tn}_nQueens", "@main", noArg, s"--thread=$tn", nPath(1363)),
+      TestPrg(parseFile(s"$prefix/kmpmatcher.ll"), s"par${tn}_kmp", "@main", noArg, s"--thread=$tn", nPath(1287)),
+      TestPrg(parseFile(s"$prefix/mergesort.ll"), s"par${tn}_mergeSortTest", "@main", noArg, s"--thread=$tn", nPath(5040)),
+      TestPrg(parseFile(s"$prefix/bubblesort.ll"), s"par${tn}_bubbleSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
+      TestPrg(parseFile(s"$prefix/quicksort.ll"), s"par${tn}_quickSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
+      TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), s"par${tn}_mp1m", "@f", symArg(20), s"--disable-solver --thread=$tn", nPath(1048576)),
+    )
+  }
 }
 import TestCases._
 
@@ -99,14 +108,15 @@ abstract class TestLLSC extends FunSuite {
   }
 
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
+    val nTest = 5
     val TestPrg(m, name, f, config, cliArgOpt, exp) = tst
     test(name) {
       val code = llsc.newInstance(m, llsc.insName + "_" + name, f, config)
       code.genAll
       val mkRet = code.make(4)
       assert(mkRet == 0, "make failed")
-      for (i <- 1 to 10) {
-        Thread.sleep(5 * 1000)
+      for (i <- 1 to nTest) {
+        Thread.sleep(1 * 1000)
         val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""))
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
@@ -146,5 +156,5 @@ class BenchPureCPSLLSC extends TestLLSC {
 }
 
 class BenchPureCPSLLSCZ3 extends TestLLSC {
-  testLLSC(new PureCPSLLSC_Z3 with LinkZ3, benchcases)
+  testLLSC(new PureCPSLLSC_Z3 with LinkZ3, benchcases ++ paraBenchcases)
 }
