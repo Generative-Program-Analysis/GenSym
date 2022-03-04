@@ -18,11 +18,8 @@ def main_handler():
     client = Client.from_payload(payload)
     H = Handler()
 
-    @H.register(check_suite__app__slug="sai-bench", action="rerequested")
+    @H.register(check_suite__app__slug="sai-bench", action="*requested")
     @H.register(check_run__app__slug="sai-bench", action="rerequested")
-    @H.register(check_suite__app__slug="github-actions",
-                check_suite__head_branch="master",
-                check_suite__conclusion="success")
     def create_new_run():
         data = payload.get("check_run") or payload.get("check_suite")
         client.create_check_run(name="Performance Benchmark", head_sha=data["head_sha"])
