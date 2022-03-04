@@ -30,7 +30,7 @@ inline void init_rand() {
 }
 
 inline int rand_int(int ub) {
-  int r =  (rand() % ub) + 1;
+  int r =  (rand() % ub) + 1; // [1, ub]
 #ifdef DEBUG
   std::cout << "Generate a rand number: " << r << std::endl;
 #endif

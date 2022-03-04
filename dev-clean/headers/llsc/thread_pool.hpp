@@ -33,8 +33,8 @@ private:
   std::atomic<bool> running = true;
   std::atomic<bool> paused = false;
 
-  std::mutex q_lock = {};
-  std::priority_queue<Task> ptasks = {};
+  std::vector<std::mutex> qlocks;
+  std::vector<std::priority_queue<Task>> ptasks;
 
   std::unique_ptr<std::thread[]> threads;
   std::unique_ptr<std::thread::id[]> thread_ids;
@@ -46,7 +46,7 @@ public:
   size_t thread_num;
 
   thread_pool(const size_t thread_num) :
-    thread_num(thread_num), threads(new std::thread[thread_num]), thread_ids(new std::thread::id[thread_num]) {
+    thread_num(thread_num), threads(new std::thread[thread_num]), thread_ids(new std::thread::id[thread_num]), qlocks(thread_num), ptasks(thread_num) {
     init(thread_num);
   }
   thread_pool() : thread_num(0) {}
@@ -59,11 +59,13 @@ public:
   void init(const size_t n) {
     if (inited) ABORT("Thread pool is already initialized.");
     thread_num = n;
+    qlocks = std::vector<std::mutex>(n);
+    ptasks = std::vector<std::priority_queue<Task>>(n);
     threads.reset(new std::thread[thread_num]);
     thread_ids.reset(new std::thread::id[thread_num]);
     for (size_t i = 0; i < thread_num; i++) {
       INFO("Create thread " << i);
-      threads[i] = std::thread(&thread_pool::worker, this);
+      threads[i] = std::thread(&thread_pool::worker, this, i);
       thread_ids[i] = threads[i].get_id();
     }
     inited = true;
@@ -81,19 +83,22 @@ public:
   void add_task(const std::function<void()>& f, int w) {
     tasks_num_total++;
     {
-    const std::scoped_lock lock(q_lock);
-    INFO("Adding task with weight " << w);
-    ptasks.push({f, w});
+      unsigned id = rand_int(thread_num)-1;
+      INFO("Adding task into queue " << id << " with weight " << w);
+      const std::scoped_lock lock(qlocks.at(id));
+      ptasks[id].push({f, w});
     }
   }
-  void worker() {
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  void worker(unsigned id) {
     while (running) {
       //std::cout << "Running tasks " << running_tasks_num()
       //          << "; queued tasks " << tasks_num_queued() << "\n";
       struct Task task;
-      if (!paused && pop_task(task)) {
+      bool get = false;
+      for (size_t i = id; i < id+thread_num; i++) {
+        if (pop_task(i % thread_num, task)) { get = true; break; }
+      }
+      if (!paused && get) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
         task.f();
         //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
@@ -103,11 +108,11 @@ public:
       }
     }
   }
-  bool pop_task(struct Task& task) {
-    const std::scoped_lock lock(q_lock);
-    if (ptasks.empty()) return false;
-    task = std::move(ptasks.top());
-    ptasks.pop();
+  bool pop_task(unsigned id, struct Task& task) {
+    const std::scoped_lock lock(qlocks.at(id));
+    if (ptasks[id].empty()) return false;
+    task = std::move(ptasks[id].top());
+    ptasks[id].pop();
     return true;
   }
   void stop_all_tasks() {
@@ -128,8 +133,12 @@ public:
     return tasks_num_total - tasks_num_queued();
   }
   size_t tasks_num_queued() {
-    const std::scoped_lock lock(q_lock);
-    return ptasks.size();
+    // FIXME: check balance?
+    size_t sum = 0;
+    for (int i = 0; i < ptasks.size(); i++) {
+      sum += ptasks[i].size();
+    }
+    return sum;
   }
   void sleep_or_yield() {
     if (sleep_duration) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_duration));
