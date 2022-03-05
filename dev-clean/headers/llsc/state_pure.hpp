@@ -23,7 +23,7 @@ class PreMem: public Printable {
     PreMem(List<V> mem) : mem(mem) {}
     size_t size() { return mem.size(); }
     V at(size_t idx) { return mem.at(idx); }
-    M update(size_t idx, V val) {
+    M update(size_t idx, const V& val) {
       ASSERT(idx < mem.size(), "PreMem update index out of bound");
       return M(mem.set(idx, val));
     }
@@ -97,7 +97,7 @@ public:
     ASSERT(!std::dynamic_pointer_cast<ShadowV>(val), "Reading a shadowed value");
     return val;
   }
-  Mem0 update(size_t idx, PtrVal val, size_t byte_size) {
+  Mem0 update(size_t idx, const PtrVal& val, size_t byte_size) {
     ASSERT(!std::dynamic_pointer_cast<ShadowV>(mem.at(idx)), "Updating a shadowed value");
     ASSERT(val->get_byte_size() == byte_size, "Mismatched value and size to write");
     auto bytes = val->to_bytes();
@@ -135,7 +135,7 @@ public:
     ASSERT(val != nullptr, "Reading a nullptr value");
     return val;
   }
-  MemIdxShadow update(size_t idx, PtrVal val, size_t byte_size) {
+  MemIdxShadow update(size_t idx, const PtrVal& val, size_t byte_size) {
     ASSERT(val->get_byte_size() == byte_size, "Mismatched value and size to write: " << val->get_byte_size() << " vs " << byte_size);
     auto old_val = mem.at(idx);
     auto mem = this->mem.transient();
@@ -243,7 +243,7 @@ public:
     return cur;
   }
 
-  MemShadow update(size_t idx, PtrVal val, int size) {
+  MemShadow update(size_t idx, const PtrVal& val, int size) {
     auto mem = this->mem.transient();
     Segment newval {val, idx, size_t(size)};
     if (is_intact(newval)) {
@@ -295,7 +295,7 @@ class Frame: public Printable {
     Frame() : env(immer::map<Id, PtrVal>{}) {}
     size_t size() { return env.size(); }
     PtrVal lookup_id(Id id) const { return env.at(id); }
-    Frame assign(Id id, PtrVal v) const { return Frame(env.insert({id, v})); }
+    Frame assign(Id id, const PtrVal& v) const { return Frame(env.insert({id, v})); }
     Frame assign_seq(List<Id> ids, List<PtrVal> vals) const {
       Env env1 = env;
       for (size_t i = 0; i < ids.size(); i++) {
@@ -326,7 +326,7 @@ class Stack: public Printable {
     Stack push() { return Stack(mem, env.push_back(Frame())); }
     Stack push(Frame f) { return Stack(mem, env.push_back(f)); }
 
-    Stack assign(Id id, PtrVal val) {
+    Stack assign(Id id, const PtrVal& val) {
       return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }));
     }
     Stack assign_seq(List<Id> ids, List<PtrVal> vals) {
@@ -354,8 +354,8 @@ class Stack: public Printable {
     PtrVal at_struct(size_t idx, int size) {
       return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
     }
-    Stack update(size_t idx, PtrVal val) { return Stack(mem.update(idx, val), env); }
-    Stack update(size_t idx, PtrVal val, int size) { return Stack(mem.update(idx, val, size), env); }
+    Stack update(size_t idx, const PtrVal& val) { return Stack(mem.update(idx, val), env); }
+    Stack update(size_t idx, const PtrVal& val, int size) { return Stack(mem.update(idx, val, size), env); }
     Stack alloc(size_t size) { return Stack(mem.alloc(size), env); }
 };
 
@@ -364,7 +364,7 @@ class PC: public Printable {
     List<PtrVal> pc;
   public:
     PC(List<PtrVal> pc) : pc(pc) {}
-    PC add(PtrVal e) { return PC(pc.push_back(e)); }
+    PC add(const PtrVal& e) { return PC(pc.push_back(e)); }
     PC add_set(List<PtrVal> new_pc) { return PC(pc + new_pc); }
     List<PtrVal> get_path_conds() { return pc; }
     PtrVal get_last_cond() {
@@ -404,25 +404,25 @@ class SS: public Printable {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    PtrVal at(PtrVal addr) {
+    PtrVal at(const PtrVal& addr) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l);
       return heap.at(loc->l);
     }
-    PtrVal at(PtrVal addr, int size) {
+    PtrVal at(const PtrVal& addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l, size);
       return heap.at(loc->l, size);
     }
-    PtrVal at_struct(PtrVal addr, int size) {
+    PtrVal at_struct(const PtrVal& addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
       return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
     }
-    List<PtrVal> at_seq(PtrVal addr, int count) {
+    List<PtrVal> at_seq(const PtrVal& addr, int count) {
       auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
       ASSERT(s, "failed to read struct");
       return s->fs;
@@ -431,13 +431,13 @@ class SS: public Printable {
     BlockLabel incoming_block() { return bb; }
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb, fs); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb, fs); }
-    SS update(PtrVal addr, PtrVal val) {
+    SS update(const PtrVal& addr, const PtrVal& val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb, fs);
       return SS(heap.update(loc->l, val), stack, pc, bb, fs);
     }
-    SS update(PtrVal addr, PtrVal val, int size) {
+    SS update(const PtrVal& addr, const PtrVal& val, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, bb, fs);
@@ -452,14 +452,14 @@ class SS: public Printable {
     }
     SS push() { return SS(heap, stack.push(), pc, bb, fs); }
     SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb, fs); }
-    SS assign(Id id, PtrVal val) { return SS(heap, stack.assign(id, val), pc, bb, fs); }
+    SS assign(Id id, const PtrVal& val) { return SS(heap, stack.assign(id, val), pc, bb, fs); }
     SS assign_seq(List<Id> ids, List<PtrVal> vals) {
       return SS(heap, stack.assign_seq(ids, vals), pc, bb, fs);
     }
     SS heap_append(List<PtrVal> vals) {
       return SS(heap.append(vals), stack, pc, bb, fs);
     }
-    SS add_PC(PtrVal e) { return SS(heap, stack, pc.add(e), bb, fs); }
+    SS add_PC(const PtrVal& e) { return SS(heap, stack, pc.add(e), bb, fs); }
     SS add_PC_set(List<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb, fs); }
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel, fs); }
     SS init_arg() {
@@ -506,7 +506,7 @@ inline PtrVal make_FunV(func_t f) {
   return std::make_shared<FunV<func_t>>(f);
 }
 
-inline List<SSVal> direct_apply(PtrVal v, SS ss, List<PtrVal> args) {
+inline List<SSVal> direct_apply(const PtrVal& v, const SS& ss, List<PtrVal> args) {
   auto f = std::dynamic_pointer_cast<FunV<func_t>>(v);
   if (f) return f->f(ss, args);
   ABORT("direct_apply: not applicable");
@@ -518,7 +518,7 @@ inline PtrVal make_CPSFunV(func_cps_t f) {
   return std::make_shared<FunV<func_cps_t>>(f);
 }
 
-inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::function<std::monostate(SS, PtrVal)> k) {
+inline std::monostate cps_apply(const PtrVal& v, const SS& ss, List<PtrVal> args, std::function<std::monostate(SS, PtrVal)> k) {
   auto f = std::dynamic_pointer_cast<FunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");

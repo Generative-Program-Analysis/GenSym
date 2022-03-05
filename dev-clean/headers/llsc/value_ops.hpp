@@ -6,7 +6,7 @@ struct IntV;
 struct SS;
 
 using PtrVal = std::shared_ptr<Value>;
-inline PtrVal bv_extract(PtrVal v1, int hi, int lo);
+inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
 inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true);
 
 /* Value representations */
@@ -216,12 +216,12 @@ inline PtrVal make_IntV(IntData i, int bw, bool toMSB) {
   return std::make_shared<IntV>(toMSB ? (i << (addr_bw - bw)) : i, bw);
 }
 
-inline IntData proj_IntV(PtrVal v) {
+inline IntData proj_IntV(const PtrVal& v) {
   if (v->get_bw() == 1) return std::dynamic_pointer_cast<IntV>(v)->i ? 1 : 0;
   return std::dynamic_pointer_cast<IntV>(v)->as_signed();
 }
 
-inline char proj_IntV_char(PtrVal v) {
+inline char proj_IntV_char(const PtrVal& v) {
   std::shared_ptr<IntV> intV = v->to_IntV();
   ASSERT(intV->get_bw() == 8, "proj_IntV_char: Bitwidth mismatch");
   return static_cast<char>(proj_IntV(intV));
@@ -263,7 +263,7 @@ inline PtrVal make_FloatV(float f, size_t bw) {
   return std::make_shared<FloatV>(f);
 }
 
-inline int proj_FloatV(PtrVal v) {
+inline int proj_FloatV(const PtrVal& v) {
   return std::dynamic_pointer_cast<FloatV>(v)->f;
 }
 
@@ -314,7 +314,7 @@ inline PtrVal make_LocV(Addr i, LocV::Kind k) {
   return std::make_shared<LocV>(i, k, -1);
 }
 
-inline PtrVal make_LocV(PtrVal v) {
+inline PtrVal make_LocV(const PtrVal& v) {
   auto v2 = std::dynamic_pointer_cast<IntV>(v);
   assert(v2->get_bw() == addr_bw);
   if (v2->i >= LocV::stack_offset)
@@ -323,13 +323,13 @@ inline PtrVal make_LocV(PtrVal v) {
     return make_LocV(v2->i, LocV::kHeap);
 }
 
-inline unsigned int proj_LocV(PtrVal v) {
+inline unsigned int proj_LocV(const PtrVal& v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
-inline LocV::Kind proj_LocV_kind(PtrVal v) {
+inline LocV::Kind proj_LocV_kind(const PtrVal& v) {
   return std::dynamic_pointer_cast<LocV>(v)->k;
 }
-inline int proj_LocV_size(PtrVal v) {
+inline int proj_LocV_size(const PtrVal& v) {
   return std::dynamic_pointer_cast<LocV>(v)->size;
 }
 
@@ -407,7 +407,7 @@ struct SymV : Value {
   }
 };
 
-inline PtrVal make_SymV(String n) {
+inline PtrVal make_SymV(const String& n) {
   return std::make_shared<SymV>(n, bitwidth);
 }
 inline PtrVal make_SymV(String n, size_t bw) {
@@ -454,7 +454,7 @@ struct StructV : Value {
   virtual List<PtrVal> to_bytes_shadow() { ABORT("???"); }
 };
 
-inline PtrVal structV_at(PtrVal v, int idx) {
+inline PtrVal structV_at(const PtrVal& v, int idx) {
   auto sv = std::dynamic_pointer_cast<StructV>(v);
   if (sv) return (sv->fs).at(idx);
   ABORT("StructV_at: non StructV value");
@@ -462,7 +462,7 @@ inline PtrVal structV_at(PtrVal v, int idx) {
 
 // assume all values are signed, convert to unsigned if necessary
 // require return value to be signed or non-negative
-inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
+inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   auto i1 = v1->to_IntV();
   auto i2 = v2->to_IntV();
   int bw1 = v1->get_bw();
@@ -528,7 +528,7 @@ inline PtrVal int_op_2(iOP op, PtrVal v1, PtrVal v2) {
   }
 }
 
-inline PtrVal float_op_2(fOP op, PtrVal v1, PtrVal v2) {
+inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
   auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
   auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
 
@@ -544,7 +544,7 @@ inline PtrVal float_op_2(fOP op, PtrVal v1, PtrVal v2) {
   }
 }
 
-inline PtrVal bv_sext(PtrVal v, int bw) {
+inline PtrVal bv_sext(const PtrVal& v, int bw) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
     return make_IntV(int64_t(i1->i) >> (bw - i1->bw), bw, false);
@@ -559,7 +559,7 @@ inline PtrVal bv_sext(PtrVal v, int bw) {
   }
 }
 
-inline PtrVal bv_zext(PtrVal v, int bw) {
+inline PtrVal bv_zext(const PtrVal& v, int bw) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
     return make_IntV(uint64_t(i1->i) >> (bw - i1->bw), bw, false);
@@ -574,7 +574,7 @@ inline PtrVal bv_zext(PtrVal v, int bw) {
   }
 }
 
-inline PtrVal trunc(PtrVal v1, int from, int to) {
+inline PtrVal trunc(const PtrVal& v1, int from, int to) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {
     return make_IntV(i1->i << (from - to), to, false);
@@ -586,7 +586,7 @@ inline PtrVal trunc(PtrVal v1, int from, int to) {
   ABORT("Truncate an invalid value, exit");
 }
 
-inline PtrVal bv_extract(PtrVal v1, int hi, int lo) {
+inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
   auto i1 = std::dynamic_pointer_cast<IntV>(v1);
   if (i1) {
     return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
@@ -599,7 +599,7 @@ inline PtrVal bv_extract(PtrVal v1, int hi, int lo) {
   ABORT("Extract an invalid value, exit");
 }
 
-inline PtrVal bv_concat(PtrVal v1, PtrVal v2) {
+inline PtrVal bv_concat(const PtrVal& v1, const PtrVal& v2) {
   auto i1 = v1->to_IntV();
   auto i2 = v2->to_IntV();
   int bw1 = v1->get_bw();
