@@ -124,7 +124,9 @@ package IR {
     useListOrders: List[UseListOrder]
   ) extends LAST
 
-  case class BB(label: Option[String], ins: List[Instruction], term: Terminator) extends LAST
+  case class BB(label: Option[String], ins: List[Instruction], term: Terminator) extends LAST {
+    def size: Int = ins.size
+  }
 
   case class BasicBlockList(bbs: List[BB]) extends LAST
   case class InstructionList(is: List[Instruction]) extends LAST

@@ -26,6 +26,7 @@ inline unsigned int cached_query_num = 0;
 
 // the maximal number of total threads (including the main thread)
 inline unsigned int n_thread = 1;
+inline unsigned int n_queue = 1;
 inline unsigned int timeout = 3600; // in seconds, one hour by default
 
 inline duration<double, std::micro> solver_time = microseconds::zero();

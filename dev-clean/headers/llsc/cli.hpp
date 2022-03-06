@@ -21,6 +21,7 @@ static struct option long_options[] =
   {"add-sym-file",         required_argument, 0, '+'},
   {"sym-file-size",        required_argument, 0, 's'},
   {"thread",               required_argument, 0, 't'},
+  {"queue",                required_argument, 0, 'q'},
   {"timeout",              required_argument, 0, 'e'},
   {"argv",                 required_argument, 0, 'a'},
   {0,                      0,                 0, 0  }
@@ -87,6 +88,11 @@ inline void handle_cli_args(int argc, char** argv) {
         n_thread = (t <= 0) ? 1 : t;
         break;
       }
+      case 'q': {
+        int n = atoi(optarg);
+        n_queue = n;
+        break;
+      }
       case 'e':
         timeout = atoi(optarg);
         break;
@@ -110,10 +116,10 @@ inline void handle_cli_args(int argc, char** argv) {
     std::cout << "Use global solver\n";
     use_global_solver = true;
   }
-  std::cout << "Use " << n_thread << " total threads\n";
+  std::cout << "Use " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
 #ifdef USE_TP
   // thread pool will create (n_thread) threads, leaving the main thread idle.
-  tp.init(n_thread);
+  tp.init(n_thread, n_queue);
 #endif
   use_objcache = use_objcache && use_global_solver;
   use_cexcache = use_cexcache && use_global_solver;

@@ -44,11 +44,14 @@ private:
   bool inited = false;
 public:
   size_t thread_num;
-
+  size_t queue_num;
+  /*
   thread_pool(const size_t thread_num) :
     thread_num(thread_num), threads(new std::thread[thread_num]), thread_ids(new std::thread::id[thread_num]), qlocks(thread_num), ptasks(thread_num) {
     init(thread_num);
   }
+  */
+
   thread_pool() : thread_num(0) {}
   ~thread_pool() {
     running = false;
@@ -56,11 +59,14 @@ public:
       threads[i].join();
     }
   }
-  void init(const size_t n) {
+  void init(const size_t n_thread, const size_t n_queue) {
     if (inited) ABORT("Thread pool is already initialized.");
-    thread_num = n;
-    qlocks = std::vector<std::mutex>(n);
-    ptasks = std::vector<std::priority_queue<Task>>(n);
+    thread_num = n_thread;
+    queue_num = n_queue;
+
+    qlocks = std::vector<std::mutex>(n_queue);
+    ptasks = std::vector<std::priority_queue<Task>>(n_queue);
+
     threads.reset(new std::thread[thread_num]);
     thread_ids.reset(new std::thread::id[thread_num]);
     for (size_t i = 0; i < thread_num; i++) {
@@ -68,6 +74,7 @@ public:
       threads[i] = std::thread(&thread_pool::worker, this, i);
       thread_ids[i] = threads[i].get_id();
     }
+
     inited = true;
   }
   void with_thread_ids(const std::function<void(std::thread::id)>& f) {
@@ -83,7 +90,7 @@ public:
   void add_task(const std::function<void()>& f, int w) {
     tasks_num_total++;
     {
-      unsigned id = rand_int(thread_num)-1;
+      unsigned id = rand_int(queue_num)-1;
       INFO("Adding task into queue " << id << " with weight " << w);
       const std::scoped_lock lock(qlocks.at(id));
       ptasks[id].push({f, w});
@@ -95,8 +102,8 @@ public:
       //          << "; queued tasks " << tasks_num_queued() << "\n";
       struct Task task;
       bool get = false;
-      for (size_t i = id; i < id+thread_num; i++) {
-        if (pop_task(i % thread_num, task)) { get = true; break; }
+      for (size_t i = id; i < id+queue_num; i++) {
+        if (pop_task(i % queue_num, task)) { get = true; break; }
       }
       if (!paused && get) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";

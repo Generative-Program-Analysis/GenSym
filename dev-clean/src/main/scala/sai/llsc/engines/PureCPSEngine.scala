@@ -239,8 +239,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case BrTerm(lab) =>
         execBlock(funName, lab, ss.addIncomingBlock(incomingBlock), k)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
+        val cndVal = eval(cnd, ty, ss)
         val ss1 = ss.addIncomingBlock(incomingBlock)
-        val cndVal = eval(cnd, ty, ss1)
         if (cndVal.isConc) {
           if (cndVal.int == 1) asyncExecBlock(funName, thnLab, ss1, k)
           else asyncExecBlock(funName, elsLab, ss1, k)

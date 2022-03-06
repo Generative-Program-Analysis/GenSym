@@ -127,6 +127,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       }
 
     override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 30)
+
     override def assign(x: String, v: Rep[Value]): Rep[SS] = Unwrap(ss) match {
       // Idea: coalesce multiple subsequent assign into assign-seq
       // Idea: dead assignment can be eliminated -- dead: no lookup of it of the whole program
