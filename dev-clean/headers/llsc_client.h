@@ -14,11 +14,31 @@ void make_symbolic(void* addr, size_t byte_size);
  */
 void make_symbolic_whole(void* addr, size_t byte_size);
 
+#define llsc_make_symbolic(addr, byte_size, name) make_symbolic(addr, byte_size);
+
 void llsc_assert(bool);
 void llsc_assert_eager(bool);
 
+void llsc_assume(bool);
+
 void print_string(const char *message);
 
+/* llsc_range - Construct a symbolic value in the signed interval
+ * [begin,end).
+ *
+ * \arg name - A name used for identifying the object in messages, output
+ * files, etc. If NULL, object is called "unnamed".
+ */
+static inline int llsc_range(int begin, int end, const char *name) {
+  int x;
+  make_symbolic_whole(&x, sizeof(x));
+  llsc_assume(x >= begin);
+  llsc_assume(x < end);
+  return x;
+}
+
+__attribute__((noreturn))
+void stop(int status);
 /* llsc_report_error - Report a user defined error and terminate the current
  * llsc process.
  *
@@ -36,12 +56,16 @@ static inline void llsc_report_error(const char *file,
   sym_print(line);
   print_string(message);
   print_string(suffix);
+  print_string("\n");
   stop(-1);
 }
 
 static inline void llsc_warning(const char *message) {
   print_string(message);
+  print_string("\n");
 }
+
+#define llsc_warning_once(message) llsc_warning(message)
 
 /* Support for runing test-comp examples */
 

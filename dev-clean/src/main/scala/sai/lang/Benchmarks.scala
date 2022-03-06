@@ -47,6 +47,7 @@ object Benchmarks {
   lazy val global = parseFile("benchmarks/llvm/global.ll")
   lazy val varArgChar = parseFile("benchmarks/llvm/varArgChar.ll")
   lazy val varArgInt = parseFile("benchmarks/llvm/varArgInt.ll")
+  lazy val varArgCopyInt = parseFile("benchmarks/llvm/varArgCopyInt.ll")
   lazy val trunc = parseFile("benchmarks/llvm/trunc.ll")
   lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
   lazy val floatFp80 = parseFile("benchmarks/llvm/floatFp80.ll")
@@ -81,14 +82,18 @@ object Benchmarks {
   lazy val write1Test = parseFile("benchmarks/external_lib/write1.ll")
   lazy val stat1Test = parseFile("benchmarks/external_lib/stat1.ll")
   lazy val stat2Test = parseFile("benchmarks/external_lib/stat2.ll")
+  lazy val assumeTest = parseFile("benchmarks/external_lib/assume.ll")
 
   lazy val kleefsminiTest = parseFile("benchmarks/external_lib/klee_fs_mini.ll")
+  lazy val kleefsminiPackedTest = parseFile("benchmarks/external_lib/klee_fs_mini_packed.ll")
   lazy val kleefsglobalTest = parseFile("benchmarks/external_lib/klee_fs_mini_global.ll")
   lazy val kleefslib64Test = parseFile("benchmarks/klee_fs_lib/klee_lib_64.ll")
   // lazy val openAtTest = parseFile("benchmarks/external_lib/openat.ll")
 
   lazy val argv1Test = parseFile("benchmarks/llvm/argv1.ll")
   lazy val argv2Test = parseFile("benchmarks/llvm/argv2.ll")
+
+  lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
 }
 
 object TestComp {

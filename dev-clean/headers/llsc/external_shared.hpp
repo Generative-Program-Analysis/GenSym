@@ -158,6 +158,9 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k);
 template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k);
 
+template<typename T>
+inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k);
+
 inline List<SSVal> llvm_va_start(SS state, List<PtrVal> args) {
   return __llvm_va_start<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
@@ -172,6 +175,31 @@ inline List<SSVal> llvm_va_end(SS state, List<PtrVal> args) {
 
 inline std::monostate llvm_va_end(SS state, List<PtrVal> args, Cont k) {
   return __llvm_va_end<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+inline List<SSVal> llvm_va_copy(SS state, List<PtrVal> args) {
+  return __llvm_va_copy<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llvm_va_copy(SS state, List<PtrVal> args, Cont k) {
+  return __llvm_va_copy<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h);
+
+inline List<SSVal> llsc_assume(SS state, List<PtrVal> args) {
+  return __llsc_assume<List<SSVal>>(state, args,
+      [](auto s, auto v) { return List<SSVal>{{s, v}}; },
+      [](auto s, auto a) { return sym_exit(s, a); });
+}
+
+inline std::monostate llsc_assume(SS state, List<PtrVal> args, Cont k) {
+  return __llsc_assume<std::monostate>(state, args,
+      [&k](auto s, auto v) { return k(s, v); },
+      [&k](auto s, auto a) { return sym_exit(s, a, k); });
 }
 
 #endif

@@ -80,7 +80,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "sym_print", "print_string", "malloc", "realloc",
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
-      "open", "close", "read", "write", "stat", "stop", "syscall"
+      "open", "close", "read", "write", "stat", "stop", "syscall", "llsc_assume"
     )
     def apply(f: String): Rep[Value] = {
       if (!used.contains(f)) {
@@ -97,6 +97,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       if (modeled.contains(id.tail)) ExternalFun(id.tail)
       else if (id.startsWith("@llvm.va_start")) ExternalFun("llvm_va_start")
       else if (id.startsWith("@llvm.va_end")) ExternalFun("llvm_va_end")
+      else if (id.startsWith("@llvm.va_copy")) ExternalFun("llvm_va_copy")
       else if (id.startsWith("@llvm.memcpy")) ExternalFun("llvm_memcpy")
       else if (id.startsWith("@llvm.memset")) ExternalFun("llvm_memset")
       else if (id.startsWith("@llvm.memmove")) ExternalFun("llvm_memset")

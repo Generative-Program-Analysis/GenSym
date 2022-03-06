@@ -69,6 +69,8 @@ object TestCases {
     TestPrg(structReturnLong, "structReturnLongTest", "@main", noArg, None, nPath(1)),
     TestPrg(structAccess, "structAccessTest", "@main", noArg, None, nPath(1)),
     TestPrg(structReturn, "structReturnTest", "@main", noArg, None, nPath(1)),
+
+    TestPrg(unprintableCharTest, "unprintableCharTest", "@main", noArg, None, nPath(1)++status(0)),
   )
 
   val memModel: List[TestPrg] = List(
@@ -86,7 +88,8 @@ object TestCases {
   )
 
   val varArg: List[TestPrg] = List(
-    TestPrg(varArgInt, "varArgInt", "@main", noArg, None, nPath(1)++status(0))
+    TestPrg(varArgInt, "varArgInt", "@main", noArg, None, nPath(1)++status(0)),
+    TestPrg(varArgCopyInt, "varArgCopyInt", "@main", noArg, None, nPath(1)++status(0)),
     // FIXME(PureLLSC): Sext an invalid value
     // TestPrg(varArgChar, "varArgChar", "@main", noArg, None, nPath(1))
   )
@@ -121,6 +124,7 @@ object TestCases {
   val external: List[TestPrg] = List(
     TestPrg(assertTest, "assertTest", "@main", noArg, None, minPath(3)),
     TestPrg(assertfixTest, "assertfix", "@main", noArg, None, nPath(4)),
+    TestPrg(assumeTest, "assumeTest", "@main", noArg, None, nPath(1)++status(0)),
   )
 
   val filesys: List[TestPrg] = List(
@@ -134,6 +138,7 @@ object TestCases {
     TestPrg(stat2Test, "statTestRead", "@main", noArg, "--add-sym-file A", nPath(3)++status(0)),
     TestPrg(stat2Test, "statTestFail", "@main", noArg, "", nPath(1)++status(1)),
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, None, nPath(2)++status(0)),
+    TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, None, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, None, nPath(2)++status(0)),
     TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, None, nPath(10)++status(0)),
   )

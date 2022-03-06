@@ -453,5 +453,45 @@ inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   }
   return k(res, IntV0);
 }
+template<typename T>
+inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  PtrVal dst_va_list = args.at(0);
+  PtrVal src_va_list = args.at(1);
+  ASSERT(std::dynamic_pointer_cast<LocV>(dst_va_list) != nullptr, "Dest valist Non-location value");
+  ASSERT(std::dynamic_pointer_cast<LocV>(src_va_list) != nullptr, "Src valist Non-location value");
+  ASSERT(std::dynamic_pointer_cast<LocV>(state.at(src_va_list + 16, 8)) != nullptr, "Src valist must be initialized");
+  SS res = state;
+  res = res.update(dst_va_list + 0, state.at(src_va_list + 0, 4), 4);
+  res = res.update(dst_va_list + 4, state.at(src_va_list + 4, 4), 4);
+  res = res.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
+  res = res.update(dst_va_list + 16, state.at(src_va_list + 16, 8), 8);
+  return k(res, IntV0);
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
+  auto v = args.at(0);
+  auto i = v->to_IntV();
+  if (i) {
+    if (i->i == 0) {
+      // concrete false - generate the test and ``halt''
+      std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
+      return h(state, { make_IntV(-1) });
+    }
+    return k(state, make_IntV(1, 32));
+  }
+  ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
+  // otherwise add a symbolic condition that constraints it to be true
+  // undefined/error if v is a value of other types
+  auto cond = v;
+  auto new_s = state.add_PC(cond);
+  if (!check_pc(new_s.get_PC())) {
+    std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
+    return h(new_s, { make_IntV(-1) }); // check if v == 1 is satisfiable
+  }
+  return k(new_s, make_IntV(1, 32));
+}
 
 #endif
