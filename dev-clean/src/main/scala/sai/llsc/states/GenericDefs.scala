@@ -133,8 +133,13 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   object FloatV {
     def apply(f: Rep[Float]): Rep[Value] = apply(f, 32)
     def apply(f: Rep[Float], bw: Int): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f, bw)(Adapter.CTRL)
-    def unapply(v: Rep[Value]): Option[(Float, Int)] = Unwrap(v) match {
-      case gNode("make_FloatV", bConst(f: Float)::bConst(bw: Int)::_) => Some((f, bw))
+    def apply(v: String, bw: Int): Rep[Value] = {
+      require(bw == 80)
+      "make_FloatV".reflectWriteWith[Value](v, bw)(Adapter.CTRL)
+    }
+    def unapply(v: Rep[Value]): Option[(Either[Float, String], Int)] = Unwrap(v) match {
+      case gNode("make_FloatV", bConst(f: Float)::bConst(bw: Int)::_) => Some((Left(f), bw))
+      case gNode("make_FloatV", bConst(v: String)::bConst(bw: Int)::_) => Some((Right(v), bw))
       case _ => None
     }
   }

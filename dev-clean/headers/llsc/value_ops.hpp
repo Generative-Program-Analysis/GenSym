@@ -118,13 +118,18 @@ inline PtrVal make_ShadowV() {
 }
 
 inline PtrVal make_ShadowV(int8_t offset) {
-  ASSERT(-8 < offset && offset < 0, "unexpected ShadowV's offset");
-  static PtrVal shadow_vals[8] = {
+  ASSERT(-16 < offset && offset < 0, "unexpected ShadowV's offset");
+  static PtrVal shadow_vals[16] = {
     nullptr,
-    std::make_shared<ShadowV>(-1), std::make_shared<ShadowV>(-2),
-    std::make_shared<ShadowV>(-3), std::make_shared<ShadowV>(-4),
-    std::make_shared<ShadowV>(-5), std::make_shared<ShadowV>(-6),
-    std::make_shared<ShadowV>(-7) };
+    std::make_shared<ShadowV>(-1),   std::make_shared<ShadowV>(-2),
+    std::make_shared<ShadowV>(-3),   std::make_shared<ShadowV>(-4),
+    std::make_shared<ShadowV>(-5),   std::make_shared<ShadowV>(-6),
+    std::make_shared<ShadowV>(-7),   std::make_shared<ShadowV>(-8),
+    std::make_shared<ShadowV>(-9),   std::make_shared<ShadowV>(-10),
+    std::make_shared<ShadowV>(-11),  std::make_shared<ShadowV>(-12),
+    std::make_shared<ShadowV>(-13),  std::make_shared<ShadowV>(-14),
+    std::make_shared<ShadowV>(-15)
+  };
   return shadow_vals[-offset];
 }
 
@@ -228,30 +233,31 @@ inline char proj_IntV_char(const PtrVal& v) {
 }
 
 struct FloatV : Value {
-  float f;
-  FloatV(float f) : f(f) {
+  long double f;
+  int bw;
+  FloatV(float f, int bw=32) : f(f), bw(bw) {
     hash_combine(hash(), std::string("floatv"));
     hash_combine(hash(), f);
   }
-  FloatV(const FloatV& v): FloatV(v.f) {}
+  FloatV(const FloatV& v): FloatV(v.f, v.bw) {}
   std::string toString() const override {
     std::ostringstream ss;
-    ss << "FloatV(" << f << ")";
+    ss << "FloatV(f=" << f << ", bw=" << bw << ")";
     return ss.str();
   }
   virtual bool is_conc() const override { return true; }
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
-  virtual int get_bw() const override { return 32; } //TODO: support bw other than 32
+  virtual int get_bw() const override { return bw; }
 
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
     return this->f == that->f;
   }
   virtual List<PtrVal> to_bytes() {
-    return List<PtrVal>{shared_from_this()} + List<PtrVal>(3, make_ShadowV()); // TODO: support bw other than 32
+    return List<PtrVal>{shared_from_this()} + List<PtrVal>(get_byte_size()-1, make_ShadowV());
   }
   virtual List<PtrVal> to_bytes_shadow() {
-    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(3);
+    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(get_byte_size()-1);
   }
 };
 
@@ -260,10 +266,15 @@ inline PtrVal make_FloatV(float f) {
 }
 
 inline PtrVal make_FloatV(float f, size_t bw) {
-  return std::make_shared<FloatV>(f);
+  return std::make_shared<FloatV>(f, bw);
 }
 
-inline int proj_FloatV(const PtrVal& v) {
+inline PtrVal make_FloatV_fp80(std::array<unsigned char, 10> buf) {
+  std::cout << "*(__float80*)&buf: " << *(__float80*)&buf << std::endl;
+  return make_FloatV((float)*(__float80*)&buf, 80);
+}
+
+inline long double proj_FloatV(PtrVal v) {
   return std::dynamic_pointer_cast<FloatV>(v)->f;
 }
 
@@ -533,10 +544,11 @@ inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
   auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
 
   if (f1 && f2) {
-    if (op == op_fadd) { return make_FloatV(f1->f + f2->f); }
-    else if (op == op_fsub) { return make_FloatV(f1->f - f2->f); }
-    else if (op == op_fmul) { return make_FloatV(f1->f * f2->f); }
-    else if (op == op_fdiv) { return make_FloatV(f1->f / f2->f); }
+    if (op == op_fadd) { return make_FloatV(f1->f + f2->f, MAX(f1->bw, f2->bw)); }
+    else if (op == op_fsub) { return make_FloatV(f1->f - f2->f, MAX(f1->bw, f2->bw)); }
+    else if (op == op_fmul) { return make_FloatV(f1->f * f2->f, MAX(f1->bw, f2->bw)); }
+    else if (op == op_fdiv) { return make_FloatV(f1->f / f2->f, MAX(f1->bw, f2->bw)); }
+    /* else if (op == op_fcmp) { return f1->f > f2->f; } */
     // FIXME: Float cmp operations
     else { return make_IntV(1); }
   } else {

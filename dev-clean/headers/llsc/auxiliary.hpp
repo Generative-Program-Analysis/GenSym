@@ -1,6 +1,9 @@
 #ifndef LLSC_AUX_HEADERS
 #define LLSC_AUX_HEADERS
 
+#define MAX(a, b) ((a) > (b)) ? (a) : (b)
+#define MIN(a, b) ((a) < (b)) ? (a) : (b)
+
 template<typename T> using List = immer::flex_vector<T>;
 
 using BlockLabel = int;
@@ -41,7 +44,7 @@ enum iOP {
 };
 
 enum fOP {
-  op_fadd, op_fsub, op_fmul, op_fdiv
+  op_fadd, op_fsub, op_fmul, op_fdiv, op_fcmp
 };
 
 // Note: set_exit_code preserves the first value it sets.

@@ -20,4 +20,4 @@ bloop run sai -m sai.llsc.RunLLSC -- -J-Xms4g -J-Xmx8g -J-Xss1024M -J-XX:MaxMeta
 	{ cd llsc_gen/${HEAD};
 		# make clean;
 		make -j2; } &&
-		./${HEAD} 1 "${OPT}";
+		./${HEAD} "${OPT}";

@@ -59,8 +59,7 @@ object TestCases {
     TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, None, nPath(1)),
     TestPrg(trunc, "truncTest", "@main", noArg, None, nPath(1)),
     TestPrg(floatArith, "floatArithTest", "@main", noArg, None, nPath(1)),
-    // FIXME: Support parsing fp80 literals <2022-01-12, David Deng> //
-    // TestPrg(floatFp80, "floatFp80Test", "@main", noArg, 1),
+    TestPrg(floatFp80, "floatFp80Test", "@main", noArg, None, nPath(1)),
 
     TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, None, nPath(1)),
     TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", noArg, None, nPath(1)),
