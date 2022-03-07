@@ -236,6 +236,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           case None => NullPtr()
         }
         k(ss, ret)
+      case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
+        execBlockEager(funName, findBlock(funName, lab).get, ss, k)
       case BrTerm(lab) =>
         execBlock(funName, lab, ss.addIncomingBlock(incomingBlock), k)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
@@ -307,16 +309,20 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     getBBFun(funName, block)(s, k)
   }
 
-  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
+  def execBlockEager(funName: String, block: BB, s: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
     def runInst(insts: List[Instruction], t: Terminator, s: Rep[SS], k: Rep[Cont]): Rep[Unit] =
       insts match {
-        case Nil => execTerm(t, b.label.getOrElse(""), k)(s, funName)
+        case Nil => execTerm(t, block.label.get, k)(s, funName)
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1, k))(funName)
       }
+    runInst(block.ins, block.term, s, k)
+  }
+
+  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
     def runBlock(ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
       info("running function: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b.ins, b.term, ss, k)
+      execBlockEager(funName, b, ss, k)
     }
     val f = topFun(runBlock(_, _))
     val n = Unwrap(f).asInstanceOf[Backend.Sym].n
@@ -330,7 +336,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         case Vararg => ""
       }
       info("running function: " + f.id)
-      execBlock(f.id, f.blocks(0), ss.assign(params, args), k)
+      execBlockEager(f.id, f.blocks(0), ss.assign(params, args), k)
     }
     val fn: FFTy = topFun(runFun(_, _, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n

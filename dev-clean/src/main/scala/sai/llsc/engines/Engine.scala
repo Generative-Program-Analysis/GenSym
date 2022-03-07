@@ -279,6 +279,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           case Some(value) => eval(value, ty)
           case None => ret(NullPtr())
         }
+      case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
+        execBlockEager(funName, findBlock(funName, lab).get)
       case BrTerm(lab) =>
         for {
           _ <- updateIncomingBlock(incomingBlock)
@@ -413,15 +415,19 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       }
     } yield v
 
+  def execBlockEager(funName: String, b: BB): Comp[E, Rep[Value]] = {
+    val runInstList: Comp[E, Rep[Value]] = for {
+      _ <- mapM(b.ins)(execInst(_)(funName))
+      v <- execTerm(b.term, b.label.getOrElse(""))(funName)
+    } yield v
+    runInstList
+  }
+
   override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
     def runBlock(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
       info("running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      val runInstList: Comp[E, Rep[Value]] = for {
-        _ <- mapM(b.ins)(execInst(_)(funName))
-        v <- execTerm(b.term, b.label.getOrElse(""))(funName)
-      } yield v
-      reify[Value](ss)(runInstList)
+      reify[Value](ss)(execBlockEager(funName, b))
     }
     val f: BFTy = topFun(runBlock(_))
     val n = Unwrap(f).asInstanceOf[Backend.Sym].n
@@ -438,7 +444,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState
-        v <- execBlock(f.id, f.blocks(0))
+        v <- execBlockEager(f.id, f.blocks(0))
       } yield v
       reify(ss)(m)
     }

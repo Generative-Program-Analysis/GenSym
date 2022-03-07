@@ -233,6 +233,8 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           case Some(value) => eval(value, ty, ss)
           case None => NullPtr()
         }
+      case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
+        execBlockEager(funName, findBlock(funName, lab).get, ss)
       case BrTerm(lab) =>
         ss.addIncomingBlock(incomingBlock)
         execBlock(funName, lab, ss)
@@ -319,16 +321,20 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
     getBBFun(funName, block)(s)
   }
 
-  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
+  def execBlockEager(funName: String, block: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
     def runInst(insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
       insts match {
-        case Nil => execTerm(t, b.label.getOrElse(""))(s, funName)
+        case Nil => execTerm(t, block.label.get)(s, funName)
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1))(funName)
       }
+    runInst(block.ins, block.term, s)
+  }
+
+  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
     def runBlock(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       info("running block: " + funName + " - " + b.label.get)
       Coverage.incBlock(funName, b.label.get)
-      runInst(b.ins, b.term, ss)
+      execBlockEager(funName, b, ss)
     }
     val f: BFTy = topFun(runBlock(_))
     val n = Unwrap(f).asInstanceOf[Backend.Sym].n
@@ -343,7 +349,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       }
       info("running function: " + f.id)
       ss.assign(params, args)
-      execBlock(f.id, f.blocks(0), ss)
+      execBlockEager(f.id, f.blocks(0), ss)
     }
     val fn: FFTy = topFun(runFun(_, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n

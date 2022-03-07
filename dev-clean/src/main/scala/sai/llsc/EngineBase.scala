@@ -30,6 +30,9 @@ case class CFG(funMap: Map[String, FunctionDef]) {
 
   val funCFG: Map[Fun, Graph] = funMap.map({ case (f, d) => (f, construct(d.body.blocks)) }).toMap
 
+  def succ(fname: String, label: Label): Set[Label] = funCFG(fname)._1(label)
+  def pred(fname: String, label: Label): Set[Label] = funCFG(fname)._2(label)
+
   def construct(blocks: List[BB]): Graph = blocks.foldLeft(mtGraph) { case (g, b) =>
     val from: Label = b.label.get
     val to: Set[Label] = b.term match {

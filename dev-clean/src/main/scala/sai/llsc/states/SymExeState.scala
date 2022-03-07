@@ -118,11 +118,15 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       if (bound == 0) default
       else s match {
         case gNode("ss-assign", StaticList(ss0, bConst(y), v: bExp)) if y == x => Wrap[Value](v)
+        case gNode("ss-assign-seq", StaticList(ss0, bConst(vars: StaticList[Int]), vals: bExp)) =>
+          val idx = vars.indexOf(x)
+          if (idx != -1) (Wrap[List[Value]](vals): Rep[List[Value]])(idx)
+          else lookupOpt(x, ss0, default, bound-1)
         case gNode("ss-assign", StaticList(ss0, _, _)) => lookupOpt(x, ss0, default, bound-1)
         case gNode("ss-alloc-stack", StaticList(ss0, _)) => lookupOpt(x, ss0, default, bound-1)
         case gNode("ss-update", StaticList(ss0, _, _, _)) => lookupOpt(x, ss0, default, bound-1)
         case gNode("ss-add-incoming-block", StaticList(ss0, _)) => lookupOpt(x, ss0, default, bound-1)
-        // TODO: ss-assign-seq/update-seq?
+        // TODO: update-seq?
         case _ => default
       }
 
