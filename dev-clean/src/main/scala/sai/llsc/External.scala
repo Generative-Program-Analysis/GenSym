@@ -126,8 +126,8 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
   val codegen: GenericLLSCCodeGen = new GenericLLSCCodeGen {
     val codegenFolder: String = folder
     val blockNameMap: HashMap[Int, String] = new HashMap()
-    def funMap: HashMap[Int, String] = funNameMap
-    def blockMap: HashMap[Int, String] = blockNameMap
+    setFunMap(funNameMap)
+    setBlockMap(blockNameMap)
     override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
       val ng = init(g)
       run(name, ng)
