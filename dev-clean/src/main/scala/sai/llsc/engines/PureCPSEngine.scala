@@ -76,11 +76,14 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
           case _ => LocV(lV.loc + offset, lV.kind)
         }
+      case IntToPtrExpr(from, v, to) => ???
+      case PtrToIntExpr(from, v, to) => ???
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullPtr() // FIXME: use uninitValue
       case NullConst => LocV.nullloc
       case NoneConst => NullPtr()
+      case v => System.out.println(ty, v); ???
     }
 
   def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
@@ -283,6 +286,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   }
 
   def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[Unit])(implicit funName: String): Rep[Unit] = {
+    //System.out.println(funName, inst)
     inst match {
       case AssignInst(x, valInst) =>
         execValueInst(valInst, ss, { case (s, v) => k(s.assign(funName + "_" + x, v)) })
