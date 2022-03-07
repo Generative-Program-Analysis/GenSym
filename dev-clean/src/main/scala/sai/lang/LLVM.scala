@@ -545,7 +545,6 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitIndirectSymbolDef(ctx: LLVMParser.IndirectSymbolDefContext): LAST = {
     val id = ctx.globalIdent.GLOBAL_IDENT.getText
-    println(id)
     val linkage =
       if (ctx.optLinkage.linkage != null)
         Some(visit(ctx.optLinkage.linkage).asInstanceOf[Linkage])

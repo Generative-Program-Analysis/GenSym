@@ -90,7 +90,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
   def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[Unit])(implicit funName: String): Rep[Unit] = {
-    System.out.println(funName, inst)
+    //System.out.println(funName, inst)
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
@@ -310,7 +310,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     execBlock(funName, findBlock(funName, label).get, s, k)
 
   def execBlock(funName: String, block: BB, s: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-    System.out.println("jump to block: " + block.label.get)
     info("jump to block: " + block.label.get)
     getBBFun(funName, block)(s, k)
   }
