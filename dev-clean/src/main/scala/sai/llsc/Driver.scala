@@ -263,7 +263,7 @@ class PureCPSLLSC_Z3 extends PureCPSLLSC {
     val llsc = super.newInstance(m, name, fname, config)
     llsc.codegen.libraryFlags.clear()
     llsc.codegen.registerLibrary("-lz3")
-    llsc.extraFlags = "-D USE_TP -D Z3"
+    llsc.extraFlags = "-D USE_TP -D Z3 -D USE_LKFREE_Q"
     llsc
   }
 }

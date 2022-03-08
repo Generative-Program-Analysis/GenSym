@@ -45,21 +45,25 @@ trait BasicDefs { self: SAIOps =>
   def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
 }
 
+object BlockCounter {
+  private var counter: Int = 0
+  def count: Int = counter
+  def fresh: Int = try { counter } finally { counter += 1 }
+}
+
 trait Coverage { self: SAIOps =>
   object Coverage {
     import scala.collection.mutable.HashMap
-    private var counter: Int = 0
     private val blockMap: HashMap[String, Int] = HashMap[String, Int]()
     def getBlockId(s: String): Int =
       if (blockMap.contains(s)) blockMap(s)
       else {
-        val id = counter
+        val id = BlockCounter.fresh
         blockMap(s) = id
-        counter += 1
-        return id
+        id
       }
 
-    def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](counter)(Adapter.CTRL)
+    def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](BlockCounter.count)(Adapter.CTRL)
     def incBlock(funName: String, label: String): Rep[Unit] = {
       val blockId = getBlockId(funName + label)
       "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)

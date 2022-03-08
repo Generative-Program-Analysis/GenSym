@@ -363,7 +363,6 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   def exec(fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     compile(funMap.map(_._2).toList)
-    Coverage.setBlockNum
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)(fname)

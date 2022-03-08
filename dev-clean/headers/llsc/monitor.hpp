@@ -10,30 +10,27 @@ struct Monitor {
   private:
     using BlockId = std::int64_t;
     // Total number of blocks
-    std::uint64_t num_blocks;
+    uint64_t num_blocks;
     // The number of execution for each block
-    std::vector<std::uint64_t> block_cov;
+    std::vector<std::atomic_uint64_t> block_cov;
     // Number of discovered paths
-    std::uint64_t num_paths;
+    std::atomic_uint64_t num_paths;
     // Starting time
     steady_clock::time_point start, stop;
-    std::mutex bm;
-    std::mutex pm;
     std::thread watcher;
     std::promise<void> signal_exit;
+
   public:
     Monitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
-    Monitor(std::uint64_t num_blocks) : num_blocks(num_blocks), num_paths(0), start(steady_clock::now()) {}
-    void set_num_blocks(std::uint64_t n) {
-      num_blocks = n;
-      block_cov.resize(n, 0);
-    }
+    Monitor(uint64_t num_blocks) :
+      num_blocks(num_blocks), num_paths(0),
+      block_cov(num_blocks),
+      start(steady_clock::now()) {}
+
     void inc_block(BlockId b) {
-      std::unique_lock<std::mutex> lk(bm);
       block_cov[b]++;
     }
     void inc_path(size_t n) {
-      std::unique_lock<std::mutex> lk(pm);
       num_paths += n;
     }
     void print_path_cov() {
@@ -41,7 +38,7 @@ struct Monitor {
     }
     void print_block_cov() {
       size_t covered = 0;
-      for (auto v : block_cov) { if (v != 0) covered++; }
+      for (auto& v : block_cov) { if (v != 0) covered++; }
       std::cout << "#blocks: "
                 << covered << "/"
                 << num_blocks << "; "
@@ -67,6 +64,7 @@ struct Monitor {
     }
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
+      //std::cout << "[" << (debug_time.count() / 1.0e6) << "s]";
       std::cout << "[" << (solver_time.count() / 1.0e6) << "s/"
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
@@ -80,8 +78,7 @@ struct Monitor {
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();
       watcher = std::thread([this](std::future<void> fut) {
-        while (this->block_cov.size() <= this->num_blocks &&
-               fut.wait_for(milliseconds(1)) == std::future_status::timeout) {
+        while (fut.wait_for(milliseconds(1)) == std::future_status::timeout) {
           steady_clock::time_point now = steady_clock::now();
           if (duration_cast<seconds>(now - start) > seconds(timeout)) {
             std::cout << "Timeout, aborting.\n";
@@ -107,6 +104,8 @@ struct Monitor {
     }
 };
 
-inline Monitor cov;
+/* Declare the function to get monitor; will be emited by the front-end in common.h */
+
+inline Monitor& cov();
 
 #endif

@@ -127,13 +127,13 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     }
     case Node(s, "get-bw", List(v), _) => es"$v->get_bw()"
 
-    case Node(s, "cov-set-blocknum", List(n), _) => es"cov.set_num_blocks($n)"
-    case Node(s, "cov-inc-block", List(id), _) => es"cov.inc_block($id)"
-    case Node(s, "cov-inc-path", List(n), _) => es"cov.inc_path($n)"
-    case Node(s, "cov-start-mon", _, _) => es"cov.start_monitor()"
-    case Node(s, "print-block-cov", _, _) => es"cov.print_block_cov()"
-    case Node(s, "print-time", _, _) => es"cov.print_time()"
-    case Node(s, "print-path-cov", _, _) => es"cov.print_path_cov()"
+    case Node(s, "cov-set-blocknum", List(n), _) => es"cov().set_num_blocks($n)"
+    case Node(s, "cov-inc-block", List(id), _) => es"cov().inc_block($id)"
+    case Node(s, "cov-inc-path", List(n), _) => es"cov().inc_path($n)"
+    case Node(s, "cov-start-mon", _, _) => es"cov().start_monitor()"
+    case Node(s, "print-block-cov", _, _) => es"cov().print_block_cov()"
+    case Node(s, "print-time", _, _) => es"cov().print_time()"
+    case Node(s, "print-path-cov", _, _) => es"cov().print_path_cov()"
 
     case Node(s, "fs-open-file", List(fs, p, f), _) => es"$fs.open_file($p, $f)"
     case Node(s, "fs-close-file", List(fs, fd), _) => es"$fs.close_file($fd)"
@@ -177,6 +177,11 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
       emitln("using namespace immer;")
       emitFunctionDecls(stream)
       emitDatastructures(stream)
+      emitln(s"""
+      |inline Monitor& cov() {
+      |  static Monitor m(${BlockCounter.count});
+      |  return m;
+      |}""".stripMargin)
       emitln("/* End of header file */")
     }
     out.close
@@ -223,7 +228,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
     |#ifdef USE_TP
-    |  tp.add_task([]() { $name(0); });
+    |  tp.add_task([]() { return $name(0); });
     |#else
     |  $name(0);
     |#endif

@@ -16,8 +16,19 @@
 #include <type_traits>
 #include <utility>
 
+#ifdef USE_LKFREE_Q
+/* Pros: Performance is good for long-running + large number of threads.
+ * Cons:
+ *   - number-in-queue is an apprimation, leading to a few seconds latency after execution.
+ *   - just FIFO queue, no priority.
+ */
+#include "concurrentqueue/blockingconcurrentqueue.h"
+#endif
+
+using TaskFun = std::function<std::monostate()>;
+
 struct Task {
-  std::function<void()> f;
+  TaskFun f;
   int weight;
 };
 
@@ -33,8 +44,12 @@ private:
   std::atomic<bool> running = true;
   std::atomic<bool> paused = false;
 
+#ifdef USE_LKFREE_Q
+  moodycamel::ConcurrentQueue<Task> Q;
+#else
   std::vector<std::mutex> qlocks;
   std::vector<std::priority_queue<Task>> ptasks;
+#endif
 
   std::unique_ptr<std::thread[]> threads;
   std::unique_ptr<std::thread::id[]> thread_ids;
@@ -42,15 +57,10 @@ private:
   size_t sleep_duration = 500;
   std::atomic<size_t> tasks_num_total = 0;
   bool inited = false;
+
 public:
   size_t thread_num;
   size_t queue_num;
-  /*
-  thread_pool(const size_t thread_num) :
-    thread_num(thread_num), threads(new std::thread[thread_num]), thread_ids(new std::thread::id[thread_num]), qlocks(thread_num), ptasks(thread_num) {
-    init(thread_num);
-  }
-  */
 
   thread_pool() : thread_num(0) {}
   ~thread_pool() {
@@ -59,13 +69,17 @@ public:
       threads[i].join();
     }
   }
+
   void init(const size_t n_thread, const size_t n_queue) {
     if (inited) ABORT("Thread pool is already initialized.");
     thread_num = n_thread;
     queue_num = n_queue;
 
+#ifdef USE_LKFREE_Q
+#else
     qlocks = std::vector<std::mutex>(n_queue);
     ptasks = std::vector<std::priority_queue<Task>>(n_queue);
+#endif
 
     threads.reset(new std::thread[thread_num]);
     thread_ids.reset(new std::thread::id[thread_num]);
@@ -77,25 +91,25 @@ public:
 
     inited = true;
   }
+
   void with_thread_ids(const std::function<void(std::thread::id)>& f) {
     for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
-  std::monostate add_task(const std::function<std::monostate(std::monostate)>& f) {
-    add_task([f]() { f(std::monostate{}); });
-    return std::monostate{};
-  }
-  void add_task(const std::function<void()>& f) {
-    add_task(f, rand_int(1024));
-  }
-  void add_task(const std::function<void()>& f, int w) {
+  void add_task(const TaskFun& f) { add_task(f, rand_int(1024)); }
+  void add_task(const TaskFun& f, int w) {
     tasks_num_total++;
+    INFO("Adding task into queue " << id << " with weight " << w);
+#ifdef USE_LKFREE_Q
+    Q.enqueue({f, w});
+#else
+    unsigned id = rand_int(queue_num)-1;
     {
-      unsigned id = rand_int(queue_num)-1;
-      INFO("Adding task into queue " << id << " with weight " << w);
       const std::scoped_lock lock(qlocks.at(id));
       ptasks[id].push({f, w});
     }
+#endif
   }
+
   void worker(unsigned id) {
     while (running) {
       //std::cout << "Running tasks " << running_tasks_num()
@@ -115,17 +129,25 @@ public:
       }
     }
   }
+
   bool pop_task(unsigned id, struct Task& task) {
+#ifdef USE_LKFREE_Q
+    bool found = Q.try_dequeue(task);
+    return found;
+#else
     const std::scoped_lock lock(qlocks.at(id));
     if (ptasks[id].empty()) return false;
     task = std::move(ptasks[id].top());
     ptasks[id].pop();
     return true;
+#endif
   }
+
   void stop_all_tasks() {
     running = false;
     paused = true;
   }
+
   void wait_for_tasks() {
     while (true) {
       if (!paused) {
@@ -136,17 +158,24 @@ public:
       sleep_or_yield();
     }
   }
+
   size_t running_tasks_num() {
     return tasks_num_total - tasks_num_queued();
   }
+
   size_t tasks_num_queued() {
+#ifdef USE_LKFREE_Q
+    return Q.size_approx();
+#else
     // FIXME: check balance?
     size_t sum = 0;
     for (int i = 0; i < ptasks.size(); i++) {
       sum += ptasks[i].size();
     }
     return sum;
+#endif
   }
+
   void sleep_or_yield() {
     if (sleep_duration) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_duration));
     else std::this_thread::yield();

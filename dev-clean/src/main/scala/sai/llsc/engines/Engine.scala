@@ -314,7 +314,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
               } yield v
               if (tpcSat && fpcSat) {
                 Coverage.incPath(1)
-                // TODO: randomly select a branch
                 if (ThreadPool.canPar) {
                   val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ => reify(ss) { b1 } }
                   val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
@@ -465,12 +464,10 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     val comp = for {
       fv <- eval(GlobalId(fname), VoidType)(fname)
       _ <- pushFrame
-      // TODO: remove parameter 0 <2022-02-20, David Deng> //
       _ <- initializeArg
       s <- getState
       v <- reflect(fv[Id](s, args))
     } yield v
-    Coverage.setBlockNum
     Coverage.incPath(1)
     reify[Value](initState(heap0))(comp)
   }

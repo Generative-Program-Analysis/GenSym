@@ -98,7 +98,7 @@ inline T __sym_exit(SS& state, List<PtrVal>& args, __Cont<T> k) {
   set_exit_code(status);
   return k(state, nullptr);
 #else
-  cov.print_all();
+  cov().print_all();
   _exit(status);
 #endif
 }

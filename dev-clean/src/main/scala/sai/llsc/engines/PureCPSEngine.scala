@@ -226,11 +226,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   }
 
   def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-    //val blkFunName = getRealBlockFunName(getBBFun(funName, lab))
-    def f(u: Rep[Unit]): Rep[Unit] = execBlock(funName, lab, ss, k)
-    val block = Adapter.g.reifyHere(u => Unwrap(f(Wrap[Unit](u))))
+    val block = Adapter.g.reifyHere(Unwrap(execBlock(funName, lab, ss, k)))
     val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
-    //Wrap[Unit](Adapter.g.reflectEffectSummaryHere("add_tp_task", block)((rdKeys, wrKeys + Adapter.CTRL)))
     Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
   }
 
@@ -359,11 +356,9 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     // XXX: precompile functions here takes some unreachable blocks into account,
     //      leading to spurious number of total blocks.
     compile(funMap.map(_._2).toList)
-    Coverage.setBlockNum
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)(fname)
-    // TODO: remove 0 <2022-02-20, David Deng> //
     fv[Id](ss.push.updateArg, args, k)
   }
 }

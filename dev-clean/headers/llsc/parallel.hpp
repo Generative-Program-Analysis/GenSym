@@ -38,12 +38,12 @@ auto create_async(std::function<T()> f) -> std::future<T> {
 
 /* Auxiliary paralle functions */
 
-inline std::monostate async_exec_block(const std::function<std::monostate(std::monostate)>& f) {
+inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
 #ifdef USE_TP
   tp.add_task(f);
   return std::monostate{};
 #else
-  return f(std::monostate{});
+  return f();
 #endif
 }
 

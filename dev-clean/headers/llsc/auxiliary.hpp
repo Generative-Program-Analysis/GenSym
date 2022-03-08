@@ -4,6 +4,9 @@
 #define MAX(a, b) ((a) > (b)) ? (a) : (b)
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
 
+inline std::mutex dt_lock;
+inline duration<double, std::micro> debug_time = microseconds::zero();
+
 template<typename T> using List = immer::flex_vector<T>;
 
 using BlockLabel = int;

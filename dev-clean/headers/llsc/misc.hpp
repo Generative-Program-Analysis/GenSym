@@ -8,15 +8,15 @@ inline void prelude(int argc, char** argv) {
 #ifdef Z3
   cz3.init_solvers();
 #endif
-  cov.start_monitor();
+  cov().start_monitor();
 }
 
 inline void epilogue() {
 #ifdef USE_TP
   tp.wait_for_tasks();
 #endif
-  cov.stop_monitor();
-  cov.print_all(true);
+  cov().stop_monitor();
+  cov().print_all(true);
 }
 
 #endif
