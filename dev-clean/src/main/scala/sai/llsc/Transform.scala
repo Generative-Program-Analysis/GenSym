@@ -19,8 +19,16 @@ object AssignElim {
 
   class ElimAssign(val ids: HashSet[Int]) extends Transformer {
     override val name = "ElimAssign"
+    def eliminable(x: Int): Boolean = !ids.contains(x)
+    def eliminable(xs: List[Int]): Boolean =
+      // Note: the xs.last == 0 case is reserved for var_arg
+      if (xs.size > 0 && xs.last == 0) false
+      else xs.forall(eliminable)
+
     override def transform(n: Node): Exp = n match {
-      case Node(s, "ss-assign", StaticList(ss: Sym, Const(x: Int), v), _) if !ids.contains(x) =>
+      case Node(s, "ss-assign-seq", StaticList(ss: Sym, Const(xs: List[Int]), vs), _) if eliminable(xs) =>
+        subst(ss)
+      case Node(s, "ss-assign", StaticList(ss: Sym, Const(x: Int), v), _) if eliminable(x) =>
         subst(ss)
       case _ => super.transform(n)
     }
