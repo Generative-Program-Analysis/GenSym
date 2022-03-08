@@ -81,6 +81,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
             case _ => LocV(lV.loc + offset, lV.kind)
           }
         }
+      case IntToPtrExpr(from, value, to) =>
+        for { v <- eval(value, from) } yield v.toLocV
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         ret(NullPtr()) // FIXME: use uninitValue

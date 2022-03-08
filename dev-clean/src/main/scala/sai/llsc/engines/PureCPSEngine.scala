@@ -76,8 +76,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
           case _ => LocV(lV.loc + offset, lV.kind)
         }
-      case IntToPtrExpr(from, v, to) => ???
-      case PtrToIntExpr(from, v, to) => ???
+      case IntToPtrExpr(from, value, to) => eval(value, from, ss).toLocV
+      case PtrToIntExpr(from, value, to) => ???
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullPtr() // FIXME: use uninitValue

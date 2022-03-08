@@ -67,6 +67,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
           case _ => LocV(lV.loc + offset, lV.kind)
         }
+      case IntToPtrExpr(from, value, to) => eval(value, from, ss).toLocV
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullPtr() // FIXME: use uninitValue
