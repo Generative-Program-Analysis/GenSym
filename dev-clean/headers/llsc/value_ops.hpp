@@ -364,15 +364,15 @@ inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
 
 struct SymV : Value {
   String name;
-  int bw;
+  size_t bw;
   iOP rator;
   immer::flex_vector<PtrVal> rands;
-  SymV(String name, int bw) : name(name), bw(bw) {
+  SymV(String name, size_t bw) : name(name), bw(bw) {
     hash_combine(hash(), std::string("symv1"));
     hash_combine(hash(), name);
     hash_combine(hash(), bw);
   }
-  SymV(iOP rator, immer::flex_vector<PtrVal> rands, int bw) : rator(rator), rands(rands), bw(bw) {
+  SymV(iOP rator, immer::flex_vector<PtrVal> rands, size_t bw) : rator(rator), rands(rands), bw(bw) {
     hash_combine(hash(), std::string("symv2"));
     hash_combine(hash(), rator);
     hash_combine(hash(), bw);
@@ -416,14 +416,62 @@ struct SymV : Value {
     if (bw <= 8) return List<PtrVal>{shared_from_this()};
     return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(bw/8 - 1);
   }
+
+  static PtrVal simplify(iOP& rator, List<PtrVal>& rands, size_t& bw) {
+    auto start = steady_clock::now();
+    auto arg0 = std::dynamic_pointer_cast<SymV>(rands[0]);
+    if (rator == op_neg && arg0) {
+      switch (arg0->rator) {
+        case op_neq: return std::make_shared<SymV>(op_eq, arg0->rands, bw);
+        case op_eq:  return std::make_shared<SymV>(op_neq, arg0->rands, bw);
+        case op_sle: return std::make_shared<SymV>(op_sgt, arg0->rands, bw);
+        case op_slt: return std::make_shared<SymV>(op_sge, arg0->rands, bw);
+        case op_sge: return std::make_shared<SymV>(op_slt, arg0->rands, bw);
+        case op_sgt: return std::make_shared<SymV>(op_sle, arg0->rands, bw);
+        case op_ule: return std::make_shared<SymV>(op_ugt, arg0->rands, bw);
+        case op_ult: return std::make_shared<SymV>(op_uge, arg0->rands, bw);
+        case op_uge: return std::make_shared<SymV>(op_ult, arg0->rands, bw);
+        case op_ugt: return std::make_shared<SymV>(op_ule, arg0->rands, bw);
+      }
+    }
+    auto end = steady_clock::now();
+    return nullptr;
+  }
 };
 
+/*
+inline std::map<size_t, PtrVal> symv_cache;
+  size_t h = 0;
+  // compute hash
+  auto res = symv_cache.find(h);
+  if (res != symv_cache.end()) {
+    return res->second;
+  }
+  auto v = ...
+  symv_cache[v->hashval] = v;
+*/
+
 inline PtrVal make_SymV(const String& n) {
-  return std::make_shared<SymV>(n, bitwidth);
+  auto v = std::make_shared<SymV>(n, bitwidth);
+  return v;
 }
+
 inline PtrVal make_SymV(String n, size_t bw) {
-  return std::make_shared<SymV>(n, bw);
+  auto v = std::make_shared<SymV>(n, bw);
+  return v;
 }
+
+inline PtrVal make_SymV(iOP rator, List<PtrVal> rands, size_t bw) {
+  auto s = SymV::simplify(rator, rands, bw);
+  if (s) {
+    //auto v = std::make_shared<SymV>(rator, std::move(rands), bw);
+    //std::cout << "from: " << v->toString() << "\n";
+    //std::cout << "to: " << s->toString() << "\n";
+    return s;
+  }
+  return std::make_shared<SymV>(rator, std::move(rands), bw);
+}
+
 inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, size_t bw) {
   immer::flex_vector_transient<PtrVal> res;
   for (auto i = 0; i < length; i++) {
@@ -432,7 +480,7 @@ inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, si
   return res.persistent();
 }
 inline PtrVal to_SMTNeg(PtrVal v) {
-  return std::make_shared<SymV>(op_neg, immer::flex_vector({ v }), v->get_bw());
+  return make_SymV(op_neg, List<PtrVal>({ v }), v->get_bw());
 }
 
 struct StructV : Value {
@@ -535,7 +583,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
       ABORT("invalid operator");
     }
   } else {
-    return std::make_shared<SymV>(op, immer::flex_vector({ v1, v2 }), bw1);
+    return make_SymV(op, List<PtrVal>({ v1, v2 }), bw1);
   }
 }
 
@@ -565,7 +613,7 @@ inline PtrVal bv_sext(const PtrVal& v, int bw) {
     if (s1) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
-      return std::make_shared<SymV>(op_sext, immer::flex_vector<PtrVal>({ s1 }), bw);
+      return make_SymV(op_sext, List<PtrVal>({ s1 }), bw);
     }
     ABORT("Sext an invalid value, exit");
   }
@@ -580,7 +628,7 @@ inline PtrVal bv_zext(const PtrVal& v, int bw) {
     if (s1) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
-      return std::make_shared<SymV>(op_zext, immer::flex_vector<PtrVal>({ s1 }), bw);
+      return make_SymV(op_zext, List<PtrVal>({ s1 }), bw);
     }
     ABORT("Zext an invalid value, exit");
   }
@@ -593,7 +641,7 @@ inline PtrVal trunc(const PtrVal& v1, int from, int to) {
   }
   auto s1 = std::dynamic_pointer_cast<SymV>(v1);
   if (s1) {
-    return std::make_shared<SymV>(op_trunc, immer::flex_vector({ v1 }), to);
+    return make_SymV(op_trunc, List<PtrVal>({ v1 }), to);
   }
   ABORT("Truncate an invalid value, exit");
 }
@@ -605,8 +653,7 @@ inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
   }
   auto s1 = std::dynamic_pointer_cast<SymV>(v1);
   if (s1) {
-    return std::make_shared<SymV>(op_extract,
-      immer::flex_vector<PtrVal> { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
+    return make_SymV(op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
   }
   ABORT("Extract an invalid value, exit");
 }
@@ -621,7 +668,7 @@ inline PtrVal bv_concat(const PtrVal& v1, const PtrVal& v2) {
   ASSERT(!std::dynamic_pointer_cast<ShadowV>(v1) && !std::dynamic_pointer_cast<ShadowV>(v2),
          "Cannot concat ShadowV values");
   // XXX: also check LocV and FunV?
-  return std::make_shared<SymV>(op_concat, immer::flex_vector<PtrVal> { v1, v2 }, bw1 + bw2);
+  return make_SymV(op_concat, List<PtrVal>({ v1, v2 }), bw1 + bw2);
 }
 
 inline const PtrVal IntV0 = make_IntV(0);

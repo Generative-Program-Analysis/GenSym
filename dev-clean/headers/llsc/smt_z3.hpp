@@ -44,6 +44,7 @@ public:
     std::tie(c, s) = get_my_thread_local_instance();
     for (auto& e: pc_set)
       s->add(construct_z3_expr(c, e));
+    //std::cout << *s << "\n";
     auto result = s->check();
     auto end = steady_clock::now();
     solver_time += duration_cast<microseconds>(end - start);
