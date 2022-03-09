@@ -77,7 +77,10 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           case _ => LocV(lV.loc + offset, lV.kind)
         }
       case IntToPtrExpr(from, value, to) => eval(value, from, ss).toLocV
-      case PtrToIntExpr(from, value, to) => ???
+      case PtrToIntExpr(from, value, IntType(toSize)) =>
+        import Constants.ARCH_WORD_SIZE
+        val v = eval(value, from, ss).toIntV
+        if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullPtr() // FIXME: use uninitValue

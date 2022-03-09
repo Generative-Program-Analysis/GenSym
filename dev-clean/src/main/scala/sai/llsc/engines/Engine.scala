@@ -83,6 +83,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         }
       case IntToPtrExpr(from, value, to) =>
         for { v <- eval(value, from) } yield v.toLocV
+      case PtrToIntExpr(from, value, IntType(toSize)) =>
+        import Constants.ARCH_WORD_SIZE
+        for { p <- eval(value, from) } yield {
+          val v = p.toIntV
+          if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
+        }
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         ret(NullPtr()) // FIXME: use uninitValue
