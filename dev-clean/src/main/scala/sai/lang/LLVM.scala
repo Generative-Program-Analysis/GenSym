@@ -141,6 +141,11 @@ package IR {
 
   case class BB(label: Option[String], ins: List[Instruction], term: Terminator) extends LAST {
     def size: Int = ins.size
+    lazy val hasPhi: Boolean =
+      ins.exists { inst =>
+        inst.isInstanceOf[AssignInst] &&
+        inst.asInstanceOf[AssignInst].valInst.isInstanceOf[PhiInst]
+      }
   }
 
   case class BasicBlockList(bbs: List[BB]) extends LAST

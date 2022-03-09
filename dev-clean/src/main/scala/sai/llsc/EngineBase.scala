@@ -61,7 +61,7 @@ case class CFG(funMap: Map[String, FunctionDef]) {
 
 trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   import scala.collection.immutable.{List => StaticList, Map => StaticMap}
-  import collection.mutable.HashMap
+  import collection.mutable.{HashMap, HashSet}
   import Constants._
 
   /* Abstract definitions */

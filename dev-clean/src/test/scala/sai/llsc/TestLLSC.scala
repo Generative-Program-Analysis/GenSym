@@ -254,8 +254,8 @@ class TestImpCPSLLSC extends TestLLSC {
 class Playground extends TestLLSC {
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
   val llsc = new PureCPSLLSC_Z3
-  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, None, nPath(720)))
-  testLLSC(llsc, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)))
+  testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, None, nPath(720)))
+  //testLLSC(llsc, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)))
   //testLLSC(llsc, TestPrg(parseFile("benchmarks/demo_benchmarks/nqueen_opt.ll"), "nQueensOpt", "@main", noArg, None, nPath(1363)))
   //testLLSC(llsc, TestPrg(bubbleSort2Ground, "bubbleSort2Ground", "@main", 0, None, status(255)))
   //testLLSC(llsc, TestPrg(bubbleSortGround2, "bubbleSortGround2", "@main", 0, None, status(255)))

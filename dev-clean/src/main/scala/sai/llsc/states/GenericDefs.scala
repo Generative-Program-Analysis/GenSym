@@ -48,6 +48,7 @@ trait BasicDefs { self: SAIOps =>
 object BlockCounter {
   private var counter: Int = 0
   def count: Int = counter
+  def reset: Unit = counter = 0
   def fresh: Int = try { counter } finally { counter += 1 }
 }
 

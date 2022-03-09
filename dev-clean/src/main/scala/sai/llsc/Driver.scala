@@ -212,6 +212,7 @@ trait LLSC {
   val insName: String
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit]
   def runLLSC(m: Module, name: String, fname: String, config: Config = Config(0, true)): Unit = {
+    BlockCounter.reset
     val (_, t) = time {
       val code = newInstance(m, name, fname, config)
       code.genAll

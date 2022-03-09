@@ -38,6 +38,15 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     "sym_exec_br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
+  def addIncomingBlockOpt(ss: Rep[SS], from: String, tos: StaticList[String])(implicit funName: String): Rep[SS] =
+    ss.addIncomingBlock(from)
+  /*
+    (tos.exists(to => findBlock(funName, to).get.hasPhi)) match {
+      case true => ss.addIncomingBlock(from)
+      case _ => ss
+    }
+   */
+
   // Note: now ty is mainly for eval IntConst to contain bit width
   // does it have some other implications?
   def eval(v: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
@@ -247,9 +256,10 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
         execBlockEager(funName, findBlock(funName, lab).get, ss, k)
       case BrTerm(lab) =>
-        execBlock(funName, lab, ss.addIncomingBlock(incomingBlock), k)
+        execBlock(funName, lab, addIncomingBlockOpt(ss, incomingBlock, StaticList(lab)), k)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         val cndVal = eval(cnd, ty, ss)
+        // FIXME: using addIncomingBlockOpt triggers some issue of recursive functions 
         val ss1 = ss.addIncomingBlock(incomingBlock)
         if (cndVal.isConc) {
           if (cndVal.int == 1) asyncExecBlock(funName, thnLab, ss1, k)
@@ -275,7 +285,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
             switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
           }
 
-        val ss1 = ss.addIncomingBlock(incomingBlock)
+        val ss1 = addIncomingBlockOpt(ss, incomingBlock, default::table.map(_.label))
         val v = eval(cndVal, cndTy, ss1)
         if (v.isConc) switch(v.int, ss1, table)
         else {

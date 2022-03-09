@@ -27,9 +27,26 @@ object AssignElim {
 
     override def transform(n: Node): Exp = n match {
       case Node(s, "ss-assign-seq", StaticList(ss: Sym, Const(xs: List[Int]), vs), _) if eliminable(xs) =>
-        subst(ss)
+        transform(ss)
       case Node(s, "ss-assign", StaticList(ss: Sym, Const(x: Int), v), _) if eliminable(x) =>
-        subst(ss)
+        transform(ss)
+      case Node(s, "ss-alloc-stack", StaticList(s1: Sym, Const(n1: Int)), es1) =>
+        g.findDefinition(transform(s1)) match {
+          case Some(Node(_, "ss-alloc-stack", List(s2: Sym, Const(n2: Int)), es2)) =>
+            // s.stack_alloc(n2).stack_alloc(n1) ⇒ s.stack_allock(n2+n1)
+            g.reflect("ss-alloc-stack", s2, Const(n1+n2))
+          case Some(Node(_, "ss-assign", (s2: Sym)::assarg, es2)) =>
+            g.findDefinition(s2) match {
+              case Some(Node(_, "ss-alloc-stack", List(s3: Sym, Const(n2: Int)), es3)) =>
+                // s.stack_alloc(n2).assign(x, v).stack_alloc(n1) ⇒
+                // s.assign(x.v).stack_alloc(n1+n2)
+                val e1 = g.reflect("ss-assign", (s3::assarg):_*) // TODO type of e1?
+                val e2 = g.reflect("ss-alloc-stack", e1, Const(n1+n2))
+                e2
+              case _ => super.transform(n)
+            }
+          case _ => super.transform(n)
+        }
       case _ => super.transform(n)
     }
     override def transform(graph: Graph): Graph = {

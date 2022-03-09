@@ -143,6 +143,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       case gNode("ss-assign", StaticList(ss0: bExp, _, _)) => Wrap[SS](ss0).stackSize
       case _ => super.stackSize
     }
+
   }
 
   implicit class FSOps(fs: Rep[FS]) {
