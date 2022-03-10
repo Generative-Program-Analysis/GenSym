@@ -57,6 +57,11 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         case false => ret(IntV(0, 1))
       }
       // case CharArrayConst(s) =>
+      case GlobalId(id) if symDefMap.contains(id) =>
+        System.out.println(s"Alias: $id => ${symDefMap(id).const}")
+        for {
+          v <- eval(symDefMap(id).const, ty)
+        } yield v
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
         ret(FunV[Id](FunFuns(id)))
@@ -89,11 +94,15 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           val v = p.toIntV
           if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
         }
+      case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1)
+      case ICmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalIntOp2(pred.op, lhs, rhs, ty1)
+      case InlineASM() => ret(NullPtr())
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         ret(NullPtr()) // FIXME: use uninitValue
       case NullConst => ret(LocV.nullloc)
       case NoneConst => ret(NullPtr())
+      case v => System.out.println(ty, v); ???
     }
   }
 
@@ -297,6 +306,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           v <- execBlock(funName, lab)
         } yield v
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
+        System.out.println(ty, cnd, thnLab, elsLab)
         for {
           _ <- updateIncomingBlock(incomingBlock)
           ss <- getState
@@ -379,6 +389,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
   }
 
   def execInst(inst: Instruction)(implicit fun: String): Comp[E, Rep[Unit]] = {
+    System.out.println(s"inst: ${inst}")
     inst match {
       case AssignInst(x, valInst) =>
         for {

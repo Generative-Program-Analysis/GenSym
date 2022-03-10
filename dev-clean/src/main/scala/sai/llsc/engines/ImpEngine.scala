@@ -46,6 +46,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         case false => IntV(0, 1)
       }
       // case CharArrayConst(s) =>
+      case GlobalId(id) if symDefMap.contains(id) =>
+        System.out.println(s"Alias: $id => ${symDefMap(id).const}")
+        eval(symDefMap(id).const, ty, ss)
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
         FunV[Ref](FunFuns(id))
@@ -72,6 +75,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         import sai.llsc.Constants.ARCH_WORD_SIZE
         val v = eval(value, from, ss).toIntV
         if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
+      case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1, ss)
+      case ICmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalIntOp2(pred.op, lhs, rhs, ty1, ss)
+      case InlineASM() => NullPtr()
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullPtr() // FIXME: use uninitValue

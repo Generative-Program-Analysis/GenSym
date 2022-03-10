@@ -330,6 +330,8 @@ package IR {
   case class PtrToIntExpr(from: LLVMType, const: Constant, to: LLVMType) extends ConstantExpr
   case class IntToPtrExpr(from: LLVMType, const: Constant, to: LLVMType) extends ConstantExpr
   case class BitCastExpr(from: LLVMType, const: Constant, to: LLVMType) extends ConstantExpr
+  case class ICmpExpr(pred: IPredicate, ty1: LLVMType, ty2: LLVMType, lhs: LLVMValue, rhs: LLVMValue) extends ConstantExpr
+  case class FCmpExpr(pred: IPredicate, ty1: LLVMType, ty2: LLVMType, lhs: LLVMValue, rhs: LLVMValue) extends ConstantExpr
 
   case class TypedConst(inRange: Option[Boolean], ty: LLVMType, const: Constant) extends LAST
   case class TypedConstList(cs: List[TypedConst]) extends LAST
@@ -973,6 +975,28 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val const = visit(ctx.constant).asInstanceOf[Constant]
     val to = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
     BitCastExpr(from, const, to)
+  }
+
+  override def visitICmpExpr(ctx: LLVMParser.ICmpExprContext): LAST = {
+    // Skipped optCommaSepMetadataAttachmentList
+    // 'icmp' iPred llvmType value ',' value
+    val pred = visit(ctx.iPred).asInstanceOf[IPredicate]
+    val ty1 = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val ty2 = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    val lhs = visit(ctx.constant(0)).asInstanceOf[LLVMValue]
+    val rhs = visit(ctx.constant(1)).asInstanceOf[LLVMValue]
+    ICmpExpr(pred, ty1, ty2, lhs, rhs)
+  }
+
+  override def visitFCmpExpr(ctx: LLVMParser.FCmpExprContext): LAST = {
+    // Skipped optCommaSepMetadataAttachmentList
+    // 'fcmp' iPred llvmType value ',' value
+    val pred = visit(ctx.fpred).asInstanceOf[IPredicate]
+    val ty1 = visit(ctx.llvmType(0)).asInstanceOf[LLVMType]
+    val ty2 = visit(ctx.llvmType(1)).asInstanceOf[LLVMType]
+    val lhs = visit(ctx.constant(0)).asInstanceOf[LLVMValue]
+    val rhs = visit(ctx.constant(1)).asInstanceOf[LLVMValue]
+    FCmpExpr(pred, ty1, ty2, lhs, rhs)
   }
 
   override def visitTypeConsts(ctx: LLVMParser.TypeConstsContext): LAST = {
