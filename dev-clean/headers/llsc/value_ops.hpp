@@ -235,7 +235,7 @@ inline char proj_IntV_char(const PtrVal& v) {
 struct FloatV : Value {
   long double f;
   int bw;
-  FloatV(float f, int bw=32) : f(f), bw(bw) {
+  FloatV(long double f, int bw=32) : f(f), bw(bw) {
     hash_combine(hash(), std::string("floatv"));
     hash_combine(hash(), f);
   }
@@ -261,21 +261,33 @@ struct FloatV : Value {
   }
 };
 
-inline PtrVal make_FloatV(float f) {
+inline PtrVal make_FloatV(long double f) {
   return std::make_shared<FloatV>(f);
 }
 
-inline PtrVal make_FloatV(float f, size_t bw) {
+inline PtrVal make_FloatV(long double f, size_t bw) {
   return std::make_shared<FloatV>(f, bw);
 }
 
 inline PtrVal make_FloatV_fp80(std::array<unsigned char, 10> buf) {
   std::cout << "*(__float80*)&buf: " << *(__float80*)&buf << std::endl;
-  return make_FloatV((float)*(__float80*)&buf, 80);
+  return make_FloatV((long double)*(__float80*)&buf, 80);
 }
 
 inline long double proj_FloatV(PtrVal v) {
   return std::dynamic_pointer_cast<FloatV>(v)->f;
+}
+
+inline PtrVal ui_tofp(PtrVal v) {
+  auto ui = std::dynamic_pointer_cast<IntV>(v);
+  ASSERT(ui != nullptr, "value passed to ui_tofp is not an IntV");
+  return make_FloatV(ui->i, ui->bw);
+}
+
+inline PtrVal fp_toui(PtrVal v, int bw) {
+  auto fp = std::dynamic_pointer_cast<FloatV>(v);
+  ASSERT(fp != nullptr, "value passed to fp_toui is not a FloatV");
+  return make_IntV(fp->f, bw);
 }
 
 struct LocV : Value {
@@ -420,18 +432,18 @@ struct SymV : Value {
   static PtrVal simplify(iOP& rator, List<PtrVal>& rands, size_t& bw) {
     auto start = steady_clock::now();
     auto arg0 = std::dynamic_pointer_cast<SymV>(rands[0]);
-    if (rator == op_neg && arg0) {
+    if (rator == iOP::op_neg && arg0) {
       switch (arg0->rator) {
-        case op_neq: return std::make_shared<SymV>(op_eq, arg0->rands, bw);
-        case op_eq:  return std::make_shared<SymV>(op_neq, arg0->rands, bw);
-        case op_sle: return std::make_shared<SymV>(op_sgt, arg0->rands, bw);
-        case op_slt: return std::make_shared<SymV>(op_sge, arg0->rands, bw);
-        case op_sge: return std::make_shared<SymV>(op_slt, arg0->rands, bw);
-        case op_sgt: return std::make_shared<SymV>(op_sle, arg0->rands, bw);
-        case op_ule: return std::make_shared<SymV>(op_ugt, arg0->rands, bw);
-        case op_ult: return std::make_shared<SymV>(op_uge, arg0->rands, bw);
-        case op_uge: return std::make_shared<SymV>(op_ult, arg0->rands, bw);
-        case op_ugt: return std::make_shared<SymV>(op_ule, arg0->rands, bw);
+        case iOP::op_neq: return std::make_shared<SymV>(iOP::op_eq, arg0->rands, bw);
+        case iOP::op_eq:  return std::make_shared<SymV>(iOP::op_neq, arg0->rands, bw);
+        case iOP::op_sle: return std::make_shared<SymV>(iOP::op_sgt, arg0->rands, bw);
+        case iOP::op_slt: return std::make_shared<SymV>(iOP::op_sge, arg0->rands, bw);
+        case iOP::op_sge: return std::make_shared<SymV>(iOP::op_slt, arg0->rands, bw);
+        case iOP::op_sgt: return std::make_shared<SymV>(iOP::op_sle, arg0->rands, bw);
+        case iOP::op_ule: return std::make_shared<SymV>(iOP::op_ugt, arg0->rands, bw);
+        case iOP::op_ult: return std::make_shared<SymV>(iOP::op_uge, arg0->rands, bw);
+        case iOP::op_uge: return std::make_shared<SymV>(iOP::op_ult, arg0->rands, bw);
+        case iOP::op_ugt: return std::make_shared<SymV>(iOP::op_ule, arg0->rands, bw);
       }
     }
     auto end = steady_clock::now();
@@ -480,7 +492,7 @@ inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, si
   return res.persistent();
 }
 inline PtrVal to_SMTNeg(PtrVal v) {
-  return make_SymV(op_neg, List<PtrVal>({ v }), v->get_bw());
+  return make_SymV(iOP::op_neg, List<PtrVal>({ v }), v->get_bw());
 }
 
 struct StructV : Value {
@@ -532,55 +544,55 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   }
   if (i1 && i2) {
     switch (op) {
-    case op_add:
-      return make_IntV(i1->i + i2->i, bw1, false);
-    case op_sub:
-      return make_IntV(i1->i - i2->i, bw1, false);
-    case op_mul:
-      return make_IntV(i1->i * i2->as_signed(), bw1, false);
-    case op_sdiv:  // divide overflow is hardware exception
-      return make_IntV(int64_t(i1->i) / int64_t(i2->i), bw1);
-    case op_udiv:
-      return make_IntV(uint64_t(i1->i) / uint64_t(i2->i), bw1);
-    case op_srem:
-      return make_IntV(int64_t(i1->i) % int64_t(i2->i), bw1, false);
-    case op_urem:
-      return make_IntV(uint64_t(i1->i) % uint64_t(i2->i), bw1, false);
-    case op_eq:
-      return make_IntV(i1->i == i2->i, 1);
-    case op_neq:
-      return make_IntV(i1->i != i2->i, 1);
-    case op_uge:
-      return make_IntV(uint64_t(i1->i) >= uint64_t(i2->i), 1);
-    case op_sge:
-      return make_IntV(int64_t(i1->i) >= int64_t(i2->i), 1);
-    case op_ugt:
-      return make_IntV(uint64_t(i1->i) > uint64_t(i2->i), 1);
-    case op_sgt:
-      return make_IntV(int64_t(i1->i) > int64_t(i2->i), 1);
-    case op_ule:
-      return make_IntV(uint64_t(i1->i) <= uint64_t(i2->i), 1);
-    case op_sle:
-      return make_IntV(int64_t(i1->i) <= int64_t(i2->i), 1);
-    case op_ult:
-      return make_IntV(uint64_t(i1->i) < uint64_t(i2->i), 1);
-    case op_slt:
-      return make_IntV(int64_t(i1->i) < int64_t(i2->i), 1);
-    case op_and:
-      return make_IntV(i1->i & i2->i, bw1, false);
-    case op_or:
-      return make_IntV(i1->i | i2->i, bw1, false);
-    case op_xor:
-      return make_IntV(i1->i ^ i2->i, bw1, false);
-    case op_shl:
-      return make_IntV(i1->i << i2->as_signed(), bw1, false);
-    case op_ashr:
-      return make_IntV(int64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
-    case op_lshr:
-      return make_IntV(uint64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
-    default:
-      std::cout << op << std::endl;
-      ABORT("invalid operator");
+      case iOP::op_add:
+        return make_IntV(i1->i + i2->i, bw1, false);
+      case iOP::op_sub:
+        return make_IntV(i1->i - i2->i, bw1, false);
+      case iOP::op_mul:
+        return make_IntV(i1->i * i2->as_signed(), bw1, false);
+      case iOP::op_sdiv:  // divide overflow is hardware exception
+        return make_IntV(int64_t(i1->i) / int64_t(i2->i), bw1);
+      case iOP::op_udiv:
+        return make_IntV(uint64_t(i1->i) / uint64_t(i2->i), bw1);
+      case iOP::op_srem:
+        return make_IntV(int64_t(i1->i) % int64_t(i2->i), bw1, false);
+      case iOP::op_urem:
+        return make_IntV(uint64_t(i1->i) % uint64_t(i2->i), bw1, false);
+      case iOP::op_eq:
+        return make_IntV(i1->i == i2->i, 1);
+      case iOP::op_neq:
+        return make_IntV(i1->i != i2->i, 1);
+      case iOP::op_uge:
+        return make_IntV(uint64_t(i1->i) >= uint64_t(i2->i), 1);
+      case iOP::op_sge:
+        return make_IntV(int64_t(i1->i) >= int64_t(i2->i), 1);
+      case iOP::op_ugt:
+        return make_IntV(uint64_t(i1->i) > uint64_t(i2->i), 1);
+      case iOP::op_sgt:
+        return make_IntV(int64_t(i1->i) > int64_t(i2->i), 1);
+      case iOP::op_ule:
+        return make_IntV(uint64_t(i1->i) <= uint64_t(i2->i), 1);
+      case iOP::op_sle:
+        return make_IntV(int64_t(i1->i) <= int64_t(i2->i), 1);
+      case iOP::op_ult:
+        return make_IntV(uint64_t(i1->i) < uint64_t(i2->i), 1);
+      case iOP::op_slt:
+        return make_IntV(int64_t(i1->i) < int64_t(i2->i), 1);
+      case iOP::op_and:
+        return make_IntV(i1->i & i2->i, bw1, false);
+      case iOP::op_or:
+        return make_IntV(i1->i | i2->i, bw1, false);
+      case iOP::op_xor:
+        return make_IntV(i1->i ^ i2->i, bw1, false);
+      case iOP::op_shl:
+        return make_IntV(i1->i << i2->as_signed(), bw1, false);
+      case iOP::op_ashr:
+        return make_IntV(int64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
+      case iOP::op_lshr:
+        return make_IntV(uint64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
+      default:
+        std::cout << int_op2string(op) << std::endl;
+        ABORT("invalid operator");
     }
   } else {
     return make_SymV(op, List<PtrVal>({ v1, v2 }), bw1);
@@ -592,15 +604,51 @@ inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
   auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
 
   if (f1 && f2) {
-    if (op == op_fadd) { return make_FloatV(f1->f + f2->f, MAX(f1->bw, f2->bw)); }
-    else if (op == op_fsub) { return make_FloatV(f1->f - f2->f, MAX(f1->bw, f2->bw)); }
-    else if (op == op_fmul) { return make_FloatV(f1->f * f2->f, MAX(f1->bw, f2->bw)); }
-    else if (op == op_fdiv) { return make_FloatV(f1->f / f2->f, MAX(f1->bw, f2->bw)); }
-    /* else if (op == op_fcmp) { return f1->f > f2->f; } */
-    // FIXME: Float cmp operations
-    else { return make_IntV(1); }
+    switch (op) {
+      case fOP::op_fadd:   return make_FloatV(f1->f + f2->f, MAX(f1->bw, f2->bw));
+      case fOP::op_fsub:   return make_FloatV(f1->f - f2->f, MAX(f1->bw, f2->bw));
+      case fOP::op_fmul:   return make_FloatV(f1->f * f2->f, MAX(f1->bw, f2->bw));
+      case fOP::op_fdiv:   return make_FloatV(f1->f / f2->f, MAX(f1->bw, f2->bw));
+      case fOP::op_oeq:    return make_IntV(f1->f == f2->f, 1);
+      case fOP::op_ogt:    return make_IntV(f1->f > f2->f, 1);
+      case fOP::op_oge:    return make_IntV(f1->f >= f2->f, 1);
+      case fOP::op_olt:    return make_IntV(f1->f < f2->f, 1);
+      case fOP::op_ole:    return make_IntV(f1->f <= f2->f, 1);
+      case fOP::op_one:    return make_IntV(f1->f != f2->f, 1);
+      case fOP::op_ueq:    return make_IntV(f1->f == f2->f, 1);
+      case fOP::op_ugt:    return make_IntV(f1->f > f2->f, 1);
+      case fOP::op_uge:    return make_IntV(f1->f >= f2->f, 1);
+      case fOP::op_ult:    return make_IntV(f1->f < f2->f, 1);
+      case fOP::op_ule:    return make_IntV(f1->f <= f2->f, 1);
+      case fOP::op_une:    return make_IntV(f1->f != f2->f, 1);
+      /* TODO: QNAN <2022-03-10, David Deng> */
+      case fOP::op_ord:    return make_IntV(1);
+      case fOP::op_uno:    return make_IntV(0);
+      case fOP::op_false:  return make_IntV(0, 1);
+      case fOP::op_true:   return make_IntV(1, 1);
+    }
+    ABORT("Unknown float_op_2 operation");
   } else {
     ABORT("Non-concrete Float Detected");
+  }
+}
+
+/* TODO: implement those two <2022-03-10, David Deng> */
+
+inline PtrVal fp_ext(const PtrVal& v1, int from, int to) {
+  auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
+  ASSERT((f1 != nullptr), "extending a non-FloatV value");
+  return make_FloatV(f1->f, to);
+}
+
+inline PtrVal fp_trunc(const PtrVal& v1, int from, int to) {
+  auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
+  ASSERT((f1 != nullptr), "truncating a non-FloatV value");
+  /* TODO: support other bw values (e.g. fp80) <2022-03-10, David Deng> */
+  switch (to) {
+    case 32: return make_FloatV(float(f1->f), to);
+    case 64: return make_FloatV(double(f1->f), to);
+    default: return make_FloatV(f1->f, to);
   }
 }
 
@@ -613,7 +661,7 @@ inline PtrVal bv_sext(const PtrVal& v, int bw) {
     if (s1) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
-      return make_SymV(op_sext, List<PtrVal>({ s1 }), bw);
+      return make_SymV(iOP::op_sext, List<PtrVal>({ s1 }), bw);
     }
     ABORT("Sext an invalid value, exit");
   }
@@ -628,7 +676,7 @@ inline PtrVal bv_zext(const PtrVal& v, int bw) {
     if (s1) {
       // Note: instead of passing new bw as an operand
       // we override the original bw here
-      return make_SymV(op_zext, List<PtrVal>({ s1 }), bw);
+      return make_SymV(iOP::op_zext, List<PtrVal>({ s1 }), bw);
     }
     ABORT("Zext an invalid value, exit");
   }
@@ -641,7 +689,7 @@ inline PtrVal trunc(const PtrVal& v1, int from, int to) {
   }
   auto s1 = std::dynamic_pointer_cast<SymV>(v1);
   if (s1) {
-    return make_SymV(op_trunc, List<PtrVal>({ v1 }), to);
+    return make_SymV(iOP::op_trunc, List<PtrVal>({ v1 }), to);
   }
   ABORT("Truncate an invalid value, exit");
 }
@@ -653,7 +701,7 @@ inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
   }
   auto s1 = std::dynamic_pointer_cast<SymV>(v1);
   if (s1) {
-    return make_SymV(op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
+    return make_SymV(iOP::op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
   }
   ABORT("Extract an invalid value, exit");
 }
@@ -668,7 +716,7 @@ inline PtrVal bv_concat(const PtrVal& v1, const PtrVal& v2) {
   ASSERT(!std::dynamic_pointer_cast<ShadowV>(v1) && !std::dynamic_pointer_cast<ShadowV>(v2),
          "Cannot concat ShadowV values");
   // XXX: also check LocV and FunV?
-  return make_SymV(op_concat, List<PtrVal>({ v1, v2 }), bw1 + bw2);
+  return make_SymV(iOP::op_concat, List<PtrVal>({ v1, v2 }), bw1 + bw2);
 }
 
 inline const PtrVal IntV0 = make_IntV(0);

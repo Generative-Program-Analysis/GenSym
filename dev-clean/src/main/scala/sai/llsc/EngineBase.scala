@@ -215,7 +215,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       val elemSize = ARCH_WORD_SIZE / BYTE_SIZE
       (elemSize, elemSize)
     case FloatType(fk) => {
-      val rawSize = fk match {
+      val bw = fk match {
         case FK_Half => 16
         case FK_BFloat => 16
         case FK_Float => 32
@@ -225,7 +225,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         case FK_PPC_FP128 => 128
       }
       import scala.math.{log, ceil, pow}
-      val elemSize = (rawSize + BYTE_SIZE - 1) / BYTE_SIZE
+      val elemSize = (bw + BYTE_SIZE - 1) / BYTE_SIZE
       val align = pow(2, ceil(log(elemSize)/log(2)))
       (elemSize, align)
     }

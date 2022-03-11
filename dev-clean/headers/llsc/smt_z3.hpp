@@ -66,73 +66,73 @@ public:
       expr_rands.push_back(construct_z3_expr(c, e));
     }
     switch (sym_e->rator) {
-      case op_add:
+      case iOP::op_add:
         return expr_rands.at(0) + expr_rands.at(1);
-      case op_sub:
+      case iOP::op_sub:
         return expr_rands.at(0) - expr_rands.at(1);
-      case op_mul:
+      case iOP::op_mul:
         return expr_rands.at(0) * expr_rands.at(1);
-      case op_sdiv:
-      case op_udiv:
+      case iOP::op_sdiv:
+      case iOP::op_udiv:
         return expr_rands.at(0) / expr_rands.at(1);
-      case op_uge:
+      case iOP::op_uge:
         return uge(expr_rands.at(0), expr_rands.at(1));
-      case op_sge:
+      case iOP::op_sge:
         return sge(expr_rands.at(0), expr_rands.at(1));
-      case op_ugt:
+      case iOP::op_ugt:
         return ugt(expr_rands.at(0), expr_rands.at(1));
-      case op_sgt:
+      case iOP::op_sgt:
         return sgt(expr_rands.at(0), expr_rands.at(1));
-      case op_ule:
+      case iOP::op_ule:
         return ule(expr_rands.at(0), expr_rands.at(1));
-      case op_sle:
+      case iOP::op_sle:
         return sle(expr_rands.at(0), expr_rands.at(1));
-      case op_ult:
+      case iOP::op_ult:
         return ult(expr_rands.at(0), expr_rands.at(1));
-      case op_slt:
+      case iOP::op_slt:
         return slt(expr_rands.at(0), expr_rands.at(1));
-      case op_eq:
+      case iOP::op_eq:
         return expr_rands.at(0) == expr_rands.at(1);
-      case op_neq:
+      case iOP::op_neq:
         return expr_rands.at(0) != expr_rands.at(1);
-      case op_neg:
+      case iOP::op_neg:
         return !expr_rands.at(0);
-      case op_sext: {
+      case iOP::op_sext: {
         auto v = expr_rands.at(0);
         auto ext_size = bw - v.get_sort().bv_size();
         ASSERT(ext_size >= 0, "negative sign extension size");
         if (ext_size > 0) return sext(v, ext_size);
         return v;
       }
-      case op_zext: {
+      case iOP::op_zext: {
         auto v = expr_rands.at(0);
         auto ext_size = bw - v.get_sort().bv_size();
         ASSERT(ext_size >= 0, "negative zero extension size");
         if (ext_size > 0) return zext(v, ext_size);
         return v;
       }
-      case op_shl:
+      case iOP::op_shl:
         return shl(expr_rands.at(0), expr_rands.at(1));
-      case op_lshr:
+      case iOP::op_lshr:
         return lshr(expr_rands.at(0), expr_rands.at(1));
-      case op_ashr:
+      case iOP::op_ashr:
         return ashr(expr_rands.at(0), expr_rands.at(1));
-      case op_and:
+      case iOP::op_and:
         return expr_rands.at(0) & expr_rands.at(1);
-      case op_or:
+      case iOP::op_or:
         return expr_rands.at(0) | expr_rands.at(1);
-      case op_xor:
+      case iOP::op_xor:
         return expr_rands.at(0) ^ expr_rands.at(1);
-      case op_urem:
+      case iOP::op_urem:
         return urem(expr_rands.at(0), expr_rands.at(1));
-      case op_srem:
+      case iOP::op_srem:
         return srem(expr_rands.at(0), expr_rands.at(1));
-      case op_trunc:
+      case iOP::op_trunc:
         // XXX is it right?
         return expr_rands.at(0).extract(bw-1, 0);
-      case op_concat:
+      case iOP::op_concat:
         return concat(expr_rands.at(0), expr_rands.at(1));
-      case op_extract:
+      case iOP::op_extract:
         return expr_rands.at(0).extract(
                                 expr_rands.at(1).get_numeral_uint(),
                                 expr_rands.at(2).get_numeral_uint());

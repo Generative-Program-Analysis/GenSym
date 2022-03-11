@@ -87,63 +87,63 @@ private:
       expr_rands.push_back(construct_STP_expr(e, vars));
     }
     switch (sym_e->rator) {
-    case op_add:
+    case iOP::op_add:
       return vc_bvPlusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_sub:
+    case iOP::op_sub:
       return vc_bvMinusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_mul:
+    case iOP::op_mul:
       return vc_bvMultExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_sdiv:
-    case op_udiv:
+    case iOP::op_sdiv:
+    case iOP::op_udiv:
       return vc_bvDivExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_uge:
+    case iOP::op_uge:
       return vc_bvGeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_sge:
+    case iOP::op_sge:
       return vc_sbvGeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_ugt:
+    case iOP::op_ugt:
       return vc_bvGtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_sgt:
+    case iOP::op_sgt:
       return vc_sbvGtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_ule:
+    case iOP::op_ule:
       return vc_bvLeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_sle:
+    case iOP::op_sle:
       return vc_sbvLeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_ult:
+    case iOP::op_ult:
       return vc_bvLtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_slt:
+    case iOP::op_slt:
       return vc_sbvLtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_eq:
+    case iOP::op_eq:
       return vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_neq:
+    case iOP::op_neq:
       return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get()));
-    case op_neg:
+    case iOP::op_neg:
       return vc_notExpr(vc, expr_rands.at(0).get());
-    case op_sext:
+    case iOP::op_sext:
       return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);
-    case op_zext:
+    case iOP::op_zext:
       return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);  // TODO
-    case op_shl:
+    case iOP::op_shl:
       return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_lshr:
+    case iOP::op_lshr:
       return vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_ashr:
+    case iOP::op_ashr:
       return vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_and:
+    case iOP::op_and:
       return vc_bvAndExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_or:
+    case iOP::op_or:
       return vc_bvOrExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_xor:
+    case iOP::op_xor:
       return vc_bvXorExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_urem:
+    case iOP::op_urem:
       return vc_bvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_srem:
+    case iOP::op_srem:
       return vc_sbvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_trunc:
+    case iOP::op_trunc:
       // bvExtract(vc, e, h, l) -> e[l:h+1]
       return vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
-    case op_concat:
+    case iOP::op_concat:
       return vc_bvConcatExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case op_extract:
+    case iOP::op_extract:
       return vc_bvExtract(vc, expr_rands.at(0).get(),
                               getBVInt(expr_rands.at(1).get()),
                               getBVInt(expr_rands.at(2).get()));

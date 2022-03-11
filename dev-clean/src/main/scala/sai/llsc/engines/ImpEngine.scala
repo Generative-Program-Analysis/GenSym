@@ -56,9 +56,12 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         ExternalFun.get(id)
       case GlobalId(id) if globalDefMap.contains(id) =>
         LocV(heapEnv(id), LocV.kHeap)
-      case GlobalId(id) if globalDeclMap.contains(id) =>
+      case GlobalId(id) if globalDeclMap.contains(id) => 
         System.out.println(s"Warning: globalDecl $id is ignored")
-        NullPtr()
+        ty match {
+          case PtrType(_, _) => LocV.nullloc
+          case _ => NullPtr()
+        }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)

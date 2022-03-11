@@ -69,9 +69,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         ret(ExternalFun.get(id))
       case GlobalId(id) if globalDefMap.contains(id) =>
         ret(LocV(heapEnv(id), LocV.kHeap))
-      case GlobalId(id) if globalDeclMap.contains(id) =>
+      case GlobalId(id) if globalDeclMap.contains(id) => 
         System.out.println(s"Warning: globalDecl $id is ignored")
-        ret(NullPtr())
+        ty match {
+          case PtrType(_, _) => ret(LocV.nullloc)
+          case _ => ret(NullPtr())
+        }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
         val indexLLVMValue = typedConsts.map(tv => tv.const)
@@ -389,7 +392,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
   }
 
   def execInst(inst: Instruction)(implicit fun: String): Comp[E, Rep[Unit]] = {
-    System.out.println(s"inst: ${inst}")
     inst match {
       case AssignInst(x, valInst) =>
         for {

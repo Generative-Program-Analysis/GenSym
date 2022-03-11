@@ -64,7 +64,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else super.remap(m)
   }
 
-  def quoteOp(op: String): String = "op_" + op
+  def quoteOp(op: String, ec: String): String = ec + "::" + "op_" + op 
 
   override def traverse(n: Node): Unit = n match {
     case Node(s, "make_CPSFunV", _, _) if !dce.live(n.n) =>
@@ -77,9 +77,9 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
     case Node(s, "int_op_2", List(Backend.Const(op: String), x, y), _) =>
-      es"int_op_2(${quoteOp(op)}, $x, $y)"
+      es"int_op_2(${quoteOp(op, "iOP")}, $x, $y)"
     case Node(s, "float_op_2", List(Backend.Const(op: String), x, y), _) =>
-      es"float_op_2(${quoteOp(op)}, $x, $y)"
+      es"float_op_2(${quoteOp(op, "fOP")}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
     case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_bb)"
 

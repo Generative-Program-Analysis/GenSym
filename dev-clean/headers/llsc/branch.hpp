@@ -88,7 +88,7 @@ array_lookup(SS ss, PtrVal base, PtrVal offset, size_t esize, size_t nsize) {
   int cnt = 0;
   immer::flex_vector_transient<std::pair<SS, PtrVal>> tmp;
   for (size_t idx = 0; idx < nsize; idx++) {
-    auto cond = int_op_2(op_eq, offset, make_IntV(idx, offset->get_bw()));
+    auto cond = int_op_2(iOP::op_eq, offset, make_IntV(idx, offset->get_bw()));
     auto ss2 = ss.add_PC(cond);
     if (check_pc(ss2.get_PC())) {
       cnt++;
@@ -111,7 +111,7 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize, size_t nsize,
   }
   int cnt = 0;
   for (size_t idx = 0; idx < nsize; idx++) {
-    auto cond = int_op_2(op_eq, offset, make_IntV(idx, offset->get_bw()));
+    auto cond = int_op_2(iOP::op_eq, offset, make_IntV(idx, offset->get_bw()));
     auto ss2 = ss.add_PC(cond);
     if (check_pc(ss2.get_PC())) {
       cnt++;
@@ -257,7 +257,7 @@ array_lookup(SS& ss, PtrVal base, PtrVal offset, size_t esize, size_t nsize) {
   int cnt = 0;
   immer::flex_vector_transient<std::pair<SS, PtrVal>> tmp;
   for (size_t idx = 0; idx < nsize; idx++) {
-    auto cond = int_op_2(op_eq, offset, make_IntV(idx, offset->get_bw()));
+    auto cond = int_op_2(iOP::op_eq, offset, make_IntV(idx, offset->get_bw()));
     auto ss2 = ss.copy().add_PC(cond);
     if (check_pc(ss2.get_PC())) {
       cnt++;
@@ -280,7 +280,7 @@ array_lookup_k(SS& ss, PtrVal base, PtrVal offset, size_t esize, size_t nsize,
   }
   int cnt = 0;
   for (size_t idx = 0; idx < nsize; idx++) {
-    auto cond = int_op_2(op_eq, offset, make_IntV(idx, offset->get_bw()));
+    auto cond = int_op_2(iOP::op_eq, offset, make_IntV(idx, offset->get_bw()));
     auto ss2 = ss.copy().add_PC(cond);
     if (check_pc(ss2.get_PC())) {
       cnt++;
