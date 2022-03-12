@@ -474,13 +474,10 @@ inline PtrVal make_SymV(String n, size_t bw) {
 }
 
 inline PtrVal make_SymV(iOP rator, List<PtrVal> rands, size_t bw) {
-  auto s = SymV::simplify(rator, rands, bw);
-  if (s) {
-    //auto v = std::make_shared<SymV>(rator, std::move(rands), bw);
-    //std::cout << "from: " << v->toString() << "\n";
-    //std::cout << "to: " << s->toString() << "\n";
-    return s;
-  }
+  // auto s = SymV::simplify(rator, rands, bw);
+  // if (s) {
+  //   return s;
+  // }
   return std::make_shared<SymV>(rator, std::move(rands), bw);
 }
 

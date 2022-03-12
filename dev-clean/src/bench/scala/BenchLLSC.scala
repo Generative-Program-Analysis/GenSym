@@ -117,7 +117,8 @@ abstract class TestLLSC extends FunSuite {
       assert(mkRet == 0, "make failed")
       for (i <- 1 to nTest) {
         Thread.sleep(1 * 1000)
-        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""))
+        val numactl = "numactl -N1 -m1"
+        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""), numactl)
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
         checkResult(resStat, ret, exp)
