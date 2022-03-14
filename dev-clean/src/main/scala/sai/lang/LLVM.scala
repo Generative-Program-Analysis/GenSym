@@ -303,7 +303,7 @@ package IR {
   abstract class Constant extends LLVMValue
   case class BoolConst(b: Boolean) extends Constant
   case class IntConst(n: Long) extends Constant
-  case class FloatConst(f: Float) extends Constant
+  case class FloatConst(f: Double) extends Constant
   case class FloatLitConst(l: String) extends Constant
   case object NullConst extends Constant
   case object NoneConst extends Constant
@@ -557,7 +557,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
       if (ctx.optLinkage.linkage != null)
         Some(visit(ctx.optLinkage.linkage).asInstanceOf[Linkage])
       else None
-    val externLinkage = 
+    val externLinkage =
       if (ctx.externLinkage != null)
         Some(visit(ctx.externLinkage).asInstanceOf[ExternalLinkage])
       else None
@@ -849,13 +849,13 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitFloatConst(ctx: LLVMParser.FloatConstContext): LAST = {
     val floatStr = ctx.FLOAT_LIT.getText
-    if (floatStr.contains('.')) FloatConst(floatStr.toFloat)
+    if (floatStr.contains('.')) FloatConst(floatStr.toDouble)
     // x86_fp80
     else if (floatStr.startsWith("0xK")) FloatLitConst(floatStr)
     else if (floatStr.startsWith("0x")) {
       val hexString = floatStr.substring(2)
       val longBits = java.lang.Long.parseUnsignedLong(hexString, 16)
-      FloatConst(java.lang.Double.longBitsToDouble(longBits).asInstanceOf[Float])
+      FloatConst(java.lang.Double.longBitsToDouble(longBits).asInstanceOf[Double])
     }
     else ???
   }

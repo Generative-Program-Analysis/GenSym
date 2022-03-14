@@ -231,7 +231,7 @@ trait SymExeDefs extends SAIOps with StagedNondet {
   }
   object FloatV {
     // TODO: shall we keep float kinds?
-    def apply(f: Rep[Float]): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f)(Adapter.CTRL)
+    def apply(f: Rep[Double]): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f)(Adapter.CTRL)
   }
   object LocV {
     def kStack: Rep[Int] = "kStack".reflectMutableWith[Int]()

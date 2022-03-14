@@ -238,6 +238,7 @@ struct FloatV : Value {
   FloatV(long double f, int bw=32) : f(f), bw(bw) {
     hash_combine(hash(), std::string("floatv"));
     hash_combine(hash(), f);
+    hash_combine(hash(), bw);
   }
   FloatV(const FloatV& v): FloatV(v.f, v.bw) {}
   std::string toString() const override {
@@ -251,7 +252,8 @@ struct FloatV : Value {
 
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
-    return this->f == that->f;
+    if (this->f != that->f) return false;
+    return this->bw == that->bw;
   }
   virtual List<PtrVal> to_bytes() {
     return List<PtrVal>{shared_from_this()} + List<PtrVal>(get_byte_size()-1, make_ShadowV());
@@ -287,7 +289,19 @@ inline PtrVal ui_tofp(PtrVal v) {
 inline PtrVal fp_toui(PtrVal v, int bw) {
   auto fp = std::dynamic_pointer_cast<FloatV>(v);
   ASSERT(fp != nullptr, "value passed to fp_toui is not a FloatV");
+  return make_IntV((uint64_t)fp->f, bw);
+}
+
+inline PtrVal fp_tosi(const PtrVal& v, int bw) {
+  auto fp = std::dynamic_pointer_cast<FloatV>(v);
+  ASSERT(fp != nullptr, "value passed to fp_tosi is not a FloatV");
   return make_IntV(fp->f, bw);
+}
+
+inline PtrVal si_tofp(const PtrVal& v) {
+  auto si = std::dynamic_pointer_cast<IntV>(v);
+  ASSERT(si != nullptr, "value passed to si_tofp is not an IntV");
+  return make_FloatV(si->i, si->bw);
 }
 
 struct LocV : Value {
@@ -599,6 +613,12 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
 inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
   auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
   auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
+  int bw1 = f1->get_bw();
+  int bw2 = f2->get_bw();
+  if (bw1 != bw2) {
+    std::cout << *v1 << " " << float_op2string(op) << " " << *v2 << "\n";
+    ABORT("float_op_2: bitwidth of operands mismatch");
+  }
 
   if (f1 && f2) {
     switch (op) {

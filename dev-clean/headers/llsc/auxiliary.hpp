@@ -48,8 +48,8 @@ enum class iOP {
 
 enum class fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv,
-  op_oeq, op_ogt, op_oge, op_olt, op_ole, op_one, op_ord, 
-  op_ueq, op_ugt, op_uge, op_ult, op_ule, op_une, op_uno, 
+  op_oeq, op_ogt, op_oge, op_olt, op_ole, op_one, op_ord,
+  op_ueq, op_ugt, op_uge, op_ult, op_ule, op_une, op_uno,
   op_false, op_true
 };
 

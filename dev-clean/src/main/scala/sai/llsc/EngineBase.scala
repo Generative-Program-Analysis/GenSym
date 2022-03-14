@@ -73,6 +73,10 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def repBlockFun(funName: String, b: BB): (BFTy, Int)
   def repFunFun(f: FunctionDef): (FFTy, Int)
   def wrapFunV(f: FFTy): Rep[Value]
+  def getRealFunctionName(funName: String): String = {
+    val new_fname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
+    new_fname.replaceAllLiterally(".","_")
+  }
 
   /* Basic functionalities */
 
@@ -84,7 +88,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       return
     }
     val (fn, n) = repBlockFun(funName, b)
-    val realFunName = if (funName != "@main") funName.tail else "llsc_main"
+    val realFunName = getRealFunctionName(funName)
     blockNameMap(n) = s"${realFunName}_Block$n"
     BBFuns((funName, b)) = fn
   }
@@ -94,7 +98,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       return
     }
     val (fn, n) = repFunFun(f)
-    funNameMap(n) = if (f.id != "@main") f.id.tail else "llsc_main"
+    funNameMap(n) = getRealFunctionName(f.id)
     FunFuns(f.id) = fn
   }
   def compile(funs: List[FunctionDef]): Unit = funs.foreach(compile)
@@ -200,6 +204,16 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
   }
 
+  def getFloatSize(ft: FloatType) = ft.k match {
+    case FK_Half => 16
+    case FK_BFloat => 16
+    case FK_Float => 32
+    case FK_Double => 64
+    case FK_X86_FP80 => 80
+    case FK_FP128 => 128
+    case FK_PPC_FP128 => 128
+  }
+
   def getTySizeAlign(vt: LLVMType): (Int, Int) = vt match {
     case ArrayType(num, ety) =>
       val (size, align) = getTySizeAlign(ety)
@@ -215,15 +229,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       val elemSize = ARCH_WORD_SIZE / BYTE_SIZE
       (elemSize, elemSize)
     case FloatType(fk) => {
-      val bw = fk match {
-        case FK_Half => 16
-        case FK_BFloat => 16
-        case FK_Float => 32
-        case FK_Double => 64
-        case FK_X86_FP80 => 80
-        case FK_FP128 => 128
-        case FK_PPC_FP128 => 128
-      }
+      val bw = getFloatSize(vt.asInstanceOf[FloatType])
       import scala.math.{log, ceil, pow}
       val elemSize = (bw + BYTE_SIZE - 1) / BYTE_SIZE
       val align = pow(2, ceil(log(elemSize)/log(2)))
@@ -294,7 +300,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)
     case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
-    case FloatConst(f) => FloatV(f)
+    case FloatConst(f) => FloatV(f, getFloatSize(ty.asInstanceOf[FloatType]))
     case FloatLitConst(l) => FloatV(l, 80)
     case NullConst => LocV(0.toLong, LocV.kHeap)
     case PtrToIntExpr(from, const, to) =>

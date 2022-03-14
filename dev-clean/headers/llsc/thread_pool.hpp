@@ -98,7 +98,7 @@ public:
   void add_task(const TaskFun& f) { add_task(f, rand_int(1024)); }
   void add_task(const TaskFun& f, int w) {
     tasks_num_total++;
-    INFO("Adding task into queue " << id << " with weight " << w);
+    INFO("Adding task into queue with weight " << w);
 #ifdef USE_LKFREE_Q
     Q.enqueue({f, w});
 #else
