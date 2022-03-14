@@ -77,7 +77,7 @@ trait GenExternal extends SymExeDefs {
     val (content, size): (Rep[List[Value]], Rep[Int]) = fs.readFile(fd, count).unlift
     val ss1 = ss.updateSeq(buf, content)
     ss1.setFs(fs)
-    k(ss1, IntV(size, 32))
+    k(ss1, IntV(size, 64))
   }
 
   def write[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
@@ -88,7 +88,7 @@ trait GenExternal extends SymExeDefs {
     val content: Rep[List[Value]] = ss.lookupSeq(buf, count)
     val size = fs.writeFile(fd, content, count)
     ss.setFs(fs)
-    k(ss, IntV(size))
+    k(ss, IntV(size, 64))
   }
 
   def stat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {

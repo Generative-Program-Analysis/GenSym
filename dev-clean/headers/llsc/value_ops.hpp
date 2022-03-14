@@ -149,6 +149,7 @@ template <typename func_t>
 struct FunV : Value {
   func_t f;
   FunV(func_t f) : f(f) {
+    ASSERT(f != nullptr, "funv cannot be nullptr");
     hash_combine(hash(), std::string("funv"));
     hash_combine(hash(), f);
   }
@@ -158,7 +159,7 @@ struct FunV : Value {
     return ss.str();
   }
   virtual std::shared_ptr<IntV> to_IntV() override {
-    ABORT("to_IntV: TODO for FunV?");
+    return std::make_shared<IntV>(IntData(f), 64);
   }
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return addr_bw; }

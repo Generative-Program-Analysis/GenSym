@@ -52,8 +52,9 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
         CPSFunV[Ref](FunFuns(id))
-      case GlobalId(id) if funDeclMap.contains(id) =>
-        ExternalFun.get(id)
+      case GlobalId(id) if funDeclMap.contains(id) => 
+        val t = funDeclMap(id).header.returnType
+        ExternalFun.get(id, Some(t))
       case GlobalId(id) if globalDefMap.contains(id) =>
         LocV(heapEnv(id), LocV.kHeap)
       case GlobalId(id) if globalDeclMap.contains(id) => 

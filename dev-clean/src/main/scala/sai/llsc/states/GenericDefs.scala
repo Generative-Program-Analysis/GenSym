@@ -87,18 +87,18 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "make_symbolic", "make_symbolic_whole",
       "open", "close", "read", "write", "stat", "stop", "syscall", "llsc_assume"
     )
-    def apply(f: String): Rep[Value] = {
+    def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {
         System.out.println(s"Use external function $f.")
         used.add(f)
       }
-      "llsc-external-wrapper".reflectWith[Value](f)
+      "llsc-external-wrapper".reflectWith[Value](f, ret)
     }
-    def unapply(v: Rep[Value]): Option[String] = Unwrap(v) match {
-      case gNode("llsc-external-wrapper", bConst(f: String)::Nil) => Some(f)
+    def unapply(v: Rep[Value]): Option[(String, Option[LLVMType])] = Unwrap(v) match {
+      case gNode("llsc-external-wrapper", bConst(f: String)::bConst(ret: Option[LLVMType])::Nil) => Some((f, ret))
       case _ => None
     }
-    def get(id: String): Rep[Value] =
+    def get(id: String, ret: Option[LLVMType] = None): Rep[Value] =
       if (modeled.contains(id.tail)) ExternalFun(id.tail)
       else if (id.startsWith("@llvm.va_start")) ExternalFun("llvm_va_start")
       else if (id.startsWith("@llvm.va_end")) ExternalFun("llvm_va_end")
@@ -111,7 +111,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
           System.out.println(s"External function ${id.tail} is treated as a noop.")
           warned.add(id)
         }
-        ExternalFun("noop")
+        ExternalFun("noop", ret)
       }
   }
 }
@@ -282,8 +282,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def structAt(i: Rep[Long]) = "structV_at".reflectWith[Value](v, i)
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] = {
       v match {
-        case ExternalFun(f) =>
-          if (f == "noop") List((s.asRepOf[SS], IntV(0)))
+        case ExternalFun(f, ty) =>
+          if (f == "noop") {
+            val retval = ty match {
+              case Some(IntType(size)) => IntV(0, size)
+              case Some(PtrType(_, _)) => IntV(0, 64)
+              case _ => IntV(0)
+            }
+            List((s.asRepOf[SS], retval))
+          }
           else f.reflectWith[List[(SS, Value)]](s, args)
         case FunV(f) => f(s, args)
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
@@ -293,8 +300,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
-        case ExternalFun(f) =>
-          if (f == "noop") k(s, IntV(0))
+        case ExternalFun(f, ty) =>
+          if (f == "noop") {
+            val retval = ty match {
+              case Some(IntType(size)) => IntV(0, size)
+              case Some(PtrType(_, _)) => IntV(0, 64)
+              case _ => IntV(0)
+            }
+            k(s, retval)
+          }
           else f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call

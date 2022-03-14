@@ -53,7 +53,8 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         if (!FunFuns.contains(id)) compile(funMap(id))
         FunV[Ref](FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
-        ExternalFun.get(id)
+        val t = funDeclMap(id).header.returnType
+        ExternalFun.get(id, Some(t))
       case GlobalId(id) if globalDefMap.contains(id) =>
         LocV(heapEnv(id), LocV.kHeap)
       case GlobalId(id) if globalDeclMap.contains(id) => 

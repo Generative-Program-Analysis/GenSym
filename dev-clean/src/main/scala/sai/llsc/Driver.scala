@@ -324,7 +324,7 @@ object RunLLSC {
       val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
       val llsc = new PureLLSC
       // TODO: create Config value according to command-line arguments, pass to runLLSC/newInstance
-      llsc.runLLSC(parseFile(filepath), appName, fun, Config(nSym, false))
+      llsc.runLLSC(parseFile(filepath), appName, fun, Config(nSym, true))
     }
 
     //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
