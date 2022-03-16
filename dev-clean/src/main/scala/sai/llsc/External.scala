@@ -90,6 +90,15 @@ trait GenExternal extends SymExeDefs {
     ss.setFs(fs)
     k(ss, IntV(size, 64))
   }
+  def lseek[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    val fd: Rep[Fd] = args(0).int.asRepOf[Fd]
+    val o: Rep[Long] = args(1).int.asRepOf[Long]
+    val w: Rep[Int] = args(2).int.asRepOf[Int]
+    val fs: Rep[FS] = ss.getFs
+    val pos: Rep[Long] = fs.seekFile(fd, o, w)
+    ss.setFs(fs)
+    k(ss, IntV(pos, 64))
+  }
 
   def stat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val ptr = args(0)
@@ -159,6 +168,8 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
     hardTopFun(gen_k(read), "read", "inline")
     hardTopFun(gen_p(write), "write", "inline")
     hardTopFun(gen_k(write), "write", "inline")
+    hardTopFun(gen_p(lseek), "lseek", "inline")
+    hardTopFun(gen_k(lseek), "lseek", "inline")
     hardTopFun(gen_p(stat), "stat", "inline")
     hardTopFun(gen_k(stat), "stat", "inline")
     // hardTopFun(gen_p(openat), "openat", "inline")

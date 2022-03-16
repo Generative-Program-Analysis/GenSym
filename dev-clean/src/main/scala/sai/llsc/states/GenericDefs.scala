@@ -85,7 +85,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "sym_print", "print_string", "malloc", "realloc",
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
-      "open", "close", "read", "write", "stat", "stop", "syscall", "llsc_assume"
+      "open", "close", "read", "write", "lseek", "stat", "stop", "syscall", "llsc_assume"
     )
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {

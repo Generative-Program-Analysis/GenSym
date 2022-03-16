@@ -322,6 +322,28 @@ class FS: public Printable {
       return std::make_pair(stat.get_struct(), 0);
     }
 
+    off_t seek_file(Fd fd, off_t offset, int whence) {
+      if (!has_stream(fd)) return -1;
+      auto strm = get_stream(fd);
+      off_t ret;
+      switch (whence) {
+        case SEEK_SET:
+          ret = strm.seek_start(offset);
+          break;
+        case SEEK_CUR:
+          ret = strm.seek_cur(offset);
+          break;
+        case SEEK_END:
+          ret = strm.seek_end(offset);
+          break;
+        default:
+          std::cout << "invalid whence flag: " << whence << std::endl;
+          return -1;
+      }
+      /* TODO: use reference to get stream instead <2022-03-15, David Deng> */
+      if (ret != -1) opened_files = opened_files.set(fd, strm);
+      return ret;
+    }
 };
 
 inline FS initial_fs;

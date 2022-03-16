@@ -136,6 +136,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "fs-close-file", List(fs, fd), _) => es"$fs.close_file($fd)"
     case Node(s, "fs-read-file", List(fs, fd, n), _) => es"$fs.read_file($fd, $n)"
     case Node(s, "fs-write-file", List(fs, fd, c, n), _) => es"$fs.write_file($fd, $c, $n)"
+    case Node(s, "fs-seek-file", List(fs, fd, o, w), _) => es"$fs.seek_file($fd, $o, $w)"
     case Node(s, "fs-stat-file", List(fs, ptr), _) => es"$fs.stat_file($ptr)"
 
     case Node(s, "add_tp_task", List(b: Block), _) =>

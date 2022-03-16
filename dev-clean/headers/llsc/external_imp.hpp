@@ -92,10 +92,8 @@ inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
   auto emptyMem = List<PtrVal>(bytes, nullptr);
-  std::cout << "realloc size: " << emptyMem.size() << std::endl;
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   IntData prevBytes = proj_LocV_size(args.at(0));
-  std::cout << "prev size: " << prevBytes << std::endl;
   state.heap_append(emptyMem);
   for (int i = 0; i < prevBytes; i++) {
     state.update(memLoc + i, state.heap_lookup(src + i));

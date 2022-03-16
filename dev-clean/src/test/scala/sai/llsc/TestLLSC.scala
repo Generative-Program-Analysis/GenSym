@@ -136,6 +136,7 @@ object TestCases {
     TestPrg(stat1Test, "statTestAssign", "@main", noArg, "", nPath(1)++status(0)),
     TestPrg(stat2Test, "statTestRead", "@main", noArg, "--add-sym-file A", nPath(3)++status(0)),
     TestPrg(stat2Test, "statTestFail", "@main", noArg, "", nPath(1)++status(1)),
+    TestPrg(seekTest, "seekTest", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, None, nPath(2)++status(0)),
     TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, None, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, None, nPath(2)++status(0)),
@@ -241,6 +242,7 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 
 class TestImpLLSC extends TestLLSC {
   testLLSC(new ImpLLSC, TestCases.all ++ varArg)
+  // TODO: fix filesys <2022-03-15, David Deng> //
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
   //testLLSC(new ImpLLSC, external)
 }
