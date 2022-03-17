@@ -444,7 +444,6 @@ template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  PtrVal va_arg = state.getVarargLoc();
   SS res = state;
   for (int i = 0; i<24; i++) {
     res = res.update(va_list + i, nullptr);
