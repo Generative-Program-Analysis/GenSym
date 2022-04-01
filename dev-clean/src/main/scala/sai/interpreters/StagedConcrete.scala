@@ -23,15 +23,25 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
   type R[T] = Rep[T]
   type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
 
-  // Code generation
-  def lift_ap_clo(f: Rep[Value], arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
-    Wrap[(Value, Store)](Adapter.g.reflect("sai-ap-clo", Unwrap(f), Unwrap(arg), Unwrap(σ)))
-  def lift_compiled_clo(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)], λ: Lam, ρ: Rep[Env]): Rep[Value] = {
-    val block = Adapter.g.reify((v, s) => Unwrap(f(Wrap[Value](v), Wrap[Store](s))))
-    val block_node = Wrap[(Value, Store)=>(Value, Store)](Adapter.g.reflect("λ", block, Backend.Const("val")))
-    Wrap[Value](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
+  // Representing next-stage integers
+  object SIntV {
+    def apply(i: Int): Rep[Value] = "IntV".reflectWith[Value](unit(i))
+    def arith(op: String, v1: Rep[Int], v2: Rep[Int]) = "IntV-op".reflectWith[Value](unit(op), v1, v2)
   }
-  def lift_int_proj(i: Rep[Value]): Rep[Int] = Wrap[Int](Adapter.g.reflect("sai-IntV-proj", Unwrap(i)))
+  object SCloV {
+    def apply(f: (Rep[Value], Rep[Store]) => Rep[(Value, Store)], λ: Lam, ρ: Rep[Env]): Rep[Value] = {
+      val block = Adapter.g.reify((v, s) => Unwrap(f(Wrap[Value](v), Wrap[Store](s))))
+      val block_node = Wrap[(Value, Store)=>(Value, Store)](Adapter.g.reflect("λ", block, Backend.Const("val")))
+      "sai-comp-clo".reflectWith[Value](block_node, unit[Lam](λ), ρ)
+    }
+  }
+
+  // Representing operations of next-stage values
+  implicit class SValueOps(v: Rep[Value]) {
+    def value: Rep[Int] = "sai-IntV-proj".reflectWith[Int](v)
+    def apply(arg: Rep[Value], σ: Rep[Store]): Rep[(Value, Store)] =
+      "sai-ap-clo".reflectWith[(Value, Store)](v, arg, σ)
+  }
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
@@ -52,26 +62,21 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
   // Primitive operations
   def get(σ: Rep[Store], ρ: Rep[Env], x: String): Rep[Value] = σ(ρ(x))
 
-  def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](unchecked[Value]("IntV(", i, ")"))
+  def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](IntV(i))
 
-  def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = {
-    val v1n = lift_int_proj(v1)
-    val v2n = lift_int_proj(v2)
-    unchecked("IntV(", v1n, op.toString.drop(1), v2n, ")")
-  }
+  def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] =
+    SIntV.arith(op.toString.drop(1), v1.value, v2.value)
 
   def lift[T: Manifest](t: Rep[T]): AnsM[T] =
     ReaderT.liftM[StoreM, Env, T](StateT.liftM[IdM, Store, T](IdM(t)))
 
-  def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans = {
-    val i = lift_int_proj(test)
+  def br0(test: Rep[Value], thn: => Ans, els: => Ans): Ans =
     for {
       ρ <- ask_env
       σ <- get_store
-      res <- lift[(Value, Store)](if (i == 0) thn(ρ)(σ).run else els(ρ)(σ).run)
+      res <- lift[(Value, Store)](if (test.value == 0) thn(ρ)(σ).run else els(ρ)(σ).run)
       _ <- put_store(res._2)
     } yield res._1
-  }
 
   def close(ev: EvalFun)(λ: Lam, ρ: Rep[Env]): Rep[Value] = {
     val Lam(x, e) = λ
@@ -80,12 +85,12 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ + (α → v)).run
     }
-    lift_compiled_clo(f, λ, ρ)
+    SCloV(f, λ, ρ)
   }
 
   def ap_clo(ev: EvalFun)(fun: Rep[Value], arg: Rep[Value]): Ans = for {
     σ  <- get_store
-    vs <- lift[(Value, Store)](lift_ap_clo(fun, arg, σ))
+    vs <- lift[(Value, Store)](fun(arg, σ))
     _  <- put_store(vs._2)
   } yield vs._1
 
@@ -103,17 +108,13 @@ trait StagedConcreteGen extends SAICodeGenBase {
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "sai-comp-clo", List(bn, λ, ρ), _) =>
-      emit("CompiledClo(")
-      shallow(bn); emit("_val, ")
-      shallow(λ); emit(", ")
-      shallow(ρ); emitln(")")
+      es"CompiledClo(${bn}_val, ${λ}, ${ρ})"
     case Node(s, "sai-ap-clo", List(f, arg, σ), _) =>
-      shallow(f)
-      emit(".asInstanceOf[CompiledClo].f(")
-      shallow(arg); emit(", ")
-      shallow(σ); emitln(")")
+      es"$f.asInstanceOf[CompiledClo]($arg, ${σ})"
     case Node(s, "sai-IntV-proj", List(i), _) =>
-      shallow(i); emitln(".asInstanceOf[IntV].i")
+      es"$i.asInstanceOf[IntV].i"
+    case Node(s, "IntV-op", List(op, v1, v2), _) =>
+      es"IntV($v1 ${op.toString} $v2)"
     case _ => super.shallow(n)
   }
 }
@@ -134,7 +135,9 @@ trait StagedConcreteDriver extends SAIDriver[Unit, Unit] with StagedConcreteSema
   import sai.lang.FunLang._
   sealed trait Value
   case class IntV(i: Int) extends Value
-  case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value
+  case class CompiledClo(f: (Value, Map[Int,Value]) => (Value, Map[Int,Value]), λ: Lam, ρ: Map[String,Int]) extends Value {
+    def apply(v: Value, m: Map[Int,Value]) = f(v, m)
+  }
 """
 
 }
