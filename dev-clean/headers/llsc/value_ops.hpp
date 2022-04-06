@@ -381,7 +381,7 @@ inline bool is_LocV_null(PtrVal v) {
 
 inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
   if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
-    return make_LocV(loc->l + rhs, loc->k, loc->size);
+    return make_LocV(loc->l + rhs, loc->k, loc->size - rhs);
   }
   if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
     return make_IntV(i->i + rhs, i->bw);

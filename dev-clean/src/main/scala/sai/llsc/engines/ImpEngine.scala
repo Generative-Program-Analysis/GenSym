@@ -56,7 +56,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         val t = funDeclMap(id).header.returnType
         ExternalFun.get(id, Some(t))
       case GlobalId(id) if globalDefMap.contains(id) =>
-        LocV(heapEnv(id), LocV.kHeap)
+        heapEnv(id)()
       case GlobalId(id) if globalDeclMap.contains(id) => 
         System.out.println(s"Warning: globalDecl $id is ignored")
         ty match {
@@ -70,10 +70,10 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         val lV = eval(const, ptrType, ss)
         val indexValue = vs.map(v => v.int)
         val offset = calculateOffset(ptrType, indexValue)
-        const match {
-          case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-          case _ => LocV(lV.loc + offset, lV.kind)
-        }
+        (const match {
+          case GlobalId(id) => heapEnv(id)()
+          case _ => lV
+        }) + offset
       case IntToPtrExpr(from, value, to) => eval(value, from, ss).toLocV
       case PtrToIntExpr(from, value, IntType(toSize)) =>
         import sai.llsc.Constants.ARCH_WORD_SIZE
@@ -101,7 +101,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       case AllocaInst(ty, align) =>
         val typeSize = getTySize(ty)
         ss.allocStack(typeSize, align.n)
-        k(ss, LocV(ss.stackSize - typeSize, LocV.kStack))
+        k(ss, LocV(ss.stackSize - typeSize, LocV.kStack, typeSize.toLong))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
@@ -124,10 +124,10 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
             val lV = eval(ptrValue, ptrType, ss)
             val indexValue = vs.map(v => v.int)
             val offset = calculateOffset(ptrType, indexValue)
-            val v = ptrValue match {
-              case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-              case _ => LocV(lV.loc + offset, lV.kind)
-            }
+            val v = (ptrValue match {
+              case GlobalId(id) => heapEnv(id)()
+              case _ => lV
+            }) + offset
             k(ss, v)
         }
       // Arith Binary Operations

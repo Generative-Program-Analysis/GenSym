@@ -71,7 +71,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val t = funDeclMap(id).header.returnType
         ExternalFun.get(id, Some(t))
       case GlobalId(id) if globalDefMap.contains(id) =>
-        LocV(heapEnv(id), LocV.kHeap)
+        heapEnv(id)()
       case GlobalId(id) if globalDeclMap.contains(id) => 
         System.out.println(s"Warning: globalDecl $id is ignored")
         ty match {
@@ -85,10 +85,10 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val lV = eval(const, ptrType, ss)
         val indexValue = vs.map(v => v.int)
         val offset = calculateOffset(ptrType, indexValue)
-        const match {
-          case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-          case _ => LocV(lV.loc + offset, lV.kind)
-        }
+        (const match {
+          case GlobalId(id) => heapEnv(id)()
+          case _ => lV
+        }) + offset
       case IntToPtrExpr(from, value, to) => eval(value, from, ss).toLocV
       case PtrToIntExpr(from, value, IntType(toSize)) =>
         import Constants.ARCH_WORD_SIZE
@@ -118,7 +118,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case AllocaInst(ty, align) =>
         val typeSize = getTySize(ty)
         val ss2 = ss.allocStack(typeSize, align.n)
-        k(ss2, LocV(ss2.stackSize - typeSize, LocV.kStack))
+        k(ss2, LocV(ss2.stackSize - typeSize, LocV.kStack, typeSize.toLong))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
@@ -139,10 +139,10 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
             val lV = eval(ptrValue, ptrType, ss)
             val indexValue = vs.map(v => v.int)
             val offset = calculateOffset(ptrType, indexValue)
-            val v = ptrValue match {
-              case GlobalId(id) => LocV(heapEnv(id) + offset, LocV.kHeap)
-              case _ => LocV(lV.loc + offset, lV.kind)
-            }
+            val v = (ptrValue match {
+              case GlobalId(id) => heapEnv(id)()
+              case _ => lV
+            }) + offset
             k(ss, v)
         }
       // Arith Binary Operations

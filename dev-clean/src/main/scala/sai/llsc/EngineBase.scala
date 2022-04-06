@@ -127,7 +127,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   lazy val cfg: CFG = CFG(funMap)
   //cfg.prettyPrint
 
-  var heapEnv: StaticMap[String, Rep[Addr]] = StaticMap()
+  var heapEnv: StaticMap[String, () => Rep[Value]] = StaticMap()
 
   val blockNameMap: HashMap[Int, String] = new HashMap()
 
@@ -302,7 +302,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
     case FloatConst(f) => FloatV(f, getFloatSize(ty.asInstanceOf[FloatType]))
     case FloatLitConst(l) => FloatV(l, 80)
-    case NullConst => LocV(0.toLong, LocV.kHeap)
+    case NullConst => LocV(0.toLong, LocV.kHeap, -1.toLong)
     case PtrToIntExpr(from, const, to) =>
       val v = evalHeapAtomicConst(const, from).toIntV
       if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size)
@@ -312,13 +312,12 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case GlobalId(id) if funMap.contains(id) =>
       if (!FunFuns.contains(id)) compile(funMap(id))
       wrapFunV(FunFuns(id))
-    case GlobalId(id) => LocV(heapEnv(id), LocV.kHeap)
+    case GlobalId(id) => heapEnv(id)()
     case BitCastExpr(from, const, to) => evalHeapAtomicConst(const, to)
     case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) =>
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
-      val base = evalHeapAtomicConst(const, getRealType(ptrType)).loc
-      val addr = base + calculateOffsetStatic(ptrType, indexLLVMValue)
-      LocV(addr, LocV.kHeap)
+      val base = evalHeapAtomicConst(const, getRealType(ptrType))
+      base + calculateOffsetStatic(ptrType, indexLLVMValue)
     case _ => throw new Exception("Not atomic heap constant " + v)
   }
 
@@ -401,13 +400,17 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       // heapTmp ++= StaticList.fill(heapSize)(NullPtr())
       module.globalDeclMap.foreach { case (k, v) =>
         val realname = module.mname + "_" + v.id
-        heapEnv += realname -> unit(heapSize)
-        heapSize += getTySize(v.typ)
+        val curSize = getTySize(v.typ).toLong
+        val heapSize2 = heapSize.toLong
+        heapEnv += realname -> (() => LocV(heapSize2, LocV.kHeap, curSize))
+        heapSize += curSize
         heapTmp ++= evalHeapConst(ZeroInitializerConst, v.typ)
       }
       module.globalDefMap.foreach { case (k, v) =>
-        heapEnv += k -> unit(heapSize)
-        heapSize += getTySize(v.typ)
+        val curSize = getTySize(v.typ).toLong
+        val heapSize2 = heapSize.toLong
+        heapEnv += k -> (() => LocV(heapSize2, LocV.kHeap, curSize))
+        heapSize += curSize
       }
       module.globalDefMap.foreach { case (k, v) =>
         heapTmp ++= evalHeapConst(v.const, getRealType(v.typ))

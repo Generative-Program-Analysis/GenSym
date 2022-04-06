@@ -153,11 +153,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def nullloc: Rep[Value] = "make_LocV_null".reflectMutableWith[Value]()
     def kStack: Rep[Kind] = "kStack".reflectMutableWith[Kind]()
     def kHeap: Rep[Kind] = "kHeap".reflectMutableWith[Kind]()
-    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Int] = unit(-1)): Rep[Value] =
+    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long]): Rep[Value] =
       "make_LocV".reflectMutableWith[Value](l, kind, size)
-    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Int])] = Unwrap(v) match {
+    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Long])] = Unwrap(v) match {
       case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::_) =>
-        Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Int](size)))
+        Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Long](size)))
       case _ => None
     }
   }
@@ -334,6 +334,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def trunc(from: Int, to: Int): Rep[Value] = "trunc".reflectWith[Value](v, from, to)
     def toIntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
     def toLocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
+
+    def +(off: Rep[Long]): Rep[Value] = "ptroff".reflectWith[Value](v, off)
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)
