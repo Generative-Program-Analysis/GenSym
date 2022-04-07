@@ -53,6 +53,8 @@ public:
   expr construct_z3_expr(context* c, PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
+      if (int_e->bw == 1)
+        return c->bool_val(int_e->i ? true : false);
       return c->bv_val(int_e->as_signed(), int_e->bw);
     }
     auto sym_e = std::dynamic_pointer_cast<SymV>(e);
@@ -99,6 +101,8 @@ public:
         return !expr_rands.at(0);
       case iOP::op_sext: {
         auto v = expr_rands.at(0);
+        if (v.get_sort().is_bool())
+          v = ite(v, c->bv_val(1, 1), c->bv_val(0, 1));
         auto ext_size = bw - v.get_sort().bv_size();
         ASSERT(ext_size >= 0, "negative sign extension size");
         if (ext_size > 0) return sext(v, ext_size);
@@ -106,6 +110,8 @@ public:
       }
       case iOP::op_zext: {
         auto v = expr_rands.at(0);
+        if (v.get_sort().is_bool())
+          v = ite(v, c->bv_val(1, 1), c->bv_val(0, 1));
         auto ext_size = bw - v.get_sort().bv_size();
         ASSERT(ext_size >= 0, "negative zero extension size");
         if (ext_size > 0) return zext(v, ext_size);

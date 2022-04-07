@@ -274,3 +274,9 @@ class Playground extends TestLLSC {
   //testLLSC(llsc, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, None, status(255)))
   //testLLSC(llsc, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, None, status(255)))
 }
+
+class Optimization extends TestLLSC {
+  val llsc = new PureCPSLLSC_Z3
+  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, None, nPath(720)))
+  //testLLSC(llsc, TestPrg(kmpmatcher, "kmp", "@main", noArg, None, nPath(1287)))
+}

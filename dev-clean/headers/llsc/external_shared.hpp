@@ -32,6 +32,9 @@ inline std::monostate stop(SS state, List<PtrVal> args, Cont k) {
 inline List<SSVal> noop(SS state, List<PtrVal> args) {
   return List<SSVal>{{state, make_IntV(0)}};
 }
+inline std::monostate noop(SS state, List<PtrVal> args, Cont k) {
+  return k(state, make_IntV(0));
+}
 
 /******************************************************************************/
 

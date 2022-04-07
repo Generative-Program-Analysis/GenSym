@@ -231,10 +231,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply_noopt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
       "int_op_2".reflectWith[Value](op, o1, o2)
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
-      op match {
-        case "neq" => neq(o1, o2)
-        case "eq" => eq(o1, o2)
-        case _ => apply_noopt(op, o1, o2)
+      if (!Config.opt) {
+        apply_noopt(op, o1, o2)
+      } else {
+        op match {
+          case "neq" => neq(o1, o2)
+          case "eq" => eq(o1, o2)
+          case _ => apply_noopt(op, o1, o2)
+        }
       }
     def neq(o1: Rep[Value], o2: Rep[Value]): Rep[Value] = (Unwrap(o1), Unwrap(o2)) match {
       case (gNode("bv_sext", (e1: bExp)::bConst(bw1: Int)::_),
@@ -262,20 +266,20 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
   implicit class ValueOps(v: Rep[Value]) {
     def bw: Rep[Int] = v match {
-      case IntV(n, bw) => bw
-      case LocV(a, k, size) => unit(64)
+      case IntV(n, bw) if Config.opt => bw
+      case LocV(a, k, size) if Config.opt => unit(64)
       case _ => "get-bw".reflectWith[Int](v)
     }
     def loc: Rep[Addr] = v match {
-      case LocV(a, k, size) => a
+      case LocV(a, k, size) if Config.opt => a
       case _ => "proj_LocV".reflectWith[Addr](v)
     }
     def kind: Rep[LocV.Kind] = v match {
-      case LocV(a, k, size) => k
+      case LocV(a, k, size) if Config.opt => k
       case _ => "proj_LocV_kind".reflectWith[LocV.Kind](v)
     }
     def int: Rep[Long] = v match {
-      case IntV(n, bw) => unit(n)
+      case IntV(n, bw) if Config.opt => unit(n)
       case _ => "proj_IntV".reflectWith[Int](v)
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
@@ -283,15 +287,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] = {
       v match {
         case ExternalFun(f, ty) =>
-          if (f == "noop") {
+          if (f == "noop" && Config.opt) {
             val retval = ty match {
               case Some(IntType(size)) => IntV(0, size)
               case Some(PtrType(_, _)) => IntV(0, 64)
               case _ => IntV(0)
             }
             List((s.asRepOf[SS], retval))
-          }
-          else f.reflectWith[List[(SS, Value)]](s, args)
+          } else f.reflectWith[List[(SS, Value)]](s, args)
         case FunV(f) => f(s, args)
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
@@ -301,15 +304,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
         case ExternalFun(f, ty) =>
-          if (f == "noop") {
+          if (f == "noop" && Config.opt) {
             val retval = ty match {
               case Some(IntType(size)) => IntV(0, size)
               case Some(PtrType(_, _)) => IntV(0, 64)
               case _ => IntV(0)
             }
             k(s, retval)
-          }
-          else f.reflectWith[Unit](s, args, k)
+          } else f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
@@ -320,7 +322,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def zExt(bw: Int): Rep[Value] = "bv_zext".reflectWith[Value](v, bw)
 
     def isConc: Rep[Boolean] = v match {
-      case IntV(_, _) => unit(true)
+      case IntV(_, _) if Config.opt => unit(true)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
     def toSMTBool: Rep[SMTBool] = v.asRepOf[SMTBool]

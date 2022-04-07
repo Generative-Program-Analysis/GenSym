@@ -102,6 +102,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         NullPtr() // FIXME: use uninitValue
       case NullConst => LocV.nullloc
       case NoneConst => NullPtr()
+      case UndefConst => IntV(0, ty.asInstanceOf[IntType].size)
       case v => System.out.println(ty, v); ???
     }
 

@@ -1,6 +1,7 @@
 #ifndef LLSC_CLIENT_HEADERS
 #define LLSC_CLIENT_HEADERS
 
+#include <stdio.h>
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -71,6 +72,10 @@ static inline void llsc_warning(const char *message) {
 
 static inline void __VERIFIER_error(void) { llsc_assert_eager(0); }
 static inline void __VERIFIER_assert(int cond) { llsc_assert_eager(cond); }
+static inline void reach_error() {
+  fprintf(stderr, "error reached\n");
+  llsc_assert_eager(0);
+}
 static inline void __VERIFIER_assume(int x) { /* TODO */ }
 
 static inline int __VERIFIER_nondet_int(void) {

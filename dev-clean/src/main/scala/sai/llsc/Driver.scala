@@ -147,9 +147,11 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: 
   }
 
   override def transform(g0: Graph): Graph = {
-    val (g1, subst1) = AssignElim.transform(g0)
-    codegen.reconsMapping(subst1)
-    g1
+    if (Config.opt) {
+      val (g1, subst1) = AssignElim.transform(g0)
+      codegen.reconsMapping(subst1)
+      g1
+    } else g0
   }
 }
 
@@ -165,9 +167,11 @@ abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](val m: Module, appNam
   }
 
   override def transform(g0: Graph): Graph = {
-    val (g1, subst1) = AssignElim.transform(g0)
-    codegen.reconsMapping(subst1)
-    g1
+    if (Config.opt) {
+      val (g1, subst1) = AssignElim.transform(g0)
+      codegen.reconsMapping(subst1)
+      g1
+    } else g0
   }
 }
 
@@ -229,6 +233,10 @@ case class Config(nSym: Int, argv: Boolean) {
 }
 
 object Config {
+  var opt: Boolean = true
+  def disableOpt: Unit = opt = false
+  def enableOpt: Unit = opt = true
+
   def symArg(n: Int) = Config(n, false)
   def useArgv = Config(0, true)
   def noArg = Config(0, false)

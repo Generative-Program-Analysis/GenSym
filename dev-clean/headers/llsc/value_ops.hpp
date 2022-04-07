@@ -607,7 +607,23 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         ABORT("invalid operator");
     }
   } else {
-    return make_SymV(op, List<PtrVal>({ v1, v2 }), bw1);
+    int bw = bw1;
+    switch (op) {
+      case iOP::op_eq:
+      case iOP::op_neq:
+      case iOP::op_uge:
+      case iOP::op_sge:
+      case iOP::op_ugt:
+      case iOP::op_sgt:
+      case iOP::op_ule:
+      case iOP::op_sle:
+      case iOP::op_ult:
+      case iOP::op_slt:
+        bw = 1;
+      default:
+        break;
+    }
+    return make_SymV(op, List<PtrVal>({ v1, v2 }), bw);
   }
 }
 

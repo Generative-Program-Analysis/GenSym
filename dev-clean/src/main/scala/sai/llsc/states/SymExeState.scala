@@ -130,7 +130,9 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
         case _ => default
       }
 
-    override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 30)
+    override def lookup(x: String): Rep[Value] = 
+      if (Config.opt) lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 30)
+      else super.lookup(x)
 
     override def assign(x: String, v: Rep[Value]): Rep[SS] = Unwrap(ss) match {
       // Idea: coalesce multiple subsequent assign into assign-seq
@@ -138,11 +140,14 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       case _ => super.assign(x, v)
     }
 
-    override def stackSize: Rep[Int] = Unwrap(ss) match {
-      case gNode("ss-alloc-stack", StaticList(ss0: bExp, bConst(inc: Int))) => Wrap[SS](ss0).stackSize + inc
-      case gNode("ss-assign", StaticList(ss0: bExp, _, _)) => Wrap[SS](ss0).stackSize
-      case _ => super.stackSize
-    }
+    override def stackSize: Rep[Int] = 
+      if (Config.opt) {
+        Unwrap(ss) match {
+          case gNode("ss-alloc-stack", StaticList(ss0: bExp, bConst(inc: Int))) => Wrap[SS](ss0).stackSize + inc
+          case gNode("ss-assign", StaticList(ss0: bExp, _, _)) => Wrap[SS](ss0).stackSize
+          case _ => super.stackSize
+        }
+      } else { super.stackSize }
 
   }
 
