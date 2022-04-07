@@ -50,8 +50,9 @@ trait ConcreteSemantics extends ConcreteComponents {
   def num(i: Int): Ans = ReaderTMonad[StoreM, Env].pure[Value](IntV(i))
   def get(σ: Store, ρ: Env, x: String): Value = σ(ρ(x))
   def close(ev: EvalFun)(λ: Lam, ρ: Env): Value = CloV(λ, ρ)
-  def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = fun match {
-    case CloV(Lam(x, e), ρ: Env) => for {
+  def ap_clo(ev: EvalFun)(fun: Value, arg: Value): Ans = {
+    val CloV(Lam(x, e), ρ: Env) = fun
+    for {
       α <- alloc(x)
       _ <- set_store(α → arg)
       rt <- local_env(ev(e))(ρ + (x → α))

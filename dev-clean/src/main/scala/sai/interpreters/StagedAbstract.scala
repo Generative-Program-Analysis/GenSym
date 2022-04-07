@@ -12,6 +12,8 @@ import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 import sai.structure.monad._
 
+import scala.collection.immutable.{List => StaticList}
+
 @virtualize
 trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
   import ReaderT._
@@ -28,26 +30,28 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
 
   def mCache: Manifest[Cache] = manifest[Cache]
 
-  // code generation
-  def lift_ap_clo(f: Rep[AbsValue], arg: Rep[Value], σ: Rep[Store],
-    in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)] = {
-    Wrap[(List[(Value, Store)], Cache)](Adapter.g.reflect("sai-ap-clo",
-      Unwrap(f), Unwrap(arg), Unwrap(σ), Unwrap(in), Unwrap(out)))
-  }
   type CompClo = (Rep[Value], Rep[Store], Rep[Cache], Rep[Cache]) => Rep[(List[(Value, Store)], Cache)]
-  def lift_comp_clo(f: CompClo, λ: Lam, ρ: Rep[Env]): Rep[AbsValue] = {
-    val block = Adapter.g.reify(4, syms => {
-      val v :: σ :: in :: out :: Nil = syms
-      val w_v = Wrap[Value](v)
-      val w_σ = Wrap[Store](σ)
-      val w_in = Wrap[Cache](in)
-      val w_out = Wrap[Cache](out)
-      Unwrap(f(w_v, w_σ, w_in, w_out))
-    })
-    val block_node = Wrap[(Value, Store, Cache, Cache) => (List[(Value, Store)], Cache)](
-      Adapter.g.reflect("λ", block, Backend.Const("val")))
-    Wrap[AbsValue](Adapter.g.reflect("sai-comp-clo", Unwrap(block_node), Unwrap(unit[Lam](λ)), Unwrap(ρ)))
+
+  implicit class AbsValueOps(v: Rep[AbsValue]) {
+    def apply(arg: Rep[Value], σ: Rep[Store], in: Rep[Cache], out: Rep[Cache]): Rep[(List[(Value, Store)], Cache)] =
+      "sai-ap-clo".reflectWith[(List[(Value, Store)], Cache)](v, arg, σ, in, out)
   }
+  object SAbsCloV {
+    def apply(f: CompClo, λ: Lam, ρ: Rep[Env]): Rep[AbsValue] = {
+      val block = Adapter.g.reify(4, syms => {
+        val StaticList(v, σ, in, out) = syms
+        val w_v = Wrap[Value](v)
+        val w_σ = Wrap[Store](σ)
+        val w_in = Wrap[Cache](in)
+        val w_out = Wrap[Cache](out)
+        Unwrap(f(w_v, w_σ, w_in, w_out))
+      })
+      val block_node = Wrap[(Value, Store, Cache, Cache) => (List[(Value, Store)], Cache)](
+        Adapter.g.reflect("λ", block, Backend.Const("val")))
+      "sai-comp-clo".reflectWith[AbsValue](block_node, unit[Lam](λ), ρ)
+    }
+  }
+
   def lift_int_top: Rep[AbsValue] = unit(IntTop)
   def lift_addr(x: String): Rep[Addr] = unit(Addr(x))
 
@@ -90,7 +94,7 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
         val α = alloc(σ, x)
         ev(e)(ρ + (unit(x) → α))(σ ⊔ Map(α → v)).run(in)(out)
     }
-    Set[AbsValue](lift_comp_clo(f, λ, ρ))
+    Set[AbsValue](SAbsCloV(f, λ, ρ))
   }
 
   def arith(op: Symbol, v1: Rep[Value], v2: Rep[Value]): Rep[Value] = Set[AbsValue](lift_int_top)
@@ -100,7 +104,7 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
     clo <- lift_nd[AbsValue](fun.toList)
     in <- ask_in_cache
     out <- get_out_cache
-    res <- lift_nd[(List[(Value, Store)], Cache)](List(lift_ap_clo(clo, arg, σ, in, out)))
+    res <- lift_nd[(List[(Value, Store)], Cache)](List(clo(arg, σ, in, out)))
     _ <- put_out_cache(res._2)
     vs <- lift_nd[(Value, Store)](res._1)
     _ <- put_store(vs._2)
@@ -147,6 +151,7 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
         (out(cfg).toList, out)
       } else {
         val res_in = in.getOrElse(cfg, RepLattice[Set[(Value, Store)]].bot)
+        System.out.println(e)
         val m: Ans = for {
           _ <- put_out_cache(out + (cfg → res_in))
           v <- eval(fix_select)(e)
@@ -200,17 +205,9 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
 trait StagedAbstractGen extends SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "sai-comp-clo", List(bn, λ, ρ), _) =>
-      emit("CompiledClo(")
-      shallow(bn); emit("_val, ")
-      shallow(λ); emit(", ")
-      shallow(ρ); emitln(")")
+      es"CompiledClo(${bn}_val, ${λ}, ${ρ})"
     case Node(s, "sai-ap-clo", List(f, arg, σ, in, out), _) =>
-      shallow(f)
-      emit(".asInstanceOf[CompiledClo].f(")
-      shallow(arg); emit(", ")
-      shallow(σ); emit(", ")
-      shallow(in); emit(", ")
-      shallow(out); emitln(")")
+      es"$f.asInstanceOf[CompiledClo].f($arg, ${σ}, $in, ${out})"
     case _ => super.shallow(n)
   }
 }
