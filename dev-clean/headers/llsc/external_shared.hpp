@@ -205,4 +205,38 @@ inline std::monostate llsc_assume(SS state, List<PtrVal> args, Cont k) {
       [&k](auto s, auto a) { return sym_exit(s, a, k); });
 }
 
+/******************************************************************************/
+
+inline List<SSVal> _exit(SS state, List<PtrVal> args) {
+  return stop(state, args);
+}
+
+inline std::monostate _exit(SS state, List<PtrVal> args, Cont k) {
+  return stop(state, args, k);
+}
+
+/******************************************************************************/
+
+inline List<SSVal> abort(SS state, List<PtrVal> args) {
+  return stop(state, List<PtrVal>{make_IntV(-1)});
+}
+
+inline std::monostate abort(SS state, List<PtrVal> args, Cont k) {
+  return stop(state, List<PtrVal>{make_IntV(-1)}, k);
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T ____errno_location(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  return k(state, state.getErrorLoc());
+}
+
+inline List<SSVal> __errno_location(SS state, List<PtrVal> args) {
+  return ____errno_location<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate __errno_location(SS state, List<PtrVal> args, Cont k) {
+  return ____errno_location<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
 #endif

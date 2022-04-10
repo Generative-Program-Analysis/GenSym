@@ -96,7 +96,20 @@ object Benchmarks {
 
   lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
   lazy val echo_linked = parseFile("benchmarks/coreutils/echo_linked.ll")
+  lazy val cat_linked = parseFile("benchmarks/coreutils/cat_linked.ll")
   lazy val true_linked = parseFile("benchmarks/coreutils/true_linked.ll")
+  lazy val false_linked = parseFile("benchmarks/coreutils/false_linked.ll")
+  lazy val base32_linked = parseFile("benchmarks/coreutils/base32_linked.ll")
+  lazy val base64_linked = parseFile("benchmarks/coreutils/base64_linked.ll")
+  lazy val comm_linked = parseFile("benchmarks/coreutils/comm_linked.ll")
+  lazy val cut_linked = parseFile("benchmarks/coreutils/cut_linked.ll")
+  lazy val dirname_linked = parseFile("benchmarks/coreutils/dirname_linked.ll")
+  lazy val expand_linked = parseFile("benchmarks/coreutils/expand_linked.ll")
+  lazy val fold_linked = parseFile("benchmarks/coreutils/fold_linked.ll")
+  lazy val join_linked = parseFile("benchmarks/coreutils/join_linked.ll")
+  lazy val link_linked = parseFile("benchmarks/coreutils/link_linked.ll")
+  lazy val paste_linked = parseFile("benchmarks/coreutils/paste_linked.ll")
+  lazy val pathchk_linked = parseFile("benchmarks/coreutils/pathchk_linked.ll")
 }
 
 object TestComp {

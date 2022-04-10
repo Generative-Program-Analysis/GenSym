@@ -109,6 +109,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def addPCSet(es: Rep[List[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
+    def updateErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-error-loc", ss)(ss)
 
     def addIncomingBlock(x: String): Rep[Unit] = reflectWrite[Unit]("ss-add-incoming-block", ss, x.hashCode)(ss)
     def incomingBlock: Rep[BlockLabel] = reflectRead[BlockLabel]("ss-incoming-block", ss)(ss)

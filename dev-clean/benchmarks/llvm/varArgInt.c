@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 #include "../../headers/llsc_client.h"
 
 int add_em_up (int count, ...)
@@ -22,6 +23,7 @@ int add_em_up (int count, ...)
 int main (void) {
   /* This call prints 16. */
   // printf ("%d\n", add_em_up (3, 5, 5, 6));
+  errno = EFAULT;
   int sum = 0;
   sum = add_em_up (3, 5, 5, 6);
   sym_print(sum);
@@ -32,6 +34,7 @@ int main (void) {
   sum = add_em_up (10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
   sym_print(sum);
   llsc_assert_eager(55 == sum);
+  llsc_assert_eager(EFAULT == errno);
 
   return 0;
 }

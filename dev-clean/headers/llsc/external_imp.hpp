@@ -88,6 +88,28 @@ inline std::monostate malloc(SS& state, List<PtrVal> args, Cont k) {
 /******************************************************************************/
 
 template<typename T>
+inline T __calloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  IntData nmemb = proj_IntV(args.at(0));
+  IntData size = proj_IntV(args.at(1));
+  ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
+  auto emptyMem = List<PtrVal>(nmemb * size, make_IntV(0, 8));
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, nmemb * size);
+  if (exlib_failure_branch)
+    return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
+  return k(state.heap_append(emptyMem), memLoc);
+}
+
+inline List<SSVal> calloc(SS& state, List<PtrVal> args) {
+  return __calloc<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate calloc(SS& state, List<PtrVal> args, Cont k) {
+  return __calloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
 inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
@@ -193,7 +215,7 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   PtrVal va_arg = state.getVarargLoc();
   state.update(va_list + 0, IntV0, 4);
-  state.update(va_list + 4, IntV0), 4;
+  state.update(va_list + 4, IntV0, 4);
   state.update(va_list + 8, va_arg + 48, 8);
   state.update(va_list + 16, va_arg, 8);
   return k(state, IntV0);

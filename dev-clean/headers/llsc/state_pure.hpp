@@ -309,30 +309,41 @@ class Stack: public Printable {
   private:
     Mem mem;
     List<Frame> env;
+    PtrVal errno_location;
   public:
     std::string toString() const override {
       std::ostringstream ss;
       ss << "Stack(" <<
         "mem=" << mem << ", " <<
         "env=" << vec_to_string(env) <<
+        " errno_location=" << *errno_location <<
         ")";
       return ss.str();
     }
-    Stack(Mem mem, List<Frame> env) : mem(mem), env(env) {}
+    Stack(Mem mem, List<Frame> env, PtrVal errno_location) : mem(mem), env(env), errno_location(errno_location) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
     PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
-    Stack pop(size_t keep) { return Stack(mem.take(keep), env.take(env.size()-1)); }
-    Stack push() { return Stack(mem, env.push_back(Frame())); }
-    Stack push(Frame f) { return Stack(mem, env.push_back(f)); }
+    Stack init_error_loc() {
+      auto updated_mem = mem;
+      auto error_addr = mem.size();
+      updated_mem = updated_mem.alloc(8);
+      updated_mem = updated_mem.update(error_addr, make_IntV(0, 32), 4);
+      auto error_loc = make_LocV(error_addr, LocV::kStack, 4);
+      return Stack(updated_mem, env, error_loc);
+    }
+    PtrVal getErrorLoc() { return errno_location; }
+    Stack pop(size_t keep) { return Stack(mem.take(keep), env.take(env.size()-1), errno_location); }
+    Stack push() { return Stack(mem, env.push_back(Frame()), errno_location); }
+    Stack push(Frame f) { return Stack(mem, env.push_back(f), errno_location); }
 
     Stack assign(Id id, const PtrVal& val) {
-      return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }));
+      return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign(id, val); }), errno_location);
     }
     Stack assign_seq(List<Id> ids, List<PtrVal> vals) {
       // varargs
       size_t id_size = ids.size();
-      if (id_size == 0) return Stack(mem, env);
+      if (id_size == 0) return Stack(mem, env, errno_location);
       if (ids.at(id_size - 1) == 0) {
         auto updated_mem = mem;
         for (size_t i = id_size - 1; i < vals.size(); i++) {
@@ -340,11 +351,10 @@ class Stack: public Printable {
           updated_mem = updated_mem.append(vals.at(i), 7);
         }
         if (updated_mem.size() == mem.size()) updated_mem = updated_mem.alloc(8);
-        auto updated_vals = vals.take(id_size - 1).push_back(make_LocV(mem.size(), LocV::kStack));
-        auto stack = Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }));
-        return Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }));
+        auto updated_vals = vals.take(id_size - 1).push_back(make_LocV(mem.size(), LocV::kStack, updated_mem.size() - mem.size()));
+        return Stack(updated_mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, updated_vals); }), errno_location);
       } else {
-        return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, vals); }));
+        return Stack(mem, env.update(env.size()-1, [&](auto f) { return f.assign_seq(ids, vals); }), errno_location);
       }
     }
     PtrVal lookup_id(Id id) { return env.back().lookup_id(id); }
@@ -354,9 +364,9 @@ class Stack: public Printable {
     PtrVal at_struct(size_t idx, int size) {
       return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
     }
-    Stack update(size_t idx, const PtrVal& val) { return Stack(mem.update(idx, val), env); }
-    Stack update(size_t idx, const PtrVal& val, int size) { return Stack(mem.update(idx, val, size), env); }
-    Stack alloc(size_t size) { return Stack(mem.alloc(size), env); }
+    Stack update(size_t idx, const PtrVal& val) { return Stack(mem.update(idx, val), env, errno_location); }
+    Stack update(size_t idx, const PtrVal& val, int size) { return Stack(mem.update(idx, val, size), env, errno_location); }
+    Stack alloc(size_t size) { return Stack(mem.alloc(size), env, errno_location); }
 };
 
 class PC: public Printable {
@@ -484,9 +494,11 @@ class SS: public Printable {
       updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV_null()); // terminate the array of pointers
       return updated_ss;
     }
+    SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, bb, fs); }
     PC get_PC() { return pc; }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
+    PtrVal getErrorLoc() { return stack.getErrorLoc(); }
     void set_fs(FS new_fs) { fs = new_fs; }
     FS get_fs() { return fs; }
 };
@@ -494,7 +506,7 @@ class SS: public Printable {
 using SSVal = std::pair<SS, PtrVal>;
 
 inline const Mem mt_mem = Mem(List<PtrVal>{});
-inline const Stack mt_stack = Stack(mt_mem, List<Frame>{});
+inline const Stack mt_stack = Stack(mt_mem, List<Frame>{}, nullptr);
 inline const PC mt_pc = PC(List<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);

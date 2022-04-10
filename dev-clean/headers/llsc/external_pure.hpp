@@ -116,6 +116,30 @@ inline std::monostate realloc(SS state, List<PtrVal> args, Cont k) {
 /******************************************************************************/
 
 template<typename T>
+inline T __calloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  IntData nmemb = proj_IntV(args.at(0));
+  IntData size = proj_IntV(args.at(1));
+  ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
+  auto emptyMem = List<PtrVal>(nmemb * size, make_IntV(0, 8));
+
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, nmemb * size);
+  if (exlib_failure_branch)
+    return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
+  return k(state.heap_append(emptyMem), memLoc);
+}
+
+inline List<SSVal> calloc(SS state, List<PtrVal> args) {
+  return __calloc<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate calloc(SS state, List<PtrVal> args, Cont k) {
+  // TODO: in the thread pool version, we should add task into the pool when forking
+  return __calloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
 inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
@@ -321,7 +345,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
     }
     case __NR_ioctl:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_pread64: {
       int fd = getIntArg(args.at(1));
@@ -346,64 +370,64 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
     }
     case __NR_access:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_select:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_fcntl:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_fsync:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_ftruncate:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_getcwd:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_chdir:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_fchdir:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_readlink:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_chmod:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_fchmod:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_chown:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_fchown:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_statfs:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_fstatfs:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_getdents64:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_utimes:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_openat:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_futimesat:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     case __NR_newfstatat:
-      ABORT("Unsupported Systemcall");
+      retval = -1;
       break;
     default:
       ABORT("Unsupported Systemcall");
@@ -435,7 +459,7 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_arg = state.getVarargLoc();
   SS res = state;
   res = res.update(va_list + 0, IntV0, 4);
-  res = res.update(va_list + 4, IntV0), 4;
+  res = res.update(va_list + 4, IntV0, 4);
   res = res.update(va_list + 8, va_arg + 48, 8);
   res = res.update(va_list + 16, va_arg, 8);
   return k(res, IntV0);

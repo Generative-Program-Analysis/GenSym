@@ -179,11 +179,20 @@ class Stack {
   private:
     Mem mem;
     std::vector<Frame> env;
+    PtrVal errno_location;
   public:
-    Stack(Mem mem, std::vector<Frame> env) : mem(std::move(mem)), env(std::move(env)) {}
+    Stack(Mem mem, std::vector<Frame> env, PtrVal errno_location) : mem(std::move(mem)), env(std::move(env)), errno_location(std::move(errno_location)) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
     PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
+    Stack&& init_error_loc() {
+      auto error_addr = mem.size();
+      mem.alloc(8);
+      mem.update(error_addr, make_IntV(0, 32), 4);
+      errno_location = make_LocV(error_addr, LocV::kStack, 4);
+      return std::move(*this);
+    }
+    PtrVal getErrorLoc() { return errno_location; }
     Stack&& pop(size_t keep) {
       mem.take(keep);
       env.pop_back();
@@ -213,7 +222,7 @@ class Stack {
           }
           if (mem.size() == msize) mem.alloc(8);
           vals.resize(id_size - 1);
-          vals.push_back(make_LocV(msize, LocV::kStack));
+          vals.push_back(make_LocV(msize, LocV::kStack, mem.size() - msize));
         }
         env.back().assign_seq(ids, vals);
       }
@@ -438,6 +447,11 @@ class SS {
     const std::vector<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
     // TODO temp solution
     PtrVal getVarargLoc() { return stack.getVarargLoc(); }
+    SS&& init_error_loc() {
+      stack.init_error_loc();
+      return std::move(*this);
+    }
+    PtrVal getErrorLoc() { return stack.getErrorLoc(); }
     void set_fs(FS new_fs) { fs = new_fs; }
     FS get_fs() { return fs; }
 };
@@ -445,7 +459,7 @@ class SS {
 using SSVal = std::pair<SS, PtrVal>;
 
 inline const Mem mt_mem = Mem(std::vector<PtrVal>{});
-inline const Stack mt_stack = Stack(mt_mem, std::vector<Frame>{});
+inline const Stack mt_stack = Stack(mt_mem, std::vector<Frame>{}, nullptr);
 inline const PC mt_pc = PC(std::vector<PtrVal>{});
 inline const BlockLabel mt_bb = 0;
 inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
