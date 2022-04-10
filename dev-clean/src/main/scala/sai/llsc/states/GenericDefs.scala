@@ -337,7 +337,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def toIntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
     def toLocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
 
-    def +(off: Rep[Long]): Rep[Value] = "ptroff".reflectWith[Value](v, off)
+    def +(off: Rep[Long]): Rep[Value] =
+      v match {
+        case LocV(a, k, s) => LocV(a + off, k, s - off)
+        case _ => "ptroff".reflectWith[Value](v, off)
+      }
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)
