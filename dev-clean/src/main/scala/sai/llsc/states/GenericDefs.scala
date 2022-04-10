@@ -153,11 +153,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def nullloc: Rep[Value] = "make_LocV_null".reflectMutableWith[Value]()
     def kStack: Rep[Kind] = "kStack".reflectMutableWith[Kind]()
     def kHeap: Rep[Kind] = "kHeap".reflectMutableWith[Kind]()
-    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long]): Rep[Value] =
-      "make_LocV".reflectMutableWith[Value](l, kind, size)
-    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Long])] = Unwrap(v) match {
-      case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::_) =>
-        Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Long](size)))
+    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long], off: Rep[Long] = 0L): Rep[Value] =
+      "make_LocV".reflectMutableWith[Value](l, kind, size, off)
+    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Long], Rep[Long])] = Unwrap(v) match {
+      case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::(off: bExp)::_) =>
+        Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Long](size), Wrap[Long](off)))
       case _ => None
     }
   }
@@ -267,15 +267,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   implicit class ValueOps(v: Rep[Value]) {
     def bw: Rep[Int] = v match {
       case IntV(n, bw) if Config.opt => bw
-      case LocV(a, k, size) if Config.opt => unit(64)
+      case LocV(a, k, size, off) if Config.opt => unit(64)
       case _ => "get-bw".reflectWith[Int](v)
     }
     def loc: Rep[Addr] = v match {
-      case LocV(a, k, size) if Config.opt => a
+      case LocV(a, k, size, off) if Config.opt => a
       case _ => "proj_LocV".reflectWith[Addr](v)
     }
     def kind: Rep[LocV.Kind] = v match {
-      case LocV(a, k, size) if Config.opt => k
+      case LocV(a, k, size, off) if Config.opt => k
       case _ => "proj_LocV_kind".reflectWith[LocV.Kind](v)
     }
     def int: Rep[Long] = v match {
@@ -339,7 +339,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def +(off: Rep[Long]): Rep[Value] =
       v match {
-        case LocV(a, k, s) => LocV(a + off, k, s - off)
+        case LocV(a, k, s, o) => LocV(a + off, k, s - off, o + off)
         case _ => "ptroff".reflectWith[Value](v, off)
       }
 
@@ -347,7 +347,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case ShadowV() => List[Value](v)
       case IntV(n, bw) => ???
       case FloatV(f, bw) => ???
-      case LocV(_, _, _) | FunV(_) | CPSFunV(_) =>
+      case LocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
       case _ => "to-bytes".reflectWith[List[Value]](v)
     }
@@ -356,7 +356,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case ShadowV() => List[Value](v)
       case IntV(n, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case FloatV(f, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
-      case LocV(_, _, _) | FunV(_) | CPSFunV(_) =>
+      case LocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
       case _ => "to-bytes-shadow".reflectWith[List[Value]](v)
     }

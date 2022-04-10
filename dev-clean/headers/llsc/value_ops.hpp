@@ -310,14 +310,14 @@ struct LocV : Value {
   static const int64_t stack_offset = 1LL<<30;
   Addr l;
   Kind k;
-  int size;
+  int size, offset;
 
-  LocV(Addr l, Kind k, int size) : l(l), k(k), size(size) {
+  LocV(Addr l, Kind k, int size, int off) : l(l), k(k), size(size), offset(off) {
     hash_combine(hash(), std::string("locv"));
     hash_combine(hash(), k);
     hash_combine(hash(), l);
   }
-  LocV(const LocV& v) : LocV(v.l, v.k, v.size) {}
+  LocV(const LocV& v) : LocV(v.l, v.k, v.size, v.offset) {}
   std::string toString() const override {
     std::ostringstream ss;
     ss << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
@@ -344,12 +344,12 @@ struct LocV : Value {
   }
 };
 
-inline PtrVal make_LocV(Addr i, LocV::Kind k, int size) {
-  return std::make_shared<LocV>(i, k, size);
+inline PtrVal make_LocV(Addr i, LocV::Kind k, int size, int off = 0) {
+  return std::make_shared<LocV>(i, k, size, off);
 }
 
 inline PtrVal make_LocV(Addr i, LocV::Kind k) {
-  return std::make_shared<LocV>(i, k, -1);
+  return std::make_shared<LocV>(i, k, -1, 0);
 }
 
 inline PtrVal make_LocV(const PtrVal& v) {
@@ -381,7 +381,7 @@ inline bool is_LocV_null(PtrVal v) {
 
 inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
   if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
-    return make_LocV(loc->l + rhs, loc->k, loc->size - rhs);
+    return make_LocV(loc->l + rhs, loc->k, loc->size - rhs, loc->offset + rhs);
   }
   if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
     return make_IntV(i->i + rhs, i->bw);
