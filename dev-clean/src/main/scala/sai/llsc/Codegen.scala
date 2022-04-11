@@ -285,9 +285,12 @@ trait StdVectorCodeGen extends ExtendedCPPCodeGen {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
       es"std::vector<${remap(mA)}>{"
-      xs.zipWithIndex.map { case (x, i) =>
-        shallow(x)
-        if (i != xs.length-1) emit(", ")
+      if (!xs.isEmpty) {
+        shallow(xs.head)
+        xs.tail.map { x =>
+          emit(", ")
+          shallow(x)
+        }
       }
       es"}"
     case _ => super.shallow(n)

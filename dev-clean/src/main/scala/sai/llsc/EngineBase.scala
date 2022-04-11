@@ -334,10 +334,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         }
       }
       case ArrayConst(cs) =>
-        cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((l0, a0), c) =>
-          val va = evalHeapConstWithAlign(c.const, c.ty)
-          (l0 ++ va._1, va._2)
-        }
+        (cs.map(c => evalHeapConstWithAlign(c.const, c.ty)._1).flatten, getTySizeAlign(real_ty)._2)
       case CharArrayConst(s) =>
         val (size, align) = getTySizeAlign(real_ty)
         (s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(size-s.length)(uninitValue), align)

@@ -69,7 +69,7 @@ trait SetOpsOpt extends SetOps { b: Base =>
     }
     override def foldLeft[B: Manifest](z: Rep[B])(f: (Rep[B], Rep[A]) => Rep[B]): Rep[B] =
       Unwrap(xs) match {
-        case Adapter.g.Def("set-new", mA::(xs: List[Backend.Exp])) => 
+        case Adapter.g.Def("set-new", mA::(xs: List[Backend.Exp])) =>
           xs.map(Wrap[A](_)).foldLeft(z)(f)
         case _ => super.foldLeft(z)(f)
       }
@@ -99,9 +99,12 @@ trait ScalaCodeGen_Set extends ExtendedScalaCodeGen {
     case Node(s, "set-new", Const(mA: Manifest[_])::xs, _) =>
       val ty = remap(mA)
       emit("Set["); emit(ty); emit("](")
-      xs.zipWithIndex.map { case (x, i) =>
-        shallow(x)
-        if (i != xs.length-1) emit(", ")
+      if (!xs.isEmpty) {
+        shallow(xs.head)
+        xs.tail.map { x =>
+          emit(", ")
+          shallow(x)
+        }
       }
       emit(")")
     case Node(_, "set-apply", List(s, x), _) =>
@@ -165,9 +168,12 @@ trait CppCodeGen_Set extends ExtendedCCodeGen {
     case Node(s, "set-new", Const(mA: Manifest[_])::xs, _) =>
       val ty = remap(mA)
       emit("Set::make_set<"); emit(ty); emit(">({")
-      xs.zipWithIndex.map { case (x, i) =>
-        shallow(x)
-        if (i != xs.length-1) emit(", ")
+      if (!xs.isEmpty) {
+        shallow(xs.head)
+        xs.tail.map { x =>
+          emit(", ")
+          shallow(x)
+        }
       }
       emit("})")
     case Node(_, "set-apply", List(s, x), _) =>

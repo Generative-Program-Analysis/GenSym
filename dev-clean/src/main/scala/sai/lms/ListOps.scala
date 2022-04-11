@@ -185,9 +185,12 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
       emit("List[")
       emit(ty)
       emit("](")
-      xs.zipWithIndex.map { case (x, i) =>
-        shallow(x)
-        if (i != xs.length-1) emit(", ")
+      if (!xs.isEmpty) {
+        shallow(xs.head)
+        xs.tail.map { x =>
+          emit(", ")
+          shallow(x)
+        }
       }
       emit(")")
     case Node(s, "list-apply", List(xs, i), _) =>
@@ -284,9 +287,12 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       emit(remap(mA))
       emit(">")
       emit("{")
-      xs.zipWithIndex.map { case (x, i) =>
-        shallow(x)
-        if (i != xs.length-1) emit(", ")
+      if (!xs.isEmpty) {
+        shallow(xs.head)
+        xs.tail.map { x =>
+          emit(", ")
+          shallow(x)
+        }
       }
       emit("}")
     case Node(s, "list-fill", List(Const(mA: Manifest[_]), x, e), _) =>
@@ -316,7 +322,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
     case Node(s, "list-toArray", List(xs), _) =>
       ???
     case Node(s, "list-toSeq", List(xs), _) =>
-      ???  
+      ???
     case Node(s, "list-map", List(xs, b: Block), _) =>
       val retType = remap(typeBlockRes(b.res))
       emit(s"Vec::vmap<$retType>(")
