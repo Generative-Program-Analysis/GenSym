@@ -76,7 +76,7 @@ inline void handle_cli_args(int argc, char** argv) {
         g_argc = make_IntV(cli_argv.size());
         break;
       case '+':
-        initial_fs.add_file(make_SymFile(std::string(optarg), default_sym_file_size));
+        initial_fs.set_file(std::string(optarg), make_SymFile(std::string(optarg), default_sym_file_size));
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size << "%d\n");
         break;
       case 's':

@@ -28,6 +28,8 @@ trait BasicDefs { self: SAIOps =>
   trait Stack
   trait SS
   trait FS
+  trait File
+  trait Stream
 
   type IntData = Long
   type BlockLabel = Int

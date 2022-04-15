@@ -192,63 +192,62 @@ void test_stat() {
   }
 }
 
-void test_fs() {
-  File file_a = make_SymFile("A", 5);
-  File file_b = make_SymFile("B", 5);
-  Fd fd;
-  {
-    // test add_file, remove_file
-    FS fs;
-    fs.add_file(file_a);
-    ASSERT(fs.has_file(file_a.get_name()), "file_a is added");
+/* void test_fs() { */
+/*   File file_a = make_SymFile("A", 5); */
+/*   File file_b = make_SymFile("B", 5); */
+/*   Fd fd; */
+/*   { */
+/*     // test add_file, remove_file */
+/*     FS fs; */
+/*     fs.add_file(file_a); */
+/*     ASSERT(fs.has_file(file_a.get_name()), "file_a is added"); */
 
-    fs.add_file(file_b);
-    ASSERT(fs.has_file(file_b.get_name()), "file_b is added");
-    fs.remove_file(file_b.get_name());
-    ASSERT(!fs.has_file(file_b.get_name()), "file_b is removed");
-  }
-  {
-    // test open_file, write_file, read_file, close_file
-    FS fs;
-    fs.add_file(file_a);
-    Fd fd_a;
-    ssize_t ret;
+/*     fs.add_file(file_b); */
+/*     ASSERT(fs.has_file(file_b.get_name()), "file_b is added"); */
+/*     fs.remove_file(file_b.get_name()); */
+/*     ASSERT(!fs.has_file(file_b.get_name()), "file_b is removed"); */
+/*   } */
+/*   { */
+/*     // test open_file, write_file, read_file, close_file */
+/*     FS fs; */
+/*     fs.add_file(file_a); */
+/*     Fd fd_a; */
+/*     ssize_t ret; */
 
-    fd = fs.open_file(file_a.get_name());
-    ASSERT((fd != -1), "open_file should return valid fd");
-    ASSERT((fs.has_stream(fd)), "stream should be opened");
-    fd_a = fd;
+/*     fd = fs.open_file(file_a.get_name()); */
+/*     ASSERT((fd != -1), "open_file should return valid fd"); */
+/*     ASSERT((fs.has_stream(fd)), "stream should be opened"); */
+/*     fd_a = fd; */
 
-    fd = fs.open_file("non-existing-file");
-    ASSERT((fd == -1), "open_file should return -1 on non-existing file name");
+/*     fd = fs.open_file("non-existing-file"); */
+/*     ASSERT((fd == -1), "open_file should return -1 on non-existing file name"); */
 
-    ret = fs.write_file(fd_a, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5);
-    ASSERT((ret == 2), "should return the correct number of bytes written");
+/*     ret = fs.write_file(fd_a, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5); */
+/*     ASSERT((ret == 2), "should return the correct number of bytes written"); */
 
-    ret = fs.write_file(-999, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5);
-    ASSERT((ret == -1), "write_file should return -1 on unopened file");
+/*     ret = fs.write_file(-999, immer::flex_vector<PtrVal>{intV_0, intV_1}, 5); */
+/*     ASSERT((ret == -1), "write_file should return -1 on unopened file"); */
 
-    auto retp = fs.read_file(fd_a, 999);
-    ret = retp.second;
-    ASSERT((ret == 3), "should have read the last 3 bytes");
+/*     auto retp = fs.read_file(fd_a, 999); */
+/*     ret = retp.second; */
+/*     ASSERT((ret == 3), "should have read the last 3 bytes"); */
 
-    retp = fs.read_file(-999, 999);
-    ret = retp.second;
-    ASSERT((ret == -1), "read_file should return -1 on unopened file");
-    /* TODO: Check content when seek is implemented <2022-01-25, David Deng> */
+/*     retp = fs.read_file(-999, 999); */
+/*     ret = retp.second; */
+/*     ASSERT((ret == -1), "read_file should return -1 on unopened file"); */
+/*     /1* TODO: Check content when seek is implemented <2022-01-25, David Deng> *1/ */
 
-    fd = fs.close_file(fd_a);
-    ASSERT((fd == 0), "close_file should return 0");
+/*     fd = fs.close_file(fd_a); */
+/*     ASSERT((fd == 0), "close_file should return 0"); */
 
-    fd = fs.close_file(-999);
-    ASSERT((fd == -1), "close_file should return -1 on non-existing file descriptor");
-  }
-}
+/*     fd = fs.close_file(-999); */
+/*     ASSERT((fd == -1), "close_file should return -1 on non-existing file descriptor"); */
+/*   } */
+/* } */
 
 
 int main() {
-  /* test_file(); */
-  /* test_stream(); */
-  /* test_fs(); */
+  test_file();
+  test_stream();
   test_stat();
 }

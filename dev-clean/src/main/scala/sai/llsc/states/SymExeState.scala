@@ -131,7 +131,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
         case _ => default
       }
 
-    override def lookup(x: String): Rep[Value] = 
+    override def lookup(x: String): Rep[Value] =
       if (Config.opt) lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 30)
       else super.lookup(x)
 
@@ -141,7 +141,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       case _ => super.assign(x, v)
     }
 
-    override def stackSize: Rep[Int] = 
+    override def stackSize: Rep[Int] =
       if (Config.opt) {
         Unwrap(ss) match {
           case gNode("ss-alloc-stack", StaticList(ss0: bExp, bConst(inc: Int))) => Wrap[SS](ss0).stackSize + inc
@@ -152,19 +152,30 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
 
   }
 
+  implicit class StreamOps(strm: Rep[Stream]) {
+    def getName(): Rep[String]                            = "method-@".reflectCtrlWith[String](strm, "get_name")
+    def getFile(): Rep[File]                              = "method-@".reflectCtrlWith[File](strm, "get_file")
+    def read(n: Rep[Int]): Rep[List[Value]]               = "method-@".reflectCtrlWith[List[Value]](strm, "read", n)
+    def write(c: Rep[List[Value]], n: Rep[Int]): Rep[Int] = "method-@".reflectCtrlWith[Int](strm, "write", c, n)
+  }
+
   implicit class FSOps(fs: Rep[FS]) {
-    def openFile(path: Rep[String], flag: Rep[Int]): Rep[Fd] =
-      "fs-open-file".reflectCtrlWith[Fd](fs, path, flag)
-    def closeFile(fd: Rep[Fd]): Rep[Int] =
-      "fs-close-file".reflectCtrlWith[Int](fs, fd)
-    def readFile(fd: Rep[Fd], nbytes: Rep[Int]): Rep[(List[Value], Int)] =
-      "fs-read-file".reflectCtrlWith[(List[Value], Int)](fs, fd, nbytes)
-    def writeFile(fd: Rep[Fd], content: Rep[List[Value]], nbytes: Rep[Int]): Rep[Int] =
-      "fs-write-file".reflectCtrlWith[Int](fs, fd, content, nbytes)
     def seekFile(fd: Rep[Fd], o: Rep[Long], w: Rep[Int]): Rep[Long] =
-      "fs-seek-file".reflectCtrlWith[Long](fs, fd, o, w)
-    def statFile(ptr: Rep[String]): Rep[(List[Value], Int)] =
-      "fs-stat-file".reflectCtrlWith[(List[Value], Int)](fs, ptr)
+      "method-@".reflectCtrlWith[Long](fs, "seek_file", fd, o, w)
+    def statFile(ptr: Rep[String]): Rep[(List[Value], Int)]         =
+      "method-@".reflectCtrlWith[(List[Value], Int)](fs, "stat_file", ptr)
+
+    def getFreshFd(): Rep[Fd]                               = "method-@".reflectCtrlWith[Fd](fs, "get_fresh_fd")
+
+    def hasFile(name: Rep[String]): Rep[Boolean]            = "method-@".reflectCtrlWith[Boolean](fs, "has_file", name)
+    def getFile(name: Rep[String]): Rep[File]               = "method-@".reflectCtrlWith[File](fs, "get_file", name)
+    def setFile(name: Rep[String], f: Rep[File]): Rep[Unit] = "method-@".reflectCtrlWith[Unit](fs, "set_file", name, f)
+    def removeFile(name: Rep[String]): Rep[File]            = "method-@".reflectCtrlWith[File](fs, "remove_file", name)
+
+    def hasStream(fd: Rep[Fd]): Rep[Boolean]                = "method-@".reflectCtrlWith[Boolean](fs, "has_stream", fd)
+    def getStream(fd: Rep[Fd]): Rep[Stream]                 = "method-@".reflectCtrlWith[Stream](fs, "get_stream", fd)
+    def setStream(fd: Rep[Fd], s: Rep[Stream]): Rep[Unit]   = "method-@".reflectCtrlWith[Unit](fs, "set_stream", fd, s)
+    def removeStream(fd: Rep[Fd]): Rep[Stream]              = "method-@".reflectCtrlWith[Stream](fs, "remove_stream", fd)
   }
 
   def putState(s: Rep[SS]): Comp[E, Rep[Unit]] = for { _ <- put[Rep[SS], E](s) } yield ()

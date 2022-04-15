@@ -56,6 +56,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$Mem")) "Mem"
     else if (m.toString.endsWith("$SS")) "SS"
     else if (m.toString.endsWith("$FS")) "FS"
+    else if (m.toString.endsWith("$File")) "File"
+    else if (m.toString.endsWith("$Stream")) "Stream"
     else if (m.toString.endsWith("$Kind")) "LocV::Kind"
     else if (m.toString.endsWith("SMTExpr")) "PtrVal"
     else if (m.toString.endsWith("SMTBool")) "PtrVal"
@@ -133,13 +135,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-block-cov", _, _) => es"cov().print_block_cov()"
     case Node(s, "print-time", _, _) => es"cov().print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov().print_path_cov()"
-
-    case Node(s, "fs-open-file", List(fs, p, f), _) => es"$fs.open_file($p, $f)"
-    case Node(s, "fs-close-file", List(fs, fd), _) => es"$fs.close_file($fd)"
-    case Node(s, "fs-read-file", List(fs, fd, n), _) => es"$fs.read_file($fd, $n)"
-    case Node(s, "fs-write-file", List(fs, fd, c, n), _) => es"$fs.write_file($fd, $c, $n)"
-    case Node(s, "fs-seek-file", List(fs, fd, o, w), _) => es"$fs.seek_file($fd, $o, $w)"
-    case Node(s, "fs-stat-file", List(fs, ptr), _) => es"$fs.stat_file($ptr)"
 
     case Node(s, "add_tp_task", List(b: Block), _) =>
       es"tp.add_task("

@@ -49,35 +49,61 @@ trait GenExternal extends SymExeDefs {
     }
   }
 
+  def new_stream[T: Manifest](f: Rep[File]): Rep[Stream] = "Stream".reflectWith[Stream](f)
+
   def open[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val ptr = args(0)
     val name: Rep[String] = getString(ptr, ss)
     val flags = args(1)
-    // val mode = args(2) // how to handle optional argument?
+    /* TODO: handle different mode <2021-10-12, David Deng> */
     val fs: Rep[FS] = ss.getFs
-    val ret: Rep[Fd] = fs.openFile(name, 0)
-    ss.setFs(fs)
-    k(ss, IntV(ret, 32))
+    if (!fs.hasFile(name)) k(ss, IntV(-1, 32))
+    else {
+      val fd: Rep[Fd] = fs.getFreshFd()
+      val file = fs.getFile(name)
+      fs.setStream(fd, new_stream(file))
+      ss.setFs(fs)
+      k(ss, IntV(fd, 32))
+    }
   }
 
   def close[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     // Only cast by asRepOf when deemed safe
     val fd: Rep[Int] = args(0).toIntV.int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
-    val ret: Rep[Int] = fs.closeFile(fd)
-    ss.setFs(fs)
-    k(ss, IntV(ret, 32))
+    if (!fs.hasStream(fd)) k(ss, IntV(-1, 32))
+    else {
+      val strm = fs.getStream(fd)
+      val name = strm.getName()
+      if (fs.hasFile(name)) {
+        // remove the stream associated with fd, write content to the actual file if the file still exists.
+        fs.setFile(name, strm.getFile())
+        fs.removeStream(fd)
+        ss.setFs(fs)
+      }
+      k(ss, IntV(0, 32))
+    }
   }
 
   def read[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val fd: Rep[Int] = args(0).int.asRepOf[Int]
-    val buf: Rep[Value] = args(1)
+    val loc: Rep[Value] = args(1)
     val count: Rep[Int] = args(2).int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
-    val (content, size): (Rep[List[Value]], Rep[Int]) = fs.readFile(fd, count).unlift
-    val ss1 = ss.updateSeq(buf, content)
-    ss1.setFs(fs)
-    k(ss1, IntV(size, 64))
+    // val (content, size): (Rep[List[Value]], Rep[Int]) = fs.readFile(fd, count).unlift
+    if (!fs.hasStream(fd)) k(ss, IntV(-1, 64))
+    else {
+      val strm = fs.getStream(fd)
+      val content: Rep[List[Value]] = strm.read(count)
+      // will update the cursor in strm
+      // Thought: use a reference so that we don't have to set it back? 
+      // But then we will have to manually make copies upon branches <2022-04-14, David Deng> //
+      fs.setStream(fd, strm)
+      val size = content.size
+      val ss1 = ss.updateSeq(loc, content)
+      ss1.setFs(fs)
+      k(ss1, IntV(size, 64))
+    }
   }
 
   def write[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
@@ -86,10 +112,16 @@ trait GenExternal extends SymExeDefs {
     val count: Rep[Int] = args(2).int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
     val content: Rep[List[Value]] = ss.lookupSeq(buf, count)
-    val size = fs.writeFile(fd, content, count)
-    ss.setFs(fs)
-    k(ss, IntV(size, 64))
+    if (!fs.hasStream(fd)) k(ss, IntV(-1, 64))
+    else {
+      val strm = fs.getStream(fd)
+      val size = strm.write(content, count)
+      fs.setStream(fd, strm)
+      ss.setFs(fs)
+      k(ss, IntV(size, 64))
+    }
   }
+
   def lseek[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     val fd: Rep[Fd] = args(0).int.asRepOf[Fd]
     val o: Rep[Long] = args(1).int.asRepOf[Long]

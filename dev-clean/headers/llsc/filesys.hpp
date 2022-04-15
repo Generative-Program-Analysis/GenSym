@@ -223,12 +223,12 @@ class FS: public Printable {
      * <2022-02-08, David Deng> */
     immer::map<std::string, File> files;
     Fd next_fd;
+
+  public:
     Fd get_fresh_fd() {
       /* TODO: traverse through opened files to find the lowest available fd <2022-01-25, David Deng> */
       return next_fd++;
     }
-
-  public:
     std::string toString() const override {
       std::ostringstream ss;
       ss << "FS(nfiles=" << files.size() << ", nstreams=" << opened_files.size() << ", files=[";
@@ -258,10 +258,12 @@ class FS: public Printable {
     inline Stream get_stream(Fd fd) {
       return opened_files.at(fd);
     }
+    inline void set_stream(Fd fd, Stream s) {
+      opened_files = opened_files.set(fd, s);
+    }
 
-    void add_file(File file) {
-      ASSERT(!has_file(file.get_name()), "FS::add_file: File already exists");
-      files = files.set(file.get_name(), file);
+    void set_file(std::string name, File file) {
+      files = files.set(name, file);
     }
 
     void remove_file(std::string name) {
@@ -271,48 +273,19 @@ class FS: public Printable {
       files = files.erase(name);
     };
 
+    void remove_stream(Fd fd) {
+      ASSERT(has_stream(fd), "FS::remove_stream: stream does not exist");
+      // NOTE: should behave correctly if the file is open,
+      // because the file in opened_files is not removed until it is close_file is called.
+      opened_files = opened_files.erase(fd);
+    };
+
     inline bool has_file(std::string name) const {
       return files.find(name) != nullptr;
     }
 
     inline bool has_stream(Fd fd) const {
       return opened_files.find(fd) != nullptr;
-    }
-
-    Fd open_file(std::string name, int mode = O_RDONLY) {
-      /* TODO: handle different mode <2021-10-12, David Deng> */
-      if (!has_file(name)) return -1;
-      Fd fd = get_fresh_fd();
-      opened_files = opened_files.set(fd, Stream(get_file(name)));
-      return fd;
-    }
-
-    int close_file(Fd fd) {
-      // remove the stream associated with fd,
-      // write content to the actual file if the file still exists.
-      if (!has_stream(fd)) return -1;
-      auto strm = get_stream(fd);
-      auto name = strm.get_name();
-      if (!has_file(name)) return 0;
-      files = files.set(name, strm.get_file());
-      opened_files = opened_files.erase(fd);
-      return 0;
-    }
-
-    std::pair<immer::flex_vector<PtrVal>, ssize_t> read_file(Fd fd, size_t nbytes) {
-      if (!has_stream(fd)) return std::make_pair(immer::flex_vector<PtrVal>{}, -1);
-      auto strm = get_stream(fd);
-      auto content = strm.read(nbytes);
-      opened_files = opened_files.set(fd, strm);
-      return std::make_pair(content, content.size());
-    }
-
-    ssize_t write_file(Fd fd, immer::flex_vector<PtrVal> content, size_t nbytes) {
-      if (!has_stream(fd)) return -1;
-      auto strm = get_stream(fd);
-      auto written = strm.write(content, nbytes);
-      opened_files = opened_files.set(fd, strm);
-      return written;
     }
 
     std::pair<immer::flex_vector<PtrVal>, int> stat_file(std::string name) {
