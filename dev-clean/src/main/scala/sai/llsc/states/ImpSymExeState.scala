@@ -12,6 +12,7 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
+import sai.llsc.Config
 
 import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
@@ -25,6 +26,10 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
      The reason is that in common codegen targets (such as C/C++/Scala), `-` is
      not a valid use of identifiers.
  */
+
+class Mut[T](var x: T) {
+  override def toString: String = x.toString
+}
 
 @virtualize
 trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques with Coverage {
@@ -61,7 +66,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
 
   def currentMethodName: String = Thread.currentThread.getStackTrace()(2).getMethodName
 
-  class SSOps(ss: Rep[SS]) {
+  implicit class SSOps(ss: Rep[SS]) {
     // Caveat: in the presence of higher-order function (e.g. flatMap, fold),
     // since we currently lack of aliases information, simply using reflectWrite
     // might not be enough to preserve some operation, rendering undesired DCE.
@@ -76,8 +81,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
       reflectRead[Value]("ss-lookup-env", ss, x.hashCode)(ss)
     }
     def assign(x: String, v: Rep[Value]): Rep[Unit] =
-      reflectCtrl[Unit]("ss-assign", ss, x.hashCode, v)
-      //reflectWrite[Unit]("ss-assign", ss, x.hashCode, v)(ss)
+      //reflectCtrl[Unit]("ss-assign", ss, x.hashCode, v)
+      reflectWrite[Unit]("ss-assign", ss, x.hashCode, v)(ss)
     def assign(xs: List[String], vs: Rep[List[Value]]): Rep[Unit] = assignSeq(xs.map(_.hashCode), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       require(size > 0)
@@ -93,7 +98,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[Unit] =
       reflectCtrl[Unit]("ss-update", ss, a, v, sz)
       //reflectWrite[Unit]("ss-update", ss, a, v)(ss)
-    def allocStack(n: Rep[Int], align: Int): Rep[Unit] = reflectWrite[Unit]("ss-alloc-stack", ss, n)(ss)
+    def allocStack(n: Int, align: Int): Rep[Unit] =
+      reflectWrite[Unit]("ss-alloc-stack", ss, new Mut[Int](n))(ss)
 
     def heapLookup(addr: Rep[Addr]): Rep[Value] = reflectRead[Value]("ss-lookup-heap", ss, addr)(ss)
     def heapSize: Rep[Int] = reflectRead[Int]("ss-heap-size", ss)(ss)
@@ -117,16 +123,6 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def copy: Rep[SS] = reflectRead[SS]("ss-copy", ss)(ss)
   }
 
-  implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
-    private def lookupOpt(x: Int, s: Backend.Def, default: => Rep[Value], bound: Int): Rep[Value] =
-      if (bound == 0) default
-      else s match {
-        case Adapter.g.Def("ss-assign", ss0::Backend.Const(y)::(v: Backend.Sym)::Nil) if y == x => Wrap[Value](v)
-        case Adapter.g.Def("ss-assign", ss0::Backend.Const(y)::(v: Backend.Sym)::Nil) => lookupOpt(x, ss0, default, bound-1)
-        // TODO: ss-assign-seq?
-        case _ => default
-      }
-    override def lookup(x: String): Rep[Value] = lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 5)
-  }
-  implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOpsOpt(ss.asRepOf[SS])
+  implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOps(ss.asRepOf[SS])
+
 }

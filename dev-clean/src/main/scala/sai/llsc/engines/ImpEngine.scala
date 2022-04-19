@@ -100,8 +100,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
         val typeSize = getTySize(ty)
+        val sz = ss.stackSize
         ss.allocStack(typeSize, align.n)
-        k(ss, LocV(ss.stackSize - typeSize, LocV.kStack, typeSize.toLong))
+        k(ss, LocV(sz, LocV.kStack, typeSize.toLong))
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1

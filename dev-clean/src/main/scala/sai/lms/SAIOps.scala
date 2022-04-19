@@ -17,11 +17,6 @@ import sai.lmsx.smt._
 
 import scala.collection.immutable.{List => StaticList}
 
-abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
-  def wrapper(x: Rep[A]): Rep[B] = snippet(x)
-  def snippet(x: Rep[A]): Rep[B]
-}
-
 trait PrimitiveOpsOpt extends PrimitiveOps { self: Base =>
   implicit class IntOpsOpt(x: Rep[Int]) extends PrimitiveMathOpsIntOpsCls(x) {
     override def -(rhs: Int)(implicit __pos: SourceContext, __imp1: Overloaded79) = Unwrap(x) match {
@@ -33,6 +28,11 @@ trait PrimitiveOpsOpt extends PrimitiveOps { self: Base =>
       case _ => super.-(rhs)(__pos, __imp1)
     }
   }
+}
+
+abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
+  def wrapper(x: Rep[A]): Rep[B] = snippet(x)
+  def snippet(x: Rep[A]): Rep[B]
 }
 
 trait SAIOps extends Base

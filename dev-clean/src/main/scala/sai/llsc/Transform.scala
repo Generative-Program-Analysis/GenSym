@@ -6,6 +6,8 @@ import lms.core.stub.{While => _, _}
 import scala.collection.immutable.{List => StaticList}
 import scala.collection.mutable.{HashMap,HashSet}
 
+import sai.llsc.imp.Mut
+
 object AssignElim {
   type Subst = HashMap[Sym, Exp]
 
@@ -20,13 +22,46 @@ object AssignElim {
     }
   }
 
-  class ElimAssign(val ids: HashSet[Int]) extends Transformer {
-    override val name = "ElimAssign"
+  abstract class ElimAssignBase(ids: HashSet[Int]) extends Transformer {
     def eliminable(x: Int): Boolean = !ids.contains(x)
     def eliminable(xs: List[Int]): Boolean =
       // Note: the xs.last == 0 case is reserved for var_arg
       if (xs.size > 0 && xs.last == 0) false
       else xs.forall(eliminable)
+    override def transform(graph: Graph): Graph = {
+      g = Adapter.mkGraphBuilder()
+      Adapter.g = g
+      try {
+        super.transform(graph)
+      } finally {
+        g = null; Adapter.g = null
+      }
+    }
+  }
+
+  class ImpElimAssign(val ids: HashSet[Int]) extends ElimAssignBase(ids) {
+    override val name = "ImpElimAssign"
+    override def transform(n: Node): Exp = n match {
+      case Node(s, "ss-assign-seq", StaticList(ss: Sym, Const(xs: List[Int]), vs), _) if eliminable(xs) =>
+        Const(())
+      case Node(s, "ss-assign", StaticList(ss: Sym, Const(x: Int), v), _) if eliminable(x) =>
+        Const(())
+      case Node(s, "ss-alloc-stack", StaticList(ss: Exp, Const(n1: Mut[Int])), _) 
+          if g.curEffects.allEff.contains(transform(ss)) =>
+        for ((k, _) <- g.curEffects.allEff(transform(ss))) {
+          g.findDefinition(k) collect {
+            case Node(_, "ss-alloc-stack", StaticList(_: Exp, Const(n2: Mut[Int])), _) =>
+              n2.x = n2.x + n1.x
+              return Const(())
+          }
+        }
+        super.transform(n)
+      case _ => super.transform(n)
+    }
+  }
+
+  class ElimAssign(val ids: HashSet[Int]) extends ElimAssignBase(ids) {
+    override val name = "ElimAssign"
 
     override def transform(n: Node): Exp = n match {
       case Node(s, "ss-assign-seq", StaticList(ss: Sym, Const(xs: List[Int]), vs), _) if eliminable(xs) =>
@@ -52,21 +87,20 @@ object AssignElim {
         }
       case _ => super.transform(n)
     }
-    override def transform(graph: Graph): Graph = {
-      g = Adapter.mkGraphBuilder()
-      Adapter.g = g
-      try {
-        super.transform(graph)
-      } finally {
-        g = null; Adapter.g = null
-      }
-    }
   }
 
+  // TODO: refactor them
   def transform(g: Graph): (Graph, Subst) = {
     val collect = new CollectLookup
     collect(g)
     val elim = new ElimAssign(collect.ids)
+    (elim.transform(g), elim.subst)
+  }
+
+  def impTransform(g: Graph): (Graph, Subst) = {
+    val collect = new CollectLookup
+    collect(g)
+    val elim = new ImpElimAssign(collect.ids)
     (elim.transform(g), elim.subst)
   }
 }
