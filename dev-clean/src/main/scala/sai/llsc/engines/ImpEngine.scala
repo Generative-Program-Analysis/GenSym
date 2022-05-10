@@ -49,9 +49,15 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       case GlobalId(id) if symDefMap.contains(id) =>
         System.out.println(s"Alias: $id => ${symDefMap(id).const}")
         eval(symDefMap(id).const, ty, ss)
-      case GlobalId(id) if funMap.contains(id) =>
-        if (!FunFuns.contains(id)) compile(funMap(id))
-        FunV[Ref](FunFuns(id))
+      case GlobalId(id) if funMap.contains(id) => {
+        if (ExternalFun.rederict.contains(id)) {
+          val t = funMap(id).header.returnType
+          ExternalFun.get(id, Some(t))
+        } else {
+          if (!FunFuns.contains(id)) compile(funMap(id))
+          FunV[Ref](FunFuns(id))
+        }
+      }
       case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
         ExternalFun.get(id, Some(t))
@@ -278,18 +284,36 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
             s.addPCSet(pc)
             execBlock(funName, default, s)
           } else {
-            val s1 = s.copy
+            val st = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s1.addPC(headPC.toSMTBool)
-            val u = execBlock(funName, table.head.label, s1)
-            u ++ switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
+            st.addPC(headPC.toSMTBool)
+            val t_sat = checkPC(st.pc)
+            s.addPC(headPC.toSMTBoolNeg)
+            val f_sat = checkPC(s.pc)
+
+            if (t_sat && f_sat) {
+              Coverage.incPath(1)
+            }
+
+            val lt = if (t_sat) {
+              execBlock(funName, table.head.label, st)
+            } else {
+              List[(SS, Value)]()
+            }
+
+            val lf = if (f_sat) {
+              switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
+            } else {
+              List[(SS, Value)]()
+            }
+
+            lt ++ lf
           }
 
         ss.addIncomingBlock(incomingBlock)
         val v = eval(cndVal, cndTy, ss)
         if (v.isConc) switch(v.int, ss, table)
         else {
-          Coverage.incPath(table.size)
           switchSym(v, ss, table)
         }
     }

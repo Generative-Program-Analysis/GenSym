@@ -25,7 +25,7 @@ import Config._
  * runOpt: the command line argument to run the compiled executable
  * result: expected return status of the compiled executable
  */
-case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Option[String], exp: Map[String, Any])
+case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Option[Seq[String]], exp: Map[String, Any])
 
 object TestPrg {
   val nPath = "nPath"
@@ -40,6 +40,10 @@ object TestPrg {
   def status(n: Int): Map[String, Any] = Map(status -> n)
 
   implicit def lift[T](t: T): Option[T] = Some(t)
+
+  def apply(m: Module, name: String, f: String, config: Config, runOpt: String, exp: Map[String, Any]) = {
+    new TestPrg(m, name, f, config, runOpt.split("\\s+").toSeq, exp)
+  }
 }
 
 import TestPrg._

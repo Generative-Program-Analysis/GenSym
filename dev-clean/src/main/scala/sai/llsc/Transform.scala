@@ -46,7 +46,7 @@ object AssignElim {
         Const(())
       case Node(s, "ss-assign", StaticList(ss: Sym, Const(x: Int), v), _) if eliminable(x) =>
         Const(())
-      case Node(s, "ss-alloc-stack", StaticList(ss: Exp, Const(n1: Mut[Int])), _) 
+      case Node(s, "ss-alloc-stack", StaticList(ss: Exp, Const(n1: Mut[Int])), _)
           if g.curEffects.allEff.contains(transform(ss)) =>
         for ((k, _) <- g.curEffects.allEff(transform(ss))) {
           g.findDefinition(k) collect {

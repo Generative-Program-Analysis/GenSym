@@ -55,6 +55,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$BlockLabel")) "BlockLabel"
     else if (m.toString.endsWith("$Mem")) "Mem"
     else if (m.toString.endsWith("$SS")) "SS"
+    else if (m.toString.endsWith("$PC")) "PC"
     else if (m.toString.endsWith("$FS")) "FS"
     else if (m.toString.endsWith("$File")) "File"
     else if (m.toString.endsWith("$Stream")) "Stream"
@@ -67,6 +68,21 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   }
 
   def quoteOp(op: String, ec: String): String = ec + "::" + "op_" + op
+
+  override def quoteBlockP(prec: Int)(f: => Unit) = {
+    def wraper(numStms: Int, l: Option[Node], y: Block)(f: => Unit) = {
+      val paren = numStms > 0 || l.map(n => precedence(n) < prec).getOrElse(false)
+      val brace = numStms > 0 // || (numStms == 0 ^ y.res != Const(()))
+      if (paren) emit("(")
+      if (brace) emitln("{")
+      f
+      shallow(y.res); emit(quoteEff(y.eff));
+      // if (numStms > 0) emitln(";")
+      if (brace) emit(";\n}")
+      if (paren) emit(")")
+    }
+    withWraper(wraper _)(f)
+  }
 
   override def traverse(n: Node): Unit = n match {
     case Node(s, "make_CPSFunV", _, _) if !dce.live(n.n) =>
@@ -103,6 +119,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
     case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
     case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.add_PC($e)"
+    case Node(s, "add-pc", List(pc, e), _) => es"$pc.add($e)"
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.add_PC_set($es)"
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.add_incoming_block($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
@@ -126,7 +143,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
       es"make_FloatV_fp80($litRep)"
     case Node(s, "make_FloatV", List(f, bw), _) => es"make_FloatV($f, $bw)"
     case Node(s, "get-bw", List(v), _) => es"$v->get_bw()"
-    case Node(s, "ptroff", List(v, o), _) => es"$v + ($o)"
+    case Node(s, "ptroff", List(v, o), _) => es"($v + ($o))"
 
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov().set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov().inc_block($id)"

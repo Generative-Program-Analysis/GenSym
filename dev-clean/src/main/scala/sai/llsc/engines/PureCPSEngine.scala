@@ -64,9 +64,15 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case GlobalId(id) if symDefMap.contains(id) =>
         System.out.println(s"Alias: $id => ${symDefMap(id).const}")
         eval(symDefMap(id).const, ty, ss)
-      case GlobalId(id) if funMap.contains(id) =>
-        if (!FunFuns.contains(id)) compile(funMap(id))
-        CPSFunV[Id](FunFuns(id))
+      case GlobalId(id) if funMap.contains(id) => {
+        if (ExternalFun.rederict.contains(id)) {
+          val t = funMap(id).header.returnType
+          ExternalFun.get(id, Some(t))
+        } else {
+          if (!FunFuns.contains(id)) compile(funMap(id))
+          CPSFunV[Id](FunFuns(id))
+        }
+      }
       case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
         ExternalFun.get(id, Some(t))
@@ -289,15 +295,26 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
             execBlock(funName, default, s.addPCSet(pc), k)
           } else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            execBlock(funName, table.head.label, s.addPC(headPC.toSMTBool), k)
-            switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
+
+            val t_sat = checkPC(s.pc.addPC(headPC.toSMTBool))
+            val f_sat = checkPC(s.pc.addPC(headPC.toSMTBoolNeg))
+
+            if (t_sat && f_sat) {
+              Coverage.incPath(1)
+            }
+
+            if (t_sat) {
+              execBlock(funName, table.head.label, s.addPC(headPC.toSMTBool), k)
+            }
+            if (f_sat) {
+              switchSym(v, s.addPC(headPC.toSMTBoolNeg), table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
+            }
           }
 
         val ss1 = addIncomingBlockOpt(ss, incomingBlock, default::table.map(_.label))
         val v = eval(cndVal, cndTy, ss1)
         if (v.isConc) switch(v.int, ss1, table)
         else {
-          Coverage.incPath(table.size)
           switchSym(v, ss1, table)
         }
     }

@@ -110,6 +110,9 @@ object Benchmarks {
   lazy val link_linked = parseFile("benchmarks/coreutils/link_linked.ll")
   lazy val paste_linked = parseFile("benchmarks/coreutils/paste_linked.ll")
   lazy val pathchk_linked = parseFile("benchmarks/coreutils/pathchk_linked.ll")
+
+  lazy val echo_llsc_linked = parseFile("benchmarks/coreutils/echo_llsc_linked.ll")
+  lazy val true_llsc_linked = parseFile("benchmarks/coreutils/true_llsc_linked.ll")
 }
 
 object TestComp {

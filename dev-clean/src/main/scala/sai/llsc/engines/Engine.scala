@@ -62,9 +62,15 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         for {
           v <- eval(symDefMap(id).const, ty)
         } yield v
-      case GlobalId(id) if funMap.contains(id) =>
-        if (!FunFuns.contains(id)) compile(funMap(id))
-        ret(FunV[Id](FunFuns(id)))
+      case GlobalId(id) if funMap.contains(id) => {
+        if (ExternalFun.rederict.contains(id)) {
+          val t = funMap(id).header.returnType
+          ret(ExternalFun.get(id, Some(t)))
+        } else {
+          if (!FunFuns.contains(id)) compile(funMap(id))
+          ret(FunV[Id](FunFuns(id)))
+        }
+      }
       case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
         ret(ExternalFun.get(id, Some(t)))
@@ -367,13 +373,29 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
             } yield u)
           else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            reify(s)(choice(
-              for {
-                _ <- updatePC(headPC.toSMTBool)
-                u <- execBlock(funName, table.head.label)
-              } yield u,
-              reflect(switchSym(v, s, table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg)))
-            ))
+            val t_sat = checkPC(s.pc.addPC(headPC.toSMTBool))
+            val f_sat = checkPC(s.pc.addPC(headPC.toSMTBoolNeg))
+            if (t_sat && f_sat) {
+              Coverage.incPath(1)
+            }
+            val m = reflect {
+              if (t_sat) {
+                reify(s)(for {
+                  _ <- updatePC(headPC.toSMTBool)
+                  u <- execBlock(funName, table.head.label)
+                } yield u)
+              } else {
+                List[(SS, Value)]()
+              }
+            }
+            val next = reflect {
+              if (f_sat) {
+                switchSym(v, s.addPC(headPC.toSMTBoolNeg), table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
+              } else {
+                List[(SS, Value)]()
+              }
+            }
+            reify(s)(choice(m, next))
           }
         }
 
@@ -384,7 +406,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           r <- reflect {
             if (v.isConc) switch(v.int, s, table)
             else {
-              Coverage.incPath(table.size)
               switchSym(v, s, table)
             }
           }

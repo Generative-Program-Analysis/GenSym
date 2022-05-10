@@ -66,6 +66,10 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
 
   def currentMethodName: String = Thread.currentThread.getStackTrace()(2).getMethodName
 
+  implicit class PCOps(pc: Rep[PC]) {
+    def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("add-pc", pc, e)(pc)
+  }
+
   implicit class SSOps(ss: Rep[SS]) {
     // Caveat: in the presence of higher-order function (e.g. flatMap, fold),
     // since we currently lack of aliases information, simply using reflectWrite
@@ -113,7 +117,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
     def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
     def addPCSet(es: Rep[List[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
-    def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
+    def pc: Rep[PC] = reflectRead[PC]("get-pc", ss)(ss)
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
     def updateErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-error-loc", ss)(ss)
 

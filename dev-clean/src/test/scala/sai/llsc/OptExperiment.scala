@@ -43,7 +43,7 @@ class Optimization extends TestLLSC {
       for (i <- 1 to N) {
         Thread.sleep(1 * 1000)
         val prefix = "numactl -N1 -m1"
-        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(""), prefix)
+        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(Seq()), prefix)
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
         writer.append(s"$resStat\n")

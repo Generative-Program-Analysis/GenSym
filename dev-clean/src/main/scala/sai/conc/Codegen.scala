@@ -21,7 +21,7 @@ trait SymStagedLLVMGen extends CppSAICodeGenBase {
   val codegenFolder: String
 
   override def quote(s: Def): String = s match {
-    case Sym(n) if n == FunName.conc_exec => "conc_exec" 
+    case Sym(n) if n == FunName.conc_exec => "conc_exec"
     case Sym(n) =>
       FunName.funMap.getOrElse(n, {
         FunName.blockMap.getOrElse(n, super.quote(s))
