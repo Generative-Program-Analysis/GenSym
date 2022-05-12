@@ -50,13 +50,13 @@ abstract class TestLLSC extends FunSuite {
   }
 
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
-    val TestPrg(m, name, f, config, cliArgOpt, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(name) {
       val code = llsc.newInstance(m, llsc.insName + "_" + name, f, config)
       code.genAll
       val mkRet = if(config.test_coreutil) code.make_all_cores else code.make(4)
       assert(mkRet == 0, "make failed")
-      val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(Seq()))
+      val (output, ret) = code.runWithStatus(cliArg)
       System.err.println(output)
       val resStat = parseOutput(llsc.insName, name, output)
       System.err.println(resStat)
@@ -99,9 +99,9 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--timeout=2", minTest(1)))
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2", minTest(1)))
-  testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, None, status(255)))
-  testLLSC(llsc, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, None, status(255)))
-  testLLSC(llsc, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, None, status(255)))
+  testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, noOpt, status(255)))
+  testLLSC(llsc, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, noOpt, status(255)))
+  testLLSC(llsc, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, noOpt, status(255)))
 }
 
 class TestImpLLSC extends TestLLSC {
@@ -118,26 +118,26 @@ class TestImpCPSLLSC extends TestLLSC {
 class Playground extends TestLLSC {
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
   val llsc = new PureCPSLLSC_Z3
-  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, None, nPath(720)))
+  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
   //testLLSC(new PureCPSLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
   //testLLSC(new PureLLSC, List(TestPrg(echo_llsc_linked, "echo_llsc_linked", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc #{3}"), nPath(26)++status(0))))
   //testLLSC(llsc, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)))
-  //testLLSC(llsc, TestPrg(parseFile("benchmarks/demo_benchmarks/nqueen_opt.ll"), "nQueensOpt", "@main", noArg, None, nPath(1363)))
+  //testLLSC(llsc, TestPrg(parseFile("benchmarks/demo_benchmarks/nqueen_opt.ll"), "nQueensOpt", "@main", noArg, noOpt, nPath(1363)))
   //testLLSC(new PureLLSC, List(TestPrg(true_linked, "true_linked", "@main", useArgv, "--argv=./true.bc --sym-arg 3", nPath(16)++status(0))))
   //testLLSC(new PureLLSC, List(TestPrg(false_linked, "false_linked", "@main", useArgv, "--argv=./false.bc --sym-arg 3", nPath(16)++status(0))))
-  //testLLSC(llsc, TestPrg(bubbleSort2Ground, "bubbleSort2Ground", "@main", 0, None, status(255)))
-  //testLLSC(llsc, TestPrg(bubbleSortGround2, "bubbleSortGround2", "@main", 0, None, status(255)))
+  //testLLSC(llsc, TestPrg(bubbleSort2Ground, "bubbleSort2Ground", "@main", 0, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(bubbleSortGround2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
 
   // Timeout:
-  //testLLSC(llsc, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, None, status(255)))
-  //testLLSC(llsc, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, None, status(255)))
-  //testLLSC(llsc, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, None, status(255)))
+  //testLLSC(llsc, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, noOpt, status(255)))
+  //testLLSC(llsc, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
 }
 

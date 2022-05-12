@@ -18,35 +18,18 @@ import sys.process._
 import org.scalatest.FunSuite
 
 import Config._
-
-// TODO: refactor and max share with test/...
-case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Option[String], exp: Map[String, Any])
-object TestPrg {
-  val nPath = "nPath"
-  val nTest = "nTest"
-  val minPath = "minPath"
-  val minTest = "minTest"
-  val status = "status"
-  def nPath(n: Int): Map[String, Any] = Map(nPath -> n)
-  def nTest(n: Int): Map[String, Any] = Map(nTest -> n)
-  def minTest(n: Int): Map[String, Any] = Map(minTest -> n)
-  def minPath(n: Int): Map[String, Any] = Map(minPath -> n)
-  def status(n: Int): Map[String, Any] = Map(status -> n)
-
-  implicit def lift[T](t: T): Option[T] = Some(t)
-}
 import TestPrg._
 
 object TestCases {
   val prefix = "benchmarks/perf-mon"
   val benchcases: List[TestPrg] = List(
-    TestPrg(parseFile(s"$prefix/knapsack.ll"), "knapsackTest", "@main", noArg, None, nPath(1666)),
-    TestPrg(parseFile(s"$prefix/nqueen.ll"), "nQueens", "@main", noArg, None, nPath(1363)),
-    TestPrg(parseFile(s"$prefix/kmpmatcher.ll"), "kmp", "@main", noArg, None, nPath(1287)),
+    TestPrg(parseFile(s"$prefix/knapsack.ll"), "knapsackTest", "@main", noArg, noOpt, nPath(1666)),
+    TestPrg(parseFile(s"$prefix/nqueen.ll"), "nQueens", "@main", noArg, noOpt, nPath(1363)),
+    TestPrg(parseFile(s"$prefix/kmpmatcher.ll"), "kmp", "@main", noArg, noOpt, nPath(1287)),
     // These benchmarks have a larger input size compared with those in demo_benchmarks
-    TestPrg(parseFile(s"$prefix/mergesort.ll"), "mergeSortTest", "@main", noArg, None, nPath(5040)),
-    TestPrg(parseFile(s"$prefix/bubblesort.ll"), "bubbleSortTest", "@main", noArg, None, nPath(720)),
-    TestPrg(parseFile(s"$prefix/quicksort.ll"), "quickSortTest", "@main", noArg, None, nPath(720)),
+    TestPrg(parseFile(s"$prefix/mergesort.ll"), "mergeSortTest", "@main", noArg, noOpt, nPath(5040)),
+    TestPrg(parseFile(s"$prefix/bubblesort.ll"), "bubbleSortTest", "@main", noArg, noOpt, nPath(720)),
+    TestPrg(parseFile(s"$prefix/quicksort.ll"), "quickSortTest", "@main", noArg, noOpt, nPath(720)),
     TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), "mp1m", "@f", symArg(20), "--disable-solver", nPath(1048576)),
   )
   val paraBenchcases: List[TestPrg] = List(2, 4, 8, 16).flatMap { case tn =>
@@ -109,7 +92,7 @@ abstract class TestLLSC extends FunSuite {
 
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
     val nTest = 5
-    val TestPrg(m, name, f, config, cliArgOpt, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(name) {
       val code = llsc.newInstance(m, llsc.insName + "_" + name, f, config)
       code.genAll
@@ -118,9 +101,7 @@ abstract class TestLLSC extends FunSuite {
       for (i <- 1 to nTest) {
         Thread.sleep(1 * 1000)
         val numactl = "numactl -N1 -m1"
-        val string_opt = cliArgOpt.getOrElse("")
-        val seq_opt = if (string_opt.nonEmpty) string_opt.split("\\s+").toSeq else Seq()
-        val (output, ret) = code.runWithStatus(seq_opt, numactl)
+        val (output, ret) = code.runWithStatus(cliArg, numactl)
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
         checkResult(resStat, ret, exp)

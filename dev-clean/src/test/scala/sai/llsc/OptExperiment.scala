@@ -30,7 +30,7 @@ class Optimization extends TestLLSC {
   val N = 10
 
   def testLLSC(N: Int, llsc: LLSC, tst: TestPrg): Unit = {
-    val TestPrg(m, name, f, config, cliArgOpt, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(llsc.insName + "_" + name) {
       val (code, t) = time {
         val code = llsc.newInstance(m, llsc.insName + "_" + name, f, config)
@@ -43,7 +43,7 @@ class Optimization extends TestLLSC {
       for (i <- 1 to N) {
         Thread.sleep(1 * 1000)
         val prefix = "numactl -N1 -m1"
-        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(Seq()), prefix)
+        val (output, ret) = code.runWithStatus(cliArg, prefix)
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
         writer.append(s"$resStat\n")

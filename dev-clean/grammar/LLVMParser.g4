@@ -4051,6 +4051,7 @@ paramAttr
     | stringLit
     | byval
     | 'immarg'
+    | 'noundef'
     | 'inalloca'
     | 'inreg'
     | 'nest'

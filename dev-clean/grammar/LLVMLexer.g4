@@ -192,6 +192,7 @@ ICMP : 'icmp' ;
 IDENTIFIERCOLON : 'identifier:' ;
 IFUNC : 'ifunc' ;
 IMMARG : 'immarg' ;
+NOUNDEF : 'noundef' ;
 IMPORTSCOLON : 'imports:' ;
 INACCESSIBLEMEMONLY : 'inaccessiblememonly' ;
 INACCESSIBLEMEM_OR_ARGMEMONLY : 'inaccessiblemem_or_argmemonly' ;

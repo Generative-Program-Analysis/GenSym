@@ -284,6 +284,7 @@ package IR {
   case object WriteOnly extends ParamAttr
   case object ReadOnly extends ParamAttr
   case object Immarg extends ParamAttr
+  case object NounDef extends ParamAttr
   case object UnknownAttr extends ParamAttr
 
   trait GlobalAttr extends Attr
@@ -790,6 +791,7 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     else if (ctx.WRITEONLY() != null) WriteOnly
     else if (ctx.READONLY() != null) ReadOnly
     else if (ctx.IMMARG() != null) Immarg
+    else if (ctx.NOUNDEF() != null) NounDef
     else if (ctx.byval() != null) {
       visit(ctx.byval)
     } else if (ctx.alignment() != null) {

@@ -192,7 +192,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   def runWithStatus(opt: Seq[String], launcher: String = ""): (String, Int) = {
     import collection.mutable.ListBuffer
     val cmd = if (launcher.nonEmpty) launcher.split("\\s+").toSeq++Seq(s"./$appName")++opt else Seq(s"./$appName")++opt
-    System.out.println(s"running $cmd")
+    System.out.println("running " + cmd.mkString(" "))
     val output = ListBuffer[String]()
     val ret = Process(cmd, new File(s"$folder/$appName")).run(ProcessLogger(r => output += r, e => output += e)).exitValue
     (output.mkString("\n"), ret)
