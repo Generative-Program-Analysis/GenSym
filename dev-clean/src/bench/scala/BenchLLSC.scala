@@ -118,7 +118,9 @@ abstract class TestLLSC extends FunSuite {
       for (i <- 1 to nTest) {
         Thread.sleep(1 * 1000)
         val numactl = "numactl -N1 -m1"
-        val (output, ret) = code.runWithStatus(cliArgOpt.getOrElse(Seq()), numactl)
+        val string_opt = cliArgOpt.getOrElse("")
+        val seq_opt = if (string_opt.nonEmpty) string_opt.split("\\s+").toSeq else Seq()
+        val (output, ret) = code.runWithStatus(seq_opt, numactl)
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
         checkResult(resStat, ret, exp)
