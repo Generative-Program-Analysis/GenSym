@@ -79,7 +79,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")
         ty match {
-          case PtrType(_, _) => ret(LocV.nullloc)
+          case PtrType(_, _) => ret(NullLoc())
           case _ => ret(NullPtr())
         }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
@@ -110,7 +110,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         ret(NullPtr()) // FIXME: use uninitValue
-      case NullConst => ret(LocV.nullloc)
+      case NullConst => ret(NullLoc())
       case NoneConst => ret(NullPtr())
       case v => System.out.println(ty, v); ???
     }

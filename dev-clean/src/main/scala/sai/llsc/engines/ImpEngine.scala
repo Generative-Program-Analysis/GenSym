@@ -66,7 +66,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")
         ty match {
-          case PtrType(_, _) => LocV.nullloc
+          case PtrType(_, _) => NullLoc()
           case _ => NullPtr()
         }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
@@ -91,7 +91,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
         NullPtr() // FIXME: use uninitValue
-      case NullConst => LocV.nullloc
+      case NullConst => NullLoc()
       case NoneConst => NullPtr()
     }
 

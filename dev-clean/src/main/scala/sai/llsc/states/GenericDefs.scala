@@ -157,7 +157,6 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
   object LocV {
     trait Kind
-    def nullloc: Rep[Value] = IntV(0, ARCH_WORD_SIZE)
     def kStack: Rep[Kind] = "kStack".reflectMutableWith[Kind]()
     def kHeap: Rep[Kind] = "kHeap".reflectMutableWith[Kind]()
     def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long], off: Rep[Long] = 0L): Rep[Value] =
@@ -222,6 +221,16 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
   }
 
+  // This refers to null in LLVM
+  object NullLoc {
+    def apply(): Rep[Value] = "make_LocV_null".reflectMutableWith[Value]()
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case gNode("make_LocV_null", _) => true
+      case _ => false
+    }
+  }
+
+  // This refers to the nullptr in C++
   object NullPtr {
     def apply(): Rep[Value] = "nullptr".reflectMutableWith[Value]()
     def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
@@ -363,6 +372,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case FloatV(f, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case LocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
+      case NullLoc() => List[Value](v::ShadowV.indexSeq((64+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case _ => "to-bytes-shadow".reflectWith[List[Value]](v)
     }
 

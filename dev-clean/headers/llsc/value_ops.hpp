@@ -318,7 +318,13 @@ inline PtrVal make_LocV_null() {
   return loc0;
 }
 inline bool is_LocV_null(PtrVal v) {
-  return v == make_LocV_null();
+  // After FunV <: LocV <: IntV, null loc is just an IntV(0, 64) ?
+  auto i = std::dynamic_pointer_cast<IntV>(v);
+
+  if (nullptr == i) {
+    return false;
+  }
+  return (64 == i->bw) && (0 == i->as_signed());
 }
 
 inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {

@@ -302,7 +302,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
     case FloatConst(f) => FloatV(f, getFloatSize(ty.asInstanceOf[FloatType]))
     case FloatLitConst(l) => FloatV(l, 80)
-    case NullConst => LocV.nullloc
+    case NullConst => NullLoc()
     case PtrToIntExpr(from, const, to) =>
       val v = evalHeapAtomicConst(const, from)
       if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size)

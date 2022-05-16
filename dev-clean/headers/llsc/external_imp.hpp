@@ -111,14 +111,16 @@ inline std::monostate calloc(SS& state, List<PtrVal> args, Cont k) {
 
 template<typename T>
 inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  Addr src = proj_LocV(args.at(0));
   IntData bytes = proj_IntV(args.at(1));
   auto emptyMem = List<PtrVal>(bytes, nullptr);
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  IntData prevBytes = proj_LocV_size(args.at(0));
   state.heap_append(emptyMem);
-  for (int i = 0; i < prevBytes; i++) {
-    state.update(memLoc + i, state.heap_lookup(src + i));
+  if (!is_LocV_null(args.at(0))) {
+    Addr src = proj_LocV(args.at(0));
+    IntData prevBytes = proj_LocV_size(args.at(0));
+    for (int i = 0; i < prevBytes; i++) {
+      state.update(memLoc + i, state.heap_lookup(src + i));
+    }
   }
   return k(state, memLoc);
 }
