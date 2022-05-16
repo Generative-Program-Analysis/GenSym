@@ -141,40 +141,6 @@ inline List<PtrVal> make_ShadowV_seq(int8_t size) {
   return res.persistent();
 }
 
-// FunV types:
-//   use template to delay type instantiation
-//   cause SS is currently incomplete, unable to use in containers
-
-template <typename func_t>
-struct FunV : Value {
-  func_t f;
-  FunV(func_t f) : f(f) {
-    ASSERT(f != nullptr, "funv cannot be nullptr");
-    hash_combine(hash(), std::string("funv"));
-    hash_combine(hash(), f);
-  }
-  std::string toString() const override {
-    std::ostringstream ss;
-    ss << "FunV(" << f << ")";
-    return ss.str();
-  }
-  virtual std::shared_ptr<IntV> to_IntV() override {
-    return std::make_shared<IntV>(IntData(f), 64);
-  }
-  virtual bool is_conc() const override { return true; }
-  virtual int get_bw() const override { return addr_bw; }
-  virtual bool compare(const Value *v) const override {
-    auto that = static_cast<decltype(this)>(v);
-    return this->f == that->f;
-  }
-  virtual List<PtrVal> to_bytes() {
-    return List<PtrVal>{shared_from_this()} + List<PtrVal>(7, make_ShadowV());
-  }
-  virtual List<PtrVal> to_bytes_shadow() {
-    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(7);
-  }
-};
-
 struct IntV : Value {
   int bw;
   IntData i;
@@ -305,60 +271,36 @@ inline PtrVal si_tofp(const PtrVal& v) {
   return make_FloatV(si->i, si->bw);
 }
 
-struct LocV : Value {
-  enum Kind { kStack, kHeap };
-  static const int64_t stack_offset = 1LL<<30;
+struct LocV : IntV {
+  enum Kind { kStack, kHeap, kNative };
+  static constexpr int64_t MemOffset[3] = { 1LL<<28, 2LL<<28, 3LL<<28 };
   Addr l;
   Kind k;
-  int size, offset;
+  int base, size;
 
-  LocV(Addr l, Kind k, int size, int off) : l(l), k(k), size(size), offset(off) {
+  LocV(Addr l, Kind k, int size, int off) : IntV(MemOffset[k] + l + off, 64),
+                                            l(l + off), k(k), base(l), size(size) {
     hash_combine(hash(), std::string("locv"));
     hash_combine(hash(), k);
     hash_combine(hash(), l);
   }
-  LocV(const LocV& v) : LocV(v.l, v.k, v.size, v.offset) {}
+  LocV(const LocV& v) : LocV(v.base, v.k, v.size, v.l - v.base) {}
+
   std::string toString() const override {
     std::ostringstream ss;
     ss << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
     return ss.str();
   }
-  virtual bool is_conc() const override {
-    ABORT("is_conc: unexpected value LocV.");
-  }
-  virtual std::shared_ptr<IntV> to_IntV() override {
-    return std::make_shared<IntV>(l + (k == kStack ? stack_offset : 0), addr_bw);
-  }
-  virtual int get_bw() const override { return addr_bw; }
 
   virtual bool compare(const Value *v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->l != that->l) return false;
     return this->k == that->k;
   }
-  virtual List<PtrVal> to_bytes() {
-    return List<PtrVal>{shared_from_this()} + List<PtrVal>(7, make_ShadowV());
-  }
-  virtual List<PtrVal> to_bytes_shadow() {
-    return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(7);
-  }
 };
 
 inline PtrVal make_LocV(Addr i, LocV::Kind k, int size, int off = 0) {
   return std::make_shared<LocV>(i, k, size, off);
-}
-
-inline PtrVal make_LocV(Addr i, LocV::Kind k) {
-  return std::make_shared<LocV>(i, k, -1, 0);
-}
-
-inline PtrVal make_LocV(const PtrVal& v) {
-  auto v2 = std::dynamic_pointer_cast<IntV>(v);
-  assert(v2->get_bw() == addr_bw);
-  if (v2->i >= LocV::stack_offset)
-    return make_LocV(v2->i - LocV::stack_offset, LocV::kStack);
-  else
-    return make_LocV(v2->i, LocV::kHeap);
 }
 
 inline unsigned int proj_LocV(const PtrVal& v) {
@@ -372,7 +314,7 @@ inline int proj_LocV_size(const PtrVal& v) {
 }
 
 inline PtrVal make_LocV_null() {
-  static const PtrVal loc0 = make_LocV(0, LocV::kHeap);
+  static const PtrVal loc0 = make_IntV(0, 64);
   return loc0;
 }
 inline bool is_LocV_null(PtrVal v) {
@@ -381,13 +323,36 @@ inline bool is_LocV_null(PtrVal v) {
 
 inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
   if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
-    return make_LocV(loc->l + rhs, loc->k, loc->size - rhs, loc->offset + rhs);
+    return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + rhs);
   }
   if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
     return make_IntV(i->i + rhs, i->bw);
   }
   ABORT("Unknown application of operator+");
 }
+
+// FunV types:
+//   use template to delay type instantiation
+//   cause SS is currently incomplete, unable to use in containers
+
+template <typename func_t>
+struct FunV : LocV {
+  func_t f;
+  FunV(func_t f) : LocV(static_cast<Addr>(reinterpret_cast<intptr_t>(f)), LocV::kNative, 1, 0), f(f) {
+    ASSERT(f != nullptr, "funv cannot be nullptr");
+    hash_combine(hash(), std::string("funv"));
+    hash_combine(hash(), f);
+  }
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "FunV(" << f << ")";
+    return ss.str();
+  }
+  virtual bool compare(const Value *v) const override {
+    auto that = static_cast<decltype(this)>(v);
+    return this->f == that->f;
+  }
+};
 
 struct SymV : Value {
   String name;

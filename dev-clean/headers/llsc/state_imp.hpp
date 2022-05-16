@@ -428,7 +428,7 @@ class SS {
       // Todo: Can adapt argv to be located somewhere other than 0 as well.
       // Configure a global LocV pointing to it.
       unsigned num_args = cli_argv.size();
-      auto stack_ptr = stack.mem_size(); // top of the stack
+      auto stack_ptr = make_LocV(stack.mem_size(), LocV::kStack, (num_args + 1) * 8);
       alloc_stack((num_args + 1) * 8); // allocate space for the array of pointers
 
       // copy each argument onto the stack, and update the pointers
@@ -436,10 +436,11 @@ class SS {
         auto arg = cli_argv.at(i);
         auto addr = stack_size(); // top of the stack
         alloc_stack(arg.size());
-        update_seq(make_LocV(addr, LocV::kStack), arg); // copy the values to the newly allocated space
-        update(make_LocV(stack_ptr + (8 * i), LocV::kStack), make_LocV(addr, LocV::kStack)); // copy the pointer value
+        auto arg_ptr = make_LocV(addr, LocV::kStack, arg.size());
+        update_seq(arg_ptr, arg); // copy the values to the newly allocated space
+        update(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
       }
-      update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV_null()); // terminate the array of pointers
+      update(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
       return std::move(*this);
     }
     PC get_PC() { return pc; }

@@ -157,7 +157,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
   object LocV {
     trait Kind
-    def nullloc: Rep[Value] = "make_LocV_null".reflectMutableWith[Value]()
+    def nullloc: Rep[Value] = IntV(0, ARCH_WORD_SIZE)
     def kStack: Rep[Kind] = "kStack".reflectMutableWith[Kind]()
     def kHeap: Rep[Kind] = "kHeap".reflectMutableWith[Kind]()
     def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long], off: Rep[Long] = 0L): Rep[Value] =
@@ -341,12 +341,10 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def fromUIntToFloat: Rep[Value] = "ui_tofp".reflectWith[Value](v)
     def fromSIntToFloat: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Int, to: Int): Rep[Value] = "trunc".reflectWith[Value](v, from, to)
-    def toIntV: Rep[Value] = "to-IntV".reflectWith[Value](v)
-    def toLocV: Rep[Value] = "to-LocV".reflectWith[Value](v)
 
     def +(off: Rep[Long]): Rep[Value] =
       v match {
-        case LocV(a, k, s, o) => LocV(a + off, k, s - off, o + off)
+        case LocV(a, k, s, o) => LocV(a, k, s, o + off)
         case _ => "ptroff".reflectWith[Value](v, off)
       }
 

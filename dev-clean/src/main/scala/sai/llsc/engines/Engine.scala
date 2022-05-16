@@ -97,11 +97,11 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           }) + offset
         }
       case IntToPtrExpr(from, value, to) =>
-        for { v <- eval(value, from) } yield v.toLocV
+        for { v <- eval(value, from) } yield v
       case PtrToIntExpr(from, value, IntType(toSize)) =>
         import Constants.ARCH_WORD_SIZE
         for { p <- eval(value, from) } yield {
-          val v = p.toIntV
+          val v = p
           if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
         }
       case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1)
@@ -151,7 +151,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
               base <- eval(ptrValue, ptrType)
               offset <- eval(LocalId(x), iTy)
               ss <- getState
-              v <- reflect(ss.arrayLookup(base, offset, getTySize(ety), size))
+              v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
             } yield v
           case _ =>
             val indexLLVMValue = typedValues.map(tv => tv.value)
@@ -212,11 +212,11 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         import Constants._
         for { v <- eval(value, from) } yield
           if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size)
-            v.toIntV
+            v
           else
-            v.toIntV.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
+            v.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
       case IntToPtrInst(from, value, to) =>
-        for { v <- eval(value, from) } yield v.toLocV
+        for { v <- eval(value, from) } yield v
       case BitCastInst(from, value, to) => eval(value, to)
 
       // Aggregate Operations

@@ -95,10 +95,10 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           case GlobalId(id) => heapEnv(id)()
           case _ => lV
         }) + offset
-      case IntToPtrExpr(from, value, to) => eval(value, from, ss).toLocV
+      case IntToPtrExpr(from, value, to) => eval(value, from, ss)
       case PtrToIntExpr(from, value, IntType(toSize)) =>
         import Constants.ARCH_WORD_SIZE
-        val v = eval(value, from, ss).toIntV
+        val v = eval(value, from, ss)
         if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
       case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1, ss)
       case ICmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalIntOp2(pred.op, lhs, rhs, ty1, ss)
@@ -139,7 +139,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
                 TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
             val base = eval(ptrValue, ptrType, ss)
             val offset = eval(LocalId(x), iTy, ss)
-            ss.arrayLookup(base, offset, getTySize(ety), size, fun(k))
+            ss.arrayLookup(base, offset, getTySize(ety), fun(k))
           case _ =>
             val indexLLVMValue = typedValues.map(tv => tv.value)
             val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
@@ -196,10 +196,10 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         k(ss, eval(value, from, ss).fromSIntToFloat)
       case PtrToIntInst(from, value, IntType(toSize)) =>
         import Constants._
-        val v = eval(value, from, ss).toIntV
+        val v = eval(value, from, ss)
         k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize))
       case IntToPtrInst(from, value, to) =>
-        k(ss, eval(value, from, ss).toLocV)
+        k(ss, eval(value, from, ss))
       case BitCastInst(from, value, to) =>
         k(ss, eval(value, to, ss))
 

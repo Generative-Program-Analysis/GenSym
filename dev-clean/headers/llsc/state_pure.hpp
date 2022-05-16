@@ -480,18 +480,20 @@ class SS: public Printable {
       SS updated_ss = *this;
 
       unsigned num_args = cli_argv.size();
-      auto stack_ptr = stack.mem_size(); // top of the stack
-      updated_ss = updated_ss.alloc_stack((num_args + 1) * 8); // allocate space for the array of pointers
+      int stack_ptr_sz = (num_args + 1) * 8;
+      auto stack_ptr = make_LocV(stack.mem_size(), LocV::kStack, stack_ptr_sz, 0); // top of the stack
+      updated_ss = updated_ss.alloc_stack(stack_ptr_sz); // allocate space for the array of pointers
 
       // copy each argument onto the stack, and update the pointers
       for (int i = 0; i < num_args; ++i) {
         auto arg = cli_argv.at(i);
-        auto addr = updated_ss.stack_size(); // top of the stack
+        auto arg_ptr = make_LocV(updated_ss.stack_size(), LocV::kStack, arg.size(), 0); // top of the stack
         updated_ss = updated_ss.alloc_stack(arg.size());
-        updated_ss = updated_ss.update_seq(make_LocV(addr, LocV::kStack), arg); // copy the values to the newly allocated space
-        updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * i), LocV::kStack), make_LocV(addr, LocV::kStack)); // copy the pointer value
+        updated_ss = updated_ss.update_seq(arg_ptr, arg); // copy the values to the newly allocated space
+        updated_ss = updated_ss.update(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
       }
-      updated_ss = updated_ss.update(make_LocV(stack_ptr + (8 * num_args), LocV::kStack), make_LocV_null()); // terminate the array of pointers
+      updated_ss = updated_ss.update(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
+
       return updated_ss;
     }
     SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, bb, fs); }

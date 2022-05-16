@@ -69,7 +69,7 @@ trait GenExternal extends SymExeDefs {
 
   def close[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     // Only cast by asRepOf when deemed safe
-    val fd: Rep[Int] = args(0).toIntV.int.asRepOf[Int]
+    val fd: Rep[Int] = args(0).int.asRepOf[Int]
     val fs: Rep[FS] = ss.getFs
     if (!fs.hasStream(fd)) k(ss, IntV(-1, 32))
     else {
