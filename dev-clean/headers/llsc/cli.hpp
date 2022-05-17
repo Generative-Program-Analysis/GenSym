@@ -72,7 +72,7 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 'a':
         cli_argv = parse_args(std::string(optarg));
-        g_argv = make_LocV(0, LocV::kStack, cli_argv.size(), 0); // The global argv, pass to llsc_main
+        g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
         g_argc = make_IntV(cli_argv.size());
         break;
       case '+':
