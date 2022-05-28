@@ -8,12 +8,15 @@ inline bool use_cexcache = true;
 inline bool use_cons_indep = false;
 inline bool exlib_failure_branch = false;
 
+enum class SolverKind { z3, stp };
+inline SolverKind solver_kind = SolverKind::stp;
+
 // TODO: "--stack-size" to set stack size using `inc_stack`.
 
 static struct option long_options[] =
 {
   /* These options set a flag. */
-  {"disable-solver",       no_argument,       0, 'd'},
+  {"help",                 no_argument,       0, 'h'},
   {"exlib-failure-branch", no_argument,       0, 'f'},
   {"no-obj-cache",         no_argument,       0, 'O'},
   {"no-cex-cache",         no_argument,       0, 'C'},
@@ -22,10 +25,23 @@ static struct option long_options[] =
   {"sym-file-size",        required_argument, 0, 's'},
   {"thread",               required_argument, 0, 't'},
   {"queue",                required_argument, 0, 'q'},
+  {"solver",               required_argument, 0, 'v'},
   {"timeout",              required_argument, 0, 'e'},
   {"argv",                 required_argument, 0, 'a'},
   {0,                      0,                 0, 0  }
 };
+
+inline void set_solver(std::string& solver) {
+  if ("z3" == solver) {
+    solver_kind = SolverKind::z3;
+  } else if ("stp" == solver) {
+    solver_kind = SolverKind::stp;
+  } else if ("disable" == solver) {
+    use_solver = false;
+  } else {
+    ABORT("unknown solver");
+  }
+}
 
 inline void print_help(char* main_name) {
   struct option* p = long_options;
@@ -34,8 +50,15 @@ inline void print_help(char* main_name) {
   for (int i = 0; i < len; i++, p++) {
     if (p->name) {
       printf("[--%s", p->name);
-      if (p->has_arg == required_argument)
-        printf("=<value>");
+      if (p->has_arg == required_argument) {
+        std::string key = p->name;
+        if (key == "solver") {
+          printf("={stp,z3,disable}");
+        } else {
+          // TODO: doc for other options
+          printf("=<value>");
+        }
+      }
       printf("] ");
     }
   }
@@ -93,11 +116,17 @@ inline void handle_cli_args(int argc, char** argv) {
         n_queue = n;
         break;
       }
+      case 'v': {
+        auto solver = std::string(optarg);
+        set_solver(solver);
+        break;
+      }
       case 'e':
         timeout = atoi(optarg);
         break;
       case '?':
         // parsing error, should be printed by getopt
+      case 'h':
       default:
         print_help(argv[0]);
         exit(-1);
@@ -113,14 +142,13 @@ inline void handle_cli_args(int argc, char** argv) {
   }
   if (n_thread == 1) {
     // It is safe the reuse the global_vc object within one thread, but not otherwise.
-    std::cout << "Use global solver\n";
     use_global_solver = true;
+    std::cout << "Sequential execution mode; use global solver\n";
+  } else {
+    // thread pool will create (n_thread) threads, leaving the main thread idle.
+    tp.init(n_thread, n_queue);
+    std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
   }
-  std::cout << "Use " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
-#ifdef USE_TP
-  // thread pool will create (n_thread) threads, leaving the main thread idle.
-  tp.init(n_thread, n_queue);
-#endif
   use_objcache = use_objcache && use_global_solver;
   use_cexcache = use_cexcache && use_global_solver;
   INFO(initial_fs);

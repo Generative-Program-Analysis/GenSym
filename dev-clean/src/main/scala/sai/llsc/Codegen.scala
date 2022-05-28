@@ -13,6 +13,10 @@ import java.io.FileOutputStream
 import collection.mutable.HashMap
 
 trait GenericLLSCCodeGen extends CppSAICodeGenBase {
+  registerLibrary("-lz3")
+  registerLibrary("-lstp")
+  registerHeader("./headers", "<llsc.hpp>")
+
   val codegenFolder: String
   // TODO: refactor to Sym => String map?
   var funMap = new HashMap[Int, String]()
@@ -130,7 +134,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
-    case Node(s, "to-SMTNeg", List(v), _) => es"to_SMTNeg($v)"
+    case Node(s, "to-SMTNeg", List(v), _) => es"SymV::neg($v)"
     case Node(s, "ValPtr-deref", List(v), _) => es"*$v"
     case Node(s, "nullptr", _, _) => es"nullptr"
     case Node(s, "to-bytes", List(v), _) => es"$v->to_bytes()"
@@ -237,11 +241,11 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     emitln(s"""
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
-    |#ifdef USE_TP
-    |  tp.add_task([]() { return $name(0); });
-    |#else
-    |  $name(0);
-    |#endif
+    |  if (can_par_tp()) {
+    |    tp.add_task([]() { return $name(0); });
+    |  } else {
+    |    $name(0);
+    |  }
     |  epilogue();
     |  return exit_code.load().value_or(0);
     |} """.stripMargin)
@@ -249,8 +253,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
 }
 
 trait PureLLSCCodeGen extends GenericLLSCCodeGen {
-  registerHeader("./headers", "<llsc.hpp>")
-
   override def shallow(n: Node): Unit = n match {
     case Node(s, "tp-async", List(b: Block), _) =>
       //emit("std::async(std::launch::async, [&]")
@@ -269,8 +271,6 @@ trait PureLLSCCodeGen extends GenericLLSCCodeGen {
 }
 
 trait ImpureLLSCCodeGen extends GenericLLSCCodeGen {
-  registerHeader("./headers", "<llsc_imp.hpp>")
-
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "ss-copy", _, _) => false
     case _ => super.mayInline(n)

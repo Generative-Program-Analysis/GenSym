@@ -261,11 +261,4 @@ public:
   }
 };
 
-inline CheckerSTP cstp;
-
-// To be compatible with generated code:
-
-inline bool check_pc(PC pc) { return cstp.check_pc(std::move(pc)); }
-inline void check_pc_to_file(SS state) { cstp.generate_test(std::move(state.get_PC())); }
-
 #endif

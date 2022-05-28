@@ -59,4 +59,23 @@ public:
   }
 };
 
+#include "smt_stp.hpp"
+#include "smt_z3.hpp"
+
+inline Checker& get_checker() {
+  if (solver_kind == SolverKind::z3) {
+    static CheckerZ3 cz3;
+    return cz3;
+  } else if (solver_kind == SolverKind::stp) {
+    static CheckerSTP cstp;
+    return cstp;
+  }
+  ABORT("unknown solver");
+}
+
+// To be compatible with generated code:
+
+inline bool check_pc(PC pc) { return get_checker().check_pc(std::move(pc)); }
+inline void check_pc_to_file(SS state) { get_checker().generate_test(std::move(state.get_PC())); }
+
 #endif

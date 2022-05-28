@@ -15,7 +15,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto cond = to_SMTNeg(v);
+  auto cond = SymV::neg(v);
   auto pc = state.get_PC();
   pc.add(cond);
   if (check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is not valid
@@ -215,7 +215,7 @@ template<typename T>
 inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  PtrVal va_arg = state.getVarargLoc();
+  PtrVal va_arg = state.vararg_loc();
   state.update(va_list + 0, IntV0, 4);
   state.update(va_list + 4, IntV0, 4);
   state.update(va_list + 8, va_arg + 48, 8);
@@ -226,7 +226,7 @@ template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  PtrVal va_arg = state.getVarargLoc();
+  PtrVal va_arg = state.vararg_loc();
   for (int i = 0; i<24; i++) {
     state.update(va_list + i, nullptr);
   }

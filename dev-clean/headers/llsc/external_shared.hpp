@@ -95,15 +95,15 @@ inline T __sym_exit(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(v != nullptr, "sym_exit only accepts integer argument");
   int status = v->as_signed();
   check_pc_to_file(state);
-#ifdef USE_TP
-  // XXX: brutally call _exit? then what should happen if two threads are calling sym_exit?
-  tp.stop_all_tasks();
-  set_exit_code(status);
-  return k(state, nullptr);
-#else
-  cov().print_all();
-  _exit(status);
-#endif
+  if (can_par_tp()) {
+    // XXX: brutally call _exit? then what should happen if two threads are calling sym_exit?
+    tp.stop_all_tasks();
+    set_exit_code(status);
+    return k(state, nullptr);
+  } else {
+    cov().print_all();
+    _exit(status);
+  }
 }
 
 inline List<SSVal> sym_exit(SS state, List<PtrVal> args) {
@@ -229,7 +229,7 @@ inline std::monostate abort(SS state, List<PtrVal> args, Cont k) {
 
 template<typename T>
 inline T ____errno_location(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  return k(state, state.getErrorLoc());
+  return k(state, state.error_loc());
 }
 
 inline List<SSVal> __errno_location(SS state, List<PtrVal> args) {

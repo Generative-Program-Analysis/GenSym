@@ -35,8 +35,6 @@
 
 using namespace std::chrono;
 
-#define PURE_STATE
-
 #include <llsc/auxiliary.hpp>
 #include <llsc/parallel.hpp>
 #include <llsc/monitor.hpp>
@@ -44,19 +42,26 @@ using namespace std::chrono;
 #include <llsc/filesys.hpp>
 #include <llsc/args.hpp>
 #include <llsc/cli.hpp>
-#include <llsc/state_pure.hpp>
 
-#include <llsc/smt_checker.hpp>
-#ifdef Z3
-#include <llsc/smt_z3.hpp>
-#else
-#include <llsc/smt_stp.hpp>
+#ifdef PURE_STATE
+#include <llsc/state_pure.hpp>
+#endif
+#ifdef IMPURE_STATE
+#include <llsc/state_imp.hpp>
 #endif
 
+#include <llsc/smt_checker.hpp>
 #include <llsc/branch.hpp>
 #include <llsc/misc.hpp>
 
+#ifdef PURE_STATE
 #include <llsc/external_pure.hpp>
+#endif
+
+#ifdef IMPURE_STATE
+#include <llsc/external_imp.hpp>
+#endif
+
 #include <llsc/external.hpp>
 
 #endif

@@ -19,7 +19,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto cond = to_SMTNeg(v);
+  auto cond = SymV::neg(v);
   auto new_s = state.add_PC(cond);
   if (check_pc(new_s.get_PC())) {
     std::cout << "Warning: assert violates; abort and generate test.\n";
@@ -458,7 +458,7 @@ template<typename T>
 inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  PtrVal va_arg = state.getVarargLoc();
+  PtrVal va_arg = state.vararg_loc();
   SS res = state;
   res = res.update(va_list + 0, IntV0, 4);
   res = res.update(va_list + 4, IntV0, 4);

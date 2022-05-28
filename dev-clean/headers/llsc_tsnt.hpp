@@ -43,11 +43,8 @@ using namespace std::chrono;
 #include <llsc/filesys.hpp>
 #include <llsc/args.hpp>
 #include <llsc/cli.hpp>
-#include <llsc/state_imp.hpp>
-
+#include <llsc/state_tsnt.hpp>
 #include <llsc/smt_checker.hpp>
-#include <llsc/smt_stp.hpp>
-
 #include <llsc/branch.hpp>
 #include <llsc/misc.hpp>
 

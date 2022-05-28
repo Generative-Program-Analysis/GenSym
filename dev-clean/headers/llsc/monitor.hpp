@@ -53,11 +53,8 @@ struct Monitor {
       }
     }
     void print_async() {
-#ifdef USE_TP
       std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
-#else
-      std::cout << "#threads: " << num_async + 1 << "; #async-created: " << tt_num_async << "; " << std::flush;
-#endif
+      //std::cout << "#threads: " << num_async + 1 << "; #async-created: " << tt_num_async << "; " << std::flush;
     }
     void print_query_stat() {
       std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;

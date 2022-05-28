@@ -6,7 +6,21 @@
 #include "thread_pool.hpp"
 inline thread_pool tp;
 
-/* Async */
+/* Auxiliary paralle functions */
+
+inline bool can_par_tp() {
+  return n_thread > 1;
+}
+
+inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
+  if (can_par_tp()) {
+    tp.add_task(f);
+    return std::monostate{};
+  }
+  return f();
+}
+
+/* Async (Deprecated) */
 
 inline std::mutex m;
 
@@ -34,17 +48,6 @@ auto create_async(std::function<T()> f) -> std::future<T> {
     return t;
   });
   return fu;
-}
-
-/* Auxiliary paralle functions */
-
-inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
-#ifdef USE_TP
-  tp.add_task(f);
-  return std::monostate{};
-#else
-  return f();
-#endif
 }
 
 #endif

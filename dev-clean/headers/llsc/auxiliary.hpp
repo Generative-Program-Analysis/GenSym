@@ -8,6 +8,7 @@ inline std::mutex dt_lock;
 inline duration<double, std::micro> debug_time = microseconds::zero();
 
 template<typename T> using List = immer::flex_vector<T>;
+template<typename T> using TrList = immer::flex_vector_transient<T>;
 
 using BlockLabel = int;
 using Id = int;

@@ -40,7 +40,7 @@ class PreMem: public Printable {
     }
     M take(size_t keep) { return M(mem.take(keep)); }
     M drop(size_t d) { return M(mem.drop(d)); }
-    List<V> getMem() { return mem; }
+    List<V> get_mem() { return mem; }
 };
 
 /* Mem0 is the base memory model that assumes integer/symbolic values are
@@ -323,7 +323,7 @@ class Stack: public Printable {
     Stack(Mem mem, List<Frame> env, PtrVal errno_location) : mem(mem), env(env), errno_location(errno_location) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
-    PtrVal getVarargLoc() { return env.at(env.size()-2).lookup_id(0); }
+    PtrVal vararg_loc() { return env.at(env.size()-2).lookup_id(0); }
     Stack init_error_loc() {
       auto updated_mem = mem;
       auto error_addr = mem.size();
@@ -332,7 +332,7 @@ class Stack: public Printable {
       auto error_loc = make_LocV(error_addr, LocV::kStack, 4);
       return Stack(updated_mem, env, error_loc);
     }
-    PtrVal getErrorLoc() { return errno_location; }
+    PtrVal error_loc() { return errno_location; }
     Stack pop(size_t keep) { return Stack(mem.take(keep), env.take(env.size()-1), errno_location); }
     Stack push() { return Stack(mem, env.push_back(Frame()), errno_location); }
     Stack push(Frame f) { return Stack(mem, env.push_back(f), errno_location); }
@@ -362,7 +362,7 @@ class Stack: public Printable {
     PtrVal at(size_t idx) { return mem.at(idx); }
     PtrVal at(size_t idx, int size) { return mem.at(idx, size); }
     PtrVal at_struct(size_t idx, int size) {
-      return std::make_shared<StructV>(mem.take(idx + size).drop(idx).getMem());
+      return std::make_shared<StructV>(mem.take(idx + size).drop(idx).get_mem());
     }
     Stack update(size_t idx, const PtrVal& val) { return Stack(mem.update(idx, val), env, errno_location); }
     Stack update(size_t idx, const PtrVal& val, int size) { return Stack(mem.update(idx, val, size), env, errno_location); }
@@ -430,7 +430,7 @@ class SS: public Printable {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
-      return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).getMem());
+      return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).get_mem());
     }
     List<PtrVal> at_seq(const PtrVal& addr, int count) {
       auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
@@ -499,8 +499,8 @@ class SS: public Printable {
     SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, bb, fs); }
     PC get_PC() { return pc; }
     // TODO temp solution
-    PtrVal getVarargLoc() { return stack.getVarargLoc(); }
-    PtrVal getErrorLoc() { return stack.getErrorLoc(); }
+    PtrVal vararg_loc() { return stack.vararg_loc(); }
+    PtrVal error_loc() { return stack.error_loc(); }
     void set_fs(FS new_fs) { fs = new_fs; }
     FS get_fs() { return fs; }
 };

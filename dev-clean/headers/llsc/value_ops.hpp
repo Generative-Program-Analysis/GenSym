@@ -69,6 +69,7 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
     }
     return res.persistent();
   }
+
 };
 
 template<>
@@ -327,16 +328,6 @@ inline bool is_LocV_null(PtrVal v) {
   return (64 == i->bw) && (0 == i->as_signed());
 }
 
-inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
-  if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
-    return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + rhs);
-  }
-  if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
-    return make_IntV(i->i + rhs, i->bw);
-  }
-  ABORT("Unknown application of operator+");
-}
-
 // FunV types:
 //   use template to delay type instantiation
 //   cause SS is currently incomplete, unable to use in containers
@@ -435,6 +426,8 @@ struct SymV : Value {
     auto end = steady_clock::now();
     return nullptr;
   }
+
+  static PtrVal neg(const PtrVal& v);
 };
 
 /*
@@ -474,7 +467,8 @@ inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, si
   }
   return res.persistent();
 }
-inline PtrVal to_SMTNeg(PtrVal v) {
+
+inline PtrVal SymV::neg(const PtrVal& v) {
   return make_SymV(iOP::op_neg, List<PtrVal>({ v }), v->get_bw());
 }
 
@@ -728,6 +722,16 @@ inline const PtrVal IntV0 = make_IntV(0);
 
 inline std::string ptrval_to_string(const PtrVal& ptr) {
   return std::string(ptr == nullptr ? "nullptr" : ptr->toString());
+}
+
+inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
+  if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
+    return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + rhs);
+  }
+  if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
+    return make_IntV(i->i + rhs, i->bw);
+  }
+  ABORT("Unknown application of operator+");
 }
 
 #endif

@@ -21,9 +21,13 @@ import sai.llsc.imp.ImpCPSLLSCEngine
 
 import sys.process._
 
-abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, folder: String = ".", config: Config)
+abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
     extends SAISnippet[A, B] with SAIOps { q =>
   import java.io.{File, PrintStream}
+
+  val appName: String
+  val folder: String
+  val config: Config
 
   val codegen: GenericLLSCCodeGen
   var extraFlags: String = ""
@@ -128,14 +132,16 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
     val libraryPaths = codegen.libraryPaths.map(p => s"-L $curDir/$p -Wl,-rpath $curDir/$p").mkString(" ")
-    val main_file_opt = if (config.test_coreutil) "-O0" else "-O3"
+    val mainFileOpt = if (config.test_coreutil) "NOOPT" else "OPT"
 
     out.println(s"""|BUILD_DIR = build
     |TARGET = $appName
     |SRC_DIR = .
     |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp" ! -name "$${TARGET}.cpp")
     |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
-    |CC = g++ -std=c++17 -O3
+    |OPT = -O3
+    |NOOPT = -O0
+    |CC = g++ -std=c++17
     |PERFFLAGS = -fno-omit-frame-pointer #-g
     |CXXFLAGS = $includes $extraFlags $$(PERFFLAGS)
     |LDFLAGS = $libraryPaths
@@ -147,14 +153,14 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     |
     |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@)
     |\tmkdir -p $$(@D)
-    |\t$$(CC) -c -o $$@ $$< $$(CXXFLAGS)
+    |\t$$(CC) $$(OPT) -c -o $$@ $$< $$(CXXFLAGS)
     |
     |$$(BUILD_DIR)/$${TARGET}.o : $${TARGET}.cpp
     |\tmkdir -p $$(@D)
-    |\tg++ -std=c++17 $main_file_opt -c -o $$@ $$< $$(CXXFLAGS)
+    |\t$$(CC) $$($mainFileOpt) -c -o $$@ $$< $$(CXXFLAGS)
     |
     |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o
-    |\t$$(CC) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
+    |\t$$(CC) $$(OPT) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
     |
     |clean:
     |\t@rm $${TARGET} 2>/dev/null || true
@@ -171,11 +177,9 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
     genMakefile
   }
 
-  def make(j: Int = 1): Int = {
-    Process(s"make -j$j", new File(s"$folder/$appName")).!
-  }
+  def make(j: Int = 1): Int = Process(s"make -j$j", new File(s"$folder/$appName")).!
 
-  def make_all_cores: Int = {
+  def makeWithAllCores: Int = {
     val cores = Process("nproc", new File(s"$folder/$appName")).!!.replaceAll("[\\n\\t ]", "").toInt
     Process(s"make -j$cores", new File(s"$folder/$appName")).!
   }
@@ -199,13 +203,9 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest](appName: String, fold
   }
 }
 
-// Using immer data structures for
-//   1) internal state/memory representation
-//   2) function call argument list
-//   3) function return result list
-abstract class PureLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: String, folder: String = ".", config: Config)
-   extends GenericLLSCDriver[A, B](appName, folder, config) with LLSCEngine { q =>
-  val codegen = new PureLLSCCodeGen {
+abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCDriver[A, B] {
+  q: EngineBase =>
+  override lazy val codegen: GenericLLSCCodeGen = new PureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     setFunMap(q.funNameMap)
@@ -221,36 +221,15 @@ abstract class PureLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: 
   }
 }
 
-// Using immer data structures but generating CPS code,
-// avoding reifying the returned nondet list.
-abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: String, folder: String = ".", config: Config)
-    extends GenericLLSCDriver[A, B](appName, folder, config) with PureCPSLLSCEngine { q =>
-  val codegen = new PureLLSCCodeGen {
+abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCDriver[A, B] {
+  q: EngineBase =>
+  override lazy val codegen: GenericLLSCCodeGen = new ImpureLLSCCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     setFunMap(q.funNameMap)
     setBlockMap(q.blockNameMap)
   }
 
-  override def transform(g0: Graph): Graph = {
-    if (Config.opt) {
-      val (g1, subst1) = AssignElim.transform(g0)
-      codegen.reconsMapping(subst1)
-      g1
-    } else g0
-  }
-}
-
-// Using C++ std containers for internal state/memory representation,
-// but still using immer containers for function call argument lists and result lists.
-abstract class ImpLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: String, folder: String = ".", config: Config)
-   extends GenericLLSCDriver[A, B](appName, folder, config) with ImpLLSCEngine { q =>
-  val codegen = new ImpureLLSCCodeGen {
-    val IR: q.type = q
-    val codegenFolder = s"$folder/$appName/"
-    setFunMap(q.funNameMap)
-    setBlockMap(q.blockNameMap)
-  }
   override def transform(g0: Graph): Graph = {
     if (Config.opt) {
       val (g1, subst1) = AssignElim.impTransform(g0)
@@ -260,12 +239,33 @@ abstract class ImpLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: S
   }
 }
 
+// Using immer data structures for
+//   1) internal state/memory representation
+//   2) function call argument list
+//   3) function return result list
+abstract class PureLLSCDriver[A: Manifest, B: Manifest](
+  val m: Module, val appName: String, val folder: String, val config: Config)
+    extends PureEngineDriver[A, B] with LLSCEngine
+
+// Using immer data structures but generating CPS code,
+// avoding reifying the returned nondet list.
+abstract class PureCPSLLSCDriver[A: Manifest, B: Manifest](
+  val m: Module, val appName: String, val folder: String, val config: Config)
+    extends PureEngineDriver[A, B] with PureCPSLLSCEngine
+
+// Using C++ std containers for internal state/memory representation,
+// but still using immer containers for function call argument lists and result lists.
+abstract class ImpLLSCDriver[A: Manifest, B: Manifest](
+  val m: Module, val appName: String, val folder: String, val config: Config)
+    extends ImpureEngineDriver[A, B] with ImpLLSCEngine
+
 // Using C++ std containers for internal state/memory representation,
 // function call argument lists, and result lists.
 // Note the composition with `StdVectorCodeGen`.
-abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: String, folder: String = ".", config: Config)
-   extends GenericLLSCDriver[A, B](appName, folder, config) with ImpLLSCEngine { q =>
-  val codegen = new ImpureLLSCCodeGen with StdVectorCodeGen {
+abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](
+  val m: Module, val appName: String, val folder: String, val config: Config)
+    extends ImpureEngineDriver[A, B] with ImpLLSCEngine { q =>
+  override lazy val codegen = new ImpureLLSCCodeGen with StdVectorCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     setFunMap(q.funNameMap)
@@ -275,36 +275,9 @@ abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName
 
 // Generting CPS code with C++ containers for internal state/memory representation.
 // Function call argument lists and result lists still use immer containers.
-abstract class ImpCPSLLSCDriver[A: Manifest, B: Manifest](val m: Module, appName: String, folder: String = ".", config: Config)
-   extends GenericLLSCDriver[A, B](appName, folder, config) with ImpCPSLLSCEngine { q =>
-  val codegen = new ImpureLLSCCodeGen /* with StdVectorCodeGen */ {
-    val IR: q.type = q
-    val codegenFolder = s"$folder/$appName/"
-    setFunMap(q.funNameMap)
-    setBlockMap(q.blockNameMap)
-  }
-
-  override def transform(g0: Graph): Graph = {
-    if (Config.opt) {
-      val (g1, subst1) = AssignElim.impTransform(g0)
-      codegen.reconsMapping(subst1)
-      g1
-    } else g0
-  }
-}
-
-trait LLSC {
-  val insName: String
-  def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit]
-  def runLLSC(m: Module, name: String, fname: String, config: Config = Config(0, true, false)): Unit = {
-    BlockCounter.reset
-    val (_, t) = time {
-      val code = newInstance(m, name, fname, config)
-      code.genAll
-    }
-    println(s"[$insName] compiling $name, time $t ms")
-  }
-}
+abstract class ImpCPSLLSCDriver[A: Manifest, B: Manifest](
+  val m: Module, val appName: String, val folder: String , val config: Config)
+    extends ImpureEngineDriver[A, B] with ImpCPSLLSCEngine
 
 case class Config(nSym: Int, argv: Boolean, test_coreutil: Boolean) {
   require(!(nSym > 0 && argv))
@@ -324,7 +297,32 @@ object Config {
   def testcoreutil = Config(0, true, true)
 }
 
-class PureLLSC extends LLSC {
+trait LLSC {
+  val insName: String
+  def extraFlags: String = "" // -D USE_LKFREE_Q
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit]
+  def runLLSC(m: Module, name: String, fname: String, config: Config = Config(0, true, false)): GenericLLSCDriver[Int, Unit] = {
+    BlockCounter.reset
+    val (code, t) = time {
+      val code = newInstance(m, name, fname, config)
+      code.extraFlags = extraFlags
+      code.genAll
+      code
+    }
+    println(s"[$insName] compiling $name, time $t ms")
+    code
+  }
+}
+
+trait PureState { self: LLSC =>
+  override def extraFlags = "-D PURE_STATE"
+}
+
+trait ImpureState { self: LLSC =>
+  override def extraFlags = "-D IMPURE_STATE"
+}
+
+class PureLLSC extends LLSC with PureState {
   val insName = "PureLLSC"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new PureLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
@@ -337,7 +335,7 @@ class PureLLSC extends LLSC {
     }
 }
 
-class PureCPSLLSC extends LLSC {
+class PureCPSLLSC extends LLSC with PureState {
   val insName = "PureCPSLLSC"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new PureCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
@@ -348,18 +346,7 @@ class PureCPSLLSC extends LLSC {
     }
 }
 
-class PureCPSLLSC_Z3 extends PureCPSLLSC {
-  override val insName = "PureCPSLLSC_Z3"
-  override def newInstance(m: Module, name: String, fname: String, config: Config) = {
-    val llsc = super.newInstance(m, name, fname, config)
-    llsc.codegen.libraryFlags.clear()
-    llsc.codegen.registerLibrary("-lz3")
-    llsc.extraFlags = "-D USE_TP -D Z3" // -D USE_LKFREE_Q"
-    llsc
-  }
-}
-
-class ImpLLSC extends LLSC {
+class ImpLLSC extends LLSC with ImpureState {
   val insName = "ImpLLSC"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new ImpLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
@@ -371,7 +358,7 @@ class ImpLLSC extends LLSC {
     }
 }
 
-class ImpVecLLSC extends LLSC {
+class ImpVecLLSC extends LLSC with ImpureState {
   val insName = "ImpLLSC"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new ImpVecLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
@@ -383,7 +370,7 @@ class ImpVecLLSC extends LLSC {
     }
 }
 
-class ImpCPSLLSC extends LLSC {
+class ImpCPSLLSC extends LLSC with ImpureState {
   val insName = "ImpCPSLLSC"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
