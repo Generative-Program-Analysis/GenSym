@@ -8,6 +8,9 @@ inline bool use_cexcache = true;
 inline bool use_cons_indep = false;
 inline bool exlib_failure_branch = false;
 
+/* TODO: generate a file containing generated function declarations <2022-05-24, David Deng> */
+FS set_file(FS, String, Ptr<File>);
+
 enum class SolverKind { z3, stp };
 inline SolverKind solver_kind = SolverKind::stp;
 
@@ -99,8 +102,8 @@ inline void handle_cli_args(int argc, char** argv) {
         g_argc = make_IntV(cli_argv.size());
         break;
       case '+':
-        initial_fs.set_file(std::string(optarg), make_SymFile(std::string(optarg), default_sym_file_size));
-        INFO("adding symfile: " << optarg << " with size " << default_sym_file_size << "%d\n");
+        initial_fs = set_file(initial_fs, "/" + String(optarg), make_SymFile(std::string(optarg), default_sym_file_size));
+        INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);
         break;
       case 's':
         default_sym_file_size = atoi(optarg);

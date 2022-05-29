@@ -24,20 +24,20 @@ void test_file() {
   {
     // test size
     File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2});
-    ASSERT(f.get_size() == 3, "size of non-empty file");
-    ASSERT(File("B").get_size() == 0, "size of an empty file");
+    ASSERT(f.content.size() == 3, "size of non-empty file");
+    ASSERT(File("B").content.size() == 0, "size of an empty file");
   }
   {
     // test make_SymFile
     File f = make_SymFile("A", 5);
-    ASSERT(f.get_size() == 5, "make_SymFile returns file of correct size");
+    ASSERT(f.content.size() == 5, "make_SymFile returns file of correct size");
     /* std::cout << f << std::endl; */
   }
   {
     // test clear
     File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2});
     f.clear();
-    ASSERT((f.get_size() == 0), "clear should result in empty file");
+    ASSERT((f.content.size() == 0), "clear should result in empty file");
   }
   {
     // test write_at_no_fill
@@ -47,17 +47,17 @@ void test_file() {
 
     
     f1.write_at_no_fill(immer::flex_vector<PtrVal>{intV_3, intV_4, intV_5}, 3);
-    ASSERT((f1.get_content() ==
+    ASSERT((f1.content ==
           immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2, intV_3, intV_4, intV_5}), 
         "write at the end of a file");
 
     f2.write_at_no_fill(immer::flex_vector<PtrVal>{intV_3, intV_4, intV_5}, 2);
-    ASSERT((f2.get_content() ==
+    ASSERT((f2.content ==
           immer::flex_vector<PtrVal>{intV_0, intV_1, intV_3, intV_4, intV_5}), 
         "write at the middle of a file, exceeding the end");
 
     f3.write_at_no_fill(immer::flex_vector<PtrVal>{intV_4}, 1);
-    ASSERT((f3.get_content() ==
+    ASSERT((f3.content ==
           immer::flex_vector<PtrVal>{intV_0, intV_4, intV_2}), 
         "write at the middle of a file, not exceeding the end");
 
@@ -69,15 +69,27 @@ void test_file() {
     File f3 = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2});
 
     f1.write_at(immer::flex_vector<PtrVal>{intV_4}, 5, intV_0);
-    ASSERT((f1.get_content() ==
+    ASSERT((f1.content ==
           immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2, intV_0, intV_0, intV_4}), 
         "write after the end of the file, a hole should be created");
 
     f2.write_at(immer::flex_vector<PtrVal>{intV_4}, 3, intV_0);
     f3.write_at_no_fill(immer::flex_vector<PtrVal>{intV_4}, 3);
-    ASSERT((f2.get_content() == f3.get_content()),
+    ASSERT((f2.content == f3.content),
         "write_at and write_at_no_fill should behave the same when not writing after the end");
   }
+}
+
+void test_dup_sketch() {
+  typedef std::shared_ptr<Stream> StreamRef;
+  immer::map<Fd, StreamRef> opened_files;
+  File f = File("A", immer::flex_vector<PtrVal>{intV_0, intV_1, intV_2});
+  opened_files = opened_files.set(1, std::make_shared<Stream>(f, 0, 0));
+  StreamRef strm = opened_files.at(1); // reference? copy?
+  opened_files = opened_files.set(2, strm);
+  strm->cursor = 2; // should update the reference
+  std::cout << "opened_files.at(1): " << *opened_files.at(1) << std::endl;
+  std::cout << "opened_files.at(2): " << *opened_files.at(2) << std::endl;
 }
 
 void test_stream() {
@@ -85,7 +97,7 @@ void test_stream() {
   Stream s = Stream(f);
   off_t pos;
   {
-    ASSERT((s.get_cursor() == 0), "cursor should default to 0");
+    ASSERT((s.cursor == 0), "cursor should default to 0");
   }
   {
     // test seek
@@ -247,7 +259,8 @@ void test_stat() {
 
 
 int main() {
-  test_file();
-  test_stream();
-  test_stat();
+  /* test_file(); */
+  /* test_stream(); */
+  /* test_stat(); */
+  test_dup_sketch();
 }

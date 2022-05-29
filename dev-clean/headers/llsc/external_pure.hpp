@@ -460,8 +460,8 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   PtrVal va_arg = state.vararg_loc();
   SS res = state;
-  res = res.update(va_list + 0, IntV0, 4);
-  res = res.update(va_list + 4, IntV0, 4);
+  res = res.update(va_list + 0, make_IntV(0, 32), 4);
+  res = res.update(va_list + 4, make_IntV(0, 32), 4);
   res = res.update(va_list + 8, va_arg + 48, 8);
   res = res.update(va_list + 16, va_arg, 8);
   return k(res, IntV0);

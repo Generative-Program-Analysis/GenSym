@@ -49,6 +49,16 @@ abstract class TestLLSC extends FunSuite {
     }
   }
 
+  def testUnit(path: String, name: String, j: Int = 4): Unit = {
+    test(s"${name}_unit") {
+      val dir = new java.io.File(path)
+      val retMake = Process(s"make -j$j $name", dir).!
+      assert(retMake == 0, "Make failed")
+      val retTest = Process(s"./$name", dir).!
+      assert(retTest == 0, s"Test $name failed")
+    }
+  }
+
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
     val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(name) {
@@ -119,8 +129,13 @@ class TestImpCPSLLSC extends TestLLSC {
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
+class TestUnit extends TestLLSC {
+  testUnit("./headers/test", "external_test")
+}
+
 class Playground extends TestLLSC {
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
+
   //val llsc = new PureCPSLLSC
   Config.enableOpt
   testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))

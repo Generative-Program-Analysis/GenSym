@@ -80,7 +80,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         System.out.println(s"Warning: globalDecl $id is ignored")
         ty match {
           case PtrType(_, _) => ret(NullLoc())
-          case _ => ret(NullPtr())
+          case _ => ret(NullPtr[Value]())
         }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
@@ -106,12 +106,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         }
       case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1)
       case ICmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalIntOp2(pred.op, lhs, rhs, ty1)
-      case InlineASM() => ret(NullPtr())
+      case InlineASM() => ret(NullPtr[Value]())
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
-        ret(NullPtr()) // FIXME: use uninitValue
+        ret(NullPtr[Value]()) // FIXME: use uninitValue
       case NullConst => ret(NullLoc())
-      case NoneConst => ret(NullPtr())
+      case NoneConst => ret(NullPtr[Value]())
       case v => System.out.println(ty, v); ???
     }
   }
@@ -306,7 +306,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case RetTerm(ty, v) =>
         v match {
           case Some(value) => eval(value, ty)
-          case None => ret(NullPtr())
+          case None => ret(NullPtr[Value]())
         }
       case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
         execBlockEager(funName, findBlock(funName, lab).get)

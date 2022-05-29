@@ -61,8 +61,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (m.toString.endsWith("$SS")) "SS"
     else if (m.toString.endsWith("$PC")) "PC"
     else if (m.toString.endsWith("$FS")) "FS"
-    else if (m.toString.endsWith("$File")) "File"
-    else if (m.toString.endsWith("$Stream")) "Stream"
+    else if (m.toString.endsWith("$File")) "Ptr<File>"
+    else if (m.toString.endsWith("$Stream")) "Ptr<Stream>"
     else if (m.toString.endsWith("$Kind")) "LocV::Kind"
     else if (m.toString.endsWith("SMTExpr")) "PtrVal"
     else if (m.toString.endsWith("SMTBool")) "PtrVal"
@@ -139,6 +139,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "nullptr", _, _) => es"nullptr"
     case Node(s, "to-bytes", List(v), _) => es"$v->to_bytes()"
     case Node(s, "to-bytes-shadow", List(v), _) => es"$v->to_bytes_shadow()"
+    case Node(s, "from-bytes", List(l), _) => es"Value::from_bytes($l)"
+    case Node(s, "from-bytes-shadow", List(l), _) => es"Value::from_bytes_shadow($l)"
     case Node(s, "make_FloatV", List(Const(l: String), Const(80)), _) =>
       val byteArr = l.substring(3).grouped(2).toList
       val litRep = "{" + byteArr.reverse.map(v => "0x" ++ v).mkString(", ") + "}"
@@ -154,6 +156,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-block-cov", _, _) => es"cov().print_block_cov()"
     case Node(s, "print-time", _, _) => es"cov().print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov().print_path_cov()"
+    case Node(s, "assert", List(cond, msg), _) => es"ASSERT(($cond), $msg)"
 
     case Node(s, "add_tp_task", List(b: Block), _) =>
       es"tp.add_task("

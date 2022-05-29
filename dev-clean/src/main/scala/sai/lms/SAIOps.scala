@@ -27,7 +27,11 @@ trait PrimitiveOpsOpt extends PrimitiveOps { self: Base =>
       case Adapter.g.Def("+", StaticList(x: Backend.Exp, Backend.Const(y: Int))) if rhs == y.toLong => Wrap[Int](x)
       case _ => super.-(rhs)(__pos, __imp1)
     }
+
   }
+  implicit def longToBoolean(x: Long): Boolean = if (x) true else false
+  implicit def repLongToRepBoolean(x: Rep[Long])(implicit __pos: SourceContext): Rep[Boolean] = cast_helper[Long, Boolean](x)
+
 }
 
 abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
@@ -37,7 +41,7 @@ abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
 
 trait SAIOps extends Base
     with PrimitiveOpsOpt with LiftPrimitives with Equal with RangeOps
-    with OrderingOps  with LiftVariables  with TupleOpsOpt
+    with OrderingOps  with LiftVariables  with TupleOpsOpt with StringOps
     with ListOpsOpt   with MapOpsOpt      with SetOpsOpt
     with EitherOps    with RepLattices    with RepMonads
     with SMTBaseOps   with SMTBitVecOps   with SMTArrayOps {
@@ -79,6 +83,8 @@ trait SAIOps extends Base
       Wrap[T](Adapter.g.reflectMutable(op, rs.map(Unwrap):_*))
     def reflectCtrlWith[T: Manifest](rs: Rep[_]*): Rep[T] =
       Wrap[T](Adapter.g.reflectEffect(op, rs.map(Unwrap):_*)(Adapter.CTRL)(Adapter.CTRL))
+    def reflectUnsafeWith[T: Manifest](rs: Rep[_]*): Rep[T] =
+      Wrap[T](Adapter.g.reflectUnsafe(op, rs.map(Unwrap):_*))
   }
 
   def print(x: Rep[Any]): Unit = Adapter.g.reflectWrite("print",Unwrap(x))(Adapter.CTRL)

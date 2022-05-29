@@ -87,9 +87,12 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "sym_print", "print_string", "malloc", "realloc",
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
-      "open", "close", "read", "write", "lseek", "stat", "stop", "syscall", "llsc_assume",
+      "stop", "syscall", "llsc_assume",
       "__errno_location", "_exit", "abort", "calloc"
     )
+    private val syscalls = MutableSet[String](
+      "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown"
+    ) 
     val rederict = scala.collection.immutable.Set[String]("@memcpy", "@memset", "@memmove")
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {
@@ -104,6 +107,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
     }
     def get(id: String, ret: Option[LLVMType] = None): Rep[Value] =
       if (modeled.contains(id.tail)) ExternalFun(id.tail)
+      else if (syscalls.contains(id.tail)) ExternalFun(s"syscall_${id.tail}")
       else if (id.startsWith("@llvm.va_start")) ExternalFun("llvm_va_start")
       else if (id.startsWith("@llvm.va_end")) ExternalFun("llvm_va_end")
       else if (id.startsWith("@llvm.va_copy")) ExternalFun("llvm_va_copy")
@@ -232,13 +236,13 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
   // This refers to the nullptr in C++
   object NullPtr {
-    def apply(): Rep[Value] = "nullptr".reflectMutableWith[Value]()
-    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+    def apply[T: Manifest](): Rep[T] = "nullptr".reflectUnsafeWith[T]()
+    def unapply[T: Manifest](v: Rep[T]): Boolean = Unwrap(v) match {
       case gNode("nullptr", _) => true
       case _ => false
     }
-    def seq(size: Int): StaticList[Rep[Value]] = {
-      val s = NullPtr()
+    def seq[T: Manifest](size: Int): StaticList[Rep[T]] = {
+      val s = NullPtr[T]()
       StaticList.fill(size)(s)
     }
   }
@@ -296,7 +300,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
     def int: Rep[Long] = v match {
       case IntV(n, bw) if Config.opt => unit(n)
-      case _ => "proj_IntV".reflectWith[Int](v)
+      case _ => "proj_IntV".reflectWith[Long](v)
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def structAt(i: Rep[Long]) = "structV_at".reflectWith[Value](v, i)
@@ -332,7 +336,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
 
-    def deref: Rep[Any] = "ValPtr-deref".reflectWith[Any](v)
+    def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 
     def sExt(bw: Int): Rep[Value] = "bv_sext".reflectWith[Value](v, bw)
     def zExt(bw: Int): Rep[Value] = "bv_zext".reflectWith[Value](v, bw)

@@ -13,8 +13,8 @@ import sai.lmsx.smt._
 
 trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple   with CppCodeGen_Map
-    with CppCodeGen_Set  with STPCodeGen_SMTBase with STPCodeGen_SMTBV
-    with STPCodeGen_SMTArray {
+    with CppCodeGen_Set  with CppCodeGen_String   with CppCodeGen_Either
+    with STPCodeGen_SMTBase with STPCodeGen_SMTBV with STPCodeGen_SMTArray {
 
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName
@@ -49,14 +49,29 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   override def shallow(n: Node): Unit = n match {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case n @ Node(s, "print", List(x), _) => es"std::cout << $x"
+    case n @ Node(s, "literal", List(Const(m:String)), _) => emit(m)
     case n @ Node(s, "method-@", obj::method::args, _) =>
-      shallowP(obj)
+      shallow(obj)
       emit(s".$method(")
       args.headOption.foreach(h => {
-        shallowP(h, 0)
-        args.tail.foreach(a => { emit(", "); shallowP(a, 0) })
+        shallow(h)
+        args.tail.foreach(a => { emit(", "); shallow(a) })
       })
       emit(")")
+    case n @ Node(s, "field-@", obj::field::Nil, _) =>
+      shallow(obj)
+      emit(s".$field")
+    case n @ Node(s, "field-assign", obj::field::rhs::Nil, _) =>
+      shallow(obj)
+      emit(s".$field = ")
+      shallow(rhs)
+    case n @ Node(s, "ptr-field-@", obj::field::Nil, _) =>
+      shallow(obj)
+      emit(s"->$field")
+    case n @ Node(s, "ptr-field-assign", obj::field::rhs::Nil, _) =>
+      shallow(obj)
+      emit(s"->$field = ")
+      shallow(rhs)
     case _ => super.shallow(n)
   }
 

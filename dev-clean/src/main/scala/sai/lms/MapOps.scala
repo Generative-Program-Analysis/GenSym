@@ -46,9 +46,10 @@ trait MapOps { b: Base =>
     def getOrElse(k: Rep[K], default: Rep[V]): Rep[V] =
       Wrap[V](Adapter.g.reflect("map-getOrElse", Unwrap(m), Unwrap(k), Unwrap(default)))
     def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("map-size", Unwrap(m)))
-    def +(kv: Rep[(K, V)]): Rep[Map[K, V]] = {
+    def +(kv: Rep[(K, V)]): Rep[Map[K, V]] =
       Wrap[Map[K, V]](Adapter.g.reflect("map-+", Unwrap(m), Unwrap(kv)))
-    }
+    def -(k: Rep[K]): Rep[Map[K, V]] =
+      Wrap[Map[K, V]](Adapter.g.reflect("map--", Unwrap(m), Unwrap(k)))
     def ++(m1: Rep[Map[K, V]]): Rep[Map[K, V]] =
       Wrap[Map[K, V]](Adapter.g.reflect("map-++", Unwrap(m), Unwrap(m1)))
     def ===(m1: Rep[Map[K, V]]): Rep[Boolean] =
@@ -116,6 +117,7 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "map-new", _, _) => false
     case Node(_, "map-+", _, _) => false
+    case Node(_, "map--", _, _) => false
     case Node(_, "map-++", _, _) => false
     case Node(_, "map-getOrElse", _, _) => false
     case Node(_, "map-foldLeft", _, _) => false
@@ -159,6 +161,8 @@ trait ScalaCodeGen_Map extends ExtendedScalaCodeGen {
       shallow(m); emit(".size");
     case Node(s, "map-+", List(m, kv), _) =>
       shallow(m); emit(" + ("); shallow(kv); emit(")")
+    case Node(s, "map--", List(m, k), _) =>
+      shallow(m); emit(" - ("); shallow(k); emit(")")
     case Node(s, "map-++", List(m1, m2), _) =>
       shallow(m1); emit(" ++ "); shallow(m2)
     case Node(s, "map-keySet", List(m), _) =>
@@ -190,7 +194,7 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
   registerHeader("../third-party/immer", "<immer/map.hpp>")
   registerHeader("./headers", "<sai.hpp>")
 
-  val ms = ""; // "immer::"
+  val ms = "immer::";
 
   override def remap(m: Manifest[_]): String = {
     if (m.runtimeClass.getName == "scala.collection.immutable.Map") {
@@ -253,6 +257,8 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
       shallow(m); emit(".size()");
     case Node(s, "map-+", List(m, kv), _) =>
       shallow(m); emit(".insert("); shallow(kv); emit(")")
+    case Node(s, "map--", List(m, k), _) =>
+      shallow(m); emit(".erase("); shallow(k); emit(")")
     case Node(s, "map-++", List(m1, m2), _) =>
       emit("Map::concat(")
       shallow(m1); emit(", ")

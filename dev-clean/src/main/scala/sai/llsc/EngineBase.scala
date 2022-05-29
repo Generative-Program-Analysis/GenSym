@@ -382,7 +382,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
     var heapSize = 8
-    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(heapSize)(NullPtr())
+    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(heapSize)(NullPtr[Value]())
     for (module <- modules) {
       // module.funcDeclMap.foreach { case (k, v) =>
       //   heapEnv += k -> unit(heapSize)

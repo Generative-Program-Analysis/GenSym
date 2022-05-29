@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 #include <immer/flex_vector.hpp>
+#include <immer/flex_vector_transient.hpp>
 #include <immer/map.hpp>
 #include <immer/set.hpp>
 #include <immer/algorithm.hpp>
@@ -141,6 +142,26 @@ inline immer::flex_vector<T> set_to_list(immer::set<T> s) {
 template<typename T, class... Types>
 inline bool isInstanceOf(const std::variant<Types...>& v) {
   return std::holds_alternative<T>(v);
+}
+
+/* Strings */
+
+namespace Str {
+
+  inline immer::flex_vector<String> split(String s, String delimiter) {
+    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    String token;
+    immer::flex_vector_transient<String> res;
+
+    while ((pos_end = s.find (delimiter, pos_start)) != String::npos) {
+        token = s.substr (pos_start, pos_end - pos_start);
+        pos_start = pos_end + delim_len;
+        res.push_back (token);
+    }
+    res.push_back (s.substr (pos_start));
+    return res.persistent();
+  }
+
 }
 
 /* Vectors */

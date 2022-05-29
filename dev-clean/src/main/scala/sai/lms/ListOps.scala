@@ -29,9 +29,11 @@ trait ListOps { b: Base =>
     def apply(i: Rep[Int]): Rep[A] = Wrap[A](Adapter.g.reflect("list-apply", Unwrap(xs), Unwrap(i)))
     def head: Rep[A] = Wrap[A](Adapter.g.reflect("list-head", Unwrap(xs)))
     def tail: Rep[List[A]] = Wrap[List[A]](Adapter.g.reflect("list-tail", Unwrap(xs)))
+    def last: Rep[A] = Wrap[A](Adapter.g.reflect("list-last", Unwrap(xs)))
     def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("list-size", Unwrap(xs)))
     def isEmpty: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("list-isEmpty", Unwrap(xs)))
     def take(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-take", Unwrap(xs), Unwrap(i)))
+    def drop(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-drop", Unwrap(xs), Unwrap(i)))
     def ::(x: Rep[A]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-prepend", Unwrap(xs), Unwrap(x)))
     def ++(ys: Rep[List[A]]): Rep[List[A]] =
@@ -199,6 +201,8 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
       shallow(xs); emit(".head")
     case Node(s, "list-tail", List(xs), _) =>
       shallow(xs); emit(".tail")
+    case Node(s, "list-last", List(xs), _) =>
+      shallow(xs); emit(".last")
     case Node(s, "list-size", List(xs), _) =>
       shallow(xs); emit(".size")
     case Node(s, "list-isEmpty", List(xs), _) =>
@@ -305,12 +309,16 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       shallow(xs); emit(".front()")
     case Node(s, "list-tail", List(xs), _) =>
       shallow(xs); emit(".drop(1)")
+    case Node(s, "list-last", List(xs), _) =>
+      shallow(xs); emit(".back()")
     case Node(s, "list-size", List(xs), _) =>
       shallow(xs); emit(".size()")
     case Node(s, "list-isEmpty", List(xs), _) =>
       shallow(xs); emit(".size() == 0")
     case Node(s, "list-take", List(xs, i), _) =>
       shallow(xs); emit(".take("); shallow(i); emit(")")
+    case Node(s, "list-drop", List(xs, i), _) =>
+      shallow(xs); emit(".drop("); shallow(i); emit(")")
     case Node(s, "list-prepend", List(xs, x), _) =>
       shallow(xs); emit(".push_front("); shallow(x); emit(")")
     case Node(s, "list-concat", List(xs, ys), _) =>

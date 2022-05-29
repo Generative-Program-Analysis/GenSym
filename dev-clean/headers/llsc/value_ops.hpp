@@ -17,6 +17,7 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
   size_t get_byte_size() const { return (get_bw() + 7) / 8; }
   virtual bool compare(const Value *v) const = 0;
   virtual std::shared_ptr<IntV> to_IntV() = 0;
+  inline bool operator==(const Value& rhs){ return compare(&rhs); }
 
   /* `to_bytes` produces the memory representation of this value
    * following 64-bit little-endian data layout.
@@ -38,12 +39,12 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
    * and they do not work with location/function values, at some point, we may find that
    * it doesn't make much sense to distinguish Int and Float as variants of Value...
    */
-  static PtrVal from_bytes(List<PtrVal>&& xs) {
+  static PtrVal from_bytes(const List<PtrVal>& xs) {
     // Note: it should work with a List of SymV/IntV, containing _no_ ShadowV/LocV/FunV
     // XXX what if v is nullptr/padding
     return Vec::foldRight(xs.take(xs.size()-1), xs.back(), [](auto&& x, auto&& acc) { return bv_concat(acc, x); });
   }
-  static PtrVal from_bytes_shadow(List<PtrVal>&& xs) {
+  static PtrVal from_bytes_shadow(const List<PtrVal>& xs) {
     // Note: it should work with a List of SymV/IntV/ShadowV, containing _no_ LocV/FunV.
     //       However, the head of xs should not be a Shadow V, if so the List is "incomplete".
     auto reified = List<PtrVal>{}.transient();

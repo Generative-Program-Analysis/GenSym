@@ -113,3 +113,52 @@ trait ScalaCodeGen_Either extends ExtendedScalaCodeGen {
   }
 
 }
+
+trait CppCodeGen_Either extends ExtendedCPPCodeGen {
+
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.util.Either") {
+      val aty = m.typeArguments(0)
+      val bty = m.typeArguments(1)
+      s"std::variant<${remap(aty)}, ${remap(bty)}>"
+    } else super.remap(m)
+  }
+
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(_, "either-new-left", _, _) => false
+    case Node(_, "either-new-right", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "either-new-left", Const(mA: Manifest[_])::Const(mB: Manifest[_])::a::Nil, _) =>
+      val aty = remap(mA)
+      val bty = remap(mB)
+      emit(s"std::variant<")
+      emit(aty); emit(", "); emit(bty); emit("> {")
+      emit(s"std::in_place_type<"); emit(aty); emit(">, ")
+      shallow(a)
+      emit("}")
+    case Node(s, "either-new-right", Const(mA: Manifest[_])::Const(mB: Manifest[_])::b::Nil, _) =>
+      val aty = remap(mA)
+      val bty = remap(mB)
+      emit(s"std::variant<")
+      emit(aty); emit(", "); emit(bty); emit("> {")
+      emit(s"std::in_place_type<"); emit(aty); emit(">, ")
+      shallow(b)
+      emit("}")
+    case Node(s, "either-isLeft", List(e), _) =>
+      shallow(e); emit(".index() == 0")
+    case Node(s, "either-isRight", List(e), _) =>
+      shallow(e); emit(".index() == 1")
+      // NOTE: no corresponding cases in C++ <2022-05-26, David Deng> //
+    case Node(s, "either-left", List(e), _) => shallow(e)
+    case Node(s, "either-right", List(e), _) => shallow(e)
+    case Node(s, "left-value", List(l), _) =>
+      emit(s"std::get<0>("); shallow(l); emit(")")
+    case Node(s, "right-value", List(r), _) =>
+      emit(s"std::get<1>("); shallow(r); emit(")")
+    case _ => super.shallow(n)
+  }
+
+}
