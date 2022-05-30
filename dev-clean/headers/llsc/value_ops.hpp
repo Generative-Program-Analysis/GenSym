@@ -15,7 +15,7 @@ struct Value : public std::enable_shared_from_this<Value>, public Printable {
   virtual bool is_conc() const = 0;
   virtual int get_bw() const = 0;
   size_t get_byte_size() const { return (get_bw() + 7) / 8; }
-  virtual bool compare(const Value *v) const = 0;
+  virtual bool compare(const Value* v) const = 0;
   virtual std::shared_ptr<IntV> to_IntV() = 0;
   inline bool operator==(const Value& rhs){ return compare(&rhs); }
 
@@ -107,7 +107,7 @@ struct ShadowV : public Value {
   ShadowV(int8_t offset) : offset(offset) {}
   virtual bool is_conc() const { return true; };
   virtual int get_bw() const { return 0; }
-  virtual bool compare(const Value *v) const { return false; }
+  virtual bool compare(const Value* v) const { return false; }
   virtual std::shared_ptr<IntV> to_IntV() { return nullptr; }
   virtual std::string toString() const { return "❏"; }
   virtual List<PtrVal> to_bytes() { return List<PtrVal>{shared_from_this()}; }
@@ -164,7 +164,7 @@ struct IntV : Value {
   virtual bool is_conc() const override { return true; }
   virtual int get_bw() const override { return bw; }
 
-  virtual bool compare(const Value *v) const override {
+  virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->i != that->i) return false;
     return this->bw == that->bw;
@@ -219,7 +219,7 @@ struct FloatV : Value {
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 
-  virtual bool compare(const Value *v) const override {
+  virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->f != that->f) return false;
     return this->bw == that->bw;
@@ -294,7 +294,7 @@ struct LocV : IntV {
     return ss.str();
   }
 
-  virtual bool compare(const Value *v) const override {
+  virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->l != that->l) return false;
     return this->k == that->k;
@@ -319,14 +319,9 @@ inline PtrVal make_LocV_null() {
   static const PtrVal loc0 = make_IntV(0, 64);
   return loc0;
 }
-inline bool is_LocV_null(PtrVal v) {
-  // After FunV <: LocV <: IntV, null loc is just an IntV(0, 64) ?
-  auto i = std::dynamic_pointer_cast<IntV>(v);
 
-  if (nullptr == i) {
-    return false;
-  }
-  return (64 == i->bw) && (0 == i->as_signed());
+inline bool is_LocV_null(const PtrVal& v) {
+  return v == make_LocV_null();
 }
 
 // FunV types:
@@ -346,7 +341,7 @@ struct FunV : LocV {
     ss << "FunV(" << f << ")";
     return ss.str();
   }
-  virtual bool compare(const Value *v) const override {
+  virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     return this->f == that->f;
   }
@@ -387,7 +382,7 @@ struct SymV : Value {
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { return bw; }
 
-  virtual bool compare(const Value *v) const override {
+  virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->bw != that->bw) return false;
     if (this->name != that->name) return false;
@@ -492,7 +487,7 @@ struct StructV : Value {
   virtual std::shared_ptr<IntV> to_IntV() override { return nullptr; }
   virtual int get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 
-  virtual bool compare(const Value *v) const override {
+  virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     return std::equal_to<decltype(fs)>{}(this->fs, that->fs);
   }

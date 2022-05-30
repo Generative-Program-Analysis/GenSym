@@ -147,9 +147,10 @@ trait SAIOps extends Base
     }
   }
 
-  // Exclusively for C++
+  // Exclusively for C/C++
 
   abstract class Ref[T: Manifest]
+  def cmacro[T: Manifest](s: String): Rep[T] = "macro".reflectUnsafeWith[T](unit(s))
 
   // Experiment below -- do not use.
   // type CloseFun[A, B] = Rep[B] => Rep[A => B]

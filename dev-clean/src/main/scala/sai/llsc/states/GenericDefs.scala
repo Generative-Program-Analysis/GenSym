@@ -236,15 +236,13 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
   // This refers to the nullptr in C++
   object NullPtr {
-    def apply[T: Manifest](): Rep[T] = "nullptr".reflectUnsafeWith[T]()
+    def apply[T: Manifest]: Rep[T] = "nullptr".reflectUnsafeWith[T]()
     def unapply[T: Manifest](v: Rep[T]): Boolean = Unwrap(v) match {
       case gNode("nullptr", _) => true
       case _ => false
     }
-    def seq[T: Manifest](size: Int): StaticList[Rep[T]] = {
-      val s = NullPtr[T]()
-      StaticList.fill(size)(s)
-    }
+    def seq[T: Manifest](size: Int): StaticList[Rep[T]] =
+      StaticList.fill(size)(NullPtr[T])
   }
 
   object IntOp2 {
@@ -376,7 +374,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case FloatV(f, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case LocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
-      case NullLoc() => List[Value](v::ShadowV.indexSeq((64+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
+      case NullLoc() => List[Value](v::ShadowV.indexSeq((ARCH_WORD_SIZE+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case _ => "to-bytes-shadow".reflectWith[List[Value]](v)
     }
 

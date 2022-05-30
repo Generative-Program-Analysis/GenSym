@@ -82,7 +82,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         System.out.println(s"Warning: globalDecl $id is ignored")
         ty match {
           case PtrType(_, _) => NullLoc()
-          case _ => NullPtr[Value]()
+          case _ => NullPtr[Value]
         }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
@@ -102,12 +102,12 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
       case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1, ss)
       case ICmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalIntOp2(pred.op, lhs, rhs, ty1, ss)
-      case InlineASM() => NullPtr[Value]()
+      case InlineASM() => NullPtr[Value]
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
-        NullPtr[Value]() // FIXME: use uninitValue
+        NullPtr[Value] // FIXME: use uninitValue
       case NullConst => NullLoc()
-      case NoneConst => NullPtr[Value]()
+      case NoneConst => NullPtr[Value]
       case UndefConst => IntV(0, ty.asInstanceOf[IntType].size)
       case v => System.out.println(ty, v); ???
     }
@@ -264,7 +264,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case RetTerm(ty, v) =>
         val ret = v match {
           case Some(value) => eval(value, ty, ss)
-          case None => NullPtr[Value]()
+          case None => NullPtr[Value]
         }
         k(ss, ret)
       case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>

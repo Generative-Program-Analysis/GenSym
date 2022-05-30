@@ -49,29 +49,22 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
   override def shallow(n: Node): Unit = n match {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case n @ Node(s, "print", List(x), _) => es"std::cout << $x"
-    case n @ Node(s, "literal", List(Const(m:String)), _) => emit(m)
+    case n @ Node(s, "macro", List(Const(m: String)), _) => emit(m)
     case n @ Node(s, "method-@", obj::method::args, _) =>
-      shallow(obj)
-      emit(s".$method(")
+      es"$obj.$method("
       args.headOption.foreach(h => {
         shallow(h)
         args.tail.foreach(a => { emit(", "); shallow(a) })
       })
-      emit(")")
+      es")"
     case n @ Node(s, "field-@", obj::field::Nil, _) =>
-      shallow(obj)
-      emit(s".$field")
+      es"$obj.$field"
     case n @ Node(s, "field-assign", obj::field::rhs::Nil, _) =>
-      shallow(obj)
-      emit(s".$field = ")
-      shallow(rhs)
+      es"$obj.$field = $rhs"
     case n @ Node(s, "ptr-field-@", obj::field::Nil, _) =>
-      shallow(obj)
-      emit(s"->$field")
+      es"$obj->$field"
     case n @ Node(s, "ptr-field-assign", obj::field::rhs::Nil, _) =>
-      shallow(obj)
-      emit(s"->$field = ")
-      shallow(rhs)
+      es"$obj->$field = $rhs"
     case _ => super.shallow(n)
   }
 

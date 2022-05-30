@@ -29,6 +29,8 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 @virtualize
 trait GenExternal extends SymExeDefs {
+  import FS._
+
   // TODO: sym_exit return type in C should be void
   def sym_exit[T: Manifest](ss: Rep[SS], args: Rep[List[Value]]): Rep[T] =
     "sym_exit".reflectWith[T](ss, args)
@@ -38,20 +40,6 @@ trait GenExternal extends SymExeDefs {
   // Use the apply() method on classes as constructors/factories
   // <2022-05-12, David Deng> //
   def getString(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string".reflectWith[String](ptr, s)
-
-  def llsc_assert[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val v = args(0)
-    if (v.isConc) {
-      // Note: we directly project the integer field of v, which is safe if
-      // the source program is type checked against the C llsc_assert declaration.
-      if (v.int == 0) sym_exit[T](ss, args)
-      else k(ss, IntV(1, 32))
-    } else {
-      val ss1 = ss.addPC(v.toSMTBoolNeg)
-      if (checkPC(ss1.pc)) sym_exit[T](ss1, args)
-      else k(ss.addPC(v.toSMTBool), IntV(1, 32))
-    }
-  }
 
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
     val ptr = args(0)
@@ -146,7 +134,7 @@ trait GenExternal extends SymExeDefs {
     if (fs.hasFile(path)) k(ss, fs, IntV(-1, 32))
     else {
       // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
-      val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), literal[Int]("S_IFDIR"))
+      val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFDIR)
       unchecked("/* mkdir: fs.setFile */")
       fs.setFile(path, f)
       unchecked("/* mkdir: return */")
@@ -159,7 +147,7 @@ trait GenExternal extends SymExeDefs {
     val path: Rep[String] = getString(args(0), ss)
     val dir = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
-    if (dir == NullPtr() || !_has_file_type(dir, literal[Int]("S_IFDIR"))) k(ss, fs, IntV(-1, 32))
+    if (dir == NullPtr[File] || !_has_file_type(dir, S_IFDIR)) k(ss, fs, IntV(-1, 32))
     else {
       // TODO: first get the parent to optimize <2022-05-28, David Deng> //
       fs.removeFile(path)
@@ -177,7 +165,7 @@ trait GenExternal extends SymExeDefs {
     if (fs.hasFile(path)) k(ss, fs, IntV(-1, 32))
     else {
       // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
-      val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), literal[Int]("S_IFREG"))
+      val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFREG)
       fs.setFile(path, f)
       k(ss, fs, IntV(0, 32))
     }
@@ -188,7 +176,7 @@ trait GenExternal extends SymExeDefs {
     val path: Rep[String] = getString(args(0), ss)
     val file = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr() || !_has_file_type(file, literal[Int]("S_IFREG"))) k(ss, fs, IntV(-1, 32))
+    if (file == NullPtr[File] || !_has_file_type(file, S_IFREG)) k(ss, fs, IntV(-1, 32))
     else {
       // TODO: first get the parent to optimize <2022-05-28, David Deng> //
       fs.removeFile(path)
@@ -202,7 +190,7 @@ trait GenExternal extends SymExeDefs {
     val file = fs.getFile(path)
     val mode: Rep[Value] = args(1)
     // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr()) k(ss, fs, IntV(-1, 32))
+    if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
     else {
       _set_file_mode(file, mode.int.toInt)
       k(ss, fs, IntV(0, 32))
@@ -216,7 +204,7 @@ trait GenExternal extends SymExeDefs {
     val owner: Rep[Value] = args(1)
     val group: Rep[Value] = args(2)
     // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr()) k(ss, fs, IntV(-1, 32))
+    if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
     else {
       // TODO: If the owner or group is specified as -1, then that ID is not changed. <2022-05-28, David Deng> //
       file.writeStatField("st_uid", owner)
@@ -282,8 +270,13 @@ trait GenExternal extends SymExeDefs {
   }
 
   // generate different return style
-  def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]): ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) => ( gen(ss, l, { case (s,v) => k(s,v) }))}
-  def gen_p(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]]) => Rep[List[(SS, Value)]]): ((Rep[SS], Rep[List[Value]]) => Rep[List[(SS, Value)]]) = { case (ss, l) => ( gen(ss, l, { case (s,v) => List[(SS, Value)]((s,v)) }))}
+  def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]): ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) =>
+    gen(ss, l, { case (s,v) => k(s,v) })
+  }
+
+  def gen_p(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]]) => Rep[List[(SS, Value)]]): ((Rep[SS], Rep[List[Value]]) => Rep[List[(SS, Value)]]) = { case (ss, l) =>
+    gen(ss, l, { case (s,v) => List[(SS, Value)]((s,v)) })
+  }
 
   // bridge SS and FS
   def brg_fs[T: Manifest](f: (Rep[FS], Rep[List[Value]], ((Rep[FS], Rep[Value]) => Rep[T])) => Rep[T])
@@ -294,6 +287,7 @@ trait GenExternal extends SymExeDefs {
     }
     f(ss.getFs, args, kp)
   }
+
   def brg_fs[T: Manifest](f: (Rep[SS], Rep[FS], Rep[List[Value]], ((Rep[SS], Rep[FS], Rep[Value]) => Rep[T])) => Rep[T])
   (ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): (Rep[T]) = {
     def kp(ss: Rep[SS], fs: Rep[FS], ret: Rep[Value]): Rep[T] = {
@@ -306,11 +300,10 @@ trait GenExternal extends SymExeDefs {
 
 trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
 
-  def equalExplicit[T: Manifest](lhs: Rep[T], rhs: Rep[T])(implicit m: Manifest[T]): Rep[Boolean] = {
-    m match {
-      case m if m == manifest[Value] => equalExplicit(lhs.asRepOf[Value].deref, rhs.asRepOf[Value].deref)
-      case m => "==".reflectCtrlWith[Boolean](lhs, rhs)
-    }
+  def equalExplicit[T: Manifest](lhs: Rep[T], rhs: Rep[T]): Rep[Boolean] = {
+    val m = manifest[T]
+    if (m == manifest[Value]) equalExplicit(lhs.asRepOf[Value].deref, rhs.asRepOf[Value].deref)
+    else "==".reflectCtrlWith[Boolean](lhs, rhs)
   }
 
   @virtualize
@@ -371,7 +364,9 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
     }
   }
 
-  def iv(n: Int): Rep[Value] = literal[Value](s"intV_$n")
+  import FS._
+
+  def iv(n: Int): Rep[Value] = cmacro[Value](s"intV_$n")
 
   def genAll: Unit = {
     val mainStream = new PrintStream(s"$folder/external_test.cpp")
@@ -493,7 +488,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
 
   def testStreamCopy = {
     unchecked("/* test stream copy constructor */")
-    val strm1 = Stream(File("A"), literal[Int]("O_RDONLY"), 1L) // offset 1
+    val strm1 = Stream(File("A"), O_RDONLY, 1L) // offset 1
     val strm1ref = strm1
     val strm2 = Stream.copy(strm1)
     unchecked(strm1ref)
@@ -510,7 +505,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
     fs.setFile("/a/b", File("b"))
     fs.setFile("/a/b/c", File("c"))
     val f = fs.getFile("/a/b/c")
-    assertNeq(f, NullPtr[Value](), "file should exist")
+    assertNeq(f, NullPtr[Value], "file should exist")
   }
 
   def testEither = {

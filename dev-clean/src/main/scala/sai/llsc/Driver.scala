@@ -34,16 +34,16 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
 
   // Assuming the working directory only contains subdir "build" or "tests"
   // TODO: remove this to somewhere for utilities
-  def createNewDir: Boolean = {
+  def prepareBuildDir: Boolean = {
     val codegenFolderFile = new File(codegen.codegenFolder)
     if (!codegenFolderFile.exists()) codegenFolderFile.mkdir
     else {
       val entries = codegenFolderFile.list()
       entries.map(x => {
         if (x == "build" || x == "tests") {
-          val build_dir = new File(codegenFolderFile.getPath, x)
-          build_dir.list.map(x => new File(build_dir.getPath, x).delete)
-          build_dir.delete
+          val buildDir = new File(codegenFolderFile.getPath, x)
+          buildDir.list.map(x => new File(buildDir.getPath, x).delete)
+          buildDir.delete
         }
         else new File(codegenFolderFile.getPath, x).delete
       })
@@ -53,70 +53,18 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
   }
 
   def transform(g0: Graph): Graph = g0
-
-  def addRewrite: Unit = {
-    if (!Config.opt) return ()
-    val bConst = Backend.Const
-    type bExp = Backend.Exp
-    // Note: these are transformation for the imperative version; should be
-    //       refactor to the right place.
-    val g = Adapter.g
-    g.addRewrite {
-      // val sz = s.stackSize
-      // s.alloc(8)
-      // val a1 = StackLocV(sz)
-      // s.alloc(4)
-      // val a2 = StackLocV(sz + 8)
-      case ("ss-stack-size", StaticList(s: bExp)) if g.curEffects.allEff.contains(s) =>
-        def aux: Option[bExp] = {
-          var sz: Int = 0
-          for ((k, _) <- g.curEffects.allEff(s)) {
-            g.findDefinition(k) collect {
-              case Node(_, "ss-alloc-stack", StaticList(_, bConst(n: Mut[Int])), _) =>
-                sz = sz + n.x
-            }
-          }
-          for ((_, lrs) <- g.curEffects.allEff(s)) {
-            for (k <- lrs) {
-              g.findDefinition(k) collect {
-                case Node(n, "ss-stack-size", StaticList(_), _) =>
-                  return Some(g.reflect("+", n, bConst(sz)))
-              }
-            }
-          }
-          None
-        }
-        aux
-      case ("ss-lookup-env", StaticList(s: bExp, bConst(x: Int)))
-          if g.curEffects.allEff.contains(s) =>
-        def findAssignment: Option[bExp] = {
-          for ((k, _) <- g.curEffects.allEff(s)) {
-            g.findDefinition(k) collect {
-              case Node(_, "ss-assign", StaticList(_, bConst(y: Int), v: bExp), _) if x == y =>
-                return Some(v)
-              case Node(_, "ss-assign-seq", StaticList(_, bConst(vars: List[Int]), vals: bExp), _) =>
-                val idx = vars.indexOf(x)
-                if (idx != -1) return Some(g.reflect("list-apply", vals, bConst(idx)))
-            }
-          }
-          None
-        }
-        findAssignment
-    }
-  }
+  def addRewrite: Unit = ()
 
   def genSource: Unit = {
     val folderFile = new File(folder)
     if (!folderFile.exists()) folderFile.mkdir
-    createNewDir
+    prepareBuildDir
     val mainStream = new PrintStream(s"$folder/$appName/$appName.cpp")
-
     val g0 = Adapter.genGraph1(manifest[A], manifest[B]) { x =>
       addRewrite
       Unwrap(wrapper(Wrap[A](x)))
     }
     val g1 = transform(g0)
-
     val statics = lms.core.utils.time("codegen") {
       codegen.typeMap = Adapter.typeMap
       codegen.stream = mainStream
@@ -172,10 +120,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
     out.close
   }
 
-  def genAll: Unit = {
-    genSource
-    genMakefile
-  }
+  def genAll: Unit = { genSource; genMakefile }
 
   def make(j: Int = 1): Int = Process(s"make -j$j", new File(s"$folder/$appName")).!
 
@@ -237,6 +182,58 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCD
       g1
     } else g0
   }
+
+  override def addRewrite: Unit = {
+    if (!Config.opt) return ()
+    val bConst = Backend.Const
+    type bExp = Backend.Exp
+    // Note: these are transformation for the imperative version; should be
+    //       refactor to the right place.
+    val g = Adapter.g
+    g.addRewrite {
+      // val sz = s.stackSize
+      // s.alloc(8)
+      // val a1 = StackLocV(sz)
+      // s.alloc(4)
+      // val a2 = StackLocV(sz + 8)
+      case ("ss-stack-size", StaticList(s: bExp)) if g.curEffects.allEff.contains(s) =>
+        def aux: Option[bExp] = {
+          var sz: Int = 0
+          for ((k, _) <- g.curEffects.allEff(s)) {
+            g.findDefinition(k) collect {
+              case Node(_, "ss-alloc-stack", StaticList(_, bConst(n: Mut[Int])), _) =>
+                sz = sz + n.x
+            }
+          }
+          for ((_, lrs) <- g.curEffects.allEff(s)) {
+            for (k <- lrs) {
+              g.findDefinition(k) collect {
+                case Node(n, "ss-stack-size", StaticList(_), _) =>
+                  return Some(g.reflect("+", n, bConst(sz)))
+              }
+            }
+          }
+          None
+        }
+        aux
+      case ("ss-lookup-env", StaticList(s: bExp, bConst(x: Int)))
+          if g.curEffects.allEff.contains(s) =>
+        def findAssignment: Option[bExp] = {
+          for ((k, _) <- g.curEffects.allEff(s)) {
+            g.findDefinition(k) collect {
+              case Node(_, "ss-assign", StaticList(_, bConst(y: Int), v: bExp), _) if x == y =>
+                return Some(v)
+              case Node(_, "ss-assign-seq", StaticList(_, bConst(vars: List[Int]), vals: bExp), _) =>
+                val idx = vars.indexOf(x)
+                if (idx != -1) return Some(g.reflect("list-apply", vals, bConst(idx)))
+            }
+          }
+          None
+        }
+        findAssignment
+    }
+  }
+
 }
 
 // Using immer data structures for
