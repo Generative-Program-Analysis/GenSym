@@ -305,7 +305,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       ASSERT(3 == args.size() || 4 == args.size(), "open has 2 or 3 arguments");
       mode_t mode = 4 == args.size() ? getIntArg(args.at(3)) : 0;
       int flags = getIntArg(args.at(2));
-      std::string pathname = get_string(args.at(1), state);
+      std::string pathname = get_string_at(args.at(1), state);
       //std::cout << "pathname: " << pathname << " flags: " << flags << " mode: " << mode << std::endl;
       retval = syscall(__NR_open, pathname.c_str(), flags, mode);
       break;
@@ -316,7 +316,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
     }
     case __NR_stat: {
-      std::string pathname = get_string(args.at(1), state);
+      std::string pathname = get_string_at(args.at(1), state);
       size_t count = sizeof(struct stat64);
       ShadowMemEntry temp(args.at(2), count);
       retval = syscall(__NR_stat, pathname.c_str(), temp.getbuf());
@@ -332,7 +332,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
     }
     case __NR_lstat: {
-      std::string pathname = get_string(args.at(1), state);
+      std::string pathname = get_string_at(args.at(1), state);
       size_t count = sizeof(struct stat64);
       ShadowMemEntry temp(args.at(2), count);
       retval = syscall(__NR_lstat, pathname.c_str(), temp.getbuf());

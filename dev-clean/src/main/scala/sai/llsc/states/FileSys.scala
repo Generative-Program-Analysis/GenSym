@@ -24,6 +24,8 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 @virtualize
 trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueDefs =>
+  trait File
+  trait Stream
 
   // TODO: refactor using getTySize and calculateOffsetStatic <2022-05-26, David Deng> //
   val statFieldMap: Map[String, (Int, Int)] = StaticMap(
@@ -33,7 +35,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       "st_mode" -> (24, 4),
       "st_uid" -> (28, 4),
       "st_gid" -> (32, 4),
-      // padding,      {36,  4  }},
+      // padding, (36, 4)},
       "st_rdev" -> (40, 8),
       "st_size" -> (48, 8),
       "st_blksi" -> (56, 8),
@@ -149,6 +151,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
         o
       }
     }
+
     def seekEnd(o: Rep[Long]): Rep[Long] = {
       val newCursor = strm.file.content.size + o
       if (newCursor < 0L) -1L
@@ -157,6 +160,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
         newCursor
       }
     }
+
     def seekCur(o: Rep[Long]): Rep[Long] = {
       val newCursor = strm.cursor + o
       if (newCursor < 0L) -1L

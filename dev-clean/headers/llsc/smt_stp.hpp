@@ -28,8 +28,6 @@ private:
   std::map<CacheKey, CacheResult> cache_map;
   std::unordered_map<PtrVal, std::pair<ExprHandle, std::set<ExprHandle>>> stp_env;
 
-  std::mutex g_lock;
-
   const CexType* get_counterexample() {
     if (use_cexcache) return cex;
     cex2.clear();

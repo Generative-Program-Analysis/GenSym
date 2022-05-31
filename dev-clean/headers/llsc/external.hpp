@@ -84,7 +84,7 @@ FS x640 = x638.get_fs();
 PtrVal x641 = x639.at(0);
 /* getFile */;
 Ptr<File> x642 = x640.root_file;
-immer::flex_vector<String> x643 = Vec::filter(Str::split(get_string(x641, x638), "/"), [&](auto x644) {
+immer::flex_vector<String> x643 = Vec::filter(Str::split(get_string_at(x641, x638), "/"), [&](auto x644) {
 return x644.length() > 0;
 });
 Ptr<File> x645 = Vec::foldLeft(x643, x642, [&](auto x646, auto x647) {
@@ -128,7 +128,7 @@ FS x670 = x667.get_fs();
 PtrVal x671 = x668.at(0);
 /* getFile */;
 Ptr<File> x672 = x670.root_file;
-immer::flex_vector<String> x673 = Vec::filter(Str::split(get_string(x671, x667), "/"), [&](auto x674) {
+immer::flex_vector<String> x673 = Vec::filter(Str::split(get_string_at(x671, x667), "/"), [&](auto x674) {
 return x674.length() > 0;
 });
 Ptr<File> x675 = Vec::foldLeft(x673, x672, [&](auto x676, auto x677) {
@@ -172,7 +172,7 @@ FS x591 = x589.get_fs();
 PtrVal x592 = x590.at(0);
 /* getFile */;
 Ptr<File> x593 = x591.root_file;
-immer::flex_vector<String> x594 = Vec::filter(Str::split(get_string(x592, x589), "/"), [&](auto x595) {
+immer::flex_vector<String> x594 = Vec::filter(Str::split(get_string_at(x592, x589), "/"), [&](auto x595) {
 return x595.length() > 0;
 });
 Ptr<File> x596 = Vec::foldLeft(x594, x593, [&](auto x597, auto x598) {
@@ -211,7 +211,7 @@ FS x616 = x613.get_fs();
 PtrVal x617 = x614.at(0);
 /* getFile */;
 Ptr<File> x618 = x616.root_file;
-immer::flex_vector<String> x619 = Vec::filter(Str::split(get_string(x617, x613), "/"), [&](auto x620) {
+immer::flex_vector<String> x619 = Vec::filter(Str::split(get_string_at(x617, x613), "/"), [&](auto x620) {
 return x620.length() > 0;
 });
 Ptr<File> x621 = Vec::foldLeft(x619, x618, [&](auto x622, auto x623) {
@@ -248,7 +248,7 @@ return x628;
 inline immer::flex_vector<std::pair<SS, PtrVal>> syscall_unlink(SS x546, immer::flex_vector<PtrVal> x547) {
 FS x548 = x546.get_fs();
 PtrVal x549 = x547.at(0);
-String x550 = get_string(x549, x546);
+String x550 = get_string_at(x549, x546);
 /* getFile */;
 Ptr<File> x551 = x548.root_file;
 immer::flex_vector<String> x552 = Vec::filter(Str::split(x550, "/"), [&](auto x553) {
@@ -285,7 +285,7 @@ return x564;
 inline std::monostate syscall_unlink(SS x567, immer::flex_vector<PtrVal> x568, std::function<std::monostate(SS, PtrVal)> x569) {
 FS x570 = x567.get_fs();
 PtrVal x571 = x568.at(0);
-String x572 = get_string(x571, x567);
+String x572 = get_string_at(x571, x567);
 /* getFile */;
 Ptr<File> x573 = x570.root_file;
 immer::flex_vector<String> x574 = Vec::filter(Str::split(x572, "/"), [&](auto x575) {
@@ -322,7 +322,7 @@ return x586;
 inline immer::flex_vector<std::pair<SS, PtrVal>> syscall_creat(SS x459, immer::flex_vector<PtrVal> x460) {
 FS x461 = x459.get_fs();
 PtrVal x462 = x460.at(0);
-immer::flex_vector<String> x463 = Str::split(get_string(x462, x459), "/");
+immer::flex_vector<String> x463 = Str::split(get_string_at(x462, x459), "/");
 /* getFile */;
 Ptr<File> x464 = x461.root_file;
 immer::flex_vector<String> x465 = Vec::filter(x463, [&](auto x466) {
@@ -392,7 +392,7 @@ return x474;
 inline std::monostate syscall_creat(SS x502, immer::flex_vector<PtrVal> x503, std::function<std::monostate(SS, PtrVal)> x504) {
 FS x505 = x502.get_fs();
 PtrVal x506 = x503.at(0);
-immer::flex_vector<String> x507 = Str::split(get_string(x506, x502), "/");
+immer::flex_vector<String> x507 = Str::split(get_string_at(x506, x502), "/");
 /* getFile */;
 Ptr<File> x508 = x505.root_file;
 immer::flex_vector<String> x509 = Vec::filter(x507, [&](auto x510) {
@@ -462,7 +462,7 @@ return x518;
 inline immer::flex_vector<std::pair<SS, PtrVal>> syscall_rmdir(SS x416, immer::flex_vector<PtrVal> x417) {
 FS x418 = x416.get_fs();
 PtrVal x419 = x417.at(0);
-String x420 = get_string(x419, x416);
+String x420 = get_string_at(x419, x416);
 /* getFile */;
 Ptr<File> x421 = x418.root_file;
 immer::flex_vector<String> x422 = Vec::filter(Str::split(x420, "/"), [&](auto x423) {
@@ -499,7 +499,7 @@ return x434;
 inline std::monostate syscall_rmdir(SS x437, immer::flex_vector<PtrVal> x438, std::function<std::monostate(SS, PtrVal)> x439) {
 FS x440 = x437.get_fs();
 PtrVal x441 = x438.at(0);
-String x442 = get_string(x441, x437);
+String x442 = get_string_at(x441, x437);
 /* getFile */;
 Ptr<File> x443 = x440.root_file;
 immer::flex_vector<String> x444 = Vec::filter(Str::split(x442, "/"), [&](auto x445) {
@@ -536,7 +536,7 @@ return x456;
 inline immer::flex_vector<std::pair<SS, PtrVal>> syscall_mkdir(SS x329, immer::flex_vector<PtrVal> x330) {
 FS x331 = x329.get_fs();
 PtrVal x332 = x330.at(0);
-immer::flex_vector<String> x333 = Str::split(get_string(x332, x329), "/");
+immer::flex_vector<String> x333 = Str::split(get_string_at(x332, x329), "/");
 /* getFile */;
 Ptr<File> x334 = x331.root_file;
 immer::flex_vector<String> x335 = Vec::filter(x333, [&](auto x336) {
@@ -608,7 +608,7 @@ return x344;
 inline std::monostate syscall_mkdir(SS x372, immer::flex_vector<PtrVal> x373, std::function<std::monostate(SS, PtrVal)> x374) {
 FS x375 = x372.get_fs();
 PtrVal x376 = x373.at(0);
-immer::flex_vector<String> x377 = Str::split(get_string(x376, x372), "/");
+immer::flex_vector<String> x377 = Str::split(get_string_at(x376, x372), "/");
 /* getFile */;
 Ptr<File> x378 = x375.root_file;
 immer::flex_vector<String> x379 = Vec::filter(x377, [&](auto x380) {
@@ -682,7 +682,7 @@ FS x276 = x274.get_fs();
 PtrVal x277 = x275.at(0);
 /* getFile */;
 Ptr<File> x278 = x276.root_file;
-immer::flex_vector<String> x279 = Str::split(get_string(x277, x274), "/");
+immer::flex_vector<String> x279 = Str::split(get_string_at(x277, x274), "/");
 immer::flex_vector<String> x280 = Vec::filter(x279, [&](auto x281) {
 return x281.length() > 0;
 });
@@ -728,7 +728,7 @@ FS x304 = x301.get_fs();
 PtrVal x305 = x302.at(0);
 /* getFile */;
 Ptr<File> x306 = x304.root_file;
-immer::flex_vector<String> x307 = Str::split(get_string(x305, x301), "/");
+immer::flex_vector<String> x307 = Str::split(get_string_at(x305, x301), "/");
 immer::flex_vector<String> x308 = Vec::filter(x307, [&](auto x309) {
 return x309.length() > 0;
 });
@@ -1142,7 +1142,7 @@ FS x3 = x1.get_fs();
 PtrVal x4 = x2.at(0);
 /* getFile */;
 Ptr<File> x5 = x3.root_file;
-immer::flex_vector<String> x6 = Str::split(get_string(x4, x1), "/");
+immer::flex_vector<String> x6 = Str::split(get_string_at(x4, x1), "/");
 immer::flex_vector<String> x7 = Vec::filter(x6, [&](auto x8) {
 return x8.length() > 0;
 });
@@ -1190,7 +1190,7 @@ FS x32 = x29.get_fs();
 PtrVal x33 = x30.at(0);
 /* getFile */;
 Ptr<File> x34 = x32.root_file;
-immer::flex_vector<String> x35 = Str::split(get_string(x33, x29), "/");
+immer::flex_vector<String> x35 = Str::split(get_string_at(x33, x29), "/");
 immer::flex_vector<String> x36 = Vec::filter(x35, [&](auto x37) {
 return x37.length() > 0;
 });

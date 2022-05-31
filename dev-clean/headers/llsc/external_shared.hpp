@@ -38,7 +38,7 @@ inline std::monostate noop(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-inline std::string get_string(PtrVal ptr, SS state) {
+inline std::string get_string_at(PtrVal ptr, SS state) {
   std::string name;
   char c = proj_IntV_char(state.at(ptr)); // c = *ptr
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
@@ -54,7 +54,7 @@ template<typename T>
 inline T __print_string(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<LocV>(x)) {
-    std::cout << get_string(x, state);
+    std::cout << get_string_at(x, state);
     return k(state, make_IntV(0));
   }
   ABORT("Cannot print non-LocV value as string");

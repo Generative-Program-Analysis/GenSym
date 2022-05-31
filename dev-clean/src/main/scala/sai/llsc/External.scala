@@ -39,11 +39,11 @@ trait GenExternal extends SymExeDefs {
   // 1. object constructors, factories (e.g. new_stream, new_stat) 
   // Use the apply() method on classes as constructors/factories
   // <2022-05-12, David Deng> //
-  def getString(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string".reflectWith[String](ptr, s)
+  def getStringAt(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string_at".reflectWith[String](ptr, s)
 
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
     val ptr = args(0)
-    val name: Rep[String] = getString(ptr, ss)
+    val name: Rep[String] = getStringAt(ptr, ss)
     val flags = args(1)
     /* TODO: handle different mode <2021-10-12, David Deng> */
     if (!fs.hasFile(name)) k(ss, fs, IntV(-1, 32))
@@ -113,7 +113,7 @@ trait GenExternal extends SymExeDefs {
 
   def stat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
     val ptr = args(0)
-    val name: Rep[String] = getString(ptr, ss)
+    val name: Rep[String] = getStringAt(ptr, ss)
     val buf: Rep[Value] = args(1)
     if (!fs.hasFile(name)) {
       k(ss, fs, IntV(-1, 32))
@@ -126,7 +126,7 @@ trait GenExternal extends SymExeDefs {
 
   // int mkdir(const char *pathname, mode_t mode);
   def mkdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val path: Rep[String] = getString(args(0), ss)
+    val path: Rep[String] = getStringAt(args(0), ss)
     // TODO: set mode <2022-05-28, David Deng> //
     val mode: Rep[Value] = args(1)
     val name: Rep[String] = getPathSegments(path).last
@@ -144,7 +144,7 @@ trait GenExternal extends SymExeDefs {
 
   // int rmdir(const char *pathname);
   def rmdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val path: Rep[String] = getString(args(0), ss)
+    val path: Rep[String] = getStringAt(args(0), ss)
     val dir = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
     if (dir == NullPtr[File] || !_has_file_type(dir, S_IFDIR)) k(ss, fs, IntV(-1, 32))
@@ -157,7 +157,7 @@ trait GenExternal extends SymExeDefs {
 
   // int creat(const char *pathname, mode_t mode);
   def creat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val path: Rep[String] = getString(args(0), ss)
+    val path: Rep[String] = getStringAt(args(0), ss)
     // TODO: set mode <2022-05-28, David Deng> //
     val mode: Rep[Value] = args(1)
     val name: Rep[String] = getPathSegments(path).last
@@ -173,7 +173,7 @@ trait GenExternal extends SymExeDefs {
 
   // int unlink(const char *pathname);
   def unlink[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val path: Rep[String] = getString(args(0), ss)
+    val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
     if (file == NullPtr[File] || !_has_file_type(file, S_IFREG)) k(ss, fs, IntV(-1, 32))
@@ -186,7 +186,7 @@ trait GenExternal extends SymExeDefs {
 
   // int chmod(const char *pathname, mode_t mode);
   def chmod[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val path: Rep[String] = getString(args(0), ss)
+    val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     val mode: Rep[Value] = args(1)
     // TODO: set errno <2022-05-28, David Deng> //
@@ -199,7 +199,7 @@ trait GenExternal extends SymExeDefs {
 
   // int chown(const char *pathname, uid_t owner, gid_t group);
   def chown[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]): Rep[T] = {
-    val path: Rep[String] = getString(args(0), ss)
+    val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     val owner: Rep[Value] = args(1)
     val group: Rep[Value] = args(2)
@@ -270,7 +270,8 @@ trait GenExternal extends SymExeDefs {
   }
 
   // generate different return style
-  def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]): ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) =>
+  def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]):
+      ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) =>
     gen(ss, l, { case (s,v) => k(s,v) })
   }
 
@@ -280,7 +281,7 @@ trait GenExternal extends SymExeDefs {
 
   // bridge SS and FS
   def brg_fs[T: Manifest](f: (Rep[FS], Rep[List[Value]], ((Rep[FS], Rep[Value]) => Rep[T])) => Rep[T])
-  (ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): (Rep[T]) = {
+  (ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     def kp(fs: Rep[FS], ret: Rep[Value]): Rep[T] = {
       ss.setFs(fs)
       k(ss, ret)
@@ -289,15 +290,17 @@ trait GenExternal extends SymExeDefs {
   }
 
   def brg_fs[T: Manifest](f: (Rep[SS], Rep[FS], Rep[List[Value]], ((Rep[SS], Rep[FS], Rep[Value]) => Rep[T])) => Rep[T])
-  (ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): (Rep[T]) = {
+  (ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     def kp(ss: Rep[SS], fs: Rep[FS], ret: Rep[Value]): Rep[T] = {
       ss.setFs(fs)
       k(ss, ret)
     }
     f(ss, ss.getFs, args, kp)
   }
+
 }
 
+@virtualize
 trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
 
   def equalExplicit[T: Manifest](lhs: Rep[T], rhs: Rep[T]): Rep[Boolean] = {
@@ -306,14 +309,12 @@ trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
     else "==".reflectCtrlWith[Boolean](lhs, rhs)
   }
 
-  @virtualize
   def assertEq[T: Manifest](lhs: Rep[T], rhs: Rep[T], msg: String = ""): Rep[Unit] = {
     unchecked[Unit]("/* assertEq */")
     val e: Rep[Boolean] = equalExplicit(lhs, rhs)
     assert(e, msg)
   }
 
-  @virtualize
   def assertNeq[T: Manifest](lhs: Rep[T], rhs: Rep[T], msg: String = ""): Rep[Unit] = {
     unchecked[Unit]("/* assertNeq */")
     val e: Rep[Boolean] = equalExplicit(lhs, rhs)
