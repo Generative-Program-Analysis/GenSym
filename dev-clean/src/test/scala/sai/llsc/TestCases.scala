@@ -95,6 +95,7 @@ object TestCases {
     TestPrg(branch2, "branch2", "@f", symArg(2), noOpt, nPath(4)),
     TestPrg(branch3, "branch3", "@f", symArg(2), noOpt, nPath(4)),
     TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)),
+    TestPrg(i1Bool, "i1Bool", "@main", noArg, noOpt, nPath(5)++status(0)),
   )
 
   val symbolicSmall: List[TestPrg] = List(

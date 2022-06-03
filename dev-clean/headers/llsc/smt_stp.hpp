@@ -67,12 +67,15 @@ private:
   ExprHandle construct_STP_expr_internal(PtrVal e, std::set<ExprHandle> &vars) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
+      if (1 == int_e->bw)
+        return int_e->i ? vc_trueExpr(vc) : vc_falseExpr(vc);
       return vc_bvConstExprFromLL(vc, int_e->bw, int_e->as_signed());
     }
     auto sym_e = std::dynamic_pointer_cast<SymV>(e);
     if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
 
     if (!sym_e->name.empty()) {
+      ASSERT(sym_e->bw > 1, "i1 symv");
       auto name = sym_e->name;
       ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
       vars.insert(stp_expr);
@@ -114,31 +117,63 @@ private:
       return vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case iOP::op_neq:
       return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get()));
-    case iOP::op_neg:
+    case iOP::op_neg: {
+      ASSERT(BOOLEAN_TYPE == getType(expr_rands.at(0).get()), "negate a bitvector");
       return vc_notExpr(vc, expr_rands.at(0).get());
-    case iOP::op_sext:
-      return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);
-    case iOP::op_zext:
-      return vc_bvSignExtend(vc, expr_rands.at(0).get(), bw);  // TODO
+    }
+    case iOP::op_sext: {
+      auto v = expr_rands.at(0).get();
+      if (BOOLEAN_TYPE == getType(v)) {
+        v = vc_boolToBVExpr(vc, v);
+      }
+      return vc_bvSignExtend(vc, v, bw);
+    }
+    case iOP::op_zext: {
+      auto v = expr_rands.at(0).get();
+      if (BOOLEAN_TYPE == getType(v)) {
+        v = vc_boolToBVExpr(vc, v);
+      }
+      int from_bw = getBVLength(v);
+      ASSERT(bw > from_bw, "Zero extend to a smaller type");
+      auto left = vc_bvConstExprFromLL(vc, bw - from_bw, 0);
+      return vc_bvConcatExpr(vc, left, v);
+    }
     case iOP::op_shl:
       return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case iOP::op_lshr:
       return vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case iOP::op_ashr:
       return vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case iOP::op_and:
-      return vc_bvAndExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case iOP::op_or:
-      return vc_bvOrExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case iOP::op_xor:
-      return vc_bvXorExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+    case iOP::op_and: {
+      auto v1 = expr_rands.at(0).get();
+      auto v2 = expr_rands.at(1).get();
+      ASSERT(getType(v1) == getType(v2), "Operation between different type");
+      return (BOOLEAN_TYPE == getType(v1)) ? vc_andExpr(vc, v1, v2) : vc_bvAndExpr(vc, v1, v2);
+    }
+    case iOP::op_or: {
+      auto v1 = expr_rands.at(0).get();
+      auto v2 = expr_rands.at(1).get();
+      ASSERT(getType(v1) == getType(v2), "Operation between different type");
+      return (BOOLEAN_TYPE == getType(v1)) ? vc_orExpr(vc, v1, v2) : vc_bvOrExpr(vc, v1, v2);
+    }
+    case iOP::op_xor: {
+      auto v1 = expr_rands.at(0).get();
+      auto v2 = expr_rands.at(1).get();
+      ASSERT(getType(v1) == getType(v2), "Operation between different type");
+      return (BOOLEAN_TYPE == getType(v1)) ? vc_xorExpr(vc, v1, v2) : vc_bvXorExpr(vc, v1, v2);
+    }
     case iOP::op_urem:
       return vc_bvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
     case iOP::op_srem:
       return vc_sbvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
-    case iOP::op_trunc:
+    case iOP::op_trunc: {
       // bvExtract(vc, e, h, l) -> e[l:h+1]
-      return vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
+      auto v =  vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
+      if (1 == bw) {
+        v = vc_eqExpr(vc, v, vc_bvConstExprFromLL(vc, 1, 1));
+      }
+      return v;
+    }
     case iOP::op_concat:
       return vc_bvConcatExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
     case iOP::op_extract:

@@ -60,6 +60,7 @@ public:
     auto sym_e = std::dynamic_pointer_cast<SymV>(e);
     if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
     if (!sym_e->name.empty()) {
+      ASSERT(sym_e->bw > 1, "i1 symv");
       return c->bv_const(sym_e->name.c_str(), sym_e->bw);
     }
     int bw = sym_e->bw;
@@ -97,8 +98,10 @@ public:
         return expr_rands.at(0) == expr_rands.at(1);
       case iOP::op_neq:
         return expr_rands.at(0) != expr_rands.at(1);
-      case iOP::op_neg:
+      case iOP::op_neg: {
+        ASSERT(expr_rands.at(0).get_sort().is_bool(), "negate a bitvector");
         return !expr_rands.at(0);
+      }
       case iOP::op_sext: {
         auto v = expr_rands.at(0);
         if (v.get_sort().is_bool())
@@ -133,9 +136,14 @@ public:
         return urem(expr_rands.at(0), expr_rands.at(1));
       case iOP::op_srem:
         return srem(expr_rands.at(0), expr_rands.at(1));
-      case iOP::op_trunc:
+      case iOP::op_trunc: {
         // XXX is it right?
-        return expr_rands.at(0).extract(bw-1, 0);
+        auto v = expr_rands.at(0).extract(bw-1, 0);
+        if (1 == bw) {
+          v = (c->bv_val(1, 1) == v);
+        }
+        return v;
+      }
       case iOP::op_concat:
         return concat(expr_rands.at(0), expr_rands.at(1));
       case iOP::op_extract:
