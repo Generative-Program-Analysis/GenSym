@@ -75,6 +75,7 @@ object TestCases {
     TestPrg(flexAddr, "flexAddr", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(nastyStruct, "nastyStruct", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)),
+    TestPrg(pointerSymOff, "pointerSymOff", "@main", noArg, noOpt, nPath(4)++status(0)),
   )
 
   val argv: List[TestPrg] = List(

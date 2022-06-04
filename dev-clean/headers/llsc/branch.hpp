@@ -78,6 +78,7 @@ sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
   }
 }
 
+// Todo : check offset out of bound
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 array_lookup(SS ss, PtrVal base, PtrVal offset, size_t esize) {
   immer::flex_vector_transient<std::pair<SS, PtrVal>> tmp;
@@ -88,14 +89,22 @@ array_lookup(SS ss, PtrVal base, PtrVal offset, size_t esize) {
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    for (int newl = (baseloc->l - baseloc->base) % esize + baseloc->base;
-         newl + esize <= baseloc->base + baseloc->size; newl += esize) {
-      auto cond = int_op_2(iOP::op_eq, offset, make_IntV((newl - baseloc->l) / esize, offset->get_bw()));
-      auto ss2 = ss.add_PC(cond);
-      if (check_pc(ss2.get_PC())) {
-        cnt++;
-        tmp.push_back(std::make_pair(ss2, baseloc + (newl - baseloc->l)));
-      }
+    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    assert(high_bound >= low_bound);
+    int possible_num = (high_bound - low_bound) + 1;
+
+    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto ss2 = ss.add_PC(low_cond).add_PC(high_cond);
+    auto res = get_value(ss2.get_PC(), offsym);
+    while (res.first) {
+      cnt++;
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
+      tmp.push_back(std::make_pair(ss.add_PC(t_cond), baseloc + (offset_val*esize)));
+      ss2 = ss2.add_PC(SymV::neg(t_cond));
+      res = get_value(ss2.get_PC(), offsym);
     }
     assert(cnt > 0);
     cov().inc_path(cnt - 1);
@@ -115,19 +124,28 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    for (int newl = (baseloc->l - baseloc->base) % esize + baseloc->base;
-         newl + esize <= baseloc->base + baseloc->size; newl += esize) {
-      auto cond = int_op_2(iOP::op_eq, offset, make_IntV((newl - baseloc->l) / esize, offset->get_bw()));
-      auto ss2 = ss.add_PC(cond);
-      if (check_pc(ss2.get_PC())) {
-        cnt++;
-        auto addr = baseloc + (newl - baseloc->l);
-        if (can_par_tp()) {
-          tp.add_task([addr=std::move(addr), ss2=std::move(ss2), k]{ return k(ss2, addr); });
-        } else {
-          k(ss2, addr);
-        }
+    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    assert(high_bound >= low_bound);
+    int possible_num = (high_bound - low_bound) + 1;
+
+    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto ss2 = ss.add_PC(low_cond).add_PC(high_cond);
+    auto res = get_value(ss2.get_PC(), offsym);
+    while (res.first) {
+      cnt++;
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
+      auto new_loc = baseloc + (offset_val*esize);
+      auto new_ss = ss.add_PC(t_cond);
+      if (can_par_tp()) {
+        tp.add_task([new_loc=std::move(new_loc), new_ss=std::move(new_ss), k]{ return k(new_ss, new_loc); });
+      } else {
+        k(new_ss, new_loc);
       }
+      ss2 = ss2.add_PC(SymV::neg(t_cond));
+      res = get_value(ss2.get_PC(), offsym);
     }
     assert(cnt > 0);
     cov().inc_path(cnt - 1);
@@ -269,14 +287,22 @@ array_lookup(SS& ss, PtrVal base, PtrVal offset, size_t esize) {
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    for (int newl = (baseloc->l - baseloc->base) % esize + baseloc->base;
-         newl + esize <= baseloc->base + baseloc->size; newl += esize) {
-      auto cond = int_op_2(iOP::op_eq, offset, make_IntV((newl - baseloc->l) / esize, offset->get_bw()));
-      auto ss2 = ss.copy().add_PC(cond);
-      if (check_pc(ss2.get_PC())) {
-        cnt++;
-        tmp.push_back(std::make_pair(std::move(ss2), baseloc + (newl - baseloc->l)));
-      }
+    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    assert(high_bound >= low_bound);
+    int possible_num = (high_bound - low_bound) + 1;
+
+    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto ss2 = ss.copy().add_PC(low_cond).add_PC(high_cond);
+    auto res = get_value(ss2.get_PC(), offsym);
+    while (res.first) {
+      cnt++;
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
+      tmp.push_back(std::make_pair(std::move(ss.copy().add_PC(t_cond)), baseloc + (offset_val*esize)));
+      ss2.add_PC(SymV::neg(t_cond));
+      res = get_value(ss2.get_PC(), offsym);
     }
     assert(cnt > 0);
     cov().inc_path(cnt - 1);
@@ -296,14 +322,28 @@ array_lookup_k(SS& ss, PtrVal base, PtrVal offset, size_t esize,
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    for (int newl = (baseloc->l - baseloc->base) % esize + baseloc->base;
-         newl + esize <= baseloc->base + baseloc->size; newl += esize) {
-      auto cond = int_op_2(iOP::op_eq, offset, make_IntV((newl - baseloc->l) / esize, offset->get_bw()));
-      auto ss2 = ss.copy().add_PC(cond);
-      if (check_pc(ss2.get_PC())) {
-        cnt++;
-        k(ss2, baseloc + (newl - baseloc->l));
+    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    assert(high_bound >= low_bound);
+    int possible_num = (high_bound - low_bound) + 1;
+
+    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto ss2 = ss.copy().add_PC(low_cond).add_PC(high_cond);
+    auto res = get_value(ss2.get_PC(), offsym);
+    while (res.first) {
+      cnt++;
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
+      auto new_loc = baseloc + (offset_val*esize);
+      auto new_ss = ss.copy().add_PC(t_cond);
+      if (can_par_tp()) {
+        tp.add_task([new_loc=std::move(new_loc), new_ss=std::move(new_ss), k]{ return k((SS&)new_ss, new_loc); });
+      } else {
+        k(new_ss, new_loc);
       }
+      ss2.add_PC(SymV::neg(t_cond));
+      res = get_value(ss2.get_PC(), offsym);
     }
     assert(cnt > 0);
     cov().inc_path(cnt - 1);

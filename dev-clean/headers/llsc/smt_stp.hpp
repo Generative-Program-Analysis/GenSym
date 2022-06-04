@@ -250,6 +250,36 @@ private:
     return retcode;
   }
 
+  std::pair<bool, UIntData> get_valid_value(PC pcobj, PtrVal v) override {
+    // TODO: add support for counter example cache
+    CacheResult *result;
+    auto pc = pcobj.get_path_conds();
+    CacheKey pc2;
+    auto val = construct_STP_expr(v, variables);
+
+    for (auto& e: pc)
+      pc2.insert(construct_STP_expr(e, variables));
+
+    // actual solving
+    auto start = steady_clock::now();
+    for (auto &e: pc2) {
+      vc_assertFormula(vc, e.get());
+    }
+    ExprHandle fls = vc_falseExpr(vc);
+    int retcode = to_solver_result(vc_query(vc, fls.get()));
+    auto end = steady_clock::now();
+    solver_time += duration_cast<microseconds>(end - start);
+
+    UIntData ret_val = 0;
+
+    if (solver_result::sat == retcode) {
+      auto const_val = vc_getCounterExample(vc, val.get());
+      ret_val = getBVUnsignedLongLong(const_val);
+    }
+
+    return std::make_pair(solver_result::sat == retcode, ret_val);
+  }
+
   solver_result to_solver_result(int r) {
     solver_result mapping[4] = {sat, unsat, unknown, unknown};
     return mapping[r];

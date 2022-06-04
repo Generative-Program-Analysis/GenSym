@@ -3,11 +3,14 @@
 
 struct Value;
 struct IntV;
+struct SymV;
 struct SS;
+class PC;
 
 using PtrVal = std::shared_ptr<Value>;
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
 inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true);
+inline std::pair<bool, UIntData> get_value(PC pc, PtrVal v);
 
 /* Value representations */
 

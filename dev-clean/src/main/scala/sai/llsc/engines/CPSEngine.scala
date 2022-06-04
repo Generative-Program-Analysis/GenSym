@@ -124,6 +124,12 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
             val offset = eval(LocalId(x), iTy, ss)
             ss.arrayLookup(base, offset, getTySize(ety),
                            fun { case (s, v) => k(s, v) })
+          case (PtrType(ety, _),
+                TypedValue(iTy, LocalId(x))::Nil) =>
+            val base = eval(ptrValue, ptrType, ss)
+            val offset = eval(LocalId(x), iTy, ss)
+            ss.arrayLookup(base, offset, getTySize(ety),
+                           fun { case (s, v) => k(s, v) })
           case _ =>
             val indexLLVMValue = typedValues.map(tv => tv.value)
             val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))

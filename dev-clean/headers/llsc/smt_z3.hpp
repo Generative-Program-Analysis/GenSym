@@ -50,6 +50,21 @@ public:
     solver_time += duration_cast<microseconds>(end - start);
     return (solver_result) result;
   }
+  std::pair<bool, UIntData> get_valid_value(PC pcobj, PtrVal v) override {
+    context* c; solver* s;
+    std::tie(c, s) = get_my_thread_local_instance();
+    auto val = construct_z3_expr(c, v);
+    auto result = make_query(pcobj);
+
+    UIntData ret_val = 0;
+
+    if (solver_result::sat == result) {
+      auto const_val = s->get_model().eval(val, true);
+      ret_val = const_val.get_numeral_uint64();
+    }
+
+    return std::make_pair(solver_result::sat == result, ret_val);
+  }
   expr construct_z3_expr(context* c, PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {

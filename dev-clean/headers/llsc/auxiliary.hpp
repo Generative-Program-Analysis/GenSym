@@ -14,6 +14,7 @@ using BlockLabel = int;
 using Id = int;
 using Addr = unsigned int;
 using IntData = int64_t;
+using UIntData = unsigned long long int;
 using Fd = int;
 using status_t = unsigned short;
 

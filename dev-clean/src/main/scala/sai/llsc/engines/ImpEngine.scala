@@ -125,6 +125,13 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
             ss.arrayLookup(base, offset, getTySize(ety)).flatMap { case sv =>
               k(sv._1, sv._2)
             }
+          case (PtrType(ety, _),
+                TypedValue(iTy, LocalId(x))::Nil) =>
+            val base = eval(ptrValue, ptrType, ss)
+            val offset = eval(LocalId(x), iTy, ss)
+            ss.arrayLookup(base, offset, getTySize(ety)).flatMap { case sv =>
+              k(sv._1, sv._2)
+            }
           case _ =>
             val indexLLVMValue = typedValues.map(tv => tv.value)
             val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
