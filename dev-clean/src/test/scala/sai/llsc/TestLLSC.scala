@@ -134,11 +134,13 @@ class TestUnit extends TestLLSC {
 }
 
 class Playground extends TestLLSC {
-  //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
-
   //val llsc = new PureCPSLLSC
   Config.enableOpt
-  testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
+  // testLLSC(new ImpCPSLLSC, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))
+
+  //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
+
+  //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortPureTest", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
   //testLLSC(new PureCPSLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
@@ -151,7 +153,6 @@ class Playground extends TestLLSC {
   //testLLSC(llsc, TestPrg(bubbleSortGround2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
 
   // Timeout:
-  //testLLSC(llsc, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))
   //testLLSC(llsc, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, noOpt, status(255)))
   //testLLSC(llsc, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, noOpt, status(255)))
   //testLLSC(llsc, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, noOpt, status(255)))

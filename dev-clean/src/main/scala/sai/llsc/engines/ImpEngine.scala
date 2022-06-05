@@ -237,7 +237,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
-        val repK = fun(k)
+        // FIXME: `fun` should result in a local function in scope, but now it generates code elsewhere.
+        //        a workaround is to use topFun to lift it to a global function
+        val repK = topFun(k)
         if (cnd.isConc) {
           if (cnd.int == 1) repK(ss, eval(thnVal, thnTy, ss))
           else repK(ss, eval(elsVal, elsTy, ss))
