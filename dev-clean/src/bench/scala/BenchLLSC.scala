@@ -95,7 +95,6 @@ abstract class TestLLSC extends FunSuite {
     val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(name) {
       val code = llsc.runLLSC(m, llsc.insName + "_" + name, f, config)
-      code.genAll
       val mkRet = code.make(4)
       assert(mkRet == 0, "make failed")
       for (i <- 1 to nTest) {
