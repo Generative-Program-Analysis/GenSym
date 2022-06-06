@@ -132,13 +132,16 @@ trait LinkZ3 extends LLSC {
 }
 
 class BenchPureLLSC extends TestLLSC {
-  testLLSC(new PureLLSC with LinkSTP, benchcases)
+  testLLSC(new PureLLSC with LinkSTP with LinkZ3, benchcases)
 }
 
 class BenchPureCPSLLSC extends TestLLSC {
-  testLLSC(new PureCPSLLSC with LinkSTP, benchcases)
+  testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, benchcases)
 }
 
 class BenchPureCPSLLSCZ3 extends TestLLSC {
-  testLLSC(new PureCPSLLSC_Z3 with LinkZ3, benchcases ++ paraBenchcases)
+  val cases = (benchcases ++ paraBenchcases).map { t =>
+    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
+  }
+  testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, benchcases ++ paraBenchcases)
 }
