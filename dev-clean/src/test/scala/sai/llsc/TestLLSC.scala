@@ -90,15 +90,34 @@ abstract class TestLLSC extends FunSuite {
   def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = tests.foreach(testLLSC(llsc, _))
 }
 
+trait LinkSTP extends LLSC {
+  abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
+    val llsc = super.newInstance(m, name, fname, config)
+    llsc.codegen.registerIncludePath("../third-party/stp/build/include")
+    llsc.codegen.registerLibraryPath("../third-party/stp/build/lib")
+    llsc
+  }
+}
+
+trait LinkZ3 extends LLSC {
+  abstract override def newInstance(m: Module, name: String, fname: String, config: Config) = {
+    val llsc = super.newInstance(m, name, fname, config)
+    llsc.codegen.registerIncludePath("../third-party/z3/src/api")
+    llsc.codegen.registerIncludePath("../third-party/z3/src/api/c++")
+    llsc.codegen.registerLibraryPath("../third-party/z3/build")
+    llsc
+  }
+}
+
 class TestPureLLSC extends TestLLSC {
-  testLLSC(new PureLLSC, TestCases.all ++ filesys ++ varArg)
+  testLLSC(new PureLLSC with LinkSTP with LinkZ3, memModel)
   //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, 1))
 }
 
 // FIXME: varArg is problematic for instances other than PureLLSC
 
 class TestPureCPSLLSC extends TestLLSC {
-  testLLSC(new PureCPSLLSC, TestCases.all ++ filesys ++ varArg)
+  testLLSC(new PureCPSLLSC with LinkSTP, memModel)
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
@@ -119,13 +138,13 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, TestCases.all ++ varArg)
+  testLLSC(new ImpLLSC with LinkSTP, memModel)
   // TODO: fix filesys <2022-03-15, David Deng> //
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, TestCases.all ++ varArg)
+  testLLSC(new ImpCPSLLSC with LinkSTP, memModel)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
