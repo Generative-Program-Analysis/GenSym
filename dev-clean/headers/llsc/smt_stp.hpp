@@ -250,9 +250,9 @@ private:
     return retcode;
   }
 
-  std::pair<bool, UIntData> get_valid_value(PC pcobj, PtrVal v) override {
+  std::pair<bool, UIntData> concretize(PC pcobj, PtrVal v) override {
     // TODO: add support for counter example cache
-    CacheResult *result;
+    CacheResult* result;
     auto pc = pcobj.get_path_conds();
     CacheKey pc2;
     auto val = construct_STP_expr(v, variables);
@@ -262,7 +262,7 @@ private:
 
     // actual solving
     auto start = steady_clock::now();
-    for (auto &e: pc2) {
+    for (auto& e: pc2) {
       vc_assertFormula(vc, e.get());
     }
     ExprHandle fls = vc_falseExpr(vc);

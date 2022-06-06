@@ -81,37 +81,35 @@ sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
 // Todo : check offset out of bound
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 array_lookup(SS ss, PtrVal base, PtrVal offset, size_t esize) {
-  immer::flex_vector_transient<std::pair<SS, PtrVal>> tmp;
+  immer::flex_vector_transient<std::pair<SS, PtrVal>> result;
   auto baseloc = std::dynamic_pointer_cast<LocV>(base);
 
   if (auto offint = std::dynamic_pointer_cast<IntV>(offset)) {
-    tmp.push_back(std::make_pair(ss, baseloc + offint->as_signed() * esize));
-  }
-  else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
+    result.push_back(std::make_pair(ss, baseloc + offint->as_signed() * esize));
+  } else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
-    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
-    assert(high_bound >= low_bound);
-    int possible_num = (high_bound - low_bound) + 1;
+    int lower_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int higher_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    ASSERT(higher_bound >= lower_bound, "Bad bound");
+    int possible_num = (higher_bound - lower_bound) + 1;
 
-    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
-    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(lower_bound, offsym->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(higher_bound, offsym->get_bw()));
     auto ss2 = ss.add_PC(low_cond).add_PC(high_cond);
-    auto res = get_value(ss2.get_PC(), offsym);
+    auto res = get_sat_value(ss2.get_PC(), offsym);
     while (res.first) {
       cnt++;
       int offset_val = res.second;
-      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
-      tmp.push_back(std::make_pair(ss.add_PC(t_cond), baseloc + (offset_val*esize)));
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+      result.push_back(std::make_pair(ss.add_PC(t_cond), baseloc + (offset_val*esize)));
       ss2 = ss2.add_PC(SymV::neg(t_cond));
-      res = get_value(ss2.get_PC(), offsym);
+      res = get_sat_value(ss2.get_PC(), offsym);
     }
-    assert(cnt > 0);
+    ASSERT(cnt > 0, "No satisfiable offset value");
     cov().inc_path(cnt - 1);
-  }
-  else ABORT("Error: unknown array offset kind.");
+  } else ABORT("Error: unknown array offset kind.");
 
-  return tmp.persistent();
+  return result.persistent();
 }
 
 inline std::monostate
@@ -124,19 +122,19 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
-    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
-    assert(high_bound >= low_bound);
-    int possible_num = (high_bound - low_bound) + 1;
+    int lower_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int higher_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    ASSERT(higher_bound >= lower_bound, "Bad bound");
+    int possible_num = (higher_bound - lower_bound) + 1;
 
-    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
-    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(lower_bound, offsym->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(higher_bound, offsym->get_bw()));
     auto ss2 = ss.add_PC(low_cond).add_PC(high_cond);
-    auto res = get_value(ss2.get_PC(), offsym);
+    auto res = get_sat_value(ss2.get_PC(), offsym);
     while (res.first) {
       cnt++;
       int offset_val = res.second;
-      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
       auto new_loc = baseloc + (offset_val*esize);
       auto new_ss = ss.add_PC(t_cond);
       if (can_par_tp()) {
@@ -145,12 +143,11 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
         k(new_ss, new_loc);
       }
       ss2 = ss2.add_PC(SymV::neg(t_cond));
-      res = get_value(ss2.get_PC(), offsym);
+      res = get_sat_value(ss2.get_PC(), offsym);
     }
-    assert(cnt > 0);
+    ASSERT(cnt > 0, "No satisfiable offset value");
     cov().inc_path(cnt - 1);
-  }
-  else ABORT("Error: unknown array offset kind.");
+  } else ABORT("Error: unknown array offset kind.");
   return std::monostate{};
 }
 
@@ -279,37 +276,35 @@ sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 array_lookup(SS& ss, PtrVal base, PtrVal offset, size_t esize) {
-  immer::flex_vector_transient<std::pair<SS, PtrVal>> tmp;
+  immer::flex_vector_transient<std::pair<SS, PtrVal>> result;
   auto baseloc = std::dynamic_pointer_cast<LocV>(base);
 
   if (auto offint = std::dynamic_pointer_cast<IntV>(offset)) {
-    tmp.push_back(std::make_pair(std::move(ss), baseloc + offint->as_signed() * esize));
-  }
-  else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
+    result.push_back(std::make_pair(std::move(ss), baseloc + offint->as_signed() * esize));
+  } else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
-    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
-    assert(high_bound >= low_bound);
-    int possible_num = (high_bound - low_bound) + 1;
+    int lower_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int higher_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    ASSERT(higher_bound >= lower_bound, "Bad bound");
+    int possible_num = (higher_bound - lower_bound) + 1;
 
-    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
-    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(lower_bound, offsym->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(higher_bound, offsym->get_bw()));
     auto ss2 = ss.copy().add_PC(low_cond).add_PC(high_cond);
-    auto res = get_value(ss2.get_PC(), offsym);
+    auto res = get_sat_value(ss2.get_PC(), offsym);
     while (res.first) {
       cnt++;
       int offset_val = res.second;
-      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
-      tmp.push_back(std::make_pair(std::move(ss.copy().add_PC(t_cond)), baseloc + (offset_val*esize)));
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+      result.push_back(std::make_pair(std::move(ss.copy().add_PC(t_cond)), baseloc + (offset_val*esize)));
       ss2.add_PC(SymV::neg(t_cond));
-      res = get_value(ss2.get_PC(), offsym);
+      res = get_sat_value(ss2.get_PC(), offsym);
     }
-    assert(cnt > 0);
+    ASSERT(cnt > 0, "No satisfiable offset value");
     cov().inc_path(cnt - 1);
-  }
-  else ABORT("Error: unknown array offset kind.");
+  } else ABORT("Error: unknown array offset kind.");
 
-  return tmp.persistent();
+  return result.persistent();
 }
 
 inline std::monostate
@@ -322,19 +317,19 @@ array_lookup_k(SS& ss, PtrVal base, PtrVal offset, size_t esize,
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
-    int low_bound = ((int)(baseloc->base - baseloc->l)) / esize;
-    int high_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
-    assert(high_bound >= low_bound);
-    int possible_num = (high_bound - low_bound) + 1;
+    int lower_bound = ((int)(baseloc->base - baseloc->l)) / esize;
+    int higher_bound = ((int)(baseloc->base + baseloc->size - baseloc->l)) / esize - 1;
+    ASSERT(higher_bound >= lower_bound, "Bad bound");
+    int possible_num = (higher_bound - lower_bound) + 1;
 
-    auto low_cond = int_op_2(iOP::op_sge, offset, make_IntV(low_bound, offset->get_bw()));
-    auto high_cond = int_op_2(iOP::op_sle, offset, make_IntV(high_bound, offset->get_bw()));
+    auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(lower_bound, offsym->get_bw()));
+    auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(higher_bound, offsym->get_bw()));
     auto ss2 = ss.copy().add_PC(low_cond).add_PC(high_cond);
-    auto res = get_value(ss2.get_PC(), offsym);
+    auto res = get_sat_value(ss2.get_PC(), offsym);
     while (res.first) {
       cnt++;
       int offset_val = res.second;
-      auto t_cond = int_op_2(iOP::op_eq, offset, make_IntV(offset_val, offset->get_bw()));
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
       auto new_loc = baseloc + (offset_val*esize);
       auto new_ss = ss.copy().add_PC(t_cond);
       if (can_par_tp()) {
@@ -343,12 +338,11 @@ array_lookup_k(SS& ss, PtrVal base, PtrVal offset, size_t esize,
         k(new_ss, new_loc);
       }
       ss2.add_PC(SymV::neg(t_cond));
-      res = get_value(ss2.get_PC(), offsym);
+      res = get_sat_value(ss2.get_PC(), offsym);
     }
-    assert(cnt > 0);
+    ASSERT(cnt > 0, "No satisfiable offset value");
     cov().inc_path(cnt - 1);
-  }
-  else ABORT("Error: unknown array offset kind.");
+  } else ABORT("Error: unknown array offset kind.");
   return std::monostate{};
 }
 #endif

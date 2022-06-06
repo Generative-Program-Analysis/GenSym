@@ -143,37 +143,33 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           v <- eval(value, ptrTy)
           ss <- getState
         } yield ss.lookup(v, getTySize(valTy), isStruct)
+      case GetElemPtrInst(_, baseType, ptrType@PtrType(ety, _), ptrValue, TypedValue(iTy, LocalId(x))::Nil) =>
+        for {
+          base <- eval(ptrValue, ptrType)
+          offset <- eval(LocalId(x), iTy)
+          ss <- getState
+          v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
+        } yield v
+      case GetElemPtrInst(_, baseType, ptrType@PtrType(ArrayType(size, ety), _), ptrValue,
+        TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
+        for {
+          base <- eval(ptrValue, ptrType)
+          offset <- eval(LocalId(x), iTy)
+          ss <- getState
+          v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
+        } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
-        (ptrType, typedValues) match {
-          case (PtrType(ArrayType(size, ety), _),
-                TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
-            for {
-              base <- eval(ptrValue, ptrType)
-              offset <- eval(LocalId(x), iTy)
-              ss <- getState
-              v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
-            } yield v
-          case (PtrType(ety, _),
-                TypedValue(iTy, LocalId(x))::Nil) =>
-            for {
-              base <- eval(ptrValue, ptrType)
-              offset <- eval(LocalId(x), iTy)
-              ss <- getState
-              v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
-            } yield v
-          case _ =>
-            val indexLLVMValue = typedValues.map(tv => tv.value)
-            for {
-              vs <- mapM(indexLLVMValue)(eval(_, IntType(32)))
-              lV <- eval(ptrValue, ptrType)
-            } yield {
-              val indexValue = vs.map(v => v.int)
-              val offset = calculateOffset(ptrType, indexValue)
-              (ptrValue match {
-                case GlobalId(id) => heapEnv(id)()
-                case _ => lV
-              }) + offset
-            }
+        val indexLLVMValue = typedValues.map(tv => tv.value)
+        for {
+          vs <- mapM(indexLLVMValue)(eval(_, IntType(32)))
+          lV <- eval(ptrValue, ptrType)
+        } yield {
+          val indexValue = vs.map(v => v.int)
+          val offset = calculateOffset(ptrType, indexValue)
+          (ptrValue match {
+            case GlobalId(id) => heapEnv(id)()
+            case _ => lV
+          }) + offset
         }
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs, ty)

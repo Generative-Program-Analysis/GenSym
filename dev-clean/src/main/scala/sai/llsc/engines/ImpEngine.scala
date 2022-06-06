@@ -116,34 +116,26 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         }
         val v = eval(value, ptrTy, ss)
         k(ss, ss.lookup(v, getTySize(valTy), isStruct))
+      case GetElemPtrInst(_, baseType, ptrType@PtrType(ety, _), ptrValue, TypedValue(iTy, LocalId(x))::Nil) =>
+        val base = eval(ptrValue, ptrType, ss)
+        val offset = eval(LocalId(x), iTy, ss)
+        ss.arrayLookup(base, offset, getTySize(ety)).flatMap { case sv => k(sv._1, sv._2) }
+      case GetElemPtrInst(_, baseType, ptrType@PtrType(ArrayType(size, ety), _), ptrValue,
+        TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
+        val base = eval(ptrValue, ptrType, ss)
+        val offset = eval(LocalId(x), iTy, ss)
+        ss.arrayLookup(base, offset, getTySize(ety)).flatMap { case sv => k(sv._1, sv._2) }
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
-        (ptrType, typedValues) match {
-          case (PtrType(ArrayType(size, ety), _),
-                TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
-            val base = eval(ptrValue, ptrType, ss)
-            val offset = eval(LocalId(x), iTy, ss)
-            ss.arrayLookup(base, offset, getTySize(ety)).flatMap { case sv =>
-              k(sv._1, sv._2)
-            }
-          case (PtrType(ety, _),
-                TypedValue(iTy, LocalId(x))::Nil) =>
-            val base = eval(ptrValue, ptrType, ss)
-            val offset = eval(LocalId(x), iTy, ss)
-            ss.arrayLookup(base, offset, getTySize(ety)).flatMap { case sv =>
-              k(sv._1, sv._2)
-            }
-          case _ =>
-            val indexLLVMValue = typedValues.map(tv => tv.value)
-            val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
-            val lV = eval(ptrValue, ptrType, ss)
-            val indexValue = vs.map(v => v.int)
-            val offset = calculateOffset(ptrType, indexValue)
-            val v = (ptrValue match {
-              case GlobalId(id) => heapEnv(id)()
-              case _ => lV
-            }) + offset
-            k(ss, v)
-        }
+        val indexLLVMValue = typedValues.map(tv => tv.value)
+        val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
+        val lV = eval(ptrValue, ptrType, ss)
+        val indexValue = vs.map(v => v.int)
+        val offset = calculateOffset(ptrType, indexValue)
+        val v = (ptrValue match {
+          case GlobalId(id) => heapEnv(id)()
+          case _ => lV
+        }) + offset
+        k(ss, v)
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss))
       case SubInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("sub", lhs, rhs, ty, ss))

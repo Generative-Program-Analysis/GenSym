@@ -50,11 +50,11 @@ public:
     solver_time += duration_cast<microseconds>(end - start);
     return (solver_result) result;
   }
-  std::pair<bool, UIntData> get_valid_value(PC pcobj, PtrVal v) override {
+  std::pair<bool, UIntData> concretize(PC pc, PtrVal v) override {
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
     auto val = construct_z3_expr(c, v);
-    auto result = make_query(pcobj);
+    auto result = make_query(pc);
 
     UIntData ret_val = 0;
 

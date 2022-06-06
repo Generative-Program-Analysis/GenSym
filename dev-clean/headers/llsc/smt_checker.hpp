@@ -18,7 +18,7 @@ public:
   virtual void init_solvers() = 0;
   virtual void destroy_solvers() = 0;
   virtual solver_result make_query(PC pc) = 0;
-  virtual std::pair<bool, UIntData> get_valid_value(PC pcobj, PtrVal v) = 0;
+  virtual std::pair<bool, UIntData> concretize(PC pc, PtrVal v) = 0;
   virtual void push() = 0;
   virtual void pop() = 0;
   virtual void reset() = 0;
@@ -32,9 +32,9 @@ public:
     pop();
     return r == sat;
   }
-  std::pair<bool, UIntData> get_value(PC pc, PtrVal v) {
+  std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) {
     push();
-    auto r = get_valid_value(std::move(pc), v);
+    auto r = concretize(std::move(pc), v);
     pop();
     return r;
   }
@@ -84,6 +84,6 @@ inline Checker& get_checker() {
 
 inline bool check_pc(PC pc) { return get_checker().check_pc(std::move(pc)); }
 inline void check_pc_to_file(SS state) { get_checker().generate_test(std::move(state.get_PC())); }
-inline std::pair<bool, UIntData> get_value(PC pc, PtrVal v) { return get_checker().get_value(std::move(pc), v); }
+inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) { return get_checker().get_sat_value(std::move(pc), v); }
 
 #endif
