@@ -30,7 +30,7 @@ object TestCases {
     TestPrg(parseFile(s"$prefix/mergesort.ll"), "mergeSortTest", "@main", noArg, noOpt, nPath(5040)),
     TestPrg(parseFile(s"$prefix/bubblesort.ll"), "bubbleSortTest", "@main", noArg, noOpt, nPath(720)),
     TestPrg(parseFile(s"$prefix/quicksort.ll"), "quickSortTest", "@main", noArg, noOpt, nPath(720)),
-    TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), "mp1m", "@f", symArg(20), "--disable-solver", nPath(1048576)),
+    TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), "mp1m", "@f", symArg(20), "--solver=disable", nPath(1048576)),
   )
   val paraBenchcases: List[TestPrg] = List(2, 4, 8, 16).flatMap { case tn =>
     List(
@@ -40,7 +40,7 @@ object TestCases {
       TestPrg(parseFile(s"$prefix/mergesort.ll"), s"par${tn}_mergeSortTest", "@main", noArg, s"--thread=$tn", nPath(5040)),
       TestPrg(parseFile(s"$prefix/bubblesort.ll"), s"par${tn}_bubbleSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
       TestPrg(parseFile(s"$prefix/quicksort.ll"), s"par${tn}_quickSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
-      TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), s"par${tn}_mp1m", "@f", symArg(20), s"--disable-solver --thread=$tn", nPath(1048576)),
+      TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), s"par${tn}_mp1m", "@f", symArg(20), Seq(s"--solver=disable", "--thread=$tn"), nPath(1048576)),
     )
   }
 }
@@ -140,7 +140,10 @@ class BenchPureCPSLLSC extends TestLLSC {
 
 class BenchPureCPSLLSCZ3 extends TestLLSC {
   val cases = (benchcases ++ paraBenchcases).map { t =>
-    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
+    if (t.runOpt.exists(_.startsWith("--solver=")))
+      t
+    else
+      t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
   testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, benchcases ++ paraBenchcases)
 }
