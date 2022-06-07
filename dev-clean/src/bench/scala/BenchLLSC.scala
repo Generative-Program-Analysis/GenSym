@@ -145,5 +145,5 @@ class BenchPureCPSLLSCZ3 extends TestLLSC {
     else
       t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
-  testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, benchcases ++ paraBenchcases)
+  testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, cases)
 }
