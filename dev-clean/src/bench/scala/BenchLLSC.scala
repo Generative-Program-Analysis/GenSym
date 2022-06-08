@@ -145,5 +145,8 @@ class BenchPureCPSLLSCZ3 extends TestLLSC {
     else
       t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
-  testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, cases)
+  val engine = new PureCPSLLSC with LinkSTP with LinkZ3 {
+    override val insName = "PureCPSLLSC_Z3"
+  }
+  testLLSC(engine, cases)
 }
