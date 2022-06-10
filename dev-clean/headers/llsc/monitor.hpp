@@ -15,6 +15,8 @@ struct Monitor {
     std::vector<std::atomic_uint64_t> block_cov;
     // Number of discovered paths
     std::atomic_uint64_t num_paths;
+    // Number of executed instructions
+    std::atomic_uint64_t num_insts;
     // Starting time
     steady_clock::time_point start, stop;
     std::thread watcher;
@@ -32,6 +34,12 @@ struct Monitor {
     }
     void inc_path(size_t n) {
       num_paths += n;
+    }
+    void inc_inst(size_t n) {
+      num_insts += n;
+    }
+    void print_inst_stat() {
+      std::cout << "#insts: " << num_insts << "; " << std::flush;
     }
     void print_path_cov() {
       std::cout << "#paths: " << num_paths << "; " << std::flush;
@@ -54,7 +62,6 @@ struct Monitor {
     }
     void print_async() {
       std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
-      //std::cout << "#threads: " << num_async + 1 << "; #async-created: " << tt_num_async << "; " << std::flush;
     }
     void print_query_stat() {
       std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
@@ -67,6 +74,7 @@ struct Monitor {
     }
     void print_all(bool done = false) {
       print_time(done);
+      if (print_inst_cnt) print_inst_stat();
       print_block_cov();
       print_path_cov();
       print_async();

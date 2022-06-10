@@ -1,6 +1,8 @@
 #ifndef LLSC_ARGS_HEADERS
 #define LLSC_ARGS_HEADERS
 
+/* Auxiliary functions to process command line argv passed to the application */
+
 inline immer::flex_vector<immer::flex_vector<PtrVal>> cli_argv;
 // pass to llsc_main
 inline PtrVal g_argv;

@@ -5,6 +5,14 @@
 
 #ifdef PURE_STATE
 
+inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
+  if (can_par_tp()) {
+    tp.add_task(f);
+    return std::monostate{};
+  }
+  return f();
+}
+
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS ss, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
@@ -154,6 +162,16 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
 #endif
 
 #ifdef IMPURE_STATE
+
+inline std::monostate async_exec_block(
+    std::monostate (*f)(SS&, std::function<std::monostate(SS&, PtrVal)>),
+    SS ss, std::function<std::monostate(SS&, PtrVal)> k) {
+  if (can_par_tp()) {
+    tp.add_task([f, ss=std::move(ss), k]{ return f((SS&)ss, k); });
+    return std::monostate{};
+  }
+  return f(ss, k);
+}
 
 // use immer::flex_vector as argument list and result list
 inline immer::flex_vector<std::pair<SS, PtrVal>>

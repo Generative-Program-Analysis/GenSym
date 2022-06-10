@@ -148,11 +148,11 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   return k(state, IntV0);
 }
 
-inline List<SSVal> llvm_memcpy(SS state, List<PtrVal> args) {
+inline List<SSVal> llvm_memcpy(SS& state, List<PtrVal> args) {
   return __llvm_memcpy<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
-inline std::monostate llvm_memcpy(SS state, List<PtrVal> args, Cont k) {
+inline std::monostate llvm_memcpy(SS& state, List<PtrVal> args, Cont k) {
   return __llvm_memcpy<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
@@ -176,11 +176,11 @@ inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   return k(state, IntV0);
 }
 
-inline List<SSVal> llvm_memmove(SS state, List<PtrVal> args) {
+inline List<SSVal> llvm_memmove(SS& state, List<PtrVal> args) {
   return __llvm_memmove<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
-inline std::monostate llvm_memmove(SS state, List<PtrVal> args, Cont k) {
+inline std::monostate llvm_memmove(SS& state, List<PtrVal> args, Cont k) {
   return __llvm_memmove<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
@@ -222,6 +222,7 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   state.update(va_list + 16, va_arg, 8);
   return k(state, IntV0);
 }
+
 template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
@@ -232,6 +233,7 @@ inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   }
   return k(state, IntV0);
 }
+
 template<typename T>
 inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dst_va_list = args.at(0);

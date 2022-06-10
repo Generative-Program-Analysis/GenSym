@@ -1,18 +1,8 @@
 #ifndef LLSC_CLI_HEADERS
 #define LLSC_CLI_HEADERS
 
-inline bool use_solver = true;
-inline bool use_global_solver = false;
-inline bool use_objcache = true;
-inline bool use_cexcache = true;
-inline bool use_cons_indep = false;
-inline bool exlib_failure_branch = false;
-
 /* TODO: generate a file containing generated function declarations <2022-05-24, David Deng> */
 FS set_file(FS, String, Ptr<File>);
-
-enum class SolverKind { z3, stp };
-inline SolverKind solver_kind = SolverKind::stp;
 
 // TODO: "--stack-size" to set stack size using `inc_stack`.
 
@@ -24,6 +14,7 @@ static struct option long_options[] =
   {"no-obj-cache",         no_argument,       0, 'O'},
   {"no-cex-cache",         no_argument,       0, 'C'},
   {"cons-indep",           no_argument,       0, 'i'},
+  {"print-inst-count",     no_argument,       0, 'I'},
   {"add-sym-file",         required_argument, 0, '+'},
   {"sym-file-size",        required_argument, 0, 's'},
   {"thread",               required_argument, 0, 't'},
@@ -68,7 +59,6 @@ inline void print_help(char* main_name) {
   printf("\n");
 }
 
-// XXX: can also specify symbolic argument here?
 inline void handle_cli_args(int argc, char** argv) {
   extern char *optarg;
   int c;
@@ -126,6 +116,9 @@ inline void handle_cli_args(int argc, char** argv) {
       }
       case 'e':
         timeout = atoi(optarg);
+        break;
+      case 'I':
+        print_inst_cnt = true;
         break;
       case '?':
         // parsing error, should be printed by getopt

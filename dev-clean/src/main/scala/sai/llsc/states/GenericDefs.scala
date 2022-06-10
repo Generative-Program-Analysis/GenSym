@@ -70,6 +70,7 @@ trait Coverage { self: SAIOps =>
       "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
     }
     def incPath(n: Int): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
+    def incInst(n: Int): Rep[Unit] = "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printPathCov: Rep[Unit] = "print-path-cov".reflectWriteWith[Unit]()(Adapter.CTRL)

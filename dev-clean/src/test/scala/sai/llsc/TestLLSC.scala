@@ -116,6 +116,9 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
   testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, "--thread=2 --solver=z3", status(255)))
   testLLSC(llsc, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, "--thread=2 --solver=z3", status(255)))
   testLLSC(llsc, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, "--thread=2 --solver=z3", status(255)))
+
+  // Timeout
+  //testLLSC(llsc, TestPrg(sorting_selection_ground_1, "testCompSelectionSort", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
 }
 
 class TestImpLLSC extends TestLLSC {
@@ -136,6 +139,9 @@ class TestUnit extends TestLLSC {
 class Playground extends TestLLSC {
   //val llsc = new PureCPSLLSC
   Config.enableOpt
+  val llsc = new ImpCPSLLSC
+  //testLLSC(llsc, TestPrg(parseFile("benchmarks/opt_experiments/quicksort.ll"), "quicksort_Opt", "@main", noArg, "--solver=z3", nPath(5040)))
+  //testLLSC(new PureCPSLLSC, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
   // testLLSC(new ImpCPSLLSC, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))
 
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))

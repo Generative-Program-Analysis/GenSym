@@ -9,7 +9,7 @@ class PC;
 
 using PtrVal = std::shared_ptr<Value>;
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
-inline PtrVal make_IntV(IntData i, int bw=bitwidth, bool toMSB=true);
+inline PtrVal make_IntV(IntData i, int bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_value(PC pc, PtrVal v);
 
 /* Value representations */
@@ -442,7 +442,7 @@ inline std::map<size_t, PtrVal> symv_cache;
 */
 
 inline PtrVal make_SymV(const String& n) {
-  return std::make_shared<SymV>(n, bitwidth);
+  return std::make_shared<SymV>(n, default_bw);
 }
 
 inline PtrVal make_SymV(String n, size_t bw) {

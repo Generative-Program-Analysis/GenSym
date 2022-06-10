@@ -233,11 +233,11 @@ private:
       }
     }
     // actual solving
-    auto start = steady_clock::now();
     for (auto &e: pc2) {
       vc_assertFormula(vc, e.get());
     }
     ExprHandle fls = vc_falseExpr(vc);
+    auto start = steady_clock::now();
     int retcode = vc_query(vc, fls.get());
     auto end = steady_clock::now();
     solver_time += duration_cast<microseconds>(end - start);
@@ -310,10 +310,16 @@ public:
     }
   }
   void push() override {
+    auto start = steady_clock::now();
     vc_push(vc);
+    auto end = steady_clock::now();
+    solver_time += duration_cast<microseconds>(end - start);
   }
   void pop() override {
+    auto start = steady_clock::now();
     vc_pop(vc);
+    auto end = steady_clock::now();
+    solver_time += duration_cast<microseconds>(end - start);
   }
   void reset() override {
     variables.clear();

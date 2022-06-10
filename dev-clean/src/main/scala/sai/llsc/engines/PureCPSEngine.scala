@@ -47,8 +47,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     }
    */
 
-  // Note: now ty is mainly for eval IntConst to contain bit width
-  // does it have some other implications?
   def eval(v: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
     v match {
       case LocalId(x) => ss.lookup(funName + "_" + x)

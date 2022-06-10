@@ -38,9 +38,6 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
   }
 
-  // Note: now ty is mainly for eval IntConst to contain bit width
-  // does it have some other implications?
-  // XXX: return value can be optional?
   def eval(v: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>

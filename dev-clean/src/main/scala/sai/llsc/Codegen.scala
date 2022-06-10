@@ -152,6 +152,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov().set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov().inc_block($id)"
     case Node(s, "cov-inc-path", List(n), _) => es"cov().inc_path($n)"
+    case Node(s, "cov-inc-inst", List(n), _) => es"cov().inc_inst($n)"
     case Node(s, "cov-start-mon", _, _) => es"cov().start_monitor()"
     case Node(s, "print-block-cov", _, _) => es"cov().print_block_cov()"
     case Node(s, "print-time", _, _) => es"cov().print_time()"

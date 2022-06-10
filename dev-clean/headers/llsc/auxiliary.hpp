@@ -18,25 +18,56 @@ using UIntData = unsigned long long int;
 using Fd = int;
 using status_t = unsigned short;
 
-inline unsigned int bitwidth = 32;
+// Default bitwidth when creating integers or symbolic values
+inline unsigned int default_bw = 32;
+// The bitwidth of addresses (64 by default)
 inline unsigned int addr_bw = 64;
-inline unsigned int var_name = 0;
 
 inline std::atomic<std::optional<int>> exit_code;
 inline std::mutex exit_code_lock;
 
-inline std::atomic<unsigned int> num_async = 0;
-inline std::atomic<unsigned int> tt_num_async = 0;
+/* Stat */
+// TODO: consider merging with monitor
 
+// Number of async currently used (Deprecated)
+inline std::atomic<unsigned int> num_async = 0;
+// Number of totoal async (Deprecated)
+inline std::atomic<unsigned int> tt_num_async = 0;
+// Number of queries performed for generating test cases
 inline unsigned int test_query_num = 0;
+// Number of queries performed for checking branch satisfiability
 inline unsigned int br_query_num = 0;
+// Number of query cache hits
 inline unsigned int cached_query_num = 0;
 
-// the maximal number of total threads (including the main thread)
-inline unsigned int n_thread = 1;
-inline unsigned int n_queue = 1;
-inline unsigned int timeout = 3600; // in seconds, one hour by default
+/* Global options */
 
+// The number of total threads (including the main thread)
+inline unsigned int n_thread = 1;
+// The number of queues when using thread pool
+inline unsigned int n_queue = 1;
+// Use solver or not
+inline bool use_solver = true;
+// Indicates if there is only one solver instance
+inline bool use_global_solver = false;
+// Use object caching or not
+inline bool use_objcache = true;
+// Use counterexample caching or not
+inline bool use_cexcache = true;
+// Use constraint independence resolving or not
+inline bool use_cons_indep = false;
+// Simulate possible failure in external functions (results in state forking)
+inline bool exlib_failure_branch = false;
+// Timeout in seconds (one hour by default)
+inline unsigned int timeout = 3600;
+// Print the number of executed instructions
+inline bool print_inst_cnt = false;
+
+enum class SolverKind { z3, stp };
+// The backend SMT solver to be used
+inline SolverKind solver_kind = SolverKind::stp;
+
+// Global counter to record time spent in solver
 inline duration<double, std::micro> solver_time = microseconds::zero();
 
 enum class iOP {
@@ -170,6 +201,9 @@ inline std::monostate operator+ (const std::monostate& lhs, const std::monostate
   return std::monostate{};
 }
 
+/* Generating fresh names */
+
+inline unsigned int var_name = 0;
 inline std::string fresh(const std::string& x) { return x + std::to_string(var_name++); }
 inline std::string fresh() { return fresh("x"); }
 

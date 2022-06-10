@@ -12,14 +12,6 @@ inline bool can_par_tp() {
   return n_thread > 1;
 }
 
-inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
-  if (can_par_tp()) {
-    tp.add_task(f);
-    return std::monostate{};
-  }
-  return f();
-}
-
 /* Async (Deprecated) */
 
 inline std::mutex m;

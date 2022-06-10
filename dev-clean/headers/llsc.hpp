@@ -47,7 +47,7 @@ using namespace std::chrono;
 #include <llsc/state_pure.hpp>
 #endif
 #ifdef IMPURE_STATE
-#include <llsc/state_imp.hpp>
+#include <llsc/state_tsnt.hpp>
 #endif
 
 #include <llsc/smt_checker.hpp>

@@ -22,29 +22,35 @@ public:
   }
   ~CheckerZ3() { destroy_solvers(); }
   void init_solvers() override {
-    //std::tie(g_ctx, g_solver) = new_instance();
-    checker_map[std::this_thread::get_id()] = new_instance();
-    tp.with_thread_ids([this](auto id) {
-      checker_map[id] = new_instance();
-    });
+    if (n_thread == 1) {
+      std::tie(g_ctx, g_solver) = new_instance();
+    } else {
+      checker_map[std::this_thread::get_id()] = new_instance();
+      tp.with_thread_ids([this](auto id) { checker_map[id] = new_instance(); });
+    }
   }
   void destroy_solvers() override {
-    for (auto& [t, cs] : checker_map) {
-      //delete std::get<0>(cs);
-      delete std::get<1>(cs);
+    if (n_thread == 1) {
+      delete g_solver;
+    } else {
+      for (auto& [t, cs] : checker_map) {
+        //delete std::get<0>(cs);
+        delete std::get<1>(cs);
+      }
     }
   }
   instance get_my_thread_local_instance() {
-    return checker_map[std::this_thread::get_id()];
+    if (n_thread == 1) return std::make_tuple(g_ctx, g_solver);
+    else return checker_map[std::this_thread::get_id()];
   }
   solver_result make_query(PC pc) override {
     auto pc_set = pc.get_path_conds();
-    auto start = steady_clock::now();
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
     for (auto& e: pc_set)
       s->add(construct_z3_expr(c, e));
     //std::cout << *s << "\n";
+    auto start = steady_clock::now();
     auto result = s->check();
     auto end = steady_clock::now();
     solver_time += duration_cast<microseconds>(end - start);
@@ -179,12 +185,19 @@ public:
   void push() override {
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
+    // XXX: z3's pop/push operation is quite expensive!
+    auto start = steady_clock::now();
     s->push();
+    auto end = steady_clock::now();
+    solver_time += duration_cast<microseconds>(end - start);
   }
   void pop() override {
     context* c; solver* s;
     std::tie(c, s) = get_my_thread_local_instance();
+    auto start = steady_clock::now();
     s->pop();
+    auto end = steady_clock::now();
+    solver_time += duration_cast<microseconds>(end - start);
   }
   void reset() override {
     context* c; solver* s;
