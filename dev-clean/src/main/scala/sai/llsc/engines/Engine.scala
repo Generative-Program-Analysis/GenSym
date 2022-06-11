@@ -81,9 +81,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
-        val indexLLVMValue = typedConsts.map(tv => tv.const)
         for {
-          vs <- mapM(indexLLVMValue)(eval(_, IntType(32)))
+          vs <- mapM(typedConsts)(tv => eval(tv.const, tv.ty))
           lV <- eval(const, ptrType)
         } yield {
           val indexValue = vs.map(v => v.int)
@@ -156,9 +155,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
         } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
-        val indexLLVMValue = typedValues.map(tv => tv.value)
         for {
-          vs <- mapM(indexLLVMValue)(eval(_, IntType(32)))
+          vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
           lV <- eval(ptrValue, ptrType)
         } yield {
           val indexValue = vs.map(v => v.int)

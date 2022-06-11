@@ -84,14 +84,12 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         }
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
-        val indexLLVMValue = typedConsts.map(tv => tv.const)
-        val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
-        val lV = eval(const, ptrType, ss)
+        val vs = typedConsts.map(tv => eval(tv.const, tv.ty, ss))
         val indexValue = vs.map(v => v.int)
         val offset = calculateOffset(ptrType, indexValue)
         (const match {
           case GlobalId(id) => heapEnv(id)()
-          case _ => lV
+          case _ => eval(const, ptrType, ss)
         }) + offset
       case IntToPtrExpr(from, value, to) => eval(value, from, ss)
       case PtrToIntExpr(from, value, IntType(toSize)) =>
@@ -141,14 +139,12 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val offset = eval(LocalId(x), iTy, ss)
         ss.arrayLookup(base, offset, getTySize(ety), fun(k))
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
-        val indexLLVMValue = typedValues.map(tv => tv.value)
-        val vs = indexLLVMValue.map(v => eval(v, IntType(32), ss))
-        val lV = eval(ptrValue, ptrType, ss)
+        val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
         val indexValue = vs.map(v => v.int)
         val offset = calculateOffset(ptrType, indexValue)
         val v = (ptrValue match {
           case GlobalId(id) => heapEnv(id)()
-          case _ => lV
+          case _ => eval(ptrValue, ptrType, ss)
         }) + offset
         k(ss, v)
       // Arith Binary Operations
