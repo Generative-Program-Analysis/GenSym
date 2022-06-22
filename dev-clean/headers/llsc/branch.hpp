@@ -93,7 +93,8 @@ array_lookup(SS ss, PtrVal base, PtrVal offset, size_t esize) {
   auto baseloc = std::dynamic_pointer_cast<LocV>(base);
 
   if (auto offint = std::dynamic_pointer_cast<IntV>(offset)) {
-    result.push_back(std::make_pair(ss, baseloc + offint->as_signed() * esize));
+    // base may not be a locv, ie a bad pointer
+    result.push_back(std::make_pair(ss, base + (offint->as_signed() * esize)));
   } else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
     int lower_bound = ((int)(baseloc->base - baseloc->l)) / esize;
@@ -126,7 +127,8 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
   auto baseloc = std::dynamic_pointer_cast<LocV>(base);
 
   if (auto offint = std::dynamic_pointer_cast<IntV>(offset)) {
-    k(ss, baseloc + offint->as_signed() * esize);
+    // base may not be a locv, ie a bad pointer
+    k(ss, base + (offint->as_signed() * esize));
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
@@ -298,7 +300,8 @@ array_lookup(SS& ss, PtrVal base, PtrVal offset, size_t esize) {
   auto baseloc = std::dynamic_pointer_cast<LocV>(base);
 
   if (auto offint = std::dynamic_pointer_cast<IntV>(offset)) {
-    result.push_back(std::make_pair(std::move(ss), baseloc + offint->as_signed() * esize));
+    // base may not be a locv, ie a bad pointer
+    result.push_back(std::make_pair(std::move(ss), base + (offint->as_signed() * esize)));
   } else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;
     int lower_bound = ((int)(baseloc->base - baseloc->l)) / esize;
@@ -331,7 +334,8 @@ array_lookup_k(SS& ss, PtrVal base, PtrVal offset, size_t esize,
   auto baseloc = std::dynamic_pointer_cast<LocV>(base);
 
   if (auto offint = std::dynamic_pointer_cast<IntV>(offset)) {
-    k(ss, baseloc + offint->as_signed() * esize);
+    // base may not be a locv, ie a bad pointer
+    k(ss, base + (offint->as_signed() * esize));
   }
   else if (auto offsym = std::dynamic_pointer_cast<SymV>(offset)) {
     int cnt = 0;

@@ -38,7 +38,13 @@ inline std::monostate noop(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-inline std::string get_string_at(PtrVal ptr, SS state) {
+inline char proj_IntV_char(const PtrVal& v) {
+  std::shared_ptr<IntV> intV = v->to_IntV();
+  ASSERT(intV->get_bw() == 8, "proj_IntV_char: Bitwidth mismatch");
+  return static_cast<char>(proj_IntV(intV));
+}
+
+inline std::string get_string_at(PtrVal ptr, SS& state) {
   std::string name;
   char c = proj_IntV_char(state.at(ptr)); // c = *ptr
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
@@ -46,6 +52,31 @@ inline std::string get_string_at(PtrVal ptr, SS state) {
     name += c;
     ptr = ptr + 1;
     c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  }
+  return name;
+}
+
+inline UIntData get_int_arg(SS& state, PtrVal x) {
+  auto x_i = std::dynamic_pointer_cast<IntV>(x);
+  if (x_i) {
+    return x_i->as_signed();
+  } else {
+    auto sym_v = std::dynamic_pointer_cast<SymV>(x);
+    ASSERT(sym_v, "get value of non-symbolic variable");
+    std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
+    ASSERT(res.first, "Un-feasible path");
+    return res.second;
+  }
+}
+
+inline std::string get_string_arg(SS& state, PtrVal ptr) {
+  std::string name;
+  char c = get_int_arg(state, state.at(ptr)); // c = *ptr
+  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
+  while (c != '\0') {
+    name += c;
+    ptr = ptr + 1;
+    c = get_int_arg(state, state.at(ptr)); // c = *ptr
   }
   return name;
 }
@@ -239,4 +270,66 @@ inline List<SSVal> __errno_location(SS state, List<PtrVal> args) {
 inline std::monostate __errno_location(SS state, List<PtrVal> args, Cont k) {
   return ____errno_location<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
+
+template<typename T>
+inline T __llsc_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  auto v = args.at(0);
+  ASSERT(v, "null pointer");
+  auto sym_v = std::dynamic_pointer_cast<SymV>(v);
+  if (sym_v) {
+    return k(state, make_IntV(1, 32));
+  } else {
+    ASSERT(std::dynamic_pointer_cast<IntV>(v), "non-intv");
+    return k(state, make_IntV(0, 32));
+  }
+}
+
+inline List<SSVal> llsc_is_symbolic(SS state, List<PtrVal> args) {
+  return __llsc_is_symbolic<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llsc_is_symbolic(SS state, List<PtrVal> args, Cont k) {
+  return __llsc_is_symbolic<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+template<typename T>
+inline T __llsc_get_valuel(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  auto v = args.at(0);
+  ASSERT(v, "null pointer");
+  auto i = v->to_IntV();
+  if (i) {
+    return k(state, v);
+  }
+  auto sym_v = std::dynamic_pointer_cast<SymV>(v);
+  ASSERT(sym_v, "get value of non-symbolic variable");
+  ASSERT(64 == sym_v->get_bw(), "Bitwidth mismatch");
+  std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
+  ASSERT(res.first, "Un-feasible path");
+  return k(state, make_IntV(res.second, 64));
+}
+
+inline List<SSVal> llsc_get_valuel(SS state, List<PtrVal> args) {
+  return __llsc_get_valuel<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llsc_get_valuel(SS state, List<PtrVal> args, Cont k) {
+  return __llsc_get_valuel<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+
+template<typename T>
+inline T __getpagesize(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  static int page_size = getpagesize();
+  return k(state, make_IntV(page_size, 32));
+}
+
+inline List<SSVal> getpagesize(SS state, List<PtrVal> args) {
+  return __getpagesize<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate getpagesize(SS state, List<PtrVal> args, Cont k) {
+  return __getpagesize<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+
 #endif

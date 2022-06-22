@@ -87,11 +87,11 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
       "stop", "syscall", "llsc_assume",
-      "__errno_location", "_exit", "abort", "calloc"
+      "__errno_location", "_exit", "abort", "calloc", "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign"
     )
     private val syscalls = MutableSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown"
-    ) 
+    )
     val rederict = scala.collection.immutable.Set[String]("@memcpy", "@memset", "@memmove")
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {

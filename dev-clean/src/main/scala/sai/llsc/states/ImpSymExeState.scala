@@ -112,7 +112,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def stackSize: Rep[Int] = reflectRead[Int]("ss-stack-size", ss)(ss)
     def freshStackAddr: Rep[Addr] = stackSize
 
-    def push: Rep[Unit] = reflectWrite[Unit]("ss-push", ss)(ss)
+    // push before function call could be DCE-ed, due to high-level function dependency issue.
+    def push: Rep[Unit] = reflectWrite[Unit]("ss-push", ss)(ss, Adapter.CTRL)
     // XXX: since pop is used in a map, will be DCE-ed if no CTRL
     def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
     def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)

@@ -38,6 +38,7 @@ object Benchmarks {
   lazy val nastyStruct = parseFile("benchmarks/llvm/nastystruct.ll")
   lazy val arrayFlow = parseFile("benchmarks/llvm/arrayflow.ll")
   lazy val pointerSymOff = parseFile("benchmarks/llvm/pointer_sym_off.ll")
+  lazy val getValue = parseFile("benchmarks/llvm/get_value.ll")
 
   lazy val sp1 = parseFile("benchmarks/llvm/single_path.ll")
   lazy val sp2 = parseFile("benchmarks/llvm/single_path2.ll")

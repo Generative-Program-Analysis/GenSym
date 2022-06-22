@@ -70,7 +70,7 @@ inline std::monostate make_symbolic_whole(SS& state, List<PtrVal> args, Cont k) 
 template<typename T>
 inline T __malloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = List<PtrVal>(bytes, nullptr);
+  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   if (exlib_failure_branch)
     return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
@@ -83,6 +83,28 @@ inline List<SSVal> malloc(SS& state, List<PtrVal> args) {
 
 inline std::monostate malloc(SS& state, List<PtrVal> args, Cont k) {
   return __malloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+template<typename T>
+inline T __memalign(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  size_t alignment = proj_IntV(args.at(0));
+  size_t bytes = proj_IntV(args.at(1));
+  auto fillmem = List<PtrVal>((((state.heap_size() + (alignment - 1)) / alignment) * alignment) - state.heap_size(), make_UinitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  state.heap_append(fillmem);
+  ASSERT(0 == state.heap_size() % alignment, "non-aligned address");
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
+  if (exlib_failure_branch)
+    return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
+  return k(state.heap_append(emptyMem), memLoc);
+}
+
+inline List<SSVal> memalign(SS& state, List<PtrVal> args) {
+  return __memalign<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate memalign(SS& state, List<PtrVal> args, Cont k) {
+  return __memalign<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
 /******************************************************************************/
@@ -112,7 +134,7 @@ inline std::monostate calloc(SS& state, List<PtrVal> args, Cont k) {
 template<typename T>
 inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes = proj_IntV(args.at(1));
-  auto emptyMem = List<PtrVal>(bytes, nullptr);
+  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   state.heap_append(emptyMem);
   if (!is_LocV_null(args.at(0))) {
@@ -206,6 +228,236 @@ inline std::monostate llvm_memset(SS& state, List<PtrVal> args, Cont k) {
   return __llvm_memset<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
+class ShadowMemEntry {
+  private:
+  char* buf = nullptr;
+  public:
+  size_t size;
+  PtrVal mem_addr;
+  ShadowMemEntry(PtrVal addr, size_t size) {
+    ASSERT(std::dynamic_pointer_cast<LocV>(addr) != nullptr, "Non-location value");
+    this->buf = (char*) malloc(size+1);
+    memset(this->buf, 0, size+1);
+    this->mem_addr = addr;
+    this->size = size;
+  }
+  ~ShadowMemEntry() {
+    free(buf);
+  }
+  void writeback(SS& state) {
+    for (int i = 0; i < size; i++) {
+      state.update(mem_addr + i, make_IntV(buf[i], 8));
+    }
+    // Todo: Check whether this writeback will break the memory layout.
+  }
+  void readbuf(SS& state) {
+    for (int i = 0; i < size; ) {
+      auto val = state.at(mem_addr + i);
+      if (val) {
+        if (std::dynamic_pointer_cast<ShadowV>(val)) {
+          ABORT("unhandled ptrval: shadowv");
+        }
+        auto bytes = val->to_bytes();
+        int bytes_num = bytes.size();
+        ASSERT(bytes_num > 0, "Invalid bytes");
+        for (int j=0; j<bytes_num; j++) {
+          buf[i+j] = (char) get_int_arg(state, bytes.at(j));
+        }
+        i = i + bytes_num;
+      } else {
+        buf[i] = '\0';
+        i = i + 1;
+      }
+    }
+  }
+  char* getbuf() {
+    return buf;
+  }
+};
+
+template<typename T>
+inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  PtrVal x = args.at(0);
+  auto x_i = std::dynamic_pointer_cast<IntV>(x);
+  ASSERT(x_i && (64 == x_i->bw), "syscall's argument must be concrete and must be long (i64)!");
+  long syscall_number = x_i->as_signed();
+  long retval = -1;
+
+  switch (syscall_number) {
+    case __NR_read: {
+      int fd = get_int_arg(state, args.at(1));
+      ASSERT(0 == fd, "syscall read can only read from stdin, other fd should use pread64\n");
+      size_t count = get_int_arg(state, args.at(3));
+      ShadowMemEntry temp(args.at(2), count);
+      retval = syscall(__NR_read, fd, temp.getbuf(), count);
+      if (retval >= 0) temp.writeback(state);
+      break;
+    }
+    case __NR_write: {
+      int fd = get_int_arg(state, args.at(1));
+      ASSERT((1 == fd) || (2 == fd) ,"syscall write can only write to stdout and stderr, other fd should use pwrite64\n");
+      size_t count = get_int_arg(state, args.at(3));
+      ShadowMemEntry temp(args.at(2), count);
+      temp.readbuf(state);
+      retval = syscall(__NR_write, fd, temp.getbuf(), count);
+      break;
+    }
+    case __NR_open: {
+      ASSERT(3 == args.size() || 4 == args.size(), "open has 2 or 3 arguments");
+      mode_t mode = 4 == args.size() ? get_int_arg(state, args.at(3)) : 0;
+      int flags = get_int_arg(state, args.at(2));
+      std::string pathname = get_string_arg(state, args.at(1));
+      //std::cout << "pathname: " << pathname << " flags: " << flags << " mode: " << mode << std::endl;
+      retval = syscall(__NR_open, pathname.c_str(), flags, mode);
+      break;
+    }
+    case __NR_close: {
+      int fd = get_int_arg(state, args.at(1));
+      retval = syscall(__NR_close, fd);
+      break;
+    }
+    case __NR_stat: {
+      std::string pathname = get_string_arg(state, args.at(1));
+      size_t count = sizeof(struct stat64);
+      ShadowMemEntry temp(args.at(2), count);
+      retval = syscall(__NR_stat, pathname.c_str(), temp.getbuf());
+      if (retval >= 0) temp.writeback(state);
+      break;
+    }
+    case __NR_fstat: {
+      int fd = get_int_arg(state, args.at(1));
+      size_t count = sizeof(struct stat64);
+      ShadowMemEntry temp(args.at(2), count);
+      retval = syscall(__NR_fstat, fd, temp.getbuf());
+      if (retval >= 0) temp.writeback(state);
+      break;
+    }
+    case __NR_lstat: {
+      std::string pathname = get_string_arg(state, args.at(1));
+      size_t count = sizeof(struct stat64);
+      ShadowMemEntry temp(args.at(2), count);
+      retval = syscall(__NR_lstat, pathname.c_str(), temp.getbuf());
+      if (retval >= 0) temp.writeback(state);
+      break;
+    }
+    case __NR_lseek: {
+      int fd = get_int_arg(state, args.at(1));
+      off64_t offset = get_int_arg(state, args.at(2));
+      int whence = get_int_arg(state, args.at(3));
+      retval = syscall(__NR_lseek, fd, offset, whence);
+      break;
+    }
+    case __NR_ioctl: {
+      int fd = get_int_arg(state, args.at(1));
+      unsigned long request = get_int_arg(state, args.at(2));
+      auto buf = std::dynamic_pointer_cast<LocV>(args.at(3));
+      size_t count = buf->size - (buf->l - buf->base);
+      ShadowMemEntry temp(buf, count);
+      retval = syscall(__NR_ioctl, fd, request, temp.getbuf());
+      //std::cout << "ioctl: " << " fd: " << fd << " request: " << request << " buf: " << std::string(temp.getbuf()) << " count: " << count << " result: " << retval << std::endl;
+      if (retval >= 0) temp.writeback(state);
+      break;
+    }
+    case __NR_pread64: {
+      int fd = get_int_arg(state, args.at(1));
+      ASSERT(fd > 2, "can not call pread/pwrite on stdin, stdout and stderr\n");
+      size_t count = get_int_arg(state, args.at(3));
+      off64_t offset = get_int_arg(state, args.at(4));
+      ShadowMemEntry temp(args.at(2), count);
+      //std::cout << "pread: " << " fd: " << fd << " buf: " << std::string(temp.getbuf()) << " count: " << count << " offset: " << offset << std::endl;
+      retval = syscall(__NR_pread64, fd, temp.getbuf(), count, offset);
+      if (retval >= 0) temp.writeback(state);
+      break;
+    }
+    case __NR_pwrite64: {
+      int fd = get_int_arg(state, args.at(1));
+      ASSERT(fd > 2, "can not call pread/pwrite on stdin, stdout and stderr\n");
+      size_t count = get_int_arg(state, args.at(3));
+      off64_t offset = get_int_arg(state, args.at(4));
+      ShadowMemEntry temp(args.at(2), count);
+      temp.readbuf(state);
+      //std::cout << "pwrite: " << " fd: " << fd << " buf: " << std::string(temp.getbuf()) << " count: " << count << " offset: " << offset << std::endl;
+      retval = syscall(__NR_pwrite64, fd, temp.getbuf(), count, offset);
+      break;
+    }
+    case __NR_access:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_select:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_fcntl:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_fsync:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_ftruncate:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_getcwd:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_chdir:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_fchdir:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_readlink:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_chmod:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_fchmod:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_chown:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_fchown:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_statfs:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_fstatfs:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_getdents64:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_utimes:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_openat:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_futimesat:
+      ABORT("Unsupported Systemcall");
+      break;
+    case __NR_newfstatat:
+      ABORT("Unsupported Systemcall");
+      break;
+    default:
+      ABORT("Unsupported Systemcall");
+      break;
+  }
+
+  //std::cout << "syscall_num: " << syscall_number << "  retval: " << retval << std::endl;
+
+  return k(state, make_IntV(retval, 64));
+}
+
+inline List<SSVal> syscall(SS& state, List<PtrVal> args) {
+  return __syscall<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate syscall(SS& state, List<PtrVal> args, Cont k) {
+  return __syscall<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
 /******************************************************************************/
 
 // FIXME: vaargs and refactor
@@ -227,7 +479,6 @@ template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  PtrVal va_arg = state.vararg_loc();
   for (int i = 0; i<24; i++) {
     state.update(va_list + i, nullptr);
   }

@@ -10,7 +10,7 @@ class PC;
 using PtrVal = std::shared_ptr<Value>;
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
 inline PtrVal make_IntV(IntData i, int bw=default_bw, bool toMSB=true);
-inline std::pair<bool, UIntData> get_value(PC pc, PtrVal v);
+inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
 
 /* Value representations */
 
@@ -103,6 +103,12 @@ struct std::equal_to<immer::flex_vector<PtrVal>> {
     return true;
   }
 };
+
+// Uninitialized value
+inline PtrVal make_UinitV() {
+  static PtrVal UinitV = make_IntV(0, 8);
+  return UinitV;
+}
 
 struct ShadowV : public Value {
   int8_t offset;
@@ -198,11 +204,7 @@ inline IntData proj_IntV(const PtrVal& v) {
   return std::dynamic_pointer_cast<IntV>(v)->as_signed();
 }
 
-inline char proj_IntV_char(const PtrVal& v) {
-  std::shared_ptr<IntV> intV = v->to_IntV();
-  ASSERT(intV->get_bw() == 8, "proj_IntV_char: Bitwidth mismatch");
-  return static_cast<char>(proj_IntV(intV));
-}
+
 
 struct FloatV : Value {
   long double f;
@@ -323,8 +325,11 @@ inline PtrVal make_LocV_null() {
   return loc0;
 }
 
+// a null locv can be any IntV(0)
 inline bool is_LocV_null(const PtrVal& v) {
-  return v == make_LocV_null();
+  auto int_v = std::dynamic_pointer_cast<IntV>(v);
+  ASSERT(int_v && 64 == int_v->bw, "Bad pointer");
+  return (0 == int_v->i);
 }
 
 // FunV types:

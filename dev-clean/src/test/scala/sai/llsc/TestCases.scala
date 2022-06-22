@@ -122,6 +122,7 @@ object TestCases {
     TestPrg(assertTest, "assertTest", "@main", noArg, noOpt, minPath(3)),
     TestPrg(assertfixTest, "assertfix", "@main", noArg, noOpt, nPath(4)),
     TestPrg(assumeTest, "assumeTest", "@main", noArg, noOpt, nPath(1)++status(0)),
+    TestPrg(getValue, "getValue", "@main", noArg, noOpt, nPath(1)++status(0)),
   )
 
   val filesys: List[TestPrg] = List(

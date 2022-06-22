@@ -2,6 +2,7 @@
 #define LLSC_CLIENT_HEADERS
 
 #include <stdio.h>
+#include "stdint.h"
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -67,6 +68,12 @@ static inline void llsc_warning(const char *message) {
 }
 
 #define llsc_warning_once(message) llsc_warning(message)
+
+/* return whether n is a symbolic value */
+unsigned llsc_is_symbolic(uintptr_t n);
+
+/* return a feasible concrete value of expr */
+long llsc_get_valuel(long expr);
 
 /* Support for runing test-comp examples */
 
