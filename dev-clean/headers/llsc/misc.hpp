@@ -5,7 +5,7 @@ inline void prelude(int argc, char** argv) {
   inc_stack(STACKSIZE_128MB);
   init_rand();
   handle_cli_args(argc, argv);
-  get_checker().init_solvers();
+  init_solvers();
   cov().start_monitor();
 }
 

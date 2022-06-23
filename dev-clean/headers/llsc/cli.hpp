@@ -11,6 +11,7 @@ static struct option long_options[] =
   /* These options set a flag. */
   {"help",                 no_argument,       0, 'h'},
   {"exlib-failure-branch", no_argument,       0, 'f'},
+  {"no-hash-cons",         no_argument,       0, 'H'},
   {"no-obj-cache",         no_argument,       0, 'O'},
   {"no-cex-cache",         no_argument,       0, 'C'},
   {"cons-indep",           no_argument,       0, 'i'},
@@ -78,6 +79,8 @@ inline void handle_cli_args(int argc, char** argv) {
       case 'f':
         exlib_failure_branch = true;
         break;
+      case 'H':
+        use_hashcons = false;
       case 'O':
         use_objcache = false;
       case 'C':
@@ -145,8 +148,6 @@ inline void handle_cli_args(int argc, char** argv) {
     tp.init(n_thread, n_queue);
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
   }
-  use_objcache = use_objcache && use_global_solver;
-  use_cexcache = use_cexcache && use_global_solver;
   INFO(initial_fs);
 }
 

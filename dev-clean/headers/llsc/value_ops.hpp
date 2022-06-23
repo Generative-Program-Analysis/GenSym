@@ -104,6 +104,13 @@ struct std::equal_to<immer::flex_vector<PtrVal>> {
   }
 };
 
+inline phmap::parallel_flat_hash_set<PtrVal,
+    std::hash<PtrVal>,
+    std::equal_to<PtrVal>,
+    std::allocator<PtrVal>,
+    4,
+    std::mutex> objpool;
+
 // Uninitialized value
 inline PtrVal make_UinitV() {
   static PtrVal UinitV = make_IntV(0, 8);
@@ -196,7 +203,10 @@ struct IntV : Value {
 };
 
 inline PtrVal make_IntV(IntData i, int bw, bool toMSB) {
-  return std::make_shared<IntV>(toMSB ? (i << (addr_bw - bw)) : i, bw);
+  auto ret = std::make_shared<IntV>(toMSB ? (i << (addr_bw - bw)) : i, bw);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline IntData proj_IntV(const PtrVal& v) {
@@ -238,11 +248,17 @@ struct FloatV : Value {
 };
 
 inline PtrVal make_FloatV(long double f) {
-  return std::make_shared<FloatV>(f);
+  auto ret = std::make_shared<FloatV>(f);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline PtrVal make_FloatV(long double f, size_t bw) {
-  return std::make_shared<FloatV>(f, bw);
+  auto ret = std::make_shared<FloatV>(f, bw);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline PtrVal make_FloatV_fp80(std::array<unsigned char, 10> buf) {
@@ -307,7 +323,10 @@ struct LocV : IntV {
 };
 
 inline PtrVal make_LocV(Addr base, LocV::Kind k, size_t size, size_t off = 0) {
-  return std::make_shared<LocV>(base, k, size, off);
+  auto ret = std::make_shared<LocV>(base, k, size, off);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline unsigned int proj_LocV(const PtrVal& v) {
@@ -447,11 +466,17 @@ inline std::map<size_t, PtrVal> symv_cache;
 */
 
 inline PtrVal make_SymV(const String& n) {
-  return std::make_shared<SymV>(n, default_bw);
+  auto ret = std::make_shared<SymV>(n, default_bw);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline PtrVal make_SymV(String n, size_t bw) {
-  return std::make_shared<SymV>(n, bw);
+  auto ret = std::make_shared<SymV>(n, bw);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline PtrVal make_SymV(iOP rator, List<PtrVal> rands, size_t bw) {
@@ -459,7 +484,10 @@ inline PtrVal make_SymV(iOP rator, List<PtrVal> rands, size_t bw) {
   // if (s) {
   //   return s;
   // }
-  return std::make_shared<SymV>(rator, std::move(rands), bw);
+  auto ret = std::make_shared<SymV>(rator, std::move(rands), bw);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
 }
 
 inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, size_t bw) {

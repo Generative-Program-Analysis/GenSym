@@ -50,6 +50,8 @@ inline unsigned int n_queue = 1;
 inline bool use_solver = true;
 // Indicates if there is only one solver instance
 inline bool use_global_solver = false;
+// Use hash consing or not
+inline bool use_hashcons = true;
 // Use object caching or not
 inline bool use_objcache = true;
 // Use counterexample caching or not

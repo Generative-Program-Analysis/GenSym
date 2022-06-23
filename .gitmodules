@@ -20,3 +20,8 @@
   branch = z3-4.8.12
   url = https://github.com/Z3Prover/z3
   ignore = dirty
+
+[submodule "third-party/parallel-hashmap"]
+  path = third-party/parallel-hashmap
+  url = https://github.com/greg7mdp/parallel-hashmap.git
+  ignore = dirty
