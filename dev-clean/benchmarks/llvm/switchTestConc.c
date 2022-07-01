@@ -1,20 +1,21 @@
+#include <assert.h>
 int main() {
   int a = 3;
   switch (a) {
     case 1:
-      assert();
+      assert(1);
       break;
     case 2:
-      assert();
+      assert(1);
       break;
     case 3:
-      assert();
+      assert(1);
       break;
     case 4:
-      assert();
+      assert(1);
       break;
     default:
-      assert();
+      assert(1);
       break;
   }
 }

@@ -239,6 +239,49 @@ inline std::monostate llvm_memset(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
+inline SS copy_native2state(SS state, PtrVal ptr, char* buf, int size) {
+  ASSERT(buf && size > 0, "Invalid native buffer");
+  SS res = state;
+  for (int i = 0; i < size; ) {
+    auto old_val = state.at(ptr + i);
+    if (old_val) {
+      if (std::dynamic_pointer_cast<ShadowV>(old_val) || std::dynamic_pointer_cast<LocV>(old_val)) {
+        ABORT("unhandled ptrval: shadowv && LocV");
+      }
+      auto bytes_num = old_val->get_byte_size();
+      ASSERT(bytes_num > 0, "Invalid bytes");
+      // All bytes must be concrete IntV
+      if (std::dynamic_pointer_cast<SymV>(old_val)) {
+        // Todo: should we overwrite symbolic variables?
+        i = i + bytes_num;
+      } else {
+        for (int j=0; j<bytes_num; j++) {
+          res = res.update(ptr + i, make_IntV(buf[i], 8));
+          i++;
+          if (i >= size)
+            break;
+        }
+      }
+    } else {
+      res = res.update(ptr + i, make_IntV(buf[i], 8));
+      i++;
+    }
+  }
+  return res;
+}
+
+inline SS writeback_pointer_arg(SS state, PtrVal loc, void* buf) {
+  if (is_LocV_null(loc)) {
+    ASSERT(nullptr == buf, "allocate memory for null locv");
+    return state;
+  }
+  ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
+  size_t count = get_pointer_realsize(loc);
+  SS res = copy_native2state(state, loc, (char*)buf, count);
+  free(buf);
+  return res;
+}
+
 class ShadowMemEntry {
   private:
   char* buf = nullptr;
@@ -256,33 +299,10 @@ class ShadowMemEntry {
     free(buf);
   }
   SS writeback(SS& state) {
-    SS res = state;
-    for (int i = 0; i < size; i++) {
-      res = res.update(mem_addr + i, make_IntV(buf[i], 8));
-    }
-    // Todo: Check whether this writeback will break the memory layout.
-    return res;
+    return copy_native2state(state, mem_addr, buf, size);
   }
   void readbuf(SS state) {
-    for (int i = 0; i < size; ) {
-      auto val = state.at(mem_addr + i);
-      if (val) {
-        if (std::dynamic_pointer_cast<ShadowV>(val)) {
-          ABORT("unhandled ptrval: shadowv");
-        }
-        auto bytes = val->to_bytes();
-        int bytes_num = bytes.size();
-        ASSERT(bytes_num > 0, "Invalid bytes");
-        // All bytes must be concrete IntV
-        for (int j=0; j<bytes_num; j++) {
-          buf[i+j] = (char) get_int_arg(state, bytes.at(j));
-        }
-        i = i + bytes_num;
-      } else {
-        buf[i] = '\0';
-        i = i + 1;
-      }
-    }
+    copy_state2native(state, mem_addr, buf, size);
   }
   char* getbuf() {
     return buf;

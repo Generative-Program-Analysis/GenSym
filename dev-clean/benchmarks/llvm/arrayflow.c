@@ -8,7 +8,7 @@ int main() {
         printf("overflow!\n");
     }
     else {
-        printf("encoded to: %c", mapping[idx]);
+        printf("encoded to: %c\n", mapping[idx]);
     }
     return 0;
 }

@@ -218,4 +218,5 @@ trait SAIOps extends Base
     k(closefun, m)
   }
 
+  def rep_cast[X:Manifest,Y:Manifest](x: Rep[X])(implicit __pos: SourceContext) : Rep[Y] =  Wrap[Y](Adapter.g.reflect("cast", Unwrap(x), Backend.Const(manifest[Y])))
 }

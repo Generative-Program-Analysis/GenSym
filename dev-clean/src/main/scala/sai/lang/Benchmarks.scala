@@ -91,6 +91,8 @@ object Benchmarks {
   lazy val chmodTest = parseFile("benchmarks/external_lib/chmod.ll")
   lazy val assumeTest = parseFile("benchmarks/external_lib/assume.ll")
 
+  lazy val printfTest = parseFile("benchmarks/external_lib/printf.ll")
+
   lazy val kleefsminiTest = parseFile("benchmarks/external_lib/klee_fs_mini.ll")
   lazy val kleefsminiPackedTest = parseFile("benchmarks/external_lib/klee_fs_mini_packed.ll")
   lazy val kleefsglobalTest = parseFile("benchmarks/external_lib/klee_fs_mini_global.ll")

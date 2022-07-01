@@ -116,6 +116,11 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
 
     def getFs: Rep[FS] = "ss-get-fs".reflectCtrlWith[FS](ss)
     def setFs(fs: Rep[FS]): Unit = "ss-set-fs".reflectCtrlWith[FS](ss, fs)
+
+    def getIntArg(x : Rep[Value]): Rep[Long] = "ss-get-int-arg".reflectWith[Long](ss, x)
+    def getFloatArg(x : Rep[Value]): Rep[Double] = "ss-get-float-arg".reflectWith[Double](ss, x)
+    def getPointerArg(x : Rep[Value]): Rep[CppAddr] = "ss-get-pointer-arg".reflectWith[CppAddr](ss, x)
+    def writebackPointerArg(res: Rep[Any], addr:Rep[Value], x: Rep[CppAddr]): Rep[SS] = "ss-writeback-pointer-arg".reflectWith[SS](ss, res, addr, x)
   }
 
   implicit class SSOpsOpt(ss: Rep[SS]) extends SSOps(ss) {
@@ -169,4 +174,6 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
   def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
   def initializeArg: Comp[E, Rep[Unit]] = updateState(_.updateArg)
   def initializeErrorLoc: Comp[E, Rep[Unit]] = updateState(_.updateErrorLoc)
+
+  def writebackPointerArg(res: Rep[Any], addr: Rep[Value], x: Rep[CppAddr]): Comp[E, Rep[Unit]] = updateState(_.writebackPointerArg(res, addr, x))
 }

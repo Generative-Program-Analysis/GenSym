@@ -165,7 +165,7 @@ public:
   }
 
   // interfaces
-  
+
   virtual bool check_pc(PC pc) override {
     if (!use_solver) return true;
     br_query_num++;

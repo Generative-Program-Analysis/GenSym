@@ -311,14 +311,16 @@ struct LocV : IntV {
 
   std::string toString() const override {
     std::ostringstream ss;
-    ss << "LocV(" << l << ", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
+    ss << "LocV(l:" << l << ", " << "base:" <<base <<", size:" << size <<", " << std::string(k == kStack ? "kStack" : "kHeap") << ")";
     return ss.str();
   }
 
   virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->l != that->l) return false;
-    return this->k == that->k;
+    if (this->k != that->k) return false;
+    if (this->base != that->base) return false;
+    return this->size == that->size;
   }
 };
 
@@ -349,6 +351,13 @@ inline bool is_LocV_null(const PtrVal& v) {
   auto int_v = std::dynamic_pointer_cast<IntV>(v);
   ASSERT(int_v && 64 == int_v->bw, "Bad pointer");
   return (0 == int_v->i);
+}
+
+inline size_t get_pointer_realsize(const PtrVal& v) {
+  auto loc = std::dynamic_pointer_cast<LocV>(v);
+  ASSERT((loc->l >= loc->base) && (loc->l < (loc->base + loc->size)), "Out of bound pointer");
+  size_t count = loc->size - (loc->l - loc->base);
+  return count;
 }
 
 // FunV types:

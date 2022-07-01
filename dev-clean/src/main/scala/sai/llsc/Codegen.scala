@@ -134,6 +134,11 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-set-fs", List(ss, fs), _) => es"$ss.set_fs($fs)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
 
+    case Node(s, "ss-get-int-arg", List(ss, x), _) => es"get_int_arg($ss, $x)"
+    case Node(s, "ss-get-float-arg", List(ss, x), _) => es"get_float_arg($ss, $x)"
+    case Node(s, "ss-get-pointer-arg", List(ss, x), _) => es"get_pointer_arg($ss, $x)"
+    case Node(s, "ss-writeback-pointer-arg", List(ss, res, addr, x), _) => es"writeback_pointer_arg($ss, $addr, $x)"
+
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTNeg", List(v), _) => es"SymV::neg($v)"
     case Node(s, "ValPtr-deref", List(v), _) => es"*$v"

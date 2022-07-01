@@ -228,6 +228,45 @@ inline std::monostate llvm_memset(SS& state, List<PtrVal> args, Cont k) {
   return __llvm_memset<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
+inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
+  ASSERT(buf && size > 0, "Invalid native buffer");
+  for (int i = 0; i < size; ) {
+    auto old_val = state.at(ptr + i);
+    if (old_val) {
+      if (std::dynamic_pointer_cast<ShadowV>(old_val) || std::dynamic_pointer_cast<LocV>(old_val)) {
+        ABORT("unhandled ptrval: shadowv && LocV");
+      }
+      auto bytes_num = old_val->get_byte_size();
+      ASSERT(bytes_num > 0, "Invalid bytes");
+      // Do not over-write symbolic variable
+      if (std::dynamic_pointer_cast<SymV>(old_val)) {
+        i = i + bytes_num;
+      } else {
+        for (int j=0; j<bytes_num; j++) {
+          state.update(ptr + i, make_IntV(buf[i], 8));
+          i++;
+          if (i >= size)
+            break;
+        }
+      }
+    } else {
+      state.update(ptr + i, make_IntV(buf[i], 8));
+      i++;
+    }
+  }
+}
+
+inline void writeback_pointer_arg(SS& state, PtrVal loc, void* buf) {
+  if (is_LocV_null(loc)) {
+    ASSERT(nullptr == buf, "allocate memory for null locv");
+    return;
+  }
+  ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
+  size_t count = get_pointer_realsize(loc);
+  copy_native2state(state, loc, (char*)buf, count);
+  free(buf);
+}
+
 class ShadowMemEntry {
   private:
   char* buf = nullptr;
@@ -245,30 +284,10 @@ class ShadowMemEntry {
     free(buf);
   }
   void writeback(SS& state) {
-    for (int i = 0; i < size; i++) {
-      state.update(mem_addr + i, make_IntV(buf[i], 8));
-    }
-    // Todo: Check whether this writeback will break the memory layout.
+    copy_native2state(state, mem_addr, buf, size);
   }
   void readbuf(SS& state) {
-    for (int i = 0; i < size; ) {
-      auto val = state.at(mem_addr + i);
-      if (val) {
-        if (std::dynamic_pointer_cast<ShadowV>(val)) {
-          ABORT("unhandled ptrval: shadowv");
-        }
-        auto bytes = val->to_bytes();
-        int bytes_num = bytes.size();
-        ASSERT(bytes_num > 0, "Invalid bytes");
-        for (int j=0; j<bytes_num; j++) {
-          buf[i+j] = (char) get_int_arg(state, bytes.at(j));
-        }
-        i = i + bytes_num;
-      } else {
-        buf[i] = '\0';
-        i = i + 1;
-      }
-    }
+    copy_state2native(state, mem_addr, buf, size);
   }
   char* getbuf() {
     return buf;

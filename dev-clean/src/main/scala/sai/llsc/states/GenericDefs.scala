@@ -39,10 +39,40 @@ trait BasicDefs { self: SAIOps =>
   lazy val gNode = Adapter.g.Def
   type bExp = Backend.Exp
 
+  type CppAddr = Array[Char]
+
   def initState: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
   def initState(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
   def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
+
+  def getPrimitiveTypeManifest(vt: LLVMType): Manifest[_] = vt match {
+    case IntType(1) => manifest[Boolean]
+    case IntType(8) => manifest[Char]
+    case IntType(16) => manifest[Short]
+    case IntType(32) => manifest[Int]
+    case IntType(64) => manifest[Long]
+    case FloatType(FK_Float) => manifest[Float]
+    case FloatType(FK_Double) => manifest[Double]
+    case PtrType(IntType(1), addrSpace) => manifest[Array[Boolean]]
+    case PtrType(IntType(8), addrSpace) => manifest[Array[Char]]
+    case PtrType(IntType(16), addrSpace) => manifest[Array[Short]]
+    case PtrType(IntType(32), addrSpace) => manifest[Array[Int]]
+    case PtrType(IntType(64), addrSpace) => manifest[Array[Long]]
+    case _ => ???
+  }
+
+  def getPrimitiveTypeName(vt: LLVMType): String = vt match {
+    case IntType(1) => "bool"
+    case IntType(8) => "char"
+    case IntType(16) => "short"
+    case IntType(32) => "int"
+    case IntType(64) => "long"
+    case FloatType(FK_Float) => "float"
+    case FloatType(FK_Double) => "double"
+    case PtrType(ty, addrSpace) => "pointer"
+    case _ => ???
+  }
 }
 
 object BlockCounter {
@@ -79,6 +109,21 @@ trait Coverage { self: SAIOps =>
 }
 
 trait Opaques { self: SAIOps with BasicDefs =>
+  object NativeExternalFun {
+    private val used = MutableSet[String]()
+    def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
+      if (!used.contains(f)) {
+        System.out.println(s"Use native function $f.")
+        used.add(f)
+      }
+      "llsc-native-external-wrapper".reflectWith[Value](f, ret)
+    }
+    def unapply(v: Rep[Value]): Option[(String, Option[LLVMType])] = Unwrap(v) match {
+      case gNode("llsc-native-external-wrapper", bConst(f: String)::bConst(ret: Option[LLVMType])::Nil) => Some((f, ret))
+      case _ => None
+    }
+  }
+
   object ExternalFun {
     private val warned = MutableSet[String]()
     private val used = MutableSet[String]()
@@ -87,12 +132,13 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
       "stop", "syscall", "llsc_assume",
-      "__errno_location", "_exit", "abort", "calloc", "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign"
+      "__errno_location", "_exit", "exit", "abort", "calloc", "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign"
     )
     private val syscalls = MutableSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown"
     )
     val rederict = scala.collection.immutable.Set[String]("@memcpy", "@memset", "@memmove")
+    val unsafeExternals = MutableSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {
         System.out.println(s"Use external function $f.")
@@ -104,25 +150,25 @@ trait Opaques { self: SAIOps with BasicDefs =>
       case gNode("llsc-external-wrapper", bConst(f: String)::bConst(ret: Option[LLVMType])::Nil) => Some((f, ret))
       case _ => None
     }
-    def get(id: String, ret: Option[LLVMType] = None): Rep[Value] =
-      if (modeled.contains(id.tail)) ExternalFun(id.tail)
-      else if (syscalls.contains(id.tail)) ExternalFun(s"syscall_${id.tail}")
-      else if (id.startsWith("@llvm.va_start")) ExternalFun("llvm_va_start")
-      else if (id.startsWith("@llvm.va_end")) ExternalFun("llvm_va_end")
-      else if (id.startsWith("@llvm.va_copy")) ExternalFun("llvm_va_copy")
-      else if (id.startsWith("@llvm.memcpy")) ExternalFun("llvm_memcpy")
-      else if (id.startsWith("@llvm.memset")) ExternalFun("llvm_memset")
-      else if (id.startsWith("@llvm.memmove")) ExternalFun("llvm_memmove")
-      else if (id.startsWith("@memcpy")) ExternalFun("llvm_memcpy")
-      else if (id.startsWith("@memset")) ExternalFun("llvm_memset")
-      else if (id.startsWith("@memmove")) ExternalFun("llvm_memmove")
-      else {
+    def get(id: String, ret: Option[LLVMType] = None, argTypes: Option[List[LLVMType]]): Option[Rep[Value]] =
+      if (modeled.contains(id.tail)) Some(ExternalFun(id.tail))
+      else if (syscalls.contains(id.tail)) Some(ExternalFun(s"syscall_${id.tail}"))
+      else if (id.startsWith("@llvm.va_start")) Some(ExternalFun("llvm_va_start"))
+      else if (id.startsWith("@llvm.va_end")) Some(ExternalFun("llvm_va_end"))
+      else if (id.startsWith("@llvm.va_copy")) Some(ExternalFun("llvm_va_copy"))
+      else if (id.startsWith("@llvm.memcpy")) Some(ExternalFun("llvm_memcpy"))
+      else if (id.startsWith("@llvm.memset")) Some(ExternalFun("llvm_memset"))
+      else if (id.startsWith("@llvm.memmove")) Some(ExternalFun("llvm_memmove"))
+      else if (id == "@memcpy") Some(ExternalFun("llvm_memcpy"))
+      else if (id == "@memset") Some(ExternalFun("llvm_memset"))
+      else if (id == "@memmove") Some(ExternalFun("llvm_memmove"))
+      else if (unsafeExternals.contains(id.tail) || id.startsWith("@llvm.")) {
         if (!warned.contains(id)) {
-          System.out.println(s"External function ${id.tail} is treated as a noop.")
+          System.out.println(s"Unsafe External function ${id.tail} is treated as a noop.")
           warned.add(id)
         }
-        ExternalFun("noop", ret)
-      }
+        Some(ExternalFun("noop", ret))
+      } else None // Will be executed natively
   }
 }
 
@@ -332,6 +378,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
+
+    def applyNative[A:Manifest](args: List[Rep[Any]]): Rep[A] = {
+      v match {
+        case NativeExternalFun(f, ty) =>
+          f.reflectWriteWith[A](args:_*)(Adapter.CTRL)
+        case _ => ???
+      }
+    }
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 

@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
 
 int main()
 {
@@ -40,6 +41,7 @@ int main()
   off = klee_lseek(fd2, 0 ,SEEK_SET);
   assert(0 == off);
   print_string("write and lseek successful\n");
+  memset(buf1, 0, 5);
   res = klee_read(fd2, buf1, 4);
   assert(4 == res);
   print_string("new buf1 after read from fd2:\n");

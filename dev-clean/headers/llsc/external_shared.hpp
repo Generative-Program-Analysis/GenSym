@@ -58,6 +58,7 @@ inline std::string get_string_at(PtrVal ptr, SS& state) {
 
 inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto x_i = std::dynamic_pointer_cast<IntV>(x);
+  // Todo: add this concretization tp path constraints
   if (x_i) {
     return x_i->as_signed();
   } else {
@@ -67,6 +68,12 @@ inline UIntData get_int_arg(SS& state, PtrVal x) {
     ASSERT(res.first, "Un-feasible path");
     return res.second;
   }
+}
+
+inline double get_float_arg(SS& state, PtrVal x) {
+  auto x_f = std::dynamic_pointer_cast<FloatV>(x);
+  ASSERT(x_f, "getting Non-FloatV");
+  return (double)x_f->f;
 }
 
 inline std::string get_string_arg(SS& state, PtrVal ptr) {
@@ -79,6 +86,42 @@ inline std::string get_string_arg(SS& state, PtrVal ptr) {
     c = get_int_arg(state, state.at(ptr)); // c = *ptr
   }
   return name;
+}
+
+inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
+  ASSERT(buf && size > 0, "Invalid native buffer");
+  for (int i = 0; i < size; ) {
+    auto val = state.at(ptr + i);
+    if (val) {
+      if (std::dynamic_pointer_cast<ShadowV>(val) || std::dynamic_pointer_cast<LocV>(val)) {
+        ABORT("unhandled ptrval: shadowv && LocV");
+      }
+      auto bytes = val->to_bytes();
+      int bytes_num = bytes.size();
+      ASSERT(bytes_num > 0, "Invalid bytes");
+      // All bytes must be concrete IntV
+      for (int j=0; j<bytes_num; j++) {
+        buf[i] = (char) get_int_arg(state, bytes.at(j));
+        i++;
+        if (i >= size)
+          break;
+      }
+    } else {
+      buf[i] = '\0';
+      i++;
+    }
+  }
+}
+
+inline char * get_pointer_arg(SS& state, PtrVal loc) {
+  if (is_LocV_null(loc)) {
+    return nullptr;
+  }
+  ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
+  size_t count = get_pointer_realsize(loc);
+  char * buf = (char*)malloc(count);
+  copy_state2native(state, loc, buf, count);
+  return buf;
 }
 
 template<typename T>
@@ -243,6 +286,16 @@ inline List<SSVal> _exit(SS state, List<PtrVal> args) {
 }
 
 inline std::monostate _exit(SS state, List<PtrVal> args, Cont k) {
+  return stop(state, args, k);
+}
+
+/******************************************************************************/
+
+inline List<SSVal> exit(SS state, List<PtrVal> args) {
+  return stop(state, args);
+}
+
+inline std::monostate exit(SS state, List<PtrVal> args, Cont k) {
   return stop(state, args, k);
 }
 

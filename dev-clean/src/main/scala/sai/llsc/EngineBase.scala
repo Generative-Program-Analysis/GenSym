@@ -72,6 +72,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def repBlockFun(funName: String, b: BB): (BFTy, Int)
   def repFunFun(f: FunctionDef): (FFTy, Int)
+
+  // Todo: should we increase block coverage here?
+  def repMissingExternalFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
   def wrapFunV(f: FFTy): Rep[Value]
   def getRealFunctionName(funName: String): String = {
     val new_fname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
@@ -102,6 +105,58 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     FunFuns(f.id) = fn
   }
   def compile(funs: List[FunctionDef]): Unit = funs.foreach(compile)
+
+  abstract class highfunc[T, F[_], G[_]] {
+    def apply[A:Manifest](a: F[T]): G[A]
+  }
+
+  def applyWithManifestRes[T,F[_],G[+_]](m: Manifest[_], f : highfunc[T, F, G])(arg : F[T]): G[Any] = {
+    if (m == manifest[Boolean]) f[Boolean](arg)
+    else if (m == manifest[Char]) f[Char](arg)
+    else if (m == manifest[Int]) f[Int](arg)
+    else if (m == manifest[Long]) f[Long](arg)
+    else if (m == manifest[Float]) f[Float](arg)
+    else if (m == manifest[Double]) f[Double](arg)
+    else if (m == manifest[Array[Boolean]]) f[Array[Boolean]](arg)
+    else if (m == manifest[Array[Char]]) f[Array[Char]](arg)
+    else if (m == manifest[Array[Short]]) f[Array[Short]](arg)
+    else if (m == manifest[Array[Int]]) f[Array[Int]](arg)
+    else if (m == manifest[Array[Long]]) f[Array[Long]](arg)
+    else ???
+  }
+
+  abstract class highfuncPoly[F[_], G[_]] {
+    def apply[T:Manifest, A:Manifest](a: F[T]): G[A]
+  }
+
+  def applyWithManifestRes[T:Manifest,F[_],G[+_]](m: Manifest[_], f : highfuncPoly[F, G])(arg : F[T]): G[Any] = {
+    val f_arg = new highfunc[T, F, G] {
+      def apply[A:Manifest](a: F[T]): G[A] = f[T, A](arg)
+    }
+    applyWithManifestRes[T, F, G](m, f_arg)(arg)
+  }
+
+  val poly_rep_cast = new highfuncPoly[Rep, Rep] {
+    def apply[T:Manifest, A:Manifest](arg: Rep[T]): Rep[A] = rep_cast[T, A](arg)
+  }
+
+  // For function that has Variable Arguments, we need to generate different template for different argument types.
+  def getMangledFunctionName(f: FunctionDecl, argTypes: List[LLVMType]): String = {
+    val has_vararg = f.header.params.contains(Vararg)
+    val mangled_name = if (!has_vararg) f.id else f.id + argTypes.map("_"+getPrimitiveTypeName(_)).mkString("")
+    mangled_name.replaceAllLiterally(".","_")
+  }
+
+  def compile_missing_external(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): Unit = {
+    val mangled_name = getMangledFunctionName(f, argTypes);
+    if (FunFuns.contains(mangled_name)) {
+      System.out.println(s"Warning: ignoring the re-generation of missing native external ${mangled_name}")
+      return
+    }
+    val (fn, n) = repMissingExternalFun(f, ret, argTypes)
+    funNameMap(n) = "__LLSC_NATIVE_EXTERNAL_"+mangled_name.tail
+    FunFuns(mangled_name) = fn
+  }
 
   val funMap: StaticMap[String, FunctionDef] = m.funcDefMap
   val funDeclMap: StaticMap[String, FunctionDecl] = m.funcDeclMap

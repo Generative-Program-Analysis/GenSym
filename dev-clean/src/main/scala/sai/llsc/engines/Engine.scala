@@ -38,7 +38,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
   }
 
-  def eval(v: LLVMValue, ty: LLVMType)(implicit funName: String): Comp[E, Rep[Value]] = {
+  def eval(v: LLVMValue, ty: LLVMType, argTypes: Option[List[LLVMType]] = None)(implicit funName: String): Comp[E, Rep[Value]] = {
     v match {
       case LocalId(x) =>
         for { ss <- getState } yield ss.lookup(funName + "_" + x)
@@ -62,15 +62,21 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case GlobalId(id) if funMap.contains(id) => {
         if (ExternalFun.rederict.contains(id)) {
           val t = funMap(id).header.returnType
-          ret(ExternalFun.get(id, Some(t)))
+          ret(ExternalFun.get(id, Some(t), argTypes).get)
         } else {
           if (!FunFuns.contains(id)) compile(funMap(id))
           ret(FunV[Id](FunFuns(id)))
         }
       }
-      case GlobalId(id) if funDeclMap.contains(id) =>
+      case GlobalId(id) if funDeclMap.contains(id) => {
         val t = funDeclMap(id).header.returnType
-        ret(ExternalFun.get(id, Some(t)))
+        val fv_option = ExternalFun.get(id, Some(t), argTypes)
+        val fv = if (fv_option.isEmpty) {
+          compile_missing_external(funDeclMap(id), t, argTypes.get)
+          FunV[Id](FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
+        } else fv_option.get
+        ret(fv)
+      }
       case GlobalId(id) if globalDefMap.contains(id) =>
         ret(heapEnv(id)())
       case GlobalId(id) if globalDeclMap.contains(id) =>
@@ -252,8 +258,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
-          fv <- eval(f, VoidType)
-          vs <- mapM2Tup(argValues)(argTypes)(eval)
+          fv <- eval(f, VoidType, Some(argTypes))
+          vs <- mapM2Tup(argValues)(argTypes)(eval(_, _, None))
           _ <- pushFrame
           s <- getState
           v <- reflect(fv[Id](s, List(vs:_*)))
@@ -433,8 +439,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           case TypedArg(ty, attrs, value) => ty
         }
         for {
-          fv <- eval(f, VoidType)
-          vs <- mapM2Tup(argValues)(argTypes)(eval)
+          fv <- eval(f, VoidType, Some(argTypes))
+          vs <- mapM2Tup(argValues)(argTypes)(eval(_, _, None))
           _ <- pushFrame
           s <- getState
           v <- reflect(fv[Id](s, List(vs:_*)))
@@ -492,6 +498,51 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       reify(ss)(m)
     }
     val fn: FFTy = topFun(runFun(_, _))
+    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
+    (fn, n)
+  }
+
+  override def repMissingExternalFun(f: FunctionDecl, ret_ty: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+    def generateNativeCall(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      info("running native function: " + f.id)
+      val native_args: List[Rep[Any]] = argTypes.zipWithIndex.map { case (ty, id) => {
+         ty match {
+          case PtrType(_, _) => applyWithManifestRes[CppAddr, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getPointerArg(args(id))) // Rep[CppAddr] -> char *
+          case IntType(size: Int) => applyWithManifestRes[Long, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getIntArg(args(id))) // Rep[Long] -> long
+          case FloatType(k: FloatKind) => applyWithManifestRes[Double, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getFloatArg(args(id))) // Rep[Double] -> double
+          case _ => ???
+        }
+      }}
+      val pointer_ids: List[Int] = argTypes.zipWithIndex.filter {
+        case (arg, id) => argTypes(id) match {
+          case PtrType(_, _) => true
+          case _ => false
+        }
+      }.map(_._2)
+
+      val fv = NativeExternalFun(f.id.tail, Some(ret_ty))
+
+      val ret_m = getPrimitiveTypeManifest(ret_ty)
+
+      val native_apply = new highfunc[Rep[Any], List, Rep] {
+        def apply[A:Manifest](args: List[Rep[Any]]): Rep[A] = fv.applyNative[A](args)
+      }
+
+      val m: Comp[E, Rep[Value]] = for {
+        native_res <- ret(applyWithManifestRes[Rep[Any], List, Rep](ret_m, native_apply)(native_args))
+        _ <- mapM(pointer_ids)(id => writebackPointerArg(native_res, args(id), native_args(id).asInstanceOf[Rep[CppAddr]]))
+      } yield {
+        ret_ty match {
+          case IntType(size: Int) => IntV(native_res.asInstanceOf[Rep[Long]], size)
+          case f : FloatType => FloatV(native_res.asInstanceOf[Rep[Double]], getFloatSize(f))
+          case _ => ???
+        }
+      }
+
+      reify(ss)(m)
+    }
+
+    val fn: FFTy = topFun(generateNativeCall(_, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
   }

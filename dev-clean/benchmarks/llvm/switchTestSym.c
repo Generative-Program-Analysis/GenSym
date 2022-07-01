@@ -1,4 +1,5 @@
 #include "../../headers/llsc_client.h"
+#include <assert.h>
 int main() {
   int a;
   make_symbolic(&a, 4);
@@ -6,31 +7,31 @@ int main() {
   llsc_assume(a < 8);
   switch (a) {
     case 1:
-      assert();
+      assert(1);
       break;
     case 2:
-      assert();
+      assert(1);
       break;
     case 3:
-      assert();
+      assert(1);
       break;
     case 4:
-      assert();
+      assert(1);
       break;
     case 5:
-      assert();
+      assert(1);
       break;
     case 6:
-      assert();
+      assert(1);
       break;
     case 7:
-      assert();
+      assert(1);
       break;
     case 8:
-      assert();
+      assert(1);
       break;
     default:
-      assert();
+      assert(1);
       break;
   }
 }
