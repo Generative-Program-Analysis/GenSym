@@ -40,7 +40,7 @@ object TestCases {
       TestPrg(parseFile(s"$prefix/mergesort.ll"), s"par${tn}_mergeSortTest", "@main", noArg, s"--thread=$tn", nPath(5040)),
       TestPrg(parseFile(s"$prefix/bubblesort.ll"), s"par${tn}_bubbleSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
       TestPrg(parseFile(s"$prefix/quicksort.ll"), s"par${tn}_quickSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
-      TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), s"par${tn}_mp1m", "@f", symArg(20), Seq(s"--solver=disable", "--thread=$tn"), nPath(1048576)),
+      TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), s"par${tn}_mp1m", "@f", symArg(20), Seq("--solver=disable", s"--thread=$tn"), nPath(1048576)),
     )
   }
 }
