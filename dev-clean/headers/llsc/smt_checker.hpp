@@ -211,15 +211,15 @@ public:
 
 class CheckerManager {
 public:
-  std::map<std::thread::id, std::shared_ptr<Checker>> checker_map;
+  std::map<std::thread::id, std::unique_ptr<Checker>> checker_map;
 
   void init_checkers() {
     auto fun = [this](auto id) {
       if (solver_kind == SolverKind::z3) {
-        checker_map[id] = std::make_shared<CheckerZ3>();
+        checker_map[id] = std::make_unique<CheckerZ3>();
       }
       else if (solver_kind == SolverKind::stp) {
-        checker_map[id] = std::make_shared<CheckerSTP>();
+        checker_map[id] = std::make_unique<CheckerSTP>();
       }
       else {
         ABORT("unknown solver");

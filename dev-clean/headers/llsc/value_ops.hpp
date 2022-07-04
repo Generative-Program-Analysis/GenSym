@@ -97,9 +97,8 @@ template<>
 struct std::equal_to<immer::flex_vector<PtrVal>> {
   bool operator()(immer::flex_vector<PtrVal> const& a, immer::flex_vector<PtrVal> const& b) const {
     if (a.size() != b.size()) return false;
-    std::equal_to<PtrVal> cmp;
     for (int i = 0; i < a.size(); i++)
-      if (!cmp(a.at(i), b.at(i))) return false;
+      if (a.at(i).get() != b.at(i).get()) return false;
     return true;
   }
 };
