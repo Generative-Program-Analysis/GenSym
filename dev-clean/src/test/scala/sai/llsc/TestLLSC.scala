@@ -122,13 +122,12 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, TestCases.all ++ varArg)
-  // TODO: fix filesys <2022-03-15, David Deng> //
+  testLLSC(new ImpLLSC, TestCases.all ++ filesys ++ varArg)
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, TestCases.all ++ varArg)
+  testLLSC(new ImpCPSLLSC, TestCases.all ++ filesys ++ varArg)
   //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
