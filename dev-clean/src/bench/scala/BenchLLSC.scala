@@ -32,17 +32,6 @@ object TestCases {
     TestPrg(parseFile(s"$prefix/quicksort.ll"), "quickSortTest", "@main", noArg, noOpt, nPath(720)),
     TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), "mp1m", "@f", symArg(20), "--solver=disable", nPath(1048576)),
   )
-  val paraBenchcases: List[TestPrg] = List(2, 4, 8, 16).flatMap { case tn =>
-    List(
-      TestPrg(parseFile(s"$prefix/knapsack.ll"), s"par${tn}_knapsackTest", "@main", noArg, s"--thread=$tn", nPath(1666)),
-      TestPrg(parseFile(s"$prefix/nqueen.ll"), s"par${tn}_nQueens", "@main", noArg, s"--thread=$tn", nPath(1363)),
-      TestPrg(parseFile(s"$prefix/kmpmatcher.ll"), s"par${tn}_kmp", "@main", noArg, s"--thread=$tn", nPath(1287)),
-      TestPrg(parseFile(s"$prefix/mergesort.ll"), s"par${tn}_mergeSortTest", "@main", noArg, s"--thread=$tn", nPath(5040)),
-      TestPrg(parseFile(s"$prefix/bubblesort.ll"), s"par${tn}_bubbleSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
-      TestPrg(parseFile(s"$prefix/quicksort.ll"), s"par${tn}_quickSortTest", "@main", noArg, s"--thread=$tn", nPath(720)),
-      TestPrg(parseFile(s"$prefix/multipath_1048576_sym.ll"), s"par${tn}_mp1m", "@f", symArg(20), Seq("--solver=disable", s"--thread=$tn"), nPath(1048576)),
-    )
-  }
 }
 import TestCases._
 
@@ -90,25 +79,42 @@ abstract class TestLLSC extends FunSuite {
     writer.close()
   }
 
-  def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
+  def testLLSC(llsc: LLSC, tst: TestPrg, solver: Option[String], threading: Boolean): Unit = {
     val nTest = 5
     val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(name) {
       val code = llsc.runLLSC(m, llsc.insName + "_" + name, f, config)
       val mkRet = code.make(4)
+      val (cliArg1, insName2) = solver match {
+        case Some(x) =>
+          val insName1 = s"${llsc.insName}_${x.toUpperCase()}"
+          if (!cliArg.exists(_.startsWith("--solver=")))
+            (cliArg ++ Seq(s"--solver=$x"), insName1)
+          else
+            (cliArg, insName1)
+        case None => (cliArg, llsc.insName)
+      }
       assert(mkRet == 0, "make failed")
-      for (i <- 1 to nTest) {
-        Thread.sleep(1 * 1000)
-        val numactl = "numactl -N1 -m1"
-        val (output, ret) = code.runWithStatus(cliArg, numactl)
-        val resStat = parseOutput(llsc.insName, name, output)
-        System.out.println(resStat)
-        checkResult(resStat, ret, exp)
+      for (th <- if (threading) Seq(1, 2, 4, 8, 16) else Seq(1)) {
+        val (cliArg2, name2) =
+          if (th > 1)
+            (cliArg1 ++ Seq(s"--thread=$th"), s"par${th}_${name}")
+          else
+            (cliArg1, name)
+        for (i <- 1 to nTest) {
+          Thread.sleep(1 * 1000)
+          val numactl = "numactl -N1 -m1"
+          val (output, ret) = code.runWithStatus(cliArg2, numactl)
+          val resStat = parseOutput(insName2, name2, output)
+          System.out.println(resStat)
+          checkResult(resStat, ret, exp)
+        }
       }
     }
   }
 
-  def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = tests.foreach(testLLSC(llsc, _))
+  def testLLSC(llsc: LLSC, tests: List[TestPrg], solver: Option[String] = None, threading: Boolean = false): Unit =
+    tests.foreach(testLLSC(llsc, _, solver, threading))
 }
 
 trait LinkSTP extends LLSC {
@@ -138,15 +144,14 @@ class BenchPureCPSLLSC extends TestLLSC {
   testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, benchcases)
 }
 
+class BenchImpLLSC extends TestLLSC {
+  testLLSC(new ImpLLSC with LinkSTP with LinkZ3, benchcases)
+}
+
+class BenchImpCPSLLSC extends TestLLSC {
+  testLLSC(new ImpCPSLLSC with LinkSTP with LinkZ3, benchcases)
+}
+
 class BenchPureCPSLLSCZ3 extends TestLLSC {
-  val cases = (benchcases ++ paraBenchcases).map { t =>
-    if (t.runOpt.exists(_.startsWith("--solver=")))
-      t
-    else
-      t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
-  }
-  val engine = new PureCPSLLSC with LinkSTP with LinkZ3 {
-    override val insName = "PureCPSLLSC_Z3"
-  }
-  testLLSC(engine, cases)
+  testLLSC(new PureCPSLLSC with LinkSTP with LinkZ3, benchcases, "z3", true)
 }
