@@ -103,7 +103,7 @@ abstract class TestLLSC extends FunSuite {
             (cliArg1, name)
         for (i <- 1 to nTest) {
           Thread.sleep(1 * 1000)
-          val numactl = "numactl -N1 -m1"
+          val numactl = "numactl --cpunodebind 1 --preferred 1"
           val (output, ret) = code.runWithStatus(cliArg2, numactl)
           val resStat = parseOutput(insName2, name2, output)
           System.out.println(resStat)
