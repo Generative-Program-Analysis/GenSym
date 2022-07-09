@@ -435,9 +435,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
 
   def exec(fname: String, args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
-    // XXX: precompile functions here takes some unreachable blocks into account,
-    //      leading to spurious number of total blocks.
-    compile(funMap.map(_._2).toList)
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)(fname)
