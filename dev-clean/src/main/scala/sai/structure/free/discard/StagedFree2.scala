@@ -112,13 +112,13 @@ trait RepFree { self: SAIOps with RepFunctor with RepMonad with Coproduct =>
   // Free is a DFunctor, which accepts transformations of Rep[A] => Rep[B].
   // However, the underlying structure F[_] (in Free[F, A]) is a SFunctor.
 
-  implicit def FreeDFunctorInstance[F[_]: SFunctor]: DFunctor[Free[F, ?]] =
-    new DFunctor[Free[F, ?]] {
+  implicit def FreeDFunctorInstance[F[_]: SFunctor]: DFunctor[Free[F, *]] =
+    new DFunctor[Free[F, *]] {
       def map[A: Manifest, B: Manifest](x: Free[F, A])(f: Rep[A] => Rep[B]): Free[F, B] = x.map(f)
     }
 
-  implicit def FreeMonadInstance[F[_]: SFunctor]: SMonad[Free[F, ?]] =
-    new SMonad[Free[F, ?]] {
+  implicit def FreeMonadInstance[F[_]: SFunctor]: SMonad[Free[F, *]] =
+    new SMonad[Free[F, *]] {
       def pure[A: Manifest](a: Rep[A]): Free[F, A] =
         Unwrap(a) match {
           case Backend.Const(a: A) => SReturn[F, A](a)
@@ -270,26 +270,26 @@ trait RepStateEff { self: SAIOps with RepFree with RepFunctor with RepMonad with
   }
   case class Put[S: Manifest, A](s: Rep[S], k: A) extends State[S, A]
 
-  implicit def StateSFunctor[S: Manifest]: SFunctor[State[S, ?]] =
-    new SFunctor[State[S, ?]] {
+  implicit def StateSFunctor[S: Manifest]: SFunctor[State[S, *]] =
+    new SFunctor[State[S, *]] {
       def map[A, B](x: State[S, A])(f: A => B): State[S, B] = x match {
         case Get(k) => Get(s => f(k(s)))
         case Put(s, a) => Put(s, f(a))
       }
     }
 
-  def get[F[_]: SFunctor, S: Manifest](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
-    inject[State[S, ?], F, S](Get((s: Rep[S]) => Return(s)))
+  def get[F[_]: SFunctor, S: Manifest](implicit I: (State[S, *] ⊆ F)): Free[F, S] =
+    inject[State[S, *], F, S](Get((s: Rep[S]) => Return(s)))
 
-  def put[F[_]: SFunctor, S: Manifest](s: Rep[S])(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
-    inject[State[S, ?], F, Unit](Put(s, Return(())))
+  def put[F[_]: SFunctor, S: Manifest](s: Rep[S])(implicit I: State[S, *] ⊆ F): Free[F, Unit] =
+    inject[State[S, *], F, Unit](Put(s, Return(())))
 
-  def runState[F[_]: SFunctor, S: Manifest, A: Manifest](s: Rep[S], prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
+  def runState[F[_]: SFunctor, S: Manifest, A: Manifest](s: Rep[S], prog: Free[(State[S, *] ⊕ F)#t, A]): Free[F, (S, A)] =
     prog match {
       case SReturn(a) => Return((s, a)) // FIXME `a` and the structure is static, but lifted into Return
       case Return(a) => Return((s, a))
       case _ =>
-        project[State[S, ?], (State[S, ?] ⊕ F)#t, A](prog) match {
+        project[State[S, *], (State[S, *] ⊕ F)#t, A](prog) match {
           case Some(Get(k)) => runState(s, k(s))
           case Some(Put(s1, k)) => runState(s1, k)
           case _ =>

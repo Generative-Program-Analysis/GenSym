@@ -21,7 +21,7 @@ trait StagedConcreteSemantics extends ConcreteComponents with SAIOps {
   type StoreM[T] = StoreT[IdM, T]
 
   type R[T] = Rep[T]
-  type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[IdM, Store, *], Env, T]
 
   // Representing next-stage integers
   object SIntV {

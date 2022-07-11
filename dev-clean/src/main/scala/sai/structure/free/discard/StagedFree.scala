@@ -57,8 +57,8 @@ trait RepFree { self: SAIOps =>
   // Free is a DFunctor, which accepts transformations of Rep[A] => Rep[B].
   // However, the underlying structure F[_] (in Free[F, A]) is a Functor.
 
-  implicit def FreeDFunctorInstance[F[_]: Functor]: DFunctor[Free[F, ?]] =
-    new DFunctor[Free[F, ?]] {
+  implicit def FreeDFunctorInstance[F[_]: Functor]: DFunctor[Free[F, *]] =
+    new DFunctor[Free[F, *]] {
       def map[A: Manifest, B: Manifest](x: Free[F, A])(f: Rep[A] => Rep[B]): Free[F, B] = x.map(f)
     }
 
@@ -67,8 +67,8 @@ trait RepFree { self: SAIOps =>
     def flatMap[A: Manifest, B: Manifest](ma: M[A])(f: Rep[A] => M[B]): M[B]
   }
 
-  implicit def FreeMonadInstance[F[_]: Functor]: SMonad[Free[F, ?]] =
-    new SMonad[Free[F, ?]] {
+  implicit def FreeMonadInstance[F[_]: Functor]: SMonad[Free[F, *]] =
+    new SMonad[Free[F, *]] {
       def pure[A: Manifest](a: Rep[A]): Free[F, A] =
         Unwrap(a) match {
           //case Backend.Const(a: A) => SReturn[F, A](a)
@@ -250,7 +250,7 @@ trait RepFree { self: SAIOps =>
           case Impure(f) =>
             System.out.println("Yes, impure")
             System.out.println(I.prj(f))
-          case _ => 
+          case _ =>
         }
         p match {
           //case Some(KCond(c, t: Free[F, A], e: Free[F, A], k)) =>
@@ -317,19 +317,19 @@ trait RepFree { self: SAIOps =>
   case class Put[S: Manifest, A](s: Rep[S], k: A) extends State[S, A]
 
   // State is a _static_ functor
-  implicit def StateFunctor[S: Manifest]: Functor[State[S, ?]] =
-    new Functor[State[S, ?]] {
+  implicit def StateFunctor[S: Manifest]: Functor[State[S, *]] =
+    new Functor[State[S, *]] {
       def map[A, B](x: State[S, A])(f: A => B): State[S, B] = x match {
         case Get(k) => Get(s => f(k(s)))
         case Put(s, a) => Put(s, f(a))
       }
     }
 
-  def get[F[_]: Functor, S: Manifest](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
-    inject[State[S, ?], F, S](Get((s: Rep[S]) => Return(s)))
+  def get[F[_]: Functor, S: Manifest](implicit I: (State[S, *] ⊆ F)): Free[F, S] =
+    inject[State[S, *], F, S](Get((s: Rep[S]) => Return(s)))
 
-  def put[F[_]: Functor, S: Manifest](s: Rep[S])(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
-    inject[State[S, ?], F, Unit](Put(s, Return(())))
+  def put[F[_]: Functor, S: Manifest](s: Rep[S])(implicit I: State[S, *] ⊆ F): Free[F, Unit] =
+    inject[State[S, *], F, Unit](Put(s, Return(())))
 
   def runStateRef[F[_]: Functor, S: Manifest, A: Manifest]
     (s: Rep[S])(prog: Free[(State[S, *] ⊕ F)#t, A]): Free[F, A] = {
@@ -355,7 +355,7 @@ trait RepFree { self: SAIOps =>
     handler(prog)
   }
 
-  def runState[F[_]: Functor, S: Manifest, A: Manifest](s: Rep[S], prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
+  def runState[F[_]: Functor, S: Manifest, A: Manifest](s: Rep[S], prog: Free[(State[S, *] ⊕ F)#t, A]): Free[F, (S, A)] =
     prog match {
       // TODO: what's the right patially-static data pattern to describe
       //       structure/shape is static, but data is dynamic?
@@ -364,7 +364,7 @@ trait RepFree { self: SAIOps =>
       //case GetPattern(k) => run(s, k(s))
       //case PutPattern(s1, k) => run(s1, k)
       case _ =>
-        project[State[S, ?], (State[S, ?] ⊕ F)#t, A](prog) match {
+        project[State[S, *], (State[S, *] ⊕ F)#t, A](prog) match {
           case Some(Get(k)) => runState(s, k(s))
           case Some(Put(s1, k)) => runState(s1, k)
           case _ =>
@@ -422,11 +422,11 @@ trait RepFree { self: SAIOps =>
     runVoid(runCond(runNondet(prog)))
 
   def runLocal[F[_]: Functor, S: Manifest, A: Manifest]
-    (s: Rep[S], prog: Free[(State[S, ?] ⊕ (Nondet ⊕ F)#t)#t, A]): Free[F, List[(S, A)]] =
+    (s: Rep[S], prog: Free[(State[S, *] ⊕ (Nondet ⊕ F)#t)#t, A]): Free[F, List[(S, A)]] =
     runNondet(runState(s, prog))
 
   def runGlobal[F[_]: Functor, S: Manifest, A: Manifest]
-    (s: Rep[S], prog: Free[(Nondet ⊕ (State[S, ?] ⊕ F)#t)#t, A]): Free[F, (S, List[A])] =
+    (s: Rep[S], prog: Free[(Nondet ⊕ (State[S, *] ⊕ F)#t)#t, A]): Free[F, (S, List[A])] =
     runState(s, runNondet(prog))
 
   def exprog1[F[_]: Functor]
@@ -488,11 +488,11 @@ trait RepFree { self: SAIOps =>
     /* Observed that:
      * 1. The conditions w < 0 and w == 0 are dynamic, but they
      *    have Free[F, A] branches.
-     * 2. Similarly, if the size of `vs` is dynamic, it has to 
+     * 2. Similarly, if the size of `vs` is dynamic, it has to
      *    generate conditional control-flow for `select`, which
      *    maps xs with Return and folds with choice, then the condition
      *    is dynamic however the two branches are Free[F, A] objects, which
-     *    are not dynamic. But we know the Free[F, A] values will be 
+     *    are not dynamic. But we know the Free[F, A] values will be
      *    consumed/interpreted at the current stage.
      */
 

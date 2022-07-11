@@ -32,7 +32,7 @@ trait RepListMonad { self: RepMonads with SAIOps =>
     def apply: Rep[List[A]] = run
     def ++(ys: ListM[A]): ListM[A] = ListM(run ++ ys.run)
     def flatMap[B: Manifest](f: Rep[A] => ListM[B]): ListM[B] = {
-      ListM[B](run.foldLeft(List[B]())({ case (acc, a) => 
+      ListM[B](run.foldLeft(List[B]())({ case (acc, a) =>
         acc ++ f(a).run
       }))
     }
@@ -44,13 +44,13 @@ trait RepListMonad { self: RepMonads with SAIOps =>
   object ListT {
     def apply[M[_]: Monad, A: Manifest](implicit m: ListT[M, A]): ListT[M, A] = m
 
-    implicit def ListTMonad[M[_]: Monad] = new Monad[ListT[M, ?]] {
+    implicit def ListTMonad[M[_]: Monad] = new Monad[ListT[M, *]] {
       def flatMap[A: Manifest, B: Manifest](la: ListT[M, A])(f: Rep[A] => ListT[M, B]) = la.flatMap(f)
       def pure[A: Manifest](a: Rep[A]): ListT[M, A] = ListT(Monad[M].pure(List(a)))
       override def filter[A: Manifest](la: ListT[M, A])(f: Rep[A] => Rep[Boolean]): ListT[M, A] = la.filter(f)
     }
 
-    implicit def ListTMonadPlus[M[_]: Monad] = new MonadPlus[ListT[M, ?]] {
+    implicit def ListTMonadPlus[M[_]: Monad] = new MonadPlus[ListT[M, *]] {
       def mzero[A: Manifest : RepLattice]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
       def mplus[A: Manifest : RepLattice](a: ListT[M, A], b: ListT[M, A]): ListT[M, A] = a ++ b
     }

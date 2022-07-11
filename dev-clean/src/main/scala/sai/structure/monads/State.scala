@@ -19,7 +19,7 @@ object MonadState {
 object StateM {
   def apply[S, A](implicit m: StateM[S, A]): StateM[S, A] = m
 
-  implicit def StateMonadInstance[S] = new MonadState[StateM[S, ?], S] {
+  implicit def StateMonadInstance[S] = new MonadState[StateM[S, *], S] {
     def flatMap[A, B](sa: StateM[S, A])(f: A => StateM[S, B]): StateM[S, B] =
       sa.flatMap(f)
     def pure[A](a: A): StateM[S, A] = StateM(s => (a, s))
@@ -45,9 +45,9 @@ case class StateM[S, A](run: S => (A, S)) {
 
 object StateT {
   def apply[M[_]: Monad, S, A](implicit m: StateT[M, S, A]): StateT[M, S, A] = m
-  implicit def apply[M[_]: Monad, S]: Monad[StateT[M, S, ?]] = StateTMonad[M, S]
+  implicit def apply[M[_]: Monad, S]: Monad[StateT[M, S, *]] = StateTMonad[M, S]
 
-  implicit def StateTMonad[M[_]: Monad, S] = new MonadState[StateT[M, S, ?], S] {
+  implicit def StateTMonad[M[_]: Monad, S] = new MonadState[StateT[M, S, *], S] {
     def flatMap[A, B](sa: StateT[M, S, A])(f: A => StateT[M, S, B]) = sa.flatMap(f)
     def pure[A](a: A): StateT[M, S, A] = StateT(s => Monad[M].pure((a, s)))
     override def filter[A](sa: StateT[M, S, A])(f: A => Boolean): StateT[M, S, A] = sa.filter(f)
@@ -57,7 +57,7 @@ object StateT {
     def mod(f: S => S): StateT[M, S, Unit] = StateT(s => Monad[M].pure(((), f(s))))
   }
 
-  implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Lattice] = new MonadPlus[StateT[M, S, ?]] {
+  implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Lattice] = new MonadPlus[StateT[M, S, *]] {
     def mzero[A: Lattice]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
     def mplus[A: Lattice](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
       StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))

@@ -26,13 +26,13 @@ case class Impure[F[_]: Functor, A](x: F[Free[F, A]]) extends Free[F, A]
 object Free {
   def apply[F[_], A](implicit f: Free[F, A]): Free[F, A] = f
 
-  implicit def FreeFunctorInstance[F[_]: Functor]: Functor[Free[F, ?]] =
-    new Functor[Free[F, ?]] {
+  implicit def FreeFunctorInstance[F[_]: Functor]: Functor[Free[F, *]] =
+    new Functor[Free[F, *]] {
       def map[A, B](x: Free[F, A])(f: A => B): Free[F, B] = x.map(f)
     }
 
-  implicit def FreeMonadInstance[F[_]: Functor]: Monad[Free[F, ?]] =
-    new Monad[Free[F, ?]] {
+  implicit def FreeMonadInstance[F[_]: Functor]: Monad[Free[F, *]] =
+    new Monad[Free[F, *]] {
       def pure[A](a: A): Free[F, A] = Return[F, A](a)
       def flatMap[A, B](ma: Free[F, A])(f: A => Free[F, B]): Free[F, B] = ma.flatMap(f)
     }
@@ -162,10 +162,10 @@ object StateEff {
 
   /*
   object Get {
-    def apply[F[_]: Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
-      inject[State[S, ?], F, S](Get(Return(_)))
-    def unapply[F[_]: Functor, S, A](x: Free[F, A])(implicit I: (State[S, ?] ⊆ F)): Option[S => Free[F, A]] = {
-      project[State[S, ?], F, A](x) match {
+    def apply[F[_]: Functor, S](implicit I: (State[S, *] ⊆ F)): Free[F, S] =
+      inject[State[S, *], F, S](Get(Return(_)))
+    def unapply[F[_]: Functor, S, A](x: Free[F, A])(implicit I: (State[S, *] ⊆ F)): Option[S => Free[F, A]] = {
+      project[State[S, *], F, A](x) match {
         case Some(Get(k)) => Some(k)
         case _ => None
       }
@@ -173,37 +173,37 @@ object StateEff {
   }
    */
 
-  implicit def StateFunctor[S]: Functor[State[S, ?]] =
-    new Functor[State[S, ?]] {
+  implicit def StateFunctor[S]: Functor[State[S, *]] =
+    new Functor[State[S, *]] {
       def map[A, B](x: State[S, A])(f: A => B): State[S, B] = x match {
         case Get(k) => Get(s => f(k(s)))
         case Put(s, a) => Put(s, f(a))
       }
     }
 
-  def get[F[_]: Functor, S](implicit I: (State[S, ?] ⊆ F)): Free[F, S] =
-    inject[State[S, ?], F, S](Get(Return(_)))
+  def get[F[_]: Functor, S](implicit I: (State[S, *] ⊆ F)): Free[F, S] =
+    inject[State[S, *], F, S](Get(Return(_)))
 
-  def put[F[_]: Functor, S](s: S)(implicit I: State[S, ?] ⊆ F): Free[F, Unit] =
-    inject[State[S, ?], F, Unit](Put(s, ret(())))
+  def put[F[_]: Functor, S](s: S)(implicit I: State[S, *] ⊆ F): Free[F, Unit] =
+    inject[State[S, *], F, Unit](Put(s, ret(())))
 
   object Get$ {
-    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[S => Free[F, A]] =
-      project[State[S, ?], F, A](x) match {
+    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, *] ⊆ F): Option[S => Free[F, A]] =
+      project[State[S, *], F, A](x) match {
         case Some(Get(k)) => Some(k)
         case _ => None
       }
   }
 
   object Put$ {
-    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, ?] ⊆ F): Option[(S, Free[F, A])] =
-      project[State[S, ?], F, A](x) match {
+    def unapply[F[_] : Functor, S, A](x: Free[F, A])(implicit I: State[S, *] ⊆ F): Option[(S, Free[F, A])] =
+      project[State[S, *], F, A](x) match {
         case Some(Put(s, a)) => Some((s, a))
         case _ => None
       }
   }
 
-  def run[F[_] : Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, (S, A)] =
+  def run[F[_] : Functor, S, A](s: S, prog: Free[(State[S, *] ⊕ F)#t, A]): Free[F, (S, A)] =
     prog match {
       case Return(a) => ret((s, a))
       case Get$(k) => run(s, k(s))
@@ -212,7 +212,7 @@ object StateEff {
         Impure(Functor[F].map(op)(run(s, _)))
     }
 
-  def statefun[F[_] : Functor, S, A](comp: Free[(State[S, ?] ⊕ F)#t, A]): S => Free[F, A] =
+  def statefun[F[_] : Functor, S, A](comp: Free[(State[S, *] ⊕ F)#t, A]): S => Free[F, A] =
     comp match {
       case Return(x) => { _ => ret(x) }
       case Get$(k) => { s =>
@@ -231,9 +231,9 @@ object StateEff {
       }
     }
 
-  def stateref[F[_] : Functor, S, A](init: S)(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
+  def stateref[F[_] : Functor, S, A](init: S)(comp: Free[(State[S, *] ⊕ F)#t, A]): Free[F, A] = {
     var state: S = init
-    def handler(comp: Free[(State[S, ?] ⊕ F)#t, A]): Free[F, A] = {
+    def handler(comp: Free[(State[S, *] ⊕ F)#t, A]): Free[F, A] = {
       comp match {
         case Return(x) => ret(x)
         case Get$(k) => handler(k(state))
@@ -290,7 +290,7 @@ object StateEff {
   }
 
   def stateh[E[_]: Functor, S, A] =
-    deep_handler[State[S, ?], ∅, A, S => Free[E, A]] {
+    deep_handler[State[S, *], ∅, A, S => Free[E, A]] {
       case Return(x) => ret(_ => ret(x))
     }{
       case Get(k)    => ret(s => k(s)(s))
@@ -324,10 +324,10 @@ object StateNondetEff {
   import StateEff._
   import NondetEff._
 
-  def runLocal[F[_]: Functor, S, A](s: S, prog: Free[(State[S, ?] ⊕ (Nondet ⊕ F)#t)#t, A]): Free[F, List[(S, A)]] =
+  def runLocal[F[_]: Functor, S, A](s: S, prog: Free[(State[S, *] ⊕ (Nondet ⊕ F)#t)#t, A]): Free[F, List[(S, A)]] =
     NondetEff.run(StateEff.run(s, prog))
 
-  def runGlobal[F[_]: Functor, S, A](s: S, prog: Free[(Nondet ⊕ (State[S, ?] ⊕ F)#t)#t, A]): Free[F, (S, List[A])] =
+  def runGlobal[F[_]: Functor, S, A](s: S, prog: Free[(Nondet ⊕ (State[S, *] ⊕ F)#t)#t, A]): Free[F, (S, List[A])] =
     StateEff.run(s, NondetEff.run(prog))
 }
 
@@ -395,7 +395,7 @@ object CutHandler {
   def skip[M[_]: Monad]: M[Unit] = Monad[M].pure(())
 
   def cut[F[_]: Functor, A](implicit I1: Nondet ⊆ F, I2: Cut ⊆ F): Free[F, Unit] =
-    choice(skip[Free[F,?]], cutfail)
+    choice(skip[Free[F, *]], cutfail)
 
   def once[F[_]: Functor, A](p: Free[(Cut ⊕ F)#t, A])(implicit I: Nondet ⊆ F): Free[F, A] =
     call(for { x <- p; _ <- cut[(Cut ⊕ F)#t, A] } yield x)
@@ -422,8 +422,8 @@ object KondEff {
 
   object Cnd$ {
     def unapply[F[_] : Functor, E, X, A](x: Free[F, A])
-      (implicit I: Cnd[E, X, ?] ⊆ F): Option[(E, Free[F, A], Free[F, A], X => Free[F, A])] =
-      project[Cnd[E, X, ?], F, A](x) match {
+      (implicit I: Cnd[E, X, *] ⊆ F): Option[(E, Free[F, A], Free[F, A], X => Free[F, A])] =
+      project[Cnd[E, X, *], F, A](x) match {
         case Some(Cnd(c, t, e, k)) => Some((c, t, e, k))
         case _ => None
       }
@@ -473,8 +473,8 @@ object CondEff {
 
   object Cnd$ {
     def unapply[F[_] : Functor, E, A](x: Free[F, A])
-      (implicit I: Cnd[E, ?] ⊆ F): Option[(E, Free[F, A], Free[F, A])] =
-      project[Cnd[E, ?], F, A](x) match {
+      (implicit I: Cnd[E, *] ⊆ F): Option[(E, Free[F, A], Free[F, A])] =
+      project[Cnd[E, *], F, A](x) match {
         case Some(Cnd(c, t, e)) => Some((c, t, e))
         case _ => None
       }
@@ -548,7 +548,7 @@ object CondEff {
 
     cond(cnd, t, e)
      */
-    
+
     val t = for {
       _ <- inject[CondScope, F, Unit](BCond(Return()))
       x <- thn

@@ -26,7 +26,7 @@ trait StagedAbstractSemantics extends AbstractComponents with SAIOps {
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
 
   type R[T] = Rep[T]
-  type AnsM[T] = ReaderT[StateT[ListReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[ListReaderStateM[Cache, Cache, *], Store, *], Env, T]
 
   def mCache: Manifest[Cache] = manifest[Cache]
 

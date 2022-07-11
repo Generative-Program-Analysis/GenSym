@@ -13,7 +13,7 @@ trait RepEitherMonad { self: RepMonads with SAIOps =>
   object EitherT {
     def apply[M[_]: Monad, E, A](implicit m: EitherT[M, E, A]) = m
 
-    implicit def EitherTMonadInstance[M[_]: Monad, E: Manifest] = new Monad[EitherT[M, E, ?]] {
+    implicit def EitherTMonadInstance[M[_]: Monad, E: Manifest] = new Monad[EitherT[M, E, *]] {
       def flatMap[A: Manifest, B: Manifest](fa: EitherT[M, E, A])(f: Rep[A] => EitherT[M, E, B]): EitherT[M, E, B] = fa.flatMap(f)
       def pure[A: Manifest](a: Rep[A]): EitherT[M, E, A] = EitherT(Monad[M].pure(Either.right[E, A](a)))
     }

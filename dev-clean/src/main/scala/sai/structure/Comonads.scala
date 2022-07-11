@@ -69,8 +69,8 @@ case class Coreader[R, A](extract: A, ask: R) {
 }
 
 object Coreader {
-  implicit def coreaderComonad[R]: Comonad[Coreader[R, ?]] =
-    new Comonad[Coreader[R, ?]] {
+  implicit def coreaderComonad[R]: Comonad[Coreader[R, *]] =
+    new Comonad[Coreader[R, *]] {
       def map[A, B](c: Coreader[R, A])(f: A => B) = c.map(f)
       def counit[A](c: Coreader[R, A]) = c.extract
       def duplicate[A](c: Coreader[R, A]) = c.duplicate
@@ -128,7 +128,7 @@ trait Adjunction[F[_], G[_]] {
 }
 
 object Adjunction {
-  def homSetAdj[R] = new Adjunction[(?, R), R => ?] {
+  def homSetAdj[R] = new Adjunction[(*, R), R => *] {
     def left[A, B](f: ((A, R)) => B): A => R => B =
       Function.untupled(f).curried
     def right[A, B](f: A => R => B): ((A, R)) => B =
@@ -164,5 +164,5 @@ object Adjunction {
         Functor[F].map(w)(adj.left(f))
     }
 
-  //def M[S] = monad[(?, S), S => ?](homSetAdj[S])
+  //def M[S] = monad[(*, S), S => *](homSetAdj[S])
 }

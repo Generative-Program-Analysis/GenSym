@@ -9,8 +9,8 @@ import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 
 @virtualize
-trait RepMonads extends RepLattices 
-  with RepIdMonad with RepEitherMonad with RepReaderMonad 
+trait RepMonads extends RepLattices
+  with RepIdMonad with RepEitherMonad with RepReaderMonad
   with RepStateMonad with RepListMonad with RepCPSMonad { self: SAIOps =>
 
   trait Monad[M[_]] {
@@ -57,7 +57,7 @@ trait RepMonads extends RepLattices
     def apply[R: Manifest, S: Manifest, A: Manifest](implicit m: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] = m
 
     implicit def ListReaderStateMonad[R: Manifest, S: Manifest] =
-      new Monad[ListReaderStateM[R, S, ?]] with MonadState[ListReaderStateM[R, S, ?], S] with MonadReader[ListReaderStateM[R, S, ?], R] {
+      new Monad[ListReaderStateM[R, S, *]] with MonadState[ListReaderStateM[R, S, *], S] with MonadReader[ListReaderStateM[R, S, *], R] {
         def flatMap[A: Manifest, B: Manifest](ma: ListReaderStateM[R, S, A])(f: Rep[A] => ListReaderStateM[R, S, B]) = ma.flatMap(f)
         def pure[A: Manifest](a: Rep[A]): ListReaderStateM[R, S, A] = ListReaderStateM(r => s => (List[A](a), s))
         override def filter[A: Manifest](ma: ListReaderStateM[R, S, A])(f: Rep[A] => Rep[Boolean]): ListReaderStateM[R, S, A] = ma.filter(f)
@@ -72,7 +72,7 @@ trait RepMonads extends RepLattices
 
       }
 
-    implicit def ListReaderStateMonadPlus[R: Manifest, S: Manifest : RepLattice] = new MonadPlus[ListReaderStateM[R, S, ?]] {
+    implicit def ListReaderStateMonadPlus[R: Manifest, S: Manifest : RepLattice] = new MonadPlus[ListReaderStateM[R, S, *]] {
       def mzero[A: Manifest : RepLattice]: ListReaderStateM[R, S, A] = empty[R, S, A]
       def mplus[A: Manifest : RepLattice](a: ListReaderStateM[R, S, A], b: ListReaderStateM[R, S, A]): ListReaderStateM[R, S, A] =
         ListReaderStateM(r => s => {
@@ -92,7 +92,7 @@ trait RepMonads extends RepLattices
       ListReaderStateM(r => s => (List[A](), s))
   }
 
-  // ListT[ReaderT[StateT[Id, ?], ?], ?]
+  // ListT[ReaderT[StateT[Id, *], *], *]
   // ListT: run: M[List[A]]
   // ReaderT: run: R => M[A]
   // StateT: run: S => M[(A, S)]
@@ -139,7 +139,7 @@ trait RepMonads extends RepLattices
     def apply[R: Manifest, S: Manifest, A: Manifest](implicit m: SetReaderStateM[R, S, A]): SetReaderStateM[R, S, A] = m
 
     implicit def SetReaderStateMonad[R: Manifest, S: Manifest] =
-      new Monad[SetReaderStateM[R, S, ?]] with MonadState[SetReaderStateM[R, S, ?], S] with MonadReader[SetReaderStateM[R, S, ?], R] {
+      new Monad[SetReaderStateM[R, S, *]] with MonadState[SetReaderStateM[R, S, *], S] with MonadReader[SetReaderStateM[R, S, *], R] {
         def flatMap[A: Manifest, B: Manifest](ma: SetReaderStateM[R, S, A])(f: Rep[A] => SetReaderStateM[R, S, B]) =
           ma.flatMap(f)
         def pure[A: Manifest](a: Rep[A]): SetReaderStateM[R, S, A] =
@@ -160,7 +160,7 @@ trait RepMonads extends RepLattices
           SetReaderStateM(r => s => ma.run(f(r))(s))
       }
 
-    implicit def SetReaderStateMonadPlus[R: Manifest, S: Manifest : RepLattice] = new MonadPlus[SetReaderStateM[R, S, ?]] {
+    implicit def SetReaderStateMonadPlus[R: Manifest, S: Manifest : RepLattice] = new MonadPlus[SetReaderStateM[R, S, *]] {
       def mzero[A: Manifest : RepLattice]: SetReaderStateM[R, S, A] = empty[R, S, A]
       def mplus[A: Manifest : RepLattice](a: SetReaderStateM[R, S, A], b: SetReaderStateM[R, S, A]): SetReaderStateM[R, S, A] =
         SetReaderStateM(r => s => {
@@ -217,7 +217,7 @@ trait RepMonads extends RepLattices
     def apply[R:Manifest,S1:Manifest,S2:Manifest,A:Manifest](implicit m: SSRS[R,S1,S2,A]): SSRS[R,S1,S2,A] = m
 
     implicit def SetStateReaderStateMonad[R: Manifest, S1: Manifest, S2: Manifest] =
-      new Monad[SetStateReaderStateM[R,S1,S2,?]] {
+      new Monad[SetStateReaderStateM[R,S1,S2,*]] {
         def flatMap[A:Manifest, B:Manifest](ma: SSRS[R,S1,S2,A])(f: Rep[A] => SSRS[R,S1,S2,B]) =
           ma.flatMap(f)
         def pure[A: Manifest](a: Rep[A]): SSRS[R,S1,S2,A] =
@@ -243,7 +243,7 @@ trait RepMonads extends RepLattices
     }
 
     implicit def SetStateReaderStateMonadPlus[R: Manifest, S1: Manifest : RepLattice, S2: Manifest : RepLattice] =
-      new MonadPlus[SetStateReaderStateM[R,S1,S2,?]] {
+      new MonadPlus[SetStateReaderStateM[R,S1,S2,*]] {
         def mzero[A: Manifest : RepLattice]: SSRS[R, S1, S2, A] = empty[R, S1, S2, A]
         def mplus[A: Manifest : RepLattice](a: SSRS[R, S1, S2, A], b: SSRS[R, S1, S2, A]): SSRS[R, S1, S2, A] =
           SetStateReaderStateM(s1 => r => s2 => {

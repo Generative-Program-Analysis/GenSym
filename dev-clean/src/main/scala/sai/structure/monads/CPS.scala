@@ -7,7 +7,7 @@ import sai.structure.lattices.Lattices._
 object CpsM {
   def apply[R, A](implicit m: CpsM[R, A]): CpsM[R, A] = m
 
-  implicit def CpsMonadInstance[R] = new Monad[CpsM[R, ?]] {
+  implicit def CpsMonadInstance[R] = new Monad[CpsM[R, *]] {
     def flatMap[A, B](fa: CpsM[R, A])(f: A => CpsM[R, B]) = fa.flatMap(f)
     def pure[A](a: A): CpsM[R, A] = CpsM((k: A => R) => k(a))
   }
@@ -29,7 +29,7 @@ case class CpsM[R, A](run: (A => R) => R) {
 object CpsT {
   def apply[M[_]: Monad, R, A](implicit m: CpsT[M, R, A]): CpsT[M, R, A] = m
 
-  implicit def CpsTMonadInstance[M[_]: Monad, R] = new Monad[CpsT[M, R, ?]] {
+  implicit def CpsTMonadInstance[M[_]: Monad, R] = new Monad[CpsT[M, R, *]] {
     def flatMap[A, B](fa: CpsT[M, R, A])(f: A => CpsT[M, R, B]) = fa.flatMap(f)
     def pure[A](a: A): CpsT[M, R, A] = CpsT((k: A => M[R]) => k(a))
   }

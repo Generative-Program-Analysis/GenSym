@@ -46,7 +46,7 @@ trait AbstractSemantics extends AbstractComponents {
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
 
   type R[T] = T
-  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, ?], Cache, ?], ?], Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[ListT[ReaderT[StateT[IdM, Cache, *], Cache, *], *], Store, *], Env, T]
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreNdInOutCacheM, Env].ask

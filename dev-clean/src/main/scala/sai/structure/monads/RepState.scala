@@ -22,9 +22,9 @@ trait RepStateMonad { self: RepMonads with SAIOps =>
 
   object StateT {
     def apply[M[_]: Monad, S: Manifest, A: Manifest](implicit m: StateT[M, S, A]): StateT[M, S, A] = m
-    implicit def apply[M[_]: Monad, S: Manifest]: Monad[StateT[M, S, ?]] = StateTMonad[M, S]
+    implicit def apply[M[_]: Monad, S: Manifest]: Monad[StateT[M, S, *]] = StateTMonad[M, S]
 
-    implicit def StateTMonad[M[_]: Monad, S: Manifest] = new MonadState[StateT[M, S, ?], S] {
+    implicit def StateTMonad[M[_]: Monad, S: Manifest] = new MonadState[StateT[M, S, *], S] {
       def flatMap[A: Manifest, B: Manifest](sa: StateT[M, S, A])(f: Rep[A] => StateT[M, S, B]) = sa.flatMap(f)
       def pure[A: Manifest](a: Rep[A]): StateT[M, S, A] = StateT(s => Monad[M].pure((a, s)))
 
@@ -36,7 +36,7 @@ trait RepStateMonad { self: RepMonads with SAIOps =>
     }
 
     implicit def StateTMonadPlus[M[_]: Monad : MonadPlus, S: Manifest : RepLattice] =
-      new MonadPlus[StateT[M, S, ?]] {
+      new MonadPlus[StateT[M, S, *]] {
         def mzero[A: Manifest : RepLattice]: StateT[M, S, A] = StateT(s => MonadPlus[M].mzero)
         def mplus[A: Manifest : RepLattice](a: StateT[M, S, A], b: StateT[M, S, A]): StateT[M, S, A] =
           StateT(s => MonadPlus[M].mplus(a.run(s), b.run(s)))

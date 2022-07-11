@@ -33,7 +33,7 @@ trait StagedSchemeAnalyzerOps extends AbstractComponents with SAIOps {
   type StoreNdInOutCacheM[T] = StoreT[NdInOutCacheM, T]
 
   type R[T] = Rep[T]
-  type AnsM[T] = ReaderT[StateT[SetReaderStateM[Cache, Cache, ?], Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[SetReaderStateM[Cache, Cache, *], Store, *], Env, T]
 
   def mapM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[List[B]] = Monad.mapM(xs)(f)
   def forM[A, B](xs: List[A])(f: A => AnsM[B])(implicit mB: Manifest[B]): AnsM[B] = Monad.forM(xs)(f)

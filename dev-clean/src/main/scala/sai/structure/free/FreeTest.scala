@@ -15,13 +15,13 @@ object Knapsack {
   import NondetVoidEff._
   import StateNondetEff._
 
-  def inc[F[_]: Functor](implicit I: State[Int, ?] ⊆ F): Free[F, Unit] =
+  def inc[F[_]: Functor](implicit I: State[Int, *] ⊆ F): Free[F, Unit] =
     for {
       x <- get
       _ <- put(x + 1)
     } yield ()
 
-  def choices[F[_]: Functor, A](prog: Free[F, A])(implicit I1: Nondet ⊆ F, I2: State[Int, ?] ⊆ F): Free[F, A] =
+  def choices[F[_]: Functor, A](prog: Free[F, A])(implicit I1: Nondet ⊆ F, I2: State[Int, *] ⊆ F): Free[F, A] =
     prog match {
       case Return(x) => ret(x)
       case Fail$() => fail
@@ -59,14 +59,14 @@ object Knapsack {
     val global: (Int, List[List[Int]]) = {
       // Note: have to manually define an implicit functor instance here,
       //       otherwise Scala compiler complains implicit expansion divergence
-      implicit val F = Functor[(State[Int, ?] ⊕ ∅)#t]
-      VoidEff(runGlobal(0, choices(knapsack[(Nondet ⊕ (State[Int, ?] ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
+      implicit val F = Functor[(State[Int, *] ⊕ ∅)#t]
+      VoidEff(runGlobal(0, choices(knapsack[(Nondet ⊕ (State[Int, *] ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
     }
     println(global)
 
     val local: List[(Int, List[Int])] = {
       implicit val F = Functor[(Nondet ⊕ ∅)#t]
-      VoidEff(runLocal(0, choices(knapsack[(State[Int, ?] ⊕ (Nondet ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
+      VoidEff(runLocal(0, choices(knapsack[(State[Int, *] ⊕ (Nondet ⊕ ∅)#t)#t](3, List(3, 2, 1)))))
     }
     println(local)
 

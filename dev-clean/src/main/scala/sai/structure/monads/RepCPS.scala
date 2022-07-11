@@ -14,7 +14,7 @@ trait RepCPSMonad { self: RepMonads with SAIOps =>
   object CpsM{
     def apply[R: Manifest, A: Manifest](implicit m: CpsM[R, A]): CpsM[R, A] = m
 
-    implicit def CpsMonadInstance[R: Manifest] = new Monad[CpsM[R, ?]] {
+    implicit def CpsMonadInstance[R: Manifest] = new Monad[CpsM[R, *]] {
       def flatMap[A: Manifest, B: Manifest](fa: CpsM[R, A])(f: Rep[A] => CpsM[R, B]) = fa.flatMap(f)
       def pure[A: Manifest](a: Rep[A]): CpsM[R, A] = CpsM((k: Rep[A] => Rep[R]) => k(a))
     }
@@ -36,7 +36,7 @@ trait RepCPSMonad { self: RepMonads with SAIOps =>
   object CpsT {
     def apply[M[_]: Monad, R: Manifest, A: Manifest](implicit m: CpsT[M, R, A]) = m
 
-    implicit def CpsTMonadInstance[M[_]: Monad, R: Manifest] = new Monad[CpsT[M, R, ?]] {
+    implicit def CpsTMonadInstance[M[_]: Monad, R: Manifest] = new Monad[CpsT[M, R, *]] {
       def flatMap[A: Manifest, B: Manifest](fa: CpsT[M, R, A])(f: Rep[A] => CpsT[M, R, B]) =
         fa.flatMap(f)
       def pure[A: Manifest](a: Rep[A]): CpsT[M, R, A] = CpsT((k: Rep[A] => M[R]) => k(a))

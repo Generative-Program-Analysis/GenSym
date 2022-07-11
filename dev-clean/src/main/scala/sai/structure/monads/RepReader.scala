@@ -21,9 +21,9 @@ trait RepReaderMonad { self: RepMonads with SAIOps =>
 
   object ReaderT {
     def apply[M[_]: Monad, R: Manifest, A: Manifest](implicit m: ReaderT[M, R, A]): ReaderT[M, R, A] = m
-    implicit def apply[M[_]: Monad, R: Manifest]: Monad[ReaderT[M, R, ?]] = ReaderTMonad[M, R]
+    implicit def apply[M[_]: Monad, R: Manifest]: Monad[ReaderT[M, R, *]] = ReaderTMonad[M, R]
 
-    implicit def ReaderTMonad[M[_]: Monad, R: Manifest] = new MonadReader[ReaderT[M, R, ?], R] {
+    implicit def ReaderTMonad[M[_]: Monad, R: Manifest] = new MonadReader[ReaderT[M, R, *], R] {
       def flatMap[A: Manifest, B: Manifest](fa: ReaderT[M, R, A])(f: Rep[A] => ReaderT[M, R, B]): ReaderT[M, R, B] =
         fa.flatMap(f)
       def pure[A: Manifest](a: Rep[A]): ReaderT[M, R, A] = ReaderT(_ => Monad[M].pure(a))
@@ -35,7 +35,7 @@ trait RepReaderMonad { self: RepMonads with SAIOps =>
       override def filter[A: Manifest](fa: ReaderT[M, R, A])(f: Rep[A] => Rep[Boolean]): ReaderT[M, R, A] = fa.filter(f)
     }
 
-    implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R: Manifest] = new MonadPlus[ReaderT[M, R, ?]] {
+    implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R: Manifest] = new MonadPlus[ReaderT[M, R, *]] {
       def mzero[A: Manifest : RepLattice]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
       def mplus[A: Manifest : RepLattice](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
         ReaderT(r => MonadPlus[M].mplus(a.run(r), b.run(r)))

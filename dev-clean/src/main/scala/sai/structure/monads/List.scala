@@ -9,13 +9,13 @@ import sai.structure.lattices.Lattices._
 object ListT {
   def apply[M[_]: Monad, A](implicit m: ListT[M, A]): ListT[M, A] = m
 
-  implicit def ListTMonad[M[_]: Monad] = new Monad[ListT[M, ?]] {
+  implicit def ListTMonad[M[_]: Monad] = new Monad[ListT[M, *]] {
     def flatMap[A, B](la: ListT[M, A])(f: A => ListT[M, B]) = la.flatMap(f)
     def pure[A](a: A): ListT[M, A] = ListT(Monad[M].pure(List(a)))
     override def filter[A](la: ListT[M, A])(f: A => Boolean): ListT[M, A] = la.filter(f)
   }
 
-  implicit def ListTMonadPlus[M[_]: Monad : MonadPlus] = new MonadPlus[ListT[M, ?]] {
+  implicit def ListTMonadPlus[M[_]: Monad : MonadPlus] = new MonadPlus[ListT[M, *]] {
     def mzero[A: Lattice]: ListT[M, A] = ListT(Monad[M].pure(List[A]()))
     def mplus[A: Lattice](a: ListT[M, A], b: ListT[M, A]): ListT[M, A] = {
       ListT(MonadPlus[M].mplus(a.run, b.run))

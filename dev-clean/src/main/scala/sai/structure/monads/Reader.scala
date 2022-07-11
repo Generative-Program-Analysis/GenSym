@@ -18,7 +18,7 @@ object MonadReader {
 object ReaderM {
   def apply[R, A](implicit m: ReaderM[R, A]): ReaderM[R, A] = m
 
-  implicit def ReaderMonadInstance[R] = new MonadReader[ReaderM[R, ?], R] {
+  implicit def ReaderMonadInstance[R] = new MonadReader[ReaderM[R, *], R] {
     def flatMap[A, B](fa: ReaderM[R, A])(f: A => ReaderM[R, B]): ReaderM[R, B] = fa.flatMap(f)
     def pure[A](a: A): ReaderM[R, A] = ReaderM(_ => a)
     def ask: ReaderM[R, R] = ReaderM(r => r)
@@ -41,7 +41,7 @@ case class ReaderM[R, A](run: R => A) {
 object ReaderT {
   def apply[M[_]: Monad, R, A](implicit m: ReaderT[M, R, A]): ReaderT[M, R, A] = m
 
-  implicit def ReaderTMonad[M[_]: Monad, R] = new MonadReader[ReaderT[M, R, ?], R] {
+  implicit def ReaderTMonad[M[_]: Monad, R] = new MonadReader[ReaderT[M, R, *], R] {
     def flatMap[A, B](fa: ReaderT[M, R, A])(f: A => ReaderT[M, R, B]) = fa.flatMap(f)
     def pure[A](a: A): ReaderT[M, R, A] = ReaderT(_ => Monad[M].pure(a))
     override def filter[A](fa: ReaderT[M, R, A])(f: A => Boolean): ReaderT[M, R, A] = fa.filter(f)
@@ -50,7 +50,7 @@ object ReaderT {
     def local[A](fa: ReaderT[M, R, A])(f: R => R): ReaderT[M, R, A] =
       ReaderT(f andThen fa.run)
   }
-  implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R] = new MonadPlus[ReaderT[M, R, ?]] {
+  implicit def ReaderTMonadPlus[M[_]: Monad : MonadPlus, R] = new MonadPlus[ReaderT[M, R, *]] {
     def mzero[A: Lattice]: ReaderT[M, R, A] = ReaderT(r => MonadPlus[M].mzero)
     def mplus[A: Lattice](a: ReaderT[M, R, A], b: ReaderT[M, R, A]): ReaderT[M, R, A] =
       ReaderT(r => MonadPlus[M].mplus(a.run(r), b.run(r)))

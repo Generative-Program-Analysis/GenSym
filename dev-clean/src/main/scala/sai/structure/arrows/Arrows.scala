@@ -32,7 +32,7 @@ object Arrow {
     def &&&[D](g: A[B, D]): A[B, (C, D)] = Arrow[A].&&&(f, g)
   }
 
-  def MonadIsArrow[M[_]: Monad] = new Arrow[Kleisli[M, ?, ?]] {
+  def MonadIsArrow[M[_]: Monad] = new Arrow[Kleisli[M, *, *]] {
     def arr[B, C](f: B => C): Kleisli[M, B, C] =
       Kleisli[M, B, C](b => Monad[M].pure(f(b)))
     def >>>[B, C, D](f: Kleisli[M, B, C], g: Kleisli[M, C, D]): Kleisli[M, B, D] =

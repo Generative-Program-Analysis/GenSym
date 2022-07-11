@@ -9,7 +9,7 @@ import sai.structure.lattices.Lattices._
 object EitherM {
   def apply[E, A](implicit m: EitherM[E, A]): EitherM[E, A] = m
 
-  implicit def EitherMonadInstance[E] = new Monad[EitherM[E, ?]] {
+  implicit def EitherMonadInstance[E] = new Monad[EitherM[E, *]] {
     def flatMap[A, B](fa: EitherM[E, A])(f: A => EitherM[E, B]): EitherM[E, B] = fa.flatMap(f)
     def pure[A](a: A): EitherM[E, A] = EitherM(Right(a))
   }
@@ -33,7 +33,7 @@ case class EitherM[E, A](run: Either[E, A]) {
 object EitherT {
   def apply[M[_]: Monad, E, A](implicit m: EitherT[M, E, A]) = m
 
-  implicit def EitherTMonadInstance[M[_]: Monad, E] = new Monad[EitherT[M, E, ?]] {
+  implicit def EitherTMonadInstance[M[_]: Monad, E] = new Monad[EitherT[M, E, *]] {
     def flatMap[A, B](fa: EitherT[M, E, A])(f: A => EitherT[M, E, B]) = fa.flatMap(f)
     def pure[A](a: A): EitherT[M, E, A] = EitherT(Monad[M].pure(Right(a)))
   }
@@ -57,7 +57,7 @@ case class EitherT[M[_]: Monad, E, A](run: M[Either[E, A]]) {
       case Left(e) => Monad[M].pure(Left(e))
       case Right(a) => f(a).run
     })
-  def map[B](f: A => B)(implicit mB: Manifest[B] = null): EitherT[M, E, B] = 
+  def map[B](f: A => B)(implicit mB: Manifest[B] = null): EitherT[M, E, B] =
     EitherT(Monad[M].flatMap(run) {
       case Left(e) => Monad[M].pure(Left(e))
       case Right(a) => Monad[M].pure(Right(f(a)))

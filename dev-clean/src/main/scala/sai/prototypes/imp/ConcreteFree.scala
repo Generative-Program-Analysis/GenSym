@@ -44,7 +44,7 @@ object ImpFree {
       }
   }
 
-  def eval[F[_]: Functor](e: Expr)(implicit I1: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Value] =
+  def eval[F[_]: Functor](e: Expr)(implicit I1: Nondet ⊆ F, I2: State[Store, *] ⊆ F): Free[F, Value] =
     for {
       σ <- get
     } yield eval(e, σ)
@@ -52,7 +52,7 @@ object ImpFree {
   def select[F[_]: Functor, A](xs: List[A])(implicit I: Nondet ⊆ F): Free[F, A] =
     xs.map(Return[F, A]).foldRight[Free[F, A]](fail)(choice)
 
-  def ifM[F[_]: Functor](e: Expr, s1: Stmt, s2: Stmt)(implicit I: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Stmt] =
+  def ifM[F[_]: Functor](e: Expr, s1: Stmt, s2: Stmt)(implicit I: Nondet ⊆ F, I2: State[Store, *] ⊆ F): Free[F, Stmt] =
     for {
       v <- eval(e)
     } yield {
@@ -60,7 +60,7 @@ object ImpFree {
       if (b) s1 else s2
     }
 
-  def exec[F[_]: Functor](s: Stmt)(implicit I1: Nondet ⊆ F, I2: State[Store, ?] ⊆ F): Free[F, Unit] = s match {
+  def exec[F[_]: Functor](s: Stmt)(implicit I1: Nondet ⊆ F, I2: State[Store, *] ⊆ F): Free[F, Unit] = s match {
     case Skip() => ret(())
     case Assign(x, e) =>
       for {
@@ -95,6 +95,6 @@ object ImpFree {
     implicit val F2 = Functor[(Nondet ⊕ ∅)#t]
 
     // concrete execution
-    println(VoidEff.run(NondetEff.run(StateEff.run(Map[String, Value](), exec[(State[Store, ?] ⊕ (Nondet ⊕ ∅)#t)#t](fact5)))))
+    println(VoidEff.run(NondetEff.run(StateEff.run(Map[String, Value](), exec[(State[Store, *] ⊕ (Nondet ⊕ ∅)#t)#t](fact5)))))
   }
 }

@@ -25,7 +25,7 @@ trait ConcreteSemantics extends ConcreteComponents {
   type StoreM[T] = StoreT[IdM, T]
 
   type R[T] = T
-  type AnsM[T] = ReaderT[StateT[IdM, Store, ?], Env, T]
+  type AnsM[T] = ReaderT[StateT[IdM, Store, *], Env, T]
 
   // Environment operations
   def ask_env: AnsM[Env] = ReaderTMonad[StoreM, Env].ask
