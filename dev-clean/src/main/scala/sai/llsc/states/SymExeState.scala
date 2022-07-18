@@ -87,10 +87,10 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     }
     def lookupSeq(addr: Rep[Value], count: Rep[Int]): Rep[List[Value]] = "ss-lookup-addr-seq".reflectWith[List[Value]](ss, addr, count)
 
-    def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int, k: Rep[Cont]): Rep[Unit] =
-      "ss-array-lookup".reflectWith[Unit](ss, base, offset, eSize, k)
-    def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int): Rep[List[(SS, Value)]] =
-      "ss-array-lookup".reflectWith[List[(SS, Value)]](ss, base, offset, eSize)
+    //def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int, k: Rep[Cont]): Rep[Unit] =
+    //  "ss-array-lookup".reflectWith[Unit](ss, base, offset, eSize, k)
+    //def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int): Rep[List[(SS, Value)]] =
+    //  "ss-array-lookup".reflectWith[List[(SS, Value)]](ss, base, offset, eSize)
 
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v, sz)
     def updateSeq(a: Rep[Value], v: Rep[List[Value]]): Rep[SS] = "ss-update-seq".reflectWith[SS](ss, a, v)

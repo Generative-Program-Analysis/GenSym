@@ -16,6 +16,7 @@ static struct option long_options[] =
   {"no-cex-cache",         no_argument,       0, 'C'},
   {"cons-indep",           no_argument,       0, 'i'},
   {"print-inst-count",     no_argument,       0, 'I'},
+  {"symloc-strategy",      required_argument, 0, 'L'},
   {"add-sym-file",         required_argument, 0, '+'},
   {"sym-file-size",        required_argument, 0, 's'},
   {"thread",               required_argument, 0, 't'},
@@ -38,6 +39,18 @@ inline void set_solver(std::string& solver) {
   }
 }
 
+inline void set_symloc_strategy(std::string& strategy) {
+  if ("one" == strategy) {
+    symloc_strategy = SymLocStrategy::one;
+  } else if ("feasible" == strategy) {
+    symloc_strategy = SymLocStrategy::feasible;
+  } else if ("all" == strategy) {
+    symloc_strategy = SymLocStrategy::all;
+  } else {
+    ABORT("unknown symloc strategy");
+  }
+}
+
 inline void print_help(char* main_name) {
   struct option* p = long_options;
   size_t len = sizeof(long_options) / sizeof(struct option);
@@ -49,6 +62,8 @@ inline void print_help(char* main_name) {
         std::string key = p->name;
         if (key == "solver") {
           printf("={stp,z3,disable}");
+        } else if (key == "symloc-strategy") {
+          printf("={one,feasible,all}");
         } else {
           // TODO: doc for other options
           printf("=<value>");
@@ -94,6 +109,11 @@ inline void handle_cli_args(int argc, char** argv) {
         g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
         g_argc = make_IntV(cli_argv.size());
         break;
+      case 'L': {
+        auto strategy = std::string(optarg);
+        set_symloc_strategy(strategy);
+        break;
+      }
       case '+':
         initial_fs = set_file(initial_fs, "/" + String(optarg), make_SymFile(std::string(optarg), default_sym_file_size));
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);

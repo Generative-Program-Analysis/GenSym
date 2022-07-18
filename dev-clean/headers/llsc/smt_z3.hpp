@@ -136,6 +136,15 @@ public:
         return expr_rands.at(0).extract(
                                 expr_rands.at(1).get_numeral_uint(),
                                 expr_rands.at(2).get_numeral_uint());
+      case iOP::op_ite: {
+        auto cond = expr_rands.at(0);
+        auto v_t = expr_rands.at(1);
+        auto v_e = expr_rands.at(2);
+        ASSERT(cond.get_sort().is_bool(), "Non Boolean condition");
+        ASSERT(v_t.get_sort().is_bv() && v_e.get_sort().is_bv(), "Operation between different type");
+        ASSERT(v_t.get_sort().bv_size() == v_e.get_sort().bv_size(),"Operation between different bv_length");
+        return ite(cond, v_t, v_e);
+      }
       default: break;
     }
     ABORT("unkown operator when constructing STP expr");

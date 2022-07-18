@@ -36,6 +36,7 @@ trait BasicDefs { self: SAIOps =>
   type Id[T] = T
   type Fd = Int
   val bConst = Backend.Const
+  type bSym = Backend.Sym
   lazy val gNode = Adapter.g.Def
   type bExp = Backend.Exp
 
@@ -186,6 +187,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply(i: Rep[Long]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Long], bw: Int): Rep[Value] = "make_IntV".reflectMutableWith[Value](i, bw)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
+      // Todo: add bSym rhs case
       case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) =>
         Some((v, bw))
       case _ => None
@@ -213,6 +215,16 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Long], Rep[Long])] = Unwrap(v) match {
       case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::(off: bExp)::_) =>
         Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Long](size), Wrap[Long](off)))
+      case _ => None
+    }
+  }
+
+  object SymLocV {
+    def apply(l: Rep[Addr], kind: Rep[LocV.Kind], size: Rep[Long], off: Rep[Value]): Rep[Value] =
+      "make_SymLocV".reflectMutableWith[Value](l, kind, size, off)
+    def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[LocV.Kind], Rep[Long], Rep[Value])] = Unwrap(v) match {
+      case gNode("make_SymLocV", (a: bExp)::(k: bExp)::(size: bExp)::(off: bSym)::_) =>
+        Some((Wrap[Addr](a), Wrap[LocV.Kind](k), Wrap[Long](size), Wrap[Value](off)))
       case _ => None
     }
   }
@@ -303,6 +315,13 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
           case _ => apply_noopt(op, o1, o2)
         }
       }
+
+    def unapply(v: Rep[Value]): Option[(String, Rep[Value], Rep[Value])] = Unwrap(v) match {
+      case gNode("int_op_2", bConst(x: String)::(o1: bSym)::(o2: bSym)::_) =>
+        Some((x, Wrap[Value](o1), Wrap[Value](o2)))
+      case _ => None
+    }
+
     def neq(o1: Rep[Value], o2: Rep[Value]): Rep[Value] = (Unwrap(o1), Unwrap(o2)) match {
       case (gNode("bv_sext", (e1: bExp)::bConst(bw1: Int)::_),
             gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 =>
@@ -330,15 +349,18 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   implicit class ValueOps(v: Rep[Value]) {
     def bw: Rep[Int] = v match {
       case IntV(n, bw) if Config.opt => bw
-      case LocV(a, k, size, off) if Config.opt => unit(64)
+      case LocV(a, k, size, off) if Config.opt => unit(DEFAULT_ADDR_BW)
+      case SymLocV(a, k, size, off) if Config.opt => unit(DEFAULT_ADDR_BW)
       case _ => "get-bw".reflectWith[Int](v)
     }
     def loc: Rep[Addr] = v match {
       case LocV(a, k, size, off) if Config.opt => a
+      // Todo: should we add here for symlocv
       case _ => "proj_LocV".reflectWith[Addr](v)
     }
     def kind: Rep[LocV.Kind] = v match {
       case LocV(a, k, size, off) if Config.opt => k
+      case SymLocV(a, k, size, off) if Config.opt => k
       case _ => "proj_LocV_kind".reflectWith[LocV.Kind](v)
     }
     def int: Rep[Long] = v match {
@@ -389,8 +411,17 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 
-    def sExt(bw: Int): Rep[Value] = "bv_sext".reflectWith[Value](v, bw)
-    def zExt(bw: Int): Rep[Value] = "bv_zext".reflectWith[Value](v, bw)
+    val ext_simpl_op = StaticList[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
+
+    def sExt(bw: Int): Rep[Value] = Unwrap(v) match {
+      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (ext_simpl_op.contains(s) && (bw1 == bw)) => v
+      case _ => "bv_sext".reflectWith[Value](v, bw)
+    }
+
+    def zExt(bw: Int): Rep[Value] = Unwrap(v) match {
+      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (ext_simpl_op.contains(s) && (bw1 == bw)) => v
+      case _ => "bv_zext".reflectWith[Value](v, bw)
+    }
 
     def isConc: Rep[Boolean] = v match {
       case IntV(_, _) if Config.opt => unit(true)
@@ -406,17 +437,30 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def fromSIntToFloat: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Int, to: Int): Rep[Value] = "trunc".reflectWith[Value](v, from, to)
 
-    def +(off: Rep[Long]): Rep[Value] =
-      v match {
-        case LocV(a, k, s, o) => LocV(a, k, s, o + off)
+    def ptrOff(off: Rep[Value]): Rep[Value] =
+      (v, off) match {
+        // Todo: Add case for IntV non-const
+        case (LocV(a, k, s, o), IntV(n, _)) => LocV(a, k, s, o + n)
         case _ => "ptroff".reflectWith[Value](v, off)
+      }
+
+    def addOff(rhs: Rep[Value]): Rep[Value] =
+      (v, rhs) match {
+        case (IntV(n1, bw1), IntV(n2, bw2)) => if (bw1 == bw2) IntV(n1 + n2, bw1) else ???
+        case _ => IntOp2("add", v, rhs)
+      }
+
+    def mulOff(rhs: Rep[Value]): Rep[Value] =
+      (v, rhs) match {
+        case (IntV(n1, bw1), IntV(n2, bw2)) => if (bw1 == bw2) IntV(n1 * n2, bw1) else ???
+        case _ => IntOp2("mul", v, rhs)
       }
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)
       case IntV(n, bw) => ???
       case FloatV(f, bw) => ???
-      case LocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
+      case LocV(_, _, _, _) | SymLocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
       case _ => "to-bytes".reflectWith[List[Value]](v)
     }
@@ -425,7 +469,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case ShadowV() => List[Value](v)
       case IntV(n, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case FloatV(f, bw) => List[Value](v::ShadowV.indexSeq((bw+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
-      case LocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
+      case LocV(_, _, _, _) | SymLocV(_, _, _, _) | FunV(_) | CPSFunV(_) =>
         List[Value](v::ShadowV.indexSeq(7):_*)
       case NullLoc() => List[Value](v::ShadowV.indexSeq((ARCH_WORD_SIZE+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case _ => "to-bytes-shadow".reflectWith[List[Value]](v)

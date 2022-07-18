@@ -324,6 +324,7 @@ inline std::monostate __errno_location(SS state, List<PtrVal> args, Cont k) {
   return ____errno_location<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
+// Todo: could use is_conc method of struct value
 template<typename T>
 inline T __llsc_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);

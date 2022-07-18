@@ -317,12 +317,12 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
   }
 
-  def calculateOffset(ty: LLVMType, index: List[Rep[Long]]): Rep[Long] = {
-    if (index.isEmpty) 0.toLong else ty match {
+  def calculateOffset(ty: LLVMType, index: List[Rep[Value]]): Rep[Value] = {
+    if (index.isEmpty) IntV(0.toLong, DEFAULT_INDEX_BW) else ty match {
       case PtrType(ety, addrSpace) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+        (index.head.sExt(DEFAULT_INDEX_BW) mulOff IntV(getTySize(ety), DEFAULT_INDEX_BW)) addOff calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
-        index.head * getTySize(ety) + calculateOffset(ety, index.tail)
+        (index.head.sExt(DEFAULT_INDEX_BW) mulOff IntV(getTySize(ety), DEFAULT_INDEX_BW)) addOff calculateOffset(ety, index.tail)
       case NamedType(id) =>
         calculateOffset(typeDefMap(id), index)
       case Struct(types) =>
@@ -331,11 +331,11 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         //  constants are allowed"
         // TODO: the align argument for getTySize
         // TODO: test this
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Long)) => n.toLong }
-        calculateOffsetStatic(ty, indexCst)
+        val indexCst: List[Long] = index.map { case IntV(n, _) => n.toLong }
+        IntV(calculateOffsetStatic(ty, indexCst), DEFAULT_INDEX_BW)
       case PackedStruct(types) =>
-        val indexCst: List[Long] = index.map { case Wrap(Backend.Const(n: Long)) => n.toLong }
-        calculateOffsetStatic(ty, indexCst)
+        val indexCst: List[Long] = index.map { case IntV(n, _) => n.toLong }
+        IntV(calculateOffsetStatic(ty, indexCst), DEFAULT_INDEX_BW)
       case _ => ???
     }
   }
@@ -373,7 +373,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
       val offset = calculateOffsetStatic(ptrType, indexLLVMValue)
       val base = evalHeapAtomicConst(const, getRealType(ptrType))
-      base + offset
+      base ptrOff IntV(offset, DEFAULT_INDEX_BW)
     case _ => throw new Exception("Not atomic heap constant " + v)
   }
 

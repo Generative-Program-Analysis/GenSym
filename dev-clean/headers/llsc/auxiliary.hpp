@@ -23,6 +23,8 @@ inline unsigned int default_bw = 32;
 // The bitwidth of addresses (64 by default)
 inline unsigned int addr_bw = 64;
 
+inline unsigned int addr_index_bw = 64;
+
 inline std::atomic<std::optional<int>> exit_code;
 inline std::mutex exit_code_lock;
 
@@ -72,13 +74,21 @@ inline SolverKind solver_kind = SolverKind::stp;
 // Global counter to record time spent in solver
 inline duration<double, std::micro> solver_time = microseconds::zero();
 
+// Different strategies to handle symbolic pointer index read/write
+// one:       only search one feasible concrete index
+// feasible:  search all feasible concrete indexes
+// all:       enumerate all possible indexes (feasible or not)
+enum class SymLocStrategy { one, feasible, all };
+
+inline SymLocStrategy symloc_strategy = SymLocStrategy::all;
+
 enum class iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
   op_eq, op_uge, op_ugt, op_ule, op_ult,
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
   op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc,
-  op_concat, op_extract
+  op_concat, op_extract, op_ite
 };
 
 enum class fOP {
@@ -130,6 +140,7 @@ inline std::string int_op2string(iOP op) {
     case iOP::op_trunc: return "trunc";
     case iOP::op_concat: return "concat";
     case iOP::op_extract: return "extract";
+    case iOP::op_ite: return "ifthenelse";
   }
   return "unknown op";
 }

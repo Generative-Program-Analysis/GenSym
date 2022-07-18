@@ -4,11 +4,14 @@
 struct Value;
 struct IntV;
 struct SymV;
+struct SymLocV;
 struct SS;
 class PC;
 
 using PtrVal = std::shared_ptr<Value>;
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
+inline PtrVal bv_sext(const PtrVal& v, int bw);
+inline PtrVal bv_zext(const PtrVal& v, int bw);
 inline PtrVal make_IntV(IntData i, int bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
 
@@ -305,6 +308,8 @@ struct LocV : IntV {
     hash_combine(hash(), std::string("locv"));
     hash_combine(hash(), k);
     hash_combine(hash(), l);
+    hash_combine(hash(), base);
+    hash_combine(hash(), size);
   }
   LocV(const LocV& v) : LocV(v.base, v.k, v.size, v.l - v.base) {}
 
@@ -330,6 +335,7 @@ inline PtrVal make_LocV(Addr base, LocV::Kind k, size_t size, size_t off = 0) {
   return *(ins.first);
 }
 
+// Todo: what should proj_LocV return?
 inline unsigned int proj_LocV(const PtrVal& v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
@@ -510,6 +516,59 @@ inline PtrVal SymV::neg(const PtrVal& v) {
   return make_SymV(iOP::op_neg, List<PtrVal>({ v }), v->get_bw());
 }
 
+inline PtrVal addr_index_ext(const PtrVal& off) {
+  ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
+  if (off->get_bw() == addr_index_bw) {
+    return off;
+  } else {
+    // Todo: whether zext or sext?
+    return bv_sext(off, addr_index_bw);
+  }
+}
+
+inline PtrVal SymLocV_index(const int off) {
+  ASSERT(off >= 0, "Bad off");
+  return make_IntV(off, addr_index_bw);
+}
+
+struct SymLocV : SymV {
+  PtrVal off;
+  LocV::Kind k;
+  size_t base, size;
+
+  SymLocV(Addr base, LocV::Kind k, int size, PtrVal off) :
+    SymV(iOP::op_add, List<PtrVal>({ bv_sext(off, addr_bw), make_IntV((LocV::MemOffset[k] + base), addr_bw) }), addr_bw), off(addr_index_ext(off)), k(k), base(base), size(size) {
+    hash_combine(hash(), std::string("symlocv"));
+    hash_combine(hash(), std::hash<PtrVal>{}(off));
+    hash_combine(hash(), k);
+    hash_combine(hash(), base);
+    hash_combine(hash(), size);
+  }
+
+  SymLocV(const SymLocV& v) : SymLocV(v.base, v.k, v.size, v.off) {}
+
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "LocV(off:" << *off << ", " << "base:" <<base <<", size:" << size <<", " << std::string(k == LocV::Kind::kStack ? "kStack" : "kHeap") << ")";
+    return ss.str();
+  }
+
+  virtual bool compare(const Value* v) const override {
+    auto that = static_cast<decltype(this)>(v);
+    if (!std::equal_to<PtrVal>{}(this->off, that->off)) return false;
+    if (this->k != that->k) return false;
+    if (this->base != that->base) return false;
+    return this->size == that->size;
+  }
+};
+
+inline PtrVal make_SymLocV(Addr base, LocV::Kind k, size_t size, PtrVal off) {
+  auto ret = std::make_shared<SymLocV>(base, k, size, off);
+  if (!use_hashcons) return ret;
+  auto ins = objpool.insert(ret);
+  return *(ins.first);
+}
+
 struct StructV : Value {
   immer::flex_vector<PtrVal> fs;
   StructV(immer::flex_vector<PtrVal> fs) : fs(fs) {
@@ -610,6 +669,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         ABORT("invalid operator");
     }
   } else {
+    ASSERT((i1 || std::dynamic_pointer_cast<SymV>(v1)) && (i2 || std::dynamic_pointer_cast<SymV>(v2)), "Invalid operand");
     int bw = bw1;
     switch (op) {
       case iOP::op_eq:
@@ -670,6 +730,17 @@ inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
   }
 }
 
+inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e) {
+  ASSERT(1 == cond->get_bw(), "Non-bool condition");
+  ASSERT(v_t->get_bw() == v_e->get_bw(), "In-consistent operands");
+  auto cond_i = std::dynamic_pointer_cast<IntV>(cond);
+  if (cond_i) {
+    return cond_i->i ? v_t : v_e;
+  }
+  ASSERT(std::dynamic_pointer_cast<SymV>(cond), "Invalid condition");
+  return make_SymV(iOP::op_ite, List<PtrVal>({ cond, v_t, v_e }), v_t->get_bw());
+}
+
 /* TODO: implement those two <2022-03-10, David Deng> */
 
 inline PtrVal fp_ext(const PtrVal& v1, int from, int to) {
@@ -690,6 +761,10 @@ inline PtrVal fp_trunc(const PtrVal& v1, int from, int to) {
 }
 
 inline PtrVal bv_sext(const PtrVal& v, int bw) {
+  ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
+  if (v->get_bw() == bw) {
+    return v;
+  }
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
     return make_IntV(int64_t(i1->i) >> (bw - i1->bw), bw, false);
@@ -705,6 +780,10 @@ inline PtrVal bv_sext(const PtrVal& v, int bw) {
 }
 
 inline PtrVal bv_zext(const PtrVal& v, int bw) {
+  ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
+  if (v->get_bw() == bw) {
+    return v;
+  }
   auto i1 = std::dynamic_pointer_cast<IntV>(v);
   if (i1) {
     return make_IntV(uint64_t(i1->i) >> (bw - i1->bw), bw, false);
@@ -768,6 +847,30 @@ inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
   }
   if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
     return make_IntV(i->i + rhs, i->bw);
+  }
+  ABORT("Unknown application of operator+");
+}
+
+inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
+  auto int_rhs = std::dynamic_pointer_cast<IntV>(rhs);
+  auto sym_rhs = std::dynamic_pointer_cast<SymV>(rhs);
+  ASSERT(int_rhs || sym_rhs, "Invalid rhs");
+
+  if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
+    ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
+    if (int_rhs) {
+      return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + int_rhs->as_signed());
+    } else {
+      auto new_off = int_op_2(iOP::op_add, sym_rhs, SymLocV_index(loc->l - loc->base));
+      return make_SymLocV(loc->base, loc->k, loc->size, new_off);
+    }
+  }
+  if (auto symloc = std::dynamic_pointer_cast<SymLocV>(lhs)) {
+    auto off = std::dynamic_pointer_cast<SymV>(symloc->off);
+    ASSERT(off && (off->get_bw() == addr_index_bw), "Invalid offset index");
+    ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
+    auto new_off = int_op_2(iOP::op_add, off, rhs);
+    return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
   }
   ABORT("Unknown application of operator+");
 }

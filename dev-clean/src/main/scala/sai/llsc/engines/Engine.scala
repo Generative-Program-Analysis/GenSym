@@ -91,12 +91,11 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(typedConsts)(tv => eval(tv.const, tv.ty))
           lV <- eval(const, ptrType)
         } yield {
-          val indexValue = vs.map(v => v.int)
-          val offset = calculateOffset(ptrType, indexValue)
+          val offset = calculateOffset(ptrType, vs)
           (const match {
             case GlobalId(id) => heapEnv(id)()
             case _ => lV
-          }) + offset
+          }) ptrOff offset
         }
       case IntToPtrExpr(from, value, to) =>
         for { v <- eval(value, from) } yield v
@@ -145,32 +144,16 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           v <- eval(value, ptrTy)
           ss <- getState
         } yield ss.lookup(v, getTySize(valTy), isStruct)
-      case GetElemPtrInst(_, baseType, ptrType@PtrType(ety, _), ptrValue, TypedValue(iTy, LocalId(x))::Nil) =>
-        for {
-          base <- eval(ptrValue, ptrType)
-          offset <- eval(LocalId(x), iTy)
-          ss <- getState
-          v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
-        } yield v
-      case GetElemPtrInst(_, baseType, ptrType@PtrType(ArrayType(size, ety), _), ptrValue,
-        TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
-        for {
-          base <- eval(ptrValue, ptrType)
-          offset <- eval(LocalId(x), iTy)
-          ss <- getState
-          v <- reflect(ss.arrayLookup(base, offset, getTySize(ety)))
-        } yield v
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         for {
           vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
           lV <- eval(ptrValue, ptrType)
         } yield {
-          val indexValue = vs.map(v => v.int)
-          val offset = calculateOffset(ptrType, indexValue)
+          val offset = calculateOffset(ptrType, vs)
           (ptrValue match {
             case GlobalId(id) => heapEnv(id)()
             case _ => lV
-          }) + offset
+          }) ptrOff offset
         }
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs, ty)

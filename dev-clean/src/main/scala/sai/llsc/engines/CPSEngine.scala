@@ -80,12 +80,11 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case GetElemPtrExpr(_, baseType, ptrType, const, typedConsts) =>
         // typedConst are not all int, could be local id
         val vs = typedConsts.map(tv => eval(tv.const, tv.ty, ss))
-        val indexValue = vs.map(v => v.int)
-        val offset = calculateOffset(ptrType, indexValue)
+        val offset = calculateOffset(ptrType, vs)
         (const match {
           case GlobalId(id) => heapEnv(id)()
           case _ => eval(const, ptrType, ss)
-        }) + offset
+        }) ptrOff offset
       case IntToPtrExpr(from, value, to) => eval(value, from, ss)
       case PtrToIntExpr(from, value, IntType(toSize)) =>
         import sai.llsc.Constants.ARCH_WORD_SIZE
@@ -122,23 +121,13 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         }
         val v = eval(value, ptrTy, ss)
         k(ss, ss.lookup(v, getTySize(valTy), isStruct))
-      case GetElemPtrInst(_, baseType, ptrType@PtrType(ety, _), ptrValue, TypedValue(iTy, LocalId(x))::Nil) =>
-        val base = eval(ptrValue, ptrType, ss)
-        val offset = eval(LocalId(x), iTy, ss)
-        ss.arrayLookup(base, offset, getTySize(ety), fun { case (s, v) => k(s, v) })
-      case GetElemPtrInst(_, baseType, ptrType@PtrType(ArrayType(size, ety), _), ptrValue,
-        TypedValue(_, IntConst(0))::TypedValue(iTy, LocalId(x))::Nil) =>
-        val base = eval(ptrValue, ptrType, ss)
-        val offset = eval(LocalId(x), iTy, ss)
-        ss.arrayLookup(base, offset, getTySize(ety), fun { case (s, v) => k(s, v) })
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
-        val indexValue = vs.map(v => v.int)
-        val offset = calculateOffset(ptrType, indexValue)
+        val offset = calculateOffset(ptrType, vs)
         val v = (ptrValue match {
           case GlobalId(id) => heapEnv(id)()
           case _ => eval(ptrValue, ptrType, ss)
-        }) + offset
+        }) ptrOff offset
         k(ss, v)
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss))

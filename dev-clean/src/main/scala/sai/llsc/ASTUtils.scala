@@ -27,5 +27,7 @@ object ASTUtils {
 object Constants {
   final val BYTE_SIZE: Int = 8
   final val DEFAULT_INT_BW: Int = BYTE_SIZE * 4
+  final val DEFAULT_ADDR_BW: Int = BYTE_SIZE * 8
+  final val DEFAULT_INDEX_BW: Int = BYTE_SIZE * 8
   final val ARCH_WORD_SIZE: Int = 64
 }
