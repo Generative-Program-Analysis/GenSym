@@ -48,11 +48,11 @@ int main() {
 	//Value& y = x;
 	//std::cout << y << std::endl;
 
-	std::shared_ptr<Value> z = std::make_shared<IntV>(x);
+	simple_ptr<Value> z = make_simple<IntV>(x);
 	std::cout << *z << std::endl;
 	//std::cout << (*z == x) << std::endl;
 
-	std::cout << *op_2("+", z, std::make_shared<IntV>(x)) << std::endl;
+	std::cout << *op_2("+", z, make_simple<IntV>(x)) << std::endl;
 	
 	BoolV b(true);
 	std::cout << b << std::endl;
@@ -70,8 +70,8 @@ int main() {
 
 	std::cout << *s->args.at(0) << std::endl;
 	
-	auto v = immer::set<std::shared_ptr<Value>>();
-	v = v.insert(std::make_shared<BoolV>(b));
+	auto v = immer::set<simple_ptr<Value>>();
+	v = v.insert(make_simple<BoolV>(b));
 
 	test_set();
 

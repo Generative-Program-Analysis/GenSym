@@ -362,7 +362,8 @@ class Stack: public Printable {
     PtrVal at(size_t idx) { return mem.at(idx); }
     PtrVal at(size_t idx, int size) { return mem.at(idx, size); }
     PtrVal at_struct(size_t idx, int size) {
-      return std::make_shared<StructV>(mem.take(idx + size).drop(idx).get_mem());
+      auto ret = make_simple<StructV>(mem.take(idx + size).drop(idx).get_mem());
+      return hashconsing(ret);
     }
     Stack update(size_t idx, const PtrVal& val) { return Stack(mem.update(idx, val), env, errno_location); }
     Stack update(size_t idx, const PtrVal& val, int size) { return Stack(mem.update(idx, val, size), env, errno_location); }
@@ -476,7 +477,8 @@ class SS: public Printable {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
-      return std::make_shared<StructV>(heap.take(loc->l + size).drop(loc->l).get_mem());
+      auto ret = make_simple<StructV>(heap.take(loc->l + size).drop(loc->l).get_mem());
+      return hashconsing(ret);
     }
     List<PtrVal> at_seq(const PtrVal& addr, int count) {
       auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
@@ -563,7 +565,8 @@ inline const List<SSVal> mt_path_result = List<SSVal>{};
 using func_t = List<SSVal> (*)(SS, List<PtrVal>);
 
 inline PtrVal make_FunV(func_t f) {
-  return std::make_shared<FunV<func_t>>(f);
+  auto ret = make_simple<FunV<func_t>>(f);
+  return hashconsing(ret);
 }
 
 inline List<SSVal> direct_apply(const PtrVal& v, const SS& ss, List<PtrVal> args) {
@@ -575,7 +578,8 @@ inline List<SSVal> direct_apply(const PtrVal& v, const SS& ss, List<PtrVal> args
 using func_cps_t = std::monostate (*)(SS, List<PtrVal>, std::function<std::monostate(SS, PtrVal)>);
 
 inline PtrVal make_CPSFunV(func_cps_t f) {
-  return std::make_shared<FunV<func_cps_t>>(f);
+  auto ret = make_simple<FunV<func_cps_t>>(f);
+  return hashconsing(ret);
 }
 
 inline std::monostate cps_apply(const PtrVal& v, const SS& ss, List<PtrVal> args, std::function<std::monostate(SS, PtrVal)> k) {

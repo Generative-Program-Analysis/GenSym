@@ -39,9 +39,9 @@ public:
     std::vector<ExprHandle> expr_rands;
     int bw = sym_e->bw;
     for (auto e : sym_e->rands) {
-      auto [e2, vm] = construct_expr(e);
+      auto& [e2, vm] = construct_expr(e);
       expr_rands.push_back(e2);
-      vars.insert(vm->begin(), vm->end());
+      vars.insert(vm.begin(), vm.end());
     }
     switch (sym_e->rator) {
     case iOP::op_add:

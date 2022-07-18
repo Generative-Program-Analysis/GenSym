@@ -52,11 +52,11 @@ class CachedChecker : public Checker {
   }
 
 public:
-  using VarMap = std::map<std::shared_ptr<SymV>, Expr>;
-  using ExprDetail = std::tuple<Expr, std::shared_ptr<VarMap>>;
-  std::map<PtrVal, ExprDetail> objcache;
+  using VarMap = std::map<simple_ptr<SymV>, Expr>;
+  using ExprDetail = std::tuple<Expr, VarMap>;
+  std::unordered_map<PtrVal, ExprDetail> objcache;
 
-  using Model = std::map<std::shared_ptr<SymV>, IntData>;
+  using Model = std::unordered_map<simple_ptr<SymV>, IntData>;
   using CheckResult = std::tuple<solver_result, std::shared_ptr<Model>>;
   std::map<std::set<PtrVal>, CheckResult> cexcache;
 
@@ -65,66 +65,76 @@ public:
     cexcache.clear();
   }
 
-  ExprDetail construct_expr(PtrVal e) {
-    if (use_objcache)
-      if (auto it = objcache.find(e); it != objcache.end())
-        return it->second;
-    auto varmap = std::make_shared<VarMap>();
-    auto expr = self()->construct_expr_internal(e, *varmap);
-    if (use_objcache)
-      objcache.emplace(e, std::make_tuple(expr, varmap));
-    return std::make_tuple(expr, varmap);
+  const ExprDetail& construct_expr(PtrVal e) {
+    if (auto it = objcache.find(e); it != objcache.end())
+      return it->second;
+    VarMap tmp;
+    auto expr = self()->construct_expr_internal(e, tmp);
+    auto [it, ins] = objcache.emplace(e, std::make_tuple(expr, std::move(tmp)));
+    return it->second;
   }
 
   template <template <typename> typename Cont>
   CheckResult check_model(
         const Cont<PtrVal>& conds,
-        std::shared_ptr<SymV> query_expr=nullptr,
+        simple_ptr<SymV> query_expr=nullptr,
         bool require_model=false) {
 
     push();
+
     // translation
-    std::map<PtrVal, ExprDetail> exprmap;
-    bool query_include = false;
-    for (auto &v: conds) {
-      if (v == query_expr) query_include = true;
-      exprmap.emplace(v, construct_expr(v));
-    }
-    if (query_expr && !query_include) {
-      exprmap.emplace(query_expr, construct_expr(query_expr));
-    }
+    if (!use_objcache)
+      objcache.clear();
+    for (auto &v: conds)
+      construct_expr(v);
+    if (query_expr)
+      construct_expr(query_expr);
+
+    // local storage
+    using objiter_t = typename decltype(objcache)::iterator;
+    std::vector<objiter_t> condvec;
+    std::set<PtrVal> condset;
 
     // constraint independence resolving
-    std::set<PtrVal> condset;
-    if (use_cons_indep && exprmap.size() > 1) {
-      std::map<std::shared_ptr<SymV>, std::set<PtrVal>> v2q;
-      for (auto& [q, ev]: exprmap) {
-        auto& [e, vm] = ev;
-        for (auto& [v, v2]: *vm) {
-          v2q[v].insert(q);
-        }
+    if (use_cons_indep && conds.size() > (query_expr ? 0 : 1)) {
+      std::vector<objiter_t> queue;
+      objiter_t cur;
+      int idx;
+
+      for (auto& v: conds) {
+        condvec.push_back(objcache.find(v));
       }
-      std::queue<PtrVal> queue;
-      queue.push(query_expr ? query_expr : conds[conds.size() - 1]);
-      while (!queue.empty()) {
-        auto q = queue.front(); queue.pop();
-        if (condset.find(q) == condset.end()) {
-          condset.insert(q);
-          auto& [e, vm] = exprmap.at(q);
-          for (auto& [v, v2]: *vm) {
-            for (auto& q2: v2q[v])
-              if (q2 != q)
-                queue.push(q2);
-            v2q[v].clear();
+      if (!query_expr) {
+        cur = condvec.back(); condvec.pop_back();
+        idx = 1;
+        queue.push_back(cur);
+        condset.insert(cur->first);
+      }
+      else {
+        cur = objcache.find(query_expr);
+        idx = 0;
+      }
+
+      do {
+        auto& cset = std::get<1>(cur->second);
+        for (auto& next: condvec) if (next != objcache.end()) {
+          auto& nset = std::get<1>(next->second);
+          auto cit = cset.begin(); auto nit = nset.begin();
+          if (cit != cset.end() && nit != nset.end()) {
+            do if (nit->first == cit->first) {
+              condset.insert(next->first);
+              queue.push_back(next);
+              next = objcache.end();
+              break;
+            }
+            while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
           }
         }
       }
-      if (query_expr && !query_include)
-        condset.erase(query_expr);
+      while (idx < queue.size() && (cur = queue[idx++], true));
+      condvec = std::move(queue);
     } else {
-      for (auto &v: conds) {
-        condset.insert(v);
-      }
+      condset.insert(conds.begin(), conds.end());
     }
 
     //solving with counterexample caching
@@ -137,10 +147,19 @@ public:
 
     //assert and check
     VarMap varmap;
-    for (auto& v: condset) {
-      auto& [e, vm] = exprmap.at(v);
-      self()->add_constraint_internal(e);
-      varmap.insert(vm->begin(), vm->end());
+    if (condvec.size()) {  // use local cache if possible
+      for (auto& v: condvec) {
+        auto& [e, vm] = v->second;
+        self()->add_constraint_internal(e);
+        varmap.insert(vm.begin(), vm.end());
+      }
+    }
+    else {
+      for (auto& v: condset) {
+        auto& [e, vm] = objcache.at(v);
+        self()->add_constraint_internal(e);
+        varmap.insert(vm.begin(), vm.end());
+      }
     }
     solver_result result = check_model();
 
@@ -153,11 +172,11 @@ public:
       }
     }
     if (use_cexcache) {
-      cexcache.emplace(condset, std::make_tuple(result, model));
+      cexcache.emplace(std::move(condset), std::make_tuple(result, model));
     }
     if (result == sat && query_expr) {  // !require_model
       model = std::make_shared<Model>();
-      auto& [e, vm] = exprmap.at(query_expr);
+      auto& e = std::get<0>(objcache.at(query_expr));
       model->emplace(query_expr, self()->get_value_internal(e));
     }
     pop();
@@ -230,6 +249,8 @@ public:
   }
 
   Checker& get_checker() {
+    // why would this improve the performance?
+    static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ? static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
     return *(checker_map[std::this_thread::get_id()]);
   }
 };
