@@ -125,6 +125,7 @@ def do_check_run(payload, env):
         subp.run(["make"], check=True)
 
         os.chdir("../..")
+        subp.run(["sbt", "runMain sai.llsc.GenerateExternal"], check=True)
         subp.run(["sbt", "Bench / test"], check=True)
         dstfile = os.path.expanduser("~/.www/benchllsc/bench.csv")
         with open("bench.csv", "r") as f1, open(dstfile, "a") as f2:
