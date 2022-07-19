@@ -140,6 +140,35 @@ inline std::monostate realloc(SS state, List<PtrVal> args, Cont k) {
 /******************************************************************************/
 
 template<typename T>
+inline T __reallocarray(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  IntData nmemb = proj_IntV(args.at(1));
+  IntData size = proj_IntV(args.at(2));
+  ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
+  IntData bytes = nmemb * size;
+  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
+  SS res = state.heap_append(emptyMem);
+  if (!is_LocV_null(args.at(0))) {
+    Addr src = proj_LocV(args.at(0));
+    IntData prevBytes = proj_LocV_size(args.at(0));
+    for (int i = 0; i < prevBytes; i++) {
+      res = res.update(memLoc + i, res.heap_lookup(src + i));
+    }
+  }
+  return k(res, memLoc);
+}
+
+inline List<SSVal> reallocarray(SS state, List<PtrVal> args) {
+  return __reallocarray<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate reallocarray(SS state, List<PtrVal> args, Cont k) {
+  return __reallocarray<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
 inline T __calloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData nmemb = proj_IntV(args.at(0));
   IntData size = proj_IntV(args.at(1));

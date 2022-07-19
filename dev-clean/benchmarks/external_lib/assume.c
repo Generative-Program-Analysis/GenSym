@@ -25,4 +25,13 @@ int main() {
     llsc_assert_eager(p1[i] == p2[i]);
     llsc_assert_eager(0 == p1[i]);
   }
+  for (int i=0;i<ememb;i++) {
+    p1[i] = i;
+  }
+  int *c = reallocarray(p1, ememb + 5, sizeof(int));
+  for (int i=0;i<ememb;i++) {
+    llsc_assert_eager(i == c[i]);
+  }
+  sym_print(c[ememb]);
+  sym_print(c[ememb + 4]);
 }

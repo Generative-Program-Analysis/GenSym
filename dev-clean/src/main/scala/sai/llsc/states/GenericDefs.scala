@@ -133,7 +133,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
       "stop", "syscall", "llsc_assume",
-      "__errno_location", "_exit", "exit", "abort", "calloc", "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign"
+      "__errno_location", "_exit", "exit", "abort", "calloc", "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray"
     )
     private val syscalls = MutableSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown"
