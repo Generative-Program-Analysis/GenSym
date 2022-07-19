@@ -63,5 +63,11 @@ jobs:
         make
         sudo make install
         sudo ldconfig
+    - name: Generate models
+      run: sbt 'runMain sai.llsc.GenerateExternal'
+    - name: Test models
+      run: |
+        sbt 'runMain sai.llsc.GenerateExternalTest'
+        sbt 'testOnly sai.llsc.TestUnit'
     - name: Run tests
       run: sbt test
