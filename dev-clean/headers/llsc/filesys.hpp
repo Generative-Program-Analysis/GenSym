@@ -44,6 +44,7 @@ struct File: public Printable {
     ss << "])";
     return ss.str();
   }
+  /* NOTE: should only manipulate File objects through pointers <2022-07-11, David Deng> */
   [[nodiscard]] inline static Ptr<File> create(String name) {
     return Ptr<File>(new File(name));
   }
@@ -53,16 +54,27 @@ struct File: public Printable {
   [[nodiscard]] inline static Ptr<File> create(String name, List<PtrVal> content, List<PtrVal> stat) {
     return Ptr<File>(new File(name, content, stat));
   }
-  [[nodiscard]] inline static Ptr<File> create(Ptr<File> f) {
-    return Ptr<File>(new File(*f));
+  /* NOTE: parent and children will not be copied <2022-07-11, David Deng> */
+  /* Q: usage? <2022-07-11, David Deng> */
+  [[nodiscard]] inline static Ptr<File> shallow_copy(Ptr<File> f) {
+    return Ptr<File>(new File(f->name, f->content, f->stat));
+  }
+  [[nodiscard]] inline static Ptr<File> deep_copy(Ptr<File> f) {
+    auto f2 = Ptr<File>(new File(*f));
+    immer::map_transient<String, Ptr<File>> children;
+    for (auto &p: f->children) {
+      auto child = deep_copy(p.second);
+      child->parent = f2;
+      children.set(p.first, child);
+    }
+    f2->children = children.persistent();
+    return f2;
   }
 private:
   File(String name): name(name), content(), stat(stat_size) {}
   File(String name, List<PtrVal> content): name(name), content(content), stat(stat_size) {}
   File(String name, List<PtrVal> content, List<PtrVal> stat): name(name), content(content), stat(stat) {}
-  File(const File& f): name(f.name), content(f.content), stat(f.stat) {
-    // XXX: be cautious about copy -- should make sure non-interference between multiple copies
-  }
+  File(const File& f) = default;
 };
 
 // return a symbolic file with size bytes
@@ -79,9 +91,7 @@ inline Ptr<File> make_SymFile(String name, size_t size) {
   return File::create(name, content.persistent(), stat);
 };
 
-/* TODO: what is the rule about the lowest file descriptor guarantee?
- * How do we model that rule? Is there a usecase for that?
- * Use a particular data structure? <2021-10-12, David Deng> */
+/* TODO: model the lowest file descriptor guarantee? */
 
 // An opened file
 struct Stream: public Printable {
@@ -95,6 +105,7 @@ struct Stream: public Printable {
     return ss.str();
   }
 
+  /* NOTE: should only manipulate Stream objects through pointers <2022-07-11, David Deng> */
   [[nodiscard]] inline static Ptr<Stream> create(Ptr<File> file) {
     return Ptr<Stream>(new Stream(file));
   }
@@ -104,15 +115,16 @@ struct Stream: public Printable {
   [[nodiscard]] inline static Ptr<Stream> create(Ptr<File> file, int mode, size_t cursor) {
     return Ptr<Stream>(new Stream(file, mode, cursor));
   }
-  [[nodiscard]] inline static Ptr<Stream> create(Ptr<Stream> s) {
-    return Ptr<Stream>(new Stream(*s));
+  // a shallow copy, only copy mode and cursor, but sharing the same underlying file
+  [[nodiscard]] inline static Ptr<Stream> shallow_copy(Ptr<Stream> s) {
+    return Ptr<Stream>(new Stream(s->file, s->mode, s->cursor));
   }
 
 private:
   Stream(Ptr<File> file): file(file), mode(O_RDONLY), cursor(0) {}
   Stream(Ptr<File> file, int mode): file(file), mode(mode), cursor(0) {}
   Stream(Ptr<File> file, int mode, size_t cursor): file(file), mode(mode), cursor(cursor) {}
-  Stream(const Stream &s): file(s.file), mode(s.mode), cursor(s.cursor) {}
+  Stream(const Stream &s) = default;
 };
 
 struct FS: public Printable {
@@ -144,13 +156,9 @@ struct FS: public Printable {
     // default initialize opened_files and files
     /* TODO: set up stdin and stdout using fd 1 and 2 <2021-11-03, David Deng> */
   }
-
-  FS(const FS &fs) : root_file(fs.root_file), opened_files(fs.opened_files), next_fd(3) {
-    // XXX: be cautious about copy -- should make sure non-interference between multiple copies
-  }
-
-  FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file, status_t status, Fd next_fd, Fd last_opened_fd) :
-    opened_files(opened_files), root_file(root_file), next_fd(next_fd) {}
+  FS(const FS &fs) = default;
+  FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file) :
+    opened_files(opened_files), root_file(root_file), next_fd(3) {}
 };
 
 inline FS initial_fs;

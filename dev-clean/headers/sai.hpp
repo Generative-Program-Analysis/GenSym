@@ -421,6 +421,13 @@ namespace Map {
   }
 
   template<typename K, typename V, typename Fn>
+  inline void foreach(immer::map<K, V> m, Fn f) {
+    static_assert(std::is_convertible<Fn, std::function<void(K, V)>>::value,
+      "Map::foreach requires a function of type void(K, V)");
+    for (auto& kv : m) { f(std::get<0>(kv), std::get<1>(kv)); }
+  }
+
+  template<typename K, typename V, typename Fn>
   inline immer::map<K, V> map2map(immer::map<K, V> m, Fn f) {
     static_assert(std::is_convertible<Fn, std::function<std::pair<K, V>(K, V)>>::value,
       "Map::map2map requires a function of type std::pair<K, V>(K, V)");

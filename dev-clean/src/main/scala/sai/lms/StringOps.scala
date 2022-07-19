@@ -22,6 +22,8 @@ trait StringOps { b: Base =>
     // def length: Rep[Int] = Wrap[Int](Adapter.g.reflect("string-length", Unwrap(str)))
     def split(delim: Rep[String]): Rep[List[String]] =
       Wrap[List[String]](Adapter.g.reflect("string-split", Unwrap(str), Unwrap(delim)))
+    def +(other: Rep[String]): Rep[String] =
+      Wrap[String](Adapter.g.reflect("string-concat", Unwrap(str), Unwrap(other)))
   }
 }
 trait ScalaCodeGen_String extends ExtendedScalaCodeGen {
@@ -47,6 +49,7 @@ trait CppCodeGen_String extends ExtendedCPPCodeGen {
     case Node(s, "String.slice", str::st::e::Nil, _) => es"${str}.substr(${st}, ${e})" // semantics in C++?
     case Node(s, "String.length", List(str), _) => es"${str}.length()"
     case Node(s, "string-split", str::delim::Nil, _) => es"Str::split(${str}, ${delim})"
+    case Node(s, "string-concat", str::other::Nil, _) => es"${str} + ${other}"
     case _ => super.shallow(n)
   }
 }

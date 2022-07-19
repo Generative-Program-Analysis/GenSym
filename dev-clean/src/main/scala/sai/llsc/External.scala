@@ -509,6 +509,16 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
     assertNeq(f, NullPtr[Value], "file should exist")
   }
 
+  def testFullPath = {
+    unchecked("/* test full path */")
+    val fs = FS()
+    fs.setFile("/a", File("a"))
+    fs.setFile("/a/b", File("b"))
+    fs.setFile("/a/b/c", File("c"))
+    val f = fs.getFile("/a/b/c")
+    assertEq(f.fullPath, "/a/b/c", "full path should be correct")
+  }
+
   def testEither = {
     // NOTE: becuase of optimization, currently they all generate assert(true) <2022-05-26, David Deng> //
     val v: Rep[Either[Int, String]] = Either.right[Int, String]("abcdef")
@@ -528,6 +538,61 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
     val f = File("A")
     val f1 = _set_file_type(f, unchecked[Int]("S_IFREG"))
     assertEq(_has_file_type(f, unchecked[Int]("S_IFREG")), true, "file type should be correctly set")
+  }
+
+  def testFsCopy = {
+    unchecked("/* test fs copy */")
+    val fs = FS()
+    fs.setFile("/a", File("a"))
+    fs.setFile("/a/b", File("b"))
+    fs.setFile("/a/b/c", File("c", List(iv(0), iv(1), iv(2))))
+
+    unchecked("/* make a copy */")
+    val fs2 = FS.dcopy(fs)
+    val f2 = fs2.getFile("/a/b/c")
+    assertNeq(f2, NullPtr[Value], "file should exist in the copied file system")
+
+    unchecked("/* modify a file in the copied file system */")
+    f2.writeAtNoFill(List(iv(3), iv(4), iv(5)), unit(3))
+    unchecked("/* check that the original file is not modified */")
+    val f1 = fs.getFile("/a/b/c")
+    assertEq(f1.content, List(iv(0), iv(1), iv(2)), "file should not be modified")
+
+    unchecked("/* add a file in the original system */")
+    fs.setFile("/a/b/d", File("d"))
+    unchecked("/* check that the copied file system is not modified */")
+    val f3 = fs2.getFile("/a/b/d")
+    assertEq(f3, NullPtr[Value], "file should not be added to the copied file system")
+  }
+
+  def testFsCopyWithStream = {
+    unchecked("/* test fs copy with stream */")
+    val fs = FS()
+    fs.setFile("/a", File("a"))
+    fs.setFile("/a/b", File("b"))
+    fs.setFile("/a/b/c", File("c", List(iv(0), iv(1), iv(2))))
+    fs.setStream(3, Stream(fs.getFile("/a/b/c"), O_RDONLY, 1L))
+
+    unchecked("/* make a copy */")
+    val fs2 = FS.dcopy(fs)
+    assertEq(fs2.hasStream(3), true, "stream should exist in the copied file system")
+    val s = fs2.getStream(3)
+    assertEq(s.file, fs2.getFile("/a/b/c"), "stream should point to the correct file")
+    assertEq(s.cursor, 1L, "stream should point to the correct offset")
+    assertEq(s.mode, O_RDONLY, "stream should be read-only")
+
+    unchecked("/* modify a stream in the original file system */")
+    val s2 = fs.getStream(3)
+    s2.seekCur(unit(3))
+
+    unchecked("/* check that the copied file system is not modified */")
+    val s3 = fs2.getStream(3)
+    assertEq(s3.cursor, 1L, "stream should still point to the old offset")
+
+    unchecked("/* add a stream in the original system */")
+    fs.setStream(4, Stream(fs.getFile("/a"), O_RDONLY, 0L))
+    unchecked("/* check that the copied file system is not modified */")
+    assertEq(fs2.hasStream(4), false, "stream should not exist in the copied file system")
   }
 
   // def testSeek: Rep[Unit] = {
@@ -662,8 +727,11 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
     testStringOps
     testStreamCopy
     testDirStructure
+    testFullPath
     testEither
     testSetFileType
+    testFsCopy
+    testFsCopyWithStream
     // testSeek
     ()
   }

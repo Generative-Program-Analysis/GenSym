@@ -50,7 +50,18 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def apply(name: Rep[String], content: Rep[List[Value]]) = "File::create".reflectWith[File](name, content)
     def apply(name: Rep[String], content: Rep[List[Value]], stat: Rep[List[Value]]) =
       "File::create".reflectWith[File](name, content, stat)
-    def copy(f: Rep[File]) = "File::create".reflectCtrlWith[File](f)
+    def copy(f: Rep[File]) = "File::shallow_copy".reflectCtrlWith[File](f)
+    def dcopy(f: Rep[File]) = "File::deep_copy".reflectCtrlWith[File](f)
+
+    // auto f2 = Ptr<File>(new File(*f));
+    // immer::map_transient<String, Ptr<File>> children;
+    // for (auto &p: f->children) {
+    //   auto child = deep_copy(p.second);
+    //   child->parent = f2;
+    //   children.set(p.first, child);
+    // }
+    // f2->children = children.persistent();
+    // return f2;
   }
   
   implicit class FileOps(file: Rep[File]) {
@@ -74,9 +85,34 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
     def hasChild(name: Rep[String]): Rep[Boolean]            = file.children.contains(name)
     def getChild(name: Rep[String]): Rep[File]               = file.children(name)
-    def setChild(name: Rep[String], f: Rep[File]): Rep[Unit] = file.children = file.children + (name, f)
-    def removeChild(name: Rep[String]): Rep[Unit]            = file.children = file.children - name
+    def setChild(name: Rep[String], f: Rep[File]): Rep[Unit] = {
+      f.parent = file
+      file.children = file.children + (name, f) 
+    }
+    def removeChild(name: Rep[String]): Rep[Unit]            = {
+      file.children(name).parent = NullPtr[File]
+      file.children = file.children - name
+    }
 
+    def isRootFile = file.parent == NullPtr[File] && file.name == unit("/")
+
+    def fullPath: Rep[String]                                = {
+      // var f = file
+      val f: Var[File] = __newVar(file)
+      // var path = file.name
+      var path: Var[String] = __newVar(file.name)
+      // as long as f has a parent, assign f = f.parent and prepend f.name to path
+      while (readVar(f).parent != NullPtr[File]) {
+        __assign(f, readVar(f).parent)
+        if (readVar(f).isRootFile) {
+          __assign(path, unit("/") + readVar(path))
+        } else {
+          __assign(path, readVar(f).name + unit("/") + readVar(path))
+        }
+      }
+      assertEq(readVar(f).name, "/", "Outermost ancestor should be named /")
+      path
+    }
     // content-related methods
 
     def readAt(pos: Rep[Long], len: Rep[Long]): Rep[List[Value]] = content.drop(pos.toInt).take(len.toInt)
@@ -116,7 +152,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def apply(f: Rep[File]) = "Stream::create".reflectCtrlWith[Stream](f)
     def apply(f: Rep[File], m: Rep[Int]) = "Stream::create".reflectCtrlWith[Stream](f, m)
     def apply(f: Rep[File], m: Rep[Int], c: Rep[Long]) = "Stream::create".reflectCtrlWith[Stream](f, m, c)
-    def copy(strm: Rep[Stream]) = "Stream::create".reflectCtrlWith[Stream](strm)
+    def copy(strm: Rep[Stream]) = "Stream::shallow_copy".reflectCtrlWith[Stream](strm)
   }
 
   implicit class StreamOps(strm: Rep[Stream]) {
@@ -173,6 +209,17 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
   object FS {
     def apply() = "FS".reflectCtrlWith[FS]()
+    def apply(opened_files: Rep[Map[Fd, Stream]], root_file: Rep[File]) = "FS".reflectCtrlWith[FS](opened_files, root_file)
+    def dcopy(fs: Rep[FS]) = {
+      val rootFile = File.dcopy(fs.rootFile)
+      val openedFiles = Map[Fd, Stream]()
+      val newFS = "FS".reflectCtrlWith[FS](openedFiles, rootFile)
+      fs.openedFiles.foreach({ case (fd, s) => {
+        val strm = Stream(newFS.getFile(s.file.fullPath), s.mode, s.cursor)
+        newFS.setStream(fd, strm)
+      }})
+      newFS
+    }
     def SEEK_SET = cmacro[Int]("SEEK_SET")
     def SEEK_CUR = cmacro[Int]("SEEK_CUR")
     def SEEK_END = cmacro[Int]("SEEK_END")

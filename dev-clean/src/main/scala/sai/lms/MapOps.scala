@@ -221,6 +221,15 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
     case _ => super.quote(s)
   }
 
+  override def traverse(n: Node): Unit = n match {
+    case Node(s, "map-foreach", List(xs, f), _) =>
+      emit("Map::foreach(")
+      shallow(xs)
+      emit(", ")
+      shallow(f)
+      emit(");")
+    case _ => super.traverse(n)
+  }
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "map-new", Const(mK: Manifest[_])::Const(mV: Manifest[_])::kvs, _) =>
@@ -274,8 +283,8 @@ trait CppCodeGen_Map extends ExtendedCPPCodeGen {
       shallow(m); emit(", ")
       shallow(z); emit(", ")
       shallow(b); emit(")")
-    case Node(s, "map-foreach", List(m, b: Block), _) =>
-      ???
+    // case Node(s, "map-foreach", List(m, b: Block), _) =>
+    //   ???
     case Node(s, "map-filter", List(m, b: Block), _) =>
       emit("Map::filter(")
       shallow(m); emit(", ")
