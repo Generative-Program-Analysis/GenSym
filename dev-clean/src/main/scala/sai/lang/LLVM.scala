@@ -214,7 +214,17 @@ package IR {
   case class IntType(size: Int) extends LLVMType {
     override def toString = "i" + size.toString
   }
-  case class FloatType(k: FloatKind) extends LLVMType
+  case class FloatType(k: FloatKind) extends LLVMType {
+    def size: Int = k match {
+      case FK_Half => 16
+      case FK_BFloat => 16
+      case FK_Float => 32
+      case FK_Double => 64
+      case FK_X86_FP80 => 80
+      case FK_FP128 => 128
+      case FK_PPC_FP128 => 128
+    }
+  }
   case class VectorType(size: Int, ety: LLVMType) extends LLVMType
   case object LabelType extends LLVMType
   case class ArrayType(size: Int, ety: LLVMType) extends LLVMType

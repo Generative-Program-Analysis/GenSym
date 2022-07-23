@@ -18,6 +18,7 @@ object Benchmarks {
   lazy val makeSymbolic = parseFile("benchmarks/llvm/makeSymbolic.ll")
   lazy val switchTestConc = parseFile("benchmarks/llvm/switchTestConc.ll")
   lazy val switchTestSym = parseFile("benchmarks/llvm/switchTestSym.ll")
+  lazy val selectTestSym = parseFile("benchmarks/llvm/select.ll")
 
   lazy val struct = parseFile("benchmarks/llvm/struct.ll")
   lazy val structAccess = parseFile("benchmarks/llvm/structAccess.ll")

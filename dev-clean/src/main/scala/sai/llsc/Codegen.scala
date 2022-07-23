@@ -54,19 +54,26 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   }
 
   override def remap(m: Manifest[_]): String = {
-    if (m.toString == "java.lang.String") "String"
-    else if (m.toString.endsWith("$Value")) "PtrVal"
-    else if (m.toString.endsWith("$Addr")) "Addr"
-    else if (m.toString.endsWith("$BlockLabel")) "BlockLabel"
-    else if (m.toString.endsWith("$Mem")) "Mem"
-    else if (m.toString.endsWith("$SS")) "SS"
-    else if (m.toString.endsWith("$PC")) "PC"
-    else if (m.toString.endsWith("$FS")) "FS"
-    else if (m.toString.endsWith("$File")) "Ptr<File>"
-    else if (m.toString.endsWith("$Stream")) "Ptr<Stream>"
-    else if (m.toString.endsWith("$Kind")) "LocV::Kind"
-    else if (m.toString.endsWith("SMTExpr")) "PtrVal"
-    else if (m.toString.endsWith("SMTBool")) "PtrVal"
+    def isValueType(s: String): Boolean =
+      s.endsWith("$Value") || s.endsWith("$IntV") ||
+      s.endsWith("$FloatV") || s.endsWith("$LocV") ||
+      s.endsWith("$SymV") || s.endsWith("$SymLocV") ||
+      s.endsWith("$FunV") || s.endsWith("$CPSFunV")
+
+    val s = m.toString
+    if (s == "java.lang.String") "String"
+    else if (isValueType(s)) "PtrVal"
+    else if (s.endsWith("$Addr")) "Addr"
+    else if (s.endsWith("$BlockLabel")) "BlockLabel"
+    else if (s.endsWith("$Mem")) "Mem"
+    else if (s.endsWith("$SS")) "SS"
+    else if (s.endsWith("$PC")) "PC"
+    else if (s.endsWith("$FS")) "FS"
+    else if (s.endsWith("$File")) "Ptr<File>"
+    else if (s.endsWith("$Stream")) "Ptr<Stream>"
+    else if (s.endsWith("$Kind")) "LocV::Kind"
+    else if (s.endsWith("SMTExpr")) "PtrVal"
+    else if (s.endsWith("SMTBool")) "PtrVal"
     else if (m.runtimeClass.getName.endsWith("Future"))
       s"std::future<${remap(m.typeArguments(0))}>"
     else super.remap(m)

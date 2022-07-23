@@ -281,10 +281,12 @@ case class Config(nSym: Int, argv: Boolean, test_coreutil: Boolean) {
   def args(implicit d: ValueDefs) =
     if (argv) d.mainArgs
     else d.SymV.makeSymVList(nSym)
+
 }
 
 object Config {
   var opt: Boolean = true
+  var iteSelect: Boolean = true
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
 

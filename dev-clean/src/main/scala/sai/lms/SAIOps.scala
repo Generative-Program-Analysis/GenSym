@@ -31,7 +31,6 @@ trait PrimitiveOpsOpt extends PrimitiveOps { self: Base =>
   }
   implicit def longToBoolean(x: Long): Boolean = if (x) true else false
   implicit def repLongToRepBoolean(x: Rep[Long])(implicit __pos: SourceContext): Rep[Boolean] = cast_helper[Long, Boolean](x)
-
 }
 
 abstract class SAISnippet[A: Manifest, B: Manifest] extends SAIOps {
@@ -48,10 +47,6 @@ trait SAIOps extends Base
     // with SMTStagedOps {
   import scala.collection.mutable.HashMap
 
-  type Typ[T] = Manifest[T]
-  def typ[T: Typ] = manifest[T]
-  def manifestTyp[T: Typ] = manifest[T]
-
   val funNameMap: HashMap[Int, String] = new HashMap()
 
   // Override the LMS Wrap which treats Unit value as void/Const(());
@@ -61,6 +56,22 @@ trait SAIOps extends Base
   implicit class RepOps[A: Manifest](a: Rep[A]) {
     def asRepOf[B: Manifest]: Rep[B] = Wrap[B](Unwrap(a))
     def reflectOp[B: Manifest](op: String): Rep[B] = Wrap[B](Adapter.g.reflect(op, Unwrap(a)))
+    def castTo[B:Manifest]: Rep[B] =
+      Wrap[B](Adapter.g.reflect("cast", Unwrap(a), Backend.Const(manifest[B])))
+    def castToM(m: Manifest[_]): Rep[Any] = {
+      if (m == manifest[Boolean]) a.castTo[Boolean]
+      else if (m == manifest[Char]) a.castTo[Char]
+      else if (m == manifest[Int]) a.castTo[Int]
+      else if (m == manifest[Long]) a.castTo[Long]
+      else if (m == manifest[Float]) a.castTo[Float]
+      else if (m == manifest[Double]) a.castTo[Double]
+      else if (m == manifest[Array[Boolean]]) a.castTo[Array[Boolean]]
+      else if (m == manifest[Array[Char]]) a.castTo[Array[Char]]
+      else if (m == manifest[Array[Short]]) a.castTo[Array[Short]]
+      else if (m == manifest[Array[Int]]) a.castTo[Array[Int]]
+      else if (m == manifest[Array[Long]]) a.castTo[Array[Long]]
+      else ???
+    }
   }
 
   implicit class StringOps(op: String) {
@@ -217,6 +228,4 @@ trait SAIOps extends Base
 
     k(closefun, m)
   }
-
-  def rep_cast[X:Manifest,Y:Manifest](x: Rep[X])(implicit __pos: SourceContext) : Rep[Y] =  Wrap[Y](Adapter.g.reflect("cast", Unwrap(x), Backend.Const(manifest[Y])))
 }

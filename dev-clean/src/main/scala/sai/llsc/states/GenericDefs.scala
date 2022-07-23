@@ -23,12 +23,16 @@ import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => 
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 trait BasicDefs { self: SAIOps =>
-  trait Mem
+  trait Mem; trait Stack
+  trait SS;  trait PC; trait FS
   trait Value
-  trait Stack
-  trait SS
-  trait PC
-  trait FS
+  trait IntV extends Value
+  trait FloatV extends Value
+  trait LocV extends IntV
+  trait SymV extends Value
+  trait SymLocV extends SymV
+  trait FunV extends Value
+  trait CPSFunV extends Value
 
   type IntData = Long
   type BlockLabel = Int
@@ -40,40 +44,13 @@ trait BasicDefs { self: SAIOps =>
   lazy val gNode = Adapter.g.Def
   type bExp = Backend.Exp
 
+  // GW: this looks weird
   type CppAddr = Array[Char]
 
   def initState: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
   def initState(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
   def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
-
-  def getPrimitiveTypeManifest(vt: LLVMType): Manifest[_] = vt match {
-    case IntType(1) => manifest[Boolean]
-    case IntType(8) => manifest[Char]
-    case IntType(16) => manifest[Short]
-    case IntType(32) => manifest[Int]
-    case IntType(64) => manifest[Long]
-    case FloatType(FK_Float) => manifest[Float]
-    case FloatType(FK_Double) => manifest[Double]
-    case PtrType(IntType(1), addrSpace) => manifest[Array[Boolean]]
-    case PtrType(IntType(8), addrSpace) => manifest[Array[Char]]
-    case PtrType(IntType(16), addrSpace) => manifest[Array[Short]]
-    case PtrType(IntType(32), addrSpace) => manifest[Array[Int]]
-    case PtrType(IntType(64), addrSpace) => manifest[Array[Long]]
-    case _ => ???
-  }
-
-  def getPrimitiveTypeName(vt: LLVMType): String = vt match {
-    case IntType(1) => "bool"
-    case IntType(8) => "char"
-    case IntType(16) => "short"
-    case IntType(32) => "int"
-    case IntType(64) => "long"
-    case FloatType(FK_Float) => "float"
-    case FloatType(FK_Double) => "double"
-    case PtrType(ty, addrSpace) => "pointer"
-    case _ => ???
-  }
 }
 
 object BlockCounter {
@@ -100,7 +77,7 @@ trait Coverage { self: SAIOps =>
       val blockId = getBlockId(funName + label)
       "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
     }
-    def incPath(n: Int): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
+    def incPath(n: Rep[Int]): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def incInst(n: Int): Rep[Unit] = "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
@@ -110,14 +87,16 @@ trait Coverage { self: SAIOps =>
 }
 
 trait Opaques { self: SAIOps with BasicDefs =>
+  trait NativeFun
+
   object NativeExternalFun {
     private val used = MutableSet[String]()
-    def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
+    def apply(f: String, ret: Option[LLVMType] = None): Rep[NativeFun] = {
       if (!used.contains(f)) {
         System.out.println(s"Use native function $f.")
         used.add(f)
       }
-      "llsc-native-external-wrapper".reflectWith[Value](f, ret)
+      "llsc-native-external-wrapper".reflectWith[NativeFun](f, ret)
     }
     def unapply(v: Rep[Value]): Option[(String, Option[LLVMType])] = Unwrap(v) match {
       case gNode("llsc-native-external-wrapper", bConst(f: String)::bConst(ret: Option[LLVMType])::Nil) => Some((f, ret))
@@ -125,21 +104,30 @@ trait Opaques { self: SAIOps with BasicDefs =>
     }
   }
 
+  implicit class NativeFunOps(v: Rep[NativeFun]) {
+    def apply[A: Manifest](args: List[Rep[Any]]): Rep[A] = v match {
+      case NativeExternalFun(f, ty) => f.reflectWriteWith[A](args:_*)(Adapter.CTRL)
+    }
+  }
+
   object ExternalFun {
+    import scala.collection.immutable.{Set => ImmSet}
     private val warned = MutableSet[String]()
     private val used = MutableSet[String]()
-    private val modeled = MutableSet[String](
+    private val modeled = ImmSet[String](
       "sym_print", "print_string", "malloc", "realloc",
       "llsc_assert", "llsc_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
       "stop", "syscall", "llsc_assume",
-      "__errno_location", "_exit", "exit", "abort", "calloc", "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray"
+      "__errno_location", "_exit", "exit", "abort", "calloc",
+      "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray"
     )
-    private val syscalls = MutableSet[String](
+    private val syscalls = ImmSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown"
     )
-    val rederict = scala.collection.immutable.Set[String]("@memcpy", "@memset", "@memmove")
-    val unsafeExternals = MutableSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
+    val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
+    private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
+
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {
         System.out.println(s"Use external function $f.")
@@ -181,11 +169,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   def mainArgs: Rep[List[Value]] = List[Value](unchecked[Value]("g_argc"), unchecked[Value]("g_argv"))
   implicit def intToLong(i: Int): Long = i.toLong
 
+  // TODO: name crash, refactor/remove dependencies of SMTBaseOps in SAIOps
+  def ITE(cnd: Rep[Value], thn: Rep[Value], els: Rep[Value]): Rep[Value] =
+    "ite".reflectWith[Value](cnd, thn, els)
+
   object IntV {
-    def apply(i: Long): Rep[Value] = IntV(unit(i), DEFAULT_INT_BW)
-    def apply(i: Long, bw: Int): Rep[Value] = IntV(unit(i), bw)
-    def apply(i: Rep[Long]): Rep[Value] = IntV(i, DEFAULT_INT_BW)
-    def apply(i: Rep[Long], bw: Int): Rep[Value] = "make_IntV".reflectMutableWith[Value](i, bw)
+    def apply(i: Long): Rep[IntV] = IntV(unit(i), DEFAULT_INT_BW)
+    def apply(i: Long, bw: Int): Rep[IntV] = IntV(unit(i), bw)
+    def apply(i: Rep[Long]): Rep[IntV] = IntV(i, DEFAULT_INT_BW)
+    def apply(i: Rep[Long], bw: Int): Rep[IntV] = "make_IntV".reflectMutableWith[IntV](i, bw)
     def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
       // Todo: add bSym rhs case
       case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) =>
@@ -193,12 +185,13 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => None
     }
   }
+
   object FloatV {
-    def apply(f: Rep[Double]): Rep[Value] = apply(f, 32)
-    def apply(f: Rep[Double], bw: Int): Rep[Value] = "make_FloatV".reflectWriteWith[Value](f, bw)(Adapter.CTRL)
-    def apply(v: String, bw: Int): Rep[Value] = {
+    def apply(f: Rep[Double]): Rep[FloatV] = apply(f, 32)
+    def apply(f: Rep[Double], bw: Int): Rep[FloatV] = "make_FloatV".reflectWriteWith[FloatV](f, bw)(Adapter.CTRL)
+    def apply(v: String, bw: Int): Rep[FloatV] = {
       require(bw == 80)
-      "make_FloatV".reflectWriteWith[Value](v, bw)(Adapter.CTRL)
+      "make_FloatV".reflectWriteWith[FloatV](v, bw)(Adapter.CTRL)
     }
     def unapply(v: Rep[Value]): Option[(Either[Double, String], Int)] = Unwrap(v) match {
       case gNode("make_FloatV", bConst(f: Double)::bConst(bw: Int)::_) => Some((Left(f), bw))
@@ -206,12 +199,13 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => None
     }
   }
+
   object LocV {
     trait Kind
     def kStack: Rep[Kind] = "kStack".reflectMutableWith[Kind]()
     def kHeap: Rep[Kind] = "kHeap".reflectMutableWith[Kind]()
-    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long], off: Rep[Long] = 0L): Rep[Value] =
-      "make_LocV".reflectMutableWith[Value](l, kind, size, off)
+    def apply(l: Rep[Addr], kind: Rep[Kind], size: Rep[Long], off: Rep[Long] = 0L): Rep[LocV] =
+      "make_LocV".reflectMutableWith[LocV](l, kind, size, off)
     def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[Kind], Rep[Long], Rep[Long])] = Unwrap(v) match {
       case gNode("make_LocV", (a: bExp)::(k: bExp)::(size: bExp)::(off: bExp)::_) =>
         Some((Wrap[Addr](a), Wrap[Kind](k), Wrap[Long](size), Wrap[Long](off)))
@@ -220,8 +214,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object SymLocV {
-    def apply(l: Rep[Addr], kind: Rep[LocV.Kind], size: Rep[Long], off: Rep[Value]): Rep[Value] =
-      "make_SymLocV".reflectMutableWith[Value](l, kind, size, off)
+    def apply(l: Rep[Addr], kind: Rep[LocV.Kind], size: Rep[Long], off: Rep[Value]): Rep[SymLocV] =
+      "make_SymLocV".reflectMutableWith[SymLocV](l, kind, size, off)
     def unapply(v: Rep[Value]): Option[(Rep[Addr], Rep[LocV.Kind], Rep[Long], Rep[Value])] = Unwrap(v) match {
       case gNode("make_SymLocV", (a: bExp)::(k: bExp)::(size: bExp)::(off: bSym)::_) =>
         Some((Wrap[Addr](a), Wrap[LocV.Kind](k), Wrap[Long](size), Wrap[Value](off)))
@@ -230,9 +224,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object FunV {
-    def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[Value] = {
-      "make_FunV".reflectMutableWith[Value](f)
-    }
+    def apply[W[_]](f: Rep[(W[SS], List[Value]) => List[(SS, Value)]])(implicit m: Manifest[W[SS]]): Rep[FunV] =
+      "make_FunV".reflectMutableWith[FunV](f)
     def unapply[W[_]](v: Rep[Value])(implicit m: Manifest[W[SS]]): Option[Rep[(W[SS], List[Value]) => List[(SS, Value)]]] =
       Unwrap(v) match {
         case gNode("make_FunV", (f: bExp)::Nil) =>
@@ -242,9 +235,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object CPSFunV {
-    def apply[W[_]](f: Rep[(W[SS], List[Value], PCont[W]) => Unit])(implicit m: Manifest[W[SS]]): Rep[Value] = {
-      "make_CPSFunV".reflectMutableWith[Value](f)
-    }
+    def apply[W[_]](f: Rep[(W[SS], List[Value], PCont[W]) => Unit])(implicit m: Manifest[W[SS]]): Rep[CPSFunV] =
+      "make_CPSFunV".reflectMutableWith[CPSFunV](f)
     def unapply[W[_]](v: Rep[Value])(implicit m: Manifest[W[SS]]): Option[Rep[(W[SS], List[Value], PCont[W]) => Unit]] =
       Unwrap(v) match {
         case gNode("make_CPSFunV", (f: bExp)::Nil) =>
@@ -254,11 +246,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object SymV {
-    def apply(s: String): Rep[Value] = apply(s, DEFAULT_INT_BW)
-    def apply(s: String, bw: Int): Rep[Value] =
-      "make_SymV".reflectWriteWith[Value](unit(s), bw)(Adapter.CTRL)  //XXX: reflectMutable?
+    def apply(s: String): Rep[SymV] = apply(s, DEFAULT_INT_BW)
+    def apply(s: String, bw: Int): Rep[SymV] =
+      "make_SymV".reflectWriteWith[SymV](unit(s), bw)(Adapter.CTRL)  //XXX: reflectMutable?
     def makeSymVList(i: Int): Rep[List[Value]] =
-      List[Value](Range(0, i).map(x => apply("x" + x.toString)):_*)
+      List[SymV](Range(0, i).map(x => apply("x" + x.toString)):_*)
     def unapply(v: Rep[Value]): Option[(String, Int)] = Unwrap(v) match {
       case gNode("make_SymV", bConst(x: String)::bConst(bw: Int)::_) => Some((x, bw))
       case _ => None
@@ -303,17 +295,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object IntOp2 {
-    def apply_noopt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
+    def applyNoOpt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
       "int_op_2".reflectWith[Value](op, o1, o2)
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
-      if (!Config.opt) {
-        apply_noopt(op, o1, o2)
-      } else {
-        op match {
-          case "neq" => neq(o1, o2)
-          case "eq" => eq(o1, o2)
-          case _ => apply_noopt(op, o1, o2)
-        }
+      if (!Config.opt) applyNoOpt(op, o1, o2)
+      else op match {
+        case "neq" => neq(o1, o2)
+        case "eq" => eq(o1, o2)
+        case "add" => add(o1, o2)
+        case _ => applyNoOpt(op, o1, o2)
       }
 
     def unapply(v: Rep[Value]): Option[(String, Rep[Value], Rep[Value])] = Unwrap(v) match {
@@ -322,23 +312,33 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => None
     }
 
+    def add(v1: Rep[Value], v2: Rep[Value]): Rep[Value] = (v1, v2) match {
+      case (IntV(n1, bw1), IntV(n2, bw2)) if (bw1 == bw2) => IntV(n1 + n2, bw1)
+      case _ => applyNoOpt("add", v1, v2)
+    }
+
+    def mul(v1: Rep[Value], v2: Rep[Value]): Rep[Value] = (v1, v2) match {
+      case (IntV(n1, bw1), IntV(n2, bw2)) if (bw1 == bw2) => IntV(n1 * n2, bw1)
+      case _ => applyNoOpt("mul", v1, v2)
+    }
+
     def neq(o1: Rep[Value], o2: Rep[Value]): Rep[Value] = (Unwrap(o1), Unwrap(o2)) match {
       case (gNode("bv_sext", (e1: bExp)::bConst(bw1: Int)::_),
             gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 =>
         val v1 = Wrap[Value](e1)
         val v2 = Wrap[Value](e2)
-        if (v1.bw == v2.bw) apply_noopt("neq", v1, v2)
-        else apply_noopt("neq", o1, o2)
-      case _ => apply_noopt("neq", o1, o2)
+        if (v1.bw == v2.bw) applyNoOpt("neq", v1, v2)
+        else applyNoOpt("neq", o1, o2)
+      case _ => applyNoOpt("neq", o1, o2)
     }
     def eq(o1: Rep[Value], o2: Rep[Value]): Rep[Value] = (Unwrap(o1), Unwrap(o2)) match {
       case (gNode("bv_sext", (e1: bExp)::bConst(bw1: Int)::_),
             gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 =>
         val v1 = Wrap[Value](e1)
         val v2 = Wrap[Value](e2)
-        if (v1.bw == v2.bw) apply_noopt("eq", v1, v2)
-        else apply_noopt("eq", o1, o2)
-      case _ => apply_noopt("eq", o1, o2)
+        if (v1.bw == v2.bw) applyNoOpt("eq", v1, v2)
+        else applyNoOpt("eq", o1, o2)
+      case _ => applyNoOpt("eq", o1, o2)
     }
   }
 
@@ -369,48 +369,36 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
     def structAt(i: Rep[Long]) = "structV_at".reflectWith[Value](v, i)
-    def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] = {
+
+    def defaultRetVal(ty: Option[LLVMType]): Rep[Value] = ty match {
+      case Some(IntType(size)) => IntV(0, size)
+      case Some(PtrType(_, _)) => IntV(0, ARCH_WORD_SIZE)
+      case _ => IntV(0, 32)
+    }
+
+    def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] =
       v match {
         case ExternalFun(f, ty) =>
-          if (f == "noop" && Config.opt) {
-            val retval = ty match {
-              case Some(IntType(size)) => IntV(0, size)
-              case Some(PtrType(_, _)) => IntV(0, 64)
-              case _ => IntV(0)
-            }
-            List((s.asRepOf[SS], retval))
-          } else f.reflectWith[List[(SS, Value)]](s, args)
+          if (f == "noop" && Config.opt) List((s.asRepOf[SS], defaultRetVal(ty)))
+          else f.reflectWith[List[(SS, Value)]](s, args)
         case FunV(f) => f(s, args)
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
-    }
+
     // The CPS version
     // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
         case ExternalFun(f, ty) =>
-          if (f == "noop" && Config.opt) {
-            val retval = ty match {
-              case Some(IntType(size)) => IntV(0, size)
-              case Some(PtrType(_, _)) => IntV(0, 64)
-              case _ => IntV(0)
-            }
-            k(s, retval)
-          } else f.reflectWith[Unit](s, args, k)
+          if (f == "noop" && Config.opt) k(s, defaultRetVal(ty))
+          else f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
 
-    def applyNative[A:Manifest](args: List[Rep[Any]]): Rep[A] = {
-      v match {
-        case NativeExternalFun(f, ty) =>
-          f.reflectWriteWith[A](args:_*)(Adapter.CTRL)
-        case _ => ???
-      }
-    }
-
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 
+    // GW: better naming? and what is supposed to be in this list?
     val ext_simpl_op = StaticList[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
 
     def sExt(bw: Int): Rep[Value] = Unwrap(v) match {
@@ -427,8 +415,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case IntV(_, _) if Config.opt => unit(true)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
-    def toSMTBool: Rep[SMTBool] = v.asRepOf[SMTBool]
-    def toSMTBoolNeg: Rep[SMTBool] = "to-SMTNeg".reflectWith[SMTBool](v)
+    def toSym: Rep[SymV] = v.asRepOf[SymV]
+    def toSymNeg: Rep[SymV] = "to-SMTNeg".reflectWith[SymV](v)
 
     def notNull: Rep[Boolean] = "not-null".reflectWith[Boolean](v)
     def fromFloatToUInt(toSize: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, toSize)
@@ -437,24 +425,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def fromSIntToFloat: Rep[Value] = "si_tofp".reflectWith[Value](v)
     def trunc(from: Int, to: Int): Rep[Value] = "trunc".reflectWith[Value](v, from, to)
 
-    def ptrOff(off: Rep[Value]): Rep[Value] =
-      (v, off) match {
-        // Todo: Add case for IntV non-const
-        case (LocV(a, k, s, o), IntV(n, _)) => LocV(a, k, s, o + n)
-        case _ => "ptroff".reflectWith[Value](v, off)
-      }
-
-    def addOff(rhs: Rep[Value]): Rep[Value] =
-      (v, rhs) match {
-        case (IntV(n1, bw1), IntV(n2, bw2)) => if (bw1 == bw2) IntV(n1 + n2, bw1) else ???
-        case _ => IntOp2("add", v, rhs)
-      }
-
-    def mulOff(rhs: Rep[Value]): Rep[Value] =
-      (v, rhs) match {
-        case (IntV(n1, bw1), IntV(n2, bw2)) => if (bw1 == bw2) IntV(n1 * n2, bw1) else ???
-        case _ => IntOp2("mul", v, rhs)
-      }
+    def +(rhs: Rep[Value]): Rep[Value] = IntOp2.add(v, rhs)
+    def *(rhs: Rep[Value]): Rep[Value] = IntOp2.mul(v, rhs)
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)
@@ -474,6 +446,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case NullLoc() => List[Value](v::ShadowV.indexSeq((ARCH_WORD_SIZE+BYTE_SIZE-1)/BYTE_SIZE - 1):_*)
       case _ => "to-bytes-shadow".reflectWith[List[Value]](v)
     }
-
   }
+
+  implicit class LocVOps(v: Rep[LocV]) {
+    def +(off: Rep[Value]): Rep[Value] = (v, off) match {
+      // Todo: Add case for IntV non-const
+      case (LocV(a, k, s, o), IntV(n, _)) => LocV(a, k, s, o + n)
+      case _ => "ptroff".reflectWith[Value](v, off)
+    }
+  }
+
 }

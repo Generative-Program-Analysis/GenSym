@@ -14,50 +14,6 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import sai.lmsx.smt.SMTBool
-
-case class CFG(funMap: Map[String, FunctionDef]) {
-  import collection.mutable.HashMap
-  import sai.structure.lattices.Lattices._
-
-  type Fun = String
-  type Label = String
-  type Succs = Map[Label, Set[Label]]
-  type Preds = Map[Label, Set[Label]]
-  type Graph = (Succs, Preds)
-
-  val mtGraph: Graph = Lattice[Graph].bot
-
-  val funCFG: Map[Fun, Graph] = funMap.map({ case (f, d) => (f, construct(d.body.blocks)) }).toMap
-
-  def succ(fname: String, label: Label): Set[Label] = funCFG(fname)._1(label)
-  def pred(fname: String, label: Label): Set[Label] = funCFG(fname)._2(label)
-
-  def construct(blocks: List[BB]): Graph = blocks.foldLeft(mtGraph) { case (g, b) =>
-    val from: Label = b.label.get
-    val to: Set[Label] = b.term match {
-      case BrTerm(lab) => Set(lab)
-      case CondBrTerm(ty, cnd, thnLab, elsLab) => Set(thnLab, elsLab)
-      case SwitchTerm(cndTy, cndVal, default, table) => Set(default) ++ table.map(_.label).toSet
-      case _ => Set()
-    }
-    g ⊔ (Map(from → to), to.map(_ → Set(from)).toMap)
-  }
-
-  def prettyPrint: Unit =
-    funCFG.foreach { case (f, g) =>
-      println(s"$f\n  successors:")
-      g._1.foreach { case (from, to) =>
-        val toStr = to.mkString(",")
-        println(s"    $from → {$toStr}")
-      }
-      println("  predecessors:")
-      g._2.foreach { case (to, from) =>
-        val fromStr = from.mkString(",")
-        println(s"    $to → {$fromStr}")
-      }
-    }
-}
 
 trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   import scala.collection.immutable.{List => StaticList, Map => StaticMap}
@@ -72,9 +28,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def repBlockFun(funName: String, b: BB): (BFTy, Int)
   def repFunFun(f: FunctionDef): (FFTy, Int)
-
   // Todo: should we increase block coverage here?
-  def repMissingExternalFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
+  def repExternFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
+
   def wrapFunV(f: FFTy): Rep[Value]
   def getRealFunctionName(funName: String): String = {
     val new_fname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
@@ -106,56 +62,16 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   }
   def compile(funs: List[FunctionDef]): Unit = funs.foreach(compile)
 
-  abstract class highfunc[T, F[_], G[_]] {
-    def apply[A:Manifest](a: F[T]): G[A]
-  }
-
-  def applyWithManifestRes[T,F[_],G[+_]](m: Manifest[_], f : highfunc[T, F, G])(arg : F[T]): G[Any] = {
-    if (m == manifest[Boolean]) f[Boolean](arg)
-    else if (m == manifest[Char]) f[Char](arg)
-    else if (m == manifest[Int]) f[Int](arg)
-    else if (m == manifest[Long]) f[Long](arg)
-    else if (m == manifest[Float]) f[Float](arg)
-    else if (m == manifest[Double]) f[Double](arg)
-    else if (m == manifest[Array[Boolean]]) f[Array[Boolean]](arg)
-    else if (m == manifest[Array[Char]]) f[Array[Char]](arg)
-    else if (m == manifest[Array[Short]]) f[Array[Short]](arg)
-    else if (m == manifest[Array[Int]]) f[Array[Int]](arg)
-    else if (m == manifest[Array[Long]]) f[Array[Long]](arg)
-    else ???
-  }
-
-  abstract class highfuncPoly[F[_], G[_]] {
-    def apply[T:Manifest, A:Manifest](a: F[T]): G[A]
-  }
-
-  def applyWithManifestRes[T:Manifest,F[_],G[+_]](m: Manifest[_], f : highfuncPoly[F, G])(arg : F[T]): G[Any] = {
-    val f_arg = new highfunc[T, F, G] {
-      def apply[A:Manifest](a: F[T]): G[A] = f[T, A](arg)
-    }
-    applyWithManifestRes[T, F, G](m, f_arg)(arg)
-  }
-
-  val poly_rep_cast = new highfuncPoly[Rep, Rep] {
-    def apply[T:Manifest, A:Manifest](arg: Rep[T]): Rep[A] = rep_cast[T, A](arg)
-  }
-
-  // For function that has Variable Arguments, we need to generate different template for different argument types.
-  def getMangledFunctionName(f: FunctionDecl, argTypes: List[LLVMType]): String = {
-    val has_vararg = f.header.params.contains(Vararg)
-    val mangled_name = if (!has_vararg) f.id else f.id + argTypes.map("_"+getPrimitiveTypeName(_)).mkString("")
-    mangled_name.replaceAllLiterally(".","_")
-  }
-
-  def compile_missing_external(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): Unit = {
-    val mangled_name = getMangledFunctionName(f, argTypes);
-    if (FunFuns.contains(mangled_name)) {
-      System.out.println(s"Warning: ignoring the re-generation of missing native external ${mangled_name}")
+  // `ret` and `argTypes` are the type information from the call-site
+  def compile(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): Unit = {
+    val mangledName = getMangledFunctionName(f, argTypes);
+    if (FunFuns.contains(mangledName)) {
+      System.out.println(s"Warning: ignoring the re-generation of missing native external ${mangledName}")
       return
     }
-    val (fn, n) = repMissingExternalFun(f, ret, argTypes)
-    funNameMap(n) = "__LLSC_NATIVE_EXTERNAL_"+mangled_name.tail
-    FunFuns(mangled_name) = fn
+    val (fn, n) = repExternFun(f, ret, argTypes)
+    funNameMap(n) = "__LLSC_NATIVE_EXTERNAL_"+mangledName.tail
+    FunFuns(mangledName) = fn
   }
 
   val funMap: StaticMap[String, FunctionDef] = m.funcDefMap
@@ -259,16 +175,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
   }
 
-  def getFloatSize(ft: FloatType) = ft.k match {
-    case FK_Half => 16
-    case FK_BFloat => 16
-    case FK_Float => 32
-    case FK_Double => 64
-    case FK_X86_FP80 => 80
-    case FK_FP128 => 128
-    case FK_PPC_FP128 => 128
-  }
-
   def getTySizeAlign(vt: LLVMType): (Int, Int) = vt match {
     case ArrayType(num, ety) =>
       val (size, align) = getTySizeAlign(ety)
@@ -283,13 +189,11 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case PtrType(ty, addrSpace) =>
       val elemSize = ARCH_WORD_SIZE / BYTE_SIZE
       (elemSize, elemSize)
-    case FloatType(fk) => {
-      val bw = getFloatSize(vt.asInstanceOf[FloatType])
+    case ft@FloatType(fk) =>
       import scala.math.{log, ceil, pow}
-      val elemSize = (bw + BYTE_SIZE - 1) / BYTE_SIZE
+      val elemSize = (ft.size + BYTE_SIZE - 1) / BYTE_SIZE
       val align = pow(2, ceil(log(elemSize)/log(2)))
       (elemSize, align)
-    }
     case PackedStruct(types) =>
       PackedStructCalc.getSizeAlign(types)
     case _ =>
@@ -320,9 +224,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def calculateOffset(ty: LLVMType, index: List[Rep[Value]]): Rep[Value] = {
     if (index.isEmpty) IntV(0.toLong, DEFAULT_INDEX_BW) else ty match {
       case PtrType(ety, addrSpace) =>
-        (index.head.sExt(DEFAULT_INDEX_BW) mulOff IntV(getTySize(ety), DEFAULT_INDEX_BW)) addOff calculateOffset(ety, index.tail)
+        index.head.sExt(DEFAULT_INDEX_BW) * IntV(getTySize(ety), DEFAULT_INDEX_BW) + calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
-        (index.head.sExt(DEFAULT_INDEX_BW) mulOff IntV(getTySize(ety), DEFAULT_INDEX_BW)) addOff calculateOffset(ety, index.tail)
+        index.head.sExt(DEFAULT_INDEX_BW) * IntV(getTySize(ety), DEFAULT_INDEX_BW) + calculateOffset(ety, index.tail)
       case NamedType(id) =>
         calculateOffset(typeDefMap(id), index)
       case Struct(types) =>
@@ -351,19 +255,16 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case _ => false
   }
 
-  // Float Type
   def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)
     case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
-    case FloatConst(f) => FloatV(f, getFloatSize(ty.asInstanceOf[FloatType]))
+    case FloatConst(f) => FloatV(f, ty.asInstanceOf[FloatType].size)
     case FloatLitConst(l) => FloatV(l, 80)
     case NullConst => NullLoc()
     case PtrToIntExpr(from, const, to) =>
       val v = evalHeapAtomicConst(const, from)
-      if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size)
-        v
-      else
-        v.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
+      if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size) v
+      else v.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
     case GlobalId(id) if funMap.contains(id) =>
       if (!FunFuns.contains(id)) compile(funMap(id))
       wrapFunV(FunFuns(id))
@@ -372,14 +273,14 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case GetElemPtrExpr(inBounds, baseType, ptrType, const, typedConsts) =>
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
       val offset = calculateOffsetStatic(ptrType, indexLLVMValue)
-      val base = evalHeapAtomicConst(const, getRealType(ptrType))
-      base ptrOff IntV(offset, DEFAULT_INDEX_BW)
+      val base = evalHeapAtomicConst(const, getRealType(ptrType)).asRepOf[LocV]
+      base + IntV(offset, DEFAULT_INDEX_BW)
     case _ => throw new Exception("Not atomic heap constant " + v)
   }
 
   def evalHeapComplexConst(v: Constant, real_ty: LLVMType): (List[Rep[Value]], Int) = {
     v match {
-      case StructConst(cs) => {
+      case StructConst(cs) =>
         real_ty match {
           case Struct(types) =>
             StructCalc.concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
@@ -387,7 +288,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
             PackedStructCalc.concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
           case _ => ???
         }
-      }
       case ArrayConst(cs) =>
         (cs.map(c => evalHeapConstWithAlign(c.const, c.ty)._1).flatten, getTySizeAlign(real_ty)._2)
       case CharArrayConst(s) =>

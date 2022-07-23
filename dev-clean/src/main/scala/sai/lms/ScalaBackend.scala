@@ -73,7 +73,7 @@ abstract class SAIDriver[A: Manifest, B: Manifest] extends SAISnippet[A, B] with
     val source = new java.io.ByteArrayOutputStream()
     source.write(prelude.getBytes)
     val statics = codegen.emitSource(wrapper, "Snippet",
-      new java.io.PrintStream(source))(manifestTyp[A], manifestTyp[B])
+      new java.io.PrintStream(source))(manifest[A], manifest[B])
     (source.toString, statics)
   }
 

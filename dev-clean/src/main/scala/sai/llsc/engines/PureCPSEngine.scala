@@ -4,6 +4,7 @@ import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
 import sai.llsc.ASTUtils._
+import sai.llsc.Constants._
 
 import scala.collection.JavaConverters._
 
@@ -21,7 +22,6 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import sai.lmsx.smt.SMTBool
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 
 @virtualize
@@ -31,7 +31,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
 
   def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
 
-  def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
+  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
     tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
     val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
@@ -51,33 +51,28 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     v match {
       case LocalId(x) => ss.lookup(funName + "_" + x)
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
-      case FloatConst(f) => FloatV(f, getFloatSize(ty.asInstanceOf[FloatType]))
+      case FloatConst(f) => FloatV(f, ty.asInstanceOf[FloatType].size)
       case FloatLitConst(l) => FloatV(l, 80)
       case BitCastExpr(from, const, to) => eval(const, to, ss)
       case BoolConst(b) => b match {
         case true => IntV(1, 1)
         case false => IntV(0, 1)
       }
-      // case CharArrayConst(s) =>
       case GlobalId(id) if symDefMap.contains(id) =>
         System.out.println(s"Alias: $id => ${symDefMap(id).const}")
         eval(symDefMap(id).const, ty, ss)
-      case GlobalId(id) if funMap.contains(id) => {
-        if (ExternalFun.rederict.contains(id)) {
-          val t = funMap(id).header.returnType
-          ExternalFun.get(id, Some(t), argTypes).get
-        } else {
-          if (!FunFuns.contains(id)) compile(funMap(id))
-          CPSFunV[Id](FunFuns(id))
-        }
-      }
+      case GlobalId(id) if funMap.contains(id) && ExternalFun.shouldRedirect(id) =>
+        val t = funMap(id).header.returnType
+        ExternalFun.get(id, Some(t), argTypes).get
+      case GlobalId(id) if funMap.contains(id) =>
+        if (!FunFuns.contains(id)) compile(funMap(id))
+        CPSFunV[Id](FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
-        val fv_option = ExternalFun.get(id, Some(t), argTypes)
-        if (fv_option.isEmpty) {
-          compile_missing_external(funDeclMap(id), t, argTypes.get)
+        ExternalFun.get(id, Some(t), argTypes).getOrElse {
+          compile(funDeclMap(id), t, argTypes.get)
           CPSFunV[Id](FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
-        } else fv_option.get
+        }
       case GlobalId(id) if globalDefMap.contains(id) =>
         heapEnv(id)()
       case GlobalId(id) if globalDeclMap.contains(id) =>
@@ -90,13 +85,9 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         // typedConst are not all int, could be local id
         val vs = typedConsts.map(tv => eval(tv.const, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
-        (const match {
-          case GlobalId(id) => heapEnv(id)()
-          case _ => eval(const, ptrType, ss)
-        }) ptrOff offset
+        eval(const, ptrType, ss).asRepOf[LocV] + offset
       case IntToPtrExpr(from, value, to) => eval(value, from, ss)
       case PtrToIntExpr(from, value, IntType(toSize)) =>
-        import Constants.ARCH_WORD_SIZE
         val v = eval(value, from, ss)
         if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
       case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1, ss)
@@ -135,10 +126,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
-        val v = (ptrValue match {
-          case GlobalId(id) => heapEnv(id)()
-          case _ => eval(ptrValue, ptrType, ss)
-        }) ptrOff offset
+        val v = eval(ptrValue, ptrType, ss).asRepOf[LocV] + offset
         k(ss, v)
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss))
@@ -172,7 +160,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case TruncInst(from@IntType(fromSz), value, IntType(toSz)) =>
         k(ss, eval(value, from, ss).trunc(fromSz, toSz))
       case FpExtInst(from, value, to) =>
-        // XXX: is it the right semantics?
         k(ss, eval(value, from, ss))
       case FpToUIInst(from, value, IntType(size)) =>
         k(ss, eval(value, from, ss).fromFloatToUInt(size))
@@ -183,7 +170,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case SiToFPInst(from, value, to) =>
         k(ss, eval(value, from, ss).fromSIntToFloat)
       case PtrToIntInst(from, value, IntType(toSize)) =>
-        import Constants._
         val v = eval(value, from, ss)
         k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize))
       case IntToPtrInst(from, value, to) =>
@@ -204,12 +190,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case FCmpInst(pred, ty, lhs, rhs) => k(ss, evalFloatOp2(pred.op, lhs, rhs, ty, ss))
       case ICmpInst(pred, ty, lhs, rhs) => k(ss, evalIntOp2(pred.op, lhs, rhs, ty, ss))
       case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = args.map {
-          case TypedArg(ty, attrs, value) => value
-        }
-        val argTypes: List[LLVMType] = args.map {
-          case TypedArg(ty, attrs, value) => ty
-        }
+        val argValues: List[LLVMValue] = extractValues(args)
+        val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map {
           case (v, t) => eval(v, t, ss)
@@ -225,6 +207,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val incsLabels: List[BlockLabel] = incs.map(_.label.hashCode)
         val vs = incsValues.map(v => () => eval(v, ty, ss))
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+        k(ss, ITE(eval(cndVal, cndTy, ss), eval(thnVal, thnTy, ss), eval(elsVal, elsTy, ss)))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
         val repK = fun(k)
@@ -233,8 +217,9 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           else repK(ss, eval(elsVal, elsTy, ss))
         } else {
           // TODO: check cond via solver
-          repK(ss, eval(thnVal, thnTy, ss.addPC(cnd.toSMTBool)))
-          repK(ss, eval(elsVal, elsTy, ss.addPC(cnd.toSMTBoolNeg)))
+          Coverage.incPath(1)
+          repK(ss, eval(thnVal, thnTy, ss.addPC(cnd.toSym)))
+          repK(ss, eval(elsVal, elsTy, ss.addPC(cnd.toSymNeg)))
         }
     }
   }
@@ -267,36 +252,30 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           if (cndVal.int == 1) asyncExecBlock(funName, thnLab, ss1, k)
           else asyncExecBlock(funName, elsLab, ss1, k)
         } else {
-          symExecBr(ss1, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName, k)
+          symExecBr(ss1, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, funName, k)
         }
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] = {
+        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
           if (table.isEmpty) execBlock(funName, default, s, k)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s, k)
             else switch(v, s, table.tail)
           }
-        }
 
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List[SMTBool]()): Rep[Unit] =
+        val counter: Var[Int] = var_new(0)
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
           if (table.isEmpty) {
-            execBlock(funName, default, s.addPCSet(pc), k)
+            if (checkPC(s.pc)) {
+              counter += 1
+              execBlock(funName, default, s, k)
+            }
           } else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-
-            val t_sat = checkPC(s.pc.addPC(headPC.toSMTBool))
-            val f_sat = checkPC(s.pc.addPC(headPC.toSMTBoolNeg))
-
-            if (t_sat && f_sat) {
-              Coverage.incPath(1)
+            if (checkPC(s.pc.addPC(headPC.toSym))) {
+              counter += 1
+              execBlock(funName, table.head.label, s.addPC(headPC.toSym), k)
             }
-
-            if (t_sat) {
-              execBlock(funName, table.head.label, s.addPC(headPC.toSMTBool), k)
-            }
-            if (f_sat) {
-              switchSym(v, s.addPC(headPC.toSMTBoolNeg), table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
-            }
+            switchSym(v, s.addPC(headPC.toSymNeg), table.tail)
           }
 
         val ss1 = addIncomingBlockOpt(ss, incomingBlock, default::table.map(_.label))
@@ -304,6 +283,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         if (v.isConc) switch(v.int, ss1, table)
         else {
           switchSym(v, ss1, table)
+          if (counter > 0) Coverage.incPath(counter-1)
+          ()
         }
     }
   }
@@ -318,12 +299,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val v2 = eval(val2, ty2, ss)
         k(ss.update(v2, v1, getTySize(ty1)))
       case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = args.map {
-          case TypedArg(ty, attrs, value) => value
-        }
-        val argTypes: List[LLVMType] = args.map {
-          case TypedArg(ty, attrs, value) => ty
-        }
+        val argValues: List[LLVMValue] = extractValues(args)
+        val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map {
           case (v, t) => eval(v, t, ss)
@@ -375,44 +352,29 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     (fn, n)
   }
 
-  override def repMissingExternalFun(f: FunctionDecl, ret_ty: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
     def generateNativeCall(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       info("running native function: " + f.id)
-      val native_args: List[Rep[Any]] = argTypes.zipWithIndex.map { case (ty, id) => {
-         ty match {
-          case PtrType(_, _) => applyWithManifestRes[CppAddr, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getPointerArg(args(id))) // Rep[CppAddr] -> char *
-          case IntType(size: Int) => applyWithManifestRes[Long, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getIntArg(args(id))) // Rep[Long] -> long
-          case FloatType(k: FloatKind) => applyWithManifestRes[Double, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getFloatArg(args(id))) // Rep[Double] -> double
-          case _ => ???
-        }
-      }}
-      val pointer_ids: List[Int] = argTypes.zipWithIndex.filter {
-        case (arg, id) => argTypes(id) match {
-          case PtrType(_, _) => true
-          case _ => false
-        }
+      val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
+        case (ty@PtrType(_, _), id) => ss.getPointerArg(args(id)).castToM(ty.toManifest)
+        case (ty@IntType(size), id) => ss.getIntArg(args(id)).castToM(ty.toManifest)
+        case (ty@FloatType(k), id)  => ss.getFloatArg(args(id)).castToM(ty.toManifest)
+        case _ => throw new Exception("Unknown native argument type")
+      }
+      val ptrArgIndices: List[Int] = argTypes.zipWithIndex.filter {
+        case (ty, id) => ty.isInstanceOf[PtrType]
       }.map(_._2)
-
-      val fv = NativeExternalFun(f.id.tail, Some(ret_ty))
-
-      val ret_m = getPrimitiveTypeManifest(ret_ty)
-
-      val native_apply = new highfunc[Rep[Any], List, Rep] {
-        def apply[A:Manifest](args: List[Rep[Any]]): Rep[A] = fv.applyNative[A](args)
+      val fv = NativeExternalFun(f.id.tail, Some(retTy))
+      val nativeRet = fv(nativeArgs).castToM(retTy.toManifest)
+      val retSs = ptrArgIndices.foldLeft(ss) { case (state, id) =>
+        state.writebackPointerArg(nativeRet, args(id), nativeArgs(id).asInstanceOf[Rep[CppAddr]])
       }
-
-      val native_res = applyWithManifestRes[Rep[Any], List, Rep](ret_m, native_apply)(native_args)
-      val res_ss = pointer_ids.foldLeft(ss)( (state, id) => {
-        state.writebackPointerArg(native_res, args(id), native_args(id).asInstanceOf[Rep[CppAddr]])
-      })
-
-      val ret_val = ret_ty match {
-        case IntType(size: Int) => IntV(native_res.asInstanceOf[Rep[Long]], size)
-        case f : FloatType => FloatV(native_res.asInstanceOf[Rep[Double]], getFloatSize(f))
-        case _ => ???
+      val retVal = retTy match {
+        case IntType(size) => IntV(nativeRet.asInstanceOf[Rep[Long]], size)
+        case f@FloatType(_) => FloatV(nativeRet.asInstanceOf[Rep[Double]], f.size)
+        case _ => throw new Exception("Unknown native return type")
       }
-
-      k(res_ss, ret_val)
+      k(retSs, retVal)
     }
 
     val fn: FFTy = topFun(generateNativeCall(_, _, _))

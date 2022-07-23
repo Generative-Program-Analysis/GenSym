@@ -250,7 +250,7 @@ public:
 
   Checker& get_checker() {
     // why would this improve the performance?
-    static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ? static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
+    static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ?  static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
     return *(checker_map[std::this_thread::get_id()]);
   }
 };
@@ -261,7 +261,11 @@ inline CheckerManager checker_manager;
 
 inline void init_solvers() { checker_manager.init_checkers(); }
 inline bool check_pc(PC pc) { return checker_manager.get_checker().check_pc(std::move(pc)); }
-inline void check_pc_to_file(SS state) { checker_manager.get_checker().generate_test(std::move(state.get_PC())); }
-inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) { return checker_manager.get_checker().get_sat_value(std::move(pc), v); }
+inline void check_pc_to_file(SS state) {
+  checker_manager.get_checker().generate_test(std::move(state.get_PC()));
+}
+inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) {
+  return checker_manager.get_checker().get_sat_value(std::move(pc), v);
+}
 
 #endif

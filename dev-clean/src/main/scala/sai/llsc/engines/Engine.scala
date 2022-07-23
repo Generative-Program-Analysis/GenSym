@@ -4,6 +4,7 @@ import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
 import sai.llsc.ASTUtils._
+import sai.llsc.Constants._
 
 import scala.collection.JavaConverters._
 
@@ -22,7 +23,6 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
-import sai.lmsx.smt.SMTBool
 
 @virtualize
 trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
@@ -31,7 +31,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
 
   def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
 
-  def symExecBr(ss: Rep[SS], tCond: Rep[SMTBool], fCond: Rep[SMTBool],
+  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
     tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
     val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
@@ -44,7 +44,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         for { ss <- getState } yield ss.lookup(funName + "_" + x)
       case IntConst(n) =>
         ret(IntV(n, ty.asInstanceOf[IntType].size))
-      case FloatConst(f) => ret(FloatV(f, getFloatSize(ty.asInstanceOf[FloatType])))
+      case FloatConst(f) => ret(FloatV(f, ty.asInstanceOf[FloatType].size))
       case FloatLitConst(l) => ret(FloatV(l, 80))
       // case ArrayConst(cs) =>
       case BitCastExpr(from, const, to) =>
@@ -53,30 +53,24 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         case true => ret(IntV(1, 1))
         case false => ret(IntV(0, 1))
       }
-      // case CharArrayConst(s) =>
       case GlobalId(id) if symDefMap.contains(id) =>
         System.out.println(s"Alias: $id => ${symDefMap(id).const}")
         for {
           v <- eval(symDefMap(id).const, ty)
         } yield v
-      case GlobalId(id) if funMap.contains(id) => {
-        if (ExternalFun.rederict.contains(id)) {
-          val t = funMap(id).header.returnType
-          ret(ExternalFun.get(id, Some(t), argTypes).get)
-        } else {
-          if (!FunFuns.contains(id)) compile(funMap(id))
-          ret(FunV[Id](FunFuns(id)))
-        }
-      }
-      case GlobalId(id) if funDeclMap.contains(id) => {
+      case GlobalId(id) if funMap.contains(id) && ExternalFun.shouldRedirect(id) =>
+        val t = funMap(id).header.returnType
+        ret(ExternalFun.get(id, Some(t), argTypes).get)
+      case GlobalId(id) if funMap.contains(id) =>
+        if (!FunFuns.contains(id)) compile(funMap(id))
+        ret(FunV[Id](FunFuns(id)))
+      case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
-        val fv_option = ExternalFun.get(id, Some(t), argTypes)
-        val fv = if (fv_option.isEmpty) {
-          compile_missing_external(funDeclMap(id), t, argTypes.get)
+        val fv = ExternalFun.get(id, Some(t), argTypes).getOrElse {
+          compile(funDeclMap(id), t, argTypes.get)
           FunV[Id](FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
-        } else fv_option.get
+        }
         ret(fv)
-      }
       case GlobalId(id) if globalDefMap.contains(id) =>
         ret(heapEnv(id)())
       case GlobalId(id) if globalDeclMap.contains(id) =>
@@ -89,22 +83,14 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         // typedConst are not all int, could be local id
         for {
           vs <- mapM(typedConsts)(tv => eval(tv.const, tv.ty))
-          lV <- eval(const, ptrType)
-        } yield {
-          val offset = calculateOffset(ptrType, vs)
-          (const match {
-            case GlobalId(id) => heapEnv(id)()
-            case _ => lV
-          }) ptrOff offset
-        }
+          lv <- eval(const, ptrType)
+        } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
       case IntToPtrExpr(from, value, to) =>
         for { v <- eval(value, from) } yield v
       case PtrToIntExpr(from, value, IntType(toSize)) =>
-        import Constants.ARCH_WORD_SIZE
-        for { p <- eval(value, from) } yield {
-          val v = p
-          if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize)
-        }
+        for { p <- eval(value, from) } yield
+          if (ARCH_WORD_SIZE == toSize) p
+          else p.trunc(ARCH_WORD_SIZE, toSize)
       case FCmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalFloatOp2(pred.op, lhs, rhs, ty1)
       case ICmpExpr(pred, ty1, ty2, lhs, rhs) if ty1 == ty2 => evalIntOp2(pred.op, lhs, rhs, ty1)
       case InlineASM() => ret(NullPtr[Value])
@@ -147,14 +133,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         for {
           vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
-          lV <- eval(ptrValue, ptrType)
-        } yield {
-          val offset = calculateOffset(ptrType, vs)
-          (ptrValue match {
-            case GlobalId(id) => heapEnv(id)()
-            case _ => lV
-          }) ptrOff offset
-        }
+          lv <- eval(ptrValue, ptrType)
+        } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs, ty)
       case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs, ty)
@@ -197,12 +177,9 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case SiToFPInst(from, value, to) =>
         for { v <- eval(value, from) } yield v.fromSIntToFloat
       case PtrToIntInst(from, value, to) =>
-        import Constants._
         for { v <- eval(value, from) } yield
-          if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size)
-            v
-          else
-            v.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
+          if (ARCH_WORD_SIZE == to.asInstanceOf[IntType].size) v
+          else v.trunc(ARCH_WORD_SIZE, to.asInstanceOf[IntType].size)
       case IntToPtrInst(from, value, to) =>
         for { v <- eval(value, from) } yield v
       case BitCastInst(from, value, to) => eval(value, to)
@@ -234,12 +211,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       case FCmpInst(pred, ty, lhs, rhs) => evalFloatOp2(pred.op, lhs, rhs, ty)
       case ICmpInst(pred, ty, lhs, rhs) => evalIntOp2(pred.op, lhs, rhs, ty)
       case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = args.map {
-          case TypedArg(ty, attrs, value) => value
-        }
-        val argTypes: List[LLVMType] = args.map {
-          case TypedArg(ty, attrs, value) => ty
-        }
+        val argValues: List[LLVMValue] = extractValues(args)
+        val argTypes: List[LLVMType] = extractTypes(args)
         for {
           fv <- eval(f, VoidType, Some(argTypes))
           vs <- mapM2Tup(argValues)(argTypes)(eval(_, _, None))
@@ -260,6 +233,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(incsValues)(eval(_, ty))
           s <- getState
         } yield selectValue(s.incomingBlock, vs, incsLabels)
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+        for {
+          cnd <- eval(cndVal, cndTy)
+          tv  <- eval(thnVal, thnTy)
+          ev  <- eval(elsVal, elsTy)
+        } yield ITE(cnd, tv, ev)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         // TODO: check cond via solver
         for {
@@ -270,16 +249,17 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
               if (cnd.int == 1) reify(s)(eval(thnVal, thnTy))
               else reify(s)(eval(elsVal, elsTy))
             } else {
-              reify(s) {choice(
-                for {
-                  _ <- updatePC(cnd.toSMTBool)
+              Coverage.incPath(1)
+              reify(s) {
+                (for {
+                  _ <- updatePC(cnd.toSym)
                   v <- eval(thnVal, thnTy)
-                } yield v,
-                for {
-                  _ <- updatePC(cnd.toSMTBoolNeg)
+                } yield v) ⊕
+                (for {
+                  _ <- updatePC(cnd.toSymNeg)
                   v <- eval(elsVal, elsTy)
-                } yield v
-              )}
+                } yield v)
+              }
             }
           }
         } yield v
@@ -314,7 +294,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
               if (cndVal.int == 1) reify(ss)(execBlock(funName, thnLab))
               else reify(ss)(execBlock(funName, elsLab))
             } else {
-              symExecBr(ss, cndVal.toSMTBool, cndVal.toSMTBoolNeg, thnLab, elsLab, funName)
+              symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, funName)
               /*
               val tpcSat = checkPC(ss.pc + cndVal.toSMTBool)
               val fpcSat = checkPC(ss.pc + cndVal.toSMTBoolNeg)
@@ -332,7 +312,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
                   val asyncb1: Rep[Future[List[(SS, Value)]]] = ThreadPool.async { _ => reify(ss) { b1 } }
                   val rb2 = reify(ss) { b2 } // must reify b2 before get the async, order matters here
                   ThreadPool.get(asyncb1) ++ rb2
-                } else reify(ss) { choice(b1, b2) }
+                } else reify(ss) { b1 ⊕ b2 }
               } else if (tpcSat) {
                 reify(ss) { b1 }
               } else if (fpcSat) {
@@ -345,47 +325,35 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           }
         } yield u
       case SwitchTerm(cndTy, cndVal, default, table) =>
-        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
+        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] =
           if (table.isEmpty) execBlock(funName, default, s)
           else {
             if (v == table.head.n) execBlock(funName, table.head.label, s)
             else switch(v, s, table.tail)
           }
-        }
 
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase], pc: Rep[List[SMTBool]] = List[SMTBool]()): Rep[List[(SS, Value)]] = {
+        val counter: Var[Int] = var_new(0)
+
+        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] =
           if (table.isEmpty)
-            reify(s)(for {
-              _ <- updatePCSet(pc)
-              u <- execBlock(funName, default)
-            } yield u)
+            if (checkPC(s.pc)) {
+              counter += 1
+              reify(s) { execBlock(funName, default) }
+            } else List[(SS, Value)]()
           else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            val t_sat = checkPC(s.pc.addPC(headPC.toSMTBool))
-            val f_sat = checkPC(s.pc.addPC(headPC.toSMTBoolNeg))
-            if (t_sat && f_sat) {
-              Coverage.incPath(1)
-            }
             val m = reflect {
-              if (t_sat) {
+              if (checkPC(s.pc.addPC(headPC.toSym))) {
+                counter += 1
                 reify(s)(for {
-                  _ <- updatePC(headPC.toSMTBool)
+                  _ <- updatePC(headPC.toSym)
                   u <- execBlock(funName, table.head.label)
                 } yield u)
-              } else {
-                List[(SS, Value)]()
-              }
+              } else List[(SS, Value)]()
             }
-            val next = reflect {
-              if (f_sat) {
-                switchSym(v, s.addPC(headPC.toSMTBoolNeg), table.tail, pc ++ List[SMTBool](headPC.toSMTBoolNeg))
-              } else {
-                List[(SS, Value)]()
-              }
-            }
-            reify(s)(choice(m, next))
+            val next = reflect { switchSym(v, s.addPC(headPC.toSymNeg), table.tail) }
+            reify(s) { m ⊕ next }
           }
-        }
 
         for {
           _ <- updateIncomingBlock(incomingBlock)
@@ -394,7 +362,9 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           r <- reflect {
             if (v.isConc) switch(v.int, s, table)
             else {
-              switchSym(v, s, table)
+              val r = switchSym(v, s, table)
+              if (counter > 0) Coverage.incPath(counter-1)
+              r
             }
           }
         } yield r
@@ -415,12 +385,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           _ <- updateMem(v2, v1, getTySize(ty1))
         } yield ()
       case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = args.map {
-          case TypedArg(ty, attrs, value) => value
-        }
-        val argTypes: List[LLVMType] = args.map {
-          case TypedArg(ty, attrs, value) => ty
-        }
+        val argValues: List[LLVMValue] = extractValues(args)
+        val argTypes: List[LLVMType] = extractTypes(args)
         for {
           fv <- eval(f, VoidType, Some(argTypes))
           vs <- mapM2Tup(argValues)(argTypes)(eval(_, _, None))
@@ -485,43 +451,28 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     (fn, n)
   }
 
-  override def repMissingExternalFun(f: FunctionDecl, ret_ty: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
     def generateNativeCall(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       info("running native function: " + f.id)
-      val native_args: List[Rep[Any]] = argTypes.zipWithIndex.map { case (ty, id) => {
-         ty match {
-          case PtrType(_, _) => applyWithManifestRes[CppAddr, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getPointerArg(args(id))) // Rep[CppAddr] -> char *
-          case IntType(size: Int) => applyWithManifestRes[Long, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getIntArg(args(id))) // Rep[Long] -> long
-          case FloatType(k: FloatKind) => applyWithManifestRes[Double, Rep, Rep](getPrimitiveTypeManifest(ty), poly_rep_cast)(ss.getFloatArg(args(id))) // Rep[Double] -> double
-          case _ => ???
-        }
-      }}
-      val pointer_ids: List[Int] = argTypes.zipWithIndex.filter {
-        case (arg, id) => argTypes(id) match {
-          case PtrType(_, _) => true
-          case _ => false
-        }
+      val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
+        case (ty@PtrType(_, _), id) => ss.getPointerArg(args(id)).castToM(ty.toManifest)
+        case (ty@IntType(size), id) => ss.getIntArg(args(id)).castToM(ty.toManifest)
+        case (ty@FloatType(k), id)  => ss.getFloatArg(args(id)).castToM(ty.toManifest)
+        case _ => throw new Exception("Unknown native argument type")
+      }
+      val ptrArgIndices: List[Int] = argTypes.zipWithIndex.filter {
+        case (ty, id) => ty.isInstanceOf[PtrType]
       }.map(_._2)
-
-      val fv = NativeExternalFun(f.id.tail, Some(ret_ty))
-
-      val ret_m = getPrimitiveTypeManifest(ret_ty)
-
-      val native_apply = new highfunc[Rep[Any], List, Rep] {
-        def apply[A:Manifest](args: List[Rep[Any]]): Rep[A] = fv.applyNative[A](args)
+      val fv = NativeExternalFun(f.id.tail, Some(retTy))
+      val nativeRet = fv(nativeArgs).castToM(retTy.toManifest)
+      val retVal = retTy match {
+        case IntType(size) => IntV(nativeRet.asInstanceOf[Rep[Long]], size)
+        case f@FloatType(_) => FloatV(nativeRet.asInstanceOf[Rep[Double]], f.size)
+        case _ => throw new Exception("Unknown native return type")
       }
-
-      val m: Comp[E, Rep[Value]] = for {
-        native_res <- ret(applyWithManifestRes[Rep[Any], List, Rep](ret_m, native_apply)(native_args))
-        _ <- mapM(pointer_ids)(id => writebackPointerArg(native_res, args(id), native_args(id).asInstanceOf[Rep[CppAddr]]))
-      } yield {
-        ret_ty match {
-          case IntType(size: Int) => IntV(native_res.asInstanceOf[Rep[Long]], size)
-          case f : FloatType => FloatV(native_res.asInstanceOf[Rep[Double]], getFloatSize(f))
-          case _ => ???
-        }
-      }
-
+      val m: Comp[E, Rep[Value]] = mapM(ptrArgIndices) { id =>
+        writebackPointerArg(nativeRet, args(id), nativeArgs(id).asInstanceOf[Rep[CppAddr]])
+      }.map { _ => retVal }
       reify(ss)(m)
     }
 

@@ -39,6 +39,10 @@ trait StagedNondet extends SAIOps {
       case false => b
     }
 
+  implicit class ChoiceOps[R <: Eff, A: Manifest](a: Comp[R, Rep[A]]) {
+    def ⊕(b: Comp[R, Rep[A]])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] = choice(a, b)
+  }
+
   def select[R <: Eff, A: Manifest](xs: Rep[List[A]])(implicit I: Nondet ∈ R): Comp[R, Rep[A]] =
     perform[Nondet, R, Rep[A]](NondetList(xs))
 

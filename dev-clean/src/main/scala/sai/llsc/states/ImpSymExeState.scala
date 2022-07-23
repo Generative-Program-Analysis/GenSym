@@ -11,7 +11,6 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
-import sai.lmsx.smt.SMTBool
 import sai.llsc.Config
 
 import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
@@ -67,7 +66,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
   def currentMethodName: String = Thread.currentThread.getStackTrace()(2).getMethodName
 
   implicit class PCOps(pc: Rep[PC]) {
-    def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("add-pc", pc, e)(pc)
+    def addPC(e: Rep[SymV]): Rep[Unit] = reflectWrite[Unit]("add-pc", pc, e)(pc)
   }
 
   implicit class SSOps(ss: Rep[SS]) {
@@ -116,8 +115,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def push: Rep[Unit] = reflectWrite[Unit]("ss-push", ss)(ss, Adapter.CTRL)
     // XXX: since pop is used in a map, will be DCE-ed if no CTRL
     def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
-    def addPC(e: Rep[SMTBool]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
-    def addPCSet(es: Rep[List[SMTBool]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
+    def addPC(e: Rep[SymV]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
+    def addPCSet(es: Rep[List[SymV]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = reflectRead[PC]("get-pc", ss)(ss)
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
     def updateErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-error-loc", ss)(ss)
@@ -127,10 +126,12 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
 
     def copy: Rep[SS] = reflectRead[SS]("ss-copy", ss)(ss)
 
+    // Note: getIntArg/getFloatArg/getPointerArg may potentially call solver
     def getIntArg(x : Rep[Value]): Rep[Long] = reflectRead[Long]("ss-get-int-arg", ss, x)(ss)
     def getFloatArg(x : Rep[Value]): Rep[Double] = reflectRead[Double]("ss-get-float-arg", ss, x)(ss)
     def getPointerArg(x : Rep[Value]): Rep[CppAddr] = reflectRead[CppAddr]("ss-get-pointer-arg", ss, x)(ss)
-    def writebackPointerArg(res: Rep[Any], addr:Rep[Value], x: Rep[CppAddr]): Rep[Unit] = reflectWrite[Unit]("ss-writeback-pointer-arg", ss, res, addr, x)(ss)
+    def writebackPointerArg(res: Rep[Any], addr:Rep[Value], x: Rep[CppAddr]): Rep[Unit] =
+      reflectWrite[Unit]("ss-writeback-pointer-arg", ss, res, addr, x)(ss)
   }
 
   implicit class RefSSOps(ss: Rep[Ref[SS]]) extends SSOps(ss.asRepOf[SS])
