@@ -257,6 +257,7 @@ NODEBUG : 'NoDebug' ;
 NODESCOLON : 'nodes:' ;
 NODUPLICATE : 'noduplicate' ;
 NODUPLICATES : 'noduplicates' ;
+NOFREE : 'nofree' ;
 NOIMPLICITFLOAT : 'noimplicitfloat' ;
 NOINLINE : 'noinline' ;
 NONE : 'none' ;

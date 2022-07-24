@@ -3880,6 +3880,7 @@ funcAttr
     | 'naked'
     | 'nobuiltin'
     | 'noduplicate'
+    | 'nofree'
     | 'noimplicitfloat'
     | 'noinline'
     | 'nonlazybind'
