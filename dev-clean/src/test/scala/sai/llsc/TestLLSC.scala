@@ -139,10 +139,11 @@ class Playground extends TestLLSC {
   //val llsc = new PureCPSLLSC
   Config.enableOpt
   val llsc = new ImpCPSLLSC
+  testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(llsc, TestPrg(selectTestSym, "selectTest", "@main", noArg, noOpt, nPath(1)))
   //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
   //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
-  testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
+  //testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testLLSC(llsc, TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0)))
   //testLLSC(new ImpCPSLLSC, List(TestPrg(base32_linked, "base32_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(4971)++status(0))))
   //testLLSC(new PureCPSLLSC, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
@@ -150,7 +151,6 @@ class Playground extends TestLLSC {
 
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
 
-  //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortPureTest", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
   //testLLSC(new PureCPSLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))

@@ -72,7 +72,7 @@ enum class SolverKind { z3, stp };
 inline SolverKind solver_kind = SolverKind::stp;
 
 // Global counter to record time spent in solver
-inline duration<double, std::micro> solver_time = microseconds::zero();
+inline std::atomic<long int> solver_time = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
@@ -140,7 +140,7 @@ inline std::string int_op2string(iOP op) {
     case iOP::op_trunc: return "trunc";
     case iOP::op_concat: return "concat";
     case iOP::op_extract: return "extract";
-    case iOP::op_ite: return "ifthenelse";
+    case iOP::op_ite: return "ite";
   }
   return "unknown op";
 }
@@ -170,7 +170,6 @@ inline std::string float_op2string(fOP op) {
   }
   return "unknown op";
 }
-
 
 /* Stack manipulation */
 
@@ -216,7 +215,7 @@ inline std::monostate operator+ (const std::monostate& lhs, const std::monostate
 
 /* Generating fresh names */
 
-inline unsigned int var_name = 0;
+inline std::atomic<unsigned int> var_name = 0;
 inline std::string fresh(const std::string& x) { return x + std::to_string(var_name++); }
 inline std::string fresh() { return fresh("x"); }
 

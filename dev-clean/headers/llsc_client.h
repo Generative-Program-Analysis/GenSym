@@ -41,6 +41,7 @@ static inline int llsc_range(int begin, int end, const char *name) {
 
 __attribute__((noreturn))
 void stop(int status);
+
 /* llsc_report_error - Report a user defined error and terminate the current
  * llsc process.
  *
@@ -75,7 +76,7 @@ unsigned llsc_is_symbolic(uintptr_t n);
 /* return a feasible concrete value of expr */
 long llsc_get_valuel(long expr);
 
-/* Support for runing test-comp examples */
+/* Support for running test-comp examples */
 
 static inline void __VERIFIER_error(void) { llsc_assert_eager(0); }
 static inline void __VERIFIER_assert(int cond) { llsc_assert_eager(cond); }

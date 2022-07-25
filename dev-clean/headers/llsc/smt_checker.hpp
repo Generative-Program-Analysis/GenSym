@@ -33,21 +33,21 @@ class CachedChecker : public Checker {
     auto start = steady_clock::now();
     self()->push_internal();
     auto end = steady_clock::now();
-    solver_time += duration_cast<microseconds>(end - start);
+    solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   void pop() {
     auto start = steady_clock::now();
     self()->pop_internal();
     auto end = steady_clock::now();
-    solver_time += duration_cast<microseconds>(end - start);
+    solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   solver_result check_model() {
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
     auto end = steady_clock::now();
-    solver_time += duration_cast<microseconds>(end - start);
+    solver_time += duration_cast<microseconds>(end - start).count();
     return result;
   }
 
