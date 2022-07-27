@@ -1,7 +1,7 @@
 #ifndef LLSC_FS_HEADERS
 #define LLSC_FS_HEADERS
 
-inline unsigned int fs_var_name = 0;
+inline std::atomic<unsigned int> fs_var_name = 0;
 inline int default_sym_file_size = 5;
 inline const int stat_size = 144;
 

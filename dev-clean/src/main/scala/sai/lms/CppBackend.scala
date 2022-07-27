@@ -22,9 +22,12 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
       val ret = remap(m.typeArguments.last)
       val params = m.typeArguments.dropRight(1).map(remap(_)).mkString(", ")
       s"std::function<${ret}($params)>"
-    } else if (name.endsWith("$Ref")) {
+    } else if (name.endsWith("Ref")) {
       val kty = m.typeArguments(0)
       s"${remap(kty)}&"
+    } else if (name.endsWith("Ptr")) {
+      val kty = m.typeArguments(0)
+      s"${remap(kty)}*"
     } else super.remap(m)
   }
 

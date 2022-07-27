@@ -115,8 +115,8 @@ object TestCases {
   )
 
   val symbolicLarge: List[TestPrg] = List(
-    TestPrg(mp65536, "mp65kTest", "@f", symArg(16), "--disable-solver", nPath(65536)),
-    TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)),
+    TestPrg(mp65536, "mp65kTest", "@f", symArg(16), "--solver=disable", nPath(65536)),
+    TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--solver=disable", nPath(1048576)),
   )
 
   val external: List[TestPrg] = List(

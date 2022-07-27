@@ -371,7 +371,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       val fv = NativeExternalFun(f.id.tail, Some(retTy))
       val nativeRet = fv(nativeArgs).castToM(retTy.toManifest)
       ptrArgIndices.foreach { id =>
-        ss.writebackPointerArg(nativeRet, args(id), nativeArgs(id).asInstanceOf[Rep[CppAddr]])
+        ss.writebackPointerArg(nativeRet, args(id), nativeArgs(id).asRepOf[Ptr[Char]])
       }
       val retVal = retTy match {
         case IntType(size) => IntV(nativeRet.asInstanceOf[Rep[Long]], size)

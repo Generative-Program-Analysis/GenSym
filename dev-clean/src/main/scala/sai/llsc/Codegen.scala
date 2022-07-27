@@ -72,8 +72,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (s.endsWith("$File")) "Ptr<File>"
     else if (s.endsWith("$Stream")) "Ptr<Stream>"
     else if (s.endsWith("$Kind")) "LocV::Kind"
-    else if (s.endsWith("SMTExpr")) "PtrVal"
-    else if (s.endsWith("SMTBool")) "PtrVal"
     else if (m.runtimeClass.getName.endsWith("Future"))
       s"std::future<${remap(m.typeArguments(0))}>"
     else super.remap(m)
@@ -144,7 +142,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-get-int-arg", List(ss, x), _) => es"get_int_arg($ss, $x)"
     case Node(s, "ss-get-float-arg", List(ss, x), _) => es"get_float_arg($ss, $x)"
     case Node(s, "ss-get-pointer-arg", List(ss, x), _) => es"get_pointer_arg($ss, $x)"
-    case Node(s, "ss-writeback-pointer-arg", List(ss, res, addr, x), _) => es"writeback_pointer_arg($ss, $addr, $x)"
+    case Node(s, "ss-writeback-pointer-arg", List(ss, res, addr, x), _) =>
+      es"writeback_pointer_arg($ss, $addr, $x)"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
     case Node(s, "to-SMTNeg", List(v), _) => es"SymV::neg($v)"

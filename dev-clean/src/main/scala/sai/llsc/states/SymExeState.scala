@@ -7,7 +7,6 @@ import sai.structure.freer._
 import Eff._
 import Freer._
 import Handlers._
-import OpenUnion._
 import State._
 
 import lms.core._
@@ -119,8 +118,8 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     // Note: getIntArg/getFloatArg/getPointerArg may potentially call solver
     def getIntArg(x : Rep[Value]): Rep[Long] = "ss-get-int-arg".reflectWith[Long](ss, x)
     def getFloatArg(x : Rep[Value]): Rep[Double] = "ss-get-float-arg".reflectWith[Double](ss, x)
-    def getPointerArg(x : Rep[Value]): Rep[CppAddr] = "ss-get-pointer-arg".reflectWith[CppAddr](ss, x)
-    def writebackPointerArg(res: Rep[Any], addr:Rep[Value], x: Rep[CppAddr]): Rep[SS] =
+    def getPointerArg(x : Rep[Value]): Rep[Ptr[Char]] = "ss-get-pointer-arg".reflectWith[Ptr[Char]](ss, x)
+    def writebackPointerArg(res: Rep[Any], addr:Rep[Value], x: Rep[Ptr[Char]]): Rep[SS] =
       "ss-writeback-pointer-arg".reflectWith[SS](ss, res, addr, x)
   }
 
@@ -176,5 +175,5 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
   def initializeArg: Comp[E, Rep[Unit]] = updateState(_.updateArg)
   def initializeErrorLoc: Comp[E, Rep[Unit]] = updateState(_.updateErrorLoc)
 
-  def writebackPointerArg(res: Rep[Any], addr: Rep[Value], x: Rep[CppAddr]): Comp[E, Rep[Unit]] = updateState(_.writebackPointerArg(res, addr, x))
+  def writebackPointerArg(res: Rep[Any], addr: Rep[Value], x: Rep[Ptr[Char]]): Comp[E, Rep[Unit]] = updateState(_.writebackPointerArg(res, addr, x))
 }

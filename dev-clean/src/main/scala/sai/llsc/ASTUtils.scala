@@ -4,6 +4,8 @@ import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
 
+import sai.lmsx._
+
 object ASTUtils {
   def extractValues(args: List[Arg]): List[LLVMValue] = args.map {
     case TypedArg(ty, attrs, value) => value
@@ -46,11 +48,11 @@ object ASTUtils {
       case IntType(64) => manifest[Long]
       case FloatType(FK_Float) => manifest[Float]
       case FloatType(FK_Double) => manifest[Double]
-      case PtrType(IntType(1), addrSpace) => manifest[Array[Boolean]]
-      case PtrType(IntType(8), addrSpace) => manifest[Array[Char]]
-      case PtrType(IntType(16), addrSpace) => manifest[Array[Short]]
-      case PtrType(IntType(32), addrSpace) => manifest[Array[Int]]
-      case PtrType(IntType(64), addrSpace) => manifest[Array[Long]]
+      case PtrType(IntType(1), addrSpace) => manifest[Ptr[Boolean]]
+      case PtrType(IntType(8), addrSpace) => manifest[Ptr[Char]]
+      case PtrType(IntType(16), addrSpace) => manifest[Ptr[Short]]
+      case PtrType(IntType(32), addrSpace) => manifest[Ptr[Int]]
+      case PtrType(IntType(64), addrSpace) => manifest[Ptr[Long]]
       case _ => ???
     }
 

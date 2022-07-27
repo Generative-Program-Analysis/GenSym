@@ -44,9 +44,6 @@ trait BasicDefs { self: SAIOps =>
   lazy val gNode = Adapter.g.Def
   type bExp = Backend.Exp
 
-  // GW: this looks weird
-  type CppAddr = Array[Char]
-
   def initState: Rep[SS] = "init-ss".reflectWriteWith[SS]()(Adapter.CTRL)
   def initState(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)

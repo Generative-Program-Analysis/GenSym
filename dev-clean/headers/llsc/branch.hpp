@@ -272,17 +272,6 @@ sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
       ff(fbr_ss, k);
       return std::monostate{};
     }
-    /*
-    if (can_par_async()) {
-      std::future<std::monostate> tf_res =
-        create_async<std::monostate>([&]{
-          return tf(tbr_ss, k);
-        });
-      auto ff_res = ff(fbr_ss, k);
-      tf_res.get();
-      return std::monostate{};
-    }
-    */
   } else if (tbr_sat) {
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss, k);
@@ -292,6 +281,20 @@ sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
   } else {
     return std::monostate{};
   }
+}
+
+// Note: seems a way to reduce the size of generated code,
+//       but we need to make sure those block-functions will not be DCE-ed.
+inline std::monostate
+br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
+     std::monostate (*tf)(SS&, std::function<std::monostate(SS&, PtrVal)>),
+     std::monostate (*ff)(SS&, std::function<std::monostate(SS&, PtrVal)>),
+     std::function<std::monostate(SS&, PtrVal)> k) {
+  if (t_cond->is_conc()) {
+    if (proj_IntV(t_cond) == 1) return tf(ss, k);
+    else return ff(ss, k);
+  }
+  return sym_exec_br_k(ss, t_cond, f_cond, tf, ff, k);
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>

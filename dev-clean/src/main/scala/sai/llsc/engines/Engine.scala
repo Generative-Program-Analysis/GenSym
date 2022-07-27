@@ -12,7 +12,6 @@ import sai.structure.freer._
 import Eff._
 import Freer._
 import Handlers._
-import OpenUnion._
 import State._
 
 import lms.core._
@@ -471,7 +470,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         case _ => throw new Exception("Unknown native return type")
       }
       val m: Comp[E, Rep[Value]] = mapM(ptrArgIndices) { id =>
-        writebackPointerArg(nativeRet, args(id), nativeArgs(id).asInstanceOf[Rep[CppAddr]])
+        writebackPointerArg(nativeRet, args(id), nativeArgs(id).asRepOf[Ptr[Char]])
       }.map { _ => retVal }
       reify(ss)(m)
     }

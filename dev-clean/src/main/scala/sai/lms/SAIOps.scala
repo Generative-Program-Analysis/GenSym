@@ -17,6 +17,10 @@ import sai.lmsx.smt._
 
 import scala.collection.immutable.{List => StaticList}
 
+// C++ reference and pointer type
+abstract class Ref[T: Manifest]
+abstract class Ptr[T: Manifest]
+
 trait PrimitiveOpsOpt extends PrimitiveOps { self: Base =>
   implicit class IntOpsOpt(x: Rep[Int]) extends PrimitiveMathOpsIntOpsCls(x) {
     override def -(rhs: Int)(implicit __pos: SourceContext, __imp1: Overloaded79) = Unwrap(x) match {
@@ -65,6 +69,11 @@ trait SAIOps extends Base
       else if (m == manifest[Long]) a.castTo[Long]
       else if (m == manifest[Float]) a.castTo[Float]
       else if (m == manifest[Double]) a.castTo[Double]
+      else if (m == manifest[Ptr[Boolean]]) a.castTo[Ptr[Boolean]]
+      else if (m == manifest[Ptr[Char]]) a.castTo[Ptr[Char]]
+      else if (m == manifest[Ptr[Short]]) a.castTo[Ptr[Short]]
+      else if (m == manifest[Ptr[Int]]) a.castTo[Ptr[Int]]
+      else if (m == manifest[Ptr[Long]]) a.castTo[Ptr[Long]]
       else if (m == manifest[Array[Boolean]]) a.castTo[Array[Boolean]]
       else if (m == manifest[Array[Char]]) a.castTo[Array[Char]]
       else if (m == manifest[Array[Short]]) a.castTo[Array[Short]]
@@ -158,9 +167,7 @@ trait SAIOps extends Base
     }
   }
 
-  // Exclusively for C/C++
-
-  abstract class Ref[T: Manifest]
+  // C-style in-place macro
   def cmacro[T: Manifest](s: String): Rep[T] = "macro".reflectUnsafeWith[T](unit(s))
 
   // Experiment below -- do not use.

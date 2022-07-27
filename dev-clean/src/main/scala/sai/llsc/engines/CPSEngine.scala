@@ -33,6 +33,13 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     "sym_exec_br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
+  def branch(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+    tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
+    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
+    "br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
+  }
+
   def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
     // execBlock(funName, lab, ss, k) //TODO: phantom application
     val realBlockFunName = getRealBlockFunName(getBBFun(funName, lab))
@@ -188,7 +195,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val stackSize = ss.stackSize
         val fK: Rep[Cont] = fun { case sv =>
           val s: Rep[Ref[SS]] = sv._1
-          s.pop(stackSize) 
+          s.pop(stackSize)
           k(s, sv._2)
         }
         fv[Ref](ss, List(vs: _*), fK)
@@ -239,6 +246,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
         ss.addIncomingBlock(incomingBlock)
         val cndVal = eval(cnd, ty, ss)
+        //branch(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, funName, k)
         if (cndVal.isConc) {
           if (cndVal.int == 1) execBlock(funName, thnLab, ss, k)
           else execBlock(funName, elsLab, ss, k)
@@ -373,7 +381,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       val fv = NativeExternalFun(f.id.tail, Some(retTy))
       val nativeRet = fv(nativeArgs).castToM(retTy.toManifest)
       ptrArgIndices.foreach { id =>
-        ss.writebackPointerArg(nativeRet, args(id), nativeArgs(id).asInstanceOf[Rep[CppAddr]])
+        ss.writebackPointerArg(nativeRet, args(id), nativeArgs(id).asRepOf[Ptr[Char]])
       }
       val retVal = retTy match {
         case IntType(size) => IntV(nativeRet.asInstanceOf[Rep[Long]], size)

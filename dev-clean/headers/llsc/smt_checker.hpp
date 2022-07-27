@@ -119,7 +119,8 @@ public:
         auto& cset = std::get<1>(cur->second);
         for (auto& next: condvec) if (next != objcache.end()) {
           auto& nset = std::get<1>(next->second);
-          auto cit = cset.begin(); auto nit = nset.begin();
+          auto cit = cset.begin();
+          auto nit = nset.begin();
           if (cit != cset.end() && nit != nset.end()) {
             do if (nit->first == cit->first) {
               condset.insert(next->first);
