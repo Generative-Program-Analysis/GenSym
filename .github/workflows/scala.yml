@@ -66,8 +66,6 @@ jobs:
     - name: Generate models
       run: sbt 'runMain sai.llsc.GenerateExternal'
     - name: Test models
-      run: |
-        sbt 'runMain sai.llsc.GenerateExternalTest'
-        sbt 'testOnly sai.llsc.TestUnit'
+      run: sbt 'testOnly sai.llsc.TestGenExternal'
     - name: Run tests
       run: sbt test

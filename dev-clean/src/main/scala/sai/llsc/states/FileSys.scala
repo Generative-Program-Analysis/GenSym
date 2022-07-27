@@ -214,10 +214,10 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       val rootFile = File.dcopy(fs.rootFile)
       val openedFiles = Map[Fd, Stream]()
       val newFS = "FS".reflectCtrlWith[FS](openedFiles, rootFile)
-      fs.openedFiles.foreach({ case (fd, s) => {
+      fs.openedFiles.foreach { case (fd, s) =>
         val strm = Stream(newFS.getFile(s.file.fullPath), s.mode, s.cursor)
         newFS.setStream(fd, strm)
-      }})
+      }
       newFS
     }
     def SEEK_SET = cmacro[Int]("SEEK_SET")

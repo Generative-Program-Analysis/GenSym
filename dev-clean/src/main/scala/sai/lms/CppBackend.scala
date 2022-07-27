@@ -61,20 +61,14 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
         args.tail.foreach(a => { emit(", "); shallow(a) })
       })
       emit(")")
-    case n @ Node(s, "field-@", obj::field::Nil, _) =>
-      shallow(obj)
-      emit(s".$field")
-    case n @ Node(s, "field-assign", obj::field::rhs::Nil, _) =>
-      shallow(obj)
-      emit(s".$field = ")
-      shallow(rhs)
-    case n @ Node(s, "ptr-field-@", obj::field::Nil, _) =>
-      shallow(obj)
-      emit(s"->$field")
-    case n @ Node(s, "ptr-field-assign", obj::field::rhs::Nil, _) =>
-      shallow(obj)
-      emit(s"->$field = ")
-      shallow(rhs)
+    case n @ Node(s, "field-@", obj::Const(field: String)::Nil, _) =>
+      es"$obj.$field"
+    case n @ Node(s, "field-assign", obj::Const(field: String)::rhs::Nil, _) =>
+      es"$obj.$field = $rhs"
+    case n @ Node(s, "ptr-field-@", obj::Const(field: String)::Nil, _) =>
+      es"$obj->$field"
+    case n @ Node(s, "ptr-field-assign", obj::Const(field: String)::rhs::Nil, _) =>
+      es"$obj->$field = $rhs"
     case _ => super.shallow(n)
   }
 

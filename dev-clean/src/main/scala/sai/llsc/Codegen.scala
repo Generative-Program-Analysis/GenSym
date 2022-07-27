@@ -180,6 +180,21 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
 
+    case Node(s, "File::create", args, _) =>
+      es"std::make_shared<File>("
+      if (!args.isEmpty) {
+        shallow(args.head)
+        args.tail.map { x => es", $x" }
+      }
+      es")"
+    case Node(s, "Stream::create", args, _) =>
+      es"std::make_shared<Stream>("
+      if (!args.isEmpty) {
+        shallow(args.head)
+        args.tail.map { x => es", $x" }
+      }
+      es")"
+
     case _ => super.shallow(n)
   }
 

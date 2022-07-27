@@ -44,23 +44,19 @@ struct File: public Printable {
     ss << "])";
     return ss.str();
   }
+
+  File(String name, List<PtrVal> content={}, List<PtrVal> stat=List<PtrVal>(stat_size)) :
+    name(name), content(content), stat(stat) {}
+  File(const File& f) = default;
+
   /* NOTE: should only manipulate File objects through pointers <2022-07-11, David Deng> */
-  [[nodiscard]] inline static Ptr<File> create(String name) {
-    return Ptr<File>(new File(name));
-  }
-  [[nodiscard]] inline static Ptr<File> create(String name, List<PtrVal> content) {
-    return Ptr<File>(new File(name, content));
-  }
-  [[nodiscard]] inline static Ptr<File> create(String name, List<PtrVal> content, List<PtrVal> stat) {
-    return Ptr<File>(new File(name, content, stat));
-  }
   /* NOTE: parent and children will not be copied <2022-07-11, David Deng> */
   /* Q: usage? <2022-07-11, David Deng> */
   [[nodiscard]] inline static Ptr<File> shallow_copy(Ptr<File> f) {
-    return Ptr<File>(new File(f->name, f->content, f->stat));
+    return std::make_shared<File>(f->name, f->content, f->stat);
   }
   [[nodiscard]] inline static Ptr<File> deep_copy(Ptr<File> f) {
-    auto f2 = Ptr<File>(new File(*f));
+    auto f2 = std::make_shared<File>(*f);
     immer::map_transient<String, Ptr<File>> children;
     for (auto &p: f->children) {
       auto child = deep_copy(p.second);
@@ -70,11 +66,6 @@ struct File: public Printable {
     f2->children = children.persistent();
     return f2;
   }
-private:
-  File(String name): name(name), content(), stat(stat_size) {}
-  File(String name, List<PtrVal> content): name(name), content(content), stat(stat_size) {}
-  File(String name, List<PtrVal> content, List<PtrVal> stat): name(name), content(content), stat(stat) {}
-  File(const File& f) = default;
 };
 
 // return a symbolic file with size bytes
@@ -88,7 +79,7 @@ inline Ptr<File> make_SymFile(String name, size_t size) {
     content.push_back(make_SymV_fs());
   }
   auto stat = fresh_sym_stat();
-  return File::create(name, content.persistent(), stat);
+  return std::make_shared<File>(name, content.persistent(), stat);
 };
 
 /* TODO: model the lowest file descriptor guarantee? */
@@ -105,26 +96,13 @@ struct Stream: public Printable {
     return ss.str();
   }
 
-  /* NOTE: should only manipulate Stream objects through pointers <2022-07-11, David Deng> */
-  [[nodiscard]] inline static Ptr<Stream> create(Ptr<File> file) {
-    return Ptr<Stream>(new Stream(file));
-  }
-  [[nodiscard]] inline static Ptr<Stream> create(Ptr<File> file, int mode) {
-    return Ptr<Stream>(new Stream(file, mode));
-  }
-  [[nodiscard]] inline static Ptr<Stream> create(Ptr<File> file, int mode, size_t cursor) {
-    return Ptr<Stream>(new Stream(file, mode, cursor));
-  }
+  Stream(Ptr<File> file, int mode=O_RDONLY, size_t cursor=0): file(file), mode(mode), cursor(cursor) {}
+  Stream(const Stream &s) = default;
+
   // a shallow copy, only copy mode and cursor, but sharing the same underlying file
   [[nodiscard]] inline static Ptr<Stream> shallow_copy(Ptr<Stream> s) {
-    return Ptr<Stream>(new Stream(s->file, s->mode, s->cursor));
+    return std::make_shared<Stream>(s->file, s->mode, s->cursor);
   }
-
-private:
-  Stream(Ptr<File> file): file(file), mode(O_RDONLY), cursor(0) {}
-  Stream(Ptr<File> file, int mode): file(file), mode(mode), cursor(0) {}
-  Stream(Ptr<File> file, int mode, size_t cursor): file(file), mode(mode), cursor(cursor) {}
-  Stream(const Stream &s) = default;
 };
 
 struct FS: public Printable {
@@ -152,7 +130,7 @@ struct FS: public Printable {
     ss << "])";
     return ss.str();
   }
-  FS() : next_fd(3), root_file(File::create("/")) {
+  FS() : next_fd(3), root_file(std::make_shared<File>("/")) {
     // default initialize opened_files and files
     /* TODO: set up stdin and stdout using fd 1 and 2 <2021-11-03, David Deng> */
   }
