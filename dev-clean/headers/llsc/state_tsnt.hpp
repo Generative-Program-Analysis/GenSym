@@ -479,8 +479,12 @@ class SS {
       // Todo: Can adapt argv to be located somewhere other than 0 as well.
       // Configure a global LocV pointing to it.
       unsigned num_args = cli_argv.size();
-      auto stack_ptr = make_LocV(stack.mem_size(), LocV::kStack, (num_args + 1) * 8);
-      alloc_stack((num_args + 1) * 8); // allocate space for the array of pointers
+      // allocate space for the array of pointers
+      // with additional ternimating null for empty envp array
+      // and an additional terminating null that uclibc seems to expect for the ELF header.
+      // Todo: support non-empty envp
+      auto stack_ptr = make_LocV(stack.mem_size(), LocV::kStack, (num_args + 3) * 8);
+      alloc_stack((num_args + 3) * 8);
 
       // copy each argument onto the stack, and update the pointers
       for (int i = 0; i < num_args; ++i) {
@@ -492,6 +496,8 @@ class SS {
         update(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
       }
       update(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
+      update(stack_ptr + (8 * (num_args + 1)), make_LocV_null()); // terminate the empty envp array
+      update(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
       return std::move(*this);
     }
 

@@ -528,9 +528,13 @@ class SS: public Printable {
       SS updated_ss = *this;
 
       unsigned num_args = cli_argv.size();
-      int stack_ptr_sz = (num_args + 1) * 8;
+      // allocate space for the array of pointers
+      // with additional ternimating null for empty envp array
+      // and an additional terminating null that uclibc seems to expect for the ELF header.
+      // Todo: support non-empty envp
+      int stack_ptr_sz = (num_args + 3) * 8;
       auto stack_ptr = make_LocV(stack.mem_size(), LocV::kStack, stack_ptr_sz, 0); // top of the stack
-      updated_ss = updated_ss.alloc_stack(stack_ptr_sz); // allocate space for the array of pointers
+      updated_ss = updated_ss.alloc_stack(stack_ptr_sz);
 
       // copy each argument onto the stack, and update the pointers
       for (int i = 0; i < num_args; ++i) {
@@ -541,6 +545,8 @@ class SS: public Printable {
         updated_ss = updated_ss.update(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
       }
       updated_ss = updated_ss.update(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
+      updated_ss = updated_ss.update(stack_ptr + (8 * (num_args + 1)), make_LocV_null()); // terminate the empty envp array
+      updated_ss = updated_ss.update(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
 
       return updated_ss;
     }
