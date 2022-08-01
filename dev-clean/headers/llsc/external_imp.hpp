@@ -431,9 +431,15 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_ftruncate:
       ABORT("Unsupported Systemcall");
       break;
-    case __NR_getcwd:
-      ABORT("Unsupported Systemcall");
+    case __NR_getcwd: {
+      size_t count = get_int_arg(state, args.at(2));
+      ASSERT(count > 0, "empty buffer for getcwd");
+      ASSERT(!is_LocV_null(args.at(1)), "null buffer pointer");
+      ShadowMemEntry temp(args.at(1), count);
+      retval = syscall(__NR_getcwd, temp.getbuf(), count);
+      if (retval >= 0) temp.writeback(state);
       break;
+    }
     case __NR_chdir:
       ABORT("Unsupported Systemcall");
       break;
