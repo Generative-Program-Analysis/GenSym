@@ -166,6 +166,7 @@ FILTER : 'filter' ;
 FLAGSCOLON : 'flags:' ;
 FLOAT : 'float' ;
 FMUL : 'fmul' ;
+FNEG : 'fneg' ;
 FP128 : 'fp128' ;
 FPEXT : 'fpext' ;
 FPTOSI : 'fptosi' ;

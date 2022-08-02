@@ -1368,6 +1368,16 @@ public interface LLVMParserListener extends ParseTreeListener {
 	 */
 	void exitValueInstruction(LLVMParser.ValueInstructionContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link LLVMParser#fNegInst}.
+	 * @param ctx the parse tree
+	 */
+	void enterFNegInst(LLVMParser.FNegInstContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link LLVMParser#fNegInst}.
+	 * @param ctx the parse tree
+	 */
+	void exitFNegInst(LLVMParser.FNegInstContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link LLVMParser#addInst}.
 	 * @param ctx the parse tree
 	 */

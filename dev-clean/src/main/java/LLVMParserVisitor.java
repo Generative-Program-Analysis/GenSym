@@ -827,6 +827,12 @@ public interface LLVMParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitValueInstruction(LLVMParser.ValueInstructionContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link LLVMParser#fNegInst}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFNegInst(LLVMParser.FNegInstContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link LLVMParser#addInst}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

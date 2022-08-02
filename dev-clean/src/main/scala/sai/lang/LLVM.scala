@@ -359,6 +359,7 @@ package IR {
 
   abstract class Instruction extends LAST
   abstract class ValueInstruction extends Instruction
+  case class FNegInst(ty: LLVMType, op: LLVMValue) extends ValueInstruction
   case class AddInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
   case class MulInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
   case class SubInst(ty: LLVMType, lhs: LLVMValue, rhs: LLVMValue, of: List[OverflowFlag]) extends ValueInstruction
@@ -899,7 +900,9 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val s_t = replace_map.foldLeft(s)((acc, entry) => {
       acc.replaceAllLiterally(entry._1, entry._2)
     })
-    val new_s = s_t.replaceAllLiterally("\\5C", "\\")
+    // Note: \\5C and \\\\ can not appear at the same time in a LLVM string literal
+    if (s_t.contains("\\\\") && s_t.contains("\\5C")) ???
+    val new_s = if (s_t.contains("\\\\")) s_t.replaceAllLiterally("\\\\", "\\") else s_t.replaceAllLiterally("\\5C", "\\")
     CharArrayConst(new_s)
   }
 
@@ -1155,6 +1158,14 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
 
   override def visitValueInstruction(ctx: LLVMParser.ValueInstructionContext): LAST = {
     super.visitValueInstruction(ctx)
+  }
+
+  override def visitFNegInst(ctx: LLVMParser.FNegInstContext): LAST = {
+    // Skipped FastMathFlagsContext
+    val ty = visit(ctx.llvmType).asInstanceOf[LLVMType]
+    val op = visit(ctx.value).asInstanceOf[LLVMValue]
+    // Skipped optCommaSepMetadataAttachmentList
+    FNegInst(ty, op)
   }
 
   override def visitAddInst(ctx: LLVMParser.AddInstContext): LAST = {

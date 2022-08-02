@@ -1648,6 +1648,18 @@ public class LLVMParserBaseListener implements LLVMParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterFNegInst(LLVMParser.FNegInstContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFNegInst(LLVMParser.FNegInstContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterAddInst(LLVMParser.AddInstContext ctx) { }
 	/**
 	 * {@inheritDoc}

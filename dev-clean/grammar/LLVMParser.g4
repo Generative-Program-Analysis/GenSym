@@ -1291,8 +1291,10 @@ instruction
 ;
 
 valueInstruction
+    // Unary instructions
+    : fNegInst
     // Binary instructions
-    : addInst
+    | addInst
     | fAddInst
     | subInst
     | fSubInst
@@ -1346,6 +1348,20 @@ valueInstruction
     | landingPadInst
     | catchPadInst
     | cleanupPadInst
+;
+
+// --- [ Unary instructions ] --------------------------------------------------
+
+// ~~~ [ fneg ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// https://llvm.org/docs/LangRef.html#fneg-instruction
+
+// ref: ParseArithmetic
+//
+//  ::= ArithmeticOps TypeAndValue
+
+fNegInst
+    : 'fneg' fastMathFlags llvmType value optCommaSepMetadataAttachmentList
 ;
 
 // --- [ Binary instructions ] -------------------------------------------------

@@ -134,6 +134,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
           lv <- eval(ptrValue, ptrType)
         } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
+      // Arith Unary Operations
+      case FNegInst(ty, op) => evalFloatOp2("fsub", FloatConst(-0.0), op, ty)
       // Arith Binary Operations
       case AddInst(ty, lhs, rhs, _) => evalIntOp2("add", lhs, rhs, ty)
       case SubInst(ty, lhs, rhs, _) => evalIntOp2("sub", lhs, rhs, ty)
