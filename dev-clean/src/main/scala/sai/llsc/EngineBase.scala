@@ -369,6 +369,8 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         heapTmp ++= evalHeapConst(v.const, getRealType(v.typ))
       }
     }
+    // Additional assert here in case we parse llvm string literals in-correctly
+    if (heapTmp.size != heapSize) ???
     heapTmp
   }
 }

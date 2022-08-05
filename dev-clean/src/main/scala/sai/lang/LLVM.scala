@@ -895,14 +895,18 @@ class MyVisitor extends LLVMParserBaseVisitor[LAST] {
     val raw = ctx.stringLit.STRING_LIT.getText
     val s = raw.slice(1, raw.length - 1)
     val x = List.range(0x0, 0x100)
+    // Note: \\5C and \\\\ can not appear at the same time in a LLVM string literal
+    if (s.contains("\\\\") && s.contains("\\5C")) ???
+    // we need to first replace all \\\\ with \\5C in case the second \\ is followed by 2 hex numbers
+    // ie "\\61", the last three char \61 will be replaced first
+    val s_1 = s.replaceAllLiterally("\\\\", "\\5C")
+    if (s_1.contains("\\\\")) ???
     // 0x5C is \, we need to replace it last
     val replace_map = x.filter(_ != 0x5C).map( t => ("\\"+"%02X".format(t), t.toChar.toString))
-    val s_t = replace_map.foldLeft(s)((acc, entry) => {
+    val s_t = replace_map.foldLeft(s_1)((acc, entry) => {
       acc.replaceAllLiterally(entry._1, entry._2)
     })
-    // Note: \\5C and \\\\ can not appear at the same time in a LLVM string literal
-    if (s_t.contains("\\\\") && s_t.contains("\\5C")) ???
-    val new_s = if (s_t.contains("\\\\")) s_t.replaceAllLiterally("\\\\", "\\") else s_t.replaceAllLiterally("\\5C", "\\")
+    val new_s = s_t.replaceAllLiterally("\\5C", "\\")
     CharArrayConst(new_s)
   }
 
