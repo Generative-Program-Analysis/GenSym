@@ -33,9 +33,9 @@ jobs:
       run: |
         cd benchmarks/llvm
         make llsc
-        cd ../demo_benchmarks
+        cd ../demo-benchmarks
         make llsc
-        cd ../external_lib
+        cd ../external-lib
         make llsc
         cd ../oopsla20
         make generate_sse
@@ -43,7 +43,7 @@ jobs:
         make llsc
         cd ../../test-comp/array-programs
         make llsc
-        cd ../../klee_fs_lib
+        cd ../../klee-posix-fs
         make
     - name: Install Z3
       run: |
@@ -54,7 +54,7 @@ jobs:
         sudo cp include/* /usr/include/
         sudo cp bin/libz3.so /usr/lib/x86_64-linux-gnu/
         sudo ldconfig
-    - name: Compile STP
+    - name: Install STP
       run: |
         cd ../third-party/stp
         mkdir build
