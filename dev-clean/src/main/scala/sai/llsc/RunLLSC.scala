@@ -34,18 +34,19 @@ object RunLLSC {
   def main(args: Array[String]): Unit = {
     // TODO: --use-argv?
     val usage = """
-Usage: llsc <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>] [--noOpt] [--engine=<string>]
-
-<ll-filepath>           - the input LLVM IR program (.ll)
---entrance=<string>     - the entrance function name (default=main)
---output=<string>       - the folder name containing generated Makefile/C++ code (default=basename of the input .ll file)
---nSym=<int>            - the number of symbolic 32-bit input arguments to `entrance` (default=0)
---noOpt                 - disable first-stage optimizations
---engine=<string>       - compiler/backend variant (default=ImpCPS) 
-  =ImpCPS               -   generate code in CPS with impure data structures, can run in parallel
-  =ImpDirect            -   generate code in direct-style with impure data structures, cannot run in parallel
-  =PureCPS              -   generate code in CPS with pure data structures, can run in parallel
-  =PureDirect           -   generate code in direct-style with pure data structures, cannot run in parallel
+    |Usage: llsc <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>] [--noOpt] [--engine=<string>]
+    |
+    |<ll-filepath>           - the input LLVM IR program (.ll)
+    |--entrance=<string>     - the entrance function name (default=main)
+    |--output=<string>       - the folder name containing generated Makefile/C++ code (default=basename of the input .ll file)
+    |--nSym=<int>            - the number of symbolic 32-bit input arguments to `entrance` (default=0)
+    |--noOpt                 - disable first-stage optimizations
+    |--engine=<string>       - compiler/backend variant (default=ImpCPS)
+    |  =ImpCPS               -   generate code in CPS with impure data structures, can run in parallel
+    |  =ImpDirect            -   generate code in direct-style with impure data structures, cannot run in parallel
+    |  =PureCPS              -   generate code in CPS with pure data structures, can run in parallel
+    |  =PureDirect           -   generate code in direct-style with pure data structures, cannot run in parallel
+    |--help                  - print this help message
     """
 
     val options: Map[String, Any] = args.toList.foldLeft(Map[String, Any]()) {
@@ -54,6 +55,7 @@ Usage: llsc <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int
       case (options, r"--nSym=(\d+)$n") => options + ("nSym" -> n.toInt)
       case (options, r"--noOpt") => options + ("optimize" -> false)
       case (options, r"--engine=([a-zA-Z]+)$e") => options + ("engine" -> e)
+      case (options, "--help") => println(usage); sys.exit(0)
       case (options, input) => options + ("input" -> input)
     }
     val filepath = options.getOrElse("input", throw new RuntimeException("No input .ll file")).toString
