@@ -68,7 +68,8 @@ struct Monitor {
     }
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
-      std::cout << "[" << (solver_time / 1.0e6) << "s/"
+      std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
+		<< (int_solver_time / 1.0e6) << "s/"
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
     void print_all(bool done = false) {

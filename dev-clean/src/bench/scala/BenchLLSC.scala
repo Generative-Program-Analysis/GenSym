@@ -39,21 +39,22 @@ abstract class TestLLSC extends FunSuite {
   import java.time.LocalDateTime
 
   case class TestResult(time: LocalDateTime, commit: String, engine: String, testName: String,
-    solverTime: Double, wholeTime: Double, blockCov: Double,
+    extSolverTime: Double, intSolverTime: Double, wholeTime: Double, blockCov: Double,
     pathNum: Int, brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int) {
     override def toString() =
-      s"$time,$commit,$engine,$testName,$solverTime,$wholeTime,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
+      s"$time,$commit,$engine,$testName,$extSolverTime,$intSolverTime,$wholeTime,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
   }
 
   val gitCommit = Process("git rev-parse --short HEAD").!!.trim
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
-    val pattern = raw"\[([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
-      case pattern(solverTime, wholeTime, blockCnt, blockAll, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
+      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
         TestResult(LocalDateTime.now(), gitCommit, engine, testName,
-                   solverTime.toDouble, wholeTime.toDouble, blockCnt.toDouble / blockAll.toDouble,
-                   pathNum.toInt, brQuerynum.toInt, testQueryNum.toInt, cexCacheHit.toInt)
+          extSolverTime.toDouble, intSolverTime.toDouble, wholeTime.toDouble,
+          blockCnt.toDouble / blockAll.toDouble, pathNum.toInt, brQuerynum.toInt,
+          testQueryNum.toInt, cexCacheHit.toInt)
     }
   }
 

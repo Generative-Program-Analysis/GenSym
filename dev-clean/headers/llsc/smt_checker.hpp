@@ -33,21 +33,21 @@ class CachedChecker : public Checker {
     auto start = steady_clock::now();
     self()->push_internal();
     auto end = steady_clock::now();
-    solver_time += duration_cast<microseconds>(end - start).count();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   void pop() {
     auto start = steady_clock::now();
     self()->pop_internal();
     auto end = steady_clock::now();
-    solver_time += duration_cast<microseconds>(end - start).count();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   solver_result check_model() {
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
     auto end = steady_clock::now();
-    solver_time += duration_cast<microseconds>(end - start).count();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
     return result;
   }
 
@@ -261,12 +261,28 @@ inline CheckerManager checker_manager;
 // To be compatible with generated code:
 
 inline void init_solvers() { checker_manager.init_checkers(); }
-inline bool check_pc(PC pc) { return checker_manager.get_checker().check_pc(std::move(pc)); }
-inline void check_pc_to_file(SS state) {
-  checker_manager.get_checker().generate_test(std::move(state.get_PC()));
+
+inline bool check_pc(PC pc) {
+  auto start = steady_clock::now();
+  auto result = checker_manager.get_checker().check_pc(std::move(pc));
+  auto end = steady_clock::now();
+  int_solver_time += duration_cast<microseconds>(end - start).count();
+  return result;
 }
+
+inline void check_pc_to_file(SS state) {
+  auto start = steady_clock::now();
+  checker_manager.get_checker().generate_test(std::move(state.get_PC()));
+  auto end = steady_clock::now();
+  int_solver_time += duration_cast<microseconds>(end - start).count();
+}
+
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) {
-  return checker_manager.get_checker().get_sat_value(std::move(pc), v);
+  auto start = steady_clock::now();
+  auto result = checker_manager.get_checker().get_sat_value(std::move(pc), v);
+  auto end = steady_clock::now();
+  int_solver_time += duration_cast<microseconds>(end - start).count();
+  return result;
 }
 
 #endif

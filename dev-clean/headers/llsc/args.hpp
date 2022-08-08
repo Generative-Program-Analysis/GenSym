@@ -4,7 +4,7 @@
 /* Auxiliary functions to process command line argv passed to the application */
 
 inline immer::flex_vector<immer::flex_vector<PtrVal>> cli_argv;
-// pass to llsc_main
+// the argv and argc value passed to llsc_main
 inline PtrVal g_argv;
 inline PtrVal g_argc;
 
@@ -34,9 +34,8 @@ inline List<ArgTy> match_arg(std::string argstring) {
   std::regex re(symarg);
 
   std::regex_token_iterator<std::string::iterator> rend;
-  std::regex_token_iterator<std::string::iterator> sym_lengths ( argstring.begin(), argstring.end(), re, 1 );
-
-  std::regex_token_iterator<std::string::iterator> conc_contents ( argstring.begin(), argstring.end(), re, -1 );
+  std::regex_token_iterator<std::string::iterator> sym_lengths(argstring.begin(), argstring.end(), re, 1);
+  std::regex_token_iterator<std::string::iterator> conc_contents(argstring.begin(), argstring.end(), re, -1);
 
   std::string conc_content; // store the concrete content
   int sym_length; // store the symbolic length
@@ -53,7 +52,7 @@ inline List<ArgTy> match_arg(std::string argstring) {
    */
 
   immer::flex_vector_transient<ArgTy> result;
-  while (conc_contents!=rend) {
+  while (conc_contents != rend) {
     conc_content = escape_concrete(conc_contents->str());
     if (!conc_content.empty()) {
       result.push_back({conc_content});
