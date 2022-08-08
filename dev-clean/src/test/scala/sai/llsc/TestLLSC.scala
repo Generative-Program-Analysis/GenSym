@@ -126,7 +126,7 @@ class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
-  testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
+  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //val echo_linked = parseFile("/home/kraks/research/llsc/coreutils/obj-llvm/playground/echo_llsc.ll")
   //testLLSC(llsc, TestPrg(echo_linked, "echo_linked_posix", "@main",
   //  testcoreutil, Seq("--cons-indep", "--argv=./echo.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0)))
