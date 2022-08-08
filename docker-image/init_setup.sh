@@ -3,7 +3,7 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex
 DEBIAN_FRONTEND=noninteractive apt-get install -y libboost-all-dev python
 DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales
-DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk clang-9
+DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk clang-11
 
 # Setup the locale
 locale-gen en_US.UTF-8

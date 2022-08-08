@@ -3,7 +3,7 @@ all: llsc
 
 llsc:
 	for SRC in $(SRC_FILES) ; do \
-	  clang-9 $$SRC -O0 -emit-llvm -S -disable-O0-optnone -fno-discard-value-names ; \
+	  clang-11 $$SRC -O0 -emit-llvm -S -disable-O0-optnone -fno-discard-value-names ; \
 	done
 
 clean:

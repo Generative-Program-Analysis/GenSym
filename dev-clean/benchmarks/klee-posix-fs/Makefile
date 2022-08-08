@@ -1,6 +1,6 @@
 SRC_FILES := $(wildcard ./fd_init.c ./fd.c ./fd_64.c  ./llsc.c  ./test.c)
 
-CC := clang-9
+CC := clang-11
 
 FLAGS := -emit-llvm -O0 -disable-O0-optnone -c
 #FLAGS := -emit-llvm -Os -c
@@ -27,7 +27,7 @@ $(LLSC_TARGET): %.ll : %.c
 	$(CC) $(LLSC_FLAGS) $(FLAGS) -o $@ $<
 
 $(LLSC_LINK_TARGET): $(LLSC_TARGET)
-	llvm-link-9 -S $(LLSC_TARGET) -o klee_lib_64.ll
+	llvm-link-11 -S $(LLSC_TARGET) -o klee_lib_64.ll
 
 clean:
 	$(RM) -rf $(LLSC_TARGET) ${LLSC_LINK_TARGET}
