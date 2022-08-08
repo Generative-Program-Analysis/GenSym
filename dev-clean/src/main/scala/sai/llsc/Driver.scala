@@ -80,7 +80,6 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
     val libraryPaths = codegen.libraryPaths.map(p => s"-L $curDir/$p -Wl,-rpath $curDir/$p").mkString(" ")
-    val mainFileOpt = if (config.test_coreutil) "NOOPT" else "OPT"
 
     out.println(s"""|BUILD_DIR = build
     |TARGET = $appName
@@ -105,7 +104,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
     |
     |$$(BUILD_DIR)/$${TARGET}.o : $${TARGET}.cpp
     |\tmkdir -p $$(@D)
-    |\t$$(CC) $$($mainFileOpt) -c -o $$@ $$< $$(CXXFLAGS)
+    |\t$$(CC) $$(${config.mainFileOpt}) -c -o $$@ $$< $$(CXXFLAGS)
     |
     |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o
     |\t$$(CC) $$(OPT) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
@@ -276,31 +275,11 @@ abstract class ImpCPSLLSCDriver[A: Manifest, B: Manifest](
   val m: Module, val appName: String, val folder: String , val config: Config)
     extends ImpureEngineDriver[A, B] with ImpCPSLLSCEngine
 
-case class Config(nSym: Int, argv: Boolean, test_coreutil: Boolean) {
-  require(!(nSym > 0 && argv))
-  def args(implicit d: ValueDefs) =
-    if (argv) d.mainArgs
-    else d.SymV.makeSymVList(nSym)
-
-}
-
-object Config {
-  var opt: Boolean = true
-  var iteSelect: Boolean = true
-  def disableOpt: Unit = opt = false
-  def enableOpt: Unit = opt = true
-
-  def symArg(n: Int) = Config(n, false, false)
-  def useArgv = Config(0, true, false)
-  def noArg = Config(0, false, false)
-  def testcoreutil = Config(0, true, true)
-}
-
 trait LLSC {
   val insName: String
   def extraFlags: String = "" // -D USE_LKFREE_Q
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit]
-  def runLLSC(m: Module, name: String, fname: String, config: Config = Config(0, true, false)): GenericLLSCDriver[Int, Unit] = {
+  def run(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] = {
     BlockCounter.reset
     val (code, t) = time {
       val code = newInstance(m, name, fname, config)
@@ -378,37 +357,4 @@ class ImpCPSLLSC extends LLSC with ImpureState {
         exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
       }
     }
-}
-
-object RunLLSC {
-  def main(args: Array[String]): Unit = {
-    // TODO: we also need to refactor the command-line arguments of the front-end compiler
-    //   --use-argv, generate code for main entrance
-    //   --symint="...", specify symbolic integers with width
-    // and in the near future:
-    //   --mem="...", specify memory models to use
-    //   --O0/O1/O2, specify optimizations to use
-    val usage = """
-    Usage: llsc <.ll-filepath> <app-name> <entrance-fun-name> [n-sym-var]
-    """
-    if (args.size < 3) {
-      println(usage)
-    } else {
-      val filepath = args(0)
-      val appName = args(1)
-      val fun = args(2)
-      val nSym = if (args.isDefinedAt(3)) args(3).toInt else 0
-      val llsc = new PureLLSC
-      // TODO: create Config value according to command-line arguments, pass to runLLSC/newInstance
-      llsc.runLLSC(parseFile(filepath), appName, fun, Config(nSym, true, false))
-    }
-
-    //runLLSC(sai.llvm.OOPSLA20Benchmarks.mp1048576, "mp1m", "@f", 20)
-    //runLLSC(sai.llvm.Benchmarks.arrayAccess, "arrAccess", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.structReturnLong, "structR1", "@main")
-    //runLLSC(sai.llvm.Coreutils.echo, "echo", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.complexStruct, "complexStruct", "@main")
-    //runLLSC(sai.llvm.LLSCExpr.runCommandLine, "runCommandLine", "@main")
-    //runLLSC(parseFile("benchmarks/demo_benchmarks/bubblesort.ll"), "bubble", "@main")
-  }
 }

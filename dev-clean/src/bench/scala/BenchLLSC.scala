@@ -83,7 +83,7 @@ abstract class TestLLSC extends FunSuite {
     val nTest = 5
     val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(name) {
-      val code = llsc.runLLSC(m, llsc.insName + "_" + name, f, config)
+      val code = llsc.run(m, llsc.insName + "_" + name, f, config)
       val mkRet = code.make(4)
       val (cliArg1, insName2) = solver match {
         case Some(x) =>
