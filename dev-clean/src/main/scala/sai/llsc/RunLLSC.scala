@@ -32,7 +32,6 @@ object RunLLSC {
   }
 
   def main(args: Array[String]): Unit = {
-    // TODO: --use-argv?
     val usage = """
     |Usage: llsc <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>] 
     |            [--use-argv] [--noOpt] [--engine=<string>] [--main-O0]
