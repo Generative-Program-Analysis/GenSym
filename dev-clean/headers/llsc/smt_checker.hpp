@@ -30,11 +30,17 @@ class CachedChecker : public Checker {
   }
 
   void push() {
+    auto start = steady_clock::now();
     self()->push_internal();
+    auto end = steady_clock::now();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   void pop() {
+    auto start = steady_clock::now();
     self()->pop_internal();
+    auto end = steady_clock::now();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   solver_result check_model() {
@@ -73,8 +79,6 @@ public:
         const Cont<PtrVal>& conds,
         simple_ptr<SymV> query_expr=nullptr,
         bool require_model=false) {
-
-    push();
 
     // translation
     if (!use_objcache)
@@ -135,12 +139,12 @@ public:
     //solving with counterexample caching
     if (use_cexcache && (!query_expr || query_expr->name.size())) {
       if (auto it = cexcache.find(condset); it != cexcache.end()) {
-        pop();
         return it->second;
       }
     }
 
     //assert and check
+    push();
     VarMap varmap;
     if (condvec.size()) {  // use local cache if possible
       for (auto& v: condvec) {
