@@ -113,8 +113,9 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
 
     // push before function call could be DCE-ed, due to high-level function dependency issue.
     def push: Rep[Unit] = reflectWrite[Unit]("ss-push", ss)(ss, Adapter.CTRL)
+    def push(cont: Rep[Cont]): Rep[Unit] = reflectWrite[Unit]("ss-push", ss, cont)(ss, Adapter.CTRL)
     // XXX: since pop is used in a map, will be DCE-ed if no CTRL
-    def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
+    def pop(keep: Rep[Int]): Rep[Cont] = reflectWrite[Cont]("ss-pop", ss, keep)(ss, Adapter.CTRL)
     def addPC(e: Rep[SymV]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
     def addPCSet(es: Rep[List[SymV]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = reflectRead[PC]("get-pc", ss)(ss)

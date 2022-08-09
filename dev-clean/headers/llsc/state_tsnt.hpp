@@ -160,9 +160,12 @@ public:
 class Frame {
   public:
     using Env = std::map<Id, PtrVal>;
+    using Cont = std::function<std::monostate(SS&, PtrVal)>;
+    Cont cont;
   private:
     Env env;
   public:
+    Frame(Cont ct): cont(ct), env() {}
     Frame(Env env) : env(std::move(env)) {}
     Frame() : env(std::map<Id, PtrVal>{}) {}
     size_t size() { return env.size(); }
@@ -199,10 +202,12 @@ class Stack {
       return std::move(*this);
     }
     PtrVal error_loc() { return errno_location; }
-    Stack&& pop(size_t keep) {
+    typename Frame::Cont pop(size_t keep) {
+      auto &it = env.at(env.size() - 1);
+      auto ret = it.cont;
       mem.take(keep);
       env.take(env.size() - 1);
-      return std::move(*this);
+      return ret;
     }
     Stack&& push() {
       return push(Frame());
@@ -210,6 +215,9 @@ class Stack {
     Stack&& push(Frame f) {
       env.push_back(std::move(f));
       return std::move(*this);
+    }
+    Stack&& push(std::function<std::monostate(SS&, PtrVal)> cont) {
+      return push(Frame(cont));
     }
 
     Stack&& assign(Id id, PtrVal val) {
@@ -440,9 +448,12 @@ class SS {
       stack.push();
       return std::move(*this);
     }
-    SS&& pop(size_t keep) {
-      stack.pop(keep);
+    SS&& push(std::function<std::monostate(SS&, PtrVal)> cont) {
+      stack.push(cont);
       return std::move(*this);
+    }
+    typename Frame::Cont pop(size_t keep) {
+      return stack.pop(keep);
     }
     SS&& assign(Id id, PtrVal val) {
 #ifdef LAZYALLOC
@@ -552,6 +563,10 @@ inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::functio
   auto f = std::dynamic_pointer_cast<FunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");
+}
+
+inline std::monostate cont_apply(std::function<std::monostate(SS&, PtrVal)> cont, SS& ss, PtrVal val) {
+  return cont(ss, val);
 }
 
 #endif

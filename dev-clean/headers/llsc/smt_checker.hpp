@@ -30,17 +30,11 @@ class CachedChecker : public Checker {
   }
 
   void push() {
-    auto start = steady_clock::now();
     self()->push_internal();
-    auto end = steady_clock::now();
-    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   void pop() {
-    auto start = steady_clock::now();
     self()->pop_internal();
-    auto end = steady_clock::now();
-    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   solver_result check_model() {

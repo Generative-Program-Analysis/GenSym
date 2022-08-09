@@ -45,8 +45,8 @@ sym_exec_br(SS ss, PtrVal t_cond, PtrVal f_cond,
 
 inline std::monostate
 sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
-              std::monostate (*tf)(SS, std::function<std::monostate(SS, PtrVal)>),
-              std::monostate (*ff)(SS, std::function<std::monostate(SS, PtrVal)>),
+              std::function<std::monostate(SS, std::function<std::monostate(SS, PtrVal)>)> tf,
+              std::function<std::monostate(SS, std::function<std::monostate(SS, PtrVal)>)> ff,
               std::function<std::monostate(SS, PtrVal)> k) {
   auto pc = ss.get_PC();
   auto tbr_sat = check_pc(pc.add(t_cond));
@@ -250,8 +250,8 @@ sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
 
 inline std::monostate
 sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
-              std::monostate (*tf)(SS&, std::function<std::monostate(SS&, PtrVal)>),
-              std::monostate (*ff)(SS&, std::function<std::monostate(SS&, PtrVal)>),
+              std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
+              std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> ff,
               std::function<std::monostate(SS&, PtrVal)> k) {
   auto pc = ss.get_PC();
   pc.add(t_cond);

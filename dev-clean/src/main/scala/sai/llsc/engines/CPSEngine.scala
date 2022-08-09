@@ -46,6 +46,10 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     "async_exec_block".reflectWriteWith[Unit](unchecked[String](realBlockFunName), ss, k)(Adapter.CTRL)
   }
 
+  def contApply(cont: Rep[Cont], ss: Rep[SS], v: Rep[Value]): Rep[Unit] = {
+    "cont_apply".reflectWriteWith[Unit](cont, ss, v)(Adapter.CTRL)
+  }
+
   def eval(v: LLVMValue, ty: LLVMType, ss: Rep[SS], argTypes: Option[List[LLVMType]] = None)(implicit funName: String): Rep[Value] =
     v match {
       case LocalId(x) => ss.lookup(funName + "_" + x)
@@ -105,76 +109,76 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[Unit])(implicit funName: String): Rep[Unit] = {
+  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value], Rep[Cont]) => Rep[Unit])(implicit funName: String, kk: Rep[Cont]): Rep[Unit] = {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
         val typeSize = getTySize(ty)
         val sz = ss.stackSize
         ss.allocStack(typeSize, align.n)
-        k(ss, LocV(sz, LocV.kStack, typeSize.toLong))
+        k(ss, LocV(sz, LocV.kStack, typeSize.toLong), kk)
       case LoadInst(valTy, ptrTy, value, align) =>
         val isStruct = getRealType(valTy) match {
           case Struct(types) => 1
           case _ => 0
         }
         val v = eval(value, ptrTy, ss)
-        k(ss, ss.lookup(v, getTySize(valTy), isStruct))
+        k(ss, ss.lookup(v, getTySize(valTy), isStruct), kk)
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
         val v = eval(ptrValue, ptrType, ss).asRepOf[LocV] + offset
-        k(ss, v)
+        k(ss, v, kk)
       // Arith Unary Operations
-      case FNegInst(ty, op) => k(ss, evalFloatOp2("fsub", FloatConst(-0.0), op, ty, ss))
+      case FNegInst(ty, op) => k(ss, evalFloatOp2("fsub", FloatConst(-0.0), op, ty, ss), kk)
       // Arith Binary Operations
-      case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss))
-      case SubInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("sub", lhs, rhs, ty, ss))
-      case MulInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("mul", lhs, rhs, ty, ss))
-      case SDivInst(ty, lhs, rhs) => k(ss, evalIntOp2("sdiv", lhs, rhs, ty, ss))
-      case UDivInst(ty, lhs, rhs) => k(ss, evalIntOp2("udiv", lhs, rhs, ty, ss))
-      case FAddInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fadd", lhs, rhs, ty, ss))
-      case FSubInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fsub", lhs, rhs, ty, ss))
-      case FMulInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fmul", lhs, rhs, ty, ss))
-      case FDivInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fdiv", lhs, rhs, ty, ss))
+      case AddInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("add", lhs, rhs, ty, ss), kk)
+      case SubInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("sub", lhs, rhs, ty, ss), kk)
+      case MulInst(ty, lhs, rhs, _) => k(ss, evalIntOp2("mul", lhs, rhs, ty, ss), kk)
+      case SDivInst(ty, lhs, rhs) => k(ss, evalIntOp2("sdiv", lhs, rhs, ty, ss), kk)
+      case UDivInst(ty, lhs, rhs) => k(ss, evalIntOp2("udiv", lhs, rhs, ty, ss), kk)
+      case FAddInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fadd", lhs, rhs, ty, ss), kk)
+      case FSubInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fsub", lhs, rhs, ty, ss), kk)
+      case FMulInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fmul", lhs, rhs, ty, ss), kk)
+      case FDivInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fdiv", lhs, rhs, ty, ss), kk)
       /* Backend Work Needed */
-      case URemInst(ty, lhs, rhs) => k(ss, evalIntOp2("urem", lhs, rhs, ty, ss))
-      case SRemInst(ty, lhs, rhs) => k(ss, evalIntOp2("srem", lhs, rhs, ty, ss))
+      case URemInst(ty, lhs, rhs) => k(ss, evalIntOp2("urem", lhs, rhs, ty, ss), kk)
+      case SRemInst(ty, lhs, rhs) => k(ss, evalIntOp2("srem", lhs, rhs, ty, ss), kk)
 
       // Bitwise Operations
       /* Backend Work Needed */
-      case ShlInst(ty, lhs, rhs) => k(ss, evalIntOp2("shl", lhs, rhs, ty, ss))
-      case LshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("lshr", lhs, rhs, ty, ss))
-      case AshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("ashr", lhs, rhs, ty, ss))
-      case AndInst(ty, lhs, rhs) => k(ss, evalIntOp2("and", lhs, rhs, ty, ss))
-      case OrInst(ty, lhs, rhs) => k(ss, evalIntOp2("or", lhs, rhs, ty, ss))
-      case XorInst(ty, lhs, rhs) => k(ss, evalIntOp2("xor", lhs, rhs, ty, ss))
+      case ShlInst(ty, lhs, rhs) => k(ss, evalIntOp2("shl", lhs, rhs, ty, ss), kk)
+      case LshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("lshr", lhs, rhs, ty, ss), kk)
+      case AshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("ashr", lhs, rhs, ty, ss), kk)
+      case AndInst(ty, lhs, rhs) => k(ss, evalIntOp2("and", lhs, rhs, ty, ss), kk)
+      case OrInst(ty, lhs, rhs) => k(ss, evalIntOp2("or", lhs, rhs, ty, ss), kk)
+      case XorInst(ty, lhs, rhs) => k(ss, evalIntOp2("xor", lhs, rhs, ty, ss), kk)
 
       // Conversion Operations
       /* Backend Work Needed */
       case ZExtInst(from, value, IntType(size)) =>
-        k(ss, eval(value, from, ss).zExt(size))
+        k(ss, eval(value, from, ss).zExt(size), kk)
       case SExtInst(from, value, IntType(size)) =>
-        k(ss, eval(value, from, ss).sExt(size))
+        k(ss, eval(value, from, ss).sExt(size), kk)
       case TruncInst(from@IntType(fromSz), value, IntType(toSz)) =>
-        k(ss, eval(value, from, ss).trunc(fromSz, toSz))
+        k(ss, eval(value, from, ss).trunc(fromSz, toSz), kk)
       case FpExtInst(from, value, to) =>
-        k(ss, eval(value, from, ss))
+        k(ss, eval(value, from, ss), kk)
       case FpToUIInst(from, value, IntType(size)) =>
-        k(ss, eval(value, from, ss).fromFloatToUInt(size))
+        k(ss, eval(value, from, ss).fromFloatToUInt(size), kk)
       case FpToSIInst(from, value, IntType(size)) =>
-        k(ss, eval(value, from, ss).fromFloatToSInt(size))
+        k(ss, eval(value, from, ss).fromFloatToSInt(size), kk)
       case UiToFPInst(from, value, to) =>
-        k(ss, eval(value, from, ss).fromUIntToFloat)
+        k(ss, eval(value, from, ss).fromUIntToFloat, kk)
       case SiToFPInst(from, value, to) =>
-        k(ss, eval(value, from, ss).fromSIntToFloat)
+        k(ss, eval(value, from, ss).fromSIntToFloat, kk)
       case PtrToIntInst(from, value, to) =>
         val v = eval(value, from, ss)
         val toSize = to.asInstanceOf[IntType].size
-        k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize))
+        k(ss, if (ARCH_WORD_SIZE == toSize) v else v.trunc(ARCH_WORD_SIZE, toSize), kk)
       case IntToPtrInst(from, value, to) =>
-        k(ss, eval(value, from, ss))
-      case BitCastInst(from, value, to) => k(ss, eval(value, to, ss))
+        k(ss, eval(value, from, ss), kk)
+      case BitCastInst(from, value, to) => k(ss, eval(value, to, ss), kk)
 
       // Aggregate Operations
       /* Backend Work Needed */
@@ -183,22 +187,22 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val idx = calculateOffsetStatic(ty, idxList)
         // v is expected to be StructV in backend
         val v = eval(struct, ty, ss)
-        k(ss, v.structAt(idx))
+        k(ss, v.structAt(idx), kk)
 
       // Other operations
-      case FCmpInst(pred, ty, lhs, rhs) => k(ss, evalFloatOp2(pred.op, lhs, rhs, ty, ss))
-      case ICmpInst(pred, ty, lhs, rhs) => k(ss, evalIntOp2(pred.op, lhs, rhs, ty, ss))
+      case FCmpInst(pred, ty, lhs, rhs) => k(ss, evalFloatOp2(pred.op, lhs, rhs, ty, ss), kk)
+      case ICmpInst(pred, ty, lhs, rhs) => k(ss, evalIntOp2(pred.op, lhs, rhs, ty, ss), kk)
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
-        ss.push
+        ss.push(kk)
         val stackSize = ss.stackSize
         val fK: Rep[Cont] = fun { case sv =>
           val s: Rep[Ref[SS]] = sv._1
-          s.pop(stackSize)
-          k(s, sv._2)
+          val kk = s.pop(stackSize)
+          k(s, sv._2, kk)
         }
         fv[Ref](ss, List(vs: _*), fK)
       case PhiInst(ty, incs) =>
@@ -209,23 +213,23 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val incsValues: List[LLVMValue] = incs.map(_.value)
         val incsLabels: List[BlockLabel] = incs.map(_.label.hashCode)
         val vs = incsValues.map(v => () => eval(v, ty, ss))
-        k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
+        k(ss, selectValue(ss.incomingBlock, vs, incsLabels), kk)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
-        k(ss, ITE(eval(cndVal, cndTy, ss), eval(thnVal, thnTy, ss), eval(elsVal, elsTy, ss)))
+        k(ss, ITE(eval(cndVal, cndTy, ss), eval(thnVal, thnTy, ss), eval(elsVal, elsTy, ss)), kk)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
         val repK = fun(k)
         if (cnd.isConc) {
-          if (cnd.int == 1) repK(ss, eval(thnVal, thnTy, ss))
-          else repK(ss, eval(elsVal, elsTy, ss))
+          if (cnd.int == 1) repK(ss, eval(thnVal, thnTy, ss), kk)
+          else repK(ss, eval(elsVal, elsTy, ss), kk)
         } else {
           // TODO: check cond via solver
           val s1 = ss.copy
           ss.addPC(cnd.toSym)
-          repK(ss, eval(thnVal, thnTy, ss))
+          repK(ss, eval(thnVal, thnTy, ss), kk)
           s1.addPC(cnd.toSymNeg)
           Coverage.incPath(1)
-          repK(s1, eval(elsVal, elsTy, s1))
+          repK(s1, eval(elsVal, elsTy, s1), kk)
         }
     }
   }
@@ -233,13 +237,13 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
   def execTerm(inst: Terminator, incomingBlock: String, k: Rep[Cont])(implicit ss: Rep[SS], funName: String): Rep[Unit] = {
     inst match {
       // FIXME: unreachable
-      case Unreachable => k(ss, IntV(-1))
+      case Unreachable => contApply(k, ss, IntV(-1))
       case RetTerm(ty, v) =>
         val ret = v match {
           case Some(value) => eval(value, ty, ss)
           case None => NullPtr[Value]
         }
-        k(ss, ret)
+        contApply(k, ss, ret)
       case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
         execBlockEager(funName, findBlock(funName, lab).get, ss, k)
       case BrTerm(lab) =>
@@ -292,19 +296,19 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     }
   }
 
-  def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[Unit])(implicit funName: String): Rep[Unit] = {
+  def execInst(inst: Instruction, ss: Rep[SS], k: (Rep[SS], Rep[Cont]) => Rep[Unit])(implicit funName: String, kk: Rep[Cont]): Rep[Unit] = {
     inst match {
       case AssignInst(x, valInst) =>
         execValueInst(valInst, ss, {
-          case (s, v) =>
+          case (s, v, kk) =>
             s.assign(funName + "_" + x, v)
-            k(s)
+            k(s, kk)
         })
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
         ss.update(v2, v1, getTySize(ty1))
-        k(ss)
+        k(ss, kk)
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)
@@ -312,12 +316,12 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val vs = argValues.zip(argTypes).map {
           case (v, t) => eval(v, t, ss)
         }
-        ss.push
+        ss.push(kk)
         val stackSize = ss.stackSize
         val fK: Rep[Cont] = fun { case sv =>
           val s: Rep[Ref[SS]] = sv._1
-          s.pop(stackSize)
-          k(s)
+          val kk = s.pop(stackSize)
+          k(s, kk)
         }
         fv[Ref](ss, List(vs: _*), fK)
     }
@@ -337,7 +341,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         case Nil =>
           Coverage.incInst(block.ins.size+1)
           execTerm(t, block.label.get, k)(s, funName)
-        case i::inst => execInst(i, s, s1 => runInst(inst, t, s1, k))(funName)
+        case i::inst => execInst(i, s, (s1, k1) => runInst(inst, t, s1, k1))(funName, k)
       }
     runInst(block.ins, block.term, s, k)
   }
