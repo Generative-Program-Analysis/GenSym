@@ -3,7 +3,7 @@ package sai.llsc
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.ASTUtils._
+import sai.llsc.IRUtils._
 
 import scala.collection.JavaConverters._
 
@@ -22,7 +22,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   /* Abstract definitions */
 
-  val m: Module
+  implicit val m: Module
   type BFTy // Block-function type
   type FFTy // Function-function type
 
@@ -122,111 +122,12 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case _ => vt
   }
 
-  object StructCalc {
-    private def padding(size: Int, align: Int): Int =
-      (align - size % align) % align
-
-    private def fields(types: List[LLVMType]): (Int, Int, Int) =
-      types.foldLeft((0, 0, 0)) { case ((begin, end, maxalign), ty) =>
-        val (size, align) = getTySizeAlign(ty)
-        val new_begin = end + padding(end, align)
-        (new_begin, new_begin + size, align max maxalign)
-      }
-
-    def getSizeAlign(types: List[LLVMType]): (Int, Int) = {
-      val (_, size, align) = fields(types)
-      (size + padding(size, align), align)
-    }
-
-    def getFieldOffset(types: List[LLVMType], idx: Int): Int =
-      fields(types.take(idx+1))._1
-
-    def concat[E](cs: List[E])(feval: E => (List[Rep[Value]], Int)): (List[Rep[Value]], Int) = {
-      val fill: Int => List[Rep[Value]] = (StaticList.fill(_)(uninitValue))
-      val (list, align) = cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((list, maxalign), c) =>
-        val (value, align) = feval(c)
-        (list ++ fill(padding(list.size, align)) ++ value, align max maxalign)
-      }
-      (list ++ fill(padding(list.size, align)), align)
-    }
-  }
-
-  object PackedStructCalc {
-    private def fields(types: List[LLVMType]): (Int, Int) =
-      types.foldLeft((0, 0)) { case ((begin, end), ty) =>
-        val size = getTySizeAlign(ty)._1
-        (end, end + size)
-      }
-
-    def getSizeAlign(types: List[LLVMType]): (Int, Int) = {
-      val size = fields(types)._2
-      (size, 1)
-    }
-
-    def getFieldOffset(types: List[LLVMType], idx: Int): Int =
-      fields(types.take(idx+1))._1
-
-    def concat[E](cs: List[E])(feval: E => (List[Rep[Value]], Int)): (List[Rep[Value]], Int) = {
-      val (list, align) = cs.foldLeft((StaticList[Rep[Value]](), 0)) { case ((list, maxalign), c) =>
-        val (value, align) = feval(c)
-        (list ++ value, 1)
-      }
-      (list, 1)
-    }
-  }
-
-  def getTySizeAlign(vt: LLVMType): (Int, Int) = vt match {
-    case ArrayType(num, ety) =>
-      val (size, align) = getTySizeAlign(ety)
-      (num * size, align)
-    case Struct(types) =>
-      StructCalc.getSizeAlign(types)
-    case NamedType(id) =>
-      getTySizeAlign(typeDefMap(id))
-    case IntType(size) =>
-      val elemSize = (size + BYTE_SIZE - 1) / BYTE_SIZE
-      (elemSize, elemSize)
-    case PtrType(ty, addrSpace) =>
-      val elemSize = ARCH_WORD_SIZE / BYTE_SIZE
-      (elemSize, elemSize)
-    case ft@FloatType(fk) =>
-      import scala.math.{log, ceil, pow}
-      val elemSize = (ft.size + BYTE_SIZE - 1) / BYTE_SIZE
-      val align = pow(2, ceil(log(elemSize)/log(2)))
-      (elemSize, align)
-    case PackedStruct(types) =>
-      PackedStructCalc.getSizeAlign(types)
-    case _ =>
-      throw new Exception(s"type $vt is not handled by getTySizeAlign")
-  }
-
-  def getTySize(vt: LLVMType): Int = getTySizeAlign(vt)._1
-
-  def calculateOffsetStatic(ty: LLVMType, index: List[Long]): Long = {
-    implicit def longToInt(x: Long) = x.toInt
-    if (index.isEmpty) 0 else ty match {
-      case Struct(types) =>
-        val prev: Int = StructCalc.getFieldOffset(types, index.head)
-        prev + calculateOffsetStatic(types(index.head), index.tail)
-      case ArrayType(size, ety) =>
-        index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
-      case NamedType(id) =>
-        calculateOffsetStatic(typeDefMap(id), index)
-      case PtrType(ety, addrSpace) =>
-        index.head * getTySize(ety) + calculateOffsetStatic(ety, index.tail)
-      case PackedStruct(types) =>
-        val prev: Int = PackedStructCalc.getFieldOffset(types, index.head)
-        prev + calculateOffsetStatic(types(index.head), index.tail)
-      case _ => ???
-    }
-  }
-
   def calculateOffset(ty: LLVMType, index: List[Rep[Value]]): Rep[Value] = {
     if (index.isEmpty) IntV(0.toLong, DEFAULT_INDEX_BW) else ty match {
       case PtrType(ety, addrSpace) =>
-        index.head.sExt(DEFAULT_INDEX_BW) * IntV(getTySize(ety), DEFAULT_INDEX_BW) + calculateOffset(ety, index.tail)
+        index.head.sExt(DEFAULT_INDEX_BW) * IntV(ety.size, DEFAULT_INDEX_BW) + calculateOffset(ety, index.tail)
       case ArrayType(size, ety) =>
-        index.head.sExt(DEFAULT_INDEX_BW) * IntV(getTySize(ety), DEFAULT_INDEX_BW) + calculateOffset(ety, index.tail)
+        index.head.sExt(DEFAULT_INDEX_BW) * IntV(ety.size, DEFAULT_INDEX_BW) + calculateOffset(ety, index.tail)
       case NamedType(id) =>
         calculateOffset(typeDefMap(id), index)
       case Struct(types) =>
@@ -246,14 +147,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   // Note: we can also assign symbolic values here
   def uninitValue: Rep[Value] = IntV(0, 8) //NullPtr()
-
-  def isAtomicConst(c: Constant): Boolean = c match {
-    case BoolConst(_) | IntConst(_) | FloatConst(_) | FloatLitConst(_)
-       | NullConst | PtrToIntExpr(_, _, _) | GlobalId(_)
-       | BitCastExpr(_, _, _) | GetElemPtrExpr(_, _, _, _, _) =>
-      true
-    case _ => false
-  }
 
   def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)
@@ -278,45 +171,50 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     case _ => throw new Exception("Not atomic heap constant " + v)
   }
 
-  def evalHeapComplexConst(v: Constant, real_ty: LLVMType): (List[Rep[Value]], Int) = {
+  def evalHeapComplexConst(v: Constant, realTy: LLVMType): (List[Rep[Value]], Int) = {
     v match {
-      case StructConst(cs) =>
-        real_ty match {
-          case Struct(types) =>
-            StructCalc.concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
-          case PackedStruct(types) =>
-            PackedStructCalc.concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
-          case _ => ???
-        }
+      case StructConst(cs) => realTy match {
+        case Struct(types) =>
+          StructCalc().concat(cs, n => StaticList.fill(n)(uninitValue)) { c =>
+            evalHeapConstWithAlign(c.const, c.ty)
+          }
+        case PackedStruct(types) =>
+          PackedStructCalc().concat(cs) { c => evalHeapConstWithAlign(c.const, c.ty) }
+        case _ => ???
+      }
       case ArrayConst(cs) =>
-        (cs.map(c => evalHeapConstWithAlign(c.const, c.ty)._1).flatten, getTySizeAlign(real_ty)._2)
+        (cs.map(c => evalHeapConstWithAlign(c.const, c.ty)._1).flatten, realTy.sizeAlign._2)
       case CharArrayConst(s) =>
-        val (size, align) = getTySizeAlign(real_ty)
+        val (size, align) = realTy.sizeAlign
         (s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(size-s.length)(uninitValue), align)
-      case ZeroInitializerConst => real_ty match {
+      case ZeroInitializerConst => realTy match {
         case ArrayType(size, ety) =>
           val (value, align) = evalHeapConstWithAlign(ZeroInitializerConst, ety)
           (StaticList.fill(size)(value).flatten, align)
         case Struct(types) =>
-          StructCalc.concat(types) { evalHeapConstWithAlign(ZeroInitializerConst, _) }
+          StructCalc().concat(types, n => StaticList.fill(n)(uninitValue)) {
+            evalHeapConstWithAlign(ZeroInitializerConst, _)
+          }
         case PackedStruct(types) =>
-          PackedStructCalc.concat(types) { evalHeapConstWithAlign(ZeroInitializerConst, _) }
+          PackedStructCalc().concat(types) { evalHeapConstWithAlign(ZeroInitializerConst, _) }
         // TODO: fallback case is not typed
         case _ =>
-          val (size, align) = getTySizeAlign(real_ty)
+          val (size, align) = realTy.sizeAlign
           (IntV(0, 8 * size).toShadowBytes.toStatic, align)
       }
-      case UndefConst => real_ty match {
+      case UndefConst => realTy match {
         case ArrayType(size, ety) =>
           val (value, align) = evalHeapConstWithAlign(UndefConst, ety)
           (StaticList.fill(size)(value).flatten, align)
         case Struct(types) =>
-          StructCalc.concat(types) { evalHeapConstWithAlign(UndefConst, _) }
+          StructCalc().concat(types, n => StaticList.fill(n)(uninitValue)) {
+            evalHeapConstWithAlign(UndefConst, _)
+          }
         case PackedStruct(types) =>
-          PackedStructCalc.concat(types) { evalHeapConstWithAlign(UndefConst, _) }
+          PackedStructCalc().concat(types) { evalHeapConstWithAlign(UndefConst, _) }
         // TODO: fallback case is not typed
         case _ =>
-          val (size, align) = getTySizeAlign(real_ty)
+          val (size, align) = realTy.sizeAlign
           (StaticList.fill(size)(uninitValue), align)
       }
       case _ => throw new Exception("Not complex heap constant: " + v)
@@ -327,9 +225,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def evalHeapConstWithAlign(v: Constant, ty: LLVMType): (List[Rep[Value]], Int) =
     v match {
       case v if isAtomicConst(v) =>
-        val real_ty = getRealType(ty)
-        val (size, align) = getTySizeAlign(real_ty)
-        (evalHeapAtomicConst(v, real_ty).toShadowBytes.toStatic, align)
+        val realTy = getRealType(ty)
+        val (size, align) = realTy.sizeAlign
+        (evalHeapAtomicConst(v, realTy).toShadowBytes.toStatic, align)
       case _ => evalHeapComplexConst(v, getRealType(ty))
     }
 
@@ -353,14 +251,14 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       // heapTmp ++= StaticList.fill(heapSize)(NullPtr())
       module.globalDeclMap.foreach { case (k, v) =>
         val realname = module.mname + "_" + v.id
-        val curSize = getTySize(v.typ).toLong
+        val curSize = v.typ.size.toLong
         val heapSize2 = heapSize.toLong
         heapEnv += realname -> (() => LocV(heapSize2, LocV.kHeap, curSize))
         heapSize += curSize
         heapTmp ++= evalHeapConst(ZeroInitializerConst, v.typ)
       }
       module.globalDefMap.foreach { case (k, v) =>
-        val curSize = getTySize(v.typ).toLong
+        val curSize = v.typ.size.toLong
         val heapSize2 = heapSize.toLong
         heapEnv += k -> (() => LocV(heapSize2, LocV.kHeap, curSize))
         heapSize += curSize

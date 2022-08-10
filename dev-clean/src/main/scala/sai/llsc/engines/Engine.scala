@@ -3,7 +3,7 @@ package sai.llsc
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.ASTUtils._
+import sai.llsc.IRUtils._
 import sai.llsc.Constants._
 
 import scala.collection.JavaConverters._
@@ -114,7 +114,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
-        val typeSize = getTySize(ty)
+        val typeSize = ty.size
         for {
           ss <- getState
           ss2 <- ret(ss.allocStack(typeSize, align.n))
@@ -128,7 +128,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         for {
           v <- eval(value, ptrTy)
           ss <- getState
-        } yield ss.lookup(v, getTySize(valTy), isStruct)
+        } yield ss.lookup(v, valTy.size, isStruct)
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         for {
           vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
@@ -383,7 +383,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         for {
           v1 <- eval(val1, ty1)
           v2 <- eval(val2, ty2)
-          _ <- updateMem(v2, v1, getTySize(ty1))
+          _ <- updateMem(v2, v1, ty1.size)
         } yield ()
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = extractValues(args)

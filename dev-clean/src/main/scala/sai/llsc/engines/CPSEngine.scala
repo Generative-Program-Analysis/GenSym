@@ -4,7 +4,7 @@ import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
 import sai.llsc.EngineBase
-import sai.llsc.ASTUtils._
+import sai.llsc.IRUtils._
 import sai.llsc.Constants._
 import sai.llsc.Config
 
@@ -113,7 +113,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
-        val typeSize = getTySize(ty)
+        val typeSize = ty.size
         val sz = ss.stackSize
         ss.allocStack(typeSize, align.n)
         k(ss, LocV(sz, LocV.kStack, typeSize.toLong), kk)
@@ -123,7 +123,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           case _ => 0
         }
         val v = eval(value, ptrTy, ss)
-        k(ss, ss.lookup(v, getTySize(valTy), isStruct), kk)
+        k(ss, ss.lookup(v, valTy.size, isStruct), kk)
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
@@ -307,7 +307,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
-        ss.update(v2, v1, getTySize(ty1))
+        ss.update(v2, v1, ty1.size)
         k(ss, kk)
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = extractValues(args)

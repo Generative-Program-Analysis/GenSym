@@ -3,7 +3,7 @@ package sai.llsc
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.ASTUtils._
+import sai.llsc.IRUtils._
 import sai.llsc.Constants._
 
 import scala.collection.JavaConverters._
@@ -112,7 +112,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
-        val typeSize = getTySize(ty)
+        val typeSize = ty.size
         val ss2 = ss.allocStack(typeSize, align.n)
         k(ss2, LocV(ss2.stackSize - typeSize, LocV.kStack, typeSize.toLong))
       case LoadInst(valTy, ptrTy, value, align) =>
@@ -121,7 +121,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           case _ => 0
         }
         val v = eval(value, ptrTy, ss)
-        k(ss, ss.lookup(v, getTySize(valTy), isStruct))
+        k(ss, ss.lookup(v, valTy.size, isStruct))
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
@@ -298,7 +298,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
       case StoreInst(ty1, val1, ty2, val2, align) =>
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
-        k(ss.update(v2, v1, getTySize(ty1)))
+        k(ss.update(v2, v1, ty1.size))
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)

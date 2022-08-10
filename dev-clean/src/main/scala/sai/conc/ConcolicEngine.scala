@@ -3,7 +3,7 @@ package sai.conc
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.ASTUtils._
+import sai.llsc.IRUtils._
 
 import scala.collection.JavaConverters._
 
@@ -197,12 +197,12 @@ trait ConcolicEngine extends SAIOps with StagedNondet with SymExeDefs {
     case FloatConst(f) =>
       StaticList(FloatV(f))
     case ZeroInitializerConst => ty match {
-      case ArrayType(size, ety) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
-      case Struct(types) => StaticList.fill(flattenTy(ty).map(lty => getTySize(lty)).sum)(IntV(0))
+      case ArrayType(size, ety) => StaticList.fill(ty.flatten.map(lty => getTySize(lty)).sum)(IntV(0))
+      case Struct(types) => StaticList.fill(ty.flatten.map(lty => getTySize(lty)).sum)(IntV(0))
       case _ => StaticList.fill(getTySize(ty))(IntV(0))
     }
     case ArrayConst(cs) =>
-      flattenAS(v).flatMap(c => evalHeapConst(c, flattenTy(ty).head))
+      v.flatten.flatMap(c => evalHeapConst(c, ty.flatten.head))
     case CharArrayConst(s) =>
       s.map(c => IntV(c.toInt, 8)).toList ++ StaticList.fill(getTySize(ty) - s.length)(NullV())
     case StructConst(cs) =>
