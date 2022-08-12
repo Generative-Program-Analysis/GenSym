@@ -75,9 +75,12 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     private def assignSeq(xs: List[Int], vs: Rep[List[Value]]): Rep[SS] =
       "ss-assign-seq".reflectWith[SS](ss, xs, vs)
 
-    def lookup(x: String): Rep[Value] = "ss-lookup-env".reflectWith[Value](ss, x.hashCode)
-    def assign(x: String, v: Rep[Value]): Rep[SS] = "ss-assign".reflectWith[SS](ss, x.hashCode, v)
-    def assign(xs: List[String], vs: Rep[List[Value]]): Rep[SS] = assignSeq(xs.map(_.hashCode), vs)
+    def lookup(x: String)(implicit ctx: Ctx): Rep[Value] =
+      "ss-lookup-env".reflectWith[Value](ss, varId(x))
+    def assign(x: String, v: Rep[Value])(implicit ctx: Ctx): Rep[SS] =
+      "ss-assign".reflectWith[SS](ss, varId(x), v)
+    def assign(xs: List[String], vs: Rep[List[Value]])(implicit ctx: Ctx): Rep[SS] =
+      assignSeq(xs.map(varId(_)), vs)
     def lookup(addr: Rep[Value], size: Int = 1, isStruct: Int = 0): Rep[Value] = {
       require(size > 0)
       if (isStruct == 0) "ss-lookup-addr".reflectWith[Value](ss, addr, size)
@@ -109,7 +112,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     def updateArg: Rep[SS] = "ss-arg".reflectWith[SS](ss)
     def updateErrorLoc: Rep[SS] = "ss-error-loc".reflectWith[SS](ss)
 
-    def addIncomingBlock(x: String): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, x.hashCode)
+    def addIncomingBlock(ctx: Ctx): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, Counter.block.get(ctx.toString))
     def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
 
     def getFs: Rep[FS] = "ss-get-fs".reflectCtrlWith[FS](ss)
@@ -140,8 +143,8 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
         case _ => default
       }
 
-    override def lookup(x: String): Rep[Value] =
-      if (Config.opt) lookupOpt(x.hashCode, Unwrap(ss), super.lookup(x), 30)
+    override def lookup(x: String)(implicit ctx: Ctx): Rep[Value] =
+      if (Config.opt) lookupOpt(varId(x), Unwrap(ss), super.lookup(x), 30)
       else super.lookup(x)
 
     override def stackSize: Rep[Int] =
@@ -164,14 +167,14 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     } yield ()
 
   def heapAppend(vs: Rep[List[Value]]): Comp[E, Rep[Unit]]  = updateState(_.heapAppend(vs))
-  def stackUpdate(xs: List[String], vs: Rep[List[Value]]): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
-  def stackUpdate(x: String, v: Rep[Value]): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
+  def stackUpdate(xs: List[String], vs: Rep[List[Value]])(implicit ctx: Ctx): Comp[E, Rep[Unit]] = updateState(_.assign(xs, vs))
+  def stackUpdate(x: String, v: Rep[Value])(implicit ctx: Ctx): Comp[E, Rep[Unit]] = updateState(_.assign(x, v))
   def pushFrame: Comp[E, Rep[Unit]] = updateState(_.push)
   def popFrame(keep: Rep[Int]): Comp[E, Rep[Unit]] = updateState(_.pop(keep))
   def updateMem(k: Rep[Value], v: Rep[Value], sz: Int): Comp[E, Rep[Unit]] = updateState(_.update(k, v, sz))
   def updatePCSet(x: Rep[List[SymV]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SymV]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
-  def updateIncomingBlock(x: String): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(x))
+  def updateIncomingBlock(ctx: Ctx): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(ctx))
   def initializeArg: Comp[E, Rep[Unit]] = updateState(_.updateArg)
   def initializeErrorLoc: Comp[E, Rep[Unit]] = updateState(_.updateErrorLoc)
 

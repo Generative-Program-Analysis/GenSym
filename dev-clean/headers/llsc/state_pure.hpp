@@ -323,7 +323,7 @@ class Stack: public Printable {
     Stack(Mem mem, List<Frame> env, PtrVal errno_location) : mem(mem), env(env), errno_location(errno_location) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
-    PtrVal vararg_loc() { return env.at(env.size()-2).lookup_id(0); }
+    PtrVal vararg_loc() { return env.at(env.size()-2).lookup_id(vararg_id); }
     Stack init_error_loc() {
       auto updated_mem = mem;
       auto error_addr = mem.size();
@@ -344,7 +344,7 @@ class Stack: public Printable {
       // varargs
       size_t id_size = ids.size();
       if (id_size == 0) return Stack(mem, env, errno_location);
-      if (ids.at(id_size - 1) == 0) {
+      if (ids.at(id_size - 1) == vararg_id) {
         auto updated_mem = mem;
         for (size_t i = id_size - 1; i < vals.size(); i++) {
           // FIXME: magic value 8, as vararg is retrived from +8 address

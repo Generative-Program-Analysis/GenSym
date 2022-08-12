@@ -510,6 +510,7 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   PtrVal va_arg = state.vararg_loc();
+  // FIXME: magic number 48?
   state.update(va_list + 0, IntV0, 4);
   state.update(va_list + 4, IntV0, 4);
   state.update(va_list + 8, va_arg + 48, 8);
@@ -521,7 +522,8 @@ template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  for (int i = 0; i<24; i++) {
+  // FIXME: magic number 24?
+  for (int i = 0; i < 24; i++) {
     state.update(va_list + i, nullptr);
   }
   return k(state, IntV0);

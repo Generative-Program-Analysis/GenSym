@@ -30,22 +30,25 @@ abstract class TestLLSC extends FunSuite {
 
   case class TestResult(time: LocalDateTime, commit: String, engine: String, testName: String,
     extSolverTime: Double, intSolverTime: Double, wholeTime: Double, blockCov: Double,
-    pathNum: Int, brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int) {
+    partialBrCov: Double, fullBrCov: Double, pathNum: Int, brQueryNum: Int,
+    testQueryNum: Int, cexCacheHit: Int) {
     override def toString() =
-      s"$time,$commit,$engine,$testName,$extSolverTime,$intSolverTime,$wholeTime,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
+      s"$time,$commit,$engine,$testName,$extSolverTime,$intSolverTime,$wholeTime,$partialBrCov,$fullBrCov,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
   }
 
   val gitCommit = Process("git rev-parse --short HEAD").!!.trim
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
     // example:
-    // [43.4s/43.5s/46.0s] #blocks: 12/12; #paths: 1666; #threads: 1; #task-in-q: 0; #queries: 7328/1666 (1996)
-    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    // [43.4s/43.5s/46.0s] #blocks: 12/12; #br: 0/1/2; #paths: 1666; #threads: 1; #task-in-q: 0; #queries: 7328/1666 (1996)
+    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
-      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
+      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll,
+        partialBr, fullBr, totalBr, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
         TestResult(LocalDateTime.now(), gitCommit, engine, testName,
           extSolverTime.toDouble, intSolverTime.toDouble, wholeTime.toDouble,
-          blockCnt.toDouble / blockAll.toDouble, pathNum.toInt, brQuerynum.toInt,
+          blockCnt.toDouble/blockAll.toDouble, partialBr.toDouble/totalBr.toDouble,
+          fullBr.toDouble/totalBr.toDouble, pathNum.toInt, brQuerynum.toInt,
           testQueryNum.toInt, cexCacheHit.toInt)
     }
   }
@@ -126,6 +129,8 @@ class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
+  //testLLSC(llsc, TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)))
+  //testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //val echo_linked = parseFile("/home/kraks/research/llsc/coreutils/obj-llvm/playground/echo_llsc.ll")
   //testLLSC(llsc, TestPrg(echo_linked, "echo_linked_posix", "@main",
@@ -136,7 +141,6 @@ class Playground extends TestLLSC {
   //testLLSC(llsc, TestPrg(selectTestSym, "selectTest", "@main", noArg, noOpt, nPath(1)))
   //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
   //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
-  //testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testLLSC(new ImpCPSLLSC, List(TestPrg(base32_linked, "base32_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(4971)++status(0))))
   //testLLSC(new PureCPSLLSC, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
   // testLLSC(new ImpCPSLLSC, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))

@@ -15,6 +15,9 @@ object Config {
   /* Global compile-time configurations */
   var opt: Boolean = true
   var iteSelect: Boolean = true
+  var genDebug: Boolean = false
+  var emitVarIdMap: Boolean = true
+  var emitBlockIdMap: Boolean = true
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
@@ -48,6 +51,8 @@ object RunLLSC {
     |  =PureCPS              -   generate code in CPS with pure data structures, can run in parallel
     |  =PureDirect           -   generate code in direct-style with pure data structures, cannot run in parallel
     |--main-opt=<string>     - g++ optimization level when compiling the main file containing the initial heap object
+    |--emit-block-id-map     - emit a map from block names to id in common.h
+    |--emit-var-id-map       - emit a map from variable names to id in common.h
     |--help                  - print this help message
     """
 
@@ -59,6 +64,8 @@ object RunLLSC {
       case (options, r"--noOpt") => options + ("optimize" -> false)
       case (options, r"--engine=([a-zA-Z]+)$e") => options + ("engine" -> e)
       case (options, r"--main-opt=O(\d)$n") => options + ("mainOpt" -> ("O"+n))
+      case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
+      case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
       case (options, input) => options + ("input" -> input)
     }
@@ -70,6 +77,8 @@ object RunLLSC {
     val optimize = options.getOrElse("optimize", true).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
+    val emitBlockIdMap = options.getOrElse("blockIdMap", false).asInstanceOf[Boolean]
+    val emitVarIdMap = options.getOrElse("varIdMap", false).asInstanceOf[Boolean]
 
     val llsc = engine match {
       case "ImpCPS" => new ImpCPSLLSC
@@ -78,6 +87,8 @@ object RunLLSC {
       case "PureDirect" => new PureLLSC
     }
     Config.opt = optimize
+    Config.emitBlockIdMap = emitBlockIdMap
+    Config.emitVarIdMap =  emitVarIdMap
     val info = s"""Running $engine with
     |  filepath=$filepath, entrance=$entrance, output=$output,
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt"""

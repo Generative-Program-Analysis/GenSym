@@ -9,13 +9,13 @@ FS set_file(FS, String, Ptr<File>);
 static struct option long_options[] =
 {
   /* These options set a flag. */
-  {"help",                 no_argument,       0, 'h'},
   {"exlib-failure-branch", no_argument,       0, 'f'},
   {"no-hash-cons",         no_argument,       0, 'H'},
   {"no-obj-cache",         no_argument,       0, 'O'},
   {"no-cex-cache",         no_argument,       0, 'C'},
   {"cons-indep",           no_argument,       0, 'i'},
   {"print-inst-count",     no_argument,       0, 'I'},
+  {"print-cov",            no_argument,       0, 'p'},
   {"symloc-strategy",      required_argument, 0, 'L'},
   {"add-sym-file",         required_argument, 0, '+'},
   {"sym-file-size",        required_argument, 0, 's'},
@@ -24,6 +24,7 @@ static struct option long_options[] =
   {"solver",               required_argument, 0, 'v'},
   {"timeout",              required_argument, 0, 'e'},
   {"argv",                 required_argument, 0, 'a'},
+  {"help",                 no_argument,       0, 'h'},
   {0,                      0,                 0, 0  }
 };
 
@@ -86,29 +87,28 @@ inline void handle_cli_args(int argc, char** argv) {
     if (c == -1) break;
 
     switch (c) {
-      case 0:
-        break;
-      case 'd':
-        use_solver = false;
-        break;
+      case 0: break;
       case 'f':
         exlib_failure_branch = true;
         break;
       case 'H':
         use_hashcons = false;
+        break;
       case 'O':
         use_objcache = false;
+        break;
       case 'C':
         use_cexcache = false;
         break;
       case 'i':
         use_cons_indep = true;
         break;
-      case 'a':
-        cli_argv = parse_args(std::string(optarg));
-        g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
-        g_argc = make_IntV(cli_argv.size());
+      case 'I':
+        print_inst_cnt = true;
         break;
+      case 'p':
+	print_cov_detail = true;
+	break;
       case 'L': {
         auto strategy = std::string(optarg);
         set_symloc_strategy(strategy);
@@ -140,8 +140,10 @@ inline void handle_cli_args(int argc, char** argv) {
       case 'e':
         timeout = atoi(optarg);
         break;
-      case 'I':
-        print_inst_cnt = true;
+      case 'a':
+        cli_argv = parse_args(std::string(optarg));
+        g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
+        g_argc = make_IntV(cli_argv.size());
         break;
       case '?':
         // parsing error, should be printed by getopt

@@ -14,7 +14,7 @@ inline std::monostate async_exec_block(const std::function<std::monostate()>& f)
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS ss, PtrVal t_cond, PtrVal f_cond,
+sym_exec_br(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
   auto pc = ss.get_PC();
@@ -27,15 +27,23 @@ sym_exec_br(SS ss, PtrVal t_cond, PtrVal f_cond,
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
+	  cov().inc_branch(block_id, 0);
           return tf(tbr_ss);
         });
+      cov().inc_branch(block_id, 1);
       auto ff_res = ff(fbr_ss);
       return tf_res.get() + ff_res;
-    } else return tf(tbr_ss) + ff(fbr_ss);
+    } else {
+      cov().inc_branch(block_id, 0);
+      cov().inc_branch(block_id, 1);
+      return tf(tbr_ss) + ff(fbr_ss);
+    }
   } else if (tbr_sat) {
+    cov().inc_branch(block_id, 0);
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss);
   } else if (fbr_sat) {
+    cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
@@ -44,7 +52,7 @@ sym_exec_br(SS ss, PtrVal t_cond, PtrVal f_cond,
 }
 
 inline std::monostate
-sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
+sym_exec_br_k(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS, std::function<std::monostate(SS, PtrVal)>)> tf,
               std::function<std::monostate(SS, std::function<std::monostate(SS, PtrVal)>)> ff,
               std::function<std::monostate(SS, PtrVal)> k) {
@@ -56,29 +64,28 @@ sym_exec_br_k(SS ss, PtrVal t_cond, PtrVal f_cond,
     SS tbr_ss = ss.add_PC(t_cond);
     SS fbr_ss = ss.add_PC(f_cond);
     if (can_par_tp()) {
-      tp.add_task([tf, tbr_ss=std::move(tbr_ss), k]{ return tf(tbr_ss, k); });
-      tp.add_task([ff, fbr_ss=std::move(fbr_ss), k]{ return ff(fbr_ss, k); });
+      tp.add_task([tf, block_id, tbr_ss=std::move(tbr_ss), k]{
+	cov().inc_branch(block_id, 0);
+	return tf(tbr_ss, k);
+      });
+      tp.add_task([ff, block_id, fbr_ss=std::move(fbr_ss), k]{
+	cov().inc_branch(block_id, 1);
+	return ff(fbr_ss, k);
+      });
       return std::monostate{};
     } else {
+      cov().inc_branch(block_id, 0);
       tf(tbr_ss, k);
+      cov().inc_branch(block_id, 1);
       ff(fbr_ss, k);
       return std::monostate{};
     }
-    /*
-    if (can_par_async()) {
-      std::future<std::monostate> tf_res =
-        create_async<std::monostate>([&]{
-          return tf(tbr_ss, k);
-        });
-      auto ff_res = ff(fbr_ss, k);
-      tf_res.get();
-      return std::monostate{};
-    }
-    */
   } else if (tbr_sat) {
+    cov().inc_branch(block_id, 0);
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss, k);
   } else if (fbr_sat) {
+    cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss, k);
   } else {
@@ -177,7 +184,7 @@ inline std::monostate async_exec_block(
 
 // use immer::flex_vector as argument list and result list
 inline immer::flex_vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
+sym_exec_br(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS&),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
   auto pc = ss.get_PC();
@@ -192,15 +199,23 @@ sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
+	  cov().inc_branch(block_id, 0);
           return tf(tbr_ss);
         });
+      cov().inc_branch(block_id, 1);
       auto ff_res = ff(fbr_ss);
       return tf_res.get() + ff_res;
-    } else return tf(tbr_ss) + ff(fbr_ss);
+    } else {
+      cov().inc_branch(block_id, 0);
+      cov().inc_branch(block_id, 1);
+      return tf(tbr_ss) + ff(fbr_ss);
+    }
   } else if (tbr_sat) {
+    cov().inc_branch(block_id, 0);
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss);
   } else if (fbr_sat) {
+    cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
@@ -209,6 +224,7 @@ sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
 }
 
 // use std::vector as argument list and result list
+[[deprecated]]
 inline std::vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
             std::vector<std::pair<SS, PtrVal>> (*tf)(SS&),
@@ -249,7 +265,7 @@ sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
 }
 
 inline std::monostate
-sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
+sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> ff,
               std::function<std::monostate(SS&, PtrVal)> k) {
@@ -264,18 +280,28 @@ sym_exec_br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
     SS tbr_ss = ss.copy().add_PC(t_cond);
     SS fbr_ss = ss.add_PC(f_cond);
     if (can_par_tp()) {
-      tp.add_task([tf, tbr_ss=std::move(tbr_ss), k]{ return tf((SS&)tbr_ss, k); });
-      tp.add_task([ff, fbr_ss=std::move(fbr_ss), k]{ return ff((SS&)fbr_ss, k); });
+      tp.add_task([tf, block_id, tbr_ss=std::move(tbr_ss), k]{
+	cov().inc_branch(block_id, 0);
+	return tf((SS&)tbr_ss, k);
+      });
+      tp.add_task([ff, block_id, fbr_ss=std::move(fbr_ss), k]{
+	cov().inc_branch(block_id, 1);
+	return ff((SS&)fbr_ss, k);
+      });
       return std::monostate{};
     } else {
+      cov().inc_branch(block_id, 0);
       tf(tbr_ss, k);
+      cov().inc_branch(block_id, 1);
       ff(fbr_ss, k);
       return std::monostate{};
     }
   } else if (tbr_sat) {
+    cov().inc_branch(block_id, 0);
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss, k);
   } else if (fbr_sat) {
+    cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss, k);
   } else {
@@ -294,7 +320,8 @@ br_k(SS& ss, PtrVal t_cond, PtrVal f_cond,
     if (proj_IntV(t_cond) == 1) return tf(ss, k);
     else return ff(ss, k);
   }
-  return sym_exec_br_k(ss, t_cond, f_cond, tf, ff, k);
+  // FIXME: pass correct current block id
+  return sym_exec_br_k(ss, 0, t_cond, f_cond, tf, ff, k);
 }
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>

@@ -184,7 +184,7 @@ class Stack {
     Stack(Mem mem, std::vector<Frame> env, PtrVal errno_location) : mem(std::move(mem)), env(std::move(env)), errno_location(std::move(errno_location)) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
-    PtrVal vararg_loc() { return env[env.size()-2].lookup_id(0); }
+    PtrVal vararg_loc() { return env[env.size()-2].lookup_id(vararg_id); }
     Stack&& init_error_loc() {
       auto error_addr = mem.size();
       mem.alloc(8);
@@ -214,7 +214,7 @@ class Stack {
       // varargs
       size_t id_size = ids.size();
       if (id_size > 0) {
-        if (ids.back() == 0) {
+        if (ids.back() == vararg_id) {
           auto msize = mem.size();
           for (size_t i = id_size - 1; i < vals.size(); i++) {
             // FIXME: magic value 8, as vararg is retrived from +8 address

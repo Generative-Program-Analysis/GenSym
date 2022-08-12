@@ -3,10 +3,9 @@ package sai.llsc.imp
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.EngineBase
 import sai.llsc.IRUtils._
 import sai.llsc.Constants._
-import sai.llsc.Config
+import sai.llsc.{EngineBase, Config, Ctx, Counter}
 
 import scala.collection.JavaConverters._
 
@@ -27,15 +26,17 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
 
   def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
-    tBlockLab: String, fBlockLab: String, funName: String): Rep[List[(SS, Value)]] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
-    "sym_exec_br".reflectWith[List[(SS, Value)]](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName))
+    tBlockLab: String, fBlockLab: String)(implicit ctx: Ctx): Rep[List[(SS, Value)]] = {
+    val tBrFunName = getRealBlockFunName(getBBFun(ctx.funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(getBBFun(ctx.funName, fBlockLab))
+    val curBlockId = Counter.block.get(ctx.toString)
+    "sym_exec_br".reflectWith[List[(SS, Value)]](ss, curBlockId, tCond, fCond,
+      unchecked[String](tBrFunName), unchecked[String](fBrFunName))
   }
 
-  def eval(v: LLVMValue, ty: LLVMType, ss: Rep[SS], argTypes: Option[List[LLVMType]] = None)(implicit funName: String): Rep[Value] =
+  def eval(v: LLVMValue, ty: LLVMType, ss: Rep[SS], argTypes: Option[List[LLVMType]] = None)(implicit ctx: Ctx): Rep[Value] =
     v match {
-      case LocalId(x) => ss.lookup(funName + "_" + x)
+      case LocalId(x) => ss.lookup(x)
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
       case FloatConst(f) => FloatV(f, ty.asInstanceOf[FloatType].size)
       case FloatLitConst(l) => FloatV(l, 80)
@@ -86,13 +87,13 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
       case NoneConst => NullPtr[Value]
     }
 
-  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
+  def evalIntOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit ctx: Ctx): Rep[Value] =
     IntOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit funName: String): Rep[Value] =
+  def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit ctx: Ctx): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]])(implicit funName: String): Rep[List[(SS, Value)]] = {
+  def execValueInst(inst: ValueInstruction, ss: Rep[SS], k: (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]])(implicit ctx: Ctx): Rep[List[(SS, Value)]] = {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
@@ -196,7 +197,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           else selectValue(bb, vs.tail, labels.tail)
         }
         val incsValues: List[LLVMValue] = incs.map(_.value)
-        val incsLabels: List[BlockLabel] = incs.map(_.label.hashCode)
+        val incsLabels: List[BlockLabel] = incs.map(i => Counter.block.get(ctx.withBlock(i.label)))
         val vs = incsValues.map(v => () => eval(v, ty, ss))
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
@@ -221,7 +222,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   }
 
   // Note: Comp[E, Rep[Value]] vs Comp[E, Rep[Option[Value]]]?
-  def execTerm(inst: Terminator, incomingBlock: String)(implicit ss: Rep[SS], funName: String): Rep[List[(SS, Value)]] = {
+  def execTerm(inst: Terminator)(implicit ss: Rep[SS], ctx: Ctx): Rep[List[(SS, Value)]] = {
     inst match {
       // FIXME: unreachable
       case Unreachable => IntV(-1)
@@ -230,66 +231,79 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           case Some(value) => eval(value, ty, ss)
           case None => NullPtr[Value]
         }
-      case BrTerm(lab) if (cfg.pred(funName, lab).size == 1) =>
-        execBlockEager(funName, findBlock(funName, lab).get, ss)
+      case BrTerm(lab) if (cfg.pred(ctx.funName, lab).size == 1) =>
+        execBlockEager(ctx.funName, findBlock(ctx.funName, lab).get, ss)
       case BrTerm(lab) =>
-        ss.addIncomingBlock(incomingBlock)
-        execBlock(funName, lab, ss)
+        ss.addIncomingBlock(ctx)
+        execBlock(ctx.funName, lab, ss)
       case CondBrTerm(ty, cnd, thnLab, elsLab) =>
-        ss.addIncomingBlock(incomingBlock)
+        Counter.setBranchNum(ctx, 2)
+        ss.addIncomingBlock(ctx)
         val cndVal = eval(cnd, ty, ss)
         if (cndVal.isConc) {
-          if (cndVal.int == 1) execBlock(funName, thnLab, ss)
-          else execBlock(funName, elsLab, ss)
+          if (cndVal.int == 1) {
+            Coverage.incBranch(ctx, 0)
+            execBlock(ctx.funName, thnLab, ss)
+          } else {
+            Coverage.incBranch(ctx, 1)
+            execBlock(ctx.funName, elsLab, ss)
+          }
         } else {
-          symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, funName)
+          symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab)
         }
-      case SwitchTerm(cndTy, cndVal, default, table) =>
+      case SwitchTerm(cndTy, cndVal, default, swTable) =>
+        Counter.setBranchNum(ctx, swTable.size+1)
         def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] = {
-          if (table.isEmpty) execBlock(funName, default, s)
-          else {
-            if (v == table.head.n) execBlock(funName, table.head.label, s)
-            else switch(v, s, table.tail)
+          if (table.isEmpty) {
+            Coverage.incBranch(ctx, swTable.size)
+            execBlock(ctx.funName, default, s)
+          } else {
+            if (v == table.head.n) {
+              Coverage.incBranch(ctx, swTable.size - table.size)
+              execBlock(ctx.funName, table.head.label, s)
+            } else switch(v, s, table.tail)
           }
         }
 
-        val counter: Var[Int] = var_new(0)
+        val nPath: Var[Int] = var_new(0)
         def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase]): Rep[List[(SS, Value)]] =
           if (table.isEmpty) {
             if (checkPC(s.pc)) {
-              counter += 1
-              execBlock(funName, default, s)
+              nPath += 1
+              Coverage.incBranch(ctx, swTable.size)
+              execBlock(ctx.funName, default, s)
             } else List[(SS, Value)]()
           } else {
             val st = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             s.addPC(headPC.toSym)
             val lt = if (checkPC(s.pc)) {
-              counter += 1
-              execBlock(funName, table.head.label, s)
+              nPath += 1
+              Coverage.incBranch(ctx, swTable.size - table.size)
+              execBlock(ctx.funName, table.head.label, s)
             } else List[(SS, Value)]()
             st.addPC(headPC.toSymNeg)
             val lf = switchSym(v, st, table.tail)
             lt ++ lf
           }
 
-        ss.addIncomingBlock(incomingBlock)
+        ss.addIncomingBlock(ctx)
         val v = eval(cndVal, cndTy, ss)
-        if (v.isConc) switch(v.int, ss, table)
+        if (v.isConc) switch(v.int, ss, swTable)
         else {
-          val r = switchSym(v, ss, table)
-          if (counter > 0) Coverage.incPath(counter-1)
+          val r = switchSym(v, ss, swTable)
+          if (nPath > 0) Coverage.incPath(nPath - 1)
           r
         }
     }
   }
 
-  def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[List[(SS, Value)]])(implicit fun: String): Rep[List[(SS, Value)]] = {
+  def execInst(inst: Instruction, ss: Rep[SS], k: Rep[SS] => Rep[List[(SS, Value)]])(implicit ctx: Ctx): Rep[List[(SS, Value)]] = {
     inst match {
       case AssignInst(x, valInst) =>
         execValueInst(valInst, ss, {
           case (s, v) =>
-            s.assign(fun + "_" + x, v)
+            s.assign(x, v)
             k(s)
         })
       case StoreInst(ty1, val1, ty2, val2, align) =>
@@ -324,18 +338,19 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   }
 
   def execBlockEager(funName: String, block: BB, s: Rep[SS]): Rep[List[(SS, Value)]] = {
+    val ctx = Ctx(funName, block.label.get)
     def runInst(insts: List[Instruction], t: Terminator, s: Rep[SS]): Rep[List[(SS, Value)]] =
       insts match {
-        case Nil => execTerm(t, block.label.get)(s, funName)
-        case i::inst => execInst(i, s, s1 => runInst(inst, t, s1))(funName)
+        case Nil => execTerm(t)(s, ctx)
+        case i::inst => execInst(i, s, s1 => runInst(inst, t, s1))(ctx)
       }
+    Coverage.incBlock(ctx)
     runInst(block.ins, block.term, s)
   }
 
   override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
     def runBlock(ss: Rep[Ref[SS]]): Rep[List[(SS, Value)]] = {
       info("running block: " + funName + " - " + b.label.get)
-      Coverage.incBlock(funName, b.label.get)
       execBlockEager(funName, b, ss)
     }
     val f: BFTy = topFun(runBlock(_))
@@ -345,9 +360,10 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
 
   override def repFunFun(f: FunctionDef): (FFTy, Int) = {
     def runFun(ss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+      implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
       val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => f.id + "_" + localId.get
-        case Vararg => ""
+        case TypedParam(ty, attrs, localId) => localId.get
+        case Vararg => "Vararg"
       }
       info("running function: " + f.id)
       ss.assign(params, args)
@@ -391,10 +407,11 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   override def wrapFunV(f: FFTy): Rep[Value] = FunV[Ref](f)
 
   def exec(fname: String, args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
+    implicit val ctx = Ctx(fname, findFirstBlock(fname).label.get)
     val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
-    val fv = eval(GlobalId(fname), VoidType, ss)(fname)
+    val fv = eval(GlobalId(fname), VoidType, ss)
     ss.push
     ss.updateArg
     ss.updateErrorLoc

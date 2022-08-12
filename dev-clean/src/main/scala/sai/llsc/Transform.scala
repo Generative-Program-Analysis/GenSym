@@ -25,8 +25,8 @@ object AssignElim {
   abstract class ElimAssignBase(ids: HashSet[Int]) extends Transformer {
     def eliminable(x: Int): Boolean = !ids.contains(x)
     def eliminable(xs: List[Int]): Boolean =
-      // Note: the xs.last == 0 case is reserved for var_arg
-      if (xs.size > 0 && xs.last == 0) false
+      // Note: the xs.last == -1 case is reserved for vararg
+      if (xs.size > 0 && xs.last == -1) false
       else xs.forall(eliminable)
     override def transform(graph: Graph): Graph = {
       g = Adapter.mkGraphBuilder()

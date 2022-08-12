@@ -164,6 +164,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
 
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov().set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov().inc_block($id)"
+    case Node(s, "cov-inc-br", List(id, n), _) => es"cov().inc_branch($id, $n)"
     case Node(s, "cov-inc-path", List(n), _) => es"cov().inc_path($n)"
     case Node(s, "cov-inc-inst", List(n), _) => es"cov().inc_inst($n)"
     case Node(s, "cov-start-mon", _, _) => es"cov().start_monitor()"
@@ -217,15 +218,28 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   def emitHeaderFile: Unit = {
     val filename = codegenFolder + "/common.h"
     val out = new java.io.PrintStream(filename)
+    val branchStatStr = "{" + Counter.branchStat.toList.map(p => s"{${p._1},${p._2}}").mkString(",") + "}"
     withStream(out) {
       emitln("/* Emitting header file */")
       emitHeaders(stream)
       emitln("using namespace immer;")
       emitFunctionDecls(stream)
       emitDatastructures(stream)
+      if (Config.emitVarIdMap) {
+        emitln(s"""
+        |/* variable-id map:
+        |${Counter.variable.toString}
+        |*/""".stripMargin)
+      }
+      if (Config.emitBlockIdMap) {
+        emitln(s"""
+        |/* block-id map:
+        |${Counter.block.toString}
+        |*/""".stripMargin)
+      }
       emitln(s"""
       |inline Monitor& cov() {
-      |  static Monitor m(${BlockCounter.count});
+      |  static Monitor m(${Counter.block.count}, ${branchStatStr});
       |  return m;
       |}""".stripMargin)
       emitln("/* End of header file */")
@@ -247,7 +261,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
 
     for ((f, (_, funStream)) <- functionsStreams) {
       if (blockMap.values.exists(_ == f)) {
-        val funName = f.substring(0, f.indexOf("_Block"))
+        val funName = f.substring(0, f.indexOf("_block"))
         val filename = s"$codegenFolder/$funName.cpp"
         val out = new java.io.PrintStream(new FileOutputStream(filename, true))
         funStream.writeTo(out)

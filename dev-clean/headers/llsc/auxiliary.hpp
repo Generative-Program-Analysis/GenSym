@@ -18,6 +18,8 @@ using UIntData = unsigned long long int;
 using Fd = int;
 using status_t = unsigned short;
 
+inline int vararg_id = -1;
+
 // Default bitwidth when creating integers or symbolic values
 inline unsigned int default_bw = 32;
 // The bitwidth of addresses (64 by default)
@@ -66,6 +68,8 @@ inline bool exlib_failure_branch = false;
 inline unsigned int timeout = 3600;
 // Print the number of executed instructions
 inline bool print_inst_cnt = false;
+// Print block/branch coverage detail at the end of execution
+inline bool print_cov_detail = false;
 
 enum class SolverKind { z3, stp };
 // The backend SMT solver to be used

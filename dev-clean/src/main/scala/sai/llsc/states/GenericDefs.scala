@@ -22,6 +22,32 @@ import sai.lmsx.smt.SMTBool
 import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet, Range => StaticRange}
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
+case class Counter() {
+  import scala.collection.mutable.HashMap
+  private var counter: Int = 0
+  private val map: HashMap[String, Int] = HashMap[String, Int]()
+  override def toString: String =
+    map.toList.sortBy(_._2).map(p => s"  ${p._1} -> ${p._2}").mkString("\n")
+  def count: Int = counter
+  def reset: Unit = { counter = 0; map.clear }
+  def fresh: Int = try { counter } finally { counter += 1 }
+  def get(s: String): Int = {
+    require(s.contains("_"))
+    if (map.contains(s)) map(s) else try { fresh } finally { map(s) = count-1 }
+  }
+}
+
+object Counter {
+  import scala.collection.mutable.HashMap
+  val block = Counter()
+  val variable = Counter()
+  val branchStat: HashMap[Int, Int] = HashMap[Int, Int]()
+  def setBranchNum(ctx: Ctx, n: Int): Unit = {
+    val blockId = Counter.block.get(ctx.toString)
+    if (!branchStat.contains(blockId)) branchStat(blockId) = n
+  }
+}
+
 trait BasicDefs { self: SAIOps =>
   trait Mem; trait Stack
   trait SS;  trait PC; trait FS
@@ -48,32 +74,20 @@ trait BasicDefs { self: SAIOps =>
   def initState(m: Rep[Mem]): Rep[SS] = "init-ss".reflectWriteWith[SS](m)(Adapter.CTRL)
   def checkPCToFile(s: Rep[SS]): Unit = "check_pc_to_file".reflectWriteWith[Unit](s)(Adapter.CTRL)
   def checkPC(pc: Rep[PC]): Rep[Boolean] = "check_pc".reflectWriteWith[Boolean](pc)(Adapter.CTRL)
-}
 
-object BlockCounter {
-  private var counter: Int = 0
-  def count: Int = counter
-  def reset: Unit = counter = 0
-  def fresh: Int = try { counter } finally { counter += 1 }
+  def varId(x: String)(implicit ctx: Ctx): Int =
+    if (x == "Vararg") -1 else Counter.variable.get(ctx.withVar(x))
 }
 
 trait Coverage { self: SAIOps =>
   object Coverage {
-    import scala.collection.mutable.HashMap
-    private val blockMap: HashMap[String, Int] = HashMap[String, Int]()
-    def getBlockId(s: String): Int =
-      if (blockMap.contains(s)) blockMap(s)
-      else {
-        val id = BlockCounter.fresh
-        blockMap(s) = id
-        id
-      }
+    def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](Counter.block.count)(Adapter.CTRL)
+    def incBlock(funName: String, label: String): Rep[Unit] = incBlock(Ctx(funName, label))
+    def incBlock(ctx: Ctx): Rep[Unit] =
+      "cov-inc-block".reflectWriteWith[Unit](Counter.block.get(ctx.toString))(Adapter.CTRL)
+    def incBranch(ctx: Ctx, n: Int): Unit =
+      "cov-inc-br".reflectWriteWith[Unit](Counter.block.get(ctx.toString), n)(Adapter.CTRL)
 
-    def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](BlockCounter.count)(Adapter.CTRL)
-    def incBlock(funName: String, label: String): Rep[Unit] = {
-      val blockId = getBlockId(funName + label)
-      "cov-inc-block".reflectWriteWith[Unit](blockId)(Adapter.CTRL)
-    }
     def incPath(n: Rep[Int]): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def incInst(n: Int): Rep[Unit] = "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL)
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)

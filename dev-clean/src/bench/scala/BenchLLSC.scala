@@ -40,20 +40,23 @@ abstract class TestLLSC extends FunSuite {
 
   case class TestResult(time: LocalDateTime, commit: String, engine: String, testName: String,
     extSolverTime: Double, intSolverTime: Double, wholeTime: Double, blockCov: Double,
-    pathNum: Int, brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int) {
+    partialBrCov: Double, fullBrCov: Double, pathNum: Int, brQueryNum: Int,
+    testQueryNum: Int, cexCacheHit: Int) {
     override def toString() =
-      s"$time,$commit,$engine,$testName,$extSolverTime,$intSolverTime,$wholeTime,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
+      s"$time,$commit,$engine,$testName,$extSolverTime,$intSolverTime,$wholeTime,$partialBrCov,$fullBrCov,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
   }
 
   val gitCommit = Process("git rev-parse --short HEAD").!!.trim
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
-    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
-      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
+      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll,
+        partialBr, fullBr, totalBr, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
         TestResult(LocalDateTime.now(), gitCommit, engine, testName,
           extSolverTime.toDouble, intSolverTime.toDouble, wholeTime.toDouble,
-          blockCnt.toDouble / blockAll.toDouble, pathNum.toInt, brQuerynum.toInt,
+          blockCnt.toDouble/blockAll.toDouble, partialBr.toDouble/totalBr.toDouble,
+          fullBr.toDouble/totalBr.toDouble, pathNum.toInt, brQuerynum.toInt,
           testQueryNum.toInt, cexCacheHit.toInt)
     }
   }

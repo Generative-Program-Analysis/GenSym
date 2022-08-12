@@ -8,11 +8,14 @@
 // Some note on overhead: recording coverage 1m path/block exec poses ~2.5sec overhead.
 struct Monitor {
   private:
-    using BlockId = std::int64_t;
+    using BlockId = uint64_t;
+    using BranchId = uint64_t;
     // Total number of blocks
     uint64_t num_blocks;
     // The number of execution for each block
     std::vector<std::atomic_uint64_t> block_cov;
+    // The number of execution for each branch
+    std::map<BlockId, std::map<BranchId, std::atomic_uint64_t>> branch_cov;
     // Number of discovered paths
     std::atomic_uint64_t num_paths;
     // Number of executed instructions
@@ -24,13 +27,26 @@ struct Monitor {
 
   public:
     Monitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
-    Monitor(uint64_t num_blocks) :
+    Monitor(uint64_t num_blocks, std::vector<std::pair<unsigned, unsigned>> branch_num) :
       num_blocks(num_blocks), num_paths(0),
       block_cov(num_blocks),
-      start(steady_clock::now()) {}
+      start(steady_clock::now()) {
+      // `branch_num` contains the ids of blocks whose terminator is br/switch,
+      // for each of such block, `br_arity` is the number of branches.
+      for (const auto& [blk_id, br_arity] : branch_num) {
+        branch_cov[blk_id] = std::map<BranchId, std::atomic_uint64_t>();
+        ASSERT(br_arity > 0, "Wrong number of branches");
+        for (auto i = 0; i < br_arity; i++) {
+          branch_cov[blk_id][i] = 0;
+        }
+      }
+    }
 
     void inc_block(BlockId b) {
       block_cov[b]++;
+    }
+    void inc_branch(BlockId b, BranchId x) {
+      branch_cov[b][x]++;
     }
     void inc_path(size_t n) {
       num_paths += n;
@@ -53,14 +69,49 @@ struct Monitor {
                 << std::flush;
     }
     void print_block_cov_detail() {
-      print_block_cov();
+      size_t covered = 0;
+      for (auto& v : block_cov) { if (v != 0) covered++; }
+      std::cout << "Block coverage: " << covered << "/" << num_blocks << "\n";
       for (int i = 0; i < block_cov.size(); i++) {
-        std::cout << "Block: " << i << "; "
-                  << "visited: " << block_cov[i] << "\n"
+	if (block_cov[i] == 0) continue;
+        std::cout << "  Block " << i << ", "
+                  << "visited " << block_cov[i] << "\n"
                   << std::flush;
       }
     }
-    void print_async() {
+    void print_branch_cov() {
+      // number of branches that at least one outcome is covered
+      size_t partial_branch = 0;
+      // number of branches that all possible outcomes are covered
+      size_t full_branch = 0;
+      for (const auto& [blk_id, br_map] : branch_cov) {
+	bool partial_cov = false;
+	bool full_cov = true;
+	for (const auto& [br_id, br_exe_num] : br_map) {
+	  partial_cov |= (br_exe_num > 0);
+	  full_cov &= (br_exe_num > 0);
+	}
+	if (partial_cov) partial_branch++;
+	if (full_cov) full_branch++;
+      }
+      // We output the number of partial branches excluding fully covered branches
+      std::cout << "#br: "
+	        << (partial_branch - full_branch) << "/"
+	        << full_branch << "/"
+	        << branch_cov.size() << "; "
+	        << std::flush;
+    }
+    void print_branch_cov_detail() {
+      std::cout << "Branch coverage: \n";
+      for (const auto& [blk_id, br_map] : branch_cov) {
+	std::cout << "Block " << blk_id << "\n";
+	for (const auto& [br_id, br_exe_num] : br_map) {
+	  std::cout << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
+	}
+      }
+      std:: cout << std::flush;
+    }
+    void print_thread_pool() {
       std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
     }
     void print_query_stat() {
@@ -76,9 +127,14 @@ struct Monitor {
       print_time(done);
       if (print_inst_cnt) print_inst_stat();
       print_block_cov();
+      print_branch_cov();
       print_path_cov();
-      print_async();
+      print_thread_pool();
       print_query_stat();
+      if (done && print_cov_detail) {
+	print_block_cov_detail();
+	print_branch_cov_detail();
+      }
     }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();
@@ -87,7 +143,8 @@ struct Monitor {
           steady_clock::time_point now = steady_clock::now();
           if (duration_cast<seconds>(now - start) > seconds(timeout)) {
             std::cout << "Timeout, aborting.\n";
-            print_all();
+            stop = now;
+            print_all(true);
             _exit(0);
             // Note: Directly exit may cause other threads in a random state.
             // When using the thread pool, we could use the following to wait
