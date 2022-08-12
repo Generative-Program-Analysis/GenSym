@@ -17,7 +17,7 @@ libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.9.3"
 libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
 
 Compile / unmanagedJars += {
-  baseDirectory.value / "unmanaged" / s"scalaz3_2.12-4.7.1.jar"
+  baseDirectory.value / "third-party" / s"scalaz3_2.12-4.7.1.jar"
 }
 
 scalacOptions ++= Seq(
