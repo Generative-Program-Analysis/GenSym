@@ -2,8 +2,9 @@
 #define LLSC_CLIENT_HEADERS
 
 #include <stdio.h>
-#include "stdint.h"
+#include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
 #include <stdbool.h>
 
 // TODO: support assigning names for symbolic values
@@ -11,6 +12,7 @@
 /* Construct `byte_size` 8-bitvectors starting at address `addr`.
  */
 void make_symbolic(void* addr, size_t byte_size);
+void llsc_make_symbolic(void* addr, size_t byte_size, char* name);
 
 /* Construct a single bitvector of size `byte_size`*8 at address `addr`.
  */
@@ -22,7 +24,7 @@ void llsc_assert(bool);
 void llsc_assert_eager(bool);
 
 void llsc_assume(bool);
-
+void sym_print(int, ...);
 void print_string(const char *message);
 
 /* llsc_range - Construct a symbolic value in the signed interval

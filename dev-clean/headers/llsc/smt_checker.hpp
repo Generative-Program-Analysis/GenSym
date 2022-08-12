@@ -216,7 +216,7 @@ public:
         ABORT("Cannot create the test case file, abort.\n");
       }
       for (auto [k, v]: *model) {
-        output << k->name << " == " << v << std::endl;
+        output << k->name << "=" << v << std::endl;
       }
       int n = write(out_fd, output.str().c_str(), output.str().size());
       close(out_fd);
