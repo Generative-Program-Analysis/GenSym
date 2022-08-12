@@ -1,9 +1,3 @@
-[submodule "lms-clean"]
-  path = third-party/lms-clean
-  url = https://github.com/TiarkRompf/lms-clean.git
-  branch = master
-  ignore = dirty
-
 [submodule "immer"]
 	path = third-party/immer
   url = https://github.com/arximboldi/immer.git
@@ -24,4 +18,9 @@
 [submodule "third-party/parallel-hashmap"]
   path = third-party/parallel-hashmap
   url = https://github.com/greg7mdp/parallel-hashmap.git
+  ignore = dirty
+
+[submodule "third-party/lms-clean"]
+	path = third-party/lms-clean
+	url = https://github.com/TiarkRompf/lms-clean
   ignore = dirty
