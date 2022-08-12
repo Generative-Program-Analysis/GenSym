@@ -10,6 +10,7 @@
 #ifdef PURE_STATE
 using Cont = std::function<std::monostate(SS, PtrVal)>;
 #endif
+
 #ifdef IMPURE_STATE
 using Cont = std::function<std::monostate(SS&, PtrVal)>;
 #endif
@@ -19,6 +20,7 @@ template<typename T> using __Halt = std::function<T(SS, List<PtrVal>)>;
 
 /******************************************************************************/
 
+/* `stop` only stops the execution of current path. */
 inline List<SSVal> stop(SS state, List<PtrVal> args) {
   check_pc_to_file(state);
   return List<SSVal>{};
@@ -34,6 +36,59 @@ inline List<SSVal> noop(SS state, List<PtrVal> args) {
 }
 inline std::monostate noop(SS state, List<PtrVal> args, Cont k) {
   return k(state, make_IntV(0));
+}
+
+inline List<SSVal> _exit(SS state, List<PtrVal> args) {
+  return stop(state, args);
+}
+
+inline std::monostate _exit(SS state, List<PtrVal> args, Cont k) {
+  return stop(state, args, k);
+}
+
+inline List<SSVal> exit(SS state, List<PtrVal> args) {
+  return stop(state, args);
+}
+
+inline std::monostate exit(SS state, List<PtrVal> args, Cont k) {
+  return stop(state, args, k);
+}
+
+inline List<SSVal> abort(SS state, List<PtrVal> args) {
+  return stop(state, List<PtrVal>{make_IntV(-1)});
+}
+
+inline std::monostate abort(SS state, List<PtrVal> args, Cont k) {
+  return stop(state, List<PtrVal>{make_IntV(-1)}, k);
+}
+
+/******************************************************************************/
+
+/* `__sym_exit` stops the whole execution of all paths. */
+template<typename T>
+inline T __sym_exit(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  ASSERT(args.size() == 1, "sym_exit accepts exactly one argument");
+  auto v = args.at(0)->to_IntV();
+  ASSERT(v != nullptr, "sym_exit only accepts integer argument");
+  int status = v->as_signed();
+  check_pc_to_file(state);
+  if (can_par_tp()) {
+    // XXX: brutally call _exit? then what should happen if two threads are calling sym_exit?
+    tp.stop_all_tasks();
+    set_exit_code(status);
+    return k(state, nullptr);
+  } else {
+    cov().print_all();
+    _exit(status);
+  }
+}
+
+inline List<SSVal> sym_exit(SS state, List<PtrVal> args) {
+  return __sym_exit<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{}; });
+}
+
+inline std::monostate sym_exit(SS state, List<PtrVal> args, Cont k) {
+  return __sym_exit<std::monostate>(state, args, [](auto s, auto v) { return std::monostate{}; });
 }
 
 /******************************************************************************/
@@ -100,11 +155,10 @@ inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
       int bytes_num = bytes.size();
       ASSERT(bytes_num > 0, "Invalid bytes");
       // All bytes must be concrete IntV
-      for (int j=0; j<bytes_num; j++) {
+      for (int j = 0; j < bytes_num; j++) {
         buf[i] = (char) get_int_arg(state, bytes.at(j));
         i++;
-        if (i >= size)
-          break;
+        if (i >= size) break;
       }
     } else {
       buf[i] = '\0';
@@ -113,10 +167,8 @@ inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
   }
 }
 
-inline char * get_pointer_arg(SS& state, PtrVal loc) {
-  if (is_LocV_null(loc)) {
-    return nullptr;
-  }
+inline char* get_pointer_arg(SS& state, PtrVal loc) {
+  if (is_LocV_null(loc)) return nullptr;
   ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
   size_t count = get_pointer_realsize(loc);
   char * buf = (char*)malloc(count);
@@ -158,34 +210,6 @@ inline List<SSVal> sym_print(SS state, List<PtrVal> args) {
 
 inline std::monostate sym_print(SS state, List<PtrVal> args, Cont k) {
   return __sym_print<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
-}
-
-/******************************************************************************/
-
-template<typename T>
-inline T __sym_exit(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  ASSERT(args.size() == 1, "sym_exit accepts exactly one argument");
-  auto v = args.at(0)->to_IntV();
-  ASSERT(v != nullptr, "sym_exit only accepts integer argument");
-  int status = v->as_signed();
-  check_pc_to_file(state);
-  if (can_par_tp()) {
-    // XXX: brutally call _exit? then what should happen if two threads are calling sym_exit?
-    tp.stop_all_tasks();
-    set_exit_code(status);
-    return k(state, nullptr);
-  } else {
-    cov().print_all();
-    _exit(status);
-  }
-}
-
-inline List<SSVal> sym_exit(SS state, List<PtrVal> args) {
-  return __sym_exit<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{}; });
-}
-
-inline std::monostate sym_exit(SS state, List<PtrVal> args, Cont k) {
-  return __sym_exit<std::monostate>(state, args, [](auto s, auto v) { return std::monostate{}; });
 }
 
 /******************************************************************************/
@@ -281,36 +305,6 @@ inline std::monostate llsc_assume(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-inline List<SSVal> _exit(SS state, List<PtrVal> args) {
-  return stop(state, args);
-}
-
-inline std::monostate _exit(SS state, List<PtrVal> args, Cont k) {
-  return stop(state, args, k);
-}
-
-/******************************************************************************/
-
-inline List<SSVal> exit(SS state, List<PtrVal> args) {
-  return stop(state, args);
-}
-
-inline std::monostate exit(SS state, List<PtrVal> args, Cont k) {
-  return stop(state, args, k);
-}
-
-/******************************************************************************/
-
-inline List<SSVal> abort(SS state, List<PtrVal> args) {
-  return stop(state, List<PtrVal>{make_IntV(-1)});
-}
-
-inline std::monostate abort(SS state, List<PtrVal> args, Cont k) {
-  return stop(state, List<PtrVal>{make_IntV(-1)}, k);
-}
-
-/******************************************************************************/
-
 template<typename T>
 inline T ____errno_location(SS& state, List<PtrVal>& args, __Cont<T> k) {
   return k(state, state.error_loc());
@@ -324,18 +318,17 @@ inline std::monostate __errno_location(SS state, List<PtrVal> args, Cont k) {
   return ____errno_location<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
+/******************************************************************************/
+
 // Todo: could use is_conc method of struct value
 template<typename T>
 inline T __llsc_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);
   ASSERT(v, "null pointer");
   auto sym_v = std::dynamic_pointer_cast<SymV>(v);
-  if (sym_v) {
-    return k(state, make_IntV(1, 32));
-  } else {
-    ASSERT(std::dynamic_pointer_cast<IntV>(v), "non-intv");
-    return k(state, make_IntV(0, 32));
-  }
+  if (sym_v) return k(state, make_IntV(1, 32));
+  ASSERT(std::dynamic_pointer_cast<IntV>(v), "non-intv");
+  return k(state, make_IntV(0, 32));
 }
 
 inline List<SSVal> llsc_is_symbolic(SS state, List<PtrVal> args) {
@@ -346,14 +339,14 @@ inline std::monostate llsc_is_symbolic(SS state, List<PtrVal> args, Cont k) {
   return __llsc_is_symbolic<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
+/******************************************************************************/
+
 template<typename T>
 inline T __llsc_get_valuel(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);
   ASSERT(v, "null pointer");
   auto i = v->to_IntV();
-  if (i) {
-    return k(state, v);
-  }
+  if (i) return k(state, v);
   auto sym_v = std::dynamic_pointer_cast<SymV>(v);
   ASSERT(sym_v, "get value of non-symbolic variable");
   ASSERT(64 == sym_v->get_bw(), "Bitwidth mismatch");
@@ -370,6 +363,7 @@ inline std::monostate llsc_get_valuel(SS state, List<PtrVal> args, Cont k) {
   return __llsc_get_valuel<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
+/******************************************************************************/
 
 template<typename T>
 inline T __getpagesize(SS& state, List<PtrVal>& args, __Cont<T> k) {
@@ -384,6 +378,5 @@ inline List<SSVal> getpagesize(SS state, List<PtrVal> args) {
 inline std::monostate getpagesize(SS state, List<PtrVal> args, Cont k) {
   return __getpagesize<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
-
 
 #endif

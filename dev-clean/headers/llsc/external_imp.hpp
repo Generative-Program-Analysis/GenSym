@@ -28,6 +28,27 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
 /******************************************************************************/
 
 template<typename T>
+inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
+  auto v = args.at(0);
+  auto i = v->to_IntV();
+  if (i) {
+    if (i->i == 0) return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
+    return k(state, make_IntV(1, 32));
+  }
+  // otherwise add a symbolic condition that constraints it to be true
+  // undefined/error if v is a value of other types
+  ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
+  auto cond = v;
+  auto pc = state.get_PC();
+  pc.add(cond);
+  if (!check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is satisfiable
+  state.set_PC(pc);
+  return k(state, make_IntV(1, 32));
+}
+
+/******************************************************************************/
+
+template<typename T>
 inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
@@ -64,7 +85,6 @@ inline std::monostate make_symbolic_whole(SS& state, List<PtrVal> args, Cont k) 
   return __make_symbolic_whole<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
-
 /******************************************************************************/
 
 template<typename T>
@@ -84,6 +104,8 @@ inline List<SSVal> malloc(SS& state, List<PtrVal> args) {
 inline std::monostate malloc(SS& state, List<PtrVal> args, Cont k) {
   return __malloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
+
+/******************************************************************************/
 
 template<typename T>
 inline T __memalign(SS& state, List<PtrVal>& args, __Cont<T> k) {
@@ -270,11 +292,10 @@ inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
       if (std::dynamic_pointer_cast<SymV>(old_val)) {
         i = i + bytes_num;
       } else {
-        for (int j=0; j<bytes_num; j++) {
+        for (int j = 0; j < bytes_num; j++) {
           state.update(ptr + i, make_IntV(buf[i], 8));
           i++;
-          if (i >= size)
-            break;
+          if (i >= size) break;
         }
       }
     } else {
@@ -295,6 +316,7 @@ inline void writeback_pointer_arg(SS& state, PtrVal loc, void* buf) {
   free(buf);
 }
 
+// TODO: should we put this (and the one in external_pure.hpp) into external_shared.hpp?
 class ShadowMemEntry {
   private:
   char* buf;
@@ -488,7 +510,6 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
   }
 
   //std::cout << "syscall_num: " << syscall_number << "  retval: " << retval << std::endl;
-
   return k(state, make_IntV(retval, 64));
 }
 
@@ -541,27 +562,6 @@ inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   state.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
   state.update(dst_va_list + 16, state.at(src_va_list + 16, 8), 8);
   return k(state, IntV0);
-}
-
-/******************************************************************************/
-
-template<typename T>
-inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
-  auto v = args.at(0);
-  auto i = v->to_IntV();
-  if (i) {
-    if (i->i == 0) return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
-    return k(state, make_IntV(1, 32));
-  }
-  // otherwise add a symbolic condition that constraints it to be true
-  // undefined/error if v is a value of other types
-  ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
-  auto cond = v;
-  auto pc = state.get_PC();
-  pc.add(cond);
-  if (!check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is satisfiable
-  state.set_PC(pc);
-  return k(state, make_IntV(1, 32));
 }
 
 #endif

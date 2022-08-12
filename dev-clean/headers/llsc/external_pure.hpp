@@ -31,6 +31,32 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
 /******************************************************************************/
 
 template<typename T>
+inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
+  auto v = args.at(0);
+  auto i = v->to_IntV();
+  if (i) {
+    if (i->i == 0) {
+      // concrete false - generate the test and ``halt''
+      std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
+      return h(state, { make_IntV(-1) });
+    }
+    return k(state, make_IntV(1, 32));
+  }
+  ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
+  // otherwise add a symbolic condition that constraints it to be true
+  // undefined/error if v is a value of other types
+  auto cond = v;
+  auto new_s = state.add_PC(cond);
+  if (!check_pc(new_s.get_PC())) {
+    std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
+    return h(new_s, { make_IntV(-1) }); // check if v == 1 is satisfiable
+  }
+  return k(new_s, make_IntV(1, 32));
+}
+
+/******************************************************************************/
+
+template<typename T>
 inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
@@ -88,6 +114,8 @@ inline std::monostate malloc(SS state, List<PtrVal> args, Cont k) {
   // TODO: in the thread pool version, we should add task into the pool when forking
   return __malloc<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
+
+/******************************************************************************/
 
 template<typename T>
 inline T __memalign(SS& state, List<PtrVal>& args, __Cont<T> k) {
@@ -284,11 +312,10 @@ inline SS copy_native2state(SS state, PtrVal ptr, char* buf, int size) {
         // Todo: should we overwrite symbolic variables?
         i = i + bytes_num;
       } else {
-        for (int j=0; j<bytes_num; j++) {
+        for (int j = 0; j < bytes_num; j++) {
           res = res.update(ptr + i, make_IntV(buf[i], 8));
           i++;
-          if (i >= size)
-            break;
+          if (i >= size) break;
         }
       }
     } else {
@@ -313,29 +340,18 @@ inline SS writeback_pointer_arg(SS state, PtrVal loc, void* buf) {
 
 class ShadowMemEntry {
   private:
-  char* buf = nullptr;
+  char* buf;
   public:
   size_t size;
   PtrVal mem_addr;
-  ShadowMemEntry(PtrVal addr, size_t size) {
+  ShadowMemEntry(PtrVal addr, size_t size) : buf(new char[size+1]), mem_addr(addr), size(size) {
     ASSERT(std::dynamic_pointer_cast<LocV>(addr) != nullptr, "Non-location value");
-    this->buf = (char*) malloc(size+1);
-    memset(this->buf, 0, size+1);
-    this->mem_addr = addr;
-    this->size = size;
+    memset(buf, 0, size+1);
   }
-  ~ShadowMemEntry() {
-    free(buf);
-  }
-  SS writeback(SS& state) {
-    return copy_native2state(state, mem_addr, buf, size);
-  }
-  void readbuf(SS state) {
-    copy_state2native(state, mem_addr, buf, size);
-  }
-  char* getbuf() {
-    return buf;
-  }
+  ~ShadowMemEntry() { delete buf; }
+  SS writeback(SS& state) { return copy_native2state(state, mem_addr, buf, size); }
+  void readbuf(SS& state) { copy_state2native(state, mem_addr, buf, size); }
+  char* getbuf() { return buf; }
 };
 
 template<typename T>
@@ -567,32 +583,6 @@ inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   res = res.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
   res = res.update(dst_va_list + 16, state.at(src_va_list + 16, 8), 8);
   return k(res, IntV0);
-}
-
-/******************************************************************************/
-
-template<typename T>
-inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
-  auto v = args.at(0);
-  auto i = v->to_IntV();
-  if (i) {
-    if (i->i == 0) {
-      // concrete false - generate the test and ``halt''
-      std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
-      return h(state, { make_IntV(-1) });
-    }
-    return k(state, make_IntV(1, 32));
-  }
-  ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
-  // otherwise add a symbolic condition that constraints it to be true
-  // undefined/error if v is a value of other types
-  auto cond = v;
-  auto new_s = state.add_PC(cond);
-  if (!check_pc(new_s.get_PC())) {
-    std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
-    return h(new_s, { make_IntV(-1) }); // check if v == 1 is satisfiable
-  }
-  return k(new_s, make_IntV(1, 32));
 }
 
 #endif
