@@ -1,4 +1,4 @@
-[![Scala CI](https://github.com/Kraks/sai/actions/workflows/scala.yml/badge.svg)](https://github.com/Kraks/sai/actions/workflows/scala.yml)
+[![Scala CI](https://github.com/Generative-Program-Analysis/GenSym/actions/workflows/scala.yml/badge.svg)](https://github.com/Generative-Program-Analysis/GenSym/actions/workflows/scala.yml)
 
 # GenSym
 
