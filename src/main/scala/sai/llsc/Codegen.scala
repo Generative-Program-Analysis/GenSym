@@ -15,8 +15,8 @@ import collection.mutable.HashMap
 trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   registerLibrary("-lz3")
   registerLibrary("-lstp")
-  registerHeader("./headers", "<llsc.hpp>")
-  registerHeader("../third-party/parallel-hashmap", "<parallel_hashmap/phmap.h>")
+  registerHeader("headers", "<llsc.hpp>")
+  registerHeader("third-party/parallel-hashmap", "<parallel_hashmap/phmap.h>")
 
   val codegenFolder: String
   // TODO: refactor to Sym => String map?

@@ -17,7 +17,7 @@ trait StringOps { b: Base =>
 
   // implicit def __liftConstString(str: String): Rep[String] = String(str)
   implicit class StringOpsExt(str: Rep[String]) /* extends StringOps(str) */ {
-    // def substring(s: Rep[Int], e: Rep[Int]): Rep[String] = 
+    // def substring(s: Rep[Int], e: Rep[Int]): Rep[String] =
     //   Wrap[String](Adapter.g.reflect("string-substring", Unwrap(str), Unwrap(s), Unwrap(e)))
     // def length: Rep[Int] = Wrap[Int](Adapter.g.reflect("string-length", Unwrap(str)))
     def split(delim: Rep[String]): Rep[List[String]] =
@@ -30,8 +30,7 @@ trait ScalaCodeGen_String extends ExtendedScalaCodeGen {
 }
 
 trait CppCodeGen_String extends ExtendedCPPCodeGen {
-
-  registerHeader("./headers", "<sai.hpp>")
+  registerHeader("headers", "<sai.hpp>")
   registerHeader("<string>")
 
   override def remap(m: Manifest[_]): String = {
