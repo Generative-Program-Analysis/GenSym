@@ -19,6 +19,7 @@ static struct option long_options[] =
   {"symloc-strategy",      required_argument, 0, 'L'},
   {"add-sym-file",         required_argument, 0, '+'},
   {"sym-file-size",        required_argument, 0, 's'},
+  {"sym-stdin",            required_argument, 0, 'n'},
   {"thread",               required_argument, 0, 't'},
   {"queue",                required_argument, 0, 'q'},
   {"solver",               required_argument, 0, 'v'},
@@ -122,6 +123,12 @@ inline void handle_cli_args(int argc, char** argv) {
         default_sym_file_size = atoi(optarg);
         INFO("set symfile size to " << default_sym_file_size << "\n");
         break;
+      case 'n': {
+        int size = atoi(optarg);
+        initial_fs.set_stdin((size < 0) ? 0 : size);
+        INFO("set stdin size to " << size << "\n");
+        break;
+      }
       case 't': {
         int t = atoi(optarg);
         n_thread = (t <= 0) ? 1 : t;

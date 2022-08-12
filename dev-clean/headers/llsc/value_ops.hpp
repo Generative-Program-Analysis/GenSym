@@ -387,6 +387,8 @@ inline int proj_LocV_size(const PtrVal& v) {
 
 inline PtrVal make_LocV_null() {
   static const PtrVal loc0 = make_IntV(0, 64);
+  /* // use LocV */
+  /* static const PtrVal loc0 = make_LocV(0, LocV::kStack, 8); */
   return loc0;
 }
 
@@ -902,6 +904,10 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
     ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
     auto new_off = int_op_2(iOP::op_add, off, rhs);
     return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
+  }
+  if (auto intloc = std::dynamic_pointer_cast<IntV>(lhs)) {
+    INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());
+    return int_op_2(iOP::op_add, intloc, rhs);
   }
   ABORT("Unknown application of operator+");
 }

@@ -1,22 +1,24 @@
 #ifndef LLSC_FS_HEADERS
 #define LLSC_FS_HEADERS
+/* NOTE: FS var naming convention:
+ * symfile content: fs_file_<filename>_x<n>. E.g. fs_file_A_x0 is the variable name for the first byte in file A
+ * symfile stat:    fs_stat_<filename>_x<n>. E.g. fs_stat_A_x0 is the variable name for the first byte in file A's stat
+ */
 
 inline std::atomic<unsigned int> fs_var_name = 0;
 inline int default_sym_file_size = 5;
-inline const int stat_size = 144;
+extern const int stat_size;
+extern const int statfs_size;
 
-inline PtrVal make_SymV_fs(int bw = 8) {
-  return make_SymV("fs_x" + std::to_string(fs_var_name++), bw);
+// return a list of PtrVal with the specified variable prefix
+inline List<PtrVal> make_SymList(String prefix, int n) {
+    TrList<PtrVal> res;
+    for (int i = 0; i < n; i++) {
+        res.push_back(make_SymV(prefix + "_x" + std::to_string(i), 8));
+    }
+    return res.persistent();
 }
 
-/* TODO: generate this function and other utilties <2022-05-08, David Deng> */
-inline List<PtrVal> fresh_sym_stat() {
-  TrList<PtrVal> stat;
-  for (int i = 0; i < stat_size; ++i) {
-    stat.push_back(make_SymV(fresh("fs_x"), 8));
-  }
-  return stat.persistent();
-}
 
 struct File: public Printable {
   String name;
@@ -45,8 +47,20 @@ struct File: public Printable {
     return ss.str();
   }
 
-  File(String name, List<PtrVal> content={}, List<PtrVal> stat=List<PtrVal>(stat_size)) :
-    name(name), content(content), stat(stat) {}
+  File(String name, int size) : name(name) {
+    this->content = make_SymList("fs_file_" + name, size);
+    this->stat = make_SymList("fs_stat_" + name, stat_size);
+  }
+
+  File(String name, List<PtrVal> content) : name(name) {
+    this->content = content;
+    this->stat = make_SymList("fs_stat_" + name, stat_size);
+  }
+
+  File(String name, List<PtrVal> content, List<PtrVal> stat) : name(name) {
+    this->content = content;
+    this->stat = stat;
+  }
   File(const File& f) = default;
 
   /* NOTE: should only manipulate File objects through pointers <2022-07-11, David Deng> */
@@ -69,18 +83,10 @@ struct File: public Printable {
 };
 
 // return a symbolic file with size bytes
-/* TODO: add a global fileId counter, and a map from fileId to file instance
- * Purpose 1: For supporting directory structure
- * Purpose 2: To avoid potentially conflicting var names in sym values
- * <2022-02-07, David Deng> */
 inline Ptr<File> make_SymFile(String name, size_t size) {
-  TrList<PtrVal> content;
-  for (int i = 0; i < size; i++) {
-    content.push_back(make_SymV_fs());
-  }
-  auto stat = fresh_sym_stat();
-  return std::make_shared<File>(name, content.persistent(), stat);
+  return std::make_shared<File>(name, size);
 };
+
 
 /* TODO: model the lowest file descriptor guarantee? */
 
@@ -114,11 +120,19 @@ struct FS: public Printable {
   Ptr<File> root_file;
   /* immer::map<String, Ptr<File>> files; */
   Fd next_fd;
+  List<PtrVal> statfs;
 
   Fd get_fresh_fd() {
     /* TODO: traverse through opened files to find the lowest available fd <2022-01-25, David Deng> */
     return next_fd++;
   }
+
+  void set_stdin(int size) {
+    auto f = make_SymFile("@stdin", size);
+    root_file->children = root_file->children.set("@stdin", f);
+    opened_files = opened_files.set(0, std::make_shared<Stream>(f, O_RDONLY, 0));
+  }
+
   String toString() const override {
     std::ostringstream ss;
     ss << "FS(nstreams=" << opened_files.size();
@@ -130,13 +144,14 @@ struct FS: public Printable {
     ss << "])";
     return ss.str();
   }
-  FS() : next_fd(3), root_file(std::make_shared<File>("/")) {
-    // default initialize opened_files and files
-    /* TODO: set up stdin and stdout using fd 1 and 2 <2021-11-03, David Deng> */
-  }
   FS(const FS &fs) = default;
+  FS() : next_fd(3), root_file(make_SymFile("/", 0)) {
+    statfs = make_SymList("fs_statfs", statfs_size);
+  }
   FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file) :
-    opened_files(opened_files), root_file(root_file), next_fd(3) {}
+    opened_files(opened_files), root_file(root_file), next_fd(3) {
+      statfs = make_SymList("fs_statfs", statfs_size);
+    }
 };
 
 inline FS initial_fs;

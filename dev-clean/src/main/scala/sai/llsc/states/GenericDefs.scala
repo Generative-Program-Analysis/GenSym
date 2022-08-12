@@ -134,7 +134,8 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray"
     )
     private val syscalls = ImmSet[String](
-      "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown"
+      "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown",
+      "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
     val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
     private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
@@ -260,8 +261,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply(s: String): Rep[SymV] = apply(s, DEFAULT_INT_BW)
     def apply(s: String, bw: Int): Rep[SymV] =
       "make_SymV".reflectWriteWith[SymV](unit(s), bw)(Adapter.CTRL)  //XXX: reflectMutable?
-    def makeSymVList(i: Int): Rep[List[Value]] =
-      List[SymV](Range(0, i).map(x => apply("x" + x.toString)):_*)
+    def makeSymVList(i: Int, pfx: String = "x", b: Int = 0): Rep[List[Value]] =
+      List[SymV](Range(b, b+i).map(x => apply(pfx + x.toString)):_*)
     def unapply(v: Rep[Value]): Option[(String, Int)] = Unwrap(v) match {
       case gNode("make_SymV", bConst(x: String)::bConst(bw: Int)::_) => Some((x, bw))
       case _ => None

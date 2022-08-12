@@ -10,7 +10,14 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0) return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
+    if (i->i == 0) 
+    {
+      if (args.size() >= 2) {
+        auto msg = get_string_arg(state, args.at(1));
+        std::cout << "Eager assertion error: " << msg << std::endl;
+      }
+      return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
+    }
     return k(state, make_IntV(1, 32));
   }
   // otherwise add a symbolic condition that constraints it to be true

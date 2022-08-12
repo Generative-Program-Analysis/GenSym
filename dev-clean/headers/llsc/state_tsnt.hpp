@@ -119,6 +119,8 @@ public:
     auto first = lookup(idx, size);
     auto part = first.intersect({nullptr, idx, size_t(size)});
     auto cur = part.val;
+    // part.size is unsigned, size will be casted to unsigned
+    ASSERT(size > 0, "size should be greater than zero");
     if (part.size < size) {
       auto next = at(idx + part.size, size - part.size);
       possible_partial_undef(cur);
@@ -401,7 +403,7 @@ class SS {
       ASSERT(s, "failed to read struct");
       return s->fs;
     }
-    PtrVal heap_lookup(size_t addr) { return heap.at(addr, -1); }
+    PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     BlockLabel incoming_block() { return bb; }
     SS&& alloc_stack(size_t size) {
 #ifdef LAZYALLOC

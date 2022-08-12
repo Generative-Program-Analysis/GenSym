@@ -2,6 +2,7 @@ package sai.llsc
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.llsc.IRUtils._
 
 import lms.core._
 import lms.core.Backend._
@@ -147,7 +148,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
     f.stat = List(st.map(IntV(_, 8)): _*)
     val mode = f.readStatField("st_mode")
 
-    val (pos, len) = statFieldMap("st_mode")
+    val (pos, len) = StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, "st_mode"))
     val modeAssert = "from-bytes".reflectWith[Value](List(st.drop(pos).take(len).map(IntV(_, 8)): _*))
     assertEq(mode, modeAssert, "testReadStatField")
   }

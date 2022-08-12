@@ -1,7 +1,6 @@
 #include <fcntl.h>
 #include <unistd.h>
-
-#define SIZE 10
+#include <errno.h>
 
 int main()
 {
@@ -13,31 +12,39 @@ int main()
   llsc_assert_eager(fd != -1);
 
   pos = lseek(fd, 5, SEEK_SET);
-  sym_print(pos);
   llsc_assert_eager(pos == 5);
   pos = lseek(fd, 2, SEEK_CUR);
-  sym_print(pos);
   llsc_assert_eager(pos == 7);
+
+  // seek an absolute position
+  pos = lseek(fd, 1, SEEK_SET);
+  llsc_assert_eager(pos == 1);
 
   // seek beyond end
   pos = lseek(fd, 3, SEEK_END);
-  sym_print(pos);
-  llsc_assert_eager(pos == SIZE + 3);
+  llsc_assert_eager(pos == 10 + 3);
 
   // invalid seeks
+  errno = 0;
   pos = lseek(fd, -5, SEEK_SET);
-  sym_print(pos);
   llsc_assert_eager(pos == -1);
+  llsc_assert_eager(errno == EINVAL);
 
-  pos = lseek(fd, 1, SEEK_SET);
-  sym_print(pos);
-  llsc_assert_eager(pos == 1);
+  lseek(fd, 0, SEEK_SET);
+  errno = 0;
   pos = lseek(fd, -3, SEEK_CUR);
-  sym_print(pos);
   llsc_assert_eager(pos == -1);
+  llsc_assert_eager(errno == EINVAL);
 
+  errno = 0;
   pos = lseek(fd, -12, SEEK_END);
-  sym_print(pos);
   llsc_assert_eager(pos == -1);
+  llsc_assert_eager(errno == EINVAL);
+
+  errno = 0;
+  pos = lseek(-1, 0, SEEK_CUR);
+  llsc_assert_eager(pos == -1);
+  llsc_assert_eager(errno == EBADF);
+
   return 0;
 }

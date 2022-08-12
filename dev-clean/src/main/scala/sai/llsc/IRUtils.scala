@@ -125,6 +125,11 @@ object IRUtils {
     def getFieldOffset(types: List[LLVMType], idx: Int): Int =
       fields(types.take(idx+1))._1
 
+    def getFieldOffsetSize(types: List[LLVMType], idx: Int): (Int, Int) = {
+      val (begin, end, align) = fields(types.take(idx+1))
+      (begin, end - begin)
+    }
+
     def concat[E, T](cs: List[E], fill: Int => List[T])(f: E => (List[T], Int)): (List[T], Int) = {
       val (list, align) = cs.foldLeft((List[T](), 0)) { case ((list, maxalign), c) =>
         val (value, align) = f(c)

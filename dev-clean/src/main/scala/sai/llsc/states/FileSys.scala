@@ -2,6 +2,7 @@ package sai.llsc
 
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
+import sai.llsc.IRUtils._
 
 import sai.structure.freer._
 import Eff._
@@ -19,7 +20,7 @@ import lms.core.stub.{While => _, _}
 import sai.lmsx._
 import sai.lmsx.smt.SMTBool
 
-import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
+import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet, ListMap}
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 @virtualize
@@ -27,26 +28,87 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
   trait File
   trait Stream
 
-  // TODO: refactor using getTySize and calculateOffsetStatic <2022-05-26, David Deng> //
-  val statFieldMap: Map[String, (Int, Int)] = StaticMap(
-      "st_dev" -> (0, 8),
-      "st_ino" -> (8, 8),
-      "st_nlink" -> (16, 8),
-      "st_mode" -> (24, 4),
-      "st_uid" -> (28, 4),
-      "st_gid" -> (32, 4),
-      // padding, (36, 4)},
-      "st_rdev" -> (40, 8),
-      "st_size" -> (48, 8),
-      "st_blksi" -> (56, 8),
-      "st_block" -> (64, 8),
-      "st_atim" -> (72, 16),
-      "st_mtim" -> (88, 16),
-      "st_ctim" -> (104, 16),
-  )
+  // %struct.stat = type { i64, i64, i64, i32, i32, i32, i32 (padding), i64, i64, i64, i64, %struct.timespec, %struct.timespec, %struct.timespec, [3 x i64] }
+  // %struct.timespec = type { i64, i64 }
+
+  // TODO: model nested fields? <2022-08-09, David Deng> //
+
+  val statFields = ListMap[String, LLVMType](
+    "st_dev"   -> IntType(64),
+    "st_ino"   -> IntType(64),
+    "st_nlink" -> IntType(64),
+    "st_mode"  -> IntType(32),
+    "st_uid"   -> IntType(32),
+    "st_gid"   -> IntType(32),
+    "st_rdev"  -> IntType(64),
+    "st_size"  -> IntType(64),
+    "st_blksi" -> IntType(64),
+    "st_block" -> IntType(64),
+    "st_atim"  -> IntType(128),
+    "st_mtim"  -> IntType(128),
+    "st_ctim"  -> IntType(128),
+    )
+  val StatType = Struct(statFields.values.toList)
+
+  // %struct.statfs = type { i64, i64, i64, i64, i64, i64, i64, %struct.__fsid_t, i64, i64, i64, [4 x i64] }
+  // %struct.__fsid_t = type { [2 x i32] }
+
+  // struct statfs {
+  //    __fsword_t f_type;    /* Type of filesystem (see below) */
+  //    __fsword_t f_bsize;   /* Optimal transfer block size */
+  //    fsblkcnt_t f_blocks;  /* Total data blocks in filesystem */
+  //    fsblkcnt_t f_bfree;   /* Free blocks in filesystem */
+  //    fsblkcnt_t f_bavail;  /* Free blocks available to
+  //                             unprivileged user */
+  //    fsfilcnt_t f_files;   /* Total file nodes in filesystem */
+  //    fsfilcnt_t f_ffree;   /* Free file nodes in filesystem */
+  //    fsid_t     f_fsid;    /* Filesystem ID */
+  //    __fsword_t f_namelen; /* Maximum length of filenames */
+  //    __fsword_t f_frsize;  /* Fragment size (since Linux 2.6) */
+  //    __fsword_t f_flags;   /* Mount flags of filesystem
+  //                             (since Linux 2.6.36) */
+  //    __fsword_t f_spare[xxx];
+  //                    /* Padding bytes reserved for future use */
+  // };
+
+  val statfsFields = ListMap(
+    "f_type"    -> IntType(64),
+    "f_bsize"   -> IntType(64),
+    "f_blocks"  -> IntType(64),
+    "f_bfree"   -> IntType(64),
+    "f_bavail"  -> IntType(64),
+    "f_files"   -> IntType(64),
+    "f_ffree"   -> IntType(64),
+    "f_fsid"    -> IntType(64),
+    "f_namelen" -> IntType(64),
+    "f_frsize"  -> IntType(64),
+    "f_flags"   -> IntType(64),
+    // IntType(64),
+    // IntType(64),
+    // IntType(64),
+    // IntType(64),
+    )
+
+  val StatfsType: StructType = Struct(statfsFields.values.toList)
+
+  val termiosFields = ListMap(
+    "c_iflag" -> IntType(64),
+    "c_oflag" -> IntType(64),
+    "c_cflag" -> IntType(64),
+    "c_lflag" -> IntType(64),
+    "c_cc"    -> ArrayType(10, IntType(8)),
+    )
+
+  val TermiosType: StructType = Struct(termiosFields.values.toList)
+
+  def getFieldIdx(fields: ListMap[String, _], f: String): Int = {
+    val idx = fields.keys.toList.indexOf(f)
+    if (idx < 0) throw new Exception(s"field $f not found in fields $fields")
+    idx
+  }
 
   object File {
-    def apply(name: Rep[String]) = "File::create".reflectWith[File](name)
+    def apply(name: Rep[String]) = "File::create".reflectWith[File](name, 0)
     def apply(name: Rep[String], content: Rep[List[Value]]) = "File::create".reflectWith[File](name, content)
     def apply(name: Rep[String], content: Rep[List[Value]], stat: Rep[List[Value]]) =
       "File::create".reflectWith[File](name, content, stat)
@@ -63,7 +125,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     // f2->children = children.persistent();
     // return f2;
   }
-  
+
   implicit class FileOps(file: Rep[File]) {
     // fields
     def name: Rep[String]                = "ptr-field-@".reflectWith[String](file, "name")
@@ -87,7 +149,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def getChild(name: Rep[String]): Rep[File]               = file.children(name)
     def setChild(name: Rep[String], f: Rep[File]): Rep[Unit] = {
       f.parent = file
-      file.children = file.children + (name, f) 
+      file.children = file.children + (name, f)
     }
     def removeChild(name: Rep[String]): Rep[Unit]            = {
       file.children(name).parent = NullPtr[File]
@@ -118,12 +180,12 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def readAt(pos: Rep[Long], len: Rep[Long]): Rep[List[Value]] = content.drop(pos.toInt).take(len.toInt)
 
     def readStatField(f: String): Rep[Value] = {
-      val (pos, size) = statFieldMap(f)
+      val (pos, size) = StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, f))
       "from-bytes".reflectMutableWith[Value](file.stat.drop(pos).take(size))
     }
 
     def writeStatField(f: String, v: Rep[Value]): Rep[Unit] = {
-      val (pos, size) = statFieldMap(f)
+      val (pos, size) = StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, f))
       val bytes = "to-bytes".reflectWith[List[Value]](v)
       file.stat = file.stat.take(pos) ++ bytes ++ file.stat.drop(pos + bytes.size)
     }
@@ -142,7 +204,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     }
     def append(c: Rep[List[Value]]): Rep[Unit] = file.writeAtNoFill(c, file.content.size)
     def clear(): Rep[File] = {
-      file.content = List[Value]() 
+      file.content = List[Value]()
       file
     }
   }
@@ -182,7 +244,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
     def seekStart(o: Rep[Long]): Rep[Long] = {
       if (o < 0L) -1L
-      else { 
+      else {
         strm.cursor = o
         o
       }
@@ -191,7 +253,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def seekEnd(o: Rep[Long]): Rep[Long] = {
       val newCursor = strm.file.content.size + o
       if (newCursor < 0L) -1L
-      else { 
+      else {
         strm.cursor = newCursor
         newCursor
       }
@@ -224,10 +286,21 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def SEEK_CUR = cmacro[Int]("SEEK_CUR")
     def SEEK_END = cmacro[Int]("SEEK_END")
 
+    def O_RDONLY = cmacro[Int]("O_RDONLY")
+    def O_RDWR   = cmacro[Int]("O_RDWR")
+    def O_WRONLY = cmacro[Int]("O_WRONLY")
+    def O_CREAT  = cmacro[Int]("O_CREAT")
+    def O_TRUNC  = cmacro[Int]("O_TRUNC")
+    def O_EXCL   = cmacro[Int]("O_EXCL")
+
+    def S_IRUSR = cmacro[Int]("S_IRUSR")
+    def S_IWUSR = cmacro[Int]("S_IWUSR")
+    def S_IRGRP = cmacro[Int]("S_IRGRP")
+    def S_IWGRP = cmacro[Int]("S_IWGRP")
+    def S_IROTH = cmacro[Int]("S_IROTH")
+    def S_IWOTH = cmacro[Int]("S_IWOTH")
     def S_IFDIR = cmacro[Int]("S_IFDIR")
     def S_IFREG = cmacro[Int]("S_IFREG")
-
-    def O_RDONLY = cmacro[Int]("O_RDONLY")
 
     def getPathSegments(path: Rep[String]): Rep[List[String]] = path.split("/").filter(_.length > 0)
 
@@ -245,28 +318,15 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     import FS._
     def openedFiles: Rep[Map[Fd, Stream]] = "field-@".reflectCtrlWith[Map[Fd, Stream]](fs, "opened_files")
     def rootFile: Rep[File]               = "field-@".reflectCtrlWith[File](fs, "root_file")
+    def statFs: Rep[List[Value]]          = "field-@".reflectCtrlWith[List[Value]](fs, "statfs")
 
     def openedFiles_= (rhs: Rep[Map[Fd, Stream]]): Unit = "field-assign".reflectCtrlWith(fs, "opened_files", rhs)
     def rootFile_= (rhs: Rep[File]): Unit = "field-assign".reflectCtrlWith(fs, "root_file", rhs)
 
-    def seekFile(fd: Rep[Fd], o: Rep[Long], w: Rep[Int]): Rep[Long] =
-      if (!fs.hasStream(fd)) -1L
-      else {
-        val strm = fs.getStream(fd)
-        if (w == SEEK_SET) strm.seekStart(o)
-        else if (w == SEEK_CUR) strm.seekCur(o)
-        else if (w == SEEK_END) strm.seekEnd(o)
-        else -1L
-      }
-
     def getFreshFd(): Rep[Fd] = "method-@".reflectCtrlWith[Fd](fs, "get_fresh_fd")
 
-    // TODO: recursively search <2022-05-25, David Deng> //
     def hasFile(name: Rep[String]): Rep[Boolean]            = fs.getFile(name) != NullPtr[File]
-    def getFile(name: Rep[String]): Rep[File]               = {
-      unchecked("/* getFile */")
-      getFileFromPathSegments(fs.rootFile, getPathSegments(name))
-    }
+    def getFile(name: Rep[String]): Rep[File]               = getFileFromPathSegments(fs.rootFile, getPathSegments(name))
 
     // would set the file corresponding to name, parent should exist
     def setFile(name: Rep[String], f: Rep[File]): Rep[Unit] = {
@@ -277,6 +337,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       if (parent != NullPtr[File]) parent.setChild(f.name, f)
     }
 
+    // TODO: This is wrong <2022-07-28, David Deng> //
     def removeFile(name: Rep[String]): Rep[Unit]          = fs.rootFile.removeChild(name)
     def hasStream(fd: Rep[Fd]): Rep[Boolean]              = fs.openedFiles.contains(fd)
     def getStream(fd: Rep[Fd]): Rep[Stream]               = fs.openedFiles(fd)

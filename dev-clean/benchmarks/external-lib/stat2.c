@@ -4,8 +4,6 @@ int main(){
 	struct stat sfile;
 
 	// --add-sym-file A
-	/* TODO: parameterize the stat fields upon file creation
-	 * generate utility functions to assign/read stat fields <2022-05-08, David Deng> */
 
 	int status = stat("A", &sfile);
 	if (status == -1) {

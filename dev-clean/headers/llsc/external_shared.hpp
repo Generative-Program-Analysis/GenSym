@@ -305,21 +305,6 @@ inline std::monostate llsc_assume(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-template<typename T>
-inline T ____errno_location(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  return k(state, state.error_loc());
-}
-
-inline List<SSVal> __errno_location(SS state, List<PtrVal> args) {
-  return ____errno_location<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
-}
-
-inline std::monostate __errno_location(SS state, List<PtrVal> args, Cont k) {
-  return ____errno_location<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
-}
-
-/******************************************************************************/
-
 // Todo: could use is_conc method of struct value
 template<typename T>
 inline T __llsc_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {

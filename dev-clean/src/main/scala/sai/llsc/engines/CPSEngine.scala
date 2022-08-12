@@ -428,7 +428,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     val fv = eval(GlobalId(fname), VoidType, ss)
     ss.push
     ss.updateArg
-    ss.updateErrorLoc
+    ss.initErrorLoc
     fv[Ref](ss, args, k)
   }
 }

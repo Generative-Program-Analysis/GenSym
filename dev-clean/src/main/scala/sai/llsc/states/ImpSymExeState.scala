@@ -96,6 +96,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
 
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[Unit] =
       reflectCtrl[Unit]("ss-update", ss, a, v, sz)
+    def update(a: Rep[Value], v: Rep[Value]): Rep[Unit] =
+      reflectCtrl[Unit]("ss-update", ss, a, v)
       //reflectWrite[Unit]("ss-update", ss, a, v)(ss)
     def allocStack(n: Int, align: Int): Rep[Unit] =
       reflectWrite[Unit]("ss-alloc-stack", ss, new Mut[Int](n))(ss)
@@ -116,7 +118,9 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def addPCSet(es: Rep[List[SymV]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = reflectRead[PC]("get-pc", ss)(ss)
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
-    def updateErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-error-loc", ss)(ss)
+    def initErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-init-error-loc", ss)(ss)
+    def getErrorLoc: Rep[Value] = reflectRead[Value]("ss-get-error-loc", ss)(ss)
+    def setErrorLoc(v: Rep[IntV]): Rep[Unit] = ss.update(ss.getErrorLoc, v)
 
     def addIncomingBlock(ctx: Ctx): Rep[Unit] =
       reflectWrite[Unit]("ss-add-incoming-block", ss, Counter.block.get(ctx.toString))(ss)
