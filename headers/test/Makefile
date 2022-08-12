@@ -1,8 +1,8 @@
-FLAGS := -I ../ -I ../../../third-party/immer -I ../../../third-party/parallel-hashmap -I ../../../stp/build/include/ -L ../../../stp/build/lib/ -lstp -fPIC
+FLAGS := -I ../ -I ../../third-party/immer -I ../../third-party/parallel-hashmap -I ../../third-party/stp/build/include/ -L ../../third-party/stp/build/lib/ -lstp -fPIC
 
 targets = fact_lms fact_plain sym_test conc_test stp_test fs_test external_test
 
-all: $(targets) 
+all: $(targets)
 
 fact_lms: fact_lms.cpp ../sai.hpp ../sai_imp_concrete.hpp
 	g++ -std=c++17 -O3 -Winline -finline-functions ./fact_lms.cpp -o ./fact_lms $(FLAGS)
