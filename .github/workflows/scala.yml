@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-20.04
     defaults:
       run:
-        working-directory: ./dev-clean
+        working-directory: ./
 
     steps:
     - name: Checkout repository and submodules
@@ -47,7 +47,7 @@ jobs:
         make
     - name: Install Z3
       run: |
-        cd ../third-party
+        cd third-party
         wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.12/z3-4.8.12-x64-glibc-2.31.zip
         unzip z3-4.8.12-x64-glibc-2.31.zip
         cd z3-4.8.12-x64-glibc-2.31
@@ -56,7 +56,7 @@ jobs:
         sudo ldconfig
     - name: Install STP
       run: |
-        cd ../third-party/stp
+        cd third-party/stp
         mkdir build
         cd build
         cmake ..
