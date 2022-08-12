@@ -1,8 +1,13 @@
 [![Scala CI](https://github.com/Kraks/sai/actions/workflows/scala.yml/badge.svg)](https://github.com/Kraks/sai/actions/workflows/scala.yml)
 
-# GenSym Symbolic-Execution Compiler
+# GenSym
 
-Improving the performance of symbolic execution by compilation and parallelism.
+GenSym is a symbolic-execution compiler that given an input LLVM IR program, it
+produces code performing optimized parallel symbolic execution.
+
+### Usage
+
+upcoming
 
 ### Publications
 
