@@ -18,7 +18,7 @@ def main_handler():
     client = Client.from_payload(payload)
     H = Handler()
 
-    @H.register(check_suite__app__slug="gensym-bench", check_suite__head_branch="master", action="*requested")
+    @H.register(check_suite__app__slug="gensym-bench", check_suite__head_branch="main", action="*requested")
     @H.register(check_run__app__slug="gensym-bench", action="rerequested")
     def create_new_run():
         data = payload.get("check_run") or payload.get("check_suite")
