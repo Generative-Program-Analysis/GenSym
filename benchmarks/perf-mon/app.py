@@ -18,14 +18,14 @@ def main_handler():
     client = Client.from_payload(payload)
     H = Handler()
 
-    @H.register(check_suite__app__slug="sai-bench", check_suite__head_branch="master", action="*requested")
-    @H.register(check_run__app__slug="sai-bench", action="rerequested")
+    @H.register(check_suite__app__slug="gensym-bench", check_suite__head_branch="master", action="*requested")
+    @H.register(check_run__app__slug="gensym-bench", action="rerequested")
     def create_new_run():
         data = payload.get("check_run") or payload.get("check_suite")
         client.create_check_run(name="Performance Benchmark", head_sha=data["head_sha"])
         return { "result": "created" }
 
-    @H.register(check_run__app__slug="sai-bench", action="created")
+    @H.register(check_run__app__slug="gensym-bench", action="created")
     def initiate_run():
         env = { k: v for k, v in os.environ.items()
                 if k.startswith("GITHUB_") or k == "PATH" }
