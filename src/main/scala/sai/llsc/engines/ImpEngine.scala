@@ -210,8 +210,8 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           else repK(ss, eval(elsVal, elsTy, ss))
         } else {
           // TODO: check cond via solver
-          ss.addPC(cnd.toSym)
           val s1 = ss.fork
+          ss.addPC(cnd.toSym)
           s1.addPC(cnd.toSymNeg)
           Coverage.incPath(1)
           repK(ss, eval(thnVal, thnTy, ss)) ++ repK(s1, eval(elsVal, elsTy, s1))

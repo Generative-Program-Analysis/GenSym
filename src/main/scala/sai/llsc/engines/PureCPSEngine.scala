@@ -220,7 +220,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           // TODO: check cond via solver
           Coverage.incPath(1)
           repK(ss, eval(thnVal, thnTy, ss.addPC(cnd.toSym)))
-          repK(ss, eval(elsVal, elsTy, ss.addPC(cnd.toSymNeg)))
+          repK(ss, eval(elsVal, elsTy, ss.fork.addPC(cnd.toSymNeg)))
         }
     }
   }

@@ -255,7 +255,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
                 (for {
                   _ <- updatePC(cnd.toSym)
                   v <- eval(thnVal, thnTy)
-                } yield v) ⊕
+                } yield v)
+              } ++ reify(s.fork) {
                 (for {
                   _ <- updatePC(cnd.toSymNeg)
                   v <- eval(elsVal, elsTy)
