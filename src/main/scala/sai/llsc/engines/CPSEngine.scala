@@ -224,7 +224,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           else repK(ss, eval(elsVal, elsTy, ss), kk)
         } else {
           // TODO: check cond via solver
-          val s1 = ss.copy
+          val s1 = ss.fork
           ss.addPC(cnd.toSym)
           repK(ss, eval(thnVal, thnTy, ss), kk)
           s1.addPC(cnd.toSymNeg)
@@ -282,8 +282,9 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           if (table.isEmpty) {
             if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, s, k)
+              execBlock(ctx.funName, default, new_ss, k)
             }
           } else {
             val st = s.copy
@@ -291,8 +292,9 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
             s.addPC(headPC.toSym)
             if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s, k)
+              execBlock(ctx.funName, table.head.label, new_ss, k)
             }
             st.addPC(headPC.toSymNeg)
             switchSym(v, st, table.tail)
@@ -355,7 +357,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           execTerm(t, k)(s, ctx)
         case i::inst => execInst(i, s, (s1, k1) => runInst(inst, t, s1, k1))(ctx, k)
       }
-    Coverage.incBlock(ctx)
+    s.coverBlock(ctx)
     runInst(block.ins, block.term, s, k)
   }
 

@@ -225,11 +225,11 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     }
   }
 
-  def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-    val block = Adapter.g.reifyHere(Unwrap(execBlock(funName, lab, ss, k)))
-    val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
-    Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
-  }
+  //def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
+  //  val block = Adapter.g.reifyHere(Unwrap(execBlock(funName, lab, ss, k)))
+  //  val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
+  //  Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
+  //}
 
   def execTerm(inst: Terminator, k: Rep[Cont])(implicit ss: Rep[SS], ctx: Ctx): Rep[Unit] = {
     inst match {
@@ -253,11 +253,11 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         if (cndVal.isConc) {
           if (cndVal.int == 1) {
             Coverage.incBranch(ctx, 0)
-            asyncExecBlock(ctx.funName, thnLab, ss1, k)
+            execBlock(ctx.funName, thnLab, ss1, k)
           }
           else {
             Coverage.incBranch(ctx, 1)
-            asyncExecBlock(ctx.funName, elsLab, ss1, k)
+            execBlock(ctx.funName, elsLab, ss1, k)
           }
         } else {
           symExecBr(ss1, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, k)
@@ -280,15 +280,17 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           if (table.isEmpty) {
             if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, s, k)
+              execBlock(ctx.funName, default, new_ss, k)
             }
           } else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             if (checkPC(s.pc.addPC(headPC.toSym))) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s.addPC(headPC.toSym), k)
+              execBlock(ctx.funName, table.head.label, new_ss.addPC(headPC.toSym), k)
             }
             switchSym(v, s.addPC(headPC.toSymNeg), table.tail)
           }
@@ -339,8 +341,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         case Nil => execTerm(t, k)(s, ctx)
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1, k))(ctx)
       }
-    Coverage.incBlock(ctx)
-    runInst(block.ins, block.term, s, k)
+    runInst(block.ins, block.term, s.coverBlock(ctx), k)
   }
 
   override def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy = {

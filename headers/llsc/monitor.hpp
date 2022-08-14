@@ -20,15 +20,17 @@ struct Monitor {
     std::atomic_uint64_t num_paths;
     // Number of executed instructions
     std::atomic_uint64_t num_insts;
+    // Number of states
+    std::atomic_uint64_t num_states;
     // Starting time
     steady_clock::time_point start, stop;
     std::thread watcher;
     std::promise<void> signal_exit;
 
   public:
-    Monitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
+    Monitor() : num_blocks(0), num_paths(0), num_states(1), start(steady_clock::now()) {}
     Monitor(uint64_t num_blocks, std::vector<std::pair<unsigned, unsigned>> branch_num) :
-      num_blocks(num_blocks), num_paths(0),
+      num_blocks(num_blocks), num_paths(0), num_states(1),
       block_cov(num_blocks),
       start(steady_clock::now()) {
       // `branch_num` contains the ids of blocks whose terminator is br/switch,
@@ -45,6 +47,9 @@ struct Monitor {
     void inc_block(BlockId b) {
       block_cov[b]++;
     }
+    bool is_uncovered(BlockId b) {
+      return 0 == block_cov[b];
+    }
     void inc_branch(BlockId b, BranchId x) {
       branch_cov[b][x]++;
     }
@@ -54,10 +59,14 @@ struct Monitor {
     void inc_inst(size_t n) {
       num_insts += n;
     }
+    uint64_t new_ssid() {
+      return ++num_states;
+    }
     void print_inst_stat() {
       std::cout << "#insts: " << num_insts << "; " << std::flush;
     }
     void print_path_cov() {
+      assert(num_paths == num_states);
       std::cout << "#paths: " << num_paths << "; " << std::flush;
     }
     void print_block_cov() {

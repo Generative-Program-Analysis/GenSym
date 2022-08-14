@@ -117,6 +117,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def addPC(e: Rep[SymV]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
     def addPCSet(es: Rep[List[SymV]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = reflectRead[PC]("get-pc", ss)(ss)
+    def copyPC: Rep[PC] = reflectRead[PC]("ss-copy-pc", ss)(ss)
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
     def initErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-init-error-loc", ss)(ss)
     def getErrorLoc: Rep[Value] = reflectRead[Value]("ss-get-error-loc", ss)(ss)
@@ -125,8 +126,11 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def addIncomingBlock(ctx: Ctx): Rep[Unit] =
       reflectWrite[Unit]("ss-add-incoming-block", ss, Counter.block.get(ctx.toString))(ss)
     def incomingBlock: Rep[BlockLabel] = reflectRead[BlockLabel]("ss-incoming-block", ss)(ss)
+    def coverBlock(ctx: Ctx): Rep[Unit] =
+      reflectWrite[Unit]("ss-cover-block", ss, Counter.block.get(ctx.toString))(ss, Adapter.CTRL)
 
     def copy: Rep[SS] = reflectRead[SS]("ss-copy", ss)(ss)
+    def fork: Rep[SS] = reflectRW[SS]("ss-fork", ss)(ss, Adapter.CTRL)(Adapter.CTRL)
 
     // Note: getIntArg/getFloatArg/getPointerArg may potentially call solver
     def getIntArg(x : Rep[Value]): Rep[Long] = reflectRead[Long]("ss-get-int-arg", ss, x)(ss)

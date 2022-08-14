@@ -61,10 +61,14 @@ inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
   IntData len = proj_IntV(args.at(1));
-  SS res = state;
+  ASSERT(len > 0, "Invalid length");
+  ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
+  std::string name = (2 == args.size()) ? "unnamed" : get_string_at(args.at(2), state);
+  std::string object_name = state.get_unique_name(name);
+  SS res = state.add_symbolic(object_name, len, false);
   //std::cout << "sym array size: " << proj_LocV_size(loc) << "\n";
   for (int i = 0; i < len; i++) {
-    res = res.update(loc + i, make_SymV(fresh(), 8));
+    res = res.update(loc + i, make_SymV(object_name + "_" + std::to_string(i), 8));
   }
   return k(res, make_IntV(0));
 }
@@ -82,7 +86,11 @@ inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
   IntData sz = proj_IntV(args.at(1));
-  SS res = state.update(loc, make_SymV(fresh(), sz*8));
+  ASSERT(sz > 0, "Invalid length");
+  ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
+  std::string name = (2 == args.size()) ? "unnamed" : get_string_at(args.at(2), state);
+  std::string object_name = state.get_unique_name(name);
+  SS res = state.add_symbolic(object_name, sz, true).update(loc, make_SymV(object_name, sz*8));
   return k(res, make_IntV(0));
 }
 

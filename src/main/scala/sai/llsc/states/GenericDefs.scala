@@ -83,9 +83,9 @@ trait BasicDefs { self: SAIOps =>
 trait Coverage { self: SAIOps =>
   object Coverage {
     def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](Counter.block.count)(Adapter.CTRL)
-    def incBlock(funName: String, label: String): Rep[Unit] = incBlock(Ctx(funName, label))
-    def incBlock(ctx: Ctx): Rep[Unit] =
-      "cov-inc-block".reflectWriteWith[Unit](Counter.block.get(ctx.toString))(Adapter.CTRL)
+    //def incBlock(funName: String, label: String): Rep[Unit] = incBlock(Ctx(funName, label))
+    //def incBlock(ctx: Ctx): Rep[Unit] =
+    //  "cov-inc-block".reflectWriteWith[Unit](Counter.block.get(ctx.toString))(Adapter.CTRL)
     def incBranch(ctx: Ctx, n: Int): Unit =
       "cov-inc-br".reflectWriteWith[Unit](Counter.block.get(ctx.toString), n)(Adapter.CTRL)
 
