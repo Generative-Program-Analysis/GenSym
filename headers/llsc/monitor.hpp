@@ -66,7 +66,6 @@ struct Monitor {
       std::cout << "#insts: " << num_insts << "; " << std::flush;
     }
     void print_path_cov() {
-      assert(num_paths == num_states);
       std::cout << "#paths: " << num_paths << "; " << std::flush;
     }
     void print_block_cov() {
@@ -172,6 +171,7 @@ struct Monitor {
         // XXX: this is still not idea, since for execution < 1s, we need to wait for watcher to join...
         watcher.join();
       }
+      ASSERT(num_paths == num_states, "In-consistent path state");
     }
 };
 
