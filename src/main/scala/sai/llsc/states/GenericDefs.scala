@@ -185,15 +185,27 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   def ITE(cnd: Rep[Value], thn: Rep[Value], els: Rep[Value]): Rep[Value] =
     "ite".reflectWith[Value](cnd, thn, els)
 
+  object MustConc {
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case IntV(_, _) => true
+      case _ => false
+    }
+  }
+
+  object MustSym {
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case SymV(_, _) => true
+      case _ => false
+    }
+  }
+
   object IntV {
     def apply(i: Long): Rep[IntV] = IntV(unit(i), DEFAULT_INT_BW)
     def apply(i: Long, bw: Int): Rep[IntV] = IntV(unit(i), bw)
     def apply(i: Rep[Long]): Rep[IntV] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Long], bw: Int): Rep[IntV] = "make_IntV".reflectMutableWith[IntV](i, bw)
-    def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
-      // Todo: add bSym rhs case
-      case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) =>
-        Some((v, bw))
+    def unapply(v: Rep[Value]): Option[(Long, Int)] = Unwrap(v) match {
+      case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) => Some((v, bw))
       case _ => None
     }
   }
@@ -424,7 +436,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
 
     def isConc: Rep[Boolean] = v match {
-      case IntV(_, _) if Config.opt => unit(true)
+      case MustConc() if Config.opt => unit(true)
+      case MustSym() if Config.opt => unit(false)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
     def toSym: Rep[SymV] = v.asRepOf[SymV]
