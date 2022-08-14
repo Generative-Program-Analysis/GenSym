@@ -361,10 +361,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   override def repFunFun(f: FunctionDef): (FFTy, Int) = {
     def runFun(ss: Rep[Ref[SS]], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
-      val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => localId.get
-        case Vararg => "Vararg"
-      }
+      val params: List[String] = extractNames(f.header.params)
       info("running function: " + f.id)
       ss.assign(params, args)
       execBlockEager(f.id, f.blocks(0), ss)

@@ -445,10 +445,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
   override def repFunFun(f: FunctionDef): (FFTy, Int) = {
     def runFun(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
-      val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => localId.get
-        case Vararg => "Vararg"
-      }
+      val params: List[String] = extractNames(f.header.params)
       info("running function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)

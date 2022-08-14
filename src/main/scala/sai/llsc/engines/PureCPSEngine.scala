@@ -359,10 +359,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   override def repFunFun(f: FunctionDef): (FFTy, Int) = {
     def runFun(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
-      val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => localId.get
-        case Vararg => "Vararg"
-      }
+      val params: List[String] = extractNames(f.header.params)
       info("running function: " + f.id)
       execBlockEager(f.id, f.blocks(0), ss.assign(params, args), k)
     }
