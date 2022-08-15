@@ -159,18 +159,6 @@ inline void handle_cli_args(int argc, char** argv) {
         cli_argv = parse_args(std::string(optarg));
         g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
         g_argc = make_IntV(cli_argv.size());
-        conc_g_argc = cli_argv.size();
-        conc_g_argv = new char *[conc_g_argc];
-        for (int i=0; i < conc_g_argc; i++) {
-          int size = cli_argv[i].size();
-          char *cur_argv = new char[size];
-          for (int j=0; j < size; j++) {
-            ASSERT(cli_argv[i][j]->get_bw() == 8, "Bitwidth mismatch");
-            cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
-          }
-          cur_argv[size - 1] = 0;
-          conc_g_argv[i] = cur_argv;
-        }
         break;
       case '?':
         // parsing error, should be printed by getopt
@@ -196,6 +184,20 @@ inline void handle_cli_args(int argc, char** argv) {
     // thread pool will create (n_thread) threads, leaving the main thread idle.
     tp.init(n_thread, n_queue);
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
+  }
+  if (output_ktest && (cli_argv.size() > 0)) {
+    conc_g_argc = cli_argv.size();
+    conc_g_argv = new char *[conc_g_argc];
+    for (int i=0; i < conc_g_argc; i++) {
+      int size = cli_argv[i].size();
+      char *cur_argv = new char[size];
+      for (int j=0; j < size; j++) {
+        ASSERT(cli_argv[i][j]->get_bw() == 8, "Bitwidth mismatch");
+        cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
+      }
+      cur_argv[size - 1] = 0;
+      conc_g_argv[i] = cur_argv;
+    }
   }
   INFO(initial_fs);
 }

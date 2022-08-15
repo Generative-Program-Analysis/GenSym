@@ -579,7 +579,7 @@ class SS: public Printable {
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, meta.add_incoming_block(blabel), fs); }
     SS cover_block(BlockLabel new_bb) { return SS(heap, stack, pc, meta.cover_block(new_bb), fs); }
     SS add_symbolic(const std::string& name, int size, bool is_whole) {
-      ASSERT(0 == meta.count_name(name), "non unique name");
+      //ASSERT(0 == meta.count_name(name), "non unique name");
       return SS(heap, stack, pc, meta.add_symbolic(name, size, is_whole), fs);
     }
     SS add_cex(const PtrVal& cex) { return SS(heap, stack, pc, meta.add_cex(cex), fs); }

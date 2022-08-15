@@ -554,7 +554,7 @@ class SS {
       return std::move(*this);
     }
     SS&& add_symbolic(const std::string& name, int size, bool is_whole) {
-      ASSERT(0 == meta.count_name(name), "non unique name");
+      //ASSERT(0 == meta.count_name(name), "non unique name");
       meta.add_symbolic(name, size, is_whole);
       return std::move(*this);
     }

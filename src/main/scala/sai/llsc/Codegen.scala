@@ -182,10 +182,10 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
       es"tp.add_task("
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
-    //case Node(s, "async_exec_block", List(b: Block), _) =>
-    //  es"async_exec_block("
-    //  quoteTypedBlock(b, false, true, capture = "=")
-    //  es")"
+    case Node(s, "async_exec_block", List(b: Block), _) =>
+      es"async_exec_block("
+      quoteTypedBlock(b, false, true, capture = "=")
+      es")"
 
     case Node(s, "File::create", args, _) =>
       es"std::make_shared<File>("

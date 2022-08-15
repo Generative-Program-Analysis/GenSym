@@ -5,13 +5,13 @@
 
 #ifdef PURE_STATE
 
-//inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
-//  if (can_par_tp()) {
-//    tp.add_task(f);
-//    return std::monostate{};
-//  }
-//  return f();
-//}
+inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
+  if (can_par_tp()) {
+    tp.add_task(f);
+    return std::monostate{};
+  }
+  return f();
+}
 
 inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,

@@ -241,6 +241,78 @@ public:
     return std::make_pair(r == sat, r == sat ? m->at(v2) : 0);
   }
 
+  inline void output_default_testcase(std::shared_ptr<Model> model, solver_result result, unsigned int test_id) {
+    std::stringstream output;
+    output << "Query number: " << (test_id+1) << std::endl;
+    output << "Query is " << check_result_to_string(result) << std::endl;
+    std::stringstream filename;
+    filename << "tests/" << test_id << ".test";
+    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
+    if (out_fd == -1) {
+      ABORT("Cannot create the test case file, abort.\n");
+    }
+    for (auto [k, v]: *model) {
+      output << k->name << "=" << v << std::endl;
+    }
+    int n = write(out_fd, output.str().c_str(), output.str().size());
+    close(out_fd);
+  }
+
+  inline void output_k_testcase(SS& state, std::shared_ptr<Model> model, unsigned int test_id, int conc_argc, char** conc_argv) {
+    KTest b;
+    b.numArgs = conc_argc;
+    b.args = conc_argv;
+    b.symArgvs = 0;
+    b.symArgvLen = 0;
+    auto symbolics = state.get_symbolics();
+    b.numObjects = symbolics.size();
+    b.objects = new KTestObject[b.numObjects];
+    assert(b.objects);
+    for (int i=0; i< b.numObjects; i++) {
+      KTestObject *o = &b.objects[i];
+      auto obj = symbolics[i];
+      o->name = new char[obj.name.size() + 1];
+      memcpy(o->name, obj.name.c_str(), obj.name.size());
+      o->name[obj.name.size()] = 0;
+      o->numBytes = obj.size;
+      o->bytes = new unsigned char[o->numBytes];
+      assert(o->bytes);
+      if (obj.is_whole) {
+        ASSERT(obj.size == 4, "Bad whole object");
+        auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
+        ASSERT(key, "Invalid key");
+        auto it = model->find(key);
+        if (it != model->end()) {
+          memcpy(o->bytes, &it->second, o->numBytes);
+        } else {
+          memset(o->bytes, '0', o->numBytes);
+        }
+      } else {
+        for (int idx=0; idx < o->numBytes; idx++) {
+          auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
+          ASSERT(key, "Invalid key");
+          auto it = model->find(key);
+          if (it != model->end()) {
+            o->bytes[idx] = (unsigned char) it->second;
+          } else {
+            o->bytes[idx] = 0;
+          }
+        }
+      }
+    }
+
+    std::stringstream filename;
+    filename << "tests/" << test_id << ".ktest";
+    int success = kTest_toFile(&b, filename.str().c_str());
+
+    if (!success)
+      ABORT("Failed to write ktest to file");
+
+    for (unsigned i=0; i<b.numObjects; i++)
+      delete[] b.objects[i].bytes;
+    delete[] b.objects;
+  }
+
   virtual void generate_test(SS state) override {
     auto pc = std::move(state.get_PC());
     if (!use_solver) return;
@@ -253,73 +325,9 @@ public:
       if (only_output_covernew && !state.has_covernew()) return;
       test_query_num++;
       if (!output_ktest) {
-        std::stringstream output;
-        output << "Query number: " << (test_query_num+1) << std::endl;
-        output << "Query is " << check_result_to_string(result) << std::endl;
-        std::stringstream filename;
-        filename << "tests/" << test_query_num << ".test";
-        int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
-        if (out_fd == -1) {
-          ABORT("Cannot create the test case file, abort.\n");
-        }
-        for (auto [k, v]: *model) {
-          output << k->name << "=" << v << std::endl;
-        }
-        int n = write(out_fd, output.str().c_str(), output.str().size());
-        close(out_fd);
+        output_default_testcase(model, result, test_query_num);
       } else {
-        KTest b;
-        b.numArgs = conc_g_argc;
-        b.args = conc_g_argv;
-        b.symArgvs = 0;
-        b.symArgvLen = 0;
-        auto symbolics = state.get_symbolics();
-        b.numObjects = symbolics.size();
-        b.objects = new KTestObject[b.numObjects];
-        assert(b.objects);
-        for (int i=0; i< b.numObjects; i++) {
-          KTestObject *o = &b.objects[i];
-          auto obj = symbolics[i];
-          o->name = new char[obj.name.size() + 1];
-          memcpy(o->name, obj.name.c_str(), obj.name.size());
-          o->name[obj.name.size()] = 0;
-          o->numBytes = obj.size;
-          o->bytes = new unsigned char[o->numBytes];
-          assert(o->bytes);
-          if (obj.is_whole) {
-            ASSERT(obj.size == 4, "Bad whole object");
-            auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
-            ASSERT(key, "Invalid key");
-            auto it = model->find(key);
-            if (it != model->end()) {
-              memcpy(o->bytes, &it->second, o->numBytes);
-            } else {
-              memset(o->bytes, '0', o->numBytes);
-            }
-          } else {
-            for (int idx=0; idx < o->numBytes; idx++) {
-              auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
-              ASSERT(key, "Invalid key");
-              auto it = model->find(key);
-              if (it != model->end()) {
-                o->bytes[idx] = (unsigned char) it->second;
-              } else {
-                o->bytes[idx] = 0;
-              }
-            }
-          }
-        }
-
-        std::stringstream filename;
-        filename << "tests/" << test_query_num << ".ktest";
-        int success = kTest_toFile(&b, filename.str().c_str());
-
-        if (!success)
-          ABORT("Failed to write ktest to file");
-
-        for (unsigned i=0; i<b.numObjects; i++)
-          delete[] b.objects[i].bytes;
-        delete[] b.objects;
+        output_k_testcase(state, model, test_query_num, conc_g_argc, conc_g_argv);
       }
     }
   }

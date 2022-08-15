@@ -225,11 +225,11 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     }
   }
 
-  //def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-  //  val block = Adapter.g.reifyHere(Unwrap(execBlock(funName, lab, ss, k)))
-  //  val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
-  //  Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
-  //}
+  def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
+    val block = Adapter.g.reifyHere(Unwrap(execBlock(funName, lab, ss, k)))
+    val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
+    Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
+  }
 
   def execTerm(inst: Terminator, k: Rep[Cont])(implicit ss: Rep[SS], ctx: Ctx): Rep[Unit] = {
     inst match {
@@ -253,11 +253,11 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         if (cndVal.isConc) {
           if (cndVal.int == 1) {
             Coverage.incBranch(ctx, 0)
-            execBlock(ctx.funName, thnLab, ss1, k)
+            asyncExecBlock(ctx.funName, thnLab, ss1, k)
           }
           else {
             Coverage.incBranch(ctx, 1)
-            execBlock(ctx.funName, elsLab, ss1, k)
+            asyncExecBlock(ctx.funName, elsLab, ss1, k)
           }
         } else {
           symExecBr(ss1, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, k)
