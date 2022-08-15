@@ -171,7 +171,7 @@ struct Monitor {
         // XXX: this is still not idea, since for execution < 1s, we need to wait for watcher to join...
         watcher.join();
       }
-      ASSERT(num_paths == num_states, "In-consistent path state");
+      //ASSERT(num_paths == num_states, "In-consistent path state");
     }
 };
 

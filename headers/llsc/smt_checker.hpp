@@ -282,8 +282,9 @@ public:
         auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
         ASSERT(key, "Invalid key");
         auto it = model->find(key);
+        uint32_t value = (uint32_t)it->second;
         if (it != model->end()) {
-          memcpy(o->bytes, &it->second, o->numBytes);
+          memcpy(o->bytes, (char*)&value, o->numBytes);
         } else {
           memset(o->bytes, '0', o->numBytes);
         }

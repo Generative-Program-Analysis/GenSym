@@ -176,15 +176,15 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
 
 #ifdef IMPURE_STATE
 
-//inline std::monostate async_exec_block(
-//    std::monostate (*f)(SS&, std::function<std::monostate(SS&, PtrVal)>),
-//    SS ss, std::function<std::monostate(SS&, PtrVal)> k) {
-//  if (can_par_tp()) {
-//    tp.add_task([f, ss=std::move(ss), k]{ return f((SS&)ss, k); });
-//    return std::monostate{};
-//  }
-//  return f(ss, k);
-//}
+inline std::monostate async_exec_block(
+    std::monostate (*f)(SS&, std::function<std::monostate(SS&, PtrVal)>),
+    SS ss, std::function<std::monostate(SS&, PtrVal)> k) {
+  if (can_par_tp()) {
+    tp.add_task([f, ss=std::move(ss), k]{ return f((SS&)ss, k); });
+    return std::monostate{};
+  }
+  return f(ss, k);
+}
 
 // use immer::flex_vector as argument list and result list
 inline immer::flex_vector<std::pair<SS, PtrVal>>
