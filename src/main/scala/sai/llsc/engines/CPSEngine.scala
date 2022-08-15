@@ -378,7 +378,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     topFun(runFun(_, _, _))
   }
 
-  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
@@ -402,10 +402,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       }
       k(ss, retVal)
     }
-
-    val fn: FFTy = topFun(generateNativeCall(_, _, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(generateNativeCall(_, _, _))
   }
 
   override def wrapFunV(f: FFTy): Rep[Value] = CPSFunV[Ref](f)

@@ -452,7 +452,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     topFun(runFun(_, _))
   }
 
-  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
@@ -476,10 +476,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       }.map { _ => retVal }
       reify(ss)(m)
     }
-
-    val fn: FFTy = topFun(generateNativeCall(_, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(generateNativeCall(_, _))
   }
 
   override def wrapFunV(f: FFTy): Rep[Value] = FunV[Id](f)

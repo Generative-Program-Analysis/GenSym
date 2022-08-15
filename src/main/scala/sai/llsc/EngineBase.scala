@@ -36,7 +36,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy
   def repFunFun(f: FunctionDef): FFTy
   // XXX: should we increase block coverage here?
-  def repExternFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
+  def repExternFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): FFTy
   def wrapFunV(f: FFTy): Rep[Value]
 
   /* Basic functionalities */
@@ -97,9 +97,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       System.out.println(s"Warning: ignoring the re-generation of missing native external ${mangledName}")
       return
     }
-    val (fn, n) = repExternFun(f, ret, argTypes)
-    // FIXME later
-    funNameMap(Backend.Sym(n)) = "__LLSC_NATIVE_EXTERNAL_"+mangledName.tail
+    val fn = repExternFun(f, ret, argTypes)
+    val node = Unwrap(fn).asInstanceOf[Backend.Sym]
+    funNameMap(node) = "__LLSC_NATIVE_EXTERNAL_"+mangledName.tail
     FunFuns(mangledName) = fn
   }
 
