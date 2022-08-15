@@ -1,0 +1,114 @@
+#!/bin/bash
+# Usage: test_benchmark.sh <benchmark.ll> <head> <options>
+# Effect: will use RunLLSC to compile and run make subsequently in the llsc_gen folder, finally execute the executable.
+
+# Default values
+
+SCALA_COMPILE=true
+CPP_COMPILE=true
+RUNTIME=true
+
+CPP_NJOBS=2
+RUNTIME_TIMEOUT=300
+
+function usage {
+	echo "Usage: test_benchmark [-h] [--{njobs=,timeout=,succinct-log=,no-scala,no-cpp,no-runtime,help}] <benchmark.ll> <head> <options>"
+	exit 1
+}
+function check_failure {
+	if [ $? -ne 0 ]; then echo "[test_benchmark] ERROR: $1"; exit 2; fi
+}
+
+GETOPT=$(getopt -o h --long "njobs:,timeout:,succinct-log:,no-scala,no-cpp,no-runtime,help" -n 'test_benchmark' -- "$@")
+
+if [ $? != 0 ] ; then echo "invalid arguments..." >2 ; exit 1 ; fi
+
+eval set -- "$GETOPT"
+
+while true; do
+    case "$1" in
+        --njobs)
+            CPP_NJOBS=$2; shift 2 ;;
+		--timeout)
+			RUNTIME_TIMEOUT=$2; shift 2 ;;
+		--succinct-log)
+			SUCCINCT_LOG=$2; shift 2 ;;
+		--no-scala)
+			SCALA_COMPILE=false; shift ;;
+		--no-cpp)
+			CPP_COMPILE=false; shift ;;
+		--no-runtime)
+			RUNTIME=false; shift ;;
+        -h|--help)
+            usage ;;
+		--) shift; break ;;
+        *) break ;;
+    esac
+done
+
+if [ $# -lt 2 ]; then usage; fi
+
+LL=$1
+HEAD=$2
+shift
+shift
+OPTS="$@"
+
+echo "[test_benchmark] input:           $LL"
+echo "[test_benchmark] head:            $HEAD"
+echo "[test_benchmark] options:         $OPTS"
+echo "[test_benchmark] scala compile:   $SCALA_COMPILE"
+echo "[test_benchmark] cpp compile:     $CPP_COMPILE"
+echo "[test_benchmark] run runtime:     $RUNTIME"
+echo "[test_benchmark] cpp njobs:       $CPP_NJOBS"
+echo "[test_benchmark] runtime timeout: $RUNTIME_TIMEOUT"
+
+if [ "$SCALA_COMPILE" = "true" ] || [ ! -d "llsc_gen/${HEAD}" ]; then
+	export SBT_OPTS="-Xms4G -Xmx32G -Xss1024M -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2048M"
+	/usr/bin/time --format "[test_benchmark] scala compilation time => real: %e,\tuser: %U,\tsys: %S" \
+		sbt "runMain sai.llsc.RunLLSC ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main"
+	check_failure "Failed to perform scala compilation with input ${LL}"
+fi
+
+if [ "$CPP_COMPILE" = "true" ] || [ ! -f "llsc_gen/${HEAD}/${HEAD}" ]; then
+	( cd llsc_gen/${HEAD};
+	echo -n "[test_benchmark] "
+	pwd
+	/usr/bin/time --format "[test_benchmark] c++ compilation time => real: %e,\tuser: %U,\tsys: %S" \
+		make -j${CPP_NJOBS} )
+	check_failure "Failed to perform cpp compilation for ${HEAD}"
+fi
+
+if [ "$RUNTIME" = "true" ]; then
+	EXE="./llsc_gen/${HEAD}/${HEAD}"
+	if [ ! -z "$BM_EXPAND_SCRIPT" ]; then
+		if [ -f "$BM_EXPAND_SCRIPT" ]; then
+			OLDIFS=$IFS
+			IFS=$'\n'
+			OPTS=($(echo -n "$OPTS" | "$BM_EXPAND_SCRIPT"))
+			IFS=$OLDIFS
+			echo [run_runtime] running $EXE with ${#OPTS[@]} expanded arguments.
+		else
+			echo [run_runtime] no script found at $BM_EXPAND_SCRIPT, taking options literally
+		fi
+	else
+		echo [run_runtime] environment variable BM_EXPAND_SCRIPT not set, taking options literally
+	fi
+
+	for OPT in "${OPTS[@]}"; do
+		cmd="$EXE $OPT"
+		if [ "$RUNTIME_TIMEOUT" -gt 0 ]; then
+			cmd="timeout $RUNTIME_TIMEOUT $cmd"
+		fi
+		echo [run_runtime] cmd: $cmd
+		echo -n "[run_runtime] result: "
+		if [ -z "$SUCCINCT_LOG" ]; then
+			eval "$cmd"
+		else
+			echo "--------------------" >> ${SUCCINCT_LOG}
+			echo "$HEAD $OPT"           >> ${SUCCINCT_LOG}
+			# duplicate to stdout, but write the splitted last line to SUCCINCT_LOG
+			eval "$cmd" | tee >(tail -n 1 | sed 's/#\(blocks\|br\|paths\|threads\|task-in-q\|queries\)/\n&/g' >> ${SUCCINCT_LOG})
+		fi
+	done
+fi
