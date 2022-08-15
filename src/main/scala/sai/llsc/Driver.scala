@@ -153,7 +153,7 @@ abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCDri
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     setFunMap(q.funNameMap)
-    setBlockMap(q.blockNameMap)
+    setBlockMap(q.nodeBlockMap)
   }
 
   override def transform(g0: Graph): Graph = {
@@ -171,7 +171,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCD
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     setFunMap(q.funNameMap)
-    setBlockMap(q.blockNameMap)
+    setBlockMap(q.nodeBlockMap)
   }
 
   override def transform(g0: Graph): Graph = {
@@ -265,7 +265,7 @@ abstract class ImpVecLLSCDriver[A: Manifest, B: Manifest](
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
     setFunMap(q.funNameMap)
-    setBlockMap(q.blockNameMap)
+    setBlockMap(q.nodeBlockMap)
   }
 }
 

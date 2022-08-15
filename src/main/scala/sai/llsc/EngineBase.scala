@@ -29,44 +29,64 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   /* Abstract definitions */
 
   implicit val m: Module
-  type BFTy // Block-function type
+  type BFTy <: Rep[_] // Block-function type
   type FFTy // Function-function type
 
   // TODO: use Counter to identify block/function
-  def repBlockFun(funName: String, b: BB): (BFTy, Int)
+  def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy
   def repFunFun(f: FunctionDef): (FFTy, Int)
   // XXX: should we increase block coverage here?
   def repExternFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
-
   def wrapFunV(f: FFTy): Rep[Value]
-  def getRealFunctionName(funName: String): String = {
-    val new_fname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
-    new_fname.replaceAllLiterally(".","_")
-  }
 
   /* Basic functionalities */
 
+  val funMap: StaticMap[String, FunctionDef] = m.funcDefMap
+  val funDeclMap: StaticMap[String, FunctionDecl] = m.funcDeclMap
+  val globalDefMap: StaticMap[String, GlobalDef] = m.globalDefMap
+  val globalDeclMap: StaticMap[String, GlobalDecl] = m.globalDeclMap
+  val typeDefMap: StaticMap[String, LLVMType] = m.typeDefMap
+  val symDefMap: StaticMap[String, IndirectSymbolDef] = m.symDefMap
+  lazy val cfg: CFG = CFG(funMap)
+
+  var heapEnv: StaticMap[String, () => Rep[Value]] = StaticMap()
+  val blockNameMap: HashMap[Int, String] = new HashMap()
+  val nodeBlockMap: HashMap[Backend.Sym, String] = new HashMap()
+  val BBFuns: HashMap[(String, BB), BFTy] = new HashMap[(String, BB), BFTy]
+  val FunFuns: HashMap[String, FFTy] = new HashMap[String, FFTy]
+
   def info(msg: String) = unchecked("INFO(\"" + msg + "\")")
+
+  def getRealFunName(funName: String): String = {
+    val newFname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
+    newFname.replaceAllLiterally(".","_")
+  }
+  def getRealBlockFunName(ctx: Ctx): String = blockNameMap(Counter.block.get(ctx.toString))
 
   def compile(funName: String, b: BB): Unit = {
     if (BBFuns.contains((funName, b))) {
       System.out.println(s"Warning: ignoring the compilation of $funName - ${b.label}")
       return
     }
-    val (fn, n) = repBlockFun(funName, b)
-    val realFunName = getRealFunctionName(funName)
-    blockNameMap(n) = s"${realFunName}_block$n"
+    implicit val ctx = Ctx(funName, b.label.get)
+    val fn = repBlockFun(b)
+    val n = Counter.block.get(ctx.toString)
+    val node: Backend.Sym = Unwrap(fn).asInstanceOf[Backend.Sym]
+    blockNameMap(n) = s"${getRealFunName(funName)}_block$n"
+    nodeBlockMap(node) = s"${getRealFunName(funName)}_block$n"
     BBFuns((funName, b)) = fn
   }
+
   def compile(f: FunctionDef): Unit = {
     if (FunFuns.contains(f.id)) {
       System.out.println(s"Warning: ignoring the recompilation of ${f.id}")
       return
     }
     val (fn, n) = repFunFun(f)
-    funNameMap(n) = getRealFunctionName(f.id)
+    funNameMap(n) = getRealFunName(f.id)
     FunFuns(f.id) = fn
   }
+
   def compile(funs: List[FunctionDef]): Unit = funs.foreach(compile)
 
   // `ret` and `argTypes` are the type information from the call-site
@@ -81,13 +101,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     FunFuns(mangledName) = fn
   }
 
-  val funMap: StaticMap[String, FunctionDef] = m.funcDefMap
-  val funDeclMap: StaticMap[String, FunctionDecl] = m.funcDeclMap
-  val globalDefMap: StaticMap[String, GlobalDef] = m.globalDefMap
-  val globalDeclMap: StaticMap[String, GlobalDecl] = m.globalDeclMap
-  val typeDefMap: StaticMap[String, LLVMType] = m.typeDefMap
-  val symDefMap: StaticMap[String, IndirectSymbolDef] = m.symDefMap
-
   // Note: the following two functions checks/retrieves functions considering aliases.
   // Note: we assume aliases in symDefMap all indeed have a definition (instead of a declaration)
   def isFunDefined(f: String): Boolean =
@@ -101,16 +114,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       if d.const.isInstanceOf[GlobalId]
       v <- funMap.get(d.const.asInstanceOf[GlobalId].id)
     } yield v).get)
-
-  lazy val cfg: CFG = CFG(funMap)
-  //cfg.prettyPrint
-
-  var heapEnv: StaticMap[String, () => Rep[Value]] = StaticMap()
-
-  val blockNameMap: HashMap[Int, String] = new HashMap()
-
-  val BBFuns: HashMap[(String, BB), BFTy] = new HashMap[(String, BB), BFTy]
-  val FunFuns: HashMap[String, FFTy] = new HashMap[String, FFTy]
 
   def getBBFun(funName: String, blockLab: String): BFTy =
     getBBFun(funName, findBlock(funName, blockLab).get)
