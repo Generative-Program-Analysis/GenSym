@@ -19,18 +19,17 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   registerHeader("third-party/parallel-hashmap", "<parallel_hashmap/phmap.h>")
 
   val codegenFolder: String
-  // TODO: refactor to Sym => String map?
-  var funMap = new HashMap[Int, String]()
+  var funMap = new HashMap[Sym, String]()
   var blockMap = new HashMap[Sym, String]()
 
-  def setFunMap(m: HashMap[Int, String]) = funMap = m
+  def setFunMap(m: HashMap[Sym, String]) = funMap = m
   def setBlockMap(m: HashMap[Sym, String]) = blockMap = m
 
   def reconsMapping(subst: HashMap[Sym, Exp]): Unit = {
-    val newFunMap = new HashMap[Int, String]()
+    val newFunMap = new HashMap[Sym, String]()
     val newBlockMap = new HashMap[Sym, String]()
     for ((x, nm) <- funMap) {
-      if (subst.contains(Sym(x))) newFunMap(subst(Sym(x)).asInstanceOf[Sym].n) = nm
+      if (subst.contains(x)) newFunMap(subst(x).asInstanceOf[Sym]) = nm
     }
     for ((x, nm) <- blockMap) {
       if (subst.contains(x)) newBlockMap(subst(x).asInstanceOf[Sym]) = nm
@@ -40,8 +39,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   }
 
   override def quote(s: Def): String = s match {
-    case Sym(n) =>
-      funMap.getOrElse(n, blockMap.getOrElse(Sym(n), super.quote(s)))
+    case n@Sym(x) =>
+      funMap.getOrElse(n, blockMap.getOrElse(n, super.quote(s)))
     case _ => super.quote(s)
   }
 

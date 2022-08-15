@@ -437,7 +437,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     topFun(runBlock(_))
   }
 
-  override def repFunFun(f: FunctionDef): (FFTy, Int) = {
+  override def repFunFun(f: FunctionDef): FFTy = {
     def runFun(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
       val params: List[String] = extractNames(f.header.params)
@@ -449,9 +449,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       } yield v
       reify(ss)(m)
     }
-    val fn: FFTy = topFun(runFun(_, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(runFun(_, _))
   }
 
   override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {

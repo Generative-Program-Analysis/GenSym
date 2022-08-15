@@ -28,8 +28,6 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   type BFTy = Rep[(SS, Cont) => Unit]
   type FFTy = Rep[(SS, List[Value], Cont) => Unit]
 
-  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
-
   def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
     tBlockLab: String, fBlockLab: String, k: Rep[Cont])(implicit ctx: Ctx): Rep[Unit] = {
     val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
@@ -353,16 +351,14 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
     topFun(runBlock(_, _))
   }
 
-  override def repFunFun(f: FunctionDef): (FFTy, Int) = {
+  override def repFunFun(f: FunctionDef): FFTy = {
     def runFun(ss: Rep[SS], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
       val params: List[String] = extractNames(f.header.params)
       info("running function: " + f.id)
       execBlockEager(f.blocks(0), ss.assign(params, args), k)
     }
-    val fn: FFTy = topFun(runFun(_, _, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(runFun(_, _, _))
   }
 
   override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {

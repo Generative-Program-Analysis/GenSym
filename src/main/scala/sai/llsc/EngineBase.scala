@@ -30,11 +30,11 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   implicit val m: Module
   type BFTy <: Rep[_] // Block-function type
-  type FFTy // Function-function type
+  type FFTy <: Rep[_] // Function-function type
 
   // TODO: use Counter to identify block/function
   def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy
-  def repFunFun(f: FunctionDef): (FFTy, Int)
+  def repFunFun(f: FunctionDef): FFTy
   // XXX: should we increase block coverage here?
   def repExternFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
   def wrapFunV(f: FFTy): Rep[Value]
@@ -71,7 +71,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     implicit val ctx = Ctx(funName, b.label.get)
     val fn = repBlockFun(b)
     val n = Counter.block.get(ctx.toString)
-    val node: Backend.Sym = Unwrap(fn).asInstanceOf[Backend.Sym]
+    val node = Unwrap(fn).asInstanceOf[Backend.Sym]
     blockNameMap(n) = s"${getRealFunName(funName)}_block$n"
     nodeBlockMap(node) = s"${getRealFunName(funName)}_block$n"
     BBFuns((funName, b)) = fn
@@ -82,8 +82,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       System.out.println(s"Warning: ignoring the recompilation of ${f.id}")
       return
     }
-    val (fn, n) = repFunFun(f)
-    funNameMap(n) = getRealFunName(f.id)
+    val fn = repFunFun(f)
+    val node = Unwrap(fn).asInstanceOf[Backend.Sym]
+    funNameMap(node) = getRealFunName(f.id)
     FunFuns(f.id) = fn
   }
 
@@ -97,7 +98,8 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       return
     }
     val (fn, n) = repExternFun(f, ret, argTypes)
-    funNameMap(n) = "__LLSC_NATIVE_EXTERNAL_"+mangledName.tail
+    // FIXME later
+    funNameMap(Backend.Sym(n)) = "__LLSC_NATIVE_EXTERNAL_"+mangledName.tail
     FunFuns(mangledName) = fn
   }
 

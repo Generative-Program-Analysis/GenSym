@@ -51,7 +51,7 @@ trait SAIOps extends Base
     // with SMTStagedOps {
   import scala.collection.mutable.HashMap
 
-  val funNameMap: HashMap[Int, String] = new HashMap()
+  val funNameMap: HashMap[Backend.Sym, String] = new HashMap()
 
   // Override the LMS Wrap which treats Unit value as void/Const(());
   // instead, we will treat Unit as std::monostate in C++
@@ -109,13 +109,9 @@ trait SAIOps extends Base
 
   def print(x: Rep[Any]): Unit = Adapter.g.reflectWrite("print",Unwrap(x))(Adapter.CTRL)
 
-  def getBackendSym[T: Manifest](t: Backend.Exp): Int = t.asInstanceOf[Backend.Sym].n
-
   def addToFunNameMap(name: String, f: Backend.Exp): Unit = {
-    if (!name.trim.isEmpty) {
-      val n = getBackendSym(f)
-      funNameMap(n) = name
-    }
+    require(!name.trim.isEmpty)
+    funNameMap(f.asInstanceOf[Backend.Sym]) = name
   }
 
   def hardTopFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], name: String, decorator: String): Rep[A => B] = {

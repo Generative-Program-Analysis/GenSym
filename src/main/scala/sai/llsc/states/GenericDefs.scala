@@ -41,6 +41,7 @@ object Counter {
   import scala.collection.mutable.HashMap
   val block = Counter()
   val variable = Counter()
+  val function = Counter()
   val branchStat: HashMap[Int, Int] = HashMap[Int, Int]()
   def setBranchNum(ctx: Ctx, n: Int): Unit = {
     val blockId = Counter.block.get(ctx.toString)
