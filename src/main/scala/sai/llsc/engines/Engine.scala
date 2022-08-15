@@ -28,12 +28,10 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
   type BFTy = Rep[SS => List[(SS, Value)]]
   type FFTy = Rep[(SS, List[Value]) => List[(SS, Value)]]
 
-  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
-
   def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
     tBlockLab: String, fBlockLab: String)(implicit ctx: Ctx): Rep[List[(SS, Value)]] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(ctx.funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(ctx.funName, fBlockLab))
+    val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
     val curBlockId = Counter.block.get(ctx.toString)
     "sym_exec_br".reflectWith[List[(SS, Value)]](ss, curBlockId, tCond, fCond,
       unchecked[String](tBrFunName), unchecked[String](fBrFunName))
@@ -64,12 +62,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
         ret(ExternalFun.get(id, Some(t), argTypes).get)
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
-        ret(FunV[Id](FunFuns(id)))
+        ret(wrapFunV(FunFuns(id)))
       case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
         val fv = ExternalFun.get(id, Some(t), argTypes).getOrElse {
           compile(funDeclMap(id), t, argTypes.get)
-          FunV[Id](FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
+          wrapFunV(FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
         }
         ret(fv)
       case GlobalId(id) if globalDefMap.contains(id) =>
@@ -280,7 +278,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           case None => ret(NullPtr[Value])
         }
       case BrTerm(lab) if (cfg.pred(ctx.funName, lab).size == 1) =>
-        execBlockEager(ctx.funName, findBlock(ctx.funName, lab).get)
+        execBlockEager(findBlock(ctx.funName, lab).get)(Ctx(ctx.funName, lab))
       case BrTerm(lab) =>
         for {
           _ <- updateIncomingBlock(ctx)
@@ -422,8 +420,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       }
     } yield v
 
-  def execBlockEager(funName: String, b: BB): Comp[E, Rep[Value]] = {
-    implicit val ctx = Ctx(funName, b.label.get)
+  def execBlockEager(b: BB)(implicit ctx: Ctx): Comp[E, Rep[Value]] = {
     val runInstList: Comp[E, Rep[Value]] = for {
       _ <- mapM(b.ins)(execInst(_))
       v <- execTerm(b.term)
@@ -432,37 +429,30 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
     runInstList
   }
 
-  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
+  override def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy = {
     def runBlock(ss: Rep[SS]): Rep[List[(SS, Value)]] = {
-      info("running block: " + funName + " - " + b.label.get)
-      reify[Value](ss)(execBlockEager(funName, b))
+      info("running block: " + ctx.funName + " - " + b.label.get)
+      reify[Value](ss)(execBlockEager(b))
     }
-    val f: BFTy = topFun(runBlock(_))
-    val n = Unwrap(f).asInstanceOf[Backend.Sym].n
-    (f, n)
+    topFun(runBlock(_))
   }
 
-  override def repFunFun(f: FunctionDef): (FFTy, Int) = {
+  override def repFunFun(f: FunctionDef): FFTy = {
     def runFun(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
-      val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => localId.get
-        case Vararg => "Vararg"
-      }
+      val params: List[String] = extractNames(f.header.params)
       info("running function: " + f.id)
       val m: Comp[E, Rep[Value]] = for {
         _ <- stackUpdate(params, args)
         s <- getState
-        v <- execBlockEager(f.id, f.blocks(0))
+        v <- execBlockEager(f.blocks(0))
       } yield v
       reify(ss)(m)
     }
-    val fn: FFTy = topFun(runFun(_, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(runFun(_, _))
   }
 
-  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[SS], args: Rep[List[Value]]): Rep[List[(SS, Value)]] = {
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
@@ -486,10 +476,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
       }.map { _ => retVal }
       reify(ss)(m)
     }
-
-    val fn: FFTy = topFun(generateNativeCall(_, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(generateNativeCall(_, _))
   }
 
   override def wrapFunV(f: FFTy): Rep[Value] = FunV[Id](f)

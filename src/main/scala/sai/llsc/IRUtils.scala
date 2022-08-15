@@ -32,6 +32,11 @@ object IRUtils {
     case TypedArg(ty, attrs, value) => ty
   }
 
+  def extractNames(params: List[Param]): List[String] = params.map {
+    case TypedParam(ty, attrs, localId) => localId.get
+    case Vararg => "Vararg"
+  }
+
   implicit class ConstantOps(cst: Constant) {
     def flatten: List[Constant] = cst match {
       case ArrayConst(xs) => xs.map(_.const.flatten).flatten
