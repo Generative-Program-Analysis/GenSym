@@ -29,6 +29,8 @@ BM_NO_RUNTIME=false
 GEN_EXTERNAL=true
 # extra arguments passed to BM_SCRIPT
 BM_OPTIONS="--njobs 192 --timeout 1000"
+# use the hash of the specified branch. Only affect the result of runtime, but not scala/cpp compilation.
+USE_BRANCH=""
 
 # candidate source files in ${inputs}, .ll is appended
 candidates=(
@@ -73,7 +75,14 @@ if [ "${BM_NO_RUNTIME}" = "true" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-runtime"
 fi
 
-COMMIT_HASH=h_$(git rev-parse --short HEAD)
+if [ -z "$USE_BRANCH" ]; then
+	USE_BRANCH=HEAD
+else
+	echo [run_experiment] Using branch hash $USE_BRANCH.
+	echo [run_experiment] WARNING: overriding the branch hash may result in inconsistent compilation result, should make sure the previously compiled programs are correct.
+fi
+
+COMMIT_HASH=h_$(git rev-parse --short "$USE_BRANCH")
 echo [run_experiment] hash: $COMMIT_HASH
 
 # generate external wrappers
