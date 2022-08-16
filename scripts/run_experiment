@@ -29,6 +29,8 @@ BM_NO_RUNTIME=false
 GEN_EXTERNAL=true
 # extra arguments passed to BM_SCRIPT
 BM_OPTIONS="--njobs 192 --timeout 1000"
+# global options for the final executable, appended to all benchmarks
+RUNTIME_OPTION="--solver=z3 --thread=8 --output-ktest --only-output-states-covering-new"
 # use the hash of the specified branch. Only affect the result of runtime, but not scala/cpp compilation.
 USE_BRANCH=""
 
@@ -105,7 +107,7 @@ for i in "${!inputs[@]}"; do
 	exec >  >(tee -ia ${OUTFILE})
 	exec 2> >(tee -ia ${OUTFILE} >&2)
 	for f in ${candidates[@]}; do
-		option="${options[$f]}"
+		option="${options[$f]} $RUNTIME_OPTION"
 		# write only succinct output to OUTFILERUNTIME
 		BM_OPTIONS="${BM_OPTIONS} --succinct-log ${OUTFILERUNTIME}"
 		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll ${COMMIT_HASH}_${f}_${i} $option
