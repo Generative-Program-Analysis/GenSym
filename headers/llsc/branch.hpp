@@ -1,5 +1,5 @@
-#ifndef LLSC_BRANCH_HEADERS
-#define LLSC_BRANCH_HEADERS
+#ifndef LLSC_BRANCH_HEADER
+#define LLSC_BRANCH_HEADER
 
 // TODO: should be able to generate these functions too
 

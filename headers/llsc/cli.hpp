@@ -1,5 +1,5 @@
-#ifndef LLSC_CLI_HEADERS
-#define LLSC_CLI_HEADERS
+#ifndef LLSC_CLI_HEADER
+#define LLSC_CLI_HEADER
 
 /* TODO: generate a file containing generated function declarations <2022-05-24, David Deng> */
 FS set_file(FS, String, Ptr<File>);
@@ -14,7 +14,7 @@ static struct option long_options[] =
   {"no-obj-cache",                    no_argument,       0, 'O'},
   {"no-cex-cache",                    no_argument,       0, 'C'},
   {"cons-indep",                      no_argument,       0, 'i'},
-  {"only-output-states-covering-new", no_argument,       0, 'S'},
+  {"output-tests-cov-new",            no_argument,       0, 'S'},
   {"output-ktest",                    no_argument,       0, 'K'},
   {"print-inst-count",                no_argument,       0, 'I'},
   {"print-cov",                       no_argument,       0, 'p'},
@@ -187,11 +187,11 @@ inline void handle_cli_args(int argc, char** argv) {
   }
   if (output_ktest && (cli_argv.size() > 0)) {
     conc_g_argc = cli_argv.size();
-    conc_g_argv = new char *[conc_g_argc];
+    conc_g_argv = new char* [conc_g_argc];
     for (int i=0; i < conc_g_argc; i++) {
       int size = cli_argv[i].size();
-      char *cur_argv = new char[size];
-      for (int j=0; j < size; j++) {
+      char* cur_argv = new char[size];
+      for (int j = 0; j < size; j++) {
         ASSERT(cli_argv[i][j]->get_bw() == 8, "Bitwidth mismatch");
         cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
       }

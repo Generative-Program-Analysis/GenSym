@@ -1,5 +1,5 @@
-#ifndef LLSC_SMT_CHECKER_HEADERS
-#define LLSC_SMT_CHECKER_HEADERS
+#ifndef LLSC_SMT_CHECKER_HEADER
+#define LLSC_SMT_CHECKER_HEADER
 
 #include "ktest.hpp"
 
@@ -57,6 +57,7 @@ public:
   using VarMap = std::map<simple_ptr<SymV>, Expr>;
   using ExprDetail = std::tuple<Expr, VarMap>;
   std::unordered_map<PtrVal, ExprDetail> objcache;
+  using objiter_t = typename decltype(objcache)::iterator;
 
   using Model = std::unordered_map<simple_ptr<SymV>, IntData>;
   using CheckResult = std::tuple<solver_result, std::shared_ptr<Model>>;
@@ -76,22 +77,20 @@ public:
     return it->second;
   }
 
-  using objiter_t = typename decltype(objcache)::iterator;
-
   CheckResult check_indep_model(
         const std::vector<objiter_t> & condvec,
         std::set<PtrVal>& condset,
         simple_ptr<SymV> query_expr=nullptr,
         bool require_model=false) {
 
-    //solving with counterexample caching
+    // solving with counterexample caching
     if (use_cexcache && (!query_expr || query_expr->name.size())) {
       if (auto it = cexcache.find(condset); it != cexcache.end()) {
         return it->second;
       }
     }
 
-    //assert and check
+    // assert and check
     push();
     VarMap varmap;
     if (condvec.size()) {  // use local cache if possible
@@ -100,8 +99,7 @@ public:
         self()->add_constraint_internal(e);
         varmap.insert(vm.begin(), vm.end());
       }
-    }
-    else {
+    } else {
       for (auto& v: condset) {
         auto& [e, vm] = objcache.at(v);
         self()->add_constraint_internal(e);
@@ -110,7 +108,7 @@ public:
     }
     solver_result result = check_model();
 
-    //get model
+    // get model
     std::shared_ptr<Model> model;
     if (result == sat && (use_cexcache || require_model)) {
       model = std::make_shared<Model>();
@@ -149,8 +147,7 @@ public:
         idx = 1;
         queue.push_back(cur);
         condset.insert(cur->first);
-      }
-      else {
+      } else {
         cur = objcache.find(query_expr);
         idx = 0;
       }
@@ -167,12 +164,10 @@ public:
               queue.push_back(next);
               next = objcache.end();
               break;
-            }
-            while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
+            } while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
           }
         }
-      }
-      while (idx < queue.size() && (cur = queue[idx++], true));
+      } while (idx < queue.size() && (cur = queue[idx++], true));
       condvec = std::move(queue);
     } else {
       condset.insert(conds.begin(), conds.end());
@@ -182,16 +177,13 @@ public:
   template <template <typename> typename Cont>
   CheckResult check_model(
         const Cont<PtrVal>& conds,
-        simple_ptr<SymV> query_expr=nullptr,
-        bool require_model=false) {
+        simple_ptr<SymV> query_expr = nullptr,
+        bool require_model = false) {
     ASSERT(!query_expr || !require_model, "Conflicting request");
     // translation
-    if (!use_objcache)
-      objcache.clear();
-    for (auto &v: conds)
-      construct_expr(v);
-    if (query_expr)
-      construct_expr(query_expr);
+    if (!use_objcache) objcache.clear();
+    for (auto &v: conds) construct_expr(v);
+    if (query_expr) construct_expr(query_expr);
 
     // local storage
     std::vector<objiter_t> condvec;
@@ -241,10 +233,10 @@ public:
     return std::make_pair(r == sat, r == sat ? m->at(v2) : 0);
   }
 
-  inline void output_default_testcase(std::shared_ptr<Model> model, solver_result result, unsigned int test_id) {
+  inline void gen_default_format(std::shared_ptr<Model> model, unsigned int test_id) {
     std::stringstream output;
     output << "Query number: " << (test_id+1) << std::endl;
-    output << "Query is " << check_result_to_string(result) << std::endl;
+    output << "Query is sat." << std::endl;
     std::stringstream filename;
     filename << "tests/" << test_id << ".test";
     int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
@@ -258,7 +250,7 @@ public:
     close(out_fd);
   }
 
-  inline void output_k_testcase(SS& state, std::shared_ptr<Model> model, unsigned int test_id, int conc_argc, char** conc_argv) {
+  inline void gen_ktest_format(std::shared_ptr<Model> model, unsigned int test_id, SS& state, int conc_argc, char** conc_argv) {
     KTest b;
     b.numArgs = conc_argc;
     b.args = conc_argv;
@@ -268,9 +260,10 @@ public:
     b.numObjects = symbolics.size();
     b.objects = new KTestObject[b.numObjects];
     assert(b.objects);
-    for (int i=0; i< b.numObjects; i++) {
+    for (int i = 0; i < b.numObjects; i++) {
       KTestObject *o = &b.objects[i];
       auto obj = symbolics[i];
+      // XXX(GW): when do we delete it?
       o->name = new char[obj.name.size() + 1];
       memcpy(o->name, obj.name.c_str(), obj.name.size());
       o->name[obj.name.size()] = 0;
@@ -278,18 +271,20 @@ public:
       o->bytes = new unsigned char[o->numBytes];
       assert(o->bytes);
       if (obj.is_whole) {
+        // XXX(GW): why obj.size must be 4?
         ASSERT(obj.size == 4, "Bad whole object");
         auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
         ASSERT(key, "Invalid key");
         auto it = model->find(key);
-        uint32_t value = (uint32_t)it->second;
+        uint32_t value = (uint32_t) it->second;
         if (it != model->end()) {
-          memcpy(o->bytes, (char*)&value, o->numBytes);
+          memcpy(o->bytes, (char*) &value, o->numBytes);
         } else {
+          // XXX(GW): memset to 0 or char '0'?
           memset(o->bytes, '0', o->numBytes);
         }
       } else {
-        for (int idx=0; idx < o->numBytes; idx++) {
+        for (int idx = 0; idx < o->numBytes; idx++) {
           auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
           ASSERT(key, "Invalid key");
           auto it = model->find(key);
@@ -309,7 +304,7 @@ public:
     if (!success)
       ABORT("Failed to write ktest to file");
 
-    for (unsigned i=0; i<b.numObjects; i++)
+    for (unsigned i = 0; i < b.numObjects; i++)
       delete[] b.objects[i].bytes;
     delete[] b.objects;
   }
@@ -323,13 +318,12 @@ public:
     }
     auto [result, model] = check_model(pc.get_path_conds(), nullptr, true);
     if (result == sat) {
-      if (only_output_covernew && !state.has_covernew()) return;
+      if (only_output_covernew && !state.has_cover_new()) return;
       test_query_num++;
-      if (!output_ktest) {
-        output_default_testcase(model, result, test_query_num);
-      } else {
-        output_k_testcase(state, model, test_query_num, conc_g_argc, conc_g_argv);
-      }
+      if (output_ktest) gen_ktest_format(model, test_query_num, state, conc_g_argc, conc_g_argv);
+      else gen_default_format(model, test_query_num);
+    } else {
+      ABORT("Cannot find satisfiable test cases");
     }
   }
 };

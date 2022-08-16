@@ -1,5 +1,5 @@
-#ifndef LLSC_VALUE_OPS_HEADERS
-#define LLSC_VALUE_OPS_HEADERS
+#ifndef LLSC_VALUE_OPS_HEADER
+#define LLSC_VALUE_OPS_HEADER
 
 struct Value;
 struct IntV;

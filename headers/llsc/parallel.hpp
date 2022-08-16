@@ -1,5 +1,5 @@
-#ifndef LLSC_PAR_HEADERS
-#define LLSC_PAR_HEADERS
+#ifndef LLSC_PAR_HEADER
+#define LLSC_PAR_HEADER
 
 /* Thread pool */
 

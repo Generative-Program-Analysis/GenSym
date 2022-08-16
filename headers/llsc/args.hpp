@@ -1,5 +1,5 @@
-#ifndef LLSC_ARGS_HEADERS
-#define LLSC_ARGS_HEADERS
+#ifndef LLSC_ARGS_HEADER
+#define LLSC_ARGS_HEADER
 
 /* Auxiliary functions to process command line argv passed to the application */
 
