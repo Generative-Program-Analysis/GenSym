@@ -302,20 +302,6 @@ class SS {
     PC pc;
     MetaData meta;
     FS fs;
-#ifdef LAZYALLOC
-    std::vector< std::pair<std::string, size_t> > pending_allocs;
-
-    void do_allocs() {
-      for (auto &ac: pending_allocs) {
-        if (ac.first == "stack")
-          stack.alloc(ac.second);
-        else
-          heap.alloc(ac.second);
-      }
-      pending_allocs.clear();
-    }
-#endif
-
   public:
     SS(Mem heap, Stack stack, PC pc, MetaData meta) :
       heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(initial_fs) {}
@@ -417,19 +403,11 @@ class SS {
     }
     List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
     SS&& alloc_stack(size_t size) {
-#ifdef LAZYALLOC
-      pending_allocs.push_back({"stack", size});
-#else
       stack.alloc(size);
-#endif
       return std::move(*this);
     }
     SS&& alloc_heap(size_t size) {
-#ifdef LAZYALLOC
-      pending_allocs.push_back({"heap", size});
-#else
       heap.alloc(size);
-#endif
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val) {
@@ -468,9 +446,6 @@ class SS {
       return stack.pop(keep);
     }
     SS&& assign(Id id, PtrVal val) {
-#ifdef LAZYALLOC
-      do_allocs();
-#endif
       stack.assign(id, val);
       return std::move(*this);
     }
