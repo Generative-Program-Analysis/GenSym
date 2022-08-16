@@ -389,12 +389,55 @@ class PC: public Printable {
     }
 };
 
+class SSMetaData: public Printable {
+  private:
+    uint64_t ssid;
+    BlockLabel bb;
+    bool covernew;
+    List<SymObj> symbolics;
+    List<PtrVal> cexprefers;
+  public:
+    SSMetaData(uint64_t ssid, BlockLabel bb, bool covernew, List<SymObj> symbolics, List<PtrVal> cexprefers) : ssid(ssid), bb(bb), covernew(covernew), symbolics(symbolics), cexprefers(cexprefers) {}
+    SSMetaData fork() { return SSMetaData(cov().new_ssid(), bb, false, symbolics, cexprefers); }
+    uint64_t get_ssid() { return ssid; }
+    BlockLabel incoming_block() { return bb; }
+    bool has_covernew() {return covernew; }
+    List<SymObj> get_symbolics() { return symbolics; }
+    int count_name(const std::string& name) {
+      for (auto symobj : symbolics) {
+        if (symobj.name == name) return 1;
+      }
+      return 0;
+    }
+    List<PtrVal> get_cexprefers() { return cexprefers; }
+
+    SSMetaData add_incoming_block(BlockLabel blabel) { return SSMetaData(ssid, blabel, covernew, symbolics, cexprefers); }
+    SSMetaData cover_block(BlockLabel new_bb) {
+      bool is_covernew = cov().is_uncovered(new_bb);
+      cov().inc_block(new_bb);
+      return SSMetaData(ssid, bb, covernew | is_covernew, symbolics, cexprefers);
+    }
+    SSMetaData add_symbolic(const std::string& name, int size, bool is_whole) { return SSMetaData(ssid, bb, covernew, symbolics.push_back(SymObj(name, size, is_whole)), cexprefers); }
+    SSMetaData add_cex(const PtrVal& cex) { return SSMetaData(ssid, bb, covernew, symbolics, cexprefers.push_back(cex)); }
+    std::string toString() const override {
+      std::ostringstream ss;
+      ss << "SSMetaData(" <<
+        "ssid : " << ssid << ", " <<
+        "bb : " << bb << ", " <<
+        "covernew : " << covernew << ", " <<
+        "symbolics : " << vec_to_string<SymObj>(symbolics) <<
+        "cexprefers : " << vec_to_string<PtrVal>(cexprefers) <<
+        ")";
+      return ss.str();
+    }
+};
+
 class SS: public Printable {
   private:
     Mem heap;
     Stack stack;
     PC pc;
-    BlockLabel bb;
+    SSMetaData meta;
     FS fs;
   public:
     std::string toString() const override {
@@ -403,13 +446,14 @@ class SS: public Printable {
         "stack => {{ " << stack << " }}, " <<
         "heap => {{ " << heap << " }}, " <<
         "pc => {{ " << pc << " }}, " <<
-        "bb => {{ " << bb << " }}, " <<
+        "meta => {{ " << meta << " }}, " <<
         "fs => {{ " << fs << " }}, " <<
         ")";
       return ss.str();
     }
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) : heap(heap), stack(stack), pc(pc), bb(bb), fs(initial_fs) {}
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb, FS fs) : heap(heap), stack(stack), pc(pc), bb(bb), fs(fs) {}
+    SS(Mem heap, Stack stack, PC pc, SSMetaData meta) : heap(heap), stack(stack), pc(pc), meta(meta), fs(initial_fs) {}
+    SS(Mem heap, Stack stack, PC pc, SSMetaData meta, FS fs) : heap(heap), stack(stack), pc(pc), meta(meta), fs(fs) {}
+    SS fork() { return SS(heap, stack, pc, meta.fork(), fs); }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
     size_t stack_size() { return stack.mem_size(); }
@@ -486,20 +530,33 @@ class SS: public Printable {
       return s->fs;
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr, -1); }
-    BlockLabel incoming_block() { return bb; }
-    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, bb, fs); }
-    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, bb, fs); }
+    uint64_t get_ssid() { return meta.get_ssid(); }
+    BlockLabel incoming_block() { return meta.incoming_block(); }
+    bool has_covernew() {return meta.has_covernew(); }
+    List<SymObj> get_symbolics() { return meta.get_symbolics(); }
+    int count_name(const std::string& name) { return meta.count_name(name); }
+    std::string get_unique_name(const std::string& name) {
+      unsigned id = 0;
+      std::string uniqueName = name;
+      while (meta.count_name(uniqueName)) {
+        uniqueName = name + "_" + std::to_string(++id);
+      }
+      return uniqueName;
+    }
+    List<PtrVal> get_cexprefers() { return meta.get_cexprefers(); }
+    SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, meta, fs); }
+    SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, meta, fs); }
     SS update(const PtrVal& addr, const PtrVal& val) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, bb, fs);
-      return SS(heap.update(loc->l, val), stack, pc, bb, fs);
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, meta, fs);
+      return SS(heap.update(loc->l, val), stack, pc, meta, fs);
     }
     SS update(const PtrVal& addr, const PtrVal& val, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, bb, fs);
-      return SS(heap.update(loc->l, val, size), stack, pc, bb, fs);
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, meta, fs);
+      return SS(heap.update(loc->l, val, size), stack, pc, meta, fs);
     }
     SS update_seq(PtrVal addr, List<PtrVal> vals) {
       SS updated_ss = *this;
@@ -508,18 +565,24 @@ class SS: public Printable {
       }
       return updated_ss;
     }
-    SS push() { return SS(heap, stack.push(), pc, bb, fs); }
-    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, bb, fs); }
-    SS assign(Id id, const PtrVal& val) { return SS(heap, stack.assign(id, val), pc, bb, fs); }
+    SS push() { return SS(heap, stack.push(), pc, meta, fs); }
+    SS pop(size_t keep) { return SS(heap, stack.pop(keep), pc, meta, fs); }
+    SS assign(Id id, const PtrVal& val) { return SS(heap, stack.assign(id, val), pc, meta, fs); }
     SS assign_seq(List<Id> ids, List<PtrVal> vals) {
-      return SS(heap, stack.assign_seq(ids, vals), pc, bb, fs);
+      return SS(heap, stack.assign_seq(ids, vals), pc, meta, fs);
     }
     SS heap_append(List<PtrVal> vals) {
-      return SS(heap.append(vals), stack, pc, bb, fs);
+      return SS(heap.append(vals), stack, pc, meta, fs);
     }
-    SS add_PC(const PtrVal& e) { return SS(heap, stack, pc.add(e), bb, fs); }
-    SS add_PC_set(List<PtrVal> s) { return SS(heap, stack, pc.add_set(s), bb, fs); }
-    SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, blabel, fs); }
+    SS add_PC(const PtrVal& e) { return SS(heap, stack, pc.add(e), meta, fs); }
+    SS add_PC_set(List<PtrVal> s) { return SS(heap, stack, pc.add_set(s), meta, fs); }
+    SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, meta.add_incoming_block(blabel), fs); }
+    SS cover_block(BlockLabel new_bb) { return SS(heap, stack, pc, meta.cover_block(new_bb), fs); }
+    SS add_symbolic(const std::string& name, int size, bool is_whole) {
+      //ASSERT(0 == meta.count_name(name), "non unique name");
+      return SS(heap, stack, pc, meta.add_symbolic(name, size, is_whole), fs);
+    }
+    SS add_cex(const PtrVal& cex) { return SS(heap, stack, pc, meta.add_cex(cex), fs); }
     SS init_arg() {
       ASSERT(stack.mem_size() == 0, "Stack is not new");
       // Todo: Can adapt argv to be located somewhere other than 0 as well.
@@ -550,7 +613,7 @@ class SS: public Printable {
 
       return updated_ss;
     }
-    SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, bb, fs); }
+    SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, meta, fs); }
     PC get_PC() { return pc; }
     // TODO temp solution
     PtrVal vararg_loc() { return stack.vararg_loc(); }
@@ -564,8 +627,10 @@ using SSVal = std::pair<SS, PtrVal>;
 inline const Mem mt_mem = Mem(List<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, List<Frame>{}, nullptr);
 inline const PC mt_pc = PC(List<PtrVal>{});
+inline const uint64_t mt_ssid = 1;
 inline const BlockLabel mt_bb = 0;
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
+inline const SSMetaData mt_meta = SSMetaData(mt_ssid, mt_bb, false, List<SymObj>{}, List<PtrVal>{});
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_meta);
 inline const List<SSVal> mt_path_result = List<SSVal>{};
 
 using func_t = List<SSVal> (*)(SS, List<PtrVal>);

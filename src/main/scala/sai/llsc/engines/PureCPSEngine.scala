@@ -220,7 +220,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           // TODO: check cond via solver
           Coverage.incPath(1)
           repK(ss, eval(thnVal, thnTy, ss.addPC(cnd.toSym)))
-          repK(ss, eval(elsVal, elsTy, ss.addPC(cnd.toSymNeg)))
+          repK(ss, eval(elsVal, elsTy, ss.fork.addPC(cnd.toSymNeg)))
         }
     }
   }
@@ -280,15 +280,17 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
           if (table.isEmpty) {
             if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, s, k)
+              execBlock(ctx.funName, default, new_ss, k)
             }
           } else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             if (checkPC(s.pc.addPC(headPC.toSym))) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s.addPC(headPC.toSym), k)
+              execBlock(ctx.funName, table.head.label, new_ss.addPC(headPC.toSym), k)
             }
             switchSym(v, s.addPC(headPC.toSymNeg), table.tail)
           }
@@ -339,8 +341,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         case Nil => execTerm(t, k)(s, ctx)
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1, k))(ctx)
       }
-    Coverage.incBlock(ctx)
-    runInst(block.ins, block.term, s, k)
+    runInst(block.ins, block.term, s.coverBlock(ctx), k)
   }
 
   override def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy = {

@@ -11,14 +11,14 @@
 
 /* Construct `byte_size` 8-bitvectors starting at address `addr`.
  */
-void make_symbolic(void* addr, size_t byte_size);
-void llsc_make_symbolic(void* addr, size_t byte_size, char* name);
+void make_symbolic(void* addr, size_t byte_size, ...);
 
 /* Construct a single bitvector of size `byte_size`*8 at address `addr`.
  */
-void make_symbolic_whole(void* addr, size_t byte_size);
+void make_symbolic_whole(void* addr, size_t byte_size, ...);
 
-#define llsc_make_symbolic(addr, byte_size, name) make_symbolic(addr, byte_size);
+#define llsc_make_symbolic(addr, byte_size, name) make_symbolic(addr, byte_size, name)
+#define llsc_make_symbolic_whole(addr, byte_size, name) make_symbolic_whole(addr, byte_size, name)
 
 void llsc_assert(bool);
 void llsc_assert_eager(bool);
@@ -35,7 +35,7 @@ void print_string(const char *message);
  */
 static inline int llsc_range(int begin, int end, const char *name) {
   int x;
-  make_symbolic_whole(&x, sizeof(x));
+  llsc_make_symbolic(&x, sizeof(x), name);
   llsc_assume(x >= begin);
   llsc_assume(x < end);
   return x;

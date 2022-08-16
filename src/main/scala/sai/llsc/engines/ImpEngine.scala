@@ -210,8 +210,8 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           else repK(ss, eval(elsVal, elsTy, ss))
         } else {
           // TODO: check cond via solver
+          val s1 = ss.fork
           ss.addPC(cnd.toSym)
-          val s1 = ss.copy
           s1.addPC(cnd.toSymNeg)
           Coverage.incPath(1)
           repK(ss, eval(thnVal, thnTy, ss)) ++ repK(s1, eval(elsVal, elsTy, s1))
@@ -268,8 +268,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           if (table.isEmpty) {
             if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, s)
+              execBlock(ctx.funName, default, new_ss)
             } else List[(SS, Value)]()
           } else {
             val st = s.copy
@@ -277,8 +278,9 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
             s.addPC(headPC.toSym)
             val lt = if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s)
+              execBlock(ctx.funName, table.head.label, new_ss)
             } else List[(SS, Value)]()
             st.addPC(headPC.toSymNeg)
             val lf = switchSym(v, st, table.tail)
@@ -341,7 +343,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         case Nil => execTerm(t)(s, ctx)
         case i::inst => execInst(i, s, s1 => runInst(inst, t, s1))(ctx)
       }
-    Coverage.incBlock(ctx)
+    s.coverBlock(ctx)
     runInst(block.ins, block.term, s)
   }
 

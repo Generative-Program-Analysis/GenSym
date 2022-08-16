@@ -467,9 +467,13 @@ struct SymV : Value {
   virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->bw != that->bw) return false;
-    if (this->name != that->name) return false;
-    if (this->rator != that->rator) return false;
-    return this->rands == that->rands;
+    if (this->name.size() != that->name.size()) return false;
+    if (!this->name.empty()) {
+      return this->name == that->name;
+    } else {
+      if (this->rator != that->rator) return false;
+      return this->rands == that->rands;
+    }
   }
   virtual List<PtrVal> to_bytes() {
     if (bw <= 8) return List<PtrVal>{shared_from_this()};

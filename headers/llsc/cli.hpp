@@ -9,24 +9,26 @@ FS set_file(FS, String, Ptr<File>);
 static struct option long_options[] =
 {
   /* These options set a flag. */
-  {"exlib-failure-branch", no_argument,       0, 'f'},
-  {"no-hash-cons",         no_argument,       0, 'H'},
-  {"no-obj-cache",         no_argument,       0, 'O'},
-  {"no-cex-cache",         no_argument,       0, 'C'},
-  {"cons-indep",           no_argument,       0, 'i'},
-  {"print-inst-count",     no_argument,       0, 'I'},
-  {"print-cov",            no_argument,       0, 'p'},
-  {"symloc-strategy",      required_argument, 0, 'L'},
-  {"add-sym-file",         required_argument, 0, '+'},
-  {"sym-file-size",        required_argument, 0, 's'},
-  {"sym-stdin",            required_argument, 0, 'n'},
-  {"thread",               required_argument, 0, 't'},
-  {"queue",                required_argument, 0, 'q'},
-  {"solver",               required_argument, 0, 'v'},
-  {"timeout",              required_argument, 0, 'e'},
-  {"argv",                 required_argument, 0, 'a'},
-  {"help",                 no_argument,       0, 'h'},
-  {0,                      0,                 0, 0  }
+  {"exlib-failure-branch",            no_argument,       0, 'f'},
+  {"no-hash-cons",                    no_argument,       0, 'H'},
+  {"no-obj-cache",                    no_argument,       0, 'O'},
+  {"no-cex-cache",                    no_argument,       0, 'C'},
+  {"cons-indep",                      no_argument,       0, 'i'},
+  {"only-output-states-covering-new", no_argument,       0, 'S'},
+  {"output-ktest",                    no_argument,       0, 'K'},
+  {"print-inst-count",                no_argument,       0, 'I'},
+  {"print-cov",                       no_argument,       0, 'p'},
+  {"symloc-strategy",                 required_argument, 0, 'L'},
+  {"add-sym-file",                    required_argument, 0, '+'},
+  {"sym-file-size",                   required_argument, 0, 's'},
+  {"sym-stdin",                       required_argument, 0, 'n'},
+  {"thread",                          required_argument, 0, 't'},
+  {"queue",                           required_argument, 0, 'q'},
+  {"solver",                          required_argument, 0, 'v'},
+  {"timeout",                         required_argument, 0, 'e'},
+  {"argv",                            required_argument, 0, 'a'},
+  {"help",                            no_argument,       0, 'h'},
+  {0,                                 0,                 0, 0  }
 };
 
 inline void set_solver(std::string& solver) {
@@ -104,6 +106,12 @@ inline void handle_cli_args(int argc, char** argv) {
       case 'i':
         use_cons_indep = true;
         break;
+      case 'S':
+        only_output_covernew = true;
+        break;
+      case 'K':
+        output_ktest = true;
+        break;
       case 'I':
         print_inst_cnt = true;
         break;
@@ -176,6 +184,20 @@ inline void handle_cli_args(int argc, char** argv) {
     // thread pool will create (n_thread) threads, leaving the main thread idle.
     tp.init(n_thread, n_queue);
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
+  }
+  if (output_ktest && (cli_argv.size() > 0)) {
+    conc_g_argc = cli_argv.size();
+    conc_g_argv = new char *[conc_g_argc];
+    for (int i=0; i < conc_g_argc; i++) {
+      int size = cli_argv[i].size();
+      char *cur_argv = new char[size];
+      for (int j=0; j < size; j++) {
+        ASSERT(cli_argv[i][j]->get_bw() == 8, "Bitwidth mismatch");
+        cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
+      }
+      cur_argv[size - 1] = 0;
+      conc_g_argv[i] = cur_argv;
+    }
   }
   INFO(initial_fs);
 }

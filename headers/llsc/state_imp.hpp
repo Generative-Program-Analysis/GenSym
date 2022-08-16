@@ -156,9 +156,12 @@ public:
 class Frame {
   public:
     using Env = std::map<Id, PtrVal>;
+    using Cont = std::function<std::monostate(SS&, PtrVal)>;
+    Cont cont;
   private:
     Env env;
   public:
+    Frame(Cont ct): cont(ct), env() {}
     Frame(Env env) : env(std::move(env)) {}
     Frame() : env(std::map<Id, PtrVal>{}) {}
     size_t size() { return env.size(); }
@@ -193,10 +196,12 @@ class Stack {
       return std::move(*this);
     }
     PtrVal error_loc() { return errno_location; }
-    Stack&& pop(size_t keep) {
+    typename Frame::Cont pop(size_t keep) {
+      auto &it = env.at(env.size() - 1);
+      auto ret = it.cont;
       mem.take(keep);
-      env.pop_back();
-      return std::move(*this);
+      env.resize(env.size() - 1);
+      return ret;
     }
     Stack&& push() {
       return push(Frame());
@@ -204,6 +209,10 @@ class Stack {
     Stack&& push(Frame f) {
       env.push_back(std::move(f));
       return std::move(*this);
+    }
+
+    Stack&& push(std::function<std::monostate(SS&, PtrVal)> cont) {
+      return push(Frame(cont));
     }
 
     Stack&& assign(Id id, PtrVal val) {
@@ -284,12 +293,56 @@ class PC {
     void print() { print_set(pc); }
 };
 
+class SSMetaData {
+  private:
+    uint64_t ssid;
+    BlockLabel bb;
+    bool covernew;
+    List<SymObj> symbolics;
+    List<PtrVal> cexprefers;
+  public:
+    SSMetaData(uint64_t ssid, BlockLabel bb, bool covernew, List<SymObj> symbolics, List<PtrVal> cexprefers) : ssid(ssid), bb(bb), covernew(covernew), symbolics(symbolics), cexprefers(cexprefers) {}
+    SSMetaData fork() {
+      return SSMetaData(cov().new_ssid(), bb, false, symbolics, cexprefers);
+    }
+    uint64_t get_ssid() { return ssid; }
+    BlockLabel incoming_block() { return bb; }
+    bool has_covernew() {return covernew; }
+    List<SymObj> get_symbolics() { return symbolics; }
+    int count_name(const std::string& name) {
+      for (auto symobj : symbolics) {
+        if (symobj.name == name) return 1;
+      }
+      return 0;
+    }
+    List<PtrVal> get_cexprefers() { return cexprefers; }
+
+    SSMetaData&& add_incoming_block(BlockLabel blabel) {
+      bb = blabel;
+      return std::move(*this);
+    }
+    SSMetaData&& cover_block(BlockLabel new_bb) {
+      bool is_covernew = cov().is_uncovered(new_bb);
+      cov().inc_block(new_bb);
+      covernew = covernew | is_covernew;
+      return std::move(*this);
+    }
+    SSMetaData&& add_symbolic(const std::string& name, int size, bool is_whole) {
+      symbolics = symbolics.push_back(SymObj(name, size, is_whole));
+      return std::move(*this);
+    }
+    SSMetaData&& add_cex(const PtrVal& cex) {
+      cexprefers = cexprefers.push_back(cex);
+      return std::move(*this);
+    }
+};
+
 class SS {
   private:
     Mem heap;
     Stack stack;
     PC pc;
-    BlockLabel bb;
+    SSMetaData meta;
     FS fs;
 #ifdef LAZYALLOC
     std::vector< std::pair<std::string, size_t> > pending_allocs;
@@ -306,10 +359,13 @@ class SS {
 #endif
 
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) :
-      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb), fs(initial_fs) {}
-    SS(List<PtrVal> heap, Stack stack, PC pc, BlockLabel bb) :
-      heap(std::move(std::vector(heap.begin(), heap.end()))), stack(std::move(stack)), pc(std::move(pc)), bb(bb), fs(initial_fs)  {}
+    SS(Mem heap, Stack stack, PC pc, SSMetaData meta) :
+      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(initial_fs) {}
+    SS(Mem heap, Stack stack, PC pc, SSMetaData meta, FS fs) :
+      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(std::move(fs)) {}
+    SS(List<PtrVal> heap, Stack stack, PC pc, SSMetaData meta) :
+      heap(std::move(std::vector(heap.begin(), heap.end()))), stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(initial_fs)  {}
+    SS fork() { return SS(heap, stack, pc, std::move(meta.fork()), fs); }
     SS copy() { return *this; }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
@@ -388,7 +444,20 @@ class SS {
       return s->fs;
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr, -1); }
-    BlockLabel incoming_block() { return bb; }
+    uint64_t get_ssid() { return meta.get_ssid(); }
+    BlockLabel incoming_block() { return meta.incoming_block(); }
+    bool has_covernew() {return meta.has_covernew(); }
+    List<SymObj> get_symbolics() { return meta.get_symbolics(); }
+    int count_name(const std::string& name) { return meta.count_name(name); }
+    std::string get_unique_name(const std::string& name) {
+      unsigned id = 0;
+      std::string uniqueName = name;
+      while (meta.count_name(uniqueName)) {
+        uniqueName = name + "_" + std::to_string(++id);
+      }
+      return uniqueName;
+    }
+    List<PtrVal> get_cexprefers() { return meta.get_cexprefers(); }
     SS&& alloc_stack(size_t size) {
 #ifdef LAZYALLOC
       pending_allocs.push_back({"stack", size});
@@ -433,9 +502,12 @@ class SS {
       stack.push();
       return std::move(*this);
     }
-    SS&& pop(size_t keep) {
-      stack.pop(keep);
+    SS&& push(std::function<std::monostate(SS&, PtrVal)> cont) {
+      stack.push(cont);
       return std::move(*this);
+    }
+    typename Frame::Cont pop(size_t keep) {
+      return stack.pop(keep);
     }
     SS&& assign(Id id, PtrVal val) {
 #ifdef LAZYALLOC
@@ -474,7 +546,20 @@ class SS {
       return std::move(*this);
     }
     SS&& add_incoming_block(BlockLabel blabel) {
-      bb = blabel;
+      meta.add_incoming_block(blabel);
+      return std::move(*this);
+    }
+    SS&& cover_block(BlockLabel new_bb) {
+      meta.cover_block(new_bb);
+      return std::move(*this);
+    }
+    SS&& add_symbolic(const std::string& name, int size, bool is_whole) {
+      //ASSERT(0 == meta.count_name(name), "non unique name");
+      meta.add_symbolic(name, size, is_whole);
+      return std::move(*this);
+    }
+    SS&& add_cex(const PtrVal& cex) {
+      meta.add_cex(cex);
       return std::move(*this);
     }
     SS&& init_arg() {
@@ -504,6 +589,7 @@ class SS {
       return std::move(*this);
     }
     PC& get_PC() { return pc; }
+    PC copy_PC() { return pc; }
     void set_PC(PC _pc) { pc = _pc; }
     const std::vector<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
     // TODO temp solution
@@ -522,8 +608,10 @@ using SSVal = std::pair<SS, PtrVal>;
 inline const Mem mt_mem = Mem(std::vector<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, std::vector<Frame>{}, nullptr);
 inline const PC mt_pc = PC(std::vector<PtrVal>{});
+inline const uint64_t mt_ssid = 1;
 inline const BlockLabel mt_bb = 0;
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
+inline const SSMetaData mt_meta = SSMetaData(mt_ssid, mt_bb, false, List<SymObj>{}, List<PtrVal>{});
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_meta);
 
 inline const List<SSVal> mt_path_result = List<SSVal>{};
 
@@ -551,6 +639,10 @@ inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::functio
   auto f = std::dynamic_pointer_cast<FunV<func_cps_t>>(v);
   if (f) return f->f(ss, args, k);
   ABORT("cps_apply: not applicable");
+}
+
+inline std::monostate cont_apply(std::function<std::monostate(SS&, PtrVal)> cont, SS& ss, PtrVal val) {
+  return cont(ss, val);
 }
 
 #endif

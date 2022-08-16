@@ -49,6 +49,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(_, "make_SymV", _, _) => true
     case Node(_, "make_IntV", _, _) => true
     case Node(_, "null-v", _, _) => true
+    case Node(_, "ss-fork", _, _) => false
     case _ => super.mayInline(n)
   }
 
@@ -108,8 +109,9 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "float_op_2", List(Backend.Const(op: String), x, y), _) =>
       es"float_op_2(${quoteOp(op, "fOP")}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
-    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_bb)"
+    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_meta)"
 
+    case Node(s, "ss-fork", List(ss), _) => es"$ss.fork()"
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a, sz), _) => es"$ss.at($a, $sz)"
     case Node(s, "ss-lookup-addr-struct", List(ss, a, sz), _) => es"$ss.at_struct($a, $sz)"
@@ -134,12 +136,14 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.add_PC_set($es)"
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.add_incoming_block($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
+    case Node(s, "ss-cover-block", List(ss, bb), _) => es"$ss.cover_block($bb)"
     case Node(s, "ss-arg", List(ss), _) => es"$ss.init_arg()"
     case Node(s, "ss-init-error-loc", List(ss), _) => es"$ss.init_error_loc()"
     case Node(s, "ss-get-error-loc", List(ss), _) => es"$ss.error_loc()"
     case Node(s, "ss-get-fs", List(ss), _) => es"$ss.get_fs()"
     case Node(s, "ss-set-fs", List(ss, fs), _) => es"$ss.set_fs($fs)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
+    case Node(s, "ss-copy-pc", List(ss), _) => es"$ss.copy_PC()"
 
     case Node(s, "ss-get-int-arg", List(ss, x), _) => es"get_int_arg($ss, $x)"
     case Node(s, "ss-get-float-arg", List(ss, x), _) => es"get_float_arg($ss, $x)"

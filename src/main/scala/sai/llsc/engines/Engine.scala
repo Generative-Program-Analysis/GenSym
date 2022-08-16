@@ -255,7 +255,8 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
                 (for {
                   _ <- updatePC(cnd.toSym)
                   v <- eval(thnVal, thnTy)
-                } yield v) ⊕
+                } yield v)
+              } ++ reify(s.fork) {
                 (for {
                   _ <- updatePC(cnd.toSymNeg)
                   v <- eval(elsVal, elsTy)
@@ -343,16 +344,18 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           if (table.isEmpty)
             if (checkPC(s.pc)) {
               nPath += 1
+              val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size)
-              reify(s) { execBlock(ctx.funName, default) }
+              reify(new_ss) { execBlock(ctx.funName, default) }
             } else List[(SS, Value)]()
           else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             val m = reflect {
               if (checkPC(s.pc.addPC(headPC.toSym))) {
                 nPath += 1
+                val new_ss = if (1 == nPath) s else s.fork
                 Coverage.incBranch(ctx, swTable.size - table.size)
-                reify(s)(for {
+                reify(new_ss)(for {
                   _ <- updatePC(headPC.toSym)
                   u <- execBlock(ctx.funName, table.head.label)
                 } yield u)
@@ -422,10 +425,10 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
 
   def execBlockEager(b: BB)(implicit ctx: Ctx): Comp[E, Rep[Value]] = {
     val runInstList: Comp[E, Rep[Value]] = for {
+      _ <- coverNewBlock(ctx)
       _ <- mapM(b.ins)(execInst(_))
       v <- execTerm(b.term)
     } yield v
-    Coverage.incBlock(ctx)
     runInstList
   }
 

@@ -1,6 +1,8 @@
 #ifndef LLSC_SMT_CHECKER_HEADERS
 #define LLSC_SMT_CHECKER_HEADERS
 
+#include "ktest.hpp"
+
 // TODO: generic caching mechanisms should be shared no matter the solver
 class Checker {
 public:
@@ -20,7 +22,7 @@ public:
 
   virtual bool check_pc(PC pc) = 0;
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) = 0;
-  virtual void generate_test(PC pc) = 0;
+  virtual void generate_test(SS state) = 0;
 };
 
 template <typename Self, typename Expr>
@@ -74,67 +76,13 @@ public:
     return it->second;
   }
 
-  template <template <typename> typename Cont>
-  CheckResult check_model(
-        const Cont<PtrVal>& conds,
+  using objiter_t = typename decltype(objcache)::iterator;
+
+  CheckResult check_indep_model(
+        const std::vector<objiter_t> & condvec,
+        std::set<PtrVal>& condset,
         simple_ptr<SymV> query_expr=nullptr,
         bool require_model=false) {
-
-    // translation
-    if (!use_objcache)
-      objcache.clear();
-    for (auto &v: conds)
-      construct_expr(v);
-    if (query_expr)
-      construct_expr(query_expr);
-
-    // local storage
-    using objiter_t = typename decltype(objcache)::iterator;
-    std::vector<objiter_t> condvec;
-    std::set<PtrVal> condset;
-
-    // constraint independence resolving
-    if (use_cons_indep && conds.size() > (query_expr ? 0 : 1)) {
-      std::vector<objiter_t> queue;
-      objiter_t cur;
-      int idx;
-
-      for (auto& v: conds) {
-        condvec.push_back(objcache.find(v));
-      }
-      if (!query_expr) {
-        cur = condvec.back(); condvec.pop_back();
-        idx = 1;
-        queue.push_back(cur);
-        condset.insert(cur->first);
-      }
-      else {
-        cur = objcache.find(query_expr);
-        idx = 0;
-      }
-
-      do {
-        auto& cset = std::get<1>(cur->second);
-        for (auto& next: condvec) if (next != objcache.end()) {
-          auto& nset = std::get<1>(next->second);
-          auto cit = cset.begin();
-          auto nit = nset.begin();
-          if (cit != cset.end() && nit != nset.end()) {
-            do if (nit->first == cit->first) {
-              condset.insert(next->first);
-              queue.push_back(next);
-              next = objcache.end();
-              break;
-            }
-            while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
-          }
-        }
-      }
-      while (idx < queue.size() && (cur = queue[idx++], true));
-      condvec = std::move(queue);
-    } else {
-      condset.insert(conds.begin(), conds.end());
-    }
 
     //solving with counterexample caching
     if (use_cexcache && (!query_expr || query_expr->name.size())) {
@@ -182,6 +130,102 @@ public:
     return std::make_tuple(result, model);
   }
 
+  template <template <typename> typename Cont>
+  void get_indep_conds(
+        const Cont<PtrVal>& conds,
+        std::vector<objiter_t>& condvec,
+        std::set<PtrVal>& condset,
+        simple_ptr<SymV> query_expr) {
+    if (use_cons_indep && conds.size() > (query_expr ? 0 : 1)) {
+      std::vector<objiter_t> queue;
+      objiter_t cur;
+      int idx;
+
+      for (auto& v: conds) {
+        condvec.push_back(objcache.find(v));
+      }
+      if (!query_expr) {
+        cur = condvec.back(); condvec.pop_back();
+        idx = 1;
+        queue.push_back(cur);
+        condset.insert(cur->first);
+      }
+      else {
+        cur = objcache.find(query_expr);
+        idx = 0;
+      }
+
+      do {
+        auto& cset = std::get<1>(cur->second);
+        for (auto& next: condvec) if (next != objcache.end()) {
+          auto& nset = std::get<1>(next->second);
+          auto cit = cset.begin();
+          auto nit = nset.begin();
+          if (cit != cset.end() && nit != nset.end()) {
+            do if (nit->first == cit->first) {
+              condset.insert(next->first);
+              queue.push_back(next);
+              next = objcache.end();
+              break;
+            }
+            while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
+          }
+        }
+      }
+      while (idx < queue.size() && (cur = queue[idx++], true));
+      condvec = std::move(queue);
+    } else {
+      condset.insert(conds.begin(), conds.end());
+    }
+  }
+
+  template <template <typename> typename Cont>
+  CheckResult check_model(
+        const Cont<PtrVal>& conds,
+        simple_ptr<SymV> query_expr=nullptr,
+        bool require_model=false) {
+    ASSERT(!query_expr || !require_model, "Conflicting request");
+    // translation
+    if (!use_objcache)
+      objcache.clear();
+    for (auto &v: conds)
+      construct_expr(v);
+    if (query_expr)
+      construct_expr(query_expr);
+
+    // local storage
+    std::vector<objiter_t> condvec;
+    std::set<PtrVal> condset;
+
+    // constraint independence resolving
+    if (!require_model || !use_cons_indep) {
+      get_indep_conds(conds, condvec, condset, query_expr);
+      return check_indep_model(condvec, condset, query_expr, require_model);
+    } else {
+      std::vector<PtrVal> curr_conds(conds.begin(), conds.end());
+      solver_result check_result;
+      std::shared_ptr<Model> model;
+      while (curr_conds.size() > 0) {
+        get_indep_conds(curr_conds, condvec, condset, query_expr);
+        int before_size = curr_conds.size();
+        for (auto& v: condset) {
+          curr_conds.erase(std::remove(curr_conds.begin(), curr_conds.end(), v), curr_conds.end());
+        }
+        ASSERT(curr_conds.size() < before_size, "Invalid elimination");
+        auto [sub_result, sub_model] = check_indep_model(condvec, condset, query_expr, require_model);
+        if (model)
+          model->insert(sub_model->begin(), sub_model->end());
+        else {
+          model = sub_model;
+          check_result = sub_result;
+        }
+        condvec.clear();
+        condset.clear();
+      }
+      return std::make_tuple(check_result, model);
+    }
+  }
+
   // interfaces
 
   virtual bool check_pc(PC pc) override {
@@ -197,29 +241,95 @@ public:
     return std::make_pair(r == sat, r == sat ? m->at(v2) : 0);
   }
 
-  virtual void generate_test(PC pc) override {
+  inline void output_default_testcase(std::shared_ptr<Model> model, solver_result result, unsigned int test_id) {
+    std::stringstream output;
+    output << "Query number: " << (test_id+1) << std::endl;
+    output << "Query is " << check_result_to_string(result) << std::endl;
+    std::stringstream filename;
+    filename << "tests/" << test_id << ".test";
+    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
+    if (out_fd == -1) {
+      ABORT("Cannot create the test case file, abort.\n");
+    }
+    for (auto [k, v]: *model) {
+      output << k->name << "=" << v << std::endl;
+    }
+    int n = write(out_fd, output.str().c_str(), output.str().size());
+    close(out_fd);
+  }
+
+  inline void output_k_testcase(SS& state, std::shared_ptr<Model> model, unsigned int test_id, int conc_argc, char** conc_argv) {
+    KTest b;
+    b.numArgs = conc_argc;
+    b.args = conc_argv;
+    b.symArgvs = 0;
+    b.symArgvLen = 0;
+    auto symbolics = state.get_symbolics();
+    b.numObjects = symbolics.size();
+    b.objects = new KTestObject[b.numObjects];
+    assert(b.objects);
+    for (int i=0; i< b.numObjects; i++) {
+      KTestObject *o = &b.objects[i];
+      auto obj = symbolics[i];
+      o->name = new char[obj.name.size() + 1];
+      memcpy(o->name, obj.name.c_str(), obj.name.size());
+      o->name[obj.name.size()] = 0;
+      o->numBytes = obj.size;
+      o->bytes = new unsigned char[o->numBytes];
+      assert(o->bytes);
+      if (obj.is_whole) {
+        ASSERT(obj.size == 4, "Bad whole object");
+        auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
+        ASSERT(key, "Invalid key");
+        auto it = model->find(key);
+        uint32_t value = (uint32_t)it->second;
+        if (it != model->end()) {
+          memcpy(o->bytes, (char*)&value, o->numBytes);
+        } else {
+          memset(o->bytes, '0', o->numBytes);
+        }
+      } else {
+        for (int idx=0; idx < o->numBytes; idx++) {
+          auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
+          ASSERT(key, "Invalid key");
+          auto it = model->find(key);
+          if (it != model->end()) {
+            o->bytes[idx] = (unsigned char) it->second;
+          } else {
+            o->bytes[idx] = 0;
+          }
+        }
+      }
+    }
+
+    std::stringstream filename;
+    filename << "tests/" << test_id << ".ktest";
+    int success = kTest_toFile(&b, filename.str().c_str());
+
+    if (!success)
+      ABORT("Failed to write ktest to file");
+
+    for (unsigned i=0; i<b.numObjects; i++)
+      delete[] b.objects[i].bytes;
+    delete[] b.objects;
+  }
+
+  virtual void generate_test(SS state) override {
+    auto pc = std::move(state.get_PC());
     if (!use_solver) return;
     if (mkdir("tests", 0777) == -1) {
       if (errno == EEXIST) { }
       else ABORT("Cannot create the folder tests, abort.\n");
     }
-    std::stringstream output;
-    output << "Query number: " << (test_query_num+1) << std::endl;
     auto [result, model] = check_model(pc.get_path_conds(), nullptr, true);
-    output << "Query is " << check_result_to_string(result) << std::endl;
     if (result == sat) {
+      if (only_output_covernew && !state.has_covernew()) return;
       test_query_num++;
-      std::stringstream filename;
-      filename << "tests/" << test_query_num << ".test";
-      int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
-      if (out_fd == -1) {
-        ABORT("Cannot create the test case file, abort.\n");
+      if (!output_ktest) {
+        output_default_testcase(model, result, test_query_num);
+      } else {
+        output_k_testcase(state, model, test_query_num, conc_g_argc, conc_g_argv);
       }
-      for (auto [k, v]: *model) {
-        output << k->name << "=" << v << std::endl;
-      }
-      int n = write(out_fd, output.str().c_str(), output.str().size());
-      close(out_fd);
     }
   }
 };
@@ -270,7 +380,7 @@ inline bool check_pc(PC pc) {
 
 inline void check_pc_to_file(SS state) {
   auto start = steady_clock::now();
-  checker_manager.get_checker().generate_test(std::move(state.get_PC()));
+  checker_manager.get_checker().generate_test(std::move(state));
   auto end = steady_clock::now();
   int_solver_time += duration_cast<microseconds>(end - start).count();
 }

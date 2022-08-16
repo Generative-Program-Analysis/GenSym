@@ -116,7 +116,10 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     def setErrorLoc(v: Rep[IntV]): Rep[SS] = ss.update(ss.getErrorLoc, v)
 
     def addIncomingBlock(ctx: Ctx): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, Counter.block.get(ctx.toString))
+    def coverBlock(ctx: Ctx): Rep[SS] = "ss-cover-block".reflectCtrlWith[SS](ss, Counter.block.get(ctx.toString))
     def incomingBlock: Rep[BlockLabel] = "ss-incoming-block".reflectWith[BlockLabel](ss)
+
+    def fork: Rep[SS] = "ss-fork".reflectCtrlWith[SS](ss)
 
     def getFs: Rep[FS] = "ss-get-fs".reflectCtrlWith[FS](ss)
     def setFs(fs: Rep[FS]): Unit = "ss-set-fs".reflectCtrlWith[FS](ss, fs)
@@ -178,6 +181,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
   def updatePCSet(x: Rep[List[SymV]]): Comp[E, Rep[Unit]] = updateState(_.addPCSet(x))
   def updatePC(x: Rep[SymV]): Comp[E, Rep[Unit]] = updateState(_.addPC(x))
   def updateIncomingBlock(ctx: Ctx): Comp[E, Rep[Unit]] = updateState(_.addIncomingBlock(ctx))
+  def coverNewBlock(ctx: Ctx): Comp[E, Rep[Unit]] = updateState(_.coverBlock(ctx))
   def initializeArg: Comp[E, Rep[Unit]] = updateState(_.updateArg)
   def initializeErrorLoc: Comp[E, Rep[Unit]] = updateState(_.initErrorLoc)
 
