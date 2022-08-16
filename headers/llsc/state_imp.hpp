@@ -405,7 +405,7 @@ class SS {
     uint64_t get_ssid() { return meta.ssid; }
     BlockLabel incoming_block() { return meta.bb; }
     bool has_cover_new() {return meta.has_cover_new; }
-    List<SymObj> get_symbolics() { return meta.symbolics; }
+    List<SymObj> get_sym_objs() { return meta.sym_objs; }
     int count_name(const std::string& name) { return meta.count_name(name); }
     std::string get_unique_name(const std::string& name) {
       unsigned id = 0;
@@ -415,7 +415,7 @@ class SS {
       }
       return uniqueName;
     }
-    List<PtrVal> get_cexprefers() { return meta.cexprefers; }
+    List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
     SS&& alloc_stack(size_t size) {
 #ifdef LAZYALLOC
       pending_allocs.push_back({"stack", size});

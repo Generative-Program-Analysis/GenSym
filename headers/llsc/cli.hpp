@@ -186,9 +186,9 @@ inline void handle_cli_args(int argc, char** argv) {
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
   }
   if (output_ktest && (cli_argv.size() > 0)) {
-    conc_g_argc = cli_argv.size();
-    conc_g_argv = new char* [conc_g_argc];
-    for (int i=0; i < conc_g_argc; i++) {
+    g_conc_argc = cli_argv.size();
+    g_conc_argv = new char* [g_conc_argc];
+    for (int i = 0; i < g_conc_argc; i++) {
       int size = cli_argv[i].size();
       char* cur_argv = new char[size];
       for (int j = 0; j < size; j++) {
@@ -196,7 +196,7 @@ inline void handle_cli_args(int argc, char** argv) {
         cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
       }
       cur_argv[size - 1] = 0;
-      conc_g_argv[i] = cur_argv;
+      g_conc_argv[i] = cur_argv;
     }
   }
   INFO(initial_fs);

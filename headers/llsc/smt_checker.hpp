@@ -128,9 +128,9 @@ public:
     return std::make_tuple(result, model);
   }
 
-  template <template <typename> typename Cont>
+  template <template <typename> typename T>
   void get_indep_conds(
-        const Cont<PtrVal>& conds,
+        const T<PtrVal>& conds,
         std::vector<objiter_t>& condvec,
         std::set<PtrVal>& condset,
         simple_ptr<SymV> query_expr) {
@@ -174,9 +174,9 @@ public:
     }
   }
 
-  template <template <typename> typename Cont>
+  template <template <typename> typename T>
   CheckResult check_model(
-        const Cont<PtrVal>& conds,
+        const T<PtrVal>& conds,
         simple_ptr<SymV> query_expr = nullptr,
         bool require_model = false) {
     ASSERT(!query_expr || !require_model, "Conflicting request");
@@ -256,13 +256,13 @@ public:
     b.args = conc_argv;
     b.symArgvs = 0;
     b.symArgvLen = 0;
-    auto symbolics = state.get_symbolics();
-    b.numObjects = symbolics.size();
+    auto sym_objs = state.get_sym_objs();
+    b.numObjects = sym_objs.size();
     b.objects = new KTestObject[b.numObjects];
     assert(b.objects);
     for (int i = 0; i < b.numObjects; i++) {
       KTestObject *o = &b.objects[i];
-      auto obj = symbolics[i];
+      auto& obj = sym_objs[i];
       // XXX(GW): when do we delete it?
       o->name = new char[obj.name.size() + 1];
       memcpy(o->name, obj.name.c_str(), obj.name.size());
@@ -320,7 +320,7 @@ public:
     if (result == sat) {
       if (only_output_covernew && !state.has_cover_new()) return;
       test_query_num++;
-      if (output_ktest) gen_ktest_format(model, test_query_num, state, conc_g_argc, conc_g_argv);
+      if (output_ktest) gen_ktest_format(model, test_query_num, state, g_conc_argc, g_conc_argv);
       else gen_default_format(model, test_query_num);
     } else {
       ABORT("Cannot find satisfiable test cases");

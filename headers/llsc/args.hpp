@@ -7,8 +7,8 @@ inline immer::flex_vector<immer::flex_vector<PtrVal>> cli_argv;
 // the argv and argc value passed to llsc_main
 inline PtrVal g_argv;
 inline PtrVal g_argc;
-inline int conc_g_argc = 0;
-inline char** conc_g_argv = nullptr;
+inline int g_conc_argc = 0;
+inline char** g_conc_argv = nullptr;
 
 using ArgTy = std::variant<unsigned, std::string>;
 
