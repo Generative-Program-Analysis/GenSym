@@ -24,8 +24,7 @@ inline int vararg_id = -1;
 inline unsigned int default_bw = 32;
 // The bitwidth of addresses (64 by default)
 inline unsigned int addr_bw = 64;
-
-inline unsigned int addr_index_bw = 64;
+inline unsigned int addr_index_bw = addr_bw;
 
 inline std::atomic<std::optional<int>> exit_code;
 inline std::mutex exit_code_lock;

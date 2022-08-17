@@ -263,7 +263,6 @@ public:
     for (int i = 0; i < b.numObjects; i++) {
       KTestObject *o = &b.objects[i];
       auto& obj = sym_objs[i];
-      // XXX(GW): when do we delete it?
       o->name = new char[obj.name.size() + 1];
       memcpy(o->name, obj.name.c_str(), obj.name.size());
       o->name[obj.name.size()] = 0;
@@ -277,12 +276,8 @@ public:
         ASSERT(key, "Invalid key");
         auto it = model->find(key);
         uint32_t value = (uint32_t) it->second;
-        if (it != model->end()) {
-          memcpy(o->bytes, (char*) &value, o->numBytes);
-        } else {
-          // XXX(GW): memset to 0 or char '0'?
-          memset(o->bytes, '0', o->numBytes);
-        }
+        if (it == model->end()) memset(o->bytes, 0, o->numBytes);
+        else memcpy(o->bytes, (char*) &value, o->numBytes);
       } else {
         for (int idx = 0; idx < o->numBytes; idx++) {
           auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
@@ -304,8 +299,10 @@ public:
     if (!success)
       ABORT("Failed to write ktest to file");
 
-    for (unsigned i = 0; i < b.numObjects; i++)
+    for (unsigned i = 0; i < b.numObjects; i++) {
+      delete[] b.objects.name;
       delete[] b.objects[i].bytes;
+    }
     delete[] b.objects;
   }
 
