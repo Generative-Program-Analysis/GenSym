@@ -42,18 +42,24 @@ comm
 cut
 dirname
 echo
-expand
 )
 
 # runtime options for executable
+# for path comparison
+
 declare -A options=(
-[base32]='{--argv="name -sym-files 1 {0..10..2} -d A",--argv="name -d A" --sym-file-size={0..10..2} --add-sym-file A}' # -d needed
-[base64]='{--argv="name -sym-files 1 {0..10..2} -d A",--argv="name -d A" --sym-file-size={0..10..2} --add-sym-file A}'
-[comm]='{--argv="name -sym-files 2 {1..3} A B",--argv="name A B" --sym-file-size={1..3} --add-sym-file=A --add-sym-file=B}'
-[cut]='{--argv="name -sym-files 1 {5,10} -{b,c} 1-2 A",--argv="name -{b,c} 1-2 A" --sym-file-size={5,10} --add-sym-file A} --solver=z3 --thread=8'
-[dirname]='--argv="name {-sym-arg {0..30..10},#{0..30..10}}"'
-[echo]='--argv="name {-sym-arg {0..30..10},#{0..30..10}}"'
-[expand]='{--argv="name -sym-files 1 {0..30..10} -t {1,4,8}",--argv="name -t {1,4,8} A" --sym-file-size={0..30..10} --add-sym-file A}'
+[base32_posix]='--argv="name -sym-files 1 {1..5} -d A"' # -d needed
+[base32_uclibc]='--argv="name -d A" --sym-file-size={1..5} --add-sym-file A' # -d needed
+[base64_posix]='--argv="name -sym-files 1 {0..10..2} -d A"'
+[base64_uclibc]='--argv="name -d A" --sym-file-size={0..10..2} --add-sym-file A'
+[comm_posix]='--argv="name -sym-files 2 {1..3} A B"'
+[comm_uclibc]='--argv="name A B" --sym-file-size={1..3} --add-sym-file=A --add-sym-file=B'
+[cut_posix]='--argv="name -sym-files 1 {5,10} -{b,c} 1-2 A"'
+[cut_uclibc]='--argv="name -{b,c} 1-2 A" --sym-file-size={5,10} --add-sym-file A'
+[dirname_posix]='--argv="name -sym-arg {0..30..10}'
+[dirname_uclibc]='--argv="name #{0..30..10}"'
+[echo_posix]='--argv="name -sym-arg {1..12}"'
+[echo_uclibc]='--argv="name #{1..12}"'
 )
 
 ###################
@@ -107,7 +113,17 @@ for i in "${!inputs[@]}"; do
 	exec >  >(tee -ia ${OUTFILE})
 	exec 2> >(tee -ia ${OUTFILE} >&2)
 	for f in ${candidates[@]}; do
-		option="${options[$f]} $RUNTIME_OPTION"
+		if [ -v "options[${f}_${i}]" ]; then
+			echo [run_experiment] using input specific option with key: ${f}_${i}
+			option="${options[${f}_${i}]} $RUNTIME_OPTION"
+		elif [ -v "options[${f}]" ]; then
+			echo [run_experiment] using generic input option with key: ${f}
+			option="${options[${f}]} $RUNTIME_OPTION"
+		else
+			echo [run_experiment] no option found for input file ${f} of type ${i}
+			echo [run_experiment] HINT: add an item to the "options=(...)" array with key [${f}] or [${f}_${i}]
+			option="$RUNTIME_OPTION"
+		fi
 		# write only succinct output to OUTFILERUNTIME
 		BM_OPTIONS="${BM_OPTIONS} --succinct-log ${OUTFILERUNTIME}"
 		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll ${COMMIT_HASH}_${f}_${i} $option

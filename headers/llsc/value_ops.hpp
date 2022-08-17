@@ -543,12 +543,13 @@ inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
   return hashconsing(ret);
 }
 
-inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, size_t bw) {
-  immer::flex_vector_transient<PtrVal> res;
-  for (auto i = 0; i < length; i++) {
-    res.push_back(make_SymV(fresh(prefix), bw));
-  }
-  return res.persistent();
+// return a list of PtrVal with the specified variable prefix
+inline List<PtrVal> make_SymList(String prefix, int n) {
+    TrList<PtrVal> res;
+    for (int i = 0; i < n; i++) {
+        res.push_back(make_SymV(prefix + std::to_string(i), 8));
+    }
+    return res.persistent();
 }
 
 inline PtrVal SymV::neg(const PtrVal& v) {
