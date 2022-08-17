@@ -1,5 +1,5 @@
-#ifndef LLSC_STP_HEADERS
-#define LLSC_STP_HEADERS
+#ifndef LLSC_STP_HEADER
+#define LLSC_STP_HEADER
 
 #include <stp/c_interface.h>
 #include <stp_handle.hpp>

@@ -1,5 +1,5 @@
-#ifndef LLSC_Z3_HEADERS
-#define LLSC_Z3_HEADERS
+#ifndef LLSC_Z3_HEADER
+#define LLSC_Z3_HEADER
 
 #include "z3++.h"
 

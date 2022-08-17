@@ -1,31 +1,38 @@
-#ifndef LLSC_KTEST_H
-#define LLSC_KTEST_H
+#ifndef LLSC_KTEST_HEADER
+#define LLSC_KTEST_HEADER
+
+/*
+ * The implementation of KTestObject, write_uint32, write_string, kTest_toFile
+ * are extracted from the KLEE symbolic virtual machine project.
+ * Same as KLEE, this file is distributed under the University of Illinois Open
+ * Source License. https://github.com/klee/klee/blob/master/LICENSE.TXT
+ */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  typedef struct KTestObject KTestObject;
-  struct KTestObject {
-    char *name;
-    unsigned numBytes;
-    unsigned char *bytes;
-  };
+typedef struct KTestObject KTestObject;
+struct KTestObject {
+  char *name;
+  unsigned numBytes;
+  unsigned char *bytes;
+};
 
-  typedef struct KTest KTest;
-  struct KTest {
-    /* file format version */
-    unsigned version;
+typedef struct KTest KTest;
+struct KTest {
+  /* file format version */
+  unsigned version;
 
-    unsigned numArgs;
-    char **args;
+  unsigned numArgs;
+  char **args;
 
-    unsigned symArgvs;
-    unsigned symArgvLen;
+  unsigned symArgvs;
+  unsigned symArgvLen;
 
-    unsigned numObjects;
-    KTestObject *objects;
-  };
+  unsigned numObjects;
+  KTestObject *objects;
+};
 
 #ifdef __cplusplus
 }
@@ -34,7 +41,7 @@ extern "C" {
 #define KTEST_MAGIC "KTEST"
 #define KTEST_VERSION 3
 
-inline static int write_uint32(FILE *f, unsigned value) {
+inline int write_uint32(FILE *f, unsigned value) {
   unsigned char data[4];
   data[0] = value>>24;
   data[1] = value>>16;
@@ -43,7 +50,7 @@ inline static int write_uint32(FILE *f, unsigned value) {
   return fwrite(data, 1, 4, f)==4;
 }
 
-inline static int write_string(FILE *f, const char *value) {
+inline int write_string(FILE *f, const char *value) {
   unsigned len = strlen(value);
   if (!write_uint32(f, len))
     return 0;

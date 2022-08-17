@@ -1,5 +1,5 @@
-#ifndef LLSC_END_HEADERS
-#define LLSC_END_HEADERS
+#ifndef LLSC_END_HEADER
+#define LLSC_END_HEADER
 
 inline void prelude(int argc, char** argv) {
   inc_stack(STACKSIZE_128MB);

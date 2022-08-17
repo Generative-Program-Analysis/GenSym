@@ -1,5 +1,5 @@
-#ifndef LLSC_EXTERNAL_SHARED_HEADERS
-#define LLSC_EXTERNAL_SHARED_HEADERS
+#ifndef LLSC_EXTERNAL_SHARED_HEADER
+#define LLSC_EXTERNAL_SHARED_HEADER
 
 /* This is the file that is supposed to be shared between
  * external_pure.hpp and external_imp.hpp.

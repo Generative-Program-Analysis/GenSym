@@ -1,5 +1,5 @@
-#ifndef LLSC_EXTERNAL_PURE_HEADERS
-#define LLSC_EXTERNAL_PURE_HEADERS
+#ifndef LLSC_EXTERNAL_PURE_HEADER
+#define LLSC_EXTERNAL_PURE_HEADER
 
 #include "external_shared.hpp"
 
