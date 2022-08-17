@@ -1,5 +1,5 @@
-#ifndef LLSC_AUX_HEADERS
-#define LLSC_AUX_HEADERS
+#ifndef LLSC_AUX_HEADER
+#define LLSC_AUX_HEADER
 
 #define MAX(a, b) ((a) > (b)) ? (a) : (b)
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
@@ -24,8 +24,7 @@ inline int vararg_id = -1;
 inline unsigned int default_bw = 32;
 // The bitwidth of addresses (64 by default)
 inline unsigned int addr_bw = 64;
-
-inline unsigned int addr_index_bw = 64;
+inline unsigned int addr_index_bw = addr_bw;
 
 inline std::atomic<std::optional<int>> exit_code;
 inline std::mutex exit_code_lock;
@@ -231,9 +230,9 @@ inline std::string fresh(const std::string& x) { return x + std::to_string(var_n
 class SymObj : public Printable {
 public:
   std::string name;
-  int size;
+  size_t size;
   bool is_whole;
-  SymObj(std::string name, int size, bool is_whole) : name(name), size(size), is_whole(is_whole) {}
+  SymObj(std::string name, size_t size, bool is_whole) : name(name), size(size), is_whole(is_whole) {}
   std::string toString() const override {
     std::ostringstream ss;
     ss << "SymObj(" << name << ", " << size << ", " << is_whole << ")";

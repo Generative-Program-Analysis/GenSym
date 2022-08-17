@@ -1,5 +1,5 @@
-#ifndef LLSC_VALUE_OPS_HEADERS
-#define LLSC_VALUE_OPS_HEADERS
+#ifndef LLSC_VALUE_OPS_HEADER
+#define LLSC_VALUE_OPS_HEADER
 
 struct Value;
 struct IntV;
@@ -556,20 +556,19 @@ inline PtrVal SymV::neg(const PtrVal& v) {
 }
 
 // XXX GW: just use bv_sext? seems not much difference?
-// XXX GW: addr_index_bw vs addr_bw?
 inline PtrVal addr_index_ext(const PtrVal& off) {
   ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
   if (off->get_bw() == addr_index_bw) {
     return off;
   } else {
-    // Todo: whether zext or sext?
+    // TODO: whether zext or sext?
     return bv_sext(off, addr_index_bw);
   }
 }
 
-inline PtrVal SymLocV_index(const int off) {
-  ASSERT(off >= 0, "Bad off");
-  return make_IntV(off, addr_index_bw);
+inline PtrVal SymLocV_index(const int offset) {
+  ASSERT(offset >= 0, "Bad off");
+  return make_IntV(offset, addr_index_bw);
 }
 
 struct SymLocV : SymV {

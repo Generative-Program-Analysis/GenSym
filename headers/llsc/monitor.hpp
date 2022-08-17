@@ -1,5 +1,5 @@
-#ifndef LLSC_MON_HEADERS
-#define LLSC_MON_HEADERS
+#ifndef LLSC_MON_HEADER
+#define LLSC_MON_HEADER
 #include<signal.h>
 
 /* Coverage information */
