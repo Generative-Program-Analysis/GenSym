@@ -567,7 +567,7 @@ inline PtrVal addr_index_ext(const PtrVal& off) {
 }
 
 inline PtrVal SymLocV_index(const int offset) {
-  ASSERT(off >= 0, "Bad off");
+  ASSERT(offset >= 0, "Bad off");
   return make_IntV(offset, addr_index_bw);
 }
 

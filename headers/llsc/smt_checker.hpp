@@ -261,7 +261,7 @@ public:
     b.objects = new KTestObject[b.numObjects];
     assert(b.objects);
     for (int i = 0; i < b.numObjects; i++) {
-      KTestObject *o = &b.objects[i];
+      KTestObject* o = &b.objects[i];
       auto& obj = sym_objs[i];
       o->name = new char[obj.name.size() + 1];
       memcpy(o->name, obj.name.c_str(), obj.name.size());
@@ -300,7 +300,7 @@ public:
       ABORT("Failed to write ktest to file");
 
     for (unsigned i = 0; i < b.numObjects; i++) {
-      delete[] b.objects.name;
+      delete[] b.objects[i].name;
       delete[] b.objects[i].bytes;
     }
     delete[] b.objects;
