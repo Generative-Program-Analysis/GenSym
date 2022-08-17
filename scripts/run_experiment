@@ -59,7 +59,7 @@ declare -A options=(
 [dirname_posix]='--argv="name -sym-arg {0..30..10}'
 [dirname_uclibc]='--argv="name #{0..30..10}"'
 [echo_posix]='--argv="name -sym-arg {1..12}"'
-[echo_uclibc]='--argv="name #{9..12}"'
+[echo_uclibc]='--argv="name #{1..12}"'
 )
 
 ###################
