@@ -15,7 +15,7 @@ using ArgTy = std::variant<unsigned, std::string>;
 inline List<PtrVal> to_chars(List<ArgTy> mr) {
   return Vec::flatMap<PtrVal>(mr, [](const ArgTy& e) {
     if (isInstanceOf<unsigned>(e))
-      return make_SymV_seq(std::get<unsigned>(e), "args", 8);
+      return make_SymList("arg00_", std::get<unsigned>(e));
     if (isInstanceOf<std::string>(e))
       return Value::from_string(std::get<std::string>(e));
     ABORT("Unknown cli argument type");
