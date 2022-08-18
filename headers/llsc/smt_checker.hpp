@@ -196,7 +196,8 @@ public:
     } else {
       std::vector<PtrVal> curr_conds(conds.begin(), conds.end());
       solver_result check_result;
-      std::shared_ptr<Model> model;
+      std::shared_ptr<Model> model = std::make_shared<Model>();
+      bool found_narg = false;
       while (curr_conds.size() > 0) {
         get_indep_conds(curr_conds, condvec, condset, query_expr);
         int before_size = curr_conds.size();
@@ -205,12 +206,18 @@ public:
         }
         ASSERT(curr_conds.size() < before_size, "Invalid elimination");
         auto [sub_result, sub_model] = check_indep_model(condvec, condset, query_expr, require_model);
-        if (model)
-          model->insert(sub_model->begin(), sub_model->end());
-        else {
-          model = sub_model;
-          check_result = sub_result;
+
+        bool local_found_narg = false;
+        for (auto &pp: *sub_model) {
+          if (pp.first->name.rfind("n_args", 0) == 0) {
+            local_found_narg = true;
+          }
         }
+        if (found_narg && local_found_narg) assert(0);
+        found_narg = found_narg || local_found_narg;
+        if (model->size() == 0)
+          check_result = sub_result;
+        model->insert(sub_model->begin(), sub_model->end());
         condvec.clear();
         condset.clear();
       }
@@ -315,6 +322,7 @@ public:
     }
     auto [result, model] = check_model(pc.get_path_conds(), nullptr, true);
     if (result == sat) {
+      completed_path_num++;
       if (only_output_covernew && !state.has_cover_new()) return;
       test_query_num++;
       if (output_ktest) gen_ktest_format(model, test_query_num, state, g_conc_argc, g_conc_argv);

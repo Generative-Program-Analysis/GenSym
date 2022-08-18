@@ -18,6 +18,7 @@ static struct option long_options[] =
   {"output-ktest",                    no_argument,       0, 'K'},
   {"print-inst-count",                no_argument,       0, 'I'},
   {"print-cov",                       no_argument,       0, 'p'},
+  {"search",                          required_argument, 0, 'R'},
   {"symloc-strategy",                 required_argument, 0, 'L'},
   {"add-sym-file",                    required_argument, 0, '+'},
   {"sym-file-size",                   required_argument, 0, 's'},
@@ -30,6 +31,16 @@ static struct option long_options[] =
   {"help",                            no_argument,       0, 'h'},
   {0,                                 0,                 0, 0  }
 };
+
+inline void set_searcher(std::string& searcher) {
+  if ("random-path" == searcher) {
+    searcher_kind = SearcherKind::randomPath;
+  } else if ("random-weight" == searcher) {
+    searcher_kind = SearcherKind::randomWeight;
+  } else {
+    ABORT("unknown searcher");
+  }
+}
 
 inline void set_solver(std::string& solver) {
   if ("z3" == solver) {
@@ -118,6 +129,11 @@ inline void handle_cli_args(int argc, char** argv) {
       case 'p':
 	print_cov_detail = true;
 	break;
+      case 'R' : {
+        auto searcher = std::string(optarg);
+        set_searcher(searcher);
+        break;
+      }
       case 'L': {
         auto strategy = std::string(optarg);
         set_symloc_strategy(strategy);
@@ -140,6 +156,7 @@ inline void handle_cli_args(int argc, char** argv) {
       case 't': {
         int t = atoi(optarg);
         n_thread = (t <= 0) ? 1 : t;
+        if (n_thread > 0) use_thread_pool = true;
         break;
       }
       case 'q': {
@@ -176,7 +193,7 @@ inline void handle_cli_args(int argc, char** argv) {
       exit(-1);
     }
   }
-  if (n_thread == 1) {
+  if (!use_thread_pool) {
     // It is safe the reuse the global_vc object within one thread, but not otherwise.
     use_global_solver = true;
     std::cout << "Sequential execution mode; use global solver\n";

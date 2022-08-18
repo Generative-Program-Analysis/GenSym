@@ -112,6 +112,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_meta)"
 
     case Node(s, "ss-fork", List(ss), _) => es"$ss.fork()"
+    case Node(s, "ss-getssid", List(ss), _) => es"$ss.get_ssid()"
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a, sz), _) => es"$ss.at($a, $sz)"
     case Node(s, "ss-lookup-addr-struct", List(ss, a, sz), _) => es"$ss.at_struct($a, $sz)"
@@ -178,12 +179,12 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-path-cov", _, _) => es"cov().print_path_cov()"
     case Node(s, "assert", List(cond, msg), _) => es"ASSERT(($cond), $msg)"
 
-    case Node(s, "add_tp_task", List(b: Block), _) =>
-      es"tp.add_task("
+    case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
+      es"tp.add_task($ssid"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
-    case Node(s, "async_exec_block", List(b: Block), _) =>
-      es"async_exec_block("
+    case Node(s, "async_exec_block", List(ssid, b: Block), _) =>
+      es"async_exec_block($ssid,"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
 
@@ -293,7 +294,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
     |  if (can_par_tp()) {
-    |    tp.add_task([]() { return $name(0); });
+    |    tp.add_task(1, []() { return $name(0); });
     |  } else {
     |    $name(0);
     |  }

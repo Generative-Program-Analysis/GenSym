@@ -36,6 +36,7 @@ inline std::mutex exit_code_lock;
 inline std::atomic<unsigned int> num_async = 0;
 // Number of totoal async (Deprecated)
 inline std::atomic<unsigned int> tt_num_async = 0;
+inline unsigned int completed_path_num = 0;
 // Number of queries performed for generating test cases
 inline unsigned int test_query_num = 0;
 // Number of queries performed for checking branch satisfiability
@@ -45,6 +46,7 @@ inline unsigned int cached_query_num = 0;
 
 /* Global options */
 
+inline bool use_thread_pool = false;
 // The number of total threads (including the main thread)
 inline unsigned int n_thread = 1;
 // The number of queues when using thread pool
@@ -73,6 +75,10 @@ inline unsigned int timeout = 3600;
 inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
+
+enum class SearcherKind { randomPath, randomWeight };
+// The path searcher to be used
+inline SearcherKind searcher_kind = SearcherKind::randomWeight;
 
 enum class SolverKind { z3, stp };
 // The backend SMT solver to be used

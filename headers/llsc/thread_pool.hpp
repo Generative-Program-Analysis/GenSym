@@ -27,6 +27,10 @@
 
 using TaskFun = std::function<std::monostate()>;
 
+inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
+
+inline bool ptree_pop_task(TaskFun& task);
+
 struct Task {
   TaskFun f;
   int weight;
@@ -95,9 +99,8 @@ public:
   void with_thread_ids(const std::function<void(std::thread::id)>& f) {
     for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
-  void add_task(const TaskFun& f) { add_task(f, rand_int(1024)); }
-  void add_task(const TaskFun& f, int w) {
-    tasks_num_total++;
+
+  void queue_add_task(const TaskFun& f, int w) {
     INFO("Adding task into queue with weight " << w);
 #ifdef USE_LKFREE_Q
     Q.enqueue({f, w});
@@ -109,6 +112,15 @@ public:
     }
 #endif
   }
+  void add_task(uint64_t ssid, const TaskFun& f) {
+    tasks_num_total++;
+    if (SearcherKind::randomPath == searcher_kind) {
+      ptree_add_task(ssid, f);
+    } else {
+      ASSERT(SearcherKind::randomWeight == searcher_kind, "unknown searcher");
+      queue_add_task(f, rand_int(1024));
+    }
+  }
 
   void worker(unsigned id) {
     while (running) {
@@ -116,8 +128,13 @@ public:
       //          << "; queued tasks " << tasks_num_queued() << "\n";
       struct Task task;
       bool get = false;
-      for (size_t i = id; i < id+queue_num; i++) {
-        if (pop_task(i % queue_num, task)) { get = true; break; }
+      if (SearcherKind::randomPath == searcher_kind) {
+        get = ptree_pop_task(task.f);
+      } else {
+        ASSERT(SearcherKind::randomWeight == searcher_kind, "unknown searcher");
+        for (size_t i = id; i < id+queue_num; i++) {
+          if (queue_pop_task(i % queue_num, task)) { get = true; break; }
+        }
       }
       if (!paused && get) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
@@ -130,7 +147,7 @@ public:
     }
   }
 
-  bool pop_task(unsigned id, struct Task& task) {
+  bool queue_pop_task(unsigned id, struct Task& task) {
 #ifdef USE_LKFREE_Q
     bool found = Q.try_dequeue(task);
     return found;

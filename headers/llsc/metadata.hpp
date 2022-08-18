@@ -11,7 +11,7 @@ public:
 
     MetaData(uint64_t ssid, BlockLabel bb, bool covernew, List<SymObj> sym_objs, List<PtrVal> preferred_cex) :
       ssid(ssid), bb(bb), has_cover_new(covernew), sym_objs(sym_objs), preferred_cex(preferred_cex) {}
-    MetaData fork() { return MetaData(cov().new_ssid(), bb, false, sym_objs, preferred_cex); }
+    MetaData fork() { return MetaData(ss_fork(ssid), bb, false, sym_objs, preferred_cex); }
     // XXX(GW): what count_name does? just check existence?
     int count_name(const std::string& name) {
       for (auto symobj : sym_objs) {
