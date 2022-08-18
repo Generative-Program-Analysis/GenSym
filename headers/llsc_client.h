@@ -70,7 +70,10 @@ static inline void llsc_warning(const char *message) {
   print_string("\n");
 }
 
-#define llsc_warning_once(message) llsc_warning(message)
+void llsc_warning_once(const char *message);
+
+void llsc_prefer_cex(void *object, bool condition);
+void llsc_posix_prefer_cex(void *object, bool condition);
 
 /* return whether n is a symbolic value */
 unsigned llsc_is_symbolic(uintptr_t n);

@@ -591,4 +591,14 @@ inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   return k(res, IntV0);
 }
 
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  ASSERT(2 == args.size(), "Invalid number of arguments for llsc_prefer_cex");
+  auto cond = args.at(1);
+  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "prefer Non-Symv Condition");
+  return k(state.add_cex(cond), make_IntV(0));
+}
+
 #endif

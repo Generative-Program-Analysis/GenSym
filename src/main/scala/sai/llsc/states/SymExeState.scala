@@ -121,6 +121,8 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
 
     def fork: Rep[SS] = "ss-fork".reflectCtrlWith[SS](ss)
 
+    def getSSid: Rep[Long] = "ss-getssid".reflectWith[Long](ss)
+
     def getFs: Rep[FS] = "ss-get-fs".reflectCtrlWith[FS](ss)
     def setFs(fs: Rep[FS]): Unit = "ss-set-fs".reflectCtrlWith[FS](ss, fs)
 

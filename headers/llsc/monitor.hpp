@@ -121,7 +121,7 @@ struct Monitor {
       std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
     }
     void print_query_stat() {
-      std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
+      std::cout << "#queries: " << br_query_num << "/" << generated_test_num << " (" << cached_query_num << ")\n" << std::flush;
     }
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
