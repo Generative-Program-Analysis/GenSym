@@ -18,6 +18,7 @@ static struct option long_options[] =
   {"output-ktest",                    no_argument,       0, 'K'},
   {"print-inst-count",                no_argument,       0, 'I'},
   {"print-cov",                       no_argument,       0, 'p'},
+  {"readable-posix-inputs",           no_argument,       0, 'X'},
   {"search",                          required_argument, 0, 'R'},
   {"symloc-strategy",                 required_argument, 0, 'L'},
   {"add-sym-file",                    required_argument, 0, '+'},
@@ -127,8 +128,11 @@ inline void handle_cli_args(int argc, char** argv) {
         print_inst_cnt = true;
         break;
       case 'p':
-	print_cov_detail = true;
-	break;
+        print_cov_detail = true;
+        break;
+      case 'X':
+        readable_posix = true;
+        break;
       case 'R' : {
         auto searcher = std::string(optarg);
         set_searcher(searcher);

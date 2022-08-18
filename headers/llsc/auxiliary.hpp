@@ -36,9 +36,9 @@ inline std::mutex exit_code_lock;
 inline std::atomic<unsigned int> num_async = 0;
 // Number of totoal async (Deprecated)
 inline std::atomic<unsigned int> tt_num_async = 0;
-inline unsigned int completed_path_num = 0;
+inline std::atomic<unsigned int> completed_path_num = 0;
 // Number of queries performed for generating test cases
-inline unsigned int test_query_num = 0;
+inline std::atomic<unsigned int> generated_test_num = 0;
 // Number of queries performed for checking branch satisfiability
 inline unsigned int br_query_num = 0;
 // Number of query cache hits
@@ -67,6 +67,8 @@ inline bool use_cons_indep = false;
 inline bool only_output_covernew = false;
 // Output ktest format or not
 inline bool output_ktest = false;
+// Prefer creation of human-readable POSIX inputs
+inline bool readable_posix = false;
 // Simulate possible failure in external functions (results in state forking)
 inline bool exlib_failure_branch = false;
 // Timeout in seconds (one hour by default)

@@ -257,13 +257,13 @@ public:
     close(out_fd);
   }
 
-  inline void gen_ktest_format(std::shared_ptr<Model> model, unsigned int test_id, SS& state, int conc_argc, char** conc_argv) {
+  inline void gen_ktest_format(std::shared_ptr<Model> model, unsigned int test_id,
+    List<SymObj> sym_objs, int conc_argc, char** conc_argv) {
     KTest b;
     b.numArgs = conc_argc;
     b.args = conc_argv;
     b.symArgvs = 0;
     b.symArgvLen = 0;
-    auto sym_objs = state.get_sym_objs();
     b.numObjects = sym_objs.size();
     b.objects = new KTestObject[b.numObjects];
     assert(b.objects);
@@ -320,13 +320,31 @@ public:
       if (errno == EEXIST) { }
       else ABORT("Cannot create the folder tests, abort.\n");
     }
-    auto [result, model] = check_model(pc.get_path_conds(), nullptr, true);
+    completed_path_num++;
+    if (only_output_covernew && !state.has_cover_new()) return;
+    auto conds = pc.get_path_conds();
+    CheckResult res;
+    solver_result result;
+    std::shared_ptr<Model> model;
+    if (state.get_preferred_cex().size() > 0) {
+      std::vector<PtrVal> new_conds(conds.begin(), conds.end());
+      auto preferred_cex = state.get_preferred_cex();
+      for (auto& v: preferred_cex) {
+        new_conds.push_back(v);
+        auto [r, m] = check_model(new_conds);
+        if (r != sat)
+          new_conds.pop_back();
+      }
+      res = check_model(new_conds, nullptr, true);
+    } else {
+      res = check_model(conds, nullptr, true);
+    }
+    result = std::get<0>(res);
+    model = std::get<1>(res);
     if (result == sat) {
-      completed_path_num++;
-      if (only_output_covernew && !state.has_cover_new()) return;
-      test_query_num++;
-      if (output_ktest) gen_ktest_format(model, test_query_num, state, g_conc_argc, g_conc_argv);
-      else gen_default_format(model, test_query_num);
+      generated_test_num++;
+      if (output_ktest) gen_ktest_format(model, generated_test_num, state.get_sym_objs(), g_conc_argc, g_conc_argv);
+      else gen_default_format(model, generated_test_num);
     } else {
       ABORT("Cannot find satisfiable test cases");
     }
