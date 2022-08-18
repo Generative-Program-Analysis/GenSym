@@ -44,17 +44,18 @@ trait GenExternal extends SymExeDefs {
   // <2022-05-12, David Deng> //
   def getStringAt(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string_at".reflectWith[String](ptr, s)
 
-  def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Boolean] = {
+  def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
     // the requested permission
-    val readAccess = ((flags.int & O_RDONLY: Rep[Boolean]) || (flags.int & O_RDWR))
-    val writeAccess = ((flags.int & O_WRONLY: Rep[Boolean]) || (flags.int & O_RDWR))
+    // TODO: support symbolic flags <2022-08-17, David Deng> //
+    val readAccess: Rep[IntV] = ((flags.int & O_RDONLY: Rep[Boolean]) || (flags.int & O_RDWR)).asRepOf[IntV]
+    val writeAccess: Rep[IntV] = ((flags.int & O_WRONLY: Rep[Boolean]) || (flags.int & O_RDWR)).asRepOf[IntV]
 
     // the permission of the file
-    val mode = f.readStatField("st_mode")
+    val mode: Rep[Value] = f.readStatField("st_mode")
 
-    val illegalRead = readAccess && !(((mode.int & S_IRUSR) | (mode.int & S_IRGRP) | (mode.int & S_IROTH)): Rep[Boolean])
-    val illegalWrite = readAccess && !(((mode.int & S_IWUSR) | (mode.int & S_IWGRP) | (mode.int & S_IWOTH)): Rep[Boolean])
-    !(illegalRead || illegalWrite)
+    val illegalRead = IntOp2("and", readAccess, !(((mode & IntV(S_IRUSR)) | (mode & IntV(S_IRGRP)) | (mode & IntV(S_IROTH))): Rep[Value]))
+    val illegalWrite = IntOp2("and", writeAccess, !(((mode & IntV(S_IWUSR)) | (mode & IntV(S_IWGRP)) | (mode & IntV(S_IWOTH))): Rep[Value]))
+    !(illegalRead | illegalWrite)
   }
 
   /* 
@@ -80,16 +81,25 @@ trait GenExternal extends SymExeDefs {
         fs.setFile(path, regF)
       }
       val file = fs.getFile(path)
-      if (!hasPermission(flags, file)) {
-        k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32))
-      } else {
-        if (flags.int & O_TRUNC) {
-          file.content = List[Value]()
+      val hp: Rep[Value] = hasPermission(flags, file)
+      if (hp.isConc) {
+        if (!(hp.int: Rep[Boolean])) {
+          k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32))
+        } else {
+          if (flags.int & O_TRUNC) {
+            file.content = List[Value]()
+          }
+          val fd: Rep[Fd] = fs.getFreshFd()
+          fs.setStream(fd, Stream(file))
+          k(ss, fs, IntV(fd, 32))
         }
-        val fd: Rep[Fd] = fs.getFreshFd()
-        fs.setStream(fd, Stream(file))
-        k(ss, fs, IntV(fd, 32))
+      } else {
+        // hp symbolic
+        unchecked("std::cout << \"open: hp is symbolic\" << std::endl;")
+        // TODO: fix benchmark tests <2022-08-17, David Deng> //
+        // TODO: implement fork <2022-08-17, David Deng> //
       }
+
     }
   }
 

@@ -453,6 +453,9 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def +(rhs: Rep[Value]): Rep[Value] = IntOp2.add(v, rhs)
     def *(rhs: Rep[Value]): Rep[Value] = IntOp2.mul(v, rhs)
+    def &(rhs: Rep[Value]): Rep[Value] = IntOp2("and", v, rhs)
+    def |(rhs: Rep[Value]): Rep[Value] = IntOp2("or", v, rhs)
+    def unary_! : Rep[Value] = if (v.isConc) IntV((!v.int.asRepOf[Boolean]).asRepOf[Long]) else "SymV::neg".reflectWith[Value](v)
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)
