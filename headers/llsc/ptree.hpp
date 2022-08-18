@@ -18,7 +18,6 @@ public:
     left = nullptr;
     right = nullptr;
     has_task = false;
-    //task = nullptr;
   }
 
   bool is_leaf() {
@@ -42,7 +41,6 @@ private:
     assert(curr_node);
     while(curr_node) {
       assert(curr_node->has_task);
-      //curr_node->task = nullptr;
       curr_node->has_task = false;
       if (!curr_node->parent) break;
       PTreeNodePtr other_child = curr_node->parent->left == curr_node ? curr_node->parent->right : curr_node->parent->left;
@@ -62,7 +60,6 @@ public:
     assert(it != ptreemap.end());
     PTreeNodePtr old_ptr = it->second;
     assert(!old_ptr->has_task);
-    //assert(!old_ptr->task);
     assert(!old_ptr->left);
     assert(!old_ptr->right);
     PTreeNodePtr new_ptr = new PTreeNode(old_ptr, ssid);
@@ -72,8 +69,6 @@ public:
     old_ptr->left = new_ptr;
     old_ptr->right = forked_ptr;
     old_ptr->ssid = 0;
-    //std::cout << "ssid: " << ssid << " ptr: " << old_ptr << "forked!\n";
-    //std::cout << "left: " << ssid << " ptr: " << new_ptr << " right: " << forked_ptr->ssid << " ptr: " << forked_ptr << "\n\n";
     return forked_ptr->ssid;
   }
   void remove(uint64_t ssid) {

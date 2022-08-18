@@ -197,7 +197,6 @@ public:
       std::vector<PtrVal> curr_conds(conds.begin(), conds.end());
       solver_result check_result;
       std::shared_ptr<Model> model = std::make_shared<Model>();
-      bool found_narg = false;
       while (curr_conds.size() > 0) {
         get_indep_conds(curr_conds, condvec, condset, query_expr);
         int before_size = curr_conds.size();
@@ -206,17 +205,9 @@ public:
         }
         ASSERT(curr_conds.size() < before_size, "Invalid elimination");
         auto [sub_result, sub_model] = check_indep_model(condvec, condset, query_expr, require_model);
-
-        bool local_found_narg = false;
-        for (auto &pp: *sub_model) {
-          if (pp.first->name.rfind("n_args", 0) == 0) {
-            local_found_narg = true;
-          }
-        }
-        if (found_narg && local_found_narg) assert(0);
-        found_narg = found_narg || local_found_narg;
         if (model->size() == 0)
           check_result = sub_result;
+        // Note (Ruiqi): make sure that sub_model's key won't overlap, because std::unordered_map::insert will not update for same key.
         model->insert(sub_model->begin(), sub_model->end());
         condvec.clear();
         condset.clear();
