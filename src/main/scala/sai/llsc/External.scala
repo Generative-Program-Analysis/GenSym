@@ -47,15 +47,17 @@ trait GenExternal extends SymExeDefs {
   def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
     // the requested permission
     // TODO: support symbolic flags <2022-08-17, David Deng> //
-    val readAccess: Rep[IntV] = ((flags.int & O_RDONLY: Rep[Boolean]) || (flags.int & O_RDWR)).asRepOf[IntV]
-    val writeAccess: Rep[IntV] = ((flags.int & O_WRONLY: Rep[Boolean]) || (flags.int & O_RDWR)).asRepOf[IntV]
+    val readAccess: Rep[Boolean] = (flags.int & O_RDONLY: Rep[Boolean]) || (flags.int & O_RDWR)
+    val writeAccess: Rep[Boolean] = (flags.int & O_WRONLY: Rep[Boolean]) || (flags.int & O_RDWR)
 
     // the permission of the file
     val mode: Rep[Value] = f.readStatField("st_mode")
 
-    val illegalRead = IntOp2("and", readAccess, !(((mode & IntV(S_IRUSR)) | (mode & IntV(S_IRGRP)) | (mode & IntV(S_IROTH))): Rep[Value]))
-    val illegalWrite = IntOp2("and", writeAccess, !(((mode & IntV(S_IWUSR)) | (mode & IntV(S_IWGRP)) | (mode & IntV(S_IWOTH))): Rep[Value]))
-    !(illegalRead | illegalWrite)
+    val illegalRead = IntOp2("and", IntV(readAccess.asRepOf[Long], 1), 
+      !((mode & IntV(S_IRUSR)) | (mode & IntV(S_IRGRP)) | (mode & IntV(S_IROTH))))
+    val illegalWrite = IntOp2("and", IntV(writeAccess.asRepOf[Long], 1), 
+      !((mode & IntV(S_IWUSR)) | (mode & IntV(S_IWGRP)) | (mode & IntV(S_IWOTH))))
+    IntOp2("eq", (illegalRead | illegalWrite), IntV(0, 1))
   }
 
   /* 
@@ -83,7 +85,7 @@ trait GenExternal extends SymExeDefs {
       val file = fs.getFile(path)
       val hp: Rep[Value] = hasPermission(flags, file)
       if (hp.isConc) {
-        if (!(hp.int: Rep[Boolean])) {
+        if (hp.int == 0) {
           k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32))
         } else {
           if (flags.int & O_TRUNC) {
@@ -94,10 +96,37 @@ trait GenExternal extends SymExeDefs {
           k(ss, fs, IntV(fd, 32))
         }
       } else {
+        // TODO: abstract it to a separate function? <2022-08-18, David Deng> //
         // hp symbolic
-        unchecked("std::cout << \"open: hp is symbolic\" << std::endl;")
+        unchecked("std::cout << \"open: hp is symbolic: \" << ", hp, "->toString() << std::endl;")
+        val tpcSat = checkPC(ss.pc.addPC(hp.toSym))
+        val fpcSat = checkPC(ss.pc.addPC(hp.toSymNeg))
+        if (tpcSat && fpcSat) {
+          unchecked("std::cout << \"open: both satisfiable\" << std::endl;")
+          Coverage.incPath(1)
+          // false branch
+          k(ss.addPC(hp.toSymNeg).setErrorLoc(flag("EACCES")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
+
+          // true branch
+          if (flags.int & O_TRUNC) {
+            file.content = List[Value]()
+          }
+          val fd: Rep[Fd] = fs.getFreshFd()
+          fs.setStream(fd, Stream(file))
+          k(ss.addPC(hp.toSym), fs, IntV(fd, 32))
+        } else if (tpcSat) {
+          unchecked("std::cout << \"open: only false satisfiable\" << std::endl;")
+          k(ss.addPC(hp.toSymNeg).setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
+        } else {
+          unchecked("std::cout << \"open: only true satisfiable\" << std::endl;")
+          if (flags.int & O_TRUNC) {
+            file.content = List[Value]()
+          }
+          val fd: Rep[Fd] = fs.getFreshFd()
+          fs.setStream(fd, Stream(file))
+          k(ss.addPC(hp.toSym), fs, IntV(fd, 32))
+        }
         // TODO: fix benchmark tests <2022-08-17, David Deng> //
-        // TODO: implement fork <2022-08-17, David Deng> //
       }
 
     }
