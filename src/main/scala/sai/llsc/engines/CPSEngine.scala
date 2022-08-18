@@ -58,7 +58,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
       case FloatConst(f) => FloatV(f, ty.asInstanceOf[FloatType].size)
       case FloatLitConst(l) => FloatV(l, 80)
-      case BitCastExpr(from, const, to) => eval(const, to, ss)
+      case BitCastExpr(from, const, to) => eval(const, to, ss, argTypes)
       case BoolConst(b) => b match {
         case true => IntV(1, 1)
         case false => IntV(0, 1)
@@ -367,7 +367,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       info("running block: " + funName + " - " + b.label.get)
       execBlockEager(funName, b, ss, k)
     }
-    val f: BFTy = topFun(runBlock(_, _))
+    val f: BFTy = hardTopFun(runBlock(_, _))
     val n = Unwrap(f).asInstanceOf[Backend.Sym].n
     (f, n)
   }
@@ -383,7 +383,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       ss.assign(params, args)
       execBlockEager(f.id, f.blocks(0), ss, k)
     }
-    val fn: FFTy = topFun(runFun(_, _, _))
+    val fn: FFTy = hardTopFun(runFun(_, _, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
   }
@@ -413,7 +413,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       k(ss, retVal)
     }
 
-    val fn: FFTy = topFun(generateNativeCall(_, _, _))
+    val fn: FFTy = hardTopFun(generateNativeCall(_, _, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
   }

@@ -277,6 +277,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     val efs = ""
     val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
 
+    System.out.println(ng)
     val src = run(name, ng)
 
     emitHeaderFile

@@ -39,8 +39,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def repExternFun(f: FunctionDecl, ret: LLVMType, argTypes: List[LLVMType]): (FFTy, Int)
 
   def wrapFunV(f: FFTy): Rep[Value]
+  def mainRename = "llsc_main"
   def getRealFunctionName(funName: String): String = {
-    val new_fname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
+    val new_fname = if (funName != "@main") "__LLSC_USER_"+funName.tail else mainRename
     new_fname.replaceAllLiterally(".","_")
   }
 

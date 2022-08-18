@@ -85,6 +85,7 @@ object RunLLSC {
       case "ImpDirect" => new ImpLLSC
       case "PureCPS" => new PureCPSLLSC
       case "PureDirect" => new PureLLSC
+      case "lib" => new ImpCPSLLSC_lib
     }
     Config.opt = optimize
     Config.emitBlockIdMap = emitBlockIdMap

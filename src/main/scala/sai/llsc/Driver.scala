@@ -64,7 +64,8 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
       addRewrite
       Unwrap(wrapper(Wrap[A](x)))
     }
-    val g1 = transform(g0)
+    // val g1 = transform(g0)
+    val g1 = g0
     val statics = lms.core.utils.time("codegen") {
       codegen.typeMap = Adapter.typeMap
       codegen.stream = mainStream
@@ -356,6 +357,21 @@ class ImpCPSLLSC extends LLSC with ImpureState {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
+      }
+    }
+}
+
+class ImpCPSLLSC_lib extends LLSC with ImpureState {
+  val insName = "ImpCPSLLSC_lib"
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
+    new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) { q =>
+      implicit val me: this.type = this
+      def snippet(u: Rep[Int]): Rep[Unit] = {
+        ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main", "gettimeofday")
+        def preHeap(v: Rep[Int]): Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
+        hardTopFun(preHeap(_), "preHeapGen", "")
+        for (e <- m.es if e.isInstanceOf[FunctionDef]) compile(e.asInstanceOf[FunctionDef])
+        ()
       }
     }
 }
