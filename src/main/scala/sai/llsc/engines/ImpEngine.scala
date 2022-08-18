@@ -23,7 +23,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
   type BFTy = Rep[Ref[SS] => List[(SS, Value)]]
   type FFTy = Rep[(Ref[SS], List[Value]) => List[(SS, Value)]]
 
-  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def symExecBr(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String)(implicit ctx: Ctx): Rep[List[(SS, Value)]] = {
     val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
@@ -211,8 +211,8 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
         } else {
           // TODO: check cond via solver
           val s1 = ss.fork
-          ss.addPC(cnd.toSym)
-          s1.addPC(cnd.toSymNeg)
+          ss.addPC(cnd)
+          s1.addPC(!cnd)
           Coverage.incPath(1)
           repK(ss, eval(thnVal, thnTy, ss)) ++ repK(s1, eval(elsVal, elsTy, s1))
         }
@@ -247,7 +247,7 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
             execBlock(ctx.funName, elsLab, ss)
           }
         } else {
-          symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab)
+          symExecBr(ss, cndVal, !cndVal, thnLab, elsLab)
         }
       case SwitchTerm(cndTy, cndVal, default, swTable) =>
         Counter.setBranchNum(ctx, swTable.size+1)
@@ -275,14 +275,14 @@ trait ImpLLSCEngine extends ImpSymExeDefs with EngineBase {
           } else {
             val st = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC.toSym)
+            s.addPC(headPC)
             val lt = if (checkPC(s.pc)) {
               nPath += 1
               val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
               execBlock(ctx.funName, table.head.label, new_ss)
             } else List[(SS, Value)]()
-            st.addPC(headPC.toSymNeg)
+            st.addPC(!headPC)
             val lf = switchSym(v, st, table.tail)
             lt ++ lf
           }

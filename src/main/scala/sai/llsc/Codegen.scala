@@ -104,6 +104,8 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
+    case Node(s, "int_op_1", List(Backend.Const(op: String), x), _) =>
+      es"int_op_1(${quoteOp(op, "iOP")}, $x)"
     case Node(s, "int_op_2", List(Backend.Const(op: String), x, y), _) =>
       es"int_op_2(${quoteOp(op, "iOP")}, $x, $y)"
     case Node(s, "float_op_2", List(Backend.Const(op: String), x, y), _) =>
@@ -153,7 +155,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
       es"writeback_pointer_arg($ss, $addr, $x)"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
-    case Node(s, "to-SMTNeg", List(v), _) => es"SymV::neg($v)"
     case Node(s, "ValPtr-deref", List(v), _) => es"*$v"
     case Node(s, "nullptr", _, _) => es"nullptr"
     case Node(s, "to-bytes", List(v), _) => es"$v->to_bytes()"

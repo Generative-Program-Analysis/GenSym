@@ -28,7 +28,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
   type BFTy = Rep[SS => List[(SS, Value)]]
   type FFTy = Rep[(SS, List[Value]) => List[(SS, Value)]]
 
-  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def symExecBr(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String)(implicit ctx: Ctx): Rep[List[(SS, Value)]] = {
     val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
@@ -253,12 +253,12 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
               Coverage.incPath(1)
               reify(s) {
                 (for {
-                  _ <- updatePC(cnd.toSym)
+                  _ <- updatePC(cnd)
                   v <- eval(thnVal, thnTy)
                 } yield v)
               } ++ reify(s.fork) {
                 (for {
-                  _ <- updatePC(cnd.toSymNeg)
+                  _ <- updatePC(!cnd)
                   v <- eval(elsVal, elsTy)
                 } yield v)
               }
@@ -296,7 +296,7 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
               if (cndVal.int == 1) reify(ss){ Coverage.incBranch(ctx, 0); execBlock(ctx.funName, thnLab) }
               else reify(ss) { Coverage.incBranch(ctx, 1); execBlock(ctx.funName, elsLab) }
             } else {
-              symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab)
+              symExecBr(ss, cndVal, !cndVal, thnLab, elsLab)
               /*
               val tpcSat = checkPC(ss.pc + cndVal.toSMTBool)
               val fpcSat = checkPC(ss.pc + cndVal.toSMTBoolNeg)
@@ -351,17 +351,17 @@ trait LLSCEngine extends StagedNondet with SymExeDefs with EngineBase {
           else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
             val m = reflect {
-              if (checkPC(s.pc.addPC(headPC.toSym))) {
+              if (checkPC(s.pc.addPC(headPC))) {
                 nPath += 1
                 val new_ss = if (1 == nPath) s else s.fork
                 Coverage.incBranch(ctx, swTable.size - table.size)
                 reify(new_ss)(for {
-                  _ <- updatePC(headPC.toSym)
+                  _ <- updatePC(headPC)
                   u <- execBlock(ctx.funName, table.head.label)
                 } yield u)
               } else List[(SS, Value)]()
             }
-            val next = reflect { switchSym(v, s.addPC(headPC.toSymNeg), table.tail) }
+            val next = reflect { switchSym(v, s.addPC(!headPC), table.tail) }
             reify(s) { m ⊕ next }
           }
 
