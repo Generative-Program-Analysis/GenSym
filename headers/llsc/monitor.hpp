@@ -4,8 +4,6 @@
 
 /* Coverage information */
 
-// TODO: branch coverage
-// Some note on overhead: recording coverage 1m path/block exec poses ~2.5sec overhead.
 struct Monitor {
   private:
     using BlockId = uint64_t;
@@ -81,7 +79,7 @@ struct Monitor {
       for (auto& v : block_cov) { if (v != 0) covered++; }
       std::cout << "Block coverage: " << covered << "/" << num_blocks << "\n";
       for (int i = 0; i < block_cov.size(); i++) {
-	if (block_cov[i] == 0) continue;
+        if (block_cov[i] == 0) continue;
         std::cout << "  Block " << i << ", "
                   << "visited " << block_cov[i] << "\n"
                   << std::flush;
@@ -93,14 +91,14 @@ struct Monitor {
       // number of branches that all possible outcomes are covered
       size_t full_branch = 0;
       for (const auto& [blk_id, br_map] : branch_cov) {
-	bool partial_cov = false;
-	bool full_cov = true;
-	for (const auto& [br_id, br_exe_num] : br_map) {
-	  partial_cov |= (br_exe_num > 0);
-	  full_cov &= (br_exe_num > 0);
-	}
-	if (partial_cov) partial_branch++;
-	if (full_cov) full_branch++;
+        bool partial_cov = false;
+        bool full_cov = true;
+        for (const auto& [br_id, br_exe_num] : br_map) {
+          partial_cov |= (br_exe_num > 0);
+          full_cov &= (br_exe_num > 0);
+        }
+        if (partial_cov) partial_branch++;
+        if (full_cov) full_branch++;
       }
       // We output the number of partial branches excluding fully covered branches
       std::cout << "#br: "
@@ -112,10 +110,10 @@ struct Monitor {
     void print_branch_cov_detail() {
       std::cout << "Branch coverage: \n";
       for (const auto& [blk_id, br_map] : branch_cov) {
-	std::cout << "Block " << blk_id << "\n";
-	for (const auto& [br_id, br_exe_num] : br_map) {
-	  std::cout << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
-	}
+        std::cout << "Block " << blk_id << "\n";
+        for (const auto& [br_id, br_exe_num] : br_map) {
+          std::cout << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
+        }
       }
       std:: cout << std::flush;
     }
@@ -128,7 +126,7 @@ struct Monitor {
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
-		<< (int_solver_time / 1.0e6) << "s/"
+                << (int_solver_time / 1.0e6) << "s/"
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
     void print_all(bool done = false) {
@@ -140,8 +138,8 @@ struct Monitor {
       print_thread_pool();
       print_query_stat();
       if (done && print_cov_detail) {
-	print_block_cov_detail();
-	print_branch_cov_detail();
+        print_block_cov_detail();
+        print_branch_cov_detail();
       }
     }
     void start_monitor() {
