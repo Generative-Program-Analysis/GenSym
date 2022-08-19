@@ -10,7 +10,7 @@ import sai.lmsx._
 import sai.lmsx.smt._
 import java.io.FileOutputStream
 
-import collection.mutable.HashMap
+import collection.mutable.{HashMap, HashSet}
 
 trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   registerLibrary("-lz3")
@@ -272,12 +272,41 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     }
   }
 
+  override def run(name: String, g: Graph) = {
+    capture {
+      graphCache = g.globalDefsCache
+      bound(g)
+      /*
+      withScope(Nil, g.nodes) {
+        emitFunction(name, g.block)
+      }
+      */
+      System.out.println("Graph size: " + g.nodes.size)
+      val visited: HashSet[String] = new HashSet[String]()
+      for (d <- g.nodes) {
+        d match {
+          case n @ Node(s, "λ", (block: Block)::Const(arity:Int)::Const(dec: String)::Nil, _) =>
+            if (visited.contains(quote(s))) {
+              System.out.println("Repeated traverse: " + quote(s))
+            }
+            System.out.println("Preprocess traverse: " + quote(s))
+            registerTopLevelFunctionDecl(quote(s)) { emitFunctionSignature(quote(s), block, argNames = false, ending = ";\n") }
+            registerTopLevelFunction(quote(s)) {
+              visited += quote(s)
+              withScope(Nil, g.nodes) { emitFunction(quote(s), block, dec) }
+            }
+          case _ =>
+        }
+      }
+      graphCache = null
+    }
+  }
+
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
     val ng = init(g)
     val efs = ""
     val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
 
-    System.out.println(ng)
     val src = run(name, ng)
 
     emitHeaderFile
