@@ -273,33 +273,35 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   }
 
   override def run(name: String, g: Graph) = {
-    capture {
-      graphCache = g.globalDefsCache
-      bound(g)
-      /*
-      withScope(Nil, g.nodes) {
-        emitFunction(name, g.block)
-      }
-      */
-      System.out.println("Graph size: " + g.nodes.size)
-      val visited: HashSet[String] = new HashSet[String]()
-      for (d <- g.nodes) {
-        d match {
-          case n @ Node(s, "λ", (block: Block)::Const(arity:Int)::Const(dec: String)::Nil, _) =>
-            if (visited.contains(quote(s))) {
-              System.out.println("Repeated traverse: " + quote(s))
+    graphCache = g.globalDefsCache
+    bound(g)
+    System.out.println("Graph size: " + g.nodes.size)
+    val topfuns: List[Sym] = g.nodes.filter({
+      case Node(s, "λ", (block: Block)::Const(arity:Int)::Const(dec: String)::Nil, _) => true
+      case _ => false
+    }).map({
+      case Node(s, "λ", (block: Block)::Const(arity:Int)::Const(dec: String)::Nil, _) => s
+    }).toList
+    System.out.println("Top level function symbols: " + topfuns)
+    for (d <- g.nodes) {
+      d match {
+        case n @ Node(s, "λ", (block: Block)::Const(arity:Int)::Const(dec: String)::Nil, _) =>
+          System.out.println("Preprocess traverse: " + quote(s))
+          registerTopLevelFunctionDecl(quote(s)) { emitFunctionSignature(quote(s), block, argNames = false, ending = ";\n") }
+          registerTopLevelFunction(quote(s)) {
+            withScope(Nil, g.nodes) {
+              val f = quote(s)
+              emitFunctionSignature(f, block, dec)
+              quoteBlockPReturn(traverse(block, topfuns:_*))
+              emitln()
+              //emitFunction(quote(s), block, dec)
             }
-            System.out.println("Preprocess traverse: " + quote(s))
-            registerTopLevelFunctionDecl(quote(s)) { emitFunctionSignature(quote(s), block, argNames = false, ending = ";\n") }
-            registerTopLevelFunction(quote(s)) {
-              visited += quote(s)
-              withScope(Nil, g.nodes) { emitFunction(quote(s), block, dec) }
-            }
-          case _ =>
-        }
+          }
+        case _ =>
       }
-      graphCache = null
     }
+    graphCache = null
+    new java.io.ByteArrayOutputStream()
   }
 
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
@@ -307,6 +309,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     val efs = ""
     val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
 
+    System.out.println(ng)
     val src = run(name, ng)
 
     emitHeaderFile

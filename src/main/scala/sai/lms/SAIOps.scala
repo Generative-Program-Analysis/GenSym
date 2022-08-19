@@ -92,7 +92,8 @@ trait SAIOps extends Base
         case None => Wrap[T](Adapter.g.reflect(Backend.Sym(Adapter.g.fresh), op, args:_*)())
       }
     }
-    def reflectWith[T: Manifest](rs: Rep[_]*): Rep[T] = Wrap[T](Adapter.g.reflect(op, rs.map(Unwrap):_*))
+    def reflectWith[T: Manifest](rs: Rep[_]*): Rep[T] =
+      Wrap[T](Adapter.g.reflect(op, rs.map(Unwrap):_*))
     def reflectReadWith[T: Manifest](rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
       Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
     def reflectWriteWith[T: Manifest](rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
