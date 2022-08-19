@@ -96,7 +96,8 @@ echo [run_experiment] hash: $COMMIT_HASH
 # generate external wrappers
 if [ "${GEN_EXTERNAL}" = "true" ]; then
 	echo [run_experiment] generating external functions...
-	sbt "runMain sai.llsc.GenerateExternal"
+	# sbt "runMain sai.llsc.GenerateExternal"
+	bloop run sai -m sai.llsc.GenerateExternal
 fi
 
 # iterate through each set of input LLVM files (e.g. posix and uclibc)

@@ -66,7 +66,8 @@ echo "[test_benchmark] runtime timeout: $RUNTIME_TIMEOUT"
 if [ "$SCALA_COMPILE" = "true" ] || [ ! -d "llsc_gen/${HEAD}" ]; then
 	export SBT_OPTS="-Xms4G -Xmx32G -Xss1024M -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2048M"
 	/usr/bin/time --format "[test_benchmark] scala compilation time => real: %e,\tuser: %U,\tsys: %S" \
-		sbt "runMain sai.llsc.RunLLSC ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main"
+		bloop run sai -m sai.llsc.RunLLSC -- -J-Xms4g -J-Xmx8g -J-Xss1024M -J-XX:MaxMetaspaceSize=8G -J-XX:ReservedCodeCacheSize=2048M ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main
+		# sbt "runMain sai.llsc.RunLLSC ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main"
 	check_failure "Failed to perform scala compilation with input ${LL}"
 fi
 
