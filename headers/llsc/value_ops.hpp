@@ -647,6 +647,12 @@ inline PtrVal structV_at(const PtrVal& v, int idx) {
   ABORT("StructV_at: non StructV value");
 }
 
+
+inline PtrVal sym_const(bool b) {
+  if (b) return make_SymV(iOP::const_true, {}, 1);
+  else return make_SymV(iOP::const_false, {}, 1);
+}
+
 inline PtrVal int_op_1(iOP op, const PtrVal& v) {
   auto i = v->to_IntV();
   auto bw = v->get_bw();

@@ -54,6 +54,7 @@ trait GenExternal extends SymExeDefs {
     val mode: Rep[Value] = f.readStatField("st_mode")
     val bw = Constants.BYTE_SIZE * StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, "st_mode"))._2
 
+    // TODO: add missing flags <2022-08-19, David Deng> //
     val canRead = ((mode & IntV(S_IRUSR, bw)) | (mode & IntV(S_IRGRP, bw)) | (mode & IntV(S_IROTH, bw)))
     val illegalRead = IntOp2.eq(canRead, IntV(0, bw))
    
@@ -68,6 +69,7 @@ trait GenExternal extends SymExeDefs {
    * int open(const char *pathname, int flags, mode_t mode);
    */
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"open syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val flags = args(1)
     if (!(flags.int & O_CREAT: Rep[Boolean]) && (flags.int & O_EXCL)) {
@@ -142,6 +144,7 @@ trait GenExternal extends SymExeDefs {
    * int openat(int dirfd, const char *pathname, int flags, mode_t mode);
    */
   def openat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    unchecked("std::cout << \"openat syscall\" << std::endl")
     // TODO: implement this <2022-01-23, David Deng> //
     // int __fd_openat(int basefd, const char *pathname, int flags, mode_t mode);
     // if (fd == AT_FDCWD), call open
@@ -152,6 +155,7 @@ trait GenExternal extends SymExeDefs {
    * int close(int fd);
    */
   def close[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"close syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
     if (!fs.hasStream(fd)) 
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
@@ -171,6 +175,7 @@ trait GenExternal extends SymExeDefs {
    * ssize_t read(int fd, void *buf, size_t count);
    */
   def read[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"read syscall\" << std::endl")
     val fd: Rep[Int] = args(0).int.toInt
     val loc: Rep[Value] = args(1)
     val count: Rep[Int] = args(2).int.toInt
@@ -190,6 +195,7 @@ trait GenExternal extends SymExeDefs {
    * ssize_t write(int fd, const void *buf, size_t count);
    */
   def write[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"write syscall\" << std::endl")
     val fd: Rep[Int] = args(0).int.toInt // NOTE: .int => Rep[Long], .toInt => Rep[Int]
     val buf: Rep[Value] = args(1)
     val count: Rep[Int] = args(2).int.toInt
@@ -208,6 +214,7 @@ trait GenExternal extends SymExeDefs {
    * off_t lseek(int fd, off_t offset, int whence);
    */
   def lseek[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"lseek syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
     val o: Rep[Long] = args(1).int
     val w: Rep[Int] = args(2).int.toInt
@@ -234,6 +241,7 @@ trait GenExternal extends SymExeDefs {
    * int stat(const char *pathname, struct stat *statbuf);
    */
   def stat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"stat syscall\" << std::endl")
     val ptr = args(0)
     val name: Rep[String] = getStringAt(ptr, ss)
     val buf: Rep[Value] = args(1)
@@ -250,6 +258,7 @@ trait GenExternal extends SymExeDefs {
    * int fstat(int fd, struct stat *statbuf);
    */
   def fstat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"fstat syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
     val buf: Rep[Value] = args(1)
     if (!fs.hasStream(fd)) 
@@ -265,6 +274,7 @@ trait GenExternal extends SymExeDefs {
    * int lstat(const char *pathname, struct stat *statbuf);
    */
   def lstat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"lstat syscall\" << std::endl")
     // TODO: handle symlink <2022-08-09, David Deng> //
     stat(ss, fs, args, k)
   }
@@ -273,6 +283,7 @@ trait GenExternal extends SymExeDefs {
    * int statfs(const char *path, struct statfs *buf);
    */
   def statfs[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"statfs syscall\" << std::endl")
     val name: Rep[String] = getStringAt(args(0), ss)
     if (!fs.hasFile(name)) {
       k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
@@ -287,6 +298,7 @@ trait GenExternal extends SymExeDefs {
    * int mkdir(const char *pathname, mode_t mode);
    */
   def mkdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"mkdir syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     // TODO: set mode <2022-05-28, David Deng> //
     val mode: Rep[Value] = args(1)
@@ -307,6 +319,7 @@ trait GenExternal extends SymExeDefs {
    * int rmdir(const char *pathname);
    */
   def rmdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"rmdir syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val dir = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
@@ -322,6 +335,7 @@ trait GenExternal extends SymExeDefs {
    * int creat(const char *pathname, mode_t mode);
    */
   def creat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"creat syscall\" << std::endl")
     // A call to creat() is equivalent to calling open() with flags equal to O_CREAT|O_WRONLY|O_TRUNC.
     open(ss, fs, List(args(0), IntV(O_CREAT | O_WRONLY | O_TRUNC), args(1)), k)
   }
@@ -330,6 +344,7 @@ trait GenExternal extends SymExeDefs {
    * int unlink(const char *pathname);
    */
   def unlink[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"unlink syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
@@ -345,6 +360,7 @@ trait GenExternal extends SymExeDefs {
    * int chmod(const char *pathname, mode_t mode);
    */
   def chmod[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"chmod syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     val mode: Rep[Value] = args(1)
@@ -360,6 +376,7 @@ trait GenExternal extends SymExeDefs {
    * int chown(const char *pathname, uid_t owner, gid_t group);
    */
   def chown[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"chown syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     val owner: Rep[Value] = args(1)
@@ -378,8 +395,11 @@ trait GenExternal extends SymExeDefs {
    * int ioctl(int fd, int request, ...);
    */
   def ioctl[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"ioctl syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
+    unchecked("std::cout << \"with fd:\" << ", fd, " << std::endl")
     val request: Rep[Value] = args(1)
+    unchecked("std::cout << \"with request:\" << ", request, "->toString() << std::endl")
     if (!fs.hasStream(fd)) {
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
     } else {
@@ -387,7 +407,44 @@ trait GenExternal extends SymExeDefs {
         // TODO: generate staged variable name based on fd <2022-08-11, David Deng> //
         val buf: Rep[Value] = args(2)
         val ss1 = ss.updateSeq(buf, SymV.makeSymVList(TermiosType.size(null), s"fs_termios_fd_${fd}_"))
-        k(ss1, fs, IntV(0, 32))
+        val mode: Rep[Value] = fs.getStream(fd).file.readStatField("st_mode")
+        val bw = Constants.BYTE_SIZE * StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, "st_mode"))._2
+        val ischr: Rep[Value] = IntOp2.eq(mode & IntV(cmacro[Int]("S_IFMT"), bw), IntV(cmacro[Int]("S_IFCHR"), bw))
+
+        if (ischr.isConc) {
+          if (ischr.int == 0) {
+            k(ss.setErrorLoc(flag("ENOTTY")), fs, IntV(-1, 32))
+          } else {
+            // set up termios values
+            k(ss, fs, IntV(0, 32))
+          }
+        } else {
+          // TODO: abstract it to a separate function? <2022-08-18, David Deng> //
+          // ischr symbolic
+          unchecked("std::cout << \"ioctl: ischr is symbolic: \" << ", ischr, "->toString() << std::endl;")
+          val ss1 = ss.fork
+          val tpcSat = checkPC(ss.addPC(ischr).pc)
+          val fpcSat = checkPC(ss1.addPC(!ischr).pc)
+          if (tpcSat && fpcSat) {
+            unchecked("std::cout << \"ioctl: both satisfiable\" << std::endl;")
+            Coverage.incPath(1)
+            // false branch
+            k(ss1.setErrorLoc(flag("ENOTTY")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
+
+            // true branch
+            // set up termios values
+            k(ss, fs, IntV(0, 32))
+            // TODO: add second stage ++ operation <2022-08-19, David Deng> //
+            // This version would lose result on non CPS versions
+            // resF ++ resT
+          } else if (tpcSat) {
+            unchecked("std::cout << \"ioctl: only true satisfiable\" << std::endl;")
+            k(ss, fs, IntV(0, 32))
+          } else {
+            unchecked("std::cout << \"ioctl: only false satisfiable\" << std::endl;")
+            k(ss1.setErrorLoc(flag("ENOTTY")), fs, IntV(-1, 32)) // does not have permission
+          }
+        }
       } else {
         k(ss.setErrorLoc(flag("EINVAL")), fs, IntV(-1, 32))
       }
@@ -398,6 +455,7 @@ trait GenExternal extends SymExeDefs {
    * int fcntl(int fd, int cmd, ...);
    */
   def fcntl[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
+    unchecked("std::cout << \"fcntl syscall\" << std::endl")
     val fd: Rep[Value] = args(0)
     val cmd: Rep[Value] = args(1)
     k(ss, fs, IntV(-1, 32))

@@ -105,7 +105,7 @@ enum class iOP {
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
   op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc,
-  op_concat, op_extract, op_ite, op_bvnot
+  op_concat, op_extract, op_ite, op_bvnot, const_true, const_false
 };
 
 enum class fOP {
