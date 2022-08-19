@@ -99,13 +99,13 @@ trait GenExternal extends SymExeDefs {
         // TODO: abstract it to a separate function? <2022-08-18, David Deng> //
         // hp symbolic
         unchecked("std::cout << \"open: hp is symbolic: \" << ", hp, "->toString() << std::endl;")
-        val tpcSat = checkPC(ss.pc.addPC(hp.toSym))
-        val fpcSat = checkPC(ss.pc.addPC(hp.toSymNeg))
+        val tpcSat = checkPC(ss.pc.addPC(hp))
+        val fpcSat = checkPC(ss.pc.addPC(!hp))
         if (tpcSat && fpcSat) {
           unchecked("std::cout << \"open: both satisfiable\" << std::endl;")
           Coverage.incPath(1)
           // false branch
-          k(ss.addPC(hp.toSymNeg).setErrorLoc(flag("EACCES")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
+          k(ss.addPC(!hp).setErrorLoc(flag("EACCES")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
 
           // true branch
           if (flags.int & O_TRUNC) {
@@ -113,10 +113,10 @@ trait GenExternal extends SymExeDefs {
           }
           val fd: Rep[Fd] = fs.getFreshFd()
           fs.setStream(fd, Stream(file))
-          k(ss.addPC(hp.toSym), fs, IntV(fd, 32))
+          k(ss.addPC(hp), fs, IntV(fd, 32))
         } else if (tpcSat) {
           unchecked("std::cout << \"open: only false satisfiable\" << std::endl;")
-          k(ss.addPC(hp.toSymNeg).setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
+          k(ss.addPC(!hp).setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
         } else {
           unchecked("std::cout << \"open: only true satisfiable\" << std::endl;")
           if (flags.int & O_TRUNC) {
@@ -124,11 +124,10 @@ trait GenExternal extends SymExeDefs {
           }
           val fd: Rep[Fd] = fs.getFreshFd()
           fs.setStream(fd, Stream(file))
-          k(ss.addPC(hp.toSym), fs, IntV(fd, 32))
+          k(ss.addPC(hp), fs, IntV(fd, 32))
         }
         // TODO: fix benchmark tests <2022-08-17, David Deng> //
       }
-
     }
   }
 
