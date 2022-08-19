@@ -52,12 +52,15 @@ trait GenExternal extends SymExeDefs {
 
     // the permission of the file
     val mode: Rep[Value] = f.readStatField("st_mode")
+    val bw = Constants.BYTE_SIZE * StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, "st_mode"))._2
 
-    val illegalRead = IntOp2("and", IntV(readAccess.asRepOf[Long], 1), 
-      !((mode & IntV(S_IRUSR)) | (mode & IntV(S_IRGRP)) | (mode & IntV(S_IROTH))))
-    val illegalWrite = IntOp2("and", IntV(writeAccess.asRepOf[Long], 1), 
-      !((mode & IntV(S_IWUSR)) | (mode & IntV(S_IWGRP)) | (mode & IntV(S_IWOTH))))
-    IntOp2("eq", (illegalRead | illegalWrite), IntV(0, 1))
+    val canRead = ((mode & IntV(S_IRUSR, bw)) | (mode & IntV(S_IRGRP, bw)) | (mode & IntV(S_IROTH, bw)))
+    val illegalRead = IntOp2.eq(canRead, IntV(0, bw))
+   
+    val canWrite = ((mode & IntV(S_IWUSR, bw)) | (mode & IntV(S_IWGRP, bw)) | (mode & IntV(S_IWOTH, bw)))
+    val illegalWrite = IntOp2.eq(canWrite, IntV(0, bw))
+
+    !(illegalRead | illegalWrite)
   }
 
   /* 
@@ -105,7 +108,7 @@ trait GenExternal extends SymExeDefs {
           unchecked("std::cout << \"open: both satisfiable\" << std::endl;")
           Coverage.incPath(1)
           // false branch
-          k(ss.addPC(!hp).setErrorLoc(flag("EACCES")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
+          k(ss.fork.addPC(!hp).setErrorLoc(flag("EACCES")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
 
           // true branch
           if (flags.int & O_TRUNC) {
@@ -114,6 +117,9 @@ trait GenExternal extends SymExeDefs {
           val fd: Rep[Fd] = fs.getFreshFd()
           fs.setStream(fd, Stream(file))
           k(ss.addPC(hp), fs, IntV(fd, 32))
+          // TODO: add second stage ++ operation <2022-08-19, David Deng> //
+          // This version would lose result on non CPS versions
+          // resF ++ resT
         } else if (tpcSat) {
           unchecked("std::cout << \"open: only false satisfiable\" << std::endl;")
           k(ss.addPC(!hp).setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission

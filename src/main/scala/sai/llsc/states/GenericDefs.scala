@@ -321,8 +321,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object IntOp1 {
-    def neg(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("neg", v)
-    def bvnot(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("bvnot", v)
+    def neg(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith[Value]("neg", v)
+    def bvnot(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith[Value]("bvnot", v)
   }
 
   object IntOp2 {

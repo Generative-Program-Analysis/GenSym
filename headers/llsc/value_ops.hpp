@@ -659,6 +659,10 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v) {
         ABORT("invalid operator");
     }
   }
+  switch (op) {
+    case iOP::op_neg:
+      ASSERT(bw == 1, "bw must be 1 for op_neg");
+  }
   return make_SymV(op, { v }, bw);
 }
 
