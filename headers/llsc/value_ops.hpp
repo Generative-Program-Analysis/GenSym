@@ -66,6 +66,7 @@ using PtrVal = simple_ptr<Value>;
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
 inline PtrVal bv_sext(const PtrVal& v, size_t bw);
 inline PtrVal bv_zext(const PtrVal& v, size_t bw);
+// XXX: when should we override toMSB? should document this behavior
 inline PtrVal make_IntV(IntData i, size_t bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
 
@@ -451,7 +452,7 @@ struct SymV : Value {
     if (!name.empty()) {
       ss << name;
     } else {
-      ss << int_op2string(rator) << ", { ";
+      ss << int_op_string(rator) << ", { ";
       for (auto e : rands) {
         ss << *e << ", ";
       }
@@ -646,6 +647,21 @@ inline PtrVal structV_at(const PtrVal& v, int idx) {
   ABORT("StructV_at: non StructV value");
 }
 
+inline PtrVal int_op_1(iOP op, const PtrVal& v) {
+  auto i = v->to_IntV();
+  auto bw = v->get_bw();
+  if (i) {
+    switch (op) {
+      case iOP::op_neg: return make_IntV(!i->i, bw);
+      case iOP::op_bvnot: return make_IntV(~i->i, bw);
+      default:
+        std::cout << int_op_string(op) << std::endl;
+        ABORT("invalid operator");
+    }
+  }
+  return make_SymV(op, { v }, bw);
+}
+
 // assume all values are signed, convert to unsigned if necessary
 // require return value to be signed or non-negative
 inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
@@ -654,7 +670,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   auto bw1 = v1->get_bw();
   auto bw2 = v2->get_bw();
   if (bw1 != bw2) {
-    std::cout << *v1 << " " << int_op2string(op) << " " << *v2 << "\n";
+    std::cout << *v1 << " " << int_op_string(op) << " " << *v2 << "\n";
     ABORT("int_op_2: bitwidth of operands mismatch");
   }
   if (i1 && i2) {
@@ -706,7 +722,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
       case iOP::op_lshr:
         return make_IntV(uint64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
       default:
-        std::cout << int_op2string(op) << std::endl;
+        std::cout << int_op_string(op) << std::endl;
         ABORT("invalid operator");
     }
   } else {

@@ -5,9 +5,9 @@
 
 #ifdef PURE_STATE
 
-inline std::monostate async_exec_block(const std::function<std::monostate()>& f) {
+inline std::monostate async_exec_block(uint64_t ssid, const std::function<std::monostate()>& f) {
   if (can_par_tp()) {
-    tp.add_task(f);
+    tp.add_task(ssid, f);
     return std::monostate{};
   }
   return f();
@@ -27,7 +27,7 @@ sym_exec_br(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
-	  cov().inc_branch(block_id, 0);
+          cov().inc_branch(block_id, 0);
           return tf(tbr_ss);
         });
       cov().inc_branch(block_id, 1);
@@ -64,13 +64,13 @@ sym_exec_br_k(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
     SS tbr_ss = ss.add_PC(t_cond);
     SS fbr_ss = ss.fork().add_PC(f_cond);
     if (can_par_tp()) {
-      tp.add_task([tf, block_id, tbr_ss=std::move(tbr_ss), k]{
-	cov().inc_branch(block_id, 0);
-	return tf(tbr_ss, k);
+      tp.add_task(tbr_ss.get_ssid(), [tf, block_id, tbr_ss=std::move(tbr_ss), k]{
+        cov().inc_branch(block_id, 0);
+        return tf(tbr_ss, k);
       });
-      tp.add_task([ff, block_id, fbr_ss=std::move(fbr_ss), k]{
-	cov().inc_branch(block_id, 1);
-	return ff(fbr_ss, k);
+      tp.add_task(fbr_ss.get_ssid(), [ff, block_id, fbr_ss=std::move(fbr_ss), k]{
+        cov().inc_branch(block_id, 1);
+        return ff(fbr_ss, k);
       });
       return std::monostate{};
     } else {
@@ -159,7 +159,7 @@ array_lookup_k(SS ss, PtrVal base, PtrVal offset, size_t esize,
       auto new_loc = baseloc + (offset_val*esize);
       auto new_ss = (1 == cnt) ? ss.add_PC(t_cond) : ss.fork().add_PC(t_cond);
       if (can_par_tp()) {
-        tp.add_task([new_loc=std::move(new_loc), new_ss=std::move(new_ss), k]{ return k(new_ss, new_loc); });
+        tp.add_task(new_ss.get_ssid(), [new_loc=std::move(new_loc), new_ss=std::move(new_ss), k]{ return k(new_ss, new_loc); });
       } else {
         k(new_ss, new_loc);
       }
@@ -180,7 +180,7 @@ inline std::monostate async_exec_block(
     std::monostate (*f)(SS&, std::function<std::monostate(SS&, PtrVal)>),
     SS ss, std::function<std::monostate(SS&, PtrVal)> k) {
   if (can_par_tp()) {
-    tp.add_task([f, ss=std::move(ss), k]{ return f((SS&)ss, k); });
+    tp.add_task(ss.get_ssid(), [f, ss=std::move(ss), k]{ return f((SS&)ss, k); });
     return std::monostate{};
   }
   return f(ss, k);
@@ -205,7 +205,7 @@ sym_exec_br(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
         create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
-	  cov().inc_branch(block_id, 0);
+          cov().inc_branch(block_id, 0);
           return tf(tbr_ss);
         });
       cov().inc_branch(block_id, 1);
@@ -290,13 +290,13 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
     tbr_ss.add_PC(t_cond);
     fbr_ss.add_PC(f_cond);
     if (can_par_tp()) {
-      tp.add_task([tf, block_id, tbr_ss=std::move(tbr_ss), k]{
-	cov().inc_branch(block_id, 0);
-	return tf((SS&)tbr_ss, k);
+      tp.add_task(tbr_ss.get_ssid(), [tf, block_id, tbr_ss=std::move(tbr_ss), k]{
+        cov().inc_branch(block_id, 0);
+        return tf((SS&)tbr_ss, k);
       });
-      tp.add_task([ff, block_id, fbr_ss=std::move(fbr_ss), k]{
-	cov().inc_branch(block_id, 1);
-	return ff((SS&)fbr_ss, k);
+      tp.add_task(fbr_ss.get_ssid(), [ff, block_id, fbr_ss=std::move(fbr_ss), k]{
+        cov().inc_branch(block_id, 1);
+        return ff((SS&)fbr_ss, k);
       });
       return std::monostate{};
     } else {
@@ -399,7 +399,7 @@ array_lookup_k(SS& ss, PtrVal base, PtrVal offset, size_t esize,
       auto new_loc = baseloc + (offset_val*esize);
       auto new_ss = (1 == cnt) ? ss.add_PC(t_cond) : ss.fork().add_PC(t_cond);
       if (can_par_tp()) {
-        tp.add_task([new_loc=std::move(new_loc), new_ss=std::move(new_ss), k]{ return k((SS&)new_ss, new_loc); });
+        tp.add_task(new_ss.get_ssid(), [new_loc=std::move(new_loc), new_ss=std::move(new_ss), k]{ return k((SS&)new_ss, new_loc); });
       } else {
         k(new_ss, new_loc);
       }

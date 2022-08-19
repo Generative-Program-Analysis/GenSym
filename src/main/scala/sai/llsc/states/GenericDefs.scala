@@ -132,7 +132,8 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "make_symbolic", "make_symbolic_whole",
       "stop", "syscall", "llsc_assume",
       "__errno_location", "_exit", "exit", "abort", "calloc",
-      "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray"
+      "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray",
+      "llsc_prefer_cex", "llsc_posix_prefer_cex", "llsc_warning_once"
     )
     private val syscalls = ImmSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown",
@@ -319,6 +320,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       StaticList.fill(size)(NullPtr[T])
   }
 
+  object IntOp1 {
+    def neg(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("neg", v)
+    def bvnot(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("bvnot", v)
+  }
+
   object IntOp2 {
     def applyNoOpt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
       "int_op_2".reflectWith[Value](op, o1, o2)
@@ -423,7 +429,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 
-    // GW: better naming? and what is supposed to be in this list?
+    // XXX(GW): better naming? and what is supposed to be in this list?
     val ext_simpl_op = StaticList[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
 
     def sExt(bw: Int): Rep[Value] = Unwrap(v) match {
@@ -441,8 +447,6 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case MustSym() if Config.opt => unit(false)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
-    def toSym: Rep[SymV] = v.asRepOf[SymV]
-    def toSymNeg: Rep[SymV] = "to-SMTNeg".reflectWith[SymV](v)
 
     def notNull: Rep[Boolean] = "not-null".reflectWith[Boolean](v)
     def fromFloatToUInt(toSize: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, toSize)
@@ -455,7 +459,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def *(rhs: Rep[Value]): Rep[Value] = IntOp2.mul(v, rhs)
     def &(rhs: Rep[Value]): Rep[Value] = IntOp2("and", v, rhs)
     def |(rhs: Rep[Value]): Rep[Value] = IntOp2("or", v, rhs)
-    def unary_! : Rep[Value] = if (v.isConc) IntV((!v.int.asRepOf[Boolean]).asRepOf[Long], 1) else IntOp2.eq(v, IntV(0))
+    def unary_! : Rep[Value] = IntOp1.neg(v)
+    def unary_~ : Rep[Value] = IntOp1.bvnot(v)
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)

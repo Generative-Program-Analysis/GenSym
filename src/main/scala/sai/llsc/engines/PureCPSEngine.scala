@@ -28,7 +28,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   type BFTy = Rep[(SS, Cont) => Unit]
   type FFTy = Rep[(SS, List[Value], Cont) => Unit]
 
-  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def symExecBr(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String, k: Rep[Cont])(implicit ctx: Ctx): Rep[Unit] = {
     val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
@@ -219,8 +219,8 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         } else {
           // TODO: check cond via solver
           Coverage.incPath(1)
-          repK(ss, eval(thnVal, thnTy, ss.addPC(cnd.toSym)))
-          repK(ss, eval(elsVal, elsTy, ss.fork.addPC(cnd.toSymNeg)))
+          repK(ss, eval(thnVal, thnTy, ss.addPC(cnd)))
+          repK(ss, eval(elsVal, elsTy, ss.fork.addPC(!cnd)))
         }
     }
   }
@@ -228,7 +228,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
   def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
     val block = Adapter.g.reifyHere(Unwrap(execBlock(funName, lab, ss, k)))
     val (rdKeys, wrKeys) = Adapter.g.getEffKeys(block)
-    Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", block)((rdKeys, wrKeys + Adapter.CTRL)))
+    Wrap[Unit](Adapter.g.reflectEffectSummaryHere("async_exec_block", Unwrap(ss.getSSid), block)((rdKeys, wrKeys + Adapter.CTRL)))
   }
 
   def execTerm(inst: Terminator, k: Rep[Cont])(implicit ss: Rep[SS], ctx: Ctx): Rep[Unit] = {
@@ -260,7 +260,7 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
             asyncExecBlock(ctx.funName, elsLab, ss1, k)
           }
         } else {
-          symExecBr(ss1, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, k)
+          symExecBr(ss1, cndVal, !cndVal, thnLab, elsLab, k)
         }
       case SwitchTerm(cndTy, cndVal, default, swTable) =>
         Counter.setBranchNum(ctx, swTable.size+1)
@@ -286,13 +286,13 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
             }
           } else {
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            if (checkPC(s.pc.addPC(headPC.toSym))) {
+            if (checkPC(s.pc.addPC(headPC))) {
               nPath += 1
               val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, new_ss.addPC(headPC.toSym), k)
+              execBlock(ctx.funName, table.head.label, new_ss.addPC(headPC), k)
             }
-            switchSym(v, s.addPC(headPC.toSymNeg), table.tail)
+            switchSym(v, s.addPC(!headPC), table.tail)
           }
 
         val ss1 = addIncomingBlockOpt(ss, default::swTable.map(_.label))

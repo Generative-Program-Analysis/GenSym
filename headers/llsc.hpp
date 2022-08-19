@@ -41,6 +41,7 @@ using namespace std::chrono;
 #include <llsc/auxiliary.hpp>
 #include <llsc/parallel.hpp>
 #include <llsc/monitor.hpp>
+#include <llsc/ptree.hpp>
 #include <llsc/value_ops.hpp>
 #include <llsc/filesys.hpp>
 #include <llsc/args.hpp>
