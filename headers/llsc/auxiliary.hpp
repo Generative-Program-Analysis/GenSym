@@ -105,7 +105,7 @@ enum class iOP {
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
   op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc,
-  op_concat, op_extract, op_ite
+  op_concat, op_extract, op_ite, op_bvnot
 };
 
 enum class fOP {
@@ -126,7 +126,7 @@ inline void set_exit_code(int code) {
   }
 }
 
-inline std::string int_op2string(iOP op) {
+inline std::string int_op_string(iOP op) {
   switch (op) {
     case iOP::op_add: return "+";
     case iOP::op_sub: return "-";

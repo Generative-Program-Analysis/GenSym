@@ -24,7 +24,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
   type BFTy = Rep[(Ref[SS], Cont) => Unit]
   type FFTy = Rep[(Ref[SS], List[Value], Cont) => Unit]
 
-  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def symExecBr(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String, k: Rep[Cont])(implicit ctx: Ctx): Rep[Unit] = {
     val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
@@ -33,7 +33,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
-  def branch(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def branch(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
     val tBrFunName = getRealBlockFunName(Ctx(funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(Ctx(funName, fBlockLab))
@@ -225,9 +225,9 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         } else {
           // TODO: check cond via solver
           val s1 = ss.fork
-          ss.addPC(cnd.toSym)
+          ss.addPC(cnd)
           repK(ss, eval(thnVal, thnTy, ss), kk)
-          s1.addPC(cnd.toSymNeg)
+          s1.addPC(!cnd)
           Coverage.incPath(1)
           repK(s1, eval(elsVal, elsTy, s1), kk)
         }
@@ -263,7 +263,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
             execBlock(ctx.funName, elsLab, ss, k)
           }
         } else {
-          symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, k)
+          symExecBr(ss, cndVal, !cndVal, thnLab, elsLab, k)
         }
       case SwitchTerm(cndTy, cndVal, default, swTable) =>
         Counter.setBranchNum(ctx, swTable.size+1)
@@ -289,14 +289,14 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           } else {
             val st = s.copy
             val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC.toSym)
+            s.addPC(headPC)
             if (checkPC(s.pc)) {
               nPath += 1
               val new_ss = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, swTable.size - table.size)
               execBlock(ctx.funName, table.head.label, new_ss, k)
             }
-            st.addPC(headPC.toSymNeg)
+            st.addPC(!headPC)
             switchSym(v, st, table.tail)
           }
 

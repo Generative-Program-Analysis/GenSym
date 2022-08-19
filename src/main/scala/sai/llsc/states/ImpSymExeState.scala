@@ -64,7 +64,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
   def currentMethodName: String = Thread.currentThread.getStackTrace()(2).getMethodName
 
   implicit class PCOps(pc: Rep[PC]) {
-    def addPC(e: Rep[SymV]): Rep[Unit] = reflectWrite[Unit]("add-pc", pc, e)(pc)
+    def addPC(e: Rep[Value]): Rep[Unit] = reflectWrite[Unit]("add-pc", pc, e)(pc)
   }
 
   implicit class SSOps(ss: Rep[SS]) {
@@ -114,8 +114,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def push(cont: Rep[Cont]): Rep[Unit] = reflectWrite[Unit]("ss-push", ss, cont)(ss, Adapter.CTRL)
     // XXX: since pop is used in a map, will be DCE-ed if no CTRL
     def pop(keep: Rep[Int]): Rep[Cont] = reflectWrite[Cont]("ss-pop", ss, keep)(ss, Adapter.CTRL)
-    def addPC(e: Rep[SymV]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
-    def addPCSet(es: Rep[List[SymV]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
+    def addPC(e: Rep[Value]): Rep[Unit] = reflectWrite[Unit]("ss-addpc", ss, e)(ss)
+    def addPCSet(es: Rep[List[Value]]): Rep[Unit] = reflectWrite[Unit]("ss-addpcset", ss, es)(ss)
     def pc: Rep[PC] = reflectRead[PC]("get-pc", ss)(ss)
     def copyPC: Rep[PC] = reflectRead[PC]("ss-copy-pc", ss)(ss)
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
