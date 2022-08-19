@@ -102,8 +102,8 @@ trait GenExternal extends SymExeDefs {
         // TODO: abstract it to a separate function? <2022-08-18, David Deng> //
         // hp symbolic
         unchecked("std::cout << \"open: hp is symbolic: \" << ", hp, "->toString() << std::endl;")
-        val tpcSat = checkPC(ss.pc.addPC(hp))
-        val fpcSat = checkPC(ss.pc.addPC(!hp))
+        val tpcSat = checkPC(ss.copyPC.addPC(hp))
+        val fpcSat = checkPC(ss.copyPC.addPC(!hp))
         if (tpcSat && fpcSat) {
           unchecked("std::cout << \"open: both satisfiable\" << std::endl;")
           Coverage.incPath(1)
