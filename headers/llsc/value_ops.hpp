@@ -647,8 +647,7 @@ inline PtrVal structV_at(const PtrVal& v, int idx) {
   ABORT("StructV_at: non StructV value");
 }
 
-
-inline PtrVal sym_const(bool b) {
+inline PtrVal sym_bool_const(bool b) {
   if (b) return make_SymV(iOP::const_true, {}, 1);
   else return make_SymV(iOP::const_false, {}, 1);
 }
@@ -665,10 +664,7 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v) {
         ABORT("invalid operator");
     }
   }
-  switch (op) {
-    case iOP::op_neg:
-      ASSERT(bw == 1, "bw must be 1 for op_neg");
-  }
+  ASSERT(op != iOP::op_neg || bw == 1, "bw must be 1 for op_neg");
   return make_SymV(op, { v }, bw);
 }
 
@@ -788,8 +784,8 @@ inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
       /* TODO: QNAN <2022-03-10, David Deng> */
       case fOP::op_ord:    return make_IntV(1);
       case fOP::op_uno:    return make_IntV(0);
-      case fOP::op_false:  return make_IntV(0, 1);
-      case fOP::op_true:   return make_IntV(1, 1);
+      case fOP::const_false:  return make_IntV(0, 1);
+      case fOP::const_true:   return make_IntV(1, 1);
     }
     ABORT("Unknown float_op_2 operation");
   } else {

@@ -149,6 +149,10 @@ public:
         ASSERT(v_t.get_sort().bv_size() == v_e.get_sort().bv_size(),"Operation between different bv_length");
         return ite(cond, v_t, v_e);
       }
+      case iOP::const_true:
+        return c->bool_val(true);
+      case iOP::const_false:
+        return c->bool_val(false);
       default: break;
     }
     ABORT("unkown operator when constructing STP expr");

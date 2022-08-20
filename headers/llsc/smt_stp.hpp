@@ -149,6 +149,10 @@ public:
       ASSERT(getBVLength(v_t) == getBVLength(v_e),"Operation between different bv_length");
       return vc_iteExpr(vc, cond, v_t, v_e);
     }
+    case iOP::const_true:
+      return vc_trueExpr(vc);
+    case iOP::const_false:
+      return vc_falseExpr(vc);
     default: break;
     }
     ABORT("unkown operator when constructing STP expr");

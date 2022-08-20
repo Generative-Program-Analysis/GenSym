@@ -112,7 +112,7 @@ enum class fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv,
   op_oeq, op_ogt, op_oge, op_olt, op_ole, op_one, op_ord,
   op_ueq, op_ugt, op_uge, op_ult, op_ule, op_une, op_uno,
-  op_false, op_true
+  const_false, const_true
 };
 
 // Note: set_exit_code preserves the first value it sets.
@@ -158,6 +158,9 @@ inline std::string int_op_string(iOP op) {
     case iOP::op_concat: return "concat";
     case iOP::op_extract: return "extract";
     case iOP::op_ite: return "ite";
+    case iOP::op_bvnot: return "bvnot";
+    case iOP::const_false: return "false";
+    case iOP::const_true:  return "true";
   }
   return "unknown op";
 }
@@ -182,8 +185,8 @@ inline std::string float_op2string(fOP op) {
     case fOP::op_ule:    return "ule";
     case fOP::op_une:    return "une";
     case fOP::op_uno:    return "uno";
-    case fOP::op_false:  return "false";
-    case fOP::op_true:   return "true";
+    case fOP::const_false: return "false";
+    case fOP::const_true:  return "true";
   }
   return "unknown op";
 }

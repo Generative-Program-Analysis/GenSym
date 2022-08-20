@@ -281,6 +281,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case gNode("make_SymV", bConst(x: String)::bConst(bw: Int)::_) => Some((x, bw))
       case _ => None
     }
+    def fromBoolean(b: Rep[Boolean]): Rep[SymV] =
+      "sym_bool_const".reflectWith[SymV](b)
   }
 
   object ShadowV {
