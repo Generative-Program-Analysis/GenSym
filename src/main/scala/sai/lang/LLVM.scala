@@ -450,7 +450,6 @@ package IR {
   // check visitIPred and visitFpred for available ops
   case class IPredicate(op: String) extends LAST
   case class FPredicate(op: String) extends LAST
-
 }
 
 import IR._

@@ -3,9 +3,9 @@ package sai.llsc.imp
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.EngineBase
 import sai.llsc.IRUtils._
 import sai.llsc.Constants._
+import sai.llsc.SwitchType._
 import sai.llsc.{EngineBase, Config, Counter, Ctx}
 
 import scala.collection.JavaConverters._
@@ -266,45 +266,54 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           symExecBr(ss, cndVal, !cndVal, thnLab, elsLab, k)
         }
       case SwitchTerm(cndTy, cndVal, default, swTable) =>
-        Counter.setBranchNum(ctx, swTable.size+1)
+        type MergedCase = (String, (Rep[Boolean], Rep[Value]))
+        val v = eval(cndVal, cndTy, ss)
+        val mergedSwTable: StaticList[MergedCase] =
+          swTable.foldLeft(StaticMap[String, (Rep[Boolean], Rep[Value])]())({
+            case (m, LLVMCase(_, n, tgt)) if (Config.switchType == Merge) && m.contains(tgt) =>
+              m + (tgt -> (m(tgt)._1 || v.int == n, IntOp2("or", m(tgt)._2, IntOp2("eq", v, IntV(n)))))
+            case (m, LLVMCase(_, n, tgt)) =>
+              m + (tgt -> (v.int == n, IntOp2("eq", v, IntV(n))))
+          }).toList
+        Counter.setBranchNum(ctx, mergedSwTable.size+1)
+        System.out.println(s"Shrinking switch table from ${swTable.size+1} cases to ${mergedSwTable.size+1}")
+
         val nPath: Var[Int] = var_new(0)
-        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
-          if (table.isEmpty) {
-            Coverage.incBranch(ctx, swTable.size)
+        def switch(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+          case Nil =>
+            Coverage.incBranch(ctx, mergedSwTable.size) // Note: the default case has the last branch ID
             execBlock(ctx.funName, default, s, k)
-          } else {
-            if (v == table.head.n) {
-              Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s, k)
-            } else switch(v, s, table.tail)
-          }
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
-          if (table.isEmpty) {
+          case (tgt, (concCnd, _))::rest =>
+            if (concCnd) {
+              Coverage.incBranch(ctx, mergedSwTable.size - table.size)
+              execBlock(ctx.funName, tgt, s, k)
+            } else switch(s, table.tail)
+        }
+        def switchSym(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+          case Nil =>
             if (checkPC(s.pc)) {
               nPath += 1
-              val new_ss = if (1 == nPath) s else s.fork
-              Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, new_ss, k)
+              val newState = if (1 == nPath) s else s.fork
+              Coverage.incBranch(ctx, mergedSwTable.size)
+              execBlock(ctx.funName, default, newState, k)
             }
-          } else {
+          case (tgt, (_, symCnd))::rest =>
             val st = s.copy
-            val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC)
+            s.addPC(symCnd)
             if (checkPC(s.pc)) {
               nPath += 1
-              val new_ss = if (1 == nPath) s else s.fork
-              Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, new_ss, k)
+              val newState = if (1 == nPath) s else s.fork
+              Coverage.incBranch(ctx, mergedSwTable.size - table.size)
+              execBlock(ctx.funName, tgt, newState, k)
             }
-            st.addPC(!headPC)
-            switchSym(v, st, table.tail)
-          }
+            st.addPC(!symCnd)
+            switchSym(st, table.tail)
+        }
 
         ss.addIncomingBlock(ctx)
-        val v = eval(cndVal, cndTy, ss)
-        if (v.isConc) switch(v.int, ss, swTable)
+        if (v.isConc) switch(ss, mergedSwTable)
         else {
-          switchSym(v, ss, swTable)
+          switchSym(ss, mergedSwTable)
           if (nPath > 0) Coverage.incPath(nPath - 1)
           ()
         }
