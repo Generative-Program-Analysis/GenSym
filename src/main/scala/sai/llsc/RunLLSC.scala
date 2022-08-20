@@ -28,7 +28,7 @@ object Config {
   var genDebug: Boolean = false
   var emitVarIdMap: Boolean = true
   var emitBlockIdMap: Boolean = true
-  var switchType: SwitchType = NonMerge
+  var switchType: SwitchType = Merge
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true

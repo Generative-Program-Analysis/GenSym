@@ -265,31 +265,31 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         } else {
           symExecBr(ss, cndVal, !cndVal, thnLab, elsLab, k)
         }
-      case SwitchTerm(cndTy, cndVal, default, swTable) if Config.switchType == Merge =>
-        Counter.setBranchNum(ctx, swTable.size+1)
-        type MergedCase = (String, Rep[Value])
+      case SwitchTerm(cndTy, cndVal, default, swTable) =>
+        type MergedCase = (String, (Rep[Boolean], Rep[Value]))
         val v = eval(cndVal, cndTy, ss)
         val mergedSwTable: StaticList[MergedCase] =
-          swTable.foldLeft(StaticMap[String, Rep[Value]]())({
-            case (m, LLVMCase(_, n, tgt)) if m.contains(tgt) =>
-              m + (tgt -> IntOp2("or", m(tgt), IntOp2("eq", v, IntV(n))))
+          swTable.foldLeft(StaticMap[String, (Rep[Boolean], Rep[Value])]())({
+            case (m, LLVMCase(_, n, tgt)) if (Config.switchType == Merge) && m.contains(tgt) =>
+              m + (tgt -> (m(tgt)._1 || v.int == n, IntOp2("or", m(tgt)._2, IntOp2("eq", v, IntV(n)))))
             case (m, LLVMCase(_, n, tgt)) =>
-              m + (tgt -> IntOp2("eq", v, IntV(n)))
+              m + (tgt -> (v.int == n, IntOp2("eq", v, IntV(n))))
           }).toList
+        Counter.setBranchNum(ctx, mergedSwTable.size+1)
         System.out.println(s"Shrinking switch table from ${swTable.size} cases to ${mergedSwTable.size}")
 
         val nPath: Var[Int] = var_new(0)
-        def switch(v: Rep[Long], s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+        def switch(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
           case Nil =>
             Coverage.incBranch(ctx, mergedSwTable.size) // Note: the default case has the last branch ID
             execBlock(ctx.funName, default, s, k)
-          case (tgt, cnd)::rest =>
-            if (cnd.int == 1) {
+          case (tgt, (concCnd, _))::rest =>
+            if (concCnd) {
               Coverage.incBranch(ctx, mergedSwTable.size - table.size)
               execBlock(ctx.funName, tgt, s, k)
-            } else switch(v, s, table.tail)
+            } else switch(s, table.tail)
         }
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+        def switchSym(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
           case Nil =>
             if (checkPC(s.pc)) {
               nPath += 1
@@ -297,68 +297,23 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
               Coverage.incBranch(ctx, mergedSwTable.size)
               execBlock(ctx.funName, default, newState, k)
             }
-          case (tgt, cnd)::rest =>
+          case (tgt, (_, symCnd))::rest =>
             val st = s.copy
-            s.addPC(cnd)
+            s.addPC(symCnd)
             if (checkPC(s.pc)) {
               nPath += 1
               val newState = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, mergedSwTable.size - table.size)
               execBlock(ctx.funName, tgt, newState, k)
             }
-            st.addPC(!cnd)
-            switchSym(v, st, table.tail)
+            st.addPC(!symCnd)
+            switchSym(st, table.tail)
         }
 
         ss.addIncomingBlock(ctx)
-        if (v.isConc) switch(v.int, ss, mergedSwTable)
+        if (v.isConc) switch(ss, mergedSwTable)
         else {
-          switchSym(v, ss, mergedSwTable)
-          if (nPath > 0) Coverage.incPath(nPath - 1)
-          ()
-        }
-
-      case SwitchTerm(cndTy, cndVal, default, swTable) =>
-        Counter.setBranchNum(ctx, swTable.size+1)
-        val nPath: Var[Int] = var_new(0)
-        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
-          if (table.isEmpty) {
-            // Note: the default case has the last branch ID (i.e. swTable.size)
-            Coverage.incBranch(ctx, swTable.size)
-            execBlock(ctx.funName, default, s, k)
-          } else {
-            if (v == table.head.n) {
-              Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s, k)
-            } else switch(v, s, table.tail)
-          }
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
-          if (table.isEmpty) {
-            if (checkPC(s.pc)) {
-              nPath += 1
-              val newState = if (1 == nPath) s else s.fork
-              Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, newState, k)
-            }
-          } else {
-            val st = s.copy
-            val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC)
-            if (checkPC(s.pc)) {
-              nPath += 1
-              val newState = if (1 == nPath) s else s.fork
-              Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, newState, k)
-            }
-            st.addPC(!headPC)
-            switchSym(v, st, table.tail)
-          }
-
-        ss.addIncomingBlock(ctx)
-        val v = eval(cndVal, cndTy, ss)
-        if (v.isConc) switch(v.int, ss, swTable)
-        else {
-          switchSym(v, ss, swTable)
+          switchSym(ss, mergedSwTable)
           if (nPath > 0) Coverage.incPath(nPath - 1)
           ()
         }
