@@ -9,6 +9,16 @@ case class Config(nSym: Int, useArgv: Boolean, mainFileOpt: String) {
     else d.SymV.makeSymVList(nSym)
 }
 
+object SwitchType extends Enumeration {
+  type SwitchType = Value
+  val NonMerge, Merge = Value
+  def fromString(s: String): SwitchType = s match {
+    case "merge" => Merge
+    case "nonMerge" => NonMerge
+  }
+}
+import SwitchType._
+
 object Config {
   val (o0, o1, o2, o3) = ("O0", "O1", "O2", "O3")
 
@@ -18,6 +28,7 @@ object Config {
   var genDebug: Boolean = false
   var emitVarIdMap: Boolean = true
   var emitBlockIdMap: Boolean = true
+  var switchType: SwitchType = NonMerge
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
@@ -53,6 +64,9 @@ object RunLLSC {
     |--main-opt=<string>     - g++ optimization level when compiling the main file containing the initial heap object
     |--emit-block-id-map     - emit a map from block names to id in common.h
     |--emit-var-id-map       - emit a map from variable names to id in common.h
+    |--switch-type=<string>  - compilation variants of `switch` statement (default=nonMerge)
+    |  =merge                - only fork `m` paths of distinct targets
+    |  =nonMerge             - fork `n` paths where `n` is the total number of feasible cases (including default)
     |--help                  - print this help message
     """
 
@@ -66,6 +80,7 @@ object RunLLSC {
       case (options, r"--main-opt=O(\d)$n") => options + ("mainOpt" -> ("O"+n))
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
       case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
+      case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
       case (options, input) => options + ("input" -> input)
     }
@@ -79,6 +94,7 @@ object RunLLSC {
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
     val emitBlockIdMap = options.getOrElse("blockIdMap", false).asInstanceOf[Boolean]
     val emitVarIdMap = options.getOrElse("varIdMap", false).asInstanceOf[Boolean]
+    val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
 
     val llsc = engine match {
       case "ImpCPS" => new ImpCPSLLSC
@@ -88,10 +104,11 @@ object RunLLSC {
     }
     Config.opt = optimize
     Config.emitBlockIdMap = emitBlockIdMap
-    Config.emitVarIdMap =  emitVarIdMap
+    Config.emitVarIdMap = emitVarIdMap
+    Config.switchType = switchType
     val info = s"""Running $engine with
     |  filepath=$filepath, entrance=$entrance, output=$output,
-    |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt"""
+    |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
     println(info.stripMargin)
     llsc.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt))
   }
