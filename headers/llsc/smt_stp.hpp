@@ -21,15 +21,15 @@ public:
   ExprHandle construct_expr_internal(PtrVal e, VarMap &vars) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
+      // XXX(GW): using this vs sym_bool_const?
       if (1 == int_e->bw)
         return int_e->i ? vc_trueExpr(vc) : vc_falseExpr(vc);
       return vc_bvConstExprFromLL(vc, int_e->bw, int_e->as_signed());
     }
     auto sym_e = std::dynamic_pointer_cast<SymV>(e);
     if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
-
     if (!sym_e->name.empty()) {
-      ASSERT(sym_e->bw > 1, "i1 symv");
+      ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto name = sym_e->name;
       ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
       vars.emplace(sym_e, stp_expr);

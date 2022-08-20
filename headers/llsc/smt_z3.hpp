@@ -35,6 +35,7 @@ public:
     auto c = g_ctx;
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
+      // XXX(GW): using this vs sym_bool_const?
       if (int_e->bw == 1)
         return c->bool_val(int_e->i ? true : false);
       return c->bv_val(int_e->as_signed(), int_e->bw);
@@ -42,7 +43,7 @@ public:
     auto sym_e = std::dynamic_pointer_cast<SymV>(e);
     if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
     if (!sym_e->name.empty()) {
-      ASSERT(sym_e->bw > 1, "i1 symv");
+      ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto ret = c->bv_const(sym_e->name.c_str(), sym_e->bw);
       vars.emplace(sym_e, ret);
       return ret;
