@@ -116,19 +116,21 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 }
 
 class TestImpLLSC extends TestLLSC {
-  testLLSC(new ImpLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
+  val llsc = new ImpLLSC
+  testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
+  // Note: compile-time switch merge is only implement for ImpCPS so far
+  testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
 
 class TestImpCPSLLSC extends TestLLSC {
   testLLSC(new ImpCPSLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
 class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
+  //testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
   //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
   //testLLSC(llsc, TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)))
   //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))

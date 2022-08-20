@@ -276,7 +276,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
               m + (tgt -> (v.int == n, IntOp2("eq", v, IntV(n))))
           }).toList
         Counter.setBranchNum(ctx, mergedSwTable.size+1)
-        System.out.println(s"Shrinking switch table from ${swTable.size} cases to ${mergedSwTable.size}")
+        System.out.println(s"Shrinking switch table from ${swTable.size+1} cases to ${mergedSwTable.size+1}")
 
         val nPath: Var[Int] = var_new(0)
         def switch(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
