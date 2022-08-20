@@ -116,14 +116,14 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 }
 
 class TestImpLLSC extends TestLLSC {
-  val llsc = new ImpLLSC
-  testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
-  // Note: compile-time switch merge is only implement for ImpCPS so far
-  testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
+  testLLSC(new ImpLLSC, TestCases.all ++ filesys ++ varArg)
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, TestCases.all ++ filesys ++ varArg)
+  val llsc = new ImpCPSLLSC
+  testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
+  // Note: compile-time switch merge is only implement for ImpCPS so far
+  testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
 
 class Playground extends TestLLSC {
