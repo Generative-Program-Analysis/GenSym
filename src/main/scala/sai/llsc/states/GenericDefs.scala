@@ -282,7 +282,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => None
     }
     def fromBool(b: Rep[Boolean]): Rep[SymV] =
-      case _ => "sym_bool_const".reflectWith[SymV](b)
+      "sym_bool_const".reflectWith[SymV](b)
   }
 
   object ShadowV {

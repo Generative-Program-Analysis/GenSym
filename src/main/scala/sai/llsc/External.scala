@@ -47,8 +47,8 @@ trait GenExternal extends SymExeDefs {
   def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
     // the requested permission
     // TODO: support symbolic flags <2022-08-17, David Deng> //
-    val readAccess: Rep[Boolean] = (flags.int & O_RDONLY: Rep[Boolean]) || (flags.int & O_RDWR)
-    val writeAccess: Rep[Boolean] = (flags.int & O_WRONLY: Rep[Boolean]) || (flags.int & O_RDWR)
+    val readAccess: Rep[SymV] = SymV.fromBool((flags.int & O_RDONLY: Rep[Boolean]) || (flags.int & O_RDWR))
+    val writeAccess: Rep[SymV] = SymV.fromBool((flags.int & O_WRONLY: Rep[Boolean]) || (flags.int & O_RDWR))
 
     // the permission of the file
     val mode: Rep[Value] = f.readStatField("st_mode")
@@ -56,12 +56,12 @@ trait GenExternal extends SymExeDefs {
 
     // TODO: add missing flags <2022-08-19, David Deng> //
     val canRead = ((mode & IntV(S_IRUSR, bw)) | (mode & IntV(S_IRGRP, bw)) | (mode & IntV(S_IROTH, bw)))
-    val illegalRead = IntOp2.eq(canRead, IntV(0, bw))
+    val illegalRead = IntOp2.eq(canRead, IntV(0, bw)) // cast to boolean
    
     val canWrite = ((mode & IntV(S_IWUSR, bw)) | (mode & IntV(S_IWGRP, bw)) | (mode & IntV(S_IWOTH, bw)))
     val illegalWrite = IntOp2.eq(canWrite, IntV(0, bw))
 
-    !(illegalRead | illegalWrite)
+    !((readAccess & illegalRead) | (writeAccess & illegalWrite))
   }
 
   /* 
