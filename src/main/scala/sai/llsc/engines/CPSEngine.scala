@@ -302,6 +302,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
             s.addPC(symCnd)
             if (checkPC(s.pc)) {
               nPath += 1
+              // TODO(GW): should optimize it to not copy then fork
               val newState = if (1 == nPath) s else s.fork
               Coverage.incBranch(ctx, mergedSwTable.size - table.size)
               execBlock(ctx.funName, tgt, newState, k)

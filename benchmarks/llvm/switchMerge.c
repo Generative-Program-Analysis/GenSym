@@ -1,11 +1,21 @@
+#ifdef KLEE
+#include <klee/klee.h>
+#else
 #include "../../headers/llsc_client.h"
+#endif
 #include <assert.h>
 
 int main() {
   int a;
+#ifdef KLEE
+  klee_make_symbolic(&a, sizeof(a), "a");
+  klee_assume(a >= 1);
+  klee_assume(a <= 5);
+#else
   make_symbolic(&a, 4);
   llsc_assume(a >= 1);
   llsc_assume(a <= 5);
+#endif
   switch (a) {
     case 1:
     case 2:
