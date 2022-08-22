@@ -29,6 +29,11 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 @virtualize
 trait GenExternal extends SymExeDefs {
+  val debug: Boolean = false
+  def rawInfo(seq: Any*): Rep[Unit] = if (debug) unchecked(seq: _*)
+  def info(s: String): Rep[Unit] = rawInfo("std::cout << \"", s, "\" << std::endl")
+  def info(p: Rep[Value]): Rep[Unit] = rawInfo("std::cout << ", p, "->toString() << std::endl")
+
   import FS._
 
   type ExtCont[T] = (Rep[SS], Rep[FS], Rep[Value]) => Rep[T]
@@ -69,7 +74,7 @@ trait GenExternal extends SymExeDefs {
    * int open(const char *pathname, int flags, mode_t mode);
    */
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"open syscall\" << std::endl")
+    rawInfo("std::cout << \"open syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val flags = args(1)
     if (!(flags.int & O_CREAT: Rep[Boolean]) && (flags.int & O_EXCL)) {
@@ -103,11 +108,11 @@ trait GenExternal extends SymExeDefs {
       } else {
         // TODO: abstract it to a separate function? <2022-08-18, David Deng> //
         // hp symbolic
-        unchecked("std::cout << \"open: hp is symbolic: \" << ", hp, "->toString() << std::endl;")
+        rawInfo("std::cout << \"open: hp is symbolic: \" << ", hp, "->toString() << std::endl;")
         val tpcSat = checkPC(ss.copyPC.addPC(hp))
         val fpcSat = checkPC(ss.copyPC.addPC(!hp))
         if (tpcSat && fpcSat) {
-          unchecked("std::cout << \"open: both satisfiable\" << std::endl;")
+          rawInfo("std::cout << \"open: both satisfiable\" << std::endl;")
           Coverage.incPath(1)
           // false branch
           k(ss.fork.addPC(!hp).setErrorLoc(flag("EACCES")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
@@ -123,16 +128,16 @@ trait GenExternal extends SymExeDefs {
           // This version would lose result on non CPS versions
           // resF ++ resT
         } else if (tpcSat) {
-          unchecked("std::cout << \"open: only false satisfiable\" << std::endl;")
-          k(ss.addPC(!hp).setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
-        } else {
-          unchecked("std::cout << \"open: only true satisfiable\" << std::endl;")
+          rawInfo("std::cout << \"open: only true satisfiable\" << std::endl;")
           if (flags.int & O_TRUNC) {
             file.content = List[Value]()
           }
           val fd: Rep[Fd] = fs.getFreshFd()
           fs.setStream(fd, Stream(file))
           k(ss.addPC(hp), fs, IntV(fd, 32))
+        } else {
+          rawInfo("std::cout << \"open: only false satisfiable\" << std::endl;")
+          k(ss.addPC(!hp).setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
         }
         // TODO: fix benchmark tests <2022-08-17, David Deng> //
       }
@@ -144,7 +149,7 @@ trait GenExternal extends SymExeDefs {
    * int openat(int dirfd, const char *pathname, int flags, mode_t mode);
    */
   def openat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
-    unchecked("std::cout << \"openat syscall\" << std::endl")
+    rawInfo("std::cout << \"openat syscall\" << std::endl")
     // TODO: implement this <2022-01-23, David Deng> //
     // int __fd_openat(int basefd, const char *pathname, int flags, mode_t mode);
     // if (fd == AT_FDCWD), call open
@@ -155,7 +160,7 @@ trait GenExternal extends SymExeDefs {
    * int close(int fd);
    */
   def close[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"close syscall\" << std::endl")
+    rawInfo("std::cout << \"close syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
     if (!fs.hasStream(fd)) 
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
@@ -175,7 +180,7 @@ trait GenExternal extends SymExeDefs {
    * ssize_t read(int fd, void *buf, size_t count);
    */
   def read[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"read syscall\" << std::endl")
+    rawInfo("std::cout << \"read syscall\" << std::endl")
     val fd: Rep[Int] = args(0).int.toInt
     val loc: Rep[Value] = args(1)
     val count: Rep[Int] = args(2).int.toInt
@@ -195,7 +200,7 @@ trait GenExternal extends SymExeDefs {
    * ssize_t write(int fd, const void *buf, size_t count);
    */
   def write[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"write syscall\" << std::endl")
+    rawInfo("std::cout << \"write syscall\" << std::endl")
     val fd: Rep[Int] = args(0).int.toInt // NOTE: .int => Rep[Long], .toInt => Rep[Int]
     val buf: Rep[Value] = args(1)
     val count: Rep[Int] = args(2).int.toInt
@@ -214,7 +219,7 @@ trait GenExternal extends SymExeDefs {
    * off_t lseek(int fd, off_t offset, int whence);
    */
   def lseek[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"lseek syscall\" << std::endl")
+    rawInfo("std::cout << \"lseek syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
     val o: Rep[Long] = args(1).int
     val w: Rep[Int] = args(2).int.toInt
@@ -241,7 +246,7 @@ trait GenExternal extends SymExeDefs {
    * int stat(const char *pathname, struct stat *statbuf);
    */
   def stat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"stat syscall\" << std::endl")
+    rawInfo("std::cout << \"stat syscall\" << std::endl")
     val ptr = args(0)
     val name: Rep[String] = getStringAt(ptr, ss)
     val buf: Rep[Value] = args(1)
@@ -258,7 +263,7 @@ trait GenExternal extends SymExeDefs {
    * int fstat(int fd, struct stat *statbuf);
    */
   def fstat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"fstat syscall\" << std::endl")
+    rawInfo("std::cout << \"fstat syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
     val buf: Rep[Value] = args(1)
     if (!fs.hasStream(fd)) 
@@ -274,7 +279,7 @@ trait GenExternal extends SymExeDefs {
    * int lstat(const char *pathname, struct stat *statbuf);
    */
   def lstat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"lstat syscall\" << std::endl")
+    rawInfo("std::cout << \"lstat syscall\" << std::endl")
     // TODO: handle symlink <2022-08-09, David Deng> //
     stat(ss, fs, args, k)
   }
@@ -283,7 +288,7 @@ trait GenExternal extends SymExeDefs {
    * int statfs(const char *path, struct statfs *buf);
    */
   def statfs[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"statfs syscall\" << std::endl")
+    rawInfo("std::cout << \"statfs syscall\" << std::endl")
     val name: Rep[String] = getStringAt(args(0), ss)
     if (!fs.hasFile(name)) {
       k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
@@ -298,7 +303,7 @@ trait GenExternal extends SymExeDefs {
    * int mkdir(const char *pathname, mode_t mode);
    */
   def mkdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"mkdir syscall\" << std::endl")
+    rawInfo("std::cout << \"mkdir syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     // TODO: set mode <2022-05-28, David Deng> //
     val mode: Rep[Value] = args(1)
@@ -308,9 +313,9 @@ trait GenExternal extends SymExeDefs {
     else {
       // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
       val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFDIR)
-      unchecked("/* mkdir: fs.setFile */")
+      rawInfo("/* mkdir: fs.setFile */")
       fs.setFile(path, f)
-      unchecked("/* mkdir: return */")
+      rawInfo("/* mkdir: return */")
       k(ss, fs, IntV(0, 32))
     }
   }
@@ -319,7 +324,7 @@ trait GenExternal extends SymExeDefs {
    * int rmdir(const char *pathname);
    */
   def rmdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"rmdir syscall\" << std::endl")
+    rawInfo("std::cout << \"rmdir syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val dir = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
@@ -335,7 +340,7 @@ trait GenExternal extends SymExeDefs {
    * int creat(const char *pathname, mode_t mode);
    */
   def creat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"creat syscall\" << std::endl")
+    rawInfo("std::cout << \"creat syscall\" << std::endl")
     // A call to creat() is equivalent to calling open() with flags equal to O_CREAT|O_WRONLY|O_TRUNC.
     open(ss, fs, List(args(0), IntV(O_CREAT | O_WRONLY | O_TRUNC), args(1)), k)
   }
@@ -344,7 +349,7 @@ trait GenExternal extends SymExeDefs {
    * int unlink(const char *pathname);
    */
   def unlink[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"unlink syscall\" << std::endl")
+    rawInfo("std::cout << \"unlink syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     // TODO: set errno <2022-05-28, David Deng> //
@@ -360,7 +365,7 @@ trait GenExternal extends SymExeDefs {
    * int chmod(const char *pathname, mode_t mode);
    */
   def chmod[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"chmod syscall\" << std::endl")
+    rawInfo("std::cout << \"chmod syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     val mode: Rep[Value] = args(1)
@@ -376,7 +381,7 @@ trait GenExternal extends SymExeDefs {
    * int chown(const char *pathname, uid_t owner, gid_t group);
    */
   def chown[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"chown syscall\" << std::endl")
+    rawInfo("std::cout << \"chown syscall\" << std::endl")
     val path: Rep[String] = getStringAt(args(0), ss)
     val file = fs.getFile(path)
     val owner: Rep[Value] = args(1)
@@ -395,11 +400,11 @@ trait GenExternal extends SymExeDefs {
    * int ioctl(int fd, int request, ...);
    */
   def ioctl[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"ioctl syscall\" << std::endl")
+    rawInfo("std::cout << \"ioctl syscall\" << std::endl")
     val fd: Rep[Fd] = args(0).int.toInt
-    unchecked("std::cout << \"with fd:\" << ", fd, " << std::endl")
+    rawInfo("std::cout << \"with fd:\" << ", fd, " << std::endl")
     val request: Rep[Value] = args(1)
-    unchecked("std::cout << \"with request:\" << ", request, "->toString() << std::endl")
+    rawInfo("std::cout << \"with request:\" << ", request, "->toString() << std::endl")
     if (!fs.hasStream(fd)) {
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
     } else {
@@ -421,12 +426,12 @@ trait GenExternal extends SymExeDefs {
         } else {
           // TODO: abstract it to a separate function? <2022-08-18, David Deng> //
           // ischr symbolic
-          unchecked("std::cout << \"ioctl: ischr is symbolic: \" << ", ischr, "->toString() << std::endl;")
+          rawInfo("std::cout << \"ioctl: ischr is symbolic: \" << ", ischr, "->toString() << std::endl;")
           val ss1 = ss.fork
           val tpcSat = checkPC(ss.addPC(ischr).pc)
           val fpcSat = checkPC(ss1.addPC(!ischr).pc)
           if (tpcSat && fpcSat) {
-            unchecked("std::cout << \"ioctl: both satisfiable\" << std::endl;")
+            rawInfo("std::cout << \"ioctl: both satisfiable\" << std::endl;")
             Coverage.incPath(1)
             // false branch
             k(ss1.setErrorLoc(flag("ENOTTY")), FS.dcopy(fs), IntV(-1, 32)) // does not have permission
@@ -438,10 +443,10 @@ trait GenExternal extends SymExeDefs {
             // This version would lose result on non CPS versions
             // resF ++ resT
           } else if (tpcSat) {
-            unchecked("std::cout << \"ioctl: only true satisfiable\" << std::endl;")
+            rawInfo("std::cout << \"ioctl: only true satisfiable\" << std::endl;")
             k(ss, fs, IntV(0, 32))
           } else {
-            unchecked("std::cout << \"ioctl: only false satisfiable\" << std::endl;")
+            rawInfo("std::cout << \"ioctl: only false satisfiable\" << std::endl;")
             k(ss1.setErrorLoc(flag("ENOTTY")), fs, IntV(-1, 32)) // does not have permission
           }
         }
@@ -455,7 +460,7 @@ trait GenExternal extends SymExeDefs {
    * int fcntl(int fd, int cmd, ...);
    */
   def fcntl[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
-    unchecked("std::cout << \"fcntl syscall\" << std::endl")
+    rawInfo("std::cout << \"fcntl syscall\" << std::endl")
     val fd: Rep[Value] = args(0)
     val cmd: Rep[Value] = args(1)
     k(ss, fs, IntV(-1, 32))
@@ -482,7 +487,7 @@ trait GenExternal extends SymExeDefs {
 
   // NOTE: return type might not be necessary if using pointers <2022-05-27, David Deng> //
   def _set_file_type(f: Rep[File], mask: Rep[Int]): Rep[File] = {
-    unchecked("/* _set_file_type */")
+    rawInfo("/* _set_file_type */")
     // want to unset the file type bits and leave the other bits unchanged
     val clearMask: Rep[IntV] = flag("~S_IFMT")
     val stat = f.readStatField("st_mode")
@@ -492,7 +497,7 @@ trait GenExternal extends SymExeDefs {
   }
 
   def _set_file_mode(f: Rep[File], mask: Rep[Int]): Rep[File] = {
-    unchecked("/* _set_file_mode */")
+    rawInfo("/* _set_file_mode */")
     // preserve the file type bits
     val clearMask: Rep[IntV] = flag("S_IFMT")
     val stat = f.readStatField("st_mode")
