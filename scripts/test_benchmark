@@ -72,7 +72,8 @@ if [ "$SCALA_COMPILE" = "true" ] || [ ! -d "llsc_gen/${HEAD}" ]; then
 fi
 
 if [ "$CPP_COMPILE" = "true" ] || [ ! -f "llsc_gen/${HEAD}/${HEAD}" ]; then
-	( cd llsc_gen/${HEAD};
+	( cd llsc_gen/${HEAD}; 
+	make clean
 	echo -n "[test_benchmark] "
 	pwd
 	/usr/bin/time --format "[test_benchmark] c++ compilation time => real: %e,\tuser: %U,\tsys: %S" \
