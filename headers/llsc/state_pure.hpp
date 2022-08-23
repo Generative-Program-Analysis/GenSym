@@ -35,7 +35,7 @@ class PreMem: public Printable {
     M append(List<V> vs) { return M(mem + vs); }
     M alloc(size_t size) {
       auto m = mem.transient();
-      for (int i = 0; i < size; i++) { m.push_back(nullptr); }
+      for (int i = 0; i < size; i++) { m.push_back(make_UinitV()); }
       return M(m.persistent());
     }
     M take(size_t keep) { return M(mem.take(keep)); }

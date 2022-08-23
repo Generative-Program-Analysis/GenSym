@@ -30,7 +30,7 @@ class PreMem {
       return move_this();
     }
     M&& alloc(size_t size) {
-      mem.resize(mem.size() + size, nullptr);
+      mem.resize(mem.size() + size, make_UinitV());
       return move_this();
     }
     M&& take(size_t keep) {

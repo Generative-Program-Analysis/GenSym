@@ -69,6 +69,7 @@ inline PtrVal bv_zext(const PtrVal& v, size_t bw);
 // XXX: when should we override toMSB? should document this behavior
 inline PtrVal make_IntV(IntData i, size_t bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
+inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e);
 
 /* Value representations */
 
@@ -672,6 +673,7 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v) {
 // require return value to be signed or non-negative
 inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   auto i1 = v1->to_IntV();
+  assert(v2);
   auto i2 = v2->to_IntV();
   auto bw1 = v1->get_bw();
   auto bw2 = v2->get_bw();
@@ -732,8 +734,18 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         ABORT("invalid operator");
     }
   } else {
-    ASSERT((i1 || std::dynamic_pointer_cast<SymV>(v1)) && (i2 || std::dynamic_pointer_cast<SymV>(v2)), "Invalid operand");
+    auto sym1 = std::dynamic_pointer_cast<SymV>(v1);
+    auto sym2 = std::dynamic_pointer_cast<SymV>(v2);
+    ASSERT((i1 || sym1) && (i2 || sym2), "Invalid operand");
     auto bw = bw1;
+    if ((sym1 && iOP::op_ite == sym1->rator) && (sym2 && iOP::op_ite == sym2->rator)) {
+      ASSERT(sym1->rands[0] == sym2->rands[0], "Should have same condition");
+      return ite(sym1->rands[0], int_op_2(op, sym1->rands[1], sym2->rands[1]), int_op_2(op, sym1->rands[2], sym2->rands[2]));
+    } else if (sym1 && iOP::op_ite == sym1->rator) {
+      return ite(sym1->rands[0], int_op_2(op, sym1->rands[1], v2), int_op_2(op, sym1->rands[2], v2));
+    } else if (sym2 && iOP::op_ite == sym2->rator) {
+      return ite(sym2->rands[0], int_op_2(op, v1, sym2->rands[1]), int_op_2(op, v1, sym2->rands[2]));
+    }
     switch (op) {
       case iOP::op_eq:
       case iOP::op_neq:
@@ -930,6 +942,10 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
     ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
     auto new_off = int_op_2(iOP::op_add, off, rhs);
     return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
+  }
+  if (auto symvite = std::dynamic_pointer_cast<SymV>(lhs)) {
+    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
+    return ite(symvite->rands[0], symvite->rands[1] + rhs, symvite->rands[2] + rhs);
   }
   if (auto intloc = std::dynamic_pointer_cast<IntV>(lhs)) {
     INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());
