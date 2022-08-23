@@ -92,8 +92,7 @@ trait SAIOps extends Base
         case None => Wrap[T](Adapter.g.reflect(Backend.Sym(Adapter.g.fresh), op, args:_*)())
       }
     }
-    def reflectWith[T: Manifest](rs: Rep[_]*): Rep[T] =
-      Wrap[T](Adapter.g.reflect(op, rs.map(Unwrap):_*))
+    def reflectWith[T: Manifest](rs: Rep[_]*): Rep[T] = Wrap[T](Adapter.g.reflect(op, rs.map(Unwrap):_*))
     def reflectReadWith[T: Manifest](rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
       Wrap[T](Adapter.g.reflectRead(op, rs.map(Unwrap):_*)(es.map(Unwrap):_*))
     def reflectWriteWith[T: Manifest](rs: Rep[_]*)(es: Rep[_]*): Rep[T] =
@@ -145,7 +144,7 @@ trait SAIOps extends Base
         val fn = Backend.Sym(Adapter.g.fresh)
         Adapter.funTable = (fn, can)::Adapter.funTable
         val block = Adapter.g.reify(arity, gf)
-        val res = Adapter.g.reflectEffect(fn, "λ", block, Backend.Const(0), Backend.Const(decorator))()(Adapter.CTRL)
+        val res = Adapter.g.reflectEffect(fn, "top-λ", block, Backend.Const(0), Backend.Const(decorator))()(Adapter.CTRL)
         topLevelFunctions.getOrElseUpdate(can, fn)
         fn
     }

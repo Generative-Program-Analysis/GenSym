@@ -87,10 +87,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
   override def traverse(n: Node): Unit = n match {
     case n @ Node(f, "λ", (b: Block)::Const("val")::_, _) => ???
-    case n @ Node(f, "λ", (b: Block)::Const(0)::Const(dec: String)::Nil, _) =>
-      System.out.println("Skipped in CppCodegen: " + quote(f))
-      // Do nothing to avoid duplication
-    case n @ Node(f, "λ", (b: Block)::Const(0)::Const(dec: String)::Nil, _) =>
+    case n @ Node(f, "top-λ", (b: Block)::Const(0)::Const(dec: String)::Nil, _) =>
       // Note: top-level functions
       registerTopLevelFunctionDecl(quote(f)) {
         emitFunctionSignature(quote(f), b, argNames = false, ending = ";\n")
@@ -98,6 +95,8 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
       registerTopLevelFunction(quote(f)) {
         emitFunction(quote(f), b, dec)
       }
+    case n @ Node(f, "λ", (b: Block)::Const(0)::rest, _) =>
+      super.traverse(n)
     case n @ Node(f, "λ", (b: Block)::rest, _) =>
       // TODO: what are the rest?
       // TODO: regression test

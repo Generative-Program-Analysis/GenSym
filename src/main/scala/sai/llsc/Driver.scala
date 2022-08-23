@@ -64,8 +64,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
       addRewrite
       Unwrap(wrapper(Wrap[A](x)))
     }
-    //val g1 = transform(g0)
-    val g1 = g0
+    val g1 = transform(g0)
     val statics = lms.core.utils.time("codegen") {
       codegen.typeMap = Adapter.typeMap
       codegen.stream = mainStream
@@ -366,12 +365,39 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) { q =>
       implicit val me: this.type = this
+      override lazy val codegen: GenericLLSCCodeGen = new ImpureLLSCCodeGen {
+        val IR: q.type = q
+        val codegenFolder = s"$folder/$appName/"
+        setFunMap(q.funNameMap)
+        setBlockMap(q.blockNameMap)
+        override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
+          val ng = init(g)
+          run(name, ng)
+          emitHeaderFile
+          emitFunctionFiles
+        }
+      }
+      override def genSource: Unit = {
+        val folderFile = new java.io.File(folder)
+        if (!folderFile.exists()) folderFile.mkdir
+        prepareBuildDir
+        val g0 = Adapter.genGraph1(manifest[Int], manifest[Unit]) { x =>
+          addRewrite
+          Unwrap(wrapper(Wrap[Int](x)))
+        }
+        val g1 = transform(g0)
+        val statics = lms.core.utils.time("codegen") {
+          codegen.typeMap = Adapter.typeMap
+          codegen.emitAll(g1, appName)(manifest[Int], manifest[Unit])
+          codegen.extractAllStatics
+        }
+      }
       def snippet(u: Rep[Int]): Rep[Unit] = {
         ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main", "gettimeofday")
         def preHeap(v: Rep[Int]): Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
-        hardTopFun(preHeap(_), "preHeapGen", "")
-        System.out.println("Total function number:" + funMap.size)
+        val repPreHeap = topFun(preHeap(_))
         for ((f, d) <- funMap) compile(d)
+        for ((n, f) <- FunFuns) "ss-generate".reflectWriteWith[Unit](f)(Adapter.CTRL)
         ()
       }
     }

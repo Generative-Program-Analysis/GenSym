@@ -367,7 +367,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       info("running block: " + funName + " - " + b.label.get)
       execBlockEager(funName, b, ss, k)
     }
-    val f: BFTy = hardTopFun(runBlock(_, _))
+    val f: BFTy = topFun(runBlock(_, _))
     val n = Unwrap(f).asInstanceOf[Backend.Sym].n
     (f, n)
   }
@@ -383,7 +383,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       ss.assign(params, args)
       execBlockEager(f.id, f.blocks(0), ss, k)
     }
-    val fn: FFTy = hardTopFun(runFun(_, _, _))
+    val fn: FFTy = topFun(runFun(_, _, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
   }
@@ -391,7 +391,6 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
   override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
     def generateNativeCall(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       info("running native function: " + f.id)
-      System.out.println(f)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
         case (ty@PtrType(_, _), id) => ss.getPointerArg(args(id)).castToM(ty.toManifest)
         case (ty@IntType(size), id) => ss.getIntArg(args(id)).castToM(ty.toManifest)
@@ -414,7 +413,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       k(ss, retVal)
     }
 
-    val fn: FFTy = hardTopFun(generateNativeCall(_, _, _))
+    val fn: FFTy = topFun(generateNativeCall(_, _, _))
     val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
     (fn, n)
   }

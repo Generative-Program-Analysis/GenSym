@@ -77,8 +77,6 @@ object IRUtils {
       case _ => List(t)
     }
 
-    trait Unknown
-
     def toManifest: Manifest[_] = t match {
       case IntType(1) => manifest[Boolean]
       case IntType(8) => manifest[Char]
