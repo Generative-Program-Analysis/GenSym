@@ -472,7 +472,7 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
 
   val codegen: GenericLLSCCodeGen = new GenericLLSCCodeGen {
     val codegenFolder: String = folder
-    val blockNameMap: HashMap[Int, String] = new HashMap()
+    val blockNameMap: HashMap[Backend.Sym, String] = new HashMap()
     setFunMap(funNameMap)
     setBlockMap(blockNameMap)
     override def remap(m: Manifest[_]): String = {

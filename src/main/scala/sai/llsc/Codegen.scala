@@ -19,28 +19,27 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   registerHeader("third-party/parallel-hashmap", "<parallel_hashmap/phmap.h>")
 
   val codegenFolder: String
-  // TODO: refactor to Sym => String map?
-  var funMap = new HashMap[Int, String]()
-  var blockMap = new HashMap[Int, String]()
+  var funMap = new HashMap[Sym, String]()
+  var blockMap = new HashMap[Sym, String]()
 
-  def setFunMap(m: HashMap[Int, String]) = funMap = m
-  def setBlockMap(m: HashMap[Int, String]) = blockMap = m
+  def setFunMap(m: HashMap[Sym, String]) = funMap = m
+  def setBlockMap(m: HashMap[Sym, String]) = blockMap = m
 
   def reconsMapping(subst: HashMap[Sym, Exp]): Unit = {
-    val newFunMap = new HashMap[Int, String]()
-    val newBlockMap = new HashMap[Int, String]()
+    val newFunMap = new HashMap[Sym, String]()
+    val newBlockMap = new HashMap[Sym, String]()
     for ((x, nm) <- funMap) {
-      if (subst.contains(Sym(x))) newFunMap(subst(Sym(x)).asInstanceOf[Sym].n) = nm
+      if (subst.contains(x)) newFunMap(subst(x).asInstanceOf[Sym]) = nm
     }
     for ((x, nm) <- blockMap) {
-      if (subst.contains(Sym(x))) newBlockMap(subst(Sym(x)).asInstanceOf[Sym].n) = nm
+      if (subst.contains(x)) newBlockMap(subst(x).asInstanceOf[Sym]) = nm
     }
     funMap = newFunMap
     blockMap = newBlockMap
   }
 
   override def quote(s: Def): String = s match {
-    case Sym(n) =>
+    case n@Sym(x) =>
       funMap.getOrElse(n, blockMap.getOrElse(n, super.quote(s)))
     case _ => super.quote(s)
   }
@@ -50,6 +49,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(_, "make_SymV", _, _) => true
     case Node(_, "make_IntV", _, _) => true
     case Node(_, "null-v", _, _) => true
+    case Node(_, "ss-fork", _, _) => false
     case _ => super.mayInline(n)
   }
 
@@ -104,13 +104,17 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
     case Node(s,"kHeap", _, _) => emit("LocV::kHeap")
+    case Node(s, "int_op_1", List(Backend.Const(op: String), x), _) =>
+      es"int_op_1(${quoteOp(op, "iOP")}, $x)"
     case Node(s, "int_op_2", List(Backend.Const(op: String), x, y), _) =>
       es"int_op_2(${quoteOp(op, "iOP")}, $x, $y)"
     case Node(s, "float_op_2", List(Backend.Const(op: String), x, y), _) =>
       es"float_op_2(${quoteOp(op, "fOP")}, $x, $y)"
     case Node(s, "init-ss", List(), _) => es"mt_ss"
-    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_bb)"
+    case Node(s, "init-ss", List(m), _) => es"SS($m, mt_stack, mt_pc, mt_meta)"
 
+    case Node(s, "ss-fork", List(ss), _) => es"$ss.fork()"
+    case Node(s, "ss-getssid", List(ss), _) => es"$ss.get_ssid()"
     case Node(s, "ss-lookup-env", List(ss, x), _) => es"$ss.env_lookup($x)"
     case Node(s, "ss-lookup-addr", List(ss, a, sz), _) => es"$ss.at($a, $sz)"
     case Node(s, "ss-lookup-addr-struct", List(ss, a, sz), _) => es"$ss.at_struct($a, $sz)"
@@ -135,12 +139,14 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.add_PC_set($es)"
     case Node(s, "ss-add-incoming-block", List(ss, bb), _) => es"$ss.add_incoming_block($bb)"
     case Node(s, "ss-incoming-block", List(ss), _) => es"$ss.incoming_block()"
+    case Node(s, "ss-cover-block", List(ss, bb), _) => es"$ss.cover_block($bb)"
     case Node(s, "ss-arg", List(ss), _) => es"$ss.init_arg()"
     case Node(s, "ss-init-error-loc", List(ss), _) => es"$ss.init_error_loc()"
     case Node(s, "ss-get-error-loc", List(ss), _) => es"$ss.error_loc()"
     case Node(s, "ss-get-fs", List(ss), _) => es"$ss.get_fs()"
     case Node(s, "ss-set-fs", List(ss, fs), _) => es"$ss.set_fs($fs)"
     case Node(s, "get-pc", List(ss), _) => es"$ss.get_PC()"
+    case Node(s, "ss-copy-pc", List(ss), _) => es"$ss.copy_PC()"
 
     case Node(s, "ss-get-int-arg", List(ss, x), _) => es"get_int_arg($ss, $x)"
     case Node(s, "ss-get-float-arg", List(ss, x), _) => es"get_float_arg($ss, $x)"
@@ -149,7 +155,6 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
       es"writeback_pointer_arg($ss, $addr, $x)"
 
     case Node(s, "is-conc", List(v), _) => es"$v->is_conc()"
-    case Node(s, "to-SMTNeg", List(v), _) => es"SymV::neg($v)"
     case Node(s, "ValPtr-deref", List(v), _) => es"*$v"
     case Node(s, "nullptr", _, _) => es"nullptr"
     case Node(s, "to-bytes", List(v), _) => es"$v->to_bytes()"
@@ -175,12 +180,12 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-path-cov", _, _) => es"cov().print_path_cov()"
     case Node(s, "assert", List(cond, msg), _) => es"ASSERT(($cond), $msg)"
 
-    case Node(s, "add_tp_task", List(b: Block), _) =>
-      es"tp.add_task("
+    case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
+      es"tp.add_task($ssid"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
-    case Node(s, "async_exec_block", List(b: Block), _) =>
-      es"async_exec_block("
+    case Node(s, "async_exec_block", List(ssid, b: Block), _) =>
+      es"async_exec_block($ssid,"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
 
@@ -290,7 +295,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
     |  if (can_par_tp()) {
-    |    tp.add_task([]() { return $name(0); });
+    |    tp.add_task(1, []() { return $name(0); });
     |  } else {
     |    $name(0);
     |  }

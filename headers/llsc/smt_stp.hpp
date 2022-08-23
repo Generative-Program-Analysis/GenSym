@@ -1,5 +1,5 @@
-#ifndef LLSC_STP_HEADERS
-#define LLSC_STP_HEADERS
+#ifndef LLSC_STP_HEADER
+#define LLSC_STP_HEADER
 
 #include <stp/c_interface.h>
 #include <stp_handle.hpp>
@@ -45,47 +45,51 @@ public:
     }
     switch (sym_e->rator) {
     case iOP::op_add:
-      return vc_bvPlusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvPlusExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_sub:
-      return vc_bvMinusExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvMinusExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_mul:
-      return vc_bvMultExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvMultExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_sdiv:
     case iOP::op_udiv:
-      return vc_bvDivExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvDivExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_uge:
-      return vc_bvGeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvGeExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_sge:
-      return vc_sbvGeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_sbvGeExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_ugt:
-      return vc_bvGtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvGtExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_sgt:
-      return vc_sbvGtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_sbvGtExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_ule:
-      return vc_bvLeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvLeExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_sle:
-      return vc_sbvLeExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_sbvLeExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_ult:
-      return vc_bvLtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvLtExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_slt:
-      return vc_sbvLtExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_sbvLtExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_eq:
-      return vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_eqExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_neq:
-      return vc_notExpr(vc, vc_eqExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get()));
+      return vc_notExpr(vc, vc_eqExpr(vc, expr_rands[0].get(), expr_rands[1].get()));
     case iOP::op_neg: {
-      ASSERT(BOOLEAN_TYPE == getType(expr_rands.at(0).get()), "negate a bitvector");
-      return vc_notExpr(vc, expr_rands.at(0).get());
+      ASSERT(BOOLEAN_TYPE == getType(expr_rands[0].get()), "negating a non-boolean");
+      return vc_notExpr(vc, expr_rands[0].get());
+    }
+    case iOP::op_bvnot: {
+      ASSERT(BITVECTOR_TYPE == getType(expr_rands[0].get()), "negating a non-bitvector");
+      return vc_bvNotExpr(vc, expr_rands[0].get());
     }
     case iOP::op_sext: {
-      auto v = expr_rands.at(0).get();
+      auto v = expr_rands[0].get();
       if (BOOLEAN_TYPE == getType(v)) {
         v = vc_boolToBVExpr(vc, v);
       }
       return vc_bvSignExtend(vc, v, bw);
     }
     case iOP::op_zext: {
-      auto v = expr_rands.at(0).get();
+      auto v = expr_rands[0].get();
       if (BOOLEAN_TYPE == getType(v)) {
         v = vc_boolToBVExpr(vc, v);
       }
@@ -95,51 +99,51 @@ public:
       return vc_bvConcatExpr(vc, left, v);
     }
     case iOP::op_shl:
-      return vc_bvLeftShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvLeftShiftExprExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_lshr:
-      return vc_bvRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvRightShiftExprExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_ashr:
-      return vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvSignedRightShiftExprExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_and: {
-      auto v1 = expr_rands.at(0).get();
-      auto v2 = expr_rands.at(1).get();
+      auto v1 = expr_rands[0].get();
+      auto v2 = expr_rands[1].get();
       ASSERT(getType(v1) == getType(v2), "Operation between different type");
       return (BOOLEAN_TYPE == getType(v1)) ? vc_andExpr(vc, v1, v2) : vc_bvAndExpr(vc, v1, v2);
     }
     case iOP::op_or: {
-      auto v1 = expr_rands.at(0).get();
-      auto v2 = expr_rands.at(1).get();
+      auto v1 = expr_rands[0].get();
+      auto v2 = expr_rands[1].get();
       ASSERT(getType(v1) == getType(v2), "Operation between different type");
       return (BOOLEAN_TYPE == getType(v1)) ? vc_orExpr(vc, v1, v2) : vc_bvOrExpr(vc, v1, v2);
     }
     case iOP::op_xor: {
-      auto v1 = expr_rands.at(0).get();
-      auto v2 = expr_rands.at(1).get();
+      auto v1 = expr_rands[0].get();
+      auto v2 = expr_rands[1].get();
       ASSERT(getType(v1) == getType(v2), "Operation between different type");
       return (BOOLEAN_TYPE == getType(v1)) ? vc_xorExpr(vc, v1, v2) : vc_bvXorExpr(vc, v1, v2);
     }
     case iOP::op_urem:
-      return vc_bvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvRemExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_srem:
-      return vc_sbvRemExpr(vc, bw, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_sbvRemExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_trunc: {
       // bvExtract(vc, e, h, l) -> e[l:h+1]
-      auto v =  vc_bvExtract(vc, expr_rands.at(0).get(), bw-1, 0);
+      auto v =  vc_bvExtract(vc, expr_rands[0].get(), bw-1, 0);
       if (1 == bw) {
         v = vc_eqExpr(vc, v, vc_bvConstExprFromLL(vc, 1, 1));
       }
       return v;
     }
     case iOP::op_concat:
-      return vc_bvConcatExpr(vc, expr_rands.at(0).get(), expr_rands.at(1).get());
+      return vc_bvConcatExpr(vc, expr_rands[0].get(), expr_rands[1].get());
     case iOP::op_extract:
-      return vc_bvExtract(vc, expr_rands.at(0).get(),
-                              getBVInt(expr_rands.at(1).get()),
-                              getBVInt(expr_rands.at(2).get()));
+      return vc_bvExtract(vc, expr_rands[0].get(),
+                              getBVInt(expr_rands[1].get()),
+                              getBVInt(expr_rands[2].get()));
     case iOP::op_ite: {
-      auto cond = expr_rands.at(0).get();
-      auto v_t = expr_rands.at(1).get();
-      auto v_e = expr_rands.at(2).get();
+      auto cond = expr_rands[0].get();
+      auto v_t = expr_rands[1].get();
+      auto v_e = expr_rands[2].get();
       ASSERT(BOOLEAN_TYPE == getType(cond), "Non Boolean condition");
       ASSERT(getType(v_t) == getType(v_e), "Operation between different type");
       ASSERT(getBVLength(v_t) == getBVLength(v_e),"Operation between different bv_length");

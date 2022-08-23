@@ -1,5 +1,5 @@
-#ifndef LLSC_VALUE_OPS_HEADERS
-#define LLSC_VALUE_OPS_HEADERS
+#ifndef LLSC_VALUE_OPS_HEADER
+#define LLSC_VALUE_OPS_HEADER
 
 struct Value;
 struct IntV;
@@ -66,6 +66,7 @@ using PtrVal = simple_ptr<Value>;
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo);
 inline PtrVal bv_sext(const PtrVal& v, size_t bw);
 inline PtrVal bv_zext(const PtrVal& v, size_t bw);
+// XXX: when should we override toMSB? should document this behavior
 inline PtrVal make_IntV(IntData i, size_t bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
 
@@ -451,7 +452,7 @@ struct SymV : Value {
     if (!name.empty()) {
       ss << name;
     } else {
-      ss << int_op2string(rator) << ", { ";
+      ss << int_op_string(rator) << ", { ";
       for (auto e : rands) {
         ss << *e << ", ";
       }
@@ -467,9 +468,13 @@ struct SymV : Value {
   virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
     if (this->bw != that->bw) return false;
-    if (this->name != that->name) return false;
-    if (this->rator != that->rator) return false;
-    return this->rands == that->rands;
+    if (this->name.size() != that->name.size()) return false;
+    if (!this->name.empty()) {
+      return this->name == that->name;
+    } else {
+      if (this->rator != that->rator) return false;
+      return this->rands == that->rands;
+    }
   }
   virtual List<PtrVal> to_bytes() {
     if (bw <= 8) return List<PtrVal>{shared_from_this()};
@@ -539,12 +544,13 @@ inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
   return hashconsing(ret);
 }
 
-inline List<PtrVal> make_SymV_seq(unsigned length, const std::string& prefix, size_t bw) {
-  immer::flex_vector_transient<PtrVal> res;
-  for (auto i = 0; i < length; i++) {
-    res.push_back(make_SymV(fresh(prefix), bw));
-  }
-  return res.persistent();
+// return a list of PtrVal with the specified variable prefix
+inline List<PtrVal> make_SymList(String prefix, int n) {
+    TrList<PtrVal> res;
+    for (int i = 0; i < n; i++) {
+        res.push_back(make_SymV(prefix + std::to_string(i), 8));
+    }
+    return res.persistent();
 }
 
 inline PtrVal SymV::neg(const PtrVal& v) {
@@ -552,20 +558,19 @@ inline PtrVal SymV::neg(const PtrVal& v) {
 }
 
 // XXX GW: just use bv_sext? seems not much difference?
-// XXX GW: addr_index_bw vs addr_bw?
 inline PtrVal addr_index_ext(const PtrVal& off) {
   ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
   if (off->get_bw() == addr_index_bw) {
     return off;
   } else {
-    // Todo: whether zext or sext?
+    // TODO: whether zext or sext?
     return bv_sext(off, addr_index_bw);
   }
 }
 
-inline PtrVal SymLocV_index(const int off) {
-  ASSERT(off >= 0, "Bad off");
-  return make_IntV(off, addr_index_bw);
+inline PtrVal SymLocV_index(const int offset) {
+  ASSERT(offset >= 0, "Bad off");
+  return make_IntV(offset, addr_index_bw);
 }
 
 struct SymLocV : SymV {
@@ -642,6 +647,21 @@ inline PtrVal structV_at(const PtrVal& v, int idx) {
   ABORT("StructV_at: non StructV value");
 }
 
+inline PtrVal int_op_1(iOP op, const PtrVal& v) {
+  auto i = v->to_IntV();
+  auto bw = v->get_bw();
+  if (i) {
+    switch (op) {
+      case iOP::op_neg: return make_IntV(!i->i, bw);
+      case iOP::op_bvnot: return make_IntV(~i->i, bw);
+      default:
+        std::cout << int_op_string(op) << std::endl;
+        ABORT("invalid operator");
+    }
+  }
+  return make_SymV(op, { v }, bw);
+}
+
 // assume all values are signed, convert to unsigned if necessary
 // require return value to be signed or non-negative
 inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
@@ -650,7 +670,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   auto bw1 = v1->get_bw();
   auto bw2 = v2->get_bw();
   if (bw1 != bw2) {
-    std::cout << *v1 << " " << int_op2string(op) << " " << *v2 << "\n";
+    std::cout << *v1 << " " << int_op_string(op) << " " << *v2 << "\n";
     ABORT("int_op_2: bitwidth of operands mismatch");
   }
   if (i1 && i2) {
@@ -702,7 +722,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
       case iOP::op_lshr:
         return make_IntV(uint64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
       default:
-        std::cout << int_op2string(op) << std::endl;
+        std::cout << int_op_string(op) << std::endl;
         ABORT("invalid operator");
     }
   } else {

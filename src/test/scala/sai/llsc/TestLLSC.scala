@@ -105,11 +105,11 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
   testLLSC(llsc, cases)
 
   // Note: these test cases need to use `--thread=2` to enable random path selection strategy
-  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
-  testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, "--thread=2 --solver=z3", status(255)))
-  testLLSC(llsc, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, "--thread=2 --solver=z3", status(255)))
-  testLLSC(llsc, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, "--thread=2 --solver=z3", status(255)))
+  testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, "--thread=2 --search=random-path --solver=z3", status(255)))
+  testLLSC(llsc, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, "--thread=2 --output-tests-cov-new --solver=z3", status(255)))
+  testLLSC(llsc, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, "--thread=2 --search=random-path  --solver=z3", status(255)))
 
   // Timeout
   //testLLSC(llsc, TestPrg(sorting_selection_ground_1, "testCompSelectionSort", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
@@ -117,40 +117,48 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 
 class TestImpLLSC extends TestLLSC {
   testLLSC(new ImpLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
 }
 
 class TestImpCPSLLSC extends TestLLSC {
-  testLLSC(new ImpCPSLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new ImpCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
+  val llsc = new ImpCPSLLSC
+  testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
+  // Note: compile-time switch merge is only implement for ImpCPS so far
+  testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
 
 class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
-  testLLSC(llsc, TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)))
+  //testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
+  //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
+  //testLLSC(llsc, TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)))
+  //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
   //testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
+
   //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
+  //testLLSC(new PureLLSC, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
+  //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest2", "@main", noArg, noOpt, nPath(720)))
+  //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest3", "@main", noArg, noOpt, nPath(720)))
+  //testLLSC(llsc, TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)))
   //val echo_linked = parseFile("/home/kraks/research/llsc/coreutils/obj-llvm/playground/echo_llsc.ll")
   //testLLSC(llsc, TestPrg(echo_linked, "echo_linked_posix", "@main",
-  //  testcoreutil, Seq("--cons-indep", "--argv=./echo.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0)))
+  //  noMainFileOpt, Seq("--cons-indep", "--argv=./echo.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0)))
 
   //testLLSC(llsc, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--solver=disable", nPath(1048576)))
   //testLLSC(llsc, TestPrg(quicksort, "quickSortTest", "@main", noArg, noOpt, nPath(120)))
   //testLLSC(llsc, TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0)))
   //testLLSC(llsc, TestPrg(selectTestSym, "selectTest", "@main", noArg, noOpt, nPath(1)))
-  //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
-  //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
-  //testLLSC(new ImpCPSLLSC, List(TestPrg(base32_linked, "base32_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(4971)++status(0))))
+  //testLLSC(new ImpCPSLLSC, List(TestPrg(base32_linked, "base32_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(4971)++status(0))))
   //testLLSC(new PureCPSLLSC, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
   // testLLSC(new ImpCPSLLSC, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))
 
   //testLLSC(new PureCPSLLSC, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
 
-  //testLLSC(new PureLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
-  //testLLSC(new PureCPSLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
-  //testLLSC(new PureLLSC, List(TestPrg(echo_llsc_linked, "echo_llsc_linked", "@main", testcoreutil, Seq("--cons-indep","--argv=./true.bc #{3}"), nPath(26)++status(0))))
+  //testLLSC(new PureLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
+  //testLLSC(new ImpCPSLLSC, List(TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(256)++status(0))))
+  //testLLSC(new ImpCPSLLSC, List(TestPrg(echo_linked, "echo_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
+  //testLLSC(new PureLLSC, List(TestPrg(echo_llsc_linked, "echo_llsc_linked", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc #{3}"), nPath(26)++status(0))))
   //testLLSC(llsc, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)))
   //testLLSC(llsc, TestPrg(parseFile("benchmarks/demo-benchmarks/nqueen_opt.ll"), "nQueensOpt", "@main", noArg, noOpt, nPath(1363)))
   //testLLSC(new PureLLSC, List(TestPrg(true_linked, "true_linked", "@main", useArgv, "--argv=./true.bc --sym-arg 3", nPath(16)++status(0))))

@@ -1,5 +1,5 @@
-#ifndef LLSC_AUX_HEADERS
-#define LLSC_AUX_HEADERS
+#ifndef LLSC_AUX_HEADER
+#define LLSC_AUX_HEADER
 
 #define MAX(a, b) ((a) > (b)) ? (a) : (b)
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
@@ -24,8 +24,7 @@ inline int vararg_id = -1;
 inline unsigned int default_bw = 32;
 // The bitwidth of addresses (64 by default)
 inline unsigned int addr_bw = 64;
-
-inline unsigned int addr_index_bw = 64;
+inline unsigned int addr_index_bw = addr_bw;
 
 inline std::atomic<std::optional<int>> exit_code;
 inline std::mutex exit_code_lock;
@@ -37,8 +36,9 @@ inline std::mutex exit_code_lock;
 inline std::atomic<unsigned int> num_async = 0;
 // Number of totoal async (Deprecated)
 inline std::atomic<unsigned int> tt_num_async = 0;
+inline std::atomic<unsigned int> completed_path_num = 0;
 // Number of queries performed for generating test cases
-inline unsigned int test_query_num = 0;
+inline std::atomic<unsigned int> generated_test_num = 0;
 // Number of queries performed for checking branch satisfiability
 inline unsigned int br_query_num = 0;
 // Number of query cache hits
@@ -46,6 +46,7 @@ inline unsigned int cached_query_num = 0;
 
 /* Global options */
 
+inline bool use_thread_pool = false;
 // The number of total threads (including the main thread)
 inline unsigned int n_thread = 1;
 // The number of queues when using thread pool
@@ -62,6 +63,12 @@ inline bool use_objcache = true;
 inline bool use_cexcache = true;
 // Use constraint independence resolving or not
 inline bool use_cons_indep = false;
+// Only generate testcases for states that cover new blocks or not
+inline bool only_output_covernew = false;
+// Output ktest format or not
+inline bool output_ktest = false;
+// Prefer creation of human-readable POSIX inputs
+inline bool readable_posix = false;
 // Simulate possible failure in external functions (results in state forking)
 inline bool exlib_failure_branch = false;
 // Timeout in seconds (one hour by default)
@@ -70,6 +77,10 @@ inline unsigned int timeout = 3600;
 inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
+
+enum class SearcherKind { randomPath, randomWeight };
+// The path searcher to be used
+inline SearcherKind searcher_kind = SearcherKind::randomWeight;
 
 enum class SolverKind { z3, stp };
 // The backend SMT solver to be used
@@ -94,7 +105,7 @@ enum class iOP {
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
   op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc,
-  op_concat, op_extract, op_ite
+  op_concat, op_extract, op_ite, op_bvnot
 };
 
 enum class fOP {
@@ -115,7 +126,7 @@ inline void set_exit_code(int code) {
   }
 }
 
-inline std::string int_op2string(iOP op) {
+inline std::string int_op_string(iOP op) {
   switch (op) {
     case iOP::op_add: return "+";
     case iOP::op_sub: return "-";
@@ -223,6 +234,18 @@ inline std::monostate operator+ (const std::monostate& lhs, const std::monostate
 
 inline std::atomic<unsigned int> var_name = 0;
 inline std::string fresh(const std::string& x) { return x + std::to_string(var_name++); }
-inline std::string fresh() { return fresh("x"); }
+
+class SymObj : public Printable {
+public:
+  std::string name;
+  size_t size;
+  bool is_whole;
+  SymObj(std::string name, size_t size, bool is_whole) : name(name), size(size), is_whole(is_whole) {}
+  std::string toString() const override {
+    std::ostringstream ss;
+    ss << "SymObj(" << name << ", " << size << ", " << is_whole << ")";
+    return ss.str();
+  }
+};
 
 #endif

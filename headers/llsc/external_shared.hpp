@@ -1,5 +1,5 @@
-#ifndef LLSC_EXTERNAL_SHARED_HEADERS
-#define LLSC_EXTERNAL_SHARED_HEADERS
+#ifndef LLSC_EXTERNAL_SHARED_HEADER
+#define LLSC_EXTERNAL_SHARED_HEADER
 
 /* This is the file that is supposed to be shared between
  * external_pure.hpp and external_imp.hpp.
@@ -362,6 +362,62 @@ inline List<SSVal> getpagesize(SS state, List<PtrVal> args) {
 
 inline std::monostate getpagesize(SS state, List<PtrVal> args, Cont k) {
   return __getpagesize<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k);
+
+inline List<SSVal> llsc_prefer_cex(SS state, List<PtrVal> args) {
+  return __llsc_prefer_cex<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llsc_prefer_cex(SS state, List<PtrVal> args, Cont k) {
+  return __llsc_prefer_cex<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_posix_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  if (readable_posix)
+    return __llsc_prefer_cex(state, args, k);
+  else
+    return k(state, make_IntV(0));
+}
+
+inline List<SSVal> llsc_posix_prefer_cex(SS state, List<PtrVal> args) {
+  return __llsc_posix_prefer_cex<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llsc_posix_prefer_cex(SS state, List<PtrVal> args, Cont k) {
+  return __llsc_posix_prefer_cex<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_warning_once(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  static std::set<std::string> warned;
+  PtrVal x = args.at(0);
+  if (std::dynamic_pointer_cast<LocV>(x)) {
+    std::string message = get_string_at(x, state);
+    if (warned.count(message) == 0) {
+      warned.insert(message);
+      std::cout << message << std::endl;
+    }
+    return k(state, make_IntV(0));
+  }
+  ABORT("Cannot print warning message of non-LocV value as string");
+}
+
+inline List<SSVal> llsc_warning_once(SS state, List<PtrVal> args) {
+  return __llsc_warning_once<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::monostate llsc_warning_once(SS state, List<PtrVal> args, Cont k) {
+  return __llsc_warning_once<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
 
 #endif

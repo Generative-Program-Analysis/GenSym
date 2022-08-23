@@ -1,5 +1,5 @@
-#ifndef LLSC_FS_HEADERS
-#define LLSC_FS_HEADERS
+#ifndef LLSC_FS_HEADER
+#define LLSC_FS_HEADER
 /* NOTE: FS var naming convention:
  * symfile content: fs_file_<filename>_x<n>. E.g. fs_file_A_x0 is the variable name for the first byte in file A
  * symfile stat:    fs_stat_<filename>_x<n>. E.g. fs_stat_A_x0 is the variable name for the first byte in file A's stat
@@ -9,15 +9,6 @@ inline std::atomic<unsigned int> fs_var_name = 0;
 inline int default_sym_file_size = 5;
 extern const int stat_size;
 extern const int statfs_size;
-
-// return a list of PtrVal with the specified variable prefix
-inline List<PtrVal> make_SymList(String prefix, int n) {
-    TrList<PtrVal> res;
-    for (int i = 0; i < n; i++) {
-        res.push_back(make_SymV(prefix + "_x" + std::to_string(i), 8));
-    }
-    return res.persistent();
-}
 
 
 struct File: public Printable {
@@ -48,13 +39,16 @@ struct File: public Printable {
   }
 
   File(String name, int size) : name(name) {
-    this->content = make_SymList("fs_file_" + name, size);
-    this->stat = make_SymList("fs_stat_" + name, stat_size);
+    // use klee's convention
+    // A-data_0=0
+    // A-data-stat_0=0
+    this->content = make_SymList(name + "-data_", size);
+    this->stat = make_SymList(name + "-data-stat_", stat_size);
   }
 
   File(String name, List<PtrVal> content) : name(name) {
     this->content = content;
-    this->stat = make_SymList("fs_stat_" + name, stat_size);
+    this->stat = make_SymList(name + "-data-stat_", stat_size);
   }
 
   File(String name, List<PtrVal> content, List<PtrVal> stat) : name(name) {

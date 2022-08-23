@@ -1,11 +1,9 @@
-#ifndef LLSC_MON_HEADERS
-#define LLSC_MON_HEADERS
+#ifndef LLSC_MON_HEADER
+#define LLSC_MON_HEADER
 #include<signal.h>
 
 /* Coverage information */
 
-// TODO: branch coverage
-// Some note on overhead: recording coverage 1m path/block exec poses ~2.5sec overhead.
 struct Monitor {
   private:
     using BlockId = uint64_t;
@@ -20,15 +18,17 @@ struct Monitor {
     std::atomic_uint64_t num_paths;
     // Number of executed instructions
     std::atomic_uint64_t num_insts;
+    // Number of states
+    std::atomic_uint64_t num_states;
     // Starting time
     steady_clock::time_point start, stop;
     std::thread watcher;
     std::promise<void> signal_exit;
 
   public:
-    Monitor() : num_blocks(0), num_paths(0), start(steady_clock::now()) {}
+    Monitor() : num_blocks(0), num_paths(0), num_states(1), start(steady_clock::now()) {}
     Monitor(uint64_t num_blocks, std::vector<std::pair<unsigned, unsigned>> branch_num) :
-      num_blocks(num_blocks), num_paths(0),
+      num_blocks(num_blocks), num_paths(0), num_states(1),
       block_cov(num_blocks),
       start(steady_clock::now()) {
       // `branch_num` contains the ids of blocks whose terminator is br/switch,
@@ -45,6 +45,9 @@ struct Monitor {
     void inc_block(BlockId b) {
       block_cov[b]++;
     }
+    bool is_uncovered(BlockId b) {
+      return 0 == block_cov[b];
+    }
     void inc_branch(BlockId b, BranchId x) {
       branch_cov[b][x]++;
     }
@@ -53,6 +56,9 @@ struct Monitor {
     }
     void inc_inst(size_t n) {
       num_insts += n;
+    }
+    uint64_t new_ssid() {
+      return ++num_states;
     }
     void print_inst_stat() {
       std::cout << "#insts: " << num_insts << "; " << std::flush;
@@ -73,7 +79,7 @@ struct Monitor {
       for (auto& v : block_cov) { if (v != 0) covered++; }
       std::cout << "Block coverage: " << covered << "/" << num_blocks << "\n";
       for (int i = 0; i < block_cov.size(); i++) {
-	if (block_cov[i] == 0) continue;
+        if (block_cov[i] == 0) continue;
         std::cout << "  Block " << i << ", "
                   << "visited " << block_cov[i] << "\n"
                   << std::flush;
@@ -85,14 +91,14 @@ struct Monitor {
       // number of branches that all possible outcomes are covered
       size_t full_branch = 0;
       for (const auto& [blk_id, br_map] : branch_cov) {
-	bool partial_cov = false;
-	bool full_cov = true;
-	for (const auto& [br_id, br_exe_num] : br_map) {
-	  partial_cov |= (br_exe_num > 0);
-	  full_cov &= (br_exe_num > 0);
-	}
-	if (partial_cov) partial_branch++;
-	if (full_cov) full_branch++;
+        bool partial_cov = false;
+        bool full_cov = true;
+        for (const auto& [br_id, br_exe_num] : br_map) {
+          partial_cov |= (br_exe_num > 0);
+          full_cov &= (br_exe_num > 0);
+        }
+        if (partial_cov) partial_branch++;
+        if (full_cov) full_branch++;
       }
       // We output the number of partial branches excluding fully covered branches
       std::cout << "#br: "
@@ -104,10 +110,10 @@ struct Monitor {
     void print_branch_cov_detail() {
       std::cout << "Branch coverage: \n";
       for (const auto& [blk_id, br_map] : branch_cov) {
-	std::cout << "Block " << blk_id << "\n";
-	for (const auto& [br_id, br_exe_num] : br_map) {
-	  std::cout << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
-	}
+        std::cout << "Block " << blk_id << "\n";
+        for (const auto& [br_id, br_exe_num] : br_map) {
+          std::cout << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
+        }
       }
       std:: cout << std::flush;
     }
@@ -115,12 +121,12 @@ struct Monitor {
       std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
     }
     void print_query_stat() {
-      std::cout << "#queries: " << br_query_num << "/" << test_query_num << " (" << cached_query_num << ")\n" << std::flush;
+      std::cout << "#queries: " << br_query_num << "/" << generated_test_num << " (" << cached_query_num << ")\n" << std::flush;
     }
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
-		<< (int_solver_time / 1.0e6) << "s/"
+                << (int_solver_time / 1.0e6) << "s/"
                 << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
     void print_all(bool done = false) {
@@ -132,8 +138,8 @@ struct Monitor {
       print_thread_pool();
       print_query_stat();
       if (done && print_cov_detail) {
-	print_block_cov_detail();
-	print_branch_cov_detail();
+        print_block_cov_detail();
+        print_branch_cov_detail();
       }
     }
     void start_monitor() {
@@ -163,6 +169,7 @@ struct Monitor {
         // XXX: this is still not idea, since for execution < 1s, we need to wait for watcher to join...
         watcher.join();
       }
+      //ASSERT(num_paths == num_states, "In-consistent path state");
     }
 };
 

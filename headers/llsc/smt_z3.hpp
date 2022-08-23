@@ -1,5 +1,5 @@
-#ifndef LLSC_Z3_HEADERS
-#define LLSC_Z3_HEADERS
+#ifndef LLSC_Z3_HEADER
+#define LLSC_Z3_HEADER
 
 #include "z3++.h"
 
@@ -56,40 +56,44 @@ public:
     }
     switch (sym_e->rator) {
       case iOP::op_add:
-        return expr_rands.at(0) + expr_rands.at(1);
+        return expr_rands[0] + expr_rands[1];
       case iOP::op_sub:
-        return expr_rands.at(0) - expr_rands.at(1);
+        return expr_rands[0] - expr_rands[1];
       case iOP::op_mul:
-        return expr_rands.at(0) * expr_rands.at(1);
+        return expr_rands[0] * expr_rands[1];
       case iOP::op_sdiv:
       case iOP::op_udiv:
-        return expr_rands.at(0) / expr_rands.at(1);
+        return expr_rands[0] / expr_rands[1];
       case iOP::op_uge:
-        return uge(expr_rands.at(0), expr_rands.at(1));
+        return uge(expr_rands[0], expr_rands[1]);
       case iOP::op_sge:
-        return sge(expr_rands.at(0), expr_rands.at(1));
+        return sge(expr_rands[0], expr_rands[1]);
       case iOP::op_ugt:
-        return ugt(expr_rands.at(0), expr_rands.at(1));
+        return ugt(expr_rands[0], expr_rands[1]);
       case iOP::op_sgt:
-        return sgt(expr_rands.at(0), expr_rands.at(1));
+        return sgt(expr_rands[0], expr_rands[1]);
       case iOP::op_ule:
-        return ule(expr_rands.at(0), expr_rands.at(1));
+        return ule(expr_rands[0], expr_rands[1]);
       case iOP::op_sle:
-        return sle(expr_rands.at(0), expr_rands.at(1));
+        return sle(expr_rands[0], expr_rands[1]);
       case iOP::op_ult:
-        return ult(expr_rands.at(0), expr_rands.at(1));
+        return ult(expr_rands[0], expr_rands[1]);
       case iOP::op_slt:
-        return slt(expr_rands.at(0), expr_rands.at(1));
+        return slt(expr_rands[0], expr_rands[1]);
       case iOP::op_eq:
-        return expr_rands.at(0) == expr_rands.at(1);
+        return expr_rands[0] == expr_rands[1];
       case iOP::op_neq:
-        return expr_rands.at(0) != expr_rands.at(1);
+        return expr_rands[0] != expr_rands[1];
       case iOP::op_neg: {
-        ASSERT(expr_rands.at(0).get_sort().is_bool(), "negate a bitvector");
-        return !expr_rands.at(0);
+        ASSERT(expr_rands[0].get_sort().is_bool(), "negating a non-boolean");
+        return !expr_rands[0];
+      }
+      case iOP::op_bvnot: {
+        ASSERT(expr_rands[0].get_sort().is_bv(), "negating a non-bitvector");
+        return ~expr_rands[0];
       }
       case iOP::op_sext: {
-        auto v = expr_rands.at(0);
+        auto v = expr_rands[0];
         if (v.get_sort().is_bool())
           v = ite(v, c->bv_val(1, 1), c->bv_val(0, 1));
         auto ext_size = bw - v.get_sort().bv_size();
@@ -98,7 +102,7 @@ public:
         return v;
       }
       case iOP::op_zext: {
-        auto v = expr_rands.at(0);
+        auto v = expr_rands[0];
         if (v.get_sort().is_bool())
           v = ite(v, c->bv_val(1, 1), c->bv_val(0, 1));
         auto ext_size = bw - v.get_sort().bv_size();
@@ -107,39 +111,39 @@ public:
         return v;
       }
       case iOP::op_shl:
-        return shl(expr_rands.at(0), expr_rands.at(1));
+        return shl(expr_rands[0], expr_rands[1]);
       case iOP::op_lshr:
-        return lshr(expr_rands.at(0), expr_rands.at(1));
+        return lshr(expr_rands[0], expr_rands[1]);
       case iOP::op_ashr:
-        return ashr(expr_rands.at(0), expr_rands.at(1));
+        return ashr(expr_rands[0], expr_rands[1]);
       case iOP::op_and:
-        return expr_rands.at(0) & expr_rands.at(1);
+        return expr_rands[0] & expr_rands[1];
       case iOP::op_or:
-        return expr_rands.at(0) | expr_rands.at(1);
+        return expr_rands[0] | expr_rands[1];
       case iOP::op_xor:
-        return expr_rands.at(0) ^ expr_rands.at(1);
+        return expr_rands[0] ^ expr_rands[1];
       case iOP::op_urem:
-        return urem(expr_rands.at(0), expr_rands.at(1));
+        return urem(expr_rands[0], expr_rands[1]);
       case iOP::op_srem:
-        return srem(expr_rands.at(0), expr_rands.at(1));
+        return srem(expr_rands[0], expr_rands[1]);
       case iOP::op_trunc: {
         // XXX is it right?
-        auto v = expr_rands.at(0).extract(bw-1, 0);
+        auto v = expr_rands[0].extract(bw-1, 0);
         if (1 == bw) {
           v = (c->bv_val(1, 1) == v);
         }
         return v;
       }
       case iOP::op_concat:
-        return concat(expr_rands.at(0), expr_rands.at(1));
+        return concat(expr_rands[0], expr_rands[1]);
       case iOP::op_extract:
-        return expr_rands.at(0).extract(
-                                expr_rands.at(1).get_numeral_uint(),
-                                expr_rands.at(2).get_numeral_uint());
+        return expr_rands[0].extract(
+                                expr_rands[1].get_numeral_uint(),
+                                expr_rands[2].get_numeral_uint());
       case iOP::op_ite: {
-        auto cond = expr_rands.at(0);
-        auto v_t = expr_rands.at(1);
-        auto v_e = expr_rands.at(2);
+        auto cond = expr_rands[0];
+        auto v_t = expr_rands[1];
+        auto v_e = expr_rands[2];
         ASSERT(cond.get_sort().is_bool(), "Non Boolean condition");
         ASSERT(v_t.get_sort().is_bv() && v_e.get_sort().is_bv(), "Operation between different type");
         ASSERT(v_t.get_sort().bv_size() == v_e.get_sort().bv_size(),"Operation between different bv_length");

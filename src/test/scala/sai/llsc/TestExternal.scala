@@ -25,7 +25,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
 
   val codegen: GenericLLSCCodeGen = new GenericLLSCCodeGen {
     val codegenFolder: String = folder
-    val blockNameMap: HashMap[Int, String] = new HashMap()
+    val blockNameMap: HashMap[Backend.Sym, String] = new HashMap()
     setFunMap(funNameMap)
     setBlockMap(blockNameMap)
     override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
@@ -104,17 +104,17 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
 
     f1.writeAtNoFill(List(iv(3), iv(4), iv(5)), unit(3))
     assertEq(f1.content,
-      List(iv(0), iv(1), iv(2), iv(3), iv(4), iv(5)), 
+      List(iv(0), iv(1), iv(2), iv(3), iv(4), iv(5)),
       "write at the end of a file")
 
     f2.writeAtNoFill(List(iv(3), iv(4), iv(5)), unit(2))
     assertEq(f2.content,
-      List(iv(0), iv(1), iv(3), iv(4), iv(5)), 
+      List(iv(0), iv(1), iv(3), iv(4), iv(5)),
       "write at the middle of a file, exceeding the end")
 
     f3.writeAtNoFill(List(iv(4)), unit(1))
     assertEq(f3.content,
-      List(iv(0), iv(4), iv(2)), 
+      List(iv(0), iv(4), iv(2)),
       "write at the middle of a file, not exceeding the end")
 
   }
@@ -126,7 +126,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
 
     f1.writeAt(List(iv(4)), unit(5), iv(0))
     assertEq(f1.content,
-      List(iv(0), iv(1), iv(2), iv(0), iv(0), iv(4)), 
+      List(iv(0), iv(1), iv(2), iv(0), iv(0), iv(4)),
       "write after the end of the file, a hole should be created")
 
     f2.writeAt(List(iv(4)), unit(3), iv(0))
@@ -353,8 +353,8 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
   //   s3.write(List(iv(5), iv(6)), 2)
   //   assertEq(s3.seekCur(0), 2, "cursor should have advanced by two")
   //   s3.seekStart(0)
-  //   assertEq(s3.read(5), 
-  //     List(iv(5), iv(6), iv(2), iv(3), iv(4)), 
+  //   assertEq(s3.read(5),
+  //     List(iv(5), iv(6), iv(2), iv(3), iv(4)),
   //     "content should be updated")
 
   //   val s4 = Stream(f) //    Stream s4(f)
@@ -363,8 +363,8 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
   //   assertEq(nbytes, 2, "should have written two bytes")
   //   assertEq(s4.seekEnd(0), 9, "should have 9 bytes in total")
   //   s4.seekStart(0)
-  //   assertEq(s4.read(999), 
-  //     List(iv(0), iv(1), iv(2), iv(3), iv(4), IntV0, IntV0, iv(5), iv(6)), 
+  //   assertEq(s4.read(999),
+  //     List(iv(0), iv(1), iv(2), iv(3), iv(4), IntV0, IntV0, iv(5), iv(6)),
   //     "content should be updated")
   // }
 
@@ -390,7 +390,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
   //   unchecked("/* test copy construction */")
   //   st2 = st1
   //   for (int i=0; i<Stat::total_size; i++) {
-  //     assertEq(st1.get_struct().at(i), st2.get_struct().at(i), 
+  //     assertEq(st1.get_struct().at(i), st2.get_struct().at(i),
   //       "the two struct instance should have the same content")
   //   }
   // }

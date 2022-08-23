@@ -119,7 +119,7 @@ def do_check_run(payload, env):
 
     try:
         os.chdir(os.path.dirname(__file__))
-        subp.run("git pull origin master", shell=True)
+        subp.run("git pull origin main", shell=True)
         subp.run(["git", "checkout", payload["check_run"]["head_sha"]], check=True)
         subp.run("git submodule update --recursive", shell=True)
         subp.run(["make"], check=True)

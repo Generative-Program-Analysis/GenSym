@@ -3,9 +3,9 @@ package sai.llsc.imp
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.EngineBase
 import sai.llsc.IRUtils._
 import sai.llsc.Constants._
+import sai.llsc.SwitchType._
 import sai.llsc.{EngineBase, Config, Counter, Ctx}
 
 import scala.collection.JavaConverters._
@@ -24,27 +24,25 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
   type BFTy = Rep[(Ref[SS], Cont) => Unit]
   type FFTy = Rep[(Ref[SS], List[Value], Cont) => Unit]
 
-  def getRealBlockFunName(bf: BFTy): String = blockNameMap(getBackendSym(Unwrap(bf)))
-
-  def symExecBr(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def symExecBr(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String, k: Rep[Cont])(implicit ctx: Ctx): Rep[Unit] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(ctx.funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(ctx.funName, fBlockLab))
+    val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
     val curBlockId = Counter.block.get(ctx.toString)
     "sym_exec_br_k".reflectWriteWith[Unit](ss, curBlockId, tCond, fCond,
       unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
-  def branch(ss: Rep[SS], tCond: Rep[SymV], fCond: Rep[SymV],
+  def branch(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
     tBlockLab: String, fBlockLab: String, funName: String, k: Rep[Cont]): Rep[Unit] = {
-    val tBrFunName = getRealBlockFunName(getBBFun(funName, tBlockLab))
-    val fBrFunName = getRealBlockFunName(getBBFun(funName, fBlockLab))
+    val tBrFunName = getRealBlockFunName(Ctx(funName, tBlockLab))
+    val fBrFunName = getRealBlockFunName(Ctx(funName, fBlockLab))
     "br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
   def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
     // execBlock(funName, lab, ss, k) //TODO: phantom application
-    val realBlockFunName = getRealBlockFunName(getBBFun(funName, lab))
+    val realBlockFunName = getRealBlockFunName(Ctx(funName, lab))
     "async_exec_block".reflectWriteWith[Unit](unchecked[String](realBlockFunName), ss, k)(Adapter.CTRL)
   }
 
@@ -71,12 +69,12 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         ExternalFun.get(id, Some(t), argTypes).get
       case GlobalId(id) if funMap.contains(id) =>
         if (!FunFuns.contains(id)) compile(funMap(id))
-        CPSFunV[Ref](FunFuns(id))
+        wrapFunV(FunFuns(id))
       case GlobalId(id) if funDeclMap.contains(id) =>
         val t = funDeclMap(id).header.returnType
         ExternalFun.get(id, Some(t), argTypes).getOrElse {
           compile(funDeclMap(id), t, argTypes.get)
-          CPSFunV[Ref](FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
+          wrapFunV(FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
         }
       case GlobalId(id) if globalDefMap.contains(id) =>
         heapEnv(id)()
@@ -226,10 +224,10 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           else repK(ss, eval(elsVal, elsTy, ss), kk)
         } else {
           // TODO: check cond via solver
-          val s1 = ss.copy
-          ss.addPC(cnd.toSym)
+          val s1 = ss.fork
+          ss.addPC(cnd)
           repK(ss, eval(thnVal, thnTy, ss), kk)
-          s1.addPC(cnd.toSymNeg)
+          s1.addPC(!cnd)
           Coverage.incPath(1)
           repK(s1, eval(elsVal, elsTy, s1), kk)
         }
@@ -247,7 +245,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         }
         contApply(k, ss, ret)
       case BrTerm(lab) if (cfg.pred(ctx.funName, lab).size == 1) =>
-        execBlockEager(ctx.funName, findBlock(ctx.funName, lab).get, ss, k)
+        execBlockEager(findBlock(ctx.funName, lab).get, ss, k)(Ctx(ctx.funName, lab))
       case BrTerm(lab) =>
         ss.addIncomingBlock(ctx)
         execBlock(ctx.funName, lab, ss, k)
@@ -265,46 +263,58 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
             execBlock(ctx.funName, elsLab, ss, k)
           }
         } else {
-          symExecBr(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, k)
+          symExecBr(ss, cndVal, !cndVal, thnLab, elsLab, k)
         }
       case SwitchTerm(cndTy, cndVal, default, swTable) =>
-        Counter.setBranchNum(ctx, swTable.size+1)
+        type MergedCase = (String, (Rep[Boolean], Rep[Value]))
+        val v = eval(cndVal, cndTy, ss)
+        val mergedSwTable: StaticList[MergedCase] =
+          swTable.foldLeft(StaticMap[String, (Rep[Boolean], Rep[Value])]())({
+            case (m, LLVMCase(_, n, tgt)) if (Config.switchType == Merge) && m.contains(tgt) =>
+              m + (tgt -> (m(tgt)._1 || v.int == n, IntOp2("or", m(tgt)._2, IntOp2("eq", v, IntV(n)))))
+            case (m, LLVMCase(_, n, tgt)) =>
+              m + (tgt -> (v.int == n, IntOp2("eq", v, IntV(n))))
+          }).toList
+        Counter.setBranchNum(ctx, mergedSwTable.size+1)
+        System.out.println(s"Shrinking switch table from ${swTable.size+1} cases to ${mergedSwTable.size+1}")
+
         val nPath: Var[Int] = var_new(0)
-        def switch(v: Rep[Long], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
-          if (table.isEmpty) {
-            Coverage.incBranch(ctx, swTable.size)
+        def switch(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+          case Nil =>
+            Coverage.incBranch(ctx, mergedSwTable.size) // Note: the default case has the last branch ID
             execBlock(ctx.funName, default, s, k)
-          } else {
-            if (v == table.head.n) {
-              Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s, k)
-            } else switch(v, s, table.tail)
-          }
-        def switchSym(v: Rep[Value], s: Rep[SS], table: List[LLVMCase]): Rep[Unit] =
-          if (table.isEmpty) {
+          case (tgt, (concCnd, _))::rest =>
+            if (concCnd) {
+              Coverage.incBranch(ctx, mergedSwTable.size - table.size)
+              execBlock(ctx.funName, tgt, s, k)
+            } else switch(s, table.tail)
+        }
+        def switchSym(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+          case Nil =>
             if (checkPC(s.pc)) {
               nPath += 1
-              Coverage.incBranch(ctx, swTable.size)
-              execBlock(ctx.funName, default, s, k)
+              val newState = if (1 == nPath) s else s.fork
+              Coverage.incBranch(ctx, mergedSwTable.size)
+              execBlock(ctx.funName, default, newState, k)
             }
-          } else {
+          case (tgt, (_, symCnd))::rest =>
             val st = s.copy
-            val headPC = IntOp2("eq", v, IntV(table.head.n))
-            s.addPC(headPC.toSym)
+            s.addPC(symCnd)
             if (checkPC(s.pc)) {
               nPath += 1
-              Coverage.incBranch(ctx, swTable.size - table.size)
-              execBlock(ctx.funName, table.head.label, s, k)
+              // TODO(GW): should optimize it to not copy then fork
+              val newState = if (1 == nPath) s else s.fork
+              Coverage.incBranch(ctx, mergedSwTable.size - table.size)
+              execBlock(ctx.funName, tgt, newState, k)
             }
-            st.addPC(headPC.toSymNeg)
-            switchSym(v, st, table.tail)
-          }
+            st.addPC(!symCnd)
+            switchSym(st, table.tail)
+        }
 
         ss.addIncomingBlock(ctx)
-        val v = eval(cndVal, cndTy, ss)
-        if (v.isConc) switch(v.int, ss, swTable)
+        if (v.isConc) switch(ss, mergedSwTable)
         else {
-          switchSym(v, ss, swTable)
+          switchSym(ss, mergedSwTable)
           if (nPath > 0) Coverage.incPath(nPath - 1)
           ()
         }
@@ -349,8 +359,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
     getBBFun(funName, block)(s, k)
   }
 
-  def execBlockEager(funName: String, block: BB, s: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-    val ctx = Ctx(funName, block.label.get)
+  def execBlockEager(block: BB, s: Rep[SS], k: Rep[Cont])(implicit ctx: Ctx): Rep[Unit] = {
     def runInst(insts: List[Instruction], t: Terminator, s: Rep[SS], k: Rep[Cont]): Rep[Unit] =
       insts match {
         case Nil =>
@@ -358,37 +367,30 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           execTerm(t, k)(s, ctx)
         case i::inst => execInst(i, s, (s1, k1) => runInst(inst, t, s1, k1))(ctx, k)
       }
-    Coverage.incBlock(ctx)
+    s.coverBlock(ctx)
     runInst(block.ins, block.term, s, k)
   }
 
-  override def repBlockFun(funName: String, b: BB): (BFTy, Int) = {
+  override def repBlockFun(b: BB)(implicit ctx: Ctx): BFTy = {
     def runBlock(ss: Rep[Ref[SS]], k: Rep[Cont]): Rep[Unit] = {
-      info("running block: " + funName + " - " + b.label.get)
-      execBlockEager(funName, b, ss, k)
+      info("running block: " + ctx)
+      execBlockEager(b, ss, k)
     }
-    val f: BFTy = topFun(runBlock(_, _))
-    val n = Unwrap(f).asInstanceOf[Backend.Sym].n
-    (f, n)
+    topFun(runBlock(_, _))
   }
 
-  override def repFunFun(f: FunctionDef): (FFTy, Int) = {
+  override def repFunFun(f: FunctionDef): FFTy = {
     def runFun(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       implicit val ctx = Ctx(f.id, f.blocks(0).label.get)
-      val params: List[String] = f.header.params.map {
-        case TypedParam(ty, attrs, localId) => localId.get
-        case Vararg => "Vararg"
-      }
+      val params: List[String] = extractNames(f.header.params)
       info("running function: " + f.id)
       ss.assign(params, args)
-      execBlockEager(f.id, f.blocks(0), ss, k)
+      execBlockEager(f.blocks(0), ss, k)
     }
-    val fn: FFTy = topFun(runFun(_, _, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(runFun(_, _, _))
   }
 
-  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): (FFTy, Int) = {
+  override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
@@ -412,10 +414,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       }
       k(ss, retVal)
     }
-
-    val fn: FFTy = topFun(generateNativeCall(_, _, _))
-    val n = Unwrap(fn).asInstanceOf[Backend.Sym].n
-    (fn, n)
+    topFun(generateNativeCall(_, _, _))
   }
 
   override def wrapFunV(f: FFTy): Rep[Value] = CPSFunV[Ref](f)

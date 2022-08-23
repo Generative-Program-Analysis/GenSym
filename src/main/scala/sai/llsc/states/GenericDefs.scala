@@ -41,6 +41,7 @@ object Counter {
   import scala.collection.mutable.HashMap
   val block = Counter()
   val variable = Counter()
+  val function = Counter()
   val branchStat: HashMap[Int, Int] = HashMap[Int, Int]()
   def setBranchNum(ctx: Ctx, n: Int): Unit = {
     val blockId = Counter.block.get(ctx.toString)
@@ -82,9 +83,9 @@ trait BasicDefs { self: SAIOps =>
 trait Coverage { self: SAIOps =>
   object Coverage {
     def setBlockNum: Rep[Unit] = "cov-set-blocknum".reflectWriteWith[Unit](Counter.block.count)(Adapter.CTRL)
-    def incBlock(funName: String, label: String): Rep[Unit] = incBlock(Ctx(funName, label))
-    def incBlock(ctx: Ctx): Rep[Unit] =
-      "cov-inc-block".reflectWriteWith[Unit](Counter.block.get(ctx.toString))(Adapter.CTRL)
+    //def incBlock(funName: String, label: String): Rep[Unit] = incBlock(Ctx(funName, label))
+    //def incBlock(ctx: Ctx): Rep[Unit] =
+    //  "cov-inc-block".reflectWriteWith[Unit](Counter.block.get(ctx.toString))(Adapter.CTRL)
     def incBranch(ctx: Ctx, n: Int): Unit =
       "cov-inc-br".reflectWriteWith[Unit](Counter.block.get(ctx.toString), n)(Adapter.CTRL)
 
@@ -131,7 +132,8 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "make_symbolic", "make_symbolic_whole",
       "stop", "syscall", "llsc_assume",
       "__errno_location", "_exit", "exit", "abort", "calloc",
-      "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray"
+      "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray",
+      "llsc_prefer_cex", "llsc_posix_prefer_cex", "llsc_warning_once"
     )
     private val syscalls = ImmSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown",
@@ -191,15 +193,27 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   def ITE(cnd: Rep[Value], thn: Rep[Value], els: Rep[Value]): Rep[Value] =
     "ite".reflectWith[Value](cnd, thn, els)
 
+  object MustConc {
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case IntV(_, _) => true
+      case _ => false
+    }
+  }
+
+  object MustSym {
+    def unapply(v: Rep[Value]): Boolean = Unwrap(v) match {
+      case SymV(_, _) => true
+      case _ => false
+    }
+  }
+
   object IntV {
     def apply(i: Long): Rep[IntV] = IntV(unit(i), DEFAULT_INT_BW)
     def apply(i: Long, bw: Int): Rep[IntV] = IntV(unit(i), bw)
     def apply(i: Rep[Long]): Rep[IntV] = IntV(i, DEFAULT_INT_BW)
     def apply(i: Rep[Long], bw: Int): Rep[IntV] = "make_IntV".reflectMutableWith[IntV](i, bw)
-    def unapply(v: Rep[Value]): Option[(Int, Int)] = Unwrap(v) match {
-      // Todo: add bSym rhs case
-      case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) =>
-        Some((v, bw))
+    def unapply(v: Rep[Value]): Option[(Long, Int)] = Unwrap(v) match {
+      case gNode("make_IntV", bConst(v: Long)::bConst(bw: Int)::_) => Some((v, bw))
       case _ => None
     }
   }
@@ -312,6 +326,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       StaticList.fill(size)(NullPtr[T])
   }
 
+  object IntOp1 {
+    def neg(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("neg", v)
+    def bvnot(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("bvnot", v)
+  }
+
   object IntOp2 {
     def applyNoOpt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
       "int_op_2".reflectWith[Value](op, o1, o2)
@@ -416,7 +435,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 
-    // GW: better naming? and what is supposed to be in this list?
+    // XXX(GW): better naming? and what is supposed to be in this list?
     val ext_simpl_op = StaticList[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
 
     def sExt(bw: Int): Rep[Value] = Unwrap(v) match {
@@ -430,11 +449,10 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
 
     def isConc: Rep[Boolean] = v match {
-      case IntV(_, _) if Config.opt => unit(true)
+      case MustConc() if Config.opt => unit(true)
+      case MustSym() if Config.opt => unit(false)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
-    def toSym: Rep[SymV] = v.asRepOf[SymV]
-    def toSymNeg: Rep[SymV] = "to-SMTNeg".reflectWith[SymV](v)
 
     def notNull: Rep[Boolean] = "not-null".reflectWith[Boolean](v)
     def fromFloatToUInt(toSize: Int): Rep[Value] = "fp_toui".reflectWith[Value](v, toSize)
@@ -445,6 +463,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def +(rhs: Rep[Value]): Rep[Value] = IntOp2.add(v, rhs)
     def *(rhs: Rep[Value]): Rep[Value] = IntOp2.mul(v, rhs)
+    def unary_! : Rep[Value] = IntOp1.neg(v)
+    def unary_~ : Rep[Value] = IntOp1.bvnot(v)
 
     def toBytes: Rep[List[Value]] = v match {
       case ShadowV() => List[Value](v)

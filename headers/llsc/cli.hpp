@@ -1,5 +1,5 @@
-#ifndef LLSC_CLI_HEADERS
-#define LLSC_CLI_HEADERS
+#ifndef LLSC_CLI_HEADER
+#define LLSC_CLI_HEADER
 
 /* TODO: generate a file containing generated function declarations <2022-05-24, David Deng> */
 FS set_file(FS, String, Ptr<File>);
@@ -9,25 +9,39 @@ FS set_file(FS, String, Ptr<File>);
 static struct option long_options[] =
 {
   /* These options set a flag. */
-  {"exlib-failure-branch", no_argument,       0, 'f'},
-  {"no-hash-cons",         no_argument,       0, 'H'},
-  {"no-obj-cache",         no_argument,       0, 'O'},
-  {"no-cex-cache",         no_argument,       0, 'C'},
-  {"cons-indep",           no_argument,       0, 'i'},
-  {"print-inst-count",     no_argument,       0, 'I'},
-  {"print-cov",            no_argument,       0, 'p'},
-  {"symloc-strategy",      required_argument, 0, 'L'},
-  {"add-sym-file",         required_argument, 0, '+'},
-  {"sym-file-size",        required_argument, 0, 's'},
-  {"sym-stdin",            required_argument, 0, 'n'},
-  {"thread",               required_argument, 0, 't'},
-  {"queue",                required_argument, 0, 'q'},
-  {"solver",               required_argument, 0, 'v'},
-  {"timeout",              required_argument, 0, 'e'},
-  {"argv",                 required_argument, 0, 'a'},
-  {"help",                 no_argument,       0, 'h'},
-  {0,                      0,                 0, 0  }
+  {"exlib-failure-branch",            no_argument,       0, 'f'},
+  {"no-hash-cons",                    no_argument,       0, 'H'},
+  {"no-obj-cache",                    no_argument,       0, 'O'},
+  {"no-cex-cache",                    no_argument,       0, 'C'},
+  {"cons-indep",                      no_argument,       0, 'i'},
+  {"output-tests-cov-new",            no_argument,       0, 'S'},
+  {"output-ktest",                    no_argument,       0, 'K'},
+  {"print-inst-count",                no_argument,       0, 'I'},
+  {"print-cov",                       no_argument,       0, 'p'},
+  {"readable-posix-inputs",           no_argument,       0, 'X'},
+  {"search",                          required_argument, 0, 'R'},
+  {"symloc-strategy",                 required_argument, 0, 'L'},
+  {"add-sym-file",                    required_argument, 0, '+'},
+  {"sym-file-size",                   required_argument, 0, 's'},
+  {"sym-stdin",                       required_argument, 0, 'n'},
+  {"thread",                          required_argument, 0, 't'},
+  {"queue",                           required_argument, 0, 'q'},
+  {"solver",                          required_argument, 0, 'v'},
+  {"timeout",                         required_argument, 0, 'e'},
+  {"argv",                            required_argument, 0, 'a'},
+  {"help",                            no_argument,       0, 'h'},
+  {0,                                 0,                 0, 0  }
 };
+
+inline void set_searcher(std::string& searcher) {
+  if ("random-path" == searcher) {
+    searcher_kind = SearcherKind::randomPath;
+  } else if ("random-weight" == searcher) {
+    searcher_kind = SearcherKind::randomWeight;
+  } else {
+    ABORT("unknown searcher");
+  }
+}
 
 inline void set_solver(std::string& solver) {
   if ("z3" == solver) {
@@ -104,12 +118,26 @@ inline void handle_cli_args(int argc, char** argv) {
       case 'i':
         use_cons_indep = true;
         break;
+      case 'S':
+        only_output_covernew = true;
+        break;
+      case 'K':
+        output_ktest = true;
+        break;
       case 'I':
         print_inst_cnt = true;
         break;
       case 'p':
-	print_cov_detail = true;
-	break;
+        print_cov_detail = true;
+        break;
+      case 'X':
+        readable_posix = true;
+        break;
+      case 'R' : {
+        auto searcher = std::string(optarg);
+        set_searcher(searcher);
+        break;
+      }
       case 'L': {
         auto strategy = std::string(optarg);
         set_symloc_strategy(strategy);
@@ -132,6 +160,7 @@ inline void handle_cli_args(int argc, char** argv) {
       case 't': {
         int t = atoi(optarg);
         n_thread = (t <= 0) ? 1 : t;
+        if (n_thread > 0) use_thread_pool = true;
         break;
       }
       case 'q': {
@@ -168,7 +197,7 @@ inline void handle_cli_args(int argc, char** argv) {
       exit(-1);
     }
   }
-  if (n_thread == 1) {
+  if (!use_thread_pool) {
     // It is safe the reuse the global_vc object within one thread, but not otherwise.
     use_global_solver = true;
     std::cout << "Sequential execution mode; use global solver\n";
@@ -176,6 +205,20 @@ inline void handle_cli_args(int argc, char** argv) {
     // thread pool will create (n_thread) threads, leaving the main thread idle.
     tp.init(n_thread, n_queue);
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
+  }
+  if (output_ktest && (cli_argv.size() > 0)) {
+    g_conc_argc = cli_argv.size();
+    g_conc_argv = new char* [g_conc_argc];
+    for (int i = 0; i < g_conc_argc; i++) {
+      int size = cli_argv[i].size();
+      char* cur_argv = new char[size];
+      for (int j = 0; j < size; j++) {
+        ASSERT(cli_argv[i][j]->get_bw() == 8, "Bitwidth mismatch");
+        cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
+      }
+      cur_argv[size - 1] = 0;
+      g_conc_argv[i] = cur_argv;
+    }
   }
   INFO(initial_fs);
 }

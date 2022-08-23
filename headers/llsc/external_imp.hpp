@@ -1,5 +1,5 @@
-#ifndef LLSC_EXTERNAL_IMP_HEADERS
-#define LLSC_EXTERNAL_IMP_HEADERS
+#ifndef LLSC_EXTERNAL_IMP_HEADER
+#define LLSC_EXTERNAL_IMP_HEADER
 
 #include "external_shared.hpp"
 
@@ -10,7 +10,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0) 
+    if (i->i == 0)
     {
       if (args.size() >= 2) {
         auto msg = get_string_arg(state, args.at(1));
@@ -60,9 +60,13 @@ inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
   IntData len = proj_IntV(args.at(1));
+  ASSERT(len > 0, "Invalid length");
+  ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
+  std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(args.at(2), state));
+  state.add_symbolic(object_name, len, false);
   //std::cout << "sym array size: " << proj_LocV_size(loc) << "\n";
   for (int i = 0; i < len; i++) {
-    state.update(loc + i, make_SymV(fresh(), 8));
+    state.update(loc + i, make_SymV(object_name + "_" + std::to_string(i), 8));
   }
   return k(state, make_IntV(0));
 }
@@ -80,7 +84,11 @@ inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
   IntData sz = proj_IntV(args.at(1));
-  state.update(loc, make_SymV(fresh(), sz*8));
+  ASSERT(sz > 0, "Invalid length");
+  ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
+  std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(args.at(2), state));
+  state.add_symbolic(object_name, sz, true);
+  state.update(loc, make_SymV(object_name, sz*8));
   return k(state, make_IntV(0));
 }
 
@@ -569,6 +577,17 @@ inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   state.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
   state.update(dst_va_list + 16, state.at(src_va_list + 16, 8), 8);
   return k(state, IntV0);
+}
+
+/******************************************************************************/
+
+template<typename T>
+inline T __llsc_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
+  ASSERT(2 == args.size(), "Invalid number of arguments for llsc_prefer_cex");
+  auto cond = args.at(1);
+  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "prefer Non-Symv Condition");
+  state.add_cex(cond);
+  return k(state, make_IntV(0));
 }
 
 #endif

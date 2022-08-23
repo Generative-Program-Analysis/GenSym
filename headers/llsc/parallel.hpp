@@ -1,5 +1,5 @@
-#ifndef LLSC_PAR_HEADERS
-#define LLSC_PAR_HEADERS
+#ifndef LLSC_PAR_HEADER
+#define LLSC_PAR_HEADER
 
 /* Thread pool */
 
@@ -9,7 +9,7 @@ inline thread_pool tp;
 /* Auxiliary paralle functions */
 
 inline bool can_par_tp() {
-  return n_thread > 1;
+  return use_thread_pool;
 }
 
 /* Async (Deprecated) */

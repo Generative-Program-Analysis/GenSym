@@ -1,5 +1,5 @@
-#ifndef LLSC_STATE_TRANSIENT_HEADERS
-#define LLSC_STATE_TRANSIENT_HEADERS
+#ifndef LLSC_STATE_TRANSIENT_HEADER
+#define LLSC_STATE_TRANSIENT_HEADER
 
 /* Memory, stack, and symbolic state representation */
 
@@ -298,33 +298,25 @@ class PC {
     void print() { print_set(pc); }
 };
 
+#include "metadata.hpp"
+
 class SS {
   private:
     Mem heap;
     Stack stack;
+    // XXX(GW): considering making `meta`/`pc` public fields to reduce boilerplate code
     PC pc;
-    BlockLabel bb;
+    MetaData meta;
     FS fs;
-#ifdef LAZYALLOC
-    std::vector< std::pair<std::string, size_t> > pending_allocs;
-
-    void do_allocs() {
-      for (auto &ac: pending_allocs) {
-        if (ac.first == "stack")
-          stack.alloc(ac.second);
-        else
-          heap.alloc(ac.second);
-      }
-      pending_allocs.clear();
-    }
-#endif
-
   public:
-    SS(Mem heap, Stack stack, PC pc, BlockLabel bb) :
-      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), bb(bb), fs(initial_fs) {}
-    SS(List<PtrVal> heap, Stack stack, PC pc, BlockLabel bb) :
+    SS(Mem heap, Stack stack, PC pc, MetaData meta) :
+      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(initial_fs) {}
+    SS(Mem heap, Stack stack, PC pc, MetaData meta, FS fs) :
+      heap(std::move(heap)), stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(std::move(fs)) {}
+    SS(List<PtrVal> heap, Stack stack, PC pc, MetaData meta) :
       heap(std::move(heap.transient())),
-      stack(std::move(stack)), pc(std::move(pc)), bb(bb), fs(initial_fs)  {}
+      stack(std::move(stack)), pc(std::move(pc)), meta(std::move(meta)), fs(initial_fs)  {}
+    SS fork() { return SS(heap, stack, pc, std::move(meta.fork()), fs); }
     SS copy() { return *this; }
     PtrVal env_lookup(Id id) { return stack.lookup_id(id); }
     size_t heap_size() { return heap.size(); }
@@ -388,7 +380,7 @@ class SS {
         }
       }
       ASSERT(read_res, "Bad result");
-      // Todo: should we modify the pc to add the in-bound constraints
+      // TODO: should we modify the pc to add the in-bound constraints
       return read_res;
     }
     PtrVal at_struct(PtrVal addr, int size) {
@@ -404,21 +396,27 @@ class SS {
       return s->fs;
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
-    BlockLabel incoming_block() { return bb; }
+    uint64_t get_ssid() { return meta.ssid; }
+    BlockLabel incoming_block() { return meta.bb; }
+    bool has_cover_new() {return meta.has_cover_new; }
+    List<SymObj> get_sym_objs() { return meta.sym_objs; }
+    int count_name(const std::string& name) { return meta.count_name(name); }
+    std::string get_unique_name(const std::string& name) {
+      unsigned id = 0;
+      std::string uniqueName = name;
+      // XXX(GW): can't we just have a global id to generate fresh name?
+      while (meta.count_name(uniqueName)) {
+        uniqueName = name + "_" + std::to_string(++id);
+      }
+      return uniqueName;
+    }
+    List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
     SS&& alloc_stack(size_t size) {
-#ifdef LAZYALLOC
-      pending_allocs.push_back({"stack", size});
-#else
       stack.alloc(size);
-#endif
       return std::move(*this);
     }
     SS&& alloc_heap(size_t size) {
-#ifdef LAZYALLOC
-      pending_allocs.push_back({"heap", size});
-#else
       heap.alloc(size);
-#endif
       return std::move(*this);
     }
     //[[deprecated]]
@@ -458,9 +456,6 @@ class SS {
       return stack.pop(keep);
     }
     SS&& assign(Id id, PtrVal val) {
-#ifdef LAZYALLOC
-      do_allocs();
-#endif
       stack.assign(id, val);
       return std::move(*this);
     }
@@ -484,7 +479,20 @@ class SS {
       return std::move(*this);
     }
     SS&& add_incoming_block(BlockLabel blabel) {
-      bb = blabel;
+      meta.add_incoming_block(blabel);
+      return std::move(*this);
+    }
+    SS&& cover_block(BlockLabel new_bb) {
+      meta.cover_block(new_bb);
+      return std::move(*this);
+    }
+    SS&& add_symbolic(const std::string& name, int size, bool is_whole) {
+      //ASSERT(0 == meta.count_name(name), "non unique name");
+      meta.add_symbolic(name, size, is_whole);
+      return std::move(*this);
+    }
+    SS&& add_cex(const PtrVal& cex) {
+      meta.add_cex(cex);
       return std::move(*this);
     }
     SS&& init_arg() {
@@ -515,6 +523,7 @@ class SS {
     }
 
     PC& get_PC() { return pc; }
+    PC copy_PC() { return pc; }
     void set_PC(PC _pc) { pc = _pc; }
     const TrList<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
 
@@ -536,8 +545,10 @@ using SSVal = std::pair<SS, PtrVal>;
 inline const Mem mt_mem = Mem(TrList<PtrVal>{});
 inline const Stack mt_stack = Stack(mt_mem, TrList<Frame>{}, nullptr);
 inline const PC mt_pc = PC(TrList<PtrVal>{});
+inline const uint64_t mt_ssid = 1;
 inline const BlockLabel mt_bb = 0;
-inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_bb);
+inline const MetaData mt_meta = MetaData(mt_ssid, mt_bb, false, List<SymObj>{}, List<PtrVal>{});
+inline const SS mt_ss = SS(mt_mem, mt_stack, mt_pc, mt_meta);
 
 inline const List<SSVal> mt_path_result = List<SSVal>{};
 

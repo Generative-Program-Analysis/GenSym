@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# Uses the test_benchmark script to run experiment. Specifies programs, options, and collect output
+
+###################
+#  Static Config  #
+###################
+
+PROJ_DIR=`realpath ..`                                # project root directory
+LOG_DIR=`realpath ./logs`                             # directory to store the log files
+BM_SCRIPT=`realpath ./test_benchmark`                 # the test_benchmark script
+export BM_EXPAND_SCRIPT=`realpath ./braces_expand.py` # the script to perform braces expansion, will be detected by BM_SCRIPT
+declare -A inputs=(
+# [posix]="/dir/to/posix/ll/files"                    # TODO: point to directory containing .ll files
+# [uclibc]="/dir/to/uclibc/ll/files"                  # TODO: point to directory containing .ll files
+)
+ENV_SCRIPT=""                                         # TODO (OPTIONAL): set up PATH, CPLUS_INCLUDE_PATH, LD_LIBRARY_PATH, LIBRARY_PATH, etc.
+
+####################
+#  Dynamic Config  #
+####################
+
+# --no-scala for BM_SCRIPT
+BM_NO_SCALA=true
+# --no-cpp for BM_SCRIPT
+BM_NO_CPP=true
+# --no-runtime for BM_SCRIPT
+BM_NO_RUNTIME=false
+# whether to generate external lib at the beginning of the experiment
+GEN_EXTERNAL=true
+# extra arguments passed to BM_SCRIPT
+BM_OPTIONS="--njobs 192 --timeout 1000"
+# global options for the final executable, appended to all benchmarks
+RUNTIME_OPTION="--solver=z3 --thread=8 --output-ktest --only-output-states-covering-new"
+# use the hash of the specified branch. Only affect the result of runtime, but not scala/cpp compilation.
+USE_BRANCH=""
+
+# candidate source files in ${inputs}, .ll is appended
+candidates=(
+base32
+base64
+comm
+cut
+dirname
+echo
+)
+
+# runtime options for executable
+# for path comparison
+
+declare -A options=(
+[base32_posix]='--argv="name -sym-files 1 {1..5} -d A"' # -d needed
+[base32_uclibc]='--argv="name -d A" --sym-file-size={1..5} --add-sym-file A' # -d needed
+[base64_posix]='--argv="name -sym-files 1 {0..10..2} -d A"'
+[base64_uclibc]='--argv="name -d A" --sym-file-size={0..10..2} --add-sym-file A'
+[comm_posix]='--argv="name -sym-files 2 {1..3} A B"'
+[comm_uclibc]='--argv="name A B" --sym-file-size={1..3} --add-sym-file=A --add-sym-file=B'
+[cut_posix]='--argv="name -sym-files 1 {5,10} -{b,c} 1-2 A"'
+[cut_uclibc]='--argv="name -{b,c} 1-2 A" --sym-file-size={5,10} --add-sym-file A'
+[dirname_posix]='--argv="name -sym-arg {0..30..10}'
+[dirname_uclibc]='--argv="name #{0..30..10}"'
+[echo_posix]='--argv="name -sym-arg {1..12}"'
+[echo_uclibc]='--argv="name #{1..12}"'
+)
+
+###################
+#  Script starts  #
+###################
+
+mkdir -p $LOG_DIR
+if [ -f "$ENV_SCRIPT" ]; then
+	source "$ENV_SCRIPT" # set up PATH, CPLUS_INCLUDE_PATH, LD_LIBRARY_PATH, LIBRARY_PATH
+fi
+TS=`date +%y%m%d%H%M%S` # get a time stamp
+cd $PROJ_DIR
+
+if [ "${BM_NO_SCALA}" = "true" ]; then
+	BM_OPTIONS="${BM_OPTIONS} --no-scala"
+fi
+if [ "${BM_NO_CPP}" = "true" ]; then
+	BM_OPTIONS="${BM_OPTIONS} --no-cpp"
+fi
+if [ "${BM_NO_RUNTIME}" = "true" ]; then
+	BM_OPTIONS="${BM_OPTIONS} --no-runtime"
+fi
+
+if [ -z "$USE_BRANCH" ]; then
+	USE_BRANCH=HEAD
+else
+	echo [run_experiment] Using branch hash $USE_BRANCH.
+	echo [run_experiment] WARNING: overriding the branch hash may result in inconsistent compilation result, should make sure the previously compiled programs are correct.
+fi
+
+COMMIT_HASH=h_$(git rev-parse --short "$USE_BRANCH")
+echo [run_experiment] hash: $COMMIT_HASH
+
+# generate external wrappers
+if [ "${GEN_EXTERNAL}" = "true" ]; then
+	echo [run_experiment] generating external functions...
+	sbt "runMain sai.llsc.GenerateExternal"
+fi
+
+# iterate through each set of input LLVM files (e.g. posix and uclibc)
+for i in "${!inputs[@]}"; do
+	idir="${inputs[$i]}" # the input LLVM directory
+
+	# set up output destination
+	OUTFILE="${LOG_DIR}/full_${TS}_${COMMIT_HASH}_${i}.log"
+	OUTFILERUNTIME="${LOG_DIR}/runtime_${TS}_${COMMIT_HASH}_${i}.log"
+	echo [run_experiment] OUTFILE:        $OUTFILE
+	echo [run_experiment] OUTFILERUNTIME: $OUTFILERUNTIME
+
+	# duplicate all output to OUTFILE
+	exec >  >(tee -ia ${OUTFILE})
+	exec 2> >(tee -ia ${OUTFILE} >&2)
+	for f in ${candidates[@]}; do
+		if [ -v "options[${f}_${i}]" ]; then
+			echo [run_experiment] using input specific option with key: ${f}_${i}
+			option="${options[${f}_${i}]} $RUNTIME_OPTION"
+		elif [ -v "options[${f}]" ]; then
+			echo [run_experiment] using generic input option with key: ${f}
+			option="${options[${f}]} $RUNTIME_OPTION"
+		else
+			echo [run_experiment] no option found for input file ${f} of type ${i}
+			echo [run_experiment] HINT: add an item to the "options=(...)" array with key [${f}] or [${f}_${i}]
+			option="$RUNTIME_OPTION"
+		fi
+		# write only succinct output to OUTFILERUNTIME
+		BM_OPTIONS="${BM_OPTIONS} --succinct-log ${OUTFILERUNTIME}"
+		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll ${COMMIT_HASH}_${f}_${i} $option
+	done
+done

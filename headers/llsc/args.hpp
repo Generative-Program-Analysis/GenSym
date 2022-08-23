@@ -1,5 +1,5 @@
-#ifndef LLSC_ARGS_HEADERS
-#define LLSC_ARGS_HEADERS
+#ifndef LLSC_ARGS_HEADER
+#define LLSC_ARGS_HEADER
 
 /* Auxiliary functions to process command line argv passed to the application */
 
@@ -7,13 +7,15 @@ inline immer::flex_vector<immer::flex_vector<PtrVal>> cli_argv;
 // the argv and argc value passed to llsc_main
 inline PtrVal g_argv;
 inline PtrVal g_argc;
+inline int g_conc_argc = 0;
+inline char** g_conc_argv = nullptr;
 
 using ArgTy = std::variant<unsigned, std::string>;
 
 inline List<PtrVal> to_chars(List<ArgTy> mr) {
   return Vec::flatMap<PtrVal>(mr, [](const ArgTy& e) {
     if (isInstanceOf<unsigned>(e))
-      return make_SymV_seq(std::get<unsigned>(e), "args", 8);
+      return make_SymList("arg00_", std::get<unsigned>(e));
     if (isInstanceOf<std::string>(e))
       return Value::from_string(std::get<std::string>(e));
     ABORT("Unknown cli argument type");
