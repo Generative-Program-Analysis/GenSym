@@ -574,6 +574,7 @@ class SS: public Printable {
     }
     SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, meta, fs); }
     PC get_PC() { return pc; }
+    PC copy_PC() { return pc; }
     // TODO temp solution
     PtrVal vararg_loc() { return stack.vararg_loc(); }
     PtrVal error_loc() { return stack.error_loc(); }
