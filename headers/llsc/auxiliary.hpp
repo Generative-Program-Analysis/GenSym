@@ -90,6 +90,8 @@ inline SolverKind solver_kind = SolverKind::stp;
 inline std::atomic<long int> ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
 inline std::atomic<long int> int_solver_time = 0;
+// FS time: time taken to perform FS operations
+inline std::atomic<long int> fs_time = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index

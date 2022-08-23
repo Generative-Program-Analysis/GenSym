@@ -518,11 +518,11 @@ trait GenExternal extends SymExeDefs {
   // generate different return style
   def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]):
       ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) =>
-    gen(ss, l, { case (s,v) => k(s,v) })
+        gen(ss, l, { case (s,v) => k(s,v) })
   }
 
   def gen_p(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[List[(SS, Value)]]) => Rep[List[(SS, Value)]]): ((Rep[SS], Rep[List[Value]]) => Rep[List[(SS, Value)]]) = { case (ss, l) =>
-    gen(ss, l, { case (s,v) => List[(SS, Value)]((s,v)) })
+        gen(ss, l, { case (s,v) => List[(SS, Value)]((s,v)) })
   }
 
   // bridge SS and FS
@@ -533,7 +533,11 @@ trait GenExternal extends SymExeDefs {
       ss.setFs(fs)
       k(ss, ret)
     }
-    f(ss.getFs, args, kp)
+    unchecked("auto start = steady_clock::now();")
+    val res = f(ss.getFs, args, kp)
+    unchecked("auto end = steady_clock::now();")
+    unchecked("fs_time += duration_cast<microseconds>(end - start).count();")
+    res
   }
 
   def brg_fs[T: Manifest](f: Ext[T])(ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
@@ -541,9 +545,12 @@ trait GenExternal extends SymExeDefs {
       ss.setFs(fs)
       k(ss, ret)
     }
-    f(ss, ss.getFs, args, kp)
+    unchecked("auto start = steady_clock::now();")
+    val res = f(ss, ss.getFs, args, kp)
+    unchecked("auto end = steady_clock::now();")
+    unchecked("fs_time += duration_cast<microseconds>(end - start).count();")
+    res
   }
-
 }
 
 @virtualize
