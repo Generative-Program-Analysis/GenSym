@@ -281,6 +281,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case gNode("make_SymV", bConst(x: String)::bConst(bw: Int)::_) => Some((x, bw))
       case _ => None
     }
+    def fromBool(b: Rep[Boolean]): Rep[SymV] =
+      "sym_bool_const".reflectWith[SymV](b)
   }
 
   object ShadowV {
@@ -321,8 +323,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object IntOp1 {
-    def neg(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("neg", v)
-    def bvnot(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith("bvnot", v)
+    def neg(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith[Value]("neg", v)
+    def bvnot(v: Rep[Value]): Rep[Value] = "int_op_1".reflectWith[Value]("bvnot", v)
   }
 
   object IntOp2 {
@@ -457,6 +459,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def +(rhs: Rep[Value]): Rep[Value] = IntOp2.add(v, rhs)
     def *(rhs: Rep[Value]): Rep[Value] = IntOp2.mul(v, rhs)
+    def &(rhs: Rep[Value]): Rep[Value] = IntOp2("and", v, rhs)
+    def |(rhs: Rep[Value]): Rep[Value] = IntOp2("or", v, rhs)
     def unary_! : Rep[Value] = IntOp1.neg(v)
     def unary_~ : Rep[Value] = IntOp1.bvnot(v)
 

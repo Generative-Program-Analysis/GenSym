@@ -110,6 +110,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     def addPC(e: Rep[Value]): Rep[SS] = "ss-addpc".reflectWith[SS](ss, e)
     def addPCSet(es: Rep[List[Value]]): Rep[SS] = "ss-addpcset".reflectWith[SS](ss, es)
     def pc: Rep[PC] = "get-pc".reflectWith[PC](ss)
+    def copyPC: Rep[PC] = "ss-copy-pc".reflectCtrlWith[PC](ss) // hack
     def updateArg: Rep[SS] = "ss-arg".reflectWith[SS](ss)
     def initErrorLoc: Rep[SS] = "ss-init-error-loc".reflectWith[SS](ss)
     def getErrorLoc: Rep[Value] = "ss-get-error-loc".reflectWith[Value](ss)

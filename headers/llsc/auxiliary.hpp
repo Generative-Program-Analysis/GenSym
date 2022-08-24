@@ -90,6 +90,8 @@ inline SolverKind solver_kind = SolverKind::stp;
 inline std::atomic<long int> ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
 inline std::atomic<long int> int_solver_time = 0;
+// FS time: time taken to perform FS operations
+inline std::atomic<long int> fs_time = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
@@ -105,14 +107,14 @@ enum class iOP {
   op_sge, op_sgt, op_sle, op_slt, op_neq,
   op_shl, op_lshr, op_ashr, op_and, op_or, op_xor,
   op_urem, op_srem, op_neg, op_sext, op_zext, op_trunc,
-  op_concat, op_extract, op_ite, op_bvnot
+  op_concat, op_extract, op_ite, op_bvnot, const_true, const_false
 };
 
 enum class fOP {
   op_fadd, op_fsub, op_fmul, op_fdiv,
   op_oeq, op_ogt, op_oge, op_olt, op_ole, op_one, op_ord,
   op_ueq, op_ugt, op_uge, op_ult, op_ule, op_une, op_uno,
-  op_false, op_true
+  const_false, const_true
 };
 
 // Note: set_exit_code preserves the first value it sets.
@@ -158,6 +160,9 @@ inline std::string int_op_string(iOP op) {
     case iOP::op_concat: return "concat";
     case iOP::op_extract: return "extract";
     case iOP::op_ite: return "ite";
+    case iOP::op_bvnot: return "bvnot";
+    case iOP::const_false: return "false";
+    case iOP::const_true:  return "true";
   }
   return "unknown op";
 }
@@ -182,8 +187,8 @@ inline std::string float_op2string(fOP op) {
     case fOP::op_ule:    return "ule";
     case fOP::op_une:    return "une";
     case fOP::op_uno:    return "uno";
-    case fOP::op_false:  return "false";
-    case fOP::op_true:   return "true";
+    case fOP::const_false: return "false";
+    case fOP::const_true:  return "true";
   }
   return "unknown op";
 }

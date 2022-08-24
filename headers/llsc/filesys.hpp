@@ -123,8 +123,16 @@ struct FS: public Printable {
 
   void set_stdin(int size) {
     auto f = make_SymFile("@stdin", size);
+    f->parent = root_file;
     root_file->children = root_file->children.set("@stdin", f);
     opened_files = opened_files.set(0, std::make_shared<Stream>(f, O_RDONLY, 0));
+  }
+
+  void set_stdout(int size) {
+    auto f = make_SymFile("@stdout", 0);
+    f->parent = root_file;
+    root_file->children = root_file->children.set("@stdout", f);
+    opened_files = opened_files.set(1, std::make_shared<Stream>(f, O_WRONLY, 0));
   }
 
   String toString() const override {

@@ -69,6 +69,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     else if (s.endsWith("$SS")) "SS"
     else if (s.endsWith("$PC")) "PC"
     else if (s.endsWith("$FS")) "FS"
+    else if (s.endsWith("$Auto")) "auto"
     else if (s.endsWith("$File")) "Ptr<File>"
     else if (s.endsWith("$Stream")) "Ptr<Stream>"
     else if (s.endsWith("$Kind")) "LocV::Kind"

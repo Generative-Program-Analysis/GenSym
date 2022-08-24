@@ -41,9 +41,9 @@ abstract class TestLLSC extends FunSuite {
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
     // example:
     // [43.4s/43.5s/46.0s] #blocks: 12/12; #br: 0/1/2; #paths: 1666; #threads: 1; #task-in-q: 0; #queries: 7328/1666 (1996)
-    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
-      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll,
+      case pattern(extSolverTime, intSolverTime, fsTime, wholeTime, blockCnt, blockAll,
         partialBr, fullBr, totalBr, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
         TestResult(LocalDateTime.now(), gitCommit, engine, testName,
           extSolverTime.toDouble, intSolverTime.toDouble, wholeTime.toDouble,
