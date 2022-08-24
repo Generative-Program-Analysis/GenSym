@@ -394,8 +394,15 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
         ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main", "gettimeofday")
-        def preHeap(v: Rep[Int]): Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
-        val repPreHeap = topFun(preHeap(_))
+        import sai.lmsx._
+        def preHeap(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
+          val heap = List(precompileHeapLists(m::Nil):_*)
+          ss.heapAppend(heap)
+          cont(ss, NullLoc())
+        }
+        val repPreHeap = topFun(preHeap(_, _, _))
+        funNameMap(Unwrap(repPreHeap).asInstanceOf[Backend.Sym]) = "initlib"
+        "ss-generate".reflectWriteWith[Unit](repPreHeap)(Adapter.CTRL)
         for ((f, d) <- funMap) compile(d)
         for ((n, f) <- FunFuns) "ss-generate".reflectWriteWith[Unit](f)(Adapter.CTRL)
         ()
