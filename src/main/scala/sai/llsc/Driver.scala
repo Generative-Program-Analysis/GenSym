@@ -369,7 +369,7 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
-        setBlockMap(q.blockNameMap)
+        setBlockMap(q.nodeBlockMap)
         override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
           val ng = init(g)
           run(name, ng)
