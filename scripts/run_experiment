@@ -20,11 +20,11 @@ ENV_SCRIPT=""                                         # TODO (OPTIONAL): set up 
 ####################
 
 # --no-scala for BM_SCRIPT
-BM_NO_SCALA=true
+BM_SCALA=true
 # --no-cpp for BM_SCRIPT
-BM_NO_CPP=true
+BM_CPP=true
 # --no-runtime for BM_SCRIPT
-BM_NO_RUNTIME=false
+BM_RUNTIME=false
 # whether to generate external lib at the beginning of the experiment
 GEN_EXTERNAL=true
 # extra arguments passed to BM_SCRIPT
@@ -73,13 +73,13 @@ fi
 TS=`date +%y%m%d%H%M%S` # get a time stamp
 cd $PROJ_DIR
 
-if [ "${BM_NO_SCALA}" = "true" ]; then
+if [ "${BM_SCALA}" = "false" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-scala"
 fi
-if [ "${BM_NO_CPP}" = "true" ]; then
+if [ "${BM_CPP}" = "false" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-cpp"
 fi
-if [ "${BM_NO_RUNTIME}" = "true" ]; then
+if [ "${BM_RUNTIME}" = "false" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-runtime"
 fi
 
