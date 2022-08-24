@@ -24,6 +24,7 @@ static struct option long_options[] =
   {"add-sym-file",                    required_argument, 0, '+'},
   {"sym-file-size",                   required_argument, 0, 's'},
   {"sym-stdin",                       required_argument, 0, 'n'},
+  {"sym-stdout",                       no_argument, 0, 'o'},
   {"thread",                          required_argument, 0, 't'},
   {"queue",                           required_argument, 0, 'q'},
   {"solver",                          required_argument, 0, 'v'},
@@ -155,6 +156,11 @@ inline void handle_cli_args(int argc, char** argv) {
         int size = atoi(optarg);
         initial_fs.set_stdin((size < 0) ? 0 : size);
         INFO("set stdin size to " << size << "\n");
+        break;
+      }
+      case 'o': {
+        initial_fs.set_stdout(0);
+        INFO("set stdout size to " << 0 << "\n");
         break;
       }
       case 't': {
