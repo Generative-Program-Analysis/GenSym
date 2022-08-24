@@ -29,6 +29,7 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 @virtualize
 trait GenExternal extends SymExeDefs {
+  trait Auto
   val debug: Boolean = false
   def rawInfo(seq: Any*): Rep[Unit] = if (debug) unchecked(seq: _*)
   def info(s: String): Rep[Unit] = rawInfo("std::cout << \"", s, "\" << std::endl")
@@ -541,14 +542,16 @@ trait GenExternal extends SymExeDefs {
   }
 
   def brg_fs[T: Manifest](f: Ext[T])(ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
+    val start = unchecked[Auto]("steady_clock::now()")
     def kp(ss: Rep[SS], fs: Rep[FS], ret: Rep[Value]): Rep[T] = {
       ss.setFs(fs)
+      val end = unchecked[Auto]("steady_clock::now()")
+      val duration = unchecked[Auto]("duration_cast<microseconds>(", end, " - ", start, ").count() ")
+      rawInfo("std::cout << \"Time Taken: \" << ", duration, " << std::endl")
+      unchecked("fs_time += ", duration)
       k(ss, ret)
     }
-    unchecked("auto start = steady_clock::now();")
     val res = f(ss, ss.getFs, args, kp)
-    unchecked("auto end = steady_clock::now();")
-    unchecked("fs_time += duration_cast<microseconds>(end - start).count();")
     res
   }
 }
