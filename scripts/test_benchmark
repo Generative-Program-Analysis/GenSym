@@ -82,7 +82,8 @@ if [ "$CPP_COMPILE" = "true" ] || [ ! -f "llsc_gen/${HEAD}/${HEAD}" ]; then
 fi
 
 if [ "$RUNTIME" = "true" ]; then
-	EXE="./llsc_gen/${HEAD}/${HEAD}"
+	cd llsc_gen/${HEAD}
+	EXE="./${HEAD}"
 	if [ ! -z "$BM_EXPAND_SCRIPT" ]; then
 		if [ -f "$BM_EXPAND_SCRIPT" ]; then
 			OLDIFS=$IFS
