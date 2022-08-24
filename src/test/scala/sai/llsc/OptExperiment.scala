@@ -29,13 +29,13 @@ class Optimization extends TestLLSC {
   import scala.collection.mutable.ListBuffer
   import java.io.{File, FileWriter}
   val writer = new FileWriter(new File("opt_exp.csv"), true)
-  val N = 0
+  val N = 5
 
   def testLLSC(N: Int, llsc: LLSC, tst: TestPrg): Unit = {
     val TestPrg(m, name, f, config, cliArg, exp) = tst
     test(llsc.insName + "_" + name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
-      val mkRet = code.make(4)
+      val mkRet = code.make(8)
       assert(mkRet == 0, "make failed")
       for (i <- 1 to N) {
         Thread.sleep(1 * 1000)
@@ -43,7 +43,9 @@ class Optimization extends TestLLSC {
         val (output, ret) = code.runWithStatus(cliArg, prefix)
         val resStat = parseOutput(llsc.insName, name, output)
         System.out.println(resStat)
-        writer.append(s"$resStat\n")
+        writer.append(s"${tst.toString}\n")
+        writer.append(s"$output\n")
+        writer.append(s"$resStat\n\n")
         writer.flush()
       }
     }
@@ -51,15 +53,16 @@ class Optimization extends TestLLSC {
 }
 
 /*
+// Test algorithm benchmarks
 class TestImpCPSOpt extends Optimization {
   val llsc = new ImpCPSLLSC
   Config.enableOpt
-  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_Opt", "@main", noArg, "--solver=z3", nPath(5040)))
-  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/bubblesort.ll"), "bubbleSort_Opt", "@main", noArg, "--solver=z3", nPath(720)))
-  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/knapsack.ll"), "knapsack_Opt", "@main", noArg, "--solver=z3", nPath(1666)))
-  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/kmpmatcher.ll"), "kmp_Opt", "@main", noArg, "--solver=z3", nPath(4181)))
-  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/nqueen.ll"), "nqueen_Opt", "@main", noArg, "--solver=z3", nPath(1363)))
-  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/quicksort.ll"), "quicksort_Opt", "@main", noArg, "--solver=z3", nPath(5040)))
+  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/kmpmatcher.ll"), "kmp_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(4181)))
+  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(5040)))
+  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/bubblesort.ll"), "bubbleSort_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(720)))
+  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/knapsack.ll"), "knapsack_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(1666)))
+  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/nqueen.ll"), "nqueen_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(1363)))
+  testLLSC(N, llsc, TestPrg(parseFile("benchmarks/opt-experiments/quicksort.ll"), "quicksort_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(5040)))
 }
 
 class TestPureCPSOpt extends Optimization {

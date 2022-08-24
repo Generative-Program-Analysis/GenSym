@@ -1,6 +1,6 @@
 KLEE_INCLUDE = ../../../../klee_experiment/klee-2.1/include
 
-all: generate_sse generate_klee
+all: generate_sse
 
 generate_sse:
 	clang-11 multipath_1024_sym.c -O0 -emit-llvm -S -fno-discard-value-names -o multipath_1024_sym.ll

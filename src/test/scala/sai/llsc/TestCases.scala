@@ -23,7 +23,9 @@ import Config._
  * runOpt: the command line argument to run the compiled executable
  * exp: expected return status of the compiled executable, use the Map combinator in object TestPrg
  */
-case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Seq[String], exp: Map[String, Any])
+case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Seq[String], exp: Map[String, Any]) {
+  override def toString = s"${m.mname}, $name, $f, $config, $runOpt, $exp"
+}
 
 object TestPrg {
   val nPath = "nPath"     // expected number of explored paths
