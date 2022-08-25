@@ -364,6 +364,7 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
   val insName = "ImpCPSLLSC_lib"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) { q =>
+      import java.io.{File,PrintStream}
       implicit val me: this.type = this
       override lazy val codegen: GenericLLSCCodeGen = new ImpureLLSCCodeGen {
         val IR: q.type = q
@@ -376,9 +377,10 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
           emitHeaderFile
           emitFunctionFiles
         }
+        registerHeader("<llsc/libcpolyfill.hpp>")
       }
       override def genSource: Unit = {
-        val folderFile = new java.io.File(folder)
+        val folderFile = new File(folder)
         if (!folderFile.exists()) folderFile.mkdir
         prepareBuildDir
         val g0 = Adapter.genGraph1(manifest[Int], manifest[Unit]) { x =>
@@ -391,6 +393,43 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
           codegen.emitAll(g1, appName)(manifest[Int], manifest[Unit])
           codegen.extractAllStatics
         }
+      }
+      override def genMakefile: Unit = {
+        val out = new PrintStream(s"$folder/$appName/Makefile")
+        val curDir = new File(".").getCanonicalPath
+        val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
+        val debugFlags = if (Config.genDebug) "-g -DDEBUG" else ""
+
+        out.println(s"""|BUILD_DIR = build
+        |TARGET = $appName.a
+        |SRC_DIR = .
+        |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp" ! -name "$${TARGET}.cpp")
+        |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
+        |OPT = -O3
+        |CC = g++ -std=c++17 -Wno-format-security
+        |AR = ar cvq
+        |PERFFLAGS = -fno-omit-frame-pointer $debugFlags
+        |CXXFLAGS = $includes $extraFlags $$(PERFFLAGS)
+        |
+        |default: $$(TARGET)
+        |
+        |.SECONDEXPANSION:
+        |
+        |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@)
+        |\tmkdir -p $$(@D)
+        |\t$$(CC) $$(OPT) -c -o $$@ $$< $$(CXXFLAGS)
+        |
+        |$$(TARGET): $$(OBJECTS)
+        |\t$$(AR) $$@ $$^
+        |
+        |clean:
+        |\t@rm $${TARGET} 2>/dev/null || true
+        |\t@rm build -rf 2>/dev/null || true
+        |\t@rm tests -rf 2>/dev/null || true
+        |
+        |.PHONY: default clean
+        |""".stripMargin)
+        out.close
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
         ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main", "gettimeofday")
