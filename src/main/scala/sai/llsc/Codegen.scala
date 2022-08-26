@@ -97,6 +97,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   override def traverse(n: Node): Unit = n match {
     case Node(s, "make_CPSFunV", _, _) if !dce.live(n.n) =>
     case Node(s, "make_FunV", _, _) if !dce.live(n.n) =>
+    case Node(s, "llsc-external-wrapper", _, _) if !dce.live(n.n) =>
     case _ => super.traverse(n)
   }
 

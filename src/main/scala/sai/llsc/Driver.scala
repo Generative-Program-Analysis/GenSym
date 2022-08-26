@@ -374,6 +374,10 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
         setBlockMap(q.nodeBlockMap)
+        override def shallow(n: Node): Unit = n match {
+          case Node(_, "llsc-external-wrapper", Backend.Const(f: String)::_, _) => es"make_CPSFunV(${f})"
+          case _ => super.shallow(n)
+        }
         override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
           val ng = init(g)
           run(name, ng)
@@ -440,7 +444,8 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         out.close
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
-        ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main", "gettimeofday")
+        ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main",
+          "gettimeofday", "sigprocmask", "__syscall_rt_sigaction")
 
         import sai.lmsx._
         def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {

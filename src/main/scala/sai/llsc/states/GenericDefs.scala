@@ -152,7 +152,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
         System.out.println(s"Use external function $f.")
         used.add(f)
       }
-      "llsc-external-wrapper".reflectWith[Value](f, ret)
+      "llsc-external-wrapper".reflectMutableWith[Value](f, ret)
     }
     def unapply(v: Rep[Value]): Option[(String, Option[LLVMType])] = Unwrap(v) match {
       case gNode("llsc-external-wrapper", bConst(f: String)::bConst(ret: Option[LLVMType])::Nil) => Some((f, ret))
