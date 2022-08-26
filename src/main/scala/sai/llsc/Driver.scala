@@ -360,6 +360,9 @@ class ImpCPSLLSC extends LLSC with ImpureState {
     }
 }
 
+case class FuncDef(name: String)
+case class VarDef(name: String, off: Int, size: Int)
+case class ModDef(funlist: StaticList[FuncDef], varlist: StaticList[VarDef])
 class ImpCPSLLSC_lib extends LLSC with ImpureState {
   val insName = "ImpCPSLLSC_lib"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
@@ -433,17 +436,36 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
         ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main", "gettimeofday")
+
         import sai.lmsx._
-        def preHeap(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
+        def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
           val heap = List(precompileHeapLists(m::Nil):_*)
           ss.heapAppend(heap)
           cont(ss, NullLoc())
         }
-        val repPreHeap = topFun(preHeap(_, _, _))
-        funNameMap(Unwrap(repPreHeap).asInstanceOf[Backend.Sym]) = "initlib"
-        "ss-generate".reflectWriteWith[Unit](repPreHeap)(Adapter.CTRL)
+
+        val preHeapRep = topFun(preHeapGen(_, _, _))
+        funNameMap(Unwrap(preHeapRep).asInstanceOf[Backend.Sym]) = "initlib"
+        "ss-generate".reflectWriteWith[Unit](preHeapRep)(Adapter.CTRL)
         for ((f, d) <- funMap) compile(d)
         for ((n, f) <- FunFuns) "ss-generate".reflectWriteWith[Unit](f)(Adapter.CTRL)
+
+        val funclist = for ((f, n) <- funNameMap) yield FuncDef(n)
+        val varlist = for ((n, g) <- heapEnv) yield {
+          g() match { case LocV(off0, _, size0, _) => (
+              (Unwrap(off0), Unwrap(size0)) match {
+                case (Backend.Const(off: Long), Backend.Const(size: Long)) =>
+                  VarDef(n, off, size)
+              }
+            )
+          }
+        }
+        import java.io._
+        val module = ModDef(funclist.toList, varlist.toList)
+        val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
+        oos.writeObject(module)
+        oos.close
+
         ()
       }
     }
