@@ -406,7 +406,8 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         out.println(s"""|BUILD_DIR = build
         |TARGET = $appName.a
         |SRC_DIR = .
-        |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp" ! -name "$${TARGET}.cpp")
+        |INITFILE = initlib
+        |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp" ! -name "$$(INITFILE).cpp")
         |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
         |OPT = -O3
         |CC = g++ -std=c++17 -Wno-format-security
@@ -422,7 +423,11 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         |\tmkdir -p $$(@D)
         |\t$$(CC) $$(OPT) -c -o $$@ $$< $$(CXXFLAGS)
         |
-        |$$(TARGET): $$(OBJECTS)
+        |$$(BUILD_DIR)/$$(INITFILE).o : $$(INITFILE).cpp
+        |\tmkdir -p $$(@D)
+        |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
+        |
+        |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$$(INITFILE).o
         |\t$$(AR) $$@ $$^
         |
         |clean:
