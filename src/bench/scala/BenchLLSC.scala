@@ -85,7 +85,7 @@ abstract class TestLLSC extends FunSuite {
 
   def testLLSC(llsc: LLSC, tst: TestPrg, solver: Option[String], threading: Boolean): Unit = {
     val nTest = 5
-    val TestPrg(m, name, f, config, cliArg, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     test(name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
       val mkRet = code.make(4)

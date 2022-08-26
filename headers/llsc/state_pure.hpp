@@ -35,7 +35,7 @@ class PreMem: public Printable {
     M append(List<V> vs) { return M(mem + vs); }
     M alloc(size_t size) {
       auto m = mem.transient();
-      for (int i = 0; i < size; i++) { m.push_back(nullptr); }
+      for (int i = 0; i < size; i++) { m.push_back(make_UnInitV()); }
       return M(m.persistent());
     }
     M take(size_t keep) { return M(mem.take(keep)); }
@@ -429,8 +429,7 @@ class SS: public Printable {
       if (loc != nullptr) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
         return heap.at(loc->l, size);
-      } else {
-        auto symloc = std::dynamic_pointer_cast<SymLocV>(addr);
+      } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
         ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
         std::vector<std::pair<PtrVal, int>> result;
         auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
@@ -474,7 +473,11 @@ class SS: public Printable {
         ASSERT(read_res, "Bad result");
         // Todo: should we modify the pc to add the in-bound constraints
         return read_res;
+      } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
+        ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
+        return ite(get_ite_cond(symvite), at(get_ite_tv(symvite), size), at(get_ite_ev(symvite), size));
       }
+      ABORT("dereferenceing a nullptr");
     }
     PtrVal at_struct(const PtrVal& addr, int size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
