@@ -431,16 +431,27 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
 
-    // XXX(GW): better naming? and what is supposed to be in this list?
-    val ext_simpl_op = StaticList[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
+    val foldableOp = StaticSet[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
 
     def sExt(bw: Int): Rep[Value] = Unwrap(v) match {
-      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (ext_simpl_op.contains(s) && (bw1 == bw)) => v
+      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (foldableOp(s) && (bw1 == bw)) => v
+      case gNode("make_IntV", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 =>
+        // sExt(IntV(n, bw1), bw) ⇒ IntV(n, bw)
+        IntV(Wrap[Long](v1), bw)
+      case gNode("bv_sext", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1=>
+        // sExt(sExt(n, bw1), bw) ⇒ sExt(n, bw)
+        Wrap[Value](v1).sExt(bw)
       case _ => "bv_sext".reflectWith[Value](v, bw)
     }
 
     def zExt(bw: Int): Rep[Value] = Unwrap(v) match {
-      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (ext_simpl_op.contains(s) && (bw1 == bw)) => v
+      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (foldableOp(s) && (bw1 == bw)) => v
+      case gNode("make_IntV", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 =>
+        // zExt(IntV(n, bw1), bw) ⇒ IntV(n, bw)
+        IntV(Wrap[Long](v1), bw)
+      case gNode("bv_zext", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1=>
+        // zExt(sExt(n, bw1), bw) ⇒ zExt(n, bw)
+        Wrap[Value](v1).zExt(bw)
       case _ => "bv_zext".reflectWith[Value](v, bw)
     }
 
