@@ -81,6 +81,7 @@ object RunLLSC {
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
       case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
+      case (options, r"--lib=(\w+)$p") => options + ("lib" -> p)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
       case (options, input) => options + ("input" -> input)
     }
@@ -102,6 +103,7 @@ object RunLLSC {
       case "PureCPS" => new PureCPSLLSC
       case "PureDirect" => new PureLLSC
       case "lib" => new ImpCPSLLSC_lib
+      case "app" => new ImpCPSLLSC_app
     }
     Config.opt = optimize
     Config.emitBlockIdMap = emitBlockIdMap
@@ -111,6 +113,6 @@ object RunLLSC {
     |  filepath=$filepath, entrance=$entrance, output=$output,
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
     println(info.stripMargin)
-    llsc.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt))
+    llsc.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), options.get("lib").asInstanceOf[Option[String]])
   }
 }

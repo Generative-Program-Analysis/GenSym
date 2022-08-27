@@ -18,6 +18,7 @@ import scala.collection.mutable.HashMap
 import sai.llsc.imp.Mut
 import sai.llsc.imp.ImpLLSCEngine
 import sai.llsc.imp.ImpCPSLLSCEngine
+import sai.llsc.CGUtils._
 
 import sys.process._
 
@@ -277,9 +278,17 @@ abstract class ImpCPSLLSCDriver[A: Manifest, B: Manifest](
 
 trait LLSC {
   val insName: String
+  var libdef: Option[ModDef] = None
   def extraFlags: String = "" // -D USE_LKFREE_Q
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit]
-  def run(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] = {
+  def run(m: Module, name: String, fname: String, config: Config, libPath: Option[String] = None): GenericLLSCDriver[Int, Unit] = {
+    libdef = libPath match {
+      case Some(p) =>
+        import java.io._
+        val ois = new ObjectInputStream(new FileInputStream(s"$p/Manifest"))
+        Some(ois.readObject().asInstanceOf[ModDef])
+      case None => None
+    }
     Counter.block.reset
     Counter.variable.reset
     val (code, t) = time {
@@ -360,9 +369,6 @@ class ImpCPSLLSC extends LLSC with ImpureState {
     }
 }
 
-case class FuncDef(name: String)
-case class VarDef(name: String, off: Int, size: Int)
-case class ModDef(funlist: StaticList[FuncDef], varlist: StaticList[VarDef])
 class ImpCPSLLSC_lib extends LLSC with ImpureState {
   val insName = "ImpCPSLLSC_lib"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
@@ -477,6 +483,17 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         oos.close
 
         ()
+      }
+    }
+}
+
+class ImpCPSLLSC_app extends LLSC with ImpureState {
+  val insName = "ImpCPSLLSC_app"
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
+    new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
+      implicit val me: this.type = this
+      def snippet(u: Rep[Int]) = {
+        exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
       }
     }
 }

@@ -235,3 +235,9 @@ case class CFG(funMap: Map[String, FunctionDef]) {
       }
     }
 }
+
+object CGUtils {
+  case class FuncDef(name: String)
+  case class VarDef(name: String, off: Int, size: Int)
+  case class ModDef(funlist: List[FuncDef], varlist: List[VarDef])
+}
