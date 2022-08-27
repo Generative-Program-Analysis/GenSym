@@ -3,7 +3,6 @@
 
 #include "ktest.hpp"
 
-// TODO: generic caching mechanisms should be shared no matter the solver
 class Checker {
 public:
   virtual ~Checker() {}
@@ -61,13 +60,16 @@ public:
   // pair the solver expression with its varmap
   // XXX: what's the relation of that varmap and expr?
   using ExprDetail = std::pair<Expr, VarMap>;
-  // assignment of symbolic variables to concrete data
+  // assignment of symbolic variables/expr to concrete data
   using Model = std::unordered_map<simple_ptr<SymV>, IntData>;
   // the result of check, accompanying with a model if sat
   using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
 
-  std::unordered_map<PtrVal, ExprDetail> objcache;
-  std::map<std::set<PtrVal>, CheckResult> cexcache;
+  using ObjCache = std::unordered_map<PtrVal, ExprDetail>;
+  using CexCache = std::map<std::set<PtrVal>, CheckResult>;
+
+  ObjCache objcache;
+  CexCache cexcache;
 
   using objiter_t = typename decltype(objcache)::iterator;
 
@@ -111,7 +113,6 @@ public:
         if (model) varmap.insert(vm.begin(), vm.end());
       }
     } else {
-      // XXX: why this case we should traverse over condset?
       for (auto& v: condset) {
         auto& [e, vm] = objcache.at(v);
         self()->add_constraint_internal(e);
@@ -124,19 +125,67 @@ public:
     return result;
   }
 
-  // On top of check_model0, additional it caches counterexamples and models
+  inline bool cache_hit(CexCache::iterator& it, std::shared_ptr<Model>& model) {
+    if (it != cexcache.end()) {
+      // model cached and required
+      if (it->second.second && model) {
+        model = it->second.second;
+        std::cout << "hit1\n";
+        return true;
+      }
+      // model cached and not required
+      if (it->second.second && !model) {
+        std::cout << "hit2\n";
+        return true;
+      }
+      // model not cached and not required
+      if (!it->second.second && !model) {
+        std::cout << "hit3\n";
+        return true;
+      }
+      // model not cached but required, usually it is gnereating test case
+      if (!it->second.second && model) {
+        //cexcache.erase(it); // XXX: is it necessary?
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // On top of check_model0, additionally it caches counterexamples and models
   inline solver_result check_cexcached_model0(const std::vector<objiter_t>& condvec, std::set<PtrVal>& condset, std::shared_ptr<Model>& model) {
     if (use_cexcache) {
       auto it = cexcache.find(condset);
+      /*
+      if (cache_hit(it, model)) {
+        cached_query_num += 1;
+        return it->second.first;
+      }
+      */
       if (it != cexcache.end()) {
-        // cache hit and there is indeed a model and caller requires a model
+        // model cached and required
         if (it->second.second && model) {
-          cached_query_num += 1;
           model = it->second.second;
+          std::cout << "hit1\n";
           return it->second.first;
         }
-        // otherwise cache hit but possibly no model, then refresh it
-        cexcache.erase(it);
+        // model cached and not required
+        if (it->second.second && !model) {
+          std::cout << "hit2\n";
+          return it->second.first;
+        }
+        // model not cached and not required
+        if (!it->second.second && !model) {
+          std::cout << "hit3\n";
+          return it->second.first;
+        }
+        // model not cached but required, usually it is gnereating test case
+        if (!it->second.second && model) {
+          //cexcache.erase(it); // XXX: is it necessary?
+          //return false;
+        }
+      } else {
+        std::cout << "miss\n";
       }
     }
     solver_result result = check_model0(condvec, condset, model);
@@ -148,10 +197,13 @@ public:
   CheckResult check_cexcached_model(const std::vector<objiter_t>& condvec, std::set<PtrVal>& condset,
                                     simple_ptr<SymV> query_expr, bool require_model) {
     ASSERT(!require_model || !query_expr, "Choose either query_expr or require_model, but not both");
-    std::shared_ptr<Model> model = (require_model || query_expr) ? std::make_shared<Model>() : nullptr;
+    std::shared_ptr<Model> model = require_model ? std::make_shared<Model>() : nullptr;
     solver_result result = check_cexcached_model0(condvec, condset, model);
     if (result == sat && query_expr) {
+      ASSERT(model == nullptr, "Should not construct model when query_expr is set");
+      // query_expr can be a compound expression
       auto& e = objcache.at(query_expr).first;
+      model = std::make_shared<Model>();
       model->emplace(query_expr, self()->get_model_value_internal(e));
     }
     return std::make_pair(result, model);
@@ -159,12 +211,6 @@ public:
 
   template <template <typename> typename T>
   void get_indep_conds(const T<PtrVal>& conds, std::vector<objiter_t>& condvec, std::set<PtrVal>& condset, simple_ptr<SymV> query_expr) {
-    /*
-    if (!use_cons_indep) {
-      condset.insert(conds.begin(), conds.end());
-      return;
-    }
-    */
     ASSERT(use_cons_indep, "why not?");
     if (conds.size() <= (query_expr!=nullptr ? 0 : 1)) {
       // Not necessary to use independence solver since conds is too small

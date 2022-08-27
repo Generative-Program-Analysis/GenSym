@@ -50,6 +50,7 @@ public:
     int bw = sym_e->bw;
     std::vector<expr> expr_rands;
     for (auto& e : sym_e->rands) {
+      // XXX: here is a mutually recursive call
       auto& [e2, vm] = construct_expr(e);
       expr_rands.push_back(e2);
       vars.insert(vm.begin(), vm.end());
