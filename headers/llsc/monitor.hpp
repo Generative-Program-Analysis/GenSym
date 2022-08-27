@@ -142,6 +142,9 @@ struct Monitor {
         print_block_cov_detail();
         print_branch_cov_detail();
       }
+
+      std::cout << "Full model time: " << (full_model_time / 1.0e6) << "s; "
+                << "Cons indep time: " << (cons_indep_time / 1.0e6) << "s\n";
     }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();
