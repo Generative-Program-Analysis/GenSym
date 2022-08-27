@@ -54,29 +54,31 @@ abstract class TestLLSC extends FunSuite {
   }
 
   def testLLSC(llsc: LLSC, tst: TestPrg): Unit = {
-    val TestPrg(m, name, f, config, cliArg, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     test(name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
       val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
-      val (output, ret) = code.runWithStatus(cliArg)
-      System.err.println(output)
-      val resStat = parseOutput(llsc.insName, name, output)
-      System.err.println(resStat)
-      if (exp.contains(status)) {
-        assert(ret == exp(status), "Unexpected returned status")
-      }
-      if (exp.contains(nPath)) {
-        assert(resStat.pathNum == exp(nPath), "Unexpected path number")
-      }
-      if (exp.contains(minPath)) {
-        assert(resStat.pathNum >= exp(minPath).asInstanceOf[Int], "Unexpected number of least paths")
-      }
-      if (exp.contains(nTest)) {
-        assert(resStat.testQueryNum == exp(nTest), "Unexpected number of test cases")
-      }
-      if (exp.contains(minTest)) {
-        assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
+      if (runCode) {
+        val (output, ret) = code.runWithStatus(cliArg)
+        System.err.println(output)
+        val resStat = parseOutput(llsc.insName, name, output)
+        System.err.println(resStat)
+        if (exp.contains(status)) {
+          assert(ret == exp(status), "Unexpected returned status")
+        }
+        if (exp.contains(nPath)) {
+          assert(resStat.pathNum == exp(nPath), "Unexpected path number")
+        }
+        if (exp.contains(minPath)) {
+          assert(resStat.pathNum >= exp(minPath).asInstanceOf[Int], "Unexpected number of least paths")
+        }
+        if (exp.contains(nTest)) {
+          assert(resStat.testQueryNum == exp(nTest), "Unexpected number of test cases")
+        }
+        if (exp.contains(minTest)) {
+          assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
+        }
       }
     }
   }
@@ -125,6 +127,18 @@ class TestImpCPSLLSC extends TestLLSC {
   // Note: compile-time switch merge is only implement for ImpCPS so far
   testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
+
+/*
+class Coreutils extends TestLLSC {
+  import sai.lang.llvm.parser.Parser._
+  Config.enableOpt
+  val llsc_opt = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
+  val cases =  TestCases.coreutils.map { t =>
+    t.copy(runOpt = llsc_opt ++ t.runOpt, runCode = false)
+  }
+  testLLSC(new ImpCPSLLSC, cases)
+}
+*/
 
 class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._

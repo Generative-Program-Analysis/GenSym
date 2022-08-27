@@ -69,6 +69,10 @@ inline PtrVal bv_zext(const PtrVal& v, size_t bw);
 // XXX: when should we override toMSB? should document this behavior
 inline PtrVal make_IntV(IntData i, size_t bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
+inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e);
+inline PtrVal get_ite_cond(const simple_ptr<SymV>& ite_v);
+inline PtrVal get_ite_tv(const simple_ptr<SymV>& ite_v);
+inline PtrVal get_ite_ev(const simple_ptr<SymV>& ite_v);
 
 /* Value representations */
 
@@ -164,9 +168,9 @@ inline PtrVal hashconsing(const PtrVal &ret) {
 }
 
 // Uninitialized value
-inline PtrVal make_UinitV() {
-  static PtrVal UinitV = make_IntV(0, 8);
-  return UinitV;
+inline PtrVal make_UnInitV() {
+  static PtrVal UnInitV = make_IntV(0, 8);
+  return UnInitV;
 }
 
 struct ShadowV : public Value {
@@ -732,8 +736,17 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         ABORT("invalid operator");
     }
   } else {
-    ASSERT((i1 || std::dynamic_pointer_cast<SymV>(v1)) && (i2 || std::dynamic_pointer_cast<SymV>(v2)), "Invalid operand");
+    auto sym1 = std::dynamic_pointer_cast<SymV>(v1);
+    auto sym2 = std::dynamic_pointer_cast<SymV>(v2);
+    ASSERT((i1 || sym1) && (i2 || sym2), "Invalid operand");
     auto bw = bw1;
+    if ((sym1 && iOP::op_ite == sym1->rator) && (sym2 && iOP::op_ite == sym2->rator) && (get_ite_cond(sym1) == get_ite_cond(sym2))) {
+      return ite(get_ite_cond(sym1), int_op_2(op, get_ite_tv(sym1), get_ite_tv(sym2)), int_op_2(op, get_ite_ev(sym1), get_ite_ev(sym2)));
+    } else if (sym1 && iOP::op_ite == sym1->rator) {
+      return ite(get_ite_cond(sym1), int_op_2(op, get_ite_tv(sym1), v2), int_op_2(op, get_ite_ev(sym1), v2));
+    } else if (sym2 && iOP::op_ite == sym2->rator) {
+      return ite(get_ite_cond(sym2), int_op_2(op, v1, get_ite_tv(sym2)), int_op_2(op, v1, get_ite_ev(sym2)));
+    }
     switch (op) {
       case iOP::op_eq:
       case iOP::op_neq:
@@ -821,6 +834,18 @@ inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e) {
   }
   ASSERT(std::dynamic_pointer_cast<SymV>(cond), "Non-symbolic condition");
   return make_SymV(iOP::op_ite, { cond, v_t, v_e }, v_t->get_bw());
+}
+
+inline PtrVal get_ite_cond(const simple_ptr<SymV>& ite_v) {
+  return ite_v->rands[0];
+}
+
+inline PtrVal get_ite_tv(const simple_ptr<SymV>& ite_v) {
+  return ite_v->rands[1];
+}
+
+inline PtrVal get_ite_ev(const simple_ptr<SymV>& ite_v) {
+  return ite_v->rands[2];
 }
 
 inline PtrVal bv_sext(const PtrVal& v, size_t bw) {
@@ -930,6 +955,10 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
     ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
     auto new_off = int_op_2(iOP::op_add, off, rhs);
     return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
+  }
+  if (auto symvite = std::dynamic_pointer_cast<SymV>(lhs)) {
+    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
+    return ite(get_ite_cond(symvite), get_ite_tv(symvite) + rhs, get_ite_ev(symvite) + rhs);
   }
   if (auto intloc = std::dynamic_pointer_cast<IntV>(lhs)) {
     INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());

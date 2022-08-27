@@ -104,12 +104,39 @@ inline std::monostate make_symbolic_whole(SS state, List<PtrVal> args, Cont k) {
 
 template<typename T>
 inline T __malloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  IntData bytes = proj_IntV(args.at(0));
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
-  PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
-  if (exlib_failure_branch)
-    return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
-  return k(state.heap_append(emptyMem), memLoc);
+  auto size = args.at(0);
+  if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
+    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
+    auto cond = get_ite_cond(symvite);
+    auto v_t = get_ite_tv(symvite);
+    auto v_f = get_ite_ev(symvite);
+    auto pc = state.get_PC();
+    auto tbr_sat = check_pc(pc.add(cond));
+    auto fbr_sat = check_pc(pc.add(SymV::neg(cond)));
+    auto t_args = List<PtrVal>{v_t};
+    auto f_args = List<PtrVal>{v_f};
+    if (tbr_sat && fbr_sat) {
+      cov().inc_path(1);
+      SS tbr_ss = state.add_PC(cond);
+      SS fbr_ss = state.fork().add_PC(SymV::neg(cond));
+      return __malloc(tbr_ss, t_args, k) + __malloc(fbr_ss, f_args, k);
+    } else if (tbr_sat) {
+      SS tbr_ss = state.add_PC(cond);
+      return __malloc(tbr_ss, t_args, k);
+    } else if (fbr_sat) {
+      SS fbr_ss = state.add_PC(SymV::neg(cond));
+      return __malloc(fbr_ss, f_args, k);
+    } else {
+      ABORT("no feasible path");
+    }
+  } else {
+    IntData bytes = proj_IntV(size);
+    auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
+    PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
+    if (exlib_failure_branch)
+      return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
+    return k(state.heap_append(emptyMem), memLoc);
+  }
 }
 
 inline List<SSVal> malloc(SS state, List<PtrVal> args) {
@@ -127,8 +154,8 @@ template<typename T>
 inline T __memalign(SS& state, List<PtrVal>& args, __Cont<T> k) {
   size_t alignment = proj_IntV(args.at(0));
   size_t bytes = proj_IntV(args.at(1));
-  auto fillmem = List<PtrVal>((((state.heap_size() + (alignment - 1)) / alignment) * alignment) - state.heap_size(), make_UinitV());
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  auto fillmem = List<PtrVal>((((state.heap_size() + (alignment - 1)) / alignment) * alignment) - state.heap_size(), make_UnInitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
   auto fill_state = state.heap_append(fillmem);
   ASSERT(0 == fill_state.heap_size() % alignment, "non-aligned address");
   PtrVal memLoc = make_LocV(fill_state.heap_size(), LocV::kHeap, bytes);
@@ -150,7 +177,7 @@ inline std::monostate memalign(SS state, List<PtrVal> args, Cont k) {
 template<typename T>
 inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes = proj_IntV(args.at(1));
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   SS res = state.heap_append(emptyMem);
   if (!is_LocV_null(args.at(0))) {
@@ -179,7 +206,7 @@ inline T __reallocarray(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData size = proj_IntV(args.at(2));
   ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
   IntData bytes = nmemb * size;
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   SS res = state.heap_append(emptyMem);
   if (!is_LocV_null(args.at(0))) {
@@ -230,7 +257,26 @@ template<typename T>
 inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
-  IntData bytes_int = proj_IntV(args.at(2));
+  PtrVal size = args.at(2);
+  IntData bytes_int;
+  // Todo (Ruiqi): should we fork here
+  if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
+    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
+    auto cond = get_ite_cond(symvite);
+    auto v_t = get_ite_tv(symvite);
+    auto v_f = get_ite_ev(symvite);
+    auto pc = state.get_PC();
+    auto tbr_sat = check_pc(pc.add(cond));
+    auto fbr_sat = check_pc(pc.add(SymV::neg(cond)));
+    ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
+    bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);
+    if (auto srcite = std::dynamic_pointer_cast<SymV>(src)) {
+      ASSERT(iOP::op_ite == srcite->rator && get_ite_cond(srcite) == cond, "Inconsistent ite src and size");
+      src = tbr_sat ? get_ite_tv(srcite) : get_ite_ev(srcite);
+    }
+  }
+  else
+    bytes_int = proj_IntV(size);
   ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
   ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   SS res = state;
@@ -477,9 +523,12 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_fsync:
       ABORT("Unsupported Systemcall");
       break;
-    case __NR_ftruncate:
-      ABORT("Unsupported Systemcall");
+    case __NR_ftruncate: {
+      int fd = get_int_arg(state, args.at(1));
+      off_t length = get_int_arg(state, args.at(2));
+      retval = syscall(__NR_ftruncate, fd, length);
       break;
+    }
     case __NR_getcwd: {
       size_t count = get_int_arg(state, args.at(2));
       ASSERT(count > 0, "empty buffer for getcwd");
