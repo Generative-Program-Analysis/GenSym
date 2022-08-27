@@ -42,7 +42,7 @@ inline std::atomic<unsigned int> generated_test_num = 0;
 // Number of queries performed for checking branch satisfiability
 inline unsigned int br_query_num = 0;
 // Number of query cache hits
-inline unsigned int cached_query_num = 0;
+inline std::atomic<unsigned int> cached_query_num = 0;
 
 /* Global options */
 
