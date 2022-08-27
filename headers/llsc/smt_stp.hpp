@@ -168,7 +168,7 @@ public:
     return mapping[retcode];
   }
 
-  IntData get_value_internal(ExprHandle val) {
+  IntData get_model_value_internal(ExprHandle val) {
     ExprHandle const_val = vc_getCounterExample(vc, val.get());
     auto ret = getBVUnsignedLongLong(const_val.get());
     return ret;

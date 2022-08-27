@@ -54,134 +54,164 @@ class CachedChecker : public Checker {
   }
 
 public:
+  // XXX: SymV could be a compound symbolic expression as well
+  using SymVar = simple_ptr<SymV>;
+  // a map from symbolic variables to their solver expressions
   using VarMap = std::map<simple_ptr<SymV>, Expr>;
-  using ExprDetail = std::tuple<Expr, VarMap>;
-  std::unordered_map<PtrVal, ExprDetail> objcache;
-  using objiter_t = typename decltype(objcache)::iterator;
-
+  // pair the solver expression with its varmap
+  // XXX: what's the relation of that varmap and expr?
+  using ExprDetail = std::pair<Expr, VarMap>;
+  // assignment of symbolic variables to concrete data
   using Model = std::unordered_map<simple_ptr<SymV>, IntData>;
-  using CheckResult = std::tuple<solver_result, std::shared_ptr<Model>>;
+  // the result of check, accompanying with a model if sat
+  using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
+
+  std::unordered_map<PtrVal, ExprDetail> objcache;
   std::map<std::set<PtrVal>, CheckResult> cexcache;
+
+  using objiter_t = typename decltype(objcache)::iterator;
 
   void clear_cache() {
     objcache.clear();
     cexcache.clear();
   }
 
-  const ExprDetail& construct_expr(PtrVal e) {
-    if (auto it = objcache.find(e); it != objcache.end())
-      return it->second;
+  // Construct the solver expression for a Value
+  inline const ExprDetail constuct_expr0(PtrVal& e) {
     VarMap tmp;
     auto expr = self()->construct_expr_internal(e, tmp);
-    auto [it, ins] = objcache.emplace(e, std::make_tuple(expr, std::move(tmp)));
+    return std::make_pair(expr, std::move(tmp));
+  }
+
+  // Construct the solver expression with object cache for a Value
+  const ExprDetail& construct_expr(PtrVal e) {
+    auto fd = objcache.find(e);
+    if (fd != objcache.end()) return fd->second;
+    auto [it, ins] = objcache.emplace(e, std::move(constuct_expr0(e)));
     return it->second;
   }
 
-  CheckResult check_indep_model(
-        const std::vector<objiter_t> & condvec,
-        std::set<PtrVal>& condset,
-        simple_ptr<SymV> query_expr=nullptr,
-        bool require_model=false) {
-
-    // solving with counterexample caching
-    if (use_cexcache && (!query_expr || query_expr->name.size())) {
-      if (auto it = cexcache.find(condset); it != cexcache.end()) {
-        return it->second;
-      }
+  void construct_model(VarMap& varmap, std::shared_ptr<Model> model) {
+    for (auto& [v, e]: varmap) {
+      model->emplace(v, self()->get_model_value_internal(e));
     }
+  }
 
-    // assert and check
-    push();
+  // The most primitive function to check satisfiability/model.
+  // If `model` is passed, it is obligated to construct a model.
+  // Return value indicates sat/unsat.
+  inline solver_result check_model0(const std::vector<objiter_t>& condvec, std::set<PtrVal>& condset, std::shared_ptr<Model> model) {
     VarMap varmap;
+    push();
+    // XXX: what's the diff of condvec and condset???
     if (condvec.size()) {  // use local cache if possible
       for (auto& v: condvec) {
         auto& [e, vm] = v->second;
         self()->add_constraint_internal(e);
-        varmap.insert(vm.begin(), vm.end());
+        if (model) varmap.insert(vm.begin(), vm.end());
       }
     } else {
+      // XXX: why this case we should traverse over condset?
       for (auto& v: condset) {
         auto& [e, vm] = objcache.at(v);
         self()->add_constraint_internal(e);
-        varmap.insert(vm.begin(), vm.end());
+        if (model) varmap.insert(vm.begin(), vm.end());
       }
     }
     solver_result result = check_model();
-
-    // get model
-    std::shared_ptr<Model> model;
-    if (result == sat && (use_cexcache || require_model)) {
-      model = std::make_shared<Model>();
-      for (auto& [v, e]: varmap) {
-        model->emplace(v, self()->get_value_internal(e));
-      }
-    }
-    if (use_cexcache) {
-      cexcache.emplace(std::move(condset), std::make_tuple(result, model));
-    }
-    if (result == sat && query_expr) {  // !require_model
-      model = std::make_shared<Model>();
-      auto& e = std::get<0>(objcache.at(query_expr));
-      model->emplace(query_expr, self()->get_value_internal(e));
-    }
     pop();
-    return std::make_tuple(result, model);
+    if (result == sat && model) construct_model(varmap, model);
+    return result;
   }
 
-  template <template <typename> typename T>
-  void get_indep_conds(
-        const T<PtrVal>& conds,
-        std::vector<objiter_t>& condvec,
-        std::set<PtrVal>& condset,
-        simple_ptr<SymV> query_expr) {
-    if (use_cons_indep && conds.size() > (query_expr ? 0 : 1)) {
-      std::vector<objiter_t> queue;
-      objiter_t cur;
-      int idx;
-
-      for (auto& v: conds) {
-        condvec.push_back(objcache.find(v));
-      }
-      if (!query_expr) {
-        cur = condvec.back(); condvec.pop_back();
-        idx = 1;
-        queue.push_back(cur);
-        condset.insert(cur->first);
-      } else {
-        cur = objcache.find(query_expr);
-        idx = 0;
-      }
-
-      do {
-        auto& cset = std::get<1>(cur->second);
-        for (auto& next: condvec) if (next != objcache.end()) {
-          auto& nset = std::get<1>(next->second);
-          auto cit = cset.begin();
-          auto nit = nset.begin();
-          if (cit != cset.end() && nit != nset.end()) {
-            do if (nit->first == cit->first) {
-              condset.insert(next->first);
-              queue.push_back(next);
-              next = objcache.end();
-              break;
-            } while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
-          }
+  // On top of check_model0, additional it caches counterexamples and models
+  inline solver_result check_cexcached_model0(const std::vector<objiter_t>& condvec, std::set<PtrVal>& condset, std::shared_ptr<Model>& model) {
+    if (use_cexcache) {
+      auto it = cexcache.find(condset);
+      if (it != cexcache.end()) {
+        // cache hit and there is indeed a model and caller requires a model
+        if (it->second.second && model) {
+          model = it->second.second;
+          return it->second.first;
         }
-      } while (idx < queue.size() && (cur = queue[idx++], true));
-      condvec = std::move(queue);
-    } else {
-      condset.insert(conds.begin(), conds.end());
+        // otherwise cache hit but possibly no model, then refresh it
+        cexcache.erase(it);
+      }
     }
+    solver_result result = check_model0(condvec, condset, model);
+    if (use_cexcache) cexcache.emplace(std::move(condset), std::make_pair(result, model));
+    return result;
+  }
+
+  // On top of check_cexcached_model0, we can query a point of symbolic variable
+  CheckResult check_cexcached_model(const std::vector<objiter_t>& condvec, std::set<PtrVal>& condset,
+                                    simple_ptr<SymV> query_expr, bool require_model) {
+    ASSERT(!require_model || !query_expr, "Choose either query_expr or require_model, but not both");
+    std::shared_ptr<Model> model = (require_model || query_expr) ? std::make_shared<Model>() : nullptr;
+    solver_result result = check_cexcached_model0(condvec, condset, model);
+    if (result == sat && query_expr) {
+      auto& e = objcache.at(query_expr).first;
+      model->emplace(query_expr, self()->get_model_value_internal(e));
+    }
+    return std::make_pair(result, model);
   }
 
   template <template <typename> typename T>
-  CheckResult check_model(
-        const T<PtrVal>& conds,
-        simple_ptr<SymV> query_expr = nullptr,
-        bool require_model = false) {
+  void get_indep_conds(const T<PtrVal>& conds, std::vector<objiter_t>& condvec, std::set<PtrVal>& condset, simple_ptr<SymV> query_expr) {
+    /*
+    if (!use_cons_indep) {
+      condset.insert(conds.begin(), conds.end());
+      return;
+    }
+    */
+    ASSERT(use_cons_indep, "why not?");
+    if (conds.size() <= (query_expr!=nullptr ? 0 : 1)) {
+      // Not necessary to use independence solver since conds is too small
+      condset.insert(conds.begin(), conds.end());
+      return;
+    }
+    std::vector<objiter_t> queue;
+    objiter_t cur;
+    int idx;
+
+    for (auto& v: conds) condvec.push_back(objcache.find(v));
+
+    if (query_expr == nullptr) {
+      cur = condvec.back();
+      condvec.pop_back();
+      idx = 1;
+      queue.push_back(cur);
+      condset.insert(cur->first);
+    } else {
+      cur = objcache.find(query_expr);
+      idx = 0;
+    }
+
+    do {
+      auto& cset = cur->second.second;
+      for (auto& next: condvec) if (next != objcache.end()) {
+        auto& nset = next->second.second;
+        auto cit = cset.begin();
+        auto nit = nset.begin();
+        if (cit != cset.end() && nit != nset.end()) {
+          do if (nit->first == cit->first) {
+            condset.insert(next->first);
+            queue.push_back(next);
+            next = objcache.end();
+            break;
+          } while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
+        }
+      }
+    } while (idx < queue.size() && (cur = queue[idx++], true));
+
+    condvec = std::move(queue);
+  }
+
+  template <template <typename> typename T>
+  CheckResult check_model(const T<PtrVal>& conds, simple_ptr<SymV> query_expr = nullptr, bool require_model = false) {
     ASSERT(!query_expr || !require_model, "Conflicting request");
     // translation
-    if (!use_objcache) objcache.clear();
+    if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
     for (auto &v: conds) construct_expr(v);
     if (query_expr) construct_expr(query_expr);
 
@@ -189,31 +219,36 @@ public:
     std::vector<objiter_t> condvec;
     std::set<PtrVal> condset;
 
-    // constraint independence resolving
-    if (!require_model || !use_cons_indep) {
-      get_indep_conds(conds, condvec, condset, query_expr);
-      return check_indep_model(condvec, condset, query_expr, require_model);
-    } else {
-      std::vector<PtrVal> curr_conds(conds.begin(), conds.end());
-      solver_result check_result;
-      std::shared_ptr<Model> model = std::make_shared<Model>();
-      while (curr_conds.size() > 0) {
-        get_indep_conds(curr_conds, condvec, condset, query_expr);
-        int before_size = curr_conds.size();
-        for (auto& v: condset) {
-          curr_conds.erase(std::remove(curr_conds.begin(), curr_conds.end(), v), curr_conds.end());
-        }
-        ASSERT(curr_conds.size() < before_size, "Invalid elimination");
-        auto [sub_result, sub_model] = check_indep_model(condvec, condset, query_expr, require_model);
-        if (model->size() == 0)
-          check_result = sub_result;
-        // Note (Ruiqi): make sure that sub_model's key won't overlap, because std::unordered_map::insert will not update for same key.
-        model->insert(sub_model->begin(), sub_model->end());
-        condvec.clear();
-        condset.clear();
-      }
-      return std::make_tuple(check_result, model);
+    if (!use_cons_indep) {
+      condset.insert(conds.begin(), conds.end());
+      return check_cexcached_model(condvec, condset, query_expr, require_model);
     }
+    if (!require_model) {
+      get_indep_conds(conds, condvec, condset, query_expr);
+      return check_cexcached_model(condvec, condset, query_expr, require_model);
+    }
+
+    // constraint independence resolving
+    solver_result check_result;
+    std::vector<PtrVal> curr_conds(conds.begin(), conds.end());
+    std::shared_ptr<Model> model = std::make_shared<Model>();
+
+    while (curr_conds.size() > 0) {
+      get_indep_conds(curr_conds, condvec, condset, query_expr);
+      int before_size = curr_conds.size();
+      for (auto& v: condset) {
+        curr_conds.erase(std::remove(curr_conds.begin(), curr_conds.end(), v), curr_conds.end());
+      }
+      ASSERT(curr_conds.size() < before_size, "Invalid elimination");
+      auto [sub_result, sub_model] = check_cexcached_model(condvec, condset, query_expr, require_model);
+      if (model->size() == 0)
+        check_result = sub_result;
+      // Note (Ruiqi): make sure that sub_model's key won't overlap, because std::unordered_map::insert will not update for same key.
+      model->insert(sub_model->begin(), sub_model->end());
+      condvec.clear();
+      condset.clear();
+    }
+    return std::make_pair(check_result, model);
   }
 
   // interfaces
@@ -227,6 +262,7 @@ public:
 
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) override {
     auto v2 = std::dynamic_pointer_cast<SymV>(v);
+    //ASSERT(v2->is_var(), "concretizing a compound symbolic expression; try add equational constraint");
     auto [r, m] = check_model(pc.get_path_conds(), v2);
     return std::make_pair(r == sat, r == sat ? m->at(v2) : 0);
   }
@@ -241,7 +277,7 @@ public:
     if (out_fd == -1) {
       ABORT("Cannot create the test case file, abort.\n");
     }
-    for (auto [k, v]: *model) {
+    for (auto& [k, v]: *model) {
       output << k->name << "=" << v << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
@@ -330,8 +366,8 @@ public:
     } else {
       res = check_model(conds, nullptr, true);
     }
-    result = std::get<0>(res);
-    model = std::get<1>(res);
+    result = res.first;
+    model = res.second;
     if (result == sat) {
       generated_test_num++;
       if (output_ktest) gen_ktest_format(model, generated_test_num, state.get_sym_objs(), g_conc_argc, g_conc_argv);

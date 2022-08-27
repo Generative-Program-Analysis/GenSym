@@ -450,6 +450,7 @@ struct SymV : Value {
     hash_combine(hash(), bw);
     for (auto &r: rands) hash_combine(hash(), std::hash<PtrVal>{}(r));
   }
+  bool is_var() { return !name.empty(); }
   std::string toString() const override {
     std::ostringstream ss;
     ss << "SymV(";
