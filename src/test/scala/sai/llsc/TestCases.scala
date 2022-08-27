@@ -23,7 +23,9 @@ import Config._
  * runOpt: the command line argument to run the compiled executable
  * exp: expected return status of the compiled executable, use the Map combinator in object TestPrg
  */
-case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Seq[String], exp: Map[String, Any])
+case class TestPrg(m: Module, name: String, f: String, config: Config, runOpt: Seq[String], exp: Map[String, Any]) {
+  override def toString = s"${m.mname}, $name, $f, $config, $runOpt, $exp"
+}
 
 object TestPrg {
   val nPath = "nPath"     // expected number of explored paths
@@ -133,7 +135,7 @@ object TestCases {
     TestPrg(closeTest, "closeTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(read1Test, "readTestRetVal", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),
     TestPrg(read2Test, "readTestPaths", "@main", noArg, "--sym-file-size 3 --add-sym-file A", nPath(3)++status(0)),
-    TestPrg(write1Test, "writeTestPaths", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(2)++status(0)),
+    TestPrg(write1Test, "writeTestPaths", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(3)++status(0)),
     TestPrg(stat1Test, "statTestAssign", "@main", noArg, "", nPath(1)++status(0)),
     TestPrg(stat2Test, "statTestRead", "@main", noArg, "--add-sym-file A", nPath(3)++status(0)),
     TestPrg(stat2Test, "statTestFail", "@main", noArg, "", nPath(1)++status(1)),

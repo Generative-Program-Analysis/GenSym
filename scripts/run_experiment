@@ -13,24 +13,27 @@ declare -A inputs=(
 # [posix]="/dir/to/posix/ll/files"                    # TODO: point to directory containing .ll files
 # [uclibc]="/dir/to/uclibc/ll/files"                  # TODO: point to directory containing .ll files
 )
+GCOV_DIR=""                                           # TODO: point to gcov executables
 ENV_SCRIPT=""                                         # TODO (OPTIONAL): set up PATH, CPLUS_INCLUDE_PATH, LD_LIBRARY_PATH, LIBRARY_PATH, etc.
 
 ####################
 #  Dynamic Config  #
 ####################
 
-# --no-scala for BM_SCRIPT
-BM_NO_SCALA=true
-# --no-cpp for BM_SCRIPT
-BM_NO_CPP=true
-# --no-runtime for BM_SCRIPT
-BM_NO_RUNTIME=false
 # whether to generate external lib at the beginning of the experiment
 GEN_EXTERNAL=true
+# --no-scala for BM_SCRIPT
+BM_SCALA=true
+# --no-cpp for BM_SCRIPT
+BM_CPP=true
+# --no-runtime for BM_SCRIPT
+BM_RUNTIME=true
+# whether to use gcov to measure concrete coverage, require --output-ktest in RUNTIME_OPTION
+GCOV=true
 # extra arguments passed to BM_SCRIPT
-BM_OPTIONS="--njobs 192 --timeout 1000"
+BM_OPTIONS="--njobs 192 --timeout 300"
 # global options for the final executable, appended to all benchmarks
-RUNTIME_OPTION="--solver=z3 --thread=8 --output-ktest --only-output-states-covering-new"
+RUNTIME_OPTION="--solver=z3 --thread=1 --cons-indep --output-ktest --output-tests-cov-new"
 # use the hash of the specified branch. Only affect the result of runtime, but not scala/cpp compilation.
 USE_BRANCH=""
 
@@ -73,13 +76,13 @@ fi
 TS=`date +%y%m%d%H%M%S` # get a time stamp
 cd $PROJ_DIR
 
-if [ "${BM_NO_SCALA}" = "true" ]; then
+if [ "${BM_SCALA}" = "false" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-scala"
 fi
-if [ "${BM_NO_CPP}" = "true" ]; then
+if [ "${BM_CPP}" = "false" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-cpp"
 fi
-if [ "${BM_NO_RUNTIME}" = "true" ]; then
+if [ "${BM_RUNTIME}" = "false" ]; then
 	BM_OPTIONS="${BM_OPTIONS} --no-runtime"
 fi
 
@@ -96,7 +99,8 @@ echo [run_experiment] hash: $COMMIT_HASH
 # generate external wrappers
 if [ "${GEN_EXTERNAL}" = "true" ]; then
 	echo [run_experiment] generating external functions...
-	sbt "runMain sai.llsc.GenerateExternal"
+	# sbt "runMain sai.llsc.GenerateExternal"
+	bloop run sai -m sai.llsc.GenerateExternal
 fi
 
 # iterate through each set of input LLVM files (e.g. posix and uclibc)

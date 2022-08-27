@@ -14,7 +14,7 @@ KLEE_GEN := $(wildcard ./klee-*)
 
 LLSC_TARGET := $(SRC_FILES:%.c=%.ll)
 
-all: llsc klee
+all: llsc
 
 llsc: $(LLSC_TARGET)
 klee: $(KLEE_TARGET)
