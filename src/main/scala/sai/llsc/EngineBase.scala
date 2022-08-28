@@ -58,8 +58,9 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def info(msg: String) = unchecked("INFO(\"" + msg + "\")")
 
+  val mainRename = "llsc_main"
   def getRealFunName(funName: String): String = {
-    val newFname = if (funName != "@main") "__LLSC_USER_"+funName.tail else "llsc_main"
+    val newFname = if (funName != "@main") "__LLSC_USER_"+funName.tail else mainRename
     newFname.replaceAllLiterally(".","_")
   }
   def getRealBlockFunName(ctx: Ctx): String = blockNameMap(Counter.block.get(ctx.toString))

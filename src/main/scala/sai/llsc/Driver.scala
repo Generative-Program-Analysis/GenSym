@@ -530,6 +530,7 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
   val insName = "ImpCPSLLSC_app"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
     new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
+      override val mainRename = "app_main"
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         val libcdef = libdef.get
@@ -543,7 +544,7 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
         ss.push
         ss.updateArg
         ss.initErrorLoc
-        fv[Ref](ss, config.args, k)
+        "llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
       }
     }
 }
