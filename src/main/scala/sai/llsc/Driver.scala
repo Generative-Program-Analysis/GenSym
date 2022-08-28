@@ -289,8 +289,14 @@ trait LLSC {
         try { Some(ois.readObject().asInstanceOf[ModDef]) } finally { ois.close }
       case None => None
     }
-    Counter.block.reset
-    Counter.variable.reset
+    libdef match {
+      case Some(modref) =>
+        Counter.block.reset(modref.counters.blks)
+        Counter.variable.reset(modref.counters.vars)
+      case None =>
+        Counter.block.reset
+        Counter.variable.reset
+    }
     val (code, t) = time {
       val code = newInstance(m, name, fname, config)
       code.extraFlags = extraFlags
@@ -530,7 +536,7 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
         ExternalFun.prepare(libcdef.funlist.map{ x => x.ref -> x.name}.toMap)
         val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
         implicit val ctx = Ctx(fname, findFirstBlock(fname).label.get)
-        val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
+        val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil, libcdef.varlist):_*)
         Coverage.incPath(1)
         val ss = initState(preHeap.asRepOf[Mem])
         val fv = eval(GlobalId(fname), VoidType, ss)

@@ -29,7 +29,8 @@ case class Counter() {
   override def toString: String =
     map.toList.sortBy(_._2).map(p => s"  ${p._1} -> ${p._2}").mkString("\n")
   def count: Int = counter
-  def reset: Unit = { counter = 0; map.clear }
+  def reset: Unit = reset(0)
+  def reset(x: Int): Unit = { counter = x; map.clear }
   def fresh: Int = try { counter } finally { counter += 1 }
   def get(s: String): Int = {
     require(s.contains("_"))

@@ -76,7 +76,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
           compile(funDeclMap(id), t, argTypes.get)
           wrapFunV(FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
         }
-      case GlobalId(id) if globalDefMap.contains(id) =>
+      case GlobalId(id) if heapEnv.contains(id) =>
         heapEnv(id)()
       case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")

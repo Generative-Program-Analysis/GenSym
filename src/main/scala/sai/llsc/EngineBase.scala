@@ -4,6 +4,7 @@ import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
 import sai.llsc.IRUtils._
+import sai.llsc.CGUtils._
 
 import scala.collection.JavaConverters._
 
@@ -245,29 +246,23 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = evalHeapConstWithAlign(v, ty)._1
 
-  def precompileHeapLists(modules: StaticList[Module]): StaticList[Rep[Value]] = {
-    var heapSize = 8
-    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(heapSize)(NullPtr[Value])
+  def precompileHeapLists(modules: StaticList[Module], externals: StaticList[VarDef] = StaticList()): StaticList[Rep[Value]] = {
+    var heapSize = 8 + (if (externals.isEmpty) 0 else (externals map { v => v.off + v.size }).max)
+    var heapTmp: StaticList[Rep[Value]] = StaticList.fill(8)(NullPtr[Value])
     for (module <- modules) {
-      // module.funcDeclMap.foreach { case (k, v) =>
-      //   heapEnv += k -> unit(heapSize)
-      //   heapSize += 8;
-      // }
-      // module.funcDefMap.foreach { case (k, v) =>
-      //   if (k != "@main")  {
-      //     heapEnv += k -> unit(heapSize)
-      //     funcEnv = (heapSize, k) :: funcEnv
-      //     heapSize += 8;
-      //   }
-      // }
-      // heapTmp ++= StaticList.fill(heapSize)(NullPtr())
       module.globalDeclMap.foreach { case (k, v) =>
-        val realname = module.mname + "_" + v.id
-        val curSize = v.typ.size.toLong
-        val heapSize2 = heapSize.toLong
-        heapEnv += realname -> (() => LocV(heapSize2, LocV.kHeap, curSize))
-        heapSize += curSize
-        heapTmp ++= evalHeapConst(ZeroInitializerConst, v.typ)
+        externals.find(_.name == k) match {
+          case Some(vv) =>
+            System.out.println(s"Redirecting GlobalDecl ${vv.name}")
+            heapEnv += vv.name -> (() => LocV(vv.off.toLong, LocV.kHeap, vv.size.toLong))
+          case None =>
+            val realname = module.mname + "_" + v.id
+            val curSize = v.typ.size.toLong
+            val heapSize2 = heapSize.toLong
+            heapEnv += realname -> (() => LocV(heapSize2, LocV.kHeap, curSize))
+            heapSize += curSize
+            heapTmp ++= evalHeapConst(ZeroInitializerConst, v.typ)
+        }
       }
       module.globalDefMap.foreach { case (k, v) =>
         val curSize = v.typ.size.toLong
@@ -280,7 +275,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       }
     }
     // Additional assert here in case we parse llvm string literals in-correctly
-    if (heapTmp.size != heapSize) ???
+    // if (heapTmp.size != heapSize) ???
     heapTmp
   }
 }
