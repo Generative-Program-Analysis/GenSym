@@ -505,7 +505,12 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
             )
         }}
         import java.io._
-        val module = ModDef(funclist.toList ++ aliaslist.toList, varlist.toList)
+        val module = ModDef(
+          funclist.toList ++ aliaslist.toList,
+          varlist.toList,
+          folder,
+          appName,
+          CntInfo(Counter.variable.count, Counter.block.count))
         val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
         oos.writeObject(module)
         oos.close
