@@ -155,7 +155,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
         System.out.println(s"Use external function $f.")
         used.add(f)
       }
-      "llsc-external-wrapper".reflectMutableWith[Value](f, ret)
+      "llsc-external-wrapper".reflectWith[Value](f, ret)
     }
     def unapply(v: Rep[Value]): Option[(String, Option[LLVMType])] = Unwrap(v) match {
       case gNode("llsc-external-wrapper", bConst(f: String)::bConst(ret: Option[LLVMType])::Nil) => Some((f, ret))
@@ -435,9 +435,9 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       v match {
         case ExternalFun(f, ty) =>
           if (f == "noop" && Config.opt) k(s, defaultRetVal(ty))
-          else f.reflectWriteWith[Unit](s, args, k)(Adapter.CTRL)
+          else f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
-        case _ => "cps_apply".reflectWriteWith[Unit](v, s, args, k)(Adapter.CTRL) // indirect call
+        case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
