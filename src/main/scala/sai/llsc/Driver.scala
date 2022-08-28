@@ -529,11 +529,38 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
 class ImpCPSLLSC_app extends LLSC with ImpureState {
   val insName = "ImpCPSLLSC_app"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
-    new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
+    new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) { q =>
       override val mainRename = "app_main"
+      val libcdef = libdef.get
       implicit val me: this.type = this
+      override lazy val codegen: GenericLLSCCodeGen = new ImpureLLSCCodeGen {
+        val IR: q.type = q
+        val codegenFolder = s"$folder/$appName/"
+        setFunMap(q.funNameMap)
+        setBlockMap(q.nodeBlockMap)
+        registerHeader(libcdef.folder, s"<${libcdef.libName}/common.h>")
+        val libname = "lib(\\w+)".r
+        registerLibraryPath(s"${libcdef.folder}/${libcdef.libName}")
+        registerLibrary(libcdef.libName match {
+          case libname(n) => s"-l$n"
+          case _ => ???
+        })
+        override def emitHeaderFile: Unit = {
+          val filename = codegenFolder + "/common.h"
+          val out = new java.io.PrintStream(filename)
+          val branchStatStr = Counter.printBranchStat
+          withStream(out) {
+            emitln("/* Emitting header file */")
+            emitHeaders(stream)
+            emitln("using namespace immer;")
+            emitFunctionDecls(stream)
+            emitDatastructures(stream)
+            emitln("/* End of header file */")
+          }
+          out.close
+        }
+      }
       def snippet(u: Rep[Int]) = {
-        val libcdef = libdef.get
         ExternalFun.prepare(libcdef.funlist.map{ x => x.ref -> x.name}.toMap)
         implicit val ctx = Ctx(fname, findFirstBlock(fname).label.get)
         val initmain: Rep[Cont] = fun { case (ss, v) =>
@@ -548,7 +575,8 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
           val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
           "llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
         }
-        "initlib".reflectWith[Unit](initState, List(), initmain)
+        val ss0 = initState
+        "initlib".reflectWith[Unit](ss0, List[Value](), initmain)
       }
     }
 }

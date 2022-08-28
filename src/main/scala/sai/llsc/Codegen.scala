@@ -50,6 +50,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(_, "make_IntV", _, _) => true
     case Node(_, "null-v", _, _) => true
     case Node(_, "ss-fork", _, _) => false
+    case Node(_, "init-ss", _, _) => false
     case _ => super.mayInline(n)
   }
 
