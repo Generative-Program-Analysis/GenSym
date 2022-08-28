@@ -386,15 +386,24 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
         setBlockMap(q.nodeBlockMap)
-        override def shallow(n: Node): Unit = n match {
-          case Node(_, "llsc-external-wrapper", Backend.Const(f: String)::_, _) => es"make_CPSFunV(${f})"
-          case _ => super.shallow(n)
-        }
-        override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
-          val ng = init(g)
-          run(name, ng)
-          emitHeaderFile
-          emitFunctionFiles
+        override def emitHeaderFile: Unit = {
+          val filename = codegenFolder + "/common.h"
+          val out = new java.io.PrintStream(filename)
+          val branchStatStr = Counter.printBranchStat
+          withStream(out) {
+            emitln("/* Emitting header file */")
+            emitHeaders(stream)
+            emitln("using namespace immer;")
+            emitFunctionDecls(stream)
+            emitDatastructures(stream)
+            emitln(s"""
+            |inline Monitor& cov() {
+            |  static Monitor m;
+            |  return m;
+            |}""".stripMargin)
+            emitln("/* End of header file */")
+          }
+          out.close
         }
         registerHeader("<llsc/libcpolyfill.hpp>")
       }
@@ -409,7 +418,9 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         val g1 = transform(g0)
         val statics = lms.core.utils.time("codegen") {
           codegen.typeMap = Adapter.typeMap
-          codegen.emitAll(g1, appName)(manifest[Int], manifest[Unit])
+          codegen.capture {
+            codegen.emitAll(g1, appName)(manifest[Int], manifest[Unit])
+          }
           codegen.extractAllStatics
         }
       }
@@ -456,30 +467,18 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         out.close
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
-        ExternalFun prepare StaticMap(
-          "app_main" -> "app_main",
-          "gettimeofday" -> "llsc_dummy",
-          "sigprocmask" -> "llsc_dummy",
-          "__syscall_rt_sigaction" -> "llsc_dummy",
-          "select" -> "llsc_dummy",
-          "fstatfs" -> "llsc_dummy",
-          "fstat64" -> "llsc_dummy",
-          "stat64" -> "llsc_dummy",
-          "execve" -> "llsc_dummy",
-          "times" -> "llsc_dummy",
-          "uname" -> "llsc_dummy",
-          "adjtimex" -> "llsc_dummy",
-          "wait4" -> "llsc_dummy",
-          "nanosleep" -> "llsc_dummy",
-          "setitimer" -> "llsc_dummy",
-          "getcwd" -> "llsc_dummy",
-          "sigsuspend" -> "llsc_dummy",
-          "sigwaitinfo" -> "llsc_dummy"
-        )
+        val externMapping = StaticMap("app_main" -> "app_main") ++ StaticList(
+          "gettimeofday", "sigprocmask", "__syscall_rt_sigaction", "select",
+          "fstatfs", "fstat64", "stat64", "execve", "times", "uname", "adjtimex",
+          "wait4", "nanosleep", "setitimer", "getcwd", "sigsuspend", "sigwaitinfo",
+          "__getdents64", "__getdents", "setgroups", "waitpid"
+        ).map(_ -> "llsc_dummy").toMap
+        ExternalFun prepare externMapping
 
         import sai.lmsx._
         def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
           val heap = List(precompileHeapLists(m::Nil):_*)
+          Coverage.printMap
           ss.heapAppend(heap)
           cont(ss, NullLoc())
         }
@@ -490,6 +489,9 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         for ((f, d) <- funMap) compile(d)
         for ((n, f) <- FunFuns) "ss-generate".reflectWriteWith[Unit](f)(Adapter.CTRL)
 
+        generateManifest
+      }
+      def generateManifest: Unit = {
         val funclist = for ((f, n) <- funNameMap) yield {
           val pat = "__LLSC_USER_(\\w+)".r
           n match {
@@ -520,8 +522,6 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
         oos.writeObject(module)
         oos.close
-
-        ()
       }
     }
 }
@@ -538,13 +538,6 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
         setBlockMap(q.nodeBlockMap)
-        registerHeader(libcdef.folder, s"<${libcdef.libName}/common.h>")
-        val libname = "lib(\\w+)".r
-        registerLibraryPath(s"${libcdef.folder}/${libcdef.libName}")
-        registerLibrary(libcdef.libName match {
-          case libname(n) => s"-l$n"
-          case _ => ???
-        })
         override def emitHeaderFile: Unit = {
           val filename = codegenFolder + "/common.h"
           val out = new java.io.PrintStream(filename)
@@ -559,6 +552,13 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
           }
           out.close
         }
+        registerHeader(libcdef.folder, s"<${libcdef.libName}/common.h>")
+        registerLibraryPath(s"${libcdef.folder}/${libcdef.libName}")
+        val libnamepat = "lib(\\w+)".r
+        registerLibrary(libcdef.libName match {
+          case libnamepat(n) => s"-l$n"
+          case _ => ???
+        })
       }
       def snippet(u: Rep[Int]) = {
         ExternalFun.prepare(libcdef.funlist.map{ x => x.ref -> x.name}.toMap)
