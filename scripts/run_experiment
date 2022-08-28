@@ -110,12 +110,15 @@ for i in "${!inputs[@]}"; do
 	# set up output destination
 	OUTFILE="${LOG_DIR}/full_${TS}_${COMMIT_HASH}_${i}.log"
 	OUTFILERUNTIME="${LOG_DIR}/runtime_${TS}_${COMMIT_HASH}_${i}.log"
-	echo [run_experiment] OUTFILE:        $OUTFILE
-	echo [run_experiment] OUTFILERUNTIME: $OUTFILERUNTIME
 
 	# duplicate all output to OUTFILE
-	exec >  >(tee -ia ${OUTFILE})
+	exec 1> /dev/tty
+	exec 2> /dev/tty
+	exec 1> >(tee -ia ${OUTFILE})
 	exec 2> >(tee -ia ${OUTFILE} >&2)
+
+	echo [run_experiment] OUTFILE:        $OUTFILE
+	echo [run_experiment] OUTFILERUNTIME: $OUTFILERUNTIME
 	for f in ${candidates[@]}; do
 		if [ -v "options[${f}_${i}]" ]; then
 			echo [run_experiment] using input specific option with key: ${f}_${i}
@@ -130,6 +133,18 @@ for i in "${!inputs[@]}"; do
 		fi
 		# write only succinct output to OUTFILERUNTIME
 		BM_OPTIONS="${BM_OPTIONS} --succinct-log ${OUTFILERUNTIME}"
-		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll ${COMMIT_HASH}_${f}_${i} $option
+        HEAD=${COMMIT_HASH}_${f}_${i}
+		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll $HEAD $option
+        if [ $? -eq 0 ] && [ "$GCOV" = "true" ]; then
+          ( cd llsc_gen/$HEAD/tests
+          pwd
+          echo performing gcov measurement...
+          rm -f $GCOV_DIR/src/$f.gcda
+          klee-replay $GCOV_DIR/src/$f *.ktest
+          cd $GCOV_DIR
+          pwd
+          gcov src/$f
+        )
+        fi
 	done
 done
