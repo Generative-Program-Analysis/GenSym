@@ -81,7 +81,7 @@ object RunLLSC {
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
       case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
-      case (options, r"--lib=(\w+)$p") => options + ("lib" -> p)
+      case (options, r"--lib=([-_A-Za-z0-9\/\.]+)$p") => options + ("lib" -> p)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
       case (options, input) => options + ("input" -> input)
     }
@@ -96,6 +96,7 @@ object RunLLSC {
     val emitBlockIdMap = options.getOrElse("blockIdMap", false).asInstanceOf[Boolean]
     val emitVarIdMap = options.getOrElse("varIdMap", false).asInstanceOf[Boolean]
     val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
+    val libPath = options.get("lib").asInstanceOf[Option[String]]
 
     val llsc = engine match {
       case "ImpCPS" => new ImpCPSLLSC
@@ -113,6 +114,6 @@ object RunLLSC {
     |  filepath=$filepath, entrance=$entrance, output=$output,
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
     println(info.stripMargin)
-    llsc.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), options.get("lib").asInstanceOf[Option[String]])
+    llsc.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), libPath)
   }
 }

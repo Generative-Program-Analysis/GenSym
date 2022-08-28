@@ -31,6 +31,9 @@ scalacOptions ++= Seq(
 
 autoCompilerPlugins := true
 
+//https://www.scala-sbt.org/release/docs/Running-Project-Code.html
+fork := true
+
 val paradiseVersion = "2.1.0"
 addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.3" cross CrossVersion.full)

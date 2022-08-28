@@ -12,7 +12,7 @@ import lms.core.stub.{While => _, _}
 
 import sai.lmsx._
 import sai.utils.Utils.time
-import scala.collection.immutable.{List => StaticList}
+import scala.collection.immutable.{List => StaticList,Map => StaticMap}
 import scala.collection.mutable.HashMap
 
 import sai.llsc.imp.Mut
@@ -286,7 +286,7 @@ trait LLSC {
       case Some(p) =>
         import java.io._
         val ois = new ObjectInputStream(new FileInputStream(s"$p/Manifest"))
-        Some(ois.readObject().asInstanceOf[ModDef])
+        try { Some(ois.readObject().asInstanceOf[ModDef]) } finally { ois.close }
       case None => None
     }
     Counter.block.reset
@@ -450,8 +450,26 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         out.close
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
-        ExternalFun.prepare("__klee_posix_wrapped_main", "__user_main",
-          "gettimeofday", "sigprocmask", "__syscall_rt_sigaction")
+        ExternalFun prepare StaticMap(
+          "app_main" -> "app_main",
+          "gettimeofday" -> "llsc_dummy",
+          "sigprocmask" -> "llsc_dummy",
+          "__syscall_rt_sigaction" -> "llsc_dummy",
+          "select" -> "llsc_dummy",
+          "fstatfs" -> "llsc_dummy",
+          "fstat64" -> "llsc_dummy",
+          "stat64" -> "llsc_dummy",
+          "execve" -> "llsc_dummy",
+          "times" -> "llsc_dummy",
+          "uname" -> "llsc_dummy",
+          "adjtimex" -> "llsc_dummy",
+          "wait4" -> "llsc_dummy",
+          "nanosleep" -> "llsc_dummy",
+          "setitimer" -> "llsc_dummy",
+          "getcwd" -> "llsc_dummy",
+          "sigsuspend" -> "llsc_dummy",
+          "sigwaitinfo" -> "llsc_dummy"
+        )
 
         import sai.lmsx._
         def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
@@ -466,18 +484,28 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         for ((f, d) <- funMap) compile(d)
         for ((n, f) <- FunFuns) "ss-generate".reflectWriteWith[Unit](f)(Adapter.CTRL)
 
-        val funclist = for ((f, n) <- funNameMap) yield FuncDef(n)
-        val varlist = for ((n, g) <- heapEnv) yield {
-          g() match { case LocV(off0, _, size0, _) => (
+        val funclist = for ((f, n) <- funNameMap) yield {
+          val pat = "__LLSC_USER_(\\w+)".r
+          n match {
+            case pat(nshort) => FuncDef(nshort, s"__LLSC_USER_$nshort")
+            case _ => FuncDef(n, n)
+          }
+        }
+        val aliaslist = for ((f, s) <- symDefMap) yield { s.const match {
+          case GlobalId(n) => FuncDef(f.tail, s"__LLSC_USER_${n.tail}")
+          case _ => ???
+        }}
+        val varlist = for ((n, g) <- heapEnv) yield { g() match {
+          case LocV(off0, _, size0, _) => (
               (Unwrap(off0), Unwrap(size0)) match {
                 case (Backend.Const(off: Long), Backend.Const(size: Long)) =>
                   VarDef(n, off, size)
+                case _ => ???
               }
             )
-          }
-        }
+        }}
         import java.io._
-        val module = ModDef(funclist.toList, varlist.toList)
+        val module = ModDef(funclist.toList ++ aliaslist.toList, varlist.toList)
         val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
         oos.writeObject(module)
         oos.close
@@ -493,7 +521,18 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
     new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
-        exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
+        val libcdef = libdef.get
+        ExternalFun.prepare(libcdef.funlist.map{ x => x.ref -> x.name}.toMap)
+        val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
+        implicit val ctx = Ctx(fname, findFirstBlock(fname).label.get)
+        val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil):_*)
+        Coverage.incPath(1)
+        val ss = initState(preHeap.asRepOf[Mem])
+        val fv = eval(GlobalId(fname), VoidType, ss)
+        ss.push
+        ss.updateArg
+        ss.initErrorLoc
+        fv[Ref](ss, config.args, k)
       }
     }
 }

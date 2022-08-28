@@ -142,9 +142,9 @@ trait Opaques { self: SAIOps with BasicDefs =>
     val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
     private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
     
-    private val prepared = MutableSet[String]()
-    def prepare(funs: String*) = {
-      for (f <- funs) prepared.add(f)
+    private val prepared = MutableMap[String, String]()
+    def prepare(funs: Map[String, String]) = {
+      prepared ++= funs
     }
 
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
@@ -176,8 +176,10 @@ trait Opaques { self: SAIOps with BasicDefs =>
           warned.add(id)
         }
         Some(ExternalFun("noop", ret))
-      } else if (prepared.contains(id.tail)) Some(ExternalFun("__LLSC_USER_" + id.tail))
-      else None // Will be executed natively
+      } else prepared.get(id.tail) match {
+        case Some(x) => Some(ExternalFun(x))
+        case _ => None // Will be executed natively
+      }
   }
 }
 

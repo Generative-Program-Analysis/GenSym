@@ -164,6 +164,8 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         k(ss, eval(value, from, ss).trunc(fromSz, toSz), kk)
       case FpExtInst(from, value, to) =>
         k(ss, eval(value, from, ss), kk)
+      case FpTruncInst(from, value, to) =>
+        k(ss, eval(value, from, ss), kk)
       case FpToUIInst(from, value, IntType(size)) =>
         k(ss, eval(value, from, ss).fromFloatToUInt(size), kk)
       case FpToSIInst(from, value, IntType(size)) =>
@@ -392,6 +394,7 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
 
   override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
+      System.out.println(s"Gernating ExternFun: ${f.id}")
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
         case (ty@PtrType(_, _), id) => ss.getPointerArg(args(id)).castToM(ty.toManifest)
