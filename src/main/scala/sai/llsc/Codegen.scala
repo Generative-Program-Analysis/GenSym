@@ -181,6 +181,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-time", _, _) => es"cov().print_time()"
     case Node(s, "print-path-cov", _, _) => es"cov().print_path_cov()"
     case Node(s, "assert", List(cond, msg), _) => es"ASSERT(($cond), $msg)"
+    case Node(s, "print-branch-map", _, _) => es"cov().extend_blocks(${Counter.block.count}, ${Counter.printBranchStat})"
 
     case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
       es"tp.add_task($ssid"
@@ -227,7 +228,7 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
   def emitHeaderFile: Unit = {
     val filename = codegenFolder + "/common.h"
     val out = new java.io.PrintStream(filename)
-    val branchStatStr = "{" + Counter.branchStat.toList.map(p => s"{${p._1},${p._2}}").mkString(",") + "}"
+    val branchStatStr = Counter.printBranchStat
     withStream(out) {
       emitln("/* Emitting header file */")
       emitHeaders(stream)

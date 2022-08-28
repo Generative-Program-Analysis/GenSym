@@ -48,6 +48,7 @@ object Counter {
     val blockId = Counter.block.get(ctx.toString)
     if (!branchStat.contains(blockId)) branchStat(blockId) = n
   }
+  def printBranchStat = "{" + branchStat.toList.map(p => s"{${p._1},${p._2}}").mkString(",") + "}"
 }
 
 trait BasicDefs { self: SAIOps =>
@@ -96,6 +97,7 @@ trait Coverage { self: SAIOps =>
     def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printPathCov: Rep[Unit] = "print-path-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printTime: Rep[Unit] = "print-time".reflectWriteWith[Unit]()(Adapter.CTRL)
+    def printMap: Rep[Unit] = "print-branch-map".reflectWriteWith[Unit]()(Adapter.CTRL)
   }
 }
 

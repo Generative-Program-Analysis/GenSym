@@ -535,16 +535,20 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
       def snippet(u: Rep[Int]) = {
         val libcdef = libdef.get
         ExternalFun.prepare(libcdef.funlist.map{ x => x.ref -> x.name}.toMap)
-        val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
         implicit val ctx = Ctx(fname, findFirstBlock(fname).label.get)
-        val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil, libcdef.varlist):_*)
-        Coverage.incPath(1)
-        val ss = initState(preHeap.asRepOf[Mem])
-        val fv = eval(GlobalId(fname), VoidType, ss)
-        ss.push
-        ss.updateArg
-        ss.initErrorLoc
-        "llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
+        val initmain: Rep[Cont] = fun { case (ss, v) =>
+          val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil, libcdef.varlist):_*)
+          Coverage.printMap
+          Coverage.incPath(1)
+          ss.heapAppend(preHeap)
+          val fv = eval(GlobalId(fname), VoidType, ss)
+          ss.push
+          ss.updateArg
+          ss.initErrorLoc
+          val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
+          "llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
+        }
+        "initlib".reflectWith[Unit](initState, List(), initmain)
       }
     }
 }
