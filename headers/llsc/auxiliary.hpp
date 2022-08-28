@@ -78,6 +78,8 @@ inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
 
+inline unsigned int max_sym_array_size = 0;
+
 enum class SearcherKind { randomPath, randomWeight };
 // The path searcher to be used
 inline SearcherKind searcher_kind = SearcherKind::randomWeight;

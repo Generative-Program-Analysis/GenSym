@@ -26,12 +26,19 @@
 
 using String = std::string;
 
+inline std::mt19937 rng32;
+
 inline void init_rand() {
-  srand((unsigned) time(0));
+  unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+  rng32 = std::mt19937(seed1);
+}
+
+inline uint32_t rand_uint32() {
+  return rng32();
 }
 
 inline int rand_int(int ub) {
-  int r =  (rand() % ub) + 1; // [1, ub]
+  int r =  (rng32() % ub) + 1; // [1, ub]
 #ifdef DEBUG
   std::cout << "Generate a rand number: " << r << std::endl;
 #endif
