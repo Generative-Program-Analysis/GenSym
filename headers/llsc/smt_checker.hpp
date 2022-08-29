@@ -302,13 +302,13 @@ public:
       // Not necessary to use independence solver since conds is too small
       pc.insert(conds.begin(), conds.end());
     } else {
+      start = steady_clock::now();
       //cachedObjs.reserve(conds.size());
       //for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
-      //get_indep_conds(cachedObjs, pc, query_expr);
+      //get_indep_conds(conds, cachedObjs, pc, query_expr);
+
       //std::cout << "\nglobal reach map:\n";
       //for (auto& p: global_reach_map) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
-
-      start = steady_clock::now();
       std::set<PtrVal> visited;
       if (query_expr == nullptr) {
         auto root = *std::prev(conds.end());
