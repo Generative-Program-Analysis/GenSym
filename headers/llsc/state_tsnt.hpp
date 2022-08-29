@@ -341,10 +341,12 @@ class SS {
         std::vector<std::pair<PtrVal, int>> result;
         auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
         ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
-        if (SymLocStrategy::one == symloc_strategy || SymLocStrategy::feasible == symloc_strategy) {
+        bool reach_limit = (max_sym_array_size > 0) && (symloc->size >= max_sym_array_size);
+        bool resolve_once = reach_limit || (SymLocStrategy::one == symloc_strategy);
+        if (resolve_once || SymLocStrategy::feasible == symloc_strategy) {
           int cnt_bound = -1;
           int cnt = 0;
-          if (SymLocStrategy::one == symloc_strategy)
+          if (resolve_once)
             cnt_bound = 1;
           auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
           auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - size, addr_index_bw));

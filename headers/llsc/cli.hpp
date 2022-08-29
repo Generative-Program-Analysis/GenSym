@@ -32,6 +32,7 @@ static struct option long_options[] =
   {"argv",                  required_argument, 0, 21},
   {"help",                  no_argument,       0, 22},
   {"cons-indep-algo",       required_argument, 0, 23},
+  {"max-sym-array-size",    required_argument, 0, 24},
   {0,                       0,                 0, 0 }
 };
 
@@ -194,6 +195,11 @@ inline void handle_cli_args(int argc, char** argv) {
         // XXX: only for testing/debuggin
         cons_indep_algo = atoi(optarg);
         break;
+      case 24: {
+        int n = atoi(optarg);
+        max_sym_array_size = (n > 0) ? n : 0;
+        break;
+      }
       case '?':
       default:
         print_help(argv[0]);

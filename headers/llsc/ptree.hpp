@@ -93,7 +93,6 @@ public:
     if (!root->has_task) return false;
     PTreeNodePtr curr = root;
     unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 g1(seed1);
     while (!curr->is_leaf()) {
       assert(curr->has_task);
       if (!curr->left || !curr->left->has_task)  {
@@ -102,7 +101,7 @@ public:
         curr = curr->left;
       } else {
         if (bits==0) {
-          flips = g1();
+          flips = rand_uint32();
           bits = 32;
         }
         --bits;
