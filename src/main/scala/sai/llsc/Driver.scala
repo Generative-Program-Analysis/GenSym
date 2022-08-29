@@ -107,7 +107,7 @@ abstract class GenericLLSCDriver[A: Manifest, B: Manifest]
     |\tmkdir -p $$(@D)
     |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
     |
-    |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o
+    |$$(TARGET): $$(BUILD_DIR)/$${TARGET}.o $$(OBJECTS)
     |\t$$(CC) $$(OPT) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
     |
     |clean:
@@ -454,7 +454,7 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
         |\tmkdir -p $$(@D)
         |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
         |
-        |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$$(INITFILE).o
+        |$$(TARGET): $$(BUILD_DIR)/$$(INITFILE).o $$(OBJECTS)
         |\t$$(AR) $$@ $$^
         |
         |clean:
