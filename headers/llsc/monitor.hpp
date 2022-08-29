@@ -36,6 +36,7 @@ struct Monitor {
 
     void extend_blocks(uint64_t nblks, const std::vector<std::pair<unsigned, unsigned>> &branch_num) {
       num_blocks = nblks;
+      block_cov = std::move(decltype(block_cov)(nblks));
       // `branch_num` contains the ids of blocks whose terminator is br/switch,
       // for each of such block, `br_arity` is the number of branches.
       for (const auto& [blk_id, br_arity] : branch_num) {
