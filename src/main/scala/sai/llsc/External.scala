@@ -49,6 +49,7 @@ trait GenExternal extends SymExeDefs {
   // Use the apply() method on classes as constructors/factories
   // <2022-05-12, David Deng> //
   def getStringAt(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string_at".reflectWith[String](ptr, s)
+  def getConcreteFilePath(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_concrete_file_path".reflectWith[String](ptr, s)
 
   def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
     // the requested permission

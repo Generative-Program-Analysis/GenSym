@@ -135,6 +135,13 @@ struct FS: public Printable {
     opened_files = opened_files.set(1, std::make_shared<Stream>(f, O_WRONLY, 0));
   }
 
+  void set_stderr(int size) {
+    auto f = make_SymFile("@stderr", 0);
+    f->parent = root_file;
+    root_file->children = root_file->children.set("@stderr", f);
+    opened_files = opened_files.set(2, std::make_shared<Stream>(f, O_WRONLY, 0));
+  }
+
   String toString() const override {
     std::ostringstream ss;
     ss << "FS(nstreams=" << opened_files.size();
@@ -149,10 +156,12 @@ struct FS: public Printable {
   FS(const FS &fs) = default;
   FS() : next_fd(3), root_file(make_SymFile("/", 0)) {
     statfs = make_SymList("fs_statfs", statfs_size);
+    set_stderr(0);
   }
-  FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file) :
-    opened_files(opened_files), root_file(root_file), next_fd(3) {
+  FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file, Fd next_fd) :
+    opened_files(opened_files), root_file(root_file), next_fd(next_fd) {
       statfs = make_SymList("fs_statfs", statfs_size);
+      set_stderr(0);
     }
 };
 

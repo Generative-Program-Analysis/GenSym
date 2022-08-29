@@ -275,7 +275,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def dcopy(fs: Rep[FS]) = {
       val rootFile = File.dcopy(fs.rootFile)
       val openedFiles = Map[Fd, Stream]()
-      val newFS = "FS".reflectCtrlWith[FS](openedFiles, rootFile)
+      val newFS = "FS".reflectCtrlWith[FS](openedFiles, rootFile, fs.nextFd)
       fs.openedFiles.foreach { case (fd, s) =>
         val strm = Stream(newFS.getFile(s.file.fullPath), s.mode, s.cursor)
         newFS.setStream(fd, strm)
@@ -319,6 +319,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def openedFiles: Rep[Map[Fd, Stream]] = "field-@".reflectCtrlWith[Map[Fd, Stream]](fs, "opened_files")
     def rootFile: Rep[File]               = "field-@".reflectCtrlWith[File](fs, "root_file")
     def statFs: Rep[List[Value]]          = "field-@".reflectCtrlWith[List[Value]](fs, "statfs")
+    def nextFd: Rep[Fd]                   = "field-@".reflectCtrlWith[Fd](fs, "next_fd")
 
     def openedFiles_= (rhs: Rep[Map[Fd, Stream]]): Unit = "field-assign".reflectCtrlWith(fs, "opened_files", rhs)
     def rootFile_= (rhs: Rep[File]): Unit = "field-assign".reflectCtrlWith(fs, "root_file", rhs)
