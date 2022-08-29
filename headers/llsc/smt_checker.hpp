@@ -55,14 +55,14 @@ class CachedChecker : public Checker {
 public:
   // XXX: SymV could be a compound symbolic expression as well
   using SymVar = simple_ptr<SymV>;
-  // a map from symbolic *variables* to their solver expressions
-  using VarMap = std::map<simple_ptr<SymV>, Expr>;
-  // a map from symbolic variable to expression that contains this expression
-  using ReachMap = std::multimap<simple_ptr<SymV>, PtrVal>;
+  // a map from symbolic variables to their solver expressions
+  using VarMap = std::map<SymVar, Expr>;
+  // a map from symbolic variable to top-level predicate expressions that (transitively) contain this variable
+  using ReachMap = std::multimap<SymVar, PtrVal>;
   // Extended Expr
   struct XExpr {
     Expr expr;
-    std::shared_ptr<VarMap> varmap;     // varmap is *transitively* closed wrt all variables in subexpressions
+    std::shared_ptr<VarMap> varmap;     // transitively closed wrt all variables in `expr`
     std::shared_ptr<ReachMap> reachmap;
   };
   // object cache type
@@ -79,6 +79,7 @@ public:
 
   ObjCache objcache;
   CexCache cexcache;
+  ReachMap global_reachmap;
 
   using ObjCacheIter = typename decltype(objcache)::iterator;
   using CachedPC = std::vector<ObjCacheIter>;
@@ -87,9 +88,6 @@ public:
     objcache.clear();
     cexcache.clear();
   }
-
-  // domain must be variable (is_var()), codomain only top-level predicate
-  ReachMap global_reach_map;
 
   // Construct the solver expression for a Value
   inline const XExpr construct_expr0(PtrVal& e, bool top_level) {
@@ -106,25 +104,22 @@ public:
     return {expr, vars, reachmap};
   }
 
+  void update_global_reachmap(std::shared_ptr<ReachMap> rm) {
+    auto start = steady_clock::now();
+    global_reachmap.insert(rm->begin(), rm->end());
+    auto end = steady_clock::now();
+    cons_indep_time_new += duration_cast<microseconds>(end - start).count();
+  }
+
   // Construct the solver expression with object cache for a Value
   const XExpr& construct_expr(PtrVal e, bool top_level = false) {
     auto fd = objcache.find(e);
     if (fd != objcache.end()) {
-      if (top_level) {
-        auto start = steady_clock::now();
-        global_reach_map.insert(fd->second.reachmap->begin(), fd->second.reachmap->end());
-        auto end = steady_clock::now();
-        cons_indep_time_new += duration_cast<microseconds>(end - start).count();
-      }
+      if (top_level) update_global_reachmap(fd->second.reachmap);
       return fd->second;
     }
     auto [it, ins] = objcache.emplace(e, construct_expr0(e, top_level));
-    if (top_level) {
-      auto start = steady_clock::now();
-      global_reach_map.insert(it->second.reachmap->begin(), it->second.reachmap->end());
-      auto end = steady_clock::now();
-      cons_indep_time_new += duration_cast<microseconds>(end - start).count();
-    }
+    if (top_level) update_global_reachmap(it->second.reachmap);
     return it->second;
   }
 
@@ -265,16 +260,14 @@ public:
 
   void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, bool add_root = true) {
     ASSERT(use_cons_indep, "why not?");
-
     if (add_root) result.insert(root);
     auto root_obj = objcache.find(root);
     ASSERT(root_obj != objcache.end(), "Root not cached");
-    auto& varmap = root_obj->second.varmap;
-    for (auto& [var, vexp] : *varmap) {
+    for (auto& [var, vexp] : *root_obj->second.varmap) {
       if (visited.find(var) != visited.end()) continue;
       //std::cout << "  it reaches var " << var->toString() << "\n";
       visited.insert(var);
-      auto [beg, end] = global_reach_map.equal_range(var);
+      auto [beg, end] = global_reachmap.equal_range(var);
       for (auto it = beg; it != end; it++) {
         mark(it->second, visited, result);
       }
@@ -284,7 +277,7 @@ public:
   // Query satisfiability, potentially return the concretized value of query_expr
   template <template <typename> typename T>
   CheckResult check_model_indep(const T<PtrVal>& conds, simple_ptr<SymV> query_expr = nullptr) {
-    global_reach_map.clear();
+    global_reachmap.clear();
 
     // XXX: what if we do cons_indep at front?
     if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
@@ -306,16 +299,14 @@ public:
         start = steady_clock::now();
         // using new one
         //std::cout << "\nglobal reach map:\n";
-        //for (auto& p: global_reach_map) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
+        //for (auto& p: global_reachmap) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
         std::set<PtrVal> visited;
-        if (query_expr == nullptr) {
-          auto root = *std::prev(conds.end());
-          //std::cout << "root is (non-query_expr): " << root->toString() << "\n";
-          mark(root, visited, pc);
-        } else {
-          //std::cout << "root is (query_expr): " << query_expr->toString() << "\n";
-          mark(query_expr, visited, pc, false);
-        }
+        auto root = query_expr ? query_expr : *std::prev(conds.end());
+        bool add_root = query_expr ? false : true;
+        //if (query_expr == nullptr) std::cout << "root is (non-query_expr): " << root->toString() << "\n";
+        //else std::cout << "root is (query_expr): " << root->toString() << "\n";
+        mark(root, visited, pc, add_root);
+
         end = steady_clock::now();
         cons_indep_time_new += duration_cast<microseconds>(end - start).count();
         /*

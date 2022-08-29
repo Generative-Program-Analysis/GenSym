@@ -201,8 +201,7 @@ object TestCases {
     // [10.6848s/77.1473s/91.5263s] #blocks: 878/2418; #br: 314/226/2515; #paths: 10614; #threads: 1; #task-in-q: 0; #queries: 475423/30 (0)
     // gcov 40.29%
   )
-  */
-
+*/
   val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external ++ argv
 
   // FIXME: out of range
