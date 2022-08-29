@@ -144,6 +144,7 @@ struct Monitor {
       }
 
       std::cout << "Full model time: " << (full_model_time / 1.0e6) << "s; "
+                << "Cons expr time: " << (cons_expr_time / 1.0e6) << "s; "
                 << "Cons indep time (old): " << (cons_indep_time_old / 1.0e6) << "s; "
                 << "Cons indep time (new): " << (cons_indep_time_new / 1.0e6) << "s\n";
     }

@@ -19,7 +19,7 @@ public:
   VC vc;
 
   // TODO: use reach and top_level
-  ExprHandle construct_expr_internal(PtrVal e, VarMap& vars, ReachMap& reach, bool top_level) {
+  ExprHandle construct_expr_internal(PtrVal e, std::shared_ptr<VarMap> vars, std::shared_ptr<ReachMap> reach, bool top_level) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
       // XXX(GW): using this vs sym_bool_const?
@@ -33,7 +33,7 @@ public:
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto name = sym_e->name;
       ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-      vars.emplace(sym_e, stp_expr);
+      vars->emplace(sym_e, stp_expr);
       return stp_expr;
     }
 
@@ -42,7 +42,7 @@ public:
     for (auto e : sym_e->rands) {
       auto& [e2, vm, rm] = construct_expr(e);
       expr_rands.push_back(e2);
-      vars.insert(vm.begin(), vm.end());
+      vars->insert(vm->begin(), vm->end());
     }
     switch (sym_e->rator) {
     case iOP::op_add:

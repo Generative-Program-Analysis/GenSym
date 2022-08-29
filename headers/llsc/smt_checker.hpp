@@ -62,8 +62,8 @@ public:
   // Extended Expr
   struct XExpr {
     Expr expr;
-    VarMap varmap;     // varmap is *transitively* closed wrt all variables in subexpressions
-    ReachMap reachmap;
+    std::shared_ptr<VarMap> varmap;     // varmap is *transitively* closed wrt all variables in subexpressions
+    std::shared_ptr<ReachMap> reachmap;
   };
   // object cache type
   using ObjCache = std::unordered_map<PtrVal, XExpr>;
@@ -93,9 +93,9 @@ public:
 
   // Construct the solver expression for a Value
   inline const XExpr construct_expr0(PtrVal& e, bool top_level) {
-    VarMap tmp;
-    ReachMap reachmap;
-    auto expr = self()->construct_expr_internal(e, tmp, reachmap, top_level);
+    auto vars = std::make_shared<VarMap>();
+    auto reachmap = std::make_shared<ReachMap>();
+    auto expr = self()->construct_expr_internal(e, vars, reachmap, top_level);
     /*
     std::cout << "reach begin\n";
     for (auto& p: reach_map) {
@@ -103,7 +103,7 @@ public:
     }
     std::cout << "reach end\n";
     */
-    return {expr, std::move(tmp), std::move(reachmap)};
+    return {expr, vars, reachmap};
   }
 
   // Construct the solver expression with object cache for a Value
@@ -112,16 +112,16 @@ public:
     if (fd != objcache.end()) {
       if (top_level) {
         auto start = steady_clock::now();
-        global_reach_map.insert(fd->second.reachmap.begin(), fd->second.reachmap.end());
+        global_reach_map.insert(fd->second.reachmap->begin(), fd->second.reachmap->end());
         auto end = steady_clock::now();
         cons_indep_time_new += duration_cast<microseconds>(end - start).count();
       }
       return fd->second;
     }
-    auto [it, ins] = objcache.emplace(e, std::move(construct_expr0(e, top_level)));
+    auto [it, ins] = objcache.emplace(e, construct_expr0(e, top_level));
     if (top_level) {
       auto start = steady_clock::now();
-      global_reach_map.insert(it->second.reachmap.begin(), it->second.reachmap.end());
+      global_reach_map.insert(it->second.reachmap->begin(), it->second.reachmap->end());
       auto end = steady_clock::now();
       cons_indep_time_new += duration_cast<microseconds>(end - start).count();
     }
@@ -145,14 +145,14 @@ public:
       for (auto& v: cachedObjs) {
         auto& [e, vm, rm] = v->second;
         self()->add_constraint_internal(e);
-        if (model) varmap.insert(vm.begin(), vm.end());
+        if (model) varmap.insert(vm->begin(), vm->end());
       }
     } else {
       for (auto& v: pc) {
         // query objcache still
         auto& [e, vm, rm] = objcache.at(v);
         self()->add_constraint_internal(e);
-        if (model) varmap.insert(vm.begin(), vm.end());
+        if (model) varmap.insert(vm->begin(), vm->end());
       }
     }
     solver_result result = check_model();
@@ -244,15 +244,15 @@ public:
       auto& cset = cur->second.varmap;
       for (auto& next: cachedObjs) if (next != objcache.end()) {
         auto& nset = next->second.varmap;
-        auto cit = cset.begin();
-        auto nit = nset.begin();
-        if (cit != cset.end() && nit != nset.end()) {
+        auto cit = cset->begin();
+        auto nit = nset->begin();
+        if (cit != cset->end() && nit != nset->end()) {
           do if (nit->first == cit->first) {
             pc.insert(next->first);
             queue.push_back(next);
             next = objcache.end();
             break;
-          } while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
+          } while (nit->first < cit->first ? ++nit != nset->end() : ++cit != cset->end());
         }
       }
     } while (idx < queue.size() && (cur = queue[idx++], true));
@@ -270,7 +270,7 @@ public:
     auto root_obj = objcache.find(root);
     ASSERT(root_obj != objcache.end(), "Root not cached");
     auto& varmap = root_obj->second.varmap;
-    for (auto& [var, vexp] : varmap) {
+    for (auto& [var, vexp] : *varmap) {
       if (visited.find(var) != visited.end()) continue;
       //std::cout << "  it reaches var " << var->toString() << "\n";
       visited.insert(var);
@@ -288,8 +288,11 @@ public:
 
     // XXX: what if we do cons_indep at front?
     if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
+    auto start = steady_clock::now();
     for (auto &v: conds) construct_expr(v, true);
     if (query_expr) construct_expr(query_expr, true);
+    auto end = steady_clock::now();
+    cons_expr_time += duration_cast<microseconds>(end - start).count();
 
     // local storage
     CachedPC cachedObjs;
@@ -305,7 +308,7 @@ public:
       //std::cout << "\nglobal reach map:\n";
       //for (auto& p: global_reach_map) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
 
-      auto start = steady_clock::now();
+      start = steady_clock::now();
       std::set<PtrVal> visited;
       if (query_expr == nullptr) {
         auto root = *std::prev(conds.end());
@@ -315,7 +318,7 @@ public:
         //std::cout << "root is (query_expr): " << query_expr->toString() << "\n";
         mark(query_expr, visited, pc, false);
       }
-      auto end = steady_clock::now();
+      end = steady_clock::now();
       cons_indep_time_new += duration_cast<microseconds>(end - start).count();
       /*
       std::cout << "All PC: \n";
@@ -342,7 +345,10 @@ public:
   CheckResult check_with_full_model(const T<PtrVal>& conds) {
     // translation
     if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
+    auto start = steady_clock::now();
     for (auto &v: conds) construct_expr(v);
+    auto end = steady_clock::now();
+    cons_expr_time += duration_cast<microseconds>(end - start).count();
 
     // local storage
     CachedPC cachedObjs;
@@ -353,7 +359,7 @@ public:
       return check_cexcached_model(cachedObjs, pc, nullptr, true);
     }
 
-    auto start = steady_clock::now();
+    start = steady_clock::now();
 
     // constraint independence resolving
     solver_result check_result;
@@ -376,7 +382,7 @@ public:
       pc.clear();
     }
 
-    auto end = steady_clock::now();
+    end = steady_clock::now();
     full_model_time += duration_cast<microseconds>(end - start).count();
     return std::make_pair(check_result, model);
   }
