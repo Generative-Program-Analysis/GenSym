@@ -9,29 +9,30 @@ FS set_file(FS, String, Ptr<File>);
 static struct option long_options[] =
 {
   /* These options set a flag. */
-  {"exlib-failure-branch",  no_argument,       0, '\0'}, // option_index = 0
-  {"no-hash-cons",          no_argument,       0, '\0'}, // option_index = 1 
-  {"no-obj-cache",          no_argument,       0, '\0'}, // option_index = 2
-  {"no-cex-cache",          no_argument,       0, '\0'}, // option_index = 3
-  {"cons-indep",            no_argument,       0, '\0'}, // option_index = 4
-  {"output-tests-cov-new",  no_argument,       0, '\0'}, // option_index = 5
-  {"output-ktest",          no_argument,       0, '\0'}, // option_index = 6
-  {"print-inst-count",      no_argument,       0, '\0'}, // option_index = 7
-  {"print-cov",             no_argument,       0, '\0'}, // option_index = 8
-  {"readable-posix-inputs", no_argument,       0, '\0'}, // option_index = 9
-  {"search",                required_argument, 0, '\0'}, // option_index = 10
-  {"symloc-strategy",       required_argument, 0, '\0'}, // option_index = 11
-  {"add-sym-file",          required_argument, 0, '\0'}, // option_index = 12
-  {"sym-file-size",         required_argument, 0, '\0'}, // option_index = 13
-  {"sym-stdin",             required_argument, 0, '\0'}, // option_index = 14
-  {"sym-stdout",            no_argument,       0, '\0'}, // option_index = 15
-  {"thread",                required_argument, 0, '\0'}, // option_index = 16
-  {"queue",                 required_argument, 0, '\0'}, // option_index = 17
-  {"solver",                required_argument, 0, '\0'}, // option_index = 18
-  {"timeout",               required_argument, 0, '\0'}, // option_index = 19
-  {"argv",                  required_argument, 0, '\0'}, // option_index = 20
-  {"help",                  no_argument,       0, '\0'}, // option_index = 21
-  {0,                       0,                 0, 0  }
+  {"exlib-failure-branch",  no_argument,       0, 1},
+  {"no-hash-cons",          no_argument,       0, 2},
+  {"no-obj-cache",          no_argument,       0, 3},
+  {"no-cex-cache",          no_argument,       0, 4},
+  {"cons-indep",            no_argument,       0, 5},
+  {"output-tests-cov-new",  no_argument,       0, 6},
+  {"output-ktest",          no_argument,       0, 7},
+  {"print-inst-count",      no_argument,       0, 8},
+  {"print-cov",             no_argument,       0, 9},
+  {"readable-posix-inputs", no_argument,       0, 10},
+  {"search",                required_argument, 0, 11},
+  {"symloc-strategy",       required_argument, 0, 12},
+  {"add-sym-file",          required_argument, 0, 13},
+  {"sym-file-size",         required_argument, 0, 14},
+  {"sym-stdin",             required_argument, 0, 15},
+  {"sym-stdout",            no_argument,       0, 16},
+  {"thread",                required_argument, 0, 17},
+  {"queue",                 required_argument, 0, 18},
+  {"solver",                required_argument, 0, 19},
+  {"timeout",               required_argument, 0, 20},
+  {"argv",                  required_argument, 0, 21},
+  {"help",                  no_argument,       0, 22},
+  {"cons-indep-algo",       required_argument, 0, 23},
+  {0,                       0,                 0, 0 }
 };
 
 inline void set_searcher(std::string& searcher) {
@@ -102,94 +103,98 @@ inline void handle_cli_args(int argc, char** argv) {
     /* Detect the end of the options. */
     if (c == -1) break;
 
-    switch (option_index) {
-      case '?':
-        break;
-        // parsing error, should be printed by getopt
-      case 0:
+    switch (c) {
+      case 1:
         exlib_failure_branch = true;
         break;
-      case 1:
+      case 2:
         use_hashcons = false;
         break;
-      case 2:
+      case 3:
         use_objcache = false;
         break;
-      case 3:
+      case 4:
         use_cexcache = false;
         break;
-      case 4:
+      case 5:
         use_cons_indep = true;
         break;
-      case 5:
+      case 6:
         only_output_covernew = true;
         break;
-      case 6:
+      case 7:
         output_ktest = true;
         break;
-      case 7:
+      case 8:
         print_inst_cnt = true;
         break;
-      case 8:
+      case 9:
         print_cov_detail = true;
         break;
-      case 9:
+      case 10:
         readable_posix = true;
         break;
-      case 10: {
+      case 11: {
         auto searcher = std::string(optarg);
         set_searcher(searcher);
         break;
       }
-      case 11: {
+      case 12: {
         auto strategy = std::string(optarg);
         set_symloc_strategy(strategy);
         break;
       }
-      case 12:
+      case 13:
         initial_fs = set_file(initial_fs, std::string("/") + optarg, make_SymFile(optarg, default_sym_file_size));
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);
         break;
-      case 13:
+      case 14:
         default_sym_file_size = atoi(optarg);
         INFO("set symfile size to " << default_sym_file_size << "\n");
         break;
-      case 14: {
+      case 15: {
         int size = atoi(optarg);
         initial_fs.set_stdin((size < 0) ? 0 : size);
         INFO("set stdin size to " << size << "\n");
         break;
       }
-      case 15: {
+      case 16: {
         initial_fs.set_stdout(0);
         INFO("set stdout size to " << 0 << "\n");
         break;
       }
-      case 16: {
+      case 17: {
         int t = atoi(optarg);
         n_thread = (t <= 0) ? 1 : t;
         if (n_thread > 0) use_thread_pool = true;
         break;
       }
-      case 17: {
+      case 18: {
         int n = atoi(optarg);
         n_queue = n;
         break;
       }
-      case 18: {
+      case 19: {
         auto solver = std::string(optarg);
         set_solver(solver);
         break;
       }
-      case 19:
+      case 20:
         timeout = atoi(optarg);
         break;
-      case 20:
+      case 21:
         cli_argv = parse_args(std::string(optarg));
         g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
         g_argc = make_IntV(cli_argv.size());
         break;
-      case 21:
+      case 22:
+        print_help(argv[0]);
+        exit(-1);
+      case 23:
+        // XXX: only for testing/debuggin
+        cons_indep_algo = atoi(optarg);
+        break;
+      case '?':
       default:
         print_help(argv[0]);
         exit(-1);

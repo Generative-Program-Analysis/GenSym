@@ -302,34 +302,37 @@ public:
       // Not necessary to use independence solver since conds is too small
       pc.insert(conds.begin(), conds.end());
     } else {
-      start = steady_clock::now();
-      //cachedObjs.reserve(conds.size());
-      //for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
-      //get_indep_conds(conds, cachedObjs, pc, query_expr);
-
-      //std::cout << "\nglobal reach map:\n";
-      //for (auto& p: global_reach_map) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
-      std::set<PtrVal> visited;
-      if (query_expr == nullptr) {
-        auto root = *std::prev(conds.end());
-        //std::cout << "root is (non-query_expr): " << root->toString() << "\n";
-        mark(root, visited, pc);
+      if (cons_indep_algo == 1) {
+        start = steady_clock::now();
+        // using new one
+        //std::cout << "\nglobal reach map:\n";
+        //for (auto& p: global_reach_map) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
+        std::set<PtrVal> visited;
+        if (query_expr == nullptr) {
+          auto root = *std::prev(conds.end());
+          //std::cout << "root is (non-query_expr): " << root->toString() << "\n";
+          mark(root, visited, pc);
+        } else {
+          //std::cout << "root is (query_expr): " << query_expr->toString() << "\n";
+          mark(query_expr, visited, pc, false);
+        }
+        end = steady_clock::now();
+        cons_indep_time_new += duration_cast<microseconds>(end - start).count();
+        /*
+        std::cout << "All PC: \n";
+        for (auto& c : conds) {
+        std::cout << "  " << c->toString() << "\n";
+        }
+        std::cout << "PC after indep: \n";
+        for (auto& c : pc) {
+        std::cout << "  " << c->toString() << "\n";
+        }
+        */
       } else {
-        //std::cout << "root is (query_expr): " << query_expr->toString() << "\n";
-        mark(query_expr, visited, pc, false);
+        cachedObjs.reserve(conds.size());
+        for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
+        get_indep_conds(conds, cachedObjs, pc, query_expr);
       }
-      end = steady_clock::now();
-      cons_indep_time_new += duration_cast<microseconds>(end - start).count();
-      /*
-      std::cout << "All PC: \n";
-      for (auto& c : conds) {
-        std::cout << "  " << c->toString() << "\n";
-      }
-      std::cout << "PC after indep: \n";
-      for (auto& c : pc) {
-        std::cout << "  " << c->toString() << "\n";
-      }
-      */
     }
 
     //std::set<PtrVal> pc2;

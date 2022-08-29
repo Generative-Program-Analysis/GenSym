@@ -98,6 +98,8 @@ inline std::atomic<long int> full_model_time = 0;
 inline std::atomic<long int> cons_indep_time_old = 0;
 inline std::atomic<long int> cons_indep_time_new = 0;
 
+inline int cons_indep_algo = 1;
+
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
 // feasible:  search all feasible concrete indexes
