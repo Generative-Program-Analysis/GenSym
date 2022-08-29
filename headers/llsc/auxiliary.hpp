@@ -94,7 +94,8 @@ inline std::atomic<long int> int_solver_time = 0;
 inline std::atomic<long int> fs_time = 0;
 
 inline std::atomic<long int> full_model_time = 0;
-inline std::atomic<long int> cons_indep_time = 0;
+inline std::atomic<long int> cons_indep_time_old = 0;
+inline std::atomic<long int> cons_indep_time_new = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index

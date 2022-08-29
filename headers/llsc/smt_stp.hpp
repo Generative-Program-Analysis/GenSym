@@ -18,7 +18,8 @@ class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle> {
 public:
   VC vc;
 
-  ExprHandle construct_expr_internal(PtrVal e, VarMap &vars) {
+  // TODO: use reach and top_level
+  ExprHandle construct_expr_internal(PtrVal e, VarMap& vars, ReachMap& reach, bool top_level) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
       // XXX(GW): using this vs sym_bool_const?
@@ -39,7 +40,7 @@ public:
     std::vector<ExprHandle> expr_rands;
     int bw = sym_e->bw;
     for (auto e : sym_e->rands) {
-      auto& [e2, vm] = construct_expr(e);
+      auto& [e2, vm, rm] = construct_expr(e);
       expr_rands.push_back(e2);
       vars.insert(vm.begin(), vm.end());
     }

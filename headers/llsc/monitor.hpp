@@ -144,7 +144,8 @@ struct Monitor {
       }
 
       std::cout << "Full model time: " << (full_model_time / 1.0e6) << "s; "
-                << "Cons indep time: " << (cons_indep_time / 1.0e6) << "s\n";
+                << "Cons indep time (old): " << (cons_indep_time_old / 1.0e6) << "s; "
+                << "Cons indep time (new): " << (cons_indep_time_new / 1.0e6) << "s\n";
     }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();

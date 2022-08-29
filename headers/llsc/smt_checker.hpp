@@ -55,13 +55,18 @@ class CachedChecker : public Checker {
 public:
   // XXX: SymV could be a compound symbolic expression as well
   using SymVar = simple_ptr<SymV>;
-  // a map from symbolic variables to their solver expressions
+  // a map from symbolic *variables* to their solver expressions
   using VarMap = std::map<simple_ptr<SymV>, Expr>;
-  // pair the solver expression with its varmap
-  // XXX: what's the relation of that varmap and expr?
-  using ExprDetail = std::pair<Expr, VarMap>;
+  // a map from symbolic variable to expression that contains this expression
+  using ReachMap = std::multimap<simple_ptr<SymV>, PtrVal>;
+  // Extended Expr
+  struct XExpr {
+    Expr expr;
+    VarMap varmap;     // varmap is *transitively* closed wrt all variables in subexpressions
+    ReachMap reachmap;
+  };
   // object cache type
-  using ObjCache = std::unordered_map<PtrVal, ExprDetail>;
+  using ObjCache = std::unordered_map<PtrVal, XExpr>;
 
   // query cache key
   using CexCacheKey = std::set<PtrVal>;
@@ -76,24 +81,50 @@ public:
   CexCache cexcache;
 
   using ObjCacheIter = typename decltype(objcache)::iterator;
+  using CachedPC = std::vector<ObjCacheIter>;
 
   void clear_cache() {
     objcache.clear();
     cexcache.clear();
   }
 
+  // domain must be variable (is_var()), codomain only top-level predicate
+  ReachMap global_reach_map;
+
   // Construct the solver expression for a Value
-  inline const ExprDetail constuct_expr0(PtrVal& e) {
+  inline const XExpr construct_expr0(PtrVal& e, bool top_level) {
     VarMap tmp;
-    auto expr = self()->construct_expr_internal(e, tmp);
-    return std::make_pair(expr, std::move(tmp));
+    ReachMap reachmap;
+    auto expr = self()->construct_expr_internal(e, tmp, reachmap, top_level);
+    /*
+    std::cout << "reach begin\n";
+    for (auto& p: reach_map) {
+      std::cout << p.first->toString() << " -> " << p.second->toString() << "\n";
+    }
+    std::cout << "reach end\n";
+    */
+    return {expr, std::move(tmp), std::move(reachmap)};
   }
 
   // Construct the solver expression with object cache for a Value
-  const ExprDetail& construct_expr(PtrVal e) {
+  const XExpr& construct_expr(PtrVal e, bool top_level = false) {
     auto fd = objcache.find(e);
-    if (fd != objcache.end()) return fd->second;
-    auto [it, ins] = objcache.emplace(e, std::move(constuct_expr0(e)));
+    if (fd != objcache.end()) {
+      if (top_level) {
+        auto start = steady_clock::now();
+        global_reach_map.insert(fd->second.reachmap.begin(), fd->second.reachmap.end());
+        auto end = steady_clock::now();
+        cons_indep_time_new += duration_cast<microseconds>(end - start).count();
+      }
+      return fd->second;
+    }
+    auto [it, ins] = objcache.emplace(e, std::move(construct_expr0(e, top_level)));
+    if (top_level) {
+      auto start = steady_clock::now();
+      global_reach_map.insert(it->second.reachmap.begin(), it->second.reachmap.end());
+      auto end = steady_clock::now();
+      cons_indep_time_new += duration_cast<microseconds>(end - start).count();
+    }
     return it->second;
   }
 
@@ -106,19 +137,20 @@ public:
   // The most primitive function to check satisfiability/model.
   // If `model` is passed, it is obligated to construct a model.
   // Return value indicates sat/unsat.
-  inline solver_result check_model0(const std::vector<ObjCacheIter>& condvec, std::set<PtrVal>& pc, std::shared_ptr<Model> model) {
+  inline solver_result check_model0(const CachedPC& cachedObjs, std::set<PtrVal>& pc, std::shared_ptr<Model> model) {
     VarMap varmap;
     push();
-    // XXX: what's the diff of condvec and pc???
-    if (condvec.size()) {  // use local cache if possible
-      for (auto& v: condvec) {
-        auto& [e, vm] = v->second;
+    if (cachedObjs.size()) {
+      // use local cache if possible
+      for (auto& v: cachedObjs) {
+        auto& [e, vm, rm] = v->second;
         self()->add_constraint_internal(e);
         if (model) varmap.insert(vm.begin(), vm.end());
       }
     } else {
       for (auto& v: pc) {
-        auto& [e, vm] = objcache.at(v);
+        // query objcache still
+        auto& [e, vm, rm] = objcache.at(v);
         self()->add_constraint_internal(e);
         if (model) varmap.insert(vm.begin(), vm.end());
       }
@@ -154,36 +186,36 @@ public:
   }
 
   // On top of check_model0, additionally it caches counterexamples and models
-  inline solver_result check_cexcached_model0(const std::vector<ObjCacheIter>& condvec, std::set<PtrVal>& pc, std::shared_ptr<Model>& model) {
+  inline solver_result check_cexcached_model0(const CachedPC& cachedObjs, std::set<PtrVal>& pc, std::shared_ptr<Model>& model) {
     ASSERT(use_cexcache, "Why not?");
     auto it = cexcache.find(pc);
     if (cache_hit(it, model)) {
       cached_query_num += 1;
       return it->second.first;
     }
-    solver_result result = check_model0(condvec, pc, model);
+    solver_result result = check_model0(cachedObjs, pc, model);
     cexcache.emplace(std::move(pc), std::make_pair(result, model));
     return result;
   }
 
   // On top of check_cexcached_model0, we can query a point of symbolic variable
-  CheckResult check_cexcached_model(const std::vector<ObjCacheIter>& condvec, std::set<PtrVal>& pc,
+  CheckResult check_cexcached_model(const CachedPC& cachedObjs, std::set<PtrVal>& pc,
                                     simple_ptr<SymV> query_expr, bool require_model) {
     ASSERT(!require_model || !query_expr, "Choose either query_expr or require_model, but not both");
     std::shared_ptr<Model> model = (use_cexcache || require_model) ? std::make_shared<Model>() : nullptr;
-    solver_result result = use_cexcache ? check_cexcached_model0(condvec, pc, model) : check_model0(condvec, pc, model);
+    solver_result result = use_cexcache ? check_cexcached_model0(cachedObjs, pc, model) : check_model0(cachedObjs, pc, model);
     if (result == sat && query_expr) {
       // query_expr can be a compound expression
       // reuse the model in case use_cexcache already sets a model
       if (!model) model = std::make_shared<Model>();
-      auto& e = objcache.at(query_expr).first;
+      auto& e = objcache.at(query_expr).expr;
       model->emplace(query_expr, self()->get_model_value_internal(e));
     }
     return std::make_pair(result, model);
   }
 
   template <template <typename> typename T>
-  void get_indep_conds(const T<PtrVal>& conds, std::vector<ObjCacheIter>& condvec, std::set<PtrVal>& pc, simple_ptr<SymV> query_expr) {
+  void get_indep_conds(const T<PtrVal>& conds, CachedPC& cachedObjs, std::set<PtrVal>& pc, simple_ptr<SymV> query_expr) {
     ASSERT(use_cons_indep, "why not?");
     if (conds.size() <= (query_expr!=nullptr ? 0 : 1)) {
       // Not necessary to use independence solver since conds is too small
@@ -195,11 +227,11 @@ public:
     ObjCacheIter cur;
     int idx;
 
-    for (auto& v: conds) condvec.push_back(objcache.find(v));
+    for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
 
     if (query_expr == nullptr) {
-      cur = condvec.back();
-      condvec.pop_back();
+      cur = cachedObjs.back();
+      cachedObjs.pop_back();
       idx = 1;
       queue.push_back(cur);
       pc.insert(cur->first);
@@ -209,9 +241,9 @@ public:
     }
 
     do {
-      auto& cset = cur->second.second;
-      for (auto& next: condvec) if (next != objcache.end()) {
-        auto& nset = next->second.second;
+      auto& cset = cur->second.varmap;
+      for (auto& next: cachedObjs) if (next != objcache.end()) {
+        auto& nset = next->second.varmap;
         auto cit = cset.begin();
         auto nit = nset.begin();
         if (cit != cset.end() && nit != nset.end()) {
@@ -225,25 +257,85 @@ public:
       }
     } while (idx < queue.size() && (cur = queue[idx++], true));
 
-    condvec = std::move(queue);
+    cachedObjs = std::move(queue);
 
     auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
+    cons_indep_time_old += duration_cast<microseconds>(end - start).count();
   }
 
-  // Query satisfiability, potentially returns the concretized value of query_expr
+  void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, bool add_root = true) {
+    ASSERT(use_cons_indep, "why not?");
+
+    if (add_root) result.insert(root);
+    auto root_obj = objcache.find(root);
+    ASSERT(root_obj != objcache.end(), "Root not cached");
+    auto& varmap = root_obj->second.varmap;
+    for (auto& [var, vexp] : varmap) {
+      if (visited.find(var) != visited.end()) continue;
+      //std::cout << "  it reaches var " << var->toString() << "\n";
+      visited.insert(var);
+      auto [beg, end] = global_reach_map.equal_range(var);
+      for (auto it = beg; it != end; it++) {
+        mark(it->second, visited, result);
+      }
+    }
+  }
+
+  // Query satisfiability, potentially return the concretized value of query_expr
   template <template <typename> typename T>
   CheckResult check_model_indep(const T<PtrVal>& conds, simple_ptr<SymV> query_expr = nullptr) {
-    //simple_ptr<SymV> query_expr = nullptr, bool require_model = false
+    global_reach_map.clear();
+
+    // XXX: what if we do cons_indep at front?
     if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
-    for (auto &v: conds) construct_expr(v);
-    if (query_expr) construct_expr(query_expr);
+    for (auto &v: conds) construct_expr(v, true);
+    if (query_expr) construct_expr(query_expr, true);
+
     // local storage
-    std::vector<ObjCacheIter> condvec;
+    CachedPC cachedObjs;
     std::set<PtrVal> pc;
     if (!use_cons_indep) pc.insert(conds.begin(), conds.end());
-    else get_indep_conds(conds, condvec, pc, query_expr);
-    return check_cexcached_model(condvec, pc, query_expr, false);
+    else if (conds.size() <= (query_expr != nullptr ? 0 : 1)) {
+      // Not necessary to use independence solver since conds is too small
+      pc.insert(conds.begin(), conds.end());
+    } else {
+      //cachedObjs.reserve(conds.size());
+      //for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
+      //get_indep_conds(cachedObjs, pc, query_expr);
+      //std::cout << "\nglobal reach map:\n";
+      //for (auto& p: global_reach_map) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
+
+      auto start = steady_clock::now();
+      std::set<PtrVal> visited;
+      if (query_expr == nullptr) {
+        auto root = *std::prev(conds.end());
+        //std::cout << "root is (non-query_expr): " << root->toString() << "\n";
+        mark(root, visited, pc);
+      } else {
+        //std::cout << "root is (query_expr): " << query_expr->toString() << "\n";
+        mark(query_expr, visited, pc, false);
+      }
+      auto end = steady_clock::now();
+      cons_indep_time_new += duration_cast<microseconds>(end - start).count();
+      /*
+      std::cout << "All PC: \n";
+      for (auto& c : conds) {
+        std::cout << "  " << c->toString() << "\n";
+      }
+      std::cout << "PC after indep: \n";
+      for (auto& c : pc) {
+        std::cout << "  " << c->toString() << "\n";
+      }
+      */
+    }
+
+    //std::set<PtrVal> pc2;
+    //pc2.insert(conds.begin(), conds.end());
+    //auto [s1, m1] = check_cexcached_model(cachedObjs, pc2, query_expr, false);
+    //auto [s2, m2] = check_cexcached_model(cachedObjs, pc, query_expr, false);
+    //if (s1 != s2) ABORT("FUCK");
+    //return {s2, m2};
+    return check_cexcached_model(cachedObjs, pc, query_expr, false);
   }
 
   template <template <typename> typename T>
@@ -253,12 +345,12 @@ public:
     for (auto &v: conds) construct_expr(v);
 
     // local storage
-    std::vector<ObjCacheIter> condvec;
+    CachedPC cachedObjs;
     std::set<PtrVal> pc;
 
     if (!use_cons_indep) {
       pc.insert(conds.begin(), conds.end());
-      return check_cexcached_model(condvec, pc, nullptr, true);
+      return check_cexcached_model(cachedObjs, pc, nullptr, true);
     }
 
     auto start = steady_clock::now();
@@ -269,18 +361,18 @@ public:
     std::shared_ptr<Model> model = std::make_shared<Model>();
 
     while (curr_conds.size() > 0) {
-      get_indep_conds(curr_conds, condvec, pc, nullptr);
+      get_indep_conds(curr_conds, cachedObjs, pc, nullptr);
       int before_size = curr_conds.size();
       for (auto& v: pc) {
         curr_conds.erase(std::remove(curr_conds.begin(), curr_conds.end(), v), curr_conds.end());
       }
       ASSERT(curr_conds.size() < before_size, "Invalid elimination");
-      auto [sub_result, sub_model] = check_cexcached_model(condvec, pc, nullptr, true);
+      auto [sub_result, sub_model] = check_cexcached_model(cachedObjs, pc, nullptr, true);
       if (model->size() == 0)
         check_result = sub_result;
       // Note (Ruiqi): make sure that sub_model's key won't overlap, because std::unordered_map::insert will not update for same key.
       model->insert(sub_model->begin(), sub_model->end());
-      condvec.clear();
+      cachedObjs.clear();
       pc.clear();
     }
 
