@@ -552,6 +552,28 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
           }
           out.close
         }
+        override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
+          val ng = init(g)
+          val efs = ""
+          val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
+
+          val src = run(name, ng)
+
+          emitHeaderFile
+          emitFunctionFiles
+          emitInit(stream)
+
+          emitln(s"/* Generated main file: $name */")
+          emitln("#include \"common.h\"")
+          emit(src)
+          emitln(s"""
+          |int main(int argc, char *argv[]) {
+          |  prelude(argc, argv);
+          |  $name(0);
+          |  epilogue();
+          |  return exit_code.load().value_or(0);
+          |} """.stripMargin)
+        }
         registerHeader(libcdef.folder, s"<${libcdef.libName}/common.h>")
         registerLibraryPath(s"${libcdef.folder}/${libcdef.libName}")
         val libnamepat = "lib(\\w+)".r
@@ -573,7 +595,7 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
           ss.updateArg
           ss.initErrorLoc
           val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
-          "llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
+          "start_llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
         }
         val ss0 = initState
         "initlib".reflectWith[Unit](ss0, List[Value](), initmain)
