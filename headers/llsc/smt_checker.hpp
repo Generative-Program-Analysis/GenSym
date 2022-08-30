@@ -63,7 +63,7 @@ public:
   struct XExpr {
     Expr expr;
     std::shared_ptr<VarMap> varmap;     // transitively closed wrt all variables in `expr`
-    std::shared_ptr<ReachMap> reachmap;
+    std::shared_ptr<ReachMap> reachmap; // reachmap is sensible only when `expr` is a top-level predicate
   };
   // object cache type
   using ObjCache = std::unordered_map<PtrVal, XExpr>;
