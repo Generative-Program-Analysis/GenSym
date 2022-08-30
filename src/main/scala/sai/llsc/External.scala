@@ -407,7 +407,7 @@ trait GenExternal extends SymExeDefs {
     rawInfo("std::cout << \"with fd:\" << ", fd, " << std::endl")
     val request: Rep[Value] = args(1)
     rawInfo("std::cout << \"with request:\" << ", request, "->toString() << std::endl")
-    if (!fs.hasStream(fd)) {
+    if (!fs.hasStream(fd) || fd <= 2) {
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
     } else {
       if (request.int == 0x5401) { // TCGETS
