@@ -135,6 +135,12 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
 
 };
 
+template<typename T>
+T & operator << (T & os, const PtrVal& ptr) {
+  os << ptr->toString();
+  return os;
+}
+
 struct hash_PtrVal {
   size_t operator()(PtrVal const& v) const noexcept {
     return v ? v->hash() : std::hash<nullptr_t>{}(nullptr);

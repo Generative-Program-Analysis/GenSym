@@ -106,6 +106,7 @@ struct Stream: public Printable {
 };
 
 struct FS: public Printable {
+  List<PtrVal> preferred_cex;
   immer::map<Fd, Ptr<Stream>> opened_files;
   /* TODO: implement directory structure
    * 1. change the string key to a fileId, similar to inode number
@@ -154,14 +155,19 @@ struct FS: public Printable {
     return ss.str();
   }
   FS(const FS &fs) = default;
-  FS() : next_fd(3), root_file(make_SymFile("/", 0)) {
-    statfs = make_SymList("fs_statfs", statfs_size);
-    set_stderr(0);
-  }
-  FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file, Fd next_fd) :
-    opened_files(opened_files), root_file(root_file), next_fd(next_fd) {
+
+  // default constructor, initialize fields to default values
+  FS() :
+    next_fd(3), root_file(make_SymFile("/", 0)) {
       statfs = make_SymList("fs_statfs", statfs_size);
       set_stderr(0);
+  }
+
+  // shallow copy everything from fs, except opened_files and root_file
+  FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file, const FS &fs) :
+    opened_files(opened_files), root_file(root_file), next_fd(fs.next_fd) {
+      preferred_cex = fs.preferred_cex;
+      statfs = fs.statfs;
     }
 };
 

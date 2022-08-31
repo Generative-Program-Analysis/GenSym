@@ -149,6 +149,7 @@ inline void handle_cli_args(int argc, char** argv) {
       case 12:
         initial_fs = set_file(initial_fs, std::string("/") + optarg, make_SymFile(optarg, default_sym_file_size));
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);
+        INFO("initial_fs.preferred_cex: " << vec_to_string<PtrVal>(initial_fs.preferred_cex));
         break;
       case 13:
         default_sym_file_size = atoi(optarg);

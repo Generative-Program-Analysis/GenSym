@@ -60,7 +60,7 @@ trait GenExternal extends SymExeDefs {
 
     // the permission of the file
     val mode: Rep[Value] = f.readStatField("st_mode")
-    val bw = Constants.BYTE_SIZE * StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, "st_mode"))._2
+    val bw = f.readStatBw("st_mode")
 
     // TODO: add missing flags <2022-08-19, David Deng> //
     val canRead = ((mode & IntV(S_IRUSR, bw)) | (mode & IntV(S_IRGRP, bw)) | (mode & IntV(S_IROTH, bw)))
@@ -528,6 +528,8 @@ trait GenExternal extends SymExeDefs {
     stat.int & mask
   }
 
+  def _get_preferred_cex(f: Rep[File]): Rep[List[Value]] = f.getPreferredCex()
+
   // generate different return style
   def gen_k(gen: (Rep[SS], Rep[List[Value]], (Rep[SS], Rep[Value]) => Rep[Unit]) => Rep[Unit]):
       ((Rep[SS], Rep[List[Value]], Rep[Cont]) => Rep[Unit]) = { case (ss, l, k) =>
@@ -670,6 +672,7 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
     hardTopFun(_set_file(_,_,_), "set_file", "inline")
     hardTopFun(_set_file_type(_,_), "set_file_type", "inline")
     hardTopFun(_has_file_type(_,_), "has_file_type", "inline")
+    hardTopFun(_get_preferred_cex(_), "get_preferred_cex", "inline")
     hardTopFun(gen_p(_errno_location), "__errno_location", "inline")
     hardTopFun(gen_k(_errno_location), "__errno_location", "inline")
     // hardTopFun(gen_p(openat), "openat", "inline")

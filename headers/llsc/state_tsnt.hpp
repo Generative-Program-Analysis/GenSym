@@ -414,7 +414,7 @@ class SS {
       }
       return uniqueName;
     }
-    List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
+    List<PtrVal> get_preferred_cex() { return meta.preferred_cex + fs.preferred_cex; }
     SS&& alloc_stack(size_t size) {
       stack.alloc(size);
       return std::move(*this);
