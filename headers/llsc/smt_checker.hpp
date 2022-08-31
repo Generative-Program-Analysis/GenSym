@@ -115,11 +115,11 @@ public:
   const XExpr& construct_expr(PtrVal e, bool top_level = false) {
     auto fd = objcache.find(e);
     if (fd != objcache.end()) {
-      if (top_level) update_global_reachmap(fd->second.reachmap);
+      //if (top_level) update_global_reachmap(fd->second.reachmap);
       return fd->second;
     }
     auto [it, ins] = objcache.emplace(e, construct_expr0(e, top_level));
-    if (top_level) update_global_reachmap(it->second.reachmap);
+    //if (top_level) update_global_reachmap(it->second.reachmap);
     return it->second;
   }
 
@@ -258,7 +258,7 @@ public:
     cons_indep_time_old += duration_cast<microseconds>(end - start).count();
   }
 
-  void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, bool add_root = true) {
+  void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, std::set<PtrVal>& pc, bool add_root = true) {
     ASSERT(use_cons_indep, "why not?");
     if (add_root) result.insert(root);
     auto root_obj = objcache.find(root);
@@ -269,9 +269,21 @@ public:
       visited.insert(var);
       auto [beg, end] = global_reachmap.equal_range(var);
       for (auto it = beg; it != end; it++) {
-        mark(it->second, visited, result);
+        if (pc.find(it->second) == pc.end()) {
+          std::cout << "Find a weird condition: " << it->second->toString() << " " << it->second << "\n";
+          ABORT("what the fuck");
+        }
+        mark(it->second, visited, result, pc);
       }
     }
+  }
+
+  // Use this if no cache of reachmap
+  void construct_reachmap(const PtrVal& top_cnd, const PtrVal& e) {
+    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+    if (!sym_e) return;
+    if (sym_e->is_var()) global_reachmap.emplace(sym_e, top_cnd);
+    for (auto& rand : sym_e->rands) construct_reachmap(top_cnd, rand);
   }
 
   // Query satisfiability, potentially return the concretized value of query_expr
@@ -280,10 +292,12 @@ public:
     global_reachmap.clear();
 
     // XXX: what if we do cons_indep at front?
-    if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
+
+    //if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it? XXX: we are always use objcache in fact
+
     auto start = steady_clock::now();
-    for (auto &v: conds) construct_expr(v, true);
-    if (query_expr) construct_expr(query_expr, true);
+    for (auto &v: conds) construct_expr(v, false);
+    if (query_expr) construct_expr(query_expr, false);
     auto end = steady_clock::now();
     cons_expr_time += duration_cast<microseconds>(end - start).count();
 
@@ -297,28 +311,29 @@ public:
     } else {
       if (cons_indep_algo == 1) {
         start = steady_clock::now();
-        // using new one
+
+        for (auto& cnd : conds) construct_reachmap(cnd, cnd);
         //std::cout << "\nglobal reach map:\n";
         //for (auto& p: global_reachmap) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
+
         std::set<PtrVal> visited;
+        std::set<PtrVal> ori_pc;
+        ori_pc.insert(conds.begin(), conds.end());
+        //std::cout << "All PC: \n";
+        //for (auto& c : ori_pc) { std::cout << "  " << c->toString() << " " << c << "\n"; }
+
         auto root = query_expr ? query_expr : *std::prev(conds.end());
         bool add_root = query_expr ? false : true;
         //if (query_expr == nullptr) std::cout << "root is (non-query_expr): " << root->toString() << "\n";
         //else std::cout << "root is (query_expr): " << root->toString() << "\n";
-        mark(root, visited, pc, add_root);
+
+        mark(root, visited, pc, ori_pc, add_root);
 
         end = steady_clock::now();
         cons_indep_time_new += duration_cast<microseconds>(end - start).count();
-        /*
-        std::cout << "All PC: \n";
-        for (auto& c : conds) {
-        std::cout << "  " << c->toString() << "\n";
-        }
-        std::cout << "PC after indep: \n";
-        for (auto& c : pc) {
-        std::cout << "  " << c->toString() << "\n";
-        }
-        */
+
+        //std::cout << "PC after indep: \n";
+        //for (auto& c : pc) { std::cout << "  " << c->toString() << "\n"; }
       } else {
         cachedObjs.reserve(conds.size());
         for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
@@ -338,7 +353,7 @@ public:
   template <template <typename> typename T>
   CheckResult check_with_full_model(const T<PtrVal>& conds) {
     // translation
-    if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
+    // if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
     auto start = steady_clock::now();
     for (auto &v: conds) construct_expr(v);
     auto end = steady_clock::now();
