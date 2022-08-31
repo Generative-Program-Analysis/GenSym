@@ -49,9 +49,9 @@ abstract class TestLLSC extends FunSuite {
   val gitCommit = Process("git rev-parse --short HEAD").!!.trim
 
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
-    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
-      case pattern(extSolverTime, intSolverTime, wholeTime, blockCnt, blockAll,
+      case pattern(extSolverTime, intSolverTime, _/*fsTime ignored*/, wholeTime, blockCnt, blockAll,
         partialBr, fullBr, totalBr, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
         TestResult(LocalDateTime.now(), gitCommit, engine, testName,
           extSolverTime.toDouble, intSolverTime.toDouble, wholeTime.toDouble,
@@ -85,7 +85,7 @@ abstract class TestLLSC extends FunSuite {
 
   def testLLSC(llsc: LLSC, tst: TestPrg, solver: Option[String], threading: Boolean): Unit = {
     val nTest = 5
-    val TestPrg(m, name, f, config, cliArg, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     test(name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
       val mkRet = code.make(4)

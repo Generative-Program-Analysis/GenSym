@@ -32,7 +32,7 @@ class Optimization extends TestLLSC {
   val N = 5
 
   def testLLSC(N: Int, llsc: LLSC, tst: TestPrg): Unit = {
-    val TestPrg(m, name, f, config, cliArg, exp) = tst
+    val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     test(llsc.insName + "_" + name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
       val mkRet = code.make(8)

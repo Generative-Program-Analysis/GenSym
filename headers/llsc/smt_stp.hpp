@@ -146,7 +146,6 @@ public:
       auto v_e = expr_rands[2].get();
       ASSERT(BOOLEAN_TYPE == getType(cond), "Non Boolean condition");
       ASSERT(getType(v_t) == getType(v_e), "Operation between different type");
-      //ASSERT(getBVLength(v_t) == getBVLength(v_e),"Operation between different bv_length");
       return vc_iteExpr(vc, cond, v_t, v_e);
     }
     case iOP::const_true:

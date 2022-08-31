@@ -86,6 +86,7 @@ public:
     // solving with counterexample caching
     if (use_cexcache && (!query_expr || query_expr->name.size())) {
       if (auto it = cexcache.find(condset); it != cexcache.end()) {
+        cached_query_num += 1;
         return it->second;
       }
     }

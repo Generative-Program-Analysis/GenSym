@@ -13,7 +13,7 @@ static struct option long_options[] =
 {
   /* These options set a flag. */
   {"exlib-failure-branch",  no_argument,       0, '\0'}, // option_index = 0
-  {"no-hash-cons",          no_argument,       0, '\0'}, // option_index = 1 
+  {"no-hash-cons",          no_argument,       0, '\0'}, // option_index = 1
   {"no-obj-cache",          no_argument,       0, '\0'}, // option_index = 2
   {"no-cex-cache",          no_argument,       0, '\0'}, // option_index = 3
   {"cons-indep",            no_argument,       0, '\0'}, // option_index = 4
@@ -33,7 +33,8 @@ static struct option long_options[] =
   {"solver",                required_argument, 0, '\0'}, // option_index = 18
   {"timeout",               required_argument, 0, '\0'}, // option_index = 19
   {"argv",                  required_argument, 0, '\0'}, // option_index = 20
-  {"help",                  no_argument,       0, '\0'}, // option_index = 21
+  {"max-sym-array-size",    required_argument, 0, '\0'}, // option_index = 21
+  {"help",                  no_argument,       0, '\0'}, // option_index = 22
   {0,                       0,                 0, 0  }
 };
 
@@ -198,7 +199,12 @@ inline void handle_cli_args(int argc, char** argv) {
         g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
         g_argc = make_IntV(cli_argv.size());
         break;
-      case 21:
+      case 21: {
+        int n = atoi(optarg);
+        max_sym_array_size = (n > 0) ? n : 0;
+        break;
+      }
+      case 22:
       default:
         print_help(argv[0]);
         exit(-1);

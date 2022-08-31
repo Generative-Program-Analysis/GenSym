@@ -106,11 +106,10 @@ template<typename T>
 inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
   auto size = args.at(0);
   if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
-    //std::cout << "malloc: " << *symvite << "\n";
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = symvite->rands[0];
-    auto v_t = symvite->rands[1];
-    auto v_f = symvite->rands[2];
+    auto cond = get_ite_cond(symvite);
+    auto v_t = get_ite_tv(symvite);
+    auto v_f = get_ite_ev(symvite);
     auto pc = state.copy_PC();
     pc.add(cond);
     auto tbr_sat = check_pc(pc);
@@ -136,7 +135,7 @@ inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
     }
   } else {
     IntData bytes = proj_IntV(size);
-    auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+    auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
     PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
     if (exlib_failure_branch)
       return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
@@ -158,8 +157,8 @@ template<typename T>
 inline T __memalign(SS& state, List<PtrVal>& args, __Cont<T> k) {
   size_t alignment = proj_IntV(args.at(0));
   size_t bytes = proj_IntV(args.at(1));
-  auto fillmem = List<PtrVal>((((state.heap_size() + (alignment - 1)) / alignment) * alignment) - state.heap_size(), make_UinitV());
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  auto fillmem = List<PtrVal>((((state.heap_size() + (alignment - 1)) / alignment) * alignment) - state.heap_size(), make_UnInitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
   state.heap_append(fillmem);
   ASSERT(0 == state.heap_size() % alignment, "non-aligned address");
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
@@ -203,7 +202,7 @@ inline std::monostate calloc(SS& state, List<PtrVal> args, Cont k) {
 template<typename T>
 inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes = proj_IntV(args.at(1));
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   state.heap_append(emptyMem);
   if (!is_LocV_null(args.at(0))) {
@@ -231,7 +230,7 @@ inline T __reallocarray(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData size = proj_IntV(args.at(2));
   ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
   IntData bytes = nmemb * size;
-  auto emptyMem = List<PtrVal>(bytes, make_UinitV());
+  auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, bytes);
   state.heap_append(emptyMem);
   if (!is_LocV_null(args.at(0))) {
@@ -262,11 +261,10 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes_int;
   // Todo (Ruiqi): should we fork here
   if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
-    //std::cout << "memcpy: " << *size << "\n";
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = symvite->rands[0];
-    auto v_t = symvite->rands[1];
-    auto v_f = symvite->rands[2];
+    auto cond = get_ite_cond(symvite);
+    auto v_t = get_ite_tv(symvite);
+    auto v_f = get_ite_ev(symvite);
     auto pc = state.copy_PC();
     pc.add(cond);
     auto tbr_sat = check_pc(pc);
@@ -275,8 +273,8 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
     ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
     bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);
     if (auto srcite = std::dynamic_pointer_cast<SymV>(src)) {
-      ASSERT(iOP::op_ite == srcite->rator && srcite->rands[0] == cond, "Inconsistent ite src and size");
-      src = tbr_sat ? srcite->rands[1] : srcite->rands[2];
+      ASSERT(iOP::op_ite == srcite->rator && get_ite_cond(srcite) == cond, "Inconsistent ite src and size");
+      src = tbr_sat ? get_ite_tv(srcite) : get_ite_ev(srcite);
     }
   }
   else
@@ -519,9 +517,12 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_fsync:
       ABORT("Unsupported Systemcall");
       break;
-    case __NR_ftruncate:
-      ABORT("Unsupported Systemcall");
+    case __NR_ftruncate: {
+      int fd = get_int_arg(state, args.at(1));
+      off_t length = get_int_arg(state, args.at(2));
+      retval = syscall(__NR_ftruncate, fd, length);
       break;
+    }
     case __NR_getcwd: {
       size_t count = get_int_arg(state, args.at(2));
       ASSERT(count > 0, "empty buffer for getcwd");
