@@ -135,10 +135,9 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
 
 };
 
-template<typename T>
-T & operator << (T & os, const PtrVal& ptr) {
-  os << ptr->toString();
-  return os;
+template<>
+std::ostream& operator<< <Value>(std::ostream& outs, const simple_ptr<Value>& rhs) {
+  return outs << rhs->toString();
 }
 
 struct hash_PtrVal {
