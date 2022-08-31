@@ -78,6 +78,7 @@ inline int kTest_toFile(KTest *bo, const char *path) {
     std::cout << "if (!write_uint32(f, KTEST_VERSION))" << std::endl;
     goto error;
   }
+  INFO("bo->numArgs" << bo->numArgs);
 
   if (!write_uint32(f, bo->numArgs))
   {

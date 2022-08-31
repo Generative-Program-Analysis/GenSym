@@ -227,7 +227,24 @@ inline void handle_cli_args(int argc, char** argv) {
     tp.init(n_thread, n_queue);
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
   }
-  // symfiles -> sym-stdin -> sym-stdout (must be in this order for klee-replay to work)
+  // symargs -> symfiles -> sym-stdin -> sym-stdout (must be in this order for klee-replay to work)
+
+  // count number of symbolic arguments, create one SymObj for each.
+  int n_sym_arg = 0;
+  TrList<SymObj> symargs;
+  for (int i = 0; i < cli_argv.size(); ++i) {
+    // only check the first byte for symbolic value, as KLEE doesn't support mixed values
+    // we should implement our own replay tool.
+    if (std::dynamic_pointer_cast<SymV>(cli_argv[i][0])) {
+      std::ostringstream ss;
+      ss << "arg" << std::setw(2) << std::setfill('0') << n_sym_arg;
+      std::cout << "ss.str(): " << ss.str() << std::endl;
+      symargs.push_back(SymObj(ss.str() , cli_argv[i].size(), false));
+      n_sym_arg++;
+    }
+  }
+  initial_fs.sym_objs = symargs.persistent() + initial_fs.sym_objs;
+
   if (n_sym_stdin > 0) {
     initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdin", n_sym_stdin, false));
     initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdin-stat", stat_size, false));
@@ -237,19 +254,16 @@ inline void handle_cli_args(int argc, char** argv) {
     initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdout-stat", stat_size, false));
   }
   if (output_ktest && (cli_argv.size() > 0)) {
-    int n_sym_arg = 0; // each sym arg requires an additional slot
-    for (int i = 0; i < cli_argv.size(); ++i) {
-      // only check the first byte for symbolic value, as KLEE doesn't support mixed values
-      // we should implement our own replay tool.
-      if (std::dynamic_pointer_cast<SymV>(cli_argv[i][0])) 
-        n_sym_arg++;
-    }
-    const int extra_args = 3 + 3; // + 3 for -sym-files n m, + 3 for -sym-stdout, -sym-stdin n
-    g_conc_argc = cli_argv.size() + n_sym_arg + extra_args; 
-    g_conc_argv = new char* [g_conc_argc + n_sym_arg + extra_args];
+    const int extra_args = 3 + 3; 
+    // + 3 for -sym-files n m, + 3 for -sym-stdout, -sym-stdin n
+    // each symarg also requires an additional slot
+
+    g_conc_argc = cli_argv.size() + extra_args + n_sym_arg; 
+    g_conc_argv = new char* [g_conc_argc + extra_args + n_sym_arg];
     INFO("g_conc_argc: " << g_conc_argc);
     auto cli_iter = cli_argv.begin();
-    for (int i = 0; i < g_conc_argc - extra_args; i++, cli_iter++) {
+    int i = 0;
+    for (; i < g_conc_argc - extra_args; i++, cli_iter++) {
       INFO("i: " << i);
       if (std::dynamic_pointer_cast<SymV>((*cli_iter)[0])) {
         INFO("symbolic argument");
@@ -279,10 +293,9 @@ inline void handle_cli_args(int argc, char** argv) {
         g_conc_argv[i] = cur_argv;
       }
     }
-    int i = g_conc_argc - extra_args;
-    std::cout << "i: " << i << std::endl;
-
-    std::cout << "n_sym_files: " << n_sym_files << std::endl;
+    INFO("Done converting arguments");
+    INFO("i: " << i);
+    INFO("n_sym_files: " << n_sym_files);
     // -sym-files
     if (n_sym_files > 0) {
       g_conc_argv[i] = new char [11] {'-', 's', 'y', 'm', '-', 'f', 'i', 'l', 'e', 's'};
