@@ -33,7 +33,7 @@ GCOV=true
 # extra arguments passed to BM_SCRIPT
 BM_OPTIONS="--njobs 192 --timeout 300"
 # global options for the final executable, appended to all benchmarks
-RUNTIME_OPTION="--solver=z3 --thread=1 --cons-indep --output-ktest --output-tests-cov-new"
+RUNTIME_OPTION="--solver=z3 --thread=1 --cons-indep --search=random-path --output-ktest --output-tests-cov-new"
 # use the hash of the specified branch. Only affect the result of runtime, but not scala/cpp compilation.
 USE_BRANCH=""
 
@@ -45,6 +45,15 @@ comm
 cut
 dirname
 echo
+fold
+pathchk
+expand
+paste
+join
+# cat
+# false
+# true
+# link
 )
 
 # map from *.ll base name to *.gcda basename
@@ -57,18 +66,97 @@ declare -A gcov_gcda_map=(
 # for path comparison
 
 declare -A options=(
-[base32_posix]='--argv="name -sym-files 1 {1..5} -d A"' # -d needed
-[base32_uclibc]='--argv="name -d A" --sym-file-size={1..5} --add-sym-file A' # -d needed
-[base64_posix]='--argv="name -sym-files 1 {0..10..2} -d A"'
-[base64_uclibc]='--argv="name -d A" --sym-file-size={0..10..2} --add-sym-file A'
-[comm_posix]='--argv="name -sym-files 2 {1..3} A B"'
-[comm_uclibc]='--argv="name A B" --sym-file-size={1..3} --add-sym-file=A --add-sym-file=B'
-[cut_posix]='--argv="name -sym-files 1 {5,10} -{b,c} 1-2 A"'
-[cut_uclibc]='--argv="name -{b,c} 1-2 A" --sym-file-size={5,10} --add-sym-file A'
-[dirname_posix]='--argv="name -sym-arg {0..30..10}'
-[dirname_uclibc]='--argv="name #{0..30..10}"'
-[echo_posix]='--argv="name -sym-arg {1..12}"'
-[echo_uclibc]='--argv="name #{1..12}"'
+[base32_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 1 12 -d A"' # -d needed
+[base32_uclibc]='--argv="name -d A" --sym-stdin 2 --sym-stdout --sym-file-size=12 --add-sym-file A' # -d needed
+[base64_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 1 11 -d A"'
+[base64_uclibc]='--argv="name -d A" --sym-stdin 2 --sym-stdout --sym-file-size=11 --add-sym-file A'
+[comm_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 2 4 A B"'
+[comm_uclibc]='--argv="name A B" --sym-stdin 2 --sym-stdout --sym-file-size=4 --add-sym-file=A --add-sym-file=B'
+[cut_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 1 15 -b 1-2 A"'
+[cut_uclibc]='--argv="name -b 1-2 A" --sym-stdin 2 --sym-stdout --sym-file-size=15 --add-sym-file A'
+[dirname_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-arg 15"'
+[dirname_uclibc]='--argv="name #15" --sym-stdin 2 --sym-stdout'
+[echo_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-arg {10,11}"'
+[echo_uclibc]='--argv="name #{10,11}" --sym-stdin 2 --sym-stdout'
+[fold_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 1 {6,7} A"'
+[fold_uclibc]='--argv="name A" --sym-stdout --sym-stdin 2 --sym-file-size={6,7} --add-sym-file A'
+[pathchk_posix]='--argv="name --sym-stdin 2 --sym-stdout -sym-arg {1..5}"'
+[pathchk_uclibc]='--argv="name #{1..5}" --sym-stdin 2 --sym-stdout'
+[expand_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 1 {10..30..10} A"'
+[expand_uclibc]='--argv="name A" --sym-stdout --sym-stdin 2 --sym-file-size={10..30..10} --add-sym-file A'
+# NOTE: paste and join path different
+[paste_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 4 5 {,-s} {A,A B,A B C,A B C D}"'
+[paste_uclibc]='--argv="name {,-s} {A,A B,A B C,A B C D}" --sym-stdout --sym-stdin 2 --sym-file-size=5 --add-sym-file=A --add-sym-file=B --add-sym-file=C --add-sym-file=D'
+[join_posix]='--argv="name -sym-stdout -sym-stdin 2 -sym-files 2 {3,5,10,15} A B"'
+[join_uclibc]='--argv="name A B" --sym-stdout --sym-stdin 2 --sym-file-size={3,5,10,15} --add-sym-file=A --add-sym-file=B'
+# NOTE: link to be implemented
+# NOTE: cat non-representative without symbolic file names
+# [cat_posix]='--argv="name -sym-files 3 10 --sym-stdout A B C"'
+# [cat_uclibc]='--argv="name A" --add-sym-file A --sym-stdout --sym-stdin 2'
+)
+
+declare -A _options=(
+  [echo_posix]='--argv="./echo.bc     --sym-stdout --sym-arg 2 --sym-arg 7"'
+  [echo_uclibc]='--argv="./echo.bc #2 #7" --sym-stdout'
+  # [0.75008s/6.94065s/82.0174s] #blocks: 473/2224; #br: 160/96/1128; #paths: 216136; #threads: 1; #task-in-q: 0; #queries: 646097/53 (0)
+  # gcov 84.17%
+  [cat_posix]='--argv="./cat.bc      --sym-stdout --sym-stdin 2 --sym-arg 2"'
+  [cat_uclibc]='--argv="./cat.bc #2" --sym-stdout --sym-stdin 2'
+  # [17.5964s/122.277s/152.538s] #blocks: 1114/2484; #br: 371/297/1664; #paths: 28567; #threads: 1; #task-in-q: 0; #queries: 976797/71 (0)
+  # v.s. 28545
+  # gcov 81.4%
+  [base32_posix]='--argv="./base32      --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 10"'
+  [base32_uclibc]='--argv="./base32 #2"      --sym-stdout  --sym-stdin 2 --sym-file-size 10 --add-sym-file A --add-sym-file B'
+  # [11.0384s/81.2135s/95.0274s] #blocks: 1170/2718; #br: 417/284/1860; #paths: 10621; #threads: 1; #task-in-q: 0; #queries: 475353/38 (0)
+  # gcov 73.33%
+  [base64_posix]='--argv="./base64.bc   --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 10"'
+  [base64_uclibc]='--argv="./base64 #2"      --sym-stdout  --sym-stdin 2 --sym-file-size 10 --add-sym-file A --add-sym-file B'
+  # [11.1519s/81.5593s/95.0264s] #blocks: 1164/2694; #br: 411/286/1889; #paths: 10624; #threads: 1; #task-in-q: 0; #queries: 475379/38 (0)
+  # gcov 73.33%
+  [comm_posix]='--argv="./comm.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2"'
+  [comm_uclibc]='--argv="./comm.bc #2"     --sym-stdout  --sym-stdin 2 --sym-file-size 2 --add-sym-file A --add-sym-file B'
+  # [8.71519s/27.1575s/41.5112s] #blocks: 836/2719; #br: 325/185/2077; #paths: 10616; #threads: 1; #task-in-q: 0; #queries: 89179/89 (0)
+  # gcov 22.41%
+  [cut_posix]='--argv="./cut.bc      --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg  2 -sym-files 2 10"'
+  [cut_uclibc]='--argv="./cut.bc #2 #2" --sym-stdout  --sym-stdin 2 --sym-file-size 10 --add-sym-file A --add-sym-file B'
+  # [28.2764s/96.9007s/141.538s] #blocks: 1056/2751; #br: 388/242/2124; #paths: 28481; #threads: 1; #task-in-q: 0; #queries: 238501/101 (0)
+  # gcov 63.26%
+  [dirname_posix]='--argv="./dirname.bc  --sym-stdout  --sym-stdin 2 --sym-arg 4 --sym-arg 10"'
+  [dirname_uclibc]='--argv="./dirname.bc #4 #10 --sym-stdout  --sym-stdin 2'
+  # [2.14734s/16.1223s/52.5137s] #blocks: 590/2295; #br: 219/93/2130; #paths: 80125; #threads: 1; #task-in-q: 0; #queries: 1035523/21 (0)
+  # gcov 100.00%
+  [expand_posix]='--argv="./expand.bc   --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2"'
+  [expand_uclibc]='--argv="./expand.bc #2"   --sym-stdout  --sym-stdin 2 --sym-file-size 2 --add-sym-file A --add-sym-file B'
+  # [21.482s/101.299s/116.022s] #blocks: 1167/2554; #br: 408/294/2145; #paths: 10870; #threads: 1; #task-in-q: 0; #queries: 478319/41 (0)
+  # gcov 71.05%
+  [false_posix]='--argv="./false.bc    --sym-stdout  --sym-arg 10"'
+  [false_uclibc]='--argv="./false.bc #10"    --sym-stdout'
+  # [0.012289s/0.032464s/1.00143s] #blocks: 391/2108; #br: 159/44/2276; #paths: 16; #threads: 1; #task-in-q: 0; #queries: 165/3 (0)
+  # gcov 100.00%
+  [true_posix]='--argv="./true.bc     --sym-stdout  --sym-arg 10"'
+  [true_uclibc]='--argv="./true.bc #10"    --sym-stdout'
+  # [0.012326s/0.032479s/1.0014s] #blocks: 391/2108; #br: 159/44/2276; #paths: 16; #threads: 1; #task-in-q: 0; #queries: 165/3 (0)
+  # gcov 100.00%
+  [fold_posix]='--argv="./fold.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2"'
+  [fold_uclibc]='--argv="./fold.bc #2"   --sym-stdout  --sym-stdin 2 --sym-file-size 2 --add-sym-file A --add-sym-file B'
+  # [11.2871s/95.8641s/110.53s] #blocks: 1212/2603; #br: 417/301/2279; #paths: 11015; #threads: 1; #task-in-q: 0; #queries: 478287/46 (0)
+  # v.s. 174690
+  # gcov 74.36%
+  [join_posix]='--argv="./join.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2"'
+  [join_uclibc]='--argv="./join.bc #2 #1"   --sym-stdout  --sym-stdin 2 --sym-file-size 2 --add-sym-file A --add-sym-file B'
+  # [32.7084s/230.442s/263.047s] #blocks: 1444/3172; #br: 461/369/2511; #paths: 25046; #threads: 1; #task-in-q: 0; #queries: 983311/87 (0)
+  # gcov 71.75%
+  [link_posix]='--argv="./link.bc     --sym-stdout  --sym-stdin 2 --sym-arg 1  --sym-arg 1  -sym-files 2 2"'
+  [link_uclibc]='--argv="./link.bc #1 #1"   --sym-stdout  --sym-stdin 2 --sym-file-size 2 --add-sym-file A --add-sym-file B'
+  # [7.97859s/106.563s/133.037s] #blocks: 824/2282; #br: 321/188/2511; #paths: 10816; #threads: 1; #task-in-q: 0; #queries: 1243319/83 (0)
+  # gcov 36.00%
+  [paste_posix]='--argv="./paste.bc    --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2"'
+  [paste_uclibc]='--argv="./paste.bc  #2 #1"   --sym-stdout  --sym-stdin 2 --sym-file-size 2 --add-sym-file A --add-sym-file B'
+  # [19.9342s/142.499s/170.043s] #blocks: 1180/2510; #br: 393/306/2513; #paths: 22622; #threads: 1; #task-in-q: 0; #queries: 974269/46 (0)
+  # v.s. 22741
+  # gcov 76.08%
+  [pathchk_posix]='--argv="./pathchk.bc  --sym-stdout  --sym-stdin 2 --sym-arg 2"'
+  [pathchk_uclibc]='--argv="./pathchk.bc #2" --sym-stdout  --sym-stdin 2'
 )
 
 ###################
