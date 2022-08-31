@@ -46,10 +46,12 @@ public:
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto ret = ctx->bv_const(sym_e->name.c_str(), sym_e->bw);
       vars->emplace(sym_e, ret);
+      /*
       if (top_level) {
         // XXX: it seems top_level won't have this case (asserting a veriable)
         reach->emplace(sym_e, e);
       }
+      */
       return ret;
     }
     std::vector<expr> expr_rands;
@@ -58,12 +60,14 @@ public:
       auto& [e2, vm, rm] = construct_expr(rand);
       expr_rands.push_back(e2);
       vars->insert(vm->begin(), vm->end());
+      /*
       if (top_level) {
         auto start = steady_clock::now();
         for (auto& [v, whatever] : *vm) reach->emplace(v, e);
         auto end = steady_clock::now();
         cons_indep_time_new += duration_cast<microseconds>(end - start).count();
       }
+      */
     }
     int bw = sym_e->bw;
     switch (sym_e->rator) {

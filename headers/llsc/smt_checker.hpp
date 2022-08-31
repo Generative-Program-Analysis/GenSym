@@ -111,11 +111,27 @@ public:
     cons_indep_time_new += duration_cast<microseconds>(end - start).count();
   }
 
+  // a unoptimized but correct baseline
+  void construct_reachmap(ReachMap* rm, const PtrVal& top_cnd, const PtrVal& e) {
+    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+    if (!sym_e) return;
+    if (sym_e->is_var()) rm->emplace(sym_e, top_cnd);
+    for (auto& rand : sym_e->rands) construct_reachmap(rm, top_cnd, rand);
+  }
+
   // Construct the solver expression with object cache for a Value
   const XExpr& construct_expr(PtrVal e, bool top_level = false) {
     auto fd = objcache.find(e);
     if (fd != objcache.end()) {
-      //if (top_level) update_global_reachmap(fd->second.reachmap);
+      /*
+      if (top_level) {
+        // We cannot guarantee the cached reachmap is correct
+        auto rm = std::make_shared<ReachMap>();
+        construct_reachmap(rm.get(), e, e);
+        fd->second.reachmap = rm;
+        update_global_reachmap(fd->second.reachmap);
+      }
+      */
       return fd->second;
     }
     auto [it, ins] = objcache.emplace(e, construct_expr0(e, top_level));
@@ -258,32 +274,28 @@ public:
     cons_indep_time_old += duration_cast<microseconds>(end - start).count();
   }
 
-  void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, std::set<PtrVal>& pc, bool add_root = true) {
+  void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, bool add_root = true) {
     ASSERT(use_cons_indep, "why not?");
     if (add_root) result.insert(root);
     auto root_obj = objcache.find(root);
-    ASSERT(root_obj != objcache.end(), "Root not cached");
+    //ASSERT(root_obj != objcache.end(), "Root not cached");
     for (auto& [var, vexp] : *root_obj->second.varmap) {
       if (visited.find(var) != visited.end()) continue;
       //std::cout << "  it reaches var " << var->toString() << "\n";
       visited.insert(var);
       auto [beg, end] = global_reachmap.equal_range(var);
-      for (auto it = beg; it != end; it++) {
-        if (pc.find(it->second) == pc.end()) {
-          std::cout << "Find a weird condition: " << it->second->toString() << " " << it->second << "\n";
-          ABORT("what the fuck");
-        }
-        mark(it->second, visited, result, pc);
-      }
+      for (auto it = beg; it != end; it++) mark(it->second, visited, result);
     }
   }
 
-  // Use this if no cache of reachmap
-  void construct_reachmap(const PtrVal& top_cnd, const PtrVal& e) {
-    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
-    if (!sym_e) return;
-    if (sym_e->is_var()) global_reachmap.emplace(sym_e, top_cnd);
-    for (auto& rand : sym_e->rands) construct_reachmap(top_cnd, rand);
+  void construct_reachmap_fast(ReachMap& rm, const PtrVal& top_cnd) {
+    auto sym_e = std::dynamic_pointer_cast<SymV>(top_cnd);
+    ASSERT(sym_e, "not a sym");
+    for (auto& v : sym_e->vars) {
+      auto sym_v = std::dynamic_pointer_cast<SymV>(v);
+      ASSERT(sym_v, "not a variable");
+      rm.emplace(sym_v, top_cnd);
+    }
   }
 
   // Query satisfiability, potentially return the concretized value of query_expr
@@ -303,31 +315,49 @@ public:
 
     // local storage
     CachedPC cachedObjs;
-    std::set<PtrVal> pc;
-    if (!use_cons_indep) pc.insert(conds.begin(), conds.end());
+    std::set<PtrVal> indep_pc;
+    if (!use_cons_indep) indep_pc.insert(conds.begin(), conds.end());
     else if (conds.size() <= (query_expr != nullptr ? 0 : 1)) {
       // Not necessary to use independence solver since conds is too small
-      pc.insert(conds.begin(), conds.end());
+      indep_pc.insert(conds.begin(), conds.end());
     } else {
       if (cons_indep_algo == 1) {
         start = steady_clock::now();
 
-        for (auto& cnd : conds) construct_reachmap(cnd, cnd);
         //std::cout << "\nglobal reach map:\n";
         //for (auto& p: global_reachmap) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
 
+        for (auto& cnd : conds) construct_reachmap_fast(global_reachmap, cnd);
         std::set<PtrVal> visited;
+
+        /*
         std::set<PtrVal> ori_pc;
         ori_pc.insert(conds.begin(), conds.end());
-        //std::cout << "All PC: \n";
-        //for (auto& c : ori_pc) { std::cout << "  " << c->toString() << " " << c << "\n"; }
-
+        std::cout << "All PC: \n";
+        for (auto& c : ori_pc) { std::cout << "  " << c->toString() << " " << c << "\n"; }
+        */
         auto root = query_expr ? query_expr : *std::prev(conds.end());
         bool add_root = query_expr ? false : true;
         //if (query_expr == nullptr) std::cout << "root is (non-query_expr): " << root->toString() << "\n";
         //else std::cout << "root is (query_expr): " << root->toString() << "\n";
 
-        mark(root, visited, pc, ori_pc, add_root);
+        mark(root, visited, indep_pc, add_root);
+
+        /*
+        std::set<PtrVal> indep_pc2;
+        global_reachmap.clear();
+        visited.clear();
+        for (auto& cnd : conds) construct_reachmap(&global_reachmap, cnd, cnd);
+        mark(root, visited, indep_pc2, add_root);
+
+        if (indep_pc.size() != indep_pc2.size()) {
+          std::cout << "handwavy one: \n";
+          for (auto& c : indep_pc) { std::cout << "  " << c->toString() << "\n"; }
+          std::cout << "correct one: \n";
+          for (auto& c : indep_pc2) { std::cout << "  " << c->toString() << "\n"; }
+          ABORT("wowow");
+        }
+        */
 
         end = steady_clock::now();
         cons_indep_time_new += duration_cast<microseconds>(end - start).count();
@@ -337,7 +367,7 @@ public:
       } else {
         cachedObjs.reserve(conds.size());
         for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
-        get_indep_conds(conds, cachedObjs, pc, query_expr);
+        get_indep_conds(conds, cachedObjs, indep_pc, query_expr);
       }
     }
 
@@ -347,7 +377,7 @@ public:
     //auto [s2, m2] = check_cexcached_model(cachedObjs, pc, query_expr, false);
     //if (s1 != s2) ABORT("FUCK");
     //return {s2, m2};
-    return check_cexcached_model(cachedObjs, pc, query_expr, false);
+    return check_cexcached_model(cachedObjs, indep_pc, query_expr, false);
   }
 
   template <template <typename> typename T>
