@@ -47,6 +47,12 @@ dirname
 echo
 )
 
+# map from *.ll base name to *.gcda basename
+declare -A gcov_gcda_map=(
+[base32]=base32-basenc
+[base64]=base64-basenc
+)
+
 # runtime options for executable
 # for path comparison
 
@@ -135,13 +141,16 @@ for i in "${!inputs[@]}"; do
 		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll $HEAD $option
         if [ $? -eq 0 ] && [ "$GCOV" = "true" ]; then
           ( cd llsc_gen/$HEAD/tests
+          gcov_file=${gcov_gcda_map[$f]:-$f}
           pwd
           echo performing gcov measurement...
-          rm -f $GCOV_DIR/src/$f.gcda
+          rm -f $GCOV_DIR/src/*.gcda
           klee-replay $GCOV_DIR/src/$f *.ktest
           cd $GCOV_DIR
           pwd
-          gcov src/$f
+          echo f: $f
+          echo gcov_file: $gcov_file
+          gcov src/${gcov_file} | tee >(grep -A1 '^File' | grep -vx '\-\-' - >> $OUTFILERUNTIME)
         )
         fi
 	done
@@ -149,4 +158,6 @@ for i in "${!inputs[@]}"; do
 	exec 1> /dev/tty
 	exec 2> /dev/tty
 	echo [run_experiment] output written to ${OUTFILE}
+	echo [run_experiment] runtime output written to ${OUTFILERUNTIME}
+	echo [run_experiment] executable at `realpath llsc_gen/$HEAD`
 done

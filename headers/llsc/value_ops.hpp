@@ -136,7 +136,7 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
 };
 
 template<>
-std::ostream& operator<< <Value>(std::ostream& outs, const simple_ptr<Value>& rhs) {
+inline std::ostream& operator<< <Value>(std::ostream& outs, const simple_ptr<Value>& rhs) {
   return outs << rhs->toString();
 }
 

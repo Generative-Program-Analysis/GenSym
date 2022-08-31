@@ -83,6 +83,7 @@ fi
 
 if [ "$RUNTIME" = "true" ]; then
 	cd llsc_gen/${HEAD}
+	rm -rf tests
 	EXE="./${HEAD}"
 	if [ ! -z "$BM_EXPAND_SCRIPT" ]; then
 		if [ -f "$BM_EXPAND_SCRIPT" ]; then

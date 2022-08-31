@@ -107,6 +107,7 @@ struct Stream: public Printable {
 
 struct FS: public Printable {
   List<PtrVal> preferred_cex;
+  List<SymObj> sym_objs;
   immer::map<Fd, Ptr<Stream>> opened_files;
   /* TODO: implement directory structure
    * 1. change the string key to a fileId, similar to inode number
@@ -130,14 +131,15 @@ struct FS: public Printable {
   }
 
   void set_stdout(int size) {
-    auto f = make_SymFile("@stdout", 0);
+    auto f = make_SymFile("@stdout", size);
     f->parent = root_file;
     root_file->children = root_file->children.set("@stdout", f);
     opened_files = opened_files.set(1, std::make_shared<Stream>(f, O_WRONLY, 0));
   }
 
   void set_stderr(int size) {
-    auto f = make_SymFile("@stderr", 0);
+    auto f = make_SymFile("@stderr", size);
+    // for klee-replay compatibility
     f->parent = root_file;
     root_file->children = root_file->children.set("@stderr", f);
     opened_files = opened_files.set(2, std::make_shared<Stream>(f, O_WRONLY, 0));
@@ -160,12 +162,13 @@ struct FS: public Printable {
   FS() :
     next_fd(3), root_file(make_SymFile("/", 0)) {
       statfs = make_SymList("fs_statfs", statfs_size);
-      set_stderr(0);
+      set_stderr(1);
   }
 
   // shallow copy everything from fs, except opened_files and root_file
   FS(immer::map<Fd, Ptr<Stream>> opened_files, Ptr<File> root_file, const FS &fs) :
     opened_files(opened_files), root_file(root_file), next_fd(fs.next_fd) {
+      sym_objs = fs.sym_objs;
       preferred_cex = fs.preferred_cex;
       statfs = fs.statfs;
     }

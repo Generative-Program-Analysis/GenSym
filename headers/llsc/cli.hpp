@@ -3,6 +3,9 @@
 
 /* TODO: generate a file containing generated function declarations <2022-05-24, David Deng> */
 FS set_file(FS, String, Ptr<File>);
+inline int n_sym_files = 0;
+inline int n_sym_stdout = 0;
+inline int n_sym_stdin = 0;
 
 // TODO: "--stack-size" to set stack size using `inc_stack`.
 
@@ -148,6 +151,9 @@ inline void handle_cli_args(int argc, char** argv) {
       }
       case 12:
         initial_fs = set_file(initial_fs, std::string("/") + optarg, make_SymFile(optarg, default_sym_file_size));
+        initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data", default_sym_file_size, false));
+        initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data-stat", stat_size, false));
+        n_sym_files++;
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);
         INFO("initial_fs.preferred_cex: " << vec_to_string<PtrVal>(initial_fs.preferred_cex));
         break;
@@ -157,13 +163,15 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 14: {
         int size = atoi(optarg);
-        initial_fs.set_stdin((size < 0) ? 0 : size);
-        INFO("set stdin size to " << size << "\n");
+        n_sym_stdin = (size < 0) ? 0 : size;
+        initial_fs.set_stdin(n_sym_stdin);
+        INFO("set stdin size to " << n_sym_stdin << "\n");
         break;
       }
       case 15: {
-        initial_fs.set_stdout(0);
-        INFO("set stdout size to " << 0 << "\n");
+        n_sym_stdout = 1024;
+        initial_fs.set_stdout(n_sym_stdout);
+        INFO("set stdout size to " << n_sym_stdout << "\n");
         break;
       }
       case 16: {
@@ -213,18 +221,100 @@ inline void handle_cli_args(int argc, char** argv) {
     tp.init(n_thread, n_queue);
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
   }
+  // symfiles -> sym-stdin -> sym-stdout (must be in this order for klee-replay to work)
+  if (n_sym_stdin > 0) {
+    initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdin", n_sym_stdin, false));
+    initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdin-stat", stat_size, false));
+  }
+  if (n_sym_stdout > 0) {
+    initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdout", n_sym_stdout, false));
+    initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdout-stat", stat_size, false));
+  }
   if (output_ktest && (cli_argv.size() > 0)) {
-    g_conc_argc = cli_argv.size();
-    g_conc_argv = new char* [g_conc_argc];
-    for (int i = 0; i < g_conc_argc; i++) {
-      int size = cli_argv[i].size();
-      char* cur_argv = new char[size];
-      for (int j = 0; j < size; j++) {
-        ASSERT(cli_argv[i][j]->get_bw() == 8, "Bitwidth mismatch");
-        cur_argv[j] = static_cast<unsigned char>(proj_IntV(cli_argv[i][j]));
+    int n_sym_arg = 0; // each sym arg requires an additional slot
+    for (int i = 0; i < cli_argv.size(); ++i) {
+      // only check the first byte for symbolic value, as KLEE doesn't support mixed values
+      // we should implement our own replay tool.
+      if (std::dynamic_pointer_cast<SymV>(cli_argv[i][0])) 
+        n_sym_arg++;
+    }
+    const int extra_args = 3 + 3; // + 3 for -sym-files n m, + 3 for -sym-stdout, -sym-stdin n
+    g_conc_argc = cli_argv.size() + n_sym_arg + extra_args; 
+    g_conc_argv = new char* [g_conc_argc + n_sym_arg + extra_args];
+    INFO("g_conc_argc: " << g_conc_argc);
+    auto cli_iter = cli_argv.begin();
+    for (int i = 0; i < g_conc_argc - extra_args; i++, cli_iter++) {
+      INFO("i: " << i);
+      if (std::dynamic_pointer_cast<SymV>((*cli_iter)[0])) {
+        INFO("symbolic argument");
+        // symbolic argument
+        g_conc_argv[i]   = new char [9] {'-', 's', 'y', 'm', '-', 'a', 'r', 'g'};
+        INFO("*cli_iter: " << vec_to_string(*cli_iter));
+        int nargs = cli_iter->size() - 1; // excluding the null byte at the end
+        std::string nargs_str = std::to_string(nargs);
+        INFO("nargs_str: " << nargs_str);
+
+        g_conc_argv[i+1] = new char [nargs_str.size() + 1];
+        memcpy(g_conc_argv[i+1], nargs_str.c_str(), nargs_str.size());
+        g_conc_argv[i+1][nargs_str.size()] = '\0';
+
+        i++;
+        continue;
+      } else {
+        INFO("concrete argument");
+        // concrete argument
+        int size = (*cli_iter).size();
+        char* cur_argv = new char[size];
+        for (int j = 0; j < size; j++) {
+          ASSERT((*cli_iter)[j]->get_bw() == 8, "Bitwidth mismatch");
+          cur_argv[j] = static_cast<unsigned char>(proj_IntV((*cli_iter)[j]));
+        }
+        cur_argv[size - 1] = 0;
+        g_conc_argv[i] = cur_argv;
       }
-      cur_argv[size - 1] = 0;
-      g_conc_argv[i] = cur_argv;
+    }
+    int i = g_conc_argc - extra_args;
+    std::cout << "i: " << i << std::endl;
+
+    std::cout << "n_sym_files: " << n_sym_files << std::endl;
+    // -sym-files
+    if (n_sym_files > 0) {
+      g_conc_argv[i] = new char [11] {'-', 's', 'y', 'm', '-', 'f', 'i', 'l', 'e', 's'};
+
+      auto n_sym_files_str = std::to_string(n_sym_files);
+      g_conc_argv[i+1] = new char [n_sym_files_str.size() + 1];
+      memcpy(g_conc_argv[i+1], n_sym_files_str.c_str(), n_sym_files_str.size());
+      g_conc_argv[i+1][n_sym_files_str.size()] = '\0';
+
+      auto default_sym_file_size_str = std::to_string(default_sym_file_size);
+      g_conc_argv[i+2] = new char [default_sym_file_size_str.size() + 1];
+      memcpy(g_conc_argv[i+2], default_sym_file_size_str.c_str(), default_sym_file_size_str.size());
+      g_conc_argv[i+2][default_sym_file_size_str.size()] = '\0';
+      i += 3;
+    } else {
+      g_conc_argc -= 3;
+    }
+    std::cout << "i: " << i << std::endl;
+    std::cout << "n_sym_stdin: " << n_sym_stdin << std::endl;
+    // -sym-stdin n
+    if (n_sym_stdin > 0) {
+      g_conc_argv[i] = new char [11] {'-', 's', 'y', 'm', '-', 's', 't', 'd', 'i', 'n'};
+
+      auto n_sym_stdin_str = std::to_string(n_sym_stdin);
+      g_conc_argv[i+1] = new char [n_sym_stdin_str.size() + 1];
+      memcpy(g_conc_argv[i+1], n_sym_stdin_str.c_str(), n_sym_stdin_str.size());
+      g_conc_argv[i+1][n_sym_stdin_str.size()] = '\0';
+      i += 2;
+    } else {
+      g_conc_argc -= 2;
+    }
+    std::cout << "n_sym_stdout: " << n_sym_stdout << std::endl;
+    // -sym-stdout
+    if (n_sym_stdout > 0) {
+      g_conc_argv[i] = new char [12] {'-', 's', 'y', 'm', '-', 's', 't', 'd', 'o', 'u', 't'};
+      i += 1;
+    } else {
+      g_conc_argc -= 1;
     }
   }
   INFO(initial_fs);

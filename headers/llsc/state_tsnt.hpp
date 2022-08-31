@@ -403,7 +403,7 @@ class SS {
     uint64_t get_ssid() { return meta.ssid; }
     BlockLabel incoming_block() { return meta.bb; }
     bool has_cover_new() {return meta.has_cover_new; }
-    List<SymObj> get_sym_objs() { return meta.sym_objs; }
+    List<SymObj> get_sym_objs() { return meta.sym_objs + fs.sym_objs; }
     int count_name(const std::string& name) { return meta.count_name(name); }
     std::string get_unique_name(const std::string& name) {
       unsigned id = 0;

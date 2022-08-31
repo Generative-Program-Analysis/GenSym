@@ -47,6 +47,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     "st_atim"    -> IntType(128),
     "st_mtim"    -> IntType(128),
     "st_ctim"    -> IntType(128),
+    "padding"    -> IntType(128), // simulate padding
     )
   val StatType = Struct(statFields.values.toList)
 
