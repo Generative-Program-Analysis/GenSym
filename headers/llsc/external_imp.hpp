@@ -408,6 +408,9 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
   long syscall_number = x_i->as_signed();
   long retval = -1;
 
+  // Save errno
+  errno = proj_IntV(state.at(state.error_loc(), 4));
+
   switch (syscall_number) {
     case __NR_read: {
       int fd = get_int_arg(state, args.at(1));
@@ -579,6 +582,8 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
   }
 
+  // Write back errno
+  state.update(state.error_loc(), make_IntV(errno, 32), 4);
   //std::cout << "syscall_num: " << syscall_number << "  retval: " << retval << std::endl;
   return k(state, make_IntV(retval, 64));
 }

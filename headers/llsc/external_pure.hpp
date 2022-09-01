@@ -413,6 +413,10 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(x_i && (64 == x_i->bw), "syscall's argument must be concrete and must be long (i64)!");
   long syscall_number = x_i->as_signed();
   long retval = -1;
+
+  // Save errno
+  errno = proj_IntV(state.at(state.error_loc(), 4));
+
   SS res = state;
   switch (syscall_number) {
     case __NR_read: {
@@ -585,6 +589,8 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
   }
 
+  // Write back errno
+  res = res.update(res.error_loc(), make_IntV(errno, 32), 4);
   //std::cout << "syscall_num: " << syscall_number << "  retval: " << retval << std::endl;
 
   return k(res, make_IntV(retval, 64));
