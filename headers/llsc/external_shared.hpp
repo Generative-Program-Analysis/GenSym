@@ -381,10 +381,8 @@ inline std::monostate llsc_prefer_cex(SS state, List<PtrVal> args, Cont k) {
 
 template<typename T>
 inline T __llsc_posix_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  if (readable_posix)
-    return __llsc_prefer_cex(state, args, k);
-  else
-    return k(state, make_IntV(0));
+  if (readable_file_tests) return __llsc_prefer_cex(state, args, k);
+  return k(state, make_IntV(0));
 }
 
 inline List<SSVal> llsc_posix_prefer_cex(SS state, List<PtrVal> args) {

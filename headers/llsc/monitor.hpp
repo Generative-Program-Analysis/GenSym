@@ -125,6 +125,12 @@ struct Monitor {
     }
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
+      if (print_detailed_time == 1 || (done && print_detailed_time == 2)) {
+        std::cout << "Full model: " << (full_model_time / 1.0e6) << "s; "
+                  << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
+                  << "Cons indep (old): " << (cons_indep_time_old / 1.0e6) << "s; "
+                  << "Cons indep (new): " << (cons_indep_time_new / 1.0e6) << "s\n";
+      }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"
                 << (fs_time / 1.0e6) << "s/"
@@ -142,11 +148,6 @@ struct Monitor {
         print_block_cov_detail();
         print_branch_cov_detail();
       }
-
-      std::cout << "Full model time: " << (full_model_time / 1.0e6) << "s; "
-                << "Cons expr time: " << (cons_expr_time / 1.0e6) << "s; "
-                << "Cons indep time (old): " << (cons_indep_time_old / 1.0e6) << "s; "
-                << "Cons indep time (new): " << (cons_indep_time_new / 1.0e6) << "s\n";
     }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();

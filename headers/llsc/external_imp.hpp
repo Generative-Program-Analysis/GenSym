@@ -645,7 +645,7 @@ template<typename T>
 inline T __llsc_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(2 == args.size(), "Invalid number of arguments for llsc_prefer_cex");
   auto cond = args.at(1);
-  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "prefer Non-Symv Condition");
+  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "Not a symbolic expression");
   state.add_cex(cond);
   return k(state, make_IntV(0));
 }

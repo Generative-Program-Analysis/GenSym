@@ -8,32 +8,40 @@ FS set_file(FS, String, Ptr<File>);
 
 static struct option long_options[] =
 {
-  /* These options set a flag. */
-  {"exlib-failure-branch",  no_argument,       0, 1},
-  {"no-hash-cons",          no_argument,       0, 2},
-  {"no-obj-cache",          no_argument,       0, 3},
-  {"no-cex-cache",          no_argument,       0, 4},
-  {"cons-indep",            no_argument,       0, 5},
-  {"output-tests-cov-new",  no_argument,       0, 6},
-  {"output-ktest",          no_argument,       0, 7},
-  {"print-inst-count",      no_argument,       0, 8},
-  {"print-cov",             no_argument,       0, 9},
-  {"readable-posix-inputs", no_argument,       0, 10},
-  {"search",                required_argument, 0, 11},
-  {"symloc-strategy",       required_argument, 0, 12},
-  {"add-sym-file",          required_argument, 0, 13},
-  {"sym-file-size",         required_argument, 0, 14},
-  {"sym-stdin",             required_argument, 0, 15},
-  {"sym-stdout",            no_argument,       0, 16},
-  {"thread",                required_argument, 0, 17},
-  {"queue",                 required_argument, 0, 18},
-  {"solver",                required_argument, 0, 19},
-  {"timeout",               required_argument, 0, 20},
-  {"argv",                  required_argument, 0, 21},
-  {"help",                  no_argument,       0, 22},
-  {"cons-indep-algo",       required_argument, 0, 23},
-  {"max-sym-array-size",    required_argument, 0, 24},
-  {0,                       0,                 0, 0 }
+  {"help",                       no_argument,       0, 22},
+  // Optimizations
+  {"no-hash-cons",               no_argument,       0, 2},
+  {"no-obj-cache",               no_argument,       0, 3},
+  {"no-cex-cache",               no_argument,       0, 4},
+  {"cons-indep",                 no_argument,       0, 5},
+  // Test case generation
+  {"output-tests-cov-new",       no_argument,       0, 6},
+  {"output-ktest",               no_argument,       0, 7},
+  {"output-readable-file-tests", no_argument,       0, 10},
+  // Scheduling
+  {"search-strategy",            required_argument, 0, 11},
+  {"thread",                     required_argument, 0, 17},
+  {"queue",                      required_argument, 0, 18},
+  {"timeout",                    required_argument, 0, 20},
+  // Symbolic behavior
+  {"exlib-failure-branch",       no_argument,       0, 1},
+  {"symloc-strategy",            required_argument, 0, 12},
+  {"solver",                     required_argument, 0, 19},
+  {"max-sym-array-size",         required_argument, 0, 24},
+  // Symbolic inputs
+  {"add-sym-file",               required_argument, 0, 13},
+  {"sym-file-size",              required_argument, 0, 14},
+  {"sym-stdin",                  required_argument, 0, 15},
+  {"sym-stdout",                 no_argument,       0, 16},
+  {"argv",                       required_argument, 0, 21},
+  // Logging
+  {"print-inst-count",           no_argument,       0, 8},
+  {"print-cov",                  no_argument,       0, 9},
+  {"print-detailed-time",        required_argument, 0, 25},
+  // Misc
+  {"cons-indep-algo",            required_argument, 0, 23},
+  // Next 26
+  {0,                            0,                 0, 0 }
 };
 
 inline void set_searcher(std::string& searcher) {
@@ -133,7 +141,7 @@ inline void handle_cli_args(int argc, char** argv) {
         print_cov_detail = true;
         break;
       case 10:
-        readable_posix = true;
+        readable_file_tests = true;
         break;
       case 11: {
         auto searcher = std::string(optarg);
@@ -200,6 +208,9 @@ inline void handle_cli_args(int argc, char** argv) {
         max_sym_array_size = (n > 0) ? n : 0;
         break;
       }
+      case 25:
+        print_detailed_time = atoi(optarg);
+        break;
       case '?':
       default:
         print_help(argv[0]);

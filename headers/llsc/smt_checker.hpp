@@ -167,8 +167,8 @@ public:
       }
     }
     solver_result result = check_model();
-    pop();
     if (result == sat && model) construct_model(varmap, model);
+    pop();
     return result;
   }
 

@@ -67,9 +67,11 @@ inline bool use_cons_indep = false;
 inline bool only_output_covernew = false;
 // Output ktest format or not
 inline bool output_ktest = false;
-// Prefer creation of human-readable POSIX inputs
-inline bool readable_posix = false;
+// Prefer generating human-readable file test cases
+inline bool readable_file_tests = false;
+// Only compatible when using KLEE's POSIX model at the momemt (?)
 // Simulate possible failure in external functions (results in state forking)
+// Currently including malloc, calloc, memalign. GW: what else?
 inline bool exlib_failure_branch = false;
 // Timeout in seconds (one hour by default)
 inline unsigned int timeout = 3600;
@@ -77,7 +79,12 @@ inline unsigned int timeout = 3600;
 inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
-
+// Print detailed timing
+// 0 - disabled
+// 1 - print every second
+// 2 - print at the end of execution
+inline uint32_t print_detailed_time = 0;
+// The maximum size of symbolic location (used in memory read)
 inline unsigned int max_sym_array_size = 0;
 
 enum class SearcherKind { randomPath, randomWeight };
@@ -94,12 +101,14 @@ inline std::atomic<long int> ext_solver_time = 0;
 inline std::atomic<long int> int_solver_time = 0;
 // FS time: time taken to perform FS operations
 inline std::atomic<long int> fs_time = 0;
-
+// Solver expression construction time
 inline std::atomic<long int> cons_expr_time = 0;
+// Full model construction time (generate test case)
 inline std::atomic<long int> full_model_time = 0;
+
 inline std::atomic<long int> cons_indep_time_old = 0;
 inline std::atomic<long int> cons_indep_time_new = 0;
-
+// For debugging
 inline int cons_indep_algo = 1;
 
 // Different strategies to handle symbolic pointer index read/write
