@@ -146,8 +146,7 @@ public:
         auto v_t = expr_rands[1];
         auto v_e = expr_rands[2];
         ASSERT(cond.get_sort().is_bool(), "Non Boolean condition");
-        ASSERT(v_t.get_sort().is_bv() && v_e.get_sort().is_bv(), "Operation between different type");
-        ASSERT(v_t.get_sort().bv_size() == v_e.get_sort().bv_size(),"Operation between different bv_length");
+        ASSERT(((v_t.get_sort().is_bv() && v_e.get_sort().is_bv()) || (v_t.get_sort().is_bool() && v_e.get_sort().is_bool())), "Operation between different type");
         return ite(cond, v_t, v_e);
       }
       case iOP::const_true:

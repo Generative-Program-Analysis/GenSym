@@ -124,6 +124,10 @@ object Benchmarks {
   lazy val link_linked = parseFile("benchmarks/coreutils/link_linked.ll")
   lazy val paste_linked = parseFile("benchmarks/coreutils/paste_linked.ll")
   lazy val pathchk_linked = parseFile("benchmarks/coreutils/pathchk_linked.ll")
+  lazy val md5sum_linked = parseFile("benchmarks/coreutils/md5sum_linked.ll")
+  lazy val sort_linked = parseFile("benchmarks/coreutils/sort_linked.ll")
+  lazy val wc_linked = parseFile("benchmarks/coreutils/wc_linked.ll")
+  lazy val split_linked = parseFile("benchmarks/coreutils/split_linked.ll")
 
   lazy val echo_llsc_linked = parseFile("benchmarks/coreutils/echo_llsc_linked.ll")
   lazy val true_llsc_linked = parseFile("benchmarks/coreutils/true_llsc_linked.ll")
