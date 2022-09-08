@@ -18,8 +18,7 @@ class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle> {
 public:
   VC vc;
 
-  // TODO: use reach and top_level
-  ExprHandle construct_expr_internal(PtrVal e, std::shared_ptr<VarMap> vars, std::shared_ptr<ReachMap> reach, bool top_level) {
+  ExprHandle construct_expr_internal(PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
       // XXX(GW): using this vs sym_bool_const?
@@ -33,16 +32,16 @@ public:
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto name = sym_e->name;
       ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-      vars->emplace(sym_e, stp_expr);
+      global_varmap.emplace(sym_e, stp_expr);
       return stp_expr;
     }
 
     std::vector<ExprHandle> expr_rands;
     int bw = sym_e->bw;
     for (auto e : sym_e->rands) {
-      auto& [e2, vm, rm] = construct_expr(e);
-      expr_rands.push_back(e2);
-      vars->insert(vm->begin(), vm->end());
+      auto& e2 = construct_expr(e);
+      expr_rands.push_back(e2.expr);
+      //vars->insert(vm->begin(), vm->end());
     }
     switch (sym_e->rator) {
     case iOP::op_add:
@@ -169,7 +168,7 @@ public:
     return mapping[retcode];
   }
 
-  IntData get_model_value_internal(ExprHandle val) {
+  IntData eval(ExprHandle val) {
     ExprHandle const_val = vc_getCounterExample(vc, val.get());
     auto ret = getBVUnsignedLongLong(const_val.get());
     return ret;

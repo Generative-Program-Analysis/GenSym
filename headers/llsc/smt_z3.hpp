@@ -27,11 +27,11 @@ public:
     return (solver_result) result;
   }
 
-  IntData get_model_value_internal(expr val) {
+  IntData eval(expr val) {
     auto const_val = g_solver->get_model().eval(val, true);
     return const_val.get_numeral_uint64();
   }
-  expr construct_expr_internal(PtrVal e, std::shared_ptr<VarMap> vars, std::shared_ptr<ReachMap> reach, bool top_level) {
+  expr construct_expr_internal(PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
       // XXX(GW): using this vs sym_bool_const?
@@ -45,29 +45,14 @@ public:
     if (sym_e->is_var()) {
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto ret = ctx->bv_const(sym_e->name.c_str(), sym_e->bw);
-      vars->emplace(sym_e, ret);
-      /*
-      if (top_level) {
-        // XXX: it seems top_level won't have this case (asserting a veriable)
-        reach->emplace(sym_e, e);
-      }
-      */
+      global_varmap.emplace(sym_e, ret);
       return ret;
     }
     std::vector<expr> expr_rands;
     for (auto& rand : sym_e->rands) {
       // XXX: here is a mutually recursive call
-      auto& [e2, vm, rm] = construct_expr(rand);
-      expr_rands.push_back(e2);
-      vars->insert(vm->begin(), vm->end());
-      /*
-      if (top_level) {
-        auto start = steady_clock::now();
-        for (auto& [v, whatever] : *vm) reach->emplace(v, e);
-        auto end = steady_clock::now();
-        cons_indep_time_new += duration_cast<microseconds>(end - start).count();
-      }
-      */
+      auto& e2 = construct_expr(rand);
+      expr_rands.push_back(e2.expr);
     }
     int bw = sym_e->bw;
     switch (sym_e->rator) {

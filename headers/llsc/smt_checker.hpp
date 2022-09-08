@@ -30,6 +30,14 @@ class CachedChecker : public Checker {
     return static_cast<Self*>(this);
   }
 
+  // Self has to define:
+  // - push_internal()
+  // - pop_internal()
+  // - check_model_internal()
+  // - construct_expr_internal()
+  // - add_constraint_internal()
+  // - eval()
+
   void push() {
     auto start = steady_clock::now();
     self()->push_internal();
@@ -56,22 +64,21 @@ public:
   // XXX: SymV could be a compound symbolic expression as well
   using SymVar = simple_ptr<SymV>;
   // a map from symbolic variables to their solver expressions
-  using VarMap = std::map<SymVar, Expr>;
+  using VarMap = std::unordered_map<PtrVal, Expr>; // XXX PtrVal should be sym var
   // a map from symbolic variable to top-level predicate expressions that (transitively) contain this variable
-  using ReachMap = std::multimap<SymVar, PtrVal>;
+  using ReachMap = std::multimap<PtrVal, PtrVal>; // XXX PtrVal should be sym var
   // Extended Expr
   struct XExpr {
     Expr expr;
-    std::shared_ptr<VarMap> varmap;     // transitively closed wrt all variables in `expr`
-    std::shared_ptr<ReachMap> reachmap; // reachmap is sensible only when `expr` is a top-level predicate
+    //std::shared_ptr<VarMap> varmap;     // transitively closed wrt all variables in `expr`
+    //std::shared_ptr<ReachMap> reachmap; // reachmap is sensible only when `expr` is a top-level predicate
   };
   // object cache type
   using ObjCache = std::unordered_map<PtrVal, XExpr>;
-
   // query cache key
   using CexCacheKey = std::set<PtrVal>;
   // assignment of symbolic variables/expr to concrete data
-  using Model = std::unordered_map<simple_ptr<SymV>, IntData>;
+  using Model = std::unordered_map<PtrVal, IntData>; //XXX PtrVal
   // the result of check, accompanying with a model if sat
   using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
   // query cache type
@@ -80,6 +87,7 @@ public:
   ObjCache objcache;
   CexCache cexcache;
   ReachMap global_reachmap;
+  VarMap global_varmap;
 
   using ObjCacheIter = typename decltype(objcache)::iterator;
   using CachedPC = std::vector<ObjCacheIter>;
@@ -90,25 +98,13 @@ public:
   }
 
   // Construct the solver expression for a Value
-  inline const XExpr construct_expr0(PtrVal& e, bool top_level) {
-    auto vars = std::make_shared<VarMap>();
-    auto reachmap = std::make_shared<ReachMap>();
-    auto expr = self()->construct_expr_internal(e, vars, reachmap, top_level);
-    /*
-    std::cout << "reach begin\n";
-    for (auto& p: reach_map) {
-      std::cout << p.first->toString() << " -> " << p.second->toString() << "\n";
-    }
-    std::cout << "reach end\n";
-    */
-    return {expr, vars, reachmap};
+  inline const XExpr construct_expr0(PtrVal& e) {
+    auto expr = self()->construct_expr_internal(e);
+    return {expr};
   }
 
   void update_global_reachmap(std::shared_ptr<ReachMap> rm) {
-    auto start = steady_clock::now();
     global_reachmap.insert(rm->begin(), rm->end());
-    auto end = steady_clock::now();
-    cons_indep_time_new += duration_cast<microseconds>(end - start).count();
   }
 
   // a unoptimized but correct baseline
@@ -120,59 +116,40 @@ public:
   }
 
   // Construct the solver expression with object cache for a Value
-  const XExpr& construct_expr(PtrVal e, bool top_level = false) {
+  const XExpr& construct_expr(PtrVal e) {
     auto fd = objcache.find(e);
-    if (fd != objcache.end()) {
-      /*
-      if (top_level) {
-        // We cannot guarantee the cached reachmap is correct
-        auto rm = std::make_shared<ReachMap>();
-        construct_reachmap(rm.get(), e, e);
-        fd->second.reachmap = rm;
-        update_global_reachmap(fd->second.reachmap);
-      }
-      */
-      return fd->second;
-    }
-    auto [it, ins] = objcache.emplace(e, construct_expr0(e, top_level));
-    //if (top_level) update_global_reachmap(it->second.reachmap);
+    if (fd != objcache.end()) return fd->second;
+    auto [it, ins] = objcache.emplace(e, construct_expr0(e));
     return it->second;
   }
 
-  void construct_model(VarMap& varmap, std::shared_ptr<Model> model) {
-    for (auto& [v, e]: varmap) {
-      model->emplace(v, self()->get_model_value_internal(e));
+  void construct_model(CexCacheKey& pc, std::shared_ptr<Model>& model) {
+    for (auto& e: pc) {
+      auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+      for (auto& v: sym_e->vars) {
+        model->emplace(v, self()->eval(global_varmap.at(v)));
+      }
     }
   }
 
   // The most primitive function to check satisfiability/model.
   // If `model` is passed, it is obligated to construct a model.
   // Return value indicates sat/unsat.
-  inline solver_result check_model0(const CachedPC& cachedObjs, std::set<PtrVal>& pc, std::shared_ptr<Model> model) {
-    VarMap varmap;
+  inline solver_result check_model0(CexCacheKey& pc, std::shared_ptr<Model> model) {
+    //VarMap varmap;
     push();
-    if (cachedObjs.size()) {
-      // use local cache if possible
-      for (auto& v: cachedObjs) {
-        auto& [e, vm, rm] = v->second;
-        self()->add_constraint_internal(e);
-        if (model) varmap.insert(vm->begin(), vm->end());
-      }
-    } else {
-      for (auto& v: pc) {
-        // query objcache still
-        auto& [e, vm, rm] = objcache.at(v);
-        self()->add_constraint_internal(e);
-        if (model) varmap.insert(vm->begin(), vm->end());
-      }
+    for (auto& v: pc) {
+      auto& e = objcache.at(v).expr;
+      self()->add_constraint_internal(e);
     }
     solver_result result = check_model();
-    if (result == sat && model) construct_model(varmap, model);
+    if (result == sat && model) construct_model(pc, model);
     pop();
     return result;
   }
 
-  inline bool cache_hit(CexCache::iterator& it, std::shared_ptr<Model>& model) {
+  //inline bool cache_hit(CexCache::iterator& it, std::shared_ptr<Model>& model) {
+  inline bool cache_hit(typename decltype(cexcache)::iterator& it, std::shared_ptr<Model>& model) {
     if (it != cexcache.end()) {
       // model cached and required
       if (it->second.second && model) {
@@ -189,7 +166,7 @@ public:
       }
       // model not cached but required, usually it is gnereating test case
       if (!it->second.second && model) {
-        //cexcache.erase(it); // XXX: is it necessary?
+        cexcache.erase(it); // XXX: is it necessary?
         return false;
       }
     }
@@ -197,95 +174,107 @@ public:
   }
 
   // On top of check_model0, additionally it caches counterexamples and models
-  inline solver_result check_cexcached_model0(const CachedPC& cachedObjs, std::set<PtrVal>& pc, std::shared_ptr<Model>& model) {
+  inline solver_result check_cexcached_model0(CexCacheKey& pc, std::shared_ptr<Model>& model) {
     ASSERT(use_cexcache, "Why not?");
     auto it = cexcache.find(pc);
     if (cache_hit(it, model)) {
       cached_query_num += 1;
       return it->second.first;
     }
-    solver_result result = check_model0(cachedObjs, pc, model);
+    solver_result result = check_model0(pc, model);
     cexcache.emplace(std::move(pc), std::make_pair(result, model));
     return result;
   }
 
   // On top of check_cexcached_model0, we can query a point of symbolic variable
-  CheckResult check_cexcached_model(const CachedPC& cachedObjs, std::set<PtrVal>& pc,
-                                    simple_ptr<SymV> query_expr, bool require_model) {
+  CheckResult check_cexcached_model(CexCacheKey& pc, simple_ptr<SymV> query_expr, bool require_model) {
     ASSERT(!require_model || !query_expr, "Choose either query_expr or require_model, but not both");
     std::shared_ptr<Model> model = (use_cexcache || require_model) ? std::make_shared<Model>() : nullptr;
-    solver_result result = use_cexcache ? check_cexcached_model0(cachedObjs, pc, model) : check_model0(cachedObjs, pc, model);
+    solver_result result = use_cexcache ? check_cexcached_model0(pc, model) : check_model0(pc, model);
     if (result == sat && query_expr) {
       // query_expr can be a compound expression
       // reuse the model in case use_cexcache already sets a model
       if (!model) model = std::make_shared<Model>();
       auto& e = objcache.at(query_expr).expr;
-      model->emplace(query_expr, self()->get_model_value_internal(e));
+      model->emplace(query_expr, self()->eval(e));
     }
     return std::make_pair(result, model);
   }
 
-  template <template <typename> typename T>
-  void get_indep_conds(const T<PtrVal>& conds, CachedPC& cachedObjs, std::set<PtrVal>& pc, simple_ptr<SymV> query_expr) {
-    ASSERT(use_cons_indep, "why not?");
-    if (conds.size() <= (query_expr!=nullptr ? 0 : 1)) {
-      // Not necessary to use independence solver since conds is too small
-      pc.insert(conds.begin(), conds.end());
-      return;
-    }
-    auto start = steady_clock::now();
-    std::vector<ObjCacheIter> queue;
-    ObjCacheIter cur;
-    int idx;
-
-    for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
-
-    if (query_expr == nullptr) {
-      cur = cachedObjs.back();
-      cachedObjs.pop_back();
-      idx = 1;
-      queue.push_back(cur);
-      pc.insert(cur->first);
-    } else {
-      cur = objcache.find(query_expr);
-      idx = 0;
-    }
-
-    do {
-      auto& cset = cur->second.varmap;
-      for (auto& next: cachedObjs) if (next != objcache.end()) {
-        auto& nset = next->second.varmap;
-        auto cit = cset->begin();
-        auto nit = nset->begin();
-        if (cit != cset->end() && nit != nset->end()) {
-          do if (nit->first == cit->first) {
-            pc.insert(next->first);
-            queue.push_back(next);
-            next = objcache.end();
-            break;
-          } while (nit->first < cit->first ? ++nit != nset->end() : ++cit != cset->end());
-        }
-      }
-    } while (idx < queue.size() && (cur = queue[idx++], true));
-
-    cachedObjs = std::move(queue);
-
-    auto end = steady_clock::now();
-    cons_indep_time_old += duration_cast<microseconds>(end - start).count();
-  }
-
-  void mark(PtrVal root, std::set<PtrVal>& visited, std::set<PtrVal>& result, bool add_root = true) {
+  void mark(PtrVal root, CexCacheKey& visited, CexCacheKey& result, bool add_root = true) {
     ASSERT(use_cons_indep, "why not?");
     if (add_root) result.insert(root);
-    auto root_obj = objcache.find(root);
-    //ASSERT(root_obj != objcache.end(), "Root not cached");
-    for (auto& [var, vexp] : *root_obj->second.varmap) {
+    auto sym_root = std::dynamic_pointer_cast<SymV>(root);
+    for (auto& var : sym_root->vars) {
       if (visited.find(var) != visited.end()) continue;
       //std::cout << "  it reaches var " << var->toString() << "\n";
       visited.insert(var);
       auto [beg, end] = global_reachmap.equal_range(var);
       for (auto it = beg; it != end; it++) mark(it->second, visited, result);
     }
+  }
+
+  CheckResult check_model_mono(const TrList<PtrVal>& conds) {
+    auto start = steady_clock::now();
+
+    // query cache first
+    CexCacheKey pc(conds.begin(), conds.end());
+    auto model = std::make_shared<Model>();
+
+    auto it = cexcache.find(pc);
+    if (cache_hit(it, model)) {
+      cached_query_num += 1;
+      auto end = steady_clock::now();
+      mono_solver_time += duration_cast<microseconds>(end - start).count();
+      return it->second;
+    }
+
+    // constraint independence resolving
+    auto root = *std::prev(conds.end());
+    CexCacheKey visited;
+    CexCacheKey indep_pc;
+    global_reachmap.clear();
+    for (auto& cnd : conds) {
+      auto sym_e = std::dynamic_pointer_cast<SymV>(cnd); ASSERT(sym_e, "not a sym");
+      for (auto& v : sym_e->vars) {
+        auto sym_v = std::dynamic_pointer_cast<SymV>(v); ASSERT(sym_v, "not a variable");
+        global_reachmap.emplace(sym_v, cnd);
+        model->emplace(v, 0);
+      }
+    }
+    mark(root, visited, indep_pc, false);
+
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
+
+    // cex cache
+    it = cexcache.find(indep_pc);
+    if (cache_hit(it, model)) {
+      cached_query_num += 1;
+      end = steady_clock::now();
+      mono_solver_time += duration_cast<microseconds>(end - start).count();
+      return it->second;
+    }
+    // check model
+    push();
+    for (auto& v: indep_pc) {
+      // TODO: could be done when marking
+      auto e = construct_expr(v).expr;
+      self()->add_constraint_internal(e);
+    }
+    solver_result result = check_model();
+    if (result == sat) {
+      for (auto& [k, v]: *model) {
+        model->insert_or_assign(k, self()->eval(global_varmap.at(k)));
+      }
+    }
+    // update cex cache
+    cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
+    pop();
+
+    end = steady_clock::now();
+    mono_solver_time += duration_cast<microseconds>(end - start).count();
+    return std::make_pair(result, model);
   }
 
   void construct_reachmap_fast(ReachMap& rm, const PtrVal& top_cnd) {
@@ -301,101 +290,51 @@ public:
   // Query satisfiability, potentially return the concretized value of query_expr
   template <template <typename> typename T>
   CheckResult check_model_indep(const T<PtrVal>& conds, simple_ptr<SymV> query_expr = nullptr) {
-    global_reachmap.clear();
-
-    // XXX: what if we do cons_indep at front?
-
-    //if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it? XXX: we are always use objcache in fact
-
     auto start = steady_clock::now();
-    for (auto &v: conds) construct_expr(v, false);
-    if (query_expr) construct_expr(query_expr, false);
-    auto end = steady_clock::now();
-    cons_expr_time += duration_cast<microseconds>(end - start).count();
-
-    // local storage
-    CachedPC cachedObjs;
-    std::set<PtrVal> indep_pc;
+    global_reachmap.clear();
+    for (auto &v: conds) construct_expr(v);
+    if (query_expr) construct_expr(query_expr);
+    CexCacheKey indep_pc;
     if (!use_cons_indep) indep_pc.insert(conds.begin(), conds.end());
     else if (conds.size() <= (query_expr != nullptr ? 0 : 1)) {
       // Not necessary to use independence solver since conds is too small
       indep_pc.insert(conds.begin(), conds.end());
     } else {
-      if (cons_indep_algo == 1) {
-        start = steady_clock::now();
-
-        //std::cout << "\nglobal reach map:\n";
-        //for (auto& p: global_reachmap) std::cout << "  " << p.first->toString() << " ~> " << p.second->toString() << '\n';
-
-        for (auto& cnd : conds) construct_reachmap_fast(global_reachmap, cnd);
-        std::set<PtrVal> visited;
-
-        /*
-        std::set<PtrVal> ori_pc;
-        ori_pc.insert(conds.begin(), conds.end());
-        std::cout << "All PC: \n";
-        for (auto& c : ori_pc) { std::cout << "  " << c->toString() << " " << c << "\n"; }
-        */
-        auto root = query_expr ? query_expr : *std::prev(conds.end());
-        bool add_root = query_expr ? false : true;
-        //if (query_expr == nullptr) std::cout << "root is (non-query_expr): " << root->toString() << "\n";
-        //else std::cout << "root is (query_expr): " << root->toString() << "\n";
-
-        mark(root, visited, indep_pc, add_root);
-
-        /*
-        std::set<PtrVal> indep_pc2;
-        global_reachmap.clear();
-        visited.clear();
-        for (auto& cnd : conds) construct_reachmap(&global_reachmap, cnd, cnd);
-        mark(root, visited, indep_pc2, add_root);
-
-        if (indep_pc.size() != indep_pc2.size()) {
-          std::cout << "handwavy one: \n";
-          for (auto& c : indep_pc) { std::cout << "  " << c->toString() << "\n"; }
-          std::cout << "correct one: \n";
-          for (auto& c : indep_pc2) { std::cout << "  " << c->toString() << "\n"; }
-          ABORT("wowow");
-        }
-        */
-
-        end = steady_clock::now();
-        cons_indep_time_new += duration_cast<microseconds>(end - start).count();
-
-        //std::cout << "PC after indep: \n";
-        //for (auto& c : pc) { std::cout << "  " << c->toString() << "\n"; }
-      } else {
-        cachedObjs.reserve(conds.size());
-        for (auto& v: conds) cachedObjs.push_back(objcache.find(v));
-        get_indep_conds(conds, cachedObjs, indep_pc, query_expr);
-      }
+      for (auto& cnd : conds) construct_reachmap_fast(global_reachmap, cnd);
+      CexCacheKey visited;
+      auto root = query_expr ? query_expr : *std::prev(conds.end());
+      bool add_root = query_expr ? false : true;
+      mark(root, visited, indep_pc, add_root);
     }
+    auto res = check_cexcached_model(indep_pc, query_expr, false);
 
-    //std::set<PtrVal> pc2;
-    //pc2.insert(conds.begin(), conds.end());
-    //auto [s1, m1] = check_cexcached_model(cachedObjs, pc2, query_expr, false);
-    //auto [s2, m2] = check_cexcached_model(cachedObjs, pc, query_expr, false);
-    //if (s1 != s2) ABORT("FUCK");
-    //return {s2, m2};
-    return check_cexcached_model(cachedObjs, indep_pc, query_expr, false);
+    auto end = steady_clock::now();
+    cons_indep_time_old += duration_cast<microseconds>(end - start).count();
+    return res;
   }
 
   template <template <typename> typename T>
   CheckResult check_with_full_model(const T<PtrVal>& conds) {
     // translation
-    // if (!use_objcache) objcache.clear(); // XXX: if not using objcache, why bother clear it?
     auto start = steady_clock::now();
     for (auto &v: conds) construct_expr(v);
     auto end = steady_clock::now();
     cons_expr_time += duration_cast<microseconds>(end - start).count();
 
-    // local storage
-    CachedPC cachedObjs;
-    std::set<PtrVal> pc;
+    start = steady_clock::now();
 
+    CexCacheKey pc;
+    pc.insert(conds.begin(), conds.end());
+    auto res = check_cexcached_model(pc, nullptr, true);
+
+    end = steady_clock::now();
+    full_model_time += duration_cast<microseconds>(end - start).count();
+    return res;
+    // XXX: omitting preferred cex temporarily
+    /*
     if (!use_cons_indep) {
       pc.insert(conds.begin(), conds.end());
-      return check_cexcached_model(cachedObjs, pc, nullptr, true);
+      return check_cexcached_model(pc, nullptr, true);
     }
 
     start = steady_clock::now();
@@ -406,24 +345,24 @@ public:
     std::shared_ptr<Model> model = std::make_shared<Model>();
 
     while (curr_conds.size() > 0) {
-      get_indep_conds(curr_conds, cachedObjs, pc, nullptr);
+      get_indep_conds(curr_conds, pc, nullptr);
       int before_size = curr_conds.size();
       for (auto& v: pc) {
         curr_conds.erase(std::remove(curr_conds.begin(), curr_conds.end(), v), curr_conds.end());
       }
       ASSERT(curr_conds.size() < before_size, "Invalid elimination");
-      auto [sub_result, sub_model] = check_cexcached_model(cachedObjs, pc, nullptr, true);
+      auto [sub_result, sub_model] = check_cexcached_model(pc, nullptr, true);
       if (model->size() == 0)
         check_result = sub_result;
       // Note (Ruiqi): make sure that sub_model's key won't overlap, because std::unordered_map::insert will not update for same key.
       model->insert(sub_model->begin(), sub_model->end());
-      cachedObjs.clear();
       pc.clear();
     }
 
     end = steady_clock::now();
     full_model_time += duration_cast<microseconds>(end - start).count();
     return std::make_pair(check_result, model);
+    */
   }
 
   // interfaces
@@ -431,7 +370,8 @@ public:
   virtual bool check_pc(PC pc) override {
     if (!use_solver) return true;
     br_query_num++;
-    auto [r, m] = check_model_indep(pc.get_path_conds());
+    //auto [r, m] = check_model_indep(pc.get_path_conds());
+    auto [r, m] = check_model_mono(pc.get_path_conds());
     return r == sat;
   }
 
@@ -453,7 +393,8 @@ public:
       ABORT("Cannot create the test case file, abort.\n");
     }
     for (auto& [k, v]: *model) {
-      output << k->name << "=" << v << std::endl;
+      auto sym_k = std::dynamic_pointer_cast<SymV>(k);
+      output << sym_k->name << "=" << v << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
     close(out_fd);
@@ -529,13 +470,15 @@ public:
     solver_result result;
     std::shared_ptr<Model> model;
     if (state.get_preferred_cex().size() > 0) {
-      std::vector<PtrVal> new_conds(conds.begin(), conds.end());
+      TrList<PtrVal> new_conds(conds);
       auto preferred_cex = state.get_preferred_cex();
       for (auto& v: preferred_cex) {
         new_conds.push_back(v);
-        auto [r, m] = check_model_indep(new_conds);
+        //auto [r, m] = check_model_indep(new_conds);
+        auto [r, m] = check_model_mono(new_conds);
         if (r != sat)
-          new_conds.pop_back();
+          new_conds.take(new_conds.size()-1);
+          //new_conds.pop_back();
       }
       res = check_with_full_model(new_conds);
     } else {
@@ -578,8 +521,10 @@ public:
 
   Checker& get_checker() {
     // why would this improve the performance?
-    static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ?  static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
-    return *(checker_map[std::this_thread::get_id()]);
+    //static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ?  static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
+    //return *(checker_map[std::this_thread::get_id()]);
+    static CheckerZ3 c;
+    return c;
   }
 };
 
@@ -597,10 +542,11 @@ inline bool check_pc(PC pc) {
   return result;
 }
 
-inline void check_pc_to_file(SS state) {
+inline void check_pc_to_file(SS& state) {
   auto start = steady_clock::now();
   checker_manager.get_checker().generate_test(std::move(state));
   auto end = steady_clock::now();
+  gen_test_time += duration_cast<microseconds>(end - start).count();
   int_solver_time += duration_cast<microseconds>(end - start).count();
 }
 

@@ -270,7 +270,7 @@ class PC {
     TrList<PtrVal> pc;
   public:
     PC(TrList<PtrVal> pc) : pc(std::move(pc)) {}
-  //PC(const PC& pc) : pc(((PC&)pc).pc.persistent().transient()) {}
+    //PC(const PC& pc) : pc(((PC&)pc).pc.persistent().transient()) {}
     PC&& add(PtrVal e) {
       pc.push_back(e);
       return std::move(*this);
