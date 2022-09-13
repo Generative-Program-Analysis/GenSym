@@ -109,7 +109,7 @@ object Benchmarks {
   lazy val argv2Test = parseFile("benchmarks/llvm/argv2.ll")
 
   lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
-  /*
+
   lazy val echo_linked = parseFile("benchmarks/coreutils/echo.ll")
   lazy val cat_linked = parseFile("benchmarks/coreutils/cat.ll")
   lazy val true_linked = parseFile("benchmarks/coreutils/true.ll")
@@ -129,7 +129,7 @@ object Benchmarks {
   lazy val sort_linked = parseFile("benchmarks/coreutils/sort.ll")
   lazy val wc_linked = parseFile("benchmarks/coreutils/wc.ll")
   lazy val split_linked = parseFile("benchmarks/coreutils/split.ll")
-  */
+
   lazy val echo_llsc_linked = parseFile("benchmarks/coreutils/echo_llsc_linked.ll")
   lazy val true_llsc_linked = parseFile("benchmarks/coreutils/true_llsc_linked.ll")
 }
