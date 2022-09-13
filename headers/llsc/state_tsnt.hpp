@@ -265,16 +265,80 @@ class Stack {
     }
 };
 
+struct UnionFind {
+  immer::map_transient<PtrVal, PtrVal, hash_PtrVal, equal_to_PtrVal> parent;
+  immer::map_transient<PtrVal, PtrVal, hash_PtrVal, equal_to_PtrVal> next;
+  immer::map_transient<PtrVal, std::uint32_t> size;
+
+  bool init(PtrVal v) {
+    if (parent.find(v) == nullptr) {
+      parent.set(v, v);
+      next.set(v, v);
+      return false;
+    }
+    return true;
+  }
+
+  PtrVal find(PtrVal v) {
+    if (!init(v)) return v;
+    PtrVal root = v;
+    while (root != parent[root])
+      root = parent[root];
+    while (v != root) {
+      auto newv = parent[v];
+      parent.set(v, root);
+      v = newv;
+    }
+    return root;
+  }
+
+  void print_set(PtrVal v) {
+    auto root = v;
+    std::cout << *v << ", ";
+    while (root != next[v]) {
+      v = next[v];
+      std::cout << *v << ", ";
+    }
+    std::cout << "\n";
+  }
+
+  void join(PtrVal p, PtrVal q) {
+    auto root_p = find(p);
+    auto root_q = find(q);
+    if (root_p == root_q) return;
+    auto tmp = next[root_p];
+    next.set(root_p, next[root_q]);
+    next.set(root_q, tmp);
+    if (size[root_p] < size[root_q]) {
+      parent.set(root_p, root_q);
+      size.update(root_q, [&](auto s) { return s + size[root_p]; });
+    } else {
+      parent.set(root_q, root_p);
+      size.update(root_p, [&](auto s) { return s + size[root_q]; });
+    }
+  }
+};
+
 class PC {
-  private:
-    TrList<PtrVal> pc;
   public:
-    PC(TrList<PtrVal> pc) : pc(std::move(pc)) {}
-    //PC(const PC& pc) : pc(((PC&)pc).pc.persistent().transient()) {}
+    TrList<PtrVal> conds;
+    UnionFind uf;
+    //immer::set_transient<simple_ptr<SymV>> vars;
+
+    PC(TrList<PtrVal> conds) : conds(std::move(conds)) {}
     PC&& add(PtrVal e) {
-      pc.push_back(e);
+      conds.push_back(e);
+      auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+      //for (auto& v : sym_e->vars) vars.insert(v);
+
+      auto start = steady_clock::now();
+      for (auto& v : sym_e->vars) { uf.join(v, e); }
+      auto end = steady_clock::now();
+      cons_indep_time += duration_cast<microseconds>(end - start).count();
+
       return std::move(*this);
     }
+    /*
     PC&& add_set(const List<PtrVal>& new_pc) {
       for (auto& it : new_pc) {
         pc.push_back(it);
@@ -282,20 +346,22 @@ class PC {
       return std::move(*this);
     }
     PC&& pop_back() {
-      pc.take(pc.size()-1);
+      conds.take(conds.size()-1);
       return std::move(*this);
     }
-    const TrList<PtrVal>& get_path_conds() { return pc; }
+    // TODO PC is either monotonic or we need a UF-"delete" operation
+    PC&& replace_last_cond(PtrVal e) {
+      if (conds.size() == 0) return std::move(*this);
+      conds.set(conds.size()-1, e);
+      return std::move(*this);
+    }
+    */
+    const TrList<PtrVal>& get_path_conds() { return conds; }
     PtrVal get_last_cond() {
-      if (pc.size() > 0) return pc[pc.size()-1];
+      if (conds.size() > 0) return conds[conds.size()-1];
       return nullptr;
     }
-    PC&& replace_last_cond(PtrVal e) {
-      if (pc.size() == 0) return std::move(*this);
-      pc.set(pc.size()-1, e);
-      return std::move(*this);
-    }
-    void print() { print_set(pc); }
+    void print() { print_set(conds); }
 };
 
 #include "metadata.hpp"
@@ -480,10 +546,16 @@ class SS {
       pc.add(e);
       return std::move(*this);
     }
+    PC& get_PC() { return pc; }
+    PC copy_PC() { return pc; }
+    void set_PC(PC _pc) { pc = _pc; }
+    const TrList<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
+    /*
     SS&& add_PC_set(const List<PtrVal>& s) {
       pc.add_set(s);
       return std::move(*this);
     }
+    */
     SS&& add_incoming_block(BlockLabel blabel) {
       meta.add_incoming_block(blabel);
       return std::move(*this);
@@ -527,11 +599,6 @@ class SS {
       update(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
       return std::move(*this);
     }
-
-    PC& get_PC() { return pc; }
-    PC copy_PC() { return pc; }
-    void set_PC(PC _pc) { pc = _pc; }
-    const TrList<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
 
     // TODO temp solution
     PtrVal vararg_loc() { return stack.vararg_loc(); }

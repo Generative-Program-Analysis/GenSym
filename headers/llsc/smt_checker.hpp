@@ -67,14 +67,8 @@ public:
   using VarMap = std::unordered_map<PtrVal, Expr>; // XXX PtrVal should be sym var
   // a map from symbolic variable to top-level predicate expressions that (transitively) contain this variable
   using ReachMap = std::multimap<PtrVal, PtrVal>; // XXX PtrVal should be sym var
-  // Extended Expr
-  struct XExpr {
-    Expr expr;
-    //std::shared_ptr<VarMap> varmap;     // transitively closed wrt all variables in `expr`
-    //std::shared_ptr<ReachMap> reachmap; // reachmap is sensible only when `expr` is a top-level predicate
-  };
   // object cache type
-  using ObjCache = std::unordered_map<PtrVal, XExpr>;
+  using ObjCache = std::unordered_map<PtrVal, Expr>;
   // query cache key
   using CexCacheKey = std::set<PtrVal>;
   // assignment of symbolic variables/expr to concrete data
@@ -86,6 +80,7 @@ public:
 
   ObjCache objcache;
   CexCache cexcache;
+  std::map<CexCacheKey, bool> querycache;
   ReachMap global_reachmap;
   VarMap global_varmap;
 
@@ -98,7 +93,7 @@ public:
   }
 
   // Construct the solver expression for a Value
-  inline const XExpr construct_expr0(PtrVal& e) {
+  inline const Expr construct_expr0(PtrVal& e) {
     auto expr = self()->construct_expr_internal(e);
     return {expr};
   }
@@ -116,7 +111,7 @@ public:
   }
 
   // Construct the solver expression with object cache for a Value
-  const XExpr& construct_expr(PtrVal e) {
+  const Expr& construct_expr(PtrVal e) {
     auto fd = objcache.find(e);
     if (fd != objcache.end()) return fd->second;
     auto [it, ins] = objcache.emplace(e, construct_expr0(e));
@@ -139,7 +134,7 @@ public:
     //VarMap varmap;
     push();
     for (auto& v: pc) {
-      auto& e = objcache.at(v).expr;
+      auto& e = objcache.at(v);
       self()->add_constraint_internal(e);
     }
     solver_result result = check_model();
@@ -195,8 +190,8 @@ public:
       // query_expr can be a compound expression
       // reuse the model in case use_cexcache already sets a model
       if (!model) model = std::make_shared<Model>();
-      auto& e = objcache.at(query_expr).expr;
-      model->emplace(query_expr, self()->eval(e));
+      auto& e = objcache.at(query_expr);
+      model->emplace(query_expr, self()->eval(e)); // XXX: could be wrong -- since a cache hit may not lead to valid eval(e) value!
     }
     return std::make_pair(result, model);
   }
@@ -214,59 +209,82 @@ public:
     }
   }
 
-  CheckResult check_model_mono(const TrList<PtrVal>& conds) {
+  CheckResult check_model_at(PC& pc, PtrVal expr) {
     auto start = steady_clock::now();
-
-    // query cache first
-    CexCacheKey pc(conds.begin(), conds.end());
     auto model = std::make_shared<Model>();
+    CexCacheKey indep_pc;
+    PtrVal last_expr = expr;
+    auto root = last_expr;
+    while (root != pc.uf.next[last_expr]) {
+      last_expr = pc.uf.next[last_expr];
+      auto last_expr_e = std::dynamic_pointer_cast<SymV>(last_expr);
+      if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
+    }
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
 
-    auto it = cexcache.find(pc);
+    auto it = cexcache.find(indep_pc);
+    //if (it != cexcache.end() && it->second.second->find(expr) != it->second.second->end()) {
     if (cache_hit(it, model)) {
       cached_query_num += 1;
-      auto end = steady_clock::now();
-      mono_solver_time += duration_cast<microseconds>(end - start).count();
       return it->second;
     }
-
-    // constraint independence resolving
-    auto root = *std::prev(conds.end());
-    CexCacheKey visited;
-    CexCacheKey indep_pc;
-    global_reachmap.clear();
-    for (auto& cnd : conds) {
-      auto sym_e = std::dynamic_pointer_cast<SymV>(cnd); ASSERT(sym_e, "not a sym");
-      for (auto& v : sym_e->vars) {
-        auto sym_v = std::dynamic_pointer_cast<SymV>(v); ASSERT(sym_v, "not a variable");
-        global_reachmap.emplace(sym_v, cnd);
-        model->emplace(v, 0);
-      }
+    std::set<PtrVal> vars;
+    // check model
+    push();
+    for (auto& cnd: indep_pc) {
+      auto cnd_e = std::dynamic_pointer_cast<SymV>(cnd);
+      vars.insert(cnd_e->vars.begin(), cnd_e->vars.end());
+      self()->add_constraint_internal(construct_expr(cnd));
     }
-    mark(root, visited, indep_pc, false);
+    solver_result result = check_model();
+    model->insert_or_assign(expr, self()->eval(construct_expr(expr))); // XXX: seems not necessary
+    // store model
+    if (result == sat) {
+      for (auto& v : vars) model->insert_or_assign(v, self()->eval(global_varmap.at(v)));
+    }
+    // update cex cache
+    cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
+    pop();
+    return std::make_pair(result, model);
+  }
 
+  CheckResult check_model_mono(PC& pc) {
+    auto start = steady_clock::now();
+    auto model = std::make_shared<Model>();
+    // constraint independence resolving
+    CexCacheKey indep_pc;
+    PtrVal last_expr = *std::prev(pc.conds.end());
+    indep_pc.insert(last_expr);
+    auto root = last_expr;
+    while (root != pc.uf.next[last_expr]) {
+      last_expr = pc.uf.next[last_expr];
+      auto last_expr_e = std::dynamic_pointer_cast<SymV>(last_expr);
+      if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
+    }
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
 
     // cex cache
-    it = cexcache.find(indep_pc);
+    auto it = cexcache.find(indep_pc);
     if (cache_hit(it, model)) {
       cached_query_num += 1;
       end = steady_clock::now();
       mono_solver_time += duration_cast<microseconds>(end - start).count();
       return it->second;
     }
+    std::set<PtrVal> vars;
     // check model
     push();
-    for (auto& v: indep_pc) {
-      // TODO: could be done when marking
-      auto e = construct_expr(v).expr;
-      self()->add_constraint_internal(e);
+    for (auto& cnd: indep_pc) {
+      auto cnd_e = std::dynamic_pointer_cast<SymV>(cnd);
+      vars.insert(cnd_e->vars.begin(), cnd_e->vars.end());
+      self()->add_constraint_internal(construct_expr(cnd));
     }
     solver_result result = check_model();
+    // store model
     if (result == sat) {
-      for (auto& [k, v]: *model) {
-        model->insert_or_assign(k, self()->eval(global_varmap.at(k)));
-      }
+      for (auto& v : vars) model->insert_or_assign(v, self()->eval(global_varmap.at(v)));
     }
     // update cex cache
     cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
@@ -370,16 +388,17 @@ public:
   virtual bool check_pc(PC pc) override {
     if (!use_solver) return true;
     br_query_num++;
-    //auto [r, m] = check_model_indep(pc.get_path_conds());
-    auto [r, m] = check_model_mono(pc.get_path_conds());
+    auto [r, m] = check_model_mono(pc);
     return r == sat;
   }
 
-  virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) override {
-    auto v2 = std::dynamic_pointer_cast<SymV>(v);
-    //ASSERT(v2->is_var(), "concretizing a compound symbolic expression; try add equational constraint");
-    auto [r, m] = check_model_indep(pc.get_path_conds(), v2);
-    return std::make_pair(r == sat, r == sat ? m->at(v2) : 0);
+  virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal e) override {
+    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+    ASSERT(sym_e != nullptr, "concretizing a non-symbolic value");
+    //for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
+    //auto [r, m] = check_model_at(pc, sym_e);
+    auto [r, m] = check_model_indep(pc.get_path_conds(), sym_e);
+    return std::make_pair(r == sat, r == sat ? m->at(sym_e) : 0);
   }
 
   inline void gen_default_format(std::shared_ptr<Model> model, unsigned int test_id) {
@@ -474,8 +493,7 @@ public:
       auto preferred_cex = state.get_preferred_cex();
       for (auto& v: preferred_cex) {
         new_conds.push_back(v);
-        //auto [r, m] = check_model_indep(new_conds);
-        auto [r, m] = check_model_mono(new_conds);
+        auto [r, m] = check_model_indep(new_conds);
         if (r != sat)
           new_conds.take(new_conds.size()-1);
           //new_conds.pop_back();
@@ -521,10 +539,8 @@ public:
 
   Checker& get_checker() {
     // why would this improve the performance?
-    //static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ?  static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
-    //return *(checker_map[std::this_thread::get_id()]);
-    static CheckerZ3 c;
-    return c;
+    static std::unique_ptr<Checker> wtf(solver_kind == SolverKind::stp ?  static_cast<Checker*>(new CheckerSTP) : static_cast<Checker*>(new CheckerZ3));
+    return *(checker_map[std::this_thread::get_id()]);
   }
 };
 

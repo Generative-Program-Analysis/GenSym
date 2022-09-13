@@ -10,8 +10,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0)
-    {
+    if (i->i == 0) {
       if (args.size() >= 2) {
         auto msg = get_string_arg(state, args.at(1));
         std::cout << "Eager assertion error: " << msg << std::endl;
@@ -23,12 +22,10 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
   auto cond = SymV::neg(v);
-  auto pc = state.get_PC();
+  auto pc = state.copy_PC();
   pc.add(cond);
   if (check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is not valid
-  pc.pop_back();
-  pc.add(v);
-  state.set_PC(pc);
+  state.add_PC(v);
   return k(state, make_IntV(1, 32));
 }
 
@@ -113,7 +110,8 @@ inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
     auto pc = state.copy_PC();
     pc.add(cond);
     auto tbr_sat = check_pc(pc);
-    pc.replace_last_cond(SymV::neg(cond));
+    pc = state.copy_PC();
+    pc.add(SymV::neg(cond));
     auto fbr_sat = check_pc(pc);
     auto t_args = List<PtrVal>{v_t};
     auto f_args = List<PtrVal>{v_f};
@@ -268,7 +266,9 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
     auto pc = state.copy_PC();
     pc.add(cond);
     auto tbr_sat = check_pc(pc);
-    pc.replace_last_cond(SymV::neg(cond));
+
+    pc = state.copy_PC();
+    pc.add(SymV::neg(cond));
     auto fbr_sat = check_pc(pc);
     ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
     bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);

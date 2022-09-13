@@ -1,6 +1,8 @@
 #ifndef LLSC_STATE_IMP_HEADER
 #define LLSC_STATE_IMP_HEADER
 
+/* Note: This file has been deprecated! */
+
 /* Memory, stack, and symbolic state representation */
 
 // Note (5/17): now using a byte-oriented layout

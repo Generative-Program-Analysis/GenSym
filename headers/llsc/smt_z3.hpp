@@ -52,7 +52,7 @@ public:
     for (auto& rand : sym_e->rands) {
       // XXX: here is a mutually recursive call
       auto& e2 = construct_expr(rand);
-      expr_rands.push_back(e2.expr);
+      expr_rands.push_back(e2);
     }
     int bw = sym_e->bw;
     switch (sym_e->rator) {

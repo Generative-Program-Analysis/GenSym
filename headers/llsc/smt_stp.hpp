@@ -40,7 +40,7 @@ public:
     int bw = sym_e->bw;
     for (auto e : sym_e->rands) {
       auto& e2 = construct_expr(e);
-      expr_rands.push_back(e2.expr);
+      expr_rands.push_back(e2);
       //vars->insert(vm->begin(), vm->end());
     }
     switch (sym_e->rator) {

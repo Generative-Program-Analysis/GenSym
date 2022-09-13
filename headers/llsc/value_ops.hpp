@@ -439,22 +439,22 @@ struct SymV : Value {
   size_t bw;
   iOP rator;
   immer::array<PtrVal> rands;
-  TrList<PtrVal> vars;
+  immer::set_transient<PtrVal> vars;
 
   SymV(String name, size_t bw) : name(name), bw(bw) {
     hash_combine(hash(), std::string("symv1"));
     hash_combine(hash(), name);
     hash_combine(hash(), bw);
-    vars.push_back(shared_from_this());
+    vars.insert(std::dynamic_pointer_cast<SymV>(shared_from_this()));
   }
   SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) : rator(rator), rands(rands), bw(bw) {
     hash_combine(hash(), std::string("symv2"));
     hash_combine(hash(), rator);
     hash_combine(hash(), bw);
-    for (auto& r: rands) hash_combine(hash(), std::hash<PtrVal>{}(r));
     for (auto& r: rands) {
+      hash_combine(hash(), std::hash<PtrVal>{}(r));
       auto sym_rand = std::dynamic_pointer_cast<SymV>(r);
-      if (sym_rand) vars.append(sym_rand->vars);
+      if (sym_rand) for (auto& v : sym_rand->vars) vars.insert(v);
     }
   }
   bool is_var() { return !name.empty(); }

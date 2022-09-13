@@ -194,13 +194,16 @@ sym_exec_br(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
   auto pc = ss.get_PC();
   pc.add(t_cond);
   auto tbr_sat = check_pc(pc);
-  pc.replace_last_cond(f_cond);
+
+  pc = ss.copy_PC();
+  pc.add(f_cond);
   auto fbr_sat = check_pc(pc);
+
   if (tbr_sat && fbr_sat) {
     cov().inc_path(1);
-    SS tbr_ss = ss;
+    SS tbr_ss = ss; // TODO: use reference?
     SS fbr_ss = ss.fork();
-    tbr_ss.add_PC(t_cond);
+    tbr_ss.add_PC(t_cond); // TODO: no need to add t_cond again?
     fbr_ss.add_PC(f_cond);
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
@@ -229,49 +232,6 @@ sym_exec_br(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
   }
 }
 
-// use std::vector as argument list and result list
-[[deprecated]]
-inline std::vector<std::pair<SS, PtrVal>>
-sym_exec_br(SS& ss, PtrVal t_cond, PtrVal f_cond,
-            std::vector<std::pair<SS, PtrVal>> (*tf)(SS&),
-            std::vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
-  auto pc = ss.get_PC();
-  pc.add(t_cond);
-  auto tbr_sat = check_pc(pc);
-  pc.replace_last_cond(f_cond);
-  auto fbr_sat = check_pc(pc);
-  if (tbr_sat && fbr_sat) {
-    cov().inc_path(1);
-    SS tbr_ss = ss;
-    SS fbr_ss = ss.fork();
-    tbr_ss.add_PC(t_cond);
-    fbr_ss.add_PC(f_cond);
-    if (can_par_async()) {
-      std::future<std::vector<std::pair<SS, PtrVal>>> tf_res =
-        create_async<std::vector<std::pair<SS, PtrVal>>>([&]{
-          return tf(tbr_ss);
-        });
-      auto ff_vec = ff(fbr_ss);
-      auto tf_vec = tf_res.get();
-      tf_vec.insert(tf_vec.end(), ff_vec.begin(), ff_vec.end());
-      return tf_vec;
-    } else {
-      auto tf_vec = tf(tbr_ss);
-      auto ff_vec = ff(fbr_ss);
-      tf_vec.insert(tf_vec.end(), ff_vec.begin(), ff_vec.end());
-      return tf_vec;
-    }
-  } else if (tbr_sat) {
-    SS tbr_ss = ss.add_PC(t_cond);
-    return tf(tbr_ss);
-  } else if (fbr_sat) {
-    SS fbr_ss = ss.add_PC(f_cond);
-    return ff(fbr_ss);
-  } else {
-    return std::vector<std::pair<SS, PtrVal>>{};
-  }
-}
-
 inline std::monostate
 sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
@@ -280,14 +240,16 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
   auto pc = ss.get_PC();
   pc.add(t_cond);
   auto tbr_sat = check_pc(pc);
-  pc.replace_last_cond(f_cond);
+
+  pc = ss.copy_PC();
+  pc.add(f_cond);
   auto fbr_sat = check_pc(pc);
 
   if (tbr_sat && fbr_sat) {
     cov().inc_path(1);
-    SS tbr_ss = ss;
+    SS tbr_ss = ss; // TODO: use ref?
     SS fbr_ss = ss.fork();
-    tbr_ss.add_PC(t_cond);
+    tbr_ss.add_PC(t_cond); // TODO: no need to add again
     fbr_ss.add_PC(f_cond);
     if (can_par_tp()) {
       tp.add_task(tbr_ss.get_ssid(), [tf, block_id, tbr_ss=std::move(tbr_ss), k]{
