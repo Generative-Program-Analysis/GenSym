@@ -302,7 +302,6 @@ public:
     // update cex cache
     cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
     pop();
-
     end = steady_clock::now();
     mono_solver_time += duration_cast<microseconds>(end - start).count();
     return std::make_pair(result, model);
@@ -486,7 +485,7 @@ public:
   }
 
   virtual void generate_test(SS state) override {
-    auto pc = std::move(state.get_PC());
+    auto pc = state.get_PC();
     if (!use_solver) return;
     if (mkdir("tests", 0777) == -1) {
       if (errno == EEXIST) { }
@@ -494,23 +493,20 @@ public:
     }
     completed_path_num++;
     if (only_output_covernew && !state.has_cover_new()) return;
-    auto conds = pc.get_path_conds();
     CheckResult res;
     solver_result result;
     std::shared_ptr<Model> model;
+    TrList<PtrVal> new_conds(pc.get_path_conds());
     if (state.get_preferred_cex().size() > 0) {
-      TrList<PtrVal> new_conds(conds);
       auto preferred_cex = state.get_preferred_cex();
       for (auto& v: preferred_cex) {
         new_conds.push_back(v);
         auto [r, m] = check_model_indep(new_conds);
-        if (r != sat)
-          new_conds.take(new_conds.size()-1);
-          //new_conds.pop_back();
+        if (r != sat) new_conds.take(new_conds.size()-1);
       }
       res = check_with_full_model(new_conds);
     } else {
-      res = check_with_full_model(conds);
+      res = check_with_full_model(new_conds);
     }
     result = res.first;
     model = res.second;
