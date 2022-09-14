@@ -267,11 +267,18 @@ public:
     auto model = std::make_shared<Model>();
     // constraint independence resolving
     CexCacheKey indep_pc;
+    UnionFind& uf = pc.uf;
+    /*
+    for (auto& c : pc.conds) {
+      for (auto& v : c->to_SymV()->vars) { uf.join(v, c); }
+    }
+    */
+
     PtrVal last_expr = *std::prev(pc.conds.end());
     indep_pc.insert(last_expr);
     auto root = last_expr;
-    while (root != pc.uf.next[last_expr]) {
-      last_expr = pc.uf.next[last_expr];
+    while (root != uf.next[last_expr]) {
+      last_expr = uf.next[last_expr];
       auto last_expr_e = last_expr->to_SymV();
       if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
     }
@@ -406,8 +413,8 @@ public:
     auto sym_e = e->to_SymV();
     ASSERT(sym_e != nullptr, "concretizing a non-symbolic value");
     for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
-    auto [r, m] = check_model_at(pc, sym_e);
-    //auto [r, m] = check_model_indep(pc.conds, sym_e);
+    //auto [r, m] = check_model_at(pc, sym_e);
+    auto [r, m] = check_model_indep(pc.conds, sym_e);
     return std::make_pair(r == sat, r == sat ? m->at(sym_e) : 0);
   }
 
