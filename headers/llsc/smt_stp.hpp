@@ -191,6 +191,11 @@ public:
   void pop_internal() {
     vc_pop(vc);
   }
+
+  void reset_internal() {
+    vc_Destroy(vc);
+    vc = vc_createValidityChecker();
+  }
 };
 
 #endif

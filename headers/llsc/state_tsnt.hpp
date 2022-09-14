@@ -266,8 +266,10 @@ class Stack {
 };
 
 struct UnionFind {
-  immer::map_transient<PtrVal, PtrVal, hash_PtrVal, equal_to_PtrVal> parent;
-  immer::map_transient<PtrVal, PtrVal, hash_PtrVal, equal_to_PtrVal> next;
+  //immer::map_transient<PtrVal, PtrVal, std::hash<PtrVal>, equal_to_PtrVal> parent;
+  //immer::map_transient<PtrVal, PtrVal, std::hash<PtrVal>, equal_to_PtrVal> next;
+  immer::map_transient<PtrVal, PtrVal> parent;
+  immer::map_transient<PtrVal, PtrVal> next;
   immer::map_transient<PtrVal, std::uint32_t> size;
 
   bool init(PtrVal v) {
@@ -323,13 +325,11 @@ class PC {
   public:
     TrList<PtrVal> conds;
     UnionFind uf;
-    //immer::set_transient<simple_ptr<SymV>> vars;
 
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {}
     PC&& add(PtrVal e) {
       conds.push_back(e);
       auto sym_e = std::dynamic_pointer_cast<SymV>(e);
-      //for (auto& v : sym_e->vars) vars.insert(v);
 
       auto start = steady_clock::now();
       for (auto& v : sym_e->vars) { uf.join(v, e); }

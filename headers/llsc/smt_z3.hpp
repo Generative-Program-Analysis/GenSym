@@ -165,6 +165,9 @@ public:
   void pop_internal() {
     g_solver->pop();
   }
+  void reset_internal() {
+    g_solver->reset();
+  }
 };
 
 #endif

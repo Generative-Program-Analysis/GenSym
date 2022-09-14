@@ -52,6 +52,13 @@ class CachedChecker : public Checker {
     ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
+  void reset() {
+    auto start = steady_clock::now();
+    self()->reset_internal();
+    auto end = steady_clock::now();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
+  }
+
   solver_result check_model() {
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
@@ -104,7 +111,7 @@ public:
 
   // a unoptimized but correct baseline
   void construct_reachmap(ReachMap* rm, const PtrVal& top_cnd, const PtrVal& e) {
-    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+    auto sym_e = e->to_SymV();
     if (!sym_e) return;
     if (sym_e->is_var()) rm->emplace(sym_e, top_cnd);
     for (auto& rand : sym_e->rands) construct_reachmap(rm, top_cnd, rand);
@@ -120,7 +127,7 @@ public:
 
   void construct_model(CexCacheKey& pc, std::shared_ptr<Model>& model) {
     for (auto& e: pc) {
-      auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+      auto sym_e = e->to_SymV();
       for (auto& v: sym_e->vars) {
         model->emplace(v, self()->eval(global_varmap.at(v)));
       }
@@ -199,7 +206,7 @@ public:
   void mark(PtrVal root, CexCacheKey& visited, CexCacheKey& result, bool add_root = true) {
     ASSERT(use_cons_indep, "why not?");
     if (add_root) result.insert(root);
-    auto sym_root = std::dynamic_pointer_cast<SymV>(root);
+    auto sym_root = root->to_SymV();
     for (auto& var : sym_root->vars) {
       if (visited.find(var) != visited.end()) continue;
       //std::cout << "  it reaches var " << var->toString() << "\n";
@@ -211,13 +218,13 @@ public:
 
   CheckResult check_model_at(PC& pc, PtrVal expr) {
     auto start = steady_clock::now();
-    auto model = std::make_shared<Model>();
+    std::shared_ptr<Model> model = std::make_shared<Model>();
     CexCacheKey indep_pc;
     PtrVal last_expr = expr;
     auto root = last_expr;
     while (root != pc.uf.next[last_expr]) {
       last_expr = pc.uf.next[last_expr];
-      auto last_expr_e = std::dynamic_pointer_cast<SymV>(last_expr);
+      auto last_expr_e = last_expr->to_SymV();
       if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
     }
     auto end = steady_clock::now();
@@ -225,27 +232,33 @@ public:
 
     auto it = cexcache.find(indep_pc);
     //if (it != cexcache.end() && it->second.second->find(expr) != it->second.second->end()) {
-    if (cache_hit(it, model)) {
+    //if (cache_hit(it, model)) {
+    if (expr->to_SymV()->is_var() && cache_hit(it, model)) {
       cached_query_num += 1;
+      model->emplace(expr, self()->eval(construct_expr(expr))); // XXX
+      end = steady_clock::now();
+      mono_solver_time += duration_cast<microseconds>(end - start).count();
       return it->second;
     }
     std::set<PtrVal> vars;
     // check model
     push();
     for (auto& cnd: indep_pc) {
-      auto cnd_e = std::dynamic_pointer_cast<SymV>(cnd);
+      auto cnd_e = cnd->to_SymV();
       vars.insert(cnd_e->vars.begin(), cnd_e->vars.end());
       self()->add_constraint_internal(construct_expr(cnd));
     }
     solver_result result = check_model();
-    model->insert_or_assign(expr, self()->eval(construct_expr(expr))); // XXX: seems not necessary
     // store model
     if (result == sat) {
+      model->insert_or_assign(expr, self()->eval(construct_expr(expr))); // XXX: seems not necessary
       for (auto& v : vars) model->insert_or_assign(v, self()->eval(global_varmap.at(v)));
     }
     // update cex cache
     cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
     pop();
+    end = steady_clock::now();
+    mono_solver_time += duration_cast<microseconds>(end - start).count();
     return std::make_pair(result, model);
   }
 
@@ -259,7 +272,7 @@ public:
     auto root = last_expr;
     while (root != pc.uf.next[last_expr]) {
       last_expr = pc.uf.next[last_expr];
-      auto last_expr_e = std::dynamic_pointer_cast<SymV>(last_expr);
+      auto last_expr_e = last_expr->to_SymV();
       if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
     }
     auto end = steady_clock::now();
@@ -277,7 +290,7 @@ public:
     // check model
     push();
     for (auto& cnd: indep_pc) {
-      auto cnd_e = std::dynamic_pointer_cast<SymV>(cnd);
+      auto cnd_e = cnd->to_SymV();
       vars.insert(cnd_e->vars.begin(), cnd_e->vars.end());
       self()->add_constraint_internal(construct_expr(cnd));
     }
@@ -296,12 +309,10 @@ public:
   }
 
   void construct_reachmap_fast(ReachMap& rm, const PtrVal& top_cnd) {
-    auto sym_e = std::dynamic_pointer_cast<SymV>(top_cnd);
+    auto sym_e = top_cnd->to_SymV();
     ASSERT(sym_e, "not a sym");
     for (auto& v : sym_e->vars) {
-      auto sym_v = std::dynamic_pointer_cast<SymV>(v);
-      ASSERT(sym_v, "not a variable");
-      rm.emplace(sym_v, top_cnd);
+      rm.emplace(v->to_SymV(), top_cnd);
     }
   }
 
@@ -348,7 +359,6 @@ public:
     end = steady_clock::now();
     full_model_time += duration_cast<microseconds>(end - start).count();
     return res;
-    // XXX: omitting preferred cex temporarily
     /*
     if (!use_cons_indep) {
       pc.insert(conds.begin(), conds.end());
@@ -389,15 +399,16 @@ public:
     if (!use_solver) return true;
     br_query_num++;
     auto [r, m] = check_model_mono(pc);
+    //auto [r, m] = check_model_indep(pc.conds, nullptr);
     return r == sat;
   }
 
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal e) override {
-    auto sym_e = std::dynamic_pointer_cast<SymV>(e);
+    auto sym_e = e->to_SymV();
     ASSERT(sym_e != nullptr, "concretizing a non-symbolic value");
-    //for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
-    //auto [r, m] = check_model_at(pc, sym_e);
-    auto [r, m] = check_model_indep(pc.get_path_conds(), sym_e);
+    for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
+    auto [r, m] = check_model_at(pc, sym_e);
+    //auto [r, m] = check_model_indep(pc.conds, sym_e);
     return std::make_pair(r == sat, r == sat ? m->at(sym_e) : 0);
   }
 
@@ -412,8 +423,7 @@ public:
       ABORT("Cannot create the test case file, abort.\n");
     }
     for (auto& [k, v]: *model) {
-      auto sym_k = std::dynamic_pointer_cast<SymV>(k);
-      output << sym_k->name << "=" << v << std::endl;
+      output << k->to_SymV()->name << "=" << v << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
     close(out_fd);
@@ -525,13 +535,9 @@ public:
     auto fun = [this](auto id) {
       if (solver_kind == SolverKind::z3) {
         checker_map[id] = std::make_unique<CheckerZ3>();
-      }
-      else if (solver_kind == SolverKind::stp) {
+      } else if (solver_kind == SolverKind::stp) {
         checker_map[id] = std::make_unique<CheckerSTP>();
-      }
-      else {
-        ABORT("unknown solver");
-      }
+      } else ABORT("unknown solver");
     };
     fun(std::this_thread::get_id());
     tp.with_thread_ids(fun);

@@ -44,22 +44,22 @@ simple_ptr<T> make_simple(Args&&... args) {
 }
 
 namespace std {
-template<typename T, typename U>
-simple_ptr<T> dynamic_pointer_cast(simple_ptr<U> v) {
-  return simple_ptr<T>(dynamic_cast<T*>(v.get()));
-}
-
-template<typename T, typename U>
-simple_ptr<T> static_pointer_cast(simple_ptr<U> v) {
-  return simple_ptr<T>(static_cast<T*>(v.get()));
-}
-
-template <typename T>
-struct hash<simple_ptr<T>> {
-  size_t operator()(const simple_ptr<T> &rhs) const noexcept {
-    return hash<T*>{}(rhs.get());
+  template<typename T, typename U>
+  simple_ptr<T> dynamic_pointer_cast(simple_ptr<U> v) {
+    return simple_ptr<T>(dynamic_cast<T*>(v.get()));
   }
-};
+
+  template<typename T, typename U>
+  simple_ptr<T> static_pointer_cast(simple_ptr<U> v) {
+    return simple_ptr<T>(static_cast<T*>(v.get()));
+  }
+
+  template <typename T>
+  struct hash<simple_ptr<T>> {
+    size_t operator()(const simple_ptr<T> &rhs) const noexcept {
+      return hash<T*>{}(rhs.get());
+    }
+  };
 }
 
 using PtrVal = simple_ptr<Value>;
@@ -81,7 +81,6 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   virtual size_t get_bw() const = 0;
   size_t get_byte_size() const { return (get_bw() + 7) / 8; }
   virtual bool compare(const Value* v) const = 0;
-  virtual simple_ptr<IntV> to_IntV() = 0;
   inline bool operator==(const Value& rhs){ return compare(&rhs); }
 
   /* `to_bytes` produces the memory representation of this value
@@ -99,6 +98,10 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   size_t hashval;
   Value() : hashval(0) {}
   size_t& hash() { return hashval; }
+
+  /* Note: to_IntV/to_SymV may return nullptr when runtime type isn't a IntV/SymV. */
+  inline simple_ptr<IntV> to_IntV() { return std::dynamic_pointer_cast<IntV>(shared_from_this()); }
+  inline simple_ptr<SymV> to_SymV() { return std::dynamic_pointer_cast<SymV>(shared_from_this()); }
 
   /* Since from_bytes/from_bytes_shadow only concate ``bit-vectors'' (either concrete or symbolic),
    * and they do not work with location/function values, at some point, we may find that
@@ -180,7 +183,6 @@ struct ShadowV : public Value {
   virtual bool is_conc() const { return true; };
   virtual size_t get_bw() const { return 0; }
   virtual bool compare(const Value* v) const { return false; }
-  virtual simple_ptr<IntV> to_IntV() { return nullptr; }
   virtual std::string toString() const { return "❏"; }
   virtual List<PtrVal> to_bytes() { return List<PtrVal>{shared_from_this()}; }
   virtual List<PtrVal> to_bytes_shadow() { return to_bytes(); }
@@ -228,10 +230,6 @@ struct IntV : Value {
     std::ostringstream ss;
     ss << "IntV(" << as_signed() << ", " << bw << ")";
     return ss.str();
-  }
-  virtual simple_ptr<IntV> to_IntV() override {
-    auto thisptr = shared_from_this();
-    return std::static_pointer_cast<IntV>(thisptr);
   }
   virtual bool is_conc() const override { return true; }
   virtual size_t get_bw() const override { return bw; }
@@ -283,7 +281,6 @@ struct FloatV : Value {
     return ss.str();
   }
   virtual bool is_conc() const override { return true; }
-  virtual simple_ptr<IntV> to_IntV() override { return nullptr; }
   virtual size_t get_bw() const override { return bw; }
 
   virtual bool compare(const Value* v) const override {
@@ -474,7 +471,6 @@ struct SymV : Value {
     return ss.str();
   }
   virtual bool is_conc() const override { return false; }
-  virtual simple_ptr<IntV> to_IntV() override { return nullptr; }
   virtual size_t get_bw() const override { return bw; }
 
   virtual bool compare(const Value* v) const override {
@@ -641,7 +637,6 @@ struct StructV : Value {
   virtual bool is_conc() const override {
     ABORT("is_conc: unexpected value StructV.");
   }
-  virtual simple_ptr<IntV> to_IntV() override { return nullptr; }
   virtual size_t get_bw() const override { ABORT("get_bw: unexpected value StructV."); }
 
   virtual bool compare(const Value* v) const override {
