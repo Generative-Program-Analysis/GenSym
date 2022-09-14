@@ -99,16 +99,6 @@ public:
     cexcache.clear();
   }
 
-  // Construct the solver expression for a Value
-  inline const Expr construct_expr0(PtrVal& e) {
-    auto expr = self()->construct_expr_internal(e);
-    return {expr};
-  }
-
-  void update_global_reachmap(std::shared_ptr<ReachMap> rm) {
-    global_reachmap.insert(rm->begin(), rm->end());
-  }
-
   // a unoptimized but correct baseline
   void construct_reachmap(ReachMap* rm, const PtrVal& top_cnd, const PtrVal& e) {
     auto sym_e = e->to_SymV();
@@ -121,16 +111,13 @@ public:
   const Expr& construct_expr(PtrVal e) {
     auto fd = objcache.find(e);
     if (fd != objcache.end()) return fd->second;
-    auto [it, ins] = objcache.emplace(e, construct_expr0(e));
+    auto [it, ins] = objcache.emplace(e, self()->construct_expr_internal(e));
     return it->second;
   }
 
   void construct_model(CexCacheKey& pc, std::shared_ptr<Model>& model) {
     for (auto& e: pc) {
-      auto sym_e = e->to_SymV();
-      for (auto& v: sym_e->vars) {
-        model->emplace(v, self()->eval(global_varmap.at(v)));
-      }
+      for (auto& v: e->to_SymV()->vars) model->emplace(v, self()->eval(global_varmap.at(v)));
     }
   }
 
@@ -140,10 +127,7 @@ public:
   inline solver_result check_model0(CexCacheKey& pc, std::shared_ptr<Model> model) {
     //VarMap varmap;
     push();
-    for (auto& v: pc) {
-      auto& e = objcache.at(v);
-      self()->add_constraint_internal(e);
-    }
+    for (auto& v: pc) self()->add_constraint_internal(objcache.at(v));
     solver_result result = check_model();
     if (result == sat && model) construct_model(pc, model);
     pop();
@@ -197,8 +181,7 @@ public:
       // query_expr can be a compound expression
       // reuse the model in case use_cexcache already sets a model
       if (!model) model = std::make_shared<Model>();
-      auto& e = objcache.at(query_expr);
-      model->emplace(query_expr, self()->eval(e)); // XXX: could be wrong -- since a cache hit may not lead to valid eval(e) value!
+      model->emplace(query_expr, self()->eval(objcache.at(query_expr))); // XXX: could be wrong -- since a cache hit may not lead to valid eval(e) value!
     }
     return std::make_pair(result, model);
   }
@@ -216,27 +199,29 @@ public:
     }
   }
 
+  void resolve_indep_uf(UnionFind& uf, PtrVal root, CexCacheKey& result, bool add_root = true) {
+    auto start = steady_clock::now();
+    if (add_root) result.insert(root);
+    auto last_expr = root;
+    while (root != uf.next[last_expr]) {
+      last_expr = uf.next[last_expr];
+      if (!last_expr->to_SymV()->is_var()) result.insert(last_expr);
+    }
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
+  }
+
   CheckResult check_model_at(PC& pc, PtrVal expr) {
     auto start = steady_clock::now();
     std::shared_ptr<Model> model = std::make_shared<Model>();
     CexCacheKey indep_pc;
-    PtrVal last_expr = expr;
-    auto root = last_expr;
-    while (root != pc.uf.next[last_expr]) {
-      last_expr = pc.uf.next[last_expr];
-      auto last_expr_e = last_expr->to_SymV();
-      if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
-    }
-    auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
+    resolve_indep_uf(pc.uf, expr, indep_pc, false);
 
     auto it = cexcache.find(indep_pc);
-    //if (it != cexcache.end() && it->second.second->find(expr) != it->second.second->end()) {
-    //if (cache_hit(it, model)) {
     if (expr->to_SymV()->is_var() && cache_hit(it, model)) {
+      // if expr is a variable, them the hitted model should (?) garuante to have a value for it
       cached_query_num += 1;
-      model->emplace(expr, self()->eval(construct_expr(expr))); // XXX
-      end = steady_clock::now();
+      auto end = steady_clock::now();
       mono_solver_time += duration_cast<microseconds>(end - start).count();
       return it->second;
     }
@@ -257,7 +242,7 @@ public:
     // update cex cache
     cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
     pop();
-    end = steady_clock::now();
+    auto end = steady_clock::now();
     mono_solver_time += duration_cast<microseconds>(end - start).count();
     return std::make_pair(result, model);
   }
@@ -265,31 +250,14 @@ public:
   CheckResult check_model_mono(PC& pc) {
     auto start = steady_clock::now();
     auto model = std::make_shared<Model>();
-    // constraint independence resolving
     CexCacheKey indep_pc;
-    UnionFind& uf = pc.uf;
-    /*
-    for (auto& c : pc.conds) {
-      for (auto& v : c->to_SymV()->vars) { uf.join(v, c); }
-    }
-    */
-
-    PtrVal last_expr = *std::prev(pc.conds.end());
-    indep_pc.insert(last_expr);
-    auto root = last_expr;
-    while (root != uf.next[last_expr]) {
-      last_expr = uf.next[last_expr];
-      auto last_expr_e = last_expr->to_SymV();
-      if (!last_expr_e->is_var()) indep_pc.insert(last_expr);
-    }
-    auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
+    resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
 
     // cex cache
     auto it = cexcache.find(indep_pc);
     if (cache_hit(it, model)) {
       cached_query_num += 1;
-      end = steady_clock::now();
+      auto end = steady_clock::now();
       mono_solver_time += duration_cast<microseconds>(end - start).count();
       return it->second;
     }
@@ -309,17 +277,14 @@ public:
     // update cex cache
     cexcache.emplace(std::move(indep_pc), std::make_pair(result, model));
     pop();
-    end = steady_clock::now();
+    auto end = steady_clock::now();
     mono_solver_time += duration_cast<microseconds>(end - start).count();
     return std::make_pair(result, model);
   }
 
   void construct_reachmap_fast(ReachMap& rm, const PtrVal& top_cnd) {
-    auto sym_e = top_cnd->to_SymV();
-    ASSERT(sym_e, "not a sym");
-    for (auto& v : sym_e->vars) {
+    for (auto& v : top_cnd->to_SymV()->vars)
       rm.emplace(v->to_SymV(), top_cnd);
-    }
   }
 
   // Query satisfiability, potentially return the concretized value of query_expr
@@ -405,7 +370,6 @@ public:
     if (!use_solver) return true;
     br_query_num++;
     auto [r, m] = check_model_mono(pc);
-    //auto [r, m] = check_model_indep(pc.conds, nullptr);
     return r == sat;
   }
 
@@ -413,8 +377,7 @@ public:
     auto sym_e = e->to_SymV();
     ASSERT(sym_e != nullptr, "concretizing a non-symbolic value");
     for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
-    //auto [r, m] = check_model_at(pc, sym_e);
-    auto [r, m] = check_model_indep(pc.conds, sym_e);
+    auto [r, m] = check_model_at(pc, sym_e);
     return std::make_pair(r == sat, r == sat ? m->at(sym_e) : 0);
   }
 
