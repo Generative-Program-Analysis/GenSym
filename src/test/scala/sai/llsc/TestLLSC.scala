@@ -87,6 +87,7 @@ abstract class TestLLSC extends FunSuite {
   def testLLSC(llsc: LLSC, tests: List[TestPrg]): Unit = tests.foreach(testLLSC(llsc, _))
 }
 
+/*
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all ++ filesys ++ varArg)
   //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, 1))
@@ -121,6 +122,7 @@ class TestPureCPSLLSC_Z3 extends TestLLSC {
 class TestImpLLSC extends TestLLSC {
   testLLSC(new ImpLLSC, TestCases.all ++ filesys ++ varArg)
 }
+*/
 
 class TestImpCPSLLSC extends TestLLSC {
   val llsc = new ImpCPSLLSC
