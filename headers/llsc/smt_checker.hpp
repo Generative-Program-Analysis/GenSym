@@ -374,6 +374,7 @@ public:
   }
 
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal e) override {
+    conc_query_num++;
     auto sym_e = e->to_SymV();
     ASSERT(sym_e != nullptr, "concretizing a non-symbolic value");
     for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
