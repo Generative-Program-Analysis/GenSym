@@ -329,10 +329,9 @@ class PC {
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {}
     PC&& add(PtrVal e) {
       conds.push_back(e);
-      auto sym_e = std::dynamic_pointer_cast<SymV>(e);
 
       auto start = steady_clock::now();
-      for (auto& v : sym_e->vars) { uf.join(v, e); }
+      for (auto& v : e->to_SymV()->vars) { uf.join(v, e); }
       auto end = steady_clock::now();
       cons_indep_time += duration_cast<microseconds>(end - start).count();
 
@@ -451,7 +450,7 @@ class SS {
         return read_res;
       } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite(get_ite_cond(symvite), at(get_ite_tv(symvite), size), at(get_ite_ev(symvite), size));
+        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }

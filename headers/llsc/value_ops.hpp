@@ -4,7 +4,9 @@
 struct Value;
 struct IntV;
 struct SymV;
+struct LocV;
 struct SymLocV;
+struct FloatV;
 struct SS;
 class PC;
 
@@ -70,9 +72,6 @@ inline PtrVal bv_zext(const PtrVal& v, size_t bw);
 inline PtrVal make_IntV(IntData i, size_t bw=default_bw, bool toMSB=true);
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v);
 inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e);
-inline PtrVal get_ite_cond(const simple_ptr<SymV>& ite_v);
-inline PtrVal get_ite_tv(const simple_ptr<SymV>& ite_v);
-inline PtrVal get_ite_ev(const simple_ptr<SymV>& ite_v);
 
 /* Value representations */
 
@@ -99,9 +98,12 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   Value() : hashval(0) {}
   size_t& hash() { return hashval; }
 
-  /* Note: to_IntV/to_SymV may return nullptr when runtime type isn't a IntV/SymV. */
+  /* Note: these functions may return nullptr when runtime type isn't the type being converted to. */
   inline simple_ptr<IntV> to_IntV() { return std::dynamic_pointer_cast<IntV>(shared_from_this()); }
   inline simple_ptr<SymV> to_SymV() { return std::dynamic_pointer_cast<SymV>(shared_from_this()); }
+  inline simple_ptr<LocV> to_LocV() { return std::dynamic_pointer_cast<LocV>(shared_from_this()); }
+  inline simple_ptr<FloatV> to_FloatV() { return std::dynamic_pointer_cast<FloatV>(shared_from_this()); }
+
 
   /* Since from_bytes/from_bytes_shadow only concate ``bit-vectors'' (either concrete or symbolic),
    * and they do not work with location/function values, at some point, we may find that
@@ -262,8 +264,8 @@ inline PtrVal make_IntV(IntData i, size_t bw, bool toMSB) {
 }
 
 inline IntData proj_IntV(const PtrVal& v) {
-  if (v->get_bw() == 1) return std::dynamic_pointer_cast<IntV>(v)->i ? 1 : 0;
-  return std::dynamic_pointer_cast<IntV>(v)->as_signed();
+  if (v->get_bw() == 1) return v->to_IntV()->i ? 1 : 0;
+  return v->to_IntV()->as_signed();
 }
 
 struct FloatV : Value {
@@ -454,7 +456,7 @@ struct SymV : Value {
       if (sym_rand) for (auto& v : sym_rand->vars) vars.insert(v);
     }
   }
-  bool is_var() { return !name.empty(); }
+  inline bool is_var() { return !name.empty(); }
   std::string toString() const override {
     std::ostringstream ss;
     ss << "SymV(";
@@ -470,6 +472,9 @@ struct SymV : Value {
     ss << ", " << bw << ")";
     return ss.str();
   }
+  //PtrVal& operator[](std::size_t idx) { return rands[idx]; }
+  inline const PtrVal& operator[](std::size_t idx) const { return rands[idx]; }
+
   virtual bool is_conc() const override { return false; }
   virtual size_t get_bw() const override { return bw; }
 
@@ -554,11 +559,11 @@ inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
 
 // return a list of PtrVal with the specified variable prefix
 inline List<PtrVal> make_SymList(String prefix, int n) {
-    TrList<PtrVal> res;
-    for (int i = 0; i < n; i++) {
-        res.push_back(make_SymV(prefix + std::to_string(i), 8));
-    }
-    return res.persistent();
+  TrList<PtrVal> res;
+  for (int i = 0; i < n; i++) {
+    res.push_back(make_SymV(prefix + std::to_string(i), 8));
+  }
+  return res.persistent();
 }
 
 inline PtrVal SymV::neg(const PtrVal& v) {
@@ -739,16 +744,16 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         ABORT("invalid operator");
     }
   } else {
-    auto sym1 = std::dynamic_pointer_cast<SymV>(v1);
-    auto sym2 = std::dynamic_pointer_cast<SymV>(v2);
+    auto sym1 = v1->to_SymV();
+    auto sym2 = v2->to_SymV();
     ASSERT((i1 || sym1) && (i2 || sym2), "Invalid operand");
     auto bw = bw1;
-    if ((sym1 && iOP::op_ite == sym1->rator) && (sym2 && iOP::op_ite == sym2->rator) && (get_ite_cond(sym1) == get_ite_cond(sym2))) {
-      return ite(get_ite_cond(sym1), int_op_2(op, get_ite_tv(sym1), get_ite_tv(sym2)), int_op_2(op, get_ite_ev(sym1), get_ite_ev(sym2)));
+    if ((sym1 && iOP::op_ite == sym1->rator) && (sym2 && iOP::op_ite == sym2->rator) && ((*sym1)[0] == (*sym2)[0])) {
+      return ite((*sym1)[0], int_op_2(op, (*sym1)[1], (*sym2)[1]), int_op_2(op, (*sym1)[2], (*sym2)[2]));
     } else if (sym1 && iOP::op_ite == sym1->rator) {
-      return ite(get_ite_cond(sym1), int_op_2(op, get_ite_tv(sym1), v2), int_op_2(op, get_ite_ev(sym1), v2));
+      return ite((*sym1)[0], int_op_2(op, (*sym1)[1], v2), int_op_2(op, (*sym1)[2], v2));
     } else if (sym2 && iOP::op_ite == sym2->rator) {
-      return ite(get_ite_cond(sym2), int_op_2(op, v1, get_ite_tv(sym2)), int_op_2(op, v1, get_ite_ev(sym2)));
+      return ite((*sym2)[0], int_op_2(op, v1, (*sym2)[1]), int_op_2(op, v1, (*sym2)[2]));
     }
     switch (op) {
       case iOP::op_eq:
@@ -831,83 +836,48 @@ inline PtrVal fp_trunc(const PtrVal& v1, int from, int to) {
 inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e) {
   ASSERT(1 == cond->get_bw(), "Non-boolean condition");
   ASSERT(v_t->get_bw() == v_e->get_bw(), "Inconsistent operand widths");
-  auto cond_i = std::dynamic_pointer_cast<IntV>(cond);
-  if (cond_i) {
-    return cond_i->i ? v_t : v_e;
-  }
-  ASSERT(std::dynamic_pointer_cast<SymV>(cond), "Non-symbolic condition");
+  if (auto cond_i = cond->to_IntV()) return cond_i->i ? v_t : v_e;
+  ASSERT(cond->to_SymV(), "Non-symbolic condition");
   return make_SymV(iOP::op_ite, { cond, v_t, v_e }, v_t->get_bw());
-}
-
-inline PtrVal get_ite_cond(const simple_ptr<SymV>& ite_v) {
-  return ite_v->rands[0];
-}
-
-inline PtrVal get_ite_tv(const simple_ptr<SymV>& ite_v) {
-  return ite_v->rands[1];
-}
-
-inline PtrVal get_ite_ev(const simple_ptr<SymV>& ite_v) {
-  return ite_v->rands[2];
 }
 
 inline PtrVal bv_sext(const PtrVal& v, size_t bw) {
   ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
-  if (v->get_bw() == bw) {
-    return v;
-  }
-  auto i1 = std::dynamic_pointer_cast<IntV>(v);
-  if (i1) {
+  if (v->get_bw() == bw) return v;
+  if (auto i1 = v->to_IntV())
     return make_IntV(int64_t(i1->i) >> (bw - i1->bw), bw, false);
-  }
-  auto s1 = std::dynamic_pointer_cast<SymV>(v);
-  if (s1) {
+  if (auto s1 = v->to_SymV())
     // Note: instead of passing new bw as an operand
     // we override the original bw here
     return make_SymV(iOP::op_sext, { s1 }, bw);
-  }
   ABORT("Sext an invalid value, exit");
 }
 
 inline PtrVal bv_zext(const PtrVal& v, size_t bw) {
   ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
-  if (v->get_bw() == bw) {
-    return v;
-  }
-  auto i1 = std::dynamic_pointer_cast<IntV>(v);
-  if (i1) {
+  if (v->get_bw() == bw) return v;
+  if (auto i1 = v->to_IntV())
     return make_IntV(uint64_t(i1->i) >> (bw - i1->bw), bw, false);
-  }
-  auto s1 = std::dynamic_pointer_cast<SymV>(v);
-  if (s1) {
+  if (auto s1 = v->to_SymV())
     // Note: instead of passing new bw as an operand
     // we override the original bw here
     return make_SymV(iOP::op_zext, { s1 }, bw);
-  }
   ABORT("Zext an invalid value, exit");
 }
 
 inline PtrVal trunc(const PtrVal& v1, int from, int to) {
-  auto i1 = std::dynamic_pointer_cast<IntV>(v1);
-  if (i1) {
+  if (auto i1 = v1->to_IntV())
     return make_IntV(i1->i << (from - to), to, false);
-  }
-  auto s1 = std::dynamic_pointer_cast<SymV>(v1);
-  if (s1) {
+  if (auto s1 = v1->to_SymV())
     return make_SymV(iOP::op_trunc, { v1 }, to);
-  }
   ABORT("Truncate an invalid value, exit");
 }
 
 inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
-  auto i1 = std::dynamic_pointer_cast<IntV>(v1);
-  if (i1) {
+  if (auto i1 = v1->to_IntV())
     return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
-  }
-  auto s1 = std::dynamic_pointer_cast<SymV>(v1);
-  if (s1) {
+  if (auto s1 = v1->to_SymV())
     return make_SymV(iOP::op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
-  }
   ABORT("Extract an invalid value, exit");
 }
 
@@ -929,21 +899,19 @@ inline std::string ptrval_to_string(const PtrVal& ptr) {
 }
 
 inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
-  if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
+  if (auto loc = lhs->to_LocV())
     return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + rhs);
-  }
-  if (auto i = std::dynamic_pointer_cast<IntV>(lhs)) {
+  if (auto i = lhs->to_IntV())
     return make_IntV(i->i + rhs, i->bw);
-  }
   ABORT("Unknown application of operator+");
 }
 
 inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
-  auto int_rhs = std::dynamic_pointer_cast<IntV>(rhs);
-  auto sym_rhs = std::dynamic_pointer_cast<SymV>(rhs);
+  auto int_rhs = rhs->to_IntV();
+  auto sym_rhs = rhs->to_SymV();
   ASSERT(int_rhs || sym_rhs, "Invalid rhs");
 
-  if (auto loc = std::dynamic_pointer_cast<LocV>(lhs)) {
+  if (auto loc = lhs->to_LocV()) {
     ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
     if (int_rhs) {
       return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + int_rhs->as_signed());
@@ -953,17 +921,17 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
     }
   }
   if (auto symloc = std::dynamic_pointer_cast<SymLocV>(lhs)) {
-    auto off = std::dynamic_pointer_cast<SymV>(symloc->off);
+    auto off = symloc->off->to_SymV();
     ASSERT(off && (off->get_bw() == addr_index_bw), "Invalid offset index");
     ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
     auto new_off = int_op_2(iOP::op_add, off, rhs);
     return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
   }
-  if (auto symvite = std::dynamic_pointer_cast<SymV>(lhs)) {
+  if (auto symvite = lhs->to_SymV()) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    return ite(get_ite_cond(symvite), get_ite_tv(symvite) + rhs, get_ite_ev(symvite) + rhs);
+    return ite((*symvite)[0], (*symvite)[1] + rhs, (*symvite)[2] + rhs);
   }
-  if (auto intloc = std::dynamic_pointer_cast<IntV>(lhs)) {
+  if (auto intloc = lhs->to_IntV()) {
     INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());
     return int_op_2(iOP::op_add, intloc, rhs);
   }

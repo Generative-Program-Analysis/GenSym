@@ -379,7 +379,7 @@ class SS {
         return read_res;
       } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite(get_ite_cond(symvite), at(get_ite_tv(symvite), size), at(get_ite_ev(symvite), size));
+        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }

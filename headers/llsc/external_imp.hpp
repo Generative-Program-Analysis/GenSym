@@ -104,9 +104,9 @@ inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
   auto size = args.at(0);
   if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = get_ite_cond(symvite);
-    auto v_t = get_ite_tv(symvite);
-    auto v_f = get_ite_ev(symvite);
+    auto cond = (*symvite)[0];
+    auto v_t = (*symvite)[1];
+    auto v_f = (*symvite)[2];
     auto pc = state.copy_PC();
     pc.add(cond);
     auto tbr_sat = check_pc(pc);
@@ -260,9 +260,9 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   // Todo (Ruiqi): should we fork here
   if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = get_ite_cond(symvite);
-    auto v_t = get_ite_tv(symvite);
-    auto v_f = get_ite_ev(symvite);
+    auto cond = (*symvite)[0];
+    auto v_t = (*symvite)[1];
+    auto v_f = (*symvite)[2];
     auto pc = state.copy_PC();
     pc.add(cond);
     auto tbr_sat = check_pc(pc);
@@ -273,8 +273,8 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
     ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
     bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);
     if (auto srcite = std::dynamic_pointer_cast<SymV>(src)) {
-      ASSERT(iOP::op_ite == srcite->rator && get_ite_cond(srcite) == cond, "Inconsistent ite src and size");
-      src = tbr_sat ? get_ite_tv(srcite) : get_ite_ev(srcite);
+      ASSERT(iOP::op_ite == srcite->rator && (*srcite)[0] == cond, "Inconsistent ite src and size");
+      src = tbr_sat ? (*srcite)[1] : (*srcite)[2];
     }
   }
   else
