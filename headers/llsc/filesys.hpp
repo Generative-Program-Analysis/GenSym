@@ -109,12 +109,7 @@ struct FS: public Printable {
   List<PtrVal> preferred_cex;
   List<SymObj> sym_objs;
   immer::map<Fd, Ptr<Stream>> opened_files;
-  /* TODO: implement directory structure
-   * 1. change the string key to a fileId, similar to inode number
-   * 2. add a root directory file, with fileId=0
-   * <2022-02-08, David Deng> */
   Ptr<File> root_file;
-  /* immer::map<String, Ptr<File>> files; */
   Fd next_fd;
   List<PtrVal> statfs;
 

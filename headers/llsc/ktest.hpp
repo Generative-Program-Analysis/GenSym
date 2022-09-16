@@ -64,72 +64,34 @@ inline int kTest_toFile(KTest *bo, const char *path) {
   unsigned i;
 
   if (!f)
-  {
-    std::cout << "if (!f)" << std::endl;
     goto error;
-  }
   if (fwrite(KTEST_MAGIC, strlen(KTEST_MAGIC), 1, f)!=1)
-  {
-    std::cout << "if (fwrite(KTEST_MAGIC, strlen(KTEST_MAGIC), 1, f)!=1)" << std::endl;
     goto error;
-  }
   if (!write_uint32(f, KTEST_VERSION))
-  {
-    std::cout << "if (!write_uint32(f, KTEST_VERSION))" << std::endl;
     goto error;
-  }
-  INFO("bo->numArgs" << bo->numArgs);
 
   if (!write_uint32(f, bo->numArgs))
-  {
-    std::cout << "if (!write_uint32(f, bo->numArgs))" << std::endl;
     goto error;
-  }
   for (i=0; i<bo->numArgs; i++) {
     if (!write_string(f, bo->args[i]))
-    {
-      std::cout << "if (!write_string(f, bo->args[i]))" << std::endl;
       goto error;
-    }
   }
 
   if (!write_uint32(f, bo->symArgvs))
-  {
-    std::cout << "if (!write_uint32(f, bo->symArgvs))" << std::endl;
     goto error;
-  }
   if (!write_uint32(f, bo->symArgvLen))
-  {
-    std::cout << "if (!write_uint32(f, bo->symArgvLen))" << std::endl;
     goto error;
-  }
 
   if (!write_uint32(f, bo->numObjects))
-  {
-    std::cout << "if (!write_uint32(f, bo->numObjects))" << std::endl;
     goto error;
-  }
   for (i=0; i<bo->numObjects; i++) {
     KTestObject *o = &bo->objects[i];
     if (!write_string(f, o->name))
-    {
-      std::cout << "if (!write_string(f, o->name))" << std::endl;
       goto error;
-    }
     if (!write_uint32(f, o->numBytes))
-    {
-      std::cout << "if (!write_uint32(f, o->numBytes))" << std::endl;
       goto error;
-    }
     if (fwrite(o->bytes, o->numBytes, 1, f)!=1)
-    {
-      std::cout << "if (fwrite(o->bytes, o->numBytes, 1, f)!=1)" << std::endl;
-      std::cout << "i: " << i << std::endl;
-      std::cout << "o->name: " << o->name << std::endl;
-      std::cout << "o->numBytes: " << o->numBytes << std::endl;
-      std::cout << "o->bytes: " << o->bytes << std::endl;
       goto error;
-    }
   }
 
   fclose(f);
