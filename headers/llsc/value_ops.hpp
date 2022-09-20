@@ -138,6 +138,11 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
 
 };
 
+template<>
+inline std::ostream& operator<< <Value>(std::ostream& outs, const simple_ptr<Value>& rhs) {
+  return outs << rhs->toString();
+}
+
 struct hash_PtrVal {
   size_t operator()(PtrVal const& v) const noexcept {
     return v ? v->hash() : std::hash<nullptr_t>{}(nullptr);
@@ -676,6 +681,7 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v) {
 // require return value to be signed or non-negative
 inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   auto i1 = v1->to_IntV();
+  assert(v2);
   auto i2 = v2->to_IntV();
   auto bw1 = v1->get_bw();
   auto bw2 = v2->get_bw();

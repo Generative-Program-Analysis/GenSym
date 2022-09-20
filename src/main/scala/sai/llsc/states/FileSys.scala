@@ -34,19 +34,20 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
   // TODO: model nested fields? <2022-08-09, David Deng> //
 
   val statFields = ListMap[String, LLVMType](
-    "st_dev"   -> IntType(64),
-    "st_ino"   -> IntType(64),
-    "st_nlink" -> IntType(64),
-    "st_mode"  -> IntType(32),
-    "st_uid"   -> IntType(32),
-    "st_gid"   -> IntType(32),
-    "st_rdev"  -> IntType(64),
-    "st_size"  -> IntType(64),
-    "st_blksi" -> IntType(64),
-    "st_block" -> IntType(64),
-    "st_atim"  -> IntType(128),
-    "st_mtim"  -> IntType(128),
-    "st_ctim"  -> IntType(128),
+    "st_dev"     -> IntType(64),
+    "st_ino"     -> IntType(64),
+    "st_nlink"   -> IntType(64),
+    "st_mode"    -> IntType(32),
+    "st_uid"     -> IntType(32),
+    "st_gid"     -> IntType(32),
+    "st_rdev"    -> IntType(64),
+    "st_size"    -> IntType(64),
+    "st_blksize" -> IntType(64),
+    "st_block"   -> IntType(64),
+    "st_atim"    -> IntType(128),
+    "st_mtim"    -> IntType(128),
+    "st_ctim"    -> IntType(128),
+    "padding"    -> IntType(128), // simulate padding
     )
   val StatType = Struct(statFields.values.toList)
 
@@ -179,13 +180,19 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
     def readAt(pos: Rep[Long], len: Rep[Long]): Rep[List[Value]] = content.drop(pos.toInt).take(len.toInt)
 
+    def readStatFieldPosSize(f: String): (Int, Int) = 
+      StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, f))
+
+    def readStatBw(f: String): Int =
+      Constants.BYTE_SIZE * readStatFieldPosSize(f)._2
+
     def readStatField(f: String): Rep[Value] = {
-      val (pos, size) = StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, f))
+      val (pos, size) = readStatFieldPosSize(f)
       "from-bytes".reflectMutableWith[Value](file.stat.drop(pos).take(size))
     }
 
     def writeStatField(f: String, v: Rep[Value]): Rep[Unit] = {
-      val (pos, size) = StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, f))
+      val (pos, size) = readStatFieldPosSize(f)
       val bytes = "to-bytes".reflectWith[List[Value]](v)
       file.stat = file.stat.take(pos) ++ bytes ++ file.stat.drop(pos + bytes.size)
     }
@@ -206,6 +213,55 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def clear(): Rep[File] = {
       file.content = List[Value]()
       file
+    }
+    def getPreferredCex(): Rep[List[Value]] = {
+      // sample default values
+      // st_dev    : 2053
+      // st_ino    : 417975
+      // st_nlink  : 3
+      // st_mode   : 16893
+      // st_uid    : 1000
+      // st_gid    : 1000
+      // st_rdev   : 0
+      // st_size   : 4096
+      // st_blksize: 4096
+      // st_blocks : 8
+
+      val st_mode_bw = readStatBw("st_mode")
+      val st_mode = readStatField("st_mode")
+
+      val cex: Rep[List[Value]] = List(
+      // klee_prefer_cex(s, !(s->st_mode & ~(S_IFMT | 0777)));
+      IntOp2.eq(st_mode & IntV(unchecked[Long]("~(S_IFMT | 0777)"), st_mode_bw), IntV(0, st_mode_bw)),
+      // klee_prefer_cex(s, (s->st_mode&0700) == 0600);
+      // klee_prefer_cex(s, (s->st_mode&0070) == 0040);
+      // klee_prefer_cex(s, (s->st_mode&0007) == 0004);
+      IntOp2.eq(st_mode & IntV(unchecked[Long]("0777"), st_mode_bw), IntV(unchecked[Long]("0644"), st_mode_bw)),
+      // IntOp2.eq(st_mode & IntV(unchecked[Long]("0700"), st_mode_bw), IntV(unchecked[Long]("0600"), st_mode_bw)),
+      // IntOp2.eq(st_mode & IntV(unchecked[Long]("0070"), st_mode_bw), IntV(unchecked[Long]("0040"), st_mode_bw)),
+      // IntOp2.eq(st_mode & IntV(unchecked[Long]("0007"), st_mode_bw), IntV(unchecked[Long]("0004"), st_mode_bw)),
+      // klee_prefer_cex(s, (s->st_mode&S_IFMT) == S_IFREG);
+      IntOp2.eq(st_mode & IntV(FS.S_IFMT, st_mode_bw), IntV(FS.S_IFREG, st_mode_bw)),
+      // klee_prefer_cex(s, s->st_nlink == 1);
+      IntOp2.eq(readStatField("st_nlink"), IntV(1, readStatBw("st_nlink"))),
+      // klee_prefer_cex(s, s->st_blksize == 4096);
+      IntOp2.eq(readStatField("st_blksize"), IntV(4096, readStatBw("st_blksize"))),
+      // klee_prefer_cex(s, s->st_dev == defaults->st_dev);
+      IntOp2.eq(readStatField("st_dev"), IntV(2053, readStatBw("st_dev"))),
+      // klee_prefer_cex(s, s->st_rdev == defaults->st_rdev);
+      IntOp2.eq(readStatField("st_rdev"), IntV(0, readStatBw("st_rdev"))),
+      // klee_prefer_cex(s, s->st_uid == defaults->st_uid);
+      IntOp2.eq(readStatField("st_uid"), IntV(1000, readStatBw("st_uid"))),
+      // klee_prefer_cex(s, s->st_gid == defaults->st_gid);
+      IntOp2.eq(readStatField("st_gid"), IntV(1000, readStatBw("st_gid"))),
+
+      // TODO: 16 byte nested struct not modeled <2022-08-30, David Deng> //
+      // klee_prefer_cex(s, s->st_atime == defaults->st_atime);
+      // klee_prefer_cex(s, s->st_mtime == defaults->st_mtime);
+      // klee_prefer_cex(s, s->st_ctime == defaults->st_ctime);
+         )
+
+      cex
     }
   }
 
@@ -271,11 +327,12 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
   object FS {
     def apply() = "FS".reflectCtrlWith[FS]()
-    def apply(opened_files: Rep[Map[Fd, Stream]], root_file: Rep[File]) = "FS".reflectCtrlWith[FS](opened_files, root_file)
+    def apply(opened_files: Rep[Map[Fd, Stream]], root_file: Rep[File], fs: Rep[FS]) = 
+      "FS".reflectCtrlWith[FS](opened_files, root_file, fs)
     def dcopy(fs: Rep[FS]) = {
       val rootFile = File.dcopy(fs.rootFile)
       val openedFiles = Map[Fd, Stream]()
-      val newFS = "FS".reflectCtrlWith[FS](openedFiles, rootFile)
+      val newFS = FS(openedFiles, rootFile, fs)
       fs.openedFiles.foreach { case (fd, s) =>
         val strm = Stream(newFS.getFile(s.file.fullPath), s.mode, s.cursor)
         newFS.setStream(fd, strm)
@@ -301,6 +358,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def S_IWOTH = cmacro[Int]("S_IWOTH")
     def S_IFDIR = cmacro[Int]("S_IFDIR")
     def S_IFREG = cmacro[Int]("S_IFREG")
+    def S_IFMT  = cmacro[Int]("S_IFMT")
 
     def getPathSegments(path: Rep[String]): Rep[List[String]] = path.split("/").filter(_.length > 0)
 
@@ -319,9 +377,12 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def openedFiles: Rep[Map[Fd, Stream]] = "field-@".reflectCtrlWith[Map[Fd, Stream]](fs, "opened_files")
     def rootFile: Rep[File]               = "field-@".reflectCtrlWith[File](fs, "root_file")
     def statFs: Rep[List[Value]]          = "field-@".reflectCtrlWith[List[Value]](fs, "statfs")
+    def nextFd: Rep[Fd]                   = "field-@".reflectCtrlWith[Fd](fs, "next_fd")
+    def preferredCex: Rep[List[Value]]    = "field-@".reflectCtrlWith[List[Value]](fs, "preferred_cex")
 
     def openedFiles_= (rhs: Rep[Map[Fd, Stream]]): Unit = "field-assign".reflectCtrlWith(fs, "opened_files", rhs)
-    def rootFile_= (rhs: Rep[File]): Unit = "field-assign".reflectCtrlWith(fs, "root_file", rhs)
+    def rootFile_= (rhs: Rep[File]): Unit               = "field-assign".reflectCtrlWith(fs, "root_file", rhs)
+    def preferredCex_= (rhs: Rep[List[Value]]): Unit    = "field-assign".reflectCtrlWith[List[Value]](fs, "preferred_cex", rhs)
 
     def getFreshFd(): Rep[Fd] = "method-@".reflectCtrlWith[Fd](fs, "get_fresh_fd")
 
@@ -335,6 +396,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       val parent: Rep[File] = getFileFromPathSegments(fs.rootFile, segs.take(segs.size - 1))
       assertEq(segs.last, f.name, "setFile name should equal to last segment")
       if (parent != NullPtr[File]) parent.setChild(f.name, f)
+      fs.preferredCex = fs.preferredCex ++ f.getPreferredCex()
     }
 
     // TODO: This is wrong <2022-07-28, David Deng> //

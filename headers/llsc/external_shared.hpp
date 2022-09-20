@@ -111,6 +111,23 @@ inline std::string get_string_at(PtrVal ptr, SS& state) {
   return name;
 }
 
+inline std::string get_concrete_file_path(PtrVal ptr, SS& state) {
+  std::string name;
+  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
+  /* TODO: more comprehensive concretization, do forks eventually <2022-08-25, David Deng> */
+  if (std::dynamic_pointer_cast<SymV>(state.at(ptr))) {
+    std::cout << "symbolic file path. Concretize to A" << std::endl;
+    return "-";
+  }
+  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  while (c != '\0') {
+    name += c;
+    ptr = ptr + 1;
+    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  }
+  return name;
+}
+
 inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto x_i = std::dynamic_pointer_cast<IntV>(x);
   // Todo: add this concretization tp path constraints
