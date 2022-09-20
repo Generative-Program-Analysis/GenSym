@@ -8,13 +8,15 @@ struct ExprHandle: public std::shared_ptr<void> {
   typedef std::shared_ptr<void> Base;
 
   static void freeExpr(Expr e) {
+    //XXX(GW): it seems that there is a double-free issue with this.
+    //std::cout << "free Expr " << exprString(e) << "\n";
     vc_DeleteExpr(e);
   }
 
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle> {
+class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle, WholeCounterExample> {
 public:
   VC vc;
 
@@ -37,12 +39,10 @@ public:
     }
 
     std::vector<ExprHandle> expr_rands;
-    int bw = sym_e->bw;
-    for (auto e : sym_e->rands) {
-      auto& e2 = construct_expr(e);
-      expr_rands.push_back(e2);
-      //vars->insert(vm->begin(), vm->end());
+    for (auto& rand : sym_e->rands) {
+      expr_rands.push_back(construct_expr(rand));
     }
+    int bw = sym_e->bw;
     switch (sym_e->rator) {
     case iOP::op_add:
       return vc_bvPlusExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
@@ -168,10 +168,16 @@ public:
     return mapping[retcode];
   }
 
+  WholeCounterExample get_model_internal() {
+    return vc_getWholeCounterExample(vc);
+  }
   IntData eval(ExprHandle val) {
     ExprHandle const_val = vc_getCounterExample(vc, val.get());
-    auto ret = getBVUnsignedLongLong(const_val.get());
-    return ret;
+    return getBVUnsignedLongLong(const_val.get());
+  }
+  IntData eval_model(WholeCounterExample* m, ExprHandle val) {
+    ExprHandle const_val = vc_getTermFromCounterExample(vc, val.get(), *m);
+    return getBVUnsignedLongLong(const_val.get());
   }
 
   CheckerSTP() {

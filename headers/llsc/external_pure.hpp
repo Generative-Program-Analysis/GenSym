@@ -23,7 +23,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto new_s = state.add_PC(cond);
   if (check_pc(new_s.get_PC())) {
     std::cout << "Warning: assert violates; abort and generate test.\n";
-    return h(new_s, { make_IntV(-1) }); // check if v == 1 is not valid
+    return h(new_s, { make_IntV(-1, 32) }); // check if v == 1 is not valid
   }
   return k(state.add_PC(v), make_IntV(1, 32));
 }
@@ -38,14 +38,14 @@ inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
     if (i->i == 0) {
       // concrete false - generate the test and ``halt''
       std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
-      return h(state, { make_IntV(-1) });
+      return h(state, { make_IntV(-1, 32) });
     }
     return k(state, make_IntV(1, 32));
   }
   ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto cond = v;
+  auto& cond = v;
   auto new_s = state.add_PC(cond);
   if (!check_pc(new_s.get_PC())) {
     std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";

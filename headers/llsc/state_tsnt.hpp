@@ -325,13 +325,17 @@ class PC {
   public:
     TrList<PtrVal> conds;
     UnionFind uf;
+    immer::set_transient<PtrVal> vars;
 
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {}
     PC&& add(PtrVal e) {
       conds.push_back(e);
 
       auto start = steady_clock::now();
-      for (auto& v : e->to_SymV()->vars) { uf.join(v, e); }
+      for (auto& v : e->to_SymV()->vars) { 
+        vars.insert(v);
+        uf.join(v, e); 
+      }
       auto end = steady_clock::now();
       cons_indep_time += duration_cast<microseconds>(end - start).count();
 

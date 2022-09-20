@@ -238,6 +238,44 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> ff,
               std::function<std::monostate(SS&, PtrVal)> k) {
+  auto [tbr_sat, fbr_sat] = check_branch(ss.get_PC(), t_cond);
+  if (tbr_sat == solver_result::sat && fbr_sat == solver_result::sat) {
+    // both branches are sat
+    cov().inc_path(1);
+    SS& tbr_ss = ss;
+    SS fbr_ss = ss.fork();
+    tbr_ss.add_PC(t_cond);
+    fbr_ss.add_PC(f_cond);
+    if (can_par_tp()) {
+      tp.add_task(tbr_ss.get_ssid(), [tf, block_id, tbr_ss=std::move(tbr_ss), k]{
+        cov().inc_branch(block_id, 0);
+        return tf((SS&)tbr_ss, k);
+      });
+      tp.add_task(fbr_ss.get_ssid(), [ff, block_id, fbr_ss=std::move(fbr_ss), k]{
+        cov().inc_branch(block_id, 1);
+        return ff((SS&)fbr_ss, k);
+      });
+      return std::monostate{};
+    } else {
+      cov().inc_branch(block_id, 0);
+      tf(tbr_ss, k);
+      cov().inc_branch(block_id, 1);
+      ff(fbr_ss, k);
+      return std::monostate{};
+    }
+  } else if (tbr_sat == solver_result::sat) {
+    cov().inc_branch(block_id, 0);
+    SS tbr_ss = ss.add_PC(t_cond);
+    return tf(tbr_ss, k);
+  } else if (fbr_sat == solver_result::sat) {
+    cov().inc_branch(block_id, 1);
+    SS fbr_ss = ss.add_PC(f_cond);
+    return ff(fbr_ss, k);
+  } else {
+    ABORT("Both branches are unsat!");
+  }
+
+  /*
   auto pc = ss.copy_PC();
   pc.add(t_cond);
   auto tbr_sat = check_pc(pc);
@@ -281,6 +319,7 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
       }
     }
   }
+  */
 }
 
 // Note: seems a way to reduce the size of generated code,

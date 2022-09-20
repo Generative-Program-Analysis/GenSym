@@ -5,7 +5,7 @@
 
 using namespace z3;
 
-class CheckerZ3 : public CachedChecker<CheckerZ3, expr> {
+class CheckerZ3 : public CachedChecker<CheckerZ3, expr, model> {
 private:
   context* ctx;
   solver* g_solver;
@@ -27,10 +27,17 @@ public:
     return (solver_result) result;
   }
 
+  model get_model_internal() {
+    return g_solver->get_model();
+  }
   IntData eval(expr val) {
     auto const_val = g_solver->get_model().eval(val, true);
     return const_val.get_numeral_uint64();
   }
+  IntData eval_model(model* m, expr val) {
+    return m->eval(val, true).get_numeral_uint64();
+  }
+
   expr construct_expr_internal(PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
@@ -50,9 +57,7 @@ public:
     }
     std::vector<expr> expr_rands;
     for (auto& rand : sym_e->rands) {
-      // XXX: here is a mutually recursive call
-      auto& e2 = construct_expr(rand);
-      expr_rands.push_back(e2);
+      expr_rands.push_back(construct_expr(rand));
     }
     int bw = sym_e->bw;
     switch (sym_e->rator) {
