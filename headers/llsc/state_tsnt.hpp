@@ -266,8 +266,6 @@ class Stack {
 };
 
 struct UnionFind {
-  //immer::map_transient<PtrVal, PtrVal, std::hash<PtrVal>, equal_to_PtrVal> parent;
-  //immer::map_transient<PtrVal, PtrVal, std::hash<PtrVal>, equal_to_PtrVal> next;
   immer::map_transient<PtrVal, PtrVal> parent;
   immer::map_transient<PtrVal, PtrVal> next;
   immer::map_transient<PtrVal, std::uint32_t> size;
@@ -340,6 +338,9 @@ class PC {
       cons_indep_time += duration_cast<microseconds>(end - start).count();
 
       return std::move(*this);
+    }
+    bool contains(PtrVal e) {
+      return uf.parent.find(e) != nullptr;
     }
     /*
     PC&& add_set(const List<PtrVal>& new_pc) {

@@ -6,19 +6,18 @@
 enum solver_result { unsat, sat, unknown };
 using BrResult = std::pair<solver_result, solver_result>;
 
+inline std::string check_result_to_string(solver_result res) {
+  switch (res) {
+    case sat: return "sat";
+    case unsat: return "unsat";
+    case unknown: return "unknown";
+    default: ABORT("wow");
+  }
+}
+
 class Checker {
 public:
   virtual ~Checker() {}
-
-  static std::string check_result_to_string(solver_result res) {
-    switch (res) {
-      case sat: return "sat";
-      case unsat: return "unsat";
-      case unknown: return "unknown";
-      default: ABORT("wow");
-    }
-  }
-
   virtual BrResult check_branch(PC& pc, PtrVal cond) = 0;
   virtual bool check_pc(PC pc) = 0;
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) = 0;
@@ -118,7 +117,21 @@ public:
     auto last_expr = root;
     while (root != uf.next[last_expr]) {
       last_expr = uf.next[last_expr];
-      if (!last_expr->to_SymV()->is_var()) result.insert(last_expr);
+      if (!last_expr->to_SymV()->is_var()) {
+        result.insert(last_expr);
+      }
+    }
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
+  }
+
+  void resolve_indep_uf(UnionFind& uf, PtrVal root, std::function<void(PtrVal)> f, bool add_root = true) {
+    auto start = steady_clock::now();
+    if (add_root) f(root);
+    auto last_expr = root;
+    while (root != uf.next[last_expr]) {
+      last_expr = uf.next[last_expr];
+      if (!last_expr->to_SymV()->is_var()) f(last_expr);
     }
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
@@ -283,6 +296,10 @@ public:
     auto model = std::make_shared<Model>();
     CexCacheKey indep_pc;
     resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
+    std::cout << "check_model_mono indep: \n";
+    for (auto& v: indep_pc) {
+      std::cout << "  " << v->toString() << "\n";
+    }
 
     // cex cache
     auto it = cexcache.find(indep_pc);
@@ -487,24 +504,61 @@ public:
   }
 
   // interfaces
+  BrResult check_branch__(PC& pc, PtrVal cond) {
+    if (!use_solver) return std::make_pair(sat, sat);
+    br_query_num++;
+
+    auto neg_cond = SymV::neg(cond);
+
+    UnionFind uf = pc.uf;
+    for (auto& v : cond->to_SymV()->vars) uf.join(v, cond);
+    BrCacheKey common;
+    resolve_indep_uf(uf, cond, common, pc.contains(cond));
+
+    BrResult result;
+    push();
+    //std::cout << "Checking true branch\n";
+    for (auto& v: common) {
+      self()->add_constraint_internal(construct_expr(v));
+      //std::cout << "  " << v->toString() << "\n";
+    }
+    self()->add_constraint_internal(construct_expr(cond));
+    //std::cout << "cond: " << cond->toString() << "\n";
+    result.first = check_model();
+    //std::cout << "result: " << check_result_to_string(result.first) << "\n";
+    pop();
+    push();
+    //std::cout << "Checking false branch\n";
+    for (auto& v: common) {
+      self()->add_constraint_internal(construct_expr(v));
+      //std::cout << "  " << v->toString() << "\n";
+    }
+    self()->add_constraint_internal(construct_expr(neg_cond));
+    //std::cout << "cond: " << neg_cond->toString() << "\n";
+    result.second = check_model();
+    //std::cout << "result: " << check_result_to_string(result.second) << "\n";
+    pop();
+
+    return result;
+  }
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
     if (!use_solver) return std::make_pair(sat, sat);
     br_query_num++;
 
+    auto neg_cond = SymV::neg(cond);
     UnionFind uf = pc.uf;
     for (auto& v : cond->to_SymV()->vars) uf.join(v, cond);
-    BrCacheKey common(pc.conds.begin(), pc.conds.end());
-    //resolve_indep_uf(uf, cond, common, false);
-
-      std::cout << "\nresolved:" << "\n";
-      for (auto& c : common) {
-        std::cout << c->toString() << ",\n";
-      }
-      std::cout << "Adding cond: " << cond->toString() << "\n";
+    BrCacheKey common; //(pc.conds.begin(), pc.conds.end());
+    resolve_indep_uf(uf, cond, common, pc.contains(cond));
 
     // push common assertions but not check
     push();
+    /*
+    resolve_indep_uf(uf, cond, [this](auto v){
+      this->self()->add_constraint_internal(construct_expr(v));
+    }, false);
+    */
     for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
     BrResult result;
     // check "then" branch
@@ -517,9 +571,7 @@ public:
       push();
       self()->add_constraint_internal(construct_expr(cond));
       result.first = check_model();
-      auto aaa = result.first;
       br_cache.emplace(common, result.first);
-      ASSERT(aaa == result.first, "ASD");
       if (result.first == sat) mcex_cache.emplace(common, self()->get_model_internal());
       pop();
     }
@@ -535,8 +587,7 @@ public:
     }
     */
     // check "else" branch
-    common.erase(cond);
-    auto neg_cond = SymV::neg(cond);
+    if (!pc.contains(cond)) common.erase(cond);
     common.insert(neg_cond);
     it = br_cache.find(common);
     if (it != br_cache.end()) {
@@ -550,11 +601,16 @@ public:
     }
     pop();
 
+    //std::cout << "result: " << check_result_to_string(result.first) << ", " 
+    //          << check_result_to_string(result.second) << "\n";
+    if (result.first == unsat && result.second == unsat) {
+      ABORT("FFuck");
+    }
+
     return result;
   }
 
   virtual bool check_pc(PC pc) override {
-    std::cout << "Check_pc\n";
     if (!use_solver) return true;
     br_query_num++;
     auto [r, m] = check_model_mono(pc);
@@ -693,6 +749,32 @@ inline void init_solvers() { checker_manager.init_checkers(); }
 inline BrResult check_branch(PC pc, PtrVal cond) {
   auto start = steady_clock::now();
   auto result = checker_manager.get_checker().check_branch(pc, cond);
+  /*
+  PC pc2(pc);
+  pc.add(cond);
+  pc2.add(SymV::neg(cond));
+
+  std::cout << "Reference cond: " << cond->toString() << "\n";
+  solver_result r1 = checker_manager.get_checker().check_pc(pc) ? solver_result::sat : solver_result::unsat;
+  std::cout << "Reference neg_cond: " << SymV::neg(cond)->toString() << "\n";
+  solver_result r2 = checker_manager.get_checker().check_pc(pc2) ? solver_result::sat : solver_result::unsat;
+  if (r1 != result.first) {
+    std::cout << "Reference:\n";
+    for (auto& c : pc.conds) {
+      std::cout << "  " << c->toString() << "\n";
+    }
+    std::cout << "r1 result: " << check_result_to_string(r1) << "\n";
+    ABORT("R1");
+  }
+  if (r2 != result.second) {
+    std::cout << "Reference:\n";
+    for (auto& c : pc2.conds) {
+      std::cout << "  " << c->toString() << "\n";
+    }
+    std::cout << "r2 result: " << check_result_to_string(r2) << "\n";
+    ABORT("R2");
+  }
+  */
   auto end = steady_clock::now();
   int_solver_time += duration_cast<microseconds>(end - start).count();
   return result;

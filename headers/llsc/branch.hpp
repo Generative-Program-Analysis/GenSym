@@ -238,12 +238,12 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> ff,
               std::function<std::monostate(SS&, PtrVal)> k) {
-  auto [tbr_sat, fbr_sat] = check_branch(ss.get_PC(), t_cond);
-  if (tbr_sat == solver_result::sat && fbr_sat == solver_result::sat) {
+  auto [tbr_sat, fbr_sat] = check_branch(ss.copy_PC(), t_cond);
+  if ((tbr_sat == solver_result::sat) && (fbr_sat == solver_result::sat)) {
     // both branches are sat
     cov().inc_path(1);
     SS& tbr_ss = ss;
-    SS fbr_ss = ss.fork();
+    SS fbr_ss(ss.fork());
     tbr_ss.add_PC(t_cond);
     fbr_ss.add_PC(f_cond);
     if (can_par_tp()) {
@@ -274,7 +274,6 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
   } else {
     ABORT("Both branches are unsat!");
   }
-
   /*
   auto pc = ss.copy_PC();
   pc.add(t_cond);

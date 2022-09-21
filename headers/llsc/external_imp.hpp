@@ -108,7 +108,7 @@ inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
     auto f_args = List<PtrVal>{v_f};
     if (tbr_sat && fbr_sat) {
       cov().inc_path(1);
-      SS& tbr_ss = state;
+      SS tbr_ss = state;
       SS fbr_ss = state.fork();
       tbr_ss.add_PC(cond);
       fbr_ss.add_PC(SymV::neg(cond));
