@@ -505,8 +505,7 @@ struct SymV : Value {
     return List<PtrVal>{shared_from_this()} + make_ShadowV_seq(bw/8 - 1);
   }
 
-  static PtrVal simplify(iOP& rator, List<PtrVal>& rands, size_t& bw) {
-    auto start = steady_clock::now();
+  static PtrVal simplify(iOP& rator, immer::array<PtrVal>& rands, size_t& bw) {
     auto arg0 = std::dynamic_pointer_cast<SymV>(rands[0]);
     if (rator == iOP::op_neg && arg0) {
       switch (arg0->rator) {
@@ -522,7 +521,6 @@ struct SymV : Value {
         case iOP::op_ugt: return make_simple<SymV>(iOP::op_ule, arg0->rands, bw);
       }
     }
-    auto end = steady_clock::now();
     return nullptr;
   }
 
@@ -552,11 +550,11 @@ inline PtrVal make_SymV(String n, size_t bw) {
 }
 
 inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
-  // auto s = SymV::simplify(rator, rands, bw);
-  // if (s) {
-  //   return s;
-  // }
-  auto ret = make_simple<SymV>(rator, std::move(rands), bw);
+  auto ret = SymV::simplify(rator, rands, bw);
+  if (!ret) {
+    ret = make_simple<SymV>(rator, std::move(rands), bw);
+  }
+  //auto ret = make_simple<SymV>(rator, std::move(rands), bw);
   return hashconsing(ret);
 }
 

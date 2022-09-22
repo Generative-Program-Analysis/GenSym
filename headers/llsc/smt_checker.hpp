@@ -110,7 +110,7 @@ public:
 
 
   // Construct the solver expression with object cache for a Value
-  const Expr& construct_expr(PtrVal e) {
+  inline const Expr& construct_expr(PtrVal e) {
     auto fd = objcache.find(e);
     if (fd != objcache.end()) return fd->second;
     auto [it, ins] = objcache.emplace(e, self()->construct_expr_internal(e));
