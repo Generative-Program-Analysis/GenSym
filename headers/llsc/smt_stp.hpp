@@ -34,7 +34,6 @@ public:
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto name = sym_e->name;
       ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-      global_varmap.emplace(sym_e, stp_expr);
       return stp_expr;
     }
 

@@ -74,25 +74,21 @@ public:
   // a map from symbolic variable to top-level predicate expressions that (transitively) contain this variable
   using ReachMap = std::multimap<PtrVal, PtrVal>; // XXX PtrVal should be sym var
   // object cache type
-  using ObjCache = std::unordered_map<PtrVal, Expr>;
   // query cache key
   using CexCacheKey = std::set<PtrVal>;
   // assignment of symbolic variables/expr to concrete data
   using Model = std::unordered_map<PtrVal, IntData>; //XXX PtrVal
-  // the result of check, accompanying with a model if sat
-  using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
   // query cache type
   using CexCache = std::map<CexCacheKey, CheckResult>;
 
-  ObjCache objcache;
-  CexCache cexcache;
-  ReachMap global_reachmap;
-  VarMap global_varmap;
-
-  using ObjCacheIter = typename decltype(objcache)::iterator;
-  using CachedPC = std::vector<ObjCacheIter>;
+  // the result of check, accompanying with a model if sat
+  using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
 
   ////////////////////////////////////////////////
+
+  using ObjCache = std::unordered_map<PtrVal, Expr>;
+  ObjCache objcache;
+  using ObjCacheIter = typename decltype(objcache)::iterator;
 
   using BrCacheKey = std::set<PtrVal>;
 
@@ -104,10 +100,14 @@ public:
     }
   };
 
+  using BrCex = std::pair<solver_result, M>;
   using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
   using MCexCache = immer::map_transient<CexCacheKey, M, hash_BrCacheKey>;
+  using BrCexCache = immer::map_transient<BrCacheKey, BrCex, hash_BrCacheKey>;
   BrCache br_cache;
   MCexCache mcex_cache;
+  BrCexCache brcex_cache;
+
 
   // Construct the solver expression with object cache for a Value
   const Expr& construct_expr(PtrVal e) {
@@ -158,20 +158,13 @@ public:
       //br_cache.emplace(conds, result);
       br_cache.set(conds, result);
       if (result == sat) {
-        /*
-        auto model = std::make_shared<Model>();
-        for (auto& c : conds) {
-          for (auto& v : c->to_SymV()->vars) model->emplace(v, self()->eval(objcache.at(v)));
-        }
-        mcex_cache.set(conds, model);
-        */
-        //return model;
         mcex_cache.set(conds, self()->get_model_internal());
         pop();
         return (M*) mcex_cache.find(conds);
         //m = &it->second;
         //return m;
       }
+      pop();
       return nullptr;
     }
     //return m;
@@ -181,7 +174,7 @@ public:
 
   void clear_cache() {
     objcache.clear();
-    cexcache.clear();
+    //cexcache.clear();
   }
 
   // a unoptimized but correct baseline
@@ -315,13 +308,6 @@ public:
       //br_cache.emplace(common, result.first);
       br_cache.set(common, result.first);
       if (result.first == sat) {
-        /*
-        auto model = std::make_shared<Model>();
-        for (auto& v : pc.vars) {
-          model->emplace(v, self()->eval(objcache.at(v)));
-        }
-        mcex_cache.set(common, model);
-        */
         mcex_cache.set(common, self()->get_model_internal());
       }
       pop();
@@ -350,13 +336,6 @@ public:
       //br_cache.emplace(common, result.second);
       br_cache.set(common, result.second);
       if (result.second == sat) {
-        /*
-        auto model = std::make_shared<Model>();
-        for (auto& v : pc.vars) {
-          model->emplace(v, self()->eval(objcache.at(v)));
-        }
-        mcex_cache.set(common, model);
-        */
         mcex_cache.set(common, self()->get_model_internal());
       }
     }
@@ -401,7 +380,6 @@ public:
     auto& conds = state.get_PC().conds;
     CexCacheKey pc;
     pc.insert(conds.begin(), conds.end());
-    //std::shared_ptr<Model> m;
     M* m = nullptr;
     if (state.get_preferred_cex().size() > 0) {
       for (auto& v: state.get_preferred_cex()) {

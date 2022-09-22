@@ -52,7 +52,6 @@ public:
     if (sym_e->is_var()) {
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto ret = ctx->bv_const(sym_e->name.c_str(), sym_e->bw);
-      global_varmap.emplace(sym_e, ret);
       return ret;
     }
     std::vector<expr> expr_rands;
