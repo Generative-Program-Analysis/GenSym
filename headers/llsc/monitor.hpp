@@ -133,6 +133,12 @@ struct Monitor {
                   << "Mono solver: " << (mono_solver_time / 1.0e6) << "s; "
                   << "concretization: " << (conc_solver_time / 1.0e6) << "s; "
                   << "#Conc. query: " << conc_query_num << "\n";
+
+        std::cout << "then_br_time1: " << (then_br_time1 / 1.0e6) << "s; "
+                  << "then_br_time2: " << (then_br_time2 / 1.0e6) << "s; "
+                  << "then_br_time3: " << (then_br_time3 / 1.0e6) << "s; "
+                  << "else_short_time: " << (else_short_time / 1.0e6) << "s; "
+                  << "else_br_time: " << (else_br_time / 1.0e6) << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"

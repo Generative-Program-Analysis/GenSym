@@ -78,11 +78,10 @@ public:
   using CexCacheKey = std::set<PtrVal>;
   // assignment of symbolic variables/expr to concrete data
   using Model = std::unordered_map<PtrVal, IntData>; //XXX PtrVal
-  // query cache type
-  using CexCache = std::map<CexCacheKey, CheckResult>;
-
   // the result of check, accompanying with a model if sat
   using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
+  // query cache type
+  using CexCache = std::map<CexCacheKey, CheckResult>;
 
   ////////////////////////////////////////////////
 
@@ -101,7 +100,8 @@ public:
   };
 
   using BrCex = std::pair<solver_result, M>;
-  using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
+  //using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
+  using BrCache = std::map<BrCacheKey, solver_result>;
   using MCexCache = immer::map_transient<CexCacheKey, M, hash_BrCacheKey>;
   using BrCexCache = immer::map_transient<BrCacheKey, BrCex, hash_BrCacheKey>;
   BrCache br_cache;
@@ -118,7 +118,6 @@ public:
   }
 
   inline void resolve_indep_uf(UnionFind& uf, PtrVal root, BrCacheKey& result, bool add_root = true) {
-    auto start = steady_clock::now();
     if (add_root) result.insert(root);
     auto last_expr = root;
     while (root != uf.next[last_expr]) {
@@ -127,20 +126,15 @@ public:
         result.insert(last_expr);
       }
     }
-    auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
   }
 
   inline void resolve_indep_uf(UnionFind& uf, PtrVal root, std::function<void(PtrVal)> f, bool add_root = true) {
-    auto start = steady_clock::now();
     if (add_root) f(root);
     auto last_expr = root;
     while (root != uf.next[last_expr]) {
       last_expr = uf.next[last_expr];
       if (!last_expr->to_SymV()->is_var()) f(last_expr);
     }
-    auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
   }
 
   M* query_model(CexCacheKey& conds) {
@@ -155,8 +149,7 @@ public:
       push();
       for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
       auto result = check_model();
-      //br_cache.emplace(conds, result);
-      br_cache.set(conds, result);
+      br_cache.emplace(conds, result);
       if (result == sat) {
         mcex_cache.set(conds, self()->get_model_internal());
         pop();
@@ -287,68 +280,152 @@ public:
     for (auto& v : cond->to_SymV()->vars) uf.join(v, cond);
     BrCacheKey common;
     resolve_indep_uf(uf, cond, common, pc.contains(cond));
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
 
-    // push common assertions but not check
-    push();
-    for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
+    BrResult result;
+
+    common.insert(cond);
+    auto then_hit = br_cache.find(common);
+    if (!pc.contains(cond)) common.erase(cond);
+    common.insert(neg_cond);
+    auto else_hit = br_cache.find(common);
+    if (!pc.contains(neg_cond)) common.erase(neg_cond);
+
+    if (then_hit != br_cache.end() && else_hit != br_cache.end()) {
+      // both hit
+      cached_query_num += 2;
+      result.first = then_hit->second;
+      result.second = else_hit->second;
+    } else if (then_hit != br_cache.end()) {
+      // only "then" branch hits
+      cached_query_num += 1;
+      result.first = then_hit->second;
+      common.insert(neg_cond);
+      if (result.first == solver_result::unsat) {
+        result.second = solver_result::sat;
+        br_cache.emplace(common, result.second);
+      } else {
+        push();
+        for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
+        result.second = check_model();
+        br_cache.emplace(common, result.second);
+        if (result.second == sat) mcex_cache.set(common, self()->get_model_internal());
+        pop();
+      }
+      auto then_time1 = steady_clock::now();
+      then_br_time1 += duration_cast<microseconds>(then_time1 - end).count();
+    } else if (else_hit != br_cache.end()) {
+      // only "else" branch hits
+      cached_query_num += 1;
+      result.second = else_hit->second;
+      common.insert(cond);
+      if (result.second == solver_result::unsat) {
+        result.first = solver_result::sat;
+        br_cache.emplace(common, result.first);
+      } else {
+        push();
+        for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
+        result.first = check_model();
+        br_cache.emplace(common, result.first);
+        if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
+        pop();
+      }
+      auto then_time2 = steady_clock::now();
+      then_br_time2 += duration_cast<microseconds>(then_time2 - end).count();
+    } else {
+      // neither hit
+      push();
+      for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
+
+      push();
+      self()->add_constraint_internal(construct_expr(cond));
+      result.first = check_model();
+      common.insert(cond);
+      br_cache.emplace(common, result.first);
+      if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
+      pop();
+
+      self()->add_constraint_internal(construct_expr(neg_cond));
+      result.second = check_model();
+      if (!pc.contains(cond)) common.erase(cond);
+      common.insert(neg_cond);
+      br_cache.emplace(common, result.second);
+      if (result.second == sat) mcex_cache.set(common, self()->get_model_internal());
+
+      pop();
+      auto then_time3 = steady_clock::now();
+      then_br_time3 += duration_cast<microseconds>(then_time3 - end).count();
+    }
+    end = steady_clock::now();
+    mono_solver_time += duration_cast<microseconds>(end - start).count();
+    return result;
+
+    /*
+    then_br_time1 += duration_cast<microseconds>(then_time1 - end).count();
+
     BrResult result;
     // check "then" branch
     bool then_cache_hit = false;
     common.insert(cond);
     auto it = br_cache.find(common);
-    //if (it != br_cache.end()) {
-    if (it != nullptr) {
+    if (it != br_cache.end()) {
       then_cache_hit = true;
       cached_query_num += 1;
-      result.first = *it; //->second;
+      result.first = it->second;
+      auto then_time2 = steady_clock::now();
+      then_br_time2 += duration_cast<microseconds>(then_time2 - then_time1).count();
     } else {
+      // then branch cache NOT hit
+      if (!pc.contains(cond)) common.erase(cond);
+      push();
+      for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
       push();
       self()->add_constraint_internal(construct_expr(cond));
       result.first = check_model();
-      //br_cache.emplace(common, result.first);
-      br_cache.set(common, result.first);
-      if (result.first == sat) {
-        mcex_cache.set(common, self()->get_model_internal());
-      }
+      br_cache.emplace(common, result.first);
+      if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
       pop();
+      auto then_time3 = steady_clock::now();
+      then_br_time3 += duration_cast<microseconds>(then_time3 - then_time1).count();
     }
+
+    auto then_time = steady_clock::now();
     // check "else" branch
     if (!pc.contains(cond)) common.erase(cond);
     common.insert(neg_cond);
     // "then" branch unsat implies sat of "else" branch
     if (result.first == solver_result::unsat) {
       result.second = solver_result::sat;
-      //br_cache.emplace(common, result.second);
-      br_cache.set(common, result.second);
-      pop();
+      br_cache.emplace(common, result.second);
+      if (!then_cache_hit) pop();
       auto end = steady_clock::now();
       mono_solver_time += duration_cast<microseconds>(end - start).count();
+      else_short_time += duration_cast<microseconds>(end - then_time).count();
       return result;
     }
     it = br_cache.find(common);
-    //if (it != br_cache.end()) {
-    if (it != nullptr) {
+    if (it != br_cache.end()) {
       cached_query_num += 1;
-      result.second = *it; //->second;
+      result.second = it->second;
+      if (!then_cache_hit) pop();
     } else {
-      self()->add_constraint_internal(construct_expr(neg_cond));
+      if (then_cache_hit) {
+        push();
+        for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
+      } else {
+        self()->add_constraint_internal(construct_expr(neg_cond));
+      }
       result.second = check_model();
-      //br_cache.emplace(common, result.second);
-      br_cache.set(common, result.second);
+      br_cache.emplace(common, result.second);
       if (result.second == sat) {
         mcex_cache.set(common, self()->get_model_internal());
       }
-    }
-    pop();
-
-    //std::cout << "result: " << check_result_to_string(result.first) << ", " 
-    //          << check_result_to_string(result.second) << "\n";
-    if (result.first == unsat && result.second == unsat) {
-      ABORT("FFuck");
+      pop();
     }
 
-    auto end = steady_clock::now();
-    mono_solver_time += duration_cast<microseconds>(end - start).count();
+    else_br_time += duration_cast<microseconds>(end - then_time).count();
+    */
     return result;
   }
 

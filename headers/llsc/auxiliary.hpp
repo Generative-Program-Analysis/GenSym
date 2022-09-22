@@ -115,6 +115,12 @@ inline std::atomic<long int> mono_solver_time = 0;
 inline std::atomic<long int> conc_solver_time = 0;
 inline std::atomic<long int> gen_test_time = 0;
 
+inline std::atomic<long int> then_br_time1 = 0;
+inline std::atomic<long int> then_br_time2 = 0;
+inline std::atomic<long int> then_br_time3 = 0;
+inline std::atomic<long int> else_short_time = 0;
+inline std::atomic<long int> else_br_time = 0;
+
 // For debugging
 inline int cons_indep_algo = 1;
 
