@@ -128,10 +128,10 @@ struct Monitor {
       if (print_detailed_time == 1 || (done && print_detailed_time == 2)) {
         std::cout << "Full model: " << (full_model_time / 1.0e6) << "s; "
                   << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
-                  << "check_model_indep: " << (cons_indep_time_old / 1.0e6) << "s; "
                   << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
                   << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
                   << "Mono solver: " << (mono_solver_time / 1.0e6) << "s; "
+                  << "concretization: " << (conc_solver_time / 1.0e6) << "s; "
                   << "#Conc. query: " << conc_query_num << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"

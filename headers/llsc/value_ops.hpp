@@ -433,20 +433,23 @@ struct FunV : LocV {
   }
 };
 
+inline std::atomic<uint32_t> g_sym_id = 0;
+
 struct SymV : Value {
   String name;
   size_t bw;
   iOP rator;
+  uint32_t id;
   immer::array<PtrVal> rands;
   immer::set_transient<PtrVal> vars;
 
-  SymV(String name, size_t bw) : name(name), bw(bw) {
+  SymV(String name, size_t bw) : name(name), bw(bw), id(g_sym_id++) {
     hash_combine(hash(), std::string("symv1"));
     hash_combine(hash(), name);
     hash_combine(hash(), bw);
     vars.insert(std::dynamic_pointer_cast<SymV>(shared_from_this()));
   }
-  SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) : rator(rator), rands(rands), bw(bw) {
+  SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) : rator(rator), rands(rands), bw(bw), id(g_sym_id++) {
     hash_combine(hash(), std::string("symv2"));
     hash_combine(hash(), rator);
     hash_combine(hash(), bw);

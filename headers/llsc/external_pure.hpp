@@ -19,11 +19,11 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto cond = SymV::neg(v);
-  auto new_s = state.add_PC(cond);
-  if (check_pc(new_s.get_PC())) {
+
+  auto [fls_sat, tru_sat] = check_branch(state.get_PC(), SymV::neg(v)); // check if v == 1 is not valid
+  if (fls_sat) {
     std::cout << "Warning: assert violates; abort and generate test.\n";
-    return h(new_s, { make_IntV(-1, 32) }); // check if v == 1 is not valid
+    return h(state, { make_IntV(-1, 32) });
   }
   return k(state.add_PC(v), make_IntV(1, 32));
 }
@@ -45,13 +45,12 @@ inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto& cond = v;
-  auto new_s = state.add_PC(cond);
-  if (!check_pc(new_s.get_PC())) {
+  auto [tru_sat, fls_sat] = check_branch(state.get_PC(), v); // check if v == 1 is satisfiable
+  if (!tru_sat) {
     std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
     return h(new_s, { make_IntV(-1) }); // check if v == 1 is satisfiable
   }
-  return k(new_s, make_IntV(1, 32));
+  return k(state.add_PC(cond), make_IntV(1, 32));
 }
 
 /******************************************************************************/
@@ -110,9 +109,7 @@ inline T __malloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
     auto cond = (*symvite)[0];
     auto v_t = (*symvite)[1];
     auto v_f = (*symvite)[2];
-    auto pc = state.get_PC();
-    auto tbr_sat = check_pc(pc.add(cond));
-    auto fbr_sat = check_pc(pc.add(SymV::neg(cond)));
+    auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
     auto t_args = List<PtrVal>{v_t};
     auto f_args = List<PtrVal>{v_f};
     if (tbr_sat && fbr_sat) {
@@ -265,9 +262,7 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
     auto cond = (*symvite)[0];
     auto v_t = (*symvite)[1];
     auto v_f = (*symvite)[2];
-    auto pc = state.get_PC();
-    auto tbr_sat = check_pc(pc.add(cond));
-    auto fbr_sat = check_pc(pc.add(SymV::neg(cond)));
+    auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
     ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
     bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);
     if (auto srcite = std::dynamic_pointer_cast<SymV>(src)) {

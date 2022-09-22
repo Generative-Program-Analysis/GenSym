@@ -17,10 +17,9 @@ inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS)) {
-  auto pc = ss.get_PC();
-  auto tbr_sat = check_pc(pc.add(t_cond));
-  auto fbr_sat = check_pc(pc.add(f_cond));
-  if (tbr_sat && fbr_sat) {
+  auto [tbr_sat, fbr_sat] = check_branch(ss.get_PC(), t_cond);
+  if ((tbr_sat == solver_result::sat) && (fbr_sat == solver_result::sat)) {
+    // both branches are sat
     cov().inc_path(1);
     SS tbr_ss = ss.add_PC(t_cond);
     SS fbr_ss = ss.fork().add_PC(f_cond);
@@ -38,16 +37,16 @@ sym_exec_br(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
       cov().inc_branch(block_id, 1);
       return tf(tbr_ss) + ff(fbr_ss);
     }
-  } else if (tbr_sat) {
+  } else if (tbr_sat == solver_result::sat) {
     cov().inc_branch(block_id, 0);
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss);
-  } else if (fbr_sat) {
+  } else if (fbr_sat == solver_result::sat) {
     cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
-    return immer::flex_vector<std::pair<SS, PtrVal>>{};
+    ABORT("Both branches are unsat!");
   }
 }
 
@@ -56,10 +55,8 @@ sym_exec_br_k(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS, std::function<std::monostate(SS, PtrVal)>)> tf,
               std::function<std::monostate(SS, std::function<std::monostate(SS, PtrVal)>)> ff,
               std::function<std::monostate(SS, PtrVal)> k) {
-  auto pc = ss.get_PC();
-  auto tbr_sat = check_pc(pc.add(t_cond));
-  auto fbr_sat = check_pc(pc.add(f_cond));
-  if (tbr_sat && fbr_sat) {
+
+  if ((tbr_sat == solver_result::sat) && (fbr_sat == solver_result::sat)) {
     cov().inc_path(1);
     SS tbr_ss = ss.add_PC(t_cond);
     SS fbr_ss = ss.fork().add_PC(f_cond);
@@ -80,16 +77,16 @@ sym_exec_br_k(SS ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
       ff(fbr_ss, k);
       return std::monostate{};
     }
-  } else if (tbr_sat) {
+  } else if (tbr_sat == solver_result::sat) {
     cov().inc_branch(block_id, 0);
     SS tbr_ss = ss.add_PC(t_cond);
     return tf(tbr_ss, k);
-  } else if (fbr_sat) {
+  } else if (fbr_sat == solver_result::sat) {
     cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss, k);
   } else {
-    return std::monostate{};
+    ABORT("Both branches are unsat!");
   }
 }
 
@@ -191,45 +188,38 @@ inline immer::flex_vector<std::pair<SS, PtrVal>>
 sym_exec_br(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
             immer::flex_vector<std::pair<SS, PtrVal>> (*tf)(SS&),
             immer::flex_vector<std::pair<SS, PtrVal>> (*ff)(SS&)) {
-  auto pc = ss.copy_PC();
-  pc.add(t_cond);
-  auto tbr_sat = check_pc(pc);
-
-  if (!tbr_sat) {
-    // true branch is unsat -> false branch is valid
+  auto [tbr_sat, fbr_sat] = check_branch(ss.get_PC(), t_cond);
+  if ((tbr_sat == solver_result::sat) && (fbr_sat == solver_result::sat)) {
+    // both branches are sat
+    cov().inc_path(1);
+    SS& tbr_ss = ss;
+    SS fbr_ss(ss.fork());
+    tbr_ss.add_PC(t_cond); // TODO: no need to add t_cond again?
+    fbr_ss.add_PC(f_cond);
+    if (can_par_async()) {
+      std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
+        create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
+            cov().inc_branch(block_id, 0);
+            return tf(tbr_ss);
+            });
+      cov().inc_branch(block_id, 1);
+      auto ff_res = ff(fbr_ss);
+      return tf_res.get() + ff_res;
+    } else {
+      cov().inc_branch(block_id, 0);
+      cov().inc_branch(block_id, 1);
+      return tf(tbr_ss) + ff(fbr_ss);
+    }
+  } else if (tbr_sat == solver_result::sat) {
+    cov().inc_branch(block_id, 0);
+    SS tbr_ss = ss.add_PC(t_cond);
+    return tf(tbr_ss);
+  } else if (fbr_sat == solver_result::sat) {
     cov().inc_branch(block_id, 1);
     SS fbr_ss = ss.add_PC(f_cond);
     return ff(fbr_ss);
   } else {
-    pc = ss.copy_PC();
-    pc.add(f_cond);
-    auto fbr_sat = check_pc(pc);
-    if (!fbr_sat) {
-      cov().inc_branch(block_id, 0);
-      SS tbr_ss = ss.add_PC(t_cond);
-      return tf(tbr_ss);
-    } else {
-      // both branches are sat
-      cov().inc_path(1);
-      SS& tbr_ss = ss;
-      SS fbr_ss = ss.fork();
-      tbr_ss.add_PC(t_cond); // TODO: no need to add t_cond again?
-      fbr_ss.add_PC(f_cond);
-      if (can_par_async()) {
-        std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
-          create_async<immer::flex_vector<std::pair<SS, PtrVal>>>([&]{
-              cov().inc_branch(block_id, 0);
-              return tf(tbr_ss);
-              });
-        cov().inc_branch(block_id, 1);
-        auto ff_res = ff(fbr_ss);
-        return tf_res.get() + ff_res;
-      } else {
-        cov().inc_branch(block_id, 0);
-        cov().inc_branch(block_id, 1);
-        return tf(tbr_ss) + ff(fbr_ss);
-      }
-    }
+    ABORT("Both branches are unsat!");
   }
 }
 
@@ -238,7 +228,7 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> ff,
               std::function<std::monostate(SS&, PtrVal)> k) {
-  auto [tbr_sat, fbr_sat] = check_branch(ss.copy_PC(), t_cond);
+  auto [tbr_sat, fbr_sat] = check_branch(ss.get_PC(), t_cond);
   if ((tbr_sat == solver_result::sat) && (fbr_sat == solver_result::sat)) {
     // both branches are sat
     cov().inc_path(1);
@@ -274,51 +264,6 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
   } else {
     ABORT("Both branches are unsat!");
   }
-  /*
-  auto pc = ss.copy_PC();
-  pc.add(t_cond);
-  auto tbr_sat = check_pc(pc);
-
-  if (!tbr_sat) {
-    // true branch is unsat -> false branch is valid
-    cov().inc_branch(block_id, 1);
-    SS fbr_ss = ss.add_PC(f_cond);
-    return ff(fbr_ss, k);
-  } else {
-    pc = ss.copy_PC();
-    pc.add(f_cond);
-    auto fbr_sat = check_pc(pc);
-    if (!fbr_sat) {
-      cov().inc_branch(block_id, 0);
-      SS tbr_ss = ss.add_PC(t_cond);
-      return tf(tbr_ss, k);
-    } else {
-      // both branches are sat
-      cov().inc_path(1);
-      SS& tbr_ss = ss;
-      SS fbr_ss = ss.fork();
-      tbr_ss.add_PC(t_cond); // TODO: no need to add again
-      fbr_ss.add_PC(f_cond);
-      if (can_par_tp()) {
-        tp.add_task(tbr_ss.get_ssid(), [tf, block_id, tbr_ss=std::move(tbr_ss), k]{
-            cov().inc_branch(block_id, 0);
-            return tf((SS&)tbr_ss, k);
-            });
-        tp.add_task(fbr_ss.get_ssid(), [ff, block_id, fbr_ss=std::move(fbr_ss), k]{
-            cov().inc_branch(block_id, 1);
-            return ff((SS&)fbr_ss, k);
-            });
-        return std::monostate{};
-      } else {
-        cov().inc_branch(block_id, 0);
-        tf(tbr_ss, k);
-        cov().inc_branch(block_id, 1);
-        ff(fbr_ss, k);
-        return std::monostate{};
-      }
-    }
-  }
-  */
 }
 
 // Note: seems a way to reduce the size of generated code,

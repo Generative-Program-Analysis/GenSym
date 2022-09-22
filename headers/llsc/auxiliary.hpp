@@ -101,9 +101,6 @@ inline SolverKind solver_kind = SolverKind::stp;
 inline std::atomic<long int> ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
 inline std::atomic<long int> int_solver_time = 0;
-inline std::atomic<long int> int_solver_time1 = 0;
-inline std::atomic<long int> int_solver_time2 = 0;
-inline std::atomic<long int> int_solver_time3 = 0;
 // FS time: time taken to perform FS operations
 inline std::atomic<long int> fs_time = 0;
 // Solver expression construction time
@@ -115,7 +112,9 @@ inline std::atomic<long int> cons_indep_time_old = 0;
 
 inline std::atomic<long int> cons_indep_time = 0;
 inline std::atomic<long int> mono_solver_time = 0;
+inline std::atomic<long int> conc_solver_time = 0;
 inline std::atomic<long int> gen_test_time = 0;
+
 // For debugging
 inline int cons_indep_algo = 1;
 
