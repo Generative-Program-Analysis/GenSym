@@ -283,6 +283,13 @@ public:
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
 
+    /*
+    std::cout << "conds:\n";
+    for (auto& c : common) {
+      std::cout << "  " << c->toString() << "\n";
+    }
+    */
+
     BrResult result;
 
     common.insert(cond);

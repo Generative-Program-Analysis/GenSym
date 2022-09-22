@@ -88,6 +88,8 @@ inline bool print_cov_detail = false;
 inline uint32_t print_detailed_time = 0;
 // The maximum size of symbolic location (used in memory read)
 inline unsigned int max_sym_array_size = 0;
+// Use simplification when constructing SymV values
+inline bool use_symv_simplify = false;
 
 enum class SearcherKind { randomPath, randomWeight };
 // The path searcher to be used

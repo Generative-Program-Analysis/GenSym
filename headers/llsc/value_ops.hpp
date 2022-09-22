@@ -506,7 +506,7 @@ struct SymV : Value {
   }
 
   static PtrVal simplify(iOP& rator, immer::array<PtrVal>& rands, size_t& bw) {
-    auto arg0 = std::dynamic_pointer_cast<SymV>(rands[0]);
+    auto arg0 = rands[0]->to_SymV();
     if (rator == iOP::op_neg && arg0) {
       switch (arg0->rator) {
         case iOP::op_neq: return make_simple<SymV>(iOP::op_eq, arg0->rands, bw);
@@ -520,24 +520,33 @@ struct SymV : Value {
         case iOP::op_uge: return make_simple<SymV>(iOP::op_ult, arg0->rands, bw);
         case iOP::op_ugt: return make_simple<SymV>(iOP::op_ule, arg0->rands, bw);
       }
+    } else if (rator == iOP::op_neq && arg0) {
+      // TODO: see if they can be implemented in front-end
+      auto arg1 = rands[1]->to_IntV();
+      if (arg0->rator == iOP::op_zext) {
+        auto bw1 = arg0->rands[0]->get_bw();
+        // zext(sym(x,bw1), bw2) != IntV(n, bw2)) if 0 <= n < 2^bw1 =>
+        // sym(x, bw1) != IntV(n, bw1)
+        if (arg1 && arg0->bw == arg1->bw && 
+            0 <= arg1->i && arg1->i < (1 << bw1)) {
+          return make_simple<SymV>(iOP::op_neq, immer::array({arg0->rands[0], make_IntV(arg1->i, bw1)}), bw);
+        }
+      }
+      if (arg0->rator == iOP::op_sext) {
+        auto bw1 = arg0->rands[0]->get_bw();
+        // sext(sym(x,bw1), bw2) != IntV(n, bw2)) if -2^{bw1-1} <= n < 2^{bw1-1} =>
+        // sym(x, bw1) != IntV(n, bw1)
+        if (arg1 && arg0->bw == arg1->bw && 
+            -(1 << (bw1-1)) <= arg1->i && arg1->i < (1 << (bw1-1))) {
+          return make_simple<SymV>(iOP::op_neq, immer::array({arg0->rands[0], make_IntV(arg1->i, bw1)}), bw);
+        }
+      }
     }
     return nullptr;
   }
 
   static PtrVal neg(const PtrVal& v);
 };
-
-/*
-inline std::map<size_t, PtrVal> symv_cache;
-  size_t h = 0;
-  // compute hash
-  auto res = symv_cache.find(h);
-  if (res != symv_cache.end()) {
-    return res->second;
-  }
-  auto v = ...
-  symv_cache[v->hashval] = v;
-*/
 
 inline PtrVal make_SymV(const String& n) {
   auto ret = make_simple<SymV>(n, default_bw);
@@ -550,11 +559,14 @@ inline PtrVal make_SymV(String n, size_t bw) {
 }
 
 inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
-  auto ret = SymV::simplify(rator, rands, bw);
-  if (!ret) {
+  //std::cout << "Trying to simplify " << make_simple<SymV>(rator, rands, bw)->toString() << "\n";
+  PtrVal ret = nullptr;
+  if (use_symv_simplify) {
+    ret = SymV::simplify(rator, rands, bw);
+    if (!ret) ret = make_simple<SymV>(rator, std::move(rands), bw);
+  } else {
     ret = make_simple<SymV>(rator, std::move(rands), bw);
   }
-  //auto ret = make_simple<SymV>(rator, std::move(rands), bw);
   return hashconsing(ret);
 }
 

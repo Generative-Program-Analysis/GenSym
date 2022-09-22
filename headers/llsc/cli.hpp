@@ -14,6 +14,7 @@ static struct option long_options[] =
   {"no-obj-cache",               no_argument,       0, 3},
   {"no-cex-cache",               no_argument,       0, 4},
   {"cons-indep",                 no_argument,       0, 5},
+  {"simplify",                   no_argument,       0, 26},
   // Test case generation
   {"output-tests-cov-new",       no_argument,       0, 6},
   {"output-ktest",               no_argument,       0, 7},
@@ -40,7 +41,7 @@ static struct option long_options[] =
   {"print-detailed-time",        required_argument, 0, 25},
   // Misc
   {"cons-indep-algo",            required_argument, 0, 23},
-  // Next 26
+  // Next 27
   {0,                            0,                 0, 0 }
 };
 
@@ -210,6 +211,9 @@ inline void handle_cli_args(int argc, char** argv) {
       }
       case 25:
         print_detailed_time = atoi(optarg);
+        break;
+      case 26:
+        use_symv_simplify = true;
         break;
       case '?':
       default:
