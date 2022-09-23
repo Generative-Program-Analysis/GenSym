@@ -249,6 +249,8 @@ inline void handle_cli_args(int argc, char** argv) {
   }
   // symargs -> symfiles -> sym-stdin -> sym-stdout (must be in this order for klee-replay to work)
 
+  // TODO: the following code should be refactored in favor of readability and mantainance.
+
   // count number of symbolic arguments, create one SymObj for each.
   int n_sym_arg = 0;
   TrList<SymObj> symargs;

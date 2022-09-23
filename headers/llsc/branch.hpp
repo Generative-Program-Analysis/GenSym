@@ -1,7 +1,7 @@
 #ifndef LLSC_BRANCH_HEADER
 #define LLSC_BRANCH_HEADER
 
-// TODO: should be able to generate these functions too
+// Note: we should be able to generate these functions too
 
 #ifdef PURE_STATE
 
@@ -194,7 +194,7 @@ sym_exec_br(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
     cov().inc_path(1);
     SS& tbr_ss = ss;
     SS fbr_ss(ss.fork());
-    tbr_ss.add_PC(t_cond); // TODO: no need to add t_cond again?
+    tbr_ss.add_PC(t_cond);
     fbr_ss.add_PC(f_cond);
     if (can_par_async()) {
       std::future<immer::flex_vector<std::pair<SS, PtrVal>>> tf_res =
