@@ -154,9 +154,19 @@ inline bool isInstanceOf(const std::variant<Types...>& v) {
 /* Strings */
 
 namespace Str {
+  inline immer::flex_vector<String> to_vector(String s) {
+    immer::flex_vector_transient<String> res;
+    for (auto &c: s) {
+      res.push_back(String(1, c));
+    }
+    return res.persistent();
+  }
 
   inline immer::flex_vector<String> split(String s, String delimiter) {
     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    if (delim_len == 0) {
+      return to_vector(s);
+    }
     String token;
     immer::flex_vector_transient<String> res;
 
@@ -308,13 +318,15 @@ namespace Vec {
   }
 
   template<typename T, typename U>
-  inline immer::flex_vector<std::tuple<T, U>> zip(immer::flex_vector<T> v1, immer::flex_vector<U> v2) {
-    ASSERT(v1.size() == v2.size(), "Vectors must have same size");
-    auto res = immer::flex_vector<std::tuple<T, U>>();
-    for (int i = 0; i < v1.size(); i++) {
-      res = res.push_back(std::make_tuple(v1.at(i), v2.at(i)));
+  inline immer::flex_vector<std::pair<T, U>> zip(immer::flex_vector<T> v1, immer::flex_vector<U> v2) {
+    auto size = v1.size() < v2.size() ? v1.size() : v2.size();
+    std::cout << "size: " << size << std::endl;
+    /* ASSERT(v1.size() == v2.size(), "Vectors must have same size"); */
+    auto res = immer::flex_vector_transient<std::pair<T, U>>();
+    for (int i = 0; i < size; i++) {
+      res.push_back(std::make_pair(v1.at(i), v2.at(i)));
     }
-    return res;
+    return res.persistent();
   }
 
   template<typename T, typename Fn>

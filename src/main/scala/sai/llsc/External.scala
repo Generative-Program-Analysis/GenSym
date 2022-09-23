@@ -72,7 +72,6 @@ trait GenExternal extends SymExeDefs {
         rawInfo("std::cout << \"symExecBrFs: only false satisfiable\" << std::endl;")
         fk(ssf.addPC(fCond), fs)
       }
-      // TODO: fix benchmark tests <2022-08-17, David Deng> //
   }
 
   // TODO: sym_exit return type in C should be void
@@ -83,8 +82,7 @@ trait GenExternal extends SymExeDefs {
   // 1. object constructors, factories (e.g. new_stream, new_stat) 
   // Use the apply() method on classes as constructors/factories
   // <2022-05-12, David Deng> //
-  def getStringAt(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_string_at".reflectWith[String](ptr, s)
-  def getConcreteFilePath(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_concrete_file_path".reflectWith[String](ptr, s)
+  def getConcreteFilePath(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_concrete_file_path".reflectWith[String](s, ptr)
 
   def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
     // the requested permission
@@ -106,44 +104,62 @@ trait GenExternal extends SymExeDefs {
     !((readAccess & illegalRead) | (writeAccess & illegalWrite))
   }
 
+  def resolveSymPath(fs: Rep[FS], symPath: Rep[List[Value]]): Rep[List[String]] = {
+    // TODO: do resolution based on files in fs <2022-09-23, David Deng> //
+    StaticList("A", "B")
+  }
+
   /* 
    * int open(const char *pathname, int flags);
    * int open(const char *pathname, int flags, mode_t mode);
    */
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"open syscall\" << std::endl")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
-    info_obj(path, "path")
+    val path: Rep[List[Value]] = "get_sym_string_at".reflectCtrlWith[List[Value]](ss, args(0))
     val flags = args(1)
-    if (!(flags.int & O_CREAT: Rep[Boolean]) && (flags.int & O_EXCL)) {
-      k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32))
-    } else if (!fs.hasFile(path) && !(flags.int & O_CREAT: Rep[Boolean])) {
-      k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
-    } else if (fs.hasFile(path) && (flags.int & O_CREAT: Rep[Boolean]) && (flags.int & O_EXCL)) {
-      k(ss.setErrorLoc(flag("EEXIST")), fs, IntV(-1, 32))
-    } else if ((flags.int & O_TRUNC: Rep[Boolean]) && (flags.int & O_RDONLY)) {
-      // The (undefined) effect of O_RDONLY | O_TRUNC varies among implementations.
-      k(ss.setErrorLoc(flag("EEXIST")), fs, IntV(-1, 32))
-    } else {
-      if (!fs.hasFile(path)) {
-        val f = File(getPathSegments(path).last, List[Value](), List.fill(StatType.size(null))(IntV(0, 8)))
-        val regF = _set_file_type(f, S_IFREG)
-        fs.setFile(path, regF)
-      }
-      val file = fs.getFile(path)
-      val hp: Rep[Value] = hasPermission(flags, file)
-      brFs[T](ss, fs, hp,
-        (ss, fs) => {
-          if (flags.int & O_TRUNC) {
-            file.content = List[Value]()
+    // info_obj(path, "path")
+    val concPaths: Rep[List[String]] = resolveSymPath(fs, path)
+    concPaths.foreach(concPath => {
+      info_obj(concPath, "concPath")
+      val cond: Rep[Value] = concPath.split("").zip(path).foldLeft(SymV.fromBool(true): Rep[Value])((sym, p) => IntOp2("and", sym, IntOp2.eq(IntV(p._1(0).asRepOf[Int], 8), p._2)))
+      info_ptrval(cond, "cond")
+      symExecBrFs[T](ss.fork, FS.dcopy(fs), cond, SymV.fromBool(true), (ss, fs) => {
+        if (!(flags.int & O_CREAT: Rep[Boolean]) && (flags.int & O_EXCL)) {
+          k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32))
+        } else if (!fs.hasFile(concPath) && !(flags.int & O_CREAT: Rep[Boolean])) {
+          k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+        } else if (fs.hasFile(concPath) && (flags.int & O_CREAT: Rep[Boolean]) && (flags.int & O_EXCL)) {
+          k(ss.setErrorLoc(flag("EEXIST")), fs, IntV(-1, 32))
+        } else if ((flags.int & O_TRUNC: Rep[Boolean]) && (flags.int & O_RDONLY)) {
+          // The (undefined) effect of O_RDONLY | O_TRUNC varies among implementations.
+          k(ss.setErrorLoc(flag("EEXIST")), fs, IntV(-1, 32))
+        } else {
+          if (!fs.hasFile(concPath)) {
+            val f = File(getPathSegments(concPath).last, List[Value](), List.fill(StatType.size(null))(IntV(0, 8)))
+            val regF = _set_file_type(f, S_IFREG)
+            fs.setFile(concPath, regF)
           }
-          val fd: Rep[Fd] = fs.getFreshFd()
-          fs.setStream(fd, Stream(file))
-          k(ss, fs, IntV(fd, 32))
-        },
-        (ss, fs) => k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
-        )
-    }
+          info("fs.getFile")
+          val file = fs.getFile(concPath)
+          info("hasPermission")
+          val hp: Rep[Value] = hasPermission(flags, file)
+          brFs[T](ss, fs, hp,
+            (ss, fs) => {
+              if (flags.int & O_TRUNC) {
+                file.content = List[Value]()
+              }
+              val fd: Rep[Fd] = fs.getFreshFd()
+              fs.setStream(fd, Stream(file))
+              k(ss, fs, IntV(fd, 32))
+            },
+            (ss, fs) => k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
+            )
+        }
+      }, (ss, fs) => "stop".reflectCtrlWith[T](ss, unchecked[List[Value]]("List<PtrVal>{}"), unchecked[(SS, Value) => Rep[T]]("cont")))
+    ()
+    })
+    k(ss, fs, IntV(0, 32))
+    // }
   }
 
   /*

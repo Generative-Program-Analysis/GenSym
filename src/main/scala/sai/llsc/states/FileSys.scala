@@ -260,7 +260,6 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       // klee_prefer_cex(s, s->st_mtime == defaults->st_mtime);
       // klee_prefer_cex(s, s->st_ctime == defaults->st_ctime);
          )
-
       cex
     }
   }
