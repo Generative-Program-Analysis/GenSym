@@ -29,9 +29,13 @@ object Config {
   var emitVarIdMap: Boolean = true
   var emitBlockIdMap: Boolean = true
   var switchType: SwitchType = Merge
+  var runCode: Boolean = true
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
+
+  def disableRunCode: Unit = runCode = false
+  def enableRunCode: Unit = runCode = true
 
   def symArg(n: Int) = Config(n, false, o3)
   def useArgv = Config(0, true, o3)
