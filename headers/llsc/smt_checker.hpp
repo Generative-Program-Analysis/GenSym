@@ -386,12 +386,12 @@ public:
     M* m = nullptr;
     CexCacheKey conds(state.get_PC().conds.begin(), state.get_PC().conds.end());
     if (state.get_preferred_cex().size() > 0) {
-      // Note(GW): it seems the previous algorithm to resolve preferred cex depends
+      // Note(GW): the algorithm resolves preferred cex depending
       // on the traversal order of get_preferred_cex. Since once a preferred cex
       // is hold, it is added and preserved when checking the next preferred cex.
-      // This implementation needs to maintain a copy of the original PC inside the loop,
-      // and add all established "preferred cex" every time. It could be improved if
-      // we have implemented a "delete" method for UnionFind.
+      // This implementation needs to maintain a copy of the original PC every iteration,
+      // and adds all previously established "preferred cex" every time. It
+      // could be improved if we have implemented a "delete" method for UnionFind.
       CexCacheKey established;
       for (auto& c: state.get_preferred_cex()) {
         PC pc(state.get_PC());
