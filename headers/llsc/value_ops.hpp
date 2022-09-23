@@ -561,12 +561,8 @@ inline PtrVal make_SymV(String n, size_t bw) {
 inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
   //std::cout << "Trying to simplify " << make_simple<SymV>(rator, rands, bw)->toString() << "\n";
   PtrVal ret = nullptr;
-  if (use_symv_simplify) {
-    ret = SymV::simplify(rator, rands, bw);
-    if (!ret) ret = make_simple<SymV>(rator, std::move(rands), bw);
-  } else {
-    ret = make_simple<SymV>(rator, std::move(rands), bw);
-  }
+  if (use_symv_simplify) ret = SymV::simplify(rator, rands, bw);
+  if (!ret) ret = make_simple<SymV>(rator, std::move(rands), bw);
   return hashconsing(ret);
 }
 

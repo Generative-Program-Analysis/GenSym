@@ -108,6 +108,11 @@ public:
   MCexCache mcex_cache;
   BrCexCache brcex_cache;
 
+  // FIXME
+  void clear_cache() {
+    objcache.clear();
+    //cexcache.clear();
+  }
 
   // Construct the solver expression with object cache for a Value
   inline const Expr& construct_expr(PtrVal e) {
@@ -122,9 +127,7 @@ public:
     auto last_expr = root;
     while (root != uf.next[last_expr]) {
       last_expr = uf.next[last_expr];
-      if (!last_expr->to_SymV()->is_var()) {
-        result.insert(last_expr);
-      }
+      if (!last_expr->to_SymV()->is_var()) result.insert(last_expr);
     }
   }
 
@@ -140,11 +143,9 @@ public:
   M* query_model(CexCacheKey& conds) {
     auto it = mcex_cache.find(conds);
     M* m = nullptr;
-    //if (it != mcex_cache.end()) {
     if (it != nullptr) {
       cached_query_num += 1;
-      return (M*) it;
-      //m = &it->second;
+      m = (M*) it;
     } else {
       push();
       for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
@@ -152,25 +153,13 @@ public:
       br_cache.emplace(conds, result);
       if (result == sat) {
         mcex_cache.set(conds, self()->get_model_internal());
-        pop();
-        return (M*) mcex_cache.find(conds);
-        //m = &it->second;
-        //return m;
+        m = (M*) mcex_cache.find(conds);
       }
       pop();
-      return nullptr;
     }
-    //return m;
+    return m;
   }
 
-  /////////////////////////////////////////////////////////////
-
-  void clear_cache() {
-    objcache.clear();
-    //cexcache.clear();
-  }
-
-  // a unoptimized but correct baseline
   inline void gen_default_format_M(PC& pc, M* model, unsigned int test_id) {
     std::stringstream output;
     output << "Query number: " << (test_id+1) << std::endl;
@@ -263,12 +252,6 @@ public:
   }
 
   // interfaces
-
-    /*
-    resolve_indep_uf(uf, cond, [this](auto v){
-      this->self()->add_constraint_internal(construct_expr(v));
-    }, pc.contains(cond));
-    */
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
     if (!use_solver) return std::make_pair(sat, sat);
@@ -400,20 +383,29 @@ public:
       else ABORT("Cannot create the folder tests, abort.\n");
     }
 
-    auto& conds = state.get_PC().conds;
-    CexCacheKey pc;
-    pc.insert(conds.begin(), conds.end());
     M* m = nullptr;
+    CexCacheKey conds(state.get_PC().conds.begin(), state.get_PC().conds.end());
     if (state.get_preferred_cex().size() > 0) {
-      for (auto& v: state.get_preferred_cex()) {
-        //std::cout << "Add preferred cex " << v->toString() << "\n";
-        pc.insert(v);
-        m = query_model(pc);
-        if (m == nullptr) pc.erase(v);
+      // Note(GW): it seems the previous algorithm to resolve preferred cex depends
+      // on the traversal order of get_preferred_cex. Since once a preferred cex
+      // is hold, it is added and preserved when checking the next preferred cex.
+      // This implementation needs to maintain a copy of the original PC inside the loop,
+      // and add all established "preferred cex" every time. It could be improved if
+      // we have implemented a "delete" method for UnionFind.
+      CexCacheKey established;
+      for (auto& c: state.get_preferred_cex()) {
+        PC pc(state.get_PC());
+        for (auto& t : established) pc.add(t);
+        pc.add(c);
+        CexCacheKey pc_pcex;
+        resolve_indep_uf(pc.uf, c, pc_pcex);
+        m = query_model(pc_pcex);
+        if (m != nullptr) established.insert(c);
       }
-      m = query_model(pc);
+      conds.insert(established.begin(), established.end());
+      m = query_model(conds);
     } else {
-      m = query_model(pc);
+      m = query_model(conds);
     }
     ASSERT(m != nullptr, "Cannot generate test cases for unsat conditions!");
     generated_test_num++;

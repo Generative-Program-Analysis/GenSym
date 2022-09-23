@@ -173,7 +173,7 @@ inline std::string int_op_string(iOP op) {
     case iOP::op_ugt: return "u>";
     case iOP::op_ule: return "u<=";
     case iOP::op_ult: return "u<";
-    case iOP::op_sge: return "s>e";
+    case iOP::op_sge: return "s>=";
     case iOP::op_sgt: return "s>";
     case iOP::op_sle: return "s<=";
     case iOP::op_slt: return "s<";
