@@ -176,8 +176,9 @@ public:
   }
   IntData eval_model(WholeCounterExample* m, ExprHandle val) {
     ExprHandle const_val = vc_getTermFromCounterExample(vc, val.get(), *m);
-    // Note(GW): it seems that for unconstrained STP will simplify (Simplifier/RemoveUnconstrained.cpp)
-    // it to an ITE expression, and getting concrete values from the ITE results in the following error:
+    // Note(GW): it seems that for unconstrained constructs, STP will simplify 
+    // (see Simplifier/RemoveUnconstrained.cpp) it to an ITE expression, and getting 
+    // concrete values from the ITE results in the following error:
     //   getBVUnsigned: Attempting to extract int valuefrom a NON-constant BITVECTOR ...
     // The workaround is to check the kind of const_val at our end -- if it is a BVCONST
     // we simply return 0 and otherwise its true concretized value.

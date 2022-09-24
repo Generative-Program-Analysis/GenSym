@@ -160,7 +160,7 @@ public:
     return m;
   }
 
-  inline void gen_default_format_M(PC& pc, M* model, unsigned int test_id) {
+  inline void gen_default_format(PC& pc, M* model, unsigned int test_id) {
     std::stringstream output;
     output << "Query number: " << (test_id+1) << std::endl;
     output << "Query is sat." << std::endl;
@@ -178,11 +178,10 @@ public:
     close(out_fd);
   }
 
-  inline void gen_ktest_format(std::shared_ptr<Model> model, unsigned int test_id,
-    List<SymObj> sym_objs, int conc_argc, char** conc_argv) {
+  inline void gen_ktest_format(PC& pc, M* model, unsigned int test_id, List<SymObj> sym_objs) {
     KTest b;
-    b.numArgs = conc_argc;
-    b.args = conc_argv;
+    b.numArgs = g_conc_argc;
+    b.args = g_conc_argv;
     b.symArgvs = 0;
     b.symArgvLen = 0;
     b.numObjects = sym_objs.size();
@@ -196,26 +195,17 @@ public:
       o->name[obj.name.size()] = 0;
       o->numBytes = obj.size;
       o->bytes = new unsigned char[o->numBytes];
-      assert(o->bytes);
+      memset(o->bytes, 0, o->numBytes);
       if (obj.is_whole) {
         // XXX(GW): why obj.size must be 4?
         ASSERT(obj.size == 4, "Bad whole object");
-        auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
-        ASSERT(key, "Invalid key");
-        auto it = model->find(key);
-        uint32_t value = (uint32_t) it->second;
-        if (it == model->end()) memset(o->bytes, 0, o->numBytes);
-        else memcpy(o->bytes, (char*) &value, o->numBytes);
+        auto key = make_SymV(obj.name, obj.size*8)->to_SymV();
+        auto value = self()->eval_model(model, construct_expr(key));
+        memcpy(o->bytes, (char*) &value, o->numBytes);
       } else {
         for (int idx = 0; idx < o->numBytes; idx++) {
-          auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
-          ASSERT(key, "Invalid key");
-          auto it = model->find(key);
-          if (it != model->end()) {
-            o->bytes[idx] = (unsigned char) it->second;
-          } else {
-            o->bytes[idx] = 0;
-          }
+          auto key = make_SymV(obj.name + "_" + std::to_string(idx), 8)->to_SymV();
+          o->bytes[idx] = self()->eval_model(model, construct_expr(key));
         }
       }
     }
@@ -232,23 +222,6 @@ public:
       delete[] b.objects[i].bytes;
     }
     delete[] b.objects;
-  }
-
-  inline void gen_default_format(std::shared_ptr<Model> model, unsigned int test_id) {
-    std::stringstream output;
-    output << "Query number: " << (test_id+1) << std::endl;
-    output << "Query is sat." << std::endl;
-    std::stringstream filename;
-    filename << "tests/" << test_id << ".test";
-    int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
-    if (out_fd == -1) {
-      ABORT("Cannot create the test case file, abort.\n");
-    }
-    for (auto& [k, v]: *model) {
-      output << k->to_SymV()->name << "=" << v << std::endl;
-    }
-    int n = write(out_fd, output.str().c_str(), output.str().size());
-    close(out_fd);
   }
 
   // interfaces
@@ -409,10 +382,8 @@ public:
     }
     ASSERT(m != nullptr, "Cannot generate test cases for unsat conditions!");
     generated_test_num++;
-    // FIXME
-    //if (output_ktest) gen_ktest_format(model, generated_test_num, state.get_sym_objs(), g_conc_argc, g_conc_argv);
-    gen_default_format_M(state.get_PC(), m, generated_test_num);
-    //gen_default_format(m, generated_test_num);
+    if (output_ktest) gen_ktest_format(state.get_PC(), m, generated_test_num, state.get_sym_objs());
+    else gen_default_format(state.get_PC(), m, generated_test_num);
   }
 };
 
