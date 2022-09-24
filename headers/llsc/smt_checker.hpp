@@ -92,6 +92,7 @@ public:
   using BrCacheKey = std::set<PtrVal>;
 
   struct hash_BrCacheKey {
+    // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
     size_t operator()(BrCacheKey const& k) const noexcept {
       size_t n = 0;
       for (auto& c : k) n += c->to_SymV()->id;
@@ -99,14 +100,10 @@ public:
     }
   };
 
-  using BrCex = std::pair<solver_result, M>;
-  //using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
-  using BrCache = std::map<BrCacheKey, solver_result>;
+  using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
   using MCexCache = immer::map_transient<CexCacheKey, M, hash_BrCacheKey>;
-  using BrCexCache = immer::map_transient<BrCacheKey, BrCex, hash_BrCacheKey>;
   BrCache br_cache;
   MCexCache mcex_cache;
-  BrCexCache brcex_cache;
 
   // FIXME
   void clear_cache() {
@@ -150,7 +147,7 @@ public:
       push();
       for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
       auto result = check_model();
-      br_cache.emplace(conds, result);
+      br_cache.set(conds, result);
       if (result == sat) {
         mcex_cache.set(conds, self()->get_model_internal());
         m = (M*) mcex_cache.find(conds);
@@ -239,15 +236,7 @@ public:
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
 
-    /*
-    std::cout << "conds:\n";
-    for (auto& c : common) {
-      std::cout << "  " << c->toString() << "\n";
-    }
-    */
-
     BrResult result;
-
     common.insert(cond);
     auto then_hit = br_cache.find(common);
     if (!pc.contains(cond)) common.erase(cond);
@@ -255,42 +244,45 @@ public:
     auto else_hit = br_cache.find(common);
     if (!pc.contains(neg_cond)) common.erase(neg_cond);
 
-    if (then_hit != br_cache.end() && else_hit != br_cache.end()) {
+    //if (then_hit != br_cache.end() && else_hit != br_cache.end()) {
+    if (then_hit != nullptr && else_hit != nullptr) {
       // both hit
       cached_query_num += 2;
-      result.first = then_hit->second;
-      result.second = else_hit->second;
-    } else if (then_hit != br_cache.end()) {
+      result.first = *then_hit; //->second;
+      result.second = *else_hit; //->second;
+    //} else if (then_hit != br_cache.end()) {
+    } else if (then_hit != nullptr) {
       // only "then" branch hits
       cached_query_num += 1;
-      result.first = then_hit->second;
+      result.first = *then_hit; //->second;
       common.insert(neg_cond);
       if (result.first == solver_result::unsat) {
         result.second = solver_result::sat;
-        br_cache.emplace(common, result.second);
+        br_cache.set(common, result.second);
       } else {
         push();
         for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
         result.second = check_model();
-        br_cache.emplace(common, result.second);
+        br_cache.set(common, result.second);
         if (result.second == sat) mcex_cache.set(common, self()->get_model_internal());
         pop();
       }
       auto then_time1 = steady_clock::now();
       then_br_time1 += duration_cast<microseconds>(then_time1 - end).count();
-    } else if (else_hit != br_cache.end()) {
+    //} else if (else_hit != br_cache.end()) {
+    } else if (else_hit != nullptr) {
       // only "else" branch hits
       cached_query_num += 1;
-      result.second = else_hit->second;
+      result.second = *else_hit; //->second;
       common.insert(cond);
       if (result.second == solver_result::unsat) {
         result.first = solver_result::sat;
-        br_cache.emplace(common, result.first);
+        br_cache.set(common, result.first);
       } else {
         push();
         for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
         result.first = check_model();
-        br_cache.emplace(common, result.first);
+        br_cache.set(common, result.first);
         if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
         pop();
       }
@@ -305,7 +297,7 @@ public:
       self()->add_constraint_internal(construct_expr(cond));
       result.first = check_model();
       common.insert(cond);
-      br_cache.emplace(common, result.first);
+      br_cache.set(common, result.first);
       if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
       pop();
 
@@ -313,12 +305,12 @@ public:
       common.insert(neg_cond);
       if (result.first == solver_result::unsat) {
         result.second = solver_result::sat;
-        br_cache.emplace(common, result.second);
+        br_cache.set(common, result.second);
         pop();
       } else {
         self()->add_constraint_internal(construct_expr(neg_cond));
         result.second = check_model();
-        br_cache.emplace(common, result.second);
+        br_cache.set(common, result.second);
         if (result.second == sat) mcex_cache.set(common, self()->get_model_internal());
         pop();
       }
