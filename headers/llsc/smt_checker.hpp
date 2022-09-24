@@ -67,29 +67,11 @@ class CachedChecker : public Checker {
   }
 
 public:
-  // XXX: SymV could be a compound symbolic expression as well
-  using SymVar = simple_ptr<SymV>;
-  // a map from symbolic variables to their solver expressions
-  using VarMap = std::unordered_map<PtrVal, Expr>; // XXX PtrVal should be sym var
-  // a map from symbolic variable to top-level predicate expressions that (transitively) contain this variable
-  using ReachMap = std::multimap<PtrVal, PtrVal>; // XXX PtrVal should be sym var
-  // object cache type
-  // query cache key
-  using CexCacheKey = std::set<PtrVal>;
-  // assignment of symbolic variables/expr to concrete data
-  using Model = std::unordered_map<PtrVal, IntData>; //XXX PtrVal
-  // the result of check, accompanying with a model if sat
-  using CheckResult = std::pair<solver_result, std::shared_ptr<Model>>;
-  // query cache type
-  using CexCache = std::map<CexCacheKey, CheckResult>;
-
-  ////////////////////////////////////////////////
-
   using ObjCache = std::unordered_map<PtrVal, Expr>;
   ObjCache objcache;
-  using ObjCacheIter = typename decltype(objcache)::iterator;
 
   using BrCacheKey = std::set<PtrVal>;
+  using CexCacheKey = std::set<PtrVal>;
 
   struct hash_BrCacheKey {
     // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
@@ -108,7 +90,7 @@ public:
   // FIXME
   void clear_cache() {
     objcache.clear();
-    //cexcache.clear();
+    // clear br_cache, mcex_cache
   }
 
   // Construct the solver expression with object cache for a Value
