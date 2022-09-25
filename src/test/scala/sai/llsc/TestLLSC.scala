@@ -126,13 +126,7 @@ class TestImpLLSC extends TestLLSC {
 
 class TestImpCPSLLSC extends TestLLSC {
   val llsc = new ImpCPSLLSC
-  //testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
-  testLLSC(llsc, List(
-    TestPrg(write1Test, "writeTestPaths", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(3)++status(0)),
-    TestPrg(creatUnlinkTest, "creatUnlinkTest", "@main", noArg, noOpt, nPath(1)++status(0)),
-    TestPrg(chmodTest, "chmodTest", "@main", noArg, noOpt, nPath(1)++status(0)),
-    TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(2)++status(0)),
-  ))
+  testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
   // Note: compile-time switch merge is only implement for ImpCPS so far
   testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
