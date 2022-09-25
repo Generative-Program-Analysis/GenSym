@@ -108,6 +108,7 @@ public:
     auto last_expr = root;
     while (root != uf.next[last_expr]) {
       last_expr = uf.next[last_expr];
+      if (!last_expr) break;
       if (!last_expr->to_SymV()->is_var()) result.insert(last_expr);
     }
   }
@@ -360,7 +361,12 @@ public:
       // and adds all previously established "preferred cex" every time. It
       // could be improved if we have implemented a "delete" method for UnionFind.
       CexCacheKey established;
+
       for (auto& c: state.get_preferred_cex()) {
+        // TODO: this is a temp fix since FS some how adds concrete values into PC.
+        // Remove this line until FS is fixed.
+        if (!c->to_SymV()) continue;
+
         PC pc(state.get_PC());
         for (auto& t : established) pc.add(t);
         pc.add(c);

@@ -326,14 +326,18 @@ class PC {
     immer::set_transient<PtrVal> vars;
 
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {
+      auto start = steady_clock::now();
       for (auto& c : conds) {
         for (auto& v : c->to_SymV()->vars) { 
           vars.insert(v);
           uf.join(v, c); 
         }
       }
+      auto end = steady_clock::now();
+      cons_indep_time += duration_cast<microseconds>(end - start).count();
     }
     PC&& add(PtrVal e) {
+      ASSERT(e->to_SymV(), "added condition must be symbolic boolean");
       conds.push_back(e);
       auto start = steady_clock::now();
       for (auto& v : e->to_SymV()->vars) { 
