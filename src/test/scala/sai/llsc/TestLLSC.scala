@@ -128,9 +128,7 @@ class TestImpCPSLLSC extends TestLLSC {
   val llsc = new ImpCPSLLSC
   //testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
   testLLSC(llsc, List(
-    TestPrg(openTest, "openTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
     TestPrg(write1Test, "writeTestPaths", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(3)++status(0)),
-    TestPrg(mkdirTest, "mkdirTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(creatUnlinkTest, "creatUnlinkTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(chmodTest, "chmodTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(2)++status(0)),

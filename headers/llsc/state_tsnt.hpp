@@ -192,7 +192,7 @@ class Stack {
   public:
     Stack(Mem mem, TrList<Frame> env, PtrVal errno_location) :
       mem(std::move(mem)), env(std::move(env)), errno_location(std::move(errno_location)) {}
-  //Stack(const Stack& s) : mem(s.mem), env(((Stack&)s).env.persistent().transient()), errno_location(errno_location) {}
+    //Stack(const Stack& s) : mem(s.mem), env(((Stack&)s).env.persistent().transient()), errno_location(errno_location) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
     PtrVal vararg_loc() { return env.at(env.size()-2).lookup_id(vararg_id); }
@@ -351,24 +351,6 @@ class PC {
     bool contains(PtrVal e) {
       return uf.parent.find(e) != nullptr;
     }
-    /*
-    PC&& add_set(const List<PtrVal>& new_pc) {
-      for (auto& it : new_pc) {
-        pc.push_back(it);
-      }
-      return std::move(*this);
-    }
-    PC&& pop_back() {
-      conds.take(conds.size()-1);
-      return std::move(*this);
-    }
-    // TODO PC is either monotonic or we need a UF-"delete" operation
-    PC&& replace_last_cond(PtrVal e) {
-      if (conds.size() == 0) return std::move(*this);
-      conds.set(conds.size()-1, e);
-      return std::move(*this);
-    }
-    */
     const TrList<PtrVal>& get_path_conds() { return conds; }
     PtrVal get_last_cond() {
       if (conds.size() > 0) return conds[conds.size()-1];
