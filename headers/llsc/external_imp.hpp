@@ -15,6 +15,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
         auto msg = get_string_arg(state, args.at(1));
         std::cout << "Eager assertion error: " << msg << std::endl;
       }
+      std::cout << "Warning: assert violates; abort and generate test.\n";
       return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
     }
     return k(state, make_IntV(1, 32));
@@ -37,14 +38,20 @@ inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0) return h(state, { make_IntV(-1, 32) }); // concrete false - generate the test and ``halt''
+    if (i->i == 0) {
+      std::cout << "Warning: assume violates; abort and generate test.\n";
+      return h(state, { make_IntV(-1, 32) }); // concrete false - generate the test and ``halt''
+    }
     return k(state, make_IntV(1, 32));
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
   ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
   auto [tru_sat, fls_sat] = check_branch(state.get_PC(), v); // check if v == 1 is satisfiable
-  if (!tru_sat) return h(state, { make_IntV(-1, 32) }); 
+  if (!tru_sat) {
+    std::cout << "Warning: assume violates; abort and generate test.\n";
+    return h(state, { make_IntV(-1, 32) }); 
+  }
   state.add_PC(v);
   return k(state, make_IntV(1, 32));
 }

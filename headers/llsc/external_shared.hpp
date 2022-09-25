@@ -327,8 +327,7 @@ template<typename T>
 inline T __llsc_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);
   ASSERT(v, "null pointer");
-  auto sym_v = std::dynamic_pointer_cast<SymV>(v);
-  if (sym_v) return k(state, make_IntV(1, 32));
+  if (v->to_SymV()) return k(state, make_IntV(1, 32));
   ASSERT(std::dynamic_pointer_cast<IntV>(v), "non-intv");
   return k(state, make_IntV(0, 32));
 }
@@ -349,11 +348,12 @@ inline T __llsc_get_valuel(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(v, "null pointer");
   auto i = v->to_IntV();
   if (i) return k(state, v);
-  auto sym_v = std::dynamic_pointer_cast<SymV>(v);
+  auto sym_v = v->to_SymV();
   ASSERT(sym_v, "get value of non-symbolic variable");
   ASSERT(64 == sym_v->get_bw(), "Bitwidth mismatch");
   std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
   ASSERT(res.first, "Un-feasible path");
+  //std::cout << "Concretize " << sym_v->toString() << " to " << res.second << "\n";
   return k(state, make_IntV(res.second, 64));
 }
 

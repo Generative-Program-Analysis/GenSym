@@ -112,15 +112,6 @@ public:
     }
   }
 
-  inline void resolve_indep_uf(UnionFind& uf, PtrVal root, std::function<void(PtrVal)> f, bool add_root = true) {
-    if (add_root) f(root);
-    auto last_expr = root;
-    while (root != uf.next[last_expr]) {
-      last_expr = uf.next[last_expr];
-      if (!last_expr->to_SymV()->is_var()) f(last_expr);
-    }
-  }
-
   M* query_model(CexCacheKey& conds) {
     auto it = mcex_cache.find(conds);
     M* m = nullptr;
@@ -133,7 +124,7 @@ public:
       auto result = check_model();
       br_cache.set(conds, result);
       if (result == sat) {
-        mcex_cache.set(conds, self()->get_model_internal());
+        update_model_cache(conds);
         m = (M*) mcex_cache.find(conds);
       }
       pop();
@@ -153,7 +144,7 @@ public:
     }
     for (auto& v : pc.vars) {
       output << v->to_SymV()->name << "=" 
-             << self()->eval_model(model, construct_expr(v)) << std::endl;
+             << self()->eval_model(model, v) << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
     close(out_fd);
@@ -181,12 +172,12 @@ public:
         // XXX(GW): why obj.size must be 4?
         ASSERT(obj.size == 4, "Bad whole object");
         auto key = make_SymV(obj.name, obj.size*8)->to_SymV();
-        auto value = self()->eval_model(model, construct_expr(key));
+        auto value = self()->eval_model(model, key);
         memcpy(o->bytes, (char*) &value, o->numBytes);
       } else {
         for (int idx = 0; idx < o->numBytes; idx++) {
           auto key = make_SymV(obj.name + "_" + std::to_string(idx), 8)->to_SymV();
-          o->bytes[idx] = self()->eval_model(model, construct_expr(key));
+          o->bytes[idx] = self()->eval_model(model, key);
         }
       }
     }
@@ -203,6 +194,10 @@ public:
       delete[] b.objects[i].bytes;
     }
     delete[] b.objects;
+  }
+
+  void update_model_cache(BrCacheKey& conds) {
+    mcex_cache.set(conds, self()->get_model_internal(conds));
   }
 
   // interfaces
@@ -224,7 +219,7 @@ public:
     for (auto& v: indep_pc) self()->add_constraint_internal(construct_expr(v));
     auto res = check_model();
     br_cache.set(indep_pc, res);
-    if (res == sat) mcex_cache.set(indep_pc, self()->get_model_internal());
+    if (res == sat) update_model_cache(indep_pc);
     pop();
     
     return res;
@@ -271,7 +266,7 @@ public:
         for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
         result.second = check_model();
         br_cache.set(common, result.second);
-        if (result.second == sat) mcex_cache.set(common, self()->get_model_internal());
+        if (result.second == sat) update_model_cache(common);
         pop();
       }
       auto then_time1 = steady_clock::now();
@@ -290,7 +285,7 @@ public:
         for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
         result.first = check_model();
         br_cache.set(common, result.first);
-        if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
+        if (result.first == sat) update_model_cache(common);
         pop();
       }
       auto then_time2 = steady_clock::now();
@@ -305,7 +300,7 @@ public:
       result.first = check_model();
       common.insert(cond);
       br_cache.set(common, result.first);
-      if (result.first == sat) mcex_cache.set(common, self()->get_model_internal());
+      if (result.first == sat) update_model_cache(common);
       pop();
 
       if (!pc.contains(cond)) common.erase(cond);
@@ -318,7 +313,7 @@ public:
         self()->add_constraint_internal(construct_expr(neg_cond));
         result.second = check_model();
         br_cache.set(common, result.second);
-        if (result.second == sat) mcex_cache.set(common, self()->get_model_internal());
+        if (result.second == sat) update_model_cache(common);
         pop();
       }
 
@@ -338,11 +333,11 @@ public:
 
     CexCacheKey conds;
     resolve_indep_uf(pc.uf, e, conds, false);
+    UIntData data = 0;
     solver_result result;
     auto m = query_model(conds);
     if (m != nullptr) result = sat;
-    return std::make_pair(result == sat, result == sat ? self()->eval_model(m, construct_expr(e)) : 0);
-    //return std::make_pair(result == sat, result == sat ? m->at(sym_e) : 0);
+    return std::make_pair(result == sat, result == sat ? self()->eval_model(m, e) : 0);
   }
 
   virtual void generate_test(SS state) override {

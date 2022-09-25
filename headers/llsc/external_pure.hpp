@@ -37,7 +37,7 @@ inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   if (i) {
     if (i->i == 0) {
       // concrete false - generate the test and ``halt''
-      std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
+      std::cout << "Warning: assume violates; abort and generate test.\n";
       return h(state, { make_IntV(-1, 32) });
     }
     return k(state, make_IntV(1, 32));
@@ -47,7 +47,7 @@ inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   // undefined/error if v is a value of other types
   auto [tru_sat, fls_sat] = check_branch(state.get_PC(), v); // check if v == 1 is satisfiable
   if (!tru_sat) {
-    std::cout << "Warning: assume is unsatisfiable; abort and generate test.\n";
+    std::cout << "Warning: assume violates; abort and generate test.\n";
     return h(new_s, { make_IntV(-1) }); // check if v == 1 is satisfiable
   }
   return k(state.add_PC(cond), make_IntV(1, 32));

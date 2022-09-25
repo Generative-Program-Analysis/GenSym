@@ -27,16 +27,17 @@ public:
     return (solver_result) result;
   }
 
-  std::shared_ptr<model> get_model_internal() {
+  inline std::shared_ptr<model> get_model_internal(BrCacheKey& conds) {
     return std::make_shared<model>(g_solver->get_model());
-    //return g_solver->get_model();
   }
-  IntData eval(expr val) {
+
+  inline IntData eval(expr val) {
     auto const_val = g_solver->get_model().eval(val, true);
     return const_val.get_numeral_uint64();
   }
-  IntData eval_model(std::shared_ptr<model>* m, expr val) {
-    return (*m)->eval(val, true).get_numeral_uint64();
+
+  inline IntData eval_model(std::shared_ptr<model>* m, PtrVal val) {
+    return (*m)->eval(construct_expr(val), true).get_numeral_uint64();
   }
 
   expr construct_expr_internal(PtrVal e) {

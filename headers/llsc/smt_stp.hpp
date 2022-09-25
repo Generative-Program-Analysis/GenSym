@@ -8,15 +8,15 @@ struct ExprHandle: public std::shared_ptr<void> {
   typedef std::shared_ptr<void> Base;
 
   static void freeExpr(Expr e) {
-    //XXX(GW): it seems that there is a double-free issue with this.
-    //std::cout << "free Expr " << exprString(e) << "\n";
     vc_DeleteExpr(e);
   }
 
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle, WholeCounterExample> {
+using STPModel = std::shared_ptr<std::unordered_map<PtrVal, IntData>>;
+
+class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle, STPModel> {
 public:
   VC vc;
 
@@ -167,23 +167,49 @@ public:
     return mapping[retcode];
   }
 
-  WholeCounterExample get_model_internal() {
-    return vc_getWholeCounterExample(vc);
-  }
-  IntData eval(ExprHandle val) {
+  inline IntData eval(ExprHandle val) {
     ExprHandle const_val = vc_getCounterExample(vc, val.get());
     return getBVUnsignedLongLong(const_val.get());
   }
-  IntData eval_model(WholeCounterExample* m, ExprHandle val) {
-    ExprHandle const_val = vc_getTermFromCounterExample(vc, val.get(), *m);
-    // Note(GW): it seems that for unconstrained constructs, STP will simplify 
-    // (see Simplifier/RemoveUnconstrained.cpp) it to an ITE expression, and getting 
-    // concrete values from the ITE results in the following error:
-    //   getBVUnsigned: Attempting to extract int valuefrom a NON-constant BITVECTOR ...
-    // The workaround is to check the kind of const_val at our end -- if it is a BVCONST
-    // we simply return 0 and otherwise its true concretized value.
-    if (getExprKind(const_val.get()) != BVCONST) return 0;
-    return getBVUnsignedLongLong(const_val.get());
+
+  inline STPModel get_model_internal(BrCacheKey& conds) {
+    // Note: STP's WholeCounterExample is pretty useless, so it seems that 
+    // we have to eagerly materialize the model to our own data structure.
+    auto model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
+    for (auto& e: conds) {
+      for (auto& v: e->to_SymV()->vars)
+        model->emplace(v, eval(construct_expr(v)));
+    }
+    return model;
+  }
+
+  PtrVal __eval_model(STPModel* m, PtrVal val) {
+    // Note: when concretizing a complex expression, we need to "interpret"
+    // over the symbolic expression since the model only contains values
+    // of atomic variables. Here we reuse the `int_op_n` mechanism (thus 
+    // have the IntV indirection) but nevertheless can use a more dedicated "interpreter".
+    if (val->to_IntV()) return val;
+    auto sym_val = val->to_SymV();
+    ASSERT(sym_val, "Evaluating a non-symbolic term");
+    if (sym_val->is_var()) {
+      auto it = (*m)->find(sym_val);
+      if (it != (*m)->end()) return make_IntV(it->second, 64);
+      return make_IntV(0, 64); // an independent value
+    }
+    if (sym_val->rands.size() == 1) {
+      return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]));
+    }
+    if (sym_val->rands.size() == 2) {
+      return int_op_2(sym_val->rator, __eval_model(m, (*sym_val)[0]), __eval_model(m, (*sym_val)[1]));
+    }
+    if (sym_val->rands.size() == 3) {
+      return int_op_3(sym_val->rator, __eval_model(m, (*sym_val)[0]), __eval_model(m, (*sym_val)[1]), __eval_model(m, (*sym_val)[2]));
+    }
+    ABORT("Unknown operation");
+  }
+
+  inline IntData eval_model(STPModel* m, PtrVal val) {
+    return __eval_model(m, val)->to_IntV()->as_signed();
   }
 
   CheckerSTP() {

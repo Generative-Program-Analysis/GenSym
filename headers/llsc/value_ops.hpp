@@ -171,7 +171,7 @@ inline phmap::parallel_flat_hash_set<PtrVal,
     std::mutex> objpool;
 
 inline PtrVal hashconsing(const PtrVal &ret) {
-  // if (!use_hashcons) return ret;
+  if (!use_hashcons) return ret;
   auto [ret2, ins] = objpool.insert(ret);
   if (!ins) delete ret.get();
   return *ret2;
@@ -786,6 +786,24 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         break;
     }
     return make_SymV(op, { v1, v2 }, bw);
+  }
+}
+
+inline PtrVal int_op_3(iOP op, const PtrVal& v1, const PtrVal& v2, const PtrVal& v3) {
+  switch (op) {
+    case iOP::op_ite: {
+      auto i = v1->to_IntV();
+      auto bw2 = v2->get_bw();
+      auto bw3 = v3->get_bw();
+      if (i) {
+        if (i->i) return v2;
+        else return v3;
+      }
+      return make_SymV(op, { v1, v2, v3 }, bw2);
+    }
+    default:
+      std::cout << int_op_string(op) << std::endl;
+      ABORT("invalid operator");
   }
 }
 
