@@ -19,6 +19,7 @@ class Checker {
 public:
   virtual ~Checker() {}
   virtual BrResult check_branch(PC& pc, PtrVal cond) = 0;
+  virtual solver_result check_cond(PC& pc) = 0;
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) = 0;
   virtual void generate_test(SS state) = 0;
 };
@@ -82,6 +83,7 @@ public:
     }
   };
 
+  // TODO: BrCache and MCexCache can be shared among threads
   using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
   using MCexCache = immer::map_transient<CexCacheKey, M, hash_BrCacheKey>;
   BrCache br_cache;
@@ -204,6 +206,29 @@ public:
   }
 
   // interfaces
+
+  virtual solver_result check_cond(PC& pc) override {
+    if (!use_solver) return sat;
+    br_query_num++;
+
+    auto start = steady_clock::now();
+    BrCacheKey indep_pc;
+    resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
+
+    auto hit = br_cache.find(indep_pc);
+    if (hit) return *hit;
+
+    push();
+    for (auto& v: indep_pc) self()->add_constraint_internal(construct_expr(v));
+    auto res = check_model();
+    br_cache.set(indep_pc, res);
+    if (res == sat) mcex_cache.set(indep_pc, self()->get_model_internal());
+    pop();
+    
+    return res;
+  }
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
     if (!use_solver) return std::make_pair(sat, sat);
@@ -401,9 +426,10 @@ inline BrResult check_branch(PC pc, PtrVal cond) {
   return result;
 }
 
-// FIXME: external.hpp still uses check_pc
+// FIXME: switch/external.hpp still uses check_pc
 inline bool check_pc(PC pc) {
-  return check_branch(std::move(pc), sym_bool_const(true)).first == solver_result::sat;
+  auto result = checker_manager.get_checker().check_cond(pc);
+  return result == solver_result::sat;
 }
 
 inline void check_pc_to_file(SS& state) {
