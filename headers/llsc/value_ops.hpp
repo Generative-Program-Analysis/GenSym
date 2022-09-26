@@ -702,9 +702,12 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v, immer::array<size_t> params = {}
   switch (op) {
     case iOP::op_neg: ASSERT(bw == 1, "bw must be 1 for op_neg"); break;
     case iOP::op_bvnot: break;
-    case iOP::op_sext: bw = params[0];
+    case iOP::op_sext:
+    case iOP::op_zext:
+      bw = params[0];
     default: break;
   }
+  ASSERT(v->to_SymV(), "not a symbolic value");
   return make_SymV(op, { v }, bw);
 }
 
