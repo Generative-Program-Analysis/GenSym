@@ -732,7 +732,7 @@ inline PtrVal bv_zext(const PtrVal& v, size_t bw) {
 }
 
 inline PtrVal trunc(const PtrVal& v1, int from, int to) {
-  return int_op_1(iOP::op_trunc, v1, { from, to });
+  return int_op_1(iOP::op_trunc, v1, { size_t(from), size_t(to) });
 }
 
 // assume all values are signed, convert to unsigned if necessary
