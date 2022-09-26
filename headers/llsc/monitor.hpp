@@ -126,19 +126,16 @@ struct Monitor {
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
       if (print_detailed_time == 1 || (done && print_detailed_time == 2)) {
-        std::cout << "Full model: " << (full_model_time / 1.0e6) << "s; "
-                  << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
+        std::cout << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
                   << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
                   << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
-                  << "Mono solver: " << (mono_solver_time / 1.0e6) << "s; "
-                  << "concretization: " << (conc_solver_time / 1.0e6) << "s; "
+                  << "Branch solver: " << (br_solver_time / 1.0e6) << "s; "
+                  << "Conc. solver: " << (conc_solver_time / 1.0e6) << "s; "
                   << "#Conc. query: " << conc_query_num << "\n";
 
-        std::cout << "then_br_time1: " << (then_br_time1 / 1.0e6) << "s; "
-                  << "then_br_time2: " << (then_br_time2 / 1.0e6) << "s; "
-                  << "then_br_time3: " << (then_br_time3 / 1.0e6) << "s; "
-                  << "else_short_time: " << (else_short_time / 1.0e6) << "s; "
-                  << "else_br_time: " << (else_br_time / 1.0e6) << "\n";
+        std::cout << "else-br: " << (else_miss_time / 1.0e6) << "s; "
+                  << "then-br: " << (then_miss_time / 1.0e6) << "s; "
+                  << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"

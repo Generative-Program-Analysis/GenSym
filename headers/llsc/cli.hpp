@@ -16,7 +16,8 @@ static struct option long_options[] =
   {"no-hash-cons",               no_argument,       0, 2},
   {"no-obj-cache",               no_argument,       0, 3},
   {"no-cex-cache",               no_argument,       0, 4},
-  {"cons-indep",                 no_argument,       0, 5},
+  {"no-br-cache",                no_argument,       0, 27},
+  {"no-cons-indep",              no_argument,       0, 5},
   {"simplify",                   no_argument,       0, 26},
   // Test case generation
   {"output-tests-cov-new",       no_argument,       0, 6},
@@ -42,9 +43,7 @@ static struct option long_options[] =
   {"print-inst-count",           no_argument,       0, 8},
   {"print-cov",                  no_argument,       0, 9},
   {"print-detailed-time",        required_argument, 0, 25},
-  // Misc
-  {"cons-indep-algo",            required_argument, 0, 23},
-  // Next 27
+  // Next 23, 28
   {0,                            0,                 0, 0 }
 };
 
@@ -130,7 +129,7 @@ inline void handle_cli_args(int argc, char** argv) {
         use_cexcache = false;
         break;
       case 5:
-        use_cons_indep = true;
+        use_cons_indep = false;
         break;
       case 6:
         only_output_covernew = true;
@@ -210,8 +209,7 @@ inline void handle_cli_args(int argc, char** argv) {
         print_help(argv[0]);
         exit(-1);
       case 23:
-        // XXX: only for testing/debuggin
-        cons_indep_algo = atoi(optarg);
+        // available to use
         break;
       case 24: {
         int n = atoi(optarg);
@@ -223,6 +221,9 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 26:
         use_symv_simplify = true;
+        break;
+      case 27:
+        use_brcache = false;
         break;
       case '?':
       default:

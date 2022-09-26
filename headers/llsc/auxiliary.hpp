@@ -63,8 +63,10 @@ inline bool use_hashcons = true;
 inline bool use_objcache = true;
 // Use counterexample caching or not
 inline bool use_cexcache = true;
+// Use branch query caching or not
+inline bool use_brcache = true;
 // Use constraint independence resolving or not
-inline bool use_cons_indep = false;
+inline bool use_cons_indep = true;
 // Only generate testcases for states that cover new blocks or not
 inline bool only_output_covernew = false;
 // Output ktest format or not
@@ -105,26 +107,22 @@ inline std::atomic<long int> ext_solver_time = 0;
 inline std::atomic<long int> int_solver_time = 0;
 // FS time: time taken to perform FS operations
 inline std::atomic<long int> fs_time = 0;
-// Solver expression construction time
+// Time spent in solver expression construction
 inline std::atomic<long int> cons_expr_time = 0;
-// Full model construction time (generate test case)
-inline std::atomic<long int> full_model_time = 0;
-
-inline std::atomic<long int> cons_indep_time_old = 0;
-
+// Time spent in resolving constraint independence
 inline std::atomic<long int> cons_indep_time = 0;
-inline std::atomic<long int> mono_solver_time = 0;
+// Time spent in branch query
+inline std::atomic<long int> br_solver_time = 0;
+// Time spent in if only "then" branch hits cache
+inline std::atomic<long int> else_miss_time = 0;
+// Time spent in if only "else" branch hits cache
+inline std::atomic<long int> then_miss_time = 0;
+// Time spent in if both branch miss cache
+inline std::atomic<long int> both_miss_time = 0;
+// Time spent in concretization
 inline std::atomic<long int> conc_solver_time = 0;
+// Time spent in generating test cases
 inline std::atomic<long int> gen_test_time = 0;
-
-inline std::atomic<long int> then_br_time1 = 0;
-inline std::atomic<long int> then_br_time2 = 0;
-inline std::atomic<long int> then_br_time3 = 0;
-inline std::atomic<long int> else_short_time = 0;
-inline std::atomic<long int> else_br_time = 0;
-
-// For debugging
-inline int cons_indep_algo = 1;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index

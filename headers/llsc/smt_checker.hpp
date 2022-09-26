@@ -26,9 +26,49 @@ public:
 
 template <typename Self, typename Expr, typename Model>
 class CachedChecker : public Checker {
-  Self* self() {
-    return static_cast<Self*>(this);
+protected:
+  using ObjCache = std::unordered_map<PtrVal, Expr>;
+  using BrCacheKey = std::set<PtrVal>;
+  using CexCacheKey = BrCacheKey;
+
+  struct hash_BrCacheKey {
+    // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
+    size_t operator()(BrCacheKey const& k) const noexcept {
+      size_t n = 0;
+      for (auto& c : k) n += c->to_SymV()->id;
+      return n;
+    }
+  };
+
+  // TODO: BrCache and MCexCache can be shared among threads
+  using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
+  using MCexCache = immer::map_transient<CexCacheKey, std::shared_ptr<Model>, hash_BrCacheKey>;
+
+  ObjCache obj_cache;
+  BrCache br_cache;
+  MCexCache mcex_cache;
+
+  // Construct the solver expression with object cache for a Value
+  inline const Expr construct_expr(PtrVal e) {
+    if (use_objcache) {
+      auto fd = obj_cache.find(e);
+      if (fd != obj_cache.end()) return fd->second;
+      auto [it, ins] = obj_cache.emplace(e, self()->construct_expr_internal(e));
+      return it->second;
+    }
+    return self()->construct_expr_internal(e);
   }
+
+  inline const Expr to_expr(PtrVal e) {
+    auto start = steady_clock::now();
+    auto expr = construct_expr(e);
+    auto end = steady_clock::now();
+    cons_expr_time += duration_cast<microseconds>(end - start).count();
+    return expr;
+  }
+
+private:
+  Self* self() { return static_cast<Self*>(this); }
 
   // Self has to define:
   // - push_internal()
@@ -36,7 +76,7 @@ class CachedChecker : public Checker {
   // - check_model_internal()
   // - construct_expr_internal()
   // - add_constraint_internal()
-  // - eval()
+  // - eval(), eval_model()
 
   void push() {
     auto start = steady_clock::now();
@@ -59,54 +99,22 @@ class CachedChecker : public Checker {
     ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
-  solver_result check_model() {
+  const solver_result* query_sat_cache(BrCacheKey& conds) {
+    if (use_brcache) return br_cache.find(conds);
+    return nullptr;
+  }
+
+  void update_sat_cache(solver_result& res, BrCacheKey& conds) {
+    if (use_brcache) br_cache.set(conds, res);
+  }
+
+  solver_result check_model(BrCacheKey& conds) {
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
+    update_sat_cache(result, conds);
     auto end = steady_clock::now();
     ext_solver_time += duration_cast<microseconds>(end - start).count();
     return result;
-  }
-
-public:
-  using ObjCache = std::unordered_map<PtrVal, Expr>;
-  ObjCache objcache;
-
-  using BrCacheKey = std::set<PtrVal>;
-  using CexCacheKey = std::set<PtrVal>;
-
-  // TODO: use_brcache
-
-  struct hash_BrCacheKey {
-    // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
-    size_t operator()(BrCacheKey const& k) const noexcept {
-      size_t n = 0;
-      for (auto& c : k) n += c->to_SymV()->id;
-      return n;
-    }
-  };
-
-  // TODO: BrCache and MCexCache can be shared among threads
-  using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
-  using MCexCache = immer::map_transient<CexCacheKey, std::shared_ptr<Model>, hash_BrCacheKey>;
-  BrCache br_cache;
-  MCexCache mcex_cache;
-
-  // FIXME
-  void clear_cache() {
-    objcache.clear();
-    // clear br_cache, mcex_cache
-  }
-
-  // Construct the solver expression with object cache for a Value
-  inline const Expr construct_expr(PtrVal e) {
-    if (use_objcache) {
-      auto fd = objcache.find(e);
-      if (fd != objcache.end()) return fd->second;
-      auto [it, ins] = objcache.emplace(e, self()->construct_expr_internal(e));
-      return it->second;
-    } else {
-      return self()->construct_expr_internal(e);
-    }
   }
 
   inline void resolve_indep_uf(UnionFind& uf, PtrVal root, BrCacheKey& result, bool add_root = true) {
@@ -119,30 +127,13 @@ public:
     }
   }
 
-  std::shared_ptr<Model> query_model(CexCacheKey& conds) {
-    std::shared_ptr<Model> m;
-    if (use_cexcache) {
-      auto it = mcex_cache.find(conds);
-      if (it != nullptr) {
-        cached_query_num += 1;
-        m = *it;
-      } else {
-        push();
-        for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
-        auto result = check_model();
-        br_cache.set(conds, result);
-        if (result == sat) m = update_model_cache(conds);
-        pop();
-      }
-    } else {
-      push();
-      for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
-      auto result = check_model();
-      br_cache.set(conds, result);
-      m = self()->get_model_internal(conds);
-      pop();
+  inline std::shared_ptr<Model> update_model_cache(solver_result& res, CexCacheKey& conds) {
+    if (res == solver_result::sat) {
+      auto m = self()->get_model_internal(conds);
+      if (use_cexcache) mcex_cache.set(conds, m);
+      return m;
     }
-    return m;
+    return nullptr;
   }
 
   inline void gen_default_format(PC& pc, std::shared_ptr<Model> model, unsigned int test_id) {
@@ -209,13 +200,36 @@ public:
     delete[] b.objects;
   }
 
-  std::shared_ptr<Model> update_model_cache(BrCacheKey& conds) {
-    auto m = self()->get_model_internal(conds);
-    mcex_cache.set(conds, m);
-    return m;
+public:
+  void clear_cache() {
+    obj_cache.clear();
+    br_cache = BrCache();
+    mcex_cache = MCexCache();
   }
 
-  // interfaces
+  std::shared_ptr<Model> query_model(CexCacheKey& conds) {
+    std::shared_ptr<Model> m;
+    if (use_cexcache) {
+      auto it = mcex_cache.find(conds);
+      if (it != nullptr) {
+        cached_query_num += 1;
+        m = *it;
+      } else {
+        push();
+        for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+        auto result = check_model(conds);
+        m = update_model_cache(result, conds);
+        pop();
+      }
+    } else {
+      push();
+      for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+      auto result = check_model(conds);
+      if (result == sat) m = self()->get_model_internal(conds);
+      pop();
+    }
+    return m;
+  }
 
   virtual solver_result check_cond(PC& pc) override {
     if (!use_solver) return sat;
@@ -228,14 +242,13 @@ public:
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
 
-    auto hit = br_cache.find(indep_pc);
+    auto hit = query_sat_cache(indep_pc);
     if (hit) return *hit;
 
     push();
-    for (auto& v: indep_pc) self()->add_constraint_internal(construct_expr(v));
-    auto res = check_model();
-    br_cache.set(indep_pc, res);
-    if (res == sat) update_model_cache(indep_pc);
+    for (auto& v: indep_pc) self()->add_constraint_internal(to_expr(v));
+    auto res = check_model(indep_pc);
+    update_model_cache(res, indep_pc);
     pop();
     
     return res;
@@ -260,85 +273,80 @@ public:
 
     BrResult result;
     common.insert(cond);
-    auto then_hit = br_cache.find(common);
+    auto then_hit = query_sat_cache(common);
     if (!pc.contains(cond)) common.erase(cond);
     common.insert(neg_cond);
-    auto else_hit = br_cache.find(common);
+    auto else_hit = query_sat_cache(common);
     if (!pc.contains(neg_cond)) common.erase(neg_cond);
 
     if (then_hit != nullptr && else_hit != nullptr) {
-      // both hit
+      // both hit cache
       cached_query_num += 2;
-      result.first = *then_hit; //->second;
-      result.second = *else_hit; //->second;
+      result.first = *then_hit;
+      result.second = *else_hit;
     } else if (then_hit != nullptr) {
-      // only "then" branch hits
+      // only "then" branch hits cache
       cached_query_num += 1;
-      result.first = *then_hit; //->second;
+      result.first = *then_hit;
       common.insert(neg_cond);
       if (result.first == solver_result::unsat) {
         result.second = solver_result::sat;
-        br_cache.set(common, result.second);
+        update_sat_cache(result.second, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
-        result.second = check_model();
-        br_cache.set(common, result.second);
-        if (result.second == sat) update_model_cache(common);
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        result.second = check_model(common);
+        update_model_cache(result.second, common);
         pop();
       }
-      auto then_time1 = steady_clock::now();
-      then_br_time1 += duration_cast<microseconds>(then_time1 - end).count();
+      auto else_query_time = steady_clock::now();
+      else_miss_time += duration_cast<microseconds>(else_query_time - end).count();
     } else if (else_hit != nullptr) {
-      // only "else" branch hits
+      // only "else" branch hits cache
       cached_query_num += 1;
-      result.second = *else_hit; //->second;
+      result.second = *else_hit;
       common.insert(cond);
       if (result.second == solver_result::unsat) {
         result.first = solver_result::sat;
-        br_cache.set(common, result.first);
+        update_sat_cache(result.first, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
-        result.first = check_model();
-        br_cache.set(common, result.first);
-        if (result.first == sat) update_model_cache(common);
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        result.first = check_model(common);
+        update_model_cache(result.first, common);
         pop();
       }
-      auto then_time2 = steady_clock::now();
-      then_br_time2 += duration_cast<microseconds>(then_time2 - end).count();
+      auto then_query_time = steady_clock::now();
+      then_miss_time += duration_cast<microseconds>(then_query_time - end).count();
     } else {
-      // neither hit
+      // neither hits cache
       push();
-      for (auto& v: common) self()->add_constraint_internal(construct_expr(v));
+      for (auto& v: common) self()->add_constraint_internal(to_expr(v));
 
       push();
-      self()->add_constraint_internal(construct_expr(cond));
-      result.first = check_model();
+      self()->add_constraint_internal(to_expr(cond));
       common.insert(cond);
-      br_cache.set(common, result.first);
-      if (result.first == sat) update_model_cache(common);
+      result.first = check_model(common);
+      update_model_cache(result.first, common);
       pop();
 
       if (!pc.contains(cond)) common.erase(cond);
       common.insert(neg_cond);
       if (result.first == solver_result::unsat) {
         result.second = solver_result::sat;
-        br_cache.set(common, result.second);
-        pop();
+        update_sat_cache(result.second, common);
       } else {
-        self()->add_constraint_internal(construct_expr(neg_cond));
-        result.second = check_model();
-        br_cache.set(common, result.second);
-        if (result.second == sat) update_model_cache(common);
-        pop();
+        self()->add_constraint_internal(to_expr(neg_cond));
+        result.second = check_model(common);
+        update_model_cache(result.second, common);
       }
+      pop();
 
-      auto then_time3 = steady_clock::now();
-      then_br_time3 += duration_cast<microseconds>(then_time3 - end).count();
+      auto query_both_time = steady_clock::now();
+      both_miss_time += duration_cast<microseconds>(query_both_time - end).count();
     }
     end = steady_clock::now();
-    mono_solver_time += duration_cast<microseconds>(end - start).count();
+    br_solver_time += duration_cast<microseconds>(end - start).count();
     return result;
   }
 
@@ -445,7 +453,6 @@ inline BrResult check_branch(PC pc, PtrVal cond) {
   return result;
 }
 
-// FIXME: switch/external.hpp still uses check_pc
 inline bool check_pc(PC pc) {
   auto result = checker_manager.get_checker().check_cond(pc);
   return result == solver_result::sat;
