@@ -24,7 +24,7 @@ public:
   virtual void generate_test(SS state) = 0;
 };
 
-template <typename Self, typename Expr, typename M>
+template <typename Self, typename Expr, typename Model>
 class CachedChecker : public Checker {
   Self* self() {
     return static_cast<Self*>(this);
@@ -74,6 +74,9 @@ public:
   using BrCacheKey = std::set<PtrVal>;
   using CexCacheKey = std::set<PtrVal>;
 
+  // TODO: recover use_cexcache
+  // TODO: use_brcache
+
   struct hash_BrCacheKey {
     // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
     size_t operator()(BrCacheKey const& k) const noexcept {
@@ -85,7 +88,7 @@ public:
 
   // TODO: BrCache and MCexCache can be shared among threads
   using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
-  using MCexCache = immer::map_transient<CexCacheKey, M, hash_BrCacheKey>;
+  using MCexCache = immer::map_transient<CexCacheKey, Model, hash_BrCacheKey>;
   BrCache br_cache;
   MCexCache mcex_cache;
 
@@ -96,11 +99,15 @@ public:
   }
 
   // Construct the solver expression with object cache for a Value
-  inline const Expr& construct_expr(PtrVal e) {
-    auto fd = objcache.find(e);
-    if (fd != objcache.end()) return fd->second;
-    auto [it, ins] = objcache.emplace(e, self()->construct_expr_internal(e));
-    return it->second;
+  inline const Expr construct_expr(PtrVal e) {
+    if (use_objcache) {
+      auto fd = objcache.find(e);
+      if (fd != objcache.end()) return fd->second;
+      auto [it, ins] = objcache.emplace(e, self()->construct_expr_internal(e));
+      return it->second;
+    } else {
+      return self()->construct_expr_internal(e);
+    }
   }
 
   inline void resolve_indep_uf(UnionFind& uf, PtrVal root, BrCacheKey& result, bool add_root = true) {
@@ -113,27 +120,35 @@ public:
     }
   }
 
-  M* query_model(CexCacheKey& conds) {
-    auto it = mcex_cache.find(conds);
-    M* m = nullptr;
-    if (it != nullptr) {
-      cached_query_num += 1;
-      m = (M*) it;
+  Model* query_model(CexCacheKey& conds) {
+    Model* m = nullptr;
+    if (use_cexcache) {
+      auto it = mcex_cache.find(conds);
+      if (it != nullptr) {
+        cached_query_num += 1;
+        m = (Model*) it;
+      } else {
+        push();
+        for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
+        auto result = check_model();
+        br_cache.set(conds, result);
+        if (result == sat) {
+          update_model_cache(conds);
+          m = (Model*) mcex_cache.find(conds);
+        }
+        pop();
+      }
     } else {
       push();
       for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
       auto result = check_model();
-      br_cache.set(conds, result);
-      if (result == sat) {
-        update_model_cache(conds);
-        m = (M*) mcex_cache.find(conds);
-      }
+      // FIXME: set up return a model
       pop();
     }
     return m;
   }
 
-  inline void gen_default_format(PC& pc, M* model, unsigned int test_id) {
+  inline void gen_default_format(PC& pc, Model* model, unsigned int test_id) {
     std::stringstream output;
     output << "Query number: " << (test_id+1) << std::endl;
     output << "Query is sat." << std::endl;
@@ -151,7 +166,7 @@ public:
     close(out_fd);
   }
 
-  inline void gen_ktest_format(PC& pc, M* model, unsigned int test_id, List<SymObj> sym_objs) {
+  inline void gen_ktest_format(PC& pc, Model* model, unsigned int test_id, List<SymObj> sym_objs) {
     KTest b;
     b.numArgs = g_conc_argc;
     b.args = g_conc_argv;
@@ -209,7 +224,8 @@ public:
 
     auto start = steady_clock::now();
     BrCacheKey indep_pc;
-    resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
+    if (use_cons_indep) resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
+    else indep_pc.insert(pc.conds.begin(), pc.conds.end());
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
 
@@ -232,10 +248,14 @@ public:
 
     auto start = steady_clock::now();
     auto neg_cond = SymV::neg(cond);
-    UnionFind uf(pc.uf);
-    for (auto& v : cond->to_SymV()->vars) uf.join(v, cond);
     BrCacheKey common;
-    resolve_indep_uf(uf, cond, common, pc.contains(cond));
+    if (use_cons_indep) {
+      UnionFind uf(pc.uf);
+      for (auto& v : cond->to_SymV()->vars) uf.join(v, cond);
+      resolve_indep_uf(uf, cond, common, pc.contains(cond));
+    } else {
+      common.insert(pc.conds.begin(), pc.conds.end());
+    }
     auto end = steady_clock::now();
     cons_indep_time += duration_cast<microseconds>(end - start).count();
 
@@ -330,7 +350,8 @@ public:
     for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
 
     CexCacheKey conds;
-    resolve_indep_uf(pc.uf, e, conds, false);
+    if (use_cons_indep) resolve_indep_uf(pc.uf, e, conds, false);
+    else conds.insert(pc.conds.begin(), pc.conds.end());
     UIntData data = 0;
     solver_result result;
     auto m = query_model(conds);
@@ -348,7 +369,7 @@ public:
       else ABORT("Cannot create the folder tests, abort.\n");
     }
 
-    M* m = nullptr;
+    Model* m = nullptr;
     CexCacheKey conds(state.get_PC().conds.begin(), state.get_PC().conds.end());
     if (state.get_preferred_cex().size() > 0) {
       // Note(GW): the algorithm resolves preferred cex depending
@@ -368,7 +389,8 @@ public:
         for (auto& t : established) pc.add(t);
         pc.add(c);
         CexCacheKey pc_pcex;
-        resolve_indep_uf(pc.uf, c, pc_pcex);
+        if (use_cons_indep) resolve_indep_uf(pc.uf, c, pc_pcex);
+        else pc_pcex.insert(pc.conds.begin(), pc.conds.end());
         m = query_model(pc_pcex);
         if (m != nullptr) established.insert(c);
       }
