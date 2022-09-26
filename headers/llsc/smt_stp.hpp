@@ -193,11 +193,11 @@ public:
     ASSERT(sym_val, "Evaluating a non-symbolic term");
     if (sym_val->is_var()) {
       auto it = (*m)->find(sym_val);
-      if (it != (*m)->end()) return make_IntV(it->second, 64);
-      return make_IntV(0, 64); // an independent value
+      if (it != (*m)->end()) return make_IntV(it->second, val->get_bw());
+      return make_IntV(0, val->get_bw()); // an independent value
     }
     if (sym_val->rands.size() == 1) {
-      return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]));
+      return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]), { sym_val->get_bw() });
     }
     if (sym_val->rands.size() == 2) {
       return int_op_2(sym_val->rator, __eval_model(m, (*sym_val)[0]), __eval_model(m, (*sym_val)[1]));

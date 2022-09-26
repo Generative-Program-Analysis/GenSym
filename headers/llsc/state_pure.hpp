@@ -170,7 +170,7 @@ class MemShadow: public PreMem<PtrVal, MemShadow> {
   }
 
   static PtrVal q_concat(PtrVal v1, PtrVal v2) {
-    return bv_concat(v2, v1);
+    return int_op_2(iOP::op_concat, v2, v1);
   }
 
   struct Segment {

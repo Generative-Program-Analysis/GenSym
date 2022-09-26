@@ -247,13 +247,11 @@ public:
     auto else_hit = br_cache.find(common);
     if (!pc.contains(neg_cond)) common.erase(neg_cond);
 
-    //if (then_hit != br_cache.end() && else_hit != br_cache.end()) {
     if (then_hit != nullptr && else_hit != nullptr) {
       // both hit
       cached_query_num += 2;
       result.first = *then_hit; //->second;
       result.second = *else_hit; //->second;
-    //} else if (then_hit != br_cache.end()) {
     } else if (then_hit != nullptr) {
       // only "then" branch hits
       cached_query_num += 1;
@@ -272,7 +270,6 @@ public:
       }
       auto then_time1 = steady_clock::now();
       then_br_time1 += duration_cast<microseconds>(then_time1 - end).count();
-    //} else if (else_hit != br_cache.end()) {
     } else if (else_hit != nullptr) {
       // only "else" branch hits
       cached_query_num += 1;

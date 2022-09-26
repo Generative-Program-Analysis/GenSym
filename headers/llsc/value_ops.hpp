@@ -112,7 +112,7 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   static PtrVal from_bytes(const List<PtrVal>& xs) {
     // Note: it should work with a List of SymV/IntV, containing _no_ ShadowV/LocV/FunV
     // XXX what if v is nullptr/padding
-    return Vec::foldRight(xs.take(xs.size()-1), xs.back(), [](auto&& x, auto&& acc) { return bv_concat(acc, x); });
+    return Vec::foldRight(xs.take(xs.size()-1), xs.back(), [](auto&& x, auto&& acc) { return int_op_2(iOP::op_concat, acc, x); });
   }
   static PtrVal from_bytes_shadow(const List<PtrVal>& xs) {
     // Note: it should work with a List of SymV/IntV/ShadowV, containing _no_ LocV/FunV.
@@ -264,6 +264,7 @@ struct IntV : Value {
 };
 
 inline PtrVal make_IntV(IntData i, size_t bw, bool toMSB) {
+  ASSERT(bw > 0, "Making an integer of size 0");
   auto ret = make_simple<IntV>(toMSB ? (i << (addr_bw - bw)) : i, bw);
   return hashconsing(ret);
 }
@@ -678,31 +679,72 @@ inline PtrVal sym_bool_const(bool b) {
   else return make_SymV(iOP::const_false, {}, 1);
 }
 
-inline PtrVal int_op_1(iOP op, const PtrVal& v) {
+inline PtrVal int_op_1(iOP op, const PtrVal& v, immer::array<size_t> params = {}) {
   auto i = v->to_IntV();
   auto bw = v->get_bw();
   if (i) {
     switch (op) {
       case iOP::op_neg: return make_IntV(!i->i, bw);
       case iOP::op_bvnot: return make_IntV(~i->i, bw);
+      case iOP::op_sext: {
+        auto to_bw = params[0];
+        return make_IntV(int64_t(i->i) >> (to_bw - i->bw), to_bw, false);
+      }
+      case iOP::op_zext: {
+        auto to_bw = params[0];
+        return make_IntV(uint64_t(i->i) >> (to_bw - i->bw), to_bw, false);
+      }
       default:
         std::cout << int_op_string(op) << std::endl;
         ABORT("invalid operator");
     }
   }
-  ASSERT(op != iOP::op_neg || bw == 1, "bw must be 1 for op_neg");
+  switch (op) {
+    case iOP::op_neg: ASSERT(bw == 1, "bw must be 1 for op_neg"); break;
+    case iOP::op_bvnot: break;
+    case iOP::op_sext: bw = params[0];
+    default: break;
+  }
   return make_SymV(op, { v }, bw);
+}
+
+inline PtrVal bv_sext(const PtrVal& v, size_t bw) {
+  ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
+  if (v->get_bw() == bw) return v;
+  return int_op_1(iOP::op_sext, v, { bw });
+}
+
+inline PtrVal bv_zext(const PtrVal& v, size_t bw) {
+  ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
+  if (v->get_bw() == bw) return v;
+  return int_op_1(iOP::op_zext, v, { bw });
+}
+
+// TODO: trunc and extract should be handled by int_op_1 as well.
+inline PtrVal trunc(const PtrVal& v1, int from, int to) {
+  if (auto i1 = v1->to_IntV())
+    return make_IntV(i1->i << (from - to), to, false);
+  if (auto s1 = v1->to_SymV())
+    return make_SymV(iOP::op_trunc, { v1 }, to);
+  ABORT("Truncate an invalid value, exit");
+}
+
+inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
+  if (auto i1 = v1->to_IntV())
+    return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
+  if (auto s1 = v1->to_SymV())
+    return make_SymV(iOP::op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
+  ABORT("Extract an invalid value, exit");
 }
 
 // assume all values are signed, convert to unsigned if necessary
 // require return value to be signed or non-negative
 inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
   auto i1 = v1->to_IntV();
-  assert(v2);
   auto i2 = v2->to_IntV();
   auto bw1 = v1->get_bw();
   auto bw2 = v2->get_bw();
-  if (bw1 != bw2) {
+  if (op != iOP::op_concat && bw1 != bw2) {
     std::cout << *v1 << " " << int_op_string(op) << " " << *v2 << "\n";
     ABORT("int_op_2: bitwidth of operands mismatch");
   }
@@ -754,6 +796,9 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
         return make_IntV(int64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
       case iOP::op_lshr:
         return make_IntV(uint64_t(i1->i) >> (i2->as_signed() + addr_bw - bw1), bw1);
+      case iOP::op_concat:
+        ASSERT(bw1 + bw2 <= addr_bw, "concat result's bw is too large");
+        return make_IntV(i1->i | (uint64_t(i2->i) >> bw1), bw1 + bw2, false);
       default:
         std::cout << int_op_string(op) << std::endl;
         ABORT("invalid operator");
@@ -782,8 +827,11 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
       case iOP::op_ult:
       case iOP::op_slt:
         bw = 1;
-      default:
         break;
+      case iOP::op_concat:
+        bw = bw1 + bw2;
+        break;
+      default: break;
     }
     return make_SymV(op, { v1, v2 }, bw);
   }
@@ -792,19 +840,23 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
 inline PtrVal int_op_3(iOP op, const PtrVal& v1, const PtrVal& v2, const PtrVal& v3) {
   switch (op) {
     case iOP::op_ite: {
-      auto i = v1->to_IntV();
+      ASSERT(1 == v1->get_bw(), "Non-boolean condition");
+      auto cond = v1->to_IntV();
       auto bw2 = v2->get_bw();
       auto bw3 = v3->get_bw();
-      if (i) {
-        if (i->i) return v2;
-        else return v3;
-      }
+      ASSERT(bw2 == bw3, "Inconsistent operand widths");
+      if (cond) return cond->i ? v2 : v3;
+      ASSERT(v1->to_SymV(), "Non-symbolic condition");
       return make_SymV(op, { v1, v2, v3 }, bw2);
     }
     default:
       std::cout << int_op_string(op) << std::endl;
       ABORT("invalid operator");
   }
+}
+
+inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e) {
+  return int_op_3(iOP::op_ite, cond, v_t, v_e);
 }
 
 inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
@@ -864,67 +916,6 @@ inline PtrVal fp_trunc(const PtrVal& v1, int from, int to) {
     case 64: return make_FloatV(double(f1->f), to);
     default: return make_FloatV(f1->f, to);
   }
-}
-
-inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e) {
-  ASSERT(1 == cond->get_bw(), "Non-boolean condition");
-  ASSERT(v_t->get_bw() == v_e->get_bw(), "Inconsistent operand widths");
-  if (auto cond_i = cond->to_IntV()) return cond_i->i ? v_t : v_e;
-  ASSERT(cond->to_SymV(), "Non-symbolic condition");
-  return make_SymV(iOP::op_ite, { cond, v_t, v_e }, v_t->get_bw());
-}
-
-inline PtrVal bv_sext(const PtrVal& v, size_t bw) {
-  ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
-  if (v->get_bw() == bw) return v;
-  if (auto i1 = v->to_IntV())
-    return make_IntV(int64_t(i1->i) >> (bw - i1->bw), bw, false);
-  if (auto s1 = v->to_SymV())
-    // Note: instead of passing new bw as an operand
-    // we override the original bw here
-    return make_SymV(iOP::op_sext, { s1 }, bw);
-  ABORT("Sext an invalid value, exit");
-}
-
-inline PtrVal bv_zext(const PtrVal& v, size_t bw) {
-  ASSERT(v->get_bw() <= bw, "Extended to smaller bw");
-  if (v->get_bw() == bw) return v;
-  if (auto i1 = v->to_IntV())
-    return make_IntV(uint64_t(i1->i) >> (bw - i1->bw), bw, false);
-  if (auto s1 = v->to_SymV())
-    // Note: instead of passing new bw as an operand
-    // we override the original bw here
-    return make_SymV(iOP::op_zext, { s1 }, bw);
-  ABORT("Zext an invalid value, exit");
-}
-
-inline PtrVal trunc(const PtrVal& v1, int from, int to) {
-  if (auto i1 = v1->to_IntV())
-    return make_IntV(i1->i << (from - to), to, false);
-  if (auto s1 = v1->to_SymV())
-    return make_SymV(iOP::op_trunc, { v1 }, to);
-  ABORT("Truncate an invalid value, exit");
-}
-
-inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
-  if (auto i1 = v1->to_IntV())
-    return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
-  if (auto s1 = v1->to_SymV())
-    return make_SymV(iOP::op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
-  ABORT("Extract an invalid value, exit");
-}
-
-inline PtrVal bv_concat(const PtrVal& v1, const PtrVal& v2) {
-  auto i1 = v1->to_IntV();
-  auto i2 = v2->to_IntV();
-  auto bw1 = v1->get_bw();
-  auto bw2 = v2->get_bw();
-  assert(bw1 + bw2 <= addr_bw);
-  if (i1 && i2) return make_IntV(i1->i | (uint64_t(i2->i) >> bw1), bw1 + bw2, false);
-  ASSERT(!std::dynamic_pointer_cast<ShadowV>(v1) && !std::dynamic_pointer_cast<ShadowV>(v2),
-         "Cannot concat ShadowV values");
-  // XXX: also check LocV and FunV?
-  return make_SymV(iOP::op_concat, { v1, v2 }, bw1 + bw2);
 }
 
 inline std::string ptrval_to_string(const PtrVal& ptr) {
