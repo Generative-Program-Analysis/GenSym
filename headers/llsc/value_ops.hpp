@@ -694,6 +694,11 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v, immer::array<size_t> params = {}
         auto to_bw = params[0];
         return make_IntV(uint64_t(i->i) >> (to_bw - i->bw), to_bw, false);
       }
+      case iOP::op_trunc: {
+        auto from = params[0];
+        auto to = params[1];
+        return make_IntV(i->i << (from - to), to, false);
+      }
       default:
         std::cout << int_op_string(op) << std::endl;
         ABORT("invalid operator");
@@ -705,6 +710,9 @@ inline PtrVal int_op_1(iOP op, const PtrVal& v, immer::array<size_t> params = {}
     case iOP::op_sext:
     case iOP::op_zext:
       bw = params[0];
+      break;
+    case iOP::op_trunc:
+      bw = params[1];
     default: break;
   }
   ASSERT(v->to_SymV(), "not a symbolic value");
@@ -723,21 +731,8 @@ inline PtrVal bv_zext(const PtrVal& v, size_t bw) {
   return int_op_1(iOP::op_zext, v, { bw });
 }
 
-// TODO: trunc and extract should be handled by int_op_1 as well.
 inline PtrVal trunc(const PtrVal& v1, int from, int to) {
-  if (auto i1 = v1->to_IntV())
-    return make_IntV(i1->i << (from - to), to, false);
-  if (auto s1 = v1->to_SymV())
-    return make_SymV(iOP::op_trunc, { v1 }, to);
-  ABORT("Truncate an invalid value, exit");
-}
-
-inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
-  if (auto i1 = v1->to_IntV())
-    return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
-  if (auto s1 = v1->to_SymV())
-    return make_SymV(iOP::op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
-  ABORT("Extract an invalid value, exit");
+  return int_op_1(iOP::op_trunc, v1, { from, to });
 }
 
 // assume all values are signed, convert to unsigned if necessary
@@ -860,6 +855,14 @@ inline PtrVal int_op_3(iOP op, const PtrVal& v1, const PtrVal& v2, const PtrVal&
 
 inline PtrVal ite(const PtrVal& cond, const PtrVal& v_t, const PtrVal& v_e) {
   return int_op_3(iOP::op_ite, cond, v_t, v_e);
+}
+
+inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
+  if (auto i1 = v1->to_IntV())
+    return make_IntV(i1->i >> (lo + addr_bw - i1->bw), hi - lo + 1);
+  if (auto s1 = v1->to_SymV())
+    return make_SymV(iOP::op_extract, { s1, make_IntV(hi), make_IntV(lo) }, hi - lo + 1);
+  ABORT("Extract an invalid value, exit");
 }
 
 inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {

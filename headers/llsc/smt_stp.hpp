@@ -196,7 +196,17 @@ public:
       if (it != (*m)->end()) return make_IntV(it->second, val->get_bw());
       return make_IntV(0, val->get_bw()); // an independent value
     }
+    if (sym_val->rator == iOP::op_extract) {
+      auto hi = (*sym_val)[1]->to_IntV()->as_signed();
+      auto lo = (*sym_val)[2]->to_IntV()->as_signed();
+      return bv_extract(__eval_model(m, (*sym_val)[0]), hi, lo);
+    }
     if (sym_val->rands.size() == 1) {
+      if (sym_val->rator == iOP::op_trunc) {
+        auto from = (*sym_val)[0]->get_bw();
+        auto to = sym_val->get_bw();
+        return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]), { from, to });
+      }
       return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]), { sym_val->get_bw() });
     }
     if (sym_val->rands.size() == 2) {
