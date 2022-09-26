@@ -5,7 +5,7 @@
 
 using namespace z3;
 
-class CheckerZ3 : public CachedChecker<CheckerZ3, expr, std::shared_ptr<model>> {
+class CheckerZ3 : public CachedChecker<CheckerZ3, expr, model> {
 private:
   context* ctx;
   solver* g_solver;
@@ -36,8 +36,8 @@ public:
     return const_val.get_numeral_uint64();
   }
 
-  inline IntData eval_model(std::shared_ptr<model>* m, PtrVal val) {
-    return (*m)->eval(construct_expr(val), true).get_numeral_uint64();
+  inline IntData eval_model(std::shared_ptr<model> m, PtrVal val) {
+    return m->eval(construct_expr(val), true).get_numeral_uint64();
   }
 
   expr construct_expr_internal(PtrVal e) {

@@ -35,6 +35,7 @@
 #include <immer/map_transient.hpp>
 #include <immer/set_transient.hpp>
 #include <immer/array.hpp>
+#include <immer/box.hpp>
 #include <parallel_hashmap/phmap.h>
 
 using namespace std::chrono;

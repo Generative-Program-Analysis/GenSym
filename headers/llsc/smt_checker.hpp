@@ -74,7 +74,6 @@ public:
   using BrCacheKey = std::set<PtrVal>;
   using CexCacheKey = std::set<PtrVal>;
 
-  // TODO: recover use_cexcache
   // TODO: use_brcache
 
   struct hash_BrCacheKey {
@@ -88,7 +87,7 @@ public:
 
   // TODO: BrCache and MCexCache can be shared among threads
   using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
-  using MCexCache = immer::map_transient<CexCacheKey, Model, hash_BrCacheKey>;
+  using MCexCache = immer::map_transient<CexCacheKey, std::shared_ptr<Model>, hash_BrCacheKey>;
   BrCache br_cache;
   MCexCache mcex_cache;
 
@@ -120,35 +119,33 @@ public:
     }
   }
 
-  Model* query_model(CexCacheKey& conds) {
-    Model* m = nullptr;
+  std::shared_ptr<Model> query_model(CexCacheKey& conds) {
+    std::shared_ptr<Model> m;
     if (use_cexcache) {
       auto it = mcex_cache.find(conds);
       if (it != nullptr) {
         cached_query_num += 1;
-        m = (Model*) it;
+        m = *it;
       } else {
         push();
         for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
         auto result = check_model();
         br_cache.set(conds, result);
-        if (result == sat) {
-          update_model_cache(conds);
-          m = (Model*) mcex_cache.find(conds);
-        }
+        if (result == sat) m = update_model_cache(conds);
         pop();
       }
     } else {
       push();
       for (auto& v: conds) self()->add_constraint_internal(construct_expr(v));
       auto result = check_model();
-      // FIXME: set up return a model
+      br_cache.set(conds, result);
+      m = self()->get_model_internal(conds);
       pop();
     }
     return m;
   }
 
-  inline void gen_default_format(PC& pc, Model* model, unsigned int test_id) {
+  inline void gen_default_format(PC& pc, std::shared_ptr<Model> model, unsigned int test_id) {
     std::stringstream output;
     output << "Query number: " << (test_id+1) << std::endl;
     output << "Query is sat." << std::endl;
@@ -166,7 +163,7 @@ public:
     close(out_fd);
   }
 
-  inline void gen_ktest_format(PC& pc, Model* model, unsigned int test_id, List<SymObj> sym_objs) {
+  inline void gen_ktest_format(PC& pc, std::shared_ptr<Model> model, unsigned int test_id, List<SymObj> sym_objs) {
     KTest b;
     b.numArgs = g_conc_argc;
     b.args = g_conc_argv;
@@ -212,8 +209,10 @@ public:
     delete[] b.objects;
   }
 
-  void update_model_cache(BrCacheKey& conds) {
-    mcex_cache.set(conds, self()->get_model_internal(conds));
+  std::shared_ptr<Model> update_model_cache(BrCacheKey& conds) {
+    auto m = self()->get_model_internal(conds);
+    mcex_cache.set(conds, m);
+    return m;
   }
 
   // interfaces
@@ -369,7 +368,7 @@ public:
       else ABORT("Cannot create the folder tests, abort.\n");
     }
 
-    Model* m = nullptr;
+    std::shared_ptr<Model> m;
     CexCacheKey conds(state.get_PC().conds.begin(), state.get_PC().conds.end());
     if (state.get_preferred_cex().size() > 0) {
       // Note(GW): the algorithm resolves preferred cex depending

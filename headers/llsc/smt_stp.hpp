@@ -14,7 +14,7 @@ struct ExprHandle: public std::shared_ptr<void> {
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-using STPModel = std::shared_ptr<std::unordered_map<PtrVal, IntData>>;
+using STPModel = std::unordered_map<PtrVal, IntData>;
 
 class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle, STPModel> {
 public:
@@ -172,7 +172,7 @@ public:
     return getBVUnsignedLongLong(const_val.get());
   }
 
-  inline STPModel get_model_internal(BrCacheKey& conds) {
+  inline std::shared_ptr<STPModel> get_model_internal(BrCacheKey& conds) {
     // Note: STP's WholeCounterExample is pretty useless, so it seems that 
     // we have to eagerly materialize the model to our own data structure.
     auto model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
@@ -183,7 +183,7 @@ public:
     return model;
   }
 
-  PtrVal __eval_model(STPModel* m, PtrVal val) {
+  PtrVal __eval_model(std::shared_ptr<STPModel> m, PtrVal val) {
     // Note: when concretizing a complex expression, we need to "interpret"
     // over the symbolic expression since the model only contains values
     // of atomic variables. Here we reuse the `int_op_n` mechanism (thus 
@@ -192,8 +192,8 @@ public:
     auto sym_val = val->to_SymV();
     ASSERT(sym_val, "Evaluating a non-symbolic term");
     if (sym_val->is_var()) {
-      auto it = (*m)->find(sym_val);
-      if (it != (*m)->end()) return make_IntV(it->second, val->get_bw());
+      auto it = m->find(sym_val);
+      if (it != m->end()) return make_IntV(it->second, val->get_bw());
       return make_IntV(0, val->get_bw()); // an independent value
     }
     if (sym_val->rator == iOP::op_extract) {
@@ -218,7 +218,7 @@ public:
     ABORT("Unknown operation");
   }
 
-  inline IntData eval_model(STPModel* m, PtrVal val) {
+  inline IntData eval_model(std::shared_ptr<STPModel> m, PtrVal val) {
     return __eval_model(m, val)->to_IntV()->as_signed();
   }
 
