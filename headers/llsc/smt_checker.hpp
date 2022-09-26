@@ -118,6 +118,7 @@ private:
   }
 
   inline void resolve_indep_uf(UnionFind& uf, PtrVal root, BrCacheKey& result, bool add_root = true) {
+    auto start = steady_clock::now();
     if (add_root) result.insert(root);
     auto last_expr = root;
     while (root != uf.next[last_expr]) {
@@ -125,6 +126,8 @@ private:
       if (!last_expr) break;
       if (!last_expr->to_SymV()->is_var()) result.insert(last_expr);
     }
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
   }
 
   inline std::shared_ptr<Model> update_model_cache(solver_result& res, CexCacheKey& conds) {
@@ -235,12 +238,9 @@ public:
     if (!use_solver) return sat;
     br_query_num++;
 
-    auto start = steady_clock::now();
     BrCacheKey indep_pc;
     if (use_cons_indep) resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
     else indep_pc.insert(pc.conds.begin(), pc.conds.end());
-    auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
 
     auto hit = query_sat_cache(indep_pc);
     if (hit) return *hit;
@@ -269,7 +269,6 @@ public:
       common.insert(pc.conds.begin(), pc.conds.end());
     }
     auto end = steady_clock::now();
-    cons_indep_time += duration_cast<microseconds>(end - start).count();
 
     BrResult result;
     common.insert(cond);
