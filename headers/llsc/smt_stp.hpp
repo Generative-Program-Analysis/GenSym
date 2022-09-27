@@ -14,11 +14,13 @@ struct ExprHandle: public std::shared_ptr<void> {
   ExprHandle(Expr e): Base(e, freeExpr) {}
 };
 
-class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle> {
+using STPModel = std::unordered_map<PtrVal, IntData>;
+
+class CheckerSTP : public CachedChecker<CheckerSTP, ExprHandle, STPModel> {
 public:
   VC vc;
 
-  ExprHandle construct_expr_internal(PtrVal e, VarMap &vars) {
+  ExprHandle construct_expr_internal(PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
       // XXX(GW): using this vs sym_bool_const?
@@ -32,17 +34,14 @@ public:
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
       auto name = sym_e->name;
       ExprHandle stp_expr = vc_varExpr(vc, name.c_str(), vc_bvType(vc, sym_e->bw));
-      vars.emplace(sym_e, stp_expr);
       return stp_expr;
     }
 
     std::vector<ExprHandle> expr_rands;
-    int bw = sym_e->bw;
-    for (auto e : sym_e->rands) {
-      auto& [e2, vm] = construct_expr(e);
-      expr_rands.push_back(e2);
-      vars.insert(vm.begin(), vm.end());
+    for (auto& rand : sym_e->rands) {
+      expr_rands.push_back(construct_expr(rand));
     }
+    int bw = sym_e->bw;
     switch (sym_e->rator) {
     case iOP::op_add:
       return vc_bvPlusExpr(vc, bw, expr_rands[0].get(), expr_rands[1].get());
@@ -168,10 +167,59 @@ public:
     return mapping[retcode];
   }
 
-  IntData get_value_internal(ExprHandle val) {
+  inline IntData eval(ExprHandle val) {
     ExprHandle const_val = vc_getCounterExample(vc, val.get());
-    auto ret = getBVUnsignedLongLong(const_val.get());
-    return ret;
+    return getBVUnsignedLongLong(const_val.get());
+  }
+
+  inline std::shared_ptr<STPModel> get_model_internal(BrCacheKey& conds) {
+    // Note: STP's WholeCounterExample is pretty useless, so it seems that 
+    // we have to eagerly materialize the model to our own data structure.
+    auto model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
+    for (auto& e: conds) {
+      for (auto& v: e->to_SymV()->vars)
+        model->emplace(v, eval(construct_expr(v)));
+    }
+    return model;
+  }
+
+  PtrVal __eval_model(std::shared_ptr<STPModel> m, PtrVal val) {
+    // Note: when concretizing a complex expression, we need to "interpret"
+    // over the symbolic expression since the model only contains values
+    // of atomic variables. Here we reuse the `int_op_n` mechanism (thus 
+    // have the IntV indirection) but nevertheless can use a more dedicated "interpreter".
+    if (val->to_IntV()) return val;
+    auto sym_val = val->to_SymV();
+    ASSERT(sym_val, "Evaluating a non-symbolic term");
+    if (sym_val->is_var()) {
+      auto it = m->find(sym_val);
+      if (it != m->end()) return make_IntV(it->second, val->get_bw());
+      return make_IntV(0, val->get_bw()); // an independent value
+    }
+    if (sym_val->rator == iOP::op_extract) {
+      auto hi = (*sym_val)[1]->to_IntV()->as_signed();
+      auto lo = (*sym_val)[2]->to_IntV()->as_signed();
+      return bv_extract(__eval_model(m, (*sym_val)[0]), hi, lo);
+    }
+    if (sym_val->rands.size() == 1) {
+      if (sym_val->rator == iOP::op_trunc) {
+        auto from = (*sym_val)[0]->get_bw();
+        auto to = sym_val->get_bw();
+        return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]), { from, to });
+      }
+      return int_op_1(sym_val->rator, __eval_model(m, (*sym_val)[0]), { sym_val->get_bw() });
+    }
+    if (sym_val->rands.size() == 2) {
+      return int_op_2(sym_val->rator, __eval_model(m, (*sym_val)[0]), __eval_model(m, (*sym_val)[1]));
+    }
+    if (sym_val->rands.size() == 3) {
+      return int_op_3(sym_val->rator, __eval_model(m, (*sym_val)[0]), __eval_model(m, (*sym_val)[1]), __eval_model(m, (*sym_val)[2]));
+    }
+    ABORT("Unknown operation");
+  }
+
+  inline IntData eval_model(std::shared_ptr<STPModel> m, PtrVal val) {
+    return __eval_model(m, val)->to_IntV()->as_signed();
   }
 
   CheckerSTP() {
@@ -190,6 +238,11 @@ public:
 
   void pop_internal() {
     vc_pop(vc);
+  }
+
+  void reset_internal() {
+    vc_Destroy(vc);
+    vc = vc_createValidityChecker();
   }
 };
 

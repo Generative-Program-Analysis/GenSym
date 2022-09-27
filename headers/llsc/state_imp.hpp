@@ -1,6 +1,8 @@
 #ifndef LLSC_STATE_IMP_HEADER
 #define LLSC_STATE_IMP_HEADER
 
+/* Note: This file has been deprecated! */
+
 /* Memory, stack, and symbolic state representation */
 
 // Note (5/17): now using a byte-oriented layout
@@ -52,7 +54,7 @@ class Mem: public PreMem<PtrVal, Mem> {
   }
 
   static PtrVal q_concat(PtrVal v1, PtrVal v2) {
-    return bv_concat(v2, v1);
+    return int_op_2(iOP::op_concat, v2, v1);
   }
 
   struct Segment {
@@ -377,7 +379,7 @@ class SS {
         return read_res;
       } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite(get_ite_cond(symvite), at(get_ite_tv(symvite), size), at(get_ite_ev(symvite), size));
+        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }

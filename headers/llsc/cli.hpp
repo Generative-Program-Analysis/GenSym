@@ -11,31 +11,40 @@ inline int n_sym_stdin = 0;
 
 static struct option long_options[] =
 {
-  /* These options set a flag. */
-  {"exlib-failure-branch",  no_argument,       0, '\0'}, // option_index = 0
-  {"no-hash-cons",          no_argument,       0, '\0'}, // option_index = 1
-  {"no-obj-cache",          no_argument,       0, '\0'}, // option_index = 2
-  {"no-cex-cache",          no_argument,       0, '\0'}, // option_index = 3
-  {"cons-indep",            no_argument,       0, '\0'}, // option_index = 4
-  {"output-tests-cov-new",  no_argument,       0, '\0'}, // option_index = 5
-  {"output-ktest",          no_argument,       0, '\0'}, // option_index = 6
-  {"print-inst-count",      no_argument,       0, '\0'}, // option_index = 7
-  {"print-cov",             no_argument,       0, '\0'}, // option_index = 8
-  {"readable-posix-inputs", no_argument,       0, '\0'}, // option_index = 9
-  {"search",                required_argument, 0, '\0'}, // option_index = 10
-  {"symloc-strategy",       required_argument, 0, '\0'}, // option_index = 11
-  {"add-sym-file",          required_argument, 0, '\0'}, // option_index = 12
-  {"sym-file-size",         required_argument, 0, '\0'}, // option_index = 13
-  {"sym-stdin",             required_argument, 0, '\0'}, // option_index = 14
-  {"sym-stdout",            no_argument,       0, '\0'}, // option_index = 15
-  {"thread",                required_argument, 0, '\0'}, // option_index = 16
-  {"queue",                 required_argument, 0, '\0'}, // option_index = 17
-  {"solver",                required_argument, 0, '\0'}, // option_index = 18
-  {"timeout",               required_argument, 0, '\0'}, // option_index = 19
-  {"argv",                  required_argument, 0, '\0'}, // option_index = 20
-  {"max-sym-array-size",    required_argument, 0, '\0'}, // option_index = 21
-  {"help",                  no_argument,       0, '\0'}, // option_index = 22
-  {0,                       0,                 0, 0  }
+  {"help",                       no_argument,       0, 22},
+  // Optimizations
+  {"no-hash-cons",               no_argument,       0, 2},
+  {"no-obj-cache",               no_argument,       0, 3},
+  {"no-cex-cache",               no_argument,       0, 4},
+  {"no-br-cache",                no_argument,       0, 27},
+  {"no-cons-indep",              no_argument,       0, 5},
+  {"simplify",                   no_argument,       0, 26},
+  // Test case generation
+  {"output-tests-cov-new",       no_argument,       0, 6},
+  {"output-ktest",               no_argument,       0, 7},
+  {"output-readable-file-tests", no_argument,       0, 10},
+  // Scheduling
+  {"search-strategy",            required_argument, 0, 11},
+  {"thread",                     required_argument, 0, 17},
+  {"queue",                      required_argument, 0, 18},
+  {"timeout",                    required_argument, 0, 20},
+  // Symbolic behavior
+  {"exlib-failure-branch",       no_argument,       0, 1},
+  {"symloc-strategy",            required_argument, 0, 12},
+  {"solver",                     required_argument, 0, 19},
+  {"max-sym-array-size",         required_argument, 0, 24},
+  // Symbolic inputs
+  {"add-sym-file",               required_argument, 0, 13},
+  {"sym-file-size",              required_argument, 0, 14},
+  {"sym-stdin",                  required_argument, 0, 15},
+  {"sym-stdout",                 no_argument,       0, 16},
+  {"argv",                       required_argument, 0, 21},
+  // Logging
+  {"print-inst-count",           no_argument,       0, 8},
+  {"print-cov",                  no_argument,       0, 9},
+  {"print-detailed-time",        required_argument, 0, 25},
+  // Next 23, 28
+  {0,                            0,                 0, 0 }
 };
 
 inline void set_searcher(std::string& searcher) {
@@ -106,51 +115,48 @@ inline void handle_cli_args(int argc, char** argv) {
     /* Detect the end of the options. */
     if (c == -1) break;
 
-    switch (option_index) {
-      case '?':
-        break;
-        // parsing error, should be printed by getopt
-      case 0:
+    switch (c) {
+      case 1:
         exlib_failure_branch = true;
         break;
-      case 1:
+      case 2:
         use_hashcons = false;
         break;
-      case 2:
+      case 3:
         use_objcache = false;
         break;
-      case 3:
+      case 4:
         use_cexcache = false;
         break;
-      case 4:
-        use_cons_indep = true;
-        break;
       case 5:
-        only_output_covernew = true;
+        use_cons_indep = false;
         break;
       case 6:
-        output_ktest = true;
+        only_output_covernew = true;
         break;
       case 7:
-        print_inst_cnt = true;
+        output_ktest = true;
         break;
       case 8:
-        print_cov_detail = true;
+        print_inst_cnt = true;
         break;
       case 9:
-        readable_posix = true;
+        print_cov_detail = true;
         break;
-      case 10: {
+      case 10:
+        readable_file_tests = true;
+        break;
+      case 11: {
         auto searcher = std::string(optarg);
         set_searcher(searcher);
         break;
       }
-      case 11: {
+      case 12: {
         auto strategy = std::string(optarg);
         set_symloc_strategy(strategy);
         break;
       }
-      case 12:
+      case 13:
         initial_fs = set_file(initial_fs, std::string("/") + optarg, make_SymFile(optarg, default_sym_file_size));
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data", default_sym_file_size, false));
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data-stat", stat_size, false));
@@ -158,53 +164,68 @@ inline void handle_cli_args(int argc, char** argv) {
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);
         INFO("initial_fs.preferred_cex: " << vec_to_string<PtrVal>(initial_fs.preferred_cex));
         break;
-      case 13:
+      case 14:
         default_sym_file_size = atoi(optarg);
         INFO("set symfile size to " << default_sym_file_size << "\n");
         break;
-      case 14: {
+      case 15: {
         int size = atoi(optarg);
         n_sym_stdin = (size < 0) ? 0 : size;
         initial_fs.set_stdin(n_sym_stdin);
         INFO("set stdin size to " << n_sym_stdin << "\n");
         break;
       }
-      case 15: {
+      case 16: {
         n_sym_stdout = 1024;
         initial_fs.set_stdout(n_sym_stdout);
         INFO("set stdout size to " << n_sym_stdout << "\n");
         break;
       }
-      case 16: {
+      case 17: {
         int t = atoi(optarg);
         n_thread = (t <= 0) ? 1 : t;
         if (n_thread > 0) use_thread_pool = true;
         break;
       }
-      case 17: {
+      case 18: {
         int n = atoi(optarg);
         n_queue = n;
         break;
       }
-      case 18: {
+      case 19: {
         auto solver = std::string(optarg);
         set_solver(solver);
         break;
       }
-      case 19:
+      case 20:
         timeout = atoi(optarg);
         break;
-      case 20:
+      case 21:
         cli_argv = parse_args(std::string(optarg));
         g_argv = make_LocV(0, LocV::kStack, cli_argv.size() * 8, 0); // The global argv, pass to llsc_main
         g_argc = make_IntV(cli_argv.size());
         break;
-      case 21: {
+      case 22:
+        print_help(argv[0]);
+        exit(-1);
+      case 23:
+        // available to use
+        break;
+      case 24: {
         int n = atoi(optarg);
         max_sym_array_size = (n > 0) ? n : 0;
         break;
       }
-      case 22:
+      case 25:
+        print_detailed_time = atoi(optarg);
+        break;
+      case 26:
+        use_symv_simplify = true;
+        break;
+      case 27:
+        use_brcache = false;
+        break;
+      case '?':
       default:
         print_help(argv[0]);
         exit(-1);
@@ -228,6 +249,8 @@ inline void handle_cli_args(int argc, char** argv) {
     std::cout << "Parallel execution mode: " << n_thread << " total threads; " << n_queue << " queues in the thread pool\n";
   }
   // symargs -> symfiles -> sym-stdin -> sym-stdout (must be in this order for klee-replay to work)
+
+  // TODO: the following code should be refactored in favor of readability and mantainance.
 
   // count number of symbolic arguments, create one SymObj for each.
   int n_sym_arg = 0;

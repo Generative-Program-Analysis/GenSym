@@ -93,11 +93,11 @@ object RunLLSC {
     val output = options.getOrElse("output", filepath.split("\\/").last.split("\\.")(0)).toString
     val nSym = options.getOrElse("nSym", 0).asInstanceOf[Int]
     val useArgv = options.getOrElse("useArgv", false).asInstanceOf[Boolean]
-    val optimize = options.getOrElse("optimize", true).asInstanceOf[Boolean]
+    val optimize = options.getOrElse("optimize", Config.opt).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
-    val emitBlockIdMap = options.getOrElse("blockIdMap", false).asInstanceOf[Boolean]
-    val emitVarIdMap = options.getOrElse("varIdMap", false).asInstanceOf[Boolean]
+    val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
+    val emitVarIdMap = options.getOrElse("varIdMap", Config.emitVarIdMap).asInstanceOf[Boolean]
     val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
 
     val llsc = engine match {

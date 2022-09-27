@@ -57,7 +57,8 @@ abstract class TestLLSC extends FunSuite {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     test(name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
-      val mkRet = code.makeWithAllCores
+      //val mkRet = code.makeWithAllCores
+      val mkRet = code.make(48)
       assert(mkRet == 0, "make failed")
       if (runCode) {
         val (output, ret) = code.runWithStatus(cliArg)
@@ -132,11 +133,13 @@ class TestImpCPSLLSC extends TestLLSC {
 class Coreutils extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
-  val llsc_opt = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
-  val cases =  TestCases.coreutils.map { t =>
-    t.copy(runOpt = llsc_opt ++ t.runOpt, runCode = false)
+  val runtimeOptions = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
+  val cases = TestCases.coreutils.map { t =>
+    t.copy(runOpt = runtimeOptions ++ t.runOpt, runCode = false)
   }
   testLLSC(new ImpCPSLLSC, cases)
+
+  //testLLSC(new ImpCPSLLSC, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)))
 }
 */
 
@@ -144,6 +147,7 @@ class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
+
   //testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
   //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
   //testLLSC(llsc, TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)))
