@@ -57,8 +57,7 @@ abstract class TestLLSC extends FunSuite {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     test(name) {
       val code = llsc.run(m, llsc.insName + "_" + name, f, config)
-      //val mkRet = code.makeWithAllCores
-      val mkRet = code.make(48)
+      val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
       if (runCode) {
         val (output, ret) = code.runWithStatus(cliArg)
