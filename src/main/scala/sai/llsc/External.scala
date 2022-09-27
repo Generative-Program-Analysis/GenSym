@@ -126,7 +126,7 @@ trait GenExternal extends SymExeDefs {
       k(ss.setErrorLoc(flag("EEXIST")), fs, IntV(-1, 32))
     } else {
       if (!fs.hasFile(path)) {
-        val f = File(getPathSegments(path).last, List[Value](), List.fill(StatType.size(null))(IntV(0, 8)))
+        val f = File(getPathSegments(path).last, List[Value]())
         val regF = _set_file_type(f, S_IFREG)
         fs.setFile(path, regF)
       }
@@ -468,7 +468,7 @@ trait GenExternal extends SymExeDefs {
     // want to unset the file type bits and leave the other bits unchanged
     val clearMask: Rep[IntV] = flag("~S_IFMT")
     val stat = f.readStatField("st_mode")
-    val newStat = IntV((stat.int & clearMask.int) | mask, 32)
+    val newStat = (stat & clearMask) | IntV(mask, 32)
     f.writeStatField("st_mode", newStat)
     f
   }
@@ -478,7 +478,7 @@ trait GenExternal extends SymExeDefs {
     // preserve the file type bits
     val clearMask: Rep[IntV] = flag("S_IFMT")
     val stat = f.readStatField("st_mode")
-    val newStat = IntV((stat.int & clearMask.int) | mask, 32)
+    val newStat = (stat & clearMask) | IntV(mask, 32)
     f.writeStatField("st_mode", newStat)
     f
   }
