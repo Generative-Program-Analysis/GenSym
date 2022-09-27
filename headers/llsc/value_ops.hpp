@@ -104,7 +104,6 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   inline simple_ptr<LocV> to_LocV() { return std::dynamic_pointer_cast<LocV>(shared_from_this()); }
   inline simple_ptr<FloatV> to_FloatV() { return std::dynamic_pointer_cast<FloatV>(shared_from_this()); }
 
-
   /* Since from_bytes/from_bytes_shadow only concate ``bit-vectors'' (either concrete or symbolic),
    * and they do not work with location/function values, at some point, we may find that
    * it doesn't make much sense to distinguish Int and Float as variants of Value...
@@ -481,7 +480,6 @@ struct SymV : Value {
     ss << ", " << bw << ")";
     return ss.str();
   }
-  //PtrVal& operator[](std::size_t idx) { return rands[idx]; }
   inline const PtrVal& operator[](std::size_t idx) const { return rands[idx]; }
 
   virtual bool is_conc() const override { return false; }
@@ -491,12 +489,9 @@ struct SymV : Value {
     auto that = static_cast<decltype(this)>(v);
     if (this->bw != that->bw) return false;
     if (this->name.size() != that->name.size()) return false;
-    if (!this->name.empty()) {
-      return this->name == that->name;
-    } else {
-      if (this->rator != that->rator) return false;
-      return this->rands == that->rands;
-    }
+    if (!this->name.empty()) return this->name == that->name;
+    if (this->rator != that->rator) return false;
+    return this->rands == that->rands;
   }
   virtual List<PtrVal> to_bytes() {
     if (bw <= 8) return List<PtrVal>{shared_from_this()};
@@ -559,7 +554,7 @@ inline PtrVal make_SymV(const String& n) {
   return hashconsing(ret);
 }
 
-inline PtrVal make_SymV(String n, size_t bw) {
+inline PtrVal make_SymV(const String n, size_t bw) {
   auto ret = make_simple<SymV>(n, bw);
   return hashconsing(ret);
 }
@@ -588,12 +583,9 @@ inline PtrVal SymV::neg(const PtrVal& v) {
 // XXX GW: just use bv_sext? seems not much difference?
 inline PtrVal addr_index_ext(const PtrVal& off) {
   ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
-  if (off->get_bw() == addr_index_bw) {
-    return off;
-  } else {
-    // TODO: whether zext or sext?
-    return bv_sext(off, addr_index_bw);
-  }
+  if (off->get_bw() == addr_index_bw) return off;
+  // TODO: whether zext or sext?
+  return bv_sext(off, addr_index_bw);
 }
 
 inline PtrVal SymLocV_index(const int offset) {
@@ -814,15 +806,9 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
       return ite((*sym2)[0], int_op_2(op, v1, (*sym2)[1]), int_op_2(op, v1, (*sym2)[2]));
     }
     switch (op) {
-      case iOP::op_eq:
-      case iOP::op_neq:
-      case iOP::op_uge:
-      case iOP::op_sge:
-      case iOP::op_ugt:
-      case iOP::op_sgt:
-      case iOP::op_ule:
-      case iOP::op_sle:
-      case iOP::op_ult:
+      case iOP::op_eq: case iOP::op_neq: case iOP::op_uge:
+      case iOP::op_sge: case iOP::op_ugt: case iOP::op_sgt:
+      case iOP::op_ule: case iOP::op_sle: case iOP::op_ult: 
       case iOP::op_slt:
         bw = 1;
         break;
