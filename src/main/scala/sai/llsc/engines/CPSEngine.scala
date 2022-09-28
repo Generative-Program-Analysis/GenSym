@@ -141,21 +141,16 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case FSubInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fsub", lhs, rhs, ty, ss), kk)
       case FMulInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fmul", lhs, rhs, ty, ss), kk)
       case FDivInst(ty, lhs, rhs) => k(ss, evalFloatOp2("fdiv", lhs, rhs, ty, ss), kk)
-      /* Backend Work Needed */
       case URemInst(ty, lhs, rhs) => k(ss, evalIntOp2("urem", lhs, rhs, ty, ss), kk)
       case SRemInst(ty, lhs, rhs) => k(ss, evalIntOp2("srem", lhs, rhs, ty, ss), kk)
-
       // Bitwise Operations
-      /* Backend Work Needed */
       case ShlInst(ty, lhs, rhs) => k(ss, evalIntOp2("shl", lhs, rhs, ty, ss), kk)
       case LshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("lshr", lhs, rhs, ty, ss), kk)
       case AshrInst(ty, lhs, rhs) => k(ss, evalIntOp2("ashr", lhs, rhs, ty, ss), kk)
       case AndInst(ty, lhs, rhs) => k(ss, evalIntOp2("and", lhs, rhs, ty, ss), kk)
       case OrInst(ty, lhs, rhs) => k(ss, evalIntOp2("or", lhs, rhs, ty, ss), kk)
       case XorInst(ty, lhs, rhs) => k(ss, evalIntOp2("xor", lhs, rhs, ty, ss), kk)
-
       // Conversion Operations
-      /* Backend Work Needed */
       case ZExtInst(from, value, IntType(size)) =>
         k(ss, eval(value, from, ss).zExt(size), kk)
       case SExtInst(from, value, IntType(size)) =>
@@ -179,31 +174,25 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
       case IntToPtrInst(from, value, to) =>
         k(ss, eval(value, from, ss), kk)
       case BitCastInst(from, value, to) => k(ss, eval(value, to, ss), kk)
-
       // Aggregate Operations
-      /* Backend Work Needed */
       case ExtractValueInst(ty, struct, indices) =>
         val idxList = indices.asInstanceOf[List[IntConst]].map(x => x.n)
         val idx = calculateOffsetStatic(ty, idxList)
         // v is expected to be StructV in backend
         val v = eval(struct, ty, ss)
         k(ss, v.structAt(idx), kk)
-
-      // Other operations
+      // Arithm comparison operations
       case FCmpInst(pred, ty, lhs, rhs) => k(ss, evalFloatOp2(pred.op, lhs, rhs, ty, ss), kk)
       case ICmpInst(pred, ty, lhs, rhs) => k(ss, evalIntOp2(pred.op, lhs, rhs, ty, ss), kk)
+      // Other operations
       case CallInst(ty, f, args) =>
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
-        ss.push(kk)
         val stackSize = ss.stackSize
-        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = {
-          val kk = s.pop(stackSize)
-          k(s, v, kk)
-        }
-        //fv[Ref](ss, List(vs: _*), fun(fK(_, _)))
+        ss.push(kk)
+        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = k(s, v, s.pop(stackSize))
         fv[Ref](ss, List(vs: _*), ContOpt(fK))
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
@@ -236,7 +225,6 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
 
   def execTerm(inst: Terminator, k: Rep[Cont])(implicit ss: Rep[SS], ctx: Ctx): Rep[Unit] = {
     inst match {
-      // FIXME: unreachable
       case Unreachable => contApply(k, ss, IntV(-1))
       case RetTerm(ty, v) =>
         val ret = v match {
@@ -338,13 +326,9 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
-        ss.push(kk)
         val stackSize = ss.stackSize
-        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = {
-          val kk = s.pop(stackSize)
-          k(s, kk)
-        }
-        //fv[Ref](ss, List(vs: _*), fun(fK(_, _)))
+        ss.push(kk)
+        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = k(s, s.pop(stackSize))
         fv[Ref](ss, List(vs: _*), ContOpt(fK))
     }
   }
