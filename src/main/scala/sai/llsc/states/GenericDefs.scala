@@ -135,12 +135,13 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "llsc_is_symbolic", "llsc_get_valuel", "getpagesize", "memalign", "reallocarray",
       "llsc_prefer_cex", "llsc_posix_prefer_cex", "llsc_warning_once"
     )
-    private val syscalls = ImmSet[String](
+    private val builtinSysCalls = ImmSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown",
       "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
-    val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
     private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
+    val isDeterministic = ImmSet[String]("make_symbolic", "make_symbolic_whole")
+    val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
 
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {
@@ -155,7 +156,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
     }
     def get(id: String, ret: Option[LLVMType] = None, argTypes: Option[List[LLVMType]]): Option[Rep[Value]] =
       if (modeled.contains(id.tail)) Some(ExternalFun(id.tail))
-      else if (syscalls.contains(id.tail)) Some(ExternalFun(s"syscall_${id.tail}"))
+      else if (builtinSysCalls.contains(id.tail)) Some(ExternalFun(s"syscall_${id.tail}"))
       else if (id.startsWith("@llvm.va_start")) Some(ExternalFun("llvm_va_start"))
       else if (id.startsWith("@llvm.va_end")) Some(ExternalFun("llvm_va_end"))
       else if (id.startsWith("@llvm.va_copy")) Some(ExternalFun("llvm_va_copy"))
@@ -167,7 +168,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       else if (id == "@memmove") Some(ExternalFun("llvm_memmove"))
       else if (unsafeExternals.contains(id.tail) || id.startsWith("@llvm.")) {
         if (!warned.contains(id)) {
-          System.out.println(s"Unsafe External function ${id.tail} is treated as a noop.")
+          System.out.println(s"Unsafe external function ${id.tail} is treated as a noop.")
           warned.add(id)
         }
         Some(ExternalFun("noop", ret))
@@ -435,6 +436,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: ContOpt[W])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
         case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
+        case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) =>
+          // Be careful: since the state is not passed, with the imperative backend it means
+          // state must be passed by reference to f_det! Not all deterministic functions
+          // defined in backend works in this way (see external_shared.hpp).
+          k(s, (f+"_det").reflectCtrlWith[Value](s, args))
         case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k.repK)
         case CPSFunV(f) => f(s, args, k.repK)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k.repK) // indirect call
