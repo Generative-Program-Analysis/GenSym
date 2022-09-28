@@ -437,8 +437,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       v match {
         case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
         case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) =>
-          // Be careful: since the state is not passed, with the imperative backend it means
-          // state must be passed by reference to f_det! Not all deterministic functions
+          // Be careful: since the state is not passed/returned, with the imperative backend it means
+          // the state must be passed by reference to f_det! Currently not all deterministic functions
           // defined in backend works in this way (see external_shared.hpp).
           k(s, (f+"_det").reflectCtrlWith[Value](s, args))
         case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k.repK)
