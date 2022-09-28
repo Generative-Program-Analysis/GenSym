@@ -199,12 +199,12 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
         ss.push(kk)
         val stackSize = ss.stackSize
-        val fK: Rep[Cont] = fun { case sv =>
-          val s: Rep[Ref[SS]] = sv._1
+        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = {
           val kk = s.pop(stackSize)
-          k(s, sv._2, kk)
+          k(s, v, kk)
         }
-        fv[Ref](ss, List(vs: _*), fK)
+        //fv[Ref](ss, List(vs: _*), fun(fK(_, _)))
+        fv[Ref](ss, List(vs: _*), ContOpt(fK))
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)()
@@ -337,17 +337,15 @@ trait ImpCPSLLSCEngine extends ImpSymExeDefs with EngineBase {
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
-        val vs = argValues.zip(argTypes).map {
-          case (v, t) => eval(v, t, ss)
-        }
+        val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
         ss.push(kk)
         val stackSize = ss.stackSize
-        val fK: Rep[Cont] = fun { case sv =>
-          val s: Rep[Ref[SS]] = sv._1
+        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = {
           val kk = s.pop(stackSize)
           k(s, kk)
         }
-        fv[Ref](ss, List(vs: _*), fK)
+        //fv[Ref](ss, List(vs: _*), fun(fK(_, _)))
+        fv[Ref](ss, List(vs: _*), ContOpt(fK))
     }
   }
 

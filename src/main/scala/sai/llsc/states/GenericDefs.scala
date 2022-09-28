@@ -90,7 +90,7 @@ trait Coverage { self: SAIOps =>
       "cov-inc-br".reflectWriteWith[Unit](Counter.block.get(ctx.toString), n)(Adapter.CTRL)
 
     def incPath(n: Rep[Int]): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
-    def incInst(n: Int): Rep[Unit] = "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL)
+    def incInst(n: Int): Rep[Unit] = if (Config.recordInstNum) "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL) else ()
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printPathCov: Rep[Unit] = "print-path-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
@@ -379,6 +379,11 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "float_op_2".reflectWith[Value](op, o1, o2)
   }
 
+  case class ContOpt[W[_]](k: (Rep[W[SS]], Rep[Value]) => Rep[Unit])(implicit m: Manifest[W[SS]]) {
+    lazy val repK = fun(k(_, _))
+    def apply(s: Rep[W[SS]], v: Rep[Value]): Rep[Unit] = k(s, v)
+  }
+
   implicit class ValueOps(v: Rep[Value]) {
     def bw: Rep[Int] = v match {
       case IntV(n, bw) if Config.opt => bw
@@ -411,9 +416,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] =
       v match {
-        case ExternalFun(f, ty) =>
-          if (f == "noop" && Config.opt) List((s.asRepOf[SS], defaultRetVal(ty)))
-          else f.reflectWith[List[(SS, Value)]](s, args)
+        case ExternalFun("noop", ty) if Config.opt => List((s.asRepOf[SS], defaultRetVal(ty)))
+        case ExternalFun(f, ty) => f.reflectWith[List[(SS, Value)]](s, args)
         case FunV(f) => f(s, args)
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
@@ -422,11 +426,18 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
-        case ExternalFun(f, ty) =>
-          if (f == "noop" && Config.opt) k(s, defaultRetVal(ty))
-          else f.reflectWith[Unit](s, args, k)
+        case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
+        case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
+      }
+
+    def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: ContOpt[W])(implicit m: Manifest[W[SS]]): Rep[Unit] =
+      v match {
+        case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
+        case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k.repK)
+        case CPSFunV(f) => f(s, args, k.repK)                       // direct call
+        case _ => "cps_apply".reflectWith[Unit](v, s, args, k.repK) // indirect call
       }
 
     def deref: Rep[Any] = "ValPtr-deref".reflectUnsafeWith[Any](v)
@@ -502,5 +513,4 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => "ptroff".reflectWith[Value](v, off)
     }
   }
-
 }

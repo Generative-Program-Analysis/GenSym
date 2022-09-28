@@ -153,6 +153,7 @@ object TestComp {
 }
 
 object Coreutils {
+  // TODO: clean this up
   lazy val echo = parseFile("benchmarks/coreutils/echo/echo.ll")
   lazy val echoWithLib = parseFile("benchmarks/coreutils/echo/echoStdlibString.ll")
   lazy val trueWithLib = parseFile("benchmarks/coreutils/trueWithLib.ll")

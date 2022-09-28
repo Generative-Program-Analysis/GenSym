@@ -1864,10 +1864,7 @@ package parser {
   object TestParser extends App {
     import PPrinter._
     import Parser._
-    //printAst(parseFile("/home/shangyint/research/sai/dev-clean/external/strcmp.ll"))
-
-    printAst(parseFile("benchmarks/llscExpr/trunc.ll"))
-    //printAst(parseFile("benchmarks/coreutils/libc7.ll"))
+    printAst(parseFile("benchmarks/llsc/trunc.ll"))
   }
 
   object PPrinter {
