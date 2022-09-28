@@ -467,9 +467,9 @@ trait GenExternal extends SymExeDefs {
     rawInfo("/* _set_file_type */")
     // want to unset the file type bits and leave the other bits unchanged
     val clearMask: Rep[IntV] = flag("~S_IFMT")
-    val stat = f.readStatField("st_mode")
-    val newStat = (stat & clearMask) | IntV(mask, 32)
-    f.writeStatField("st_mode", newStat)
+    val mode = f.readStatField("st_mode")
+    val newMode = (mode & clearMask) | IntV(mask, 32)
+    f.writeStatField("st_mode", newMode)
     f
   }
 
@@ -477,9 +477,9 @@ trait GenExternal extends SymExeDefs {
     rawInfo("/* _set_file_mode */")
     // preserve the file type bits
     val clearMask: Rep[IntV] = flag("S_IFMT")
-    val stat = f.readStatField("st_mode")
-    val newStat = (stat & clearMask) | IntV(mask, 32)
-    f.writeStatField("st_mode", newStat)
+    val mode = f.readStatField("st_mode")
+    val newMode = (mode & clearMask) | IntV(mask, 32)
+    f.writeStatField("st_mode", newMode)
     f
   }
 
