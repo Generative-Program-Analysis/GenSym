@@ -194,11 +194,9 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
-        val vs = argValues.zip(argTypes).map {
-          case (v, t) => eval(v, t, ss)
-        }
-        val fK: Rep[Cont] = fun { case sv => k(sv._1.pop(ss.stackSize), sv._2) }
-        fv[Id](ss.push, List(vs: _*), fK)
+        val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
+        def fK(s: Rep[SS], v: Rep[Value]): Rep[Unit] = k(s.pop(ss.stackSize), v)
+        fv[Id](ss.push, List(vs: _*), ContOpt[Id](fK))
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)()
@@ -319,11 +317,9 @@ trait PureCPSLLSCEngine extends SymExeDefs with EngineBase {
         val argValues: List[LLVMValue] = extractValues(args)
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
-        val vs = argValues.zip(argTypes).map {
-          case (v, t) => eval(v, t, ss)
-        }
-        val fK: Rep[Cont] = fun { case sv => k(sv._1.pop(ss.stackSize)) }
-        fv[Id](ss.push, List(vs: _*), fK)
+        val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
+        def fK(s: Rep[SS], v: Rep[Value]): Rep[Unit] = k(s.pop(ss.stackSize))
+        fv[Id](ss.push, List(vs: _*), ContOpt[Id](fK))
     }
   }
 

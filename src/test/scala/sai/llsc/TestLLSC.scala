@@ -146,6 +146,7 @@ class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
+  testLLSC(llsc, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
 
   //testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
   //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
@@ -153,7 +154,6 @@ class Playground extends TestLLSC {
   //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
   //testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
 
-  //testLLSC(new PureLLSC, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest2", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest3", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(llsc, TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)))
