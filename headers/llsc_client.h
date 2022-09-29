@@ -20,8 +20,8 @@ void make_symbolic_whole(void* addr, size_t byte_size, ...);
 #define llsc_make_symbolic(addr, byte_size, name) make_symbolic(addr, byte_size, name)
 #define llsc_make_symbolic_whole(addr, byte_size, name) make_symbolic_whole(addr, byte_size, name)
 
-void llsc_assert(bool);
-void llsc_assert_eager(bool);
+void llsc_assert(bool, ...);
+void llsc_assert_eager(bool, ...);
 
 void llsc_assume(bool);
 void sym_print(int, ...);

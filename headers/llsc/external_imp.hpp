@@ -22,8 +22,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto b = make_SymV(iOP::op_neq, {v, make_IntV(0, v->get_bw())}, v->get_bw());
-  auto [fls_sat, tru_sat] = check_branch(state.get_PC(), SymV::neg(b)); // check if v == 1 is not valid
+  auto [fls_sat, tru_sat] = check_branch(state.get_PC(), SymV::neg(v)); // check if v == 1 is not valid
   if (fls_sat) {
     std::cout << "Warning: assert violates; abort and generate test.\n";
     return h(state, { make_IntV(-1, 32) }); 
