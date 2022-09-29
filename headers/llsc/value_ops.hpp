@@ -464,20 +464,32 @@ struct SymV : Value {
       if (sym_rand) for (auto& v : sym_rand->vars) vars.insert(v);
     }
   }
+  std::ostream& pprint(std::ostream& os, int level) const {
+    String padding(level, ' ');
+    os << padding << "SymV(";
+    if (!name.empty()) {
+      os << name;
+    } else {
+      os << int_op_string(rator) << ", { " << std::endl;
+      for (auto e : rands) {
+        auto s = e->to_SymV();
+        if (s) {
+          s->pprint(os, level + 1);
+        } else {
+          os << padding << ' ' << *e;
+        }
+        os << ", " << std::endl;
+      }
+      os << padding << "}";
+    }
+    os << ", " << bw << ")";
+    return os;
+  }
+
   inline bool is_var() { return !name.empty(); }
   std::string toString() const override {
     std::ostringstream ss;
-    ss << "SymV(";
-    if (!name.empty()) {
-      ss << name;
-    } else {
-      ss << int_op_string(rator) << ", { ";
-      for (auto e : rands) {
-        ss << *e << ", ";
-      }
-      ss << "}";
-    }
-    ss << ", " << bw << ")";
+    pprint(ss, 0);
     return ss.str();
   }
   inline const PtrVal& operator[](std::size_t idx) const { return rands[idx]; }
