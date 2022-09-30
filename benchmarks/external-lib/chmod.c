@@ -8,7 +8,9 @@ int main()
   char filename[] = "new_file";
   struct stat sfile;
   // can branch here, possible that creat fails due to permission error
-  llsc_assert(creat(filename, 0644) != -1, "creat should succeed");
+  if (creat(filename, 0644) == -1) {
+    return 0;
+  }
   llsc_assert_eager(chmod(filename, 01721) == 0, "chmod should succeed");
   llsc_assert_eager(chown(filename, 51, 93) == 0, "chown should be successful");
   llsc_assert_eager(stat(filename, &sfile) == 0, "stat should be successful");

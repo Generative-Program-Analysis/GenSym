@@ -7,8 +7,11 @@ int main()
 {
   char filename[] = "new_file";
   struct stat sfile;
+
   // can branch here, possible that creat fails due to permission error
-  llsc_assert(creat(filename, 0644) != -1, "creat should succeed");
+  if (creat(filename, 0644) == -1) {
+    return 0;
+  }
 
   llsc_assert_eager(stat(filename, &sfile) == 0, "stat should be successful");
   llsc_assert_eager(S_ISREG(sfile.st_mode), "should be a file");
@@ -16,4 +19,5 @@ int main()
   llsc_assert_eager(unlink(filename) == 0, "removal should be successful");
   llsc_assert_eager(unlink(filename) == -1, "re-removing the file should return error");
   llsc_assert_eager(stat(filename, &sfile) == -1, "file should be removed");
+  return 0;
 }

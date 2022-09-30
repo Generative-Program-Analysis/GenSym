@@ -101,6 +101,7 @@ object TestCases {
     //TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)),
     TestPrg(selectTestSym, "selectTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(i1Bool, "i1Bool", "@main", noArg, noOpt, nPath(5)++status(0)),
+    TestPrg(flagTest, "flagTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
   )
 
   val symbolicSmall: List[TestPrg] = List(
