@@ -304,7 +304,7 @@ class PC {
       if (conds.size() > 0) return conds[conds.size()-1];
       return nullptr;
     }
-    void print() { print_set(conds); }
+    void print() { print_vec<TrList, PtrVal>(conds); }
 };
 
 #include "metadata.hpp"
