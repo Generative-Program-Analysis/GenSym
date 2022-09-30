@@ -508,8 +508,8 @@ struct SymV : Value {
   virtual List<PtrVal> to_bytes() {
     if (bw <= 8) return List<PtrVal>{shared_from_this()};
     auto res = List<PtrVal>{}.transient();
-    for (size_t i = bw/8; i > 0; i--) {
-      res.push_back(bv_extract(shared_from_this(), i*8-1, (i-1)*8));
+    for (size_t i = 0; i < bw/8; i++) {
+      res.push_back(bv_extract(shared_from_this(), (i+1)*8-1, i*8));
     }
     return res.persistent();
   }
