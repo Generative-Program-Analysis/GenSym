@@ -338,12 +338,19 @@ trait GenExternal extends SymExeDefs {
     rawInfo("std::cout << \"rmdir syscall\" << std::endl")
     val path: Rep[String] = getConcreteFilePath(args(0), ss)
     val dir = fs.getFile(path)
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (dir == NullPtr[File] || !_has_file_type(dir, S_IFDIR)) k(ss, fs, IntV(-1, 32))
+    if (dir == NullPtr[File])
+      k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
     else {
-      // TODO: first get the parent to optimize <2022-05-28, David Deng> //
-      fs.removeFile(path)
-      k(ss, fs, IntV(0, 32))
+      brFs[T](ss, fs, _has_file_type(dir, S_IFDIR),
+        (ss, fs) => {
+          // is a dir
+          fs.removeFile(path)
+          k(ss, fs, IntV(0, 32))
+        },
+        (ss, fs) => {
+          // is not a dir
+          k(ss.setErrorLoc(flag("ENOTDIR")), fs, IntV(-1, 32))
+        })
     }
   }
 
@@ -363,12 +370,19 @@ trait GenExternal extends SymExeDefs {
     rawInfo("std::cout << \"unlink syscall\" << std::endl")
     val path: Rep[String] = getConcreteFilePath(args(0), ss)
     val file = fs.getFile(path)
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr[File] || !_has_file_type(file, S_IFREG)) k(ss, fs, IntV(-1, 32))
+    if (file == NullPtr[File])
+      k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
     else {
-      // TODO: first get the parent to optimize <2022-05-28, David Deng> //
-      fs.removeFile(path)
-      k(ss, fs, IntV(0, 32))
+      brFs[T](ss, fs, _has_file_type(file, S_IFREG),
+        (ss, fs) => {
+          // is a regular file
+          fs.removeFile(path)
+          k(ss, fs, IntV(0, 32))
+        },
+        (ss, fs) => {
+          // is not a regular file
+          k(ss.setErrorLoc(flag("EISDIR")), fs, IntV(-1, 32))
+        })
     }
   }
 
@@ -464,21 +478,22 @@ trait GenExternal extends SymExeDefs {
 
   // NOTE: return type might not be necessary if using pointers <2022-05-27, David Deng> //
   def _set_file_type(f: Rep[File], mask: Rep[Int]): Rep[File] = {
+    // TODO: dynamic bitwidth <2022-09-30, David Deng> //
     rawInfo("/* _set_file_type */")
-    // want to unset the file type bits and leave the other bits unchanged
-    val clearMask: Rep[IntV] = flag("~S_IFMT")
+    val bw = f.readStatBw("st_mode")
     val mode = f.readStatField("st_mode")
-    val newMode = (mode & clearMask) | IntV(mask, 32)
+    // want to unset the file type bits and leave the other bits unchanged
+    val newMode = (mode & flag("~S_IFMT", bw)) | IntV(mask, bw)
     f.writeStatField("st_mode", newMode)
     f
   }
 
   def _set_file_mode(f: Rep[File], mask: Rep[Int]): Rep[File] = {
     rawInfo("/* _set_file_mode */")
-    // preserve the file type bits
-    val clearMask: Rep[IntV] = flag("S_IFMT")
+    val bw = f.readStatBw("st_mode")
     val mode = f.readStatField("st_mode")
-    val newMode = (mode & clearMask) | IntV(mask, 32)
+    // preserve the file type bits
+    val newMode = (mode & flag("S_IFMT", bw)) | IntV(mask, bw)
     f.writeStatField("st_mode", newMode)
     f
   }
@@ -487,9 +502,10 @@ trait GenExternal extends SymExeDefs {
     k(ss, ss.getErrorLoc)
 
   // TODO: rename? <2022-05-28, David Deng> //
-  def _has_file_type(f: Rep[File], mask: Rep[Int]): Rep[Boolean] = {
+  def _has_file_type(f: Rep[File], mask: Rep[Int]): Rep[Value] = {
     val stat = f.readStatField("st_mode")
-    stat.int & mask
+    val bw = f.readStatBw("st_mode")
+    IntOp2.neq(stat & IntV(mask, bw), IntV(0, bw)) // cast to boolean
   }
 
   def _get_preferred_cex(f: Rep[File]): Rep[List[Value]] = f.getPreferredCex()
@@ -635,7 +651,6 @@ class ExternalLLSCDriver(folder: String = "./headers/llsc") extends SAISnippet[I
     hardTopFun(gen_k(brg_fs(fcntl(_,_,_,_))), "syscall_fcntl", "inline")
     hardTopFun(_set_file(_,_,_), "set_file", "inline")
     hardTopFun(_set_file_type(_,_), "set_file_type", "inline")
-    hardTopFun(_has_file_type(_,_), "has_file_type", "inline")
     hardTopFun(_get_preferred_cex(_), "get_preferred_cex", "inline")
     hardTopFun(gen_p(_errno_location), "__errno_location", "inline")
     hardTopFun(gen_k(_errno_location), "__errno_location", "inline")
