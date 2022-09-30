@@ -75,6 +75,10 @@ inline List<SSVal> make_symbolic(SS state, List<PtrVal> args) {
   return __make_symbolic<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
+inline std::pair<SS, PtrVal> make_symbolic_det(SS state, List<PtrVal> args) {
+  return __make_symbolic<std::pair<SS, PtrVal>>(state, args, [](auto s, auto v) { return std::make_pair(s, v); });
+}
+
 inline std::monostate make_symbolic(SS state, List<PtrVal> args, Cont k) {
   return __make_symbolic<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
 }
@@ -93,6 +97,10 @@ inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
 
 inline List<SSVal> make_symbolic_whole(SS state, List<PtrVal> args) {
   return __make_symbolic_whole<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+}
+
+inline std::pair<SS, PtrVal> make_symbolic_whole_det(SS state, List<PtrVal> args) {
+  return __make_symbolic_whole<std::pair<SS, PtrVal>>(state, args, [](auto s, auto v) { return std::make_pair(s, v); });
 }
 
 inline std::monostate make_symbolic_whole(SS state, List<PtrVal> args, Cont k) {

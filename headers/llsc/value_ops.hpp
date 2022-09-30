@@ -149,7 +149,7 @@ inline std::ostream& operator<< <Value>(std::ostream& outs, const simple_ptr<Val
 
 struct hash_PtrVal {
   size_t operator()(PtrVal const& v) const noexcept {
-    return v ? v->hash() : std::hash<nullptr_t>{}(nullptr);
+    return v ? v->hash() : std::hash<std::nullptr_t>{}(nullptr);
   }
 };
 
@@ -314,8 +314,8 @@ inline PtrVal make_FloatV(long double f, size_t bw) {
 }
 
 inline PtrVal make_FloatV_fp80(std::array<unsigned char, 10> buf) {
-  std::cout << "*(__float80*)&buf: " << *(__float80*)&buf << std::endl;
-  return make_FloatV((long double)*(__float80*)&buf, 80);
+  //std::cout << "*(long double*)buf.data(): " << *(long double*) buf.data() << std::endl;
+  return make_FloatV(*(long double*) buf.data(), 80);
 }
 
 inline long double proj_FloatV(PtrVal v) {

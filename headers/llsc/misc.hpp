@@ -2,6 +2,7 @@
 #define LLSC_END_HEADER
 
 inline void prelude(int argc, char** argv) {
+  ASSERT(sizeof(long double) >= 10, "Require fp80 support");
   inc_stack(STACKSIZE_128MB);
   init_rand();
   handle_cli_args(argc, argv);
