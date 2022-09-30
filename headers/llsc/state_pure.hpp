@@ -400,7 +400,7 @@ class PC: public Printable {
     }
     std::string toString() const override {
       std::ostringstream ss;
-      ss << "PC(" << vec_to_string<PtrVal>(conds) << ")";
+      ss << "PC(" << vec_to_string<List, PtrVal>(conds) << ")";
       return ss.str();
     }
 };

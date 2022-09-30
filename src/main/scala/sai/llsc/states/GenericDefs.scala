@@ -78,6 +78,8 @@ trait BasicDefs { self: SAIOps =>
 
   def varId(x: String)(implicit ctx: Ctx): Int =
     if (x == "Vararg") -1 else Counter.variable.get(ctx.withVar(x))
+
+  def usingPureEngine: Boolean
 }
 
 trait Coverage { self: SAIOps =>
@@ -436,11 +438,14 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: ContOpt[W])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
         case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
-        case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) =>
+        case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) && !usingPureEngine =>
           // Be careful: since the state is not passed/returned, with the imperative backend it means
           // the state must be passed by reference to f_det! Currently not all deterministic functions
           // defined in backend works in this way (see external_shared.hpp).
           k(s, (f+"_det").reflectCtrlWith[Value](s, args))
+        case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) && usingPureEngine =>
+          val sv = (f+"_det").reflectCtrlWith[(W[SS], Value)](s, args)
+          k(sv._1, sv._2)
         case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k.repK)
         case CPSFunV(f) => f(s, args, k.repK)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k.repK) // indirect call
