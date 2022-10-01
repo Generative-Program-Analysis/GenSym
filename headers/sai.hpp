@@ -419,11 +419,11 @@ namespace Map {
 
   template<typename K, typename V, typename P>
   inline immer::map<K, V> filter(immer::map<K, V> m, P f) {
-    static_assert(std::is_convertible<P, std::function<bool(std::pair<K, V>)>>::value,
-      "Map::filter requires a function of type bool(std::pari<K, V>)");
+    static_assert(std::is_convertible<P, std::function<bool(K, V)>>::value,
+      "Map::filter requires a function of type bool(std::pair<K, V>)");
     auto res = immer::map<K, V>{};
     for (auto kv : m) {
-      if (f(kv)) res = res.insert(kv);
+      if (f(std::get<0>(kv), std::get<1>(kv))) res = res.insert(kv);
     }
     return res;
   }
