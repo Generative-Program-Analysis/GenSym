@@ -24,8 +24,6 @@ trait StringOps { b: Base =>
       Wrap[List[String]](Adapter.g.reflect("string-split", Unwrap(str), Unwrap(delim)))
     def +(other: Rep[String]): Rep[String] =
       Wrap[String](Adapter.g.reflect("string-concat", Unwrap(str), Unwrap(other)))
-    def startsWith(other: Rep[String]): Rep[Boolean] =
-      str.substring(0, other.length) == other
     def ==(other: Rep[String]): Rep[Boolean] =
       Wrap[Boolean](Adapter.g.reflect("string-equal", Unwrap(str), Unwrap(other)))
   }

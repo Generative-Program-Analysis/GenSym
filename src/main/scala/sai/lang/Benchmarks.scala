@@ -88,6 +88,7 @@ object Benchmarks {
   lazy val write1Test = parseFile("benchmarks/external-lib/write1.ll")
   lazy val stat1Test = parseFile("benchmarks/external-lib/stat1.ll")
   lazy val stat2Test = parseFile("benchmarks/external-lib/stat2.ll")
+  lazy val statSymTest = parseFile("benchmarks/external-lib/stat_sym.ll")
   lazy val fstatTest = parseFile("benchmarks/external-lib/fstat.ll")
   lazy val statfsTest = parseFile("benchmarks/external-lib/statfs.ll")
   lazy val seekTest = parseFile("benchmarks/external-lib/lseek1.ll")

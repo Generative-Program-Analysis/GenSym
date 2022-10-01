@@ -91,6 +91,8 @@ trait GenExternal extends SymExeDefs {
   // <2022-05-12, David Deng> //
   def getConcreteFilePath(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_concrete_file_path".reflectWith[String](s, ptr)
 
+  def getSymString(ptr: Rep[Value], s: Rep[SS]): Rep[List[Value]] = "get_sym_string_at".reflectCtrlWith[List[Value]](s, ptr)
+
   def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
     // the requested permission
     // TODO: support symbolic flags <2022-08-17, David Deng> //
@@ -111,12 +113,6 @@ trait GenExternal extends SymExeDefs {
     !((readAccess & illegalRead) | (writeAccess & illegalWrite))
   }
 
-  def resolveSymPath(fs: Rep[FS], symPath: Rep[List[Value]]): Rep[List[String]] = {
-    // TODO: do resolution based on files in fs <2022-09-23, David Deng> //
-    StaticList("A", "B")
-  }
-
-  
   // returns a SymV that encodes each element in the list equals the element in the other list
   def listEq(l1: Rep[List[Value]], l2: Rep[List[Value]]): Rep[Value] = 
     l1.zip(l2).foldLeft[Value](SymV.fromBool(true))((symv, pair) =>
@@ -133,11 +129,15 @@ trait GenExternal extends SymExeDefs {
         .filter(nf => {
           // TODO: handle absolute paths and recursively traverse the FS <2022-10-01, David Deng> //
           val (name, _) = nf
-          !name.startsWith("@")
+          // exclude stdin, stdout, and stderr
+          name.substring(0, 1) != "@" && 
+          // the symbolic name must be long enough
+          name.length < symPath.size
         }).map(_._1)
       concPaths.foreach(concPath => {
         // whether it is possible that the path matches the symbolic path
         val cond = listEq(concPath.split("").map((s: Rep[String]) => IntV(s(0).asRepOf[Long], 8): Rep[Value]), symPath)
+        // TODO: add path condition to null byte <2022-10-01, David Deng> //
         info_ptrval(cond, "path equal condition")
         symExecBrFs[T](ss.fork, FS.dcopy(fs), cond, !cond,
           (ss, fs) => {
@@ -161,7 +161,7 @@ trait GenExternal extends SymExeDefs {
    */
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"open syscall\" << std::endl")
-    val path: Rep[List[Value]] = "get_sym_string_at".reflectCtrlWith[List[Value]](ss, args(0))
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
     val flags = args(1)
     resolvePath(ss, fs, path, (ss, fs, concPath) => {
       info_obj(concPath, "concPath")
@@ -312,15 +312,17 @@ trait GenExternal extends SymExeDefs {
   def stat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"stat syscall\" << std::endl")
     val ptr = args(0)
-    val name: Rep[String] = getConcreteFilePath(ptr, ss)
+    val path: Rep[List[Value]] = getSymString(ptr, ss)
     val buf: Rep[Value] = args(1)
-    if (!fs.hasFile(name)) {
-      k(ss, fs, IntV(-1, 32))
-    } else {
-      val stat = fs.getFile(name).stat
-      val ss1 = ss.updateSeq(buf, stat)
-      k(ss1, fs, IntV(0, 32))
-    }
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      if (!fs.hasFile(concPath)) {
+        k(ss, fs, IntV(-1, 32))
+      } else {
+        val stat = fs.getFile(concPath).stat
+        val ss1 = ss.updateSeq(buf, stat)
+        k(ss1, fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
@@ -353,14 +355,16 @@ trait GenExternal extends SymExeDefs {
    */
   def statfs[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"statfs syscall\" << std::endl")
-    val name: Rep[String] = getConcreteFilePath(args(0), ss)
-    if (!fs.hasFile(name)) {
-      k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
-    } else {
-      val buf: Rep[Value] = args(1)
-      val statFs = fs.statFs
-      k(ss.updateSeq(buf, statFs), fs, IntV(0, 32))
-    }
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      if (!fs.hasFile(concPath)) {
+        k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+      } else {
+        val buf: Rep[Value] = args(1)
+        val statFs = fs.statFs
+        k(ss.updateSeq(buf, statFs), fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
@@ -368,20 +372,22 @@ trait GenExternal extends SymExeDefs {
    */
   def mkdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"mkdir syscall\" << std::endl")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
-    // TODO: set mode <2022-05-28, David Deng> //
-    val mode: Rep[Value] = args(1)
-    val name: Rep[String] = getPathSegments(path).last
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (fs.hasFile(path)) k(ss, fs, IntV(-1, 32))
-    else {
-      // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
-      val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFDIR)
-      rawInfo("/* mkdir: fs.setFile */")
-      fs.setFile(path, f)
-      rawInfo("/* mkdir: return */")
-      k(ss, fs, IntV(0, 32))
-    }
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      // TODO: set mode <2022-05-28, David Deng> //
+      val mode: Rep[Value] = args(1)
+      val name: Rep[String] = getPathSegments(concPath).last
+      // TODO: set errno <2022-05-28, David Deng> //
+      if (fs.hasFile(concPath)) k(ss, fs, IntV(-1, 32))
+      else {
+        // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
+        val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFDIR)
+        rawInfo("/* mkdir: fs.setFile */")
+        fs.setFile(concPath, f)
+        rawInfo("/* mkdir: return */")
+        k(ss, fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
@@ -389,15 +395,17 @@ trait GenExternal extends SymExeDefs {
    */
   def rmdir[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"rmdir syscall\" << std::endl")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
-    val dir = fs.getFile(path)
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (dir == NullPtr[File] || !_has_file_type(dir, S_IFDIR)) k(ss, fs, IntV(-1, 32))
-    else {
-      // TODO: first get the parent to optimize <2022-05-28, David Deng> //
-      fs.removeFile(path)
-      k(ss, fs, IntV(0, 32))
-    }
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      val dir = fs.getFile(concPath)
+      // TODO: set errno <2022-05-28, David Deng> //
+      if (dir == NullPtr[File] || !_has_file_type(dir, S_IFDIR)) k(ss, fs, IntV(-1, 32))
+      else {
+        // TODO: first get the parent to optimize <2022-05-28, David Deng> //
+        fs.removeFile(concPath)
+        k(ss, fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
@@ -414,15 +422,17 @@ trait GenExternal extends SymExeDefs {
    */
   def unlink[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"unlink syscall\" << std::endl")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
-    val file = fs.getFile(path)
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr[File] || !_has_file_type(file, S_IFREG)) k(ss, fs, IntV(-1, 32))
-    else {
-      // TODO: first get the parent to optimize <2022-05-28, David Deng> //
-      fs.removeFile(path)
-      k(ss, fs, IntV(0, 32))
-    }
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      val file = fs.getFile(concPath)
+      // TODO: set errno <2022-05-28, David Deng> //
+      if (file == NullPtr[File] || !_has_file_type(file, S_IFREG)) k(ss, fs, IntV(-1, 32))
+      else {
+        // TODO: first get the parent to optimize <2022-05-28, David Deng> //
+        fs.removeFile(concPath)
+        k(ss, fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
@@ -430,15 +440,17 @@ trait GenExternal extends SymExeDefs {
    */
   def chmod[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"chmod syscall\" << std::endl")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
-    val file = fs.getFile(path)
-    val mode: Rep[Value] = args(1)
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
-    else {
-      _set_file_mode(file, mode.int.toInt)
-      k(ss, fs, IntV(0, 32))
-    }
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      val file = fs.getFile(concPath)
+      val mode: Rep[Value] = args(1)
+      // TODO: set errno <2022-05-28, David Deng> //
+      if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
+      else {
+        _set_file_mode(file, mode.int.toInt)
+        k(ss, fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
@@ -446,18 +458,20 @@ trait GenExternal extends SymExeDefs {
    */
   def chown[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     rawInfo("std::cout << \"chown syscall\" << std::endl")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
-    val file = fs.getFile(path)
-    val owner: Rep[Value] = args(1)
-    val group: Rep[Value] = args(2)
-    // TODO: set errno <2022-05-28, David Deng> //
-    if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
-    else {
-      // TODO: If the owner or group is specified as -1, then that ID is not changed. <2022-05-28, David Deng> //
-      file.writeStatField("st_uid", owner)
-      file.writeStatField("st_gid", group)
-      k(ss, fs, IntV(0, 32))
-    }
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
+    resolvePath(ss, fs, path, (ss, fs, concPath) => {
+      val file = fs.getFile(concPath)
+      val owner: Rep[Value] = args(1)
+      val group: Rep[Value] = args(2)
+      // TODO: set errno <2022-05-28, David Deng> //
+      if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
+      else {
+        // TODO: If the owner or group is specified as -1, then that ID is not changed. <2022-05-28, David Deng> //
+        file.writeStatField("st_uid", owner)
+        file.writeStatField("st_gid", group)
+        k(ss, fs, IntV(0, 32))
+      }
+    })
   }
 
   /*
