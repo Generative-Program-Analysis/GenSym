@@ -13,7 +13,7 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
     if (i->i == 0) {
       if (args.size() >= 2) {
         auto msg = get_string_arg(state, args.at(1));
-        std::cout << "Eager assertion error: " << msg << std::endl;
+        std::cout << "Eager assertion error with concrete false: " << msg << std::endl;
       }
       std::cout << "Warning: assert violates; abort and generate test.\n";
       return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
@@ -24,6 +24,11 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   // undefined/error if v is a value of other types
   auto [fls_sat, tru_sat] = check_branch(state.get_PC(), SymV::neg(v)); // check if v == 1 is not valid
   if (fls_sat) {
+    if (args.size() >= 2) {
+      auto msg = get_string_arg(state, args.at(1));
+      std::cout << "Eager assertion error with symbolic false: " << msg << std::endl;
+      std::cout << "v: " << v->toString() << std::endl;
+    }
     std::cout << "Warning: assert violates; abort and generate test.\n";
     return h(state, { make_IntV(-1, 32) }); 
   }
