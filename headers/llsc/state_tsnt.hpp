@@ -55,7 +55,7 @@ class Mem: public PreMem<PtrVal, Mem> {
   }
 
   static PtrVal q_concat(PtrVal v1, PtrVal v2) {
-    return bv_concat(v2, v1);
+    return int_op_2(iOP::op_concat, v2, v1);
   }
 
   struct Segment {
@@ -192,7 +192,7 @@ class Stack {
   public:
     Stack(Mem mem, TrList<Frame> env, PtrVal errno_location) :
       mem(std::move(mem)), env(std::move(env)), errno_location(std::move(errno_location)) {}
-  //Stack(const Stack& s) : mem(s.mem), env(((Stack&)s).env.persistent().transient()), errno_location(errno_location) {}
+    //Stack(const Stack& s) : mem(s.mem), env(((Stack&)s).env.persistent().transient()), errno_location(errno_location) {}
     size_t mem_size() { return mem.size(); }
     size_t frame_depth() { return env.size(); }
     PtrVal vararg_loc() { return env.at(env.size()-2).lookup_id(vararg_id); }
@@ -265,37 +265,46 @@ class Stack {
     }
 };
 
+#include "unionfind.hpp"
+
 class PC {
-  private:
-    TrList<PtrVal> pc;
   public:
-    PC(TrList<PtrVal> pc) : pc(std::move(pc)) {}
-  //PC(const PC& pc) : pc(((PC&)pc).pc.persistent().transient()) {}
-    PC&& add(PtrVal e) {
-      pc.push_back(e);
-      return std::move(*this);
-    }
-    PC&& add_set(const List<PtrVal>& new_pc) {
-      for (auto& it : new_pc) {
-        pc.push_back(it);
+    TrList<PtrVal> conds;
+    UnionFind uf;
+    immer::set_transient<PtrVal> vars;
+
+    PC(TrList<PtrVal> conds) : conds(std::move(conds)) {
+      auto start = steady_clock::now();
+      for (auto& c : conds) {
+        for (auto& v : c->to_SymV()->vars) { 
+          vars.insert(v);
+          uf.join(v, c); 
+        }
       }
+      auto end = steady_clock::now();
+      cons_indep_time += duration_cast<microseconds>(end - start).count();
+    }
+    PC&& add(PtrVal e) {
+      ASSERT(e->to_SymV(), "added condition must be symbolic boolean");
+      conds.push_back(e);
+      auto start = steady_clock::now();
+      for (auto& v : e->to_SymV()->vars) { 
+        vars.insert(v);
+        uf.join(v, e); 
+      }
+      auto end = steady_clock::now();
+      cons_indep_time += duration_cast<microseconds>(end - start).count();
       return std::move(*this);
     }
-    PC&& pop_back() {
-      pc.take(pc.size()-1);
-      return std::move(*this);
+    bool contains(PtrVal e) {
+      return uf.parent.find(e) != nullptr;
     }
-    const TrList<PtrVal>& get_path_conds() { return pc; }
+    const TrList<PtrVal>& get_path_conds() { return conds; }
     PtrVal get_last_cond() {
-      if (pc.size() > 0) return pc[pc.size()-1];
+      if (conds.size() > 0) return conds[conds.size()-1];
       return nullptr;
     }
-    PC&& replace_last_cond(PtrVal e) {
-      if (pc.size() == 0) return std::move(*this);
-      pc.set(pc.size()-1, e);
-      return std::move(*this);
-    }
-    void print() { print_set(pc); }
+    void print() { print_set(conds); }
 };
 
 #include "metadata.hpp"
@@ -385,7 +394,7 @@ class SS {
         return read_res;
       } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite(get_ite_cond(symvite), at(get_ite_tv(symvite), size), at(get_ite_ev(symvite), size));
+        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }
@@ -480,10 +489,16 @@ class SS {
       pc.add(e);
       return std::move(*this);
     }
+    PC& get_PC() { return pc; }
+    PC copy_PC() { return pc; }
+    void set_PC(PC _pc) { pc = _pc; }
+    const TrList<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
+    /*
     SS&& add_PC_set(const List<PtrVal>& s) {
       pc.add_set(s);
       return std::move(*this);
     }
+    */
     SS&& add_incoming_block(BlockLabel blabel) {
       meta.add_incoming_block(blabel);
       return std::move(*this);
@@ -527,11 +542,6 @@ class SS {
       update(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
       return std::move(*this);
     }
-
-    PC& get_PC() { return pc; }
-    PC copy_PC() { return pc; }
-    void set_PC(PC _pc) { pc = _pc; }
-    const TrList<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
 
     // TODO temp solution
     PtrVal vararg_loc() { return stack.vararg_loc(); }

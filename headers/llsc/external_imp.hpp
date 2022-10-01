@@ -10,25 +10,29 @@ inline T __llsc_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0)
-    {
+    if (i->i == 0) {
       if (args.size() >= 2) {
         auto msg = get_string_arg(state, args.at(1));
-        std::cout << "Eager assertion error: " << msg << std::endl;
+        std::cout << "Eager assertion error with concrete false: " << msg << std::endl;
       }
+      std::cout << "Warning: assert violates; abort and generate test.\n";
       return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
     }
     return k(state, make_IntV(1, 32));
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  auto cond = SymV::neg(v);
-  auto pc = state.get_PC();
-  pc.add(cond);
-  if (check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is not valid
-  pc.pop_back();
-  pc.add(v);
-  state.set_PC(pc);
+  auto [fls_sat, tru_sat] = check_branch(state.get_PC(), SymV::neg(v)); // check if v == 1 is not valid
+  if (fls_sat) {
+    if (args.size() >= 2) {
+      auto msg = get_string_arg(state, args.at(1));
+      std::cout << "Eager assertion error with symbolic false: " << msg << std::endl;
+      std::cout << "v: " << v->toString() << std::endl;
+    }
+    std::cout << "Warning: assert violates; abort and generate test.\n";
+    return h(state, { make_IntV(-1, 32) }); 
+  }
+  state.add_PC(v);
   return k(state, make_IntV(1, 32));
 }
 
@@ -39,17 +43,21 @@ inline T __llsc_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) 
   auto v = args.at(0);
   auto i = v->to_IntV();
   if (i) {
-    if (i->i == 0) return h(state, { make_IntV(-1) }); // concrete false - generate the test and ``halt''
+    if (i->i == 0) {
+      std::cout << "Warning: assume violates; abort and generate test.\n";
+      return h(state, { make_IntV(-1, 32) }); // concrete false - generate the test and ``halt''
+    }
     return k(state, make_IntV(1, 32));
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
   ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
-  auto cond = v;
-  auto pc = state.get_PC();
-  pc.add(cond);
-  if (!check_pc(pc)) return h(state, { make_IntV(-1) }); // check if v == 1 is satisfiable
-  state.set_PC(pc);
+  auto [tru_sat, fls_sat] = check_branch(state.get_PC(), v); // check if v == 1 is satisfiable
+  if (!tru_sat) {
+    std::cout << "Warning: assume violates; abort and generate test.\n";
+    return h(state, { make_IntV(-1, 32) }); 
+  }
+  state.add_PC(v);
   return k(state, make_IntV(1, 32));
 }
 
@@ -107,14 +115,10 @@ inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
   auto size = args.at(0);
   if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = get_ite_cond(symvite);
-    auto v_t = get_ite_tv(symvite);
-    auto v_f = get_ite_ev(symvite);
-    auto pc = state.copy_PC();
-    pc.add(cond);
-    auto tbr_sat = check_pc(pc);
-    pc.replace_last_cond(SymV::neg(cond));
-    auto fbr_sat = check_pc(pc);
+    auto cond = (*symvite)[0];
+    auto v_t = (*symvite)[1];
+    auto v_f = (*symvite)[2];
+    auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
     auto t_args = List<PtrVal>{v_t};
     auto f_args = List<PtrVal>{v_f};
     if (tbr_sat && fbr_sat) {
@@ -262,23 +266,19 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   // Todo (Ruiqi): should we fork here
   if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = get_ite_cond(symvite);
-    auto v_t = get_ite_tv(symvite);
-    auto v_f = get_ite_ev(symvite);
-    auto pc = state.copy_PC();
-    pc.add(cond);
-    auto tbr_sat = check_pc(pc);
-    pc.replace_last_cond(SymV::neg(cond));
-    auto fbr_sat = check_pc(pc);
+    auto cond = (*symvite)[0];
+    auto v_t = (*symvite)[1];
+    auto v_f = (*symvite)[2];
+    auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
     ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
     bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);
     if (auto srcite = std::dynamic_pointer_cast<SymV>(src)) {
-      ASSERT(iOP::op_ite == srcite->rator && get_ite_cond(srcite) == cond, "Inconsistent ite src and size");
-      src = tbr_sat ? get_ite_tv(srcite) : get_ite_ev(srcite);
+      ASSERT(iOP::op_ite == srcite->rator && (*srcite)[0] == cond, "Inconsistent ite src and size");
+      src = tbr_sat ? (*srcite)[1] : (*srcite)[2];
     }
-  }
-  else
+  } else {
     bytes_int = proj_IntV(size);
+  }
   ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
   ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   for (int i = 0; i < bytes_int; i++) {
@@ -407,6 +407,9 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(x_i && (64 == x_i->bw), "syscall's argument must be concrete and must be long (i64)!");
   long syscall_number = x_i->as_signed();
   long retval = -1;
+
+  // Save errno
+  errno = proj_IntV(state.at(state.error_loc(), 4));
 
   switch (syscall_number) {
     case __NR_read: {
@@ -579,6 +582,8 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       break;
   }
 
+  // Write back errno
+  state.update(state.error_loc(), make_IntV(errno, 32), 4);
   //std::cout << "syscall_num: " << syscall_number << "  retval: " << retval << std::endl;
   return k(state, make_IntV(retval, 64));
 }
@@ -640,7 +645,7 @@ template<typename T>
 inline T __llsc_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(2 == args.size(), "Invalid number of arguments for llsc_prefer_cex");
   auto cond = args.at(1);
-  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "prefer Non-Symv Condition");
+  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "Not a symbolic expression");
   state.add_cex(cond);
   return k(state, make_IntV(0));
 }

@@ -170,7 +170,7 @@ class MemShadow: public PreMem<PtrVal, MemShadow> {
   }
 
   static PtrVal q_concat(PtrVal v1, PtrVal v2) {
-    return bv_concat(v2, v1);
+    return int_op_2(iOP::op_concat, v2, v1);
   }
 
   struct Segment {
@@ -370,21 +370,37 @@ class Stack: public Printable {
     Stack alloc(size_t size) { return Stack(mem.alloc(size), env, errno_location); }
 };
 
+#include "unionfind.hpp"
+
 class PC: public Printable {
-  private:
-    List<PtrVal> pc;
   public:
-    PC(List<PtrVal> pc) : pc(pc) {}
-    PC add(const PtrVal& e) { return PC(pc.push_back(e)); }
-    PC add_set(List<PtrVal> new_pc) { return PC(pc + new_pc); }
-    List<PtrVal> get_path_conds() { return pc; }
+    List<PtrVal> conds;
+    UnionFind uf;
+    immer::set_transient<PtrVal> vars;
+
+    PC(List<PtrVal> conds) : conds(conds) {
+      auto start = steady_clock::now();
+      for (auto& c : conds) {
+        for (auto& v : c->to_SymV()->vars) {
+          vars.insert(v);
+          uf.join(v, c);
+        }
+      }
+      auto end = steady_clock::now();
+      cons_indep_time += duration_cast<microseconds>(end - start).count();
+    }
+    PC add(const PtrVal& e) { return PC(conds.push_back(e)); }
+    bool contains(PtrVal e) {
+      return uf.parent.find(e) != nullptr;
+    }
+    List<PtrVal>& get_path_conds() { return conds; }
     PtrVal get_last_cond() {
-      if (pc.size() > 0) return pc.back();
+      if (conds.size() > 0) return conds.back();
       return nullptr;
     }
     std::string toString() const override {
       std::ostringstream ss;
-      ss << "PC(" << vec_to_string<PtrVal>(pc) << ")";
+      ss << "PC(" << vec_to_string<PtrVal>(conds) << ")";
       return ss.str();
     }
 };
@@ -477,7 +493,7 @@ class SS: public Printable {
         return read_res;
       } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite(get_ite_cond(symvite), at(get_ite_tv(symvite), size), at(get_ite_ev(symvite), size));
+        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }
@@ -539,7 +555,6 @@ class SS: public Printable {
       return SS(heap.append(vals), stack, pc, meta, fs);
     }
     SS add_PC(const PtrVal& e) { return SS(heap, stack, pc.add(e), meta, fs); }
-    SS add_PC_set(List<PtrVal> s) { return SS(heap, stack, pc.add_set(s), meta, fs); }
     SS add_incoming_block(BlockLabel blabel) { return SS(heap, stack, pc, meta.add_incoming_block(blabel), fs); }
     SS cover_block(BlockLabel new_bb) { return SS(heap, stack, pc, meta.cover_block(new_bb), fs); }
     SS add_symbolic(const std::string& name, int size, bool is_whole) {
@@ -578,7 +593,7 @@ class SS: public Printable {
       return updated_ss;
     }
     SS init_error_loc() { return SS(heap, stack.init_error_loc(), pc, meta, fs); }
-    PC get_PC() { return pc; }
+    PC& get_PC() { return pc; }
     PC copy_PC() { return pc; }
     // TODO temp solution
     PtrVal vararg_loc() { return stack.vararg_loc(); }

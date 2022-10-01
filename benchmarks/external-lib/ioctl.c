@@ -20,12 +20,14 @@ int main()
   llsc_assert(errno == EINVAL, "errno should be set accordingly");
 
   ret = ioctl(fd, TCGETS, &k_termios);
-  llsc_assert(ret == 0, "ioctl should succeed on stdin");
+  llsc_assert(ret == -1, "TCGETS only works for character devices");
 
-  if (k_termios.c_cflag & 0x1) {
-    sym_print("path 1");
-  } else {
-    sym_print("path 2");
-  }
+  /* TODO: test that k_termios is correctly set
+   * need mechanism to create a character device first <2022-10-01, David Deng> */
+  /* if (k_termios.c_cflag & 0x1) { */
+  /*   sym_print("path 1"); */
+  /* } else { */
+  /*   sym_print("path 2"); */
+  /* } */
 
 }

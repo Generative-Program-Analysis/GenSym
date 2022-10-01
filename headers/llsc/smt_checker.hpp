@@ -3,33 +3,80 @@
 
 #include "ktest.hpp"
 
-// TODO: generic caching mechanisms should be shared no matter the solver
+enum solver_result { unsat, sat, unknown };
+using BrResult = std::pair<solver_result, solver_result>;
+
+inline std::string check_result_to_string(solver_result res) {
+  switch (res) {
+    case sat: return "sat";
+    case unsat: return "unsat";
+    case unknown: return "unknown";
+    default: ABORT("wow");
+  }
+}
+
 class Checker {
 public:
   virtual ~Checker() {}
-
-  enum solver_result {
-    unsat, sat, unknown
-  };
-  static std::string check_result_to_string(solver_result res) {
-    switch (res) {
-      case sat: return "sat";
-      case unsat: return "unsat";
-      case unknown: return "unknown";
-      default: ABORT("wow");
-    }
-  }
-
-  virtual bool check_pc(PC pc) = 0;
+  virtual BrResult check_branch(PC& pc, PtrVal cond) = 0;
+  virtual solver_result check_cond(PC& pc) = 0;
   virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) = 0;
   virtual void generate_test(SS state) = 0;
 };
 
-template <typename Self, typename Expr>
+template <typename Self, typename Expr, typename Model>
 class CachedChecker : public Checker {
-  Self* self() {
-    return static_cast<Self*>(this);
+protected:
+  using ObjCache = std::unordered_map<PtrVal, Expr>;
+  using BrCacheKey = std::set<PtrVal>;
+  using CexCacheKey = BrCacheKey;
+
+  struct hash_BrCacheKey {
+    // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
+    size_t operator()(BrCacheKey const& k) const noexcept {
+      size_t n = 0;
+      for (auto& c : k) n += c->to_SymV()->id;
+      return n;
+    }
+  };
+
+  // TODO: BrCache and MCexCache can be shared among threads
+  using BrCache = immer::map_transient<BrCacheKey, solver_result, hash_BrCacheKey>;
+  using MCexCache = immer::map_transient<CexCacheKey, std::shared_ptr<Model>, hash_BrCacheKey>;
+
+  ObjCache obj_cache;
+  BrCache br_cache;
+  MCexCache mcex_cache;
+
+  // Construct the solver expression with object cache for a Value
+  inline const Expr construct_expr(PtrVal e) {
+    if (use_objcache) {
+      auto fd = obj_cache.find(e);
+      if (fd != obj_cache.end()) return fd->second;
+      auto [it, ins] = obj_cache.emplace(e, self()->construct_expr_internal(e));
+      return it->second;
+    }
+    return self()->construct_expr_internal(e);
   }
+
+  inline const Expr to_expr(PtrVal e) {
+    auto start = steady_clock::now();
+    auto expr = construct_expr(e);
+    auto end = steady_clock::now();
+    cons_expr_time += duration_cast<microseconds>(end - start).count();
+    return expr;
+  }
+
+private:
+  Self* self() { return static_cast<Self*>(this); }
+
+  // Self has to define:
+  // - push_internal()
+  // - pop_internal()
+  // - check_model_internal()
+  // - construct_expr_internal()
+  // - add_constraint_internal()
+  // - eval(), eval_model()
 
   void push() {
     auto start = steady_clock::now();
@@ -45,194 +92,54 @@ class CachedChecker : public Checker {
     ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
-  solver_result check_model() {
+  void reset() {
+    auto start = steady_clock::now();
+    self()->reset_internal();
+    auto end = steady_clock::now();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
+  }
+
+  const solver_result* query_sat_cache(BrCacheKey& conds) {
+    if (use_brcache) return br_cache.find(conds);
+    return nullptr;
+  }
+
+  void update_sat_cache(solver_result& res, BrCacheKey& conds) {
+    if (use_brcache) br_cache.set(conds, res);
+  }
+
+  solver_result check_model(BrCacheKey& conds) {
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
+    update_sat_cache(result, conds);
     auto end = steady_clock::now();
     ext_solver_time += duration_cast<microseconds>(end - start).count();
     return result;
   }
 
-public:
-  using VarMap = std::map<simple_ptr<SymV>, Expr>;
-  using ExprDetail = std::tuple<Expr, VarMap>;
-  std::unordered_map<PtrVal, ExprDetail> objcache;
-  using objiter_t = typename decltype(objcache)::iterator;
-
-  using Model = std::unordered_map<simple_ptr<SymV>, IntData>;
-  using CheckResult = std::tuple<solver_result, std::shared_ptr<Model>>;
-  std::map<std::set<PtrVal>, CheckResult> cexcache;
-
-  void clear_cache() {
-    objcache.clear();
-    cexcache.clear();
+  inline void resolve_indep_uf(UnionFind& uf, PtrVal root, BrCacheKey& result, bool add_root = true) {
+    auto start = steady_clock::now();
+    if (add_root) result.insert(root);
+    auto last_expr = root;
+    while (root != uf.next[last_expr]) {
+      last_expr = uf.next[last_expr];
+      if (!last_expr) break;
+      if (!last_expr->to_SymV()->is_var()) result.insert(last_expr);
+    }
+    auto end = steady_clock::now();
+    cons_indep_time += duration_cast<microseconds>(end - start).count();
   }
 
-  const ExprDetail& construct_expr(PtrVal e) {
-    if (auto it = objcache.find(e); it != objcache.end())
-      return it->second;
-    VarMap tmp;
-    auto expr = self()->construct_expr_internal(e, tmp);
-    auto [it, ins] = objcache.emplace(e, std::make_tuple(expr, std::move(tmp)));
-    return it->second;
+  inline std::shared_ptr<Model> update_model_cache(solver_result& res, CexCacheKey& conds) {
+    if (res == solver_result::sat) {
+      auto m = self()->get_model_internal(conds);
+      if (use_cexcache) mcex_cache.set(conds, m);
+      return m;
+    }
+    return nullptr;
   }
 
-  CheckResult check_indep_model(
-        const std::vector<objiter_t> & condvec,
-        std::set<PtrVal>& condset,
-        simple_ptr<SymV> query_expr=nullptr,
-        bool require_model=false) {
-
-    // solving with counterexample caching
-    if (use_cexcache && (!query_expr || query_expr->name.size())) {
-      if (auto it = cexcache.find(condset); it != cexcache.end()) {
-        cached_query_num += 1;
-        return it->second;
-      }
-    }
-
-    // assert and check
-    push();
-    VarMap varmap;
-    if (condvec.size()) {  // use local cache if possible
-      for (auto& v: condvec) {
-        auto& [e, vm] = v->second;
-        self()->add_constraint_internal(e);
-        varmap.insert(vm.begin(), vm.end());
-      }
-    } else {
-      for (auto& v: condset) {
-        auto& [e, vm] = objcache.at(v);
-        self()->add_constraint_internal(e);
-        varmap.insert(vm.begin(), vm.end());
-      }
-    }
-    solver_result result = check_model();
-
-    // get model
-    std::shared_ptr<Model> model;
-    if (result == sat && (use_cexcache || require_model)) {
-      model = std::make_shared<Model>();
-      for (auto& [v, e]: varmap) {
-        model->emplace(v, self()->get_value_internal(e));
-      }
-    }
-    if (use_cexcache) {
-      cexcache.emplace(std::move(condset), std::make_tuple(result, model));
-    }
-    if (result == sat && query_expr) {  // !require_model
-      model = std::make_shared<Model>();
-      auto& e = std::get<0>(objcache.at(query_expr));
-      model->emplace(query_expr, self()->get_value_internal(e));
-    }
-    pop();
-    return std::make_tuple(result, model);
-  }
-
-  template <template <typename> typename T>
-  void get_indep_conds(
-        const T<PtrVal>& conds,
-        std::vector<objiter_t>& condvec,
-        std::set<PtrVal>& condset,
-        simple_ptr<SymV> query_expr) {
-    if (use_cons_indep && conds.size() > (query_expr ? 0 : 1)) {
-      std::vector<objiter_t> queue;
-      objiter_t cur;
-      int idx;
-
-      for (auto& v: conds) {
-        condvec.push_back(objcache.find(v));
-      }
-      if (!query_expr) {
-        cur = condvec.back(); condvec.pop_back();
-        idx = 1;
-        queue.push_back(cur);
-        condset.insert(cur->first);
-      } else {
-        cur = objcache.find(query_expr);
-        idx = 0;
-      }
-
-      do {
-        auto& cset = std::get<1>(cur->second);
-        for (auto& next: condvec) if (next != objcache.end()) {
-          auto& nset = std::get<1>(next->second);
-          auto cit = cset.begin();
-          auto nit = nset.begin();
-          if (cit != cset.end() && nit != nset.end()) {
-            do if (nit->first == cit->first) {
-              condset.insert(next->first);
-              queue.push_back(next);
-              next = objcache.end();
-              break;
-            } while (nit->first < cit->first ? ++nit != nset.end() : ++cit != cset.end());
-          }
-        }
-      } while (idx < queue.size() && (cur = queue[idx++], true));
-      condvec = std::move(queue);
-    } else {
-      condset.insert(conds.begin(), conds.end());
-    }
-  }
-
-  template <template <typename> typename T>
-  CheckResult check_model(
-        const T<PtrVal>& conds,
-        simple_ptr<SymV> query_expr = nullptr,
-        bool require_model = false) {
-    ASSERT(!query_expr || !require_model, "Conflicting request");
-    // translation
-    if (!use_objcache) objcache.clear();
-    for (auto &v: conds) construct_expr(v);
-    if (query_expr) construct_expr(query_expr);
-
-    // local storage
-    std::vector<objiter_t> condvec;
-    std::set<PtrVal> condset;
-
-    // constraint independence resolving
-    if (!require_model || !use_cons_indep) {
-      get_indep_conds(conds, condvec, condset, query_expr);
-      return check_indep_model(condvec, condset, query_expr, require_model);
-    } else {
-      std::vector<PtrVal> curr_conds(conds.begin(), conds.end());
-      solver_result check_result;
-      std::shared_ptr<Model> model = std::make_shared<Model>();
-      while (curr_conds.size() > 0) {
-        get_indep_conds(curr_conds, condvec, condset, query_expr);
-        int before_size = curr_conds.size();
-        for (auto& v: condset) {
-          curr_conds.erase(std::remove(curr_conds.begin(), curr_conds.end(), v), curr_conds.end());
-        }
-        ASSERT(curr_conds.size() < before_size, "Invalid elimination");
-        auto [sub_result, sub_model] = check_indep_model(condvec, condset, query_expr, require_model);
-        if (model->size() == 0)
-          check_result = sub_result;
-        // Note (Ruiqi): make sure that sub_model's key won't overlap, because std::unordered_map::insert will not update for same key.
-        model->insert(sub_model->begin(), sub_model->end());
-        condvec.clear();
-        condset.clear();
-      }
-      return std::make_tuple(check_result, model);
-    }
-  }
-
-  // interfaces
-
-  virtual bool check_pc(PC pc) override {
-    if (!use_solver) return true;
-    br_query_num++;
-    auto [r, m] = check_model(pc.get_path_conds());
-    return r == sat;
-  }
-
-  virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) override {
-    auto v2 = std::dynamic_pointer_cast<SymV>(v);
-    auto [r, m] = check_model(pc.get_path_conds(), v2);
-    return std::make_pair(r == sat, r == sat ? m->at(v2) : 0);
-  }
-
-  inline void gen_default_format(std::shared_ptr<Model> model, unsigned int test_id) {
+  inline void gen_default_format(PC& pc, std::shared_ptr<Model> model, unsigned int test_id) {
     std::stringstream output;
     output << "Query number: " << (test_id+1) << std::endl;
     output << "Query is sat." << std::endl;
@@ -242,18 +149,18 @@ public:
     if (out_fd == -1) {
       ABORT("Cannot create the test case file, abort.\n");
     }
-    for (auto [k, v]: *model) {
-      output << k->name << "=" << v << std::endl;
+    for (auto& v : pc.vars) {
+      output << v->to_SymV()->name << "=" 
+             << self()->eval_model(model, v) << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
     close(out_fd);
   }
 
-  inline void gen_ktest_format(std::shared_ptr<Model> model, unsigned int test_id,
-    List<SymObj> sym_objs, int conc_argc, char** conc_argv) {
+  inline void gen_ktest_format(PC& pc, std::shared_ptr<Model> model, unsigned int test_id, List<SymObj> sym_objs) {
     KTest b;
-    b.numArgs = conc_argc;
-    b.args = conc_argv;
+    b.numArgs = g_conc_argc;
+    b.args = g_conc_argv;
     b.symArgvs = 0;
     b.symArgvLen = 0;
     b.numObjects = sym_objs.size();
@@ -267,26 +174,17 @@ public:
       o->name[obj.name.size()] = 0;
       o->numBytes = obj.size;
       o->bytes = new unsigned char[o->numBytes];
-      assert(o->bytes);
+      memset(o->bytes, 0, o->numBytes);
       if (obj.is_whole) {
         // XXX(GW): why obj.size must be 4?
         ASSERT(obj.size == 4, "Bad whole object");
-        auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name, obj.size*8));
-        ASSERT(key, "Invalid key");
-        auto it = model->find(key);
-        uint32_t value = (uint32_t) it->second;
-        if (it == model->end()) memset(o->bytes, 0, o->numBytes);
-        else memcpy(o->bytes, (char*) &value, o->numBytes);
+        auto key = make_SymV(obj.name, obj.size*8)->to_SymV();
+        auto value = self()->eval_model(model, key);
+        memcpy(o->bytes, (char*) &value, o->numBytes);
       } else {
         for (int idx = 0; idx < o->numBytes; idx++) {
-          auto key = std::dynamic_pointer_cast<SymV>(make_SymV(obj.name + "_" + std::to_string(idx), 8));
-          ASSERT(key, "Invalid key");
-          auto it = model->find(key);
-          if (it != model->end()) {
-            o->bytes[idx] = (unsigned char) it->second;
-          } else {
-            o->bytes[idx] = 0;
-          }
+          auto key = make_SymV(obj.name + "_" + std::to_string(idx), 8)->to_SymV();
+          o->bytes[idx] = self()->eval_model(model, key);
         }
       }
     }
@@ -305,41 +203,208 @@ public:
     delete[] b.objects;
   }
 
+public:
+  void clear_cache() {
+    obj_cache.clear();
+    br_cache = BrCache();
+    mcex_cache = MCexCache();
+  }
+
+  std::shared_ptr<Model> query_model(CexCacheKey& conds) {
+    std::shared_ptr<Model> m;
+    if (use_cexcache) {
+      auto it = mcex_cache.find(conds);
+      if (it != nullptr) {
+        cached_query_num += 1;
+        m = *it;
+      } else {
+        push();
+        for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+        auto result = check_model(conds);
+        m = update_model_cache(result, conds);
+        pop();
+      }
+    } else {
+      push();
+      for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+      auto result = check_model(conds);
+      if (result == sat) m = self()->get_model_internal(conds);
+      pop();
+    }
+    return m;
+  }
+
+  virtual solver_result check_cond(PC& pc) override {
+    if (!use_solver) return sat;
+    br_query_num++;
+
+    BrCacheKey indep_pc;
+    if (use_cons_indep) resolve_indep_uf(pc.uf, *std::prev(pc.conds.end()), indep_pc);
+    else indep_pc.insert(pc.conds.begin(), pc.conds.end());
+
+    auto hit = query_sat_cache(indep_pc);
+    if (hit) return *hit;
+
+    push();
+    for (auto& v: indep_pc) self()->add_constraint_internal(to_expr(v));
+    auto res = check_model(indep_pc);
+    update_model_cache(res, indep_pc);
+    pop();
+    
+    return res;
+  }
+
+  virtual BrResult check_branch(PC& pc, PtrVal cond) override {
+    if (!use_solver) return std::make_pair(sat, sat);
+    br_query_num++;
+
+    auto start = steady_clock::now();
+    auto neg_cond = SymV::neg(cond);
+    BrCacheKey common;
+    if (use_cons_indep) {
+      UnionFind uf(pc.uf);
+      for (auto& v : cond->to_SymV()->vars) uf.join(v, cond);
+      resolve_indep_uf(uf, cond, common, pc.contains(cond));
+    } else {
+      common.insert(pc.conds.begin(), pc.conds.end());
+    }
+    auto end = steady_clock::now();
+
+    BrResult result;
+    common.insert(cond);
+    auto then_hit = query_sat_cache(common);
+    if (!pc.contains(cond)) common.erase(cond);
+    common.insert(neg_cond);
+    auto else_hit = query_sat_cache(common);
+    if (!pc.contains(neg_cond)) common.erase(neg_cond);
+
+    if (then_hit != nullptr && else_hit != nullptr) {
+      // both hit cache
+      cached_query_num += 2;
+      result.first = *then_hit;
+      result.second = *else_hit;
+    } else if (then_hit != nullptr) {
+      // only "then" branch hits cache
+      cached_query_num += 1;
+      result.first = *then_hit;
+      common.insert(neg_cond);
+      if (result.first == solver_result::unsat) {
+        result.second = solver_result::sat;
+        update_sat_cache(result.second, common);
+      } else {
+        push();
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        result.second = check_model(common);
+        update_model_cache(result.second, common);
+        pop();
+      }
+      auto else_query_time = steady_clock::now();
+      else_miss_time += duration_cast<microseconds>(else_query_time - end).count();
+    } else if (else_hit != nullptr) {
+      // only "else" branch hits cache
+      cached_query_num += 1;
+      result.second = *else_hit;
+      common.insert(cond);
+      if (result.second == solver_result::unsat) {
+        result.first = solver_result::sat;
+        update_sat_cache(result.first, common);
+      } else {
+        push();
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        result.first = check_model(common);
+        update_model_cache(result.first, common);
+        pop();
+      }
+      auto then_query_time = steady_clock::now();
+      then_miss_time += duration_cast<microseconds>(then_query_time - end).count();
+    } else {
+      // neither hits cache
+      push();
+      for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+
+      push();
+      self()->add_constraint_internal(to_expr(cond));
+      common.insert(cond);
+      result.first = check_model(common);
+      update_model_cache(result.first, common);
+      pop();
+
+      if (!pc.contains(cond)) common.erase(cond);
+      common.insert(neg_cond);
+      if (result.first == solver_result::unsat) {
+        result.second = solver_result::sat;
+        update_sat_cache(result.second, common);
+      } else {
+        self()->add_constraint_internal(to_expr(neg_cond));
+        result.second = check_model(common);
+        update_model_cache(result.second, common);
+      }
+      pop();
+
+      auto query_both_time = steady_clock::now();
+      both_miss_time += duration_cast<microseconds>(query_both_time - end).count();
+    }
+    end = steady_clock::now();
+    br_solver_time += duration_cast<microseconds>(end - start).count();
+    return result;
+  }
+
+  virtual std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal e) override {
+    conc_query_num++;
+    auto sym_e = e->to_SymV();
+    ASSERT(sym_e != nullptr, "concretizing a non-symbolic value");
+    for (auto& v: sym_e->vars) pc.uf.join(v, sym_e);
+
+    CexCacheKey conds;
+    if (use_cons_indep) resolve_indep_uf(pc.uf, e, conds, false);
+    else conds.insert(pc.conds.begin(), pc.conds.end());
+    UIntData data = 0;
+    solver_result result;
+    auto m = query_model(conds);
+    if (m != nullptr) result = sat;
+    return std::make_pair(result == sat, result == sat ? self()->eval_model(m, e) : 0);
+  }
+
   virtual void generate_test(SS state) override {
-    auto pc = std::move(state.get_PC());
+    completed_path_num++;
+    if (only_output_covernew && !state.has_cover_new()) return;
     if (!use_solver) return;
+
     if (mkdir("tests", 0777) == -1) {
       if (errno == EEXIST) { }
       else ABORT("Cannot create the folder tests, abort.\n");
     }
-    completed_path_num++;
-    if (only_output_covernew && !state.has_cover_new()) return;
-    auto conds = pc.get_path_conds();
-    CheckResult res;
-    solver_result result;
-    std::shared_ptr<Model> model;
+
+    std::shared_ptr<Model> m;
+    CexCacheKey conds(state.get_PC().conds.begin(), state.get_PC().conds.end());
     if (state.get_preferred_cex().size() > 0) {
-      std::vector<PtrVal> new_conds(conds.begin(), conds.end());
-      auto preferred_cex = state.get_preferred_cex();
-      for (auto& v: preferred_cex) {
-        new_conds.push_back(v);
-        auto [r, m] = check_model(new_conds);
-        if (r != sat)
-          new_conds.pop_back();
+      // Note(GW): the algorithm resolves preferred cex depending
+      // on the traversal order of get_preferred_cex. Since once a preferred cex
+      // is hold, it is added and preserved when checking the next preferred cex.
+      // This implementation needs to maintain a copy of the original PC every iteration,
+      // and adds all previously established "preferred cex" every time. It
+      // could be improved if we have implemented a "delete" method for UnionFind.
+      CexCacheKey established;
+
+      for (auto& c: state.get_preferred_cex()) {
+        PC pc(state.get_PC());
+        for (auto& t : established) pc.add(t);
+        pc.add(c);
+        CexCacheKey pc_pcex;
+        if (use_cons_indep) resolve_indep_uf(pc.uf, c, pc_pcex);
+        else pc_pcex.insert(pc.conds.begin(), pc.conds.end());
+        m = query_model(pc_pcex);
+        if (m != nullptr) established.insert(c);
       }
-      res = check_model(new_conds, nullptr, true);
+      conds.insert(established.begin(), established.end());
+      m = query_model(conds);
     } else {
-      res = check_model(conds, nullptr, true);
+      m = query_model(conds);
     }
-    result = std::get<0>(res);
-    model = std::get<1>(res);
-    if (result == sat) {
-      generated_test_num++;
-      if (output_ktest) gen_ktest_format(model, generated_test_num, state.get_sym_objs(), g_conc_argc, g_conc_argv);
-      else gen_default_format(model, generated_test_num);
-    } else {
-      ABORT("Cannot find satisfiable test cases");
-    }
+    ASSERT(m != nullptr, "Cannot generate test cases for unsat conditions!");
+    generated_test_num++;
+    if (output_ktest) gen_ktest_format(state.get_PC(), m, generated_test_num, state.get_sym_objs());
+    else gen_default_format(state.get_PC(), m, generated_test_num);
   }
 };
 
@@ -354,13 +419,9 @@ public:
     auto fun = [this](auto id) {
       if (solver_kind == SolverKind::z3) {
         checker_map[id] = std::make_unique<CheckerZ3>();
-      }
-      else if (solver_kind == SolverKind::stp) {
+      } else if (solver_kind == SolverKind::stp) {
         checker_map[id] = std::make_unique<CheckerSTP>();
-      }
-      else {
-        ABORT("unknown solver");
-      }
+      } else ABORT("unknown solver");
     };
     fun(std::this_thread::get_id());
     tp.with_thread_ids(fun);
@@ -379,18 +440,24 @@ inline CheckerManager checker_manager;
 
 inline void init_solvers() { checker_manager.init_checkers(); }
 
-inline bool check_pc(PC pc) {
+inline BrResult check_branch(PC pc, PtrVal cond) {
   auto start = steady_clock::now();
-  auto result = checker_manager.get_checker().check_pc(std::move(pc));
+  auto result = checker_manager.get_checker().check_branch(pc, cond);
   auto end = steady_clock::now();
   int_solver_time += duration_cast<microseconds>(end - start).count();
   return result;
 }
 
-inline void check_pc_to_file(SS state) {
+inline bool check_pc(PC pc) {
+  auto result = checker_manager.get_checker().check_cond(pc);
+  return result == solver_result::sat;
+}
+
+inline void check_pc_to_file(SS& state) {
   auto start = steady_clock::now();
   checker_manager.get_checker().generate_test(std::move(state));
   auto end = steady_clock::now();
+  gen_test_time += duration_cast<microseconds>(end - start).count();
   int_solver_time += duration_cast<microseconds>(end - start).count();
 }
 
@@ -398,6 +465,7 @@ inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) {
   auto start = steady_clock::now();
   auto result = checker_manager.get_checker().get_sat_value(std::move(pc), v);
   auto end = steady_clock::now();
+  conc_solver_time += duration_cast<microseconds>(end - start).count();
   int_solver_time += duration_cast<microseconds>(end - start).count();
   return result;
 }
