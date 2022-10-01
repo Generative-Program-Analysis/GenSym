@@ -147,7 +147,7 @@ object TestCases {
     TestPrg(creatUnlinkTest, "creatUnlinkTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(chmodTest, "chmodTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(stdinTest, "stdinTest", "@main", noArg, "--sym-stdin 10", nPath(2)++status(0)),
-    TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(2)++status(0)),
+    TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)),
