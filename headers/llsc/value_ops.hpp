@@ -349,9 +349,9 @@ inline PtrVal si_tofp(const PtrVal& v) {
 struct LocV : IntV {
   enum Kind { kStack, kHeap, kNative };
   static constexpr int64_t MemOffset[3] = { 1LL<<28, 2LL<<28, 3LL<<28 };
-  Addr l;
+  Addr l; // the actual location
   Kind k;
-  size_t base, size;
+  size_t base, size; // the base point and its valid extent
 
   LocV(Addr base, Kind k, int size, int off) :
     IntV(MemOffset[k] + base + off, 64), l(base + off), k(k), base(base), size(size) {
@@ -383,7 +383,6 @@ inline PtrVal make_LocV(Addr base, LocV::Kind k, size_t size, size_t off = 0) {
   return hashconsing(ret);
 }
 
-// Todo: what should proj_LocV return?
 inline unsigned int proj_LocV(const PtrVal& v) {
   return std::dynamic_pointer_cast<LocV>(v)->l;
 }
@@ -396,7 +395,7 @@ inline int proj_LocV_size(const PtrVal& v) {
 
 inline PtrVal make_LocV_null() {
   static const PtrVal loc0 = make_IntV(0, 64);
-  /* // use LocV */
+  // TODO: what should we return here? did we have consensus last time?
   /* static const PtrVal loc0 = make_LocV(0, LocV::kStack, 8); */
   return loc0;
 }

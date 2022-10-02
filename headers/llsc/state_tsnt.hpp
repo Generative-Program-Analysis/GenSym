@@ -332,14 +332,7 @@ class SS {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    //[[deprecated]]
-    PtrVal at(PtrVal addr) {
-      auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return stack.at(loc->l);
-      return heap.at(loc->l);
-    }
-    PtrVal at(PtrVal addr, int size) {
+    PtrVal at(PtrVal addr, size_t size) {
       auto loc = addr->to_LocV();
       if (loc != nullptr) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
@@ -432,16 +425,6 @@ class SS {
     }
     SS&& alloc_heap(size_t size) {
       heap.alloc(size);
-      return std::move(*this);
-    }
-    //[[deprecated]]
-    SS&& update(PtrVal addr, PtrVal val) {
-      auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack)
-        stack.update(loc->l, val);
-      else
-        heap.update(loc->l, val);
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {

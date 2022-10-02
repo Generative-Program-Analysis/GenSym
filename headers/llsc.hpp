@@ -30,11 +30,9 @@
 #include <cstdlib>
 #include <getopt.h>
 
-#include <llsc/immeralgo.hpp>
 #include <parallel_hashmap/phmap.h>
 
-using namespace std::chrono;
-
+#include <llsc/immeralgo.hpp>
 #include <llsc/auxiliary.hpp>
 #include <llsc/defs.hpp>
 #include <llsc/parallel.hpp>

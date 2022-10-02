@@ -434,13 +434,7 @@ class SS: public Printable {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    PtrVal at(const PtrVal& addr) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return stack.at(loc->l);
-      return heap.at(loc->l);
-    }
-    PtrVal at(const PtrVal& addr, int size) {
+    PtrVal at(const PtrVal& addr, size_t size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       if (loc != nullptr) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
@@ -526,13 +520,7 @@ class SS: public Printable {
     List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, meta, fs); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, meta, fs); }
-    SS update(const PtrVal& addr, const PtrVal& val) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, meta, fs);
-      return SS(heap.update(loc->l, val), stack, pc, meta, fs);
-    }
-    SS update(const PtrVal& addr, const PtrVal& val, int size) {
+    SS update(const PtrVal& addr, const PtrVal& val, size_t size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, meta, fs);

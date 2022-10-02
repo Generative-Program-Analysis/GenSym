@@ -37,6 +37,8 @@
 
 template<typename T> using Ptr = std::shared_ptr<T>;
 
+using namespace std::chrono;
+
 /* Exit code */
 
 inline std::atomic<std::optional<int>> exit_code = {};

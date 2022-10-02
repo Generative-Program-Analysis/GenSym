@@ -21,7 +21,6 @@ inline unsigned int addr_bw = 64;
 inline unsigned int addr_index_bw = addr_bw;
 
 /* Stat */
-// TODO: consider merging with monitor
 
 // Number of async currently used (Deprecated)
 inline std::atomic<unsigned int> num_async = 0;
