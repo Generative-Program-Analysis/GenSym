@@ -50,6 +50,11 @@ trait GenericLLSCCodeGen extends CppSAICodeGenBase {
     case Node(_, "make_IntV", _, _) => true
     case Node(_, "null-v", _, _) => true
     case Node(_, "ss-fork", _, _) => false
+    // Note: We don't inline pop since C++ *still* has not fully specified
+    // an evaluation order -- inlining pop potentially causes errors, eg
+    //   f(s.pop(), s, s.at(s.env_lookup(x), 4))
+    // where s.env_lookup(x) should only happen after pop.
+    case Node(_, "ss-pop", _, _) => false
     case _ => super.mayInline(n)
   }
 

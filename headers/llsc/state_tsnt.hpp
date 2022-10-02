@@ -304,7 +304,7 @@ class PC {
       if (conds.size() > 0) return conds[conds.size()-1];
       return nullptr;
     }
-    void print() { print_set(conds); }
+    void print() { print_vec<TrList, PtrVal>(conds); }
 };
 
 #include "metadata.hpp"
@@ -334,13 +334,13 @@ class SS {
     size_t frame_depth() { return frame_depth(); }
     //[[deprecated]]
     PtrVal at(PtrVal addr) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at(loc->l);
       return heap.at(loc->l);
     }
     PtrVal at(PtrVal addr, int size) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      auto loc = addr->to_LocV();
       if (loc != nullptr) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
         return heap.at(loc->l, size);
@@ -348,7 +348,7 @@ class SS {
         // TODO GW: should refactor this piece of code, strive for readability and maintainability
         ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
         std::vector<std::pair<PtrVal, int>> result;
-        auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
+        auto offsym = symloc->off->to_SymV();
         ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
         bool reach_limit = (max_sym_array_size > 0) && (symloc->size >= max_sym_array_size);
         bool resolve_once = reach_limit || (SymLocStrategy::one == symloc_strategy);
@@ -392,14 +392,14 @@ class SS {
         ASSERT(read_res, "Bad result");
         // TODO: should we modify the pc to add the in-bound constraints
         return read_res;
-      } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
+      } else if (auto symvite = addr->to_SymV()) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
         return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }
     PtrVal at_struct(PtrVal addr, int size) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
       auto ret = make_simple<StructV>(heap.slice(loc->l, size).get_pmem());
@@ -436,7 +436,7 @@ class SS {
     }
     //[[deprecated]]
     SS&& update(PtrVal addr, PtrVal val) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack)
         stack.update(loc->l, val);
@@ -445,7 +445,7 @@ class SS {
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack)
         stack.update(loc->l, val, size);
@@ -493,12 +493,6 @@ class SS {
     PC copy_PC() { return pc; }
     void set_PC(PC _pc) { pc = _pc; }
     const TrList<PtrVal>& get_path_conds() { return pc.get_path_conds(); }
-    /*
-    SS&& add_PC_set(const List<PtrVal>& s) {
-      pc.add_set(s);
-      return std::move(*this);
-    }
-    */
     SS&& add_incoming_block(BlockLabel blabel) {
       meta.add_incoming_block(blabel);
       return std::move(*this);

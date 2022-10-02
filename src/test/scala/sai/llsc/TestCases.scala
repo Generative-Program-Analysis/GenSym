@@ -156,9 +156,8 @@ object TestCases {
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)),
   )
-  
-  /*
-  val coreutils: List[TestPrg] = List(
+
+  lazy val coreutils: List[TestPrg] = List(
     TestPrg(echo_linked,    "echo_linked_posix",    "@main",  noMainFileOpt, "--argv=./echo.bc     --sym-stdout --sym-arg 2 --sym-arg 7", nPath(216136)++status(0)),
     // [0.75008s/6.94065s/82.0174s] #blocks: 473/2224; #br: 160/96/1128; #paths: 216136; #threads: 1; #task-in-q: 0; #queries: 646097/53 (0)
     // gcov 84.17%
@@ -205,7 +204,6 @@ object TestCases {
     // [10.6848s/77.1473s/91.5263s] #blocks: 878/2418; #br: 314/226/2515; #paths: 10614; #threads: 1; #task-in-q: 0; #queries: 475423/30 (0)
     // gcov 40.29%
   )
-  */
 
   val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external ++ argv
 

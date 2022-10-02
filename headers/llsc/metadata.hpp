@@ -25,8 +25,8 @@ public:
         "ssid : " << ssid << ", " <<
         "bb : " << bb << ", " <<
         "has_cover_new : " << has_cover_new << ", " <<
-        "sym_objs : " << vec_to_string<SymObj>(sym_objs) <<
-        "preferred_cex : " << vec_to_string<PtrVal>(preferred_cex) << ")";
+        "sym_objs : " << vec_to_string<List, SymObj>(sym_objs) <<
+        "preferred_cex : " << vec_to_string<List, PtrVal>(preferred_cex) << ")";
       return ss.str();
     }
 

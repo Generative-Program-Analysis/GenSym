@@ -30,6 +30,7 @@ object Config {
   var emitBlockIdMap: Boolean = true
   var switchType: SwitchType = Merge
   var runCode: Boolean = true
+  var recordInstNum: Boolean = false
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
