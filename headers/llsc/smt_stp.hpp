@@ -2,7 +2,6 @@
 #define LLSC_STP_HEADER
 
 #include <stp/c_interface.h>
-#include <stp_handle.hpp>
 
 struct ExprHandle: public std::shared_ptr<void> {
   typedef std::shared_ptr<void> Base;

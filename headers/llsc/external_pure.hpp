@@ -307,10 +307,9 @@ inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   SS res = state;
   IntData bytes_int = proj_IntV(args.at(2));
-  // Optimize: flex_vector_transient
-  auto temp_mem = List<PtrVal>{};
+  auto temp_mem = TrList<PtrVal>{};
   for (int i = 0; i < bytes_int; i++) {
-    temp_mem = temp_mem.push_back(res.at(src + i));
+    temp_mem.push_back(res.at(src + i));
   }
   for (int i = 0; i < bytes_int; i++) {
     res = res.update(dest + i, temp_mem.at(i));
@@ -518,18 +517,6 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       retval = syscall(__NR_pwrite64, fd, temp.getbuf(), count, offset);
       break;
     }
-    case __NR_access:
-      ABORT("Unsupported Systemcall");
-      break;
-    case __NR_select:
-      ABORT("Unsupported Systemcall");
-      break;
-    case __NR_fcntl:
-      ABORT("Unsupported Systemcall");
-      break;
-    case __NR_fsync:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_ftruncate: {
       int fd = get_int_arg(state, args.at(1));
       off_t length = get_int_arg(state, args.at(2));
@@ -545,48 +532,24 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       if (retval >= 0) res = temp.writeback(res);
       break;
     }
+    case __NR_access:
+    case __NR_select:
+    case __NR_fcntl:
+    case __NR_fsync:
     case __NR_chdir:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fchdir:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_readlink:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_chmod:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fchmod:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_chown:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fchown:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_statfs:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fstatfs:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_getdents64:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_utimes:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_openat:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_futimesat:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_newfstatat:
-      ABORT("Unsupported Systemcall");
-      break;
     default:
       ABORT("Unsupported Systemcall");
       break;

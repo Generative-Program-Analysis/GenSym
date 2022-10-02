@@ -3,10 +3,12 @@
 
 /* Auxiliary functions to process command line argv passed to the application */
 
+// the parsed content of --argv=...
 inline immer::flex_vector<immer::flex_vector<PtrVal>> cli_argv;
-// the argv and argc value passed to llsc_main
+// the argc/argv value passed to llsc_main
 inline PtrVal g_argv;
 inline PtrVal g_argc;
+// the argc/argv value used to generate ktest format tests
 inline int g_conc_argc = 0;
 inline char** g_conc_argv = nullptr;
 
