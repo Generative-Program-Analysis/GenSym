@@ -464,20 +464,32 @@ struct SymV : Value {
       if (sym_rand) for (auto& v : sym_rand->vars) vars.insert(v);
     }
   }
+  std::ostream& pprint(std::ostream& os, int level) const {
+    String padding(level, ' ');
+    os << padding << "SymV(";
+    if (!name.empty()) {
+      os << name;
+    } else {
+      os << int_op_string(rator) << ", { " << std::endl;
+      for (auto e : rands) {
+        auto s = e->to_SymV();
+        if (s) {
+          s->pprint(os, level + 1);
+        } else {
+          os << padding << ' ' << *e;
+        }
+        os << ", " << std::endl;
+      }
+      os << padding << "}";
+    }
+    os << ", " << bw << ")";
+    return os;
+  }
+
   inline bool is_var() { return !name.empty(); }
   std::string toString() const override {
     std::ostringstream ss;
-    ss << "SymV(";
-    if (!name.empty()) {
-      ss << name;
-    } else {
-      ss << int_op_string(rator) << ", { ";
-      for (auto e : rands) {
-        ss << *e << ", ";
-      }
-      ss << "}";
-    }
-    ss << ", " << bw << ")";
+    pprint(ss, 0);
     return ss.str();
   }
   inline const PtrVal& operator[](std::size_t idx) const { return rands[idx]; }
@@ -496,8 +508,8 @@ struct SymV : Value {
   virtual List<PtrVal> to_bytes() {
     if (bw <= 8) return List<PtrVal>{shared_from_this()};
     auto res = List<PtrVal>{}.transient();
-    for (size_t i = bw/8; i > 0; i--) {
-      res.push_back(bv_extract(shared_from_this(), i*8-1, (i-1)*8));
+    for (size_t i = 0; i < bw/8; i++) {
+      res.push_back(bv_extract(shared_from_this(), (i+1)*8-1, i*8));
     }
     return res.persistent();
   }

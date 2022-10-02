@@ -8,6 +8,7 @@ int main()
   // open ---- succeed --- (buf[2] != 'c') ---- true ---|
   //      \--- fail ---|                   \
   //                                        \--- false ---|
+  // NOTE: the second open will not branch because O_RDONLY has a value of 0 and will never trigger the permission for read.
   char filename[] = "A";
   char buf[5];
   int fd;

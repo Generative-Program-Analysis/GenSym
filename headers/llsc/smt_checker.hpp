@@ -387,10 +387,6 @@ public:
       CexCacheKey established;
 
       for (auto& c: state.get_preferred_cex()) {
-        // TODO: this is a temp fix since FS some how adds concrete values into PC.
-        // Remove this line until FS is fixed.
-        if (!c->to_SymV()) continue;
-
         PC pc(state.get_PC());
         for (auto& t : established) pc.add(t);
         pc.add(c);

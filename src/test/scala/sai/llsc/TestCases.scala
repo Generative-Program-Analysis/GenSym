@@ -101,6 +101,7 @@ object TestCases {
     //TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)),
     TestPrg(selectTestSym, "selectTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(i1Bool, "i1Bool", "@main", noArg, noOpt, nPath(5)++status(0)),
+    TestPrg(flagTest, "flagTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
   )
 
   val symbolicSmall: List[TestPrg] = List(
@@ -143,10 +144,10 @@ object TestCases {
     TestPrg(statfsTest, "statfsTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(seekTest, "seekTest", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),
     TestPrg(mkdirTest, "mkdirTest", "@main", noArg, noOpt, nPath(1)++status(0)),
-    TestPrg(creatUnlinkTest, "creatUnlinkTest", "@main", noArg, noOpt, nPath(1)++status(0)),
-    TestPrg(chmodTest, "chmodTest", "@main", noArg, noOpt, nPath(1)++status(0)),
+    TestPrg(creatUnlinkTest, "creatUnlinkTest", "@main", noArg, noOpt, nPath(2)++status(0)),
+    TestPrg(chmodTest, "chmodTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(stdinTest, "stdinTest", "@main", noArg, "--sym-stdin 10", nPath(2)++status(0)),
-    TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(2)++status(0)),
+    TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)),

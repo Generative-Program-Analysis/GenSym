@@ -3,6 +3,7 @@
 
 /* TODO: generate a file containing generated function declarations <2022-05-24, David Deng> */
 FS set_file(FS, String, Ptr<File>);
+Ptr<File> set_file_type(Ptr<File>, int);
 inline int n_sym_files = 0;
 inline int n_sym_stdout = 0;
 inline int n_sym_stdin = 0;
@@ -157,7 +158,7 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       }
       case 13:
-        initial_fs = set_file(initial_fs, std::string("/") + optarg, make_SymFile(optarg, default_sym_file_size));
+        initial_fs = set_file(initial_fs, std::string("/") + optarg, set_file_type(make_SymFile(optarg, default_sym_file_size), S_IFREG));
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data", default_sym_file_size, false));
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data-stat", stat_size, false));
         n_sym_files++;

@@ -254,13 +254,11 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       IntOp2.eq(readStatField("st_uid"), IntV(1000, readStatBw("st_uid"))),
       // klee_prefer_cex(s, s->st_gid == defaults->st_gid);
       IntOp2.eq(readStatField("st_gid"), IntV(1000, readStatBw("st_gid"))),
-
       // TODO: 16 byte nested struct not modeled <2022-08-30, David Deng> //
       // klee_prefer_cex(s, s->st_atime == defaults->st_atime);
       // klee_prefer_cex(s, s->st_mtime == defaults->st_mtime);
       // klee_prefer_cex(s, s->st_ctime == defaults->st_ctime);
-         )
-
+    ).filter(v => !v.isConc)
       cex
     }
   }
