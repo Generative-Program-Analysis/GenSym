@@ -25,7 +25,7 @@ object Config {
   /* Global compile-time configurations */
   var opt: Boolean = true
   var iteSelect: Boolean = true
-  var genDebug: Boolean = false
+  var genDebug: Boolean = true
   var emitVarIdMap: Boolean = true
   var emitBlockIdMap: Boolean = true
   var switchType: SwitchType = Merge
@@ -41,7 +41,7 @@ object Config {
   def useArgv = Config(0, true, o3)
   def noArg = Config(0, false, o3)
   def noMainFileOpt = Config(0, true, o0)
-  def default = useArgv
+  def default = noMainFileOpt
 }
 
 object RunLLSC {
