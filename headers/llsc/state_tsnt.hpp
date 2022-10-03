@@ -332,15 +332,6 @@ class SS {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    /*
-    [[deprecated]]
-    PtrVal at(PtrVal addr) {
-      auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return stack.at(loc->l);
-      return heap.at(loc->l);
-    }
-    */
     PtrVal at_symloc(simple_ptr<SymLocV> symloc, size_t size) {
       // TODO GW: should refactor this piece of code, strive for readability and maintainability
       ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
@@ -438,21 +429,11 @@ class SS {
       heap.alloc(size);
       return std::move(*this);
     }
-    //[[deprecated]]
-    SS&& update(PtrVal addr, PtrVal val) {
+    SS&& update(PtrVal addr, PtrVal val, size_t size = 1) {
       auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) stack.update(loc->l, val);
-      else heap.update(loc->l, val);
-      return std::move(*this);
-    }
-    SS&& update(PtrVal addr, PtrVal val, size_t size) {
-      auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack)
-        stack.update(loc->l, val, size);
-      else
-        heap.update(loc->l, val, size);
+      if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
+      else heap.update(loc->l, val, size);
       return std::move(*this);
     }
     SS&& update_seq(PtrVal addr, List<PtrVal> vals) {
