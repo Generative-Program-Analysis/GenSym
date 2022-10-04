@@ -33,7 +33,6 @@ trait GenExternal extends SymExeDefs {
   def info(msg: String) = unchecked("INFO(\"[FS] \" << \"" + msg + "\")")
   def info_obj(p: Rep[_], l: String = ""): Rep[Unit] = unchecked("INFO(\"", if (l == "") "" else l + ": ", "\" << ", p, ")")
   def info_ptrval(p: Rep[Value], l: String = ""): Rep[Unit] = unchecked("INFO(\"", if (l == "") "" else l + ": ", "\" << ", p, "->toString())")
-
   def stop[T: Manifest](ss: Rep[SS]): Rep[T] = {
     if (manifest[T] == manifest[Unit])
       "stop".reflectCtrlWith[T](ss, unchecked[List[Value]]("List<PtrVal>{}"), unchecked[(SS, Value) => Rep[T]]("cont"))

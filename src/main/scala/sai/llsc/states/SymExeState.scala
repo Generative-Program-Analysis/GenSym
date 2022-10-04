@@ -35,6 +35,8 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
   type E = State[Rep[SS], *] ⊗ (Nondet ⊗ ∅)
   type Cont = PCont[Id]
 
+  override def usingPureEngine: Boolean = true
+
   trait Future[T]
 
   object ThreadPool {
