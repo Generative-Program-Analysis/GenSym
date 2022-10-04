@@ -379,9 +379,9 @@ trait GenExternal extends SymExeDefs {
       else {
         // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
         val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFDIR)
-        rawInfo("/* mkdir: fs.setFile */")
+        unchecked("/* mkdir: fs.setFile */")
         fs.setFile(concPath, f)
-        rawInfo("/* mkdir: return */")
+        unchecked("/* mkdir: return */")
         k(ss, fs, IntV(0, 32))
       }
     })
@@ -426,7 +426,7 @@ trait GenExternal extends SymExeDefs {
    */
   def unlink[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     unchecked("INFO(\"unlink syscall\")")
-    val path: Rep[String] = getConcreteFilePath(args(0), ss)
+    val path: Rep[List[Value]] = getSymString(args(0), ss)
     resolvePath(ss, fs, path, (ss, fs, concPath) => {
       val file = fs.getFile(concPath)
       if (file == NullPtr[File])
