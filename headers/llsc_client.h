@@ -26,6 +26,7 @@ void llsc_assert_eager(bool, ...);
 void llsc_assume(bool);
 void sym_print(int, ...);
 void print_string(const char *message);
+void sym_exit(int);
 
 /* llsc_range - Construct a symbolic value in the signed interval
  * [begin,end).

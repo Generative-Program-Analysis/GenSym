@@ -13,10 +13,10 @@ int main()
   // should fork
   fd = open(fn, O_RDONLY);
   if (fd != -1) {
-    print_string("successfully opened file");
+    print_string("successfully opened file\n");
     close(fd);
   } else {
-    print_string("failed to open file");
+    print_string("failed to open file\n");
   }
   return 0;
 }

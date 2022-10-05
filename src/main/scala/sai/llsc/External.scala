@@ -83,12 +83,6 @@ trait GenExternal extends SymExeDefs {
   def sym_exit[T: Manifest](ss: Rep[SS], args: Rep[List[Value]]): Rep[T] =
     "sym_exit".reflectWith[T](ss, args)
 
-  // TODO: Utility functions
-  // 1. object constructors, factories (e.g. new_stream, new_stat) 
-  // Use the apply() method on classes as constructors/factories
-  // <2022-05-12, David Deng> //
-  def getConcreteFilePath(ptr: Rep[Value], s: Rep[SS]): Rep[String] = "get_concrete_file_path".reflectWith[String](s, ptr)
-
   def getSymString(ptr: Rep[Value], s: Rep[SS]): Rep[List[Value]] = "get_sym_string_at".reflectCtrlWith[List[Value]](s, ptr)
 
   def hasPermission(flags: Rep[Value], f: Rep[File]): Rep[Value] = {
@@ -119,44 +113,60 @@ trait GenExternal extends SymExeDefs {
   // takes the current ss, fs, a symbolic path, 
   // the continuation k takes the new ss, fs, and a concrete path, 
   // with the assumption that the symbolic path is resolved to the concrete path.
-  // The continuation can be called multiple times
+  // The continuation tk can be called multiple times
+  // The continuation fk will be called only one time when the resolution failed.
   def resolvePath[T: Manifest](ss: Rep[SS], fs: Rep[FS], symPath: Rep[List[Value]], 
-    k: (Rep[SS], Rep[FS], Rep[String]) => Rep[T]): Rep[T] = {
-      // resolve for a number of possible concrete paths
-      val concPaths = fs.rootFile.children
-        .filter(nf => {
-          // TODO: handle absolute paths and recursively traverse the FS <2022-10-01, David Deng> //
-          val (name, _) = nf
-          // exclude stdin, stdout, and stderr
-          name.substring(0, 1) != "@" && 
-          // the symbolic name must be long enough
-          name.length < symPath.size
-        }).map(_._1)
-      concPaths.foreach(concPath => {
-        // whether it is possible that the path matches the symbolic path
-        val cond = listEq(concPath.split("").map((s: Rep[String]) => IntV(s(0).asRepOf[Long], 8): Rep[Value]), symPath)
-        // TODO: add path condition to null byte <2022-10-01, David Deng> //
-        info_ptrval(cond, "path equal condition")
-        symExecBrFs[T](ss.fork, FS.dcopy(fs), cond, !cond,
-          (ss, fs) => {
-            // match
-            k(ss, fs, concPath)
-          },
-          (ss, fs) => {
-            // not match
-            stop[T](ss)
-          })
-        ()
-      })
-      // TODO: collect results for non-CPS version <2022-10-01, David Deng> //
-      // TODO: will have one more path here <2022-10-01, David Deng> //
-      stop[T](ss)
+    tk: (Rep[SS], Rep[FS], Rep[String]) => Rep[T], fk: (Rep[SS], Rep[FS]) => Rep[T]): Rep[T] = {
+      if (symPath.foldLeft[Boolean](true)((b, v) => b && v.isConc)) {
+        info("symPath is concrete")
+        // if symPath is concrete
+        tk(ss, fs, "proj_List_String".reflectWith[String](symPath))
+      } else {
+        info_obj(symPath.size, "symPath.size")
+        // resolve for a number of possible concrete paths
+        val concPaths = fs.rootFile.children
+          .filter(nf => {
+            // TODO: handle absolute paths and recursively traverse the FS <2022-10-01, David Deng> //
+            val (name, _) = nf
+            // exclude stdin, stdout, and stderr
+            name.substring(0, 1) != "@" &&
+            // the symbolic name must be long enough
+            name.length < symPath.size
+          }).map(_._1)
+          info_obj(concPaths.size, "concPaths.size")
+          if (concPaths.size > 0) {
+            // val init: Rep[T] = if (manifest[T] == manifest[Unit]) () else List()
+            concPaths.foldLeft[Unit](())((acc, concPath) => {
+              // whether it is possible that the path matches the symbolic path
+              val cond = listEq(concPath.split("").map((s: Rep[String]) => IntV(s(0).asRepOf[Long], 8): Rep[Value]), symPath)
+              // TODO: add path condition to null byte <2022-10-01, David Deng> //
+              info_ptrval(cond, "path equal condition")
+              symExecBrFs[T](ss.fork, FS.dcopy(fs), cond, !cond,
+                (ss, fs) => {
+                  // match
+                  tk(ss, fs, concPath)
+                },
+                (ss, fs) => {
+                  // not match
+                  stop[T](ss)
+                })
+              acc 
+            })
+          } else {
+            fk(ss, fs)
+          }
+          // TODO: collect results for non-CPS version <2022-10-01, David Deng> //
+          // NOTE: will end up having one more path here due to the use of foreach //
+          stop[T](ss.fork)
+      }
   }
 
   /* 
    * int open(const char *pathname, int flags);
    * int open(const char *pathname, int flags, mode_t mode);
    */
+  // type Res = Either[Unit, List[(SS, Value)]]
+  // How to write union type?
   def open[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     unchecked("INFO(\"open syscall\")")
     val path: Rep[List[Value]] = getSymString(args(0), ss)
@@ -174,7 +184,7 @@ trait GenExternal extends SymExeDefs {
         k(ss.setErrorLoc(flag("EEXIST")), fs, IntV(-1, 32))
       } else {
         if (!fs.hasFile(concPath)) {
-          val f = File(getPathSegments(concPath).last, List[Value](), List.fill(StatType.size(null))(IntV(0, 8)))
+          val f = File(getPathSegments(concPath).last, List[Value]())
           val regF = _set_file_type(f, S_IFREG)
           fs.setFile(concPath, regF)
         }
@@ -194,7 +204,8 @@ trait GenExternal extends SymExeDefs {
           (ss, fs) => k(ss.setErrorLoc(flag("EACCES")), fs, IntV(-1, 32)) // does not have permission
           )
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -314,13 +325,16 @@ trait GenExternal extends SymExeDefs {
     val buf: Rep[Value] = args(1)
     resolvePath(ss, fs, path, (ss, fs, concPath) => {
       if (!fs.hasFile(concPath)) {
+        info("stat does not have file")
         k(ss, fs, IntV(-1, 32))
       } else {
+        info("stat has file")
         val stat = fs.getFile(concPath).stat
         val ss1 = ss.updateSeq(buf, stat)
         k(ss1, fs, IntV(0, 32))
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -362,7 +376,8 @@ trait GenExternal extends SymExeDefs {
         val statFs = fs.statFs
         k(ss.updateSeq(buf, statFs), fs, IntV(0, 32))
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -385,7 +400,8 @@ trait GenExternal extends SymExeDefs {
         unchecked("/* mkdir: return */")
         k(ss, fs, IntV(0, 32))
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -410,7 +426,8 @@ trait GenExternal extends SymExeDefs {
             k(ss.setErrorLoc(flag("ENOTDIR")), fs, IntV(-1, 32))
           })
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -444,7 +461,8 @@ trait GenExternal extends SymExeDefs {
             k(ss.setErrorLoc(flag("EISDIR")), fs, IntV(-1, 32))
           })
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -462,7 +480,8 @@ trait GenExternal extends SymExeDefs {
         _set_file_mode(file, mode.int.toInt)
         k(ss, fs, IntV(0, 32))
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*
@@ -483,7 +502,8 @@ trait GenExternal extends SymExeDefs {
         file.writeStatField("st_gid", group)
         k(ss, fs, IntV(0, 32))
       }
-    })
+    }, (ss, fs) => k(ss.setErrorLoc(flag("ENOENT")), fs, IntV(-1, 32))
+    )
   }
 
   /*

@@ -101,33 +101,12 @@ inline char proj_IntV_char(const PtrVal& v) {
   return static_cast<char>(proj_IntV(intV));
 }
 
-inline std::string get_string_at(SS& state, PtrVal ptr) {
-  std::string name;
-  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
-  while (c != '\0') {
-    name += c;
-    ptr = ptr + 1;
-    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+inline std::string proj_List_String(List<PtrVal> l) {
+  std::string ret;
+  for (auto &v: l) {
+    ret += proj_IntV_char(v);
   }
-  return name;
-}
-
-inline std::string get_concrete_file_path(SS& state, PtrVal ptr) {
-  std::string name;
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
-  /* TODO: more comprehensive concretization, do forks eventually <2022-08-25, David Deng> */
-  if (std::dynamic_pointer_cast<SymV>(state.at(ptr))) {
-    std::cout << "symbolic file path. Concretize to -" << std::endl;
-    return "-";
-  }
-  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  while (c != '\0') {
-    name += c;
-    ptr = ptr + 1;
-    c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  }
-  return name;
+  return ret;
 }
 
 inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
@@ -145,6 +124,10 @@ inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
     ptr = ptr + 1;
   }
   return name.persistent();
+}
+
+inline std::string get_string_at(SS& state, PtrVal ptr) {
+  return proj_List_String(get_sym_string_at(state, ptr));
 }
 
 inline UIntData get_int_arg(SS& state, PtrVal x) {
