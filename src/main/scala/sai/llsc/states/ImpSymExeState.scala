@@ -34,6 +34,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
 
   type Cont = PCont[Ref]
 
+  override def usingPureEngine: Boolean = false
+
   implicit def toRef(s: Rep[SS]): Rep[Ref[SS]] = s.asRepOf[Ref[SS]]
   implicit def fromRef(s: Rep[Ref[SS]]): Rep[SS] = s.asRepOf[SS]
   implicit def lift(v: Rep[Value])(implicit s: Rep[SS]): Rep[List[(SS, Value)]] = List[(SS, Value)]((s, v))

@@ -26,7 +26,7 @@ inline unsigned int default_bw = 32;
 inline unsigned int addr_bw = 64;
 inline unsigned int addr_index_bw = addr_bw;
 
-inline std::atomic<std::optional<int>> exit_code;
+inline std::atomic<std::optional<int>> exit_code = {};
 inline std::mutex exit_code_lock;
 
 /* Stat */
@@ -40,9 +40,11 @@ inline std::atomic<unsigned int> completed_path_num = 0;
 // Number of queries performed for generating test cases
 inline std::atomic<unsigned int> generated_test_num = 0;
 // Number of queries performed for checking branch satisfiability
-inline unsigned int br_query_num = 0;
+inline std::atomic<unsigned int> br_query_num = 0;
 // Number of query cache hits
 inline std::atomic<unsigned int> cached_query_num = 0;
+// Number of concretization queries
+inline std::atomic<unsigned int> conc_query_num = 0;
 
 /* Global options */
 
@@ -61,15 +63,19 @@ inline bool use_hashcons = true;
 inline bool use_objcache = true;
 // Use counterexample caching or not
 inline bool use_cexcache = true;
+// Use branch query caching or not
+inline bool use_brcache = true;
 // Use constraint independence resolving or not
-inline bool use_cons_indep = false;
+inline bool use_cons_indep = true;
 // Only generate testcases for states that cover new blocks or not
 inline bool only_output_covernew = false;
 // Output ktest format or not
 inline bool output_ktest = false;
-// Prefer creation of human-readable POSIX inputs
-inline bool readable_posix = false;
+// Prefer generating human-readable file test cases
+inline bool readable_file_tests = false;
+// Only compatible when using KLEE's POSIX model at the momemt (?)
 // Simulate possible failure in external functions (results in state forking)
+// Currently including malloc, calloc, memalign. GW: what else?
 inline bool exlib_failure_branch = false;
 // Timeout in seconds (one hour by default)
 inline unsigned int timeout = 3600;
@@ -77,8 +83,15 @@ inline unsigned int timeout = 3600;
 inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
-
+// Print detailed timing
+// 0 - disabled
+// 1 - print every second
+// 2 - print at the end of execution
+inline uint32_t print_detailed_time = 0;
+// The maximum size of symbolic location (used in memory read)
 inline unsigned int max_sym_array_size = 0;
+// Use simplification when constructing SymV values
+inline bool use_symv_simplify = false;
 
 enum class SearcherKind { randomPath, randomWeight };
 // The path searcher to be used
@@ -94,6 +107,22 @@ inline std::atomic<long int> ext_solver_time = 0;
 inline std::atomic<long int> int_solver_time = 0;
 // FS time: time taken to perform FS operations
 inline std::atomic<long int> fs_time = 0;
+// Time spent in solver expression construction
+inline std::atomic<long int> cons_expr_time = 0;
+// Time spent in resolving constraint independence
+inline std::atomic<long int> cons_indep_time = 0;
+// Time spent in branch query
+inline std::atomic<long int> br_solver_time = 0;
+// Time spent in if only "then" branch hits cache
+inline std::atomic<long int> else_miss_time = 0;
+// Time spent in if only "else" branch hits cache
+inline std::atomic<long int> then_miss_time = 0;
+// Time spent in if both branch miss cache
+inline std::atomic<long int> both_miss_time = 0;
+// Time spent in concretization
+inline std::atomic<long int> conc_solver_time = 0;
+// Time spent in generating test cases
+inline std::atomic<long int> gen_test_time = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
@@ -142,7 +171,7 @@ inline std::string int_op_string(iOP op) {
     case iOP::op_ugt: return "u>";
     case iOP::op_ule: return "u<=";
     case iOP::op_ult: return "u<";
-    case iOP::op_sge: return "s>e";
+    case iOP::op_sge: return "s>=";
     case iOP::op_sgt: return "s>";
     case iOP::op_sle: return "s<=";
     case iOP::op_slt: return "s<";

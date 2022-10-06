@@ -29,9 +29,14 @@ object Config {
   var emitVarIdMap: Boolean = true
   var emitBlockIdMap: Boolean = true
   var switchType: SwitchType = Merge
+  var runCode: Boolean = true
+  var recordInstNum: Boolean = false
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
+
+  def disableRunCode: Unit = runCode = false
+  def enableRunCode: Unit = runCode = true
 
   def symArg(n: Int) = Config(n, false, o3)
   def useArgv = Config(0, true, o3)
@@ -47,7 +52,7 @@ object RunLLSC {
 
   def main(args: Array[String]): Unit = {
     val usage = """
-    |Usage: llsc <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>] 
+    |Usage: llsc <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>]
     |            [--use-argv] [--noOpt] [--engine=<string>] [--main-O0]
     |
     |<ll-filepath>           - the input LLVM IR program (.ll)
@@ -90,11 +95,11 @@ object RunLLSC {
     val output = options.getOrElse("output", filepath.split("\\/").last.split("\\.")(0)).toString
     val nSym = options.getOrElse("nSym", 0).asInstanceOf[Int]
     val useArgv = options.getOrElse("useArgv", false).asInstanceOf[Boolean]
-    val optimize = options.getOrElse("optimize", true).asInstanceOf[Boolean]
+    val optimize = options.getOrElse("optimize", Config.opt).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
-    val emitBlockIdMap = options.getOrElse("blockIdMap", false).asInstanceOf[Boolean]
-    val emitVarIdMap = options.getOrElse("varIdMap", false).asInstanceOf[Boolean]
+    val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
+    val emitVarIdMap = options.getOrElse("varIdMap", Config.emitVarIdMap).asInstanceOf[Boolean]
     val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
     val libPath = options.get("lib").asInstanceOf[Option[String]]
 

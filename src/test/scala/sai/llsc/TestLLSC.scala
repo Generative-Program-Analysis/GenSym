@@ -132,11 +132,13 @@ class TestImpCPSLLSC extends TestLLSC {
 class Coreutils extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
-  val llsc_opt = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
-  val cases =  TestCases.coreutils.map { t =>
-    t.copy(runOpt = llsc_opt ++ t.runOpt, runCode = false)
+  val runtimeOptions = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
+  val cases = TestCases.coreutils.map { t =>
+    t.copy(runOpt = runtimeOptions ++ t.runOpt, runCode = false)
   }
   testLLSC(new ImpCPSLLSC, cases)
+
+  //testLLSC(new ImpCPSLLSC, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)))
 }
 */
 
@@ -144,14 +146,15 @@ class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpCPSLLSC
+  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
+  //testLLSC(new PureCPSLLSC, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
+  //testLLSC(new ImpCPSLLSC, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
+
   //testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
   //testLLSC(llsc, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
   //testLLSC(llsc, TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)))
   //testLLSC(llsc, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
-  //testLLSC(llsc, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
 
-  //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
-  //testLLSC(new PureLLSC, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest2", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new ImpLLSC, TestPrg(mergesort, "mergeSortTest3", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(llsc, TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)))

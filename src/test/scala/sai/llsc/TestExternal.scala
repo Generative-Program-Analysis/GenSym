@@ -33,7 +33,7 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
       val ng = init(g)
       val src = run(name, ng)
       emitln(s"""#include <iostream>
-        |#define PURE_STATE
+        |#define IMPURE_STATE
         |#include "../llsc.hpp"
         |
         |PtrVal intV_0 = make_IntV(0);
@@ -228,9 +228,10 @@ class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[I
   }
 
   def testSetFileType = {
-    val f = File("A")
-    val f1 = _set_file_type(f, unchecked[Int]("S_IFREG"))
-    assertEq(_has_file_type(f, unchecked[Int]("S_IFREG")), true, "file type should be correctly set")
+    // TODO: come up with a way to assert on symbolic values <2022-09-30, David Deng> //
+    // val f = File("A")
+    // val f1 = _set_file_type(f, unchecked[Int]("S_IFREG"))
+    // assertEq(_has_file_type(f, unchecked[Int]("S_IFREG")), true, "file type should be correctly set")
   }
 
   def testFsCopy = {

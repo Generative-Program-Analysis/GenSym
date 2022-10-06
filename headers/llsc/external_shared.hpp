@@ -111,6 +111,23 @@ inline std::string get_string_at(PtrVal ptr, SS& state) {
   return name;
 }
 
+inline std::string get_concrete_file_path(PtrVal ptr, SS& state) {
+  std::string name;
+  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
+  /* TODO: more comprehensive concretization, do forks eventually <2022-08-25, David Deng> */
+  if (std::dynamic_pointer_cast<SymV>(state.at(ptr))) {
+    std::cout << "symbolic file path. Concretize to A" << std::endl;
+    return "-";
+  }
+  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  while (c != '\0') {
+    name += c;
+    ptr = ptr + 1;
+    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+  }
+  return name;
+}
+
 inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto x_i = std::dynamic_pointer_cast<IntV>(x);
   // Todo: add this concretization tp path constraints
@@ -310,8 +327,7 @@ template<typename T>
 inline T __llsc_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);
   ASSERT(v, "null pointer");
-  auto sym_v = std::dynamic_pointer_cast<SymV>(v);
-  if (sym_v) return k(state, make_IntV(1, 32));
+  if (v->to_SymV()) return k(state, make_IntV(1, 32));
   ASSERT(std::dynamic_pointer_cast<IntV>(v), "non-intv");
   return k(state, make_IntV(0, 32));
 }
@@ -332,11 +348,12 @@ inline T __llsc_get_valuel(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(v, "null pointer");
   auto i = v->to_IntV();
   if (i) return k(state, v);
-  auto sym_v = std::dynamic_pointer_cast<SymV>(v);
+  auto sym_v = v->to_SymV();
   ASSERT(sym_v, "get value of non-symbolic variable");
   ASSERT(64 == sym_v->get_bw(), "Bitwidth mismatch");
   std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
   ASSERT(res.first, "Un-feasible path");
+  //std::cout << "Concretize " << sym_v->toString() << " to " << res.second << "\n";
   return k(state, make_IntV(res.second, 64));
 }
 
@@ -381,10 +398,8 @@ inline std::monostate llsc_prefer_cex(SS state, List<PtrVal> args, Cont k) {
 
 template<typename T>
 inline T __llsc_posix_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  if (readable_posix)
-    return __llsc_prefer_cex(state, args, k);
-  else
-    return k(state, make_IntV(0));
+  if (readable_file_tests) return __llsc_prefer_cex(state, args, k);
+  return k(state, make_IntV(0));
 }
 
 inline List<SSVal> llsc_posix_prefer_cex(SS state, List<PtrVal> args) {

@@ -197,7 +197,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCD
       // s.alloc(4)
       // val a2 = StackLocV(sz + 8)
       case ("ss-stack-size", StaticList(s: bExp)) if g.curEffects.allEff.contains(s) =>
-        def aux: Option[bExp] = {
+        def tryRewrite: Option[bExp] = {
           var sz: Int = 0
           for ((k, _) <- g.curEffects.allEff(s)) {
             g.findDefinition(k) collect {
@@ -215,10 +215,10 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCD
           }
           None
         }
-        aux
+        tryRewrite
       case ("ss-lookup-env", StaticList(s: bExp, bConst(x: Int)))
           if g.curEffects.allEff.contains(s) =>
-        def findAssignment: Option[bExp] = {
+        def tryRewrite: Option[bExp] = {
           for ((k, _) <- g.curEffects.allEff(s)) {
             g.findDefinition(k) collect {
               case Node(_, "ss-assign", StaticList(_, bConst(y: Int), v: bExp), _) if x == y =>
@@ -230,7 +230,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericLLSCD
           }
           None
         }
-        findAssignment
+        tryRewrite
     }
   }
 

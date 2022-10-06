@@ -5,15 +5,15 @@
 
 using namespace z3;
 
-class CheckerZ3 : public CachedChecker<CheckerZ3, expr> {
+class CheckerZ3 : public CachedChecker<CheckerZ3, expr, model> {
 private:
-  context* g_ctx;
+  context* ctx;
   solver* g_solver;
 public:
   CheckerZ3() {
     std::cout << "Use Z3 " << Z3_get_full_version() << "\n";
-    g_ctx = new context;
-    g_solver = new solver(*g_ctx);
+    ctx = new context;
+    g_solver = new solver(*ctx);
   }
   virtual ~CheckerZ3() override {
     clear_cache();
@@ -27,34 +27,40 @@ public:
     return (solver_result) result;
   }
 
-  IntData get_value_internal(expr val) {
+  inline std::shared_ptr<model> get_model_internal(BrCacheKey& conds) {
+    return std::make_shared<model>(g_solver->get_model());
+  }
+
+  inline IntData eval(expr val) {
     auto const_val = g_solver->get_model().eval(val, true);
     return const_val.get_numeral_uint64();
   }
-  expr construct_expr_internal(PtrVal e, VarMap &vars) {
-    auto c = g_ctx;
+
+  inline IntData eval_model(std::shared_ptr<model> m, PtrVal val) {
+    return m->eval(construct_expr(val), true).get_numeral_uint64();
+  }
+
+  expr construct_expr_internal(PtrVal e) {
     auto int_e = std::dynamic_pointer_cast<IntV>(e);
     if (int_e) {
       // XXX(GW): using this vs sym_bool_const?
       if (int_e->bw == 1)
-        return c->bool_val(int_e->i ? true : false);
-      return c->bv_val(int_e->as_signed(), int_e->bw);
+        return ctx->bool_val(int_e->i ? true : false);
+      return ctx->bv_val(int_e->as_signed(), int_e->bw);
     }
+
     auto sym_e = std::dynamic_pointer_cast<SymV>(e);
     if (!sym_e) ABORT("Non-symbolic/integer value in path condition");
-    if (!sym_e->name.empty()) {
+    if (sym_e->is_var()) {
       ASSERT(sym_e->bw > 1, "Named symbolic constant of size 1");
-      auto ret = c->bv_const(sym_e->name.c_str(), sym_e->bw);
-      vars.emplace(sym_e, ret);
+      auto ret = ctx->bv_const(sym_e->name.c_str(), sym_e->bw);
       return ret;
     }
-    int bw = sym_e->bw;
     std::vector<expr> expr_rands;
-    for (auto& e : sym_e->rands) {
-      auto& [e2, vm] = construct_expr(e);
-      expr_rands.push_back(e2);
-      vars.insert(vm.begin(), vm.end());
+    for (auto& rand : sym_e->rands) {
+      expr_rands.push_back(construct_expr(rand));
     }
+    int bw = sym_e->bw;
     switch (sym_e->rator) {
       case iOP::op_add:
         return expr_rands[0] + expr_rands[1];
@@ -96,7 +102,7 @@ public:
       case iOP::op_sext: {
         auto v = expr_rands[0];
         if (v.get_sort().is_bool())
-          v = ite(v, c->bv_val(1, 1), c->bv_val(0, 1));
+          v = ite(v, ctx->bv_val(1, 1), ctx->bv_val(0, 1));
         auto ext_size = bw - v.get_sort().bv_size();
         ASSERT(ext_size >= 0, "negative sign extension size");
         if (ext_size > 0) return sext(v, ext_size);
@@ -105,7 +111,7 @@ public:
       case iOP::op_zext: {
         auto v = expr_rands[0];
         if (v.get_sort().is_bool())
-          v = ite(v, c->bv_val(1, 1), c->bv_val(0, 1));
+          v = ite(v, ctx->bv_val(1, 1), ctx->bv_val(0, 1));
         auto ext_size = bw - v.get_sort().bv_size();
         ASSERT(ext_size >= 0, "negative zero extension size");
         if (ext_size > 0) return zext(v, ext_size);
@@ -131,7 +137,7 @@ public:
         // XXX is it right?
         auto v = expr_rands[0].extract(bw-1, 0);
         if (1 == bw) {
-          v = (c->bv_val(1, 1) == v);
+          v = (ctx->bv_val(1, 1) == v);
         }
         return v;
       }
@@ -150,13 +156,13 @@ public:
         return ite(cond, v_t, v_e);
       }
       case iOP::const_true:
-        return c->bool_val(true);
+        return ctx->bool_val(true);
       case iOP::const_false:
-        return c->bool_val(false);
+        return ctx->bool_val(false);
       default: break;
     }
     ABORT("unkown operator when constructing STP expr");
-    return c->bv_const("x", 32);
+    return ctx->bv_const("x", 32);
   }
   void push_internal() {
     // XXX: z3's pop/push operation is quite expensive!
@@ -164,6 +170,9 @@ public:
   }
   void pop_internal() {
     g_solver->pop();
+  }
+  void reset_internal() {
+    g_solver->reset();
   }
 };
 

@@ -56,6 +56,7 @@ object Benchmarks {
   lazy val floatArith = parseFile("benchmarks/llvm/floatArith.ll")
   lazy val floatFp80 = parseFile("benchmarks/llvm/floatFp80.ll")
   lazy val i1Bool = parseFile("benchmarks/llvm/i1_bool.ll")
+  lazy val flagTest = parseFile("benchmarks/llvm/flag.ll")
 
   lazy val runCommandLine = parseFile("benchmarks/llvm/runCommandLine.ll")
 
@@ -109,25 +110,26 @@ object Benchmarks {
   lazy val argv2Test = parseFile("benchmarks/llvm/argv2.ll")
 
   lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
-  lazy val echo_linked = parseFile("benchmarks/coreutils/echo_linked.ll")
-  lazy val cat_linked = parseFile("benchmarks/coreutils/cat_linked.ll")
-  lazy val true_linked = parseFile("benchmarks/coreutils/true_linked.ll")
-  lazy val false_linked = parseFile("benchmarks/coreutils/false_linked.ll")
-  lazy val base32_linked = parseFile("benchmarks/coreutils/base32_linked.ll")
-  lazy val base64_linked = parseFile("benchmarks/coreutils/base64_linked.ll")
-  lazy val comm_linked = parseFile("benchmarks/coreutils/comm_linked.ll")
-  lazy val cut_linked = parseFile("benchmarks/coreutils/cut_linked.ll")
-  lazy val dirname_linked = parseFile("benchmarks/coreutils/dirname_linked.ll")
-  lazy val expand_linked = parseFile("benchmarks/coreutils/expand_linked.ll")
-  lazy val fold_linked = parseFile("benchmarks/coreutils/fold_linked.ll")
-  lazy val join_linked = parseFile("benchmarks/coreutils/join_linked.ll")
-  lazy val link_linked = parseFile("benchmarks/coreutils/link_linked.ll")
-  lazy val paste_linked = parseFile("benchmarks/coreutils/paste_linked.ll")
-  lazy val pathchk_linked = parseFile("benchmarks/coreutils/pathchk_linked.ll")
-  lazy val md5sum_linked = parseFile("benchmarks/coreutils/md5sum_linked.ll")
-  lazy val sort_linked = parseFile("benchmarks/coreutils/sort_linked.ll")
-  lazy val wc_linked = parseFile("benchmarks/coreutils/wc_linked.ll")
-  lazy val split_linked = parseFile("benchmarks/coreutils/split_linked.ll")
+  
+  lazy val echo_linked = parseFile("benchmarks/coreutils/echo.ll")
+  lazy val cat_linked = parseFile("benchmarks/coreutils/cat.ll")
+  lazy val true_linked = parseFile("benchmarks/coreutils/true.ll")
+  lazy val false_linked = parseFile("benchmarks/coreutils/false.ll")
+  lazy val base32_linked = parseFile("benchmarks/coreutils/base32.ll")
+  lazy val base64_linked = parseFile("benchmarks/coreutils/base64.ll")
+  lazy val comm_linked = parseFile("benchmarks/coreutils/comm.ll")
+  lazy val cut_linked = parseFile("benchmarks/coreutils/cut.ll")
+  lazy val dirname_linked = parseFile("benchmarks/coreutils/dirname.ll")
+  lazy val expand_linked = parseFile("benchmarks/coreutils/expand.ll")
+  lazy val fold_linked = parseFile("benchmarks/coreutils/fold.ll")
+  lazy val join_linked = parseFile("benchmarks/coreutils/join.ll")
+  lazy val link_linked = parseFile("benchmarks/coreutils/link.ll")
+  lazy val paste_linked = parseFile("benchmarks/coreutils/paste.ll")
+  lazy val pathchk_linked = parseFile("benchmarks/coreutils/pathchk.ll")
+  lazy val md5sum_linked = parseFile("benchmarks/coreutils/md5sum.ll")
+  lazy val sort_linked = parseFile("benchmarks/coreutils/sort.ll")
+  lazy val wc_linked = parseFile("benchmarks/coreutils/wc.ll")
+  lazy val split_linked = parseFile("benchmarks/coreutils/split.ll")
 
   lazy val echo_llsc_linked = parseFile("benchmarks/coreutils/echo_llsc_linked.ll")
   lazy val true_llsc_linked = parseFile("benchmarks/coreutils/true_llsc_linked.ll")
@@ -152,6 +154,7 @@ object TestComp {
 }
 
 object Coreutils {
+  // TODO: clean this up
   lazy val echo = parseFile("benchmarks/coreutils/echo/echo.ll")
   lazy val echoWithLib = parseFile("benchmarks/coreutils/echo/echoStdlibString.ll")
   lazy val trueWithLib = parseFile("benchmarks/coreutils/trueWithLib.ll")

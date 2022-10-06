@@ -82,30 +82,28 @@ using Ptr = std::shared_ptr<T>;
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-template<typename T>
-std::string vec_to_string(const immer::flex_vector<T>& v) {
+template<template <typename> typename C, typename T>
+std::string collection_to_string(std::string p, std::string q, const C<T>& s) {
   std::ostringstream ss;
-  ss << "[";
-  for (int i = 0; i < v.size(); i++) {
-    ss << v.at(i);
-    if (i != v.size()-1) ss << ", ";
-  }
-  ss << "]";
-  return ss.str();
-}
-
-template<template <typename U> typename C, typename T>
-std::string set_to_string(const C<T>& s) {
-  std::ostringstream ss;
-  ss << "{";
+  ss << p;
   int i = 0;
-  for (auto x : s) {
+  for (auto& x : s) {
     ss << x;
     if (i != s.size()-1) ss << ", ";
     i = i + 1;
   }
-  ss << "}";
+  ss << q;
   return ss.str();
+}
+
+template<template <typename> typename C, typename T>
+std::string vec_to_string(const C<T>& s) {
+  return collection_to_string<C, T>("[", "]", s);
+}
+
+template<template <typename> typename C, typename T>
+std::string set_to_string(const C<T>& s) {
+  return collection_to_string<C, T>("{", "}", s);
 }
 
 template<template <typename U, typename W> typename C, typename K, typename V>
@@ -122,14 +120,14 @@ std::string map_to_string(const C<K, V>& m) {
   return ss.str();
 }
 
-template<typename T>
-void print_vec(const immer::flex_vector<T>& v) {
-  std::cout << vec_to_string(v);
+template<template <typename> typename C, typename T>
+void print_vec(const C<T>& s) {
+  std::cout << vec_to_string<C, T>(s);
 }
 
-template<template <typename U> typename C, typename T>
+template<template <typename> typename C, typename T>
 void print_set(const C<T>& s) {
-  std::cout << set_to_string(s);
+  std::cout << set_to_string<C, T>(s);
 }
 
 template<template <typename U, typename W> typename C, typename K, typename V>
@@ -140,7 +138,7 @@ void print_map(const C<K, V>& m) {
 template<typename T>
 inline immer::flex_vector<T> set_to_list(immer::set<T> s) {
   auto res = immer::flex_vector<T>{};
-  for (auto x : s) {
+  for (auto& x : s) {
     res = res.push_back(x);
   }
   return res;
