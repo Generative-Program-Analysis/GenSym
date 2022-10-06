@@ -165,26 +165,28 @@ trait Opaques { self: SAIOps with BasicDefs =>
       case _ => None
     }
     def get(id: String, ret: Option[LLVMType] = None, argTypes: Option[List[LLVMType]]): Option[Rep[Value]] =
-      if (modeled.contains(id.tail)) Some(ExternalFun(id.tail))
-      else if (builtinSysCalls.contains(id.tail)) Some(ExternalFun(s"syscall_${id.tail}"))
-      else if (id.startsWith("@llvm.va_start")) Some(ExternalFun("llvm_va_start"))
-      else if (id.startsWith("@llvm.va_end")) Some(ExternalFun("llvm_va_end"))
-      else if (id.startsWith("@llvm.va_copy")) Some(ExternalFun("llvm_va_copy"))
-      else if (id.startsWith("@llvm.memcpy")) Some(ExternalFun("llvm_memcpy"))
-      else if (id.startsWith("@llvm.memset")) Some(ExternalFun("llvm_memset"))
-      else if (id.startsWith("@llvm.memmove")) Some(ExternalFun("llvm_memmove"))
-      else if (id == "@memcpy") Some(ExternalFun("llvm_memcpy"))
-      else if (id == "@memset") Some(ExternalFun("llvm_memset"))
-      else if (id == "@memmove") Some(ExternalFun("llvm_memmove"))
-      else if (unsafeExternals.contains(id.tail) || id.startsWith("@llvm.")) {
-        if (!warned.contains(id)) {
-          System.out.println(s"Unsafe external function ${id.tail} is treated as a noop.")
-          warned.add(id)
-        }
-        Some(ExternalFun("noop", ret))
-      } else prepared.get(id.tail) match {
+      prepared.get(id.tail) match {
         case Some(x) => Some(ExternalFun(x))
-        case _ => None // Will be executed natively
+        case _ =>
+          if (modeled.contains(id.tail)) Some(ExternalFun(id.tail))
+          else if (builtinSysCalls.contains(id.tail)) Some(ExternalFun(s"syscall_${id.tail}"))
+          else if (id.startsWith("@llvm.va_start")) Some(ExternalFun("llvm_va_start"))
+          else if (id.startsWith("@llvm.va_end")) Some(ExternalFun("llvm_va_end"))
+          else if (id.startsWith("@llvm.va_copy")) Some(ExternalFun("llvm_va_copy"))
+          else if (id.startsWith("@llvm.memcpy")) Some(ExternalFun("llvm_memcpy"))
+          else if (id.startsWith("@llvm.memset")) Some(ExternalFun("llvm_memset"))
+          else if (id.startsWith("@llvm.memmove")) Some(ExternalFun("llvm_memmove"))
+          else if (id == "@memcpy") Some(ExternalFun("llvm_memcpy"))
+          else if (id == "@memset") Some(ExternalFun("llvm_memset"))
+          else if (id == "@memmove") Some(ExternalFun("llvm_memmove"))
+          else if (unsafeExternals.contains(id.tail) || id.startsWith("@llvm.")) {
+            if (!warned.contains(id)) {
+              System.out.println(s"Unsafe external function ${id.tail} is treated as a noop.")
+              warned.add(id)
+            }
+            Some(ExternalFun("noop", ret))
+          }
+          else None  // Will be executed natively
       }
   }
 }
