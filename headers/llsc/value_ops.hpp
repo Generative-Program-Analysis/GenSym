@@ -966,5 +966,6 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
 }
 
 inline const PtrVal IntV0 = make_IntV(0, 64);
+inline const PtrVal IntV0_32 = make_IntV(0, 32);
 
 #endif

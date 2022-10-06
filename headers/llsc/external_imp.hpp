@@ -292,7 +292,7 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   for (int i = 0; i < bytes_int; i++) {
     state.update(dest + i, state.at(src + i));
   }
-  return k(state, IntV0);
+  return k(state, IntV0_32);
 }
 
 inline List<SSVal> llvm_memcpy(SS& state, List<PtrVal> args) {
@@ -319,7 +319,7 @@ inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   for (int i = 0; i < bytes_int; i++) {
     state.update(dest + i, temp_mem.at(i));
   }
-  return k(state, IntV0);
+  return k(state, IntV0_32);
 }
 
 inline List<SSVal> llvm_memmove(SS& state, List<PtrVal> args) {
@@ -341,7 +341,7 @@ inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
   for (int i = 0; i < bytes_int; i++) {
     state.update(dest + i, v);
   }
-  return k(state, IntV0);
+  return k(state, IntV0_32);
 }
 
 inline List<SSVal> llvm_memset(SS& state, List<PtrVal> args) {
@@ -578,22 +578,23 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   PtrVal va_arg = state.vararg_loc();
   // FIXME: magic number 48?
-  state.update(va_list + 0, IntV0, 4);
-  state.update(va_list + 4, IntV0, 4);
+  state.update(va_list + 0, IntV0_32, 4);
+  state.update(va_list + 4, IntV0_32, 4);
   state.update(va_list + 8, va_arg + 48, 8);
   state.update(va_list + 16, va_arg, 8);
-  return k(state, IntV0);
+  return k(state, IntV0_32);
 }
 
 template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
-  // FIXME: magic number 24?
-  for (int i = 0; i < 24; i++) {
-    state.update(va_list + i, nullptr);
-  }
-  return k(state, IntV0);
+  auto loc0 = make_LocV_null();
+  state.update(va_list + 0, IntV0_32, 4);
+  state.update(va_list + 4, IntV0_32, 4);
+  state.update(va_list + 8, loc0, 8);
+  state.update(va_list + 16, loc0, 8);
+  return k(state, IntV0_32);
 }
 
 template<typename T>
@@ -607,7 +608,7 @@ inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   state.update(dst_va_list + 4, state.at(src_va_list + 4, 4), 4);
   state.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
   state.update(dst_va_list + 16, state.at(src_va_list + 16, 8), 8);
-  return k(state, IntV0);
+  return k(state, IntV0_32);
 }
 
 /******************************************************************************/
