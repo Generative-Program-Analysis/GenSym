@@ -7,8 +7,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
-// TODO: support assigning names for symbolic values
-
 /* Construct `byte_size` 8-bitvectors starting at address `addr`.
  */
 void make_symbolic(void* addr, size_t byte_size, ...);

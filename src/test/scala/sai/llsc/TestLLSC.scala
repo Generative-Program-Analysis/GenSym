@@ -145,7 +145,13 @@ class Coreutils extends TestLLSC {
 class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
-  val llsc = new ImpCPSLLSC
+  val llsc = new ImpLLSC
+  testLLSC(llsc, List(
+    TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)),
+    TestPrg(varArgInt, "varArgInt", "@main", noArg, noOpt, nPath(1)++status(0)),
+    TestPrg(varArgCopyInt, "varArgCopyInt", "@main", noArg, noOpt, nPath(1)++status(0)),
+  ))
+
   //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testLLSC(new ImpCPSLLSC, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
