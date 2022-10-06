@@ -66,7 +66,7 @@ inline bool use_cexcache = true;
 // Use branch query caching or not
 inline bool use_brcache = true;
 // Use constraint independence resolving or not
-inline bool use_cons_indep = true;
+inline bool use_cons_indep = false;
 // Only generate testcases for states that cover new blocks or not
 inline bool only_output_covernew = false;
 // Output ktest format or not
