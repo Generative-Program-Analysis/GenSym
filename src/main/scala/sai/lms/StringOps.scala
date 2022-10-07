@@ -30,7 +30,7 @@ trait ScalaCodeGen_String extends ExtendedScalaCodeGen {
 }
 
 trait CppCodeGen_String extends ExtendedCPPCodeGen {
-  registerHeader("headers", "<sai.hpp>")
+  registerHeader("headers", "<llsc/immeralgo.hpp>")
   registerHeader("<string>")
 
   override def remap(m: Manifest[_]): String = {

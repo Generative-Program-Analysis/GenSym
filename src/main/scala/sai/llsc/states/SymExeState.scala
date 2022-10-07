@@ -96,6 +96,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     //  "ss-array-lookup".reflectWith[List[(SS, Value)]](ss, base, offset, eSize)
 
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v, sz)
+    @deprecated("Use update with size", "now and forever")
     def update(a: Rep[Value], v: Rep[Value]): Rep[SS] = "ss-update".reflectWith[SS](ss, a, v)
     def updateSeq(a: Rep[Value], v: Rep[List[Value]]): Rep[SS] = "ss-update-seq".reflectWith[SS](ss, a, v)
     def allocStack(n: Int, align: Int): Rep[SS] = "ss-alloc-stack".reflectWith[SS](ss, n)
@@ -116,7 +117,7 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
     def updateArg: Rep[SS] = "ss-arg".reflectWith[SS](ss)
     def initErrorLoc: Rep[SS] = "ss-init-error-loc".reflectWith[SS](ss)
     def getErrorLoc: Rep[Value] = "ss-get-error-loc".reflectWith[Value](ss)
-    def setErrorLoc(v: Rep[IntV]): Rep[SS] = ss.update(ss.getErrorLoc, v)
+    def setErrorLoc(v: Rep[IntV]): Rep[SS] = ss.update(ss.getErrorLoc, v, 4)
 
     def addIncomingBlock(ctx: Ctx): Rep[SS] = "ss-add-incoming-block".reflectWith[SS](ss, Counter.block.get(ctx.toString))
     def coverBlock(ctx: Ctx): Rep[SS] = "ss-cover-block".reflectCtrlWith[SS](ss, Counter.block.get(ctx.toString))
