@@ -97,8 +97,8 @@ class TestPureCPSLLSC extends TestLLSC {
   // Note: the following test cases need to use `--thread=n` to enable random path selection strategy.
   //       They also relies on block-level path switching to increase randomness, which currently has only
   //       been implemented in PureCPS engine.
-  //testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
-  //testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
+  testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
   testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, "--thread=2 --search=random-path --solver=z3", status(255)))
   testLLSC(llsc, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, "--thread=2 --output-tests-cov-new --solver=z3", status(255)))
   testLLSC(llsc, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, "--thread=2 --search=random-path  --solver=z3", status(255)))
@@ -144,11 +144,6 @@ class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
   val llsc = new ImpLLSC
-  testLLSC(llsc, List(
-    TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)),
-    TestPrg(varArgInt, "varArgInt", "@main", noArg, noOpt, nPath(1)++status(0)),
-    TestPrg(varArgCopyInt, "varArgCopyInt", "@main", noArg, noOpt, nPath(1)++status(0)),
-  ))
 
   //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
