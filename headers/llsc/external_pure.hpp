@@ -91,7 +91,7 @@ inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(sz > 0, "Invalid length");
   ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
   std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(args.at(2), state));
-  SS res = state.add_symbolic(object_name, sz, true).update(loc, make_SymV(object_name, sz*8));
+  SS res = state.add_symbolic(object_name, sz, true).update(loc, make_SymV(object_name, sz*8), sz);
   return k(res, make_IntV(0));
 }
 

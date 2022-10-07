@@ -88,8 +88,8 @@ void hash_combine(size_t& seed, T const& v) {
 
 /* Generating fresh names */
 
-inline std::atomic<unsigned int> var_name = 0;
-inline std::string fresh(const std::string& x) { return x + std::to_string(var_name++); }
+inline std::atomic<unsigned int> var_counter = 0;
+inline std::string fresh(const std::string x) { return x + std::to_string(var_counter++); }
 
 class SymObj : public Printable {
 public:
