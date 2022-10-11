@@ -251,7 +251,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
 
   registerHeader("third-party/immer", "<immer/flex_vector.hpp>")
   registerHeader("third-party/immer", "<immer/algorithm.hpp>")
-  registerHeader("headers", "<sai.hpp>")
+  registerHeader("headers", "<llsc/immeralgo.hpp>")
 
   val ns = "immer::"
 

@@ -1,3 +1,6 @@
+#ifndef LLSC_ALGO_HEADERS
+#define LLSC_ALGO_HEADERS
+
 #include <tuple>
 #include <cassert>
 #include <cstdarg>
@@ -8,79 +11,21 @@
 #include <functional>
 #include <variant>
 #include <vector>
+
 #include <immer/flex_vector.hpp>
-#include <immer/flex_vector_transient.hpp>
 #include <immer/map.hpp>
 #include <immer/set.hpp>
+#include <immer/flex_vector_transient.hpp>
+#include <immer/map_transient.hpp>
+#include <immer/set_transient.hpp>
 #include <immer/algorithm.hpp>
+#include <immer/array.hpp>
+#include <immer/box.hpp>
 
-/* TODO:
- *   pass by reference: contains, notContains
- *   pass const argument?
- */
+template<typename T> using List = immer::flex_vector<T>;
+template<typename T> using TrList = immer::flex_vector_transient<T>;
 
-#ifndef SAI_HEADERS
-#define SAI_HEADERS
-
-// Auxiliary definitions
-
-using String = std::string;
-
-inline std::mt19937 rng32;
-
-inline void init_rand() {
-  unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-  rng32 = std::mt19937(seed1);
-}
-
-inline uint32_t rand_uint32() {
-  return rng32();
-}
-
-inline int rand_int(int ub) {
-  int r =  (rng32() % ub) + 1; // [1, ub]
-#ifdef DEBUG
-  std::cout << "Generate a rand number: " << r << std::endl;
-#endif
-  return r;
-}
-
-template <typename T>
-using Ptr = std::shared_ptr<T>;
-
-#   define ABORT(message) \
-    do { \
-      std::cerr << "Abort at " << __FILE__ << " line " << __LINE__ \
-                << ": " << message << std::endl; \
-      exit(-1); \
-    } while (false)
-
-
-#ifndef NO_ASSERT
-#   define ASSERT(condition, message) \
-    do { \
-      if (! (condition)) { \
-        std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
-                  << " line " << __LINE__ << ": " << message << std::endl; \
-        std::terminate(); \
-      } \
-    } while (false)
-#else
-#   define ASSERT(condition, message) do { } while (false)
-#endif
-
-#ifdef DEBUG
-#   define INFO(message) \
-    do { \
-      std::cout << "[Info] " << __FILE__ << " line " << __LINE__ \
-                << ": " << message << std::endl; \
-    } while (false)
-#else
-#   define INFO(message) do { } while (false)
-#endif
-
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+/* Conversion collections to strings */
 
 template<template <typename> typename C, typename T>
 std::string collection_to_string(std::string p, std::string q, const C<T>& s) {
@@ -144,12 +89,17 @@ inline immer::flex_vector<T> set_to_list(immer::set<T> s) {
   return res;
 }
 
-template<typename T, class... Types>
-inline bool isInstanceOf(const std::variant<Types...>& v) {
-  return std::holds_alternative<T>(v);
-}
-
 /* Strings */
+
+using String = std::string;
+
+class Printable {
+  public:
+    friend std::ostream& operator<<(std::ostream& os, const Printable& p) {
+      return os << p.toString();
+    }
+    virtual std::string toString() const = 0;
+};
 
 namespace Str {
   inline immer::flex_vector<String> to_vector(String s) {

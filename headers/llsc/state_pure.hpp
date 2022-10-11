@@ -434,77 +434,74 @@ class SS: public Printable {
     size_t stack_size() { return stack.mem_size(); }
     size_t fresh_stack_addr() { return stack_size(); }
     size_t frame_depth() { return frame_depth(); }
-    PtrVal at(const PtrVal& addr) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return stack.at(loc->l);
-      return heap.at(loc->l);
+    PtrVal at_symloc(simple_ptr<SymLocV> symloc, size_t size) {
+      ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
+      std::vector<std::pair<PtrVal, int>> result;
+      auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
+      ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
+      bool reach_limit = (max_sym_array_size > 0) && (symloc->size >= max_sym_array_size);
+      bool resolve_once = reach_limit || (SymLocStrategy::one == symloc_strategy);
+      if (resolve_once || SymLocStrategy::feasible == symloc_strategy) {
+        int cnt_bound = -1;
+        int cnt = 0;
+        if (resolve_once)
+          cnt_bound = 1;
+        auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
+        auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - size, addr_index_bw));
+        auto pc2 = pc.add(low_cond).add(high_cond);
+        auto res = get_sat_value(pc2, offsym);
+        while (res.first) {
+          cnt++;
+          int offset_val = res.second;
+          auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+          result.push_back(std::make_pair(t_cond, offset_val));
+          if (cnt_bound == cnt)
+            break;
+          pc2 = pc2.add(SymV::neg(t_cond));
+          res = get_sat_value(pc2, offsym);
+        }
+        ASSERT(cnt > 0, "No satisfiable offset value");
+      } else {
+        ASSERT(SymLocStrategy::all == symloc_strategy, "Bad symloc strategy");
+        for (int offset_val=0; offset_val <= (symloc->size - size); offset_val++) {
+          auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+          result.push_back(std::make_pair(t_cond, offset_val));
+        }
+      }
+      PtrVal read_res = nullptr;
+      for(auto it = result.rbegin(); it != result.rend(); ++it) {
+        auto val = at(make_LocV(symloc->base, symloc->k, symloc->size, it->second), size);
+        if (result.rbegin() == it) {
+          read_res = val;
+        } else {
+          read_res = ite(it->first, val, read_res);
+        }
+      }
+      ASSERT(read_res, "Bad result");
+      // Todo: should we modify the pc to add the in-bound constraints
+      return read_res;
     }
-    PtrVal at(const PtrVal& addr, int size) {
+    PtrVal at(const PtrVal& addr, size_t size = 1) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       if (loc != nullptr) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
         return heap.at(loc->l, size);
-      } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
-        ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
-        std::vector<std::pair<PtrVal, int>> result;
-        auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
-        ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
-        bool reach_limit = (max_sym_array_size > 0) && (symloc->size >= max_sym_array_size);
-        bool resolve_once = reach_limit || (SymLocStrategy::one == symloc_strategy);
-        if (resolve_once || SymLocStrategy::feasible == symloc_strategy) {
-          int cnt_bound = -1;
-          int cnt = 0;
-          if (resolve_once)
-            cnt_bound = 1;
-          auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
-          auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - size, addr_index_bw));
-          auto pc2 = pc.add(low_cond).add(high_cond);
-          auto res = get_sat_value(pc2, offsym);
-          while (res.first) {
-            cnt++;
-            int offset_val = res.second;
-            auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
-            result.push_back(std::make_pair(t_cond, offset_val));
-            if (cnt_bound == cnt)
-              break;
-            pc2 = pc2.add(SymV::neg(t_cond));
-            res = get_sat_value(pc2, offsym);
-          }
-          ASSERT(cnt > 0, "No satisfiable offset value");
-        } else {
-          ASSERT(SymLocStrategy::all == symloc_strategy, "Bad symloc strategy");
-          for (int offset_val=0; offset_val <= (symloc->size - size); offset_val++) {
-            auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
-            result.push_back(std::make_pair(t_cond, offset_val));
-          }
-        }
-        PtrVal read_res = nullptr;
-        for(auto it = result.rbegin(); it != result.rend(); ++it) {
-          auto val = at(make_LocV(symloc->base, symloc->k, symloc->size, it->second), size);
-          if (result.rbegin() == it) {
-            read_res = val;
-          } else {
-            read_res = ite(it->first, val, read_res);
-          }
-        }
-        ASSERT(read_res, "Bad result");
-        // Todo: should we modify the pc to add the in-bound constraints
-        return read_res;
-      } else if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
+      }
+      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) return at_symloc(symloc, size);
+      if (auto symvite = std::dynamic_pointer_cast<SymV>(addr)) {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
         return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
       ABORT("dereferenceing a nullptr");
     }
-    PtrVal at_struct(const PtrVal& addr, int size) {
+    PtrVal at_struct(const PtrVal& addr, size_t size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return stack.at_struct(loc->l, size);
       auto ret = make_simple<StructV>(heap.take(loc->l + size).drop(loc->l).get_mem());
       return hashconsing(ret);
     }
-    List<PtrVal> at_seq(const PtrVal& addr, int count) {
+    List<PtrVal> at_seq(const PtrVal& addr, size_t count) {
       auto s = std::dynamic_pointer_cast<StructV>(at_struct(addr, count));
       ASSERT(s, "failed to read struct");
       return s->fs;
@@ -526,13 +523,7 @@ class SS: public Printable {
     List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, meta, fs); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, meta, fs); }
-    SS update(const PtrVal& addr, const PtrVal& val) {
-      auto loc = std::dynamic_pointer_cast<LocV>(addr);
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, meta, fs);
-      return SS(heap.update(loc->l, val), stack, pc, meta, fs);
-    }
-    SS update(const PtrVal& addr, const PtrVal& val, int size) {
+    SS update(const PtrVal& addr, const PtrVal& val, size_t size = 1) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, meta, fs);

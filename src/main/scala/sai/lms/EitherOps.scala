@@ -151,7 +151,7 @@ trait CppCodeGen_Either extends ExtendedCPPCodeGen {
       shallow(e); emit(".index() == 0")
     case Node(s, "either-isRight", List(e), _) =>
       shallow(e); emit(".index() == 1")
-      // NOTE: no corresponding cases in C++ <2022-05-26, David Deng> //
+    // NOTE: no corresponding cases in C++ <2022-05-26, David Deng> //
     case Node(s, "either-left", List(e), _) => shallow(e)
     case Node(s, "either-right", List(e), _) => shallow(e)
     case Node(s, "left-value", List(l), _) =>

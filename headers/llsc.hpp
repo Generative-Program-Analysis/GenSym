@@ -30,17 +30,11 @@
 #include <cstdlib>
 #include <getopt.h>
 
-#include <sai.hpp>
-#include <immer/flex_vector_transient.hpp>
-#include <immer/map_transient.hpp>
-#include <immer/set_transient.hpp>
-#include <immer/array.hpp>
-#include <immer/box.hpp>
 #include <parallel_hashmap/phmap.h>
 
-using namespace std::chrono;
-
+#include <llsc/immeralgo.hpp>
 #include <llsc/auxiliary.hpp>
+#include <llsc/defs.hpp>
 #include <llsc/parallel.hpp>
 #include <llsc/monitor.hpp>
 #include <llsc/ptree.hpp>
