@@ -114,14 +114,11 @@ inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
   PtrVal v;
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   v = state.at(ptr);
-  std::cout << "get_sym_string: v=" << v->toString() << " at " << ptr->toString() << std::endl;
-  name.push_back(v);
-  ptr = ptr + 1;
   while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
-    v = state.at(ptr);
     std::cout << "get_sym_string: v=" << v->toString() << " at " << ptr->toString() << std::endl;
     name.push_back(v);
     ptr = ptr + 1;
+    v = state.at(ptr);
   }
   return name.persistent();
 }
