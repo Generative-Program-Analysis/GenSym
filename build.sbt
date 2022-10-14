@@ -1,4 +1,4 @@
-name := "SAI"
+name := "GenSym"
 
 scalaVersion := "2.12.10"
 
@@ -46,8 +46,8 @@ parallelExecution in Bench := false
 lazy val lms = ProjectRef(file("./third-party/lms-clean"), "lms-clean")
   // .settings(fork := true)
 
-lazy val sai = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
-                                     .configs(Bench)
-                                     .settings(inConfig(Bench)(Defaults.testSettings))
-                                     .settings(assembly / mainClass := Some("gensym.RunGenSym"))
+lazy val gensym = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
+                                        .configs(Bench)
+                                        .settings(inConfig(Bench)(Defaults.testSettings))
+                                        .settings(assembly / mainClass := Some("gensym.RunGenSym"))
 
