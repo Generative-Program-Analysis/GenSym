@@ -1,4 +1,4 @@
-package sai.utils
+package gensym.utils
 
 object Utils {
   def time[R](block: => R): (R, Double) = {

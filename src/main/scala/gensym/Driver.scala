@@ -11,7 +11,7 @@ import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
 import gensym.lmsx._
-import sai.utils.Utils.time
+import gensym.utils.Utils.time
 import scala.collection.immutable.{List => StaticList}
 import scala.collection.mutable.HashMap
 

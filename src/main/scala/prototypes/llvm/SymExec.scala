@@ -699,7 +699,7 @@ object TestUnstagedSymExec {
 
   def testMultiPathSym(n: Int) = {
     val multipath = OOPSLA20Benchmarks.mp1024
-    val res = sai.utils.Utils.time {
+    val res = gensym.utils.Utils.time {
       val mpSym = exec(multipath, "@f",
         List(
           SymV("x0"), SymV("x1"), SymV("x2"), 

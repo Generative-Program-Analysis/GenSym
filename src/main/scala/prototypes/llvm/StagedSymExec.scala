@@ -849,7 +849,7 @@ object TestStagedSymExec {
     }
 
   def testM(m: Module, output: String, fname: String) {
-    val res = sai.utils.Utils.time {
+    val res = gensym.utils.Utils.time {
       val code = specialize(m, fname)
       code.save(s"gen/$output")
     }

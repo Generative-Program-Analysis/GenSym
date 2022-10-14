@@ -1,6 +1,6 @@
 package gensym.lmsx.smt
 
-import sai.utils.symbol.Symbol
+import gensym.utils.symbol.Symbol
 
 import lms.core._
 import lms.util._
