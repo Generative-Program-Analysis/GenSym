@@ -6,16 +6,16 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
 
-import sai.lmsx._
+import gensym.lmsx._
 import sai.utils.Utils.time
-import sai.lang.llvm.Benchmarks._
-import sai.lang.llvm.OOPSLA20Benchmarks._
-import sai.lang.llvm.TestComp.ArrayExamples._
-import sai.lang.llvm.TestComp.ArrayPrograms._
+import gensym.llvm.Benchmarks._
+import gensym.llvm.OOPSLA20Benchmarks._
+import gensym.llvm.TestComp.ArrayExamples._
+import gensym.llvm.TestComp.ArrayPrograms._
 
 import sys.process._
 
@@ -128,7 +128,7 @@ class TestImpCPSGS_Z3 extends TestGS {
 
 /*
 class Coreutils extends TestGS {
-  import sai.lang.llvm.parser.Parser._
+  import gensym.llvm.parser.Parser._
   Config.enableOpt
   val runtimeOptions = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
   val cases = TestCases.coreutils.map { t =>
@@ -141,7 +141,7 @@ class Coreutils extends TestGS {
 */
 
 class Playground extends TestGS {
-  import sai.lang.llvm.parser.Parser._
+  import gensym.llvm.parser.Parser._
   Config.enableOpt
   val gs = new ImpGS
 

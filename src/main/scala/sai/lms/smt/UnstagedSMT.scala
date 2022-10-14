@@ -1,4 +1,4 @@
-package sai.lmsx.smt
+package gensym.lmsx.smt
 
 // Unstaged interfaces and operations
 

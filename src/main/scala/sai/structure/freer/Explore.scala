@@ -3,7 +3,7 @@ package sai.structure.freer
 import lms.core.virtualize
 import lms.macros.SourceContext
 
-import sai.lmsx.SAIOps
+import gensym.lmsx.SAIOps
 import sai.structure.freer.Eff.{Eff, ∅, ⊗}
 import sai.structure.freer.Freer
 import sai.structure.freer.Freer.{Comp, Op, Return, ret}

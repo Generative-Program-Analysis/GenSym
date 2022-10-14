@@ -1,8 +1,8 @@
-package sai.lang.llvm
+package gensym.llvm
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
 
 object Benchmarks {
   //lazy val maze = parseFile("benchmarks/llvm/maze.ll")

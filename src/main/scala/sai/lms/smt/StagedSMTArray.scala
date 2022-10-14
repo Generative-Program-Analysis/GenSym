@@ -1,4 +1,4 @@
-package sai.lmsx.smt
+package gensym.lmsx.smt
 
 import sai.utils.symbol.Symbol
 

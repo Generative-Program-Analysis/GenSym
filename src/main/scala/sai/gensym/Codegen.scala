@@ -6,8 +6,8 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
-import sai.lmsx._
-import sai.lmsx.smt._
+import gensym.lmsx._
+import gensym.lmsx.smt._
 import java.io.FileOutputStream
 
 import collection.mutable.HashMap

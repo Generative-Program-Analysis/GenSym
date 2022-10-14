@@ -1,4 +1,4 @@
-package sai
+package gensym
 package lmsx
 
 import scala.language.higherKinds
@@ -13,7 +13,7 @@ import lms.macros.SourceContext
 import sai.structure.lattices._
 import sai.structure.monad._
 
-import sai.lmsx.smt._
+import gensym.lmsx.smt._
 
 import scala.collection.immutable.{List => StaticList}
 

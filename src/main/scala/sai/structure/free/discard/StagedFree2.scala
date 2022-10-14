@@ -5,7 +5,7 @@ import lms.core._
 import lms.core.stub._
 import lms.macros._
 import lms.core.Backend._
-import sai.lmsx._
+import gensym.lmsx._
 
 // SFunctors hold static data
 trait SFunctor[F[_]] {

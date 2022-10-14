@@ -1,4 +1,4 @@
-package sai
+package gensym
 package lmsx
 
 import lms.core._
@@ -9,7 +9,7 @@ import lms.core.virtualize
 import lms.core.utils.time
 import lms.macros.SourceContext
 
-import sai.lmsx.smt._
+import gensym.lmsx.smt._
 
 trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     with CppCodeGen_List with CppCodeGen_Tuple   with CppCodeGen_Map

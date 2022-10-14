@@ -8,7 +8,7 @@ import scala.Double.{NegativeInfinity, PositiveInfinity}
 import lms.macros.SourceContext
 import lms.core.virtualize
 
-import sai.lmsx._
+import gensym.lmsx._
 
 @virtualize
 trait RepLattices { self: SAIOps =>

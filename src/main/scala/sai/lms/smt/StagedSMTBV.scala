@@ -1,4 +1,4 @@
-package sai.lmsx.smt
+package gensym.lmsx.smt
 
 import lms.core._
 import lms.util._

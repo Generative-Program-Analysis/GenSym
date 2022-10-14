@@ -1,6 +1,6 @@
 package gensym
 
-import sai.lang.llvm.parser.Parser._
+import gensym.llvm.parser.Parser._
 
 case class Config(nSym: Int, useArgv: Boolean, mainFileOpt: String) {
   require(!(nSym > 0 && useArgv))

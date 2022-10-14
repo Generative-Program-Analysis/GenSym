@@ -1,4 +1,4 @@
-package sai.lmsx
+package gensym.lmsx
 
 import lms.core._
 import lms.util._

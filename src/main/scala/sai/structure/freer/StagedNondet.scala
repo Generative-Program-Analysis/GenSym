@@ -11,7 +11,7 @@ import lms.core._
 import lms.core.stub.{While => _, _}
 import lms.macros._
 import lms.core.Backend._
-import sai.lmsx._
+import gensym.lmsx._
 
 @virtualize
 trait StagedNondet extends SAIOps {

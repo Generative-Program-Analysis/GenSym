@@ -6,11 +6,11 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
 
-import sai.lmsx._
+import gensym.lmsx._
 import sai.utils.Utils.time
 
 import sys.process._

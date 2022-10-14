@@ -4,7 +4,7 @@ import lms.core._
 import lms.core.stub._
 import lms.macros.SourceContext
 
-import sai.lmsx._
+import gensym.lmsx._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 

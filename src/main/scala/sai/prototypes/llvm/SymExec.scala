@@ -1,8 +1,8 @@
 package sai.llvm
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
 
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
@@ -15,7 +15,7 @@ import OpenUnion._
 import NondetList._
 import State._
 
-import sai.lmsx._
+import gensym.lmsx._
 import sai.structure.lattices._
 import sai.structure.lattices.Lattices._
 

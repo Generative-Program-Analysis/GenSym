@@ -1,4 +1,4 @@
-package sai.lmsx.smt
+package gensym.lmsx.smt
 
 import lms.core._
 import lms.util._
@@ -8,7 +8,7 @@ import lms.core.virtualize
 import lms.core.utils.time
 import lms.macros.SourceContext
 
-import sai.lmsx._
+import gensym.lmsx._
 
 object SATTest extends App {
   /*

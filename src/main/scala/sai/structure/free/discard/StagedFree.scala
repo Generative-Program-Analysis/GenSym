@@ -6,7 +6,7 @@ import lms.core.stub._
 import lms.macros._
 import lms.core.Backend._
 
-import sai.lmsx._
+import gensym.lmsx._
 import sai.structure.functor._
 
 @virtualize
