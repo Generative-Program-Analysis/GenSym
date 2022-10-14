@@ -141,21 +141,21 @@ trait LinkZ3 extends GenSym {
 }
 
 class BenchPureGS extends TestGS {
-  testLLSC(new PureGS with LinkSTP with LinkZ3, benchcases)
+  testGS(new PureGS with LinkSTP with LinkZ3, benchcases)
 }
 
 class BenchPureCPSGS extends TestGS {
-  testLLSC(new PureCPSGS with LinkSTP with LinkZ3, benchcases)
+  testGS(new PureCPSGS with LinkSTP with LinkZ3, benchcases)
 }
 
 class BenchImpGS extends TestGS {
-  testLLSC(new ImpGS with LinkSTP with LinkZ3, benchcases)
+  testGS(new ImpGS with LinkSTP with LinkZ3, benchcases)
 }
 
 class BenchImpCPSGS extends TestGS {
-  testLLSC(new ImpCPSGS with LinkSTP with LinkZ3, benchcases)
+  testGS(new ImpCPSGS with LinkSTP with LinkZ3, benchcases)
 }
 
 class BenchPureCPSGSZ3 extends TestGS {
-  testLLSC(new PureCPSGS with LinkSTP with LinkZ3, benchcases, "z3", true)
+  testGS(new PureCPSGS with LinkSTP with LinkZ3, benchcases, "z3", true)
 }
