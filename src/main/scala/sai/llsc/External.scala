@@ -79,7 +79,6 @@ trait GenExternal extends SymExeDefs {
       }
   }
 
-  // TODO: sym_exit return type in C should be void
   def sym_exit[T: Manifest](ss: Rep[SS], args: Rep[List[Value]]): Rep[T] =
     "sym_exit".reflectWith[T](ss, args)
 
@@ -95,9 +94,8 @@ trait GenExternal extends SymExeDefs {
     val mode: Rep[Value] = f.readStatField("st_mode")
     val bw = f.readStatBw("st_mode")
 
-    // TODO: add missing flags <2022-08-19, David Deng> //
     val canRead = ((mode & IntV(S_IRUSR, bw)) | (mode & IntV(S_IRGRP, bw)) | (mode & IntV(S_IROTH, bw)))
-    val illegalRead = IntOp2.eq(canRead, IntV(0, bw)) // cast to boolean
+    val illegalRead = IntOp2.eq(canRead, IntV(0, bw))
    
     val canWrite = ((mode & IntV(S_IWUSR, bw)) | (mode & IntV(S_IWGRP, bw)) | (mode & IntV(S_IWOTH, bw)))
     val illegalWrite = IntOp2.eq(canWrite, IntV(0, bw))
@@ -139,7 +137,7 @@ trait GenExternal extends SymExeDefs {
             concPaths.foldLeft[Unit](())((acc, concPath) => {
               // whether it is possible that the path matches the symbolic path
               val cond = listEq(concPath.split("").map((s: Rep[String]) => IntV(s(0).asRepOf[Long], 8): Rep[Value]), symPath)
-              // TODO: add path condition to null byte <2022-10-01, David Deng> //
+              // TODO: add path constraint to the final null byte in string <2022-10-01, David Deng> //
               info_ptrval(cond, "path equal condition")
               symExecBrFs[T](ss.fork, FS.dcopy(fs), cond, !cond,
                 (ss, fs) => {
@@ -215,8 +213,6 @@ trait GenExternal extends SymExeDefs {
   def openat[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = {
     unchecked("INFO(\"openat syscall\")")
     // TODO: implement this <2022-01-23, David Deng> //
-    // int __fd_openat(int basefd, const char *pathname, int flags, mode_t mode);
-    // if (fd == AT_FDCWD), call open
     k(ss, IntV(0, 32))
   }
 
@@ -358,7 +354,6 @@ trait GenExternal extends SymExeDefs {
    */
   def lstat[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     unchecked("INFO(\"lstat syscall\")")
-    // TODO: handle symlink <2022-08-09, David Deng> //
     stat(ss, fs, args, k)
   }
 
@@ -390,10 +385,8 @@ trait GenExternal extends SymExeDefs {
       // TODO: set mode <2022-05-28, David Deng> //
       val mode: Rep[Value] = args(1)
       val name: Rep[String] = getPathSegments(concPath).last
-      // TODO: set errno <2022-05-28, David Deng> //
       if (fs.hasFile(concPath)) k(ss, fs, IntV(-1, 32))
       else {
-        // TODO: refactor a get_dir method? <2022-05-28, David Deng> //
         val f = _set_file_type(File(name, List[Value](), List.fill(144)(IntV(0, 8))), S_IFDIR)
         unchecked("/* mkdir: fs.setFile */")
         fs.setFile(concPath, f)
@@ -474,7 +467,6 @@ trait GenExternal extends SymExeDefs {
     resolvePath(ss, fs, path, (ss, fs, concPath) => {
       val file = fs.getFile(concPath)
       val mode: Rep[Value] = args(1)
-      // TODO: set errno <2022-05-28, David Deng> //
       if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
       else {
         _set_file_mode(file, mode.int.toInt)
@@ -494,10 +486,8 @@ trait GenExternal extends SymExeDefs {
       val file = fs.getFile(concPath)
       val owner: Rep[Value] = args(1)
       val group: Rep[Value] = args(2)
-      // TODO: set errno <2022-05-28, David Deng> //
       if (file == NullPtr[File]) k(ss, fs, IntV(-1, 32))
       else {
-        // TODO: If the owner or group is specified as -1, then that ID is not changed. <2022-05-28, David Deng> //
         file.writeStatField("st_uid", owner)
         file.writeStatField("st_gid", group)
         k(ss, fs, IntV(0, 32))
@@ -571,7 +561,6 @@ trait GenExternal extends SymExeDefs {
 
   // NOTE: return type might not be necessary if using pointers <2022-05-27, David Deng> //
   def _set_file_type(f: Rep[File], mask: Rep[Int]): Rep[File] = {
-    // TODO: dynamic bitwidth <2022-09-30, David Deng> //
     unchecked("/* _set_file_type */")
     val bw = f.readStatBw("st_mode")
     val mode = f.readStatField("st_mode")
@@ -594,7 +583,6 @@ trait GenExternal extends SymExeDefs {
   def _errno_location[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = 
     k(ss, ss.getErrorLoc)
 
-  // TODO: rename? <2022-05-28, David Deng> //
   def _has_file_type(f: Rep[File], mask: Rep[Int]): Rep[Value] = {
     val stat = f.readStatField("st_mode")
     val bw = f.readStatBw("st_mode")

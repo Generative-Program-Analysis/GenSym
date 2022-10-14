@@ -31,8 +31,6 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
   // %struct.stat = type { i64, i64, i64, i32, i32, i32, i32 (padding), i64, i64, i64, i64, %struct.timespec, %struct.timespec, %struct.timespec, [3 x i64] }
   // %struct.timespec = type { i64, i64 }
 
-  // TODO: model nested fields? <2022-08-09, David Deng> //
-
   val statFields = ListMap[String, LLVMType](
     "st_dev"     -> IntType(64),
     "st_ino"     -> IntType(64),
@@ -137,7 +135,6 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     def parent: Rep[File]                = "ptr-field-@".reflectMutableWith[File](file, "parent")
 
     // assign ptr-field
-    // TODO: Is this valid? <2022-05-12, David Deng> //
     def name_=(rhs: Rep[String]): Unit                = "ptr-field-assign".reflectCtrlWith(file, "name", rhs)
     def content_=(rhs: Rep[List[Value]]): Unit        = "ptr-field-assign".reflectCtrlWith(file, "content", rhs)
     def stat_=(rhs: Rep[List[Value]]): Unit           = "ptr-field-assign".reflectCtrlWith(file, "stat", rhs)
@@ -254,7 +251,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       IntOp2.eq(readStatField("st_uid"), IntV(1000, readStatBw("st_uid"))),
       // klee_prefer_cex(s, s->st_gid == defaults->st_gid);
       IntOp2.eq(readStatField("st_gid"), IntV(1000, readStatBw("st_gid"))),
-      // TODO: 16 byte nested struct not modeled <2022-08-30, David Deng> //
+      // NOTE: 16 byte nested struct not modeled <2022-08-30, David Deng> //
       // klee_prefer_cex(s, s->st_atime == defaults->st_atime);
       // klee_prefer_cex(s, s->st_mtime == defaults->st_mtime);
       // klee_prefer_cex(s, s->st_ctime == defaults->st_ctime);
@@ -263,7 +260,6 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
     }
   }
 
-  // TODO: Change to pointer type for dup syscall? <2022-05-20, David Deng> //
   object Stream {
     def apply(f: Rep[File]) = "Stream::create".reflectCtrlWith[Stream](f)
     def apply(f: Rep[File], m: Rep[Int]) = "Stream::create".reflectCtrlWith[Stream](f, m)
@@ -360,7 +356,6 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
     def getPathSegments(path: Rep[String]): Rep[List[String]] = path.split("/").filter(_.length > 0)
 
-    // TODO: use option type? <2022-05-26, David Deng> //
     def getFileFromPathSegments(file: Rep[File], segs: Rep[List[String]]): Rep[File] = {
       segs.foldLeft(file: Rep[File])((f: Rep[File], seg: Rep[String]) => {
         if (f == NullPtr[File] || !f.hasChild(seg)) NullPtr[File]
@@ -397,7 +392,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
       fs.preferredCex = fs.preferredCex ++ f.getPreferredCex()
     }
 
-    // TODO: This is wrong <2022-07-28, David Deng> //
+    // TODO: recursively find and remove file from rootFile <2022-07-28, David Deng> //
     def removeFile(name: Rep[String]): Rep[Unit]          = fs.rootFile.removeChild(name)
     def hasStream(fd: Rep[Fd]): Rep[Boolean]              = fs.openedFiles.contains(fd)
     def getStream(fd: Rep[Fd]): Rep[Stream]               = fs.openedFiles(fd)
