@@ -1,4 +1,4 @@
-#include "../headers/llsc_client.h"
+#include "../headers/gensym_client.h"
 #define SIZE 5
 
 int d[SIZE];
@@ -28,7 +28,7 @@ void qsort(int l, int r)
 
 int main()
 {
-	llsc_make_symbolic(d, sizeof(int) * SIZE, "x");
+	make_symbolic(d, sizeof(int) * SIZE, "x");
   for (int i = 0; i < SIZE; i++) printf("%d,", d[i]);
   printf("\n");
 	qsort(0, SIZE-1);

@@ -1,5 +1,5 @@
-#ifndef LLSC_CLIENT_HEADERS
-#define LLSC_CLIENT_HEADERS
+#ifndef GS_CLIENT_HEADERS
+#define GS_CLIENT_HEADERS
 
 #include <stdio.h>
 #include <stdint.h>
@@ -15,34 +15,34 @@ void make_symbolic(void* addr, size_t byte_size, ...);
  */
 void make_symbolic_whole(void* addr, size_t byte_size, ...);
 
-#define llsc_make_symbolic(addr, byte_size, name) make_symbolic(addr, byte_size, name)
-#define llsc_make_symbolic_whole(addr, byte_size, name) make_symbolic_whole(addr, byte_size, name)
+#define gs_make_symbolic(addr, byte_size, name) make_symbolic(addr, byte_size, name)
+#define gs_make_symbolic_whole(addr, byte_size, name) make_symbolic_whole(addr, byte_size, name)
 
-void llsc_assert(bool, ...);
-void llsc_assert_eager(bool, ...);
+void gs_assert(bool, ...);
+void gs_assert_eager(bool, ...);
 
-void llsc_assume(bool);
+void gs_assume(bool);
 void sym_print(int, ...);
 void print_string(const char *message);
 
-/* llsc_range - Construct a symbolic value in the signed interval
+/* gs_range - Construct a symbolic value in the signed interval
  * [begin,end).
  *
  * \arg name - A name used for identifying the object in messages, output
  * files, etc. If NULL, object is called "unnamed".
  */
-static inline int llsc_range(int begin, int end, const char *name) {
+static inline int gs_range(int begin, int end, const char *name) {
   int x;
-  llsc_make_symbolic(&x, sizeof(x), name);
-  llsc_assume(x >= begin);
-  llsc_assume(x < end);
+  gs_make_symbolic(&x, sizeof(x), name);
+  gs_assume(x >= begin);
+  gs_assume(x < end);
   return x;
 }
 
 __attribute__((noreturn))
 void stop(int status);
 
-/* llsc_report_error - Report a user defined error and terminate the current
+/* gs_report_error - Report a user defined error and terminate the current
  * llsc process.
  *
  * \arg file - The filename to report in the error message.
@@ -51,7 +51,7 @@ void stop(int status);
  * \arg suffix - The suffix to use for error files.
  */
 __attribute__((noreturn))
-static inline void llsc_report_error(const char *file,
+static inline void gs_report_error(const char *file,
 		 int line,
 		 const char *message,
 		 const char *suffix)  {
@@ -63,29 +63,29 @@ static inline void llsc_report_error(const char *file,
   stop(-1);
 }
 
-static inline void llsc_warning(const char *message) {
+static inline void gs_warning(const char *message) {
   print_string(message);
   print_string("\n");
 }
 
-void llsc_warning_once(const char *message);
+void gs_warning_once(const char *message);
 
-void llsc_prefer_cex(void *object, bool condition);
-void llsc_posix_prefer_cex(void *object, bool condition);
+void gs_prefer_cex(void *object, bool condition);
+void gs_posix_prefer_cex(void *object, bool condition);
 
 /* return whether n is a symbolic value */
-unsigned llsc_is_symbolic(uintptr_t n);
+unsigned gs_is_symbolic(uintptr_t n);
 
 /* return a feasible concrete value of expr */
-long llsc_get_valuel(long expr);
+long gs_get_valuel(long expr);
 
 /* Support for running test-comp examples */
 
-static inline void __VERIFIER_error(void) { llsc_assert_eager(0); }
-static inline void __VERIFIER_assert(int cond) { llsc_assert_eager(cond); }
+static inline void __VERIFIER_error(void) { gs_assert_eager(0); }
+static inline void __VERIFIER_assert(int cond) { gs_assert_eager(cond); }
 static inline void reach_error() {
   fprintf(stderr, "error reached\n");
-  llsc_assert_eager(0);
+  gs_assert_eager(0);
 }
 static inline void __VERIFIER_assume(int x) { /* TODO */ }
 

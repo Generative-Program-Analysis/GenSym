@@ -1,4 +1,4 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 #include <errno.h>
 int main(int argc, char *argv[])
 {
@@ -13,6 +13,6 @@ int main(int argc, char *argv[])
     print_string(argv[i]);
     print_string("\n");
   }
-  llsc_assert_eager(errno == EFAULT);
+  gs_assert_eager(errno == EFAULT);
   return 0;
 }

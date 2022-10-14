@@ -1,9 +1,9 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 
 int main() {
   int a;
   make_symbolic(&a, 4);
-  llsc_assume(a >= 0);
+  gs_assume(a >= 0);
 
   //The condition of the while loop will be compiled into the following ir.
   /*
