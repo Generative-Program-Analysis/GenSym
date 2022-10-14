@@ -1,5 +1,5 @@
 #include <sys/stat.h>
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 
 int main(){
 	struct stat sfile;
