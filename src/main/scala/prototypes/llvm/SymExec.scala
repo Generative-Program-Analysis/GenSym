@@ -7,7 +7,7 @@ import gensym.llvm.parser.Parser._
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
 
-import sai.structure.freer._
+import gensym.structure.freer._
 import Eff._
 import Freer._
 import Handlers._
@@ -16,8 +16,8 @@ import NondetList._
 import State._
 
 import gensym.lmsx._
-import sai.structure.lattices._
-import sai.structure.lattices.Lattices._
+import gensym.structure.lattices._
+import gensym.structure.lattices.Lattices._
 
 import scala.collection.immutable.{List => SList}
 import scala.collection.immutable.{Map => SMap}
@@ -268,7 +268,7 @@ object SymExecEff {
       val p1: Comp[Nondet ⊗ ∅, (SS, T)] =
         State.runState[Nondet ⊗ ∅, SS, T](s)(comp)
       val p2: Comp[Nondet ⊗ ∅, (SS, T)] = p1.map(a => a)
-      val p3: Comp[∅, List[(SS, T)]] = sai.structure.freer.NondetList.run(p2)
+      val p3: Comp[∅, List[(SS, T)]] = gensym.structure.freer.NondetList.run(p2)
       p3
     }
 

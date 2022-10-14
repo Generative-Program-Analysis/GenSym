@@ -1,13 +1,13 @@
-package sai.structure.freer
+package gensym.structure.freer
 
 import lms.core.virtualize
 import lms.macros.SourceContext
 
 import gensym.lmsx.SAIOps
-import sai.structure.freer.Eff.{Eff, ∅, ⊗}
-import sai.structure.freer.Freer
-import sai.structure.freer.Freer.{Comp, Op, Return, ret}
-import sai.structure.freer.OpenUnion.decomp
+import gensym.structure.freer.Eff.{Eff, ∅, ⊗}
+import gensym.structure.freer.Freer
+import gensym.structure.freer.Freer.{Comp, Op, Return, ret}
+import gensym.structure.freer.OpenUnion.decomp
 
 import scala.language.higherKinds
 import scala.collection.immutable.Queue
@@ -222,8 +222,8 @@ trait StagedDFSExplore extends StagedListExplore { self : StagedNondet with SAIO
 
 //TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
 class Exhaustive[E <: Eff, A] extends Explore {
-  import sai.structure.freer.NondetList.NondetList$.??
-  import sai.structure.freer.NondetList.{Fail$, Nondet, NondetList, NondetList$}
+  import gensym.structure.freer.NondetList.NondetList$.??
+  import gensym.structure.freer.NondetList.{Fail$, Nondet, NondetList, NondetList$}
   type □[X] = X
   type Row = E
   type N[X] = Nondet[X]

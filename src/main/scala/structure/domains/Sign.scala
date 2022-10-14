@@ -1,11 +1,11 @@
-package sai.structure.lattices
+package gensym.structure.lattices
 
 import scala.math._
 import scala.language.higherKinds
 import scala.language.implicitConversions
 import scala.Double.{NegativeInfinity, PositiveInfinity}
 
-import sai.structure.lattices.Lattices._
+import gensym.structure.lattices.Lattices._
 
 trait Sign {
   def +(s: Sign): Sign

@@ -4,7 +4,7 @@ import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.IRUtils._
 
-import sai.structure.freer._
+import gensym.structure.freer._
 import Eff._
 import Freer._
 import Handlers._

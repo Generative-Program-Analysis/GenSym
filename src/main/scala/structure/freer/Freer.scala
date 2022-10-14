@@ -1,4 +1,4 @@
-package sai.structure.freer
+package gensym.structure.freer
 
 import scala.annotation.implicitNotFound
 import scala.language.{higherKinds, implicitConversions}

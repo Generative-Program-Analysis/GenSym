@@ -8,7 +8,7 @@ import gensym.Constants._
 
 import scala.collection.JavaConverters._
 
-import sai.structure.freer._
+import gensym.structure.freer._
 import Eff._
 import Freer._
 import Handlers._

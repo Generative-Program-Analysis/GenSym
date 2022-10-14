@@ -1,4 +1,4 @@
-package sai.structure.freer
+package gensym.structure.freer
 
 import Eff._
 import Freer._

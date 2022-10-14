@@ -1,4 +1,4 @@
-package sai.structure.lattices
+package gensym.structure.lattices
 
 import scala.math._
 import scala.language.higherKinds

@@ -1,10 +1,10 @@
-package sai.structure.freer
+package gensym.structure.freer
 
-import sai.structure.freer.Coin.{Coin, Coin$, biasedCoin, coinChoice}
-import sai.structure.freer.Eff._
-import sai.structure.freer.Freer._
-import sai.structure.freer.Handlers._
-import sai.structure.freer.OpenUnion._
+import gensym.structure.freer.Coin.{Coin, Coin$, biasedCoin, coinChoice}
+import gensym.structure.freer.Eff._
+import gensym.structure.freer.Freer._
+import gensym.structure.freer.Handlers._
+import gensym.structure.freer.OpenUnion._
 import ∈._
 
 import scala.collection.immutable.Queue
@@ -12,7 +12,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 object Coin {
-  import sai.structure.freer.Nondet.{Choice$, Fail$, Nondet, fail}
+  import gensym.structure.freer.Nondet.{Choice$, Fail$, Nondet, fail}
 
   sealed trait Coin[K]
   case class FlipCoin(weight : Float) extends Coin[Boolean] {
@@ -50,7 +50,7 @@ object Coin {
 }
 
 object CoinList {
-  import sai.structure.freer.NondetList._
+  import gensym.structure.freer.NondetList._
 
   sealed trait Coin[K]
   case class FlipCoin[A](w: Float) extends Coin[A]
@@ -102,7 +102,7 @@ object CoinList {
 }
 
 object Prob {
-  import sai.structure.freer.Nondet.{Choice$, Fail$, Nondet, fail}
+  import gensym.structure.freer.Nondet.{Choice$, Fail$, Nondet, fail}
 
   sealed trait Prob[K]
   case class Weight(w: Float) extends Prob[Unit] {

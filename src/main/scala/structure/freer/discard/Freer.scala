@@ -1,10 +1,10 @@
-package sai.structure.monad
+package gensym.structure.monad
 package freer
 
 /*
 
-import sai.structure.functor._
-import sai.structure.~>
+import gensym.structure.functor._
+import gensym.structure.~>
 
 abstract class FFree[F[_], A] {
   import freer.FFreeMonad._

@@ -1,4 +1,4 @@
-package sai.structure.monad.free.discard
+package gensym.structure.monad.free.discard
 package attempt2
 
 import lms.core._

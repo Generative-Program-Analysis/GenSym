@@ -1,8 +1,8 @@
-package sai.structure.monad
+package gensym.structure.monad
 
-import sai.structure.functor._
-import sai.structure.lattices._
-import sai.structure.lattices.Lattices._
+import gensym.structure.functor._
+import gensym.structure.lattices._
+import gensym.structure.lattices.Lattices._
 
 /* Error Monad */
 

@@ -1,4 +1,4 @@
-package sai.structure.monoid
+package gensym.structure.monoid
 
 trait Monoid[A] {
   def zero: A

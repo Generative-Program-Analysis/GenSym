@@ -9,8 +9,8 @@ import lms.core.virtualize
 import lms.core.utils.time
 import lms.macros.SourceContext
 
-import sai.structure.lattices._
-import sai.structure.monad._
+import gensym.structure.lattices._
+import gensym.structure.monad._
 
 // Scala code generator and driver
 

@@ -195,7 +195,7 @@ object IRUtils {
 
 case class CFG(funMap: Map[String, FunctionDef]) {
   import collection.mutable.HashMap
-  import sai.structure.lattices.Lattices._
+  import gensym.structure.lattices.Lattices._
 
   type Fun = String
   type Label = String

@@ -1,11 +1,11 @@
-package sai.structure.freer
+package gensym.structure.freer
 
 import scala.language.{higherKinds, implicitConversions, existentials}
 
-import sai.structure.freer.Eff._
-import sai.structure.freer.Freer._
-import sai.structure.freer.Handlers._
-import sai.structure.freer.OpenUnion._
+import gensym.structure.freer.Eff._
+import gensym.structure.freer.Freer._
+import gensym.structure.freer.Handlers._
+import gensym.structure.freer.OpenUnion._
 
 import lms.core._
 import lms.core.stub.{While => _, _}

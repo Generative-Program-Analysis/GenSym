@@ -1,12 +1,12 @@
-package sai.structure.monad
+package gensym.structure.monad
 
 import lms.core._
 import lms.core.stub._
 import lms.macros.SourceContext
 
 import gensym.lmsx._
-import sai.structure.lattices._
-import sai.structure.lattices.Lattices._
+import gensym.structure.lattices._
+import gensym.structure.lattices.Lattices._
 
 @virtualize
 trait RepEitherMonad { self: RepMonads with SAIOps =>

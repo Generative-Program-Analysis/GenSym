@@ -1,4 +1,4 @@
-package sai.structure.freer.discard
+package gensym.structure.freer.discard
 
 import scala.language.{higherKinds, implicitConversions}
 

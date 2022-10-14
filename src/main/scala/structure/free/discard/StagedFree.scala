@@ -1,4 +1,4 @@
-package sai.structure.monad.free.discard
+package gensym.structure.monad.free.discard
 package attempt1
 
 import lms.core._
@@ -7,7 +7,7 @@ import lms.macros._
 import lms.core.Backend._
 
 import gensym.lmsx._
-import sai.structure.functor._
+import gensym.structure.functor._
 
 @virtualize
 trait RepFree { self: SAIOps =>

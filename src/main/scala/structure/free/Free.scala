@@ -1,9 +1,9 @@
-package sai.structure.monad.free
+package gensym.structure.monad.free
 
-import sai.structure.monad._
-import sai.structure.functor._
-import sai.structure.monad.free.VoidEff.∅
-import sai.structure.~>
+import gensym.structure.monad._
+import gensym.structure.functor._
+import gensym.structure.monad.free.VoidEff.∅
+import gensym.structure.~>
 
 // Follows the algebraic effects implementation in Effect Handlers in Scope (Haskell '14)
 
