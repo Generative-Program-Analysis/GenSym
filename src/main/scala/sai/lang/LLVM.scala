@@ -1864,7 +1864,6 @@ package parser {
   object TestParser extends App {
     import PPrinter._
     import Parser._
-    printAst(parseFile("benchmarks/llsc/trunc.ll"))
   }
 
   object PPrinter {

@@ -1,4 +1,4 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 #include <stdio.h>
 
 int	strcmp(char *str1,  char *str2) {
@@ -30,8 +30,8 @@ int main() {
   float f = 1.1;
   double d = -99.99;
   make_symbolic_whole(&s, sizeof(int));
-  llsc_assume(s > 19);
-  llsc_assume(s < 21);
+  gs_assume(s > 19);
+  gs_assume(s < 21);
   char * message = "string message";
   char res[200];
   char* output = "execute native sprintf! : c = 1, i = -1, s = 20, f = 1.1, d = -99.99\nstring message = string message\n";
@@ -45,7 +45,7 @@ int main() {
 
   int cmp = -1;
   cmp = strcmp(res, output);
-  llsc_assert_eager(0 == cmp);
-  llsc_assert_eager(ret > 0);
-  llsc_assert_eager(strlen(output) == ret);
+  gs_assert_eager(0 == cmp);
+  gs_assert_eager(ret > 0);
+  gs_assert_eager(strlen(output) == ret);
 }

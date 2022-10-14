@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-void llsc_assert_eager(bool);
+void gs_assert_eager(bool);
 
 struct S {
   char c;
@@ -29,7 +29,7 @@ void func_ST() {
   struct T t = { 1, 2 };
   char* m = (char*) &(t.b) - 1;
   int i = *((int*)m);
-  llsc_assert_eager(i == 512);
+  gs_assert_eager(i == 512);
 
   struct W w2 = {1, 2};
   uint32_t* m2 = ((uint32_t*) &(w2.a)) + 1;
@@ -46,7 +46,7 @@ void func_P() {
   memset(&p, 0, sizeof(p));
   int tmp = 10;
   p.ptr = &tmp;
-  llsc_assert_eager(*(p.ptr) == 10);
+  gs_assert_eager(*(p.ptr) == 10);
   printf("%d\n", *(p.ptr));
 }
 

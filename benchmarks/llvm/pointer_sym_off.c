@@ -1,4 +1,4 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 #include <assert.h>
 
 int main() {
@@ -6,7 +6,7 @@ int main() {
     int * p_int = (int *)nums + 2;
     int idx;
     make_symbolic_whole(&idx, sizeof(int));
-    llsc_assume(idx != 1);
+    gs_assume(idx != 1);
 
     int res = p_int[idx];
     sym_print(res);
@@ -15,7 +15,7 @@ int main() {
       case 1: assert(1); break;
       case 2: assert(1); break;
       case 4: assert(1); break;
-      default : llsc_assert_eager(0); break;
+      default : gs_assert_eager(0); break;
     }
     return 0;
 }

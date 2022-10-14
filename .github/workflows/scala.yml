@@ -32,17 +32,17 @@ jobs:
     - name: Generate test files
       run: |
         cd benchmarks/llvm
-        make llsc
+        make gensym
         cd ../demo-benchmarks
-        make llsc
+        make gensym
         cd ../external-lib
-        make llsc
+        make gensym
         cd ../oopsla20
         make generate_sse
         cd ../test-comp/array-examples
-        make llsc
+        make gensym
         cd ../../test-comp/array-programs
-        make llsc
+        make gensym
         cd ../../klee-posix-fs
         make
     - name: Install Z3
@@ -64,8 +64,6 @@ jobs:
         sudo make install
         sudo ldconfig
     - name: Generate models
-      run: sbt 'runMain sai.llsc.GenerateExternal'
-    - name: Test models
-      run: sbt 'testOnly sai.llsc.TestGenExternal'
+      run: sbt 'runMain gensym.GenerateExternal'
     - name: Run tests
       run: sbt test
