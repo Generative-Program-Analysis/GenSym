@@ -3,7 +3,7 @@ package sai.conc
 import sai.lang.llvm._
 import sai.lang.llvm.IR._
 import sai.lang.llvm.parser.Parser._
-import sai.llsc.IRUtils._
+import gensym.IRUtils._
 
 import scala.collection.JavaConverters._
 
