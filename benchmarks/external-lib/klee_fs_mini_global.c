@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 void make_symbolic(void *addr, size_t nbytes);
-void llsc_assert(bool);
+void gs_assert(bool);
 //#pragma pack (0)
 typedef struct {
   unsigned size;  /* in bytes */
@@ -56,7 +56,7 @@ int main()
       if (__exe_env.fds[31].flags == 31) {
         sym_exit(2);
       } else {
-        llsc_assert(__exe_env.fds[31].flags != 31);
+        gs_assert(__exe_env.fds[31].flags != 31);
       }
     }
   } else {

@@ -18,7 +18,7 @@
 #include <assert.h>
 
 static void __emit_error(const char *msg) {
-  llsc_report_error(__FILE__, __LINE__, msg, "user.err");
+  gs_report_error(__FILE__, __LINE__, msg, "user.err");
 }
 
 /* Helper function that converts a string to an integer, and

@@ -11,7 +11,7 @@
 .bsp
 target
 klee-out-*
-llsc_gen
+gs_gen
 output
 benchmarks/**/*.ll
 .bloop
@@ -22,4 +22,4 @@ project/.bloop/bloop.settings.json
 .vscode/settings.json
 conc_gen/*
 ccbse_gen/*
-headers/llsc/external.hpp
+headers/gensym/external.hpp

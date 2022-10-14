@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 
 int __add_em_up (int count, va_list ap)
 {
@@ -40,13 +40,13 @@ int main (void) {
   int sum = 0;
   sum = add_em_up (3, 5, 5, 6);
   sym_print(sum);
-  llsc_assert_eager(32 == sum);
+  gs_assert_eager(32 == sum);
 
   /* This call prints 110. */
   // printf ("%d\n", add_em_up (10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
   sum = add_em_up (10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
   sym_print(sum);
-  llsc_assert_eager(110 == sum);
+  gs_assert_eager(110 == sum);
 
   return 0;
 }

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <assert.h>
-#include "../llsc.hpp"
+#include "../gensym.hpp"
 #include <variant>
 
 int main() {

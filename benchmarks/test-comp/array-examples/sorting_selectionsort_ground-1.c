@@ -1,4 +1,4 @@
-#include "../../../headers/llsc_client.h"
+#include "../../../headers/gensym_client.h"
 
 int main( ) {
   int a[ 100000 ];

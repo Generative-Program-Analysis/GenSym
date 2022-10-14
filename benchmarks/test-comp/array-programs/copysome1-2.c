@@ -12,7 +12,7 @@ void __VERIFIER_assert(int cond) { if(!(cond)) { ERROR: {reach_error();abort();}
 int __VERIFIER_nondet_int();
 */
 
-#include "../../../headers/llsc_client.h"
+#include "../../../headers/gensym_client.h"
 
 #define N 200000
 

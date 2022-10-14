@@ -21,7 +21,7 @@ exe_file_system_t __exe_fs;
 
 static void __create_new_dfile(exe_disk_file_t *dfile, unsigned size) {
 
-  llsc_assert(size);
+  gs_assert(size);
 
   dfile->size = size;
   dfile->contents = malloc(dfile->size);

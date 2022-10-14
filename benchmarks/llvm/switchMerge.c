@@ -1,7 +1,7 @@
 #ifdef KLEE
 #include <klee/klee.h>
 #else
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 #endif
 #include <assert.h>
 
@@ -13,8 +13,8 @@ int main() {
   klee_assume(a <= 5);
 #else
   make_symbolic(&a, 4);
-  llsc_assume(a >= 1);
-  llsc_assume(a <= 5);
+  gs_assume(a >= 1);
+  gs_assume(a <= 5);
 #endif
   switch (a) {
     case 1:

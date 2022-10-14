@@ -4,7 +4,7 @@ CC := clang-11
 
 FLAGS := -emit-llvm -O0 -Xclang -disable-O0-optnone -c
 KLEE_FLAGS := -D KLEE -g -I $(KLEE_INCL)
-LLSC_FLAGS := -fno-discard-value-names -S
+GS_FLAGS := -fno-discard-value-names -S
 
 KLEE_TARGET := $(SRC_FILES:%.c=%.bc)
 
@@ -12,11 +12,11 @@ KLEE_REPLAY_TARGET := $(SRC_FILES:%.c=%-replay)
 
 KLEE_GEN := $(wildcard ./klee-*)
 
-LLSC_TARGET := $(SRC_FILES:%.c=%.ll)
+GS_TARGET := $(SRC_FILES:%.c=%.ll)
 
-all: llsc
+all: gensym
 
-llsc: $(LLSC_TARGET)
+gensym: $(GS_TARGET)
 klee: $(KLEE_TARGET)
 klee-exe: $(KLEE_REPLAY_TARGET)
 
@@ -26,8 +26,8 @@ $(KLEE_TARGET): %.bc : %.c
 $(KLEE_REPLAY_TARGET): %-replay : %.c
 	$(CC) $(KLEE_FLAGS) -o $@ $< -lkleeRuntest
 
-$(LLSC_TARGET): %.ll : %.c
-	$(CC) $(LLSC_FLAGS) $(FLAGS) -o $@ $<
+$(GS_TARGET): %.ll : %.c
+	$(CC) $(GS_FLAGS) $(FLAGS) -o $@ $<
 
 clean:
-	$(RM) -rf $(KLEE_TARGET) $(KLEE_REPLAY_TARGET) $(KLEE_GEN) $(LLSC_TARGET)
+	$(RM) -rf $(KLEE_TARGET) $(KLEE_REPLAY_TARGET) $(KLEE_GEN) $(GS_TARGET)

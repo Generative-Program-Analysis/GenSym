@@ -6,7 +6,7 @@ void __VERIFIER_assert(int cond) { if(!(cond)) { ERROR: {reach_error();abort();}
 extern int __VERIFIER_nondet_int(void);
 */
 
-#include "../../../headers/llsc_client.h"
+#include "../../../headers/gensym_client.h"
 
 #define N 100000
 

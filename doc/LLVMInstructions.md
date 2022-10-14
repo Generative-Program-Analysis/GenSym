@@ -1,4 +1,4 @@
-LLVM instructions supported by `llsc/engines/Engine.scala`.
+LLVM instructions supported by `gensym/engines/Engine.scala`.
 
 THIS IS OUTDATED, NEED UPDATE.
 
