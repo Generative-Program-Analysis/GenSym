@@ -1,23 +1,22 @@
 package gensym
 
-import gensym.llvm._
-import gensym.llvm.IR._
-import gensym.llvm.parser.Parser._
-
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
 import gensym.lmsx._
 import gensym.utils.Utils.time
-import scala.collection.immutable.{List => StaticList}
-import scala.collection.mutable.HashMap
-
 import gensym.imp.Mut
 import gensym.imp.ImpGSEngine
 import gensym.imp.ImpCPSGSEngine
+
+import scala.collection.immutable.{List => StaticList}
+import scala.collection.mutable.HashMap
 
 import sys.process._
 

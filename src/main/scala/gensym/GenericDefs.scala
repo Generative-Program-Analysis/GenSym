@@ -1,21 +1,13 @@
 package gensym
 
-import gensym.llvm._
-import gensym.llvm.IR._
-
-import gensym.structure.freer._
-import Eff._
-import Freer._
-import Handlers._
-import OpenUnion._
-import State._
-
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
+import gensym.llvm._
+import gensym.llvm.IR._
 import gensym.lmsx._
 import gensym.lmsx.smt.SMTBool
 

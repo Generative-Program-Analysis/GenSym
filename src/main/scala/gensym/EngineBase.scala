@@ -1,19 +1,18 @@
 package gensym
 
-import gensym.llvm._
-import gensym.llvm.IR._
-import gensym.llvm.parser.Parser._
-import gensym.IRUtils._
-
-import scala.collection.JavaConverters._
-
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
+import gensym.IRUtils._
 import gensym.lmsx._
+
+import scala.collection.JavaConverters._
 
 case class Ctx(funName: String, blockLab: String) {
   override def toString: String = funName + "_" + blockLab

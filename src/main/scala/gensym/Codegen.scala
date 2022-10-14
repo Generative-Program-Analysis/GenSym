@@ -8,9 +8,9 @@ import lms.core.stub.{While => _, _}
 
 import gensym.lmsx._
 import gensym.lmsx.smt._
-import java.io.FileOutputStream
 
-import collection.mutable.HashMap
+import java.io.FileOutputStream
+import scala.collection.mutable.HashMap
 
 trait GenericGSCodeGen extends CppSAICodeGenBase {
   registerLibrary("-lz3")

@@ -1,5 +1,11 @@
 package gensym.imp
 
+import lms.core._
+import lms.core.Backend._
+import lms.core.virtualize
+import lms.macros.SourceContext
+import lms.core.stub.{While => _, _}
+
 import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.llvm.parser.Parser._
@@ -7,16 +13,9 @@ import gensym.IRUtils._
 import gensym.Constants._
 import gensym.SwitchType._
 import gensym.{EngineBase, Config, Counter, Ctx}
+import gensym.lmsx._
 
 import scala.collection.JavaConverters._
-
-import lms.core._
-import lms.core.Backend._
-import lms.core.virtualize
-import lms.macros.SourceContext
-import lms.core.stub.{While => _, _}
-
-import gensym.lmsx._
 import scala.collection.immutable.{List => StaticList, Map => StaticMap}
 
 @virtualize

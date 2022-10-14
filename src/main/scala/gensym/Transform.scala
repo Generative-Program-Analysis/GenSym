@@ -3,10 +3,11 @@ package gensym
 import lms.core._
 import lms.core.Backend._
 import lms.core.stub.{While => _, _}
-import scala.collection.immutable.{List => StaticList}
-import scala.collection.mutable.{HashMap,HashSet}
 
 import gensym.imp.Mut
+
+import scala.collection.immutable.{List => StaticList}
+import scala.collection.mutable.{HashMap,HashSet}
 
 object AssignElim {
   type Subst = HashMap[Sym, Exp]
