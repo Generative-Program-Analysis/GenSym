@@ -43,7 +43,7 @@ __attribute__((noreturn))
 void stop(int status);
 
 /* gs_report_error - Report a user defined error and terminate the current
- * llsc process.
+ * gensym process.
  *
  * \arg file - The filename to report in the error message.
  * \arg line - The line number to report in the error message.

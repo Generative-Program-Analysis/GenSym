@@ -66,7 +66,7 @@ class TestImpCPSOpt extends Optimization {
 }
 
 class TestPureCPSOpt extends Optimization {
-  val gs = new PureCPSLLSC
+  val gs = new PureCPSGS
   Config.enableOpt
 
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_Opt", "@main", noArg, "--solver=z3", nPath(5040)))
@@ -80,7 +80,7 @@ class TestPureCPSOpt extends Optimization {
 
 /*
 class TestPureCPSNoOpt extends Optimization {
-  val gs = new PureCPSLLSC
+  val gs = new PureCPSGS
   Config.disableOpt
 
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_NoOpt", "@main", noArg, noOpt, nPath(5040)))
@@ -92,7 +92,7 @@ class TestPureCPSNoOpt extends Optimization {
 }
 
 class TestImpCPSNoOpt extends Optimization {
-  val gs = new ImpCPSLLSC
+  val gs = new ImpCPSGS
   Config.disableOpt
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_NoOpt", "@main", noArg, noOpt, nPath(5040)))
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/bubblesort.ll"), "bubbleSort_NoOpt", "@main", noArg, noOpt, nPath(720)))

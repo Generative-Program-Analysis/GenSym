@@ -1,4 +1,4 @@
-#include "llsc.hpp"
+#include "gensym.hpp"
 using namespace immer;
 
 int main() {
@@ -9,5 +9,5 @@ int main() {
   ys.push_back(4);
   auto zs = std::move(xs);
   printf("xs %ld ys %ld zs %ld\n", xs.size(), ys.size(), zs.size());
-  printf("hello LLSC\n");
+  printf("hello GenSym\n");
 }
