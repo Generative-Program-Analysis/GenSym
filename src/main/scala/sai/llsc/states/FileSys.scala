@@ -291,7 +291,7 @@ trait FileSysDefs extends ExternalUtil { self: SAIOps with BasicDefs with ValueD
 
     def write(c: Rep[List[Value]], n: Rep[Long]): Rep[Long] = {
       val content = c.take(n.toInt)
-      strm.file.writeAt(content, strm.cursor, cmacro("IntV0"))
+      strm.file.writeAt(content, strm.cursor, IntV(0, 8))
       strm.cursor = strm.cursor + content.size;
       return content.size
     }

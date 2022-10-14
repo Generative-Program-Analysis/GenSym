@@ -88,25 +88,15 @@ abstract class TestLLSC extends FunSuite {
 
 class TestPureLLSC extends TestLLSC {
   testLLSC(new PureLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new PureLLSC, TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, 1))
 }
-
-// FIXME: varArg is problematic for instances other than PureLLSC
 
 class TestPureCPSLLSC extends TestLLSC {
-  testLLSC(new PureCPSLLSC, TestCases.all ++ filesys ++ varArg)
-  //testLLSC(new PureCPSLLSC, TestPrg(mergesort, "mergeSortTest", "@main", noArg, 720))
-}
-
-class TestPureCPSLLSC_Z3 extends TestLLSC {
   val llsc = new PureCPSLLSC
-  val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
-    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
-  }
+  //testLLSC(llsc, TestCases.all ++ filesys ++ varArg)
 
-  testLLSC(llsc, cases)
-
-  // Note: these test cases need to use `--thread=2` to enable random path selection strategy
+  // Note: the following test cases need to use `--thread=n` to enable random path selection strategy.
+  //       They also relies on block-level path switching to increase randomness, which currently has only
+  //       been implemented in PureCPS engine.
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
   testLLSC(llsc, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
   testLLSC(llsc, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, "--thread=2 --search=random-path --solver=z3", status(255)))
@@ -128,6 +118,14 @@ class TestImpCPSLLSC extends TestLLSC {
   testLLSC(llsc, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
 
+class TestImpCPSLLSC_Z3 extends TestLLSC {
+  val llsc = new ImpCPSLLSC
+  val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
+    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
+  }
+  testLLSC(llsc, cases)
+}
+
 /*
 class Coreutils extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
@@ -145,7 +143,8 @@ class Coreutils extends TestLLSC {
 class Playground extends TestLLSC {
   import sai.lang.llvm.parser.Parser._
   Config.enableOpt
-  val llsc = new ImpCPSLLSC
+  val llsc = new ImpLLSC
+
   //testLLSC(llsc, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
   //testLLSC(new PureCPSLLSC, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testLLSC(new ImpCPSLLSC, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))

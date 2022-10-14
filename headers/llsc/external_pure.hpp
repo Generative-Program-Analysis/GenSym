@@ -91,7 +91,7 @@ inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(sz > 0, "Invalid length");
   ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
   std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(args.at(2), state));
-  SS res = state.add_symbolic(object_name, sz, true).update(loc, make_SymV(object_name, sz*8));
+  SS res = state.add_symbolic(object_name, sz, true).update(loc, make_SymV(object_name, sz*8), sz);
   return k(res, make_IntV(0));
 }
 
@@ -286,7 +286,7 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   for (int i = 0; i < bytes_int; i++) {
     res = res.update(dest + i, res.at(src + i));
   }
-  return k(res, IntV0);
+  return k(res, IntV0_32);
 }
 
 inline List<SSVal> llvm_memcpy(SS state, List<PtrVal> args) {
@@ -307,15 +307,14 @@ inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   SS res = state;
   IntData bytes_int = proj_IntV(args.at(2));
-  // Optimize: flex_vector_transient
-  auto temp_mem = List<PtrVal>{};
+  auto temp_mem = TrList<PtrVal>{};
   for (int i = 0; i < bytes_int; i++) {
-    temp_mem = temp_mem.push_back(res.at(src + i));
+    temp_mem.push_back(res.at(src + i));
   }
   for (int i = 0; i < bytes_int; i++) {
     res = res.update(dest + i, temp_mem.at(i));
   }
-  return k(res, IntV0);
+  return k(res, IntV0_32);
 }
 
 inline List<SSVal> llvm_memmove(SS state, List<PtrVal> args) {
@@ -338,7 +337,7 @@ inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
   for (int i = 0; i < bytes_int; i++) {
     res = res.update(dest + i, v);
   }
-  return k(res, IntV0);
+  return k(res, IntV0_32);
 }
 
 inline List<SSVal> llvm_memset(SS state, List<PtrVal> args) {
@@ -518,18 +517,6 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       retval = syscall(__NR_pwrite64, fd, temp.getbuf(), count, offset);
       break;
     }
-    case __NR_access:
-      ABORT("Unsupported Systemcall");
-      break;
-    case __NR_select:
-      ABORT("Unsupported Systemcall");
-      break;
-    case __NR_fcntl:
-      ABORT("Unsupported Systemcall");
-      break;
-    case __NR_fsync:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_ftruncate: {
       int fd = get_int_arg(state, args.at(1));
       off_t length = get_int_arg(state, args.at(2));
@@ -545,48 +532,24 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
       if (retval >= 0) res = temp.writeback(res);
       break;
     }
+    case __NR_access:
+    case __NR_select:
+    case __NR_fcntl:
+    case __NR_fsync:
     case __NR_chdir:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fchdir:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_readlink:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_chmod:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fchmod:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_chown:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fchown:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_statfs:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_fstatfs:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_getdents64:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_utimes:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_openat:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_futimesat:
-      ABORT("Unsupported Systemcall");
-      break;
     case __NR_newfstatat:
-      ABORT("Unsupported Systemcall");
-      break;
     default:
       ABORT("Unsupported Systemcall");
       break;
@@ -618,21 +581,23 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   PtrVal va_arg = state.vararg_loc();
   SS res = state;
-  res = res.update(va_list + 0, make_IntV(0, 32), 4);
-  res = res.update(va_list + 4, make_IntV(0, 32), 4);
+  res = res.update(va_list + 0, IntV0_32, 4);
+  res = res.update(va_list + 4, IntV0_32, 4);
   res = res.update(va_list + 8, va_arg + 48, 8);
   res = res.update(va_list + 16, va_arg, 8);
-  return k(res, IntV0);
+  return k(res, IntV0_32);
 }
 template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
   ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
   SS res = state;
-  for (int i = 0; i<24; i++) {
-    res = res.update(va_list + i, nullptr);
-  }
-  return k(res, IntV0);
+  auto loc0 = make_LocV_null();
+  res = res.update(va_list + 0, IntV0_32, 4);
+  res = res.update(va_list + 4, IntV0_32, 4);
+  res = res.update(va_list + 8, loc0, 8);
+  res = res.update(va_list + 16, loc0, 8);
+  return k(res, IntV0_32);
 }
 template<typename T>
 inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
@@ -646,7 +611,7 @@ inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   res = res.update(dst_va_list + 4, state.at(src_va_list + 4, 4), 4);
   res = res.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
   res = res.update(dst_va_list + 16, state.at(src_va_list + 16, 8), 8);
-  return k(res, IntV0);
+  return k(res, IntV0_32);
 }
 
 /******************************************************************************/
