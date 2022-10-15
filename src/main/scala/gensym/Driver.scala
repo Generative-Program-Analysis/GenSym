@@ -374,13 +374,13 @@ class ImpCPSGS extends GenSym with ImpureState {
     }
 }
 
-class ImpCPSLLSC_lib extends LLSC with ImpureState {
-  val insName = "ImpCPSLLSC_lib"
-  def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
-    new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) { q =>
+class ImpCPSGS_lib extends GenSym with ImpureState {
+  val insName = "ImpCPSGS_lib"
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
+    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) { q =>
       import java.io.{File,PrintStream}
       implicit val me: this.type = this
-      override lazy val codegen: GenericLLSCCodeGen = new ImpureLLSCCodeGen {
+      override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
@@ -404,7 +404,7 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
           }
           out.close
         }
-        registerHeader("<llsc/libcpolyfill.hpp>")
+        registerHeader("<gensym/libcpolyfill.hpp>")
       }
       override def genSource: Unit = {
         val folderFile = new File(folder)
@@ -471,10 +471,9 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
           "fstatfs", "fstat64", "stat64", "execve", "times", "uname", "adjtimex",
           "wait4", "nanosleep", "setitimer", "getcwd", "sigsuspend", "sigwaitinfo",
           "__getdents64", "__getdents", "setgroups", "waitpid"
-        ).map(_ -> "llsc_dummy").toMap
+        ).map(_ -> "gs_dummy").toMap
         ExternalFun prepare externMapping
 
-        import sai.lmsx._
         def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
           val heap = List(precompileHeapLists(m::Nil):_*)
           Coverage.printMap
@@ -492,14 +491,14 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
       }
       def generateManifest: Unit = {
         val funclist = for ((f, n) <- funNameMap) yield {
-          val pat = "__LLSC_USER_(\\w+)".r
+          val pat = "__GS_USER_(\\w+)".r
           n match {
-            case pat(nshort) => FuncDef(nshort, s"__LLSC_USER_$nshort")
+            case pat(nshort) => FuncDef(nshort, s"__GS_USER_$nshort")
             case _ => FuncDef(n, n)
           }
         }
         val aliaslist = for ((f, s) <- symDefMap) yield { s.const match {
-          case GlobalId(n) => FuncDef(f.tail, s"__LLSC_USER_${n.tail}")
+          case GlobalId(n) => FuncDef(f.tail, s"__GS_USER_${n.tail}")
           case _ => ???
         }}
         val varlist = for ((n, g) <- heapEnv) yield { g() match {
@@ -525,14 +524,14 @@ class ImpCPSLLSC_lib extends LLSC with ImpureState {
     }
 }
 
-class ImpCPSLLSC_app extends LLSC with ImpureState {
-  val insName = "ImpCPSLLSC_app"
-  def newInstance(m: Module, name: String, fname: String, config: Config): GenericLLSCDriver[Int, Unit] =
-    new ImpCPSLLSCDriver[Int, Unit](m, name, "./llsc_gen", config) { q =>
+class ImpCPSGS_app extends GenSym with ImpureState {
+  val insName = "ImpCPSGS_app"
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
+    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) { q =>
       override val mainRename = "app_main"
       val libcdef = libdef.get
       implicit val me: this.type = this
-      override lazy val codegen: GenericLLSCCodeGen = new ImpureLLSCCodeGen {
+      override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
@@ -594,7 +593,7 @@ class ImpCPSLLSC_app extends LLSC with ImpureState {
           ss.updateArg
           ss.initErrorLoc
           val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
-          "start_llsc_main".reflectReadWith[Unit](ss, config.args, k)(fv)
+          "start_gs_main".reflectReadWith[Unit](ss, config.args, k)(fv)
         }
         val ss0 = initState
         "initlib".reflectWith[Unit](ss0, List[Value](), initmain)

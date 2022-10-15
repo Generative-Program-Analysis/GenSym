@@ -108,8 +108,8 @@ object RunGenSym {
       case "ImpDirect" => new ImpGS
       case "PureCPS" => new PureCPSGS
       case "PureDirect" => new PureGS
-      case "lib" => new ImpCPSLLSC_lib
-      case "app" => new ImpCPSLLSC_app
+      case "lib" => new ImpCPSGS_lib
+      case "app" => new ImpCPSGS_app
     }
     Config.opt = optimize
     Config.emitBlockIdMap = emitBlockIdMap
