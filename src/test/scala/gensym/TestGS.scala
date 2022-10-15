@@ -143,9 +143,9 @@ class Coreutils extends TestGS {
 class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
-  val gs = new ImpGS
+  val gs = new ImpCPSGS
 
-  //testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
+  testGS(gs, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
 
