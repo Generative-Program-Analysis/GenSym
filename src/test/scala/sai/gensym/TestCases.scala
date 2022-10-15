@@ -6,13 +6,13 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
-import sai.lang.llvm._
-import sai.lang.llvm.IR._
-import sai.lang.llvm.parser.Parser._
-import sai.lang.llvm.Benchmarks._
-import sai.lang.llvm.OOPSLA20Benchmarks._
-import sai.lang.llvm.TestComp.ArrayExamples._
-import sai.lang.llvm.TestComp.ArrayPrograms._
+import gensym.llvm._
+import gensym.llvm.IR._
+import gensym.llvm.parser.Parser._
+import gensym.llvm.Benchmarks._
+import gensym.llvm.OOPSLA20Benchmarks._
+import gensym.llvm.TestComp.ArrayExamples._
+import gensym.llvm.TestComp.ArrayPrograms._
 
 import Config._
 

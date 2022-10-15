@@ -1,5 +1,5 @@
 // Generated from LLVMLexer.g4 by ANTLR 4.9.3
-package sai.lang.llvm;
+package gensym.llvm;
 
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
