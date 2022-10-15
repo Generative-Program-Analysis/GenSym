@@ -306,13 +306,8 @@ trait PureCPSGSEngine extends SymExeDefs with EngineBase {
         val v1 = eval(val1, ty1, ss)
         val v2 = eval(val2, ty2, ss)
         k(ss.update(v2, v1, ty1.size))
-      case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = extractValues(args)
-        val argTypes: List[LLVMType] = extractTypes(args)
-        val fv = eval(f, VoidType, ss, Some(argTypes))
-        val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
-        def fK(s: Rep[SS], v: Rep[Value]): Rep[Unit] = k(s.pop(ss.stackSize))
-        fv[Id](ss.push, List(vs: _*), ContOpt[Id](fK))
+      case call@CallInst(ty, f, args) =>
+        execValueInst(call, ss, { case (s, v) => k(s) })
     }
   }
 

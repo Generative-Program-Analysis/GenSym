@@ -190,7 +190,9 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
         val stackSize = ss.stackSize
+        // ss.push(ss.stackSize, k)
         ss.push
+        //def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(s, v) }
         def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
         fv[Ref](ss, List(vs: _*), ContOpt(fK))
       case PhiInst(ty, incs) =>
@@ -320,8 +322,8 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         val v2 = eval(val2, ty2, ss)
         ss.update(v2, v1, ty1.size)
         k(ss)
-      case CallInst(ty, f, args) =>
-        execValueInst(CallInst(ty, f, args), ss) { (s, v) => k(s) }
+      case call@CallInst(ty, f, args) =>
+        execValueInst(call, ss) { (s, v) => k(s) }
     }
   }
 

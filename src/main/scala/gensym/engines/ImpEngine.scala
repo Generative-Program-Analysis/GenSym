@@ -310,21 +310,8 @@ trait ImpGSEngine extends ImpSymExeDefs with EngineBase {
         val v2 = eval(val2, ty2, ss)
         ss.update(v2, v1, ty1.size)
         k(ss)
-      case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = extractValues(args)
-        val argTypes: List[LLVMType] = extractTypes(args)
-        val fv = eval(f, VoidType, ss, Some(argTypes))
-        val vs = argValues.zip(argTypes).map {
-          case (v, t) => eval(v, t, ss)
-        }
-        ss.push
-        val stackSize = ss.stackSize
-        val res: Rep[List[(SS, Value)]] = fv[Ref](ss, List(vs: _*))
-        res.flatMap { case sv =>
-          val s = sv._1
-          s.pop(stackSize)
-          k(s)
-        }
+      case call@CallInst(ty, f, args) =>
+        execValueInst(call, ss, { case (s, v) => k(s) })
     }
   }
 

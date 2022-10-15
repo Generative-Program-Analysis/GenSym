@@ -393,17 +393,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
           v2 <- eval(val2, ty2)
           _ <- updateMem(v2, v1, ty1.size)
         } yield ()
-      case CallInst(ty, f, args) =>
-        val argValues: List[LLVMValue] = extractValues(args)
-        val argTypes: List[LLVMType] = extractTypes(args)
-        for {
-          fv <- eval(f, VoidType, Some(argTypes))
-          vs <- mapM2Tup(argValues)(argTypes)(eval(_, _, None))
-          _ <- pushFrame
-          s <- getState
-          v <- reflect(fv[Id](s, List(vs:_*)))
-          _ <- popFrame(s.stackSize)
-        } yield ()
+      case call@CallInst(ty, f, args) => for { _ <- execValueInst(call) } yield ()
     }
   }
 
