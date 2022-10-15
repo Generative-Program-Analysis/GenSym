@@ -1,4 +1,4 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 #include <stdio.h>
 #include <assert.h>
 
@@ -27,7 +27,7 @@ int main() {
         case 'm': assert(1); break;
         case 'n': assert(1); break;
         case 'a': assert(1); break;
-        default : llsc_assert_eager(0); break;
+        default : gs_assert_eager(0); break;
       }
     }
     return 0;

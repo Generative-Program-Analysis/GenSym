@@ -3,16 +3,16 @@ SRC_FILES := $(wildcard ./*.c)
 CC := clang-11
 
 FLAGS := -emit-llvm -O2 -Xclang -disable-O0-optnone -c -fno-vectorize
-LLSC_FLAGS := -fno-discard-value-names -S
+GS_FLAGS := -fno-discard-value-names -S
 
-LLSC_TARGET := $(SRC_FILES:%.c=%.ll)
+GS_TARGET := $(SRC_FILES:%.c=%.ll)
 
-all: llsc
+all: gensym
 
-llsc: $(LLSC_TARGET)
+gensym: $(GS_TARGET)
 
-$(LLSC_TARGET): %.ll : %.c
-	$(CC) $(LLSC_FLAGS) $(FLAGS) -o $@ $<
+$(GS_TARGET): %.ll : %.c
+	$(CC) $(GS_FLAGS) $(FLAGS) -o $@ $<
 
 clean:
-	$(RM) -rf $(LLSC_TARGET)
+	$(RM) -rf $(GS_TARGET)

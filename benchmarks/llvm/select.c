@@ -1,4 +1,4 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 int main() {
   int x;
   make_symbolic(&x, 4);

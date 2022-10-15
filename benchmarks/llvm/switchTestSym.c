@@ -1,10 +1,10 @@
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 #include <assert.h>
 int main() {
   int a;
   make_symbolic(&a, 4);
-  llsc_assume(a > 2);
-  llsc_assume(a < 8);
+  gs_assume(a > 2);
+  gs_assume(a < 8);
   switch (a) {
     case 1:
       assert(1);

@@ -1,6 +1,6 @@
 #include <stdbool.h>
 
-void llsc_assert(bool);
+void gs_assert(bool);
 void f() {
   int i = 0;
   while (i < 5) { i++; }
@@ -15,5 +15,5 @@ int main() {
     i++;
   }
   // the engine should be able to reach this
-  llsc_assert(false);
+  gs_assert(false);
 }

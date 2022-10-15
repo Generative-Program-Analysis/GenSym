@@ -44,7 +44,7 @@ static void __create_new_dfile(exe_disk_file_t *dfile, unsigned size,
                                const char *name, struct stat64 *defaults) {
   struct stat64 *s = malloc(sizeof(*s));
   if (!s)
-    llsc_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
+    gs_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
 
   const char *sp;
   char sname[64];
@@ -57,7 +57,7 @@ static void __create_new_dfile(exe_disk_file_t *dfile, unsigned size,
   dfile->size = size;
   dfile->contents = malloc(dfile->size);
   if (!dfile->contents)
-    llsc_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
+    gs_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
   make_symbolic(dfile->contents, dfile->size);
 
   make_symbolic(s, sizeof(*s));
@@ -122,7 +122,7 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   __exe_fs.n_sym_files = n_files;
   __exe_fs.sym_files = malloc(sizeof(*__exe_fs.sym_files) * n_files);
   if (n_files && !__exe_fs.sym_files)
-    llsc_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
+    gs_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
 
   for (k=0; k < n_files; k++) {
     name[0] = 'A' + k;
@@ -133,7 +133,7 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   if (stdin_length) {
     __exe_fs.sym_stdin = malloc(sizeof(*__exe_fs.sym_stdin));
     if (!__exe_fs.sym_stdin)
-      llsc_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
+      gs_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
     __create_new_dfile(__exe_fs.sym_stdin, stdin_length, "stdin", &s);
     __exe_env.fds[0].dfile = __exe_fs.sym_stdin;
   }
@@ -148,7 +148,7 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
     __exe_fs.getcwd_fail = malloc(sizeof(*__exe_fs.getcwd_fail));
     if (!(__exe_fs.read_fail && __exe_fs.write_fail && __exe_fs.close_fail
           && __exe_fs.ftruncate_fail && __exe_fs.getcwd_fail))
-      llsc_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
+      gs_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
 
     make_symbolic(__exe_fs.read_fail, sizeof(*__exe_fs.read_fail));
     make_symbolic(__exe_fs.write_fail, sizeof(*__exe_fs.write_fail));
@@ -161,7 +161,7 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   if (sym_stdout_flag) {
     __exe_fs.sym_stdout = malloc(sizeof(*__exe_fs.sym_stdout));
     if (!__exe_fs.sym_stdout)
-      llsc_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
+      gs_report_error(__FILE__, __LINE__, "out of memory in klee_init_env", "user.err");
     __create_new_dfile(__exe_fs.sym_stdout, 1024, "stdout", &s);
     __exe_env.fds[1].dfile = __exe_fs.sym_stdout;
     __exe_fs.stdout_writes = 0;

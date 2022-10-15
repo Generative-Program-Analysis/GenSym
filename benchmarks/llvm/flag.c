@@ -1,6 +1,6 @@
 #include <fcntl.h>
 #include <sys/stat.h>
-#include "../../headers/llsc_client.h"
+#include "../../headers/gensym_client.h"
 
 /* NOTE: depends on stat, also tests for unlink <2022-05-28, David Deng> */
 int main()
@@ -16,6 +16,6 @@ int main()
   x = x & 0x0000f000;
   /* x = x == 0x00008000; */
   sym_print(x == 0x00008000);
-  llsc_assert_eager(x == 0x00008000, "should be cleared");
+  gs_assert_eager(x == 0x00008000, "should be cleared");
   return 0;
 }

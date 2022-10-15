@@ -1,6 +1,6 @@
 #include <iostream>
 #include <assert.h>
-#include "../llsc.hpp"
+#include "../gensym.hpp"
 
 PtrVal intV_0 = make_IntV(0);
 PtrVal intV_1 = make_IntV(1);
