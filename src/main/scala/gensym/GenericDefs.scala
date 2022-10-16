@@ -382,7 +382,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
   case class ContOpt[W[_]](k: (Rep[W[SS]], Rep[Value]) => Rep[Unit])(implicit m: Manifest[W[SS]]) {
     lazy val repK: Rep[PCont[W]] =
-      if (Config.onStackCont) unchecked[PCont[W]]("pop_cont_apply")
+      if (Config.onStackCont && !usingPureEngine) unchecked[PCont[W]]("pop_cont_apply")
       else fun(k(_, _))
     def apply(s: Rep[W[SS]], v: Rep[Value]): Rep[Unit] = k(s, v)
   }
