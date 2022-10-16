@@ -196,18 +196,18 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
         if (Config.onStackCont) {
           ss.push(stackSize, compileCont(k))
-          // Note: fK is used only when we want to apply the continuation at staing-time,
-          // we will not reify it into second stage. Instead, backend-defined `pop_cont_apply`
+          // Note: in this case, even we have compiled cont k, fK still will be used only when 
+          // we want to apply the continuation at staing-time (as an optimization);
+          // we will not reify `fK` into second stage. Instead, backend-defined `pop_cont_apply`
           // that will be used to apply the pushed continuation with returned value.
           // TODO: this is still not idea, since `compileCont(k)` will anyway generate/push
           // a continuation function, even though we can statically reduce it some time.
           // See an example in @merge_%while.end64 of merge_sort; we also want to eliminate dummy
           // push/pop pair, which benefits the case if not using onStackCont.
-          fv[Ref](ss, List(vs: _*), ContOpt(fK))
         } else {
           ss.push
-          fv[Ref](ss, List(vs: _*), ContOpt(fK))
         }
+        fv[Ref](ss, List(vs: _*), ContOpt(fK))
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)()
