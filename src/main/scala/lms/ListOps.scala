@@ -293,7 +293,7 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       emit("{")
       if (!xs.isEmpty) {
         shallow(xs.head)
-        xs.tail.map { x =>
+        xs.tail.foreach { x =>
           emit(", ")
           shallow(x)
         }

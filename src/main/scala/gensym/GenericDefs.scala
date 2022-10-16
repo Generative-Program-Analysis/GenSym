@@ -34,6 +34,7 @@ object Counter {
   val block = Counter()
   val variable = Counter()
   val function = Counter()
+  val cont = Counter()
   val branchStat: HashMap[Int, Int] = HashMap[Int, Int]()
   def setBranchNum(ctx: Ctx, n: Int): Unit = {
     val blockId = Counter.block.get(ctx.toString)
@@ -374,8 +375,15 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]) = "float_op_2".reflectWith[Value](op, o1, o2)
   }
 
+  object ContOpt {
+    def dummyCont[W[_]](implicit m: Manifest[W[SS]]): ContOpt[W] = ContOpt[W]((s, v) => ())
+    def fromRepCont[W[_]](k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]) = ContOpt[W]((s, v) => k(s, v))
+  }
+
   case class ContOpt[W[_]](k: (Rep[W[SS]], Rep[Value]) => Rep[Unit])(implicit m: Manifest[W[SS]]) {
-    lazy val repK = fun(k(_, _))
+    lazy val repK: Rep[PCont[W]] =
+      if (Config.onStackCont) unchecked[PCont[W]]("pop_cont_apply")
+      else fun(k(_, _))
     def apply(s: Rep[W[SS]], v: Rep[Value]): Rep[Unit] = k(s, v)
   }
 
@@ -417,8 +425,9 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
 
-    // The CPS version
-    // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
+    /*
+    // This `apply` is only needed in the top-level `exec`.
+    // W[_] is parameterized over pass-by-value (Id[_]) or pass-by-ref (Ref[_]) of SS.
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
         case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
@@ -426,18 +435,26 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
       }
+    */
 
+    // This `apply` works for CPS version that takes an optimizable continuation `ContOpt`.
+    // Using `ContOpt`, we may choose to call the continuation at staging-time, or to generate
+    // the continuation function into the second stage.
+    // W[_] is parameterized over pass-by-value (Id[_]) or pass-by-ref (Ref[_]) of SS.
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: ContOpt[W])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
+        /*
         case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
-        case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) && !usingPureEngine =>
+        case ExternalFun(f, ty) if Config.opt && ExternalFun.isDeterministic(f) && !usingPureEngine =>
+          // This is an optimization that avoids generating CPS code for deterministic function (ie those that won't fork).
           // Be careful: since the state is not passed/returned, with the imperative backend it means
           // the state must be passed by reference to f_det! Currently not all deterministic functions
           // defined in backend works in this way (see external_shared.hpp).
           k(s, (f+"_det").reflectCtrlWith[Value](s, args))
-        case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) && usingPureEngine =>
+        case ExternalFun(f, ty) if Config.opt && ExternalFun.isDeterministic(f) && usingPureEngine =>
           val sv = (f+"_det").reflectCtrlWith[(W[SS], Value)](s, args)
           k(sv._1, sv._2)
+          */
         case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k.repK)
         case CPSFunV(f) => f(s, args, k.repK)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k.repK) // indirect call

@@ -45,8 +45,11 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
     "async_exec_block".reflectWriteWith[Unit](unchecked[String](realBlockFunName), ss, k)(Adapter.CTRL)
   }
 
-  def contApply(cont: Rep[Cont], ss: Rep[SS], v: Rep[Value]): Rep[Unit] = {
-    "cont_apply".reflectWriteWith[Unit](cont, ss, v)(Adapter.CTRL)
+  def compileCont(k: (Rep[Ref[SS]], Rep[Value]) => Rep[Unit])(implicit ctx: Ctx): Rep[Cont] = {
+    val repK = fun(k)
+    val node = Unwrap(repK).asInstanceOf[Backend.Sym]
+    funNameMap(node) = strippedFunName(ctx.funName) + "_k_" + Counter.cont.fresh
+    repK
   }
 
   def eval(v: LLVMValue, ty: LLVMType, ss: Rep[SS], argTypes: Option[List[LLVMType]] = None)(implicit ctx: Ctx): Rep[Value] =
@@ -108,7 +111,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit ctx: Ctx): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
-  def execValueInst(inst: ValueInstruction, ss: Rep[SS])(k: (Rep[SS], Rep[Value]) => Rep[Unit])(implicit ctx: Ctx): Rep[Unit] = {
+  def execValueInst(inst: ValueInstruction, ss: Rep[SS])(k: (Rep[Ref[SS]], Rep[Value]) => Rep[Unit])(implicit ctx: Ctx): Rep[Unit] = {
     inst match {
       // Memory Access Instructions
       case AllocaInst(ty, align) =>
@@ -189,12 +192,16 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
-        val stackSize = ss.stackSize
-        // ss.push(ss.stackSize, k)
-        ss.push
-        //def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(s, v) }
-        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
-        fv[Ref](ss, List(vs: _*), ContOpt(fK))
+        if (Config.onStackCont) {
+          ss.push(ss.stackSize, compileCont(k))
+          def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = s.popRet(v)
+          fv[Ref](ss, List(vs: _*), ContOpt.dummyCont[Ref])
+        } else {
+          val stackSize = ss.stackSize
+          ss.push
+          def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
+          fv[Ref](ss, List(vs: _*), ContOpt(fK))
+        }
       case PhiInst(ty, incs) =>
         def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
           if (bb == labels(0) || labels.length == 1) vs(0)()
@@ -226,13 +233,13 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
 
   def execTerm(inst: Terminator, k: Rep[Cont])(implicit ss: Rep[SS], ctx: Ctx): Rep[Unit] = {
     inst match {
-      case Unreachable => contApply(k, ss, IntV(-1))
+      case Unreachable => k(ss, IntV(-1))
       case RetTerm(ty, v) =>
         val ret = v match {
           case Some(value) => eval(value, ty, ss)
           case None => NullPtr[Value]
         }
-        contApply(k, ss, ret)
+        k(ss, ret)
       case BrTerm(lab) if (cfg.pred(ctx.funName, lab).size == 1) =>
         execBlockEager(findBlock(ctx.funName, lab).get, ss, k)(Ctx(ctx.funName, lab))
       case BrTerm(lab) =>
@@ -405,6 +412,6 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
     ss.push
     ss.updateArg
     ss.initErrorLoc
-    fv[Ref](ss, args, k)
+    fv[Ref](ss, args, ContOpt.fromRepCont[Ref](k))
   }
 }

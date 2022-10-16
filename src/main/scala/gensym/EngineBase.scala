@@ -56,10 +56,12 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def info(msg: String) = unchecked("INFO(\"" + msg + "\")")
 
-  def getRealFunName(funName: String): String = {
-    val newFname = if (funName != "@main") "__GS_USER_"+funName.tail else "gs_main"
-    newFname.replaceAllLiterally(".","_")
-  }
+  def strippedFunName(funName: String): String = 
+    if (funName != "@main") funName.tail.replaceAllLiterally(".", "_")
+    else "gs_main"
+
+  def getRealFunName(funName: String): String = "__GS_USER_"+strippedFunName(funName)
+
   def getRealBlockFunName(ctx: Ctx): String = blockNameMap(Counter.block.get(ctx.toString))
 
   def compile(funName: String, b: BB): Unit = {
@@ -98,8 +100,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
     val fn = repExternFun(f, ret, argTypes)
     val node = Unwrap(fn).asInstanceOf[Backend.Sym]
-    funNameMap(node) = "__GS_NATIVE_EXTERNAL_"+mangledName.tail
-    FunFuns(mangledName) = fn
+    funNameMap(node) = "__GS_NATIVE_"+mangledName.tail
   }
 
   // Note: the following two functions checks/retrieves functions considering aliases.

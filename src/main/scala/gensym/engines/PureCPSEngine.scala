@@ -381,6 +381,6 @@ trait PureCPSGSEngine extends SymExeDefs with EngineBase {
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)
-    fv[Id](ss.push.updateArg.initErrorLoc, args, k)
+    fv[Id](ss.push.updateArg.initErrorLoc, args, ContOpt.fromRepCont[Id](k))
   }
 }
