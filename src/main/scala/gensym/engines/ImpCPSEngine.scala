@@ -195,7 +195,10 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         if (Config.onStackCont) {
           ss.push(ss.stackSize, compileCont(k))
           def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = s.popRet(v)
-          fv[Ref](ss, List(vs: _*), ContOpt.dummyCont[Ref])
+          // Note: fK is used only when we want to apply the continuation at staing-time,
+          // we will not reify it into second stage. Instead, backend-defined `pop_cont_apply`
+          // that will be used to apply the pushed continuation with returned value.
+          fv[Ref](ss, List(vs: _*), ContOpt(fK))
         } else {
           val stackSize = ss.stackSize
           ss.push
@@ -409,9 +412,16 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)
-    ss.push
-    ss.updateArg
-    ss.initErrorLoc
-    fv[Ref](ss, args, ContOpt.fromRepCont[Ref](k))
+    if (Config.onStackCont) {
+      ss.push(0, k)
+      ss.updateArg
+      ss.initErrorLoc
+      fv[Ref](ss, args, ContOpt.dummyCont[Ref])
+    } else {
+      ss.push
+      ss.updateArg
+      ss.initErrorLoc
+      fv[Ref](ss, args, ContOpt.fromRepCont[Ref](k))
+    }
   }
 }

@@ -39,7 +39,7 @@ object Config {
   // generate code that records executed instruction numbers
   var recordInstNum: Boolean = false
   // push continuations onto stack or pass continuations as arguments (applicable for ImpCPS engine)
-  var onStackCont: Boolean = false
+  var onStackCont: Boolean = true
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
