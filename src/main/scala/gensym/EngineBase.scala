@@ -101,6 +101,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     val fn = repExternFun(f, ret, argTypes)
     val node = Unwrap(fn).asInstanceOf[Backend.Sym]
     funNameMap(node) = "__GS_NATIVE_"+mangledName.tail
+    FunFuns(mangledName) = fn
   }
 
   // Note: the following two functions checks/retrieves functions considering aliases.
