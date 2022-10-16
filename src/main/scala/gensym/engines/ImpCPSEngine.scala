@@ -415,16 +415,10 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
     Coverage.incPath(1)
     val ss = initState(preHeap.asRepOf[Mem])
     val fv = eval(GlobalId(fname), VoidType, ss)
-    if (Config.onStackCont) {
-      ss.push(0, k)
-      ss.updateArg
-      ss.initErrorLoc
-      fv[Ref](ss, args, ContOpt.dummyCont[Ref])
-    } else {
-      ss.push
-      ss.updateArg
-      ss.initErrorLoc
-      fv[Ref](ss, args, ContOpt.fromRepCont[Ref](k))
-    }
+    if (Config.onStackCont) ss.push(0, k)
+    else ss.push
+    ss.updateArg
+    ss.initErrorLoc
+    fv[Ref](ss, args, ContOpt.fromRepCont[Ref](k))
   }
 }
