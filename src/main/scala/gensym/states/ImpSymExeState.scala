@@ -114,7 +114,7 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def push(k: Rep[Cont]): Rep[Unit] = reflectWrite[Unit]("ss-push", ss, k)(ss, Adapter.CTRL)
     def push(stackSize: Rep[Int], k: Rep[Cont]): Rep[Unit] = reflectWrite[Unit]("ss-push", ss, stackSize, k)(ss, Adapter.CTRL)
     // XXX: since pop is used in a map, will be DCE-ed if no CTRL
-    def pop(keep: Rep[Int]): Rep[Cont] = reflectWrite[Cont]("ss-pop", ss, keep)(ss, Adapter.CTRL)
+    def pop(keep: Rep[Int]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, keep)(ss, Adapter.CTRL)
     def popRet(v: Rep[Value]): Rep[Unit] = reflectWrite[Unit]("ss-pop", ss, v)(ss, Adapter.CTRL)
       //"pop_cont_apply".reflectUnsafeWith[Unit](ss, v) // Note: we want to inline this
 

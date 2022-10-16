@@ -192,17 +192,20 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         val argTypes: List[LLVMType] = extractTypes(args)
         val fv = eval(f, VoidType, ss, Some(argTypes))
         val vs = argValues.zip(argTypes).map { case (v, t) => eval(v, t, ss) }
+        val stackSize = ss.stackSize
+        def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
         if (Config.onStackCont) {
-          ss.push(ss.stackSize, compileCont(k))
-          def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = s.popRet(v)
+          ss.push(stackSize, compileCont(k))
           // Note: fK is used only when we want to apply the continuation at staing-time,
           // we will not reify it into second stage. Instead, backend-defined `pop_cont_apply`
           // that will be used to apply the pushed continuation with returned value.
+          // TODO: this is still not idea, since `compileCont(k)` will anyway generate/push
+          // a continuation function, even though we can statically reduce it some time.
+          // See an example in @merge_%while.end64 of merge_sort; we also want to eliminate dummy
+          // push/pop pair, which benefits the case if not using onStackCont.
           fv[Ref](ss, List(vs: _*), ContOpt(fK))
         } else {
-          val stackSize = ss.stackSize
           ss.push
-          def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
           fv[Ref](ss, List(vs: _*), ContOpt(fK))
         }
       case PhiInst(ty, incs) =>

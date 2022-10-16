@@ -206,12 +206,10 @@ class Stack {
       return std::move(*this);
     }
     PtrVal error_loc() { return errno_location; }
-    typename Frame::Cont pop(size_t keep) {
-      auto& f = env.at(env.size() - 1);
-      auto ret = f.k;
+    Stack&& pop(size_t keep) {
       mem.take(keep);
       env.take(env.size() - 1);
-      return ret;
+      return std::move(*this);
     }
     std::monostate pop(SS& s, PtrVal v) {
       auto f = env.at(env.size() - 1);
@@ -458,8 +456,9 @@ class SS {
       stack.push(ss, cont);
       return std::move(*this);
     }
-    typename Frame::Cont pop(size_t keep) {
-      return stack.pop(keep);
+    SS&& pop(size_t keep) {
+      stack.pop(keep);
+      return std::move(*this);
     }
     std::monostate pop(PtrVal v) {
       return stack.pop(*this, v);
