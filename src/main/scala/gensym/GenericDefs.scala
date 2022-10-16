@@ -425,20 +425,23 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
       }
 
-    // This `apply` works for CPS version that takes an optimizable continuation `ContOpt`.
+    // This `apply` works for the CPS version that takes an optimizable continuation `ContOpt`.
     // Using `ContOpt`, we may choose to call the continuation at staging-time, or to generate
     // the continuation function into the second stage.
     // W[_] is parameterized over pass-by-value (Id[_]) or pass-by-ref (Ref[_]) of SS.
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: ContOpt[W])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
-        case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
+        case ExternalFun("noop", ty) if Config.opt =>
+          // Avoids generating continuations for the `noop` function.
+          k(s, defaultRetVal(ty))
         case ExternalFun(f, ty) if Config.opt && ExternalFun.isDeterministic(f) && !usingPureEngine =>
-          // This is an optimization that avoids generating CPS code for deterministic function (ie those that won't fork).
+          // Avoids generating continuations for the _imperative_ CPS engine if the function is deterministic.
           // Be careful: since the state is not passed/returned, with the imperative backend it means
           // the state must be passed by reference to f_det! Currently not all deterministic functions
           // defined in backend works in this way (see external_shared.hpp).
           k(s, (f+"_det").reflectCtrlWith[Value](s, args))
         case ExternalFun(f, ty) if Config.opt && ExternalFun.isDeterministic(f) && usingPureEngine =>
+          // Avoids generating continuations for the _pure_ engine if the function is deterministic.
           val sv = (f+"_det").reflectCtrlWith[(W[SS], Value)](s, args)
           k(sv._1, sv._2)
         case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k.repK)
