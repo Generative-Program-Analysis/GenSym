@@ -382,12 +382,12 @@ class SS {
       return read_res;
     }
     //[[deprecated]]
-	PtrVal at(PtrVal addr) {
-		auto loc = addr->to_LocV();
-		ASSERT(loc != nullptr, "Lookup an non-address value");
-		if (loc->k == LocV::kStack) return stack.at(loc->l);
-		return heap.at(loc->l);
-	}
+    PtrVal at(PtrVal addr) {
+        auto loc = addr->to_LocV();
+        ASSERT(loc != nullptr, "Lookup an non-address value");
+        if (loc->k == LocV::kStack) return stack.at(loc->l);
+        return heap.at(loc->l);
+    }
     PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
