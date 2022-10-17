@@ -133,13 +133,16 @@ object TestCases {
 
   val filesys: List[TestPrg] = List(
     TestPrg(openTest, "openTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
+    TestPrg(openSymTest, "openSymTest", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)),
     TestPrg(closeTest, "closeTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(read1Test, "readTestRetVal", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),
     TestPrg(read2Test, "readTestPaths", "@main", noArg, "--sym-file-size 3 --add-sym-file A", nPath(3)++status(0)),
     TestPrg(write1Test, "writeTestPaths", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(3)++status(0)),
     TestPrg(stat1Test, "statTestAssign", "@main", noArg, "", nPath(1)++status(0)),
     TestPrg(stat2Test, "statTestRead", "@main", noArg, "--add-sym-file A", nPath(3)++status(0)),
-    TestPrg(stat2Test, "statTestFail", "@main", noArg, "", nPath(1)++status(1)),
+    TestPrg(stat2Test, "statTestFail", "@main", noArg, noOpt, nPath(1)++status(1)),
+    TestPrg(statSymTest, "statSymBr1", "@main", noArg, "--add-sym-file A", nPath(2)++status(0)),
+    TestPrg(statSymTest, "statSymBr2", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)),
     TestPrg(fstatTest, "fstatTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
     TestPrg(statfsTest, "statfsTest", "@main", noArg, noOpt, nPath(1)++status(0)),
     TestPrg(seekTest, "seekTest", "@main", noArg, "--sym-file-size 10 --add-sym-file A", nPath(1)++status(0)),

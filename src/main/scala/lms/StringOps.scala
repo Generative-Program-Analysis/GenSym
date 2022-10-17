@@ -24,6 +24,8 @@ trait StringOps { b: Base =>
       Wrap[List[String]](Adapter.g.reflect("string-split", Unwrap(str), Unwrap(delim)))
     def +(other: Rep[String]): Rep[String] =
       Wrap[String](Adapter.g.reflect("string-concat", Unwrap(str), Unwrap(other)))
+    def ==(other: Rep[String]): Rep[Boolean] =
+      Wrap[Boolean](Adapter.g.reflect("string-equal", Unwrap(str), Unwrap(other)))
   }
 }
 trait ScalaCodeGen_String extends ExtendedScalaCodeGen {
@@ -45,10 +47,12 @@ trait CppCodeGen_String extends ExtendedCPPCodeGen {
 
   override def shallow(n: Node): Unit = n match {
     // case Node(s, "string-new", str::Nil, _) => emit("String("); shallow(str); emit(")")
-    case Node(s, "String.slice", str::st::e::Nil, _) => es"${str}.substr(${st}, ${e})" // semantics in C++?
+    case Node(s, "String.slice", str::st::e::Nil, _) => es"${str}.substr(${st}, ${e} - ${st})" // semantics in C++?
     case Node(s, "String.length", List(str), _) => es"${str}.length()"
+    case Node(s, "String.charAt", str::index::Nil, _) => es"${str}[${index}]"
     case Node(s, "string-split", str::delim::Nil, _) => es"Str::split(${str}, ${delim})"
     case Node(s, "string-concat", str::other::Nil, _) => es"${str} + ${other}"
+    case Node(s, "string-equal", str::other::Nil, _) => es"${str} == ${other}"
     case _ => super.shallow(n)
   }
 }

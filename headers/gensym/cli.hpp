@@ -163,7 +163,7 @@ inline void handle_cli_args(int argc, char** argv) {
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data-stat", stat_size, false));
         n_sym_files++;
         INFO("adding symfile: " << optarg << " with size " << default_sym_file_size);
-        INFO("initial_fs.preferred_cex: " << vec_to_string<PtrVal>(initial_fs.preferred_cex));
+        INFO("initial_fs.preferred_cex: " << (vec_to_string<List, PtrVal>(initial_fs.preferred_cex)));
         break;
       case 14:
         default_sym_file_size = atoi(optarg);

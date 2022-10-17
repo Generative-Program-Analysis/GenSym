@@ -62,7 +62,7 @@ inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData len = proj_IntV(args.at(1));
   ASSERT(len > 0, "Invalid length");
   ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
-  std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(args.at(2), state));
+  std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(state, args.at(2)));
   SS res = state.add_symbolic(object_name, len, false);
   //std::cout << "sym array size: " << proj_LocV_size(loc) << "\n";
   for (int i = 0; i < len; i++) {
@@ -90,7 +90,7 @@ inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData sz = proj_IntV(args.at(1));
   ASSERT(sz > 0, "Invalid length");
   ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
-  std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(args.at(2), state));
+  std::string object_name = (2 == args.size()) ? fresh("unnamed") : state.get_unique_name(get_string_at(state, args.at(2)));
   SS res = state.add_symbolic(object_name, sz, true).update(loc, make_SymV(object_name, sz*8), sz);
   return k(res, make_IntV(0));
 }
