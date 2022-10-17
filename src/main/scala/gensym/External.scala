@@ -28,9 +28,9 @@ trait GenExternal extends SymExeDefs {
 
   def stop[T: Manifest](ss: Rep[SS]): Rep[T] = {
     if (manifest[T] == manifest[Unit])
-      "stop".reflectCtrlWith[T](ss, unchecked[List[Value]]("List<PtrVal>{}"), unchecked[(SS, Value) => Rep[T]]("halt"))
+      "stop".reflectCtrlWith[T](ss, List[Value](), unchecked[(SS, Value) => Rep[T]]("halt"))
     else
-      "stop".reflectCtrlWith[T](ss, unchecked[List[Value]]("List<PtrVal>{}"))
+      "stop".reflectCtrlWith[T](ss, List[Value]())
   }
 
   import FS._
