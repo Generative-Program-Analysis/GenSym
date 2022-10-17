@@ -126,7 +126,6 @@ class TestImpCPSGS_Z3 extends TestGS {
   testGS(gs, cases)
 }
 
-/*
 class Coreutils extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
@@ -134,11 +133,11 @@ class Coreutils extends TestGS {
   val cases = TestCases.coreutils.map { t =>
     t.copy(runOpt = runtimeOptions ++ t.runOpt, runCode = false)
   }
-  testGS(new ImpCPSGS, cases)
+  //testGS(new ImpCPSGS, cases)
 
-  //testGS(new ImpCPSGS, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)))
+  lazy val cat_linked = parseFile("benchmarks/gs_posix/cat_linked.ll")
+  testGS(new ImpCPSGS, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0), runCode = false))
 }
-*/
 
 class Playground extends TestGS {
   import gensym.llvm.parser.Parser._

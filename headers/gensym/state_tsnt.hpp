@@ -387,7 +387,13 @@ class SS {
       // TODO: should we modify the pc to add the in-bound constraints
       return read_res;
     }
-    PtrVal at(PtrVal addr, size_t size = 1) {
+    PtrVal at(PtrVal addr) {
+      auto loc = addr->to_LocV();
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return stack.at(loc->l);
+      return heap.at(loc->l);
+	  }
+    PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
         return heap.at(loc->l, size);
@@ -435,7 +441,16 @@ class SS {
       heap.alloc(size);
       return std::move(*this);
     }
-    SS&& update(PtrVal addr, PtrVal val, size_t size = 1) {
+    SS&& update(PtrVal addr, PtrVal val) {
+      auto loc = addr->to_LocV();
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack)
+        stack.update(loc->l, val);
+      else
+        heap.update(loc->l, val);
+      return std::move(*this);
+    }
+    SS&& update(PtrVal addr, PtrVal val, size_t size) {
       auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
