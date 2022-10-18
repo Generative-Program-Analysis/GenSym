@@ -106,7 +106,7 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
     |\tmkdir -p $$(@D)
     |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
     |
-    |$$(TARGET): $$(BUILD_DIR)/$${TARGET}.o $$(OBJECTS)
+    |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o
     |\t$$(CC) $$(OPT) -o $$@ $$^ $$(LDFLAGS) $$(LDLIBS)
     |
     |clean:
