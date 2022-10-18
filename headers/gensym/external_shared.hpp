@@ -113,12 +113,12 @@ inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
   TrList<PtrVal> name;
   PtrVal v;
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
-  v = state.at(ptr);
+  v = state.at_simpl(ptr);
   while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
     std::cout << "get_sym_string: v=" << v->toString() << " at " << ptr->toString() << std::endl;
     name.push_back(v);
     ptr = ptr + 1;
-    v = state.at(ptr);
+    v = state.at_simpl(ptr);
   }
   return name.persistent();
 }
@@ -149,12 +149,12 @@ inline double get_float_arg(SS& state, PtrVal x) {
 
 inline std::string get_string_arg(SS& state, PtrVal ptr) {
   std::string name;
-  char c = get_int_arg(state, state.at(ptr)); // c = *ptr
+  char c = get_int_arg(state, state.at_simpl(ptr)); // c = *ptr
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   while (c != '\0') {
     name += c;
     ptr = ptr + 1;
-    c = get_int_arg(state, state.at(ptr)); // c = *ptr
+    c = get_int_arg(state, state.at_simpl(ptr)); // c = *ptr
   }
   return name;
 }
@@ -162,7 +162,7 @@ inline std::string get_string_arg(SS& state, PtrVal ptr) {
 inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
   ASSERT(buf && size > 0, "Invalid native buffer");
   for (int i = 0; i < size; ) {
-    auto val = state.at(ptr + i);
+    auto val = state.at_simpl(ptr + i);
     if (val) {
       if (std::dynamic_pointer_cast<ShadowV>(val) || std::dynamic_pointer_cast<LocV>(val)) {
         ABORT("unhandled ptrval: shadowv && LocV");

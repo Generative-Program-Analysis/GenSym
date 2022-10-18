@@ -381,8 +381,7 @@ class SS {
       // TODO: should we modify the pc to add the in-bound constraints
       return read_res;
     }
-    //[[deprecated]]
-    PtrVal at(PtrVal addr) {
+    PtrVal at_simpl(PtrVal addr) {
         auto loc = addr->to_LocV();
         ASSERT(loc != nullptr, "Lookup an non-address value");
         if (loc->k == LocV::kStack) return stack.at(loc->l);
@@ -436,8 +435,7 @@ class SS {
       heap.alloc(size);
       return std::move(*this);
     }
-    //[[deprecated]]
-    SS&& update(PtrVal addr, PtrVal val) {
+    SS&& update_simpl(PtrVal addr, PtrVal val) {
       auto loc = addr->to_LocV();
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack)
@@ -455,7 +453,7 @@ class SS {
     }
     SS&& update_seq(PtrVal addr, List<PtrVal> vals) {
       for (int i = 0; i < vals.size(); i++) {
-        update(addr + i, vals.at(i));
+        update_simpl(addr + i, vals.at(i));
       }
       return std::move(*this);
     }
@@ -529,11 +527,11 @@ class SS {
         alloc_stack(arg.size());
         auto arg_ptr = make_LocV(addr, LocV::kStack, arg.size());
         update_seq(arg_ptr, arg); // copy the values to the newly allocated space
-        update(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
+        update_simpl(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
       }
-      update(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
-      update(stack_ptr + (8 * (num_args + 1)), make_LocV_null()); // terminate the empty envp array
-      update(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
+      update_simpl(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
+      update_simpl(stack_ptr + (8 * (num_args + 1)), make_LocV_null()); // terminate the empty envp array
+      update_simpl(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
       return std::move(*this);
     }
 

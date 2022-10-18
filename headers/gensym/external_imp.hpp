@@ -74,7 +74,7 @@ inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   state.add_symbolic(object_name, len, false);
   //std::cout << "sym array size: " << proj_LocV_size(loc) << "\n";
   for (int i = 0; i < len; i++) {
-    state.update(loc + i, make_SymV(object_name + "_" + std::to_string(i), 8));
+    state.update_simpl(loc + i, make_SymV(object_name + "_" + std::to_string(i), 8));
   }
   return k(state, make_IntV(0));
 }
@@ -221,7 +221,7 @@ inline T __realloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
     Addr src = proj_LocV(args.at(0));
     IntData prevBytes = proj_LocV_size(args.at(0));
     for (int i = 0; i < prevBytes; i++) {
-      state.update(memLoc + i, state.heap_lookup(src + i));
+      state.update_simpl(memLoc + i, state.heap_lookup(src + i));
     }
   }
   return k(state, memLoc);
@@ -249,7 +249,7 @@ inline T __reallocarray(SS& state, List<PtrVal>& args, __Cont<T> k) {
     Addr src = proj_LocV(args.at(0));
     IntData prevBytes = proj_LocV_size(args.at(0));
     for (int i = 0; i < prevBytes; i++) {
-      state.update(memLoc + i, state.heap_lookup(src + i));
+      state.update_simpl(memLoc + i, state.heap_lookup(src + i));
     }
   }
   return k(state, memLoc);
@@ -290,7 +290,7 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
   ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
   for (int i = 0; i < bytes_int; i++) {
-    state.update(dest + i, state.at(src + i));
+    state.update_simpl(dest + i, state.at_simpl(src + i));
   }
   return k(state, IntV0_32);
 }
@@ -314,10 +314,10 @@ inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData bytes_int = proj_IntV(args.at(2));
   auto temp_mem = TrList<PtrVal>{};
   for (int i = 0; i < bytes_int; i++) {
-    temp_mem.push_back(state.at(src + i));
+    temp_mem.push_back(state.at_simpl(src + i));
   }
   for (int i = 0; i < bytes_int; i++) {
-    state.update(dest + i, temp_mem.at(i));
+    state.update_simpl(dest + i, temp_mem.at(i));
   }
   return k(state, IntV0_32);
 }
@@ -339,7 +339,7 @@ inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
   auto v = make_IntV(0, 8);
   for (int i = 0; i < bytes_int; i++) {
-    state.update(dest + i, v);
+    state.update_simpl(dest + i, v);
   }
   return k(state, IntV0_32);
 }
@@ -355,7 +355,7 @@ inline std::monostate llvm_memset(SS& state, List<PtrVal> args, Cont k) {
 inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
   ASSERT(buf && size > 0, "Invalid native buffer");
   for (int i = 0; i < size; ) {
-    auto old_val = state.at(ptr + i);
+    auto old_val = state.at_simpl(ptr + i);
     if (old_val) {
       if (std::dynamic_pointer_cast<ShadowV>(old_val) || std::dynamic_pointer_cast<LocV>(old_val)) {
         ABORT("unhandled ptrval: shadowv && LocV");
@@ -367,13 +367,13 @@ inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
         i = i + bytes_num;
       } else {
         for (int j = 0; j < bytes_num; j++) {
-          state.update(ptr + i, make_IntV(buf[i], 8));
+          state.update_simpl(ptr + i, make_IntV(buf[i], 8));
           i++;
           if (i >= size) break;
         }
       }
     } else {
-      state.update(ptr + i, make_IntV(buf[i], 8));
+      state.update_simpl(ptr + i, make_IntV(buf[i], 8));
       i++;
     }
   }
