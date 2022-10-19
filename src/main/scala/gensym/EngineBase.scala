@@ -148,7 +148,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         // "When indexing into a (optionally packed) structure, only i32 integer
         //  constants are allowed"
         // TODO: the align argument for getTySize
-        // TODO: test this
         val indexCst: List[Long] = index.map { case IntV(n, _) => n.toLong }
         IntV(calculateOffsetStatic(ty, indexCst), DEFAULT_INDEX_BW)
       case PackedStruct(types) =>

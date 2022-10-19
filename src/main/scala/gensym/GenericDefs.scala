@@ -324,16 +324,16 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   object IntOp2 {
-    def applyNoOpt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
+    def primOp2(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
       "int_op_2".reflectWith[Value](op, o1, o2)
-    def apply(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
-      if (!Config.opt) applyNoOpt(op, o1, o2)
-      else op match {
-        case "neq" => neq(o1, o2)
-        case "eq" => eq(o1, o2)
-        case "add" => add(o1, o2)
-        case _ => applyNoOpt(op, o1, o2)
-      }
+
+    def apply(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] = op match {
+      case "neq" => neq(o1, o2)
+      case "eq" => eq(o1, o2)
+      case "add" => add(o1, o2)
+      case "mul" => mul(o1, o2)
+      case _ => primOp2(op, o1, o2)
+    }
 
     def unapply(v: Rep[Value]): Option[(String, Rep[Value], Rep[Value])] = Unwrap(v) match {
       case gNode("int_op_2", bConst(x: String)::(o1: bSym)::(o2: bSym)::_) =>
@@ -342,32 +342,32 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
 
     def add(v1: Rep[Value], v2: Rep[Value]): Rep[Value] = (v1, v2) match {
-      case (IntV(n1, bw1), IntV(n2, bw2)) if (bw1 == bw2) => IntV(n1 + n2, bw1)
-      case _ => applyNoOpt("add", v1, v2)
+      case (IntV(n1, bw1), IntV(n2, bw2)) if (bw1 == bw2) && Config.opt => IntV(n1 + n2, bw1)
+      case _ => primOp2("add", v1, v2)
     }
 
     def mul(v1: Rep[Value], v2: Rep[Value]): Rep[Value] = (v1, v2) match {
-      case (IntV(n1, bw1), IntV(n2, bw2)) if (bw1 == bw2) => IntV(n1 * n2, bw1)
-      case _ => applyNoOpt("mul", v1, v2)
+      case (IntV(n1, bw1), IntV(n2, bw2)) if (bw1 == bw2) && Config.opt => IntV(n1 * n2, bw1)
+      case _ => primOp2("mul", v1, v2)
     }
 
     def neq(o1: Rep[Value], o2: Rep[Value]): Rep[Value] = (Unwrap(o1), Unwrap(o2)) match {
       case (gNode("bv_sext", (e1: bExp)::bConst(bw1: Int)::_),
-            gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 =>
+            gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 && Config.opt =>
         val v1 = Wrap[Value](e1)
         val v2 = Wrap[Value](e2)
-        if (v1.bw == v2.bw) applyNoOpt("neq", v1, v2)
-        else applyNoOpt("neq", o1, o2)
-      case _ => applyNoOpt("neq", o1, o2)
+        if (v1.bw == v2.bw) neq(v1, v2)
+        else primOp2("neq", o1, o2)
+      case _ => primOp2("neq", o1, o2)
     }
     def eq(o1: Rep[Value], o2: Rep[Value]): Rep[Value] = (Unwrap(o1), Unwrap(o2)) match {
       case (gNode("bv_sext", (e1: bExp)::bConst(bw1: Int)::_),
-            gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 =>
+            gNode("bv_sext", (e2: bExp)::bConst(bw2: Int)::_)) if bw1 == bw2 && Config.opt =>
         val v1 = Wrap[Value](e1)
         val v2 = Wrap[Value](e2)
-        if (v1.bw == v2.bw) applyNoOpt("eq", v1, v2)
-        else applyNoOpt("eq", o1, o2)
-      case _ => applyNoOpt("eq", o1, o2)
+        if (v1.bw == v2.bw) eq(v1, v2)
+        else primOp2("eq", o1, o2)
+      case _ => primOp2("eq", o1, o2)
     }
   }
 
@@ -454,22 +454,22 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     val foldableOp = StaticSet[String]("make_SymV", "make_IntV", "bv_sext", "bv_zext")
 
     def sExt(bw: Int): Rep[Value] = Unwrap(v) match {
-      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (foldableOp(s) && (bw1 == bw)) => v
-      case gNode("make_IntV", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 =>
+      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if foldableOp(s) && (bw1 == bw) && Config.opt => v
+      case gNode("make_IntV", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 && Config.opt =>
         // sExt(IntV(n, bw1), bw) ⇒ IntV(n, bw)
         IntV(Wrap[Long](v1), bw)
-      case gNode("bv_sext", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1=>
+      case gNode("bv_sext", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 && Config.opt =>
         // sExt(sExt(n, bw1), bw) ⇒ sExt(n, bw)
         Wrap[Value](v1).sExt(bw)
       case _ => "bv_sext".reflectWith[Value](v, bw)
     }
 
     def zExt(bw: Int): Rep[Value] = Unwrap(v) match {
-      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if (foldableOp(s) && (bw1 == bw)) => v
-      case gNode("make_IntV", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 =>
+      case gNode(s, (v1: bExp)::bConst(bw1: Int)::_) if foldableOp(s) && (bw1 == bw) && Config.opt => v
+      case gNode("make_IntV", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 && Config.opt =>
         // zExt(IntV(n, bw1), bw) ⇒ IntV(n, bw)
         IntV(Wrap[Long](v1), bw)
-      case gNode("bv_zext", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1=>
+      case gNode("bv_zext", (v1: bExp)::bConst(bw1: Int)::_) if bw > bw1 && Config.opt =>
         // zExt(sExt(n, bw1), bw) ⇒ zExt(n, bw)
         Wrap[Value](v1).zExt(bw)
       case _ => "bv_zext".reflectWith[Value](v, bw)
@@ -492,6 +492,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def *(rhs: Rep[Value]): Rep[Value] = IntOp2.mul(v, rhs)
     def &(rhs: Rep[Value]): Rep[Value] = IntOp2("and", v, rhs)
     def |(rhs: Rep[Value]): Rep[Value] = IntOp2("or", v, rhs)
+    def ≡(rhs: Rep[Value]): Rep[Value] = IntOp2.eq(v, rhs)
     def unary_! : Rep[Value] = IntOp1.neg(v)
     def unary_~ : Rep[Value] = IntOp1.bvnot(v)
 

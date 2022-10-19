@@ -111,6 +111,10 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
   def evalFloatOp2(op: String, lhs: LLVMValue, rhs: LLVMValue, ty: LLVMType, ss: Rep[SS])(implicit ctx: Ctx): Rep[Value] =
     FloatOp2(op, eval(lhs, ty, ss), eval(rhs, ty, ss))
 
+  def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] =
+    if (bb == labels(0) || labels.length == 1) vs(0)()
+    else selectValue(bb, vs.tail, labels.tail)
+
   def execValueInst(inst: ValueInstruction, ss: Rep[SS])(k: (Rep[Ref[SS]], Rep[Value]) => Rep[Unit])(implicit ctx: Ctx): Rep[Unit] = {
     inst match {
       // Memory Access Instructions
@@ -209,10 +213,6 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         def fK(s: Rep[Ref[SS]], v: Rep[Value]): Rep[Unit] = { s.pop(stackSize); k(s, v) }
         fv[Ref](ss, List(vs: _*), ContOpt(fK))
       case PhiInst(ty, incs) =>
-        def selectValue(bb: Rep[BlockLabel], vs: List[() => Rep[Value]], labels: List[BlockLabel]): Rep[Value] = {
-          if (bb == labels(0) || labels.length == 1) vs(0)()
-          else selectValue(bb, vs.tail, labels.tail)
-        }
         val incsValues: List[LLVMValue] = incs.map(_.value)
         val incsLabels: List[BlockLabel] = incs.map(i => Counter.block.get(ctx.withBlock(i.label)))
         val vs = incsValues.map(v => () => eval(v, ty, ss))
@@ -255,7 +255,6 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         Counter.setBranchNum(ctx, 2)
         ss.addIncomingBlock(ctx)
         val cndVal = eval(cnd, ty, ss)
-        //branch(ss, cndVal.toSym, cndVal.toSymNeg, thnLab, elsLab, funName, k)
         if (cndVal.isConc) {
           if (cndVal.int == 1) {
             Coverage.incBranch(ctx, 0)
@@ -268,30 +267,33 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
           symExecBr(ss, cndVal, !cndVal, thnLab, elsLab, k)
         }
       case SwitchTerm(cndTy, cndVal, default, swTable) =>
-        type MergedCase = (String, (Rep[Boolean], Rep[Value]))
+        // Given a case, GSCase stores its label, concrete condition expr,
+        // and symbolic condition expr.
+        case class GSCase(label: String, concCond: Rep[Boolean], symCond: Rep[Value])
         val v = eval(cndVal, cndTy, ss)
-        val mergedSwTable: StaticList[MergedCase] =
+        val mergedSwTable: StaticList[GSCase] =
           swTable.foldLeft(StaticMap[String, (Rep[Boolean], Rep[Value])]())({
             case (m, LLVMCase(_, n, tgt)) if (Config.switchType == Merge) && m.contains(tgt) =>
-              m + (tgt -> (m(tgt)._1 || v.int == n, IntOp2("or", m(tgt)._2, IntOp2("eq", v, IntV(n)))))
+              m + (tgt -> (m(tgt)._1 || v.int == n, m(tgt)._2 | v ≡ IntV(n)))
             case (m, LLVMCase(_, n, tgt)) =>
-              m + (tgt -> (v.int == n, IntOp2("eq", v, IntV(n))))
-          }).toList
+              m + (tgt -> (v.int == n, v ≡ IntV(n)))
+          }).map({ case (l, (c, s)) => GSCase(l, c, s) }).toList
+
         Counter.setBranchNum(ctx, mergedSwTable.size+1)
         System.out.println(s"Shrinking switch table from ${swTable.size+1} cases to ${mergedSwTable.size+1}")
 
         val nPath: Var[Int] = var_new(0)
-        def switch(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+        def switch(s: Rep[SS], table: List[GSCase]): Rep[Unit] = table match {
           case Nil =>
             Coverage.incBranch(ctx, mergedSwTable.size) // Note: the default case has the last branch ID
             execBlock(ctx.funName, default, s, k)
-          case (tgt, (concCnd, _))::rest =>
+          case GSCase(tgt, concCnd, _)::rest =>
             if (concCnd) {
               Coverage.incBranch(ctx, mergedSwTable.size - table.size)
               execBlock(ctx.funName, tgt, s, k)
             } else switch(s, table.tail)
         }
-        def switchSym(s: Rep[SS], table: List[MergedCase]): Rep[Unit] = table match {
+        def switchSym(s: Rep[SS], table: List[GSCase]): Rep[Unit] = table match {
           case Nil =>
             if (checkPC(s.pc)) {
               nPath += 1
@@ -299,7 +301,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
               Coverage.incBranch(ctx, mergedSwTable.size)
               execBlock(ctx.funName, default, newState, k)
             }
-          case (tgt, (_, symCnd))::rest =>
+          case GSCase(tgt, _, symCnd)::rest =>
             val st = s.copy
             s.addPC(symCnd)
             if (checkPC(s.pc)) {
