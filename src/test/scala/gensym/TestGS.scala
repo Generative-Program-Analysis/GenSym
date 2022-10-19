@@ -147,7 +147,7 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
   //testGS(gs, TestPrg(assumeTest, "assumeTest", "@main", noArg, noOpt, nPath(1)++status(0)))
 
-  //testGS(gs, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
+  testGS(gs, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
   //testGS(gs, TestPrg(kmpmatcher, "kmp", "@main", noArg, noOpt, nPath(1287)))
   //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
