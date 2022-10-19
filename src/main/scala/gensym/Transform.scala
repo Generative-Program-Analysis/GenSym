@@ -7,7 +7,7 @@ import lms.core.stub.{While => _, _}
 import gensym.imp.Mut
 
 import scala.collection.immutable.{List => StaticList}
-import scala.collection.mutable.{HashMap,HashSet}
+import scala.collection.mutable.{HashMap, HashSet}
 
 object AssignElim {
   type Subst = HashMap[Sym, Exp]

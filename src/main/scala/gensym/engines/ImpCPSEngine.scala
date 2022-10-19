@@ -100,6 +100,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
       case InlineASM() => NullPtr[Value]
       case ZeroInitializerConst =>
         System.out.println("Warning: Evaluate zeroinitialize in body")
+        uninitValue
         NullPtr[Value] // FIXME: use uninitValue
       case NullConst => NullLoc()
       case NoneConst => NullPtr[Value]
