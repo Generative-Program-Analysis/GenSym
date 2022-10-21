@@ -138,7 +138,9 @@ trait Opaques { self: SAIOps with BasicDefs =>
     )
     private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
     
-    private val prepared = MutableMap[String, String]()
+    // functions in `prepared` are considered prepared externally - provided by a precompiled library
+    // function call will be generated without the definition of callee
+    private val prepared = MutableMap[String, String]()  // native name -> mangled name
     def prepare(funs: Map[String, String]) = {
       prepared ++= funs
     }

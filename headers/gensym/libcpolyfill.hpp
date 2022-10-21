@@ -1,3 +1,4 @@
+// prepare necessary declarations and definitions for library mode compilation
 #include <gensym.hpp>
 std::monostate app_main(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
 std::monostate gs_main(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);

@@ -277,22 +277,22 @@ abstract class ImpCPSGSDriver[A: Manifest, B: Manifest](
 
 trait GenSym {
   val insName: String
-  var libdef: Option[ModDef] = None
+  var libdef: Option[ModDef] = None  // for linking with prepared library
   def extraFlags: String = "" // -D USE_LKFREE_Q
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit]
   def run(m: Module, name: String, fname: String, config: Config, libPath: Option[String] = None): GenericGSDriver[Int, Unit] = {
     libdef = libPath match {
-      case Some(p) =>
+      case Some(p) =>  // linking with external library - load its manifest
         import java.io._
         val ois = new ObjectInputStream(new FileInputStream(s"$p/Manifest"))
         try { Some(ois.readObject().asInstanceOf[ModDef]) } finally { ois.close }
       case None => None
     }
     libdef match {
-      case Some(modref) =>
+      case Some(modref) =>  // library linking mode - set counters to specified values
         Counter.block.reset(modref.counters.blks)
         Counter.variable.reset(modref.counters.vars)
-      case None =>
+      case None =>  // standalone mode - clear counters
         Counter.block.reset
         Counter.variable.reset
     }
@@ -466,7 +466,11 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
         out.close
       }
       def snippet(u: Rep[Int]): Rep[Unit] = {
+        // assume application main will be compiled to app_main
         val externMapping = StaticMap("app_main" -> "app_main") ++ StaticList(
+          // the list of external functions that we assume there is an implementation
+          // if fact, there is not; see <libcpolyfill.hpp>
+          // their native function call cannot be generated
           "gettimeofday", "sigprocmask", "__syscall_rt_sigaction", "select",
           "fstatfs", "fstat64", "stat64", "execve", "times", "uname", "adjtimex",
           "wait4", "nanosleep", "setitimer", "getcwd", "sigsuspend", "sigwaitinfo",
@@ -481,6 +485,8 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
           cont(ss, NullLoc())
         }
 
+        // refer all the functions with an intrinsic
+        // the driver here will not be emitted.
         val preHeapRep = topFun(preHeapGen(_, _, _))
         funNameMap(Unwrap(preHeapRep).asInstanceOf[Backend.Sym]) = "initlib"
         "ss-generate".reflectWriteWith[Unit](preHeapRep)(Adapter.CTRL)

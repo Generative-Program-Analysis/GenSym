@@ -246,13 +246,15 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
 
   def evalHeapConst(v: Constant, ty: LLVMType): List[Rep[Value]] = evalHeapConstWithAlign(v, ty)._1
 
+  // externals - a list of global variables defined in a precompiled library
+  //             empty in standalone mode
   def precompileHeapLists(modules: StaticList[Module], externals: StaticList[VarDef] = StaticList()): StaticList[Rep[Value]] = {
     var heapSize = 8 + (if (externals.isEmpty) 0 else (externals map { v => v.off + v.size }).max)
     var heapTmp: StaticList[Rep[Value]] = StaticList.fill(8)(NullPtr[Value])
     for (module <- modules) {
       module.globalDeclMap.foreach { case (k, v) =>
         externals.find(_.name == k) match {
-          case Some(vv) =>
+          case Some(vv) =>  // symbol declared in current module, defined in the library
             System.out.println(s"Redirecting GlobalDecl ${vv.name}")
             heapEnv += vv.name -> (() => LocV(vv.off.toLong, LocV.kHeap, vv.size.toLong))
           case None =>
