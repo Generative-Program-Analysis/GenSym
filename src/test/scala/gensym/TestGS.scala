@@ -53,10 +53,12 @@ abstract class TestGS extends FunSuite {
     }
   }
 
-  def testGS(gs: GenSym, tst: TestPrg): Unit = {
+  def testGS(gs: GenSym, tst: TestPrg, libPath: Option[String] = None): Unit = {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
+    val outname = if (gs.insName == "ImpCPSGS_lib") name
+                  else gs.insName + "_" + name
     test(name) {
-      val code = gs.run(m, gs.insName + "_" + name, f, config)
+      val code = gs.run(m, outname, f, config, libPath)
       val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
       if (runCode) {
@@ -139,6 +141,11 @@ class Coreutils extends TestGS {
   //testGS(new ImpCPSGS, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)))
 }
 */
+
+class TestLibrary extends TestGS {
+  testGS(new ImpCPSGS_lib, TestPrg(linkLib, "libtest", "@main", useArgv, noOpt, nPath(1)++status(0), false))
+  testGS(new ImpCPSGS_app, TestPrg(linkApp, "libapp", "@main", useArgv, "--argv=''", nPath(1)++status(0)), "./gs_gen/libtest")
+}
 
 class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
