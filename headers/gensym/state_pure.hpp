@@ -481,7 +481,13 @@ class SS: public Printable {
       // Todo: should we modify the pc to add the in-bound constraints
       return read_res;
     }
-    PtrVal at(const PtrVal& addr, size_t size = 1) {
+    PtrVal at_simpl(const PtrVal& addr) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return stack.at(loc->l);
+      return heap.at(loc->l);
+    }
+    PtrVal at(const PtrVal& addr, size_t size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       if (loc != nullptr) {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
@@ -523,7 +529,13 @@ class SS: public Printable {
     List<PtrVal> get_preferred_cex() { return meta.preferred_cex; }
     SS alloc_stack(size_t size) { return SS(heap, stack.alloc(size), pc, meta, fs); }
     SS alloc_heap(size_t size) { return SS(heap.alloc(size), stack, pc, meta, fs); }
-    SS update(const PtrVal& addr, const PtrVal& val, size_t size = 1) {
+    SS update_simpl(const PtrVal& addr, const PtrVal& val) {
+      auto loc = std::dynamic_pointer_cast<LocV>(addr);
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val), pc, meta, fs);
+      return SS(heap.update(loc->l, val), stack, pc, meta, fs);
+    }
+    SS update(const PtrVal& addr, const PtrVal& val, size_t size) {
       auto loc = std::dynamic_pointer_cast<LocV>(addr);
       ASSERT(loc != nullptr, "Lookup an non-address value");
       if (loc->k == LocV::kStack) return SS(heap, stack.update(loc->l, val, size), pc, meta, fs);
@@ -532,7 +544,7 @@ class SS: public Printable {
     SS update_seq(PtrVal addr, List<PtrVal> vals) {
       SS updated_ss = *this;
       for (int i = 0; i < vals.size(); i++) {
-        updated_ss = updated_ss.update(addr + i, vals.at(i));
+        updated_ss = updated_ss.update_simpl(addr + i, vals.at(i));
       }
       return updated_ss;
     }
@@ -575,11 +587,11 @@ class SS: public Printable {
         auto arg_ptr = make_LocV(updated_ss.stack_size(), LocV::kStack, arg.size(), 0); // top of the stack
         updated_ss = updated_ss.alloc_stack(arg.size());
         updated_ss = updated_ss.update_seq(arg_ptr, arg); // copy the values to the newly allocated space
-        updated_ss = updated_ss.update(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
+        updated_ss = updated_ss.update_simpl(stack_ptr + (8 * i), arg_ptr); // copy the pointer value
       }
-      updated_ss = updated_ss.update(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
-      updated_ss = updated_ss.update(stack_ptr + (8 * (num_args + 1)), make_LocV_null()); // terminate the empty envp array
-      updated_ss = updated_ss.update(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
+      updated_ss = updated_ss.update_simpl(stack_ptr + (8 * num_args), make_LocV_null()); // terminate the array of pointers
+      updated_ss = updated_ss.update_simpl(stack_ptr + (8 * (num_args + 1)), make_LocV_null()); // terminate the empty envp array
+      updated_ss = updated_ss.update_simpl(stack_ptr + (8 * (num_args + 2)), make_LocV_null()); // additional terminating null that uclibc seems to expect for the ELF header
 
       return updated_ss;
     }

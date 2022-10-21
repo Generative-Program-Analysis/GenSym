@@ -99,6 +99,8 @@ object Benchmarks {
   lazy val stdinTest = parseFile("benchmarks/external-lib/stdin.ll")
   lazy val ioctlTest = parseFile("benchmarks/external-lib/ioctl.ll")
   lazy val assumeTest = parseFile("benchmarks/external-lib/assume.ll")
+  lazy val linkLib = parseFile("benchmarks/external-lib/link_lib.ll")
+  lazy val linkApp = parseFile("benchmarks/external-lib/link_app.ll")
 
   lazy val printfTest = parseFile("benchmarks/external-lib/printf.ll")
 
