@@ -28,9 +28,9 @@ trait GenExternal extends SymExeDefs {
 
   def stop[T: Manifest](ss: Rep[SS]): Rep[T] = {
     if (manifest[T] == manifest[Unit])
-      "stop".reflectCtrlWith[T](ss, unchecked[List[Value]]("List<PtrVal>{}"), unchecked[(SS, Value) => Rep[T]]("cont"))
+      "stop".reflectCtrlWith[T](ss, List[Value](), unchecked[(SS, Value) => Rep[T]]("halt"))
     else
-      "stop".reflectCtrlWith[T](ss, unchecked[List[Value]]("List<PtrVal>{}"))
+      "stop".reflectCtrlWith[T](ss, List[Value]())
   }
 
   import FS._
@@ -100,9 +100,9 @@ trait GenExternal extends SymExeDefs {
     l1.zip(l2).foldLeft[Value](SymV.fromBool(true))((symv, pair) =>
         IntOp2("and", symv, IntOp2.eq(pair._1, pair._2)))
 
-  // takes the current ss, fs, a symbolic path, 
+  // takes the current ss, fs, a symbolic file path, 
   // the continuation k takes the new ss, fs, and a concrete path, 
-  // with the assumption that the symbolic path is resolved to the concrete path.
+  // with the assumption that the symbolic file path is resolved to the concrete path.
   // The continuation tk can be called multiple times
   // The continuation fk will be called only one time when the resolution failed.
   def resolvePath[T: Manifest](ss: Rep[SS], fs: Rep[FS], symPath: Rep[List[Value]], 

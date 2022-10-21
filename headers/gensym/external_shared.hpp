@@ -20,7 +20,7 @@ template<typename T> using __Halt = std::function<T(SS, List<PtrVal>)>;
 
 /******************************************************************************/
 
-inline Cont cont = [](SS ss, PtrVal l) { return std::monostate(); };
+inline Cont halt = [](SS ss, PtrVal l) { return std::monostate(); };
 
 /* `stop` only stops the execution of current path. */
 inline List<SSVal> stop(SS state, List<PtrVal> args) {
@@ -115,7 +115,7 @@ inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   v = state.at_simpl(ptr);
   while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
-    std::cout << "get_sym_string: v=" << v->toString() << " at " << ptr->toString() << std::endl;
+    INFO("get_sym_string: v=" << v->toString() << " at " << ptr->toString());
     name.push_back(v);
     ptr = ptr + 1;
     v = state.at_simpl(ptr);
