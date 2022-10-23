@@ -110,9 +110,9 @@ inline std::string proj_List_String(List<PtrVal> l) {
 }
 
 inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
+  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   TrList<PtrVal> name;
   PtrVal v;
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   v = state.at(ptr);
   while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
     std::cout << "get_sym_string: v=" << v->toString() << " at " << ptr->toString() << std::endl;
@@ -130,27 +130,22 @@ inline std::string get_string_at(SS& state, PtrVal ptr) {
 inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto x_i = std::dynamic_pointer_cast<IntV>(x);
   // Todo: add this concretization tp path constraints
-  if (x_i) {
-    return x_i->as_signed();
-  } else {
-    auto sym_v = std::dynamic_pointer_cast<SymV>(x);
-    ASSERT(sym_v, "get value of non-symbolic variable");
-    std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
-    ASSERT(res.first, "Un-feasible path");
-    return res.second;
-  }
+  if (x_i) return x_i->as_signed();
+  auto sym_v = std::dynamic_pointer_cast<SymV>(x);
+  ASSERT(sym_v, "get value of non-symbolic variable");
+  std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
+  ASSERT(res.first, "Un-feasible path");
+  return res.second;
 }
 
 inline double get_float_arg(SS& state, PtrVal x) {
-  auto x_f = std::dynamic_pointer_cast<FloatV>(x);
-  ASSERT(x_f, "getting Non-FloatV");
-  return (double)x_f->f;
+  return (double)x->proj_FloatV();
 }
 
 inline std::string get_string_arg(SS& state, PtrVal ptr) {
   std::string name;
   char c = get_int_arg(state, state.at(ptr)); // c = *ptr
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
+  ASSERT(ptr->to_LocV() != nullptr, "Non-location value");
   while (c != '\0') {
     name += c;
     ptr = ptr + 1;
@@ -164,7 +159,7 @@ inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
   for (int i = 0; i < size; ) {
     auto val = state.at(ptr + i);
     if (val) {
-      if (std::dynamic_pointer_cast<ShadowV>(val) || std::dynamic_pointer_cast<LocV>(val)) {
+      if (std::dynamic_pointer_cast<ShadowV>(val) || val->to_LocV()) {
         ABORT("unhandled ptrval: shadowv && LocV");
       }
       auto bytes = val->to_bytes();
@@ -185,7 +180,7 @@ inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
 
 inline char* get_pointer_arg(SS& state, PtrVal loc) {
   if (is_LocV_null(loc)) return nullptr;
-  ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
+  ASSERT(loc->to_LocV(), "Non LocV");
   size_t count = get_pointer_realsize(loc);
   char * buf = (char*)malloc(count);
   copy_state2native(state, loc, buf, count);
@@ -195,7 +190,7 @@ inline char* get_pointer_arg(SS& state, PtrVal loc) {
 template<typename T>
 inline T __print_string(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<LocV>(x)) {
+  if (x->to_LocV()) {
     std::cout << get_string_at(state, x);
     return k(state, make_IntV(0));
   }
@@ -327,7 +322,7 @@ inline T __gs_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);
   ASSERT(v, "null pointer");
   if (v->to_SymV()) return k(state, make_IntV(1, 32));
-  ASSERT(std::dynamic_pointer_cast<IntV>(v), "non-intv");
+  ASSERT(v->to_LocV(), "non-intv");
   return k(state, make_IntV(0, 32));
 }
 
@@ -415,7 +410,7 @@ template<typename T>
 inline T __gs_warning_once(SS& state, List<PtrVal>& args, __Cont<T> k) {
   static std::set<std::string> warned;
   PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<LocV>(x)) {
+  if (x->to_LocV()) {
     std::string message = get_string_at(state, x);
     if (warned.count(message) == 0) {
       warned.insert(message);
