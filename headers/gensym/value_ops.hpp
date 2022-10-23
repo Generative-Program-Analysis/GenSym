@@ -7,6 +7,7 @@ struct SymV;
 struct LocV;
 struct SymLocV;
 struct FloatV;
+struct ShadowV;
 struct SS;
 class PC;
 

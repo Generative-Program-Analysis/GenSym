@@ -546,7 +546,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_futimesat:
     case __NR_newfstatat:
     default:
-      ABORT("Unsupported Systemcall");
+      ABORT("Unsupported system call");
       break;
   }
 

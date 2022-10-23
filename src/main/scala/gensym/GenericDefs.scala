@@ -12,10 +12,9 @@ import gensym.lmsx._
 import gensym.lmsx.smt.SMTBool
 
 import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet, Range => StaticRange}
-import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
+import scala.collection.mutable.{HashMap, Map => MutableMap, Set => MutableSet}
 
 case class Counter() {
-  import scala.collection.mutable.HashMap
   private var counter: Int = 0
   private val map: HashMap[String, Int] = HashMap[String, Int]()
   override def toString: String =
@@ -31,7 +30,6 @@ case class Counter() {
 }
 
 object Counter {
-  import scala.collection.mutable.HashMap
   val block = Counter()
   val variable = Counter()
   val function = Counter()

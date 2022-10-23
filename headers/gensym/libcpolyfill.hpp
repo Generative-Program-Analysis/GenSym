@@ -3,7 +3,7 @@
 std::monostate app_main(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
 std::monostate gs_main(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>);
 inline std::monostate gs_dummy(SS&, immer::flex_vector<PtrVal>, std::function<std::monostate(SS&, PtrVal)>) {
-  std::cout << "Warning: invoking gs_dummy, some paths is not continued!\n";
+  std::cout << "Warning: invoking gs_dummy, some path is not continued!\n";
   return std::monostate{};
 }
 inline std::monostate start_gs_main(SS& state, immer::flex_vector<PtrVal> args, std::function<std::monostate(SS&, PtrVal)> cont) {
