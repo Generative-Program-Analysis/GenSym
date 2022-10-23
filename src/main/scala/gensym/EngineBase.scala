@@ -60,7 +60,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   val mainRename = "gs_main"
   val gsPrefix = "__GS_USER_"
 
-  def getRealFunName(funName: String, prefix: String): String = 
+  def getRealFunName(funName: String, prefix: String = gsPrefix): String =
     if (funName != "@main") gsPrefix + funName.tail.replaceAllLiterally(".", "_")
     else mainRename
     
