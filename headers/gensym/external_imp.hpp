@@ -51,7 +51,7 @@ inline T __gs_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
   }
   // otherwise add a symbolic condition that constraints it to be true
   // undefined/error if v is a value of other types
-  ASSERT(std::dynamic_pointer_cast<SymV>(v) != nullptr, "Non-Symv");
+  ASSERT(v->to_SymV() != nullptr, "Non-Symv");
   auto [tru_sat, fls_sat] = check_branch(state.get_PC(), v); // check if v == 1 is satisfiable
   if (!tru_sat) {
     std::cout << "Warning: assume violates; abort and generate test.\n";
@@ -66,7 +66,7 @@ inline T __gs_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
 template<typename T>
 inline T __make_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
-  ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
+  ASSERT(loc->to_LocV() != nullptr, "Non-location value");
   IntData len = proj_IntV(args.at(1));
   ASSERT(len > 0, "Invalid length");
   ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
@@ -94,7 +94,7 @@ inline std::monostate make_symbolic(SS& state, List<PtrVal> args, Cont k) {
 template<typename T>
 inline T __make_symbolic_whole(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal loc = args.at(0);
-  ASSERT(std::dynamic_pointer_cast<LocV>(loc) != nullptr, "Non-location value");
+  ASSERT(loc->to_LocV() != nullptr, "Non-location value");
   IntData sz = proj_IntV(args.at(1));
   ASSERT(sz > 0, "Invalid length");
   ASSERT(2 == args.size() || 3 == args.size(), "Too much arguments for make_symbolic");
@@ -121,7 +121,7 @@ inline std::monostate make_symbolic_whole(SS& state, List<PtrVal> args, Cont k) 
 template<typename T>
 inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
   auto size = args.at(0);
-  if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
+  if (auto symvite = size->to_SymV()) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
     auto cond = (*symvite)[0];
     auto v_t = (*symvite)[1];
@@ -272,7 +272,7 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal size = args.at(2);
   IntData bytes_int;
   // Todo (Ruiqi): should we fork here
-  if (auto symvite = std::dynamic_pointer_cast<SymV>(size)) {
+  if (auto symvite = size->to_SymV()) {
     ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
     auto cond = (*symvite)[0];
     auto v_t = (*symvite)[1];
@@ -280,15 +280,15 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
     auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
     ASSERT((!tbr_sat || !fbr_sat) && (tbr_sat || fbr_sat), "Should already forked before, only one path is feasible");
     bytes_int = tbr_sat ? proj_IntV(v_t) : proj_IntV(v_f);
-    if (auto srcite = std::dynamic_pointer_cast<SymV>(src)) {
+    if (auto srcite = src->to_SymV()) {
       ASSERT(iOP::op_ite == srcite->rator && (*srcite)[0] == cond, "Inconsistent ite src and size");
       src = tbr_sat ? (*srcite)[1] : (*srcite)[2];
     }
   } else {
     bytes_int = proj_IntV(size);
   }
-  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
-  ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
+  ASSERT(dest->to_LocV() != nullptr, "Non-location value");
+  ASSERT(src->to_LocV() != nullptr, "Non-location value");
   for (int i = 0; i < bytes_int; i++) {
     state.update_simpl(dest + i, state.at_simpl(src + i));
   }
@@ -309,8 +309,8 @@ template<typename T>
 inline T __llvm_memmove(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
-  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
-  ASSERT(std::dynamic_pointer_cast<LocV>(src) != nullptr, "Non-location value");
+  ASSERT(dest->to_LocV() != nullptr, "Non-location value");
+  ASSERT(src->to_LocV() != nullptr, "Non-location value");
   IntData bytes_int = proj_IntV(args.at(2));
   auto temp_mem = TrList<PtrVal>{};
   for (int i = 0; i < bytes_int; i++) {
@@ -336,7 +336,7 @@ template<typename T>
 inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   IntData bytes_int = proj_IntV(args.at(2));
-  ASSERT(std::dynamic_pointer_cast<LocV>(dest) != nullptr, "Non-location value");
+  ASSERT(dest->to_LocV() != nullptr, "Non-location value");
   auto v = make_IntV(0, 8);
   for (int i = 0; i < bytes_int; i++) {
     state.update_simpl(dest + i, v);
@@ -357,13 +357,12 @@ inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
   for (int i = 0; i < size; ) {
     auto old_val = state.at_simpl(ptr + i);
     if (old_val) {
-      if (std::dynamic_pointer_cast<ShadowV>(old_val) || std::dynamic_pointer_cast<LocV>(old_val)) {
+      if (std::dynamic_pointer_cast<ShadowV>(old_val) || old_val->to_LocV())
         ABORT("unhandled ptrval: shadowv && LocV");
-      }
       auto bytes_num = old_val->get_byte_size();
       ASSERT(bytes_num > 0, "Invalid bytes");
       // Do not over-write symbolic variable
-      if (std::dynamic_pointer_cast<SymV>(old_val)) {
+      if (old_val->to_SymV()) {
         i = i + bytes_num;
       } else {
         for (int j = 0; j < bytes_num; j++) {
@@ -384,7 +383,7 @@ inline void writeback_pointer_arg(SS& state, PtrVal loc, void* buf) {
     ASSERT(nullptr == buf, "allocate memory for null locv");
     return;
   }
-  ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
+  ASSERT(loc->to_LocV(), "Non LocV");
   size_t count = get_pointer_realsize(loc);
   copy_native2state(state, loc, (char*)buf, count);
   free(buf);
@@ -398,7 +397,7 @@ class ShadowMemEntry {
   size_t size;
   PtrVal mem_addr;
   ShadowMemEntry(PtrVal addr, size_t size) : buf(new char[size+1]), mem_addr(addr), size(size) {
-    ASSERT(std::dynamic_pointer_cast<LocV>(addr) != nullptr, "Non-location value");
+    ASSERT(addr->to_LocV() != nullptr, "Non-location value");
     memset(buf, 0, size+1);
   }
   ~ShadowMemEntry() { delete buf; }
@@ -409,8 +408,7 @@ class ShadowMemEntry {
 
 template<typename T>
 inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
-  PtrVal x = args.at(0);
-  auto x_i = std::dynamic_pointer_cast<IntV>(x);
+  auto x_i = args.at(0)->to_IntV();
   ASSERT(x_i && (64 == x_i->bw), "syscall's argument must be concrete and must be long (i64)!");
   long syscall_number = x_i->as_signed();
   long retval = -1;
@@ -485,7 +483,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_ioctl: {
       int fd = get_int_arg(state, args.at(1));
       unsigned long request = get_int_arg(state, args.at(2));
-      auto buf = std::dynamic_pointer_cast<LocV>(args.at(3));
+      auto buf = args.at(3)->to_LocV();
       size_t count = buf->size - (buf->l - buf->base);
       ShadowMemEntry temp(buf, count);
       retval = syscall(__NR_ioctl, fd, request, temp.getbuf());
@@ -575,7 +573,7 @@ inline std::monostate syscall(SS& state, List<PtrVal> args, Cont k) {
 template<typename T>
 inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
-  ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
+  ASSERT(va_list->to_LocV() != nullptr, "Non-location value");
   PtrVal va_arg = state.vararg_loc();
   // FIXME: magic number 48?
   state.update(va_list + 0, IntV0_32, 4);
@@ -588,7 +586,7 @@ inline T __llvm_va_start(SS& state, List<PtrVal>& args, __Cont<T> k) {
 template<typename T>
 inline T __llvm_va_end(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal va_list = args.at(0);
-  ASSERT(std::dynamic_pointer_cast<LocV>(va_list) != nullptr, "Non-location value");
+  ASSERT(va_list->to_LocV() != nullptr, "Non-location value");
   auto loc0 = make_LocV_null();
   state.update(va_list + 0, IntV0_32, 4);
   state.update(va_list + 4, IntV0_32, 4);
@@ -601,9 +599,9 @@ template<typename T>
 inline T __llvm_va_copy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dst_va_list = args.at(0);
   PtrVal src_va_list = args.at(1);
-  ASSERT(std::dynamic_pointer_cast<LocV>(dst_va_list) != nullptr, "Dest valist Non-location value");
-  ASSERT(std::dynamic_pointer_cast<LocV>(src_va_list) != nullptr, "Src valist Non-location value");
-  ASSERT(std::dynamic_pointer_cast<LocV>(state.at(src_va_list + 16, 8)) != nullptr, "Src valist must be initialized");
+  ASSERT(dst_va_list->to_LocV() != nullptr, "Dest valist Non-location value");
+  ASSERT(src_va_list->to_LocV() != nullptr, "Src valist Non-location value");
+  ASSERT(state.at(src_va_list + 16, 8)->to_LocV() != nullptr, "Src valist must be initialized");
   state.update(dst_va_list + 0, state.at(src_va_list + 0, 4), 4);
   state.update(dst_va_list + 4, state.at(src_va_list + 4, 4), 4);
   state.update(dst_va_list + 8, state.at(src_va_list + 8, 8), 8);
@@ -617,7 +615,7 @@ template<typename T>
 inline T __gs_prefer_cex(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(2 == args.size(), "Invalid number of arguments for gs_prefer_cex");
   auto cond = args.at(1);
-  ASSERT(std::dynamic_pointer_cast<SymV>(cond) != nullptr, "Not a symbolic expression");
+  ASSERT(cond->to_SymV() != nullptr, "Not a symbolic expression");
   state.add_cex(cond);
   return k(state, make_IntV(0));
 }
