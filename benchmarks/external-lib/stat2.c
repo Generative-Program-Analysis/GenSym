@@ -1,4 +1,5 @@
 #include <sys/stat.h>
+#include "../../headers/gensym_client.h"
 
 int main(){
 	struct stat sfile;
@@ -8,8 +9,11 @@ int main(){
 	int status = stat("A", &sfile);
 	if (status == -1) {
 		// no arguments
+		print_string("stat failed\n");
 		sym_exit(1);
 	}
+	print_string("stat succeeded\nstatus: ");
+	sym_print(status);
 
 	if (sfile.st_dev == 1) {
 		if (sfile.st_rdev == 2) {

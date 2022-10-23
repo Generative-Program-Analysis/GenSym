@@ -21,7 +21,8 @@ case class Counter() {
   override def toString: String =
     map.toList.sortBy(_._2).map(p => s"  ${p._1} -> ${p._2}").mkString("\n")
   def count: Int = counter
-  def reset: Unit = { counter = 0; map.clear }
+  def reset: Unit = reset(0)
+  def reset(x: Int): Unit = { counter = x; map.clear }
   def fresh: Int = try { counter } finally { counter += 1 }
   def get(s: String): Int = {
     require(s.contains("_"))
@@ -40,6 +41,7 @@ object Counter {
     val blockId = Counter.block.get(ctx.toString)
     if (!branchStat.contains(blockId)) branchStat(blockId) = n
   }
+  def printBranchStat = "{" + branchStat.toList.map(p => s"{${p._1},${p._2}}").mkString(",") + "}"
 }
 
 trait BasicDefs { self: SAIOps =>
@@ -90,6 +92,7 @@ trait Coverage { self: SAIOps =>
     def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printPathCov: Rep[Unit] = "print-path-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printTime: Rep[Unit] = "print-time".reflectWriteWith[Unit]()(Adapter.CTRL)
+    def printMap: Rep[Unit] = "print-branch-map".reflectWriteWith[Unit]()(Adapter.CTRL)
   }
 }
 
@@ -135,6 +138,13 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
     private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
+    
+    // functions in `prepared` are considered prepared externally - provided by a precompiled library
+    // function call will be generated without the definition of callee
+    private val prepared = MutableMap[String, String]()  // native name -> mangled name
+    def prepare(funs: Map[String, String]) = {
+      prepared ++= funs
+    }
     val isDeterministic = ImmSet[String]("make_symbolic", "make_symbolic_whole")
     val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
 
@@ -151,7 +161,6 @@ trait Opaques { self: SAIOps with BasicDefs =>
     }
     def get(id: String, ret: Option[LLVMType] = None, argTypes: Option[List[LLVMType]]): Option[Rep[Value]] =
       if (modeled.contains(id.tail)) Some(ExternalFun(id.tail))
-      else if (builtinSysCalls.contains(id.tail)) Some(ExternalFun(s"syscall_${id.tail}"))
       else if (id.startsWith("@llvm.va_start")) Some(ExternalFun("llvm_va_start"))
       else if (id.startsWith("@llvm.va_end")) Some(ExternalFun("llvm_va_end"))
       else if (id.startsWith("@llvm.va_copy")) Some(ExternalFun("llvm_va_copy"))
@@ -161,13 +170,20 @@ trait Opaques { self: SAIOps with BasicDefs =>
       else if (id == "@memcpy") Some(ExternalFun("llvm_memcpy"))
       else if (id == "@memset") Some(ExternalFun("llvm_memset"))
       else if (id == "@memmove") Some(ExternalFun("llvm_memmove"))
-      else if (unsafeExternals.contains(id.tail) || id.startsWith("@llvm.")) {
-        if (!warned.contains(id)) {
-          System.out.println(s"Unsafe external function ${id.tail} is treated as a noop.")
-          warned.add(id)
-        }
-        Some(ExternalFun("noop", ret))
-      } else None // Will be executed natively
+      else prepared.get(id.tail) match {
+        case Some(x) => Some(ExternalFun(x))
+        case _ =>
+          if (builtinSysCalls.contains(id.tail))
+            Some(ExternalFun(s"syscall_${id.tail}"))
+          else if (unsafeExternals.contains(id.tail) || id.startsWith("@llvm.")) {
+            if (!warned.contains(id)) {
+              System.out.println(s"Unsafe external function ${id.tail} is treated as a noop.")
+              warned.add(id)
+            }
+            Some(ExternalFun("noop", ret))
+          }
+          else None  // Will be executed natively
+      }
   }
 }
 
@@ -278,7 +294,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
       case _ => None
     }
     def fromBool(b: Rep[Boolean]): Rep[SymV] =
-      "sym_bool_const".reflectWith[SymV](b)
+      "sym_bool_const".reflectCtrlWith[SymV](b)
   }
 
   object ShadowV {

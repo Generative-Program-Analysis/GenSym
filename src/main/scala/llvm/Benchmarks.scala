@@ -82,12 +82,14 @@ object Benchmarks {
   lazy val assertTest = parseFile("benchmarks/external-lib/assert.ll")
   lazy val assertfixTest = parseFile("benchmarks/external-lib/assert_fix.ll")
   lazy val openTest = parseFile("benchmarks/external-lib/open.ll")
+  lazy val openSymTest = parseFile("benchmarks/external-lib/open_sym.ll")
   lazy val closeTest = parseFile("benchmarks/external-lib/close.ll")
   lazy val read1Test = parseFile("benchmarks/external-lib/read1.ll")
   lazy val read2Test = parseFile("benchmarks/external-lib/read2.ll")
   lazy val write1Test = parseFile("benchmarks/external-lib/write1.ll")
   lazy val stat1Test = parseFile("benchmarks/external-lib/stat1.ll")
   lazy val stat2Test = parseFile("benchmarks/external-lib/stat2.ll")
+  lazy val statSymTest = parseFile("benchmarks/external-lib/stat_sym.ll")
   lazy val fstatTest = parseFile("benchmarks/external-lib/fstat.ll")
   lazy val statfsTest = parseFile("benchmarks/external-lib/statfs.ll")
   lazy val seekTest = parseFile("benchmarks/external-lib/lseek1.ll")
@@ -97,6 +99,8 @@ object Benchmarks {
   lazy val stdinTest = parseFile("benchmarks/external-lib/stdin.ll")
   lazy val ioctlTest = parseFile("benchmarks/external-lib/ioctl.ll")
   lazy val assumeTest = parseFile("benchmarks/external-lib/assume.ll")
+  lazy val linkLib = parseFile("benchmarks/external-lib/link_lib.ll")
+  lazy val linkApp = parseFile("benchmarks/external-lib/link_app.ll")
 
   lazy val printfTest = parseFile("benchmarks/external-lib/printf.ll")
 

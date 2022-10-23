@@ -14,8 +14,9 @@ import gensym.utils.Utils.time
 import gensym.imp.Mut
 import gensym.imp.ImpGSEngine
 import gensym.imp.ImpCPSGSEngine
+import gensym.CGUtils._
 
-import scala.collection.immutable.{List => StaticList}
+import scala.collection.immutable.{List => StaticList,Map => StaticMap}
 import scala.collection.mutable.HashMap
 
 import sys.process._
@@ -276,11 +277,25 @@ abstract class ImpCPSGSDriver[A: Manifest, B: Manifest](
 
 trait GenSym {
   val insName: String
+  var libdef: Option[ModDef] = None  // for linking with prepared library
   def extraFlags: String = "" // -D USE_LKFREE_Q
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit]
-  def run(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] = {
-    Counter.block.reset
-    Counter.variable.reset
+  def run(m: Module, name: String, fname: String, config: Config, libPath: Option[String] = None): GenericGSDriver[Int, Unit] = {
+    libdef = libPath match {
+      case Some(p) =>  // linking with external library - load its manifest
+        import java.io._
+        val ois = new ObjectInputStream(new FileInputStream(s"$p/Manifest"))
+        try { Some(ois.readObject().asInstanceOf[ModDef]) } finally { ois.close }
+      case None => None
+    }
+    libdef match {
+      case Some(modref) =>  // library linking mode - set counters to specified values
+        Counter.block.reset(modref.counters.blks)
+        Counter.variable.reset(modref.counters.vars)
+      case None =>  // standalone mode - clear counters
+        Counter.block.reset
+        Counter.variable.reset
+    }
     val (code, t) = time {
       val code = newInstance(m, name, fname, config)
       code.extraFlags = extraFlags
@@ -355,6 +370,239 @@ class ImpCPSGS extends GenSym with ImpureState {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
+      }
+    }
+}
+
+class ImpCPSGS_lib extends GenSym with ImpureState {
+  val insName = "ImpCPSGS_lib"
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
+    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) { q =>
+      import java.io.{File,PrintStream}
+      implicit val me: this.type = this
+      override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
+        val IR: q.type = q
+        val codegenFolder = s"$folder/$appName/"
+        setFunMap(q.funNameMap)
+        setBlockMap(q.nodeBlockMap)
+        override def emitHeaderFile: Unit = {
+          val filename = codegenFolder + "/common.h"
+          val out = new java.io.PrintStream(filename)
+          val branchStatStr = Counter.printBranchStat
+          withStream(out) {
+            emitln("/* Emitting header file */")
+            emitHeaders(stream)
+            emitln("using namespace immer;")
+            emitFunctionDecls(stream)
+            emitDatastructures(stream)
+            emitln(s"""
+            |inline Monitor& cov() {
+            |  static Monitor m;
+            |  return m;
+            |}""".stripMargin)
+            emitln("/* End of header file */")
+          }
+          out.close
+        }
+        registerHeader("<gensym/libcpolyfill.hpp>")
+      }
+      override def genSource: Unit = {
+        val folderFile = new File(folder)
+        if (!folderFile.exists()) folderFile.mkdir
+        prepareBuildDir
+        val g0 = Adapter.genGraph1(manifest[Int], manifest[Unit]) { x =>
+          addRewrite
+          Unwrap(wrapper(Wrap[Int](x)))
+        }
+        val g1 = transform(g0)
+        val statics = lms.core.utils.time("codegen") {
+          codegen.typeMap = Adapter.typeMap
+          codegen.capture {
+            codegen.emitAll(g1, appName)(manifest[Int], manifest[Unit])
+          }
+          codegen.extractAllStatics
+        }
+      }
+      override def genMakefile: Unit = {
+        val out = new PrintStream(s"$folder/$appName/Makefile")
+        val curDir = new File(".").getCanonicalPath
+        val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
+        val debugFlags = if (Config.genDebug) "-g -DDEBUG" else ""
+
+        out.println(s"""|BUILD_DIR = build
+        |TARGET = $appName.a
+        |SRC_DIR = .
+        |INITFILE = initlib
+        |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp" ! -name "$$(INITFILE).cpp")
+        |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
+        |OPT = -O3
+        |CC = g++ -std=c++17 -Wno-format-security
+        |AR = ar cvq
+        |PERFFLAGS = -fno-omit-frame-pointer $debugFlags
+        |CXXFLAGS = $includes $extraFlags $$(PERFFLAGS)
+        |
+        |default: $$(TARGET)
+        |
+        |.SECONDEXPANSION:
+        |
+        |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@)
+        |\tmkdir -p $$(@D)
+        |\t$$(CC) $$(OPT) -c -o $$@ $$< $$(CXXFLAGS)
+        |
+        |$$(BUILD_DIR)/$$(INITFILE).o : $$(INITFILE).cpp
+        |\tmkdir -p $$(@D)
+        |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
+        |
+        |$$(TARGET): $$(BUILD_DIR)/$$(INITFILE).o $$(OBJECTS)
+        |\t$$(AR) $$@ $$^
+        |
+        |clean:
+        |\t@rm $${TARGET} 2>/dev/null || true
+        |\t@rm build -rf 2>/dev/null || true
+        |\t@rm tests -rf 2>/dev/null || true
+        |
+        |.PHONY: default clean
+        |""".stripMargin)
+        out.close
+      }
+      def snippet(u: Rep[Int]): Rep[Unit] = {
+        // assume application main will be compiled to app_main
+        val externMapping = StaticMap("app_main" -> "app_main") ++ StaticList(
+          // the list of external functions that we assume there is an implementation
+          // if fact, there is not; see <libcpolyfill.hpp>
+          // their native function call cannot be generated
+          "gettimeofday", "sigprocmask", "__syscall_rt_sigaction", "select",
+          "fstatfs", "fstat64", "stat64", "execve", "times", "uname", "adjtimex",
+          "wait4", "nanosleep", "setitimer", "getcwd", "sigsuspend", "sigwaitinfo",
+          "__getdents64", "__getdents", "setgroups", "waitpid"
+        ).map(_ -> "gs_dummy").toMap
+        ExternalFun prepare externMapping
+
+        def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
+          val heap = List(precompileHeapLists(m::Nil):_*)
+          Coverage.printMap
+          ss.heapAppend(heap)
+          cont(ss, NullLoc())
+        }
+
+        // refer all the functions with an intrinsic
+        // the driver here will not be emitted.
+        val preHeapRep = topFun(preHeapGen(_, _, _))
+        funNameMap(Unwrap(preHeapRep).asInstanceOf[Backend.Sym]) = "initlib"
+        "ss-generate".reflectWriteWith[Unit](preHeapRep)(Adapter.CTRL)
+        for ((f, d) <- funMap) compile(d)
+        for ((n, f) <- FunFuns) "ss-generate".reflectWriteWith[Unit](f)(Adapter.CTRL)
+
+        generateManifest
+      }
+      def generateManifest: Unit = {
+        val funclist = for ((f, n) <- funNameMap) yield {
+          val pat = "__GS_USER_(\\w+)".r
+          n match {
+            case pat(nshort) => FuncDef(nshort, s"__GS_USER_$nshort")
+            case _ => FuncDef(n, n)
+          }
+        }
+        val aliaslist = for ((f, s) <- symDefMap) yield { s.const match {
+          case GlobalId(n) => FuncDef(f.tail, s"__GS_USER_${n.tail}")
+          case _ => ???
+        }}
+        val varlist = for ((n, g) <- heapEnv) yield { g() match {
+          case LocV(off0, _, size0, _) => (
+              (Unwrap(off0), Unwrap(size0)) match {
+                case (Backend.Const(off: Long), Backend.Const(size: Long)) =>
+                  VarDef(n, off, size)
+                case _ => ???
+              }
+            )
+        }}
+        import java.io._
+        val module = ModDef(
+          funclist.toList ++ aliaslist.toList,
+          varlist.toList,
+          folder,
+          appName,
+          CntInfo(Counter.variable.count, Counter.block.count))
+        val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
+        oos.writeObject(module)
+        oos.close
+      }
+    }
+}
+
+class ImpCPSGS_app extends GenSym with ImpureState {
+  val insName = "ImpCPSGS_app"
+  def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
+    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) { q =>
+      override val mainRename = "app_main"
+      val libcdef = libdef.get
+      implicit val me: this.type = this
+      override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
+        val IR: q.type = q
+        val codegenFolder = s"$folder/$appName/"
+        setFunMap(q.funNameMap)
+        setBlockMap(q.nodeBlockMap)
+        override def emitHeaderFile: Unit = {
+          val filename = codegenFolder + "/common.h"
+          val out = new java.io.PrintStream(filename)
+          val branchStatStr = Counter.printBranchStat
+          withStream(out) {
+            emitln("/* Emitting header file */")
+            emitHeaders(stream)
+            emitln("using namespace immer;")
+            emitFunctionDecls(stream)
+            emitDatastructures(stream)
+            emitln("/* End of header file */")
+          }
+          out.close
+        }
+        override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
+          val ng = init(g)
+          val efs = ""
+          val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
+
+          val src = run(name, ng)
+
+          emitHeaderFile
+          emitFunctionFiles
+          emitInit(stream)
+
+          emitln(s"/* Generated main file: $name */")
+          emitln("#include \"common.h\"")
+          emit(src)
+          emitln(s"""
+          |int main(int argc, char *argv[]) {
+          |  prelude(argc, argv);
+          |  $name(0);
+          |  epilogue();
+          |  return exit_code.load().value_or(0);
+          |} """.stripMargin)
+        }
+        registerHeader(libcdef.folder, s"<${libcdef.libName}/common.h>")
+        registerLibraryPath(s"${libcdef.folder}/${libcdef.libName}")
+        val libnamepat = "lib(\\w+)".r
+        registerLibrary(libcdef.libName match {
+          case libnamepat(n) => s"-l$n"
+          case _ => ???
+        })
+      }
+      def snippet(u: Rep[Int]) = {
+        ExternalFun.prepare(libcdef.funlist.map{ x => x.ref -> x.name}.toMap)
+        implicit val ctx = Ctx(fname, findFirstBlock(fname).label.get)
+        val initmain: Rep[Cont] = fun { case (ss, v) =>
+          val preHeap: Rep[List[Value]] = List(precompileHeapLists(m::Nil, libcdef.varlist):_*)
+          Coverage.printMap
+          Coverage.incPath(1)
+          ss.heapAppend(preHeap)
+          val fv = eval(GlobalId(fname), VoidType, ss)
+          ss.push
+          ss.updateArg
+          ss.initErrorLoc
+          val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
+          "start_gs_main".reflectReadWith[Unit](ss, config.args, k)(fv)
+        }
+        val ss0 = initState
+        "initlib".reflectWith[Unit](ss0, List[Value](), initmain)
       }
     }
 }

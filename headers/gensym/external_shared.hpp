@@ -20,6 +20,8 @@ template<typename T> using __Halt = std::function<T(SS, List<PtrVal>)>;
 
 /******************************************************************************/
 
+inline Cont halt = [](SS ss, PtrVal l) { return std::monostate(); };
+
 /* `stop` only stops the execution of current path. */
 inline List<SSVal> stop(SS state, List<PtrVal> args) {
   check_pc_to_file(state);
@@ -99,33 +101,30 @@ inline char proj_IntV_char(const PtrVal& v) {
   return static_cast<char>(proj_IntV(intV));
 }
 
-inline std::string get_string_at(PtrVal ptr, SS& state) {
-  std::string name;
-  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
-  while (c != '\0') {
-    name += c;
-    ptr = ptr + 1;
-    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+inline std::string proj_List_String(List<PtrVal> l) {
+  std::string ret;
+  for (auto &v: l) {
+    ret += proj_IntV_char(v);
   }
-  return name;
+  return ret;
 }
 
-inline std::string get_concrete_file_path(PtrVal ptr, SS& state) {
-  std::string name;
+inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
+  TrList<PtrVal> name;
+  PtrVal v;
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
-  /* TODO: more comprehensive concretization, do forks eventually <2022-08-25, David Deng> */
-  if (std::dynamic_pointer_cast<SymV>(state.at(ptr))) {
-    std::cout << "symbolic file path. Concretize to A" << std::endl;
-    return "-";
-  }
-  char c = proj_IntV_char(state.at(ptr)); // c = *ptr
-  while (c != '\0') {
-    name += c;
+  v = state.at_simpl(ptr);
+  while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
+    INFO("get_sym_string: v=" << v->toString() << " at " << ptr->toString());
+    name.push_back(v);
     ptr = ptr + 1;
-    c = proj_IntV_char(state.at(ptr)); // c = *ptr
+    v = state.at_simpl(ptr);
   }
-  return name;
+  return name.persistent();
+}
+
+inline std::string get_string_at(SS& state, PtrVal ptr) {
+  return proj_List_String(get_sym_string_at(state, ptr));
 }
 
 inline UIntData get_int_arg(SS& state, PtrVal x) {
@@ -150,12 +149,12 @@ inline double get_float_arg(SS& state, PtrVal x) {
 
 inline std::string get_string_arg(SS& state, PtrVal ptr) {
   std::string name;
-  char c = get_int_arg(state, state.at(ptr)); // c = *ptr
+  char c = get_int_arg(state, state.at_simpl(ptr)); // c = *ptr
   ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
   while (c != '\0') {
     name += c;
     ptr = ptr + 1;
-    c = get_int_arg(state, state.at(ptr)); // c = *ptr
+    c = get_int_arg(state, state.at_simpl(ptr)); // c = *ptr
   }
   return name;
 }
@@ -163,7 +162,7 @@ inline std::string get_string_arg(SS& state, PtrVal ptr) {
 inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
   ASSERT(buf && size > 0, "Invalid native buffer");
   for (int i = 0; i < size; ) {
-    auto val = state.at(ptr + i);
+    auto val = state.at_simpl(ptr + i);
     if (val) {
       if (std::dynamic_pointer_cast<ShadowV>(val) || std::dynamic_pointer_cast<LocV>(val)) {
         ABORT("unhandled ptrval: shadowv && LocV");
@@ -197,7 +196,7 @@ template<typename T>
 inline T __print_string(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<LocV>(x)) {
-    std::cout << get_string_at(x, state);
+    std::cout << get_string_at(state, x);
     return k(state, make_IntV(0));
   }
   ABORT("Cannot print non-LocV value as string");
@@ -417,7 +416,7 @@ inline T __gs_warning_once(SS& state, List<PtrVal>& args, __Cont<T> k) {
   static std::set<std::string> warned;
   PtrVal x = args.at(0);
   if (std::dynamic_pointer_cast<LocV>(x)) {
-    std::string message = get_string_at(x, state);
+    std::string message = get_string_at(state, x);
     if (warned.count(message) == 0) {
       warned.insert(message);
       std::cout << message << std::endl;
