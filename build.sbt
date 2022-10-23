@@ -50,6 +50,7 @@ addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4")
 
 lazy val Bench = config("bench").extend(Test)
 
+fork in Bench := false
 parallelExecution in Test := false
 parallelExecution in Bench := false
 
