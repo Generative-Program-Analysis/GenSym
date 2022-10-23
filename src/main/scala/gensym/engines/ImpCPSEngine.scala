@@ -55,7 +55,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
       case IntConst(n) => IntV(n, ty.asInstanceOf[IntType].size)
       case FloatConst(f) => FloatV(f, ty.asInstanceOf[FloatType].size)
       case FloatLitConst(l) => FloatV(l, 80)
-      case BitCastExpr(from, const, to) => eval(const, to, ss)
+      case BitCastExpr(from, const, to) => eval(const, to, ss, argTypes)
       case BoolConst(b) => b match {
         case true => IntV(1, 1)
         case false => IntV(0, 1)
@@ -75,7 +75,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
           compile(funDeclMap(id), t, argTypes.get)
           wrapFunV(FunFuns(getMangledFunctionName(funDeclMap(id), argTypes.get)))
         }
-      case GlobalId(id) if globalDefMap.contains(id) =>
+      case GlobalId(id) if heapEnv.contains(id) =>
         heapEnv(id)()
       case GlobalId(id) if globalDeclMap.contains(id) =>
         System.out.println(s"Warning: globalDecl $id is ignored")
@@ -157,6 +157,8 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
       case TruncInst(from@IntType(fromSz), value, IntType(toSz)) =>
         k(ss, eval(value, from, ss).trunc(fromSz, toSz), kk)
       case FpExtInst(from, value, to) =>
+        k(ss, eval(value, from, ss), kk)
+      case FpTruncInst(from, value, to) =>
         k(ss, eval(value, from, ss), kk)
       case FpToUIInst(from, value, IntType(size)) =>
         k(ss, eval(value, from, ss).fromFloatToUInt(size), kk)
@@ -373,6 +375,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
 
   override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
+      System.out.println(s"Gernating ExternFun: ${f.id}")
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
         case (ty@PtrType(_, _), id) => ss.getPointerArg(args(id)).castToM(ty.toManifest)

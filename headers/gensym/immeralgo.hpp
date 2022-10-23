@@ -268,7 +268,6 @@ namespace Vec {
   template<typename T, typename U>
   inline immer::flex_vector<std::pair<T, U>> zip(immer::flex_vector<T> v1, immer::flex_vector<U> v2) {
     auto size = v1.size() < v2.size() ? v1.size() : v2.size();
-    std::cout << "size: " << size << std::endl;
     /* ASSERT(v1.size() == v2.size(), "Vectors must have same size"); */
     auto res = immer::flex_vector_transient<std::pair<T, U>>();
     for (int i = 0; i < size; i++) {

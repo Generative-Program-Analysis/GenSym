@@ -26,10 +26,15 @@ struct Monitor {
 
   public:
     Monitor() : num_blocks(0), num_paths(0), num_states(1), start(steady_clock::now()) {}
-    Monitor(uint64_t num_blocks, std::vector<std::pair<unsigned, unsigned>> branch_num) :
+    Monitor(uint64_t num_blocks, const std::vector<std::pair<unsigned, unsigned>> &branch_num) :
       num_blocks(num_blocks), num_paths(0), num_states(1),
       block_cov(num_blocks),
       start(steady_clock::now()) {
+      extend_blocks(num_blocks, branch_num);
+    }
+
+    void extend_blocks(uint64_t nblks, const std::vector<std::pair<unsigned, unsigned>> &branch_num) {
+      if (num_blocks != nblks) block_cov = std::move(decltype(block_cov)(num_blocks = nblks));
       // `branch_num` contains the ids of blocks whose terminator is br/switch,
       // for each of such block, `br_arity` is the number of branches.
       for (const auto& [blk_id, br_arity] : branch_num) {

@@ -31,6 +31,16 @@ scalacOptions ++= Seq(
 
 autoCompilerPlugins := true
 
+//https://www.scala-sbt.org/release/docs/Running-Project-Code.html
+fork := true
+run / javaOptions ++= Seq(
+  "-Xms4G",
+  "-Xmx32G",
+  "-Xss1024M",
+  "-XX:MaxMetaspaceSize=8G",
+  "-XX:ReservedCodeCacheSize=2048M"
+)
+
 val paradiseVersion = "2.1.0"
 addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.3" cross CrossVersion.full)
@@ -40,6 +50,7 @@ addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4")
 
 lazy val Bench = config("bench").extend(Test)
 
+fork in Bench := false
 parallelExecution in Test := false
 parallelExecution in Bench := false
 

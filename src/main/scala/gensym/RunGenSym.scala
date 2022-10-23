@@ -86,6 +86,7 @@ object RunGenSym {
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
       case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
+      case (options, r"--lib=([-_A-Za-z0-9\/\.]+)$p") => options + ("lib" -> p)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
       case (options, input) => options + ("input" -> input)
     }
@@ -100,12 +101,15 @@ object RunGenSym {
     val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
     val emitVarIdMap = options.getOrElse("varIdMap", Config.emitVarIdMap).asInstanceOf[Boolean]
     val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
+    val libPath = options.get("lib").asInstanceOf[Option[String]]
 
     val gensym = engine match {
       case "ImpCPS" => new ImpCPSGS
       case "ImpDirect" => new ImpGS
       case "PureCPS" => new PureCPSGS
       case "PureDirect" => new PureGS
+      case "lib" => new ImpCPSGS_lib
+      case "app" => new ImpCPSGS_app
     }
     Config.opt = optimize
     Config.emitBlockIdMap = emitBlockIdMap
@@ -115,6 +119,6 @@ object RunGenSym {
     |  filepath=$filepath, entrance=$entrance, output=$output,
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
     println(info.stripMargin)
-    gensym.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt))
+    gensym.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), libPath)
   }
 }
