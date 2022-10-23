@@ -103,7 +103,7 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   inline simple_ptr<SymV> to_SymV() { return std::dynamic_pointer_cast<SymV>(shared_from_this()); }
   inline simple_ptr<LocV> to_LocV() { return std::dynamic_pointer_cast<LocV>(shared_from_this()); }
   inline simple_ptr<FloatV> to_FloatV() { return std::dynamic_pointer_cast<FloatV>(shared_from_this()); }
-  inline simple_ptr<ShadowV> to_FloatV() { return std::dynamic_pointer_cast<ShadowV>(shared_from_this()); }
+  inline simple_ptr<ShadowV> to_ShadowV() { return std::dynamic_pointer_cast<ShadowV>(shared_from_this()); }
 
   /* Since from_bytes/from_bytes_shadow only concate ``bit-vectors'' (either concrete or symbolic),
    * and they do not work with location/function values, at some point, we may find that
