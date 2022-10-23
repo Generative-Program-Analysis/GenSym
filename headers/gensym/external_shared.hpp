@@ -95,12 +95,6 @@ inline std::monostate sym_exit(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-inline char proj_IntV_char(const PtrVal& v) {
-  auto intV = v->to_IntV();
-  ASSERT(intV->get_bw() == 8, "proj_IntV_char: Bitwidth mismatch");
-  return static_cast<char>(proj_IntV(intV));
-}
-
 inline std::string proj_List_String(List<PtrVal> l) {
   std::string ret;
   for (auto &v: l) {
@@ -133,11 +127,13 @@ inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto sym_v = std::dynamic_pointer_cast<SymV>(x);
   ASSERT(sym_v, "get value of non-symbolic variable");
   std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
-  ASSERT(res.first, "Un-feasible path");
+  ASSERT(res.first, "Unfeasible path");
   return res.second;
 }
 
 inline double get_float_arg(SS& state, PtrVal x) {
+  // Note: since we don't have symbolic floating point numbers, we just
+  // extract the concrete floats here.
   return (double)x->proj_FloatV();
 }
 
@@ -181,7 +177,7 @@ inline char* get_pointer_arg(SS& state, PtrVal loc) {
   if (is_LocV_null(loc)) return nullptr;
   ASSERT(loc->to_LocV(), "Non LocV");
   size_t count = get_pointer_realsize(loc);
-  char * buf = (char*)malloc(count);
+  char* buf = (char*)malloc(count);
   copy_state2native(state, loc, buf, count);
   return buf;
 }
@@ -315,13 +311,13 @@ inline std::monostate gs_assume(SS state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-// Todo: could use is_conc method of struct value
+// TODO: could use is_conc method of struct value
 template<typename T>
 inline T __gs_is_symbolic(SS& state, List<PtrVal>& args, __Cont<T> k) {
   auto v = args.at(0);
   ASSERT(v, "null pointer");
   if (v->to_SymV()) return k(state, make_IntV(1, 32));
-  ASSERT(v->to_LocV(), "non-intv");
+  ASSERT(v->to_IntV(), "non-intv");
   return k(state, make_IntV(0, 32));
 }
 
@@ -345,7 +341,7 @@ inline T __gs_get_valuel(SS& state, List<PtrVal>& args, __Cont<T> k) {
   ASSERT(sym_v, "get value of non-symbolic variable");
   ASSERT(64 == sym_v->get_bw(), "Bitwidth mismatch");
   std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
-  ASSERT(res.first, "Un-feasible path");
+  ASSERT(res.first, "Unfeasible path");
   //std::cout << "Concretize " << sym_v->toString() << " to " << res.second << "\n";
   return k(state, make_IntV(res.second, 64));
 }

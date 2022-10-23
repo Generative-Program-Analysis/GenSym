@@ -273,6 +273,12 @@ inline IntData proj_IntV(const PtrVal& v) {
   return v->to_IntV()->as_signed();
 }
 
+inline char proj_IntV_char(const PtrVal& v) {
+  auto intV = v->to_IntV();
+  ASSERT(intV->get_bw() == 8, "proj_IntV_char: Bitwidth mismatch");
+  return static_cast<char>(proj_IntV(intV));
+}
+
 struct FloatV : Value {
   long double f;
   size_t bw;
