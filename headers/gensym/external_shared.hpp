@@ -104,7 +104,7 @@ inline std::string proj_List_String(List<PtrVal> l) {
 }
 
 inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
+  ASSERT(ptr->to_LocV() != nullptr, "Non-location value");
   TrList<PtrVal> name;
   PtrVal v = state.at_simpl(ptr);
   while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
@@ -121,10 +121,10 @@ inline std::string get_string_at(SS& state, PtrVal ptr) {
 }
 
 inline UIntData get_int_arg(SS& state, PtrVal x) {
-  auto x_i = std::dynamic_pointer_cast<IntV>(x);
+  auto x_i = x->to_IntV();
   // Todo: add this concretization tp path constraints
   if (x_i) return x_i->as_signed();
-  auto sym_v = std::dynamic_pointer_cast<SymV>(x);
+  auto sym_v = x->to_SymV()
   ASSERT(sym_v, "get value of non-symbolic variable");
   std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
   ASSERT(res.first, "Unfeasible path");
@@ -134,7 +134,7 @@ inline UIntData get_int_arg(SS& state, PtrVal x) {
 inline double get_float_arg(SS& state, PtrVal x) {
   // Note: since we don't have symbolic floating point numbers, we just
   // extract the concrete floats here.
-  return (double)x->proj_FloatV();
+  return (double)proj_FloatV(x);
 }
 
 inline std::string get_string_arg(SS& state, PtrVal ptr) {

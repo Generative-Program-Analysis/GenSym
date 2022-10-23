@@ -11,6 +11,8 @@ object Constants {
   final val DEFAULT_ADDR_BW: Int = BYTE_SIZE * 8
   final val DEFAULT_INDEX_BW: Int = BYTE_SIZE * 8
   final val ARCH_WORD_SIZE: Int = 64
+
+  final val outputDir = "./gs_gen"
 }
 
 object IRUtils {
@@ -235,14 +237,8 @@ case class CFG(funMap: Map[String, FunctionDef]) {
     }
 }
 
-object CGUtils {
-  case class FuncDef(ref: String, name: String)
-  case class VarDef(name: String, off: Int, size: Int)
-  case class CntInfo(vars: Int, blks: Int)
-  case class ModDef(
-    funlist: List[FuncDef],
-    varlist: List[VarDef],
-    folder: String,
-    libName: String,
-    counters: CntInfo)
-}
+// Definitions used for generating manifest in separation compilation
+case class FuncDef(ref: String, name: String)
+case class VarDef(name: String, off: Int, size: Int)
+case class CntInfo(vars: Int, blks: Int)
+case class ModDef(funlist: List[FuncDef], varlist: List[VarDef], folder: String, libName: String, counters: CntInfo)

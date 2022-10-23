@@ -194,7 +194,7 @@ inline T __calloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData nmemb = proj_IntV(args.at(0));
   IntData size = proj_IntV(args.at(1));
   ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
-  auto emptyMem = List<PtrVal>(nmemb * size, make_IntV(0, 8));
+  auto emptyMem = List<PtrVal>(nmemb * size, make_UnInitV());
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, nmemb * size);
   if (exlib_failure_branch)
     return k(state.heap_append(emptyMem), memLoc) + k(state, make_LocV_null());
@@ -337,9 +337,8 @@ inline T __llvm_memset(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal dest = args.at(0);
   IntData bytes_int = proj_IntV(args.at(2));
   ASSERT(dest->to_LocV() != nullptr, "Non-location value");
-  auto v = make_IntV(0, 8);
   for (int i = 0; i < bytes_int; i++) {
-    state.update_simpl(dest + i, v);
+    state.update_simpl(dest + i, make_UnInitV());
   }
   return k(state, IntV0_32);
 }

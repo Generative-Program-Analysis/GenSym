@@ -15,8 +15,7 @@ trait StringOps { b: Base =>
   //   def apply(str: String): Rep[String] = Wrap[String](Adapter.g.reflect("string-new", Unwrap(unit[String](str))))
   // }
 
-  // implicit def __liftConstString(str: String): Rep[String] = String(str)
-  implicit class StringOpsExt(str: Rep[String]) /* extends StringOps(str) */ {
+  implicit class StringOpsExt(str: Rep[String]) {
     // def substring(s: Rep[Int], e: Rep[Int]): Rep[String] =
     //   Wrap[String](Adapter.g.reflect("string-substring", Unwrap(str), Unwrap(s), Unwrap(e)))
     // def length: Rep[Int] = Wrap[Int](Adapter.g.reflect("string-length", Unwrap(str)))
