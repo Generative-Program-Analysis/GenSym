@@ -124,7 +124,7 @@ inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto x_i = x->to_IntV();
   // Todo: add this concretization tp path constraints
   if (x_i) return x_i->as_signed();
-  auto sym_v = x->to_SymV()
+  auto sym_v = x->to_SymV();
   ASSERT(sym_v != nullptr, "get value of non-symbolic variable");
   std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
   ASSERT(res.first, "Unfeasible path");
