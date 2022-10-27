@@ -9,6 +9,7 @@ import lms.core.stub.{While => _, _}
 import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.llvm.parser.Parser._
+import gensym.Constants._
 
 import gensym.lmsx._
 import gensym.utils.Utils.time
@@ -144,7 +145,7 @@ class Coreutils extends TestGS {
 
 class TestLibrary extends TestGS {
   testGS(new ImpCPSGS_lib, TestPrg(linkLib, "libtest", "@main", useArgv, noOpt, nPath(1)++status(0), false))
-  testGS(new ImpCPSGS_app, TestPrg(linkApp, "libapp", "@main", useArgv, "--argv=''", nPath(1)++status(0)), "./gs_gen/libtest")
+  testGS(new ImpCPSGS_app, TestPrg(linkApp, "libapp", "@main", useArgv, "--argv=''", nPath(1)++status(0)), s"${outputDir}/libtest")
 }
 
 class Playground extends TestGS {

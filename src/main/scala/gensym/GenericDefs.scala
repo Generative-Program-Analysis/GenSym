@@ -12,10 +12,9 @@ import gensym.lmsx._
 import gensym.lmsx.smt.SMTBool
 
 import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet, Range => StaticRange}
-import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
+import scala.collection.mutable.{HashMap, Map => MutableMap, Set => MutableSet}
 
 case class Counter() {
-  import scala.collection.mutable.HashMap
   private var counter: Int = 0
   private val map: HashMap[String, Int] = HashMap[String, Int]()
   override def toString: String =
@@ -31,7 +30,6 @@ case class Counter() {
 }
 
 object Counter {
-  import scala.collection.mutable.HashMap
   val block = Counter()
   val variable = Counter()
   val function = Counter()
@@ -120,10 +118,9 @@ trait Opaques { self: SAIOps with BasicDefs =>
   }
 
   object ExternalFun {
-    import scala.collection.immutable.{Set => ImmSet}
     private val warned = MutableSet[String]()
     private val used = MutableSet[String]()
-    private val modeled = ImmSet[String](
+    private val modeled = StaticSet[String](
       "sym_print", "print_string", "malloc", "realloc",
       "gs_assert", "gs_assert_eager", "__assert_fail", "sym_exit",
       "make_symbolic", "make_symbolic_whole",
@@ -132,11 +129,11 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "gs_is_symbolic", "gs_get_valuel", "getpagesize", "memalign", "reallocarray",
       "gs_prefer_cex", "gs_posix_prefer_cex", "gs_warning_once"
     )
-    private val builtinSysCalls = ImmSet[String](
+    private val builtinSysCalls = StaticSet[String](
       "open", "close", "read", "write", "lseek", "stat", "mkdir", "rmdir", "creat", "unlink", "chmod", "chown",
       "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
-    private val unsafeExternals = ImmSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
+    private val unsafeExternals = StaticSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
     
     // functions in `prepared` are considered prepared externally - provided by a precompiled library
     // function call will be generated without the definition of callee
@@ -144,8 +141,8 @@ trait Opaques { self: SAIOps with BasicDefs =>
     def prepare(funs: Map[String, String]) = {
       prepared ++= funs
     }
-    val isDeterministic = ImmSet[String]("make_symbolic", "make_symbolic_whole")
-    val shouldRedirect = ImmSet[String]("@memcpy", "@memset", "@memmove")
+    val isDeterministic = StaticSet[String]("make_symbolic", "make_symbolic_whole")
+    val shouldRedirect = StaticSet[String]("@memcpy", "@memset", "@memmove")
 
     def apply(f: String, ret: Option[LLVMType] = None): Rep[Value] = {
       if (!used.contains(f)) {

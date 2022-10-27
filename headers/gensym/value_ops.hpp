@@ -7,6 +7,7 @@ struct SymV;
 struct LocV;
 struct SymLocV;
 struct FloatV;
+struct ShadowV;
 struct SS;
 class PC;
 
@@ -98,11 +99,12 @@ struct Value : public enable_simple_from_this<Value>, public Printable {
   Value() : hashval(0) {}
   size_t& hash() { return hashval; }
 
-  /* Note: these functions may return nullptr when runtime type isn't the type being converted to. */
+  /* Note: these functions may return nullptr when the runtime type isn't the type being converted to. */
   inline simple_ptr<IntV> to_IntV() { return std::dynamic_pointer_cast<IntV>(shared_from_this()); }
   inline simple_ptr<SymV> to_SymV() { return std::dynamic_pointer_cast<SymV>(shared_from_this()); }
   inline simple_ptr<LocV> to_LocV() { return std::dynamic_pointer_cast<LocV>(shared_from_this()); }
   inline simple_ptr<FloatV> to_FloatV() { return std::dynamic_pointer_cast<FloatV>(shared_from_this()); }
+  inline simple_ptr<ShadowV> to_ShadowV() { return std::dynamic_pointer_cast<ShadowV>(shared_from_this()); }
 
   /* Since from_bytes/from_bytes_shadow only concate ``bit-vectors'' (either concrete or symbolic),
    * and they do not work with location/function values, at some point, we may find that
@@ -273,6 +275,12 @@ inline IntData proj_IntV(const PtrVal& v) {
   return v->to_IntV()->as_signed();
 }
 
+inline char proj_IntV_char(const PtrVal& v) {
+  auto intV = v->to_IntV();
+  ASSERT(intV->get_bw() == 8, "proj_IntV_char: Bitwidth mismatch");
+  return static_cast<char>(proj_IntV(intV));
+}
+
 struct FloatV : Value {
   long double f;
   size_t bw;
@@ -319,29 +327,29 @@ inline PtrVal make_FloatV_fp80(std::array<unsigned char, 10> buf) {
 }
 
 inline long double proj_FloatV(PtrVal v) {
-  return std::dynamic_pointer_cast<FloatV>(v)->f;
+  return v->to_FloatV()->f;
 }
 
 inline PtrVal ui_tofp(PtrVal v) {
-  auto ui = std::dynamic_pointer_cast<IntV>(v);
+  auto ui = v->to_IntV();
   ASSERT(ui != nullptr, "value passed to ui_tofp is not an IntV");
   return make_FloatV(ui->i, ui->bw);
 }
 
 inline PtrVal fp_toui(PtrVal v, size_t bw) {
-  auto fp = std::dynamic_pointer_cast<FloatV>(v);
+  auto fp = v->to_FloatV();
   ASSERT(fp != nullptr, "value passed to fp_toui is not a FloatV");
   return make_IntV((uint64_t)fp->f, bw);
 }
 
 inline PtrVal fp_tosi(const PtrVal& v, size_t bw) {
-  auto fp = std::dynamic_pointer_cast<FloatV>(v);
+  auto fp = v->to_FloatV();
   ASSERT(fp != nullptr, "value passed to fp_tosi is not a FloatV");
   return make_IntV(fp->f, bw);
 }
 
 inline PtrVal si_tofp(const PtrVal& v) {
-  auto si = std::dynamic_pointer_cast<IntV>(v);
+  auto si = v->to_IntV();
   ASSERT(si != nullptr, "value passed to si_tofp is not an IntV");
   return make_FloatV(si->i, si->bw);
 }
@@ -384,13 +392,13 @@ inline PtrVal make_LocV(Addr base, LocV::Kind k, size_t size, size_t off = 0) {
 }
 
 inline unsigned int proj_LocV(const PtrVal& v) {
-  return std::dynamic_pointer_cast<LocV>(v)->l;
+  return v->to_LocV()->l;
 }
 inline LocV::Kind proj_LocV_kind(const PtrVal& v) {
-  return std::dynamic_pointer_cast<LocV>(v)->k;
+  return v->to_LocV()->k;
 }
 inline int proj_LocV_size(const PtrVal& v) {
-  return std::dynamic_pointer_cast<LocV>(v)->size;
+  return v->to_LocV()->size;
 }
 
 inline PtrVal make_LocV_null() {
@@ -402,13 +410,13 @@ inline PtrVal make_LocV_null() {
 
 // a null locv can be any IntV(0)
 inline bool is_LocV_null(const PtrVal& v) {
-  auto int_v = std::dynamic_pointer_cast<IntV>(v);
+  auto int_v = v->to_IntV();
   ASSERT(int_v && 64 == int_v->bw, "Bad pointer");
   return (0 == int_v->i);
 }
 
 inline size_t get_pointer_realsize(const PtrVal& v) {
-  auto loc = std::dynamic_pointer_cast<LocV>(v);
+  auto loc = v->to_LocV();
   ASSERT((loc->l >= loc->base) && (loc->l < (loc->base + loc->size)), "Out of bound pointer");
   size_t count = loc->size - (loc->l - loc->base);
   return count;
@@ -863,8 +871,8 @@ inline PtrVal bv_extract(const PtrVal& v1, int hi, int lo) {
 }
 
 inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
-  auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
-  auto f2 = std::dynamic_pointer_cast<FloatV>(v2);
+  auto f1 = v1->to_FloatV();
+  auto f2 = v2->to_FloatV();
   auto bw1 = f1->get_bw();
   auto bw2 = f2->get_bw();
   if (bw1 != bw2) {
@@ -905,13 +913,13 @@ inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
 /* TODO: implement those two <2022-03-10, David Deng> */
 
 inline PtrVal fp_ext(const PtrVal& v1, int from, int to) {
-  auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
+  auto f1 = v1->to_FloatV();
   ASSERT((f1 != nullptr), "extending a non-FloatV value");
   return make_FloatV(f1->f, to);
 }
 
 inline PtrVal fp_trunc(const PtrVal& v1, int from, int to) {
-  auto f1 = std::dynamic_pointer_cast<FloatV>(v1);
+  auto f1 = v1->to_FloatV();
   ASSERT((f1 != nullptr), "truncating a non-FloatV value");
   /* TODO: support other bw values (e.g. fp80) <2022-03-10, David Deng> */
   switch (to) {

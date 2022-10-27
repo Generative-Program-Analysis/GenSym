@@ -14,7 +14,7 @@ import gensym.utils.Utils.time
 import gensym.imp.Mut
 import gensym.imp.ImpGSEngine
 import gensym.imp.ImpCPSGSEngine
-import gensym.CGUtils._
+import gensym.Constants._
 
 import scala.collection.immutable.{List => StaticList,Map => StaticMap}
 import scala.collection.mutable.HashMap
@@ -318,7 +318,7 @@ trait ImpureState { self: GenSym =>
 class PureGS extends GenSym with PureState {
   val insName = "PureGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new PureGSDriver[Int, Unit](m, name, "./gs_gen", config) {
+    new PureGSDriver[Int, Unit](m, name, outputDir, config) {
       implicit val me: this.type = this
       @virtualize
       def snippet(u: Rep[Int]) = {
@@ -331,7 +331,7 @@ class PureGS extends GenSym with PureState {
 class PureCPSGS extends GenSym with PureState {
   val insName = "PureCPSGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new PureCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) {
+    new PureCPSGSDriver[Int, Unit](m, name, outputDir, config) {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
@@ -342,7 +342,7 @@ class PureCPSGS extends GenSym with PureState {
 class ImpGS extends GenSym with ImpureState {
   val insName = "ImpGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new ImpGSDriver[Int, Unit](m, name, "./gs_gen", config) {
+    new ImpGSDriver[Int, Unit](m, name, outputDir, config) {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         exec(fname, config.args).foreach { s => checkPCToFile(s._1) }
@@ -354,7 +354,7 @@ class ImpGS extends GenSym with ImpureState {
 class ImpVecGS extends GenSym with ImpureState {
   val insName = "ImpGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new ImpVecGSDriver[Int, Unit](m, name, "./gs_gen", config) {
+    new ImpVecGSDriver[Int, Unit](m, name, outputDir, config) {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         exec(fname, config.args).foreach { s => checkPCToFile(s._1) }
@@ -366,7 +366,7 @@ class ImpVecGS extends GenSym with ImpureState {
 class ImpCPSGS extends GenSym with ImpureState {
   val insName = "ImpCPSGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) {
+    new ImpCPSGSDriver[Int, Unit](m, name, outputDir, config) {
       implicit val me: this.type = this
       def snippet(u: Rep[Int]) = {
         exec(fname, config.args, fun { case sv => checkPCToFile(sv._1) })
@@ -377,7 +377,7 @@ class ImpCPSGS extends GenSym with ImpureState {
 class ImpCPSGS_lib extends GenSym with ImpureState {
   val insName = "ImpCPSGS_lib"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) { q =>
+    new ImpCPSGSDriver[Int, Unit](m, name, outputDir, config) { q =>
       import java.io.{File,PrintStream}
       implicit val me: this.type = this
       override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
@@ -465,18 +465,21 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
         |""".stripMargin)
         out.close
       }
+
       def snippet(u: Rep[Int]): Rep[Unit] = {
-        // assume application main will be compiled to app_main
+        // assume the application's `main` function will be compiled to `app_main`.
         val externMapping = StaticMap("app_main" -> "app_main") ++ StaticList(
-          // the list of external functions that we assume there is an implementation
-          // if fact, there is not; see <libcpolyfill.hpp>
-          // their native function call cannot be generated
+          // Currently, we neither generate native calls nor model the
+          // functionalities for those functions in this list (need to
+          // "synthesize" complex arguments or returned values),
+          // we provide a `gs_dummy` (libcpolyfill.hpp) implementation, which
+          // simply halts (not invoking the continuation) and is potentially unsafe.
           "gettimeofday", "sigprocmask", "__syscall_rt_sigaction", "select",
           "fstatfs", "fstat64", "stat64", "execve", "times", "uname", "adjtimex",
           "wait4", "nanosleep", "setitimer", "getcwd", "sigsuspend", "sigwaitinfo",
           "__getdents64", "__getdents", "setgroups", "waitpid"
         ).map(_ -> "gs_dummy").toMap
-        ExternalFun prepare externMapping
+        ExternalFun.prepare(externMapping)
 
         def preHeapGen(ss: Rep[Ref[SS]], vals: Rep[List[Value]], cont: Rep[Cont]): Rep[Unit] = {
           val heap = List(precompileHeapLists(m::Nil):_*)
@@ -533,7 +536,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
 class ImpCPSGS_app extends GenSym with ImpureState {
   val insName = "ImpCPSGS_app"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
-    new ImpCPSGSDriver[Int, Unit](m, name, "./gs_gen", config) { q =>
+    new ImpCPSGSDriver[Int, Unit](m, name, outputDir, config) { q =>
       override val mainRename = "app_main"
       val libcdef = libdef.get
       implicit val me: this.type = this

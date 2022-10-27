@@ -10,7 +10,6 @@ import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.llvm.parser.Parser._
 import gensym.IRUtils._
-import gensym.CGUtils._
 import gensym.lmsx._
 
 import scala.collection.JavaConverters._
