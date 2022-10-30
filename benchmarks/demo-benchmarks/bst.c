@@ -7,6 +7,8 @@
 #include "klee/klee.h"
 #endif
 
+// Note that this test must be run with --thread=1
+
 #define SIZE 4
 
 typedef struct node_s {

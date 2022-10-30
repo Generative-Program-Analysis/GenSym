@@ -93,6 +93,10 @@ class TestPureGS extends TestGS {
   testGS(new PureGS, TestCases.all ++ filesys ++ varArg)
 }
 
+class TestPureBST extends TestGS {
+  testGS(new PureGS, TestCases.bstTestOnly)
+}
+
 class TestPureCPSGS extends TestGS {
   val gs = new PureCPSGS
 
