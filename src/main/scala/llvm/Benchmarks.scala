@@ -66,6 +66,8 @@ object Benchmarks {
   lazy val externalFun = parseFile("benchmarks/external-lib/externalFun.ll")
   lazy val malloc = parseFile("benchmarks/external-lib/malloc.ll")
 
+  lazy val bst = parseFile("benchmarks/demo-benchmarks/bst.ll")
+  lazy val bstArr = parseFile("benchmarks/demo-benchmarks/bst_arr.ll")
   lazy val bubblesort = parseFile("benchmarks/demo-benchmarks/bubblesort.ll")
   lazy val quicksort = parseFile("benchmarks/demo-benchmarks/quicksort.ll")
   lazy val mergesort = parseFile("benchmarks/demo-benchmarks/mergesort.ll")
