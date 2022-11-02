@@ -23,20 +23,26 @@ object Config {
   val (o0, o1, o2, o3) = ("O0", "O1", "O2", "O3")
 
   /* Global compile-time configurations */
+
+  // use first-stage compile-time optimizations
   var opt: Boolean = true
+  // compile `select` instructions to ITE or branches
   var iteSelect: Boolean = true
+  // generate Makefile with -g and -DDEBUG
   var genDebug: Boolean = false
+  // generate a map from source variable names to their compiled name
   var emitVarIdMap: Boolean = true
+  // generate a map from source block labels to their compiled name
   var emitBlockIdMap: Boolean = true
+  // merge same switch targets to disjunctive conditions instead of forking
   var switchType: SwitchType = Merge
-  var runCode: Boolean = true
+  // generate code that records executed instruction numbers
   var recordInstNum: Boolean = false
+  // push continuations onto stack or pass continuations as arguments (applicable for ImpCPS engine)
+  var onStackCont: Boolean = true
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
-
-  def disableRunCode: Unit = runCode = false
-  def enableRunCode: Unit = runCode = true
 
   def symArg(n: Int) = Config(n, false, o3)
   def useArgv = Config(0, true, o3)
@@ -72,6 +78,8 @@ object RunGenSym {
     |--switch-type=<string>  - compilation variants of `switch` statement (default=nonMerge)
     |  =merge                - only fork `m` paths of distinct targets
     |  =nonMerge             - fork `n` paths where `n` is the total number of feasible cases (including default)
+    |--on-stack-cont         - push continuations onto stack, otherwise continuations are passed as argument (only applicable for ImpCPS engine, default=true)
+    |                        -   push continuations onto stack avoids generating nested C++ closures
     |--help                  - print this help message
     """
 
@@ -86,6 +94,7 @@ object RunGenSym {
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
       case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
+      case (options, r"--on-stack-cont") => options + ("onStackCont" -> true)
       case (options, r"--lib=([-_A-Za-z0-9\/\.]+)$p") => options + ("lib" -> p)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
       case (options, input) => options + ("input" -> input)
@@ -101,6 +110,7 @@ object RunGenSym {
     val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
     val emitVarIdMap = options.getOrElse("varIdMap", Config.emitVarIdMap).asInstanceOf[Boolean]
     val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
+    val onStackCont = options.getOrElse("onStackCont", Config.onStackCont).asInstanceOf[Boolean]
     val libPath = options.get("lib").asInstanceOf[Option[String]]
 
     val gensym = engine match {
@@ -115,9 +125,11 @@ object RunGenSym {
     Config.emitBlockIdMap = emitBlockIdMap
     Config.emitVarIdMap = emitVarIdMap
     Config.switchType = switchType
+    Config.onStackCont = onStackCont
     val info = s"""Running $engine with
     |  filepath=$filepath, entrance=$entrance, output=$output,
-    |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
+    |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType
+    |  onStackCont=$onStackCont"""
     println(info.stripMargin)
     gensym.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), libPath)
   }

@@ -163,13 +163,15 @@ class Frame {
   public:
     using Env = std::map<Id, PtrVal>;
     using Cont = std::function<std::monostate(SS&, PtrVal)>;
-    Cont cont;
+    size_t prev_stack_size;
+    Cont k;
   private:
     Env env;
   public:
-    Frame(Cont ct): cont(ct), env() {}
+    Frame() : env() {}
     Frame(Env env) : env(std::move(env)) {}
-    Frame() : env(std::map<Id, PtrVal>{}) {}
+    Frame(size_t ss, Cont k): prev_stack_size(ss), k(k), env() {}
+
     size_t size() { return env.size(); }
     PtrVal lookup_id(Id id) const { return env.at(id); }
     Frame&& assign(Id id, PtrVal v) {
@@ -204,12 +206,16 @@ class Stack {
       return std::move(*this);
     }
     PtrVal error_loc() { return errno_location; }
-    typename Frame::Cont pop(size_t keep) {
-      auto &it = env.at(env.size() - 1);
-      auto ret = it.cont;
+    Stack&& pop(size_t keep) {
       mem.take(keep);
       env.take(env.size() - 1);
-      return ret;
+      return std::move(*this);
+    }
+    std::monostate pop(SS& s, PtrVal v) {
+      auto f = env.at(env.size() - 1);
+      mem.take(f.prev_stack_size);
+      env.take(env.size() - 1);
+      return f.k(s, v);
     }
     Stack&& push() {
       return push(Frame());
@@ -218,8 +224,8 @@ class Stack {
       env.push_back(std::move(f));
       return std::move(*this);
     }
-    Stack&& push(std::function<std::monostate(SS&, PtrVal)> cont) {
-      return push(Frame(cont));
+    Stack&& push(size_t ss, std::function<std::monostate(SS&, PtrVal)> k) {
+      return push(Frame(ss, k));
     }
 
     Stack&& assign(Id id, PtrVal val) {
@@ -382,10 +388,10 @@ class SS {
       return read_res;
     }
     PtrVal at_simpl(PtrVal addr) {
-        auto loc = addr->to_LocV();
-        ASSERT(loc != nullptr, "Lookup an non-address value");
-        if (loc->k == LocV::kStack) return stack.at(loc->l);
-        return heap.at(loc->l);
+      auto loc = addr->to_LocV();
+      ASSERT(loc != nullptr, "Lookup an non-address value");
+      if (loc->k == LocV::kStack) return stack.at(loc->l);
+      return heap.at(loc->l);
     }
     PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
@@ -461,12 +467,16 @@ class SS {
       stack.push();
       return std::move(*this);
     }
-    SS&& push(std::function<std::monostate(SS&, PtrVal)> cont) {
-      stack.push(cont);
+    SS&& push(size_t ss, std::function<std::monostate(SS&, PtrVal)> cont) {
+      stack.push(ss, cont);
       return std::move(*this);
     }
-    typename Frame::Cont pop(size_t keep) {
-      return stack.pop(keep);
+    SS&& pop(size_t keep) {
+      stack.pop(keep);
+      return std::move(*this);
+    }
+    std::monostate pop(PtrVal v) {
+      return stack.pop(*this, v);
     }
     SS&& assign(Id id, PtrVal val) {
       stack.assign(id, val);
@@ -586,8 +596,8 @@ inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::functio
   ABORT("cps_apply: not applicable");
 }
 
-inline std::monostate cont_apply(std::function<std::monostate(SS&, PtrVal)> cont, SS& ss, PtrVal val) {
-  return cont(ss, val);
+inline std::monostate pop_cont_apply(SS& ss, PtrVal val) {
+  return ss.pop(val);
 }
 
 #endif

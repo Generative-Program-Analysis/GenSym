@@ -107,6 +107,34 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
     case _ => super.traverse(n)
   }
 
+  // Note: this enhances the EmitHelper in lms-clean, to be merged
+  implicit class EmitHelperExt(val sc: StringContext) {
+    def realEmit(x: Any): Unit = x match {
+      case (x: Def) => shallow(x)
+      case (n: Node) => shallow(n)
+      case (s: String) => emit(s)
+      case (i: Int) => emit(i.toString)
+      case (args: List[Def]) =>
+        if (args.nonEmpty) {
+          realEmit(args(0))
+          args.tail.foreach { arg => emit(", "); realEmit(arg) }
+        }
+    }
+    def es(args: Any*): Unit = {
+      val strings = sc.parts.iterator
+      val expressions = args.iterator
+      emit(strings.next)
+      while(strings.hasNext) {
+        realEmit(expressions.next)
+        emit(strings.next)
+      }
+    }
+    def esln(args: Any*): Unit = {
+      es(args:_*)
+      emitln()
+    }
+  }
+
   override def shallow(n: Node): Unit = n match {
     case n @ Node(s, "P", List(x), _) => es"std::cout << $x << std::endl"
     case Node(s,"kStack", _, _) => emit("LocV::kStack")
@@ -138,9 +166,8 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
     case Node(s, "ss-update", List(ss, k, v, sz), _) => es"$ss.update($k, $v, $sz)"
     case Node(s, "ss-update", List(ss, k, v), _) => es"$ss.update($k, $v)"
     case Node(s, "ss-update-seq", List(ss, k, v), _) => es"$ss.update_seq($k, $v)"
-    case Node(s, "ss-push", List(ss), _) => es"$ss.push()"
-    case Node(s, "ss-push", List(ss, k), _) => es"$ss.push($k)"
-    case Node(s, "ss-pop", List(ss, n), _) => es"$ss.pop($n)"
+    case Node(s, "ss-push", ss::args, _) => es"$ss.push($args)"
+    case Node(s, "ss-pop", ss::args, _) => es"$ss.pop($args)"
     case Node(s, "ss-addpc", List(ss, e), _) => es"$ss.add_PC($e)"
     case Node(s, "add-pc", List(pc, e), _) => es"$pc.add($e)"
     case Node(s, "ss-addpcset", List(ss, es), _) => es"$ss.add_PC_set($es)"

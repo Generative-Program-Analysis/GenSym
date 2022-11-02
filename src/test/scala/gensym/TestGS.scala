@@ -139,7 +139,8 @@ class Coreutils extends TestGS {
   }
   testGS(new ImpCPSGS, cases)
 
-  //testGS(new ImpCPSGS, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)))
+  lazy val cat_linked = parseFile("benchmarks/gs_posix/cat_linked.ll")
+  testGS(new ImpCPSGS, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0), runCode = false))
 }
 */
 
@@ -151,9 +152,11 @@ class TestLibrary extends TestGS {
 class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
-  val gs = new ImpGS
+  val gs = new ImpCPSGS
+  //testGS(gs, TestPrg(assumeTest, "assumeTest", "@main", noArg, noOpt, nPath(1)++status(0)))
 
-  //testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
+  testGS(gs, TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)))
+  //testGS(gs, TestPrg(kmpmatcher, "kmp", "@main", noArg, noOpt, nPath(1287)))
   //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
 

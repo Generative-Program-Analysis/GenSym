@@ -57,10 +57,14 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   def info(msg: String) = unchecked("INFO(\"" + msg + "\")")
 
   val mainRename = "gs_main"
-  def getRealFunName(funName: String): String = {
-    val newFname = if (funName != "@main") "__GS_USER_"+funName.tail else mainRename
-    newFname.replaceAllLiterally(".","_")
-  }
+  val gsPrefix = "__GS_USER_"
+
+  def getRealFunName(funName: String, prefix: String = gsPrefix): String =
+    if (funName != "@main") gsPrefix + funName.tail.replaceAllLiterally(".", "_")
+    else mainRename
+    
+  def strippedFunName(funName: String): String = getRealFunName(funName, "")
+
   def getRealBlockFunName(ctx: Ctx): String = blockNameMap(Counter.block.get(ctx.toString))
 
   def compile(funName: String, b: BB): Unit = {
@@ -99,7 +103,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
     }
     val fn = repExternFun(f, ret, argTypes)
     val node = Unwrap(fn).asInstanceOf[Backend.Sym]
-    funNameMap(node) = "__GS_NATIVE_EXTERNAL_"+mangledName.tail
+    funNameMap(node) = "__GS_NATIVE_"+mangledName.tail
     FunFuns(mangledName) = fn
   }
 
@@ -147,7 +151,6 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
         // "When indexing into a (optionally packed) structure, only i32 integer
         //  constants are allowed"
         // TODO: the align argument for getTySize
-        // TODO: test this
         val indexCst: List[Long] = index.map { case IntV(n, _) => n.toLong }
         IntV(calculateOffsetStatic(ty, indexCst), DEFAULT_INDEX_BW)
       case PackedStruct(types) =>
@@ -158,7 +161,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   }
 
   // Note: we can also assign symbolic values here
-  def uninitValue: Rep[Value] = IntV(0, 8) //NullPtr()
+  def uninitValue: Rep[Value] = IntV(0, 8)
 
   def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)
