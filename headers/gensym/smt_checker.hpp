@@ -150,7 +150,7 @@ private:
       ABORT("Cannot create the test case file, abort.\n");
     }
     for (auto& v : pc.vars) {
-      output << v->to_SymV()->name << "=" 
+      output << v->to_SymV()->name << "="
              << self()->eval_model(model, v) << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
@@ -250,13 +250,99 @@ public:
     auto res = check_model(indep_pc);
     update_model_cache(res, indep_pc);
     pop();
-    
+
     return res;
+  }
+
+  // Rewrite the expression val according to given equalities
+  PtrVal rewriteExpr(std::map< PtrVal, PtrVal >& equalities, PtrVal val) {
+    if (val->to_IntV()) return val;
+
+    auto sym_val = val->to_SymV();
+    ASSERT(sym_val, "Rewriting a non-symbolic term");
+    auto eq_it = equalities.find(sym_val);
+    if (eq_it != equalities.end()) {
+      return eq_it->second;
+    }
+    if (sym_val->is_var()) {
+      return sym_val;
+    }
+    if (sym_val->rator == iOP::op_extract) {
+      auto hi = (*sym_val)[1]->to_IntV()->as_signed();
+      auto lo = (*sym_val)[2]->to_IntV()->as_signed();
+      return bv_extract(rewriteExpr(equalities, (*sym_val)[0]), hi, lo);
+    }
+    if (sym_val->rands.size() == 1) {
+      if (sym_val->rator == iOP::op_trunc) {
+        auto from = (*sym_val)[0]->get_bw();
+        auto to = sym_val->get_bw();
+        return int_op_1(sym_val->rator, rewriteExpr(equalities, (*sym_val)[0]), { from, to });
+      }
+      return int_op_1(sym_val->rator, rewriteExpr(equalities, (*sym_val)[0]), { sym_val->get_bw() });
+    }
+    if (sym_val->rands.size() == 2) {
+      return int_op_2(sym_val->rator, rewriteExpr(equalities, (*sym_val)[0]), rewriteExpr(equalities, (*sym_val)[1]));
+    }
+    if (sym_val->rands.size() == 3) {
+      return int_op_3(sym_val->rator, rewriteExpr(equalities, (*sym_val)[0]), rewriteExpr(equalities, (*sym_val)[1]), rewriteExpr(equalities, (*sym_val)[2]));
+    }
+    ABORT("Unknown operation");
+  }
+
+  PtrVal simplifyExpr(PC& pc, PtrVal cond) {
+    if (cond->to_IntV())
+      return cond;
+
+    std::map< PtrVal, PtrVal > equalities;
+
+    auto eq_start = steady_clock::now();
+
+    for (auto &constraint : pc.get_path_conds()) {
+      auto sym_cons = constraint->to_SymV();
+      if (sym_cons) {
+        if (sym_cons->rands.size() == 2 && iOP::op_eq == sym_cons->rator) {
+          auto left = (*sym_cons)[0];
+          auto right = (*sym_cons)[1];
+          if (left->to_IntV()) {
+            equalities.insert(std::make_pair(right, left));
+          } else if (right->to_IntV()) {
+            equalities.insert(std::make_pair(left, right));
+          } else {
+            equalities.insert(std::make_pair(constraint, make_IntV(1, 1)));
+          }
+        } else {
+          equalities.insert(std::make_pair(constraint, make_IntV(1, 1)));
+        }
+      }
+    }
+
+    auto eq_end = steady_clock::now();
+    equality_time += duration_cast<microseconds>(eq_end - eq_start).count();
+
+    if (!equalities.empty()) {
+      auto rw_start = steady_clock::now();
+      cond = rewriteExpr(equalities, cond);
+      auto rw_end = steady_clock::now();
+      rewriting_time += duration_cast<microseconds>(rw_end - rw_start).count();
+    }
+
+    return cond;
   }
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
     if (!use_solver) return std::make_pair(sat, sat);
     br_query_num++;
+    auto simp_start = steady_clock::now();
+    if (use_equality_substitution) {
+      cond = simplifyExpr(pc, cond);
+    }
+    auto simp_end = steady_clock::now();
+    simp_expr_time += duration_cast<microseconds>(simp_end - simp_start).count();
+    if (cond->to_IntV()) {
+      rewrited_query_num++;
+      IntData condv = proj_IntV(cond);
+      return std::make_pair(0 == condv ? solver_result::unsat : solver_result::sat, 0 == condv ? solver_result::sat : solver_result::unsat);
+    }
 
     auto start = steady_clock::now();
     auto neg_cond = SymV::neg(cond);
