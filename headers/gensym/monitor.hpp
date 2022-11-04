@@ -140,6 +140,11 @@ struct Monitor {
         std::cout << "else-br: " << (else_miss_time / 1.0e6) << "s; "
                   << "then-br: " << (then_miss_time / 1.0e6) << "s; "
                   << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
+
+        std::cout << "Simplify expr: " << (simp_expr_time / 1.0e6) << "s; "
+                  << "Collecting equalities: " << (equality_time / 1.0e6) << "s; "
+                  << "Rewrite expr: " << (rewriting_time / 1.0e6) << "s; "
+                  << "#Rewrited concrete query: " << rewrited_query_num <<"/" << br_query_num << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"

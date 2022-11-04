@@ -20,6 +20,7 @@ static struct option long_options[] =
   {"no-br-cache",                no_argument,       0, 27},
   {"no-cons-indep",              no_argument,       0, 5},
   {"simplify",                   no_argument,       0, 26},
+  {"equality-substitution",      no_argument,       0, 28},
   // Test case generation
   {"output-tests-cov-new",       no_argument,       0, 6},
   {"output-ktest",               no_argument,       0, 7},
@@ -226,6 +227,9 @@ inline void handle_cli_args(int argc, char** argv) {
       case 27:
         use_brcache = false;
         break;
+      case 28:
+        use_equality_substitution = true;
+        break;
       case '?':
       default:
         print_help(argv[0]);
@@ -278,11 +282,11 @@ inline void handle_cli_args(int argc, char** argv) {
     initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj("stdout-stat", stat_size, false));
   }
   if (output_ktest && (cli_argv.size() > 0)) {
-    const int extra_args = 3 + 3; 
+    const int extra_args = 3 + 3;
     // + 3 for -sym-files n m, + 3 for -sym-stdout, -sym-stdin n
     // each symarg also requires an additional slot
 
-    g_conc_argc = cli_argv.size() + extra_args + n_sym_arg; 
+    g_conc_argc = cli_argv.size() + extra_args + n_sym_arg;
     g_conc_argv = new char* [g_conc_argc + extra_args + n_sym_arg];
     INFO("g_conc_argc: " << g_conc_argc);
     auto cli_iter = cli_argv.begin();

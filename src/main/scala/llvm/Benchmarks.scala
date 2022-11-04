@@ -114,7 +114,9 @@ object Benchmarks {
   lazy val argv2Test = parseFile("benchmarks/llvm/argv2.ll")
 
   lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
-  
+
+  lazy val equalityTest = parseFile("benchmarks/llvm/equality.ll")
+
   lazy val echo_linked = parseFile("benchmarks/coreutils/echo.ll")
   lazy val cat_linked = parseFile("benchmarks/coreutils/cat.ll")
   lazy val true_linked = parseFile("benchmarks/coreutils/true.ll")

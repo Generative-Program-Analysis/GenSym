@@ -36,6 +36,9 @@ inline std::atomic<unsigned int> cached_query_num = 0;
 // Number of concretization queries
 inline std::atomic<unsigned int> conc_query_num = 0;
 
+// Number of concretized queries after equality substitution
+inline std::atomic<unsigned int> rewrited_query_num = 0;
+
 /* Global options */
 
 inline bool use_thread_pool = false;
@@ -55,6 +58,7 @@ inline bool use_objcache = true;
 inline bool use_cexcache = true;
 // Use branch query caching or not
 inline bool use_brcache = true;
+inline bool use_equality_substitution = false;
 // Use constraint independence resolving or not
 inline bool use_cons_indep = true;
 // Only generate testcases for states that cover new blocks or not
@@ -95,6 +99,9 @@ inline SolverKind solver_kind = SolverKind::stp;
 inline std::atomic<long int> ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
 inline std::atomic<long int> int_solver_time = 0;
+inline std::atomic<long int> simp_expr_time = 0;
+inline std::atomic<long int> equality_time = 0;
+inline std::atomic<long int> rewriting_time = 0;
 // FS time: time taken to perform FS operations
 inline std::atomic<long int> fs_time = 0;
 // Time spent in solver expression construction
