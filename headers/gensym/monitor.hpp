@@ -144,6 +144,7 @@ struct Monitor {
         std::cout << "Simplify expr: " << (simp_expr_time / 1.0e6) << "s; "
                   << "Collecting equalities: " << (equality_time / 1.0e6) << "s; "
                   << "Rewrite expr: " << (rewriting_time / 1.0e6) << "s; "
+                  << "add constraint: " << (add_cons_time / 1.0e6) << "s; "
                   << "#Rewrited concrete query: " << rewrited_query_num <<"/" << br_query_num << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"

@@ -102,6 +102,7 @@ inline std::atomic<long int> int_solver_time = 0;
 inline std::atomic<long int> simp_expr_time = 0;
 inline std::atomic<long int> equality_time = 0;
 inline std::atomic<long int> rewriting_time = 0;
+inline std::atomic<long int> add_cons_time = 0;
 // FS time: time taken to perform FS operations
 inline std::atomic<long int> fs_time = 0;
 // Time spent in solver expression construction

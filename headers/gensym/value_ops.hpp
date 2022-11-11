@@ -547,7 +547,7 @@ struct SymV : Value {
         auto bw1 = arg0->rands[0]->get_bw();
         // zext(sym(x,bw1), bw2) != IntV(n, bw2)) if 0 <= n < 2^bw1 =>
         // sym(x, bw1) != IntV(n, bw1)
-        if (arg1 && arg0->bw == arg1->bw && 
+        if (arg1 && arg0->bw == arg1->bw &&
             0 <= arg1->i && arg1->i < (1 << bw1)) {
           return make_simple<SymV>(iOP::op_neq, immer::array({arg0->rands[0], make_IntV(arg1->i, bw1)}), bw);
         }
@@ -556,7 +556,7 @@ struct SymV : Value {
         auto bw1 = arg0->rands[0]->get_bw();
         // sext(sym(x,bw1), bw2) != IntV(n, bw2)) if -2^{bw1-1} <= n < 2^{bw1-1} =>
         // sym(x, bw1) != IntV(n, bw1)
-        if (arg1 && arg0->bw == arg1->bw && 
+        if (arg1 && arg0->bw == arg1->bw &&
             -(1 << (bw1-1)) <= arg1->i && arg1->i < (1 << (bw1-1))) {
           return make_simple<SymV>(iOP::op_neq, immer::array({arg0->rands[0], make_IntV(arg1->i, bw1)}), bw);
         }
@@ -827,7 +827,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
     switch (op) {
       case iOP::op_eq: case iOP::op_neq: case iOP::op_uge:
       case iOP::op_sge: case iOP::op_ugt: case iOP::op_sgt:
-      case iOP::op_ule: case iOP::op_sle: case iOP::op_ult: 
+      case iOP::op_ule: case iOP::op_sle: case iOP::op_ult:
       case iOP::op_slt:
         bw = 1;
         break;
