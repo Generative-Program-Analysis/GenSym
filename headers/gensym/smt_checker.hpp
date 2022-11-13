@@ -30,6 +30,8 @@ protected:
   using ObjCache = std::unordered_map<PtrVal, Expr>;
   using BrCacheKey = std::set<PtrVal>;
   using CexCacheKey = BrCacheKey;
+  using solver_response = std::pair<solver_result, std::shared_ptr<Model>>;
+  using br_response = std::pair<solver_response, solver_response>;
 
   struct hash_BrCacheKey {
     // Idea: can we use this https://matt.might.net/papers/liang2014godel.pdf?
@@ -108,13 +110,13 @@ private:
     if (use_brcache) br_cache.set(conds, res);
   }
 
-  solver_result check_model(BrCacheKey& conds) {
+  solver_response check_model(BrCacheKey& conds) {
     auto start = steady_clock::now();
-    solver_result result = self()->check_model_internal();
-    update_sat_cache(result, conds);
+    solver_response response = self()->check_model_internal(conds);
+    update_sat_cache(response.first, conds);
     auto end = steady_clock::now();
     ext_solver_time += duration_cast<microseconds>(end - start).count();
-    return result;
+    return response;
   }
 
   inline void resolve_indep_uf(UnionFind& uf, PtrVal root, BrCacheKey& result, bool add_root = true) {
@@ -130,9 +132,9 @@ private:
     cons_indep_time += duration_cast<microseconds>(end - start).count();
   }
 
-  inline std::shared_ptr<Model> update_model_cache(solver_result& res, CexCacheKey& conds) {
-    if (res == solver_result::sat) {
-      auto m = self()->get_model_internal(conds);
+  inline std::shared_ptr<Model> update_model_cache(solver_response& res, CexCacheKey& conds) {
+    if (res.first == solver_result::sat) {
+      auto m = res.second;
       if (use_cexcache) mcex_cache.set(conds, m);
       return m;
     }
@@ -219,16 +221,16 @@ public:
         m = *it;
       } else {
         push();
-        for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
-        auto result = check_model(conds);
-        m = update_model_cache(result, conds);
+        //for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+        auto response = check_model(conds);
+        m = update_model_cache(response, conds);
         pop();
       }
     } else {
       push();
-      for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
-      auto result = check_model(conds);
-      if (result == sat) m = self()->get_model_internal(conds);
+      //for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+      auto response = check_model(conds);
+      if (response.first == sat) m = response.second;
       pop();
     }
     return m;
@@ -246,12 +248,12 @@ public:
     if (hit) return *hit;
 
     push();
-    for (auto& v: indep_pc) self()->add_constraint_internal(to_expr(v));
-    auto res = check_model(indep_pc);
-    update_model_cache(res, indep_pc);
+    //for (auto& v: indep_pc) self()->add_constraint_internal(to_expr(v));
+    auto response = check_model(indep_pc);
+    update_model_cache(response, indep_pc);
     pop();
 
-    return res;
+    return response.first;
   }
 
   // Rewrite the expression val according to given equalities
@@ -379,9 +381,10 @@ public:
         update_sat_cache(result.second, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
-        result.second = check_model(common);
-        update_model_cache(result.second, common);
+        //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        auto response = check_model(common);
+        result.second = response.first;
+        update_model_cache(response, common);
         pop();
       }
       auto else_query_time = steady_clock::now();
@@ -396,9 +399,10 @@ public:
         update_sat_cache(result.first, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
-        result.first = check_model(common);
-        update_model_cache(result.first, common);
+        //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        auto response = check_model(common);
+        result.first = response.first;
+        update_model_cache(response, common);
         pop();
       }
       auto then_query_time = steady_clock::now();
@@ -406,24 +410,26 @@ public:
     } else {
       // neither hits cache
       push();
-      for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+      //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
 
-      push();
-      self()->add_constraint_internal(to_expr(cond));
+      //self()->add_constraint_internal(to_expr(cond));
       common.insert(cond);
-      result.first = check_model(common);
-      update_model_cache(result.first, common);
+      auto response = check_model(common);
+      result.first = response.first;
+      update_model_cache(response, common);
       pop();
 
+      push();
       if (!pc.contains(cond)) common.erase(cond);
       common.insert(neg_cond);
       if (result.first == solver_result::unsat) {
         result.second = solver_result::sat;
         update_sat_cache(result.second, common);
       } else {
-        self()->add_constraint_internal(to_expr(neg_cond));
-        result.second = check_model(common);
-        update_model_cache(result.second, common);
+        //self()->add_constraint_internal(to_expr(neg_cond));
+        response = check_model(common);
+        result.second = response.first;
+        update_model_cache(response, common);
       }
       pop();
 
@@ -536,7 +542,10 @@ inline BrResult check_branch(PC pc, PtrVal cond) {
 }
 
 inline bool check_pc(PC pc) {
+  auto start = steady_clock::now();
   auto result = checker_manager.get_checker().check_cond(pc);
+  auto end = steady_clock::now();
+  int_solver_time += duration_cast<microseconds>(end - start).count();
   return result == solver_result::sat;
 }
 

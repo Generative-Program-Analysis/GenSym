@@ -155,35 +155,52 @@ public:
     ABORT("unkown operator when constructing STP expr");
   }
 
-  void add_constraint_internal(ExprHandle e) {
-    auto temp_start = steady_clock::now();
-    vc_assertFormula(vc, e.get());
-    auto temp_end = steady_clock::now();
-    add_cons_time += duration_cast<microseconds>(temp_end - temp_start).count();
-  }
-
-  solver_result check_model_internal() {
-    ExprHandle fls = vc_falseExpr(vc);
-    int retcode = vc_query(vc, fls.get());
-    static solver_result mapping[4] = {sat, unsat, unknown, unknown};
-    return mapping[retcode];
-  }
+  //void add_constraint_internal(ExprHandle e) {
+  //  auto temp_start = steady_clock::now();
+  //  vc_assertFormula(vc, e.get());
+  //  auto temp_end = steady_clock::now();
+  //  add_cons_time += duration_cast<microseconds>(temp_end - temp_start).count();
+  //}
 
   inline IntData eval(ExprHandle val) {
     ExprHandle const_val = vc_getCounterExample(vc, val.get());
     return getBVUnsignedLongLong(const_val.get());
   }
 
-  inline std::shared_ptr<STPModel> get_model_internal(BrCacheKey& conds) {
-    // Note: STP's WholeCounterExample is pretty useless, so it seems that
-    // we have to eagerly materialize the model to our own data structure.
-    auto model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
-    for (auto& e: conds) {
-      for (auto& v: e->to_SymV()->vars)
-        model->emplace(v, eval(construct_expr(v)));
+  solver_response check_model_internal(BrCacheKey& conds) {
+    auto temp_start = steady_clock::now();
+    for (auto& v: conds) {
+      vc_assertFormula(vc, to_expr(v).get());
     }
-    return model;
+    auto temp_end = steady_clock::now();
+    add_cons_time += duration_cast<microseconds>(temp_end - temp_start).count();
+
+    ExprHandle fls = vc_falseExpr(vc);
+    int retcode = vc_query(vc, fls.get());
+    static solver_result mapping[4] = {sat, unsat, unknown, unknown};
+    auto res = mapping[retcode];
+    std::shared_ptr<STPModel> model = nullptr;
+    if (solver_result::sat == res) {
+      model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
+      for (auto& e: conds) {
+        for (auto& v: e->to_SymV()->vars)
+          model->emplace(v, eval(construct_expr(v)));
+      }
+    }
+    return std::make_pair(res, model);
   }
+
+
+  //inline std::shared_ptr<STPModel> get_model_internal(BrCacheKey& conds) {
+  //  // Note: STP's WholeCounterExample is pretty useless, so it seems that
+  //  // we have to eagerly materialize the model to our own data structure.
+  //  auto model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
+  //  for (auto& e: conds) {
+  //    for (auto& v: e->to_SymV()->vars)
+  //      model->emplace(v, eval(construct_expr(v)));
+  //  }
+  //  return model;
+  //}
 
   PtrVal __eval_model(std::shared_ptr<STPModel> m, PtrVal val) {
     // Note: when concretizing a complex expression, we need to "interpret"

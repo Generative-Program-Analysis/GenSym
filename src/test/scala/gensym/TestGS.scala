@@ -153,9 +153,11 @@ class Playground extends TestGS {
   Config.enableOpt
   val gs = new ImpGS
 
-  //testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
+  testGS(new ImpCPSGS, TestPrg(equalityTest, "equalityTest", "@main", noArg, "--solver=z3", nPath(1)));
+
+  testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, "--solver=z3", nPath(720)))
   //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
-  //testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
+  testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, "--solver=z3", nPath(15)++status(0)))
 
   //testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
   //testGS(gs, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))

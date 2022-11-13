@@ -19,25 +19,35 @@ public:
     clear_cache();
     delete g_solver;
   }
-  void add_constraint_internal(expr e) {
+  //void add_constraint_internal(expr e) {
+  //  auto temp_start = steady_clock::now();
+  //  g_solver->add(e);
+  //  auto temp_end = steady_clock::now();
+  //  add_cons_time += duration_cast<microseconds>(temp_end - temp_start).count();
+  //}
+  //inline IntData eval(expr val) {
+  //  auto const_val = g_solver->get_model().eval(val, true);
+  //  return const_val.get_numeral_uint64();
+  //}
+
+  solver_response check_model_internal(BrCacheKey& conds) {
     auto temp_start = steady_clock::now();
-    g_solver->add(e);
+    for (auto& v: conds) {
+      g_solver->add(to_expr(v));
+    }
     auto temp_end = steady_clock::now();
     add_cons_time += duration_cast<microseconds>(temp_end - temp_start).count();
-  }
-  solver_result check_model_internal() {
+
     auto result = g_solver->check();
-    return (solver_result) result;
+    std::shared_ptr<model> cex_model = nullptr;
+    if (check_result::sat == result)
+      cex_model = std::make_shared<model>(g_solver->get_model());;
+    return std::make_pair((solver_result) result, cex_model);
   }
 
-  inline std::shared_ptr<model> get_model_internal(BrCacheKey& conds) {
-    return std::make_shared<model>(g_solver->get_model());
-  }
-
-  inline IntData eval(expr val) {
-    auto const_val = g_solver->get_model().eval(val, true);
-    return const_val.get_numeral_uint64();
-  }
+  //inline std::shared_ptr<model> get_model_internal(BrCacheKey& conds) {
+  //  return std::make_shared<model>(g_solver->get_model());
+  //}
 
   inline IntData eval_model(std::shared_ptr<model> m, PtrVal val) {
     return m->eval(construct_expr(val), true).get_numeral_uint64();
