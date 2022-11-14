@@ -208,11 +208,6 @@ object TestCases {
     // gcov 40.29%
   )
 
-  lazy val bstTest = parseFile("benchmarks/demo-benchmarks/bubblesort.ll")
-  val bstTestOnly = List(
-    TestPrg(bstTest, "bstTest", "@main", noArg, noOpt, nPath(24))
-  )
-
   val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external ++ argv
 
   // FIXME: out of range
