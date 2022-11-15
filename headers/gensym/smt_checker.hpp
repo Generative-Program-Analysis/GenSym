@@ -298,14 +298,13 @@ public:
         update_sat_cache(result.second, common);
       } else {
         //push();
-        z3::params p(ctx);
-        p.set("mul2concat", true);
-        z3::tactic t =
-          z3::with(z3::tactic(ctx, "simplify"), p) &
+        z3::tactic t = z3::tactic(ctx, "qfbv");
+        /*
           z3::tactic(ctx, "solve-eqs") &
           z3::tactic(ctx, "bit-blast") &
           z3::tactic(ctx, "qfbv") &
           z3::tactic(ctx, "sat");
+          */
         z3::solver s0 = t.mk_solver();
         //z3::solver s0(ctx, z3::solver::simple{});
         self()->reset_solver(&s0);
