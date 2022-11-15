@@ -155,7 +155,7 @@ class Playground extends TestGS {
 
   testGS(new ImpCPSGS, TestPrg(equalityTest, "equalityTest", "@main", noArg, "--solver=z3", nPath(1)));
 
-  testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, "--solver=z3", nPath(720)))
+  testGS(new ImpCPSGS, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, "--solver=z3", nPath(720)))
   //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, "--solver=z3", nPath(15)++status(0)))
 
