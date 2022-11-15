@@ -114,6 +114,8 @@ inline std::atomic<long int> conc_solver_time = 0;
 // Time spent in generating test cases
 inline std::atomic<long int> gen_test_time = 0;
 
+inline std::atomic<long int> add_cons_time = 0;
+
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
 // feasible:  search all feasible concrete indexes

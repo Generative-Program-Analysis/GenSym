@@ -3,6 +3,11 @@
 
 #include "ktest.hpp"
 
+#include "z3++.h"
+
+inline z3::context ctx;
+inline z3::solver s(ctx);
+
 enum solver_result { unsat, sat, unknown };
 using BrResult = std::pair<solver_result, solver_result>;
 
@@ -150,7 +155,7 @@ private:
       ABORT("Cannot create the test case file, abort.\n");
     }
     for (auto& v : pc.vars) {
-      output << v->to_SymV()->name << "=" 
+      output << v->to_SymV()->name << "="
              << self()->eval_model(model, v) << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
@@ -250,7 +255,7 @@ public:
     auto res = check_model(indep_pc);
     update_model_cache(res, indep_pc);
     pop();
-    
+
     return res;
   }
 
@@ -292,11 +297,22 @@ public:
         result.second = solver_result::sat;
         update_sat_cache(result.second, common);
       } else {
-        push();
+        //push();
+        z3::params p(ctx);
+        p.set("mul2concat", true);
+        z3::tactic t =
+          z3::with(z3::tactic(ctx, "simplify"), p) &
+          z3::tactic(ctx, "solve-eqs") &
+          z3::tactic(ctx, "bit-blast") &
+          z3::tactic(ctx, "qfbv") &
+          z3::tactic(ctx, "sat");
+        z3::solver s0 = t.mk_solver();
+        //z3::solver s0(ctx, z3::solver::simple{});
+        self()->reset_solver(&s0);
         for (auto& v: common) self()->add_constraint_internal(to_expr(v));
         result.second = check_model(common);
         update_model_cache(result.second, common);
-        pop();
+        //pop();
       }
       auto else_query_time = steady_clock::now();
       else_miss_time += duration_cast<microseconds>(else_query_time - end).count();
@@ -309,25 +325,29 @@ public:
         result.first = solver_result::sat;
         update_sat_cache(result.first, common);
       } else {
-        push();
+        //push();
+        z3::solver s0(ctx, z3::solver::simple{});
+        self()->reset_solver(&s0);
         for (auto& v: common) self()->add_constraint_internal(to_expr(v));
         result.first = check_model(common);
         update_model_cache(result.first, common);
-        pop();
+        //pop();
       }
       auto then_query_time = steady_clock::now();
       then_miss_time += duration_cast<microseconds>(then_query_time - end).count();
     } else {
       // neither hits cache
-      push();
+      //push();
+      z3::solver s0(ctx, z3::solver::simple{});
+      self()->reset_solver(&s0);
       for (auto& v: common) self()->add_constraint_internal(to_expr(v));
 
-      push();
+      //push();
       self()->add_constraint_internal(to_expr(cond));
       common.insert(cond);
       result.first = check_model(common);
       update_model_cache(result.first, common);
-      pop();
+      //pop();
 
       if (!pc.contains(cond)) common.erase(cond);
       common.insert(neg_cond);
@@ -335,11 +355,14 @@ public:
         result.second = solver_result::sat;
         update_sat_cache(result.second, common);
       } else {
-        self()->add_constraint_internal(to_expr(neg_cond));
+        z3::solver s1(ctx, z3::solver::simple{});
+        self()->reset_solver(&s1);
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        //self()->add_constraint_internal(to_expr(neg_cond));
         result.second = check_model(common);
         update_model_cache(result.second, common);
       }
-      pop();
+      //pop();
 
       auto query_both_time = steady_clock::now();
       both_miss_time += duration_cast<microseconds>(query_both_time - end).count();
@@ -441,9 +464,12 @@ inline CheckerManager checker_manager;
 
 inline void init_solvers() { checker_manager.init_checkers(); }
 
+inline CheckerZ3 checker(&ctx, &s);
+
 inline BrResult check_branch(PC pc, PtrVal cond) {
   auto start = steady_clock::now();
-  auto result = checker_manager.get_checker().check_branch(pc, cond);
+  //auto result = checker_manager.get_checker().check_branch(pc, cond);
+  auto result = checker.check_branch(pc, cond);
   auto end = steady_clock::now();
   int_solver_time += duration_cast<microseconds>(end - start).count();
   return result;
@@ -456,7 +482,12 @@ inline bool check_pc(PC pc) {
 
 inline void check_pc_to_file(SS& state) {
   auto start = steady_clock::now();
-  checker_manager.get_checker().generate_test(std::move(state));
+  //checker_manager.get_checker().generate_test(std::move(state));
+
+  solver s0(ctx);
+  checker.reset_solver(&s0);
+  checker.generate_test(std::move(state));
+
   auto end = steady_clock::now();
   gen_test_time += duration_cast<microseconds>(end - start).count();
   int_solver_time += duration_cast<microseconds>(end - start).count();
@@ -464,7 +495,12 @@ inline void check_pc_to_file(SS& state) {
 
 inline std::pair<bool, UIntData> get_sat_value(PC pc, PtrVal v) {
   auto start = steady_clock::now();
-  auto result = checker_manager.get_checker().get_sat_value(std::move(pc), v);
+  //auto result = checker_manager.get_checker().get_sat_value(std::move(pc), v);
+
+  solver s0(ctx);
+  checker.reset_solver(&s0);
+  auto result = checker.get_sat_value(std::move(pc), v);
+
   auto end = steady_clock::now();
   conc_solver_time += duration_cast<microseconds>(end - start).count();
   int_solver_time += duration_cast<microseconds>(end - start).count();
