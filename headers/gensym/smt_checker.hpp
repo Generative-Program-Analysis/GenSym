@@ -150,7 +150,7 @@ private:
       ABORT("Cannot create the test case file, abort.\n");
     }
     for (auto& v : pc.vars) {
-      output << v->to_SymV()->name << "=" 
+      output << v->to_SymV()->name << "="
              << self()->eval_model(model, v) << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
@@ -250,8 +250,22 @@ public:
     auto res = check_model(indep_pc);
     update_model_cache(res, indep_pc);
     pop();
-    
+
     return res;
+  }
+
+  void add_constraints(BrCacheKey& pc) {
+    if (pc.size() == 0) return;
+    if (pc.size() == 1) {
+      self()->add_constraint_internal(to_expr(*pc.begin()));
+      return;
+    }
+
+    PtrVal c = *pc.begin();
+    for (auto it = std::next(pc.begin()); it != pc.end(); it++) {
+      c = int_op_2(iOP::op_and, c, *it);
+    }
+    self()->add_constraint_internal(to_expr(c));
   }
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
@@ -293,7 +307,8 @@ public:
         update_sat_cache(result.second, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        add_constraints(common);
         result.second = check_model(common);
         update_model_cache(result.second, common);
         pop();
@@ -310,7 +325,8 @@ public:
         update_sat_cache(result.first, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        add_constraints(common);
         result.first = check_model(common);
         update_model_cache(result.first, common);
         pop();
@@ -320,7 +336,8 @@ public:
     } else {
       // neither hits cache
       push();
-      for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+      //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+      add_constraints(common);
 
       push();
       self()->add_constraint_internal(to_expr(cond));

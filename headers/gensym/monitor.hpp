@@ -135,6 +135,7 @@ struct Monitor {
                   << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
                   << "Branch solver: " << (br_solver_time / 1.0e6) << "s; "
                   << "Conc. solver: " << (conc_solver_time / 1.0e6) << "s; "
+                  << "add cons. time: " << (add_cons_time / 1.0e6) << "s; "
                   << "#Conc. query: " << conc_query_num << "\n";
 
         std::cout << "else-br: " << (else_miss_time / 1.0e6) << "s; "
