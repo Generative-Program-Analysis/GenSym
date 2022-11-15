@@ -141,6 +141,8 @@ struct Monitor {
         std::cout << "else-br: " << (else_miss_time / 1.0e6) << "s; "
                   << "then-br: " << (then_miss_time / 1.0e6) << "s; "
                   << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
+
+        std::cout << "complete path: " << completed_path_num << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"
