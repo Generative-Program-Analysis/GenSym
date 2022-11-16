@@ -307,8 +307,8 @@ public:
         update_sat_cache(result.second, common);
       } else {
         push();
-        //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
-        add_constraints(common);
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        //add_constraints(common);
         result.second = check_model(common);
         update_model_cache(result.second, common);
         pop();
@@ -325,8 +325,8 @@ public:
         update_sat_cache(result.first, common);
       } else {
         push();
-        //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
-        add_constraints(common);
+        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        //add_constraints(common);
         result.first = check_model(common);
         update_model_cache(result.first, common);
         pop();
@@ -336,8 +336,8 @@ public:
     } else {
       // neither hits cache
       push();
-      //for (auto& v: common) self()->add_constraint_internal(to_expr(v));
-      add_constraints(common);
+      for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+      //add_constraints(common);
 
       push();
       self()->add_constraint_internal(to_expr(cond));
