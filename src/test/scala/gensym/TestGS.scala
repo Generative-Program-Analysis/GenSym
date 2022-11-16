@@ -120,6 +120,11 @@ class TestImpCPSGS extends TestGS {
   testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 }
 
+class TestPtr extends TestGS {
+  val ptrTest = parseFile("benchmarks/demo-benchmarks/uninitialized_ptr.ll")
+  testGS(new ImpCPSGS, TestPrg(ptrTest, "ptrTest", "@main", noArg, noOpt, nPath(2)))
+}
+
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
   val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
