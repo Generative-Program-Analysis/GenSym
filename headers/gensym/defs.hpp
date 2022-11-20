@@ -73,11 +73,11 @@ inline unsigned int timeout = 3600;
 inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
-// Print detailed timing
+// Print detailed log
 // 0 - disabled
 // 1 - print every second
 // 2 - print at the end of execution
-inline uint32_t print_detailed_time = 0;
+inline uint32_t print_detailed_log = 0;
 // The maximum size of symbolic location (used in memory read)
 inline unsigned int max_sym_array_size = 0;
 // Use simplification when constructing SymV values
@@ -113,6 +113,8 @@ inline std::atomic<long int> both_miss_time = 0;
 inline std::atomic<long int> conc_solver_time = 0;
 // Time spent in generating test cases
 inline std::atomic<long int> gen_test_time = 0;
+// Time spent in add_constraint to the solver
+inline std::atomic<long int> add_cons_time = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index

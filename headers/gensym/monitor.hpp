@@ -129,17 +129,20 @@ struct Monitor {
     }
     void print_time(bool done) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
-      if (print_detailed_time == 1 || (done && print_detailed_time == 2)) {
+      if (print_detailed_log == 1 || (done && print_detailed_log == 2)) {
         std::cout << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
                   << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
                   << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
                   << "Branch solver: " << (br_solver_time / 1.0e6) << "s; "
                   << "Conc. solver: " << (conc_solver_time / 1.0e6) << "s; "
+                  << "Add cons. time: " << (add_cons_time / 1.0e6) << "s; "
                   << "#Conc. query: " << conc_query_num << "\n";
 
         std::cout << "else-br: " << (else_miss_time / 1.0e6) << "s; "
                   << "then-br: " << (then_miss_time / 1.0e6) << "s; "
                   << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
+
+        std::cout << "Complete path: " << completed_path_num << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"
