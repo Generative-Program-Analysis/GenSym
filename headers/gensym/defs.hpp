@@ -1,6 +1,8 @@
 #ifndef GS_DEFS_HEADER
 #define GS_DEFS_HEADER
 
+using atomic_ulong = std::atomic<unsigned long int>;
+
 inline std::mutex dt_lock;
 inline duration<double, std::micro> debug_time = microseconds::zero();
 
@@ -26,18 +28,23 @@ inline std::atomic<uint32_t> g_sym_id = 0;
 /* Stat */
 
 // Number of async currently used (Deprecated)
-inline std::atomic<unsigned int> num_async = 0;
+inline atomic_ulong num_async = 0;
 // Number of totoal async (Deprecated)
-inline std::atomic<unsigned int> tt_num_async = 0;
-inline std::atomic<unsigned int> completed_path_num = 0;
+inline atomic_ulong tt_num_async = 0;
+// Number of completed paths
+inline atomic_ulong completed_path_num = 0;
 // Number of queries performed for generating test cases
-inline std::atomic<unsigned int> generated_test_num = 0;
+inline atomic_ulong generated_test_num = 0;
 // Number of queries performed for checking branch satisfiability
-inline std::atomic<unsigned int> br_query_num = 0;
+inline atomic_ulong br_query_num = 0;
 // Number of query cache hits
-inline std::atomic<unsigned int> cached_query_num = 0;
+inline atomic_ulong cached_query_num = 0;
 // Number of concretization queries
-inline std::atomic<unsigned int> conc_query_num = 0;
+inline atomic_ulong conc_query_num = 0;
+// Number of top-level symbolic constraints
+inline atomic_ulong num_query_exprs = 0;
+// Number of terms of all contraints
+inline atomic_ulong num_total_size_query_exprs = 0;
 
 /* Global options */
 
@@ -94,8 +101,6 @@ enum class SolverKind { z3, stp };
 // The backend SMT solver to be used
 inline SolverKind solver_kind = SolverKind::stp;
 
-using atomic_ulong = std::atomic<unsigned long int>;
-
 // External solver time (e.g. Z3, STP)
 inline atomic_ulong ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
@@ -120,9 +125,6 @@ inline atomic_ulong conc_solver_time = 0;
 inline atomic_ulong gen_test_time = 0;
 // Time spent in add_constraint to the solver
 inline atomic_ulong add_cons_time = 0;
-
-inline atomic_ulong num_query_exprs = 0;
-inline atomic_ulong num_total_size_query_exprs = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
@@ -212,6 +214,5 @@ inline std::string float_op2string(fOP op) {
   }
   return "unknown op";
 }
-
 
 #endif
