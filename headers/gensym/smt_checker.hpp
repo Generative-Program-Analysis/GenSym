@@ -119,6 +119,8 @@ private:
   }
 
   solver_result check_model(BrCacheKey& conds) {
+    num_check_model++;
+    num_check_model_pc_size += conds.size();
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
     update_sat_cache(result, conds);
@@ -265,7 +267,7 @@ public:
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
     if (!use_solver) return std::make_pair(sat, sat);
-    br_query_num++;
+    br_query_num += 2;
 
     auto start = steady_clock::now();
     auto neg_cond = SymV::neg(cond);

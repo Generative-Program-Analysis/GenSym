@@ -45,6 +45,10 @@ inline atomic_ulong conc_query_num = 0;
 inline atomic_ulong num_query_exprs = 0;
 // Number of terms of all contraints
 inline atomic_ulong num_total_size_query_exprs = 0;
+// Number of `check_model` calls
+inline atomic_ulong num_check_model = 0;
+// Total sizes of check_model constraint sets
+inline atomic_ulong num_check_model_pc_size = 0;
 
 /* Global options */
 
