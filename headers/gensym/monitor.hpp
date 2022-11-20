@@ -133,9 +133,9 @@ struct Monitor {
         std::cout << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
                   << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
                   << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
-                  << "Conc. solver: " << (conc_solver_time / 1.0e6) << "s; "
-                  << "Add cons. time: " << (add_cons_time / 1.0e6) << "s; "
-                  << "#Conc. query: " << conc_query_num << "\n";
+                  << "Add constraints time: " << (add_cons_time / 1.0e6) << "s; "
+                  << "Concretize solver: " << (conc_solver_time / 1.0e6) << "s; "
+                  << "#Concretize query: " << conc_query_num << "\n";
 
         std::cout << "Branch solver: " << (br_solver_time / 1.0e6) << "s; "
                   << "else-br: " << (else_miss_time / 1.0e6) << "s; "
@@ -144,7 +144,7 @@ struct Monitor {
 
         std::cout << "Completed path: " << completed_path_num << "; "
                   << "Avg pc size: " << (num_check_model_pc_size/(1.0*num_check_model)) << "; "
-                  << "Total #query sym exprs: " << num_query_exprs << "; "
+                  << "#query sym constraints: " << num_query_exprs << "; "
                   << "Avg #query expr size: " << (num_total_size_query_exprs/(1.0*num_query_exprs)) << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
