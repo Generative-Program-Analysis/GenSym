@@ -156,11 +156,7 @@ public:
   }
 
   void add_constraint_internal(ExprHandle e) {
-    auto start = steady_clock::now();
     vc_assertFormula(vc, e.get());
-    auto end = steady_clock::now();
-    add_cons_time += duration_cast<microseconds>(end - start).count();
-    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
   solver_result check_model_internal() {

@@ -142,7 +142,9 @@ struct Monitor {
                   << "then-br: " << (then_miss_time / 1.0e6) << "s; "
                   << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
 
-        std::cout << "Complete path: " << completed_path_num << "\n";
+        std::cout << "Complete path: " << completed_path_num << "; "
+                  << "Total #query sym exprs: " << num_query_exprs << "; "
+                  << "Avg #query expr size: " << (num_total_size_query_exprs/(1.0*num_query_exprs)) << "\n";
       }
       std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
                 << (int_solver_time / 1.0e6) << "s/"

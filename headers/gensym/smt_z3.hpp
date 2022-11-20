@@ -20,11 +20,7 @@ public:
     delete g_solver;
   }
   void add_constraint_internal(expr e) {
-    auto start = steady_clock::now();
     g_solver->add(e);
-    auto end = steady_clock::now();
-    add_cons_time += duration_cast<microseconds>(end - start).count();
-    ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
   solver_result check_model_internal() {
     auto result = g_solver->check();

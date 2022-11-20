@@ -20,6 +20,9 @@ inline unsigned int default_bw = 32;
 inline unsigned int addr_bw = 64;
 inline unsigned int addr_index_bw = addr_bw;
 
+// Used to assign a unique ID for each SymV value
+inline std::atomic<uint32_t> g_sym_id = 0;
+
 /* Stat */
 
 // Number of async currently used (Deprecated)
@@ -91,30 +94,35 @@ enum class SolverKind { z3, stp };
 // The backend SMT solver to be used
 inline SolverKind solver_kind = SolverKind::stp;
 
+using atomic_ulong = std::atomic<unsigned long int>;
+
 // External solver time (e.g. Z3, STP)
-inline std::atomic<long int> ext_solver_time = 0;
+inline atomic_ulong ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
-inline std::atomic<long int> int_solver_time = 0;
+inline atomic_ulong int_solver_time = 0;
 // FS time: time taken to perform FS operations
-inline std::atomic<long int> fs_time = 0;
+inline atomic_ulong fs_time = 0;
 // Time spent in solver expression construction
-inline std::atomic<long int> cons_expr_time = 0;
+inline atomic_ulong cons_expr_time = 0;
 // Time spent in resolving constraint independence
-inline std::atomic<long int> cons_indep_time = 0;
+inline atomic_ulong cons_indep_time = 0;
 // Time spent in branch query
-inline std::atomic<long int> br_solver_time = 0;
+inline atomic_ulong br_solver_time = 0;
 // Time spent in if only "then" branch hits cache
-inline std::atomic<long int> else_miss_time = 0;
+inline atomic_ulong else_miss_time = 0;
 // Time spent in if only "else" branch hits cache
-inline std::atomic<long int> then_miss_time = 0;
+inline atomic_ulong then_miss_time = 0;
 // Time spent in if both branch miss cache
-inline std::atomic<long int> both_miss_time = 0;
+inline atomic_ulong both_miss_time = 0;
 // Time spent in concretization
-inline std::atomic<long int> conc_solver_time = 0;
+inline atomic_ulong conc_solver_time = 0;
 // Time spent in generating test cases
-inline std::atomic<long int> gen_test_time = 0;
+inline atomic_ulong gen_test_time = 0;
 // Time spent in add_constraint to the solver
-inline std::atomic<long int> add_cons_time = 0;
+inline atomic_ulong add_cons_time = 0;
+
+inline atomic_ulong num_query_exprs = 0;
+inline atomic_ulong num_total_size_query_exprs = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
