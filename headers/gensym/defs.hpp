@@ -105,6 +105,8 @@ inline std::string test_dir_str;
 inline std::string output_log_str;
 // Output log file stream
 inline std::ofstream gs_log;
+// Disable output log in stdout
+inline bool stdout_log = true;
 
 enum class SearcherKind { randomPath, randomWeight };
 // The path searcher to be used

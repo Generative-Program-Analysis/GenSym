@@ -43,9 +43,10 @@ static struct option long_options[] =
   // Logging
   {"print-inst-count",           no_argument,       0, 8},
   {"print-cov",                  no_argument,       0, 9},
-  {"print-detailed-log",        required_argument, 0, 25},
+  {"print-detailed-log",         required_argument, 0, 25},
   {"output-dir",                 required_argument, 0, 23},
-  // Next 28
+  {"no-stdout-log",              no_argument,       0, 28},
+  // Next 29
   {0,                            0,                 0, 0 }
 };
 
@@ -226,6 +227,9 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 27:
         use_brcache = false;
+        break;
+      case 28:
+        stdout_log = false;
         break;
       case '?':
       default:

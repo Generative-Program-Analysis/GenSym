@@ -152,7 +152,7 @@ struct Monitor {
           << (fs_time / 1.0e6) << "s/"
           << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
-    void print_all(bool done = false, std::ostream& out = gs_log) {
+    void print_all(bool done, std::ostream& out) {
       print_time(done, out);
       if (print_inst_cnt) print_inst_stat(out);
       print_block_cov(out);
@@ -165,6 +165,12 @@ struct Monitor {
         print_branch_cov_detail(out);
       }
     }
+    void print_all(bool done = false) {
+      std::ostringstream buf;
+      print_all(done, buf);
+      if (stdout_log) std::cout << buf.str();
+      gs_log << buf.str();
+    }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();
       watcher = std::thread([this](std::future<void> fut) {
@@ -175,7 +181,6 @@ struct Monitor {
             gs_log << "Timeout, aborting.\n";
             stop = now;
             print_all(true);
-            print_all(true, std::cout);
             _exit(0);
             // Note: Directly exit may cause other threads in a random state.
             // When using the thread pool, we could use the following to wait
@@ -183,7 +188,6 @@ struct Monitor {
             // tp.stop_all_tasks(); break;
           }
           print_all();
-          print_all(false, std::cout);
           std::this_thread::sleep_for(seconds(1));
         }
       }, std::move(future));

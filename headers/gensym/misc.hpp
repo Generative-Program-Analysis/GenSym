@@ -34,7 +34,6 @@ inline void epilogue() {
   }
   cov().stop_monitor();
   cov().print_all(true);
-  cov().print_all(true, std::cout);
   gs_log.close();
 }
 
