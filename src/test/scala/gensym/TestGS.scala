@@ -95,7 +95,6 @@ class TestPureGS extends TestGS {
 
 class TestPureCPSGS extends TestGS {
   val gs = new PureCPSGS
-  //testGS(gs, TestCases.all ++ filesys ++ varArg)
 
   // Note: the following test cases need to use `--thread=n` to enable random path selection strategy.
   //       They also relies on block-level path switching to increase randomness, which currently has only
@@ -152,8 +151,10 @@ class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
   val gs = new ImpCPSGS
+  //testGS(gs, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
+  //testGS(gs, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
 
-  testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
+  //testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
   //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
   //testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
 

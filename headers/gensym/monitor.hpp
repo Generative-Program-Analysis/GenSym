@@ -65,18 +65,17 @@ struct Monitor {
       return ++num_states;
     }
     void print_inst_stat(std::ostream& out) {
-      out << "#insts: " << num_insts << "; " << std::flush;
+      out << "#insts: " << num_insts << "; ";
     }
     void print_path_cov(std::ostream& out) {
-      out << "#paths: " << num_paths << "; " << std::flush;
+      out << "#paths: " << num_paths << "; ";
     }
     void print_block_cov(std::ostream& out) {
       size_t covered = 0;
       for (auto& v : block_cov) { if (v != 0) covered++; }
       out << "#blocks: "
           << covered << "/"
-          << num_blocks << "; "
-          << std::flush;
+          << num_blocks << "; ";
     }
     void print_block_cov_detail(std::ostream& out) {
       size_t covered = 0;
@@ -85,8 +84,7 @@ struct Monitor {
       for (int i = 0; i < block_cov.size(); i++) {
         if (block_cov[i] == 0) continue;
         out << "  Block " << i << ", "
-            << "visited " << block_cov[i] << "\n"
-            << std::flush;
+            << "visited " << block_cov[i] << "\n";
       }
     }
     void print_branch_cov(std::ostream& out) {
@@ -108,8 +106,7 @@ struct Monitor {
       out << "#br: "
 	        << (partial_branch - full_branch) << "/"
 	        << full_branch << "/"
-	        << branch_cov.size() << "; "
-	        << std::flush;
+	        << branch_cov.size() << "; ";
     }
     void print_branch_cov_detail(std::ostream& out) {
       out << "Branch coverage: \n";
@@ -119,13 +116,12 @@ struct Monitor {
           out << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
         }
       }
-      out << std::flush;
     }
     void print_thread_pool(std::ostream& out) {
-      out << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
+      out << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; ";
     }
     void print_query_stat(std::ostream& out) {
-      out << "#queries: " << br_query_num << "/" << generated_test_num << " (" << cached_query_num << ")\n" << std::flush;
+      out << "#queries: " << br_query_num << "/" << generated_test_num << " (" << cached_query_num << ")\n";
     }
     void print_time(bool done, std::ostream& out) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
@@ -168,8 +164,8 @@ struct Monitor {
     void print_all(bool done = false) {
       std::ostringstream buf;
       print_all(done, buf);
-      if (stdout_log) std::cout << buf.str();
-      gs_log << buf.str();
+      if (stdout_log) std::cout << buf.str() << std::flush;
+      gs_log << buf.str() << std::flush;
     }
     void start_monitor() {
       std::future<void> future = signal_exit.get_future();
