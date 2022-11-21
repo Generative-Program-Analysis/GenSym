@@ -1,6 +1,8 @@
 #ifndef GS_DEFS_HEADER
 #define GS_DEFS_HEADER
 
+using atomic_ulong = std::atomic<unsigned long int>;
+
 inline std::mutex dt_lock;
 inline duration<double, std::micro> debug_time = microseconds::zero();
 
@@ -20,21 +22,33 @@ inline unsigned int default_bw = 32;
 inline unsigned int addr_bw = 64;
 inline unsigned int addr_index_bw = addr_bw;
 
+// Used to assign a unique ID for each SymV value
+inline std::atomic<uint32_t> g_sym_id = 0;
+
 /* Stat */
 
 // Number of async currently used (Deprecated)
-inline std::atomic<unsigned int> num_async = 0;
+inline atomic_ulong num_async = 0;
 // Number of totoal async (Deprecated)
-inline std::atomic<unsigned int> tt_num_async = 0;
-inline std::atomic<unsigned int> completed_path_num = 0;
+inline atomic_ulong tt_num_async = 0;
+// Number of completed paths
+inline atomic_ulong completed_path_num = 0;
 // Number of queries performed for generating test cases
-inline std::atomic<unsigned int> generated_test_num = 0;
+inline atomic_ulong generated_test_num = 0;
 // Number of queries performed for checking branch satisfiability
-inline std::atomic<unsigned int> br_query_num = 0;
+inline atomic_ulong br_query_num = 0;
 // Number of query cache hits
-inline std::atomic<unsigned int> cached_query_num = 0;
+inline atomic_ulong cached_query_num = 0;
 // Number of concretization queries
-inline std::atomic<unsigned int> conc_query_num = 0;
+inline atomic_ulong conc_query_num = 0;
+// Number of top-level symbolic constraints
+inline atomic_ulong num_query_exprs = 0;
+// Number of terms of all contraints
+inline atomic_ulong num_total_size_query_exprs = 0;
+// Number of `check_model` calls
+inline atomic_ulong num_check_model = 0;
+// Total sizes of check_model constraint sets
+inline atomic_ulong num_check_model_pc_size = 0;
 
 /* Global options */
 
@@ -73,11 +87,11 @@ inline unsigned int timeout = 3600;
 inline bool print_inst_cnt = false;
 // Print block/branch coverage detail at the end of execution
 inline bool print_cov_detail = false;
-// Print detailed timing
+// Print detailed log
 // 0 - disabled
 // 1 - print every second
 // 2 - print at the end of execution
-inline uint32_t print_detailed_time = 0;
+inline uint32_t print_detailed_log = 0;
 // The maximum size of symbolic location (used in memory read)
 inline unsigned int max_sym_array_size = 0;
 // Use simplification when constructing SymV values
@@ -101,27 +115,29 @@ enum class SolverKind { z3, stp };
 inline SolverKind solver_kind = SolverKind::stp;
 
 // External solver time (e.g. Z3, STP)
-inline std::atomic<long int> ext_solver_time = 0;
+inline atomic_ulong ext_solver_time = 0;
 // Internal solver time (the whole process of constraint translation/caching/solving)
-inline std::atomic<long int> int_solver_time = 0;
+inline atomic_ulong int_solver_time = 0;
 // FS time: time taken to perform FS operations
-inline std::atomic<long int> fs_time = 0;
+inline atomic_ulong fs_time = 0;
 // Time spent in solver expression construction
-inline std::atomic<long int> cons_expr_time = 0;
+inline atomic_ulong cons_expr_time = 0;
 // Time spent in resolving constraint independence
-inline std::atomic<long int> cons_indep_time = 0;
+inline atomic_ulong cons_indep_time = 0;
 // Time spent in branch query
-inline std::atomic<long int> br_solver_time = 0;
+inline atomic_ulong br_solver_time = 0;
 // Time spent in if only "then" branch hits cache
-inline std::atomic<long int> else_miss_time = 0;
+inline atomic_ulong else_miss_time = 0;
 // Time spent in if only "else" branch hits cache
-inline std::atomic<long int> then_miss_time = 0;
+inline atomic_ulong then_miss_time = 0;
 // Time spent in if both branch miss cache
-inline std::atomic<long int> both_miss_time = 0;
+inline atomic_ulong both_miss_time = 0;
 // Time spent in concretization
-inline std::atomic<long int> conc_solver_time = 0;
+inline atomic_ulong conc_solver_time = 0;
 // Time spent in generating test cases
-inline std::atomic<long int> gen_test_time = 0;
+inline atomic_ulong gen_test_time = 0;
+// Time spent in add_constraint to the solver
+inline atomic_ulong add_cons_time = 0;
 
 // Different strategies to handle symbolic pointer index read/write
 // one:       only search one feasible concrete index
@@ -211,6 +227,5 @@ inline std::string float_op2string(fOP op) {
   }
   return "unknown op";
 }
-
 
 #endif

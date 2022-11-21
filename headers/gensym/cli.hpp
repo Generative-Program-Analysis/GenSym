@@ -43,7 +43,7 @@ static struct option long_options[] =
   // Logging
   {"print-inst-count",           no_argument,       0, 8},
   {"print-cov",                  no_argument,       0, 9},
-  {"print-detailed-time",        required_argument, 0, 25},
+  {"print-detailed-log",        required_argument, 0, 25},
   {"output-dir",                 required_argument, 0, 23},
   // Next 28
   {0,                            0,                 0, 0 }
@@ -219,7 +219,7 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       }
       case 25:
-        print_detailed_time = atoi(optarg);
+        print_detailed_log = atoi(optarg);
         break;
       case 26:
         use_symv_simplify = true;

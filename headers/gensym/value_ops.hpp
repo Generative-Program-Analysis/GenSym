@@ -445,30 +445,35 @@ struct FunV : LocV {
   }
 };
 
-inline std::atomic<uint32_t> g_sym_id = 0;
-
 struct SymV : Value {
   String name;
   size_t bw;
   iOP rator;
   uint32_t id;
+  uint32_t term_size;
   immer::array<PtrVal> rands;
   immer::set_transient<PtrVal> vars;
 
-  SymV(String name, size_t bw) : name(name), bw(bw), id(g_sym_id++) {
+  SymV(String name, size_t bw) : name(name), bw(bw), id(g_sym_id++), term_size(1) {
     hash_combine(hash(), std::string("symv1"));
     hash_combine(hash(), name);
     hash_combine(hash(), bw);
-    vars.insert(std::dynamic_pointer_cast<SymV>(shared_from_this()));
+    vars.insert(shared_from_this()->to_SymV());
   }
   SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) : rator(rator), rands(rands), bw(bw), id(g_sym_id++) {
     hash_combine(hash(), std::string("symv2"));
     hash_combine(hash(), rator);
     hash_combine(hash(), bw);
+    term_size = 1;
     for (auto& r: rands) {
       hash_combine(hash(), std::hash<PtrVal>{}(r));
-      auto sym_rand = std::dynamic_pointer_cast<SymV>(r);
-      if (sym_rand) for (auto& v : sym_rand->vars) vars.insert(v);
+      auto sym_rand = r->to_SymV();
+      if (sym_rand) {
+        term_size += sym_rand->term_size;
+        for (auto& v : sym_rand->vars) vars.insert(v);
+      } else {
+        term_size += 1;
+      }
     }
   }
   std::ostream& pprint(std::ostream& os, int level) const {
@@ -547,7 +552,7 @@ struct SymV : Value {
         auto bw1 = arg0->rands[0]->get_bw();
         // zext(sym(x,bw1), bw2) != IntV(n, bw2)) if 0 <= n < 2^bw1 =>
         // sym(x, bw1) != IntV(n, bw1)
-        if (arg1 && arg0->bw == arg1->bw && 
+        if (arg1 && arg0->bw == arg1->bw &&
             0 <= arg1->i && arg1->i < (1 << bw1)) {
           return make_simple<SymV>(iOP::op_neq, immer::array({arg0->rands[0], make_IntV(arg1->i, bw1)}), bw);
         }
@@ -556,7 +561,7 @@ struct SymV : Value {
         auto bw1 = arg0->rands[0]->get_bw();
         // sext(sym(x,bw1), bw2) != IntV(n, bw2)) if -2^{bw1-1} <= n < 2^{bw1-1} =>
         // sym(x, bw1) != IntV(n, bw1)
-        if (arg1 && arg0->bw == arg1->bw && 
+        if (arg1 && arg0->bw == arg1->bw &&
             -(1 << (bw1-1)) <= arg1->i && arg1->i < (1 << (bw1-1))) {
           return make_simple<SymV>(iOP::op_neq, immer::array({arg0->rands[0], make_IntV(arg1->i, bw1)}), bw);
         }
@@ -586,7 +591,7 @@ inline PtrVal make_SymV(iOP rator, immer::array<PtrVal> rands, size_t bw) {
   return hashconsing(ret);
 }
 
-// return a list of PtrVal with the specified variable prefix
+// return a list of `n` SymV with the specified variable name prefix
 inline List<PtrVal> make_SymList(String prefix, int n) {
   TrList<PtrVal> res;
   for (int i = 0; i < n; i++) {
@@ -827,7 +832,7 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
     switch (op) {
       case iOP::op_eq: case iOP::op_neq: case iOP::op_uge:
       case iOP::op_sge: case iOP::op_ugt: case iOP::op_sgt:
-      case iOP::op_ule: case iOP::op_sle: case iOP::op_ult: 
+      case iOP::op_ule: case iOP::op_sle: case iOP::op_ult:
       case iOP::op_slt:
         bw = 1;
         break;
