@@ -37,7 +37,17 @@
 
 template<typename T> using Ptr = std::shared_ptr<T>;
 
+/* Date & Time */
+
 using namespace std::chrono;
+
+inline std::string get_current_datetime() {
+  auto t = std::time(nullptr);
+  auto tm = *std::localtime(&t);
+  std::ostringstream oss;
+  oss << std::put_time(&tm, "%d%m%Y-%H%M%S");
+  return oss.str();
+}
 
 /* Exit code */
 

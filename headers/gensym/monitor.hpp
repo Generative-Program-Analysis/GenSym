@@ -64,32 +64,32 @@ struct Monitor {
     uint64_t new_ssid() {
       return ++num_states;
     }
-    void print_inst_stat() {
-      std::cout << "#insts: " << num_insts << "; " << std::flush;
+    void print_inst_stat(std::ostream& out) {
+      out << "#insts: " << num_insts << "; " << std::flush;
     }
-    void print_path_cov() {
-      std::cout << "#paths: " << num_paths << "; " << std::flush;
+    void print_path_cov(std::ostream& out) {
+      out << "#paths: " << num_paths << "; " << std::flush;
     }
-    void print_block_cov() {
+    void print_block_cov(std::ostream& out) {
       size_t covered = 0;
       for (auto& v : block_cov) { if (v != 0) covered++; }
-      std::cout << "#blocks: "
-                << covered << "/"
-                << num_blocks << "; "
-                << std::flush;
+      out << "#blocks: "
+          << covered << "/"
+          << num_blocks << "; "
+          << std::flush;
     }
-    void print_block_cov_detail() {
+    void print_block_cov_detail(std::ostream& out) {
       size_t covered = 0;
       for (auto& v : block_cov) { if (v != 0) covered++; }
-      std::cout << "Block coverage: " << covered << "/" << num_blocks << "\n";
+      out << "Block coverage: " << covered << "/" << num_blocks << "\n";
       for (int i = 0; i < block_cov.size(); i++) {
         if (block_cov[i] == 0) continue;
-        std::cout << "  Block " << i << ", "
-                  << "visited " << block_cov[i] << "\n"
-                  << std::flush;
+        out << "  Block " << i << ", "
+            << "visited " << block_cov[i] << "\n"
+            << std::flush;
       }
     }
-    void print_branch_cov() {
+    void print_branch_cov(std::ostream& out) {
       // number of branches that at least one outcome is covered
       size_t partial_branch = 0;
       // number of branches that all possible outcomes are covered
@@ -105,58 +105,58 @@ struct Monitor {
         if (full_cov) full_branch++;
       }
       // We output the number of partial branches excluding fully covered branches
-      std::cout << "#br: "
+      out << "#br: "
 	        << (partial_branch - full_branch) << "/"
 	        << full_branch << "/"
 	        << branch_cov.size() << "; "
 	        << std::flush;
     }
-    void print_branch_cov_detail() {
-      std::cout << "Branch coverage: \n";
+    void print_branch_cov_detail(std::ostream& out) {
+      out << "Branch coverage: \n";
       for (const auto& [blk_id, br_map] : branch_cov) {
-        std::cout << "Block " << blk_id << "\n";
+        out << "Block " << blk_id << "\n";
         for (const auto& [br_id, br_exe_num] : br_map) {
-          std::cout << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
+          out << "  branch [" << br_id << "] visited " << br_exe_num << "\n";
         }
       }
-      std:: cout << std::flush;
+      out << std::flush;
     }
-    void print_thread_pool() {
-      std::cout << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
+    void print_thread_pool(std::ostream& out) {
+      out << "#threads: " << n_thread << "; #task-in-q: " << tp.tasks_num_queued() << "; " << std::flush;
     }
-    void print_query_stat() {
-      std::cout << "#queries: " << br_query_num << "/" << generated_test_num << " (" << cached_query_num << ")\n" << std::flush;
+    void print_query_stat(std::ostream& out) {
+      out << "#queries: " << br_query_num << "/" << generated_test_num << " (" << cached_query_num << ")\n" << std::flush;
     }
-    void print_time(bool done) {
+    void print_time(bool done, std::ostream& out) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
       if (print_detailed_time == 1 || (done && print_detailed_time == 2)) {
-        std::cout << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
-                  << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
-                  << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
-                  << "Branch solver: " << (br_solver_time / 1.0e6) << "s; "
-                  << "Conc. solver: " << (conc_solver_time / 1.0e6) << "s; "
-                  << "#Conc. query: " << conc_query_num << "\n";
+        out << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
+            << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
+            << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
+            << "Branch solver: " << (br_solver_time / 1.0e6) << "s; "
+            << "Conc. solver: " << (conc_solver_time / 1.0e6) << "s; "
+            << "#Conc. query: " << conc_query_num << "\n";
 
-        std::cout << "else-br: " << (else_miss_time / 1.0e6) << "s; "
-                  << "then-br: " << (then_miss_time / 1.0e6) << "s; "
-                  << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
+        out << "else-br: " << (else_miss_time / 1.0e6) << "s; "
+            << "then-br: " << (then_miss_time / 1.0e6) << "s; "
+            << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
       }
-      std::cout << "[" << (ext_solver_time / 1.0e6) << "s/"
-                << (int_solver_time / 1.0e6) << "s/"
-                << (fs_time / 1.0e6) << "s/"
-                << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
+      out << "[" << (ext_solver_time / 1.0e6) << "s/"
+          << (int_solver_time / 1.0e6) << "s/"
+          << (fs_time / 1.0e6) << "s/"
+          << (duration_cast<microseconds>(now - start).count() / 1.0e6) << "s] ";
     }
-    void print_all(bool done = false) {
-      print_time(done);
-      if (print_inst_cnt) print_inst_stat();
-      print_block_cov();
-      print_branch_cov();
-      print_path_cov();
-      print_thread_pool();
-      print_query_stat();
+    void print_all(bool done = false, std::ostream& out = gs_log) {
+      print_time(done, out);
+      if (print_inst_cnt) print_inst_stat(out);
+      print_block_cov(out);
+      print_branch_cov(out);
+      print_path_cov(out);
+      print_thread_pool(out);
+      print_query_stat(out);
       if (done && print_cov_detail) {
-        print_block_cov_detail();
-        print_branch_cov_detail();
+        print_block_cov_detail(out);
+        print_branch_cov_detail(out);
       }
     }
     void start_monitor() {
@@ -166,8 +166,10 @@ struct Monitor {
           steady_clock::time_point now = steady_clock::now();
           if (duration_cast<seconds>(now - start) > seconds(timeout)) {
             std::cout << "Timeout, aborting.\n";
+            gs_log << "Timeout, aborting.\n";
             stop = now;
             print_all(true);
+            print_all(true, std::cout);
             _exit(0);
             // Note: Directly exit may cause other threads in a random state.
             // When using the thread pool, we could use the following to wait
@@ -175,6 +177,7 @@ struct Monitor {
             // tp.stop_all_tasks(); break;
           }
           print_all();
+          print_all(false, std::cout);
           std::this_thread::sleep_for(seconds(1));
         }
       }, std::move(future));
