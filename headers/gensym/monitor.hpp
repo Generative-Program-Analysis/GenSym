@@ -129,7 +129,7 @@ struct Monitor {
     }
     void print_time(bool done, std::ostream& out) {
       steady_clock::time_point now = done ? stop : steady_clock::now();
-      if (print_detailed_time == 1 || (done && print_detailed_time == 2)) {
+      if (print_detailed_log == 1 || (done && print_detailed_log == 2)) {
         out << "Expr construction: " << (cons_expr_time / 1.0e6) << "s; "
             << "Gen test: " << (gen_test_time / 1.0e6) << "s; "
             << "Cons indep: " << (cons_indep_time / 1.0e6) << "s; "
@@ -141,7 +141,7 @@ struct Monitor {
             << "else-br: " << (else_miss_time / 1.0e6) << "s; "
             << "then-br: " << (then_miss_time / 1.0e6) << "s; "
             << "both-br: " << (both_miss_time / 1.0e6) << "s\n";
-           
+
         out << "Completed path: " << completed_path_num << "; "
             << "Avg pc size: " << (num_check_model_pc_size/(1.0*num_check_model)) << "; "
             << "#query sym constraints: " << num_query_exprs << "; "
