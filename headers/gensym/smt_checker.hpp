@@ -59,7 +59,9 @@ protected:
     return self()->construct_expr_internal(e);
   }
 
-  inline const Expr to_expr(PtrVal e) {
+  inline const Expr to_expr(const PtrVal& e) {
+    num_query_exprs++;
+    num_total_size_query_exprs += e->to_SymV()->term_size;
     auto start = steady_clock::now();
     auto expr = construct_expr(e);
     auto end = steady_clock::now();
@@ -99,6 +101,14 @@ private:
     ext_solver_time += duration_cast<microseconds>(end - start).count();
   }
 
+  void add_constraint(const PtrVal& e) {
+    auto start = steady_clock::now();
+    self()->add_constraint_internal(to_expr(e));
+    auto end = steady_clock::now();
+    add_cons_time += duration_cast<microseconds>(end - start).count();
+    ext_solver_time += duration_cast<microseconds>(end - start).count();
+  }
+
   const solver_result* query_sat_cache(BrCacheKey& conds) {
     if (use_brcache) return br_cache.find(conds);
     return nullptr;
@@ -109,6 +119,8 @@ private:
   }
 
   solver_result check_model(BrCacheKey& conds) {
+    num_check_model++;
+    num_check_model_pc_size += conds.size();
     auto start = steady_clock::now();
     solver_result result = self()->check_model_internal();
     update_sat_cache(result, conds);
@@ -150,8 +162,7 @@ private:
       ABORT("Cannot create the test case file, abort.\n");
     }
     for (auto& v : pc.vars) {
-      output << v->to_SymV()->name << "=" 
-             << self()->eval_model(model, v) << std::endl;
+      output << v->to_SymV()->name << "=" << self()->eval_model(model, v) << std::endl;
     }
     int n = write(out_fd, output.str().c_str(), output.str().size());
     close(out_fd);
@@ -219,14 +230,14 @@ public:
         m = *it;
       } else {
         push();
-        for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+        for (auto& v: conds) add_constraint(v);
         auto result = check_model(conds);
         m = update_model_cache(result, conds);
         pop();
       }
     } else {
       push();
-      for (auto& v: conds) self()->add_constraint_internal(to_expr(v));
+      for (auto& v: conds) add_constraint(v);
       auto result = check_model(conds);
       if (result == sat) m = self()->get_model_internal(conds);
       pop();
@@ -246,17 +257,17 @@ public:
     if (hit) return *hit;
 
     push();
-    for (auto& v: indep_pc) self()->add_constraint_internal(to_expr(v));
+    for (auto& v: indep_pc) add_constraint(v);
     auto res = check_model(indep_pc);
     update_model_cache(res, indep_pc);
     pop();
-    
+
     return res;
   }
 
   virtual BrResult check_branch(PC& pc, PtrVal cond) override {
     if (!use_solver) return std::make_pair(sat, sat);
-    br_query_num++;
+    br_query_num += 2;
 
     auto start = steady_clock::now();
     auto neg_cond = SymV::neg(cond);
@@ -293,7 +304,7 @@ public:
         update_sat_cache(result.second, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        for (auto& v: common) add_constraint(v);
         result.second = check_model(common);
         update_model_cache(result.second, common);
         pop();
@@ -310,7 +321,7 @@ public:
         update_sat_cache(result.first, common);
       } else {
         push();
-        for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+        for (auto& v: common) add_constraint(v);
         result.first = check_model(common);
         update_model_cache(result.first, common);
         pop();
@@ -320,10 +331,10 @@ public:
     } else {
       // neither hits cache
       push();
-      for (auto& v: common) self()->add_constraint_internal(to_expr(v));
+      for (auto& v: common) add_constraint(v);
 
       push();
-      self()->add_constraint_internal(to_expr(cond));
+      add_constraint(cond);
       common.insert(cond);
       result.first = check_model(common);
       update_model_cache(result.first, common);
@@ -335,7 +346,7 @@ public:
         result.second = solver_result::sat;
         update_sat_cache(result.second, common);
       } else {
-        self()->add_constraint_internal(to_expr(neg_cond));
+        add_constraint(neg_cond);
         result.second = check_model(common);
         update_model_cache(result.second, common);
       }

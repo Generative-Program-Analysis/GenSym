@@ -172,7 +172,7 @@ public:
   }
 
   inline std::shared_ptr<STPModel> get_model_internal(BrCacheKey& conds) {
-    // Note: STP's WholeCounterExample is pretty useless, so it seems that 
+    // Note: STP's WholeCounterExample is pretty useless, so it seems that
     // we have to eagerly materialize the model to our own data structure.
     auto model = std::make_shared<std::unordered_map<PtrVal, IntData>>();
     for (auto& e: conds) {
@@ -185,7 +185,7 @@ public:
   PtrVal __eval_model(std::shared_ptr<STPModel> m, PtrVal val) {
     // Note: when concretizing a complex expression, we need to "interpret"
     // over the symbolic expression since the model only contains values
-    // of atomic variables. Here we reuse the `int_op_n` mechanism (thus 
+    // of atomic variables. Here we reuse the `int_op_n` mechanism (thus
     // have the IntV indirection) but nevertheless can use a more dedicated "interpreter".
     if (val->to_IntV()) return val;
     auto sym_val = val->to_SymV();
