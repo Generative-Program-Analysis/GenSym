@@ -49,9 +49,10 @@ import TestPrg._
 
 object TestCases {
   val concrete: List[TestPrg] = List(
-    TestPrg(add, "addTest", "@main", noArg, noOpt, nPath(1)),
+    //TestPrg(add, "addTest", "@main", noArg, noOpt, nPath(1)),
+    //TestPrg(power, "powerTest", "@main", noArg, noOpt, nPath(1)),
+
     TestPrg(aliasing, "aliasingTest", "@main", noArg, noOpt, nPath(1)),
-    TestPrg(power, "powerTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(global, "globalTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(ptrpred, "ptrPredTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)),

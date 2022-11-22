@@ -156,7 +156,7 @@ private:
     output << "Query number: " << (test_id+1) << std::endl;
     output << "Query is sat." << std::endl;
     std::stringstream filename;
-    filename << "tests/" << test_id << ".test";
+    filename << test_dir_str << "/" << test_id << ".test";
     int out_fd = open(filename.str().c_str(), O_RDWR | O_CREAT, 0777);
     if (out_fd == -1) {
       ABORT("Cannot create the test case file, abort.\n");
@@ -201,7 +201,7 @@ private:
     }
 
     std::stringstream filename;
-    filename << "tests/" << test_id << ".ktest";
+    filename << test_dir_str << "/" << test_id << ".ktest";
     int success = kTest_toFile(&b, filename.str().c_str());
 
     if (!success)
@@ -380,11 +380,6 @@ public:
     completed_path_num++;
     if (only_output_covernew && !state.has_cover_new()) return;
     if (!use_solver) return;
-
-    if (mkdir("tests", 0777) == -1) {
-      if (errno == EEXIST) { }
-      else ABORT("Cannot create the folder tests, abort.\n");
-    }
 
     std::shared_ptr<Model> m;
     CexCacheKey conds(state.get_PC().conds.begin(), state.get_PC().conds.end());

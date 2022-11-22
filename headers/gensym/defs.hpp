@@ -97,6 +97,17 @@ inline unsigned int max_sym_array_size = 0;
 // Use simplification when constructing SymV values
 inline bool use_symv_simplify = false;
 
+// Output directory name
+inline std::string output_dir_str = std::string("gensym-") + get_current_datetime();
+// Test output directory name
+inline std::string test_dir_str;
+// Output log file name
+inline std::string output_log_str;
+// Output log file stream
+inline std::ofstream gs_log;
+// Disable output log in stdout
+inline bool stdout_log = true;
+
 enum class SearcherKind { randomPath, randomWeight };
 // The path searcher to be used
 inline SearcherKind searcher_kind = SearcherKind::randomWeight;

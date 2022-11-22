@@ -43,8 +43,10 @@ static struct option long_options[] =
   // Logging
   {"print-inst-count",           no_argument,       0, 8},
   {"print-cov",                  no_argument,       0, 9},
-  {"print-detailed-log",        required_argument, 0, 25},
-  // Next 23, 28
+  {"print-detailed-log",         required_argument, 0, 25},
+  {"output-dir",                 required_argument, 0, 23},
+  {"no-stdout-log",              no_argument,       0, 28},
+  // Next 29
   {0,                            0,                 0, 0 }
 };
 
@@ -210,7 +212,7 @@ inline void handle_cli_args(int argc, char** argv) {
         print_help(argv[0]);
         exit(-1);
       case 23:
-        // available to use
+        output_dir_str = std::string(optarg);
         break;
       case 24: {
         int n = atoi(optarg);
@@ -225,6 +227,9 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 27:
         use_brcache = false;
+        break;
+      case 28:
+        stdout_log = false;
         break;
       case '?':
       default:
@@ -262,7 +267,7 @@ inline void handle_cli_args(int argc, char** argv) {
     if (std::dynamic_pointer_cast<SymV>(cli_argv[i][0])) {
       std::ostringstream ss;
       ss << "arg" << std::setw(2) << std::setfill('0') << n_sym_arg;
-      std::cout << "ss.str(): " << ss.str() << std::endl;
+      //std::cout << "ss.str(): " << ss.str() << std::endl;
       symargs.push_back(SymObj(ss.str() , cli_argv[i].size(), false));
       n_sym_arg++;
     }
@@ -337,8 +342,8 @@ inline void handle_cli_args(int argc, char** argv) {
     } else {
       g_conc_argc -= 3;
     }
-    std::cout << "i: " << i << std::endl;
-    std::cout << "n_sym_stdin: " << n_sym_stdin << std::endl;
+    //std::cout << "i: " << i << std::endl;
+    //std::cout << "n_sym_stdin: " << n_sym_stdin << std::endl;
     // -sym-stdin n
     if (n_sym_stdin > 0) {
       g_conc_argv[i] = new char [11] {'-', 's', 'y', 'm', '-', 's', 't', 'd', 'i', 'n'};
@@ -351,7 +356,7 @@ inline void handle_cli_args(int argc, char** argv) {
     } else {
       g_conc_argc -= 2;
     }
-    std::cout << "n_sym_stdout: " << n_sym_stdout << std::endl;
+    //std::cout << "n_sym_stdout: " << n_sym_stdout << std::endl;
     // -sym-stdout
     if (n_sym_stdout > 0) {
       g_conc_argv[i] = new char [12] {'-', 's', 'y', 'm', '-', 's', 't', 'd', 'o', 'u', 't'};
