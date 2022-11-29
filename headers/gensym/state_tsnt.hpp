@@ -309,6 +309,10 @@ class PC {
 
 #include "metadata.hpp"
 
+struct NullDerefException {
+    SS* ss;
+};
+
 class SS {
   private:
     Mem heap;
@@ -397,7 +401,8 @@ class SS {
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
         return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }
-      ABORT("dereferenceing a nullptr");
+      throw NullDerefException { this };
+      /* ABORT("dereferenceing a nullptr"); */
     }
     PtrVal at_struct(PtrVal addr, size_t size) {
       auto loc = addr->to_LocV();

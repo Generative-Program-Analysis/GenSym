@@ -138,7 +138,11 @@ public:
       }
       if (!paused && get) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
-        task.f();
+        try {
+            task.f();
+        } catch (NullDerefException e) {
+            check_pc_to_file(*e.ss);
+        }
         //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
         tasks_num_total--;
       } else {
