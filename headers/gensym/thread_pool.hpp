@@ -31,6 +31,12 @@ inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
 
 inline bool ptree_pop_task(TaskFun& task);
 
+class SS;
+inline void check_pc_to_file(const SS& state);
+struct NullDerefException {
+    immer::box<SS> ss;
+};
+
 struct Task {
   TaskFun f;
   int weight;
@@ -141,7 +147,7 @@ public:
         try {
             task.f();
         } catch (NullDerefException e) {
-            check_pc_to_file(*e.ss);
+            check_pc_to_file(e.ss.get());
         }
         //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
         tasks_num_total--;

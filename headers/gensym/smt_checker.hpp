@@ -460,7 +460,7 @@ inline bool check_pc(PC pc) {
   return result == solver_result::sat;
 }
 
-inline void check_pc_to_file(SS& state) {
+inline void check_pc_to_file(const SS& state) {
   auto start = steady_clock::now();
   checker_manager.get_checker().generate_test(std::move(state));
   auto end = steady_clock::now();
