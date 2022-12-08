@@ -389,11 +389,19 @@ class SS {
     }
     PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
-        if (loc->k == LocV::kStack) return stack.at(loc->l, size);
+        std::cout << "loc = addr->to_LocV()\n";
+        if (loc->k == LocV::kStack) {
+            std::cout << "loc->k = LocV::kStack\n";
+            return stack.at(loc->l, size);
+        }
         return heap.at(loc->l, size);
       }
-      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) return at_symloc(symloc, size);
+      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
+          std::cout << "symloc = ...\n";
+          return at_symloc(symloc, size);
+      }
       if (auto symvite = addr->to_SymV()) {
+        std::cout << "symvite = ...\n";
         ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
         return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
       }

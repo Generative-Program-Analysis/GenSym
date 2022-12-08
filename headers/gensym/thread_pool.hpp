@@ -147,6 +147,7 @@ public:
         try {
             task.f();
         } catch (NullDerefException e) {
+            std::cout << "Caught NullDerefException\n";
             check_pc_to_file(e.ss.get());
         }
         //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
