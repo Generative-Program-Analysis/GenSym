@@ -523,10 +523,10 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   implicit class LocVOps(v: Rep[LocV]) {
-    def +(off: Rep[Value]): Rep[Value] = (v, off) match {
+    def +(off: Rep[Value], ss: Rep[SS]): Rep[Value] = (v, off) match {
       // Todo: Add case for IntV non-const
       case (LocV(a, k, s, o), IntV(n, _)) => LocV(a, k, s, o + n)
-      case _ => "ptroff".reflectWith[Value](v, off)
+      case _ => "ptroff".reflectWith[Value](v, off, ss)
     }
   }
 }

@@ -178,12 +178,6 @@ inline PtrVal hashconsing(const PtrVal &ret) {
   return *ret2;
 }
 
-// Uninitialized value
-inline PtrVal make_UnInitV() {
-  static PtrVal UnInitV = make_IntV(0, 8);
-  return UnInitV;
-}
-
 struct ShadowV : public Value {
   int8_t offset;
   ShadowV() : offset(0) {}
@@ -604,6 +598,13 @@ inline PtrVal SymV::neg(const PtrVal& v) {
   return make_SymV(iOP::op_neg, { v }, v->get_bw());
 }
 
+// Uninitialized value
+inline PtrVal make_UnInitV() {
+  std::string name = fresh("uninit");
+  PtrVal UnInitV = make_SymV(name, 8); // make_IntV(0, 8);
+  return UnInitV;
+}
+
 // XXX GW: just use bv_sext? seems not much difference?
 inline PtrVal addr_index_ext(const PtrVal& off) {
   ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
@@ -946,7 +947,7 @@ inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
   ABORT("Unknown application of operator+");
 }
 
-inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
+inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs, SS& ss) {
   auto int_rhs = rhs->to_IntV();
   auto sym_rhs = rhs->to_SymV();
   ASSERT(int_rhs || sym_rhs, "Invalid rhs");
@@ -968,8 +969,15 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
     return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
   }
   if (auto symvite = lhs->to_SymV()) {
-    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    return ite((*symvite)[0], (*symvite)[1] + rhs, (*symvite)[2] + rhs);
+    /* ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index"); */
+    if (iOP::op_ite == symvite->rator) {
+        return ite((*symvite)[0], ptr_add((*symvite)[1], rhs, ss), ptr_add((*symvite)[2], rhs, ss));
+    } else {
+        // refer to comment in state_tsnt:409 function SS::at
+        auto boxed = immer::box<SS>(ss);
+        throw NullDerefException { boxed };
+        /* throw TempException {}; */
+    }
   }
   if (auto intloc = lhs->to_IntV()) {
     INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());

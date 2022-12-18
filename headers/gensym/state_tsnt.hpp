@@ -402,8 +402,16 @@ class SS {
       }
       if (auto symvite = addr->to_SymV()) {
         std::cout << "symvite = ...\n";
-        ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
+        /* ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index"); */
+        if (iOP::op_ite == symvite->rator) {
+            return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
+        } else {
+            // call solver to determine whether addr can be null/0
+            // if it can be null, throw exception
+            // otherwise, the pointer must be uninit anyway, because
+            // otherwise it would be SymLocV or symvite
+            throw NullDerefException { immer::box<SS>(*this) };
+        }
       }
       throw NullDerefException { immer::box<SS>(*this) };
       /* ABORT("dereferenceing a nullptr"); */

@@ -128,11 +128,11 @@ class TestPtr extends TestGS {
   val bstTest = TestPrg(bst, "bstTest", "@main", noArg, "--thread=1", nPath(458))
   val faultyBstTest = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
 
-  testGS(new ImpCPSGS, TestPrg(ptrSymTest, "ptrSymTest", "@main", noArg, "--thread=1", nPath(2)))
+  // testGS(new ImpCPSGS, TestPrg(ptrSymTest, "ptrSymTest", "@main", noArg, "--thread=1", nPath(2)))
   // testGS(new ImpCPSGS, TestPrg(ptrCondTest, "ptrCondTest", "@main", noArg, "--thread=1", nPath(2)))
   // testGS(new ImpCPSGS, TestPrg(ptrTest, "ptrTest", "@main", noArg, "--thread=1", nPath(2)))
   // testGS(new ImpCPSGS, bstTest)
-  // testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
 }
 
 class TestImpCPSGS_Z3 extends TestGS {

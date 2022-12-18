@@ -158,7 +158,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   }
 
   // Note: we can also assign symbolic values here
-  def uninitValue: Rep[Value] = IntV(0, 8) //NullPtr()
+  def uninitValue: Rep[Value] = SymV("uninit") // IntV(0, 8) //NullPtr()
 
   def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)
@@ -179,7 +179,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
       val indexLLVMValue = typedConsts.map(tv => tv.const.asInstanceOf[IntConst].n)
       val offset = calculateOffsetStatic(ptrType, indexLLVMValue)
       val base = evalHeapAtomicConst(const, getRealType(ptrType)).asRepOf[LocV]
-      base + IntV(offset, DEFAULT_INDEX_BW)
+      base.+(IntV(offset, DEFAULT_INDEX_BW), ???)
     case _ => throw new Exception("Not atomic heap constant " + v)
   }
 

@@ -36,6 +36,7 @@ inline void check_pc_to_file(const SS& state);
 struct NullDerefException {
     immer::box<SS> ss;
 };
+struct TempException {};
 
 struct Task {
   TaskFun f;
