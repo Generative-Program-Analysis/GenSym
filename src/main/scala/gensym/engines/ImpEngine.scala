@@ -69,7 +69,7 @@ trait ImpGSEngine extends ImpSymExeDefs with EngineBase {
         // typedConst are not all int, could be local id
         val vs = typedConsts.map(tv => eval(tv.const, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
-        eval(const, ptrType, ss).asRepOf[LocV].+(offset, ss)
+        eval(const, ptrType, ss).asRepOf[LocV] + offset
       case IntToPtrExpr(from, value, to) => eval(value, from, ss)
       case PtrToIntExpr(from, value, IntType(toSize)) =>
         val v = eval(value, from, ss)
@@ -108,7 +108,7 @@ trait ImpGSEngine extends ImpSymExeDefs with EngineBase {
       case GetElemPtrInst(_, baseType, ptrType, ptrValue, typedValues) =>
         val vs = typedValues.map(tv => eval(tv.value, tv.ty, ss))
         val offset = calculateOffset(ptrType, vs)
-        val v = eval(ptrValue, ptrType, ss).asRepOf[LocV].+(offset, ss)
+        val v = eval(ptrValue, ptrType, ss).asRepOf[LocV] + offset
         k(ss, v)
       // Arith Unary Operations
       case FNegInst(ty, op) => k(ss, evalFloatOp2("fsub", FloatConst(-0.0), op, ty, ss))

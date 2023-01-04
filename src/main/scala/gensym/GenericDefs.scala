@@ -134,7 +134,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
     private val unsafeExternals = StaticSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
-    
+
     // functions in `prepared` are considered prepared externally - provided by a precompiled library
     // function call will be generated without the definition of callee
     private val prepared = MutableMap[String, String]()  // native name -> mangled name
@@ -523,10 +523,10 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
   }
 
   implicit class LocVOps(v: Rep[LocV]) {
-    def +(off: Rep[Value], ss: Rep[SS]): Rep[Value] = (v, off) match {
+    def +(off: Rep[Value]): Rep[Value] = (v, off) match {
       // Todo: Add case for IntV non-const
       case (LocV(a, k, s, o), IntV(n, _)) => LocV(a, k, s, o + n)
-      case _ => "ptroff".reflectWith[Value](v, off, ss)
+      case _ => "ptroff".reflectWith[Value](v, off)
     }
   }
 }

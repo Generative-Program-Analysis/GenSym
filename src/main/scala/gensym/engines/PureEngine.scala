@@ -83,7 +83,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(typedConsts)(tv => eval(tv.const, tv.ty))
           lv <- eval(const, ptrType)
           ss <- getState
-        } yield lv.asRepOf[LocV].+(calculateOffset(ptrType, vs), ss)
+        } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
       case IntToPtrExpr(from, value, to) =>
         for { v <- eval(value, from) } yield v
       case PtrToIntExpr(from, value, IntType(toSize)) =>
@@ -134,7 +134,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
           lv <- eval(ptrValue, ptrType)
           ss <- getState
-        } yield lv.asRepOf[LocV].+(calculateOffset(ptrType, vs), ss)
+        } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
       // Arith Unary Operations
       case FNegInst(ty, op) => evalFloatOp2("fsub", FloatConst(-0.0), op, ty)
       // Arith Binary Operations

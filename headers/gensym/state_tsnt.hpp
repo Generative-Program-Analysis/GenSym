@@ -603,7 +603,7 @@ inline std::monostate cont_apply(std::function<std::monostate(SS&, PtrVal)> cont
 // (which should be captured instead of panic).
 // Alternatively, it seems also making sense to delay such check so `ptr_add` could be simplified.
 
-inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs, SS& ss) {
+inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs) {
   auto int_rhs = rhs->to_IntV();
   auto sym_rhs = rhs->to_SymV();
   ASSERT(int_rhs || sym_rhs, "Invalid rhs");
@@ -626,10 +626,11 @@ inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs, SS& ss) {
   }
   if (auto symvite = lhs->to_SymV()) {
     if (iOP::op_ite == symvite->rator) {
-      return ite((*symvite)[0], ptr_add((*symvite)[1], rhs, ss), ptr_add((*symvite)[2], rhs, ss));
+      return ite((*symvite)[0], ptr_add((*symvite)[1], rhs), ptr_add((*symvite)[2], rhs));
     } else {
+      return make_SymV(iOP::op_add, {lhs, rhs}, addr_bw);
       // refer to comment from function `SS::at`
-      throw NullDerefException { immer::box<SS>(ss) };
+      //throw NullDerefException { immer::box<SS>(ss) };
     }
   }
   if (auto intloc = lhs->to_IntV()) {

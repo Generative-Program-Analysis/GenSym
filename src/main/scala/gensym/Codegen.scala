@@ -174,8 +174,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
       es"make_FloatV_fp80($litRep)"
     case Node(s, "make_FloatV", List(f, bw), _) => es"make_FloatV($f, $bw)"
     case Node(s, "get-bw", List(v), _) => es"$v->get_bw()"
-    case Node(s, "ptroff", List(v, o, ss), _) => es"ptr_add($v, $o, $ss)"
-    // case Node(s, "ptroff", List(v, o), _) => es"($v + ($o))"
+    case Node(s, "ptroff", List(v, o), _) => es"ptr_add($v, $o)"
 
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov().set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov().inc_block($id)"
