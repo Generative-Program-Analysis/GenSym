@@ -35,6 +35,10 @@ object Benchmarks {
   lazy val ptrpred = parseFile("benchmarks/llvm/ptrpred.ll")
   lazy val flexAddr = parseFile("benchmarks/llvm/memchallenge.ll")
 
+  lazy val uninitPtr = parseFile("benchmarks/llvm/uninitialized_ptr.ll")
+  lazy val uninitPtrCond = parseFile("benchmarks/llvm/uninit_ptr_cond.ll")
+  lazy val symPtr = parseFile("benchmarks/llvm/sym_pointer.ll")
+
   lazy val funptr = parseFile("benchmarks/llvm/funptr.ll")
   lazy val heapFunptr = parseFile("benchmarks/llvm/heapFunptr.ll")
   lazy val nastyStruct = parseFile("benchmarks/llvm/nastystruct.ll")
@@ -68,6 +72,8 @@ object Benchmarks {
 
   lazy val bst = parseFile("benchmarks/demo-benchmarks/bst.ll")
   lazy val bstArr = parseFile("benchmarks/demo-benchmarks/bst_arr.ll")
+  lazy val faultyBst = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
+
   lazy val bubblesort = parseFile("benchmarks/demo-benchmarks/bubblesort.ll")
   lazy val quicksort = parseFile("benchmarks/demo-benchmarks/quicksort.ll")
   lazy val mergesort = parseFile("benchmarks/demo-benchmarks/mergesort.ll")
@@ -116,7 +122,7 @@ object Benchmarks {
   lazy val argv2Test = parseFile("benchmarks/llvm/argv2.ll")
 
   lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
-  
+
   lazy val echo_linked = parseFile("benchmarks/coreutils/echo.ll")
   lazy val cat_linked = parseFile("benchmarks/coreutils/cat.ll")
   lazy val true_linked = parseFile("benchmarks/coreutils/true.ll")

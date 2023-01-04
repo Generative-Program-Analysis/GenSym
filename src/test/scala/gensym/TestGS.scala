@@ -121,18 +121,14 @@ class TestImpCPSGS extends TestGS {
 }
 
 class TestPtr extends TestGS {
-  val ptrTest = parseFile("benchmarks/demo-benchmarks/uninitialized_ptr.ll")
-  val ptrCondTest = parseFile("benchmarks/demo-benchmarks/uninit_ptr_cond.ll")
-  val ptrSymTest = parseFile("benchmarks/demo-benchmarks/sym_pointer.ll")
-
   val bstTest = TestPrg(bst, "bstTest", "@main", noArg, "--thread=1", nPath(458))
-  val faultyBstTest = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
 
-  // testGS(new ImpCPSGS, TestPrg(ptrSymTest, "ptrSymTest", "@main", noArg, "--thread=1", nPath(2)))
-  // testGS(new ImpCPSGS, TestPrg(ptrCondTest, "ptrCondTest", "@main", noArg, "--thread=1", nPath(2)))
-  // testGS(new ImpCPSGS, TestPrg(ptrTest, "ptrTest", "@main", noArg, "--thread=1", nPath(2)))
+  testGS(new ImpCPSGS, TestPrg(symPtr, "ptrSymTest", "@main", noArg, "--thread=1", nPath(2)))
+  // testGS(new ImpCPSGS, TestPrg(uninitPtrCond, "ptrCondTest", "@main", noArg, "--thread=1", nPath(2)))
+  // testGS(new ImpCPSGS, TestPrg(uninitPtr, "ptrTest", "@main", noArg, "--thread=1", nPath(2)))
   // testGS(new ImpCPSGS, bstTest)
-  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
+
+  // testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
 }
 
 class TestImpCPSGS_Z3 extends TestGS {
