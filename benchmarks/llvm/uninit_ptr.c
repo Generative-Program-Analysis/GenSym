@@ -4,7 +4,6 @@
 // so that the NullDerefException is caught
 
 int main() {
-    int* ptr;
-
-    return *ptr;
+  int* ptr;
+  return *ptr;
 }

@@ -121,14 +121,12 @@ class TestImpCPSGS extends TestGS {
 }
 
 class TestPtr extends TestGS {
-  val bstTest = TestPrg(bst, "bstTest", "@main", noArg, "--thread=1", nPath(458))
+  testGS(new ImpCPSGS, TestPrg(symPtr, "symPtrTest", "@main", noArg, "--thread=1", nPath(2)))
+  testGS(new ImpCPSGS, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, "--thread=1", nPath(2)))
+  testGS(new ImpCPSGS, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, "--thread=1", nPath(1)))
 
-  testGS(new ImpCPSGS, TestPrg(symPtr, "ptrSymTest", "@main", noArg, "--thread=1", nPath(2)))
-  // testGS(new ImpCPSGS, TestPrg(uninitPtrCond, "ptrCondTest", "@main", noArg, "--thread=1", nPath(2)))
-  // testGS(new ImpCPSGS, TestPrg(uninitPtr, "ptrTest", "@main", noArg, "--thread=1", nPath(2)))
-  // testGS(new ImpCPSGS, bstTest)
-
-  // testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
+  //val bstTest = TestPrg(bst, "bstTest", "@main", noArg, "--thread=1", nPath(458))
+  //testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
 }
 
 class TestImpCPSGS_Z3 extends TestGS {
