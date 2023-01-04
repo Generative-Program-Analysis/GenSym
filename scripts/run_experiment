@@ -193,8 +193,8 @@ echo [run_experiment] hash: $COMMIT_HASH
 # generate external wrappers
 if [ "${GEN_EXTERNAL}" = "true" ]; then
 	echo [run_experiment] generating external functions...
-	# sbt "runMain sai.llsc.GenerateExternal"
-	bloop run sai -m sai.llsc.GenerateExternal
+	# sbt "runMain gensym.GenerateExternal"
+	bloop run sai -m gensym.GenerateExternal
 fi
 
 # iterate through each set of input LLVM files (e.g. posix and uclibc)
@@ -228,7 +228,7 @@ for i in "${!inputs[@]}"; do
 		HEAD=${COMMIT_HASH}_${f}_${i}
 		${BM_SCRIPT} ${BM_OPTIONS} -- $idir/$f.ll $HEAD $option
         if [ $? -eq 0 ] && [ "$GCOV" = "true" ]; then
-          ( cd llsc_gen/$HEAD/tests
+          ( cd gs_gen/$HEAD/tests
           gcov_file=${gcov_gcda_map[$f]:-$f}
           pwd
           echo performing gcov measurement...
@@ -247,5 +247,5 @@ for i in "${!inputs[@]}"; do
 	exec 2> /dev/tty
 	echo [run_experiment] output written to ${OUTFILE}
 	echo [run_experiment] runtime output written to ${OUTFILERUNTIME}
-	echo [run_experiment] executable at `realpath llsc_gen/$HEAD`
+	echo [run_experiment] executable at `realpath gs_gen/$HEAD`
 done

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage: test_benchmark.sh <benchmark.ll> <head> <options>
-# Effect: will use RunLLSC to compile and run make subsequently in the llsc_gen folder, finally execute the executable.
+# Effect: will use gensym.RunGenSym to compile and run make subsequently in the gs_gen folder, finally execute the executable.
 
 # Default values
 
@@ -63,16 +63,16 @@ echo "[test_benchmark] run runtime:     $RUNTIME"
 echo "[test_benchmark] cpp njobs:       $CPP_NJOBS"
 echo "[test_benchmark] runtime timeout: $RUNTIME_TIMEOUT"
 
-if [ "$SCALA_COMPILE" = "true" ] || [ ! -d "llsc_gen/${HEAD}" ]; then
+if [ "$SCALA_COMPILE" = "true" ] || [ ! -d "gs_gen/${HEAD}" ]; then
 	export SBT_OPTS="-Xms4G -Xmx32G -Xss1024M -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2048M"
 	/usr/bin/time --format "[test_benchmark] scala compilation time => real: %e,\tuser: %U,\tsys: %S" \
-		bloop run sai -m sai.llsc.RunLLSC -- -J-Xms4g -J-Xmx8g -J-Xss1024M -J-XX:MaxMetaspaceSize=8G -J-XX:ReservedCodeCacheSize=2048M ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main
-		# sbt "runMain sai.llsc.RunLLSC ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main"
+		bloop run sai -m gensym.RunGenSym -- -J-Xms4g -J-Xmx8g -J-Xss1024M -J-XX:MaxMetaspaceSize=8G -J-XX:ReservedCodeCacheSize=2048M ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main
+		# sbt "runMain gensym.RunGenSym ${LL} --use-argv --output=${HEAD} --engine=ImpCPS --main-opt=O0 --entrance=main"
 	check_failure "Failed to perform scala compilation with input ${LL}"
 fi
 
-if [ "$CPP_COMPILE" = "true" ] || [ ! -f "llsc_gen/${HEAD}/${HEAD}" ]; then
-	( cd llsc_gen/${HEAD}; 
+if [ "$CPP_COMPILE" = "true" ] || [ ! -f "gs_gen/${HEAD}/${HEAD}" ]; then
+	( cd gs_gen/${HEAD}; 
 	make clean
 	echo -n "[test_benchmark] "
 	pwd
@@ -82,7 +82,7 @@ if [ "$CPP_COMPILE" = "true" ] || [ ! -f "llsc_gen/${HEAD}/${HEAD}" ]; then
 fi
 
 if [ "$RUNTIME" = "true" ]; then
-	cd llsc_gen/${HEAD}
+	cd gs_gen/${HEAD}
 	rm -rf tests
 	EXE="./${HEAD}"
 	if [ ! -z "$BM_EXPAND_SCRIPT" ]; then
