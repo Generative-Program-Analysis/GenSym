@@ -118,14 +118,16 @@ class TestImpCPSGS extends TestGS {
   testGS(gs, TestCases.all ++ filesys ++ varArg)
   // Note: compile-time switch merge is only implement for ImpCPS so far
   testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
+
+  // Test uninitialized ptr access, only enabled for CPS+thread pool version
+  val rtOpt = "--thread=1"
+  testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
 }
 
 class TestPtr extends TestGS {
-  testGS(new ImpCPSGS, TestPrg(symPtr, "symPtrTest", "@main", noArg, "--thread=1", nPath(2)))
-  testGS(new ImpCPSGS, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, "--thread=1", nPath(2)))
-  testGS(new ImpCPSGS, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, "--thread=1", nPath(1)))
-
-  //val bstTest = TestPrg(bst, "bstTest", "@main", noArg, "--thread=1", nPath(458))
+  // TODO: what's the expected result for faultyBstTest?
   //testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
 }
 
@@ -135,6 +137,12 @@ class TestImpCPSGS_Z3 extends TestGS {
     t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
   testGS(gs, cases)
+
+  // Test uninitialized ptr access, only enabled for CPS+thread pool version
+  val rtOpt = "--thread=1 --solver=z3"
+  testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
 }
 
 /*
