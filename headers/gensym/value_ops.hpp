@@ -1,16 +1,6 @@
 #ifndef GS_VALUE_OPS_HEADER
 #define GS_VALUE_OPS_HEADER
 
-struct Value;
-struct IntV;
-struct SymV;
-struct LocV;
-struct SymLocV;
-struct FloatV;
-struct ShadowV;
-struct SS;
-class PC;
-
 template <typename T>
 struct simple_ptr {
   T *ptr;
@@ -944,45 +934,6 @@ inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
     return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + rhs);
   if (auto i = lhs->to_IntV())
     return make_IntV(i->i + rhs, i->bw);
-  ABORT("Unknown application of operator+");
-}
-
-inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs, SS& ss) {
-  auto int_rhs = rhs->to_IntV();
-  auto sym_rhs = rhs->to_SymV();
-  ASSERT(int_rhs || sym_rhs, "Invalid rhs");
-
-  if (auto loc = lhs->to_LocV()) {
-    ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
-    if (int_rhs) {
-      return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + int_rhs->as_signed());
-    } else {
-      auto new_off = int_op_2(iOP::op_add, sym_rhs, SymLocV_index(loc->l - loc->base));
-      return make_SymLocV(loc->base, loc->k, loc->size, new_off);
-    }
-  }
-  if (auto symloc = std::dynamic_pointer_cast<SymLocV>(lhs)) {
-    auto off = symloc->off->to_SymV();
-    ASSERT(off && (off->get_bw() == addr_index_bw), "Invalid offset index");
-    ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
-    auto new_off = int_op_2(iOP::op_add, off, rhs);
-    return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
-  }
-  if (auto symvite = lhs->to_SymV()) {
-    /* ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index"); */
-    if (iOP::op_ite == symvite->rator) {
-        return ite((*symvite)[0], ptr_add((*symvite)[1], rhs, ss), ptr_add((*symvite)[2], rhs, ss));
-    } else {
-        // refer to comment in state_tsnt:409 function SS::at
-        auto boxed = immer::box<SS>(ss);
-        throw NullDerefException { boxed };
-        /* throw TempException {}; */
-    }
-  }
-  if (auto intloc = lhs->to_IntV()) {
-    INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());
-    return int_op_2(iOP::op_add, intloc, rhs);
-  }
   ABORT("Unknown application of operator+");
 }
 

@@ -14,6 +14,22 @@ using UIntData = unsigned long long int;
 using Fd = int;
 using status_t = unsigned short;
 
+// Forward declarations
+
+class SS;
+class PC;
+struct Value;
+struct IntV;
+struct SymV;
+struct LocV;
+struct SymLocV;
+struct FloatV;
+struct ShadowV;
+
+struct NullDerefException {
+  immer::box<SS> ss;
+};
+
 inline int vararg_id = -1;
 
 // Default bitwidth when creating integers or symbolic values

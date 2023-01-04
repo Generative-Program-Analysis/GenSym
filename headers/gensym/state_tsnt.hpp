@@ -276,9 +276,9 @@ class PC {
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {
       auto start = steady_clock::now();
       for (auto& c : conds) {
-        for (auto& v : c->to_SymV()->vars) { 
+        for (auto& v : c->to_SymV()->vars) {
           vars.insert(v);
-          uf.join(v, c); 
+          uf.join(v, c);
         }
       }
       auto end = steady_clock::now();
@@ -288,9 +288,9 @@ class PC {
       ASSERT(e->to_SymV(), "added condition must be symbolic boolean");
       conds.push_back(e);
       auto start = steady_clock::now();
-      for (auto& v : e->to_SymV()->vars) { 
+      for (auto& v : e->to_SymV()->vars) {
         vars.insert(v);
-        uf.join(v, e); 
+        uf.join(v, e);
       }
       auto end = steady_clock::now();
       cons_indep_time += duration_cast<microseconds>(end - start).count();
@@ -389,32 +389,23 @@ class SS {
     }
     PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
-        std::cout << "loc = addr->to_LocV()\n";
-        if (loc->k == LocV::kStack) {
-            std::cout << "loc->k = LocV::kStack\n";
-            return stack.at(loc->l, size);
-        }
+        if (loc->k == LocV::kStack) return stack.at(loc->l, size);
         return heap.at(loc->l, size);
       }
       if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
-          std::cout << "symloc = ...\n";
-          return at_symloc(symloc, size);
+        return at_symloc(symloc, size);
       }
       if (auto symvite = addr->to_SymV()) {
-        std::cout << "symvite = ...\n";
-        /* ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index"); */
         if (iOP::op_ite == symvite->rator) {
-            return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
+          return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
         } else {
-            // call solver to determine whether addr can be null/0
-            // if it can be null, throw exception
-            // otherwise, the pointer must be uninit anyway, because
-            // otherwise it would be SymLocV or symvite
-            throw NullDerefException { immer::box<SS>(*this) };
+          // Now the location value is a general symbolic value other than `ite`/`SymLocV`,
+          // which means the pointer is uninitialized anyway.
+          throw NullDerefException { immer::box<SS>(*this) };
         }
       }
+      // Default case: considered as an invalid memory access
       throw NullDerefException { immer::box<SS>(*this) };
-      /* ABORT("dereferenceing a nullptr"); */
     }
     PtrVal at_struct(PtrVal addr, size_t size) {
       auto loc = addr->to_LocV();
@@ -605,6 +596,47 @@ inline std::monostate cps_apply(PtrVal v, SS ss, List<PtrVal> args, std::functio
 
 inline std::monostate cont_apply(std::function<std::monostate(SS&, PtrVal)> cont, SS& ss, PtrVal val) {
   return cont(ss, val);
+}
+
+// The pointer arithmetic operation is now made to be SS-aware, so that
+// we can detect invalid operations over nullptr and throw an exception `NullDerefException`
+// (which should be captured instead of panic).
+// Alternatively, it seems also making sense to delay such check so `ptr_add` could be simplified.
+
+inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs, SS& ss) {
+  auto int_rhs = rhs->to_IntV();
+  auto sym_rhs = rhs->to_SymV();
+  ASSERT(int_rhs || sym_rhs, "Invalid rhs");
+
+  if (auto loc = lhs->to_LocV()) {
+    ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
+    if (int_rhs) {
+      return make_LocV(loc->base, loc->k, loc->size, loc->l - loc->base + int_rhs->as_signed());
+    } else {
+      auto new_off = int_op_2(iOP::op_add, sym_rhs, SymLocV_index(loc->l - loc->base));
+      return make_SymLocV(loc->base, loc->k, loc->size, new_off);
+    }
+  }
+  if (auto symloc = std::dynamic_pointer_cast<SymLocV>(lhs)) {
+    auto off = symloc->off->to_SymV();
+    ASSERT(off && (off->get_bw() == addr_index_bw), "Invalid offset index");
+    ASSERT(rhs->get_bw() == addr_index_bw, "Invalid index bitwidth");
+    auto new_off = int_op_2(iOP::op_add, off, rhs);
+    return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
+  }
+  if (auto symvite = lhs->to_SymV()) {
+    if (iOP::op_ite == symvite->rator) {
+      return ite((*symvite)[0], ptr_add((*symvite)[1], rhs, ss), ptr_add((*symvite)[2], rhs, ss));
+    } else {
+      // refer to comment from function `SS::at`
+      throw NullDerefException { immer::box<SS>(ss) };
+    }
+  }
+  if (auto intloc = lhs->to_IntV()) {
+    INFO("Performing GEP on an integer: " << intloc->toString() << " + " << rhs->toString());
+    return int_op_2(iOP::op_add, intloc, rhs);
+  }
+  ABORT("Unknown application of operator+");
 }
 
 #endif

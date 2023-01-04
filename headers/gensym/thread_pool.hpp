@@ -27,16 +27,13 @@
 
 using TaskFun = std::function<std::monostate()>;
 
+// Forward declarations
+
 inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
-
 inline bool ptree_pop_task(TaskFun& task);
-
-class SS;
 inline void check_pc_to_file(const SS& state);
-struct NullDerefException {
-    immer::box<SS> ss;
-};
-struct TempException {};
+
+// The Task structure stored in task pool
 
 struct Task {
   TaskFun f;
@@ -49,6 +46,8 @@ struct std::less<Task> {
     return lhs.weight < rhs.weight;
   }
 };
+
+// The thread pool class
 
 class thread_pool {
 private:
