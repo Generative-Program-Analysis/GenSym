@@ -128,7 +128,10 @@ class TestImpCPSGS extends TestGS {
 
 class TestPtr extends TestGS {
   // TODO: what's the expected result for faultyBstTest?
-  //testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(458)))
+  val faultyBstTest = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
+  // finds 642 paths, Klee finds 8 incomplete & 2 complete
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(10)))
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(10)))
 }
 
 class TestImpCPSGS_Z3 extends TestGS {

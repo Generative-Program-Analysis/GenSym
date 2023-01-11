@@ -454,9 +454,21 @@ class SS {
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
       auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
-      else heap.update(loc->l, val, size);
+      auto symloc = std::dynamic_pointer_cast<SymLocV>(addr);
+      auto symvite = addr->to_SymV();
+
+      if (loc == nullptr && symloc == nullptr && symvite == nullptr) {
+          throw NullDerefException { immer::box<SS>(*this) };
+      }
+
+      if (loc->k == LocV::kStack) {
+          stack.update(loc->l, val, size);
+      } else if ((symloc != nullptr) && (iOP::op_ite == symloc->rator)) {
+          throw NullDerefException { immer::box<SS>(*this) };
+      } else {
+          heap.update(loc->l, val, size);
+      }
+
       return std::move(*this);
     }
     SS&& update_seq(PtrVal addr, List<PtrVal> vals) {
