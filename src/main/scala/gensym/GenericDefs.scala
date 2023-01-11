@@ -134,7 +134,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
     private val unsafeExternals = StaticSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
-    
+
     // functions in `prepared` are considered prepared externally - provided by a precompiled library
     // function call will be generated without the definition of callee
     private val prepared = MutableMap[String, String]()  // native name -> mangled name

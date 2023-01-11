@@ -276,9 +276,9 @@ class PC {
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {
       auto start = steady_clock::now();
       for (auto& c : conds) {
-        for (auto& v : c->to_SymV()->vars) { 
+        for (auto& v : c->to_SymV()->vars) {
           vars.insert(v);
-          uf.join(v, c); 
+          uf.join(v, c);
         }
       }
       auto end = steady_clock::now();
@@ -288,9 +288,9 @@ class PC {
       ASSERT(e->to_SymV(), "added condition must be symbolic boolean");
       conds.push_back(e);
       auto start = steady_clock::now();
-      for (auto& v : e->to_SymV()->vars) { 
+      for (auto& v : e->to_SymV()->vars) {
         vars.insert(v);
-        uf.join(v, e); 
+        uf.join(v, e);
       }
       auto end = steady_clock::now();
       cons_indep_time += duration_cast<microseconds>(end - start).count();
@@ -392,12 +392,20 @@ class SS {
         if (loc->k == LocV::kStack) return stack.at(loc->l, size);
         return heap.at(loc->l, size);
       }
-      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) return at_symloc(symloc, size);
-      if (auto symvite = addr->to_SymV()) {
-        ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
+      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
+        return at_symloc(symloc, size);
       }
-      ABORT("dereferenceing a nullptr");
+      if (auto symvite = addr->to_SymV()) {
+        if (iOP::op_ite == symvite->rator) {
+          return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
+        } else {
+          // Now the location value is a general symbolic value other than `ite`/`SymLocV`,
+          // which means the pointer is uninitialized anyway.
+          throw NullDerefException { immer::box<SS>(*this) };
+        }
+      }
+      // Default case: considered as an invalid memory access
+      throw NullDerefException { immer::box<SS>(*this) };
     }
     PtrVal at_struct(PtrVal addr, size_t size) {
       auto loc = addr->to_LocV();
@@ -446,9 +454,21 @@ class SS {
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
       auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
-      else heap.update(loc->l, val, size);
+      auto symloc = std::dynamic_pointer_cast<SymLocV>(addr);
+      auto symvite = addr->to_SymV();
+
+      if (loc == nullptr && symloc == nullptr && symvite == nullptr) {
+          throw NullDerefException { immer::box<SS>(*this) };
+      }
+
+      if (loc->k == LocV::kStack) {
+          stack.update(loc->l, val, size);
+      } else if ((symloc != nullptr) && (iOP::op_ite == symloc->rator)) {
+          throw NullDerefException { immer::box<SS>(*this) };
+      } else {
+          heap.update(loc->l, val, size);
+      }
+
       return std::move(*this);
     }
     SS&& update_seq(PtrVal addr, List<PtrVal> vals) {

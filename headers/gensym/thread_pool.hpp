@@ -27,9 +27,13 @@
 
 using TaskFun = std::function<std::monostate()>;
 
-inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
+// Forward declarations
 
+inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
 inline bool ptree_pop_task(TaskFun& task);
+inline void check_pc_to_file(const SS& state);
+
+// The Task structure stored in task pool
 
 struct Task {
   TaskFun f;
@@ -42,6 +46,8 @@ struct std::less<Task> {
     return lhs.weight < rhs.weight;
   }
 };
+
+// The thread pool class
 
 class thread_pool {
 private:
@@ -138,7 +144,12 @@ public:
       }
       if (!paused && get) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
-        task.f();
+        try {
+          task.f();
+        } catch (NullDerefException e) {
+          std::cout << "Warning: read/write at a null location; generating a test case\n";
+          check_pc_to_file(e.ss.get());
+        }
         //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
         tasks_num_total--;
       } else {
