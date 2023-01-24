@@ -1,7 +1,7 @@
-FROM ubuntu:21.04
-LABEL maintainer="guannanwei@outlook.com"
+FROM ubuntu:20.04
+LABEL maintainer="guannanwei@purdue.edu"
 LABEL version="0.1"
-LABEL description="Development environment for SAI/LLSC"
+LABEL description="ICSE 23 GenSym Artifact"
 
 # Disable Prompt During Packages Installation
 ARG DEBIAN_FRONTEND=noninteractive
@@ -10,11 +10,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 VOLUME ["/var/tmp"]
 
 # Initial setup
-RUN mkdir /llsc
-COPY init_setup.sh /llsc/init_setup.sh
-RUN bash /llsc/init_setup.sh
+RUN mkdir /icse23
+COPY init_setup.sh /icse23/init_setup.sh
+RUN bash /icse23/init_setup.sh
 
-ENV PATH="/llsc/scala-2.12.10/bin:${PATH}"
+ENV PATH="/icse23/scala-2.12.10/bin:${PATH}"
 
-CMD cd /llsc
+CMD cd /icse23
 
