@@ -1,6 +1,7 @@
 package gensym
 
 import gensym.llvm.parser.Parser._
+import gensym.utils.Utils
 
 case class Config(nSym: Int, useArgv: Boolean, mainFileOpt: String) {
   require(!(nSym > 0 && useArgv))
@@ -51,6 +52,23 @@ object RunGenSym {
   }
 
   def main(args: Array[String]): Unit = {
+    val bang = "--repeat="
+    if (args(0).startsWith(bang)) {
+      val (rc :: nargs) = args(0).substring(bang.length).split(',').map(_.toInt).toList
+      var idx = 1
+      for (n <- nargs) {
+        val s = args.slice(idx, idx + n)
+        for (i <- 1 to rc) {
+          val (name, time) = Utils.time { mainInner(s) }
+          System.err.println(f"run repeat mode: $name $time")
+        }
+        idx += n
+      }
+    }
+    else mainInner(args)
+  }
+
+  def mainInner(args: Array[String]): String = {
     val usage = """
     |Usage: gensym <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>]
     |              [--use-argv] [--noOpt] [--engine=<string>] [--main-O0]
@@ -95,7 +113,7 @@ object RunGenSym {
     val output = options.getOrElse("output", filepath.split("\\/").last.split("\\.")(0)).toString
     val nSym = options.getOrElse("nSym", 0).asInstanceOf[Int]
     val useArgv = options.getOrElse("useArgv", false).asInstanceOf[Boolean]
-    val optimize = options.getOrElse("optimize", Config.opt).asInstanceOf[Boolean]
+    val optimize = options.getOrElse("optimize", true).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
     val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
@@ -120,5 +138,6 @@ object RunGenSym {
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
     println(info.stripMargin)
     gensym.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), libPath)
+    output
   }
 }
