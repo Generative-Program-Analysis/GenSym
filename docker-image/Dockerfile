@@ -12,6 +12,7 @@ VOLUME ["/var/tmp"]
 # Initial setup
 RUN mkdir /icse23
 COPY init_setup.sh /icse23/init_setup.sh
+COPY sync.sh /icse23/sync.sh
 RUN bash /icse23/init_setup.sh
 
 ENV PATH="/icse23/scala-2.12.10/bin:${PATH}"
