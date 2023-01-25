@@ -21,7 +21,7 @@ tar xvf scala-2.12.10.tgz
 
 # STP
 cd /icse23
-git clone --depth 1 --branch 2.3.3 https://github.com/stp/stp.git
+git clone --depth 1 --branch smtcomp2020 https://github.com/stp/stp.git
 cd stp
 mkdir build
 cd build
