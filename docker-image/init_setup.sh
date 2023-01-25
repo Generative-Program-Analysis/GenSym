@@ -67,6 +67,8 @@ git clone -j 8 -b icse23 --recurse-submodules https://github.com/Generative-Prog
 cd /icse23/GenSym/benchmarks
 git clone -j 4 -b icse23 https://github.com/Generative-Program-Analysis/coreutils-linked.git coreutils
 make
+cd /icse23/GenSym/benchmarks/icse23/algorithms
+make
 
 # Top-level instructions
 cd /icse23

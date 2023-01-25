@@ -8,7 +8,7 @@ GS_INCL := /icse23/GenSym/headers
 
 FLAGS := -emit-llvm -O0 -Xclang -disable-O0-optnone -c
 KLEE_FLAGS := -D KLEE -g -I $(KLEE_INCL)
-GS_FLAGS := -fno-discard-value-names -S -I $(GS_INCL)
+GS_FLAGS := -D GENSYM -fno-discard-value-names -S -I $(GS_INCL)
 
 KLEE_TARGET := $(SRC_FILES:%.c=%.bc)
 
