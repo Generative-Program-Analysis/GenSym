@@ -1,6 +1,6 @@
 # General dependencies
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex wget libboost-all-dev python perl minisat curl gnupg2 locales openjdk-11-jdk vim build-essential file g++-multilib gcc-multilib libcap-dev libgoogle-perftools-dev libncurses5-dev libsqlite3-dev libtcmalloc-minimal4 python3-pip unzip graphviz doxygen clang-11 llvm-11 llvm-11-dev llvm-11-tools cloc
+DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex wget libboost-all-dev python perl minisat curl gnupg2 locales openjdk-8-jdk vim build-essential file g++-multilib gcc-multilib libcap-dev libgoogle-perftools-dev libncurses5-dev libsqlite3-dev libtcmalloc-minimal4 python3-pip unzip graphviz doxygen clang-11 llvm-11 llvm-11-dev llvm-11-tools cloc
 
 # Setup the locale
 locale-gen en_US.UTF-8
@@ -39,6 +39,11 @@ cp include/* /usr/include/
 cp bin/libz3.so /usr/lib/x86_64-linux-gnu/
 ldconfig
 
+# Python
+
+pip install --upgrade pip
+pip install pandas
+
 # KLEE
 cd /icse23
 pip3 install lit wllvm
@@ -53,11 +58,11 @@ make install
 
 # LLSC
 cd /icse23
-git clone -j 4 -b fse21demo --recurse-submodules https://github.com/Kraks/sai.git llsc
+git clone -j 8 -b fse21demo --recurse-submodules https://github.com/Kraks/sai.git llsc
 
 # GenSym
 cd /icse23
-git clone -j 4 -b main --recurse-submodules https://github.com/Generative-Program-Analysis/GenSym.git
+git clone -j 8 -b icse23 --recurse-submodules https://github.com/Generative-Program-Analysis/GenSym.git
 
 # Benchmarks
 cd /icse23/GenSym/benchmarks
