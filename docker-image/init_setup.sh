@@ -1,9 +1,6 @@
 # General dependencies
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex wget
-DEBIAN_FRONTEND=noninteractive apt-get install -y libboost-all-dev python
-DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales
-DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk clang-11 zip
+DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex wget libboost-all-dev python perl minisat curl gnupg2 locales openjdk-11-jdk vim build-essential file g++-multilib gcc-multilib libcap-dev libgoogle-perftools-dev libncurses5-dev libsqlite3-dev libtcmalloc-minimal4 python3-pip unzip graphviz doxygen clang-11 llvm-11 llvm-11-dev llvm-11-tools cloc
 
 # Setup the locale
 locale-gen en_US.UTF-8
@@ -42,6 +39,18 @@ cp include/* /usr/include/
 cp bin/libz3.so /usr/lib/x86_64-linux-gnu/
 ldconfig
 
+# KLEE
+cd /icse23
+pip3 install lit wllvm
+DEBIAN_FRONTEND=noninteractive apt-get install -y python3-tabulate
+git clone -j 4 -b v2.3 https://github.com/klee/klee.git
+cd /icse23/klee
+mkdir build
+cd build
+cmake -DENABLE_SOLVER_STP=ON -DENABLE_SOLVER_Z3=ON -DLLVM_CONFIG_BINARY=/usr/bin/llvm-config-11 -DLLVMCC=/usr/bin/clang-11 -DLLVMCXX=/usr/bin/clang++-11 ..
+make -j 8
+make install
+
 # LLSC
 cd /icse23
 git clone -j 4 -b fse21demo --recurse-submodules https://github.com/Kraks/sai.git llsc
@@ -50,10 +59,12 @@ git clone -j 4 -b fse21demo --recurse-submodules https://github.com/Kraks/sai.gi
 cd /icse23
 git clone -j 4 -b main --recurse-submodules https://github.com/Generative-Program-Analysis/GenSym.git
 
-# Coreutils benchmarks
+# Benchmarks
 cd /icse23/GenSym/benchmarks
 git clone -j 4 https://github.com/Generative-Program-Analysis/coreutils-linked.git coreutils
+make
 
 # Top-level instructions
 cd /icse23
 git clone https://github.com/Generative-Program-Analysis/icse23-artifact-evaluation
+
