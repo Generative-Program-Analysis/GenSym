@@ -71,7 +71,7 @@ int main()
   make_symbolic(T, SIZE);
 #endif
 	lt = SIZE-1;
-	lp = 4;
+	lp = 10;
 
 	KMP_matcher(P, T);
 

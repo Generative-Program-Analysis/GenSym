@@ -41,4 +41,4 @@ $(LLSC_TARGET): %_llsc.ll : %.c
 	$(CC) $(LLSC_FLAGS) $(FLAGS) -o $@ $<
 
 clean:
-	$(RM) -rf $(KLEE_TARGET) $(KLEE_REPLAY_TARGET) $(KLEE_GEN) $(GS_TARGET)
+	$(RM) -rf $(KLEE_TARGET) $(KLEE_REPLAY_TARGET) $(KLEE_GEN) $(GS_TARGET) $(LLSC_TARGET)
