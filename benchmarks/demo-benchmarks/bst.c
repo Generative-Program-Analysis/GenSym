@@ -88,7 +88,7 @@ int main() {
     klee_make_symbolic(data, sizeof(data), "data");
     klee_make_symbolic(&key, sizeof(int), "key");
 #else
-    make_symbolic(data, sizeof(int) * SIZE);
+    make_symbolic(data, sizeof(int) * SIZE, "data");
     make_symbolic(&key, sizeof(int), "key");
 #endif
 

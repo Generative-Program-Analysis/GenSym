@@ -134,6 +134,11 @@ class TestPtr extends TestGS {
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(10)))
 }
 
+class TestPtrUpdate extends TestGS {
+  val uninitPtrUpdate = parseFile("benchmarks/llvm/uninit_ptr_update.ll")
+  testGS(new ImpCPSGS, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, "--thread=1", nPath(6)))
+}
+
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
   val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>

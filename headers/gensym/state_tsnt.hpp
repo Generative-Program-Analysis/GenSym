@@ -401,10 +401,12 @@ class SS {
         } else {
           // Now the location value is a general symbolic value other than `ite`/`SymLocV`,
           // which means the pointer is uninitialized anyway.
+          std::cout << "Symbolic Case\n";
           throw NullDerefException { immer::box<SS>(*this) };
         }
       }
       // Default case: considered as an invalid memory access
+      std::cout << "Default Case\n";
       throw NullDerefException { immer::box<SS>(*this) };
     }
     PtrVal at_struct(PtrVal addr, size_t size) {
@@ -453,20 +455,19 @@ class SS {
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
-      auto loc = addr->to_LocV();
-      auto symloc = std::dynamic_pointer_cast<SymLocV>(addr);
-      auto symvite = addr->to_SymV();
-
-      if (loc == nullptr && symloc == nullptr && symvite == nullptr) {
-          throw NullDerefException { immer::box<SS>(*this) };
-      }
-
-      if (loc->k == LocV::kStack) {
-          stack.update(loc->l, val, size);
-      } else if ((symloc != nullptr) && (iOP::op_ite == symloc->rator)) {
-          throw NullDerefException { immer::box<SS>(*this) };
-      } else {
-          heap.update(loc->l, val, size);
+      if (addr->to_LocV() != nullptr) {
+          return update_simpl(addr, val);
+      } else if (auto symloc = addr->to_SymV()) {
+          // TODO
+          ABORT("TODO");
+      } else if (auto symvite = addr->to_SymV()){
+          if (iOP::op_ite == symvite->rator) {
+              ABORT("TODO");
+            // TODO
+              /* return ite((*symvite)[0], update((*symvite)[1], val, size), update((*symvite)[2], val, size)); */
+          } else {
+              throw NullDerefException { immer::box<SS>(*this) };
+          }
       }
 
       return std::move(*this);
