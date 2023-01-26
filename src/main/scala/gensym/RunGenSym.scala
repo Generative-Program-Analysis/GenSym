@@ -70,8 +70,8 @@ object RunGenSym {
     |--emit-block-id-map     - emit a map from block names to id in common.h
     |--emit-var-id-map       - emit a map from variable names to id in common.h
     |--switch-type=<string>  - compilation variants of `switch` statement (default=nonMerge)
-    |  =merge                - only fork `m` paths of distinct targets
-    |  =nonMerge             - fork `n` paths where `n` is the total number of feasible cases (including default)
+    |  =merge                -   only fork `m` paths of distinct targets
+    |  =nonMerge             -   fork `n` paths where `n` is the total number of feasible cases (including default)
     |--help                  - print this help message
     """
 
@@ -83,8 +83,8 @@ object RunGenSym {
       case (options, r"--noOpt") => options + ("optimize" -> false)
       case (options, r"--engine=([a-zA-Z]+)$e") => options + ("engine" -> e)
       case (options, r"--main-opt=O(\d)$n") => options + ("mainOpt" -> ("O"+n))
-      case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
-      case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
+      case (options, r"--emit-block-id-map") => options + ("blockIdMap" -> true)
+      case (options, r"--emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
       case (options, r"--lib=([-_A-Za-z0-9\/\.]+)$p") => options + ("lib" -> p)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
