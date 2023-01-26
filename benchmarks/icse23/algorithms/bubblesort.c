@@ -29,6 +29,9 @@ int main()
 #ifdef KLEE
   klee_make_symbolic(data, sizeof data, "data");
 #endif
+#ifdef LLSC
+  make_symbolic(data, sizeof(int) * SIZE);
+#endif
 #ifdef GENSYM
   for (int i = 0; i < SIZE; i++)
     make_symbolic_whole(data + i, sizeof(int));

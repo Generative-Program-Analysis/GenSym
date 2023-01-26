@@ -43,6 +43,9 @@ int main()
 #ifdef KLEE
     klee_make_symbolic(wt, sizeof(int) * N, "wt");
 #endif
+#ifdef LLSC
+    make_symbolic(wt, sizeof(int) * N);
+#endif
 #ifdef GENSYM
     for (int i = 0; i < N; i++)
         make_symbolic_whole(wt + i, sizeof(int));

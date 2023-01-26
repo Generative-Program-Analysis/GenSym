@@ -64,6 +64,9 @@ int main()
 #ifdef KLEE
   klee_make_symbolic(T, SIZE, "T");
 #endif
+#ifdef LLSC
+  make_symbolic(T, SIZE);
+#endif
 #ifdef GENSYM
   make_symbolic(T, SIZE);
 #endif

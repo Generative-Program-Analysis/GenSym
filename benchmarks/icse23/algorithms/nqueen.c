@@ -42,6 +42,9 @@ bool solveNQ() {
 #ifdef KLEE
     klee_make_symbolic(board, sizeof(int) * N * N, "board");
 #endif
+#ifdef LLSC
+    make_symbolic(board, sizeof(int) * N * N);
+#endif
 #ifdef GENSYM
     for (int i = 0; i < N * N; i++)
         make_symbolic_whole((int*)board + i, sizeof(int));
