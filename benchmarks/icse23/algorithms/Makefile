@@ -21,7 +21,7 @@ GS_TARGET := $(SRC_FILES:%.c=%.ll)
 
 LLSC_TARGET := $(SRC_FILES:%.c=%_llsc.ll)
 
-all: gensym klee
+all: gensym klee llsc
 
 gensym: $(GS_TARGET)
 klee: $(KLEE_TARGET)
