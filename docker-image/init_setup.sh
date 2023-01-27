@@ -74,3 +74,6 @@ make
 cd /icse23
 git clone https://github.com/Generative-Program-Analysis/icse23-artifact-evaluation
 
+# Prepare Libraries for separate compilation
+cd /icse23/GenSym
+/icse23/icse23-artifact-evaluation/table5/compilation_test.py prepare --no-build
