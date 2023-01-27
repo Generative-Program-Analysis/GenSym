@@ -160,7 +160,7 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       }
       case 13:
-        initial_fs = set_file(initial_fs, std::string("/") + optarg, set_file_type(make_SymFile(optarg, default_sym_file_size), S_IFREG));
+        initial_fs = set_file(initial_fs, std::string("/") + optarg, make_SymFile(optarg, default_sym_file_size));
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data", default_sym_file_size, false));
         initial_fs.sym_objs = initial_fs.sym_objs.push_back(SymObj(std::string(optarg) + "-data-stat", stat_size, false));
         n_sym_files++;
