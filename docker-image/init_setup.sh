@@ -1,6 +1,6 @@
 # General dependencies
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex wget libboost-all-dev python perl minisat curl gnupg2 locales openjdk-8-jdk vim build-essential file g++-multilib gcc-multilib libcap-dev libgoogle-perftools-dev libncurses5-dev libsqlite3-dev libtcmalloc-minimal4 python3-pip unzip graphviz doxygen clang-11 llvm-11 llvm-11-dev llvm-11-tools cloc zsh
+DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex wget libboost-all-dev python perl minisat curl gnupg2 locales openjdk-8-jdk vim build-essential file g++-multilib gcc-multilib libcap-dev libgoogle-perftools-dev libncurses5-dev libsqlite3-dev libtcmalloc-minimal4 python3-pip unzip graphviz doxygen clang-11 llvm-11 llvm-11-dev llvm-11-tools cloc zsh autoconf automake gperf rsync gettext autopoint bison texinfo
 
 # Setup the locale
 locale-gen en_US.UTF-8
@@ -69,6 +69,17 @@ git clone -j 4 -b icse23 https://github.com/Generative-Program-Analysis/coreutil
 make
 cd /icse23/GenSym/benchmarks/icse23/algorithms
 make
+
+# Coreutils with gcov
+cd /icse23
+git clone https://github.com/coreutils/coreutils.git -j10 coreutils-src
+cd coreutils-src
+git checkout 8d13292 -b test-8.32
+./bootstrap
+mkdir obj-gcov
+cd obj-gcov
+FORCE_UNSAFE_CONFIGURE=1 ../configure --disable-nls CFLAGS="-g -fprofile-arcs -ftest-coverage -Wno-stringop-overflow"
+make -j10
 
 # Top-level instructions
 cd /icse23
