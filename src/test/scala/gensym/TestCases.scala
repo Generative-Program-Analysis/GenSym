@@ -160,60 +160,47 @@ object TestCases {
     TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)),
   )
 
-  lazy val coreutils: List[TestPrg] = List(
-    TestPrg(echo_linked,    "echo_linked_posix",    "@main",  noMainFileOpt, "--argv=./echo.bc     --sym-stdout --sym-arg 2 --sym-arg 7", nPath(216136)++status(0)),
-    // [0.75008s/6.94065s/82.0174s] #blocks: 473/2224; #br: 160/96/1128; #paths: 216136; #threads: 1; #task-in-q: 0; #queries: 646097/53 (0)
-    // gcov 84.17%
-    TestPrg(cat_linked,     "cat_linked_posix",     "@main",  noMainFileOpt, "--argv=./cat.bc      --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)),
-    // [17.5964s/122.277s/152.538s] #blocks: 1114/2484; #br: 371/297/1664; #paths: 28567; #threads: 1; #task-in-q: 0; #queries: 976797/71 (0)
-    // gcov 81.4%
-    TestPrg(base32_linked,  "base32_linked_posix",  "@main",  noMainFileOpt, "--argv=./base32      --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10621)++status(0)),
-    // [11.0384s/81.2135s/95.0274s] #blocks: 1170/2718; #br: 417/284/1860; #paths: 10621; #threads: 1; #task-in-q: 0; #queries: 475353/38 (0)
-    // gcov 73.33%
-    TestPrg(base64_linked,  "base64_linked_posix",  "@main",  noMainFileOpt, "--argv=./base64.bc   --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10624)++status(0)),
-    // [11.1519s/81.5593s/95.0264s] #blocks: 1164/2694; #br: 411/286/1889; #paths: 10624; #threads: 1; #task-in-q: 0; #queries: 475379/38 (0)
-    // gcov 73.33%
-    TestPrg(comm_linked,    "comm_linked_posix",    "@main",  noMainFileOpt, "--argv=./comm.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2  --sym-arg 1 -sym-files 2 2", nPath(23846)++status(0)),
-    // [19.4591s/134.449s/164.537s] #blocks: 1230/2719; #br: 406/314/2077; #paths: 23846; #threads: 1; #task-in-q: 0; #queries: 993577/52 (0)
-    // gcov 72.41%
-    TestPrg(cut_linked,     "cut_linked_posix",     "@main",  noMainFileOpt, "--argv=./cut.bc      --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg  2 -sym-files 2 2", nPath(28481)++status(0)), // or --sym-args 0 2 2
-    // [31.0933s/98.3556s/134.029s] #blocks: 1056/2751; #br: 388/242/2124; #paths: 28481; #threads: 1; #task-in-q: 0; #queries: 238501/100 (0)
-    // gcov 67.44%
-    TestPrg(dirname_linked, "dirname_linked_posix", "@main",  noMainFileOpt, "--argv=./dirname.bc  --sym-stdout  --sym-stdin 2 --sym-arg 6 --sym-arg 10", nPath(287386)++status(0)),
-    // [1.14461s/18.4733s/115.025s] #blocks: 590/2295; #br: 219/93/2130; #paths: 287386; #threads: 1; #task-in-q: 0; #queries: 3720763/21 (0)
-    // gcov 100.00%
-    TestPrg(expand_linked,  "expand_linked_posix",  "@main",  noMainFileOpt, "--argv=./expand.bc   --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10870)++status(0)),
-    // [21.482s/101.299s/116.022s] #blocks: 1167/2554; #br: 408/294/2145; #paths: 10870; #threads: 1; #task-in-q: 0; #queries: 478319/41 (0)
-    // gcov 71.05%
-    TestPrg(false_linked,   "false_linked_posix",   "@main",  noMainFileOpt, "--argv=./false.bc    --sym-stdout  --sym-arg 10", nPath(16)++status(0)),
-    // [0.012289s/0.032464s/1.00143s] #blocks: 391/2108; #br: 159/44/2276; #paths: 16; #threads: 1; #task-in-q: 0; #queries: 165/3 (0)
-    // gcov 100.00%
-    TestPrg(true_linked,    "true_linked_posix",    "@main",  noMainFileOpt, "--argv=./true.bc     --sym-stdout  --sym-arg 10", nPath(16)++status(0)),
-    // [0.012326s/0.032479s/1.0014s] #blocks: 391/2108; #br: 159/44/2276; #paths: 16; #threads: 1; #task-in-q: 0; #queries: 165/3 (0)
-    // gcov 100.00%
-    TestPrg(fold_linked,    "fold_linked_posix",    "@main",  noMainFileOpt, "--argv=./fold.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2    -sym-files 2 2", nPath(11015)++status(0)),
-    // [11.2871s/95.8641s/110.53s] #blocks: 1212/2603; #br: 417/301/2279; #paths: 11015; #threads: 1; #task-in-q: 0; #queries: 478287/46 (0)
-    // gcov 74.36%
-    TestPrg(join_linked,    "join_linked_posix",    "@main",  noMainFileOpt, "--argv=./join.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2", nPath(25046)++status(0)),
-    // [32.7084s/230.442s/263.047s] #blocks: 1444/3172; #br: 461/369/2511; #paths: 25046; #threads: 1; #task-in-q: 0; #queries: 983311/87 (0)
-    // gcov 71.75%
-    TestPrg(link_linked,    "link_linked_posix",    "@main",  noMainFileOpt, "--argv=./link.bc     --sym-stdout  --sym-stdin 2 --sym-arg 2   --sym-arg 1  --sym-arg 1  -sym-files 2 2", nPath(11233)++status(0)),
-    // [9.39498s/116.469s/142.031s] #blocks: 891/2282; #br: 334/208/2511; #paths: 11233; #threads: 1; #task-in-q: 0; #queries: 1238401/91 (0)
-    // gcov 60.00%
-    TestPrg(paste_linked,   "paste_linked_posix",   "@main",  noMainFileOpt, "--argv=./paste.bc    --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2", nPath(22622)++status(0)),
-    // [19.9342s/142.499s/170.043s] #blocks: 1180/2510; #br: 393/306/2513; #paths: 22622; #threads: 1; #task-in-q: 0; #queries: 974269/46 (0)
-    // gcov 76.08%
-    TestPrg(pathchk_linked, "pathchk_linked_posix", "@main",  noMainFileOpt, "--argv=./pathchk.bc  --sym-stdout  --sym-stdin 2 --sym-arg 2", nPath(10614)++status(0)),
-    // [10.6848s/77.1473s/91.5263s] #blocks: 878/2418; #br: 314/226/2515; #paths: 10614; #threads: 1; #task-in-q: 0; #queries: 475423/30 (0)
-    // gcov 40.29%
-  )
-
   val all: List[TestPrg] = concrete ++ memModel ++ symbolicSimple ++ symbolicSmall ++ external ++ argv
+}
 
-  // FIXME: out of range
-  // TestPrg(struct, "structTest", "@main", noArg, 1),
-  // FIXME: seg fault
-  // TestPrg(largeStackArray, "largeStackArrayTest", "@main", noArg, 1),
-  // TestPrg(makeSymbolicArray, "makeSymbolicArrayTest", "@main", noArg, 1),
-  // TestPrg(ptrtoint, "ptrToIntTest", "@main", noArg, 1)
+object CoreutilsPOSIX {
+  import ICSE23CoreutilsPOSIX._
+  lazy val coreutils: List[TestPrg] = List(
+    TestPrg(echo,    "echo_linked_posix",    "@main",  noMainFileOpt, "--argv=./echo.bc --sym-stdout --sym-arg 2 --sym-arg 7", nPath(216136)++status(0)),
+    TestPrg(cat,     "cat_linked_posix",     "@main",  noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)),
+    TestPrg(base32,  "base32_linked_posix",  "@main",  noMainFileOpt, "--argv=./base32 --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10621)++status(0)),
+    TestPrg(base64,  "base64_linked_posix",  "@main",  noMainFileOpt, "--argv=./base64.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10624)++status(0)),
+    TestPrg(comm,    "comm_linked_posix",    "@main",  noMainFileOpt, "--argv=./comm.bc --sym-stdout  --sym-stdin 2 --sym-arg 2  --sym-arg 1 -sym-files 2 2", nPath(23846)++status(0)),
+    TestPrg(cut,     "cut_linked_posix",     "@main",  noMainFileOpt, "--argv=./cut.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg  2 -sym-files 2 2", nPath(28481)++status(0)), // or --sym-args 0 2 2
+    TestPrg(dirname, "dirname_linked_posix", "@main",  noMainFileOpt, "--argv=./dirname.bc --sym-stdout  --sym-stdin 2 --sym-arg 6 --sym-arg 10", nPath(287386)++status(0)),
+    TestPrg(expand,  "expand_linked_posix",  "@main",  noMainFileOpt, "--argv=./expand.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10870)++status(0)),
+    TestPrg(fls,   "false_linked_posix",   "@main",  noMainFileOpt, "--argv=./false.bc --sym-stdout  --sym-arg 10", nPath(16)++status(0)),
+    TestPrg(tru,    "true_linked_posix",    "@main",  noMainFileOpt, "--argv=./true.bc --sym-stdout  --sym-arg 10", nPath(16)++status(0)),
+    TestPrg(fold,    "fold_linked_posix",    "@main",  noMainFileOpt, "--argv=./fold.bc --sym-stdout  --sym-stdin 2 --sym-arg 2    -sym-files 2 2", nPath(11015)++status(0)),
+    TestPrg(join,    "join_linked_posix",    "@main",  noMainFileOpt, "--argv=./join.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2", nPath(25046)++status(0)),
+    TestPrg(link,    "link_linked_posix",    "@main",  noMainFileOpt, "--argv=./link.bc --sym-stdout  --sym-stdin 2 --sym-arg 2   --sym-arg 1  --sym-arg 1  -sym-files 2 2", nPath(11233)++status(0)),
+    TestPrg(paste,   "paste_linked_posix",   "@main",  noMainFileOpt, "--argv=./paste.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2", nPath(22622)++status(0)),
+    TestPrg(pathchk, "pathchk_linked_posix", "@main",  noMainFileOpt, "--argv=./pathchk.bc --sym-stdout  --sym-stdin 2 --sym-arg 2", nPath(10614)++status(0)),
+  )
+}
+
+object CoreutilsUClibc {
+  import ICSE23CoreutilsPOSIX._
+  lazy val coreutils: List[TestPrg] = List(
+    TestPrg(echo,    "echo_linked_uclibc",    "@main",  noMainFileOpt, "--argv=./echo.bc --sym-stdout --sym-arg 2 --sym-arg 7", nPath(216136)++status(0)),
+    TestPrg(cat,     "cat_linked_uclibc",     "@main",  noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)),
+    TestPrg(base32,  "base32_linked_uclibc",  "@main",  noMainFileOpt, "--argv=./base32 --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10621)++status(0)),
+    TestPrg(base64,  "base64_linked_uclibc",  "@main",  noMainFileOpt, "--argv=./base64.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10624)++status(0)),
+    TestPrg(comm,    "comm_linked_uclibc",    "@main",  noMainFileOpt, "--argv=./comm.bc --sym-stdout  --sym-stdin 2 --sym-arg 2  --sym-arg 1 -sym-files 2 2", nPath(23846)++status(0)),
+    TestPrg(cut,     "cut_linked_uclibc",     "@main",  noMainFileOpt, "--argv=./cut.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg  2 -sym-files 2 2", nPath(28481)++status(0)), // or --sym-args 0 2 2
+    TestPrg(dirname, "dirname_linked_uclibc", "@main",  noMainFileOpt, "--argv=./dirname.bc --sym-stdout  --sym-stdin 2 --sym-arg 6 --sym-arg 10", nPath(287386)++status(0)),
+    TestPrg(expand,  "expand_linked_uclibc",  "@main",  noMainFileOpt, "--argv=./expand.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 -sym-files 2 2", nPath(10870)++status(0)),
+    TestPrg(fls,   "false_linked_uclibc",   "@main",  noMainFileOpt, "--argv=./false.bc --sym-stdout  --sym-arg 10", nPath(16)++status(0)),
+    TestPrg(tru,    "true_linked_uclibc",    "@main",  noMainFileOpt, "--argv=./true.bc --sym-stdout  --sym-arg 10", nPath(16)++status(0)),
+    TestPrg(fold,    "fold_linked_uclibc",    "@main",  noMainFileOpt, "--argv=./fold.bc --sym-stdout  --sym-stdin 2 --sym-arg 2    -sym-files 2 2", nPath(11015)++status(0)),
+    TestPrg(join,    "join_linked_uclibc",    "@main",  noMainFileOpt, "--argv=./join.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2", nPath(25046)++status(0)),
+    TestPrg(link,    "link_linked_uclibc",    "@main",  noMainFileOpt, "--argv=./link.bc --sym-stdout  --sym-stdin 2 --sym-arg 2   --sym-arg 1  --sym-arg 1  -sym-files 2 2", nPath(11233)++status(0)),
+    TestPrg(paste,   "paste_linked_uclibc",   "@main",  noMainFileOpt, "--argv=./paste.bc --sym-stdout  --sym-stdin 2 --sym-arg 2 --sym-arg 1  -sym-files 2 2", nPath(22622)++status(0)),
+    TestPrg(pathchk, "pathchk_linked_uclibc", "@main",  noMainFileOpt, "--argv=./pathchk.bc --sym-stdout  --sym-stdin 2 --sym-arg 2", nPath(10614)++status(0)),
+  )
 }
