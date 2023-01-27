@@ -71,6 +71,7 @@ cd /icse23/GenSym/benchmarks/icse23/algorithms
 make
 
 # Coreutils with gcov
+# see /icse23/coreutils-src/obj-gcov/src
 cd /icse23
 git clone https://github.com/coreutils/coreutils.git -j10 coreutils-src
 cd coreutils-src
