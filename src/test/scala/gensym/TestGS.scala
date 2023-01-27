@@ -60,7 +60,7 @@ abstract class TestGS extends FunSuite {
                   else gs.insName + "_" + name
     test(name) {
       val code = gs.run(m, outname, f, config, libPath)
-      val mkRet = code.makeWithAllCores
+      val mkRet = code.makeWithHalfCores
       assert(mkRet == 0, "make failed")
       if (runCode) {
         val (output, ret) = code.runWithStatus(cliArg)
