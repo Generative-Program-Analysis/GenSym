@@ -30,6 +30,7 @@ using TaskFun = std::function<std::monostate()>;
 inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
 
 inline bool ptree_pop_task(TaskFun& task);
+inline void check_pc_to_file(const SS& state);
 
 struct Task {
   TaskFun f;
@@ -138,7 +139,12 @@ public:
       }
       if (!paused && get) {
         //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
-        task.f();
+        try {
+          task.f();
+        } catch (NullDerefException e) {
+          //std::cout << "Warning: throwing an exception; generating a test case\n";
+          check_pc_to_file(e.ss.get());
+        }
         //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
         tasks_num_total--;
       } else {

@@ -59,7 +59,7 @@ public:
     auto it = ptreemap.find(ssid);
     assert(it != ptreemap.end());
     PTreeNodePtr old_ptr = it->second;
-    assert(!old_ptr->has_task);
+    //assert(!old_ptr->has_task);
     assert(!old_ptr->left);
     assert(!old_ptr->right);
     PTreeNodePtr new_ptr = new PTreeNode(old_ptr, ssid);
@@ -69,6 +69,10 @@ public:
     old_ptr->left = new_ptr;
     old_ptr->right = forked_ptr;
     old_ptr->ssid = 0;
+    if (old_ptr->has_task) {
+      new_ptr->task = std::move(old_ptr->task);
+      new_ptr->has_task = true;
+    }
     return forked_ptr->ssid;
   }
   void remove(uint64_t ssid) {

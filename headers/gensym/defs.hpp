@@ -14,6 +14,22 @@ using UIntData = unsigned long long int;
 using Fd = int;
 using status_t = unsigned short;
 
+// Forward declarations
+
+class SS;
+class PC;
+struct Value;
+struct IntV;
+struct SymV;
+struct LocV;
+struct SymLocV;
+struct FloatV;
+struct ShadowV;
+
+struct NullDerefException {
+  immer::box<SS> ss;
+};
+
 inline int vararg_id = -1;
 
 // Default bitwidth when creating integers or symbolic values
@@ -94,6 +110,8 @@ inline bool print_cov_detail = false;
 inline uint32_t print_detailed_log = 0;
 // The maximum size of symbolic location (used in memory read)
 inline unsigned int max_sym_array_size = 0;
+// The upper bound for the number of feasible symbolic size on malloc and memcpy
+inline unsigned int max_size_bound = 400;
 // Use simplification when constructing SymV values
 inline bool use_symv_simplify = false;
 

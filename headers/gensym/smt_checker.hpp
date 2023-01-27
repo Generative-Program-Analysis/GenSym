@@ -370,7 +370,7 @@ public:
     if (use_cons_indep) resolve_indep_uf(pc.uf, e, conds, false);
     else conds.insert(pc.conds.begin(), pc.conds.end());
     UIntData data = 0;
-    solver_result result;
+    solver_result result = unsat;
     auto m = query_model(conds);
     if (m != nullptr) result = sat;
     return std::make_pair(result == sat, result == sat ? self()->eval_model(m, e) : 0);
@@ -460,7 +460,7 @@ inline bool check_pc(PC pc) {
   return result == solver_result::sat;
 }
 
-inline void check_pc_to_file(SS& state) {
+inline void check_pc_to_file(const SS& state) {
   auto start = steady_clock::now();
   checker_manager.get_checker().generate_test(std::move(state));
   auto end = steady_clock::now();
