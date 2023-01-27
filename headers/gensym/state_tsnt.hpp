@@ -276,9 +276,9 @@ class PC {
     PC(TrList<PtrVal> conds) : conds(std::move(conds)) {
       auto start = steady_clock::now();
       for (auto& c : conds) {
-        for (auto& v : c->to_SymV()->vars) { 
+        for (auto& v : c->to_SymV()->vars) {
           vars.insert(v);
-          uf.join(v, c); 
+          uf.join(v, c);
         }
       }
       auto end = steady_clock::now();
@@ -288,9 +288,9 @@ class PC {
       ASSERT(e->to_SymV(), "added condition must be symbolic boolean");
       conds.push_back(e);
       auto start = steady_clock::now();
-      for (auto& v : e->to_SymV()->vars) { 
+      for (auto& v : e->to_SymV()->vars) {
         vars.insert(v);
-        uf.join(v, e); 
+        uf.join(v, e);
       }
       auto end = steady_clock::now();
       cons_indep_time += duration_cast<microseconds>(end - start).count();
@@ -352,6 +352,7 @@ class SS {
         auto res = get_sat_value(pc2, offsym);
         while (res.first) {
           cnt++;
+          // Todo (Ruiqi): Maybe use Intdata?
           int offset_val = res.second;
           auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
           result.push_back(std::make_pair(t_cond, offset_val));
@@ -361,6 +362,10 @@ class SS {
           res = get_sat_value(pc2, offsym);
         }
         ASSERT(cnt > 0, "No satisfiable offset value");
+        //Todo (Ruiqi): should we add this?
+        if (1 == cnt_bound) {
+          pc.add(result[0].first);
+        }
       } else {
         ASSERT(SymLocStrategy::all == symloc_strategy, "Bad symloc strategy");
         for (int offset_val=0; offset_val <= (symloc->size - size); offset_val++) {
@@ -389,8 +394,13 @@ class SS {
     }
     PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
-        if (loc->k == LocV::kStack) return stack.at(loc->l, size);
-        return heap.at(loc->l, size);
+        if (loc->k == LocV::kStack) {
+          if (loc->l + size > stack.mem_size()) throw NullDerefException { immer::box<SS>(*this) };
+          return stack.at(loc->l, size);
+        } else {
+          if (loc->l + size > heap.size()) throw NullDerefException { immer::box<SS>(*this) };
+          return heap.at(loc->l, size);
+        }
       }
       if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) return at_symloc(symloc, size);
       if (auto symvite = addr->to_SymV()) {
@@ -444,11 +454,37 @@ class SS {
         heap.update(loc->l, val);
       return std::move(*this);
     }
+    SS&& update_symloc(PtrVal addr, PtrVal val, size_t size) {
+      auto symloc = std::dynamic_pointer_cast<SymLocV>(addr);
+      ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
+      auto offsym = symloc->off->to_SymV();
+      ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
+
+      auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
+      auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - size, addr_index_bw));
+      auto pc2 = pc;
+      pc2.add(low_cond).add(high_cond);
+      auto res = get_sat_value(pc2, offsym);
+      ASSERT(res.first, "no feasible offset\n");
+
+      // Todo (Ruiqi): Maybe use Intdata?
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+
+      // Todo (Ruiqi): should we add this?
+      pc.add(t_cond);
+      update(make_LocV(symloc->base, symloc->k, symloc->size, offset_val), val, size);
+      return std::move(*this);
+    }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
-      auto loc = addr->to_LocV();
-      ASSERT(loc != nullptr, "Lookup an non-address value");
-      if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
-      else heap.update(loc->l, val, size);
+      if (auto loc = addr->to_LocV()) {
+        if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
+        else heap.update(loc->l, val, size);
+      } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
+        update_symloc(symloc, val, size);
+      } else {
+        ABORT("dereferenceing a nullptr");
+      }
       return std::move(*this);
     }
     SS&& update_seq(PtrVal addr, List<PtrVal> vals) {

@@ -824,11 +824,12 @@ inline PtrVal int_op_2(iOP op, const PtrVal& v1, const PtrVal& v2) {
     auto bw = bw1;
     if ((sym1 && iOP::op_ite == sym1->rator) && (sym2 && iOP::op_ite == sym2->rator) && ((*sym1)[0] == (*sym2)[0])) {
       return ite((*sym1)[0], int_op_2(op, (*sym1)[1], (*sym2)[1]), int_op_2(op, (*sym1)[2], (*sym2)[2]));
-    } else if (sym1 && iOP::op_ite == sym1->rator) {
+    }
+    /*else if (sym1 && iOP::op_ite == sym1->rator) {
       return ite((*sym1)[0], int_op_2(op, (*sym1)[1], v2), int_op_2(op, (*sym1)[2], v2));
     } else if (sym2 && iOP::op_ite == sym2->rator) {
       return ite((*sym2)[0], int_op_2(op, v1, (*sym2)[1]), int_op_2(op, v1, (*sym2)[2]));
-    }
+    }*/
     switch (op) {
       case iOP::op_eq: case iOP::op_neq: case iOP::op_uge:
       case iOP::op_sge: case iOP::op_ugt: case iOP::op_sgt:

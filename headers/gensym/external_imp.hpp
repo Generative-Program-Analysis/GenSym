@@ -30,7 +30,7 @@ inline T __gs_assert(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
       std::cout << "v: " << v->toString() << std::endl;
     }
     std::cout << "Warning: assert violates; abort and generate test.\n";
-    return h(state, { make_IntV(-1, 32) }); 
+    return h(state, { make_IntV(-1, 32) });
   }
   state.add_PC(v);
   return k(state, make_IntV(1, 32));
@@ -55,7 +55,7 @@ inline T __gs_assume(SS& state, List<PtrVal>& args, __Cont<T> k, __Halt<T> h) {
   auto [tru_sat, fls_sat] = check_branch(state.get_PC(), v); // check if v == 1 is satisfiable
   if (!tru_sat) {
     std::cout << "Warning: assume violates; abort and generate test.\n";
-    return h(state, { make_IntV(-1, 32) }); 
+    return h(state, { make_IntV(-1, 32) });
   }
   state.add_PC(v);
   return k(state, make_IntV(1, 32));
@@ -122,29 +122,42 @@ template<typename T>
 inline T __malloc(SS& state, List<PtrVal> args, __Cont<T> k) {
   auto size = args.at(0);
   if (auto symvite = size->to_SymV()) {
-    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    auto cond = (*symvite)[0];
-    auto v_t = (*symvite)[1];
-    auto v_f = (*symvite)[2];
-    auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
-    auto t_args = List<PtrVal>{v_t};
-    auto f_args = List<PtrVal>{v_f};
-    if (tbr_sat && fbr_sat) {
-      cov().inc_path(1);
-      SS tbr_ss = state;
-      SS fbr_ss = state.fork();
-      tbr_ss.add_PC(cond);
-      fbr_ss.add_PC(SymV::neg(cond));
-      return __malloc(tbr_ss, t_args, k) + __malloc(fbr_ss, f_args, k);
-    } else if (tbr_sat) {
-      SS tbr_ss = state.add_PC(cond);
-      return __malloc(tbr_ss, t_args, k);
-    } else if (fbr_sat) {
-      SS fbr_ss = state.add_PC(SymV::neg(cond));
-      return __malloc(fbr_ss, f_args, k);
-    } else {
-      ABORT("no feasible path");
+    std::vector<std::pair<PtrVal, PtrVal>> result;
+    int cnt_bound = max_size_bound;
+    int cnt = 0;
+    auto size_cond = int_op_2(iOP::op_sgt, size, make_IntV(0, size->get_bw()));
+    auto pc = state.copy_PC().add(size_cond);
+    auto res = get_sat_value(pc, size);
+    while (res.first) {
+      cnt++;
+      IntData size_val = res.second;
+      auto size_v = make_IntV(size_val, size->get_bw());
+      auto t_cond = int_op_2(iOP::op_eq, size, size_v);
+      result.push_back(std::make_pair(t_cond, size_v));
+      if (cnt_bound == cnt)
+        break;
+      pc.add(SymV::neg(t_cond));
+      res = get_sat_value(pc, size);
     }
+
+    ASSERT(cnt > 0, "No satisfiable size value");
+    cov().inc_path(cnt - 1);
+
+    T return_res;
+
+    SS curr_state = state.copy();
+    for (int i = 0; i < cnt; i++) {
+      PtrVal conc_size = result[i].second;
+      auto conc_args = List<PtrVal>{conc_size};
+      SS conc_state = curr_state.copy().add_PC(result[i].first);
+
+      return_res = return_res +  __malloc(conc_state, conc_args, k);
+      if (i < cnt - 1) {
+        curr_state = curr_state.fork();
+      }
+    }
+
+    return return_res;
   } else {
     IntData bytes = proj_IntV(size);
     auto emptyMem = List<PtrVal>(bytes, make_UnInitV());
@@ -265,8 +278,7 @@ inline std::monostate reallocarray(SS& state, List<PtrVal> args, Cont k) {
 
 /******************************************************************************/
 
-template<typename T>
-inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
+inline List<SSVal> __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<List<SSVal>> k) {
   PtrVal dest = args.at(0);
   PtrVal src = args.at(1);
   PtrVal size = args.at(2);
@@ -292,15 +304,213 @@ inline T __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<T> k) {
   for (int i = 0; i < bytes_int; i++) {
     state.update_simpl(dest + i, state.at_simpl(src + i));
   }
-  return k(state, IntV0_32);
+  return k(state, dest);
 }
 
 inline List<SSVal> llvm_memcpy(SS& state, List<PtrVal> args) {
-  return __llvm_memcpy<List<SSVal>>(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
+  return __llvm_memcpy(state, args, [](auto s, auto v) { return List<SSVal>{{s, v}}; });
 }
 
+inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::monostate> k) {
+  PtrVal dest = args.at(0);
+  PtrVal src = args.at(1);
+  PtrVal size = args.at(2);
+  IntData bytes_int;
+  if (auto symvite = size->to_SymV()) {
+
+    // Todo (Ruiqi): We use a different logic to deal with symbolic size from the external memcpy, this may cause path number difference. To eliminate the difference, we should disable redirecting memcpy to our internal memcpy, add support byte-by-byte copy of any Value (Currently has bug with FuncV and LocV).
+    std::vector<std::pair<PtrVal, PtrVal>> result;
+    int cnt_bound = max_size_bound;
+    int cnt = 0;
+    auto nonneg_cond = int_op_2(iOP::op_sgt, size, make_IntV(0, size->get_bw()));
+    auto neg_cond = int_op_2(iOP::op_sle, size, make_IntV(0, size->get_bw()));
+    auto pc = state.copy_PC().add(nonneg_cond);
+    auto res = get_sat_value(pc, size);
+    while (res.first) {
+      cnt++;
+      IntData size_val = res.second;
+      auto size_v = make_IntV(size_val, size->get_bw());
+      auto t_cond = int_op_2(iOP::op_eq, size, size_v);
+      result.push_back(std::make_pair(t_cond, size_v));
+      if (cnt_bound == cnt)
+        break;
+      pc.add(SymV::neg(t_cond));
+      res = get_sat_value(pc, size);
+    }
+
+    if (0 == cnt) {
+      return k(state, dest);
+    } else {
+      int non_positive_num = 0;
+      res = get_sat_value(state.copy_PC().add(neg_cond), size);
+      if (res.first) {
+        non_positive_num = 1;
+        SS neg_ss = state.copy().add_PC(neg_cond);
+        if (can_par_tp()) {
+          tp.add_task(neg_ss.get_ssid(), [neg_ss=std::move(neg_ss), dest, k]{ return k((SS&)neg_ss, dest); });
+        } else {
+          k(neg_ss, dest);
+        }
+      }
+
+      cov().inc_path(cnt + non_positive_num - 1);
+
+      SS curr_state = 0 == non_positive_num ? state.copy() : state.fork();
+      for (int i = 0; i < cnt; i++) {
+        PtrVal conc_size = result[i].second;
+        auto conc_args = List<PtrVal>{dest, src, conc_size};
+        SS conc_state = curr_state.copy().add_PC(result[i].first);
+        if (can_par_tp()) {
+          tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+        } else {
+          __llvm_memcpy(conc_state, conc_args, k);
+        }
+        if (i < cnt - 1) {
+          curr_state = curr_state.fork();
+        }
+      }
+
+      return std::monostate{};
+    }
+  } else {
+    bytes_int = proj_IntV(size);
+    if (bytes_int <= 0) {
+      return k(state, dest);
+    }
+  }
+  if (!dest->to_LocV()) {
+    auto symloc = std::dynamic_pointer_cast<SymLocV>(dest);
+    ASSERT(symloc != nullptr, "Lookup an non-address value");
+    std::vector<std::pair<PtrVal, int>> result;
+    auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
+    ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
+    int cnt_bound = max_size_bound;
+    int cnt = 0;
+    auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
+    auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - 1, addr_index_bw));
+    auto pc2 = state.copy_PC();
+    pc2.add(low_cond).add(high_cond);
+    auto res = get_sat_value(pc2, offsym);
+    while (res.first) {
+      cnt++;
+      // Todo (Ruiqi): Maybe use Intdata?
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+      result.push_back(std::make_pair(t_cond, offset_val));
+      if (cnt_bound == cnt)
+        break;
+      pc2.add(SymV::neg(t_cond));
+      res = get_sat_value(pc2, offsym);
+    }
+    ASSERT(cnt > 0, "No satisfiable offset value");
+
+    cov().inc_path(cnt - 1);
+    SS curr_state = state.copy();
+    for (int i = 0; i < cnt; i++) {
+      PtrVal conc_dest = make_LocV(symloc->base, symloc->k, symloc->size, result[i].second);
+      auto conc_args = List<PtrVal>{conc_dest, src, size};
+      SS conc_state = curr_state.copy().add_PC(result[i].first);
+
+      if (can_par_tp()) {
+        tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+      } else {
+        __llvm_memcpy(conc_state, conc_args, k);
+      }
+
+      if (i < cnt - 1) {
+        curr_state = curr_state.fork();
+      }
+    }
+
+    return std::monostate{};
+  } else if (!src->to_LocV()) {
+    auto symloc = std::dynamic_pointer_cast<SymLocV>(src);
+    if (!symloc) {
+      auto sym_src = src->to_SymV();
+      ASSERT(sym_src && iOP::op_ite == sym_src->rator, "Bad pointer");
+
+      auto cond = (*sym_src)[0];
+      auto ptr_t = (*sym_src)[1];
+      auto ptr_f = (*sym_src)[2];
+      auto [tbr_sat, fbr_sat] = check_branch(state.get_PC(), cond);
+      auto t_args = List<PtrVal>{dest, ptr_t, size};
+      auto f_args = List<PtrVal>{dest, ptr_f, size};
+      if (tbr_sat && fbr_sat) {
+        cov().inc_path(1);
+        SS tbr_ss = state;
+        SS fbr_ss = state.fork();
+        tbr_ss.add_PC(cond);
+        fbr_ss.add_PC(SymV::neg(cond));
+        return __llvm_memcpy(tbr_ss, t_args, k) + __llvm_memcpy(fbr_ss, f_args, k);
+      } else if (tbr_sat) {
+        SS tbr_ss = state.add_PC(cond);
+        return __llvm_memcpy(tbr_ss, t_args, k);
+      } else if (fbr_sat) {
+        SS fbr_ss = state.add_PC(SymV::neg(cond));
+        return __llvm_memcpy(fbr_ss, f_args, k);
+      } else {
+        ABORT("no feasible path");
+      }
+    }
+    ASSERT(symloc != nullptr, "Lookup an non-address value");
+    ASSERT(dest->to_LocV() != nullptr, "Sym Dest");
+    std::vector<std::pair<PtrVal, int>> result;
+    auto offsym = std::dynamic_pointer_cast<SymV>(symloc->off);
+    ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
+    int cnt_bound = max_size_bound;
+    int cnt = 0;
+    auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
+    auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - 1, addr_index_bw));
+    auto pc2 = state.copy_PC();
+    pc2.add(low_cond).add(high_cond);
+    auto res = get_sat_value(pc2, offsym);
+    while (res.first) {
+      cnt++;
+      // Todo (Ruiqi): Maybe use Intdata?
+      int offset_val = res.second;
+      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+      result.push_back(std::make_pair(t_cond, offset_val));
+      if (cnt_bound == cnt)
+        break;
+      pc2.add(SymV::neg(t_cond));
+      res = get_sat_value(pc2, offsym);
+    }
+    ASSERT(cnt > 0, "No satisfiable offset value");
+
+    cov().inc_path(cnt - 1);
+    SS curr_state = state.copy();
+    for (int i = 0; i < cnt; i++) {
+      PtrVal conc_src = make_LocV(symloc->base, symloc->k, symloc->size, result[i].second);
+      auto conc_args = List<PtrVal>{dest, conc_src, size};
+      SS conc_state = curr_state.copy().add_PC(result[i].first);
+
+      if (can_par_tp()) {
+        tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+      } else {
+        __llvm_memcpy(conc_state, conc_args, k);
+      }
+
+      if (i < cnt - 1) {
+        curr_state = curr_state.fork();
+      }
+    }
+
+    return std::monostate{};
+  } else {
+    ASSERT(dest->to_LocV() != nullptr, "Non-location value");
+    ASSERT(src->to_LocV() != nullptr, "Non-location value");
+    for (int i = 0; i < bytes_int; i++) {
+      state.update_simpl(dest + i, state.at_simpl(src + i));
+    }
+
+    // Note: Return value should be a pointer to dest
+    return k(state, dest);
+  }
+}
+
+
 inline std::monostate llvm_memcpy(SS& state, List<PtrVal> args, Cont k) {
-  return __llvm_memcpy<std::monostate>(state, args, [&k](auto s, auto v) { return k(s, v); });
+  return __llvm_memcpy(state, args, [k](auto s, auto v) { return k(s, v); });
 }
 
 /******************************************************************************/
