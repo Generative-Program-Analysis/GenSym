@@ -32,7 +32,7 @@ scalacOptions ++= Seq(
 autoCompilerPlugins := true
 
 //https://www.scala-sbt.org/release/docs/Running-Project-Code.html
-fork := true
+//fork := true
 run / javaOptions ++= Seq(
   "-Xms4G",
   "-Xmx32G",
