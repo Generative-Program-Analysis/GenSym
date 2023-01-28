@@ -24,6 +24,8 @@ import org.scalatest.FunSuite
 class CompileCoreutilsPOSIX extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
+  // Change None to Some(n) if you want to use n cores to compile c++ files with g++
+  override val cores: Option[Int] = None
 
   val runtimeOptions = "--output-tests-cov-new --thread=1 --search=random-path --solver=z3 --output-ktest --cons-indep".split(" +").toList.toSeq
   val cases = CoreutilsPOSIX.coreutils.map { t =>
@@ -36,6 +38,9 @@ class CompileCoreutilsPOSIX extends TestGS {
 class CompileCoreutilsUClibc extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
+
+  // Change None to Some(n) if you want to use n cores to compile c++ files with g++
+  override val cores: Option[Int] = None
 
   val runtimeOptions = "--output-tests-cov-new --thread=1 --search=random-path --solver=z3 --output-ktest --cons-indep".split(" +").toList.toSeq
   val cases = CoreutilsUClibc.coreutils.map { t =>
