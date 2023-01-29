@@ -88,7 +88,7 @@ git clone https://github.com/Generative-Program-Analysis/icse23-artifact-evaluat
 
 # Prepare Libraries for separate compilation
 cd /icse23/GenSym
-/icse23/icse23-artifact-evaluation/table5/compilation_test.py prepare --no-build
+/icse23/icse23-artifact-evaluation/table4/compilation_test.py prepare --no-build
 
 # Generate external
 cd /icse23/GenSym
