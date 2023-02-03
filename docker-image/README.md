@@ -15,4 +15,3 @@ To instantiate the container:
 Add option `--rm` to start the container to automatically cleanup after each run.
 
 See `/icse23/icse23-artifact-evaluation/README.md` for further information.
-
