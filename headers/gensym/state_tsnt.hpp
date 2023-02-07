@@ -454,17 +454,42 @@ class SS {
         heap.update(loc->l, val);
       return std::move(*this);
     }
+    SS&& update_symloc(simple_ptr<SymLocV> symloc, PtrVal val, size_t size) {
+      ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
+      auto offsym = symloc->off->to_SymV();
+      ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
+
+      auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
+      auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - size, addr_index_bw));
+
+      auto pc2 = pc;
+      pc2.add(low_cond).add(high_cond);
+      auto res = get_sat_value(pc2, offsym);
+
+      if (res.first) {
+        int offset_val = res.second;
+        return update(make_LocV(symloc->base, symloc->k, symloc->size, offset_val), val, size);
+      } else {
+        throw NullDerefException { immer::box<SS>(*this) };
+      }
+
+      return std::move(*this);
+    }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
       if (addr->to_LocV() != nullptr) {
           return update_simpl(addr, val);
-      } else if (auto symloc = addr->to_SymV()) {
+      } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
           // TODO
-          ABORT("TODO");
+          // line 343
+          // specialize the loop for when cnt_bound = 1
+          // solve for a location in the range
+          // if none, throw exception 
+          update_symloc(symloc, val, size);
       } else if (auto symvite = addr->to_SymV()){
           if (iOP::op_ite == symvite->rator) {
-              ABORT("TODO");
-            // TODO
-              /* return ite((*symvite)[0], update((*symvite)[1], val, size), update((*symvite)[2], val, size)); */
+              auto cond = (*symvite)[0];
+              SS s1 = update((*symvite)[1], ite(cond, val, at((*symvite)[1], size)), size);
+              return s1.update((*symvite)[2], ite(cond, val, at((*symvite)[2], size)), size);
           } else {
               throw NullDerefException { immer::box<SS>(*this) };
           }
