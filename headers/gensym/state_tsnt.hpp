@@ -352,6 +352,7 @@ class SS {
         auto res = get_sat_value(pc2, offsym);
         while (res.first) {
           cnt++;
+          // Todo (Ruiqi): Maybe use Intdata?
           int offset_val = res.second;
           auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
           result.push_back(std::make_pair(t_cond, offset_val));
@@ -361,6 +362,10 @@ class SS {
           res = get_sat_value(pc2, offsym);
         }
         ASSERT(cnt > 0, "No satisfiable offset value");
+        //Todo (Ruiqi): should we add this?
+        if (1 == cnt_bound) {
+          pc.add(result[0].first);
+        }
       } else {
         ASSERT(SymLocStrategy::all == symloc_strategy, "Bad symloc strategy");
         for (int offset_val=0; offset_val <= (symloc->size - size); offset_val++) {
@@ -389,8 +394,13 @@ class SS {
     }
     PtrVal at(PtrVal addr, size_t size) {
       if (auto loc = addr->to_LocV()) {
-        if (loc->k == LocV::kStack) return stack.at(loc->l, size);
-        return heap.at(loc->l, size);
+        if (loc->k == LocV::kStack) {
+          if (loc->l + size > stack.mem_size()) throw NullDerefException { immer::box<SS>(*this) };
+          return stack.at(loc->l, size);
+        } else {
+          if (loc->l + size > heap.size()) throw NullDerefException { immer::box<SS>(*this) };
+          return heap.at(loc->l, size);
+        }
       }
       if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
         return at_symloc(symloc, size);
@@ -467,8 +477,14 @@ class SS {
       auto res = get_sat_value(pc2, offsym);
 
       if (res.first) {
+        // Todo (Ruiqi): Maybe use Intdata?
         int offset_val = res.second;
-        return update(make_LocV(symloc->base, symloc->k, symloc->size, offset_val), val, size);
+        auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+        // Todo (Ruiqi): should we add this?
+        pc.add(t_cond);
+
+        update(make_LocV(symloc->base, symloc->k, symloc->size, offset_val), val, size);
+        return std::move(*this);
       } else {
         throw NullDerefException { immer::box<SS>(*this) };
       }
@@ -479,11 +495,6 @@ class SS {
       if (addr->to_LocV() != nullptr) {
           return update_simpl(addr, val);
       } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
-          // TODO
-          // line 343
-          // specialize the loop for when cnt_bound = 1
-          // solve for a location in the range
-          // if none, throw exception 
           update_symloc(symloc, val, size);
       } else if (auto symvite = addr->to_SymV()){
           if (iOP::op_ite == symvite->rator) {

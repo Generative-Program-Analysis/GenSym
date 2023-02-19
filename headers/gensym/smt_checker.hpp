@@ -370,7 +370,7 @@ public:
     if (use_cons_indep) resolve_indep_uf(pc.uf, e, conds, false);
     else conds.insert(pc.conds.begin(), pc.conds.end());
     UIntData data = 0;
-    solver_result result;
+    solver_result result = unsat;
     auto m = query_model(conds);
     if (m != nullptr) result = sat;
     return std::make_pair(result == sat, result == sat ? self()->eval_model(m, e) : 0);
