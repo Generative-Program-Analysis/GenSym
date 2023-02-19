@@ -401,11 +401,9 @@ class SS {
           if (loc->l + size > heap.size()) throw NullDerefException { immer::box<SS>(*this) };
           return heap.at(loc->l, size);
         }
-      }
-      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
+      } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
         return at_symloc(symloc, size);
-      }
-      if (auto symvite = addr->to_SymV()) {
+      } else if (auto symvite = addr->to_SymV()) {
         if (iOP::op_ite == symvite->rator) {
           return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
         } else {
