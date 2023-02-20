@@ -80,7 +80,8 @@ inline T __sym_exit(SS& state, List<PtrVal>& args, __Cont<T> k) {
     set_exit_code(status);
     return k(state, nullptr);
   } else {
-    cov().print_all();
+    cov().print_all(true);
+    cov().print_all(true, std::cout);
     _exit(status);
   }
 }
@@ -121,47 +122,27 @@ inline std::string get_string_at(SS& state, PtrVal ptr) {
 }
 
 
-inline std::string get_concrete_file_path(PtrVal ptr, SS& state) {
-  std::string name;
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
-  /* TODO: more comprehensive concretization, do forks eventually <2022-08-25, David Deng> */
-  if (std::dynamic_pointer_cast<SymV>(state.at_simpl(ptr))) {
-    std::cout << "symbolic file path. Concretize to A" << std::endl;
-    return "-";
-  }
-  char c = proj_IntV_char(state.at_simpl(ptr)); // c = *ptr
-  while (c != '\0') {
-    name += c;
-    ptr = ptr + 1;
-    c = proj_IntV_char(state.at_simpl(ptr)); // c = *ptr
-  }
-  return name;
-}
-
 inline UIntData get_int_arg(SS& state, PtrVal x) {
-  auto x_i = std::dynamic_pointer_cast<IntV>(x);
+  auto x_i = x->to_IntV();
   // Todo: add this concretization tp path constraints
-  if (x_i) {
-    return x_i->as_signed();
-  } else {
-    auto sym_v = std::dynamic_pointer_cast<SymV>(x);
-    ASSERT(sym_v, "get value of non-symbolic variable");
-    std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
-    ASSERT(res.first, "Un-feasible path");
-    return res.second;
-  }
+  if (x_i) return x_i->as_signed();
+  auto sym_v = x->to_SymV();
+  ASSERT(sym_v != nullptr, "get value of non-symbolic variable");
+  std::pair<bool, UIntData> res = get_sat_value(state.get_PC(), sym_v);
+  ASSERT(res.first, "Unfeasible path");
+  return res.second;
 }
 
 inline double get_float_arg(SS& state, PtrVal x) {
-  auto x_f = std::dynamic_pointer_cast<FloatV>(x);
-  ASSERT(x_f, "getting Non-FloatV");
-  return (double)x_f->f;
+  // Note: since we don't have symbolic floating point numbers, we just
+  // extract the concrete floats here.
+  return (double)proj_FloatV(x);
 }
 
 inline std::string get_string_arg(SS& state, PtrVal ptr) {
   std::string name;
   char c = get_int_arg(state, state.at_simpl(ptr)); // c = *ptr
-  ASSERT(std::dynamic_pointer_cast<LocV>(ptr) != nullptr, "Non-location value");
+  ASSERT(ptr->to_LocV() != nullptr, "Non-location value");
   while (c != '\0') {
     name += c;
     ptr = ptr + 1;
@@ -196,9 +177,9 @@ inline void copy_state2native(SS& state, PtrVal ptr, char* buf, int size) {
 
 inline char* get_pointer_arg(SS& state, PtrVal loc) {
   if (is_LocV_null(loc)) return nullptr;
-  ASSERT(std::dynamic_pointer_cast<LocV>(loc), "Non LocV");
+  ASSERT(loc->to_LocV(), "Non LocV");
   size_t count = get_pointer_realsize(loc);
-  char * buf = (char*)malloc(count);
+  char* buf = (char*)malloc(count);
   copy_state2native(state, loc, buf, count);
   return buf;
 }
@@ -206,7 +187,7 @@ inline char* get_pointer_arg(SS& state, PtrVal loc) {
 template<typename T>
 inline T __print_string(SS& state, List<PtrVal>& args, __Cont<T> k) {
   PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<LocV>(x)) {
+  if (x->to_LocV()) {
     std::cout << get_string_at(state, x);
     return k(state, make_IntV(0));
   }
@@ -426,7 +407,7 @@ template<typename T>
 inline T __gs_warning_once(SS& state, List<PtrVal>& args, __Cont<T> k) {
   static std::set<std::string> warned;
   PtrVal x = args.at(0);
-  if (std::dynamic_pointer_cast<LocV>(x)) {
+  if (x->to_LocV()) {
     std::string message = get_string_at(state, x);
     if (warned.count(message) == 0) {
       warned.insert(message);
