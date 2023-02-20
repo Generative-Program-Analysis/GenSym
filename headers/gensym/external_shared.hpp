@@ -121,7 +121,6 @@ inline std::string get_string_at(SS& state, PtrVal ptr) {
   return proj_List_String(get_sym_string_at(state, ptr));
 }
 
-
 inline UIntData get_int_arg(SS& state, PtrVal x) {
   auto x_i = x->to_IntV();
   // Todo: add this concretization tp path constraints

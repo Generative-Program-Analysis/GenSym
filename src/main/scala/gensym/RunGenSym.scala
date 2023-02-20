@@ -52,23 +52,6 @@ object RunGenSym {
   }
 
   def main(args: Array[String]): Unit = {
-    val bang = "--repeat="
-    if (args(0).startsWith(bang)) {
-      val (rc :: nargs) = args(0).substring(bang.length).split(',').map(_.toInt).toList
-      var idx = 1
-      for (n <- nargs) {
-        val s = args.slice(idx, idx + n)
-        for (i <- 1 to rc) {
-          val (name, time) = Utils.time { mainInner(s) }
-          System.err.println(f"run repeat mode: $name $time")
-        }
-        idx += n
-      }
-    }
-    else mainInner(args)
-  }
-
-  def mainInner(args: Array[String]): String = {
     val usage = """
     |Usage: gensym <ll-filepath> [--entrance=<string>] [--output=<string>] [--nSym=<int>]
     |              [--use-argv] [--noOpt] [--engine=<string>] [--main-O0]
