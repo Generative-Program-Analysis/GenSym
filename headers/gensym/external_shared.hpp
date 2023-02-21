@@ -108,7 +108,7 @@ inline List<PtrVal> get_sym_string_at(SS& state, PtrVal ptr) {
   ASSERT(ptr->to_LocV() != nullptr, "Non-location value");
   TrList<PtrVal> name;
   PtrVal v = state.at_simpl(ptr);
-  while (!(v->is_conc() && proj_IntV_char(v) == '\0')) {
+  while (v->is_conc() && !(proj_IntV_char(v) == '\0')) {
     INFO("get_sym_string: v=" << v->toString() << " at " << ptr->toString());
     name.push_back(v);
     ptr = ptr + 1;
