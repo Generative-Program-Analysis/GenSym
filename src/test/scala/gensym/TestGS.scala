@@ -139,6 +139,10 @@ class TestPtrUpdate extends TestGS {
   testGS(new ImpCPSGS, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, "--thread=1", nPath(6)))
 }
 
+class TestArgv extends TestGS {
+  testGS(new ImpCPSGS, TestPrg(argv1Test, "uninitPtrUpdate", "@main", useArgv, "--thread=1 --argv=abcef", nPath(1)++status(0)))
+}
+
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
   val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
