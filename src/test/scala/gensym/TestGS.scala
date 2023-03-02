@@ -136,11 +136,11 @@ class TestPtr extends TestGS {
 
 class TestPtrUpdate extends TestGS {
   val uninitPtrUpdate = parseFile("benchmarks/llvm/uninit_ptr_update.ll")
-  testGS(new ImpCPSGS, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, "--thread=1", nPath(6)))
+  testGS(new ImpCPSGS, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, "--thread=1", nPath(1)))
 }
 
 class TestArgv extends TestGS {
-  testGS(new ImpCPSGS, TestPrg(argv1Test, "uninitPtrUpdate", "@main", useArgv, "--thread=1 --argv=abcef", nPath(1)++status(0)))
+  testGS(new ImpCPSGS, TestPrg(argv2Test, "argvSym", "@main", useArgv, "--thread=1 --argv=abc#{3}def", nPath(4)++status(0)))
 }
 
 class TestImpCPSGS_Z3 extends TestGS {
