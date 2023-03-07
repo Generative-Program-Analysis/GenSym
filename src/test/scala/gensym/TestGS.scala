@@ -127,11 +127,11 @@ class TestImpCPSGS extends TestGS {
 }
 
 class TestPtr extends TestGS {
-  // TODO: what's the expected result for faultyBstTest?
+  val rtOpt = "--thread=1"
   val faultyBstTest = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
   // finds 642 paths, Klee finds 8 incomplete & 2 complete
-  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(10)))
-  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(10)))
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(642)))
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(642)))
 }
 
 class TestPtrUpdate extends TestGS {
@@ -141,6 +141,10 @@ class TestPtrUpdate extends TestGS {
 
 class TestArgv extends TestGS {
   testGS(new ImpCPSGS, TestPrg(argv2Test, "argvSym", "@main", useArgv, "--thread=1 --argv=abc#{3}def", nPath(4)++status(0)))
+}
+
+class TestOpenSym extends TestGS {
+  testGS(new ImpCPSGS, TestPrg(openSymTest, "openSymTest", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)))
 }
 
 class TestImpCPSGS_Z3 extends TestGS {
