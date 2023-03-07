@@ -140,6 +140,7 @@ class TestPtrUpdate extends TestGS {
 }
 
 class TestArgv extends TestGS {
+  testGS(new ImpCPSGS, TestPrg(argv2Test, "argvConc", "@main", useArgv, "--thread=1 --argv=abcdef", nPath(1)++status(0)))
   testGS(new ImpCPSGS, TestPrg(argv2Test, "argvSym", "@main", useArgv, "--thread=1 --argv=abc#{3}def", nPath(4)++status(0)))
 }
 
