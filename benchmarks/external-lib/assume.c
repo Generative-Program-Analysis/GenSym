@@ -21,6 +21,12 @@ int main() {
   int ememb = 11;
   int *p1 = calloc(ememb, sizeof(int));    // allocate and zero out an array of ememb int
   int *p2 = calloc(1, sizeof(int[ememb])); // same, naming the array type directly
+
+  for (int i = 0; i < ememb; i += 1) {
+      p1[i] = 0;
+      p2[i] = 0;
+  }
+
   for (int i=0;i<ememb;i++) {
     gs_assert_eager(p1[i] == p2[i]);
     gs_assert_eager(0 == p1[i]);

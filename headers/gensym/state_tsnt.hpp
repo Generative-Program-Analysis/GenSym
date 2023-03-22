@@ -490,8 +490,9 @@ class SS {
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
-      if (addr->to_LocV() != nullptr) {
-          return update_simpl(addr, val);
+      if (auto loc = addr->to_LocV()) {
+        if (loc->k == LocV::kStack) stack.update(loc->l, val, size); 
+        else heap.update(loc->l, val, size);
       } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
           update_symloc(symloc, val, size);
       } else if (auto symvite = addr->to_SymV()){

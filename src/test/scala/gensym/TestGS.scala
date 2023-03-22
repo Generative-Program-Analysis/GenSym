@@ -148,6 +148,16 @@ class TestOpenSym extends TestGS {
   testGS(new ImpCPSGS, TestPrg(openSymTest, "openSymTest", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)))
 }
 
+class TestAssume extends TestGS {
+  val test = TestPrg(assumeTest, "assumeTest", "@main", noArg, "--thread=1", nPath(1)++status(0))
+  testGS(new ImpCPSGS, test)
+}
+
+class TestMemChallenge extends TestGS {
+  val test = TestPrg(flexAddr, "flexAddr", "@main", noArg, "--thread=1", nPath(1)++status(0))
+  testGS(new ImpCPSGS, test)
+}
+
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
   val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
