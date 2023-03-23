@@ -151,6 +151,7 @@ class TestOpenSym extends TestGS {
 class TestAssume extends TestGS {
   val test = TestPrg(assumeTest, "assumeTest", "@main", noArg, "--thread=1", nPath(1)++status(0))
   testGS(new ImpCPSGS, test)
+  testGS(new PureGS, test)
 }
 
 class TestMemChallenge extends TestGS {

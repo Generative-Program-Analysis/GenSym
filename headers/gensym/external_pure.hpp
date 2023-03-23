@@ -239,7 +239,7 @@ inline T __calloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData nmemb = proj_IntV(args.at(0));
   IntData size = proj_IntV(args.at(1));
   ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
-  auto emptyMem = List<PtrVal>(nmemb * size, make_UnInitV());
+  auto emptyMem = List<PtrVal>(nmemb * size, make_IntV(0, 8));
 
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, nmemb * size);
   if (exlib_failure_branch)
