@@ -159,6 +159,16 @@ class TestMemChallenge extends TestGS {
   testGS(new ImpCPSGS, test)
 }
 
+class  TestPrintf extends TestGS {
+  val test = TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0))
+  testGS(new ImpCPSGS, test)
+}
+
+class TestKleelib extends TestGS {
+  val test = TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0))
+  testGS(new ImpCPSGS, test)
+}
+
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
   val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>

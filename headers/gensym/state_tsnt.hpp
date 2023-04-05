@@ -31,7 +31,7 @@ class PreMem {
       return move_this();
     }
     M&& alloc(size_t size) {
-      mem.append(List<V>(size, make_UnInitV()).transient());
+      mem.append(make_UnInitList(size));
       return move_this();
     }
     M&& take(size_t keep) {

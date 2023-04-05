@@ -572,7 +572,13 @@ inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
       ASSERT(bytes_num > 0, "Invalid bytes");
       // Do not over-write symbolic variable
       if (old_val->to_SymV()) {
-        i = i + bytes_num;
+        // add constraint on symbolic variable to be equal to concrete
+        for (int j = 0; j < bytes_num; j++) {
+          auto eq_constraint = int_op_2(iOP::op_eq, state.at_simpl(ptr + i), make_IntV(buf[i], 8));
+          state.add_PC(eq_constraint);
+          i++;
+          if (i >= size) break;
+        }
       } else {
         for (int j = 0; j < bytes_num; j++) {
           state.update_simpl(ptr + i, make_IntV(buf[i], 8));

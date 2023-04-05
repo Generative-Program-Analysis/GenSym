@@ -375,7 +375,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
 
   override def repExternFun(f: FunctionDecl, retTy: LLVMType, argTypes: List[LLVMType]): FFTy = {
     def generateNativeCall(ss: Rep[Ref[SS]], args: Rep[List[Value]], k: Rep[Cont]): Rep[Unit] = {
-      System.out.println(s"Gernating ExternFun: ${f.id}")
+      System.out.println(s"Generating ExternFun: ${f.id}")
       info("running native function: " + f.id)
       val nativeArgs: List[Rep[Any]] = argTypes.zipWithIndex.map {
         case (ty@PtrType(_, _), id) => ss.getPointerArg(args(id)).castToM(ty.toManifest)

@@ -596,6 +596,15 @@ inline PtrVal make_UnInitV() {
   return UnInitV;
 }
 
+inline TrList<PtrVal> make_UnInitList(int n) {
+  TrList<PtrVal> res;
+  for (int i = 0; i < n; i++) {
+    res.push_back(make_UnInitV());
+  }
+  return res;
+}
+
+
 // XXX GW: just use bv_sext? seems not much difference?
 inline PtrVal addr_index_ext(const PtrVal& off) {
   ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
