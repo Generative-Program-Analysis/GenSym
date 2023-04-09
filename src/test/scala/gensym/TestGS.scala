@@ -151,7 +151,8 @@ class TestOpenSym extends TestGS {
 class TestAssume extends TestGS {
   val test = TestPrg(assumeTest, "assumeTest", "@main", noArg, "--thread=1", nPath(1)++status(0))
   testGS(new ImpCPSGS, test)
-  testGS(new PureGS, test)
+  val testPure = TestPrg(assumeTest, "assumeTestPure", "@main", noArg, "--thread=1", nPath(1)++status(0))
+  testGS(new PureGS, testPure)
 }
 
 class TestMemChallenge extends TestGS {
@@ -162,6 +163,8 @@ class TestMemChallenge extends TestGS {
 class  TestPrintf extends TestGS {
   val test = TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0))
   testGS(new ImpCPSGS, test)
+  val testPure = TestPrg(printfTest, "printfTestPure", "@main", noArg, noOpt, nPath(1)++status(0))
+  testGS(new PureGS, testPure)
 }
 
 class TestKleelib extends TestGS {
