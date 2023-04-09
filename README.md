@@ -13,7 +13,7 @@ and it does not induce interpretation overhead.
 
 - GenSym views fork-based symbolic execution as a concurrency semantics, therefore
 it generates code in continuation-passing style. 
-In this way, the generated code that interleaves execution of different paths.
+In this way, the generated code can interleave the execution of different paths.
 
 - GenSym's efficient parallelism is achieved on top of its continuation-based
 code generation. Since continuations are first-class citizens, a global scheduler
