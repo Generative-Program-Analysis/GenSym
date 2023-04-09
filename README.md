@@ -136,7 +136,7 @@ The generated tests and an archived log file can be found under `gensym-DDMMYYYY
 
 If you would like to mention GenSym in research papers, please cite this paper:
 
-* Compiling Parallel Symbolic Execution with Continuation  
+* Compiling Parallel Symbolic Execution with Continuations  
   Guannan Wei, Songlin Jia, Ruiqi Gao, Haotian Deng, Shangyin Tan, Oliver Bračevac, Tiark Rompf  
   The 45th International Conference on Software Engineering (ICSE 2023)  
   [PDF](https://continuation.passing.style/static/papers/icse23.pdf)
