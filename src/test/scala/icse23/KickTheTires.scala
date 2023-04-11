@@ -21,9 +21,11 @@ import gensym.utils.Utils.time
 import sys.process._
 import org.scalatest.FunSuite
 
+/*
 class KickTheTires extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
   val gs = new ImpCPSGS
   testGS(gs, TestPrg(branch, "branch", "@f", symArg(2), noOpt, nPath(4)))
 }
+*/

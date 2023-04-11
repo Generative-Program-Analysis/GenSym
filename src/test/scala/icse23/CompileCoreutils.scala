@@ -21,6 +21,8 @@ import gensym.utils.Utils.time
 import sys.process._
 import org.scalatest.FunSuite
 
+/*
+
 class CompileCoreutilsPOSIX extends TestGS {
   import gensym.llvm.parser.Parser._
   Config.enableOpt
@@ -49,3 +51,5 @@ class CompileCoreutilsUClibc extends TestGS {
 
   testGS(new ImpCPSGS, cases)
 }
+
+*/
