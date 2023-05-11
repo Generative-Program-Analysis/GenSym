@@ -362,13 +362,16 @@ inline SS copy_native2state(SS state, PtrVal ptr, char* buf, int size) {
       ASSERT(bytes_num > 0, "Invalid bytes");
       // All bytes must be concrete IntV
       if (std::dynamic_pointer_cast<SymV>(old_val)) {
-        // Todo: should we overwrite symbolic variables?
-        // add constraint on symbolic variable to be equal to concrete
-        for (int j = 0; j < bytes_num; j++) {
-          auto eq_constraint = int_op_2(iOP::op_eq, state.at_simpl(ptr + i), make_IntV(buf[i], 8));
-          res = res.add_PC(eq_constraint);
-          i++;
-          if (i >= size) break;
+        if (symbolic_uninit) {
+            // add constraint on symbolic variable to be equal to concrete
+            for (int j = 0; j < bytes_num; j++) {
+              auto eq_constraint = int_op_2(iOP::op_eq, state.at_simpl(ptr + i), make_IntV(buf[i], 8));
+              res = res.add_PC(eq_constraint);
+              i++;
+              if (i >= size) break;
+            }
+        } else {
+            i += bytes_num;
         }
       } else {
         for (int j = 0; j < bytes_num; j++) {

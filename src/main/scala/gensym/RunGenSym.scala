@@ -31,6 +31,7 @@ object Config {
   var switchType: SwitchType = Merge
   var runCode: Boolean = true
   var recordInstNum: Boolean = false
+  var symbolicUninit: Boolean = false
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
@@ -61,6 +62,8 @@ object RunGenSym {
     |--nSym=<int>            - the number of symbolic 32-bit input arguments to `entrance`, cannot be used with --use-argv (default=0)
     |--use-argv              - take argv argument at runtime, cannot be used with --nSym
     |--noOpt                 - disable first-stage optimizations
+    |--symbolicUninit        - model uninitialized variables as symbolic values instead of a random one
+    |--randomUninit          - model uninitialized variables as a random value instead of a symbolic one
     |--engine=<string>       - compiler/backend variant (default=ImpCPS)
     |  =ImpCPS               -   generate code in CPS with impure data structures, can run in parallel
     |  =ImpDirect            -   generate code in direct-style with impure data structures, cannot run in parallel
@@ -81,6 +84,8 @@ object RunGenSym {
       case (options, r"--nSym=(\d+)$n") => options + ("nSym" -> n.toInt)
       case (options, r"--use-argv") => options + ("useArgv" -> true)
       case (options, r"--noOpt") => options + ("optimize" -> false)
+      case (options, r"--symbolicUninit") => options + ("symbolicUninit" -> true)
+      case (options, r"--randomUninit") => options + ("symbolicUninit" -> false)
       case (options, r"--engine=([a-zA-Z]+)$e") => options + ("engine" -> e)
       case (options, r"--main-opt=O(\d)$n") => options + ("mainOpt" -> ("O"+n))
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
@@ -96,6 +101,7 @@ object RunGenSym {
     val nSym = options.getOrElse("nSym", 0).asInstanceOf[Int]
     val useArgv = options.getOrElse("useArgv", false).asInstanceOf[Boolean]
     val optimize = options.getOrElse("optimize", Config.opt).asInstanceOf[Boolean]
+    val symbolicUninit = options.getOrElse("symbolicUninit", Config.symbolicUninit).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
     val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
@@ -115,6 +121,7 @@ object RunGenSym {
     Config.emitBlockIdMap = emitBlockIdMap
     Config.emitVarIdMap = emitVarIdMap
     Config.switchType = switchType
+    Config.symbolicUninit = symbolicUninit
     val info = s"""Running $engine with
     |  filepath=$filepath, entrance=$entrance, output=$output,
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""

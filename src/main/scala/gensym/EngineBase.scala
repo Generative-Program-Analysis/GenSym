@@ -158,7 +158,7 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   }
 
   // Note: we can also assign symbolic values here
-  def uninitValue: Rep[Value] = SymV("uninit", 8) // IntV(0, 8) //NullPtr()
+  def uninitValue: Rep[Value] = if (Config.symbolicUninit) SymV("uninit", 8) else IntV(0, 8)
 
   def evalHeapAtomicConst(v: Constant, ty: LLVMType): Rep[Value] = v match {
     case BoolConst(b) => IntV(if (b) 1 else 0, 1)

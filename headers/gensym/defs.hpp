@@ -114,6 +114,8 @@ inline unsigned int max_sym_array_size = 0;
 inline unsigned int max_size_bound = 400;
 // Use simplification when constructing SymV values
 inline bool use_symv_simplify = false;
+// Let uninitialized memory be set to symbolic values
+inline bool symbolic_uninit = false;
 
 // Output directory name
 inline std::string output_dir_str = std::string("gensym-") + get_current_datetime();
