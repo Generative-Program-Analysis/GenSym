@@ -1,9 +1,9 @@
-package wasm.parser
+package gensym.wasm.parser
 
-import wasm.ast._
-import wasm.source._
-import wasm.types._
-import wasm.values._
+import gensym.wasm.ast._
+import gensym.wasm.source._
+import gensym.wasm.types._
+import gensym.wasm.values._
 
 import scala.util.parsing.combinator._
 import scala.util.parsing.input.Positional
@@ -16,7 +16,7 @@ case class CallUnresolved(name: String) extends Instr with Unresolved
 class Parser extends RegexParsers {
   override def skipWhitespace = true
   // override val whiteSpace: Regex = "(\\s|.*|\\(.*\\))+".r
-  
+
   def resolveCalls(instr: Instr): Instr = instr match {
     case CallUnresolved(name) => Call(fnMap(name))
     case Block(label, instrs) => Block(label, instrs.map(resolveCalls))
@@ -63,8 +63,8 @@ class Parser extends RegexParsers {
 
   def locals: Parser[Seq[ValueType]] = "(" ~> "local" ~> rep(valueType) <~ ")"
 
-  def funcDef: Parser[FuncDef] = 
-    ("(" ~> "func" ~> name ~ "(type" ~ int ~ ")" ~ opt(params) ~ opt(results) ~ opt(locals) ~ rep(instr) <~ ")" ^^ { 
+  def funcDef: Parser[FuncDef] =
+    ("(" ~> "func" ~> name ~ "(type" ~ int ~ ")" ~ opt(params) ~ opt(results) ~ opt(locals) ~ rep(instr) <~ ")" ^^ {
       case funcName ~ _ ~ _typeId ~ _ ~ params ~ results ~ locals ~ body => {
         fnMap = fnMap + (funcName -> fnMap.size)
         val resolvedBody = body.map(resolveCalls)
@@ -74,11 +74,11 @@ class Parser extends RegexParsers {
             results.getOrElse(Seq())),
           locals.getOrElse(Seq()),
           resolvedBody
-        ) 
+        )
       }
     })
 
-  def typeDef: Parser[TypeDef] = 
+  def typeDef: Parser[TypeDef] =
     "(" ~> "type" ~> id ~ valueType <~ ")" ^^ { case id ~ tipe => TypeDef(id.toInt, tipe) }
 
   def numType: Parser[NumType] = {
@@ -89,7 +89,7 @@ class Parser extends RegexParsers {
   }
 
   def funcType: Parser[FuncType] = {
-    ("(" ~> "func" ~> opt(params) ~ opt(results) <~ ")" ^^ { 
+    ("(" ~> "func" ~> opt(params) ~ opt(results) <~ ")" ^^ {
       case params ~ results => FuncType(params.getOrElse(Seq()), results.getOrElse(Seq()))
     })
   }
@@ -97,7 +97,7 @@ class Parser extends RegexParsers {
   def label: Parser[String] = { "label" ~ "=" ~> name }
 
   def valueType: Parser[ValueType] =
-    ((numType ^^ { _.asInstanceOf[ValueType] }) | 
+    ((numType ^^ { _.asInstanceOf[ValueType] }) |
       (funcType ^^ { _.asInstanceOf[ValueType] }))
 
   def offset: Parser[Int] = { "offset=" ~> int } ^^ { _.toInt }
@@ -118,10 +118,10 @@ class Parser extends RegexParsers {
       "i32.mul" ^^ { _ => Binary(BinOp.Int(Mul)) } |
       "i32.eqz" ^^ { _ => Test(TestOp.Int(Eqz)) } |
       "call" ~> name ^^ { CallUnresolved(_) } |
-      (numType ~ ".store" ~ offset ~ opt(align)) ^^ { 
+      (numType ~ ".store" ~ offset ~ opt(align)) ^^ {
         case tipe ~ _ ~ offset ~ align => Store(StoreOp(align.getOrElse(0), offset, tipe, None))
       } |
-      (numType ~ ".load" ~ offset ~ opt(align)) ^^ { 
+      (numType ~ ".load" ~ offset ~ opt(align)) ^^ {
         case tipe ~ _ ~ offset ~ align => Load(LoadOp(align.getOrElse(0), offset, tipe, None, None))
       } |
       ("global.get" ~> int ^^ { _.toInt }) ^^ { x => GlobalGet(x) } |
@@ -149,7 +149,7 @@ class Parser extends RegexParsers {
 object Parser extends Parser {
   def parseString(code: String): Module = {
     parseAll(module, code) match {
-      case Success(result, _) => 
+      case Success(result, _) =>
         result
       case Failure(msg,_) =>
         throw new Exception(s"FAILURE: $msg")

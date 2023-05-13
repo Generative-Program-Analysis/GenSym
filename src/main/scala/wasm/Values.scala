@@ -1,6 +1,6 @@
-package wasm.values
+package gensym.wasm.values
 
-import wasm.types._
+import gensym.wasm.types._
 
 abstract class Value
 

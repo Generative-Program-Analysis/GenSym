@@ -1,10 +1,10 @@
-package wasm.eval
+package gensym.wasm.eval
 
-import wasm.ast._
-import wasm.types._
-import wasm.values._
-import wasm.source._
-import wasm.memory._
+import gensym.wasm.ast._
+import gensym.wasm.types._
+import gensym.wasm.values._
+import gensym.wasm.source._
+import gensym.wasm.memory._
 
 case class ModuleInstance(
   types: List[FuncType],

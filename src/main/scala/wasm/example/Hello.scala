@@ -1,12 +1,12 @@
-package wasm.example
+package gensym.wasm.example
 
-import wasm.ast._
-import wasm.types._
-import wasm.values._
-import wasm.source._
-import wasm.eval._
-import wasm.parser._
-import wasm.memory._
+import gensym.wasm.ast._
+import gensym.wasm.types._
+import gensym.wasm.values._
+import gensym.wasm.source._
+import gensym.wasm.eval._
+import gensym.wasm.parser._
+import gensym.wasm.memory._
 
 import scala.collection.mutable.ArrayBuffer
 

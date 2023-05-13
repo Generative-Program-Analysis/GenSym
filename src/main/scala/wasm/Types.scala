@@ -1,6 +1,6 @@
-package wasm.types
+package gensym.wasm.types
 
-import wasm.eval.ModuleInstance
+import gensym.wasm.eval.ModuleInstance
 
 abstract class NumKind
 case object I32Type extends NumKind

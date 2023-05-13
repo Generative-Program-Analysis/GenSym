@@ -1,4 +1,4 @@
-package wasm.memory
+package gensym.wasm.memory
 
 import scala.collection.mutable.ArrayBuffer
 

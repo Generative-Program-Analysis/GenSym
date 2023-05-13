@@ -1,4 +1,4 @@
-package wasm.source
+package gensym.wasm.source
 
 import scala.util.parsing.input.{Positional, Position}
 

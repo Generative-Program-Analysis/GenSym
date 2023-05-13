@@ -1,8 +1,8 @@
-package wasm.ast
+package gensym.wasm.ast
 
-import wasm.types._
-import wasm.values._
-import wasm.source._
+import gensym.wasm.types._
+import gensym.wasm.values._
+import gensym.wasm.source._
 
 case class Module(definitions: Seq[Definition])
 abstract class Definition
