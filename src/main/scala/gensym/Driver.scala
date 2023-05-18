@@ -81,6 +81,7 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
     val libraryPaths = codegen.libraryPaths.map(p => s"-L $curDir/$p -Wl,-rpath $curDir/$p").mkString(" ")
     val debugFlags = if (Config.genDebug) "-g -DDEBUG" else ""
+    val featureFlags = if (Config.symbolicUninit) "-DGENSYM_SYMBOLIC_UNINIT" else "-DGENSYM_RANDOM_UNINIT"
 
     out.println(s"""|BUILD_DIR = build
     |TARGET = $appName
@@ -90,7 +91,8 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
     |OPT = -O3
     |CC = g++ -std=c++17 -Wno-format-security
     |PERFFLAGS = -fno-omit-frame-pointer $debugFlags
-    |CXXFLAGS = $includes $extraFlags $$(PERFFLAGS)
+    |FEATUREFLAGS = $featureFlags
+    |CXXFLAGS = $includes $extraFlags $$(PERFFLAGS) $$(FEATUREFLAGS)
     |LDFLAGS = $libraryPaths
     |LDLIBS = $libraries -lpthread
     |

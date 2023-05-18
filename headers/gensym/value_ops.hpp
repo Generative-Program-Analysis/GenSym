@@ -590,14 +590,16 @@ inline PtrVal SymV::neg(const PtrVal& v) {
 
 // Uninitialized value
 inline PtrVal make_UnInitV() {
-  if (symbolic_uninit) {
+  #ifdef GENSYM_SYMBOLIC_UNINIT
+    std::cout << "Making symbolic uninit\n";
     std::string name = fresh("uninit");
     PtrVal UnInitV = make_SymV(name, 8);
     return UnInitV;
-  } else {
+  #else
+    std::cout << "Making concrete uninit\n";
     PtrVal UnInitV = make_IntV(0, 8);
     return UnInitV;
-  }
+  #endif
 }
 
 inline TrList<PtrVal> make_UnInitList(int n) {

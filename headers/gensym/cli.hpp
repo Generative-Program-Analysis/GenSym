@@ -34,7 +34,6 @@ static struct option long_options[] =
   {"symloc-strategy",            required_argument, 0, 12},
   {"solver",                     required_argument, 0, 19},
   {"max-sym-array-size",         required_argument, 0, 24},
-  {"symbolic-uninit",            no_argument,       0, 29},
   // Symbolic inputs
   {"add-sym-file",               required_argument, 0, 13},
   {"sym-file-size",              required_argument, 0, 14},
@@ -47,7 +46,7 @@ static struct option long_options[] =
   {"print-detailed-log",         required_argument, 0, 25},
   {"output-dir",                 required_argument, 0, 23},
   {"no-stdout-log",              no_argument,       0, 28},
-  // Next 30
+  // Next 29
   {0,                            0,                 0, 0 }
 };
 
@@ -231,9 +230,6 @@ inline void handle_cli_args(int argc, char** argv) {
         break;
       case 28:
         stdout_log = false;
-        break;
-      case 29:
-        symbolic_uninit = true;
         break;
       case '?':
       default:

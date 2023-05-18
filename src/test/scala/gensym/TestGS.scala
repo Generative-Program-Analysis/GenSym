@@ -132,8 +132,8 @@ class TestPtr extends TestGS {
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestConcUninit", "@main", noArg, "--thread=1", nPath(458)))
   Config.symbolicUninit = true
   // finds 642 paths, Klee finds 8 incomplete & 2 complete
-  // testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1 --symbolic-uninit", nPath(642)))
-  // testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --symbolic-uninit --solver=z3", nPath(642)))
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(642)))
+  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(642)))
 }
 
 class TestPtrUpdate extends TestGS {
