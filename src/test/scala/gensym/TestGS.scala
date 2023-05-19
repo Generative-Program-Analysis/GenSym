@@ -54,15 +54,22 @@ abstract class TestGS extends FunSuite {
     }
   }
 
+  def testWithGlobalConfig[T](name: String)(thunk: => T): Unit = {
+    val config0 = Global.config.copy()
+    test(name) {
+      val config1 = Global.config.copy()
+      Global.config = config0
+      val result = thunk
+      Global.config = config1
+    }
+  }
+
   def testGS(gs: GenSym, tst: TestPrg, libPath: Option[String] = None): Unit = {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     val outname = if (gs.insName == "ImpCPSGS_lib") name
                   else gs.insName + "_" + name
-
-    val storedSymbolicUninit = Config.symbolicUninit
-    test(name) {
-      val innerSymbolicUninit = Config.symbolicUninit
-      Config.symbolicUninit = storedSymbolicUninit
+    
+    testWithGlobalConfig(name) {
       val code = gs.run(m, outname, f, config, libPath)
       val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
@@ -87,8 +94,6 @@ abstract class TestGS extends FunSuite {
           assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
         }
       }
-
-      Config.symbolicUninit = innerSymbolicUninit
     }
   }
 
@@ -136,7 +141,7 @@ class TestPtr extends TestGS {
   val rtOpt = "--thread=1"
   val faultyBstTest = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestConcUninit", "@main", noArg, "--thread=1", nPath(458)))
-  Config.symbolicUninit = true
+  Global.config.symbolicUninit = true
   // finds 642 paths, Klee finds 8 incomplete & 2 complete
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(642)))
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(642)))
@@ -197,7 +202,7 @@ class TestImpCPSGS_Z3 extends TestGS {
 /*
 class Coreutils extends TestGS {
   import gensym.llvm.parser.Parser._
-  Config.enableOpt
+  Global.config.enableOpt
   val runtimeOptions = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
   val cases = TestCases.coreutils.map { t =>
     t.copy(runOpt = runtimeOptions ++ t.runOpt, runCode = false)
@@ -215,7 +220,7 @@ class TestLibrary extends TestGS {
 
 class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
-  Config.enableOpt
+  Global.config.enableOpt
   val gs = new ImpCPSGS
   //testGS(gs, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
   //testGS(gs, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))

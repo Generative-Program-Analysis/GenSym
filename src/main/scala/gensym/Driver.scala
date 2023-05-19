@@ -80,8 +80,8 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
     val libraries = codegen.libraryFlags.mkString(" ")
     val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
     val libraryPaths = codegen.libraryPaths.map(p => s"-L $curDir/$p -Wl,-rpath $curDir/$p").mkString(" ")
-    val debugFlags = if (Config.genDebug) "-g -DDEBUG" else ""
-    val featureFlags = if (Config.symbolicUninit) "-DGENSYM_SYMBOLIC_UNINIT" else "-DGENSYM_RANDOM_UNINIT"
+    val debugFlags = if (Global.config.genDebug) "-g -DDEBUG" else ""
+    val featureFlags = if (Global.config.symbolicUninit) "-DGENSYM_SYMBOLIC_UNINIT" else "-DGENSYM_RANDOM_UNINIT"
 
     out.println(s"""|BUILD_DIR = build
     |TARGET = $appName
@@ -159,7 +159,7 @@ abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDrive
   }
 
   override def transform(g0: Graph): Graph = {
-    if (Config.opt) {
+    if (Global.config.opt) {
       val (g1, subst1) = AssignElim.transform(g0)
       codegen.reconsMapping(subst1)
       g1
@@ -177,7 +177,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDri
   }
 
   override def transform(g0: Graph): Graph = {
-    if (Config.opt) {
+    if (Global.config.opt) {
       val (g1, subst1) = AssignElim.impTransform(g0)
       codegen.reconsMapping(subst1)
       g1
@@ -185,7 +185,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDri
   }
 
   override def addRewrite: Unit = {
-    if (!Config.opt) return ()
+    if (!Global.config.opt) return ()
     val bConst = Backend.Const
     type bExp = Backend.Exp
     // Note: these are transformation for the imperative version; should be
@@ -429,7 +429,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
         val out = new PrintStream(s"$folder/$appName/Makefile")
         val curDir = new File(".").getCanonicalPath
         val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
-        val debugFlags = if (Config.genDebug) "-g -DDEBUG" else ""
+        val debugFlags = if (Global.config.genDebug) "-g -DDEBUG" else ""
 
         out.println(s"""|BUILD_DIR = build
         |TARGET = $appName.a

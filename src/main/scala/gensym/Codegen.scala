@@ -240,13 +240,13 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
       emitln("using namespace immer;")
       emitFunctionDecls(stream)
       emitDatastructures(stream)
-      if (Config.emitVarIdMap) {
+      if (Global.config.emitVarIdMap) {
         emitln(s"""
         |/* variable-id map:
         |${Counter.variable.toString}
         |*/""".stripMargin)
       }
-      if (Config.emitBlockIdMap) {
+      if (Global.config.emitBlockIdMap) {
         emitln(s"""
         |/* block-id map:
         |${Counter.block.toString}

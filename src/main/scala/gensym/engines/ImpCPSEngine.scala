@@ -4,8 +4,9 @@ import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
-import lms.core.stub.{While => _, _}
+import lms.core.stub.{While => _, Global => _, _}
 
+import gensym._
 import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.llvm.parser.Parser._
@@ -204,7 +205,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         val incsLabels: List[BlockLabel] = incs.map(i => Counter.block.get(ctx.withBlock(i.label)))
         val vs = incsValues.map(v => () => eval(v, ty, ss))
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels), kk)
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Global.config.iteSelect =>
         k(ss, ITE(eval(cndVal, cndTy, ss), eval(thnVal, thnTy, ss), eval(elsVal, elsTy, ss)), kk)
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)
@@ -259,7 +260,7 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
         val v = eval(cndVal, cndTy, ss)
         val mergedSwTable: StaticList[MergedCase] =
           swTable.foldLeft(StaticMap[String, (Rep[Boolean], Rep[Value])]())({
-            case (m, LLVMCase(_, n, tgt)) if (Config.switchType == Merge) && m.contains(tgt) =>
+            case (m, LLVMCase(_, n, tgt)) if (Global.config.switchType == Merge) && m.contains(tgt) =>
               m + (tgt -> (m(tgt)._1 || v.int == n, IntOp2("or", m(tgt)._2, IntOp2("eq", v, IntV(n)))))
             case (m, LLVMCase(_, n, tgt)) =>
               m + (tgt -> (v.int == n, IntOp2("eq", v, IntV(n))))

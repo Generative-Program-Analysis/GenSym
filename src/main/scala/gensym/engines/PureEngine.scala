@@ -235,7 +235,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(incsValues)(eval(_, ty))
           s <- getState
         } yield selectValue(s.incomingBlock, vs, incsLabels)
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Global.config.iteSelect =>
         for {
           cnd <- eval(cndVal, cndTy)
           tv  <- eval(thnVal, thnTy)
