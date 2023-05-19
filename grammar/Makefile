@@ -1,5 +1,5 @@
 # Download ANTLR from https://www.antlr.org/download.html
-ANTLR4 = antlr-4.9.3-complete.jar
+ANTLR4 = antlr-4.12.0-complete.jar
 
 all:
 	java -jar $(ANTLR4) LLVMLexer.g4
