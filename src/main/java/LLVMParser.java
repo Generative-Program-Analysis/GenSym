@@ -1,6 +1,5 @@
-// Generated from LLVMParser.g4 by ANTLR 4.12.0
 package gensym.llvm;
-
+// Generated from LLVMParser.g4 by ANTLR 4.12.0
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
@@ -18,318 +17,318 @@ public class LLVMParser extends Parser {
 	protected static final PredictionContextCache _sharedContextCache =
 		new PredictionContextCache();
 	public static final int
-		LT=1, EQSIGN=2, GT=3, VDASH=4, COMMA=5, BANG=6, DOTS=7, LPAREN=8, RPAREN=9,
-		LBRACK=10, RBRACK=11, LBRACE=12, RBRACE=13, STAR=14, ACQ_REL=15, ACQUIRE=16,
-		ADD=17, ADDRSPACE=18, ADDRSPACECAST=19, AFN=20, ALIAS=21, ALIGNCOLON=22,
-		ALIGN=23, ALIGNSTACK=24, ALLOCA=25, ALLOCSIZE=26, ALWAYSINLINE=27, AMDGPU_CS=28,
-		AMDGPU_ES=29, AMDGPU_GS=30, AMDGPU_HS=31, AMDGPU_KERNEL=32, AMDGPU_LS=33,
-		AMDGPU_PS=34, AMDGPU_VS=35, AND=36, ANY=37, ANYREGCC=38, APPENDING=39,
-		ARCP=40, ARGCOLON=41, ARGMEMONLY=42, ARM_AAPCSCC=43, ARM_AAPCS_VFPCC=44,
-		ARM_APCSCC=45, ASHR=46, ASM=47, ATOMIC=48, ATOMICRMW=49, ATTRIBUTESCOLON=50,
-		ATTRIBUTES=51, AVAILABLE_EXTERNALLY=52, AVR_INTRCC=53, AVR_SIGNALCC=54,
-		BASETYPECOLON=55, BITCAST=56, BLOCKADDRESS=57, BR=58, BUILTIN=59, BYVAL=60,
-		C=61, CALL=62, CALLER=63, CATCH=64, CATCHPAD=65, CATCHRET=66, CATCHSWITCH=67,
-		CCCOLON=68, CC=69, CCC=70, CHECKSUMCOLON=71, CHECKSUMKINDCOLON=72, CLEANUP=73,
-		CLEANUPPAD=74, CLEANUPRET=75, CMPXCHG=76, COLD=77, COLDCC=78, COLUMNCOLON=79,
-		COMDAT=80, COMMON=81, CONFIGMACROSCOLON=82, CONSTANT=83, CONTAININGTYPECOLON=84,
-		CONTRACT=85, CONVERGENT=86, COUNTCOLON=87, CXX_FAST_TLSCC=88, DATALAYOUT=89,
-		DEBUGINFOFORPROFILINGCOLON=90, DECLARATIONCOLON=91, DECLARE=92, DEFAULT=93,
-		DEFINE=94, DEREFERENCEABLE=95, DEREFERENCEABLE_OR_NULL=96, NOTDIBASICTYPE=97,
-		NOTDICOMPILEUNIT=98, NOTDICOMPOSITETYPE=99, NOTDIDERIVEDTYPE=100, NOTDIENUMERATOR=101,
-		NOTDIEXPRESSION=102, NOTDIFILE=103, NOTDIGLOBALVARIABLE=104, NOTDIGLOBALVARIABLEEXPRESSION=105,
-		NOTDIIMPORTEDENTITY=106, NOTDILEXICALBLOCK=107, NOTDILEXICALBLOCKFILE=108,
-		NOTDILOCALVARIABLE=109, NOTDILOCATION=110, NOTDIMACRO=111, NOTDIMACROFILE=112,
-		NOTDIMODULE=113, NOTDINAMESPACE=114, NOTDIOBJCPROPERTY=115, DIRECTORYCOLON=116,
-		DISCRIMINATORCOLON=117, DISTINCT=118, NOTDISUBPROGRAM=119, NOTDISUBRANGE=120,
-		NOTDISUBROUTINETYPE=121, NOTDITEMPLATETYPEPARAMETER=122, NOTDITEMPLATEVALUEPARAMETER=123,
-		DLLEXPORT=124, DLLIMPORT=125, DOUBLE=126, DSO_LOCAL=127, DSO_PREEMPTABLE=128,
-		DWARFADDRESSSPACECOLON=129, DWOIDCOLON=130, ELEMENTSCOLON=131, EMISSIONKINDCOLON=132,
-		ENCODINGCOLON=133, ENTITYCOLON=134, ENUMSCOLON=135, EQ=136, EXACT=137,
-		EXACTMATCH=138, EXPORTSYMBOLSCOLON=139, EXPRCOLON=140, EXTERNAL=141, EXTERNALLY_INITIALIZED=142,
-		EXTERN_WEAK=143, EXTRACTELEMENT=144, EXTRACTVALUE=145, EXTRADATACOLON=146,
-		FADD=147, FALSE=148, FAST=149, FASTCC=150, FCMP=151, FDIV=152, FENCE=153,
-		FILECOLON=154, FILENAMECOLON=155, FILTER=156, FLAGSCOLON=157, FLOAT=158,
-		FMUL=159, FNEG=160, FP128=161, FPEXT=162, FPTOSI=163, FPTOUI=164, FPTRUNC=165,
-		FREM=166, FROM=167, FSUB=168, FULLDEBUG=169, GC=170, NOTGENERICDINODE=171,
-		GETELEMENTPTR=172, GETTERCOLON=173, GHCCC=174, GLOBAL=175, GLOBALSCOLON=176,
-		GNUPUBNAMESCOLON=177, HALF=178, HEADERCOLON=179, HHVMCC=180, HHVM_CCC=181,
-		HIDDEN_VISIB=182, ICMP=183, IDENTIFIERCOLON=184, IFUNC=185, IMMARG=186,
-		NOUNDEF=187, IMPORTSCOLON=188, INACCESSIBLEMEMONLY=189, INACCESSIBLEMEM_OR_ARGMEMONLY=190,
-		INALLOCA=191, INBOUNDS=192, INCLUDEPATHCOLON=193, INDIRECTBR=194, INITIALEXEC=195,
-		INLINEDATCOLON=196, INLINEHINT=197, INRANGE=198, INREG=199, INSERTELEMENT=200,
-		INSERTVALUE=201, INTELDIALECT=202, INTEL_OCL_BICC=203, INTERNAL=204, INTTOPTR=205,
-		INVOKE=206, ISDEFINITIONCOLON=207, ISLOCALCOLON=208, ISOPTIMIZEDCOLON=209,
-		ISUNSIGNEDCOLON=210, ISYSROOTCOLON=211, JUMPTABLE=212, LABEL=213, LANDINGPAD=214,
-		LANGUAGECOLON=215, LARGEST=216, LINECOLON=217, LINETABLESONLY=218, LINKAGENAMECOLON=219,
-		LINKONCE=220, LINKONCE_ODR=221, LOAD=222, LOCALDYNAMIC=223, LOCALEXEC=224,
-		LOCAL_UNNAMED_ADDR=225, LOWERBOUNDCOLON=226, LSHR=227, MACROSCOLON=228,
-		MAX=229, METADATA=230, MIN=231, MINSIZE=232, MODULE=233, MONOTONIC=234,
-		MSP430_INTRCC=235, MUL=236, MUSTTAIL=237, NAKED=238, NAMECOLON=239, NAND=240,
-		NE=241, NEST=242, NINF=243, NNAN=244, NOALIAS=245, NOBUILTIN=246, NOCAPTURE=247,
-		NODEBUG=248, NODESCOLON=249, NODUPLICATE=250, NODUPLICATES=251, NOFREE=252,
-		NOIMPLICITFLOAT=253, NOINLINE=254, NONE=255, NONLAZYBIND=256, NONNULL=257,
-		NORECURSE=258, NOREDZONE=259, NORETURN=260, NOTAIL=261, NOUNWIND=262,
-		NSW=263, NSZ=264, NULL=265, NUW=266, OEQ=267, OFFSETCOLON=268, OGE=269,
-		OGT=270, OLE=271, OLT=272, ONE=273, OPAQUE=274, OPERANDSCOLON=275, OPTNONE=276,
-		OPTSIZE=277, OR=278, ORD=279, PERSONALITY=280, PHI=281, PPC_FP128=282,
-		PREFIX=283, PRESERVE_ALLCC=284, PRESERVE_MOSTCC=285, PRIVATE=286, PRODUCERCOLON=287,
-		PROLOGUE=288, PROTECTED=289, PTRTOINT=290, PTX_DEVICE=291, PTX_KERNEL=292,
-		READNONE=293, READONLY=294, REASSOC=295, RELEASE=296, RESUME=297, RET=298,
-		RETAINEDTYPESCOLON=299, RETURNED=300, RETURNS_TWICE=301, RUNTIMELANGCOLON=302,
-		RUNTIMEVERSIONCOLON=303, SAFESTACK=304, SAMESIZE=305, SANITIZE_ADDRESS=306,
-		SANITIZE_HWADDRESS=307, SANITIZE_MEMORY=308, SANITIZE_THREAD=309, SCOPECOLON=310,
-		SCOPELINECOLON=311, SDIV=312, SECTION=313, SELECT=314, SEQ_CST=315, SETTERCOLON=316,
-		SEXT=317, SGE=318, SGT=319, SHL=320, SHUFFLEVECTOR=321, SIDEEFFECT=322,
-		SIGNEXT=323, SITOFP=324, SIZECOLON=325, SLE=326, SLT=327, SOURCE_FILENAME=328,
-		SPECULATABLE=329, SPIR_FUNC=330, SPIR_KERNEL=331, SPLITDEBUGFILENAMECOLON=332,
-		SPLITDEBUGINLININGCOLON=333, SREM=334, SRET=335, SSP=336, SSPREQ=337,
-		SSPSTRONG=338, STORE=339, STRICTFP=340, SUB=341, SWIFTCC=342, SWIFTERROR=343,
-		SWIFTSELF=344, SWITCH=345, SYNCSCOPE=346, TAGCOLON=347, TAIL=348, TARGET=349,
-		TEMPLATEPARAMSCOLON=350, THISADJUSTMENTCOLON=351, THREAD_LOCAL=352, THROWNTYPESCOLON=353,
-		TO=354, TOKEN=355, TRIPLE=356, TRUE=357, TRUNC=358, TYPECOLON=359, TYPE=360,
-		TYPESCOLON=361, UDIV=362, UEQ=363, UGE=364, UGT=365, UITOFP=366, ULE=367,
-		ULT=368, UMAX=369, UMIN=370, UNDEF=371, UNE=372, UNITCOLON=373, UNNAMED_ADDR=374,
-		UNO=375, UNORDERED=376, UNREACHABLE=377, UNWIND=378, UREM=379, USELISTORDER=380,
-		USELISTORDER_BB=381, UWTABLE=382, VA_ARG=383, VALUECOLON=384, VARCOLON=385,
-		VARIABLESCOLON=386, VIRTUALINDEXCOLON=387, VIRTUALITYCOLON=388, VOID=389,
-		VTABLEHOLDERCOLON=390, WEAK=391, WEAK_ODR=392, WEBKIT_JSCC=393, WILLRETURN=394,
-		WIN64CC=395, WITHIN=396, WRITEONLY=397, X=398, X86_64_SYSVCC=399, X86_FASTCALLCC=400,
-		X86_FP80=401, X86_INTRCC=402, X86_MMX=403, X86_REGCALLCC=404, X86_STDCALLCC=405,
-		X86_THISCALLCC=406, X86_VECTORCALLCC=407, XCHG=408, XOR=409, ZEROEXT=410,
-		ZEROINITIALIZER=411, ZEXT=412, VOLATILE=413, COMMENT=414, WHITESPACE=415,
-		ATTR_GROUP_ID=416, COMDAT_NAME=417, METADATA_NAME=418, METADATA_ID=419,
-		DWARF_TAG=420, DWARF_ATT_ENCODING=421, DI_FLAG=422, DWARF_LANG=423, DWARF_CC=424,
-		CHECKSUM_KIND=425, DWARF_VIRTUALITY=426, DWARF_MACINFO=427, DWARF_OP=428,
-		INT_LIT=429, DECIMAL_LIT=430, DECIMALS=431, FLOAT_LIT=432, FRAC_LIT=433,
-		SIGN=434, SCI_LIT=435, FLOAT_HEX_LIT=436, STRING_LIT=437, QUOTED_STRING=438,
-		INT_TYPE=439, NAME=440, ESCAPE_NAME=441, QUOTED_NAME=442, ID=443, GLOBAL_IDENT=444,
-		GLOBAL_NAME=445, GLOBAL_ID=446, LOCAL_IDENT=447, LOCAL_NAME=448, LOCAL_ID=449,
+		LT=1, EQSIGN=2, GT=3, VDASH=4, COMMA=5, BANG=6, DOTS=7, LPAREN=8, RPAREN=9, 
+		LBRACK=10, RBRACK=11, LBRACE=12, RBRACE=13, STAR=14, ACQ_REL=15, ACQUIRE=16, 
+		ADD=17, ADDRSPACE=18, ADDRSPACECAST=19, AFN=20, ALIAS=21, ALIGNCOLON=22, 
+		ALIGN=23, ALIGNSTACK=24, ALLOCA=25, ALLOCSIZE=26, ALWAYSINLINE=27, AMDGPU_CS=28, 
+		AMDGPU_ES=29, AMDGPU_GS=30, AMDGPU_HS=31, AMDGPU_KERNEL=32, AMDGPU_LS=33, 
+		AMDGPU_PS=34, AMDGPU_VS=35, AND=36, ANY=37, ANYREGCC=38, APPENDING=39, 
+		ARCP=40, ARGCOLON=41, ARGMEMONLY=42, ARM_AAPCSCC=43, ARM_AAPCS_VFPCC=44, 
+		ARM_APCSCC=45, ASHR=46, ASM=47, ATOMIC=48, ATOMICRMW=49, ATTRIBUTESCOLON=50, 
+		ATTRIBUTES=51, AVAILABLE_EXTERNALLY=52, AVR_INTRCC=53, AVR_SIGNALCC=54, 
+		BASETYPECOLON=55, BITCAST=56, BLOCKADDRESS=57, BR=58, BUILTIN=59, BYVAL=60, 
+		C=61, CALL=62, CALLER=63, CATCH=64, CATCHPAD=65, CATCHRET=66, CATCHSWITCH=67, 
+		CCCOLON=68, CC=69, CCC=70, CHECKSUMCOLON=71, CHECKSUMKINDCOLON=72, CLEANUP=73, 
+		CLEANUPPAD=74, CLEANUPRET=75, CMPXCHG=76, COLD=77, COLDCC=78, COLUMNCOLON=79, 
+		COMDAT=80, COMMON=81, CONFIGMACROSCOLON=82, CONSTANT=83, CONTAININGTYPECOLON=84, 
+		CONTRACT=85, CONVERGENT=86, COUNTCOLON=87, CXX_FAST_TLSCC=88, DATALAYOUT=89, 
+		DEBUGINFOFORPROFILINGCOLON=90, DECLARATIONCOLON=91, DECLARE=92, DEFAULT=93, 
+		DEFINE=94, DEREFERENCEABLE=95, DEREFERENCEABLE_OR_NULL=96, NOTDIBASICTYPE=97, 
+		NOTDICOMPILEUNIT=98, NOTDICOMPOSITETYPE=99, NOTDIDERIVEDTYPE=100, NOTDIENUMERATOR=101, 
+		NOTDIEXPRESSION=102, NOTDIFILE=103, NOTDIGLOBALVARIABLE=104, NOTDIGLOBALVARIABLEEXPRESSION=105, 
+		NOTDIIMPORTEDENTITY=106, NOTDILEXICALBLOCK=107, NOTDILEXICALBLOCKFILE=108, 
+		NOTDILOCALVARIABLE=109, NOTDILOCATION=110, NOTDIMACRO=111, NOTDIMACROFILE=112, 
+		NOTDIMODULE=113, NOTDINAMESPACE=114, NOTDIOBJCPROPERTY=115, DIRECTORYCOLON=116, 
+		DISCRIMINATORCOLON=117, DISTINCT=118, NOTDISUBPROGRAM=119, NOTDISUBRANGE=120, 
+		NOTDISUBROUTINETYPE=121, NOTDITEMPLATETYPEPARAMETER=122, NOTDITEMPLATEVALUEPARAMETER=123, 
+		DLLEXPORT=124, DLLIMPORT=125, DOUBLE=126, DSO_LOCAL=127, DSO_PREEMPTABLE=128, 
+		DWARFADDRESSSPACECOLON=129, DWOIDCOLON=130, ELEMENTSCOLON=131, EMISSIONKINDCOLON=132, 
+		ENCODINGCOLON=133, ENTITYCOLON=134, ENUMSCOLON=135, EQ=136, EXACT=137, 
+		EXACTMATCH=138, EXPORTSYMBOLSCOLON=139, EXPRCOLON=140, EXTERNAL=141, EXTERNALLY_INITIALIZED=142, 
+		EXTERN_WEAK=143, EXTRACTELEMENT=144, EXTRACTVALUE=145, EXTRADATACOLON=146, 
+		FADD=147, FALSE=148, FAST=149, FASTCC=150, FCMP=151, FDIV=152, FENCE=153, 
+		FILECOLON=154, FILENAMECOLON=155, FILTER=156, FLAGSCOLON=157, FLOAT=158, 
+		FMUL=159, FNEG=160, FP128=161, FPEXT=162, FPTOSI=163, FPTOUI=164, FPTRUNC=165, 
+		FREM=166, FROM=167, FSUB=168, FULLDEBUG=169, GC=170, NOTGENERICDINODE=171, 
+		GETELEMENTPTR=172, GETTERCOLON=173, GHCCC=174, GLOBAL=175, GLOBALSCOLON=176, 
+		GNUPUBNAMESCOLON=177, HALF=178, HEADERCOLON=179, HHVMCC=180, HHVM_CCC=181, 
+		HIDDEN_VISIB=182, ICMP=183, IDENTIFIERCOLON=184, IFUNC=185, IMMARG=186, 
+		NOUNDEF=187, IMPORTSCOLON=188, INACCESSIBLEMEMONLY=189, INACCESSIBLEMEM_OR_ARGMEMONLY=190, 
+		INALLOCA=191, INBOUNDS=192, INCLUDEPATHCOLON=193, INDIRECTBR=194, INITIALEXEC=195, 
+		INLINEDATCOLON=196, INLINEHINT=197, INRANGE=198, INREG=199, INSERTELEMENT=200, 
+		INSERTVALUE=201, INTELDIALECT=202, INTEL_OCL_BICC=203, INTERNAL=204, INTTOPTR=205, 
+		INVOKE=206, ISDEFINITIONCOLON=207, ISLOCALCOLON=208, ISOPTIMIZEDCOLON=209, 
+		ISUNSIGNEDCOLON=210, ISYSROOTCOLON=211, JUMPTABLE=212, LABEL=213, LANDINGPAD=214, 
+		LANGUAGECOLON=215, LARGEST=216, LINECOLON=217, LINETABLESONLY=218, LINKAGENAMECOLON=219, 
+		LINKONCE=220, LINKONCE_ODR=221, LOAD=222, LOCALDYNAMIC=223, LOCALEXEC=224, 
+		LOCAL_UNNAMED_ADDR=225, LOWERBOUNDCOLON=226, LSHR=227, MACROSCOLON=228, 
+		MAX=229, METADATA=230, MIN=231, MINSIZE=232, MODULE=233, MONOTONIC=234, 
+		MSP430_INTRCC=235, MUL=236, MUSTTAIL=237, NAKED=238, NAMECOLON=239, NAND=240, 
+		NE=241, NEST=242, NINF=243, NNAN=244, NOALIAS=245, NOBUILTIN=246, NOCAPTURE=247, 
+		NODEBUG=248, NODESCOLON=249, NODUPLICATE=250, NODUPLICATES=251, NOFREE=252, 
+		NOIMPLICITFLOAT=253, NOINLINE=254, NONE=255, NONLAZYBIND=256, NONNULL=257, 
+		NORECURSE=258, NOREDZONE=259, NORETURN=260, NOTAIL=261, NOUNWIND=262, 
+		NSW=263, NSZ=264, NULL=265, NUW=266, OEQ=267, OFFSETCOLON=268, OGE=269, 
+		OGT=270, OLE=271, OLT=272, ONE=273, OPAQUE=274, OPERANDSCOLON=275, OPTNONE=276, 
+		OPTSIZE=277, OR=278, ORD=279, PERSONALITY=280, PHI=281, PPC_FP128=282, 
+		PREFIX=283, PRESERVE_ALLCC=284, PRESERVE_MOSTCC=285, PRIVATE=286, PRODUCERCOLON=287, 
+		PROLOGUE=288, PROTECTED=289, PTRTOINT=290, PTX_DEVICE=291, PTX_KERNEL=292, 
+		READNONE=293, READONLY=294, REASSOC=295, RELEASE=296, RESUME=297, RET=298, 
+		RETAINEDTYPESCOLON=299, RETURNED=300, RETURNS_TWICE=301, RUNTIMELANGCOLON=302, 
+		RUNTIMEVERSIONCOLON=303, SAFESTACK=304, SAMESIZE=305, SANITIZE_ADDRESS=306, 
+		SANITIZE_HWADDRESS=307, SANITIZE_MEMORY=308, SANITIZE_THREAD=309, SCOPECOLON=310, 
+		SCOPELINECOLON=311, SDIV=312, SECTION=313, SELECT=314, SEQ_CST=315, SETTERCOLON=316, 
+		SEXT=317, SGE=318, SGT=319, SHL=320, SHUFFLEVECTOR=321, SIDEEFFECT=322, 
+		SIGNEXT=323, SITOFP=324, SIZECOLON=325, SLE=326, SLT=327, SOURCE_FILENAME=328, 
+		SPECULATABLE=329, SPIR_FUNC=330, SPIR_KERNEL=331, SPLITDEBUGFILENAMECOLON=332, 
+		SPLITDEBUGINLININGCOLON=333, SREM=334, SRET=335, SSP=336, SSPREQ=337, 
+		SSPSTRONG=338, STORE=339, STRICTFP=340, SUB=341, SWIFTCC=342, SWIFTERROR=343, 
+		SWIFTSELF=344, SWITCH=345, SYNCSCOPE=346, TAGCOLON=347, TAIL=348, TARGET=349, 
+		TEMPLATEPARAMSCOLON=350, THISADJUSTMENTCOLON=351, THREAD_LOCAL=352, THROWNTYPESCOLON=353, 
+		TO=354, TOKEN=355, TRIPLE=356, TRUE=357, TRUNC=358, TYPECOLON=359, TYPE=360, 
+		TYPESCOLON=361, UDIV=362, UEQ=363, UGE=364, UGT=365, UITOFP=366, ULE=367, 
+		ULT=368, UMAX=369, UMIN=370, UNDEF=371, UNE=372, UNITCOLON=373, UNNAMED_ADDR=374, 
+		UNO=375, UNORDERED=376, UNREACHABLE=377, UNWIND=378, UREM=379, USELISTORDER=380, 
+		USELISTORDER_BB=381, UWTABLE=382, VA_ARG=383, VALUECOLON=384, VARCOLON=385, 
+		VARIABLESCOLON=386, VIRTUALINDEXCOLON=387, VIRTUALITYCOLON=388, VOID=389, 
+		VTABLEHOLDERCOLON=390, WEAK=391, WEAK_ODR=392, WEBKIT_JSCC=393, WILLRETURN=394, 
+		WIN64CC=395, WITHIN=396, WRITEONLY=397, X=398, X86_64_SYSVCC=399, X86_FASTCALLCC=400, 
+		X86_FP80=401, X86_INTRCC=402, X86_MMX=403, X86_REGCALLCC=404, X86_STDCALLCC=405, 
+		X86_THISCALLCC=406, X86_VECTORCALLCC=407, XCHG=408, XOR=409, ZEROEXT=410, 
+		ZEROINITIALIZER=411, ZEXT=412, VOLATILE=413, COMMENT=414, WHITESPACE=415, 
+		ATTR_GROUP_ID=416, COMDAT_NAME=417, METADATA_NAME=418, METADATA_ID=419, 
+		DWARF_TAG=420, DWARF_ATT_ENCODING=421, DI_FLAG=422, DWARF_LANG=423, DWARF_CC=424, 
+		CHECKSUM_KIND=425, DWARF_VIRTUALITY=426, DWARF_MACINFO=427, DWARF_OP=428, 
+		INT_LIT=429, DECIMAL_LIT=430, DECIMALS=431, FLOAT_LIT=432, FRAC_LIT=433, 
+		SIGN=434, SCI_LIT=435, FLOAT_HEX_LIT=436, STRING_LIT=437, QUOTED_STRING=438, 
+		INT_TYPE=439, NAME=440, ESCAPE_NAME=441, QUOTED_NAME=442, ID=443, GLOBAL_IDENT=444, 
+		GLOBAL_NAME=445, GLOBAL_ID=446, LOCAL_IDENT=447, LOCAL_NAME=448, LOCAL_ID=449, 
 		LABEL_IDENT=450;
 	public static final int
-		RULE_module = 0, RULE_topLevelEntities = 1, RULE_topLevelEntityList = 2,
-		RULE_topLevelEntity = 3, RULE_sourceFilename = 4, RULE_targetDefinition = 5,
-		RULE_moduleAsm = 6, RULE_typeDef = 7, RULE_comdatDef = 8, RULE_selectionKind = 9,
-		RULE_globalDecl = 10, RULE_globalDef = 11, RULE_optExternallyInitialized = 12,
-		RULE_immutable = 13, RULE_globalAttrs = 14, RULE_globalAttrList = 15,
-		RULE_globalAttr = 16, RULE_indirectSymbolDef = 17, RULE_alias = 18, RULE_functionDecl = 19,
-		RULE_functionDef = 20, RULE_functionHeader = 21, RULE_optGC = 22, RULE_optPrefix = 23,
-		RULE_optPrologue = 24, RULE_optPersonality = 25, RULE_functionBody = 26,
-		RULE_attrGroupDef = 27, RULE_namedMetadataDef = 28, RULE_metadataNodes = 29,
-		RULE_metadataNodeList = 30, RULE_metadataNode = 31, RULE_metadataDef = 32,
-		RULE_optDistinct = 33, RULE_useListOrders = 34, RULE_useListOrderList = 35,
-		RULE_useListOrder = 36, RULE_useListOrderBB = 37, RULE_globalIdent = 38,
-		RULE_localIdent = 39, RULE_labelIdent = 40, RULE_attrGroupID = 41, RULE_comdatName = 42,
-		RULE_metadataName = 43, RULE_metadataID = 44, RULE_llvmType = 45, RULE_concreteNonRecType = 46,
-		RULE_voidType = 47, RULE_intType = 48, RULE_floatType = 49, RULE_floatKind = 50,
-		RULE_mmxType = 51, RULE_optAddrSpace = 52, RULE_addrSpace = 53, RULE_vectorType = 54,
-		RULE_labelType = 55, RULE_tokenType = 56, RULE_metadataType = 57, RULE_arrayType = 58,
-		RULE_structType = 59, RULE_typeList = 60, RULE_opaqueType = 61, RULE_namedType = 62,
-		RULE_value = 63, RULE_inlineAsm = 64, RULE_optSideEffect = 65, RULE_optAlignStack = 66,
-		RULE_optIntelDialect = 67, RULE_constant = 68, RULE_boolConst = 69, RULE_boolLit = 70,
-		RULE_intConst = 71, RULE_intLit = 72, RULE_floatConst = 73, RULE_nullConst = 74,
-		RULE_noneConst = 75, RULE_structConst = 76, RULE_arrayConst = 77, RULE_charArrayConst = 78,
-		RULE_stringLit = 79, RULE_vectorConst = 80, RULE_zeroInitializerConst = 81,
-		RULE_undefConst = 82, RULE_blockAddressConst = 83, RULE_constantExpr = 84,
-		RULE_addExpr = 85, RULE_fAddExpr = 86, RULE_subExpr = 87, RULE_fSubExpr = 88,
-		RULE_mulExpr = 89, RULE_fMulExpr = 90, RULE_uDivExpr = 91, RULE_sDivExpr = 92,
-		RULE_fDivExpr = 93, RULE_uRemExpr = 94, RULE_sRemExpr = 95, RULE_fRemExpr = 96,
-		RULE_shlExpr = 97, RULE_lShrExpr = 98, RULE_ashrExpr = 99, RULE_andExpr = 100,
-		RULE_orExpr = 101, RULE_xorExpr = 102, RULE_extractElementExpr = 103,
-		RULE_insertElementExpr = 104, RULE_shuffleVectorExpr = 105, RULE_extractValueExpr = 106,
-		RULE_insertValueExpr = 107, RULE_getElementPtrExpr = 108, RULE_gepConstIndices = 109,
-		RULE_gepConstIndexList = 110, RULE_gepConstIndex = 111, RULE_optInrange = 112,
-		RULE_truncExpr = 113, RULE_zExtExpr = 114, RULE_sExtExpr = 115, RULE_fPTruncExpr = 116,
-		RULE_fpExtExpr = 117, RULE_fpToUIExpr = 118, RULE_fpToSIExpr = 119, RULE_uiToFPExpr = 120,
-		RULE_siToFPExpr = 121, RULE_ptrToIntExpr = 122, RULE_intToPtrExpr = 123,
-		RULE_bitCastExpr = 124, RULE_addrSpaceCastExpr = 125, RULE_iCmpExpr = 126,
-		RULE_fCmpExpr = 127, RULE_selectExpr = 128, RULE_basicBlockList = 129,
-		RULE_basicBlock = 130, RULE_optLabelIdent = 131, RULE_instructions = 132,
-		RULE_instructionList = 133, RULE_instruction = 134, RULE_valueInstruction = 135,
-		RULE_fNegInst = 136, RULE_addInst = 137, RULE_fAddInst = 138, RULE_subInst = 139,
-		RULE_fSubInst = 140, RULE_mulInst = 141, RULE_fMulInst = 142, RULE_uDivInst = 143,
-		RULE_sDivInst = 144, RULE_fDivInst = 145, RULE_uRemInst = 146, RULE_sRemInst = 147,
-		RULE_fRemInst = 148, RULE_shlInst = 149, RULE_lshrInst = 150, RULE_ashrInst = 151,
-		RULE_andInst = 152, RULE_orInst = 153, RULE_xorInst = 154, RULE_extractElementInst = 155,
-		RULE_insertElementInst = 156, RULE_shuffleVectorInst = 157, RULE_extractValueInst = 158,
-		RULE_insertValueInst = 159, RULE_allocaInst = 160, RULE_optInAlloca = 161,
-		RULE_optSwiftError = 162, RULE_loadInst = 163, RULE_storeInst = 164, RULE_fenceInst = 165,
-		RULE_cmpXchgInst = 166, RULE_optWeak = 167, RULE_atomicRMWInst = 168,
-		RULE_binOp = 169, RULE_getElementPtrInst = 170, RULE_truncInst = 171,
-		RULE_zExtInst = 172, RULE_sExtInst = 173, RULE_fpTruncInst = 174, RULE_fpExtInst = 175,
-		RULE_fpToUIInst = 176, RULE_fpToSIInst = 177, RULE_uiToFPInst = 178, RULE_siToFPInst = 179,
-		RULE_ptrToIntInst = 180, RULE_intToPtrInst = 181, RULE_bitCastInst = 182,
-		RULE_addrSpaceCastInst = 183, RULE_iCmpInst = 184, RULE_fCmpInst = 185,
-		RULE_phiInst = 186, RULE_incList = 187, RULE_inc = 188, RULE_selectInst = 189,
-		RULE_callInst = 190, RULE_optTail = 191, RULE_vaArgInst = 192, RULE_landingPadInst = 193,
-		RULE_optCleanup = 194, RULE_clauses = 195, RULE_clauseList = 196, RULE_clause = 197,
-		RULE_catchPadInst = 198, RULE_cleanupPadInst = 199, RULE_terminator = 200,
-		RULE_retTerm = 201, RULE_brTerm = 202, RULE_condBrTerm = 203, RULE_switchTerm = 204,
-		RULE_cases = 205, RULE_caseList = 206, RULE_llvmCase = 207, RULE_indirectBrTerm = 208,
-		RULE_labelList = 209, RULE_label = 210, RULE_invokeTerm = 211, RULE_resumeTerm = 212,
-		RULE_catchSwitchTerm = 213, RULE_catchRetTerm = 214, RULE_cleanupRetTerm = 215,
-		RULE_unreachableTerm = 216, RULE_unwindTarget = 217, RULE_mdTuple = 218,
-		RULE_mdFields = 219, RULE_mdFieldList = 220, RULE_mdField = 221, RULE_metadata = 222,
-		RULE_mdString = 223, RULE_metadataAttachment = 224, RULE_mdNode = 225,
-		RULE_metadataAttachments = 226, RULE_metadataAttachmentList = 227, RULE_optCommaSepMetadataAttachmentList = 228,
-		RULE_commaSepMetadataAttachmentList = 229, RULE_specializedMDNode = 230,
-		RULE_diCompileUnit = 231, RULE_diCompileUnitFields = 232, RULE_diCompileUnitFieldList = 233,
-		RULE_diCompileUnitField = 234, RULE_diFile = 235, RULE_diFileFields = 236,
-		RULE_diFileFieldList = 237, RULE_diFileField = 238, RULE_diBasicType = 239,
-		RULE_diBasicTypeFields = 240, RULE_diBasicTypeFieldList = 241, RULE_diBasicTypeField = 242,
-		RULE_diSubroutineType = 243, RULE_diSubroutineTypeFields = 244, RULE_diSubroutineTypeFieldList = 245,
-		RULE_diSubroutineTypeField = 246, RULE_diDerivedType = 247, RULE_diDerivedTypeFields = 248,
-		RULE_diDerivedTypeFieldList = 249, RULE_diDerivedTypeField = 250, RULE_diCompositeType = 251,
-		RULE_diCompositeTypeFields = 252, RULE_diCompositeTypeFieldList = 253,
-		RULE_diCompositeTypeField = 254, RULE_diSubrange = 255, RULE_diSubrangeFields = 256,
-		RULE_diSubrangeFieldList = 257, RULE_diSubrangeField = 258, RULE_diEnumerator = 259,
-		RULE_diEnumeratorFields = 260, RULE_diEnumeratorFieldList = 261, RULE_diEnumeratorField = 262,
-		RULE_diTemplateTypeParameter = 263, RULE_diTemplateTypeParameterFields = 264,
-		RULE_diTemplateTypeParameterFieldList = 265, RULE_diTemplateTypeParameterField = 266,
-		RULE_diTemplateValueParameter = 267, RULE_diTemplateValueParameterFields = 268,
-		RULE_diTemplateValueParameterFieldList = 269, RULE_diTemplateValueParameterField = 270,
-		RULE_diModule = 271, RULE_diModuleFields = 272, RULE_diModuleFieldList = 273,
-		RULE_diModuleField = 274, RULE_diNamespace = 275, RULE_diNamespaceFields = 276,
-		RULE_diNamespaceFieldList = 277, RULE_diNamespaceField = 278, RULE_diGlobalVariable = 279,
-		RULE_diGlobalVariableFields = 280, RULE_diGlobalVariableFieldList = 281,
-		RULE_diGlobalVariableField = 282, RULE_diSubprogram = 283, RULE_diSubprogramFields = 284,
-		RULE_diSubprogramFieldList = 285, RULE_diSubprogramField = 286, RULE_diLexicalBlock = 287,
-		RULE_diLexicalBlockFields = 288, RULE_diLexicalBlockFieldList = 289, RULE_diLexicalBlockField = 290,
-		RULE_diLexicalBlockFile = 291, RULE_diLexicalBlockFileFields = 292, RULE_diLexicalBlockFileFieldList = 293,
-		RULE_diLexicalBlockFileField = 294, RULE_diLocation = 295, RULE_diLocationFields = 296,
-		RULE_diLocationFieldList = 297, RULE_diLocationField = 298, RULE_diLocalVariable = 299,
-		RULE_diLocalVariableFields = 300, RULE_diLocalVariableFieldList = 301,
-		RULE_diLocalVariableField = 302, RULE_diExpression = 303, RULE_diExpressionFields = 304,
-		RULE_diExpressionFieldList = 305, RULE_diExpressionField = 306, RULE_diGlobalVariableExpression = 307,
-		RULE_diGlobalVariableExpressionFields = 308, RULE_diGlobalVariableExpressionFieldList = 309,
-		RULE_diGlobalVariableExpressionField = 310, RULE_diObjCProperty = 311,
-		RULE_diObjCPropertyFields = 312, RULE_diObjCPropertyFieldList = 313, RULE_diObjCPropertyField = 314,
-		RULE_diImportedEntity = 315, RULE_diImportedEntityFields = 316, RULE_diImportedEntityFieldList = 317,
-		RULE_diImportedEntityField = 318, RULE_diMacro = 319, RULE_diMacroFields = 320,
-		RULE_diMacroFieldList = 321, RULE_diMacroField = 322, RULE_diMacroFile = 323,
-		RULE_diMacroFileFields = 324, RULE_diMacroFileFieldList = 325, RULE_diMacroFileField = 326,
-		RULE_genericDINode = 327, RULE_genericDINodeFields = 328, RULE_genericDINodeFieldList = 329,
-		RULE_genericDINodeField = 330, RULE_fileField = 331, RULE_isOptimizedField = 332,
-		RULE_tagField = 333, RULE_nameField = 334, RULE_sizeField = 335, RULE_alignField = 336,
-		RULE_flagsField = 337, RULE_lineField = 338, RULE_scopeField = 339, RULE_baseTypeField = 340,
-		RULE_offsetField = 341, RULE_templateParamsField = 342, RULE_intOrMDField = 343,
-		RULE_typeField = 344, RULE_linkageNameField = 345, RULE_isLocalField = 346,
-		RULE_isDefinitionField = 347, RULE_declarationField = 348, RULE_columnField = 349,
-		RULE_typeMacinfoField = 350, RULE_checksumkind = 351, RULE_diFlagList = 352,
-		RULE_diFlag = 353, RULE_dwarfAttEncoding = 354, RULE_dwarfCC = 355, RULE_dwarfLang = 356,
-		RULE_dwarfMacinfo = 357, RULE_dwarfOp = 358, RULE_dwarfTag = 359, RULE_dwarfVirtuality = 360,
-		RULE_emissionKind = 361, RULE_typeValues = 362, RULE_typeValueList = 363,
-		RULE_commaSepTypeValueList = 364, RULE_typeValue = 365, RULE_typeConsts = 366,
-		RULE_typeConstList = 367, RULE_typeConst = 368, RULE_alignment = 369,
-		RULE_allocSize = 370, RULE_args = 371, RULE_argList = 372, RULE_arg = 373,
-		RULE_atomicOrdering = 374, RULE_optCallingConv = 375, RULE_callingConv = 376,
-		RULE_optComdat = 377, RULE_comdat = 378, RULE_dereferenceable = 379, RULE_optDLLStorageClass = 380,
-		RULE_dllStorageClass = 381, RULE_optExact = 382, RULE_exceptionArgs = 383,
-		RULE_exceptionArgList = 384, RULE_exceptionArg = 385, RULE_exceptionScope = 386,
-		RULE_fastMathFlags = 387, RULE_fastMathFlagList = 388, RULE_fastMathFlag = 389,
-		RULE_fpred = 390, RULE_funcAttrs = 391, RULE_funcAttrList = 392, RULE_funcAttr = 393,
-		RULE_optInBounds = 394, RULE_indices = 395, RULE_indexList = 396, RULE_index = 397,
-		RULE_iPred = 398, RULE_optLinkage = 399, RULE_linkage = 400, RULE_optExternLinkage = 401,
-		RULE_externLinkage = 402, RULE_operandBundles = 403, RULE_operandBundleList = 404,
-		RULE_operandBundle = 405, RULE_overflowFlags = 406, RULE_overflowFlagList = 407,
-		RULE_overflowFlag = 408, RULE_paramAttrs = 409, RULE_paramAttrList = 410,
-		RULE_byval = 411, RULE_paramAttr = 412, RULE_params = 413, RULE_paramList = 414,
-		RULE_param = 415, RULE_optPreemptionSpecifier = 416, RULE_preemptionSpecifier = 417,
-		RULE_returnAttrs = 418, RULE_returnAttrList = 419, RULE_returnAttr = 420,
-		RULE_section = 421, RULE_stackAlignment = 422, RULE_optSyncScope = 423,
+		RULE_module = 0, RULE_topLevelEntities = 1, RULE_topLevelEntityList = 2, 
+		RULE_topLevelEntity = 3, RULE_sourceFilename = 4, RULE_targetDefinition = 5, 
+		RULE_moduleAsm = 6, RULE_typeDef = 7, RULE_comdatDef = 8, RULE_selectionKind = 9, 
+		RULE_globalDecl = 10, RULE_globalDef = 11, RULE_optExternallyInitialized = 12, 
+		RULE_immutable = 13, RULE_globalAttrs = 14, RULE_globalAttrList = 15, 
+		RULE_globalAttr = 16, RULE_indirectSymbolDef = 17, RULE_alias = 18, RULE_functionDecl = 19, 
+		RULE_functionDef = 20, RULE_functionHeader = 21, RULE_optGC = 22, RULE_optPrefix = 23, 
+		RULE_optPrologue = 24, RULE_optPersonality = 25, RULE_functionBody = 26, 
+		RULE_attrGroupDef = 27, RULE_namedMetadataDef = 28, RULE_metadataNodes = 29, 
+		RULE_metadataNodeList = 30, RULE_metadataNode = 31, RULE_metadataDef = 32, 
+		RULE_optDistinct = 33, RULE_useListOrders = 34, RULE_useListOrderList = 35, 
+		RULE_useListOrder = 36, RULE_useListOrderBB = 37, RULE_globalIdent = 38, 
+		RULE_localIdent = 39, RULE_labelIdent = 40, RULE_attrGroupID = 41, RULE_comdatName = 42, 
+		RULE_metadataName = 43, RULE_metadataID = 44, RULE_llvmType = 45, RULE_concreteNonRecType = 46, 
+		RULE_voidType = 47, RULE_intType = 48, RULE_floatType = 49, RULE_floatKind = 50, 
+		RULE_mmxType = 51, RULE_optAddrSpace = 52, RULE_addrSpace = 53, RULE_vectorType = 54, 
+		RULE_labelType = 55, RULE_tokenType = 56, RULE_metadataType = 57, RULE_arrayType = 58, 
+		RULE_structType = 59, RULE_typeList = 60, RULE_opaqueType = 61, RULE_namedType = 62, 
+		RULE_value = 63, RULE_inlineAsm = 64, RULE_optSideEffect = 65, RULE_optAlignStack = 66, 
+		RULE_optIntelDialect = 67, RULE_constant = 68, RULE_boolConst = 69, RULE_boolLit = 70, 
+		RULE_intConst = 71, RULE_intLit = 72, RULE_floatConst = 73, RULE_nullConst = 74, 
+		RULE_noneConst = 75, RULE_structConst = 76, RULE_arrayConst = 77, RULE_charArrayConst = 78, 
+		RULE_stringLit = 79, RULE_vectorConst = 80, RULE_zeroInitializerConst = 81, 
+		RULE_undefConst = 82, RULE_blockAddressConst = 83, RULE_constantExpr = 84, 
+		RULE_addExpr = 85, RULE_fAddExpr = 86, RULE_subExpr = 87, RULE_fSubExpr = 88, 
+		RULE_mulExpr = 89, RULE_fMulExpr = 90, RULE_uDivExpr = 91, RULE_sDivExpr = 92, 
+		RULE_fDivExpr = 93, RULE_uRemExpr = 94, RULE_sRemExpr = 95, RULE_fRemExpr = 96, 
+		RULE_shlExpr = 97, RULE_lShrExpr = 98, RULE_ashrExpr = 99, RULE_andExpr = 100, 
+		RULE_orExpr = 101, RULE_xorExpr = 102, RULE_extractElementExpr = 103, 
+		RULE_insertElementExpr = 104, RULE_shuffleVectorExpr = 105, RULE_extractValueExpr = 106, 
+		RULE_insertValueExpr = 107, RULE_getElementPtrExpr = 108, RULE_gepConstIndices = 109, 
+		RULE_gepConstIndexList = 110, RULE_gepConstIndex = 111, RULE_optInrange = 112, 
+		RULE_truncExpr = 113, RULE_zExtExpr = 114, RULE_sExtExpr = 115, RULE_fPTruncExpr = 116, 
+		RULE_fpExtExpr = 117, RULE_fpToUIExpr = 118, RULE_fpToSIExpr = 119, RULE_uiToFPExpr = 120, 
+		RULE_siToFPExpr = 121, RULE_ptrToIntExpr = 122, RULE_intToPtrExpr = 123, 
+		RULE_bitCastExpr = 124, RULE_addrSpaceCastExpr = 125, RULE_iCmpExpr = 126, 
+		RULE_fCmpExpr = 127, RULE_selectExpr = 128, RULE_basicBlockList = 129, 
+		RULE_basicBlock = 130, RULE_optLabelIdent = 131, RULE_instructions = 132, 
+		RULE_instructionList = 133, RULE_instruction = 134, RULE_valueInstruction = 135, 
+		RULE_fNegInst = 136, RULE_addInst = 137, RULE_fAddInst = 138, RULE_subInst = 139, 
+		RULE_fSubInst = 140, RULE_mulInst = 141, RULE_fMulInst = 142, RULE_uDivInst = 143, 
+		RULE_sDivInst = 144, RULE_fDivInst = 145, RULE_uRemInst = 146, RULE_sRemInst = 147, 
+		RULE_fRemInst = 148, RULE_shlInst = 149, RULE_lshrInst = 150, RULE_ashrInst = 151, 
+		RULE_andInst = 152, RULE_orInst = 153, RULE_xorInst = 154, RULE_extractElementInst = 155, 
+		RULE_insertElementInst = 156, RULE_shuffleVectorInst = 157, RULE_extractValueInst = 158, 
+		RULE_insertValueInst = 159, RULE_allocaInst = 160, RULE_optInAlloca = 161, 
+		RULE_optSwiftError = 162, RULE_loadInst = 163, RULE_storeInst = 164, RULE_fenceInst = 165, 
+		RULE_cmpXchgInst = 166, RULE_optWeak = 167, RULE_atomicRMWInst = 168, 
+		RULE_binOp = 169, RULE_getElementPtrInst = 170, RULE_truncInst = 171, 
+		RULE_zExtInst = 172, RULE_sExtInst = 173, RULE_fpTruncInst = 174, RULE_fpExtInst = 175, 
+		RULE_fpToUIInst = 176, RULE_fpToSIInst = 177, RULE_uiToFPInst = 178, RULE_siToFPInst = 179, 
+		RULE_ptrToIntInst = 180, RULE_intToPtrInst = 181, RULE_bitCastInst = 182, 
+		RULE_addrSpaceCastInst = 183, RULE_iCmpInst = 184, RULE_fCmpInst = 185, 
+		RULE_phiInst = 186, RULE_incList = 187, RULE_inc = 188, RULE_selectInst = 189, 
+		RULE_callInst = 190, RULE_optTail = 191, RULE_vaArgInst = 192, RULE_landingPadInst = 193, 
+		RULE_optCleanup = 194, RULE_clauses = 195, RULE_clauseList = 196, RULE_clause = 197, 
+		RULE_catchPadInst = 198, RULE_cleanupPadInst = 199, RULE_terminator = 200, 
+		RULE_retTerm = 201, RULE_brTerm = 202, RULE_condBrTerm = 203, RULE_switchTerm = 204, 
+		RULE_cases = 205, RULE_caseList = 206, RULE_llvmCase = 207, RULE_indirectBrTerm = 208, 
+		RULE_labelList = 209, RULE_label = 210, RULE_invokeTerm = 211, RULE_resumeTerm = 212, 
+		RULE_catchSwitchTerm = 213, RULE_catchRetTerm = 214, RULE_cleanupRetTerm = 215, 
+		RULE_unreachableTerm = 216, RULE_unwindTarget = 217, RULE_mdTuple = 218, 
+		RULE_mdFields = 219, RULE_mdFieldList = 220, RULE_mdField = 221, RULE_metadata = 222, 
+		RULE_mdString = 223, RULE_metadataAttachment = 224, RULE_mdNode = 225, 
+		RULE_metadataAttachments = 226, RULE_metadataAttachmentList = 227, RULE_optCommaSepMetadataAttachmentList = 228, 
+		RULE_commaSepMetadataAttachmentList = 229, RULE_specializedMDNode = 230, 
+		RULE_diCompileUnit = 231, RULE_diCompileUnitFields = 232, RULE_diCompileUnitFieldList = 233, 
+		RULE_diCompileUnitField = 234, RULE_diFile = 235, RULE_diFileFields = 236, 
+		RULE_diFileFieldList = 237, RULE_diFileField = 238, RULE_diBasicType = 239, 
+		RULE_diBasicTypeFields = 240, RULE_diBasicTypeFieldList = 241, RULE_diBasicTypeField = 242, 
+		RULE_diSubroutineType = 243, RULE_diSubroutineTypeFields = 244, RULE_diSubroutineTypeFieldList = 245, 
+		RULE_diSubroutineTypeField = 246, RULE_diDerivedType = 247, RULE_diDerivedTypeFields = 248, 
+		RULE_diDerivedTypeFieldList = 249, RULE_diDerivedTypeField = 250, RULE_diCompositeType = 251, 
+		RULE_diCompositeTypeFields = 252, RULE_diCompositeTypeFieldList = 253, 
+		RULE_diCompositeTypeField = 254, RULE_diSubrange = 255, RULE_diSubrangeFields = 256, 
+		RULE_diSubrangeFieldList = 257, RULE_diSubrangeField = 258, RULE_diEnumerator = 259, 
+		RULE_diEnumeratorFields = 260, RULE_diEnumeratorFieldList = 261, RULE_diEnumeratorField = 262, 
+		RULE_diTemplateTypeParameter = 263, RULE_diTemplateTypeParameterFields = 264, 
+		RULE_diTemplateTypeParameterFieldList = 265, RULE_diTemplateTypeParameterField = 266, 
+		RULE_diTemplateValueParameter = 267, RULE_diTemplateValueParameterFields = 268, 
+		RULE_diTemplateValueParameterFieldList = 269, RULE_diTemplateValueParameterField = 270, 
+		RULE_diModule = 271, RULE_diModuleFields = 272, RULE_diModuleFieldList = 273, 
+		RULE_diModuleField = 274, RULE_diNamespace = 275, RULE_diNamespaceFields = 276, 
+		RULE_diNamespaceFieldList = 277, RULE_diNamespaceField = 278, RULE_diGlobalVariable = 279, 
+		RULE_diGlobalVariableFields = 280, RULE_diGlobalVariableFieldList = 281, 
+		RULE_diGlobalVariableField = 282, RULE_diSubprogram = 283, RULE_diSubprogramFields = 284, 
+		RULE_diSubprogramFieldList = 285, RULE_diSubprogramField = 286, RULE_diLexicalBlock = 287, 
+		RULE_diLexicalBlockFields = 288, RULE_diLexicalBlockFieldList = 289, RULE_diLexicalBlockField = 290, 
+		RULE_diLexicalBlockFile = 291, RULE_diLexicalBlockFileFields = 292, RULE_diLexicalBlockFileFieldList = 293, 
+		RULE_diLexicalBlockFileField = 294, RULE_diLocation = 295, RULE_diLocationFields = 296, 
+		RULE_diLocationFieldList = 297, RULE_diLocationField = 298, RULE_diLocalVariable = 299, 
+		RULE_diLocalVariableFields = 300, RULE_diLocalVariableFieldList = 301, 
+		RULE_diLocalVariableField = 302, RULE_diExpression = 303, RULE_diExpressionFields = 304, 
+		RULE_diExpressionFieldList = 305, RULE_diExpressionField = 306, RULE_diGlobalVariableExpression = 307, 
+		RULE_diGlobalVariableExpressionFields = 308, RULE_diGlobalVariableExpressionFieldList = 309, 
+		RULE_diGlobalVariableExpressionField = 310, RULE_diObjCProperty = 311, 
+		RULE_diObjCPropertyFields = 312, RULE_diObjCPropertyFieldList = 313, RULE_diObjCPropertyField = 314, 
+		RULE_diImportedEntity = 315, RULE_diImportedEntityFields = 316, RULE_diImportedEntityFieldList = 317, 
+		RULE_diImportedEntityField = 318, RULE_diMacro = 319, RULE_diMacroFields = 320, 
+		RULE_diMacroFieldList = 321, RULE_diMacroField = 322, RULE_diMacroFile = 323, 
+		RULE_diMacroFileFields = 324, RULE_diMacroFileFieldList = 325, RULE_diMacroFileField = 326, 
+		RULE_genericDINode = 327, RULE_genericDINodeFields = 328, RULE_genericDINodeFieldList = 329, 
+		RULE_genericDINodeField = 330, RULE_fileField = 331, RULE_isOptimizedField = 332, 
+		RULE_tagField = 333, RULE_nameField = 334, RULE_sizeField = 335, RULE_alignField = 336, 
+		RULE_flagsField = 337, RULE_lineField = 338, RULE_scopeField = 339, RULE_baseTypeField = 340, 
+		RULE_offsetField = 341, RULE_templateParamsField = 342, RULE_intOrMDField = 343, 
+		RULE_typeField = 344, RULE_linkageNameField = 345, RULE_isLocalField = 346, 
+		RULE_isDefinitionField = 347, RULE_declarationField = 348, RULE_columnField = 349, 
+		RULE_typeMacinfoField = 350, RULE_checksumkind = 351, RULE_diFlagList = 352, 
+		RULE_diFlag = 353, RULE_dwarfAttEncoding = 354, RULE_dwarfCC = 355, RULE_dwarfLang = 356, 
+		RULE_dwarfMacinfo = 357, RULE_dwarfOp = 358, RULE_dwarfTag = 359, RULE_dwarfVirtuality = 360, 
+		RULE_emissionKind = 361, RULE_typeValues = 362, RULE_typeValueList = 363, 
+		RULE_commaSepTypeValueList = 364, RULE_typeValue = 365, RULE_typeConsts = 366, 
+		RULE_typeConstList = 367, RULE_typeConst = 368, RULE_alignment = 369, 
+		RULE_allocSize = 370, RULE_args = 371, RULE_argList = 372, RULE_arg = 373, 
+		RULE_atomicOrdering = 374, RULE_optCallingConv = 375, RULE_callingConv = 376, 
+		RULE_optComdat = 377, RULE_comdat = 378, RULE_dereferenceable = 379, RULE_optDLLStorageClass = 380, 
+		RULE_dllStorageClass = 381, RULE_optExact = 382, RULE_exceptionArgs = 383, 
+		RULE_exceptionArgList = 384, RULE_exceptionArg = 385, RULE_exceptionScope = 386, 
+		RULE_fastMathFlags = 387, RULE_fastMathFlagList = 388, RULE_fastMathFlag = 389, 
+		RULE_fpred = 390, RULE_funcAttrs = 391, RULE_funcAttrList = 392, RULE_funcAttr = 393, 
+		RULE_optInBounds = 394, RULE_indices = 395, RULE_indexList = 396, RULE_index = 397, 
+		RULE_iPred = 398, RULE_optLinkage = 399, RULE_linkage = 400, RULE_optExternLinkage = 401, 
+		RULE_externLinkage = 402, RULE_operandBundles = 403, RULE_operandBundleList = 404, 
+		RULE_operandBundle = 405, RULE_overflowFlags = 406, RULE_overflowFlagList = 407, 
+		RULE_overflowFlag = 408, RULE_paramAttrs = 409, RULE_paramAttrList = 410, 
+		RULE_byval = 411, RULE_paramAttr = 412, RULE_params = 413, RULE_paramList = 414, 
+		RULE_param = 415, RULE_optPreemptionSpecifier = 416, RULE_preemptionSpecifier = 417, 
+		RULE_returnAttrs = 418, RULE_returnAttrList = 419, RULE_returnAttr = 420, 
+		RULE_section = 421, RULE_stackAlignment = 422, RULE_optSyncScope = 423, 
 		RULE_threadLocal = 424, RULE_tlsModel = 425, RULE_unnamedAddr = 426, RULE_visibility = 427;
 	private static String[] makeRuleNames() {
 		return new String[] {
-			"module", "topLevelEntities", "topLevelEntityList", "topLevelEntity",
-			"sourceFilename", "targetDefinition", "moduleAsm", "typeDef", "comdatDef",
-			"selectionKind", "globalDecl", "globalDef", "optExternallyInitialized",
-			"immutable", "globalAttrs", "globalAttrList", "globalAttr", "indirectSymbolDef",
-			"alias", "functionDecl", "functionDef", "functionHeader", "optGC", "optPrefix",
-			"optPrologue", "optPersonality", "functionBody", "attrGroupDef", "namedMetadataDef",
-			"metadataNodes", "metadataNodeList", "metadataNode", "metadataDef", "optDistinct",
-			"useListOrders", "useListOrderList", "useListOrder", "useListOrderBB",
-			"globalIdent", "localIdent", "labelIdent", "attrGroupID", "comdatName",
-			"metadataName", "metadataID", "llvmType", "concreteNonRecType", "voidType",
-			"intType", "floatType", "floatKind", "mmxType", "optAddrSpace", "addrSpace",
-			"vectorType", "labelType", "tokenType", "metadataType", "arrayType",
-			"structType", "typeList", "opaqueType", "namedType", "value", "inlineAsm",
-			"optSideEffect", "optAlignStack", "optIntelDialect", "constant", "boolConst",
-			"boolLit", "intConst", "intLit", "floatConst", "nullConst", "noneConst",
-			"structConst", "arrayConst", "charArrayConst", "stringLit", "vectorConst",
-			"zeroInitializerConst", "undefConst", "blockAddressConst", "constantExpr",
-			"addExpr", "fAddExpr", "subExpr", "fSubExpr", "mulExpr", "fMulExpr",
-			"uDivExpr", "sDivExpr", "fDivExpr", "uRemExpr", "sRemExpr", "fRemExpr",
-			"shlExpr", "lShrExpr", "ashrExpr", "andExpr", "orExpr", "xorExpr", "extractElementExpr",
-			"insertElementExpr", "shuffleVectorExpr", "extractValueExpr", "insertValueExpr",
-			"getElementPtrExpr", "gepConstIndices", "gepConstIndexList", "gepConstIndex",
-			"optInrange", "truncExpr", "zExtExpr", "sExtExpr", "fPTruncExpr", "fpExtExpr",
-			"fpToUIExpr", "fpToSIExpr", "uiToFPExpr", "siToFPExpr", "ptrToIntExpr",
-			"intToPtrExpr", "bitCastExpr", "addrSpaceCastExpr", "iCmpExpr", "fCmpExpr",
-			"selectExpr", "basicBlockList", "basicBlock", "optLabelIdent", "instructions",
-			"instructionList", "instruction", "valueInstruction", "fNegInst", "addInst",
-			"fAddInst", "subInst", "fSubInst", "mulInst", "fMulInst", "uDivInst",
-			"sDivInst", "fDivInst", "uRemInst", "sRemInst", "fRemInst", "shlInst",
-			"lshrInst", "ashrInst", "andInst", "orInst", "xorInst", "extractElementInst",
-			"insertElementInst", "shuffleVectorInst", "extractValueInst", "insertValueInst",
-			"allocaInst", "optInAlloca", "optSwiftError", "loadInst", "storeInst",
-			"fenceInst", "cmpXchgInst", "optWeak", "atomicRMWInst", "binOp", "getElementPtrInst",
-			"truncInst", "zExtInst", "sExtInst", "fpTruncInst", "fpExtInst", "fpToUIInst",
-			"fpToSIInst", "uiToFPInst", "siToFPInst", "ptrToIntInst", "intToPtrInst",
-			"bitCastInst", "addrSpaceCastInst", "iCmpInst", "fCmpInst", "phiInst",
-			"incList", "inc", "selectInst", "callInst", "optTail", "vaArgInst", "landingPadInst",
-			"optCleanup", "clauses", "clauseList", "clause", "catchPadInst", "cleanupPadInst",
-			"terminator", "retTerm", "brTerm", "condBrTerm", "switchTerm", "cases",
-			"caseList", "llvmCase", "indirectBrTerm", "labelList", "label", "invokeTerm",
-			"resumeTerm", "catchSwitchTerm", "catchRetTerm", "cleanupRetTerm", "unreachableTerm",
-			"unwindTarget", "mdTuple", "mdFields", "mdFieldList", "mdField", "metadata",
-			"mdString", "metadataAttachment", "mdNode", "metadataAttachments", "metadataAttachmentList",
-			"optCommaSepMetadataAttachmentList", "commaSepMetadataAttachmentList",
-			"specializedMDNode", "diCompileUnit", "diCompileUnitFields", "diCompileUnitFieldList",
-			"diCompileUnitField", "diFile", "diFileFields", "diFileFieldList", "diFileField",
-			"diBasicType", "diBasicTypeFields", "diBasicTypeFieldList", "diBasicTypeField",
-			"diSubroutineType", "diSubroutineTypeFields", "diSubroutineTypeFieldList",
-			"diSubroutineTypeField", "diDerivedType", "diDerivedTypeFields", "diDerivedTypeFieldList",
-			"diDerivedTypeField", "diCompositeType", "diCompositeTypeFields", "diCompositeTypeFieldList",
-			"diCompositeTypeField", "diSubrange", "diSubrangeFields", "diSubrangeFieldList",
-			"diSubrangeField", "diEnumerator", "diEnumeratorFields", "diEnumeratorFieldList",
-			"diEnumeratorField", "diTemplateTypeParameter", "diTemplateTypeParameterFields",
-			"diTemplateTypeParameterFieldList", "diTemplateTypeParameterField", "diTemplateValueParameter",
-			"diTemplateValueParameterFields", "diTemplateValueParameterFieldList",
-			"diTemplateValueParameterField", "diModule", "diModuleFields", "diModuleFieldList",
-			"diModuleField", "diNamespace", "diNamespaceFields", "diNamespaceFieldList",
-			"diNamespaceField", "diGlobalVariable", "diGlobalVariableFields", "diGlobalVariableFieldList",
-			"diGlobalVariableField", "diSubprogram", "diSubprogramFields", "diSubprogramFieldList",
-			"diSubprogramField", "diLexicalBlock", "diLexicalBlockFields", "diLexicalBlockFieldList",
-			"diLexicalBlockField", "diLexicalBlockFile", "diLexicalBlockFileFields",
-			"diLexicalBlockFileFieldList", "diLexicalBlockFileField", "diLocation",
-			"diLocationFields", "diLocationFieldList", "diLocationField", "diLocalVariable",
-			"diLocalVariableFields", "diLocalVariableFieldList", "diLocalVariableField",
-			"diExpression", "diExpressionFields", "diExpressionFieldList", "diExpressionField",
-			"diGlobalVariableExpression", "diGlobalVariableExpressionFields", "diGlobalVariableExpressionFieldList",
-			"diGlobalVariableExpressionField", "diObjCProperty", "diObjCPropertyFields",
-			"diObjCPropertyFieldList", "diObjCPropertyField", "diImportedEntity",
-			"diImportedEntityFields", "diImportedEntityFieldList", "diImportedEntityField",
-			"diMacro", "diMacroFields", "diMacroFieldList", "diMacroField", "diMacroFile",
-			"diMacroFileFields", "diMacroFileFieldList", "diMacroFileField", "genericDINode",
-			"genericDINodeFields", "genericDINodeFieldList", "genericDINodeField",
-			"fileField", "isOptimizedField", "tagField", "nameField", "sizeField",
-			"alignField", "flagsField", "lineField", "scopeField", "baseTypeField",
-			"offsetField", "templateParamsField", "intOrMDField", "typeField", "linkageNameField",
-			"isLocalField", "isDefinitionField", "declarationField", "columnField",
-			"typeMacinfoField", "checksumkind", "diFlagList", "diFlag", "dwarfAttEncoding",
-			"dwarfCC", "dwarfLang", "dwarfMacinfo", "dwarfOp", "dwarfTag", "dwarfVirtuality",
-			"emissionKind", "typeValues", "typeValueList", "commaSepTypeValueList",
-			"typeValue", "typeConsts", "typeConstList", "typeConst", "alignment",
-			"allocSize", "args", "argList", "arg", "atomicOrdering", "optCallingConv",
-			"callingConv", "optComdat", "comdat", "dereferenceable", "optDLLStorageClass",
-			"dllStorageClass", "optExact", "exceptionArgs", "exceptionArgList", "exceptionArg",
-			"exceptionScope", "fastMathFlags", "fastMathFlagList", "fastMathFlag",
-			"fpred", "funcAttrs", "funcAttrList", "funcAttr", "optInBounds", "indices",
-			"indexList", "index", "iPred", "optLinkage", "linkage", "optExternLinkage",
-			"externLinkage", "operandBundles", "operandBundleList", "operandBundle",
-			"overflowFlags", "overflowFlagList", "overflowFlag", "paramAttrs", "paramAttrList",
-			"byval", "paramAttr", "params", "paramList", "param", "optPreemptionSpecifier",
-			"preemptionSpecifier", "returnAttrs", "returnAttrList", "returnAttr",
-			"section", "stackAlignment", "optSyncScope", "threadLocal", "tlsModel",
+			"module", "topLevelEntities", "topLevelEntityList", "topLevelEntity", 
+			"sourceFilename", "targetDefinition", "moduleAsm", "typeDef", "comdatDef", 
+			"selectionKind", "globalDecl", "globalDef", "optExternallyInitialized", 
+			"immutable", "globalAttrs", "globalAttrList", "globalAttr", "indirectSymbolDef", 
+			"alias", "functionDecl", "functionDef", "functionHeader", "optGC", "optPrefix", 
+			"optPrologue", "optPersonality", "functionBody", "attrGroupDef", "namedMetadataDef", 
+			"metadataNodes", "metadataNodeList", "metadataNode", "metadataDef", "optDistinct", 
+			"useListOrders", "useListOrderList", "useListOrder", "useListOrderBB", 
+			"globalIdent", "localIdent", "labelIdent", "attrGroupID", "comdatName", 
+			"metadataName", "metadataID", "llvmType", "concreteNonRecType", "voidType", 
+			"intType", "floatType", "floatKind", "mmxType", "optAddrSpace", "addrSpace", 
+			"vectorType", "labelType", "tokenType", "metadataType", "arrayType", 
+			"structType", "typeList", "opaqueType", "namedType", "value", "inlineAsm", 
+			"optSideEffect", "optAlignStack", "optIntelDialect", "constant", "boolConst", 
+			"boolLit", "intConst", "intLit", "floatConst", "nullConst", "noneConst", 
+			"structConst", "arrayConst", "charArrayConst", "stringLit", "vectorConst", 
+			"zeroInitializerConst", "undefConst", "blockAddressConst", "constantExpr", 
+			"addExpr", "fAddExpr", "subExpr", "fSubExpr", "mulExpr", "fMulExpr", 
+			"uDivExpr", "sDivExpr", "fDivExpr", "uRemExpr", "sRemExpr", "fRemExpr", 
+			"shlExpr", "lShrExpr", "ashrExpr", "andExpr", "orExpr", "xorExpr", "extractElementExpr", 
+			"insertElementExpr", "shuffleVectorExpr", "extractValueExpr", "insertValueExpr", 
+			"getElementPtrExpr", "gepConstIndices", "gepConstIndexList", "gepConstIndex", 
+			"optInrange", "truncExpr", "zExtExpr", "sExtExpr", "fPTruncExpr", "fpExtExpr", 
+			"fpToUIExpr", "fpToSIExpr", "uiToFPExpr", "siToFPExpr", "ptrToIntExpr", 
+			"intToPtrExpr", "bitCastExpr", "addrSpaceCastExpr", "iCmpExpr", "fCmpExpr", 
+			"selectExpr", "basicBlockList", "basicBlock", "optLabelIdent", "instructions", 
+			"instructionList", "instruction", "valueInstruction", "fNegInst", "addInst", 
+			"fAddInst", "subInst", "fSubInst", "mulInst", "fMulInst", "uDivInst", 
+			"sDivInst", "fDivInst", "uRemInst", "sRemInst", "fRemInst", "shlInst", 
+			"lshrInst", "ashrInst", "andInst", "orInst", "xorInst", "extractElementInst", 
+			"insertElementInst", "shuffleVectorInst", "extractValueInst", "insertValueInst", 
+			"allocaInst", "optInAlloca", "optSwiftError", "loadInst", "storeInst", 
+			"fenceInst", "cmpXchgInst", "optWeak", "atomicRMWInst", "binOp", "getElementPtrInst", 
+			"truncInst", "zExtInst", "sExtInst", "fpTruncInst", "fpExtInst", "fpToUIInst", 
+			"fpToSIInst", "uiToFPInst", "siToFPInst", "ptrToIntInst", "intToPtrInst", 
+			"bitCastInst", "addrSpaceCastInst", "iCmpInst", "fCmpInst", "phiInst", 
+			"incList", "inc", "selectInst", "callInst", "optTail", "vaArgInst", "landingPadInst", 
+			"optCleanup", "clauses", "clauseList", "clause", "catchPadInst", "cleanupPadInst", 
+			"terminator", "retTerm", "brTerm", "condBrTerm", "switchTerm", "cases", 
+			"caseList", "llvmCase", "indirectBrTerm", "labelList", "label", "invokeTerm", 
+			"resumeTerm", "catchSwitchTerm", "catchRetTerm", "cleanupRetTerm", "unreachableTerm", 
+			"unwindTarget", "mdTuple", "mdFields", "mdFieldList", "mdField", "metadata", 
+			"mdString", "metadataAttachment", "mdNode", "metadataAttachments", "metadataAttachmentList", 
+			"optCommaSepMetadataAttachmentList", "commaSepMetadataAttachmentList", 
+			"specializedMDNode", "diCompileUnit", "diCompileUnitFields", "diCompileUnitFieldList", 
+			"diCompileUnitField", "diFile", "diFileFields", "diFileFieldList", "diFileField", 
+			"diBasicType", "diBasicTypeFields", "diBasicTypeFieldList", "diBasicTypeField", 
+			"diSubroutineType", "diSubroutineTypeFields", "diSubroutineTypeFieldList", 
+			"diSubroutineTypeField", "diDerivedType", "diDerivedTypeFields", "diDerivedTypeFieldList", 
+			"diDerivedTypeField", "diCompositeType", "diCompositeTypeFields", "diCompositeTypeFieldList", 
+			"diCompositeTypeField", "diSubrange", "diSubrangeFields", "diSubrangeFieldList", 
+			"diSubrangeField", "diEnumerator", "diEnumeratorFields", "diEnumeratorFieldList", 
+			"diEnumeratorField", "diTemplateTypeParameter", "diTemplateTypeParameterFields", 
+			"diTemplateTypeParameterFieldList", "diTemplateTypeParameterField", "diTemplateValueParameter", 
+			"diTemplateValueParameterFields", "diTemplateValueParameterFieldList", 
+			"diTemplateValueParameterField", "diModule", "diModuleFields", "diModuleFieldList", 
+			"diModuleField", "diNamespace", "diNamespaceFields", "diNamespaceFieldList", 
+			"diNamespaceField", "diGlobalVariable", "diGlobalVariableFields", "diGlobalVariableFieldList", 
+			"diGlobalVariableField", "diSubprogram", "diSubprogramFields", "diSubprogramFieldList", 
+			"diSubprogramField", "diLexicalBlock", "diLexicalBlockFields", "diLexicalBlockFieldList", 
+			"diLexicalBlockField", "diLexicalBlockFile", "diLexicalBlockFileFields", 
+			"diLexicalBlockFileFieldList", "diLexicalBlockFileField", "diLocation", 
+			"diLocationFields", "diLocationFieldList", "diLocationField", "diLocalVariable", 
+			"diLocalVariableFields", "diLocalVariableFieldList", "diLocalVariableField", 
+			"diExpression", "diExpressionFields", "diExpressionFieldList", "diExpressionField", 
+			"diGlobalVariableExpression", "diGlobalVariableExpressionFields", "diGlobalVariableExpressionFieldList", 
+			"diGlobalVariableExpressionField", "diObjCProperty", "diObjCPropertyFields", 
+			"diObjCPropertyFieldList", "diObjCPropertyField", "diImportedEntity", 
+			"diImportedEntityFields", "diImportedEntityFieldList", "diImportedEntityField", 
+			"diMacro", "diMacroFields", "diMacroFieldList", "diMacroField", "diMacroFile", 
+			"diMacroFileFields", "diMacroFileFieldList", "diMacroFileField", "genericDINode", 
+			"genericDINodeFields", "genericDINodeFieldList", "genericDINodeField", 
+			"fileField", "isOptimizedField", "tagField", "nameField", "sizeField", 
+			"alignField", "flagsField", "lineField", "scopeField", "baseTypeField", 
+			"offsetField", "templateParamsField", "intOrMDField", "typeField", "linkageNameField", 
+			"isLocalField", "isDefinitionField", "declarationField", "columnField", 
+			"typeMacinfoField", "checksumkind", "diFlagList", "diFlag", "dwarfAttEncoding", 
+			"dwarfCC", "dwarfLang", "dwarfMacinfo", "dwarfOp", "dwarfTag", "dwarfVirtuality", 
+			"emissionKind", "typeValues", "typeValueList", "commaSepTypeValueList", 
+			"typeValue", "typeConsts", "typeConstList", "typeConst", "alignment", 
+			"allocSize", "args", "argList", "arg", "atomicOrdering", "optCallingConv", 
+			"callingConv", "optComdat", "comdat", "dereferenceable", "optDLLStorageClass", 
+			"dllStorageClass", "optExact", "exceptionArgs", "exceptionArgList", "exceptionArg", 
+			"exceptionScope", "fastMathFlags", "fastMathFlagList", "fastMathFlag", 
+			"fpred", "funcAttrs", "funcAttrList", "funcAttr", "optInBounds", "indices", 
+			"indexList", "index", "iPred", "optLinkage", "linkage", "optExternLinkage", 
+			"externLinkage", "operandBundles", "operandBundleList", "operandBundle", 
+			"overflowFlags", "overflowFlagList", "overflowFlag", "paramAttrs", "paramAttrList", 
+			"byval", "paramAttr", "params", "paramList", "param", "optPreemptionSpecifier", 
+			"preemptionSpecifier", "returnAttrs", "returnAttrList", "returnAttr", 
+			"section", "stackAlignment", "optSyncScope", "threadLocal", "tlsModel", 
 			"unnamedAddr", "visibility"
 		};
 	}
@@ -337,168 +336,168 @@ public class LLVMParser extends Parser {
 
 	private static String[] makeLiteralNames() {
 		return new String[] {
-			null, "'<'", "'='", "'>'", "'|'", "','", "'!'", "'...'", "'('", "')'",
-			"'['", "']'", "'{'", "'}'", "'*'", "'acq_rel'", "'acquire'", "'add'",
-			"'addrspace'", "'addrspacecast'", "'afn'", "'alias'", "'align:'", "'align'",
-			"'alignstack'", "'alloca'", "'allocsize'", "'alwaysinline'", "'amdgpu_cs'",
-			"'amdgpu_es'", "'amdgpu_gs'", "'amdgpu_hs'", "'amdgpu_kernel'", "'amdgpu_ls'",
-			"'amdgpu_ps'", "'amdgpu_vs'", "'and'", "'any'", "'anyregcc'", "'appending'",
-			"'arcp'", "'arg:'", "'argmemonly'", "'arm_aapcscc'", "'arm_aapcs_vfpcc'",
-			"'arm_apcscc'", "'ashr'", "'asm'", "'atomic'", "'atomicrmw'", "'attributes:'",
-			"'attributes'", "'available_externally'", "'avr_intrcc'", "'avr_signalcc'",
-			"'baseType:'", "'bitcast'", "'blockaddress'", "'br'", "'builtin'", "'byval'",
-			"'c'", "'call'", "'caller'", "'catch'", "'catchpad'", "'catchret'", "'catchswitch'",
-			"'cc:'", "'cc'", "'ccc'", "'checksum:'", "'checksumkind:'", "'cleanup'",
-			"'cleanuppad'", "'cleanupret'", "'cmpxchg'", "'cold'", "'coldcc'", "'column:'",
-			"'comdat'", "'common'", "'configMacros:'", "'constant'", "'containingType:'",
-			"'contract'", "'convergent'", "'count:'", "'cxx_fast_tlscc'", "'datalayout'",
-			"'debugInfoForProfiling:'", "'declaration:'", "'declare'", "'default'",
-			"'define'", "'dereferenceable'", "'dereferenceable_or_null'", "'!DIBasicType'",
-			"'!DICompileUnit'", "'!DICompositeType'", "'!DIDerivedType'", "'!DIEnumerator'",
-			"'!DIExpression'", "'!DIFile'", "'!DIGlobalVariable'", "'!DIGlobalVariableExpression'",
-			"'!DIImportedEntity'", "'!DILexicalBlock'", "'!DILexicalBlockFile'",
-			"'!DILocalVariable'", "'!DILocation'", "'!DIMacro'", "'!DIMacroFile'",
-			"'!DIModule'", "'!DINamespace'", "'!DIObjCProperty'", "'directory:'",
-			"'discriminator:'", "'distinct'", "'!DISubprogram'", "'!DISubrange'",
-			"'!DISubroutineType'", "'!DITemplateTypeParameter'", "'!DITemplateValueParameter'",
-			"'dllexport'", "'dllimport'", "'double'", "'dso_local'", "'dso_preemptable'",
-			"'dwarfAddressSpace:'", "'dwoId:'", "'elements:'", "'emissionKind:'",
-			"'encoding:'", "'entity:'", "'enums:'", "'eq'", "'exact'", "'exactmatch'",
-			"'exportSymbols:'", "'expr:'", "'external'", "'externally_initialized'",
-			"'extern_weak'", "'extractelement'", "'extractvalue'", "'extraData:'",
-			"'fadd'", "'false'", "'fast'", "'fastcc'", "'fcmp'", "'fdiv'", "'fence'",
-			"'file:'", "'filename:'", "'filter'", "'flags:'", "'float'", "'fmul'",
-			"'fneg'", "'fp128'", "'fpext'", "'fptosi'", "'fptoui'", "'fptrunc'",
-			"'frem'", "'from'", "'fsub'", "'FullDebug'", "'gc'", "'!GenericDINode'",
-			"'getelementptr'", "'getter:'", "'ghccc'", "'global'", "'globals:'",
-			"'gnuPubnames:'", "'half'", "'header:'", "'hhvmcc'", "'hhvm_ccc'", "'hidden'",
-			"'icmp'", "'identifier:'", "'ifunc'", "'immarg'", "'noundef'", "'imports:'",
-			"'inaccessiblememonly'", "'inaccessiblemem_or_argmemonly'", "'inalloca'",
-			"'inbounds'", "'includePath:'", "'indirectbr'", "'initialexec'", "'inlinedAt:'",
-			"'inlinehint'", "'inrange'", "'inreg'", "'insertelement'", "'insertvalue'",
-			"'inteldialect'", "'intel_ocl_bicc'", "'internal'", "'inttoptr'", "'invoke'",
-			"'isDefinition:'", "'isLocal:'", "'isOptimized:'", "'isUnsigned:'", "'isysroot:'",
-			"'jumptable'", "'label'", "'landingpad'", "'language:'", "'largest'",
-			"'line:'", "'LineTablesOnly'", "'linkageName:'", "'linkonce'", "'linkonce_odr'",
-			"'load'", "'localdynamic'", "'localexec'", "'local_unnamed_addr'", "'lowerBound:'",
-			"'lshr'", "'macros:'", "'max'", "'metadata'", "'min'", "'minsize'", "'module'",
-			"'monotonic'", "'msp430_intrcc'", "'mul'", "'musttail'", "'naked'", "'name:'",
-			"'nand'", "'ne'", "'nest'", "'ninf'", "'nnan'", "'noalias'", "'nobuiltin'",
-			"'nocapture'", "'NoDebug'", "'nodes:'", "'noduplicate'", "'noduplicates'",
-			"'nofree'", "'noimplicitfloat'", "'noinline'", "'none'", "'nonlazybind'",
-			"'nonnull'", "'norecurse'", "'noredzone'", "'noreturn'", "'notail'",
-			"'nounwind'", "'nsw'", "'nsz'", "'null'", "'nuw'", "'oeq'", "'offset:'",
-			"'oge'", "'ogt'", "'ole'", "'olt'", "'one'", "'opaque'", "'operands:'",
-			"'optnone'", "'optsize'", "'or'", "'ord'", "'personality'", "'phi'",
-			"'ppc_fp128'", "'prefix'", "'preserve_allcc'", "'preserve_mostcc'", "'private'",
-			"'producer:'", "'prologue'", "'protected'", "'ptrtoint'", "'ptx_device'",
-			"'ptx_kernel'", "'readnone'", "'readonly'", "'reassoc'", "'release'",
-			"'resume'", "'ret'", "'retainedTypes:'", "'returned'", "'returns_twice'",
-			"'runtimeLang:'", "'runtimeVersion:'", "'safestack'", "'samesize'", "'sanitize_address'",
-			"'sanitize_hwaddress'", "'sanitize_memory'", "'sanitize_thread'", "'scope:'",
-			"'scopeLine:'", "'sdiv'", "'section'", "'select'", "'seq_cst'", "'setter:'",
-			"'sext'", "'sge'", "'sgt'", "'shl'", "'shufflevector'", "'sideeffect'",
-			"'signext'", "'sitofp'", "'size:'", "'sle'", "'slt'", "'source_filename'",
-			"'speculatable'", "'spir_func'", "'spir_kernel'", "'splitDebugFilename:'",
-			"'splitDebugInlining:'", "'srem'", "'sret'", "'ssp'", "'sspreq'", "'sspstrong'",
-			"'store'", "'strictfp'", "'sub'", "'swiftcc'", "'swifterror'", "'swiftself'",
-			"'switch'", "'syncscope'", "'tag:'", "'tail'", "'target'", "'templateParams:'",
-			"'thisAdjustment:'", "'thread_local'", "'thrownTypes:'", "'to'", "'token'",
-			"'triple'", "'true'", "'trunc'", "'type:'", "'type'", "'types:'", "'udiv'",
-			"'ueq'", "'uge'", "'ugt'", "'uitofp'", "'ule'", "'ult'", "'umax'", "'umin'",
-			"'undef'", "'une'", "'unit:'", "'unnamed_addr'", "'uno'", "'unordered'",
-			"'unreachable'", "'unwind'", "'urem'", "'uselistorder'", "'uselistorder_bb'",
-			"'uwtable'", "'va_arg'", "'value:'", "'var:'", "'variables:'", "'virtualIndex:'",
-			"'virtuality:'", "'void'", "'vtableHolder:'", "'weak'", "'weak_odr'",
-			"'webkit_jscc'", "'willreturn'", "'win64cc'", "'within'", "'writeonly'",
-			"'x'", "'x86_64_sysvcc'", "'x86_fastcallcc'", "'x86_fp80'", "'x86_intrcc'",
-			"'x86_mmx'", "'x86_regcallcc'", "'x86_stdcallcc'", "'x86_thiscallcc'",
-			"'x86_vectorcallcc'", "'xchg'", "'xor'", "'zeroext'", "'zeroinitializer'",
+			null, "'<'", "'='", "'>'", "'|'", "','", "'!'", "'...'", "'('", "')'", 
+			"'['", "']'", "'{'", "'}'", "'*'", "'acq_rel'", "'acquire'", "'add'", 
+			"'addrspace'", "'addrspacecast'", "'afn'", "'alias'", "'align:'", "'align'", 
+			"'alignstack'", "'alloca'", "'allocsize'", "'alwaysinline'", "'amdgpu_cs'", 
+			"'amdgpu_es'", "'amdgpu_gs'", "'amdgpu_hs'", "'amdgpu_kernel'", "'amdgpu_ls'", 
+			"'amdgpu_ps'", "'amdgpu_vs'", "'and'", "'any'", "'anyregcc'", "'appending'", 
+			"'arcp'", "'arg:'", "'argmemonly'", "'arm_aapcscc'", "'arm_aapcs_vfpcc'", 
+			"'arm_apcscc'", "'ashr'", "'asm'", "'atomic'", "'atomicrmw'", "'attributes:'", 
+			"'attributes'", "'available_externally'", "'avr_intrcc'", "'avr_signalcc'", 
+			"'baseType:'", "'bitcast'", "'blockaddress'", "'br'", "'builtin'", "'byval'", 
+			"'c'", "'call'", "'caller'", "'catch'", "'catchpad'", "'catchret'", "'catchswitch'", 
+			"'cc:'", "'cc'", "'ccc'", "'checksum:'", "'checksumkind:'", "'cleanup'", 
+			"'cleanuppad'", "'cleanupret'", "'cmpxchg'", "'cold'", "'coldcc'", "'column:'", 
+			"'comdat'", "'common'", "'configMacros:'", "'constant'", "'containingType:'", 
+			"'contract'", "'convergent'", "'count:'", "'cxx_fast_tlscc'", "'datalayout'", 
+			"'debugInfoForProfiling:'", "'declaration:'", "'declare'", "'default'", 
+			"'define'", "'dereferenceable'", "'dereferenceable_or_null'", "'!DIBasicType'", 
+			"'!DICompileUnit'", "'!DICompositeType'", "'!DIDerivedType'", "'!DIEnumerator'", 
+			"'!DIExpression'", "'!DIFile'", "'!DIGlobalVariable'", "'!DIGlobalVariableExpression'", 
+			"'!DIImportedEntity'", "'!DILexicalBlock'", "'!DILexicalBlockFile'", 
+			"'!DILocalVariable'", "'!DILocation'", "'!DIMacro'", "'!DIMacroFile'", 
+			"'!DIModule'", "'!DINamespace'", "'!DIObjCProperty'", "'directory:'", 
+			"'discriminator:'", "'distinct'", "'!DISubprogram'", "'!DISubrange'", 
+			"'!DISubroutineType'", "'!DITemplateTypeParameter'", "'!DITemplateValueParameter'", 
+			"'dllexport'", "'dllimport'", "'double'", "'dso_local'", "'dso_preemptable'", 
+			"'dwarfAddressSpace:'", "'dwoId:'", "'elements:'", "'emissionKind:'", 
+			"'encoding:'", "'entity:'", "'enums:'", "'eq'", "'exact'", "'exactmatch'", 
+			"'exportSymbols:'", "'expr:'", "'external'", "'externally_initialized'", 
+			"'extern_weak'", "'extractelement'", "'extractvalue'", "'extraData:'", 
+			"'fadd'", "'false'", "'fast'", "'fastcc'", "'fcmp'", "'fdiv'", "'fence'", 
+			"'file:'", "'filename:'", "'filter'", "'flags:'", "'float'", "'fmul'", 
+			"'fneg'", "'fp128'", "'fpext'", "'fptosi'", "'fptoui'", "'fptrunc'", 
+			"'frem'", "'from'", "'fsub'", "'FullDebug'", "'gc'", "'!GenericDINode'", 
+			"'getelementptr'", "'getter:'", "'ghccc'", "'global'", "'globals:'", 
+			"'gnuPubnames:'", "'half'", "'header:'", "'hhvmcc'", "'hhvm_ccc'", "'hidden'", 
+			"'icmp'", "'identifier:'", "'ifunc'", "'immarg'", "'noundef'", "'imports:'", 
+			"'inaccessiblememonly'", "'inaccessiblemem_or_argmemonly'", "'inalloca'", 
+			"'inbounds'", "'includePath:'", "'indirectbr'", "'initialexec'", "'inlinedAt:'", 
+			"'inlinehint'", "'inrange'", "'inreg'", "'insertelement'", "'insertvalue'", 
+			"'inteldialect'", "'intel_ocl_bicc'", "'internal'", "'inttoptr'", "'invoke'", 
+			"'isDefinition:'", "'isLocal:'", "'isOptimized:'", "'isUnsigned:'", "'isysroot:'", 
+			"'jumptable'", "'label'", "'landingpad'", "'language:'", "'largest'", 
+			"'line:'", "'LineTablesOnly'", "'linkageName:'", "'linkonce'", "'linkonce_odr'", 
+			"'load'", "'localdynamic'", "'localexec'", "'local_unnamed_addr'", "'lowerBound:'", 
+			"'lshr'", "'macros:'", "'max'", "'metadata'", "'min'", "'minsize'", "'module'", 
+			"'monotonic'", "'msp430_intrcc'", "'mul'", "'musttail'", "'naked'", "'name:'", 
+			"'nand'", "'ne'", "'nest'", "'ninf'", "'nnan'", "'noalias'", "'nobuiltin'", 
+			"'nocapture'", "'NoDebug'", "'nodes:'", "'noduplicate'", "'noduplicates'", 
+			"'nofree'", "'noimplicitfloat'", "'noinline'", "'none'", "'nonlazybind'", 
+			"'nonnull'", "'norecurse'", "'noredzone'", "'noreturn'", "'notail'", 
+			"'nounwind'", "'nsw'", "'nsz'", "'null'", "'nuw'", "'oeq'", "'offset:'", 
+			"'oge'", "'ogt'", "'ole'", "'olt'", "'one'", "'opaque'", "'operands:'", 
+			"'optnone'", "'optsize'", "'or'", "'ord'", "'personality'", "'phi'", 
+			"'ppc_fp128'", "'prefix'", "'preserve_allcc'", "'preserve_mostcc'", "'private'", 
+			"'producer:'", "'prologue'", "'protected'", "'ptrtoint'", "'ptx_device'", 
+			"'ptx_kernel'", "'readnone'", "'readonly'", "'reassoc'", "'release'", 
+			"'resume'", "'ret'", "'retainedTypes:'", "'returned'", "'returns_twice'", 
+			"'runtimeLang:'", "'runtimeVersion:'", "'safestack'", "'samesize'", "'sanitize_address'", 
+			"'sanitize_hwaddress'", "'sanitize_memory'", "'sanitize_thread'", "'scope:'", 
+			"'scopeLine:'", "'sdiv'", "'section'", "'select'", "'seq_cst'", "'setter:'", 
+			"'sext'", "'sge'", "'sgt'", "'shl'", "'shufflevector'", "'sideeffect'", 
+			"'signext'", "'sitofp'", "'size:'", "'sle'", "'slt'", "'source_filename'", 
+			"'speculatable'", "'spir_func'", "'spir_kernel'", "'splitDebugFilename:'", 
+			"'splitDebugInlining:'", "'srem'", "'sret'", "'ssp'", "'sspreq'", "'sspstrong'", 
+			"'store'", "'strictfp'", "'sub'", "'swiftcc'", "'swifterror'", "'swiftself'", 
+			"'switch'", "'syncscope'", "'tag:'", "'tail'", "'target'", "'templateParams:'", 
+			"'thisAdjustment:'", "'thread_local'", "'thrownTypes:'", "'to'", "'token'", 
+			"'triple'", "'true'", "'trunc'", "'type:'", "'type'", "'types:'", "'udiv'", 
+			"'ueq'", "'uge'", "'ugt'", "'uitofp'", "'ule'", "'ult'", "'umax'", "'umin'", 
+			"'undef'", "'une'", "'unit:'", "'unnamed_addr'", "'uno'", "'unordered'", 
+			"'unreachable'", "'unwind'", "'urem'", "'uselistorder'", "'uselistorder_bb'", 
+			"'uwtable'", "'va_arg'", "'value:'", "'var:'", "'variables:'", "'virtualIndex:'", 
+			"'virtuality:'", "'void'", "'vtableHolder:'", "'weak'", "'weak_odr'", 
+			"'webkit_jscc'", "'willreturn'", "'win64cc'", "'within'", "'writeonly'", 
+			"'x'", "'x86_64_sysvcc'", "'x86_fastcallcc'", "'x86_fp80'", "'x86_intrcc'", 
+			"'x86_mmx'", "'x86_regcallcc'", "'x86_stdcallcc'", "'x86_thiscallcc'", 
+			"'x86_vectorcallcc'", "'xchg'", "'xor'", "'zeroext'", "'zeroinitializer'", 
 			"'zext'", "'volatile'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
 	private static String[] makeSymbolicNames() {
 		return new String[] {
-			null, "LT", "EQSIGN", "GT", "VDASH", "COMMA", "BANG", "DOTS", "LPAREN",
-			"RPAREN", "LBRACK", "RBRACK", "LBRACE", "RBRACE", "STAR", "ACQ_REL",
-			"ACQUIRE", "ADD", "ADDRSPACE", "ADDRSPACECAST", "AFN", "ALIAS", "ALIGNCOLON",
-			"ALIGN", "ALIGNSTACK", "ALLOCA", "ALLOCSIZE", "ALWAYSINLINE", "AMDGPU_CS",
-			"AMDGPU_ES", "AMDGPU_GS", "AMDGPU_HS", "AMDGPU_KERNEL", "AMDGPU_LS",
-			"AMDGPU_PS", "AMDGPU_VS", "AND", "ANY", "ANYREGCC", "APPENDING", "ARCP",
-			"ARGCOLON", "ARGMEMONLY", "ARM_AAPCSCC", "ARM_AAPCS_VFPCC", "ARM_APCSCC",
-			"ASHR", "ASM", "ATOMIC", "ATOMICRMW", "ATTRIBUTESCOLON", "ATTRIBUTES",
-			"AVAILABLE_EXTERNALLY", "AVR_INTRCC", "AVR_SIGNALCC", "BASETYPECOLON",
-			"BITCAST", "BLOCKADDRESS", "BR", "BUILTIN", "BYVAL", "C", "CALL", "CALLER",
-			"CATCH", "CATCHPAD", "CATCHRET", "CATCHSWITCH", "CCCOLON", "CC", "CCC",
-			"CHECKSUMCOLON", "CHECKSUMKINDCOLON", "CLEANUP", "CLEANUPPAD", "CLEANUPRET",
-			"CMPXCHG", "COLD", "COLDCC", "COLUMNCOLON", "COMDAT", "COMMON", "CONFIGMACROSCOLON",
-			"CONSTANT", "CONTAININGTYPECOLON", "CONTRACT", "CONVERGENT", "COUNTCOLON",
-			"CXX_FAST_TLSCC", "DATALAYOUT", "DEBUGINFOFORPROFILINGCOLON", "DECLARATIONCOLON",
-			"DECLARE", "DEFAULT", "DEFINE", "DEREFERENCEABLE", "DEREFERENCEABLE_OR_NULL",
-			"NOTDIBASICTYPE", "NOTDICOMPILEUNIT", "NOTDICOMPOSITETYPE", "NOTDIDERIVEDTYPE",
-			"NOTDIENUMERATOR", "NOTDIEXPRESSION", "NOTDIFILE", "NOTDIGLOBALVARIABLE",
-			"NOTDIGLOBALVARIABLEEXPRESSION", "NOTDIIMPORTEDENTITY", "NOTDILEXICALBLOCK",
-			"NOTDILEXICALBLOCKFILE", "NOTDILOCALVARIABLE", "NOTDILOCATION", "NOTDIMACRO",
-			"NOTDIMACROFILE", "NOTDIMODULE", "NOTDINAMESPACE", "NOTDIOBJCPROPERTY",
-			"DIRECTORYCOLON", "DISCRIMINATORCOLON", "DISTINCT", "NOTDISUBPROGRAM",
-			"NOTDISUBRANGE", "NOTDISUBROUTINETYPE", "NOTDITEMPLATETYPEPARAMETER",
-			"NOTDITEMPLATEVALUEPARAMETER", "DLLEXPORT", "DLLIMPORT", "DOUBLE", "DSO_LOCAL",
-			"DSO_PREEMPTABLE", "DWARFADDRESSSPACECOLON", "DWOIDCOLON", "ELEMENTSCOLON",
-			"EMISSIONKINDCOLON", "ENCODINGCOLON", "ENTITYCOLON", "ENUMSCOLON", "EQ",
-			"EXACT", "EXACTMATCH", "EXPORTSYMBOLSCOLON", "EXPRCOLON", "EXTERNAL",
-			"EXTERNALLY_INITIALIZED", "EXTERN_WEAK", "EXTRACTELEMENT", "EXTRACTVALUE",
-			"EXTRADATACOLON", "FADD", "FALSE", "FAST", "FASTCC", "FCMP", "FDIV",
-			"FENCE", "FILECOLON", "FILENAMECOLON", "FILTER", "FLAGSCOLON", "FLOAT",
-			"FMUL", "FNEG", "FP128", "FPEXT", "FPTOSI", "FPTOUI", "FPTRUNC", "FREM",
-			"FROM", "FSUB", "FULLDEBUG", "GC", "NOTGENERICDINODE", "GETELEMENTPTR",
-			"GETTERCOLON", "GHCCC", "GLOBAL", "GLOBALSCOLON", "GNUPUBNAMESCOLON",
-			"HALF", "HEADERCOLON", "HHVMCC", "HHVM_CCC", "HIDDEN_VISIB", "ICMP",
-			"IDENTIFIERCOLON", "IFUNC", "IMMARG", "NOUNDEF", "IMPORTSCOLON", "INACCESSIBLEMEMONLY",
-			"INACCESSIBLEMEM_OR_ARGMEMONLY", "INALLOCA", "INBOUNDS", "INCLUDEPATHCOLON",
-			"INDIRECTBR", "INITIALEXEC", "INLINEDATCOLON", "INLINEHINT", "INRANGE",
-			"INREG", "INSERTELEMENT", "INSERTVALUE", "INTELDIALECT", "INTEL_OCL_BICC",
-			"INTERNAL", "INTTOPTR", "INVOKE", "ISDEFINITIONCOLON", "ISLOCALCOLON",
-			"ISOPTIMIZEDCOLON", "ISUNSIGNEDCOLON", "ISYSROOTCOLON", "JUMPTABLE",
-			"LABEL", "LANDINGPAD", "LANGUAGECOLON", "LARGEST", "LINECOLON", "LINETABLESONLY",
-			"LINKAGENAMECOLON", "LINKONCE", "LINKONCE_ODR", "LOAD", "LOCALDYNAMIC",
-			"LOCALEXEC", "LOCAL_UNNAMED_ADDR", "LOWERBOUNDCOLON", "LSHR", "MACROSCOLON",
-			"MAX", "METADATA", "MIN", "MINSIZE", "MODULE", "MONOTONIC", "MSP430_INTRCC",
-			"MUL", "MUSTTAIL", "NAKED", "NAMECOLON", "NAND", "NE", "NEST", "NINF",
-			"NNAN", "NOALIAS", "NOBUILTIN", "NOCAPTURE", "NODEBUG", "NODESCOLON",
-			"NODUPLICATE", "NODUPLICATES", "NOFREE", "NOIMPLICITFLOAT", "NOINLINE",
-			"NONE", "NONLAZYBIND", "NONNULL", "NORECURSE", "NOREDZONE", "NORETURN",
-			"NOTAIL", "NOUNWIND", "NSW", "NSZ", "NULL", "NUW", "OEQ", "OFFSETCOLON",
-			"OGE", "OGT", "OLE", "OLT", "ONE", "OPAQUE", "OPERANDSCOLON", "OPTNONE",
-			"OPTSIZE", "OR", "ORD", "PERSONALITY", "PHI", "PPC_FP128", "PREFIX",
-			"PRESERVE_ALLCC", "PRESERVE_MOSTCC", "PRIVATE", "PRODUCERCOLON", "PROLOGUE",
-			"PROTECTED", "PTRTOINT", "PTX_DEVICE", "PTX_KERNEL", "READNONE", "READONLY",
-			"REASSOC", "RELEASE", "RESUME", "RET", "RETAINEDTYPESCOLON", "RETURNED",
-			"RETURNS_TWICE", "RUNTIMELANGCOLON", "RUNTIMEVERSIONCOLON", "SAFESTACK",
-			"SAMESIZE", "SANITIZE_ADDRESS", "SANITIZE_HWADDRESS", "SANITIZE_MEMORY",
-			"SANITIZE_THREAD", "SCOPECOLON", "SCOPELINECOLON", "SDIV", "SECTION",
-			"SELECT", "SEQ_CST", "SETTERCOLON", "SEXT", "SGE", "SGT", "SHL", "SHUFFLEVECTOR",
-			"SIDEEFFECT", "SIGNEXT", "SITOFP", "SIZECOLON", "SLE", "SLT", "SOURCE_FILENAME",
-			"SPECULATABLE", "SPIR_FUNC", "SPIR_KERNEL", "SPLITDEBUGFILENAMECOLON",
-			"SPLITDEBUGINLININGCOLON", "SREM", "SRET", "SSP", "SSPREQ", "SSPSTRONG",
-			"STORE", "STRICTFP", "SUB", "SWIFTCC", "SWIFTERROR", "SWIFTSELF", "SWITCH",
-			"SYNCSCOPE", "TAGCOLON", "TAIL", "TARGET", "TEMPLATEPARAMSCOLON", "THISADJUSTMENTCOLON",
-			"THREAD_LOCAL", "THROWNTYPESCOLON", "TO", "TOKEN", "TRIPLE", "TRUE",
-			"TRUNC", "TYPECOLON", "TYPE", "TYPESCOLON", "UDIV", "UEQ", "UGE", "UGT",
-			"UITOFP", "ULE", "ULT", "UMAX", "UMIN", "UNDEF", "UNE", "UNITCOLON",
-			"UNNAMED_ADDR", "UNO", "UNORDERED", "UNREACHABLE", "UNWIND", "UREM",
-			"USELISTORDER", "USELISTORDER_BB", "UWTABLE", "VA_ARG", "VALUECOLON",
-			"VARCOLON", "VARIABLESCOLON", "VIRTUALINDEXCOLON", "VIRTUALITYCOLON",
-			"VOID", "VTABLEHOLDERCOLON", "WEAK", "WEAK_ODR", "WEBKIT_JSCC", "WILLRETURN",
-			"WIN64CC", "WITHIN", "WRITEONLY", "X", "X86_64_SYSVCC", "X86_FASTCALLCC",
-			"X86_FP80", "X86_INTRCC", "X86_MMX", "X86_REGCALLCC", "X86_STDCALLCC",
-			"X86_THISCALLCC", "X86_VECTORCALLCC", "XCHG", "XOR", "ZEROEXT", "ZEROINITIALIZER",
-			"ZEXT", "VOLATILE", "COMMENT", "WHITESPACE", "ATTR_GROUP_ID", "COMDAT_NAME",
-			"METADATA_NAME", "METADATA_ID", "DWARF_TAG", "DWARF_ATT_ENCODING", "DI_FLAG",
-			"DWARF_LANG", "DWARF_CC", "CHECKSUM_KIND", "DWARF_VIRTUALITY", "DWARF_MACINFO",
-			"DWARF_OP", "INT_LIT", "DECIMAL_LIT", "DECIMALS", "FLOAT_LIT", "FRAC_LIT",
-			"SIGN", "SCI_LIT", "FLOAT_HEX_LIT", "STRING_LIT", "QUOTED_STRING", "INT_TYPE",
-			"NAME", "ESCAPE_NAME", "QUOTED_NAME", "ID", "GLOBAL_IDENT", "GLOBAL_NAME",
+			null, "LT", "EQSIGN", "GT", "VDASH", "COMMA", "BANG", "DOTS", "LPAREN", 
+			"RPAREN", "LBRACK", "RBRACK", "LBRACE", "RBRACE", "STAR", "ACQ_REL", 
+			"ACQUIRE", "ADD", "ADDRSPACE", "ADDRSPACECAST", "AFN", "ALIAS", "ALIGNCOLON", 
+			"ALIGN", "ALIGNSTACK", "ALLOCA", "ALLOCSIZE", "ALWAYSINLINE", "AMDGPU_CS", 
+			"AMDGPU_ES", "AMDGPU_GS", "AMDGPU_HS", "AMDGPU_KERNEL", "AMDGPU_LS", 
+			"AMDGPU_PS", "AMDGPU_VS", "AND", "ANY", "ANYREGCC", "APPENDING", "ARCP", 
+			"ARGCOLON", "ARGMEMONLY", "ARM_AAPCSCC", "ARM_AAPCS_VFPCC", "ARM_APCSCC", 
+			"ASHR", "ASM", "ATOMIC", "ATOMICRMW", "ATTRIBUTESCOLON", "ATTRIBUTES", 
+			"AVAILABLE_EXTERNALLY", "AVR_INTRCC", "AVR_SIGNALCC", "BASETYPECOLON", 
+			"BITCAST", "BLOCKADDRESS", "BR", "BUILTIN", "BYVAL", "C", "CALL", "CALLER", 
+			"CATCH", "CATCHPAD", "CATCHRET", "CATCHSWITCH", "CCCOLON", "CC", "CCC", 
+			"CHECKSUMCOLON", "CHECKSUMKINDCOLON", "CLEANUP", "CLEANUPPAD", "CLEANUPRET", 
+			"CMPXCHG", "COLD", "COLDCC", "COLUMNCOLON", "COMDAT", "COMMON", "CONFIGMACROSCOLON", 
+			"CONSTANT", "CONTAININGTYPECOLON", "CONTRACT", "CONVERGENT", "COUNTCOLON", 
+			"CXX_FAST_TLSCC", "DATALAYOUT", "DEBUGINFOFORPROFILINGCOLON", "DECLARATIONCOLON", 
+			"DECLARE", "DEFAULT", "DEFINE", "DEREFERENCEABLE", "DEREFERENCEABLE_OR_NULL", 
+			"NOTDIBASICTYPE", "NOTDICOMPILEUNIT", "NOTDICOMPOSITETYPE", "NOTDIDERIVEDTYPE", 
+			"NOTDIENUMERATOR", "NOTDIEXPRESSION", "NOTDIFILE", "NOTDIGLOBALVARIABLE", 
+			"NOTDIGLOBALVARIABLEEXPRESSION", "NOTDIIMPORTEDENTITY", "NOTDILEXICALBLOCK", 
+			"NOTDILEXICALBLOCKFILE", "NOTDILOCALVARIABLE", "NOTDILOCATION", "NOTDIMACRO", 
+			"NOTDIMACROFILE", "NOTDIMODULE", "NOTDINAMESPACE", "NOTDIOBJCPROPERTY", 
+			"DIRECTORYCOLON", "DISCRIMINATORCOLON", "DISTINCT", "NOTDISUBPROGRAM", 
+			"NOTDISUBRANGE", "NOTDISUBROUTINETYPE", "NOTDITEMPLATETYPEPARAMETER", 
+			"NOTDITEMPLATEVALUEPARAMETER", "DLLEXPORT", "DLLIMPORT", "DOUBLE", "DSO_LOCAL", 
+			"DSO_PREEMPTABLE", "DWARFADDRESSSPACECOLON", "DWOIDCOLON", "ELEMENTSCOLON", 
+			"EMISSIONKINDCOLON", "ENCODINGCOLON", "ENTITYCOLON", "ENUMSCOLON", "EQ", 
+			"EXACT", "EXACTMATCH", "EXPORTSYMBOLSCOLON", "EXPRCOLON", "EXTERNAL", 
+			"EXTERNALLY_INITIALIZED", "EXTERN_WEAK", "EXTRACTELEMENT", "EXTRACTVALUE", 
+			"EXTRADATACOLON", "FADD", "FALSE", "FAST", "FASTCC", "FCMP", "FDIV", 
+			"FENCE", "FILECOLON", "FILENAMECOLON", "FILTER", "FLAGSCOLON", "FLOAT", 
+			"FMUL", "FNEG", "FP128", "FPEXT", "FPTOSI", "FPTOUI", "FPTRUNC", "FREM", 
+			"FROM", "FSUB", "FULLDEBUG", "GC", "NOTGENERICDINODE", "GETELEMENTPTR", 
+			"GETTERCOLON", "GHCCC", "GLOBAL", "GLOBALSCOLON", "GNUPUBNAMESCOLON", 
+			"HALF", "HEADERCOLON", "HHVMCC", "HHVM_CCC", "HIDDEN_VISIB", "ICMP", 
+			"IDENTIFIERCOLON", "IFUNC", "IMMARG", "NOUNDEF", "IMPORTSCOLON", "INACCESSIBLEMEMONLY", 
+			"INACCESSIBLEMEM_OR_ARGMEMONLY", "INALLOCA", "INBOUNDS", "INCLUDEPATHCOLON", 
+			"INDIRECTBR", "INITIALEXEC", "INLINEDATCOLON", "INLINEHINT", "INRANGE", 
+			"INREG", "INSERTELEMENT", "INSERTVALUE", "INTELDIALECT", "INTEL_OCL_BICC", 
+			"INTERNAL", "INTTOPTR", "INVOKE", "ISDEFINITIONCOLON", "ISLOCALCOLON", 
+			"ISOPTIMIZEDCOLON", "ISUNSIGNEDCOLON", "ISYSROOTCOLON", "JUMPTABLE", 
+			"LABEL", "LANDINGPAD", "LANGUAGECOLON", "LARGEST", "LINECOLON", "LINETABLESONLY", 
+			"LINKAGENAMECOLON", "LINKONCE", "LINKONCE_ODR", "LOAD", "LOCALDYNAMIC", 
+			"LOCALEXEC", "LOCAL_UNNAMED_ADDR", "LOWERBOUNDCOLON", "LSHR", "MACROSCOLON", 
+			"MAX", "METADATA", "MIN", "MINSIZE", "MODULE", "MONOTONIC", "MSP430_INTRCC", 
+			"MUL", "MUSTTAIL", "NAKED", "NAMECOLON", "NAND", "NE", "NEST", "NINF", 
+			"NNAN", "NOALIAS", "NOBUILTIN", "NOCAPTURE", "NODEBUG", "NODESCOLON", 
+			"NODUPLICATE", "NODUPLICATES", "NOFREE", "NOIMPLICITFLOAT", "NOINLINE", 
+			"NONE", "NONLAZYBIND", "NONNULL", "NORECURSE", "NOREDZONE", "NORETURN", 
+			"NOTAIL", "NOUNWIND", "NSW", "NSZ", "NULL", "NUW", "OEQ", "OFFSETCOLON", 
+			"OGE", "OGT", "OLE", "OLT", "ONE", "OPAQUE", "OPERANDSCOLON", "OPTNONE", 
+			"OPTSIZE", "OR", "ORD", "PERSONALITY", "PHI", "PPC_FP128", "PREFIX", 
+			"PRESERVE_ALLCC", "PRESERVE_MOSTCC", "PRIVATE", "PRODUCERCOLON", "PROLOGUE", 
+			"PROTECTED", "PTRTOINT", "PTX_DEVICE", "PTX_KERNEL", "READNONE", "READONLY", 
+			"REASSOC", "RELEASE", "RESUME", "RET", "RETAINEDTYPESCOLON", "RETURNED", 
+			"RETURNS_TWICE", "RUNTIMELANGCOLON", "RUNTIMEVERSIONCOLON", "SAFESTACK", 
+			"SAMESIZE", "SANITIZE_ADDRESS", "SANITIZE_HWADDRESS", "SANITIZE_MEMORY", 
+			"SANITIZE_THREAD", "SCOPECOLON", "SCOPELINECOLON", "SDIV", "SECTION", 
+			"SELECT", "SEQ_CST", "SETTERCOLON", "SEXT", "SGE", "SGT", "SHL", "SHUFFLEVECTOR", 
+			"SIDEEFFECT", "SIGNEXT", "SITOFP", "SIZECOLON", "SLE", "SLT", "SOURCE_FILENAME", 
+			"SPECULATABLE", "SPIR_FUNC", "SPIR_KERNEL", "SPLITDEBUGFILENAMECOLON", 
+			"SPLITDEBUGINLININGCOLON", "SREM", "SRET", "SSP", "SSPREQ", "SSPSTRONG", 
+			"STORE", "STRICTFP", "SUB", "SWIFTCC", "SWIFTERROR", "SWIFTSELF", "SWITCH", 
+			"SYNCSCOPE", "TAGCOLON", "TAIL", "TARGET", "TEMPLATEPARAMSCOLON", "THISADJUSTMENTCOLON", 
+			"THREAD_LOCAL", "THROWNTYPESCOLON", "TO", "TOKEN", "TRIPLE", "TRUE", 
+			"TRUNC", "TYPECOLON", "TYPE", "TYPESCOLON", "UDIV", "UEQ", "UGE", "UGT", 
+			"UITOFP", "ULE", "ULT", "UMAX", "UMIN", "UNDEF", "UNE", "UNITCOLON", 
+			"UNNAMED_ADDR", "UNO", "UNORDERED", "UNREACHABLE", "UNWIND", "UREM", 
+			"USELISTORDER", "USELISTORDER_BB", "UWTABLE", "VA_ARG", "VALUECOLON", 
+			"VARCOLON", "VARIABLESCOLON", "VIRTUALINDEXCOLON", "VIRTUALITYCOLON", 
+			"VOID", "VTABLEHOLDERCOLON", "WEAK", "WEAK_ODR", "WEBKIT_JSCC", "WILLRETURN", 
+			"WIN64CC", "WITHIN", "WRITEONLY", "X", "X86_64_SYSVCC", "X86_FASTCALLCC", 
+			"X86_FP80", "X86_INTRCC", "X86_MMX", "X86_REGCALLCC", "X86_STDCALLCC", 
+			"X86_THISCALLCC", "X86_VECTORCALLCC", "XCHG", "XOR", "ZEROEXT", "ZEROINITIALIZER", 
+			"ZEXT", "VOLATILE", "COMMENT", "WHITESPACE", "ATTR_GROUP_ID", "COMDAT_NAME", 
+			"METADATA_NAME", "METADATA_ID", "DWARF_TAG", "DWARF_ATT_ENCODING", "DI_FLAG", 
+			"DWARF_LANG", "DWARF_CC", "CHECKSUM_KIND", "DWARF_VIRTUALITY", "DWARF_MACINFO", 
+			"DWARF_OP", "INT_LIT", "DECIMAL_LIT", "DECIMALS", "FLOAT_LIT", "FRAC_LIT", 
+			"SIGN", "SCI_LIT", "FLOAT_HEX_LIT", "STRING_LIT", "QUOTED_STRING", "INT_TYPE", 
+			"NAME", "ESCAPE_NAME", "QUOTED_NAME", "ID", "GLOBAL_IDENT", "GLOBAL_NAME", 
 			"GLOBAL_ID", "LOCAL_IDENT", "LOCAL_NAME", "LOCAL_ID", "LABEL_IDENT"
 		};
 	}
@@ -715,7 +714,7 @@ public class LLVMParser extends Parser {
 					setState(865);
 					topLevelEntity();
 					}
-					}
+					} 
 				}
 				setState(870);
 				_errHandler.sync(this);
@@ -1789,7 +1788,7 @@ public class LLVMParser extends Parser {
 					setState(982);
 					globalAttr();
 					}
-					}
+					} 
 				}
 				setState(987);
 				_errHandler.sync(this);
@@ -2945,7 +2944,7 @@ public class LLVMParser extends Parser {
 					setState(1123);
 					metadataNode();
 					}
-					}
+					} 
 				}
 				setState(1128);
 				_errHandler.sync(this);
@@ -3276,7 +3275,7 @@ public class LLVMParser extends Parser {
 					setState(1155);
 					useListOrder();
 					}
-					}
+					} 
 				}
 				setState(1160);
 				_errHandler.sync(this);
@@ -3868,7 +3867,7 @@ public class LLVMParser extends Parser {
 						}
 						break;
 					}
-					}
+					} 
 				}
 				setState(1211);
 				_errHandler.sync(this);
@@ -4760,7 +4759,7 @@ public class LLVMParser extends Parser {
 					setState(1282);
 					llvmType(0);
 					}
-					}
+					} 
 				}
 				setState(1287);
 				_errHandler.sync(this);
@@ -8507,7 +8506,7 @@ public class LLVMParser extends Parser {
 					setState(1667);
 					gepConstIndex();
 					}
-					}
+					} 
 				}
 				setState(1672);
 				_errHandler.sync(this);
@@ -9802,7 +9801,7 @@ public class LLVMParser extends Parser {
 					setState(1820);
 					basicBlock();
 					}
-					}
+					} 
 				}
 				setState(1825);
 				_errHandler.sync(this);
@@ -10047,7 +10046,7 @@ public class LLVMParser extends Parser {
 					setState(1840);
 					instruction();
 					}
-					}
+					} 
 				}
 				setState(1845);
 				_errHandler.sync(this);
@@ -14829,7 +14828,7 @@ public class LLVMParser extends Parser {
 					setState(2472);
 					inc();
 					}
-					}
+					} 
 				}
 				setState(2477);
 				_errHandler.sync(this);
@@ -15444,7 +15443,7 @@ public class LLVMParser extends Parser {
 					setState(2535);
 					clause();
 					}
-					}
+					} 
 				}
 				setState(2540);
 				_errHandler.sync(this);
@@ -16270,7 +16269,7 @@ public class LLVMParser extends Parser {
 					setState(2631);
 					llvmCase();
 					}
-					}
+					} 
 				}
 				setState(2636);
 				_errHandler.sync(this);
@@ -16490,7 +16489,7 @@ public class LLVMParser extends Parser {
 					setState(2657);
 					label();
 					}
-					}
+					} 
 				}
 				setState(2662);
 				_errHandler.sync(this);
@@ -17237,7 +17236,7 @@ public class LLVMParser extends Parser {
 					setState(2740);
 					mdField();
 					}
-					}
+					} 
 				}
 				setState(2745);
 				_errHandler.sync(this);
@@ -17767,7 +17766,7 @@ public class LLVMParser extends Parser {
 					setState(2777);
 					metadataAttachment();
 					}
-					}
+					} 
 				}
 				setState(2782);
 				_errHandler.sync(this);
@@ -17908,7 +17907,7 @@ public class LLVMParser extends Parser {
 					setState(2792);
 					metadataAttachment();
 					}
-					}
+					} 
 				}
 				setState(2797);
 				_errHandler.sync(this);
@@ -18394,7 +18393,7 @@ public class LLVMParser extends Parser {
 					setState(2838);
 					diCompileUnitField();
 					}
-					}
+					} 
 				}
 				setState(2843);
 				_errHandler.sync(this);
@@ -18818,7 +18817,7 @@ public class LLVMParser extends Parser {
 					setState(2891);
 					diFileField();
 					}
-					}
+					} 
 				}
 				setState(2896);
 				_errHandler.sync(this);
@@ -19100,7 +19099,7 @@ public class LLVMParser extends Parser {
 					setState(2920);
 					diBasicTypeField();
 					}
-					}
+					} 
 				}
 				setState(2925);
 				_errHandler.sync(this);
@@ -19389,7 +19388,7 @@ public class LLVMParser extends Parser {
 					setState(2947);
 					diSubroutineTypeField();
 					}
-					}
+					} 
 				}
 				setState(2952);
 				_errHandler.sync(this);
@@ -19661,7 +19660,7 @@ public class LLVMParser extends Parser {
 					setState(2973);
 					diDerivedTypeField();
 					}
-					}
+					} 
 				}
 				setState(2978);
 				_errHandler.sync(this);
@@ -20023,7 +20022,7 @@ public class LLVMParser extends Parser {
 					setState(3008);
 					diCompositeTypeField();
 					}
-					}
+					} 
 				}
 				setState(3013);
 				_errHandler.sync(this);
@@ -20428,7 +20427,7 @@ public class LLVMParser extends Parser {
 					setState(3050);
 					diSubrangeField();
 					}
-					}
+					} 
 				}
 				setState(3055);
 				_errHandler.sync(this);
@@ -20690,7 +20689,7 @@ public class LLVMParser extends Parser {
 					setState(3075);
 					diEnumeratorField();
 					}
-					}
+					} 
 				}
 				setState(3080);
 				_errHandler.sync(this);
@@ -20962,7 +20961,7 @@ public class LLVMParser extends Parser {
 					setState(3101);
 					diTemplateTypeParameterField();
 					}
-					}
+					} 
 				}
 				setState(3106);
 				_errHandler.sync(this);
@@ -21218,7 +21217,7 @@ public class LLVMParser extends Parser {
 					setState(3124);
 					diTemplateValueParameterField();
 					}
-					}
+					} 
 				}
 				setState(3129);
 				_errHandler.sync(this);
@@ -21497,7 +21496,7 @@ public class LLVMParser extends Parser {
 					setState(3150);
 					diModuleField();
 					}
-					}
+					} 
 				}
 				setState(3155);
 				_errHandler.sync(this);
@@ -21786,7 +21785,7 @@ public class LLVMParser extends Parser {
 					setState(3179);
 					diNamespaceField();
 					}
-					}
+					} 
 				}
 				setState(3184);
 				_errHandler.sync(this);
@@ -22055,7 +22054,7 @@ public class LLVMParser extends Parser {
 					setState(3204);
 					diGlobalVariableField();
 					}
-					}
+					} 
 				}
 				setState(3209);
 				_errHandler.sync(this);
@@ -22391,7 +22390,7 @@ public class LLVMParser extends Parser {
 					setState(3235);
 					diSubprogramField();
 					}
-					}
+					} 
 				}
 				setState(3240);
 				_errHandler.sync(this);
@@ -22836,7 +22835,7 @@ public class LLVMParser extends Parser {
 					setState(3284);
 					diLexicalBlockField();
 					}
-					}
+					} 
 				}
 				setState(3289);
 				_errHandler.sync(this);
@@ -23112,7 +23111,7 @@ public class LLVMParser extends Parser {
 					setState(3309);
 					diLexicalBlockFileField();
 					}
-					}
+					} 
 				}
 				setState(3314);
 				_errHandler.sync(this);
@@ -23381,7 +23380,7 @@ public class LLVMParser extends Parser {
 					setState(3334);
 					diLocationField();
 					}
-					}
+					} 
 				}
 				setState(3339);
 				_errHandler.sync(this);
@@ -23660,7 +23659,7 @@ public class LLVMParser extends Parser {
 					setState(3360);
 					diLocalVariableField();
 					}
-					}
+					} 
 				}
 				setState(3365);
 				_errHandler.sync(this);
@@ -23979,7 +23978,7 @@ public class LLVMParser extends Parser {
 					setState(3390);
 					diExpressionField();
 					}
-					}
+					} 
 				}
 				setState(3395);
 				_errHandler.sync(this);
@@ -24233,7 +24232,7 @@ public class LLVMParser extends Parser {
 					setState(3413);
 					diGlobalVariableExpressionField();
 					}
-					}
+					} 
 				}
 				setState(3418);
 				_errHandler.sync(this);
@@ -24492,7 +24491,7 @@ public class LLVMParser extends Parser {
 					setState(3438);
 					diObjCPropertyField();
 					}
-					}
+					} 
 				}
 				setState(3443);
 				_errHandler.sync(this);
@@ -24804,7 +24803,7 @@ public class LLVMParser extends Parser {
 					setState(3469);
 					diImportedEntityField();
 					}
-					}
+					} 
 				}
 				setState(3474);
 				_errHandler.sync(this);
@@ -25103,7 +25102,7 @@ public class LLVMParser extends Parser {
 					setState(3497);
 					diMacroField();
 					}
-					}
+					} 
 				}
 				setState(3502);
 				_errHandler.sync(this);
@@ -25382,7 +25381,7 @@ public class LLVMParser extends Parser {
 					setState(3523);
 					diMacroFileField();
 					}
-					}
+					} 
 				}
 				setState(3528);
 				_errHandler.sync(this);
@@ -25661,7 +25660,7 @@ public class LLVMParser extends Parser {
 					setState(3549);
 					genericDINodeField();
 					}
-					}
+					} 
 				}
 				setState(3554);
 				_errHandler.sync(this);
@@ -26884,7 +26883,7 @@ public class LLVMParser extends Parser {
 					setState(3630);
 					diFlag();
 					}
-					}
+					} 
 				}
 				setState(3635);
 				_errHandler.sync(this);
@@ -27567,7 +27566,7 @@ public class LLVMParser extends Parser {
 					setState(3679);
 					typeValue();
 					}
-					}
+					} 
 				}
 				setState(3684);
 				_errHandler.sync(this);
@@ -27652,7 +27651,7 @@ public class LLVMParser extends Parser {
 					setState(3690);
 					typeValue();
 					}
-					}
+					} 
 				}
 				setState(3695);
 				_errHandler.sync(this);
@@ -27841,7 +27840,7 @@ public class LLVMParser extends Parser {
 					setState(3707);
 					typeConst();
 					}
-					}
+					} 
 				}
 				setState(3712);
 				_errHandler.sync(this);
@@ -28172,7 +28171,7 @@ public class LLVMParser extends Parser {
 					setState(3744);
 					arg();
 					}
-					}
+					} 
 				}
 				setState(3749);
 				_errHandler.sync(this);
@@ -29242,7 +29241,7 @@ public class LLVMParser extends Parser {
 					setState(3850);
 					exceptionArg();
 					}
-					}
+					} 
 				}
 				setState(3855);
 				_errHandler.sync(this);
@@ -29537,7 +29536,7 @@ public class LLVMParser extends Parser {
 					setState(3881);
 					fastMathFlag();
 					}
-					}
+					} 
 				}
 				setState(3886);
 				_errHandler.sync(this);
@@ -29798,7 +29797,7 @@ public class LLVMParser extends Parser {
 					setState(3898);
 					funcAttr();
 					}
-					}
+					} 
 				}
 				setState(3903);
 				_errHandler.sync(this);
@@ -30435,7 +30434,7 @@ public class LLVMParser extends Parser {
 					setState(3972);
 					index();
 					}
-					}
+					} 
 				}
 				setState(3977);
 				_errHandler.sync(this);
@@ -30901,7 +30900,7 @@ public class LLVMParser extends Parser {
 					setState(4002);
 					operandBundle();
 					}
-					}
+					} 
 				}
 				setState(4007);
 				_errHandler.sync(this);
@@ -31093,7 +31092,7 @@ public class LLVMParser extends Parser {
 					setState(4020);
 					overflowFlag();
 					}
-					}
+					} 
 				}
 				setState(4025);
 				_errHandler.sync(this);
@@ -31281,7 +31280,7 @@ public class LLVMParser extends Parser {
 					setState(4035);
 					paramAttr();
 					}
-					}
+					} 
 				}
 				setState(4040);
 				_errHandler.sync(this);
@@ -31711,7 +31710,7 @@ public class LLVMParser extends Parser {
 					setState(4082);
 					param();
 					}
-					}
+					} 
 				}
 				setState(4087);
 				_errHandler.sync(this);
@@ -32024,7 +32023,7 @@ public class LLVMParser extends Parser {
 					setState(4109);
 					returnAttr();
 					}
-					}
+					} 
 				}
 				setState(4114);
 				_errHandler.sync(this);

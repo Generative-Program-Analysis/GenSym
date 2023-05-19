@@ -1,6 +1,5 @@
-// Generated from LLVMParser.g4 by ANTLR 4.12.0
 package gensym.llvm;
-
+// Generated from LLVMParser.g4 by ANTLR 4.12.0
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 
 /**
