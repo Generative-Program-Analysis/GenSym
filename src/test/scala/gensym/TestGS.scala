@@ -58,7 +58,11 @@ abstract class TestGS extends FunSuite {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     val outname = if (gs.insName == "ImpCPSGS_lib") name
                   else gs.insName + "_" + name
+
+    val storedSymbolicUninit = Config.symbolicUninit
     test(name) {
+      val innerSymbolicUninit = Config.symbolicUninit
+      Config.symbolicUninit = storedSymbolicUninit
       val code = gs.run(m, outname, f, config, libPath)
       val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
@@ -83,6 +87,8 @@ abstract class TestGS extends FunSuite {
           assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
         }
       }
+
+      Config.symbolicUninit = innerSymbolicUninit
     }
   }
 
