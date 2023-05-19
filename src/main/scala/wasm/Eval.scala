@@ -53,6 +53,20 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
     // }
     val (newStack, newInstrs) = adminInstrs.head match {
       case Plain(instr) => instr match {
+        // Parametric Instructions
+        case Drop => stack match {
+          case _ :: newStack => (newStack, adminInstrs.tail)
+          case _ => throw new Exception("Invalid stack")
+        }
+
+        case Select(_) => stack match {
+          case I32(cond) :: v2 :: v1 :: newStack => {
+            val value = if (cond == 0) v1 else v2
+            (value :: newStack, adminInstrs.tail)
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
+
         // Variable Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
         case LocalGet(local) => (frame.locals(local) :: stack, adminInstrs.tail)
@@ -117,7 +131,14 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
           (newStack, label :: adminInstrs.tail)
         }
-        // case If
+        case If(blockTy, thenInstrs, elseInstrs) => stack match {
+          case I32(cond) :: newStack => {
+            val instrs = if (cond == 0) elseInstrs else thenInstrs
+            val block: AdminInstr = Plain(Block(blockTy, instrs))
+            (newStack, block :: adminInstrs.tail)
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
         case Br(label) => {
           val breaking: AdminInstr = Breaking(label, stack)
           (List(), breaking :: adminInstrs.tail)
