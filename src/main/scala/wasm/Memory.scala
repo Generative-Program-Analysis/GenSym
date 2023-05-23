@@ -18,3 +18,8 @@ case class Memory(data: ArrayBuffer[Byte]) {
     (b1 & 0xff) | ((b2 & 0xff) << 8) | ((b3 & 0xff) << 16) | ((b4 & 0xff) << 24)
   }
 }
+
+object Memory {
+  def apply() = new Memory(ArrayBuffer[Byte]())
+  def apply(size: Int) = new Memory(ArrayBuffer.fill[Byte](size)(0))
+}

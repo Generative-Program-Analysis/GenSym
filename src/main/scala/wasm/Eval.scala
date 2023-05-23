@@ -5,12 +5,15 @@ import gensym.wasm.types._
 import gensym.wasm.values._
 import gensym.wasm.source._
 import gensym.wasm.memory._
+import gensym.wasm.globals._
+
+import scala.collection.mutable.ArrayBuffer
 
 case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncDef],
   memory: List[Memory],
-  // globals: List[GlobalInstance],
+  globals: List[Global],
   // data: List[DataInstance]
 
   // tables are used for JS interop, and elem is used for table initialization
@@ -18,6 +21,11 @@ case class ModuleInstance(
   // tables: List[TableInstance],
   // elem: List[ElemInstance],
 )
+object ModuleInstance {
+  def apply(types: List[FuncType], funcs: List[FuncDef]): ModuleInstance = {
+    ModuleInstance(types, funcs, List(Memory()), List())
+  }
+}
 
 // TODO: use mutable data structures?
 case class Frame(module: ModuleInstance, var locals: List[Value])
@@ -77,6 +85,25 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           }
           case _ => throw new Exception("Invalid stack")
         }
+        case LocalTee(local) => stack match {
+          case value :: newStack => {
+            frame.locals = frame.locals.updated(local, value)
+            (value :: newStack, adminInstrs.tail)
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
+        case GlobalGet(global) => (frame.module.globals(global).value :: stack, adminInstrs.tail)
+        case GlobalSet(global) => stack match {
+          case value :: newStack => {
+            frame.module.globals(global).tipe match {
+              case GlobalType(tipe, true) if value.tipe == tipe => frame.module.globals(global).value = value
+              case GlobalType(_, true) => throw new Exception("Invalid type")
+              case _ => throw new Exception("Cannot set immutable global")
+            }
+            (newStack, adminInstrs.tail)
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
 
         // Numeric Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
@@ -92,8 +119,6 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
             case _ => throw new Exception("Invalid stack")
           }
         }
-
-        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
         case Store(StoreOp(align, offset, tipe, None)) => stack match {
           case I32(value) :: I32(addr) :: newStack => {
             val mem = frame.module.memory(0)
@@ -144,12 +169,12 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           (List(), breaking :: adminInstrs.tail)
         }
         case BrIf(label) => stack match {
-          case I32(0) :: _ => {
-            (stack, adminInstrs.tail)
+          case I32(0) :: newStack => {
+            (newStack, adminInstrs.tail)
           }
-          case I32(_) :: rest => {
+          case I32(_) :: newStack => {
             val branch: AdminInstr = Plain(Br(label))
-            (rest, branch :: adminInstrs.tail)
+            (newStack, branch :: adminInstrs.tail)
           }
           case _ => throw new Exception("Invalid stack")
         }

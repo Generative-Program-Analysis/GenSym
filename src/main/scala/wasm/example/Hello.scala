@@ -8,8 +8,6 @@ import gensym.wasm.eval._
 import gensym.wasm.parser._
 import gensym.wasm.memory._
 
-import scala.collection.mutable.ArrayBuffer
-
 object SimpleTest extends App {
   def basicTest() = {
     val instrs = List(
@@ -19,7 +17,7 @@ object SimpleTest extends App {
     )
     .map(Plain(_))
 
-    val moduleInst = ModuleInstance(List(), List(), List(Memory(ArrayBuffer())))
+    val moduleInst = ModuleInstance(List(), List())
     val config = Config(
       Frame(moduleInst, List()),
       Code(List(), instrs),
@@ -49,7 +47,7 @@ object SimpleTest extends App {
       case fndef@FuncDef(_, _, _, _) => fndef
     }).toList
 
-    val moduleInst = ModuleInstance(types, funcs, List(Memory(ArrayBuffer())))
+    val moduleInst = ModuleInstance(types, funcs)
     val config = Config(
       Frame(moduleInst, List()),
       Code(List(), instrs),

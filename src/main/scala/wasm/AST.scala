@@ -26,9 +26,9 @@ case class Call(func: Int) extends Instr
 // case class CallIndirect(ty: Int, table: Int) extends Instr
 case class LocalGet(local: Int) extends Instr
 case class LocalSet(local: Int) extends Instr
-// case class LocalTee(local: Int) extends Instr
+case class LocalTee(local: Int) extends Instr
 case class GlobalGet(global: Int) extends Instr
-// case class GlobalSet(global: Int) extends Instr
+case class GlobalSet(global: Int) extends Instr
 // case class TableGet(table: Int) extends Instr
 // case class TableSet(table: Int) extends Instr
 // case class TableSize(table: Int) extends Instr
