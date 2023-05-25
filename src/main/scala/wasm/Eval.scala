@@ -105,6 +105,10 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           case _ => throw new Exception("Invalid stack")
         }
 
+        // Memory Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
+        case MemorySize => (I32(frame.module.memory.head.size) :: stack, adminInstrs.tail)
+
         // Numeric Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
         case Const(num) => (num :: stack, adminInstrs.tail)

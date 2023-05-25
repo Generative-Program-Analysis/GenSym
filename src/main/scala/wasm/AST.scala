@@ -43,7 +43,7 @@ case class Store(op: StoreOp) extends Instr
 // case class VecStore(op: VecStoreOp) extends Instr
 // case class VecLoadLane(op: VecLaneOp) extends Instr
 // case class VecStoreLane(op: VecLaneOp) extends Instr
-// case object MemorySize extends Instr
+case object MemorySize extends Instr
 // case object MemoryGrow extends Instr
 // case object MemoryFill extends Instr
 // case object MemoryCopy extends Instr
@@ -54,8 +54,8 @@ case class Store(op: StoreOp) extends Instr
 // case object RefIsNull extends Instr
 case class Const(num: Num) extends Instr
 case class Test(op: TestOp) extends Instr
-// case class Compare(op: RelOp) extends Instr
-// case class Unary(op: UnOp) extends Instr
+case class Compare(op: RelOp) extends Instr
+case class Unary(op: UnaryOp) extends Instr
 case class Binary(op: BinOp) extends Instr
 // case class Convert(op: CvtOp) extends Instr
 // case class VecConst(vec: Vec) extends Instr
@@ -77,6 +77,7 @@ case class Binary(op: BinOp) extends Instr
 abstract class IntOp
 abstract class UnaryIntOp extends IntOp
 abstract class BinaryIntOp extends IntOp
+abstract class RelIntOp extends IntOp
 
 case object Clz extends UnaryIntOp
 case object Ctz extends UnaryIntOp
@@ -99,6 +100,13 @@ case object ShrU extends BinaryIntOp
 case object Rotl extends BinaryIntOp
 case object Rotr extends BinaryIntOp
 
+case object Eq extends RelIntOp
+case object Ne extends RelIntOp
+case object Lt extends RelIntOp
+case object Le extends RelIntOp
+case object Gt extends RelIntOp
+case object Ge extends RelIntOp
+
 abstract class IntTestOp
 case object Eqz extends IntTestOp
 
@@ -110,6 +118,16 @@ object BinOp {
 abstract class TestOp
 object TestOp {
   case class Int(op: IntTestOp) extends TestOp
+}
+
+abstract class RelOp
+object RelOp {
+  case class Int(op: RelIntOp) extends BinOp
+}
+
+abstract class UnaryOp
+object UnaryOp {
+  case class Int(op: UnaryIntOp) extends BinOp
 }
 
 abstract class PackSize

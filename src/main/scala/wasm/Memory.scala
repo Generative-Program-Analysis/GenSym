@@ -17,6 +17,8 @@ case class Memory(data: ArrayBuffer[Byte]) {
     val b4 = data(offset + 3)
     (b1 & 0xff) | ((b2 & 0xff) << 8) | ((b3 & 0xff) << 16) | ((b4 & 0xff) << 24)
   }
+
+  def size = data.size
 }
 
 object Memory {
