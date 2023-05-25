@@ -145,6 +145,7 @@ class TestPtr extends TestGS {
   // finds 642 paths, Klee finds 8 incomplete & 2 complete
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(642)))
   testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(642)))
+  Global.config.symbolicUninit = false
 }
 
 class TestPtrUpdate extends TestGS {
