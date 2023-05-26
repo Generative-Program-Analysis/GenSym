@@ -197,9 +197,11 @@ class TestImpCPSGS_Z3 extends TestGS {
 
   // Test uninitialized ptr access, only enabled for CPS+thread pool version
   val rtOpt = "--thread=1 --solver=z3"
+  Global.config.symbolicUninit = true
   testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
+  Global.config.symbolicUninit = false
 }
 
 /*
