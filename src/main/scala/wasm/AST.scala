@@ -102,10 +102,14 @@ case object Rotr extends BinaryIntOp
 
 case object Eq extends RelIntOp
 case object Ne extends RelIntOp
-case object Lt extends RelIntOp
-case object Le extends RelIntOp
-case object Gt extends RelIntOp
-case object Ge extends RelIntOp
+case object LtS extends RelIntOp
+case object LeS extends RelIntOp
+case object LtU extends RelIntOp
+case object LeU extends RelIntOp
+case object GtS extends RelIntOp
+case object GeS extends RelIntOp
+case object GtU extends RelIntOp
+case object GeU extends RelIntOp
 
 abstract class IntTestOp
 case object Eqz extends IntTestOp
@@ -122,12 +126,12 @@ object TestOp {
 
 abstract class RelOp
 object RelOp {
-  case class Int(op: RelIntOp) extends BinOp
+  case class Int(op: RelIntOp) extends RelOp
 }
 
 abstract class UnaryOp
 object UnaryOp {
-  case class Int(op: UnaryIntOp) extends BinOp
+  case class Int(op: UnaryIntOp) extends UnaryOp
 }
 
 abstract class PackSize
