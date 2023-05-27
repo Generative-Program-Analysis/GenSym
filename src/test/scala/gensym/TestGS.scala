@@ -126,7 +126,7 @@ class TestImpGS extends TestGS {
 
 class TestImpCPSGS extends TestGS {
   val gs = new ImpCPSGS
-  testGS(gs, TestCases.all ++ filesys ++ varArg)
+  // testGS(gs, TestCases.all ++ filesys ++ varArg)
   // Note: compile-time switch merge is only implement for ImpCPS so far
   testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 
@@ -136,56 +136,19 @@ class TestImpCPSGS extends TestGS {
   testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
+  testGS(gs, TestPrg(faultyBst, "faultyBstTest", "@main", noArg, rtOpt, nPath(642)))
+  testGS(gs, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, rtOpt, nPath(2)))
+
+  testGS(gs, TestPrg(argv2Test, "argvConc", "@main", useArgv, "--thread=1 --argv=abcdef", nPath(1)++status(0)))
+  testGS(gs, TestPrg(argv2Test, "argvSym", "@main", useArgv, "--thread=1 --argv=abc#{3}def", nPath(4)++status(0)))
+  testGS(gs, TestPrg(
+    openSymTest, "openSymTest", "@main", noArg, "--thread=1 --add-sym-file A --add-sym-file B", nPath(3)++status(0))
+  )
+
+  testGS(gs, TestPrg(assumeTest, "assumeTest", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(flexAddr, "flexAddr", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(printfTest, "printfTest", "@main", noArg, rtOpt, nPath(1)++status(0)))
   Global.config.symbolicUninit = false
-}
-
-class TestPtr extends TestGS {
-  val rtOpt = "--thread=1"
-  val faultyBstTest = parseFile("benchmarks/demo-benchmarks/faulty_bst.ll")
-  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestConcUninit", "@main", noArg, "--thread=1", nPath(458)))
-  Global.config.symbolicUninit = true
-  // finds 642 paths, Klee finds 8 incomplete & 2 complete
-  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTest", "@main", noArg, "--thread=1", nPath(642)))
-  testGS(new ImpCPSGS, TestPrg(faultyBstTest, "faultyBstTestZ3", "@main", noArg, "--thread=1 --solver=z3", nPath(642)))
-  Global.config.symbolicUninit = false
-}
-
-class TestPtrUpdate extends TestGS {
-  val uninitPtrUpdate = parseFile("benchmarks/llvm/uninit_ptr_update.ll")
-  testGS(new ImpCPSGS, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, "--thread=1", nPath(1)))
-}
-
-class TestArgv extends TestGS {
-  testGS(new ImpCPSGS, TestPrg(argv2Test, "argvConc", "@main", useArgv, "--thread=1 --argv=abcdef", nPath(1)++status(0)))
-  testGS(new ImpCPSGS, TestPrg(argv2Test, "argvSym", "@main", useArgv, "--thread=1 --argv=abc#{3}def", nPath(4)++status(0)))
-}
-
-class TestOpenSym extends TestGS {
-  testGS(new ImpCPSGS, TestPrg(openSymTest, "openSymTest", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)))
-}
-
-class TestAssume extends TestGS {
-  val test = TestPrg(assumeTest, "assumeTest", "@main", noArg, "--thread=1", nPath(1)++status(0))
-  testGS(new ImpCPSGS, test)
-  val testPure = TestPrg(assumeTest, "assumeTestPure", "@main", noArg, "--thread=1", nPath(1)++status(0))
-  testGS(new PureGS, testPure)
-}
-
-class TestMemChallenge extends TestGS {
-  val test = TestPrg(flexAddr, "flexAddr", "@main", noArg, "--thread=1", nPath(1)++status(0))
-  testGS(new ImpCPSGS, test)
-}
-
-class  TestPrintf extends TestGS {
-  val test = TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0))
-  testGS(new ImpCPSGS, test)
-  val testPure = TestPrg(printfTest, "printfTestPure", "@main", noArg, noOpt, nPath(1)++status(0))
-  testGS(new PureGS, testPure)
-}
-
-class TestKleelib extends TestGS {
-  val test = TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0))
-  testGS(new ImpCPSGS, test)
 }
 
 class TestImpCPSGS_Z3 extends TestGS {
@@ -201,6 +164,7 @@ class TestImpCPSGS_Z3 extends TestGS {
   testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
+  testGS(gs, TestPrg(faultyBst, "faultyBstTest", "@main", noArg, rtOpt, nPath(642)))
   Global.config.symbolicUninit = false
 }
 

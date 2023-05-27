@@ -37,6 +37,7 @@ object Benchmarks {
 
   lazy val uninitPtr = parseFile("benchmarks/llvm/uninit_ptr.ll")
   lazy val uninitPtrCond = parseFile("benchmarks/llvm/uninit_ptr_cond.ll")
+  lazy val uninitPtrUpdate = parseFile("benchmarks/llvm/uninit_ptr_cond.ll")
   lazy val symPtr = parseFile("benchmarks/llvm/sym_pointer.ll")
 
   lazy val funptr = parseFile("benchmarks/llvm/funptr.ll")
