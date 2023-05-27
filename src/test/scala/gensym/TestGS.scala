@@ -126,7 +126,7 @@ class TestImpGS extends TestGS {
 
 class TestImpCPSGS extends TestGS {
   val gs = new ImpCPSGS
-  // testGS(gs, TestCases.all ++ filesys ++ varArg)
+  testGS(gs, TestCases.all ++ filesys ++ varArg)
   // Note: compile-time switch merge is only implement for ImpCPS so far
   testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 
@@ -136,18 +136,18 @@ class TestImpCPSGS extends TestGS {
   testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
-  testGS(gs, TestPrg(faultyBst, "faultyBstTest", "@main", noArg, rtOpt, nPath(642)))
+  testGS(gs, TestPrg(faultyBst, "faultyBstTestSymUninit", "@main", noArg, rtOpt, nPath(642)))
   testGS(gs, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, rtOpt, nPath(2)))
 
-  testGS(gs, TestPrg(argv2Test, "argvConc", "@main", useArgv, "--thread=1 --argv=abcdef", nPath(1)++status(0)))
-  testGS(gs, TestPrg(argv2Test, "argvSym", "@main", useArgv, "--thread=1 --argv=abc#{3}def", nPath(4)++status(0)))
+  testGS(gs, TestPrg(argv2Test, "argvConcSymUninit", "@main", useArgv, s"$rtOpt --argv=abcdef", nPath(1)++status(0)))
+  testGS(gs, TestPrg(argv2Test, "argvSymSymUninit", "@main", useArgv, s"$rtOpt --argv=abc#{3}def", nPath(4)++status(0)))
   testGS(gs, TestPrg(
-    openSymTest, "openSymTest", "@main", noArg, "--thread=1 --add-sym-file A --add-sym-file B", nPath(3)++status(0))
+    openSymTest, "openSymTestSymUninit", "@main", noArg, s"$rtOpt --add-sym-file A --add-sym-file B", nPath(3)++status(0))
   )
 
-  testGS(gs, TestPrg(assumeTest, "assumeTest", "@main", noArg, rtOpt, nPath(1)++status(0)))
-  testGS(gs, TestPrg(flexAddr, "flexAddr", "@main", noArg, rtOpt, nPath(1)++status(0)))
-  testGS(gs, TestPrg(printfTest, "printfTest", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(assumeTest, "assumeTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(flexAddr, "flexAddrSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(printfTest, "printfTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
   Global.config.symbolicUninit = false
 }
 
@@ -164,7 +164,18 @@ class TestImpCPSGS_Z3 extends TestGS {
   testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
   testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
-  testGS(gs, TestPrg(faultyBst, "faultyBstTest", "@main", noArg, rtOpt, nPath(642)))
+  testGS(gs, TestPrg(faultyBst, "faultyBstTestSymUninit", "@main", noArg, rtOpt, nPath(642)))
+  testGS(gs, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, rtOpt, nPath(2)))
+
+  testGS(gs, TestPrg(argv2Test, "argvConcSymUninit", "@main", useArgv, s"$rtOpt --argv=abcdef", nPath(1)++status(0)))
+  testGS(gs, TestPrg(argv2Test, "argvSymSymUninit", "@main", useArgv, s"$rtOpt --argv=abc#{3}def", nPath(4)++status(0)))
+  testGS(gs, TestPrg(
+    openSymTest, "openSymTestSymUninit", "@main", noArg, s"$rtOpt --add-sym-file A --add-sym-file B", nPath(3)++status(0))
+  )
+
+  testGS(gs, TestPrg(assumeTest, "assumeTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(flexAddr, "flexAddrSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(printfTest, "printfTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
   Global.config.symbolicUninit = false
 }
 
