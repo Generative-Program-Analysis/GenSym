@@ -44,8 +44,8 @@ case class Store(op: StoreOp) extends Instr
 // case class VecLoadLane(op: VecLaneOp) extends Instr
 // case class VecStoreLane(op: VecLaneOp) extends Instr
 case object MemorySize extends Instr
-// case object MemoryGrow extends Instr
-// case object MemoryFill extends Instr
+case object MemoryGrow extends Instr
+case object MemoryFill extends Instr
 // case object MemoryCopy extends Instr
 // case class MemoryInit(seg: Int) extends Instr
 // case class DataDrop(seg: Int) extends Instr

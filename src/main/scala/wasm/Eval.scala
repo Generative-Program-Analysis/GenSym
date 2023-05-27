@@ -34,6 +34,7 @@ abstract class AdminInstr
 case class Plain(instr: Instr) extends AdminInstr
 case class Invoke(func: Int) extends AdminInstr
 case class Returning(stack: List[Value]) extends AdminInstr
+case class Trapping(msg: String) extends AdminInstr
 case class Breaking(n: Int, stack: List[Value]) extends AdminInstr
 case class FrameInstr(n: Int, frame: Frame, code: Code) extends AdminInstr
 case class Label(n: Int, instrs: List[Instr], code: Code) extends AdminInstr
@@ -134,6 +135,8 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
     }
   }
 
+  // def evalCvtOp(op: CvtOp, value: Value) = ???
+
   def step: Config = {
     val Code(stack, adminInstrs) = code
     // adminInstrs.head.value match {
@@ -189,6 +192,25 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         // Memory Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
         case MemorySize => (I32(frame.module.memory.head.size) :: stack, adminInstrs.tail)
+
+        // https://github.com/WebAssembly/spec/blob/main/interpreter/exec/eval.ml#L406
+        // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
+        case MemoryGrow => stack match {
+          case I32(delta) :: newStack => {
+            val pageSize = 65536 // https://www.w3.org/TR/wasm-core-2/exec/runtime.html#memory-instances
+            val oldSize = frame.module.memory.head.size
+            val newSize = oldSize + delta
+            if (newSize < oldSize /* TODO: module memory limits */) {
+              (I32(-1) :: newStack, adminInstrs.tail)
+            } else {
+              (I32(oldSize / pageSize) :: newStack, adminInstrs.tail)
+            }
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
+
+        case MemoryFill => ???
 
         // Numeric Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
@@ -281,6 +303,8 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
       // Administrative Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/runtime.html#administrative-instructions
 
+      case Trapping(msg) => throw new Exception(s"Trap: $msg")
+
       case Invoke(_) if stackBudget == 0 => {
         throw new Exception("Stack overflow")
       }
@@ -299,12 +323,14 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         (newStack, frameInstr :: adminInstrs.tail)
       }
 
-      // TODO: Trapping
       case FrameInstr(n, innerFrame, Code(frameStack, List())) =>
         (frameStack ++ stack, adminInstrs.tail)
 
       case FrameInstr(n, innerFrame, Code(frameStack, Returning(retStack) :: rest)) =>
         (retStack.take(n) ++ stack, adminInstrs.tail)
+
+      case Label(_, labelInstrs, Code(labelStack, trap@Trapping(_) :: rest)) =>
+        (stack, trap.asInstanceOf[AdminInstr] :: adminInstrs.tail)
 
       case FrameInstr(n, innerFrame, code) => {
         val frameConfig = Config(innerFrame, code, stackBudget - 1).step
@@ -314,8 +340,6 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
       case Label(_, _, Code(labelStack, List())) =>
         (labelStack ++ stack, adminInstrs.tail)
-
-      // TODO: trapping
 
       case Label(_, _, Code(_labelStack, Returning(retStack) :: rest)) => {
         val returning: AdminInstr = Returning(retStack)
@@ -332,6 +356,10 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         (stack, breaking :: adminInstrs.tail)
       }
 
+      case Label(_, labelInstrs, Code(labelStack, trap@Trapping(_) :: rest)) => {
+        (stack, trap.asInstanceOf[AdminInstr] :: adminInstrs.tail)
+      }
+
       case Label(n, instrs, labelCode) => {
         val labelConfig = this.copy(code = labelCode).step
         val label: AdminInstr = Label(n, instrs, labelConfig.code)
@@ -346,6 +374,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
   def eval: Config = this.code.adminInstrs match {
     case Nil => this
+    case Trapping(msg) :: _ => throw new Exception(s"Trap: $msg")
     case _ => this.step.eval
   }
 }
