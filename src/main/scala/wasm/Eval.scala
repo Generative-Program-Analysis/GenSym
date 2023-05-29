@@ -197,16 +197,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
         case MemoryGrow => stack match {
-          case I32(delta) :: newStack => {
-            val pageSize = 65536 // https://www.w3.org/TR/wasm-core-2/exec/runtime.html#memory-instances
-            val oldSize = frame.module.memory.head.size
-            val newSize = oldSize + delta
-            if (newSize < oldSize /* TODO: module memory limits */) {
-              (I32(-1) :: newStack, adminInstrs.tail)
-            } else {
-              (I32(oldSize / pageSize) :: newStack, adminInstrs.tail)
-            }
-          }
+          case I32(delta) :: newStack => ???
           case _ => throw new Exception("Invalid stack")
         }
 
