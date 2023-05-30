@@ -52,6 +52,21 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
       case (I64(v1), I64(v2)) => I64(v1 * v2)
       case _ => throw new Exception("Invalid types")
     }
+    case BinOp.Int(Sub) => (lhs, rhs) match {
+      case (I32(v1), I32(v2)) => I32(v1 - v2)
+      case (I64(v1), I64(v2)) => I64(v1 - v2)
+      case _ => throw new Exception("Invalid types")
+    }
+    case BinOp.Int(Shl) => (lhs, rhs) match {
+      case (I32(v1), I32(v2)) => I32(v1 << v2)
+      case (I64(v1), I64(v2)) => I64(v1 << v2)
+      case _ => throw new Exception("Invalid types")
+    }
+    case BinOp.Int(ShrU) => (lhs, rhs) match {
+      case (I32(v1), I32(v2)) => I32(v1 >>> v2)
+      case (I64(v1), I64(v2)) => I64(v1 >>> v2)
+      case _ => throw new Exception("Invalid types")
+    }
   }
 
   def evalUnaryOp(op: UnaryOp, value: Value) = op match {

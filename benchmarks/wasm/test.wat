@@ -57,6 +57,6 @@
     i32.add)
   (func $real_main (type 1) (result i32)
     i32.const 2
-    i32.const 2
-    call $ack)
+    i32.const 8
+    call $power)
   )
