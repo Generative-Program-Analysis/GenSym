@@ -137,6 +137,12 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
   // def evalCvtOp(op: CvtOp, value: Value) = ???
 
+  def memOob(frame: Frame, memoryIndex: Int, offset: Int, size: Int) = {
+    val memory = frame.module.memory(memoryIndex)
+    val end = offset + size
+    end > memory.size
+  }
+
   def step: Config = {
     val Code(stack, adminInstrs) = code
     // adminInstrs.head.value match {
@@ -197,11 +203,92 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
         case MemoryGrow => stack match {
-          case I32(delta) :: newStack => ???
+          case I32(delta) :: newStack => {
+            val mem = frame.module.memory.head
+            val oldSize = mem.size
+            try {
+              mem.grow(delta)
+              (I32(oldSize) :: newStack, adminInstrs.tail)
+            } catch {
+              case _: Throwable => (I32(-1) :: newStack, adminInstrs.tail)
+            }
+          }
           case _ => throw new Exception("Invalid stack")
         }
 
-        case MemoryFill => ???
+        case MemoryFill => stack match {
+          case I32(value) :: I32(offset) :: I32(size) :: newStack => {
+            val mem = frame.module.memory.head
+            if (memOob(frame, 0, offset, size)) {
+              val trap: AdminInstr = Trapping("Out of bounds memory access")
+              (newStack, trap :: adminInstrs.tail)
+            } else if (value == 0) {
+              (newStack, adminInstrs.tail)
+            } else {
+              // https://github.com/WebAssembly/spec/blob/2e8912e88a3118a46b90e8ccb659e24b4e8f3c23/interpreter/exec/eval.ml#L420
+              // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-fill
+              // There's probably a much faster way to do this
+              val newInstrs = {
+                Plain(Const(I32(value))) ::
+                Plain(Const(I32(offset))) ::
+                Plain(Store(StoreOp(0, offset, NumType(I32Type), Some(Pack8)))) ::
+                Plain(Const(I32(size + 1))) ::
+                Plain(Const(I32(offset))) ::
+                Plain(Const(I32(value - 1))) ::
+                MemoryFill.asInstanceOf[AdminInstr] ::
+                adminInstrs.tail
+              }
+              (newStack, newInstrs)
+            }
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
+
+        case MemoryCopy => stack match {
+          case I32(n) :: I32(src) :: I32(dest) :: newStack => {
+            if (memOob(frame, 0, src, n) || memOob(frame, 0, dest, n)) {
+              val trap: AdminInstr = Trapping("Out of bounds memory access")
+              (newStack, trap :: adminInstrs.tail)
+            } else if (n == 0) {
+              (newStack, adminInstrs.tail)
+            } else if (dest < src) {
+              val newInstrs = {
+                Plain(Const(I32(dest))) ::
+                Plain(Const(I32(src))) ::
+                Plain(Load(
+                  LoadOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8), extension = None)
+                )) ::
+                Plain(Store(
+                  StoreOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8))
+                )) ::
+                Plain(Const(I32(dest + 1))) ::
+                Plain(Const(I32(src + 1))) ::
+                Plain(Const(I32(n - 1))) ::
+                MemoryCopy.asInstanceOf[AdminInstr] ::
+                adminInstrs.tail
+              }
+              (newStack, newInstrs)
+              } else /* dest >= src */ {
+                val newInstrs = {
+                  Plain(Const(I32(dest + 1))) ::
+                  Plain(Const(I32(src + 1))) ::
+                  Plain(Const(I32(n - 1))) ::
+                  MemoryCopy.asInstanceOf[AdminInstr] ::
+                  Plain(Const(I32(dest))) ::
+                  Plain(Const(I32(src))) ::
+                  Plain(Load(
+                    LoadOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8), extension = Some(ZX))
+                  )) ::
+                  Plain(Store(
+                    StoreOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8))
+                  )) ::
+                  adminInstrs.tail
+                }
+                (newStack, newInstrs)
+              }
+          }
+          case _ => throw new Exception("Invalid stack")
+        }
 
         // Numeric Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions

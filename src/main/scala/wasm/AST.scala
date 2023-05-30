@@ -46,8 +46,8 @@ case class Store(op: StoreOp) extends Instr
 case object MemorySize extends Instr
 case object MemoryGrow extends Instr
 case object MemoryFill extends Instr
-// case object MemoryCopy extends Instr
-// case class MemoryInit(seg: Int) extends Instr
+case object MemoryCopy extends Instr
+case class MemoryInit(seg: Int) extends Instr
 // case class DataDrop(seg: Int) extends Instr
 // case class RefNull(ty: RefType) extends Instr
 // case class RefFunc(func: Int) extends Instr
@@ -141,6 +141,8 @@ case object Pack32 extends PackSize
 case object Pack64 extends PackSize
 
 abstract class Extension
+case object SX extends Extension
+case object ZX extends Extension
 
 abstract class MemOp(align: Int, offset: Int)
 case class StoreOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize]) extends MemOp(align, offset)
