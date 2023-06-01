@@ -233,27 +233,13 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
         case MemoryFill => stack match {
           case I32(value) :: I32(offset) :: I32(size) :: newStack => {
-            val mem = frame.module.memory.head
             if (memOob(frame, 0, offset, size)) {
               val trap: AdminInstr = Trapping("Out of bounds memory access")
               (newStack, trap :: adminInstrs.tail)
-            } else if (value == 0) {
-              (newStack, adminInstrs.tail)
             } else {
-              // https://github.com/WebAssembly/spec/blob/2e8912e88a3118a46b90e8ccb659e24b4e8f3c23/interpreter/exec/eval.ml#L420
-              // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-fill
-              // There's probably a much faster way to do this
-              val newInstrs = {
-                Plain(Const(I32(value))) ::
-                Plain(Const(I32(offset))) ::
-                Plain(Store(StoreOp(0, offset, NumType(I32Type), Some(Pack8)))) ::
-                Plain(Const(I32(size + 1))) ::
-                Plain(Const(I32(offset))) ::
-                Plain(Const(I32(value - 1))) ::
-                MemoryFill.asInstanceOf[AdminInstr] ::
-                adminInstrs.tail
-              }
-              (newStack, newInstrs)
+              val mem = frame.module.memory.head
+              mem.fill(offset, size, value.toByte)
+              (newStack, adminInstrs.tail)
             }
           }
           case _ => throw new Exception("Invalid stack")
@@ -264,43 +250,10 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
             if (memOob(frame, 0, src, n) || memOob(frame, 0, dest, n)) {
               val trap: AdminInstr = Trapping("Out of bounds memory access")
               (newStack, trap :: adminInstrs.tail)
-            } else if (n == 0) {
-              (newStack, adminInstrs.tail)
-            } else if (dest < src) {
-              val newInstrs = {
-                Plain(Const(I32(dest))) ::
-                Plain(Const(I32(src))) ::
-                Plain(Load(
-                  LoadOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8), extension = None)
-                )) ::
-                Plain(Store(
-                  StoreOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8))
-                )) ::
-                Plain(Const(I32(dest + 1))) ::
-                Plain(Const(I32(src + 1))) ::
-                Plain(Const(I32(n - 1))) ::
-                MemoryCopy.asInstanceOf[AdminInstr] ::
-                adminInstrs.tail
-              }
-              (newStack, newInstrs)
-              } else /* dest >= src */ {
-                val newInstrs = {
-                  Plain(Const(I32(dest + 1))) ::
-                  Plain(Const(I32(src + 1))) ::
-                  Plain(Const(I32(n - 1))) ::
-                  MemoryCopy.asInstanceOf[AdminInstr] ::
-                  Plain(Const(I32(dest))) ::
-                  Plain(Const(I32(src))) ::
-                  Plain(Load(
-                    LoadOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8), extension = Some(ZX))
-                  )) ::
-                  Plain(Store(
-                    StoreOp(tipe = NumType(I32Type), align = 0, offset = 0, pack_size = Some(Pack8))
-                  )) ::
-                  adminInstrs.tail
-                }
-                (newStack, newInstrs)
-              }
+            } else {
+              val mem = frame.module.memory.head
+              mem.copy(dest, src, n)
+            } 
           }
           case _ => throw new Exception("Invalid stack")
         }

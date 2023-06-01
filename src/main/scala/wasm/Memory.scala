@@ -55,6 +55,28 @@ case class Memory(var memType: MemoryType, data: ArrayBuffer[Byte]) {
   def storeInt(addr: Long, num: Int): Unit = {
     storen(addr, 0, 4, num)
   }
+
+  def fill(offset: Long, size: Long, value: Byte): Unit = {
+    // TODO: instead of using storeByte and loadByte, check
+    // bounds up front so we can avoid the checks in load/storeByte
+    for (i <- offset until offset + size) {
+      storeByte(i, value)
+    }
+  }
+
+  def copy(src: Long, dst: Long, size: Long): Unit = {
+    // TODO: instead of using storeByte and loadByte, check
+    // bounds up front so we can avoid the checks in load/storeByte
+    if (src < dst) {
+      for (i <- size - 1 to 0 by -1) {
+        storeByte(dst + i, loadByte(src + i))
+      }
+    } else {
+      for (i <- 0 until size) {
+        storeByte(dst + i, loadByte(src + i))
+      }
+    }
+  }
 }
 
 object Memory {
