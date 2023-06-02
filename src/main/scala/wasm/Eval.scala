@@ -1,11 +1,9 @@
 package gensym.wasm.eval
 
 import gensym.wasm.ast._
-import gensym.wasm.types._
 import gensym.wasm.values._
 import gensym.wasm.source._
 import gensym.wasm.memory._
-import gensym.wasm.globals._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -41,7 +39,7 @@ case class Label(n: Int, instrs: List[Instr], code: Code) extends AdminInstr
 
 case class Code(stack: List[Value], adminInstrs: List[AdminInstr])
 case class Config(var frame: Frame, code: Code, stackBudget: Int) {
-  def evalBinOp(op: BinOp, lhs: Value, rhs: Value) = op match {
+  def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case BinOp.Int(Add) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(v1 + v2)
       case (I64(v1), I64(v2)) => I64(v1 + v2)

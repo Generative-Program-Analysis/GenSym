@@ -1,5 +1,6 @@
 package gensym.wasm.values
 
+import gensym.wasm.ast._
 import gensym.wasm.types._
 
 abstract class Value {

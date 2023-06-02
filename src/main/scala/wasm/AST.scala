@@ -1,16 +1,18 @@
 package gensym.wasm.ast
 
-import gensym.wasm.types._
+import gensym.wasm.eval.ModuleInstance
 import gensym.wasm.values._
 import gensym.wasm.source._
 
-case class Module(definitions: Seq[Definition])
-abstract class Definition
+abstract class WIR
 
+case class Module(definitions: Seq[Definition]) extends WIR
+ 
+abstract class Definition extends WIR
 case class FuncDef(name: String, tipe: FuncType, locals: Seq[ValueType], body: Seq[Instr]) extends Definition
 case class TypeDef(id: Int, tipe: ValueType) extends Definition
 
-abstract class Instr
+abstract class Instr extends WIR
 case object Unreachable extends Instr
 case object Nop extends Instr
 case object Drop extends Instr
@@ -74,7 +76,8 @@ case class Binary(op: BinOp) extends Instr
 // case class VecExtract(op: VecExtractOp) extends Instr
 // case class VecReplace(op: VecReplaceOp) extends Instr
 
-abstract class IntOp
+abstract class IntOp extends WIR
+
 abstract class UnaryIntOp extends IntOp
 abstract class BinaryIntOp extends IntOp
 abstract class RelIntOp extends IntOp
@@ -111,39 +114,81 @@ case object GeS extends RelIntOp
 case object GtU extends RelIntOp
 case object GeU extends RelIntOp
 
-abstract class IntTestOp
+abstract class IntTestOp extends WIR
 case object Eqz extends IntTestOp
 
-abstract class BinOp
+abstract class BinOp extends WIR
 object BinOp {
   case class Int(op: BinaryIntOp) extends BinOp
 }
 
-abstract class TestOp
+abstract class TestOp extends WIR
 object TestOp {
   case class Int(op: IntTestOp) extends TestOp
 }
 
-abstract class RelOp
+abstract class RelOp extends WIR
 object RelOp {
   case class Int(op: RelIntOp) extends RelOp
 }
 
-abstract class UnaryOp
+abstract class UnaryOp extends WIR
 object UnaryOp {
   case class Int(op: UnaryIntOp) extends UnaryOp
 }
 
-abstract class PackSize
+abstract class PackSize extends WIR
 case object Pack8 extends PackSize
 case object Pack16 extends PackSize
 case object Pack32 extends PackSize
 case object Pack64 extends PackSize
 
-abstract class Extension
+abstract class Extension extends WIR
 case object SX extends Extension
 case object ZX extends Extension
 
-abstract class MemOp(align: Int, offset: Int)
+abstract class MemOp(align: Int, offset: Int) extends WIR
 case class StoreOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize]) extends MemOp(align, offset)
 case class LoadOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize], extension: Option[Extension]) extends MemOp(align, offset)
+
+// Types
+
+abstract class NumKind extends WIR
+case object I32Type extends NumKind
+case object I64Type extends NumKind
+case object F32Type extends NumKind
+case object F64Type extends NumKind
+
+abstract class VecKind extends WIR
+case object V128Type extends VecKind
+
+abstract class RefKind extends WIR
+case object FuncRefType extends RefKind
+case object ExternRefType extends RefKind
+
+abstract class ValueType extends WIR
+case class NumType(kind: NumKind) extends ValueType
+case class VecType(kind: VecKind) extends ValueType
+case class RefType(kind: RefKind) extends ValueType
+
+case class FuncType(inps: Seq[ValueType], out: Seq[ValueType]) extends ValueType
+
+abstract class BlockType extends WIR {
+  def toFuncType(moduleInst: ModuleInstance): FuncType
+}
+
+case class VarBlockType(vR: Int) extends BlockType {
+  def toFuncType(moduleInst: ModuleInstance): FuncType = ???
+}
+
+case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
+  def toFuncType(moduleInst: ModuleInstance): FuncType = tipe match {
+    case Some(t) => FuncType(Seq(), Seq(t))
+    case None => FuncType(Seq(), Seq())
+  }
+}
+
+// Globals
+
+case class GlobalType(valueType: ValueType, mutable: Boolean)
+case class Global(tipe: GlobalType, var value: Value)

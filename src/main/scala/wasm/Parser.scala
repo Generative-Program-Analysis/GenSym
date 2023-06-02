@@ -153,7 +153,13 @@ class Parser extends RegexParsers {
 }
 
 class GSWasmVisitor extends WatParserBaseVisitor[Any] {
-  // TODO
+  override def visitModule(ctx: WatParser.ModuleContext): WIR = {
+    ???
+  }
+
+  override def visitModule_(ctx: WatParser.Module_Context): WIR = {
+    ???
+  }
 }
 
 object Parser extends Parser {
