@@ -10,6 +10,12 @@ import scala.util.parsing.input.Positional
 import scala.util.matching.Regex
 import scala.language.postfixOps
 
+import scala.annotation.tailrec
+import org.antlr.v4.runtime._
+import scala.collection.JavaConverters._
+
+import gensym.wasm._
+
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
 
@@ -146,7 +152,12 @@ class Parser extends RegexParsers {
   }
 }
 
+class GSWasmVisitor extends WatParserBaseVisitor[Any] {
+  // TODO
+}
+
 object Parser extends Parser {
+  // TODO: replace this one
   def parseString(code: String): Module = {
     parseAll(module, code) match {
       case Success(result, _) =>
@@ -156,5 +167,24 @@ object Parser extends Parser {
       case Error(msg,_) =>
         throw new Exception(s"ERROR: $msg")
     }
+  }
+
+  def parse(input: String): Module = {
+    val charStream = new ANTLRInputStream(input)
+    val lexer = new WatLexer(charStream)
+    val tokens = new CommonTokenStream(lexer)
+    val parser = new WatParser(tokens)
+
+    //val visitor = new MyVisitor()
+    //val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
+    //res
+    ???
+  }
+
+  def parseFile(filepath: String): Module = {
+    val input = scala.io.Source.fromFile(filepath).mkString
+    val m = parse(input)
+    //m.mname = filepath.substring(filepath.lastIndexOf("/") + 1)
+    m
   }
 }
