@@ -164,7 +164,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
     //   case Plain(instr) => println(stack, instr)
     //   case _ => println(stack)
     // }
-    val (newStack, newInstrs) = adminInstrs.head match {
+    val (newStack, newInstrs): (List[Value], List[AdminInstr])  = adminInstrs.head match {
       case Plain(instr) => instr match {
         // Parametric Instructions
         case Drop => stack match {
@@ -253,7 +253,8 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
             } else {
               val mem = frame.module.memory.head
               mem.copy(dest, src, n)
-            } 
+              ??? // FIXME
+            }
           }
           case _ => throw new Exception("Invalid stack")
         }

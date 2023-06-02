@@ -72,7 +72,7 @@ case class Memory(var memType: MemoryType, data: ArrayBuffer[Byte]) {
         storeByte(dst + i, loadByte(src + i))
       }
     } else {
-      for (i <- 0 until size) {
+      for (i <- 0 until size.toInt) {
         storeByte(dst + i, loadByte(src + i))
       }
     }
