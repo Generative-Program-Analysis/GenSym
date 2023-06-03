@@ -27,8 +27,7 @@ object SimpleTest extends App {
   }
 
   def fileTest() = {
-    val code = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
-    val module = Parser.parseString(code)
+    val module = Parser.parseFile("./benchmarks/wasm/test.wat")
     println(module)
 
     val instrs = module.definitions.find({
@@ -56,7 +55,7 @@ object SimpleTest extends App {
     println(config.eval.code.stack)
   }
 
-  basicTest()
-  println("====")
+  //basicTest()
+  //println("====")
   fileTest()
 }

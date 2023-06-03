@@ -2,7 +2,6 @@ package gensym.wasm.parser
 
 import gensym.wasm.ast._
 import gensym.wasm.source._
-import gensym.wasm.types._
 import gensym.wasm.values._
 
 import scala.util.parsing.combinator._
@@ -16,9 +15,7 @@ import scala.collection.JavaConverters._
 
 import gensym.wasm._
 
-trait Unresolved
-case class CallUnresolved(name: String) extends Instr with Unresolved
-
+/*
 class Parser extends RegexParsers {
   override def skipWhitespace = true
   // override val whiteSpace: Regex = "(\\s|.*|\\(.*\\))+".r
@@ -150,47 +147,40 @@ class Parser extends RegexParsers {
       }
       )
   }
+ }
+ */
+
+class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
+  import WatParser._
+  def error = throw new RuntimeException("Unspported")
+
+  override def visitModule(ctx: ModuleContext): WIR = {
+    if (ctx.module_() != null) return visit(ctx.module_())
+    Module(None, ctx.moduleField.asScala.map(visitModuleField(_)).asInstanceOf[Seq[Definition]])
+  }
+
+  override def visitModule_(ctx: Module_Context): WIR = {
+    val name = if (ctx.VAR() != null) Some(ctx.VAR().getText) else None
+    Module(name, ctx.moduleField.asScala.map(visitModuleField(_)).asInstanceOf[Seq[Definition]])
+  }
+
+  override def visitModuleField(ctx: ModuleFieldContext): WIR = {
+    visitChildren(ctx)
+  }
+
+  override def visitTypeDef(ctx: TypeDefContext): WIR = ???
 }
 
-class GSWasmVisitor extends WatParserBaseVisitor[Any] {
-  override def visitModule(ctx: WatParser.ModuleContext): WIR = {
-    ???
-  }
-
-  override def visitModule_(ctx: WatParser.Module_Context): WIR = {
-    ???
-  }
-}
-
-object Parser extends Parser {
-  // TODO: replace this one
-  def parseString(code: String): Module = {
-    parseAll(module, code) match {
-      case Success(result, _) =>
-        result
-      case Failure(msg,_) =>
-        throw new Exception(s"FAILURE: $msg")
-      case Error(msg,_) =>
-        throw new Exception(s"ERROR: $msg")
-    }
-  }
-
+object Parser {
   def parse(input: String): Module = {
     val charStream = new ANTLRInputStream(input)
     val lexer = new WatLexer(charStream)
     val tokens = new CommonTokenStream(lexer)
     val parser = new WatParser(tokens)
-
-    //val visitor = new MyVisitor()
-    //val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    //res
-    ???
+    val visitor = new GSWasmVisitor()
+    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
+    res
   }
 
-  def parseFile(filepath: String): Module = {
-    val input = scala.io.Source.fromFile(filepath).mkString
-    val m = parse(input)
-    //m.mname = filepath.substring(filepath.lastIndexOf("/") + 1)
-    m
-  }
+  def parseFile(filepath: String): Module = parse(scala.io.Source.fromFile(filepath).mkString)
 }

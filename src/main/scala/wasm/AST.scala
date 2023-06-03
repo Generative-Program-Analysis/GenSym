@@ -6,7 +6,7 @@ import gensym.wasm.source._
 
 abstract class WIR
 
-case class Module(definitions: Seq[Definition]) extends WIR
+case class Module(name: Option[String], definitions: Seq[Definition]) extends WIR
  
 abstract class Definition extends WIR
 case class FuncDef(name: String, tipe: FuncType, locals: Seq[ValueType], body: Seq[Instr]) extends Definition
@@ -75,6 +75,9 @@ case class Binary(op: BinOp) extends Instr
 // case class VecSplat(op: VecSplatOp) extends Instr
 // case class VecExtract(op: VecExtractOp) extends Instr
 // case class VecReplace(op: VecReplaceOp) extends Instr
+
+trait Unresolved
+case class CallUnresolved(name: String) extends Instr with Unresolved
 
 abstract class IntOp extends WIR
 

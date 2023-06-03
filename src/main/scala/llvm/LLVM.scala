@@ -454,7 +454,7 @@ package IR {
 
 import IR._
 class GSLLVMVisitor extends LLVMParserBaseVisitor[LAST] {
-  def error = ???
+  def error = throw new Exception("Parsing error")
 
   override def visitModule(ctx: LLVMParser.ModuleContext): LAST = {
     val es = visit(ctx.topLevelEntities).asInstanceOf[TopLevelEntityList].es
