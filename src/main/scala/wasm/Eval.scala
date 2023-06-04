@@ -253,7 +253,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
             } else {
               val mem = frame.module.memory.head
               mem.copy(dest, src, n)
-              ??? // FIXME
+              (newStack, adminInstrs.tail)
             }
           }
           case _ => throw new Exception("Invalid stack")
