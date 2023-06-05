@@ -9,8 +9,14 @@ abstract class WIR
 case class Module(name: Option[String], definitions: Seq[Definition]) extends WIR
  
 abstract class Definition extends WIR
-case class FuncDef(name: String, tipe: FuncType, locals: Seq[ValueType], body: Seq[Instr]) extends Definition
-case class TypeDef(id: Int, tipe: ValueType) extends Definition
+case class FuncDef(name: Option[String], f: FuncField) extends Definition
+case class TypeDef(id: Option[String], tipe: ValueType) extends Definition
+// TODO: missing top-level module fields, see WatParser.g4
+
+abstract class FuncField extends WIR
+case class FuncBodyDef(tipe: FuncType, locals: Seq[ValueType], body: Seq[Instr]) extends FuncField
+case class InlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*TODO*/) extends FuncField
+case class InlineExport(fd: Seq[FuncDef]) extends FuncField
 
 abstract class Instr extends WIR
 case object Unreachable extends Instr
@@ -173,7 +179,6 @@ abstract class ValueType extends WIR
 case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
 case class RefType(kind: RefKind) extends ValueType
-
 case class FuncType(inps: Seq[ValueType], out: Seq[ValueType]) extends ValueType
 
 abstract class BlockType extends WIR {

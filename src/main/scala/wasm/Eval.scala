@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 
 case class ModuleInstance(
   types: List[FuncType],
-  funcs: List[FuncDef],
+  funcs: List[FuncBodyDef],
   memory: List[Memory],
   globals: List[Global],
   // data: List[DataInstance]
@@ -20,7 +20,7 @@ case class ModuleInstance(
   // elem: List[ElemInstance],
 )
 object ModuleInstance {
-  def apply(types: List[FuncType], funcs: List[FuncDef]): ModuleInstance = {
+  def apply(types: List[FuncType], funcs: List[FuncBodyDef]): ModuleInstance = {
     ModuleInstance(types, funcs, List(Memory()), List())
   }
 }
@@ -355,7 +355,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
       }
 
       case Invoke(func) => {
-        val FuncDef(_, tipe, fnLocals, body) = frame.module.funcs(func)
+        val FuncBodyDef(tipe, fnLocals, body) = frame.module.funcs(func)
         val args = stack.take(tipe.inps.length).reverse
         val newStack = stack.drop(tipe.inps.length)
 

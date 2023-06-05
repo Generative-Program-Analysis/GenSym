@@ -89,6 +89,18 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterFuncParamType(WatParser.FuncParamTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFuncParamType(WatParser.FuncParamTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterFuncType(WatParser.FuncTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -413,30 +425,6 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFuncFieldsImport(WatParser.FuncFieldsImportContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFuncFieldsImport(WatParser.FuncFieldsImportContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterFuncFieldsImportResult(WatParser.FuncFieldsImportResultContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFuncFieldsImportResult(WatParser.FuncFieldsImportResultContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
 	@Override public void enterFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -449,13 +437,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFuncResultBody(WatParser.FuncResultBodyContext ctx) { }
+	@Override public void enterFuncLocalParam(WatParser.FuncLocalParamContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitFuncResultBody(WatParser.FuncResultBodyContext ctx) { }
+	@Override public void exitFuncLocalParam(WatParser.FuncLocalParamContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

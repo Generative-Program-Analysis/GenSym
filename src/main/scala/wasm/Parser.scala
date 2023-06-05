@@ -154,6 +154,16 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   import WatParser._
   def error = throw new RuntimeException("Unspported")
 
+  def getVar(ctx: BindVarContext): Option[String] =
+    if (ctx != null) Some(ctx.VAR().getText) else None
+
+  def getVar(ctx: TypeUseContext): Option[String] = {
+    if (ctx == null) return None
+    val varCtx = ctx.var_()
+    if (varCtx.VAR() != null) Some(varCtx.VAR().getText)
+    else Some(varCtx.NAT().getText.toString)
+  }
+
   override def visitModule(ctx: ModuleContext): WIR = {
     if (ctx.module_() != null) return visit(ctx.module_())
     Module(None, ctx.moduleField.asScala.map(visitModuleField(_)).asInstanceOf[Seq[Definition]])
@@ -168,7 +178,34 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     visitChildren(ctx)
   }
 
-  override def visitTypeDef(ctx: TypeDefContext): WIR = ???
+  override def visitFuncType(ctx: FuncTypeContext): WIR = {
+    ???
+  }
+
+  override def visitTypeDef(ctx: TypeDefContext): WIR = {
+    TypeDef(getVar(ctx.bindVar()), visit(ctx.type_()).asInstanceOf[ValueType])
+  }
+
+  override def visitFunc_(ctx: Func_Context): WIR = {
+    val name = getVar(ctx.bindVar())
+    FuncDef(name, visit(ctx.funcFields).asInstanceOf[FuncField])
+  }
+
+  override def visitFuncFieldsBody(ctx: FuncFieldsBodyContext): WIR = {
+    ???
+  }
+
+  override def visitFuncFields(ctx: FuncFieldsContext): WIR = {
+    if (ctx.funcFieldsBody() != null) {
+      val typeUse = getVar(ctx.typeUse)
+      // TODO: typeUse is not current used
+      visit(ctx.funcFieldsBody)
+    } else if (ctx.inlineImport() != null) {
+      ???
+    } else if (ctx.inlineExport() != null) {
+      ???
+    } else error
+  }
 }
 
 object Parser {

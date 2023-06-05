@@ -47,6 +47,12 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitDefType(WatParser.DefTypeContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link WatParser#funcParamType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFuncParamType(WatParser.FuncParamTypeContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link WatParser#funcType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -209,29 +215,17 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitFuncFields(WatParser.FuncFieldsContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#funcFieldsImport}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFuncFieldsImport(WatParser.FuncFieldsImportContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#funcFieldsImportResult}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFuncFieldsImportResult(WatParser.FuncFieldsImportResultContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link WatParser#funcFieldsBody}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#funcResultBody}.
+	 * Visit a parse tree produced by {@link WatParser#funcLocalParam}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitFuncResultBody(WatParser.FuncResultBodyContext ctx);
+	T visitFuncLocalParam(WatParser.FuncLocalParamContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#funcBody}.
 	 * @param ctx the parse tree

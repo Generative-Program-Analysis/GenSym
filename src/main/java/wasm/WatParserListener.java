@@ -68,6 +68,16 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitDefType(WatParser.DefTypeContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#funcParamType}.
+	 * @param ctx the parse tree
+	 */
+	void enterFuncParamType(WatParser.FuncParamTypeContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#funcParamType}.
+	 * @param ctx the parse tree
+	 */
+	void exitFuncParamType(WatParser.FuncParamTypeContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#funcType}.
 	 * @param ctx the parse tree
 	 */
@@ -338,26 +348,6 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitFuncFields(WatParser.FuncFieldsContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#funcFieldsImport}.
-	 * @param ctx the parse tree
-	 */
-	void enterFuncFieldsImport(WatParser.FuncFieldsImportContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#funcFieldsImport}.
-	 * @param ctx the parse tree
-	 */
-	void exitFuncFieldsImport(WatParser.FuncFieldsImportContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#funcFieldsImportResult}.
-	 * @param ctx the parse tree
-	 */
-	void enterFuncFieldsImportResult(WatParser.FuncFieldsImportResultContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#funcFieldsImportResult}.
-	 * @param ctx the parse tree
-	 */
-	void exitFuncFieldsImportResult(WatParser.FuncFieldsImportResultContext ctx);
-	/**
 	 * Enter a parse tree produced by {@link WatParser#funcFieldsBody}.
 	 * @param ctx the parse tree
 	 */
@@ -368,15 +358,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#funcResultBody}.
+	 * Enter a parse tree produced by {@link WatParser#funcLocalParam}.
 	 * @param ctx the parse tree
 	 */
-	void enterFuncResultBody(WatParser.FuncResultBodyContext ctx);
+	void enterFuncLocalParam(WatParser.FuncLocalParamContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#funcResultBody}.
+	 * Exit a parse tree produced by {@link WatParser#funcLocalParam}.
 	 * @param ctx the parse tree
 	 */
-	void exitFuncResultBody(WatParser.FuncResultBodyContext ctx);
+	void exitFuncLocalParam(WatParser.FuncLocalParamContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#funcBody}.
 	 * @param ctx the parse tree
