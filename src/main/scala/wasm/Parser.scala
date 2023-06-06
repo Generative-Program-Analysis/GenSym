@@ -152,6 +152,9 @@ class Parser extends RegexParsers {
 
 class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   import WatParser._
+
+  /* Some helper functions */
+
   def error = throw new RuntimeException("Unspported")
 
   def getVar(ctx: BindVarContext): Option[String] =
@@ -164,6 +167,20 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   def getVar(ctx: Var_Context): String =
     if (ctx.VAR() != null) ctx.VAR().getText
     else ctx.NAT().getText.toString
+
+  def visitMemSize(n: String): PackSize = n match {
+    case "8" => Pack8
+    case "16" => Pack16
+    case "32" => Pack32
+    case "64" => Pack64
+  }
+
+  def visitSignExt(n: String): Extension = n match {
+    case "u" => ZX
+    case "s" => SX
+  }
+
+  /* Overriding visitors */
 
   override def visitModule(ctx: ModuleContext): WIR = {
     if (ctx.module_() != null) return visit(ctx.module_())
@@ -188,8 +205,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
   }
 
-  override def visitValType(ctx: ValTypeContext): ValueType = {
-    ???
+  override def visitVecType(ctx: VecTypeContext): VecType = VecType(V128Type)
+
+  override def visitRefType(ctx: RefTypeContext): RefType = {
+    if (ctx.FUNCREF != null) RefType(FuncRefType)
+    else if (ctx.EXTERNREF != null) RefType(ExternRefType)
+    else error
   }
 
   override def visitFuncParamType(ctx: FuncParamTypeContext): WIR = {
@@ -219,18 +240,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   override def visitFunction(ctx: FunctionContext): WIR = {
     val name = getVar(ctx.bindVar())
     FuncDef(name, visit(ctx.funcFields).asInstanceOf[FuncField])
-  }
-
-  def visitMemSize(n: String): PackSize = n match {
-    case "8" => Pack8
-    case "16" => Pack16
-    case "32" => Pack32
-    case "64" => Pack64
-  }
-
-  def visitSignExt(n: String): Extension = n match {
-    case "u" => ZX
-    case "s" => SX
   }
 
   override def visitPlainInstr(ctx: PlainInstrContext): WIR = {
@@ -318,7 +327,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
     val types = ctx.valType().asScala.map(visitValType(_)).toSeq
     val FuncBodyDef(_, _, _, instrs) = visit(ctx.instrList())
-    FuncBodyDef(null, names, types, instrs)
+    FuncBodyDef(null, names, types.asInstanceOf[Seq[ValueType]], instrs)
   }
 
   override def visitFuncFieldsBody(ctx: FuncFieldsBodyContext): WIR = {
