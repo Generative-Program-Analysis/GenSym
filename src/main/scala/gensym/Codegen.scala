@@ -174,7 +174,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
       es"make_FloatV_fp80($litRep)"
     case Node(s, "make_FloatV", List(f, bw), _) => es"make_FloatV($f, $bw)"
     case Node(s, "get-bw", List(v), _) => es"$v->get_bw()"
-    case Node(s, "ptroff", List(v, o), _) => es"($v + ($o))"
+    case Node(s, "ptroff", List(v, o), _) => es"ptr_add($v, $o)"
 
     case Node(s, "cov-set-blocknum", List(n), _) => es"cov().set_num_blocks($n)"
     case Node(s, "cov-inc-block", List(id), _) => es"cov().inc_block($id)"
@@ -240,13 +240,13 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
       emitln("using namespace immer;")
       emitFunctionDecls(stream)
       emitDatastructures(stream)
-      if (Config.emitVarIdMap) {
+      if (Global.config.emitVarIdMap) {
         emitln(s"""
         |/* variable-id map:
         |${Counter.variable.toString}
         |*/""".stripMargin)
       }
-      if (Config.emitBlockIdMap) {
+      if (Global.config.emitBlockIdMap) {
         emitln(s"""
         |/* block-id map:
         |${Counter.block.toString}

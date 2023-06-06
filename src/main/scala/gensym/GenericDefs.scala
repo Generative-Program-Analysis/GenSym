@@ -84,7 +84,7 @@ trait Coverage { self: SAIOps =>
       "cov-inc-br".reflectWriteWith[Unit](Counter.block.get(ctx.toString), n)(Adapter.CTRL)
 
     def incPath(n: Rep[Int]): Rep[Unit] = "cov-inc-path".reflectWriteWith[Unit](n)(Adapter.CTRL)
-    def incInst(n: Int): Rep[Unit] = if (Config.recordInstNum) "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL) else ()
+    def incInst(n: Int): Rep[Unit] = if (Global.config.recordInstNum) "cov-inc-inst".reflectWriteWith[Unit](n)(Adapter.CTRL) else ()
     def startMonitor: Rep[Unit] = "cov-start-mon".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printBlockCov: Rep[Unit] = "print-block-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
     def printPathCov: Rep[Unit] = "print-path-cov".reflectWriteWith[Unit]()(Adapter.CTRL)
@@ -134,7 +134,7 @@ trait Opaques { self: SAIOps with BasicDefs =>
       "lseek64", "lstat", "fstat", "statfs", "ioctl", "fcntl"
     )
     private val unsafeExternals = StaticSet[String]("fork", "exec", "error", "raise", "kill", "free", "vprintf")
-    
+
     // functions in `prepared` are considered prepared externally - provided by a precompiled library
     // function call will be generated without the definition of callee
     private val prepared = MutableMap[String, String]()  // native name -> mangled name
@@ -339,7 +339,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     def applyNoOpt(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
       "int_op_2".reflectWith[Value](op, o1, o2)
     def apply(op: String, o1: Rep[Value], o2: Rep[Value]): Rep[Value] =
-      if (!Config.opt) applyNoOpt(op, o1, o2)
+      if (!Global.config.opt) applyNoOpt(op, o1, o2)
       else op match {
         case "neq" => neq(o1, o2)
         case "eq" => eq(o1, o2)
@@ -394,23 +394,23 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
   implicit class ValueOps(v: Rep[Value]) {
     def bw: Rep[Int] = v match {
-      case IntV(n, bw) if Config.opt => bw
-      case LocV(a, k, size, off) if Config.opt => unit(DEFAULT_ADDR_BW)
-      case SymLocV(a, k, size, off) if Config.opt => unit(DEFAULT_ADDR_BW)
+      case IntV(n, bw) if Global.config.opt => bw
+      case LocV(a, k, size, off) if Global.config.opt => unit(DEFAULT_ADDR_BW)
+      case SymLocV(a, k, size, off) if Global.config.opt => unit(DEFAULT_ADDR_BW)
       case _ => "get-bw".reflectWith[Int](v)
     }
     def loc: Rep[Addr] = v match {
-      case LocV(a, k, size, off) if Config.opt => a
+      case LocV(a, k, size, off) if Global.config.opt => a
       // Todo: should we add here for symlocv
       case _ => "proj_LocV".reflectWith[Addr](v)
     }
     def kind: Rep[LocV.Kind] = v match {
-      case LocV(a, k, size, off) if Config.opt => k
-      case SymLocV(a, k, size, off) if Config.opt => k
+      case LocV(a, k, size, off) if Global.config.opt => k
+      case SymLocV(a, k, size, off) if Global.config.opt => k
       case _ => "proj_LocV_kind".reflectWith[LocV.Kind](v)
     }
     def int: Rep[Long] = v match {
-      case IntV(n, bw) if Config.opt => unit(n)
+      case IntV(n, bw) if Global.config.opt => unit(n)
       case _ => "proj_IntV".reflectWith[Long](v)
     }
     def float: Rep[Float] = "proj_FloatV".reflectWith[Float](v)
@@ -424,7 +424,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]])(implicit m: Manifest[W[SS]]): Rep[List[(SS, Value)]] =
       v match {
-        case ExternalFun("noop", ty) if Config.opt => List((s.asRepOf[SS], defaultRetVal(ty)))
+        case ExternalFun("noop", ty) if Global.config.opt => List((s.asRepOf[SS], defaultRetVal(ty)))
         case ExternalFun(f, ty) => f.reflectWith[List[(SS, Value)]](s, args)
         case FunV(f) => f(s, args)
         case _ => "direct_apply".reflectWith[List[(SS, Value)]](v, s, args)
@@ -434,7 +434,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     // W[_] is parameterized over pass-by-value (Id) or pass-by-ref (Ref) of SS
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: Rep[PCont[W]])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
-        case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
+        case ExternalFun("noop", ty) if Global.config.opt => k(s, defaultRetVal(ty))
         case ExternalFun(f, ty) => f.reflectWith[Unit](s, args, k)
         case CPSFunV(f) => f(s, args, k)                       // direct call
         case _ => "cps_apply".reflectWith[Unit](v, s, args, k) // indirect call
@@ -442,7 +442,7 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
 
     def apply[W[_]](s: Rep[W[SS]], args: Rep[List[Value]], k: ContOpt[W])(implicit m: Manifest[W[SS]]): Rep[Unit] =
       v match {
-        case ExternalFun("noop", ty) if Config.opt => k(s, defaultRetVal(ty))
+        case ExternalFun("noop", ty) if Global.config.opt => k(s, defaultRetVal(ty))
         case ExternalFun(f, ty) if ExternalFun.isDeterministic(f) && !usingPureEngine =>
           // Be careful: since the state is not passed/returned, with the imperative backend it means
           // the state must be passed by reference to f_det! Currently not all deterministic functions
@@ -483,8 +483,8 @@ trait ValueDefs { self: SAIOps with BasicDefs with Opaques =>
     }
 
     def isConc: Rep[Boolean] = v match {
-      case MustConc() if Config.opt => unit(true)
-      case MustSym() if Config.opt => unit(false)
+      case MustConc() if Global.config.opt => unit(true)
+      case MustSym() if Global.config.opt => unit(false)
       case _ => "is-conc".reflectWith[Boolean](v)
     }
 

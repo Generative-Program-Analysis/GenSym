@@ -154,11 +154,11 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
       }
 
     override def lookup(x: String)(implicit ctx: Ctx): Rep[Value] =
-      if (Config.opt) lookupOpt(varId(x), Unwrap(ss), super.lookup(x), 30)
+      if (Global.config.opt) lookupOpt(varId(x), Unwrap(ss), super.lookup(x), 30)
       else super.lookup(x)
 
     override def stackSize: Rep[Int] =
-      if (Config.opt) {
+      if (Global.config.opt) {
         Unwrap(ss) match {
           case gNode("ss-alloc-stack", StaticList(ss0: bExp, bConst(inc: Int))) => Wrap[SS](ss0).stackSize + inc
           case gNode("ss-assign", StaticList(ss0: bExp, _, _)) => Wrap[SS](ss0).stackSize

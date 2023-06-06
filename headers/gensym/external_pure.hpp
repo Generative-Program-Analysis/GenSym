@@ -239,7 +239,7 @@ inline T __calloc(SS& state, List<PtrVal>& args, __Cont<T> k) {
   IntData nmemb = proj_IntV(args.at(0));
   IntData size = proj_IntV(args.at(1));
   ASSERT(size > 0 && nmemb > 0, "Invalid nmemb and size");
-  auto emptyMem = List<PtrVal>(nmemb * size, make_UnInitV());
+  auto emptyMem = List<PtrVal>(nmemb * size, make_IntV(0, 8));
 
   PtrVal memLoc = make_LocV(state.heap_size(), LocV::kHeap, nmemb * size);
   if (exlib_failure_branch)
@@ -362,8 +362,17 @@ inline SS copy_native2state(SS state, PtrVal ptr, char* buf, int size) {
       ASSERT(bytes_num > 0, "Invalid bytes");
       // All bytes must be concrete IntV
       if (std::dynamic_pointer_cast<SymV>(old_val)) {
-        // Todo: should we overwrite symbolic variables?
-        i = i + bytes_num;
+        #ifdef GENSYM_SYMBOLIC_UNINIT
+            // add constraint on symbolic variable to be equal to concrete
+            for (int j = 0; j < bytes_num; j++) {
+              auto eq_constraint = int_op_2(iOP::op_eq, state.at_simpl(ptr + i), make_IntV(buf[i], 8));
+              res = res.add_PC(eq_constraint);
+              i++;
+              if (i >= size) break;
+            }
+        #else
+            i += bytes_num;
+        #endif
       } else {
         for (int j = 0; j < bytes_num; j++) {
           res = res.update_simpl(ptr + i, make_IntV(buf[i], 8));

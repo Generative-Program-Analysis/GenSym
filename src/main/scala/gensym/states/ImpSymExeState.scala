@@ -9,7 +9,7 @@ import lms.core.stub.{While => _, _}
 import gensym.lmsx._
 import gensym.llvm._
 import gensym.llvm.IR._
-import gensym.{Constants, BasicDefs, Coverage, Opaques, ValueDefs, Counter, Ctx, Config}
+import gensym.{Constants, BasicDefs, Coverage, Opaques, ValueDefs, Counter, Ctx, Config, Global}
 
 import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}

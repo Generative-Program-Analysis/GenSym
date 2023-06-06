@@ -199,7 +199,7 @@ trait PureCPSGSEngine extends SymExeDefs with EngineBase {
         val incsLabels: List[BlockLabel] = incs.map(i => Counter.block.get(ctx.withBlock(i.label)))
         val vs = incsValues.map(v => () => eval(v, ty, ss))
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Global.config.iteSelect =>
         k(ss, ITE(eval(cndVal, cndTy, ss), eval(thnVal, thnTy, ss), eval(elsVal, elsTy, ss)))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)

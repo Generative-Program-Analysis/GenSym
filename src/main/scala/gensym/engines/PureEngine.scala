@@ -82,6 +82,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
         for {
           vs <- mapM(typedConsts)(tv => eval(tv.const, tv.ty))
           lv <- eval(const, ptrType)
+          ss <- getState
         } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
       case IntToPtrExpr(from, value, to) =>
         for { v <- eval(value, from) } yield v
@@ -132,6 +133,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
         for {
           vs <- mapM(typedValues)(tv => eval(tv.value, tv.ty))
           lv <- eval(ptrValue, ptrType)
+          ss <- getState
         } yield lv.asRepOf[LocV] + calculateOffset(ptrType, vs)
       // Arith Unary Operations
       case FNegInst(ty, op) => evalFloatOp2("fsub", FloatConst(-0.0), op, ty)
@@ -233,7 +235,7 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
           vs <- mapM(incsValues)(eval(_, ty))
           s <- getState
         } yield selectValue(s.incomingBlock, vs, incsLabels)
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Global.config.iteSelect =>
         for {
           cnd <- eval(cndVal, cndTy)
           tv  <- eval(thnVal, thnTy)

@@ -4,8 +4,9 @@ import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
 import lms.macros.SourceContext
-import lms.core.stub.{While => _, _}
+import lms.core.stub.{While => _, Global => _, _}
 
+import gensym._
 import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.llvm.parser.Parser._
@@ -197,7 +198,7 @@ trait ImpGSEngine extends ImpSymExeDefs with EngineBase {
         val incsLabels: List[BlockLabel] = incs.map(i => Counter.block.get(ctx.withBlock(i.label)))
         val vs = incsValues.map(v => () => eval(v, ty, ss))
         k(ss, selectValue(ss.incomingBlock, vs, incsLabels))
-      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Config.iteSelect =>
+      case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) if Global.config.iteSelect =>
         k(ss, ITE(eval(cndVal, cndTy, ss), eval(thnVal, thnTy, ss), eval(elsVal, elsTy, ss)))
       case SelectInst(cndTy, cndVal, thnTy, thnVal, elsTy, elsVal) =>
         val cnd = eval(cndVal, cndTy, ss)

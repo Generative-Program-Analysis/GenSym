@@ -108,6 +108,7 @@ object TestCases {
   val symbolicSmall: List[TestPrg] = List(
     TestPrg(bst, "bstTest", "@main", noArg, noOpt, nPath(458)),
     TestPrg(bstArr, "bstArrTest", "@main", noArg, noOpt, nPath(458)),
+    TestPrg(bst, "faultyBstTest", "@main", noArg, noOpt, nPath(458)),
     TestPrg(mergesort, "mergeSortTest", "@main", noArg, noOpt, nPath(720)),
     TestPrg(bubblesort, "bubbleSortTest", "@main", noArg, noOpt, nPath(24)),
     TestPrg(quicksort, "quickSortTest", "@main", noArg, noOpt, nPath(120)),

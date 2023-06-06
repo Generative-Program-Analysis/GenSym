@@ -7,8 +7,6 @@
 #include "klee/klee.h"
 #endif
 
-// Note that this test must be run with --thread=1
-
 #define SIZE 4
 
 typedef struct node_s {
@@ -20,8 +18,12 @@ typedef struct node_s {
 Node* init_node(int val) {
     Node* new_node = malloc(sizeof(Node));
     new_node->val = val;
-    new_node->left = NULL;
-    new_node->right = NULL;
+
+    // Because these are left uninitialized,
+    // there may be an error in insert and find
+    /* new_node->left = NULL; */
+    /* new_node->right = NULL; */
+
     return new_node;
 }
 

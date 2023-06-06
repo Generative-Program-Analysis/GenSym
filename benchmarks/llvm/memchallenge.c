@@ -16,7 +16,7 @@ typedef struct {
 void gs_assert_eager(bool);
 
 int main() {
-    do {
+    do { // TODO: fails
         int64_t val = 0x1234567890abcdef;
         pair_t *st = &val;
         int16_t tmp = st->b;

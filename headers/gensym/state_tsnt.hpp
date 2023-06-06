@@ -31,7 +31,7 @@ class PreMem {
       return move_this();
     }
     M&& alloc(size_t size) {
-      mem.append(List<V>(size, make_UnInitV()).transient());
+      mem.append(make_UnInitList(size));
       return move_this();
     }
     M&& take(size_t keep) {
@@ -401,13 +401,21 @@ class SS {
           if (loc->l + size > heap.size()) throw NullDerefException { immer::box<SS>(*this) };
           return heap.at(loc->l, size);
         }
+      } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
+        return at_symloc(symloc, size);
+      } else if (auto symvite = addr->to_SymV()) {
+        if (iOP::op_ite == symvite->rator) {
+          return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
+        } else {
+          // Now the location value is a general symbolic value other than `ite`/`SymLocV`,
+          // which means the pointer is uninitialized anyway.
+          std::cout << "Symbolic Case\n";
+          throw NullDerefException { immer::box<SS>(*this) };
+        }
       }
-      if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) return at_symloc(symloc, size);
-      if (auto symvite = addr->to_SymV()) {
-        ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-        return ite((*symvite)[0], at((*symvite)[1], size), at((*symvite)[2], size));
-      }
-      ABORT("dereferenceing a nullptr");
+      // Default case: considered as an invalid memory access
+      std::cout << "Default Case\n";
+      throw NullDerefException { immer::box<SS>(*this) };
     }
     PtrVal at_struct(PtrVal addr, size_t size) {
       auto loc = addr->to_LocV();
@@ -454,37 +462,49 @@ class SS {
         heap.update(loc->l, val);
       return std::move(*this);
     }
-    SS&& update_symloc(PtrVal addr, PtrVal val, size_t size) {
-      auto symloc = std::dynamic_pointer_cast<SymLocV>(addr);
+    SS&& update_symloc(simple_ptr<SymLocV> symloc, PtrVal val, size_t size) {
       ASSERT(symloc != nullptr && symloc->size >= size, "Lookup an non-address value");
       auto offsym = symloc->off->to_SymV();
       ASSERT(offsym && (offsym->get_bw() == addr_index_bw), "Invalid sym offset");
 
       auto low_cond = int_op_2(iOP::op_sge, offsym, make_IntV(0, addr_index_bw));
       auto high_cond = int_op_2(iOP::op_sle, offsym, make_IntV(symloc->size - size, addr_index_bw));
+
       auto pc2 = pc;
       pc2.add(low_cond).add(high_cond);
       auto res = get_sat_value(pc2, offsym);
-      ASSERT(res.first, "no feasible offset\n");
 
-      // Todo (Ruiqi): Maybe use Intdata?
-      int offset_val = res.second;
-      auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+      if (res.first) {
+        // Todo (Ruiqi): Maybe use Intdata?
+        int offset_val = res.second;
+        auto t_cond = int_op_2(iOP::op_eq, offsym, make_IntV(offset_val, offsym->get_bw()));
+        // Todo (Ruiqi): should we add this?
+        pc.add(t_cond);
 
-      // Todo (Ruiqi): should we add this?
-      pc.add(t_cond);
-      update(make_LocV(symloc->base, symloc->k, symloc->size, offset_val), val, size);
+        update(make_LocV(symloc->base, symloc->k, symloc->size, offset_val), val, size);
+        return std::move(*this);
+      } else {
+        throw NullDerefException { immer::box<SS>(*this) };
+      }
+
       return std::move(*this);
     }
     SS&& update(PtrVal addr, PtrVal val, size_t size) {
       if (auto loc = addr->to_LocV()) {
-        if (loc->k == LocV::kStack) stack.update(loc->l, val, size);
+        if (loc->k == LocV::kStack) stack.update(loc->l, val, size); 
         else heap.update(loc->l, val, size);
       } else if (auto symloc = std::dynamic_pointer_cast<SymLocV>(addr)) {
-        update_symloc(symloc, val, size);
-      } else {
-        ABORT("dereferenceing a nullptr");
+          update_symloc(symloc, val, size);
+      } else if (auto symvite = addr->to_SymV()){
+          if (iOP::op_ite == symvite->rator) {
+              auto cond = (*symvite)[0];
+              SS s1 = update((*symvite)[1], ite(cond, val, at((*symvite)[1], size)), size);
+              return s1.update((*symvite)[2], ite(cond, val, at((*symvite)[2], size)), size);
+          } else {
+              throw NullDerefException { immer::box<SS>(*this) };
+          }
       }
+
       return std::move(*this);
     }
     SS&& update_seq(PtrVal addr, List<PtrVal> vals) {

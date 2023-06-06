@@ -1,16 +1,6 @@
 #ifndef GS_VALUE_OPS_HEADER
 #define GS_VALUE_OPS_HEADER
 
-struct Value;
-struct IntV;
-struct SymV;
-struct LocV;
-struct SymLocV;
-struct FloatV;
-struct ShadowV;
-struct SS;
-class PC;
-
 template <typename T>
 struct simple_ptr {
   T *ptr;
@@ -176,12 +166,6 @@ inline PtrVal hashconsing(const PtrVal &ret) {
   auto [ret2, ins] = objpool.insert(ret);
   if (!ins) delete ret.get();
   return *ret2;
-}
-
-// Uninitialized value
-inline PtrVal make_UnInitV() {
-  static PtrVal UnInitV = make_IntV(0, 8);
-  return UnInitV;
 }
 
 struct ShadowV : public Value {
@@ -604,6 +588,27 @@ inline PtrVal SymV::neg(const PtrVal& v) {
   return make_SymV(iOP::op_neg, { v }, v->get_bw());
 }
 
+// Uninitialized value
+inline PtrVal make_UnInitV() {
+  #ifdef GENSYM_SYMBOLIC_UNINIT
+    std::string name = fresh("uninit");
+    PtrVal UnInitV = make_SymV(name, 8);
+    return UnInitV;
+  #else
+    PtrVal UnInitV = make_IntV(0, 8);
+    return UnInitV;
+  #endif
+}
+
+inline TrList<PtrVal> make_UnInitList(int n) {
+  TrList<PtrVal> res;
+  for (int i = 0; i < n; i++) {
+    res.push_back(make_UnInitV());
+  }
+  return res;
+}
+
+
 // XXX GW: just use bv_sext? seems not much difference?
 inline PtrVal addr_index_ext(const PtrVal& off) {
   ASSERT(off->get_bw() <= addr_index_bw, "Invalid offset");
@@ -947,7 +952,7 @@ inline PtrVal operator+ (const PtrVal& lhs, const int& rhs) {
   ABORT("Unknown application of operator+");
 }
 
-inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
+inline PtrVal ptr_add(const PtrVal& lhs, const PtrVal& rhs) {
   auto int_rhs = rhs->to_IntV();
   auto sym_rhs = rhs->to_SymV();
   ASSERT(int_rhs || sym_rhs, "Invalid rhs");
@@ -969,11 +974,18 @@ inline PtrVal operator+ (const PtrVal& lhs, const PtrVal& rhs) {
     return make_SymLocV(symloc->base, symloc->k, symloc->size, new_off);
   }
   if (auto symvite = lhs->to_SymV()) {
-    ASSERT(iOP::op_ite == symvite->rator, "Invalid memory read by symv index");
-    return ite((*symvite)[0], (*symvite)[1] + rhs, (*symvite)[2] + rhs);
+    if (iOP::op_ite == symvite->rator) {
+      return ite((*symvite)[0], ptr_add((*symvite)[1], rhs), ptr_add((*symvite)[2], rhs));
+    } else {
+      // refer to comment from function `SS::at`
+      // throw NullDerefException { immer::box<SS>(ss) };
+      // Instead of throwing an exception like SS::at, we propagate such ill-defined
+      // pointer arithmetic until the actual memory operation happens.
+      return make_SymV(iOP::op_add, {lhs, rhs}, addr_bw);
+    }
   }
   if (auto intloc = lhs->to_IntV()) {
-    INFO("Performing gep on an integer: " << intloc->toString() << " + " << rhs->toString());
+    INFO("Performing GEP on an integer: " << intloc->toString() << " + " << rhs->toString());
     return int_op_2(iOP::op_add, intloc, rhs);
   }
   ABORT("Unknown application of operator+");

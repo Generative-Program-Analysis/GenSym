@@ -79,7 +79,7 @@ inline List<List<PtrVal>> parse_args(std::string argstrings) {
   immer::flex_vector_transient<List<PtrVal>> result;
   while (std::getline(ss, s, ' ')) {
     if (!s.empty()) {
-      result.push_back(to_chars(match_arg(s)).push_back(make_UnInitV()));
+      result.push_back(to_chars(match_arg(s)).push_back(make_IntV(0, 8)));
     }
   }
   return result.persistent();

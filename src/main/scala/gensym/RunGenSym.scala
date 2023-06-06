@@ -2,13 +2,6 @@ package gensym
 
 import gensym.llvm.parser.Parser._
 
-case class Config(nSym: Int, useArgv: Boolean, mainFileOpt: String) {
-  require(!(nSym > 0 && useArgv))
-  def args(implicit d: ValueDefs) =
-    if (useArgv) d.mainArgs
-    else d.SymV.makeSymVList(nSym)
-}
-
 object SwitchType extends Enumeration {
   type SwitchType = Value
   val NonMerge, Merge = Value
@@ -19,30 +12,44 @@ object SwitchType extends Enumeration {
 }
 import SwitchType._
 
-object Config {
-  val (o0, o1, o2, o3) = ("O0", "O1", "O2", "O3")
-
-  /* Global compile-time configurations */
-  var opt: Boolean = true
-  var iteSelect: Boolean = true
-  var genDebug: Boolean = false
-  var emitVarIdMap: Boolean = true
-  var emitBlockIdMap: Boolean = true
-  var switchType: SwitchType = Merge
-  var runCode: Boolean = true
-  var recordInstNum: Boolean = false
+case class Config(
+  nSym: Int, 
+  useArgv: Boolean, 
+  mainFileOpt: String,
+  var opt: Boolean = true,
+  var iteSelect: Boolean = true,
+  var genDebug: Boolean = false,
+  var emitVarIdMap: Boolean = true,
+  var emitBlockIdMap: Boolean = true,
+  var switchType: SwitchType = Merge,
+  var runCode: Boolean = true,
+  var recordInstNum: Boolean = false,
+  var symbolicUninit: Boolean = false,
+) {
+  require(!(nSym > 0 && useArgv))
+  def args(implicit d: ValueDefs) =
+    if (useArgv) d.mainArgs
+    else d.SymV.makeSymVList(nSym)
 
   def disableOpt: Unit = opt = false
   def enableOpt: Unit = opt = true
 
   def disableRunCode: Unit = runCode = false
   def enableRunCode: Unit = runCode = true
+}
 
+object Config {
+  val (o0, o1, o2, o3) = ("O0", "O1", "O2", "O3")
   def symArg(n: Int) = Config(n, false, o3)
   def useArgv = Config(0, true, o3)
   def noArg = Config(0, false, o3)
   def noMainFileOpt = Config(0, true, o0)
   def default = useArgv
+}
+
+object Global {
+  /* Global compile-time configurations */
+  var config = Config.default
 }
 
 object RunGenSym {
@@ -61,6 +68,8 @@ object RunGenSym {
     |--nSym=<int>            - the number of symbolic 32-bit input arguments to `entrance`, cannot be used with --use-argv (default=0)
     |--use-argv              - take argv argument at runtime, cannot be used with --nSym
     |--noOpt                 - disable first-stage optimizations
+    |--symbolicUninit        - model uninitialized variables as symbolic values instead of a random one
+    |--randomUninit          - model uninitialized variables as a random value instead of a symbolic one
     |--engine=<string>       - compiler/backend variant (default=ImpCPS)
     |  =ImpCPS               -   generate code in CPS with impure data structures, can run in parallel
     |  =ImpDirect            -   generate code in direct-style with impure data structures, cannot run in parallel
@@ -81,6 +90,8 @@ object RunGenSym {
       case (options, r"--nSym=(\d+)$n") => options + ("nSym" -> n.toInt)
       case (options, r"--use-argv") => options + ("useArgv" -> true)
       case (options, r"--noOpt") => options + ("optimize" -> false)
+      case (options, r"--symbolicUninit") => options + ("symbolicUninit" -> true)
+      case (options, r"--randomUninit") => options + ("symbolicUninit" -> false)
       case (options, r"--engine=([a-zA-Z]+)$e") => options + ("engine" -> e)
       case (options, r"--main-opt=O(\d)$n") => options + ("mainOpt" -> ("O"+n))
       case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
@@ -95,11 +106,12 @@ object RunGenSym {
     val output = options.getOrElse("output", filepath.split("\\/").last.split("\\.")(0)).toString
     val nSym = options.getOrElse("nSym", 0).asInstanceOf[Int]
     val useArgv = options.getOrElse("useArgv", false).asInstanceOf[Boolean]
-    val optimize = options.getOrElse("optimize", Config.opt).asInstanceOf[Boolean]
+    val optimize = options.getOrElse("optimize", Global.config.opt).asInstanceOf[Boolean]
+    val symbolicUninit = options.getOrElse("symbolicUninit", Global.config.symbolicUninit).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
-    val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
-    val emitVarIdMap = options.getOrElse("varIdMap", Config.emitVarIdMap).asInstanceOf[Boolean]
+    val emitBlockIdMap = options.getOrElse("blockIdMap", Global.config.emitBlockIdMap).asInstanceOf[Boolean]
+    val emitVarIdMap = options.getOrElse("varIdMap", Global.config.emitVarIdMap).asInstanceOf[Boolean]
     val switchType = options.getOrElse("switchType", SwitchType.NonMerge).asInstanceOf[SwitchType]
     val libPath = options.get("lib").asInstanceOf[Option[String]]
 
@@ -111,10 +123,11 @@ object RunGenSym {
       case "lib" => new ImpCPSGS_lib
       case "app" => new ImpCPSGS_app
     }
-    Config.opt = optimize
-    Config.emitBlockIdMap = emitBlockIdMap
-    Config.emitVarIdMap = emitVarIdMap
-    Config.switchType = switchType
+    Global.config.opt = optimize
+    Global.config.emitBlockIdMap = emitBlockIdMap
+    Global.config.emitVarIdMap = emitVarIdMap
+    Global.config.switchType = switchType
+    Global.config.symbolicUninit = symbolicUninit
     val info = s"""Running $engine with
     |  filepath=$filepath, entrance=$entrance, output=$output,
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""

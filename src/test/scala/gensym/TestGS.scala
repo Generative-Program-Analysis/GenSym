@@ -54,11 +54,22 @@ abstract class TestGS extends FunSuite {
     }
   }
 
+  def testWithGlobalConfig[T](name: String)(thunk: => T): Unit = {
+    val config0 = Global.config.copy()
+    test(name) {
+      val config1 = Global.config.copy()
+      Global.config = config0
+      val result = thunk
+      Global.config = config1
+    }
+  }
+
   def testGS(gs: GenSym, tst: TestPrg, libPath: Option[String] = None): Unit = {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     val outname = if (gs.insName == "ImpCPSGS_lib") name
                   else gs.insName + "_" + name
-    test(name) {
+    
+    testWithGlobalConfig(name) {
       val code = gs.run(m, outname, f, config, libPath)
       val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
@@ -118,6 +129,26 @@ class TestImpCPSGS extends TestGS {
   testGS(gs, TestCases.all ++ filesys ++ varArg)
   // Note: compile-time switch merge is only implement for ImpCPS so far
   testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
+
+  // Test uninitialized ptr access, only enabled for CPS+thread pool version
+  val rtOpt = "--thread=1"
+  Global.config.symbolicUninit = true
+  testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
+  testGS(gs, TestPrg(faultyBst, "faultyBstTestSymUninit", "@main", noArg, rtOpt, nPath(642)))
+  testGS(gs, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, rtOpt, nPath(2)))
+
+  testGS(gs, TestPrg(argv2Test, "argvConcSymUninit", "@main", useArgv, s"$rtOpt --argv=abcdef", nPath(1)++status(0)))
+  testGS(gs, TestPrg(argv2Test, "argvSymSymUninit", "@main", useArgv, s"$rtOpt --argv=abc#{3}def", nPath(4)++status(0)))
+  testGS(gs, TestPrg(
+    openSymTest, "openSymTestSymUninit", "@main", noArg, s"$rtOpt --add-sym-file A --add-sym-file B", nPath(3)++status(0))
+  )
+
+  testGS(gs, TestPrg(assumeTest, "assumeTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(flexAddr, "flexAddrSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(printfTest, "printfTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  Global.config.symbolicUninit = false
 }
 
 class TestImpCPSGS_Z3 extends TestGS {
@@ -126,12 +157,32 @@ class TestImpCPSGS_Z3 extends TestGS {
     t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
   testGS(gs, cases)
+
+  // Test uninitialized ptr access, only enabled for CPS+thread pool version
+  val rtOpt = "--thread=1 --solver=z3"
+  Global.config.symbolicUninit = true
+  testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtrCond, "uninitPtrCondTest", "@main", noArg, rtOpt, nPath(2)))
+  testGS(gs, TestPrg(uninitPtr, "unintPtrTest", "@main", noArg, rtOpt, nPath(1)))
+  testGS(gs, TestPrg(faultyBst, "faultyBstTestSymUninit", "@main", noArg, rtOpt, nPath(642)))
+  testGS(gs, TestPrg(uninitPtrUpdate, "uninitPtrUpdate", "@main", noArg, rtOpt, nPath(2)))
+
+  testGS(gs, TestPrg(argv2Test, "argvConcSymUninit", "@main", useArgv, s"$rtOpt --argv=abcdef", nPath(1)++status(0)))
+  testGS(gs, TestPrg(argv2Test, "argvSymSymUninit", "@main", useArgv, s"$rtOpt --argv=abc#{3}def", nPath(4)++status(0)))
+  testGS(gs, TestPrg(
+    openSymTest, "openSymTestSymUninit", "@main", noArg, s"$rtOpt --add-sym-file A --add-sym-file B", nPath(3)++status(0))
+  )
+
+  testGS(gs, TestPrg(assumeTest, "assumeTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(flexAddr, "flexAddrSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  testGS(gs, TestPrg(printfTest, "printfTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+  Global.config.symbolicUninit = false
 }
 
 /*
 class Coreutils extends TestGS {
   import gensym.llvm.parser.Parser._
-  Config.enableOpt
+  Global.config.enableOpt
   val runtimeOptions = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
   val cases = TestCases.coreutils.map { t =>
     t.copy(runOpt = runtimeOptions ++ t.runOpt, runCode = false)
@@ -149,7 +200,7 @@ class TestLibrary extends TestGS {
 
 class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
-  Config.enableOpt
+  Global.config.enableOpt
   val gs = new ImpCPSGS
   //testGS(gs, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
   //testGS(gs, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
