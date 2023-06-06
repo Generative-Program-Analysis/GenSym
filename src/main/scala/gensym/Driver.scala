@@ -125,7 +125,12 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
 
   def makeWithAllCores: Int = {
     val cores = Process("nproc", new File(s"$folder/$appName")).!!.replaceAll("[\\n\\t ]", "").toInt
-    Process(s"make -j$cores", new File(s"$folder/$appName")).!
+    make(cores)
+  }
+
+  def makeWithHalfCores: Int = {
+    val cores = Process("nproc", new File(s"$folder/$appName")).!!.replaceAll("[\\n\\t ]", "").toInt
+    make(cores/2)
   }
 
   // returns the number of paths, obtained by parsing the output

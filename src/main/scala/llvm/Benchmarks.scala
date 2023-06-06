@@ -116,22 +116,7 @@ object Benchmarks {
   lazy val argv2Test = parseFile("benchmarks/llvm/argv2.ll")
 
   lazy val unprintableCharTest = parseFile("benchmarks/llvm/unprintable_char.ll")
-  
-  lazy val echo_linked = parseFile("benchmarks/coreutils/echo.ll")
-  lazy val cat_linked = parseFile("benchmarks/coreutils/cat.ll")
-  lazy val true_linked = parseFile("benchmarks/coreutils/true.ll")
-  lazy val false_linked = parseFile("benchmarks/coreutils/false.ll")
-  lazy val base32_linked = parseFile("benchmarks/coreutils/base32.ll")
-  lazy val base64_linked = parseFile("benchmarks/coreutils/base64.ll")
-  lazy val comm_linked = parseFile("benchmarks/coreutils/comm.ll")
-  lazy val cut_linked = parseFile("benchmarks/coreutils/cut.ll")
-  lazy val dirname_linked = parseFile("benchmarks/coreutils/dirname.ll")
-  lazy val expand_linked = parseFile("benchmarks/coreutils/expand.ll")
-  lazy val fold_linked = parseFile("benchmarks/coreutils/fold.ll")
-  lazy val join_linked = parseFile("benchmarks/coreutils/join.ll")
-  lazy val link_linked = parseFile("benchmarks/coreutils/link.ll")
-  lazy val paste_linked = parseFile("benchmarks/coreutils/paste.ll")
-  lazy val pathchk_linked = parseFile("benchmarks/coreutils/pathchk.ll")
+
   lazy val md5sum_linked = parseFile("benchmarks/coreutils/md5sum.ll")
   lazy val sort_linked = parseFile("benchmarks/coreutils/sort.ll")
   lazy val wc_linked = parseFile("benchmarks/coreutils/wc.ll")
@@ -139,6 +124,44 @@ object Benchmarks {
 
   lazy val echo_gs_linked = parseFile("benchmarks/coreutils/echo_gs_linked.ll")
   lazy val true_gs_linked = parseFile("benchmarks/coreutils/true_gs_linked.ll")
+}
+
+object ICSE23CoreutilsPOSIX {
+  val prefix = "/icse23/GenSym/benchmarks/coreutils/gensym_posix"
+  lazy val echo = parseFile(s"$prefix/echo.ll")
+  lazy val cat = parseFile(s"$prefix/cat.ll")
+  lazy val tru = parseFile(s"$prefix/true.ll")
+  lazy val fls = parseFile(s"$prefix/false.ll")
+  lazy val base32 = parseFile(s"$prefix/base32.ll")
+  lazy val base64 = parseFile(s"$prefix/base64.ll")
+  lazy val comm = parseFile(s"$prefix/comm.ll")
+  lazy val cut = parseFile(s"$prefix/cut.ll")
+  lazy val dirname = parseFile(s"$prefix/dirname.ll")
+  lazy val expand = parseFile(s"$prefix/expand.ll")
+  lazy val fold = parseFile(s"$prefix/fold.ll")
+  lazy val join = parseFile(s"$prefix/join.ll")
+  lazy val link = parseFile(s"$prefix/link.ll")
+  lazy val paste = parseFile(s"$prefix/paste.ll")
+  lazy val pathchk = parseFile(s"$prefix/pathchk.ll")
+}
+
+object ICSE23CoreutilsUClibc {
+  val prefix = "/icse23/GenSym/benchmarks/coreutils/gensym_uclibc"
+  lazy val echo = parseFile(s"$prefix/echo.ll")
+  lazy val cat = parseFile(s"$prefix/cat.ll")
+  lazy val tru = parseFile(s"$prefix/true.ll")
+  lazy val fls = parseFile(s"$prefix/false.ll")
+  lazy val base32 = parseFile(s"$prefix/base32.ll")
+  lazy val base64 = parseFile(s"$prefix/base64.ll")
+  lazy val comm = parseFile(s"$prefix/comm.ll")
+  lazy val cut = parseFile(s"$prefix/cut.ll")
+  lazy val dirname = parseFile(s"$prefix/dirname.ll")
+  lazy val expand = parseFile(s"$prefix/expand.ll")
+  lazy val fold = parseFile(s"$prefix/fold.ll")
+  lazy val join = parseFile(s"$prefix/join.ll")
+  lazy val link = parseFile(s"$prefix/link.ll")
+  lazy val paste = parseFile(s"$prefix/paste.ll")
+  lazy val pathchk = parseFile(s"$prefix/pathchk.ll")
 }
 
 object TestComp {

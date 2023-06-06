@@ -29,6 +29,8 @@ import TestCases._
 abstract class TestGS extends FunSuite {
   import java.time.LocalDateTime
 
+  val cores: Option[Int] = None
+
   case class TestResult(time: LocalDateTime, commit: String, engine: String, testName: String,
     extSolverTime: Double, intSolverTime: Double, wholeTime: Double, blockCov: Double,
     partialBrCov: Double, fullBrCov: Double, pathNum: Int, brQueryNum: Int,
@@ -60,7 +62,10 @@ abstract class TestGS extends FunSuite {
                   else gs.insName + "_" + name
     test(name) {
       val code = gs.run(m, outname, f, config, libPath)
-      val mkRet = code.makeWithAllCores
+      val mkRet = cores match {
+        case None => code.makeWithHalfCores
+        case Some(n) => code.make(n)
+      }
       assert(mkRet == 0, "make failed")
       if (runCode) {
         val (output, ret) = code.runWithStatus(cliArg)

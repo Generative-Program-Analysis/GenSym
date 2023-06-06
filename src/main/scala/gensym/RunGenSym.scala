@@ -1,6 +1,7 @@
 package gensym
 
 import gensym.llvm.parser.Parser._
+import gensym.utils.Utils
 
 case class Config(nSym: Int, useArgv: Boolean, mainFileOpt: String) {
   require(!(nSym > 0 && useArgv))
@@ -70,8 +71,8 @@ object RunGenSym {
     |--emit-block-id-map     - emit a map from block names to id in common.h
     |--emit-var-id-map       - emit a map from variable names to id in common.h
     |--switch-type=<string>  - compilation variants of `switch` statement (default=nonMerge)
-    |  =merge                - only fork `m` paths of distinct targets
-    |  =nonMerge             - fork `n` paths where `n` is the total number of feasible cases (including default)
+    |  =merge                -   only fork `m` paths of distinct targets
+    |  =nonMerge             -   fork `n` paths where `n` is the total number of feasible cases (including default)
     |--help                  - print this help message
     """
 
@@ -83,8 +84,8 @@ object RunGenSym {
       case (options, r"--noOpt") => options + ("optimize" -> false)
       case (options, r"--engine=([a-zA-Z]+)$e") => options + ("engine" -> e)
       case (options, r"--main-opt=O(\d)$n") => options + ("mainOpt" -> ("O"+n))
-      case (options, r"emit-block-id-map") => options + ("blockIdMap" -> true)
-      case (options, r"emit-var-id-map") => options + ("varIdMap" -> true)
+      case (options, r"--emit-block-id-map") => options + ("blockIdMap" -> true)
+      case (options, r"--emit-var-id-map") => options + ("varIdMap" -> true)
       case (options, r"--switch-type=(\w+)$t") => options + ("switchType" -> SwitchType.fromString(t))
       case (options, r"--lib=([-_A-Za-z0-9\/\.]+)$p") => options + ("lib" -> p)
       case (options, "--help") => println(usage.stripMargin); sys.exit(0)
@@ -95,7 +96,7 @@ object RunGenSym {
     val output = options.getOrElse("output", filepath.split("\\/").last.split("\\.")(0)).toString
     val nSym = options.getOrElse("nSym", 0).asInstanceOf[Int]
     val useArgv = options.getOrElse("useArgv", false).asInstanceOf[Boolean]
-    val optimize = options.getOrElse("optimize", Config.opt).asInstanceOf[Boolean]
+    val optimize = options.getOrElse("optimize", true).asInstanceOf[Boolean]
     val engine = options.getOrElse("engine", "ImpCPS").toString
     val mainOpt = options.getOrElse("mainOpt", Config.o0).toString
     val emitBlockIdMap = options.getOrElse("blockIdMap", Config.emitBlockIdMap).asInstanceOf[Boolean]
@@ -120,5 +121,6 @@ object RunGenSym {
     |  nSym=$nSym, useArgv=$useArgv, optimize=$optimize, mainOpt=$mainOpt, switchType=$switchType"""
     println(info.stripMargin)
     gensym.run(parseFile(filepath), output, entrance, Config(nSym, useArgv, mainOpt), libPath)
+    output
   }
 }

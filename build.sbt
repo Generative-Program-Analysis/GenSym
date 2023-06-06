@@ -32,7 +32,7 @@ scalacOptions ++= Seq(
 autoCompilerPlugins := true
 
 //https://www.scala-sbt.org/release/docs/Running-Project-Code.html
-fork := true
+//fork := true
 run / javaOptions ++= Seq(
   "-Xms4G",
   "-Xmx32G",
@@ -60,5 +60,5 @@ lazy val lms = ProjectRef(file("./third-party/lms-clean"), "lms-clean")
 lazy val gensym = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
                                         .configs(Bench)
                                         .settings(inConfig(Bench)(Defaults.testSettings))
-                                        .settings(assembly / mainClass := Some("gensym.RunGenSym"))
-
+                                        .settings(assembly / mainClass := Some("gensym.RunGenSym"),
+                                                  assembly / test := {})
