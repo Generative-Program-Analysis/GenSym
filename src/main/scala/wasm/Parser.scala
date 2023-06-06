@@ -266,7 +266,17 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       Load(LoadOp(align, offset, ty, memSize, sign))
     }
     else if (ctx.store() != null) {
-      ???
+      val ty = visitNumType(ctx.load.numType)
+      val memSize = if (ctx.load.MEM_SIZE() != null) {
+        Some(visitMemSize(ctx.load.MEM_SIZE.getText))
+      } else None
+      val offset = if (ctx.offsetEq() != null) {
+        ctx.offsetEq.NAT.getText.toInt
+      } else 0
+      val align = if (ctx.alignEq() != null) {
+        ctx.alignEq.NAT.getText.toInt
+      } else ??? // FIXME: default alignment
+      Store(StoreOp(align, offset, ty, memSize))
     }
     else if (ctx.MEMORY_SIZE() != null) {
       ???
