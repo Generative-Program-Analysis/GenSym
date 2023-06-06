@@ -31,7 +31,7 @@ object SimpleTest extends App {
     println(module)
 
     val instrs = module.definitions.find({
-      case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _)) => true
+      case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
       case _ => false
     }).get.asInstanceOf[FuncBodyDef].body
     .map(Plain(_))
@@ -42,7 +42,7 @@ object SimpleTest extends App {
     // })
     val types = List()
     val funcs = module.definitions.collect({
-      case FuncDef(_, fndef@FuncBodyDef(_, _, _)) => fndef
+      case FuncDef(_, fndef@FuncBodyDef(_, _, _, _)) => fndef
     }).toList
 
     val moduleInst = ModuleInstance(types, funcs)

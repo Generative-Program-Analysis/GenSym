@@ -10,12 +10,12 @@ case class Module(name: Option[String], definitions: Seq[Definition]) extends WI
  
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
-case class TypeDef(id: Option[String], tipe: ValueType) extends Definition
-// TODO: missing top-level module fields, see WatParser.g4
+case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
+// FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class FuncField extends WIR
-case class FuncBodyDef(tipe: FuncType, locals: Seq[ValueType], body: Seq[Instr]) extends FuncField
-case class InlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*TODO*/) extends FuncField
+case class FuncBodyDef(tipe: FuncType, localNames: Seq[String], locals: Seq[ValueType], body: Seq[Instr]) extends FuncField
+case class InlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*FIXME*/) extends FuncField
 case class InlineExport(fd: Seq[FuncDef]) extends FuncField
 
 abstract class Instr extends WIR
@@ -26,9 +26,10 @@ case class Select(ty: Option[Seq[ValueType]]) extends Instr
 case class Block(ty: BlockType, instrs: Seq[Instr]) extends Instr
 case class Loop(ty: BlockType, instrs: Seq[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: Seq[Instr], elseInstrs: Seq[Instr]) extends Instr
+// FIXME: labelId can be string?
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
-// case class BrTable(labels: Seq[Int], default: Int) extends Instr
+case class BrTable(labels: Seq[Int], default: Int) extends Instr
 case object Return extends Instr
 case class Call(func: Int) extends Instr
 // case class CallIndirect(ty: Int, table: Int) extends Instr
@@ -175,11 +176,14 @@ abstract class RefKind extends WIR
 case object FuncRefType extends RefKind
 case object ExternRefType extends RefKind
 
-abstract class ValueType extends WIR
+abstract class WasmType extends WIR
+
+abstract class ValueType extends WasmType
 case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
 case class RefType(kind: RefKind) extends ValueType
-case class FuncType(inps: Seq[ValueType], out: Seq[ValueType]) extends ValueType
+
+case class FuncType(names/*optional*/: Seq[String], inps: Seq[ValueType], out: Seq[ValueType]) extends WasmType
 
 abstract class BlockType extends WIR {
   def toFuncType(moduleInst: ModuleInstance): FuncType
@@ -191,8 +195,8 @@ case class VarBlockType(vR: Int) extends BlockType {
 
 case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
   def toFuncType(moduleInst: ModuleInstance): FuncType = tipe match {
-    case Some(t) => FuncType(Seq(), Seq(t))
-    case None => FuncType(Seq(), Seq())
+    case Some(t) => FuncType(Seq(), Seq(), Seq(t))
+    case None => FuncType(Seq(), Seq(), Seq())
   }
 }
 

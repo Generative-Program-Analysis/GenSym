@@ -355,7 +355,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
       }
 
       case Invoke(func) => {
-        val FuncBodyDef(tipe, fnLocals, body) = frame.module.funcs(func)
+        val FuncBodyDef(tipe, names, fnLocals, body) = frame.module.funcs(func)
         val args = stack.take(tipe.inps.length).reverse
         val newStack = stack.drop(tipe.inps.length)
 

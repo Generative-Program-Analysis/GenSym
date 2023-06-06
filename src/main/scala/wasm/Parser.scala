@@ -157,12 +157,13 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   def getVar(ctx: BindVarContext): Option[String] =
     if (ctx != null) Some(ctx.VAR().getText) else None
 
-  def getVar(ctx: TypeUseContext): Option[String] = {
-    if (ctx == null) return None
-    val varCtx = ctx.var_()
-    if (varCtx.VAR() != null) Some(varCtx.VAR().getText)
-    else Some(varCtx.NAT().getText.toString)
-  }
+  def getVar(ctx: TypeUseContext): Option[String] =
+    if (ctx == null) None
+    else Some(getVar(ctx.var_()))
+
+  def getVar(ctx: Var_Context): String =
+    if (ctx.VAR() != null) ctx.VAR().getText
+    else ctx.NAT().getText.toString
 
   override def visitModule(ctx: ModuleContext): WIR = {
     if (ctx.module_() != null) return visit(ctx.module_())
@@ -178,27 +179,148 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     visitChildren(ctx)
   }
 
-  override def visitFuncType(ctx: FuncTypeContext): WIR = {
+  override def visitNumType(ctx: NumTypeContext): NumType = {
+    ctx.VALUE_TYPE().getText match {
+      case "i32" => NumType(I32Type)
+      case "i64" => NumType(I64Type)
+      case "f32" => NumType(F32Type)
+      case "f64" => NumType(F64Type)
+    }
+  }
+
+  override def visitValType(ctx: ValTypeContext): ValueType = {
     ???
   }
 
-  override def visitTypeDef(ctx: TypeDefContext): WIR = {
-    TypeDef(getVar(ctx.bindVar()), visit(ctx.type_()).asInstanceOf[ValueType])
+  override def visitFuncParamType(ctx: FuncParamTypeContext): WIR = {
+    val names = ctx.bindVar().asScala.map(getVar(_)).map {
+      case Some(s) => s
+      case None => ""
+    }
+    val types = ctx.valType().asScala.map(visitValType(_)).toSeq.asInstanceOf[Seq[ValueType]]
+    FuncType(names, types, Seq())
   }
 
-  override def visitFunc_(ctx: Func_Context): WIR = {
+  override def visitFuncResType(ctx: FuncResTypeContext): WIR = {
+    val types = ctx.valType().asScala.map(visitValType(_)).toSeq.asInstanceOf[Seq[ValueType]]
+    FuncType(Seq(), Seq(), types)
+  }
+
+  override def visitFuncType(ctx: FuncTypeContext): WIR = {
+    val FuncType(names, args, _) = visitFuncParamType(ctx.funcParamType())
+    val FuncType(_, _, rets) = visitFuncResType(ctx.funcResType())
+    FuncType(names, args, rets)
+  }
+
+  override def visitTypeDef(ctx: TypeDefContext): WIR = {
+    TypeDef(getVar(ctx.bindVar()), visit(ctx.defType().funcType()).asInstanceOf[FuncType])
+  }
+
+  override def visitFunction(ctx: FunctionContext): WIR = {
     val name = getVar(ctx.bindVar())
     FuncDef(name, visit(ctx.funcFields).asInstanceOf[FuncField])
   }
 
+  def visitMemSize(n: String): PackSize = n match {
+    case "8" => Pack8
+    case "16" => Pack16
+    case "32" => Pack32
+    case "64" => Pack64
+  }
+
+  def visitSignExt(n: String): Extension = n match {
+    case "u" => ZX
+    case "s" => SX
+  }
+
+  override def visitPlainInstr(ctx: PlainInstrContext): WIR = {
+    if (ctx.UNREACHABLE() != null) Unreachable
+    else if (ctx.NOP() != null) Nop
+    else if (ctx.DROP() != null) Drop
+    else if (ctx.SELECT() != null) Select(None)
+    else if (ctx.BR() != null) Br(getVar(ctx.var_(0)).toInt)
+    else if (ctx.BR_IF() != null) BrIf(getVar(ctx.var_(0)).toInt)
+    else if (ctx.BR_TABLE() != null) {
+      val labels = ctx.var_().asScala.map(getVar(_).toInt).toList
+      BrTable(labels.dropRight(1), labels.last)
+    }
+    else if (ctx.RETURN() != null) Return
+    else if (ctx.CALL() != null) Call(getVar(ctx.var_(0)).toInt)
+    else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.var_(0)).toInt)
+    else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.var_(0)).toInt)
+    else if (ctx.LOCAL_TEE() != null) LocalTee(getVar(ctx.var_(0)).toInt)
+    else if (ctx.GLOBAL_SET() != null) GlobalGet(getVar(ctx.var_(0)).toInt)
+    else if (ctx.GLOBAL_GET() != null) GlobalGet(getVar(ctx.var_(0)).toInt)
+    else if (ctx.load() != null) {
+      val ty = visitNumType(ctx.load.numType)
+      val (memSize, sign) = if (ctx.load.MEM_SIZE() != null) {
+        (Some(visitMemSize(ctx.load.MEM_SIZE.getText)),
+          Some(visitSignExt(ctx.load.SIGN_POSTFIX.getText)))
+      } else (None, None)
+      val offset = if (ctx.offsetEq() != null) {
+        ctx.offsetEq.NAT.getText.toInt
+      } else 0
+      val align = if (ctx.alignEq() != null) {
+        ctx.alignEq.NAT.getText.toInt
+      } else ??? // FIXME: default alignment
+      Load(LoadOp(align, offset, ty, memSize, sign))
+    }
+    else if (ctx.store() != null) {
+      ???
+    }
+    else if (ctx.MEMORY_SIZE() != null) {
+      ???
+    }
+    else if (ctx.MEMORY_GROW() != null) {
+      ???
+    }
+    else if (ctx.CONST() != null) {
+      ???
+    }
+    else if (ctx.COMPARE() != null) {
+      ???
+    }
+    else if (ctx.UNARY() != null) {
+      ???
+    }
+    else if (ctx.BINARY() != null) {
+      ???
+    }
+    else if (ctx.CONVERT() != null) {
+      ???
+    }
+    else error
+  }
+
+  override def visitInstrList(ctx: InstrListContext): WIR = {
+    val last =
+      if (ctx.callIndirectInstr() != null)
+        List(visitCallIndirectInstr(ctx.callIndirectInstr()))
+      else List()
+    val instrs = ctx.instr.asScala.map(visit(_)).asInstanceOf[List[Instr]]
+    FuncBodyDef(null, null, null, instrs ++ last.asInstanceOf[List[Instr]])
+  }
+
+  override def visitFuncBody(ctx: FuncBodyContext): WIR = {
+    val names = ctx.bindVar().asScala.map(getVar(_)).map {
+      case Some(s) => s
+      case None => ""
+    }
+    val types = ctx.valType().asScala.map(visitValType(_)).toSeq
+    val FuncBodyDef(_, _, _, instrs) = visit(ctx.instrList())
+    FuncBodyDef(null, names, types, instrs)
+  }
+
   override def visitFuncFieldsBody(ctx: FuncFieldsBodyContext): WIR = {
-    ???
+    val ty = visit(ctx.funcType).asInstanceOf[FuncType]
+    val FuncBodyDef(_, names, locals, body) = visit(ctx.funcBody)
+    FuncBodyDef(ty, names, locals, body)
   }
 
   override def visitFuncFields(ctx: FuncFieldsContext): WIR = {
     if (ctx.funcFieldsBody() != null) {
       val typeUse = getVar(ctx.typeUse)
-      // TODO: typeUse is not current used
+      // FIXME: typeUse is not current used
       visit(ctx.funcFieldsBody)
     } else if (ctx.inlineImport() != null) {
       ???
