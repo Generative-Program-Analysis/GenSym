@@ -335,36 +335,81 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
     else if (ctx.test() != null) {
       val ty = toNumType(ctx.test.IXX.getText)
-      if (ctx.test.OP_EQZ != null) Eqz(ty)
-      else error
+      val op =
+        if (ctx.test.OP_EQZ != null) Eqz(ty)
+        else error
+      Test(op)
     }
     else if (ctx.compare() != null) {
       val ty =
         if (ctx.compare.IXX != null) toNumType(ctx.compare.IXX.getText)
         else if (ctx.compare.FXX != null) toNumType(ctx.compare.FXX.getText)
         else error
-      if (ctx.compare.OP_EQ != null) Eq(ty)
-      else if (ctx.compare.OP_NE != null) Ne(ty)
-      else if (ctx.compare.OP_LTS != null) LtS(ty)
-      else if (ctx.compare.OP_LTU != null) LtU(ty)
-      else if (ctx.compare.OP_LEU != null) LeU(ty)
-      else if (ctx.compare.OP_LES != null) LeS(ty)
-      else if (ctx.compare.OP_GTS != null) GtS(ty)
-      else if (ctx.compare.OP_GTU != null) GtU(ty)
-      else if (ctx.compare.OP_GEU != null) GeU(ty)
-      else if (ctx.compare.OP_GES != null) GeS(ty)
-      // Those only defined for floating numbers
-      else if (ctx.compare.OP_LT != null) Lt(ty)
-      else if (ctx.compare.OP_LE != null) Le(ty)
-      else if (ctx.compare.OP_GT != null) Gt(ty)
-      else if (ctx.compare.OP_GE != null) Ge(ty)
-      else error
+      val op =
+        if (ctx.compare.OP_EQ != null) Eq(ty)
+        else if (ctx.compare.OP_NE != null) Ne(ty)
+        else if (ctx.compare.OP_LTS != null) LtS(ty)
+        else if (ctx.compare.OP_LTU != null) LtU(ty)
+        else if (ctx.compare.OP_LEU != null) LeU(ty)
+        else if (ctx.compare.OP_LES != null) LeS(ty)
+        else if (ctx.compare.OP_GTS != null) GtS(ty)
+        else if (ctx.compare.OP_GTU != null) GtU(ty)
+        else if (ctx.compare.OP_GEU != null) GeU(ty)
+        else if (ctx.compare.OP_GES != null) GeS(ty)
+        // Those only defined for floating numbers
+        else if (ctx.compare.OP_LT != null) Lt(ty)
+        else if (ctx.compare.OP_LE != null) Le(ty)
+        else if (ctx.compare.OP_GT != null) Gt(ty)
+        else if (ctx.compare.OP_GE != null) Ge(ty)
+        else error
+      Compare(op)
     }
-    else if (ctx.UNARY() != null) {
-      ???
+    else if (ctx.unary() != null) {
+      val ty =
+        if (ctx.unary.IXX != null) toNumType(ctx.unary.IXX.getText)
+        else if (ctx.unary.FXX != null) toNumType(ctx.unary.FXX.getText)
+        else error
+      val op =
+        if (ctx.unary.OP_CLZ != null) Clz(ty)
+        else if (ctx.unary.OP_CTZ != null) Ctz(ty)
+        else if (ctx.unary.OP_POPCNT != null) Popcnt(ty)
+        else if (ctx.unary.OP_NEG != null) Neg(ty)
+        else if (ctx.unary.OP_ABS != null) Abs(ty)
+        else if (ctx.unary.OP_SQRT != null) Sqrt(ty)
+        else if (ctx.unary.OP_CEIL != null) Ceil(ty)
+        else if (ctx.unary.OP_FLOOR != null) Floor(ty)
+        else if (ctx.unary.OP_TRUNC != null) Trunc(ty)
+        else if (ctx.unary.OP_NEAREST != null) Nearest(ty)
+        else error
+      Unary(op)
     }
-    else if (ctx.BINARY() != null) {
-      ???
+    else if (ctx.binary() != null) {
+      val ty =
+        if (ctx.binary.IXX != null) toNumType(ctx.binary.IXX.getText)
+        else if (ctx.binary.FXX != null) toNumType(ctx.binary.FXX.getText)
+        else error
+      val op =
+        if (ctx.binary.OP_ADD != null) Add(ty)
+        else if (ctx.binary.OP_SUB != null) Sub(ty)
+        else if (ctx.binary.OP_MUL != null) Mul(ty)
+        else if (ctx.binary.OP_DIV != null) Div(ty)
+        else if (ctx.binary.OP_DIV_S != null) DivS(ty)
+        else if (ctx.binary.OP_DIV_U != null) DivU(ty)
+        else if (ctx.binary.OP_REM_S != null) RemS(ty)
+        else if (ctx.binary.OP_REM_U != null) RemU(ty)
+        else if (ctx.binary.OP_AND != null) And(ty)
+        else if (ctx.binary.OP_OR != null) Or(ty)
+        else if (ctx.binary.OP_XOR != null) Xor(ty)
+        else if (ctx.binary.OP_SHL != null) Shl(ty)
+        else if (ctx.binary.OP_SHR_S != null) ShrS(ty)
+        else if (ctx.binary.OP_SHR_U != null) ShrU(ty)
+        else if (ctx.binary.OP_ROTL != null) Rotl(ty)
+        else if (ctx.binary.OP_ROTR != null) Rotr(ty)
+        else if (ctx.binary.OP_MIN != null) Min(ty)
+        else if (ctx.binary.OP_MAX != null) Max(ty)
+        else if (ctx.binary.OP_COPYSIGN != null) Copysign(ty)
+        else error
+      Binary(op)
     }
     else if (ctx.CONVERT() != null) {
       ???

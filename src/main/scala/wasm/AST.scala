@@ -85,10 +85,12 @@ case class Binary(op: BinOp) extends Instr
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
 
-abstract class BinOp extends WIR
+abstract class BinOp 
 case class Add(ty: NumType) extends BinOp
 case class Sub(ty: NumType) extends BinOp
 case class Mul(ty: NumType) extends BinOp
+case class Div(ty: NumType) extends BinOp
+// Note: integer div must be either signed or unsigned
 case class DivS(ty: NumType) extends BinOp
 case class DivU(ty: NumType) extends BinOp
 case class RemS(ty: NumType) extends BinOp
@@ -101,11 +103,14 @@ case class ShrS(ty: NumType) extends BinOp
 case class ShrU(ty: NumType) extends BinOp
 case class Rotl(ty: NumType) extends BinOp
 case class Rotr(ty: NumType) extends BinOp
+case class Min(ty: NumType) extends BinOp
+case class Max(ty: NumType) extends BinOp
+case class Copysign(ty: NumType) extends BinOp
 
-abstract class TestOp extends WIR
+abstract class TestOp 
 case class Eqz(ty: NumType) extends TestOp
 
-abstract class RelOp extends WIR
+abstract class RelOp 
 case class Eq(ty: NumType)  extends RelOp
 case class Ne(ty: NumType)  extends RelOp
 case class LtS(ty: NumType) extends RelOp
@@ -121,11 +126,18 @@ case class Le(ty: NumType) extends RelOp
 case class Gt(ty: NumType) extends RelOp
 case class Ge(ty: NumType) extends RelOp
 
-abstract class UnaryOp extends WIR
+abstract class UnaryOp
 case class Clz(ty: NumType) extends UnaryOp
 case class Ctz(ty: NumType) extends UnaryOp
 case class Popcnt(ty: NumType) extends UnaryOp
 case class ExtendS(ty: NumType) extends UnaryOp
+case class Neg(ty: NumType) extends UnaryOp
+case class Abs(ty: NumType) extends UnaryOp
+case class Sqrt(ty: NumType) extends UnaryOp
+case class Ceil(ty: NumType) extends UnaryOp
+case class Floor(ty: NumType) extends UnaryOp
+case class Trunc(ty: NumType) extends UnaryOp
+case class Nearest(ty: NumType) extends UnaryOp
 
 abstract class PackSize extends WIR
 case object Pack8 extends PackSize
