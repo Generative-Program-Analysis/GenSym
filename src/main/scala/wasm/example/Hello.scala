@@ -11,7 +11,7 @@ object SimpleTest extends App {
     val instrs = List(
       Const(I32(1)),
       Const(I32(5)),
-      Binary(BinOp.Int(Add)),
+      Binary(Add(NumType(I32Type))),
     )
     .map(Plain(_))
 

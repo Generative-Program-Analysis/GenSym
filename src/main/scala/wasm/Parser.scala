@@ -333,6 +333,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       val ty = visitNumType(ctx.numType)
       Const(visitLiteralWithType(ctx.literal, ty))
     }
+    else if (ctx.test() != null) {
+      val ty = toNumType(ctx.test.IXX.getText)
+      if (ctx.test.OP_EQZ != null) Eqz(ty)
+      else error
+    }
     else if (ctx.compare() != null) {
       val ty =
         if (ctx.compare.IXX != null) toNumType(ctx.compare.IXX.getText)

@@ -85,45 +85,25 @@ case class Binary(op: BinOp) extends Instr
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
 
-abstract class IntOp extends WIR
-
-abstract class UnaryIntOp extends IntOp
-abstract class BinaryIntOp extends IntOp
-abstract class RelIntOp extends IntOp
-
-case object Clz extends UnaryIntOp
-case object Ctz extends UnaryIntOp
-case object Popcnt extends UnaryIntOp
-case object ExtendS extends UnaryIntOp
-
-case object Add extends BinaryIntOp
-case object Sub extends BinaryIntOp
-case object Mul extends BinaryIntOp
-case object DivS extends BinaryIntOp
-case object DivU extends BinaryIntOp
-case object RemS extends BinaryIntOp
-case object RemU extends BinaryIntOp
-case object And extends BinaryIntOp
-case object Or extends BinaryIntOp
-case object Xor extends BinaryIntOp
-case object Shl extends BinaryIntOp
-case object ShrS extends BinaryIntOp
-case object ShrU extends BinaryIntOp
-case object Rotl extends BinaryIntOp
-case object Rotr extends BinaryIntOp
-
-abstract class IntTestOp extends WIR
-case object Eqz extends IntTestOp
-
 abstract class BinOp extends WIR
-object BinOp {
-  case class Int(op: BinaryIntOp) extends BinOp
-}
+case class Add(ty: NumType) extends BinOp
+case class Sub(ty: NumType) extends BinOp
+case class Mul(ty: NumType) extends BinOp
+case class DivS(ty: NumType) extends BinOp
+case class DivU(ty: NumType) extends BinOp
+case class RemS(ty: NumType) extends BinOp
+case class RemU(ty: NumType) extends BinOp
+case class And(ty: NumType) extends BinOp
+case class Or(ty: NumType) extends BinOp
+case class Xor(ty: NumType) extends BinOp
+case class Shl(ty: NumType) extends BinOp
+case class ShrS(ty: NumType) extends BinOp
+case class ShrU(ty: NumType) extends BinOp
+case class Rotl(ty: NumType) extends BinOp
+case class Rotr(ty: NumType) extends BinOp
 
 abstract class TestOp extends WIR
-object TestOp {
-  case class Int(op: IntTestOp) extends TestOp
-}
+case class Eqz(ty: NumType) extends TestOp
 
 abstract class RelOp extends WIR
 case class Eq(ty: NumType)  extends RelOp
@@ -142,9 +122,10 @@ case class Gt(ty: NumType) extends RelOp
 case class Ge(ty: NumType) extends RelOp
 
 abstract class UnaryOp extends WIR
-object UnaryOp {
-  case class Int(op: UnaryIntOp) extends UnaryOp
-}
+case class Clz(ty: NumType) extends UnaryOp
+case class Ctz(ty: NumType) extends UnaryOp
+case class Popcnt(ty: NumType) extends UnaryOp
+case class ExtendS(ty: NumType) extends UnaryOp
 
 abstract class PackSize extends WIR
 case object Pack8 extends PackSize

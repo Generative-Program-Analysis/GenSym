@@ -39,45 +39,46 @@ case class Label(n: Int, instrs: List[Instr], code: Code) extends AdminInstr
 case class Code(stack: List[Value], adminInstrs: List[AdminInstr])
 case class Config(var frame: Frame, code: Code, stackBudget: Int) {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
-    case BinOp.Int(Add) => (lhs, rhs) match {
+    case Add(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(v1 + v2)
       case (I64(v1), I64(v2)) => I64(v1 + v2)
       case _ => throw new Exception("Invalid types")
     }
-    case BinOp.Int(Mul) => (lhs, rhs) match {
+    case Mul(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(v1 * v2)
       case (I64(v1), I64(v2)) => I64(v1 * v2)
       case _ => throw new Exception("Invalid types")
     }
-    case BinOp.Int(Sub) => (lhs, rhs) match {
+    case Sub(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(v1 - v2)
       case (I64(v1), I64(v2)) => I64(v1 - v2)
       case _ => throw new Exception("Invalid types")
     }
-    case BinOp.Int(Shl) => (lhs, rhs) match {
+    case Shl(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(v1 << v2)
       case (I64(v1), I64(v2)) => I64(v1 << v2)
       case _ => throw new Exception("Invalid types")
     }
-    case BinOp.Int(ShrU) => (lhs, rhs) match {
+    case ShrU(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(v1 >>> v2)
       case (I64(v1), I64(v2)) => I64(v1 >>> v2)
       case _ => throw new Exception("Invalid types")
     }
+    case _ => ???
   }
 
   def evalUnaryOp(op: UnaryOp, value: Value) = op match {
-    case UnaryOp.Int(Clz) => value match {
+    case Clz(_) => value match {
       case I32(v) => I32(Integer.numberOfLeadingZeros(v))
       case I64(v) => I64(java.lang.Long.numberOfLeadingZeros(v))
       case _ => throw new Exception("Invalid types")
     }
-    case UnaryOp.Int(Ctz) => value match {
+    case Ctz(_) => value match {
       case I32(v) => I32(Integer.numberOfTrailingZeros(v))
       case I64(v) => I64(java.lang.Long.numberOfTrailingZeros(v))
       case _ => throw new Exception("Invalid types")
     }
-    case UnaryOp.Int(Popcnt) => value match {
+    case Popcnt(_) => value match {
       case I32(v) => I32(Integer.bitCount(v))
       case I64(v) => I64(java.lang.Long.bitCount(v))
       case _ => throw new Exception("Invalid types")
@@ -140,7 +141,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
   }
 
   def evalTestOp(op: TestOp, value: Value) = op match {
-    case TestOp.Int(Eqz) => value match {
+    case Eqz(_) => value match {
       case I32(v) => I32(if (v == 0) 1 else 0)
       case I64(v) => I32(if (v == 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
