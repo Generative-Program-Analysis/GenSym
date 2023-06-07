@@ -2,7 +2,6 @@ package gensym.wasm.parser
 
 import gensym.wasm.ast._
 import gensym.wasm.source._
-import gensym.wasm.values._
 
 import scala.util.parsing.combinator._
 import scala.util.parsing.input.Positional
@@ -162,9 +161,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   def getVar(ctx: TypeUseContext): Option[String] =
     if (ctx == null) None
-    else Some(getVar(ctx.var_()))
+    else Some(getVar(ctx.idx()))
 
-  def getVar(ctx: Var_Context): String =
+  // Note(GW): in some downstream uses of `getVar`, we cast the value to int. This is not complete wrt the spec.
+  def getVar(ctx: IdxContext): String =
     if (ctx.VAR() != null) ctx.VAR().getText
     else ctx.NAT().getText.toString
 
@@ -178,6 +178,21 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   def visitSignExt(n: String): Extension = n match {
     case "u" => ZX
     case "s" => SX
+  }
+
+  def defaultAlign(ty: NumType, pack: Option[PackSize]): Int = {
+    pack match {
+      case None => ty.kind match {
+        case I32Type => 4
+        case I64Type => 8
+        case F32Type => 4
+        case F64Type => 8
+      }
+      case Some(Pack8) => 1
+      case Some(Pack16) => 2
+      case Some(Pack32) => 4
+      case Some(Pack64) => 8
+    }
   }
 
   /* Overriding visitors */
@@ -242,24 +257,35 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     FuncDef(name, visit(ctx.funcFields).asInstanceOf[FuncField])
   }
 
+  override def visitLiteral(ctx: LiteralContext): Num = {
+    // Note(GW): when should we use I64/F64?
+    if (ctx.NAT != null) {
+      I32(ctx.NAT.getText.toInt)
+    } else if (ctx.INT != null) {
+      I32(ctx.INT.getText.toInt)
+    } else if (ctx.FLOAT != null) {
+      F32(ctx.FLOAT.getText.toFloat)
+    } else error
+  }
+
   override def visitPlainInstr(ctx: PlainInstrContext): WIR = {
     if (ctx.UNREACHABLE() != null) Unreachable
     else if (ctx.NOP() != null) Nop
     else if (ctx.DROP() != null) Drop
     else if (ctx.SELECT() != null) Select(None)
-    else if (ctx.BR() != null) Br(getVar(ctx.var_(0)).toInt)
-    else if (ctx.BR_IF() != null) BrIf(getVar(ctx.var_(0)).toInt)
+    else if (ctx.BR() != null) Br(getVar(ctx.idx(0)).toInt)
+    else if (ctx.BR_IF() != null) BrIf(getVar(ctx.idx(0)).toInt)
     else if (ctx.BR_TABLE() != null) {
-      val labels = ctx.var_().asScala.map(getVar(_).toInt).toList
+      val labels = ctx.idx().asScala.map(getVar(_).toInt).toList
       BrTable(labels.dropRight(1), labels.last)
     }
     else if (ctx.RETURN() != null) Return
-    else if (ctx.CALL() != null) Call(getVar(ctx.var_(0)).toInt)
-    else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.var_(0)).toInt)
-    else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.var_(0)).toInt)
-    else if (ctx.LOCAL_TEE() != null) LocalTee(getVar(ctx.var_(0)).toInt)
-    else if (ctx.GLOBAL_SET() != null) GlobalGet(getVar(ctx.var_(0)).toInt)
-    else if (ctx.GLOBAL_GET() != null) GlobalGet(getVar(ctx.var_(0)).toInt)
+    else if (ctx.CALL() != null) Call(getVar(ctx.idx(0)).toInt)
+    else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.idx(0)).toInt)
+    else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.idx(0)).toInt)
+    else if (ctx.LOCAL_TEE() != null) LocalTee(getVar(ctx.idx(0)).toInt)
+    else if (ctx.GLOBAL_SET() != null) GlobalGet(getVar(ctx.idx(0)).toInt)
+    else if (ctx.GLOBAL_GET() != null) GlobalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.load() != null) {
       val ty = visitNumType(ctx.load.numType)
       val (memSize, sign) = if (ctx.load.MEM_SIZE() != null) {
@@ -271,7 +297,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       } else 0
       val align = if (ctx.alignEq() != null) {
         ctx.alignEq.NAT.getText.toInt
-      } else ??? // FIXME: default alignment
+      } else defaultAlign(ty, memSize)
       Load(LoadOp(align, offset, ty, memSize, sign))
     }
     else if (ctx.store() != null) {
@@ -284,16 +310,16 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       } else 0
       val align = if (ctx.alignEq() != null) {
         ctx.alignEq.NAT.getText.toInt
-      } else ??? // FIXME: default alignment
+      } else defaultAlign(ty, memSize)
       Store(StoreOp(align, offset, ty, memSize))
     }
-    else if (ctx.MEMORY_SIZE() != null) {
-      ???
-    }
-    else if (ctx.MEMORY_GROW() != null) {
-      ???
-    }
-    else if (ctx.CONST() != null) {
+    else if (ctx.MEMORY_SIZE() != null) MemorySize
+    else if (ctx.MEMORY_GROW() != null) MemoryGrow
+    else if (ctx.MEMORY_FILL() != null) MemoryFill
+    else if (ctx.MEMORY_COPY() != null) MemoryCopy
+    else if (ctx.MEMORY_INIT() != null) MemoryInit(getVar(ctx.idx(0)).toInt)
+    else if (ctx.CONST() != null) Const(visitLiteral(ctx.literal))
+    else if (ctx.TEST() != null) {
       ???
     }
     else if (ctx.COMPARE() != null) {

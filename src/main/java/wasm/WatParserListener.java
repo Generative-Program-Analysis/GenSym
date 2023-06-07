@@ -168,15 +168,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitLiteral(WatParser.LiteralContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#var_}.
+	 * Enter a parse tree produced by {@link WatParser#idx}.
 	 * @param ctx the parse tree
 	 */
-	void enterVar_(WatParser.Var_Context ctx);
+	void enterIdx(WatParser.IdxContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#var_}.
+	 * Exit a parse tree produced by {@link WatParser#idx}.
 	 * @param ctx the parse tree
 	 */
-	void exitVar_(WatParser.Var_Context ctx);
+	void exitIdx(WatParser.IdxContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#bindVar}.
 	 * @param ctx the parse tree

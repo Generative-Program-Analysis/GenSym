@@ -209,13 +209,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterVar_(WatParser.Var_Context ctx) { }
+	@Override public void enterIdx(WatParser.IdxContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitVar_(WatParser.Var_Context ctx) { }
+	@Override public void exitIdx(WatParser.IdxContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

@@ -107,11 +107,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitLiteral(WatParser.LiteralContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#var_}.
+	 * Visit a parse tree produced by {@link WatParser#idx}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitVar_(WatParser.Var_Context ctx);
+	T visitIdx(WatParser.IdxContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#bindVar}.
 	 * @param ctx the parse tree

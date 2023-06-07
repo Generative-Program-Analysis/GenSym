@@ -1,7 +1,6 @@
 package gensym.wasm.eval
 
 import gensym.wasm.ast._
-import gensym.wasm.values._
 import gensym.wasm.source._
 import gensym.wasm.memory._
 
