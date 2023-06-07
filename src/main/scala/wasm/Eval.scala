@@ -40,28 +40,28 @@ case class Code(stack: List[Value], adminInstrs: List[AdminInstr])
 case class Config(var frame: Frame, code: Code, stackBudget: Int) {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case Add(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(v1 + v2)
-      case (I64(v1), I64(v2)) => I64(v1 + v2)
+      case (I32V(v1), I32V(v2)) => I32V(v1 + v2)
+      case (I64V(v1), I64V(v2)) => I64V(v1 + v2)
       case _ => throw new Exception("Invalid types")
     }
     case Mul(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(v1 * v2)
-      case (I64(v1), I64(v2)) => I64(v1 * v2)
+      case (I32V(v1), I32V(v2)) => I32V(v1 * v2)
+      case (I64V(v1), I64V(v2)) => I64V(v1 * v2)
       case _ => throw new Exception("Invalid types")
     }
     case Sub(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(v1 - v2)
-      case (I64(v1), I64(v2)) => I64(v1 - v2)
+      case (I32V(v1), I32V(v2)) => I32V(v1 - v2)
+      case (I64V(v1), I64V(v2)) => I64V(v1 - v2)
       case _ => throw new Exception("Invalid types")
     }
     case Shl(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(v1 << v2)
-      case (I64(v1), I64(v2)) => I64(v1 << v2)
+      case (I32V(v1), I32V(v2)) => I32V(v1 << v2)
+      case (I64V(v1), I64V(v2)) => I64V(v1 << v2)
       case _ => throw new Exception("Invalid types")
     }
     case ShrU(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(v1 >>> v2)
-      case (I64(v1), I64(v2)) => I64(v1 >>> v2)
+      case (I32V(v1), I32V(v2)) => I32V(v1 >>> v2)
+      case (I64V(v1), I64V(v2)) => I64V(v1 >>> v2)
       case _ => throw new Exception("Invalid types")
     }
     case _ => ???
@@ -69,18 +69,18 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
   def evalUnaryOp(op: UnaryOp, value: Value) = op match {
     case Clz(_) => value match {
-      case I32(v) => I32(Integer.numberOfLeadingZeros(v))
-      case I64(v) => I64(java.lang.Long.numberOfLeadingZeros(v))
+      case I32V(v) => I32V(Integer.numberOfLeadingZeros(v))
+      case I64V(v) => I64V(java.lang.Long.numberOfLeadingZeros(v))
       case _ => throw new Exception("Invalid types")
     }
     case Ctz(_) => value match {
-      case I32(v) => I32(Integer.numberOfTrailingZeros(v))
-      case I64(v) => I64(java.lang.Long.numberOfTrailingZeros(v))
+      case I32V(v) => I32V(Integer.numberOfTrailingZeros(v))
+      case I64V(v) => I64V(java.lang.Long.numberOfTrailingZeros(v))
       case _ => throw new Exception("Invalid types")
     }
     case Popcnt(_) => value match {
-      case I32(v) => I32(Integer.bitCount(v))
-      case I64(v) => I64(java.lang.Long.bitCount(v))
+      case I32V(v) => I32V(Integer.bitCount(v))
+      case I64V(v) => I64V(java.lang.Long.bitCount(v))
       case _ => throw new Exception("Invalid types")
     }
     case _ => ???
@@ -89,61 +89,61 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
   // TODO: double check (copilot generated)
   def evalRelOp(op: RelOp, lhs: Value, rhs: Value) = op match {
     case Eq(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (v1 == v2) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (v1 == v2) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (v1 == v2) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (v1 == v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case Ne(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (v1 != v2) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (v1 != v2) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (v1 != v2) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (v1 != v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case LtS(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (v1 < v2) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (v1 < v2) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (v1 < v2) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (v1 < v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case LtU(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) < 0) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) < 0) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (Integer.compareUnsigned(v1, v2) < 0) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (java.lang.Long.compareUnsigned(v1, v2) < 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case GtS(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (v1 > v2) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (v1 > v2) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (v1 > v2) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (v1 > v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case GtU(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) > 0) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) > 0) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (Integer.compareUnsigned(v1, v2) > 0) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (java.lang.Long.compareUnsigned(v1, v2) > 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case LeS(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (v1 <= v2) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (v1 <= v2) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (v1 <= v2) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (v1 <= v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case LeU(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) <= 0) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) <= 0) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (Integer.compareUnsigned(v1, v2) <= 0) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (java.lang.Long.compareUnsigned(v1, v2) <= 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case GeS(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (v1 >= v2) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (v1 >= v2) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (v1 >= v2) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (v1 >= v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
     case GeU(_) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) >= 0) 1 else 0)
-      case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) >= 0) 1 else 0)
+      case (I32V(v1), I32V(v2)) => I32V(if (Integer.compareUnsigned(v1, v2) >= 0) 1 else 0)
+      case (I64V(v1), I64V(v2)) => I32V(if (java.lang.Long.compareUnsigned(v1, v2) >= 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
   }
 
   def evalTestOp(op: TestOp, value: Value) = op match {
     case Eqz(_) => value match {
-      case I32(v) => I32(if (v == 0) 1 else 0)
-      case I64(v) => I32(if (v == 0) 1 else 0)
+      case I32V(v) => I32V(if (v == 0) 1 else 0)
+      case I64V(v) => I32V(if (v == 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
   }
@@ -171,7 +171,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         }
 
         case Select(_) => stack match {
-          case I32(cond) :: v2 :: v1 :: newStack => {
+          case I32V(cond) :: v2 :: v1 :: newStack => {
             val value = if (cond == 0) v1 else v2
             (value :: newStack, adminInstrs.tail)
           }
@@ -210,27 +210,27 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
         // Memory Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
-        case MemorySize => (I32(frame.module.memory.head.size) :: stack, adminInstrs.tail)
+        case MemorySize => (I32V(frame.module.memory.head.size) :: stack, adminInstrs.tail)
 
         // https://github.com/WebAssembly/spec/blob/main/interpreter/exec/eval.ml#L406
         // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
         case MemoryGrow => stack match {
-          case I32(delta) :: newStack => {
+          case I32V(delta) :: newStack => {
             val mem = frame.module.memory.head
             val oldSize = mem.size
             try {
               mem.grow(delta)
-              (I32(oldSize) :: newStack, adminInstrs.tail)
+              (I32V(oldSize) :: newStack, adminInstrs.tail)
             } catch {
-              case _: Throwable => (I32(-1) :: newStack, adminInstrs.tail)
+              case _: Throwable => (I32V(-1) :: newStack, adminInstrs.tail)
             }
           }
           case _ => throw new Exception("Invalid stack")
         }
 
         case MemoryFill => stack match {
-          case I32(value) :: I32(offset) :: I32(size) :: newStack => {
+          case I32V(value) :: I32V(offset) :: I32V(size) :: newStack => {
             if (memOob(frame, 0, offset, size)) {
               val trap: AdminInstr = Trapping("Out of bounds memory access")
               (newStack, trap :: adminInstrs.tail)
@@ -244,7 +244,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         }
 
         case MemoryCopy => stack match {
-          case I32(n) :: I32(src) :: I32(dest) :: newStack => {
+          case I32V(n) :: I32V(src) :: I32V(dest) :: newStack => {
             if (memOob(frame, 0, src, n) || memOob(frame, 0, dest, n)) {
               val trap: AdminInstr = Trapping("Out of bounds memory access")
               (newStack, trap :: adminInstrs.tail)
@@ -277,7 +277,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           case _ => throw new Exception("Invalid stack")
         }
         case Store(StoreOp(align, offset, tipe, None)) => stack match {
-          case I32(value) :: I32(addr) :: newStack => {
+          case I32V(value) :: I32V(addr) :: newStack => {
             val mem = frame.module.memory(0)
             mem.storeInt(addr + offset, value)
             (newStack, adminInstrs.tail)
@@ -285,10 +285,10 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           case _ => throw new Exception("Invalid stack")
         }
         case Load(LoadOp(align, offset, tipe, None, None)) => stack match {
-          case I32(addr) :: newStack => {
+          case I32V(addr) :: newStack => {
             val mem = frame.module.memory(0)
             val value = mem.loadInt(addr + offset)
-            (I32(value) :: newStack, adminInstrs.tail)
+            (I32V(value) :: newStack, adminInstrs.tail)
           }
           case _ => throw new Exception("Invalid stack")
         }
@@ -314,7 +314,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           (newStack, label :: adminInstrs.tail)
         }
         case If(blockTy, thenInstrs, elseInstrs) => stack match {
-          case I32(cond) :: newStack => {
+          case I32V(cond) :: newStack => {
             val instrs = if (cond == 0) elseInstrs else thenInstrs
             val block: AdminInstr = Plain(Block(blockTy, instrs))
             (newStack, block :: adminInstrs.tail)
@@ -326,10 +326,10 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           (List(), breaking :: adminInstrs.tail)
         }
         case BrIf(label) => stack match {
-          case I32(0) :: newStack => {
+          case I32V(0) :: newStack => {
             (newStack, adminInstrs.tail)
           }
-          case I32(_) :: newStack => {
+          case I32V(_) :: newStack => {
             val branch: AdminInstr = Plain(Br(label))
             (newStack, branch :: adminInstrs.tail)
           }
@@ -359,7 +359,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         val args = stack.take(tipe.inps.length).reverse
         val newStack = stack.drop(tipe.inps.length)
 
-        val locals = args ++ fnLocals.map(_ => I32(0)) // TODO: map locals to default value for type
+        val locals = args ++ fnLocals.map(_ => I32V(0)) // TODO: map locals to default value for type
         val fnFrame = Frame(frame.module, locals)
         val labelCode = Code(List(), body.map(Plain(_).asInstanceOf[AdminInstr]).toList)
         val label = Label(tipe.out.length, List(), labelCode)

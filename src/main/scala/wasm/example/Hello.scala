@@ -9,8 +9,8 @@ import gensym.wasm.memory._
 object SimpleTest extends App {
   def basicTest() = {
     val instrs = List(
-      Const(I32(1)),
-      Const(I32(5)),
+      Const(I32V(1)),
+      Const(I32V(5)),
       Binary(Add(NumType(I32Type))),
     )
     .map(Plain(_))

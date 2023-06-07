@@ -263,18 +263,18 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
     if (ctx.NAT != null) {
       ty.kind match {
-        case I32Type => I32(ctx.NAT.getText.toInt)
-        case I64Type => I64(ctx.NAT.getText.toLong)
+        case I32Type => I32V(ctx.NAT.getText.toInt)
+        case I64Type => I64V(ctx.NAT.getText.toLong)
       }
     } else if (ctx.INT != null) {
       ty.kind match {
-        case I32Type => I32(ctx.NAT.getText.toInt)
-        case I64Type => I64(ctx.NAT.getText.toLong)
+        case I32Type => I32V(ctx.NAT.getText.toInt)
+        case I64Type => I64V(ctx.NAT.getText.toLong)
       }
     } else if (ctx.FLOAT != null) {
       ty.kind match {
-        case F32Type => F32(ctx.NAT.getText.toFloat)
-        case F64Type => F64(ctx.NAT.getText.toDouble)
+        case F32Type => F32V(ctx.NAT.getText.toFloat)
+        case F64Type => F64V(ctx.NAT.getText.toDouble)
       }
     } else error
   }
@@ -411,8 +411,47 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         else error
       Binary(op)
     }
-    else if (ctx.CONVERT() != null) {
-      ???
+    else if (ctx.convert() != null) {
+      val op =
+        if (ctx.convert.OP_WRAP != null) {
+          val from = toNumType(ctx.convert.I64.getText)
+          val to = toNumType(ctx.convert.I32.getText)
+          Wrap(from, to)
+        } else if (ctx.convert.OP_TRUNC_ != null) {
+          val from = toNumType(ctx.convert.FXX.getText)
+          val to = toNumType(ctx.convert.IXX.getText)
+          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
+          TruncTo(from, to, sign)
+        } else if (ctx.convert.OP_TRUNC_SAT != null) {
+          val from = toNumType(ctx.convert.FXX.getText)
+          val to = toNumType(ctx.convert.IXX.getText)
+          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
+          TruncSat(from, to, sign)
+        } else if (ctx.convert.OP_EXTEND != null) {
+          val from = toNumType(ctx.convert.I32.getText)
+          val to = toNumType(ctx.convert.I64.getText)
+          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
+          Extend(from, to, sign)
+        } else if (ctx.convert.OP_CONVERT != null) {
+          val from = toNumType(ctx.convert.IXX.getText)
+          val to = toNumType(ctx.convert.FXX.getText)
+          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
+          ConvertTo(from, to, sign)
+        } else if (ctx.convert.OP_DEMOTE != null) {
+          val from = toNumType(ctx.convert.F64.getText)
+          val to = toNumType(ctx.convert.F32.getText)
+          Demote(from, to)
+        } else if (ctx.convert.OP_PROMOTE != null) {
+          val from = toNumType(ctx.convert.F32.getText)
+          val to = toNumType(ctx.convert.F64.getText)
+          Promote(from, to)
+        } else if (ctx.convert.OP_REINTER != null) {
+          // TODO: test this
+          val from = ctx.convert.getChild(2).accept[WIR](this).asInstanceOf[NumType]
+          val to = ctx.convert.getChild(0).accept[WIR](this).asInstanceOf[NumType]
+          Promote(from, to)
+        } else error
+      Convert(op)
     }
     else error
   }

@@ -288,6 +288,16 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitBinary(WatParser.BinaryContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#convert}.
+	 * @param ctx the parse tree
+	 */
+	void enterConvert(WatParser.ConvertContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#convert}.
+	 * @param ctx the parse tree
+	 */
+	void exitConvert(WatParser.ConvertContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 */

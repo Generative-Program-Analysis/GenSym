@@ -65,7 +65,7 @@ case class Test(op: TestOp) extends Instr
 case class Compare(op: RelOp) extends Instr
 case class Unary(op: UnaryOp) extends Instr
 case class Binary(op: BinOp) extends Instr
-// case class Convert(op: CvtOp) extends Instr
+case class Convert(op: CvtOp) extends Instr
 // case class VecConst(vec: Vec) extends Instr
 // case class VecTest(op: VecTestOp) extends Instr
 // case class VecCompare(op: VecRelOp) extends Instr
@@ -139,6 +139,18 @@ case class Floor(ty: NumType) extends UnaryOp
 case class Trunc(ty: NumType) extends UnaryOp
 case class Nearest(ty: NumType) extends UnaryOp
 
+abstract class CvtOp
+// Note: the actual possible types are more restricted than what is allowed
+// by the AST, see https://webassembly.github.io/spec/core/text/instructions.html
+case class Wrap(from: NumType, to: NumType) extends CvtOp
+case class TruncTo(from: NumType, to: NumType, sign: Extension) extends CvtOp
+case class TruncSat(from: NumType, to: NumType, sign: Extension) extends CvtOp
+case class Extend(from: NumType, to: NumType, sign: Extension) extends CvtOp
+case class ConvertTo(from: NumType, to: NumType, sign: Extension) extends CvtOp
+case class Demote(from: NumType, to: NumType) extends CvtOp
+case class Promote(from: NumType, to: NumType) extends CvtOp
+case class Reinterpret(from: NumType, to: NumType) extends CvtOp
+
 abstract class PackSize extends WIR
 case object Pack8 extends PackSize
 case object Pack16 extends PackSize
@@ -205,14 +217,14 @@ abstract class Value extends WIR {
 
 abstract class Num extends Value {
   def tipe: ValueType = NumType(this match {
-    case I32(_) => I32Type
-    case I64(_) => I64Type
-    case F32(_) => F32Type
-    case F64(_) => F64Type
+    case I32V(_) => I32Type
+    case I64V(_) => I64Type
+    case F32V(_) => F32Type
+    case F64V(_) => F64Type
   })
 }
 
-case class I32(value: Int) extends Num
-case class I64(value: Long) extends Num
-case class F32(value: Float) extends Num
-case class F64(value: Double) extends Num
+case class I32V(value: Int) extends Num
+case class I64V(value: Long) extends Num
+case class F32V(value: Float) extends Num
+case class F64V(value: Double) extends Num
