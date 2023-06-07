@@ -195,6 +195,16 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
   }
 
+  def toNumKind(t: String): NumKind =
+    t match {
+      case "i32" => I32Type
+      case "i64" => I64Type
+      case "f32" => F32Type
+      case "f64" => F64Type
+    }
+
+  def toNumType(t: String): NumType = NumType(toNumKind(t))
+
   /* Overriding visitors */
 
   override def visitModule(ctx: ModuleContext): WIR = {
@@ -211,14 +221,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     visitChildren(ctx)
   }
 
-  override def visitNumType(ctx: NumTypeContext): NumType = {
-    ctx.VALUE_TYPE().getText match {
-      case "i32" => NumType(I32Type)
-      case "i64" => NumType(I64Type)
-      case "f32" => NumType(F32Type)
-      case "f64" => NumType(F64Type)
-    }
-  }
+  override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE().getText)
 
   override def visitVecType(ctx: VecTypeContext): VecType = VecType(V128Type)
 
@@ -257,14 +260,22 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     FuncDef(name, visit(ctx.funcFields).asInstanceOf[FuncField])
   }
 
-  override def visitLiteral(ctx: LiteralContext): Num = {
-    // Note(GW): when should we use I64/F64?
+  def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
     if (ctx.NAT != null) {
-      I32(ctx.NAT.getText.toInt)
+      ty.kind match {
+        case I32Type => I32(ctx.NAT.getText.toInt)
+        case I64Type => I64(ctx.NAT.getText.toLong)
+      }
     } else if (ctx.INT != null) {
-      I32(ctx.INT.getText.toInt)
+      ty.kind match {
+        case I32Type => I32(ctx.NAT.getText.toInt)
+        case I64Type => I64(ctx.NAT.getText.toLong)
+      }
     } else if (ctx.FLOAT != null) {
-      F32(ctx.FLOAT.getText.toFloat)
+      ty.kind match {
+        case F32Type => F32(ctx.NAT.getText.toFloat)
+        case F64Type => F64(ctx.NAT.getText.toDouble)
+      }
     } else error
   }
 
@@ -318,12 +329,31 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.MEMORY_FILL() != null) MemoryFill
     else if (ctx.MEMORY_COPY() != null) MemoryCopy
     else if (ctx.MEMORY_INIT() != null) MemoryInit(getVar(ctx.idx(0)).toInt)
-    else if (ctx.CONST() != null) Const(visitLiteral(ctx.literal))
-    else if (ctx.TEST() != null) {
-      ???
+    else if (ctx.CONST() != null) {
+      val ty = visitNumType(ctx.numType)
+      Const(visitLiteralWithType(ctx.literal, ty))
     }
-    else if (ctx.COMPARE() != null) {
-      ???
+    else if (ctx.compare() != null) {
+      val ty =
+        if (ctx.compare.IXX != null) toNumType(ctx.compare.IXX.getText)
+        else if (ctx.compare.FXX != null) toNumType(ctx.compare.FXX.getText)
+        else error
+      if (ctx.compare.OP_EQ != null) Eq(ty)
+      else if (ctx.compare.OP_NE != null) Ne(ty)
+      else if (ctx.compare.OP_LTS != null) LtS(ty)
+      else if (ctx.compare.OP_LTU != null) LtU(ty)
+      else if (ctx.compare.OP_LEU != null) LeU(ty)
+      else if (ctx.compare.OP_LES != null) LeS(ty)
+      else if (ctx.compare.OP_GTS != null) GtS(ty)
+      else if (ctx.compare.OP_GTU != null) GtU(ty)
+      else if (ctx.compare.OP_GEU != null) GeU(ty)
+      else if (ctx.compare.OP_GES != null) GeS(ty)
+      // Those only defined for floating numbers
+      else if (ctx.compare.OP_LT != null) Lt(ty)
+      else if (ctx.compare.OP_LE != null) Le(ty)
+      else if (ctx.compare.OP_GT != null) Gt(ty)
+      else if (ctx.compare.OP_GE != null) Ge(ty)
+      else error
     }
     else if (ctx.UNARY() != null) {
       ???

@@ -87,52 +87,52 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
   // TODO: double check (copilot generated)
   def evalRelOp(op: RelOp, lhs: Value, rhs: Value) = op match {
-    case RelOp.Int(Eq) => (lhs, rhs) match {
+    case Eq(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (v1 == v2) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (v1 == v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(Ne) => (lhs, rhs) match {
+    case Ne(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (v1 != v2) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (v1 != v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(LtS) => (lhs, rhs) match {
+    case LtS(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (v1 < v2) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (v1 < v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(LtU) => (lhs, rhs) match {
+    case LtU(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) < 0) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) < 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(GtS) => (lhs, rhs) match {
+    case GtS(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (v1 > v2) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (v1 > v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(GtU) => (lhs, rhs) match {
+    case GtU(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) > 0) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) > 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(LeS) => (lhs, rhs) match {
+    case LeS(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (v1 <= v2) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (v1 <= v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(LeU) => (lhs, rhs) match {
+    case LeU(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) <= 0) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) <= 0) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(GeS) => (lhs, rhs) match {
+    case GeS(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (v1 >= v2) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (v1 >= v2) 1 else 0)
       case _ => throw new Exception("Invalid types")
     }
-    case RelOp.Int(GeU) => (lhs, rhs) match {
+    case GeU(_) => (lhs, rhs) match {
       case (I32(v1), I32(v2)) => I32(if (Integer.compareUnsigned(v1, v2) >= 0) 1 else 0)
       case (I64(v1), I64(v2)) => I32(if (java.lang.Long.compareUnsigned(v1, v2) >= 0) 1 else 0)
       case _ => throw new Exception("Invalid types")

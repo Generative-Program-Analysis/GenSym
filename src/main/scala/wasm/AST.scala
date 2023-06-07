@@ -112,17 +112,6 @@ case object ShrU extends BinaryIntOp
 case object Rotl extends BinaryIntOp
 case object Rotr extends BinaryIntOp
 
-case object Eq extends RelIntOp
-case object Ne extends RelIntOp
-case object LtS extends RelIntOp
-case object LeS extends RelIntOp
-case object LtU extends RelIntOp
-case object LeU extends RelIntOp
-case object GtS extends RelIntOp
-case object GeS extends RelIntOp
-case object GtU extends RelIntOp
-case object GeU extends RelIntOp
-
 abstract class IntTestOp extends WIR
 case object Eqz extends IntTestOp
 
@@ -137,9 +126,20 @@ object TestOp {
 }
 
 abstract class RelOp extends WIR
-object RelOp {
-  case class Int(op: RelIntOp) extends RelOp
-}
+case class Eq(ty: NumType)  extends RelOp
+case class Ne(ty: NumType)  extends RelOp
+case class LtS(ty: NumType) extends RelOp
+case class LeS(ty: NumType) extends RelOp
+case class LtU(ty: NumType) extends RelOp
+case class LeU(ty: NumType) extends RelOp
+case class GtS(ty: NumType) extends RelOp
+case class GeS(ty: NumType) extends RelOp
+case class GtU(ty: NumType) extends RelOp
+case class GeU(ty: NumType) extends RelOp
+case class Lt(ty: NumType) extends RelOp
+case class Le(ty: NumType) extends RelOp
+case class Gt(ty: NumType) extends RelOp
+case class Ge(ty: NumType) extends RelOp
 
 abstract class UnaryOp extends WIR
 object UnaryOp {

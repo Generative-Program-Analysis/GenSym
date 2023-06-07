@@ -155,6 +155,18 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitStore(WatParser.StoreContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link WatParser#test}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTest(WatParser.TestContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#compare}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitCompare(WatParser.CompareContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

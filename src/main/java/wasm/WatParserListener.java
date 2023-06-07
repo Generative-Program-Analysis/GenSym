@@ -248,6 +248,26 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitStore(WatParser.StoreContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#test}.
+	 * @param ctx the parse tree
+	 */
+	void enterTest(WatParser.TestContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#test}.
+	 * @param ctx the parse tree
+	 */
+	void exitTest(WatParser.TestContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#compare}.
+	 * @param ctx the parse tree
+	 */
+	void enterCompare(WatParser.CompareContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#compare}.
+	 * @param ctx the parse tree
+	 */
+	void exitCompare(WatParser.CompareContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 */
