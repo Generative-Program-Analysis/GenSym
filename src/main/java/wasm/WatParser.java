@@ -82,7 +82,7 @@ public class WatParser extends Parser {
 
 	private static String[] makeLiteralNames() {
 		return new String[] {
-			null, "'('", "')'", null, null, null, null, null, null, "'funcref'", 
+			null, "'('", "')'", null, null, null, null, null, "'.const'", "'funcref'", 
 			"'externref'", "'mut'", "'nop'", "'unreachable'", "'drop'", "'block'", 
 			"'loop'", "'end'", "'br'", "'br_if'", "'br_table'", "'return'", "'if'", 
 			"'then'", "'else'", "'select'", "'call'", "'call_indirect'", "'local.get'", 
