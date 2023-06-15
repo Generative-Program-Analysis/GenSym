@@ -15,16 +15,15 @@ object SimpleTest extends App {
       Const(I32(5)),
       Binary(BinOp.Int(Add)),
     )
-    .map(Plain(_))
+    //.map(Plain(_))
 
     val moduleInst = ModuleInstance(List(), List())
     val config = Config(
       Frame(moduleInst, List()),
-      Code(List(), instrs),
       1000
     )
 
-    println(config.eval.code.stack)
+    println(config._eval(List(), instrs))
   }
 
   def fileTest() = {
@@ -36,7 +35,7 @@ object SimpleTest extends App {
       case FuncDef("$real_main", _, _, _) => true
       case _ => false
     }).get.asInstanceOf[FuncDef].body
-    .map(Plain(_))
+    //.map(Plain(_))
     .toList
 
     // val types = module.value.definitions.collect({
@@ -50,11 +49,10 @@ object SimpleTest extends App {
     val moduleInst = ModuleInstance(types, funcs)
     val config = Config(
       Frame(moduleInst, List()),
-      Code(List(), instrs),
       1000
     )
 
-    println(config.eval.code.stack)
+    println(config._eval(List(), instrs))
   }
 
   basicTest()

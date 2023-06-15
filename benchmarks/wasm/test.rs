@@ -36,21 +36,21 @@ fn ack(m: i32, n: i32) -> i32 {
     }
 }
 
-// #[no_mangle]
-// #[inline(never)]
-// fn opaque(x: i32) -> i32 {
-//     x + 1
-// }
+#[no_mangle]
+#[inline(never)]
+fn opaque(x: i32) -> i32 {
+    x + 1
+}
 
-// #[no_mangle]
-// #[inline(never)]
-// fn conditional(x: i32) -> i32 {
-//     if x == 0 {
-//         x + 10
-//     } else {
-//         opaque(x)
-//     }
-// }
+#[no_mangle]
+#[inline(never)]
+fn conditional(x: i32) -> i32 {
+    if x == 0 {
+        x + 10
+    } else {
+        opaque(x)
+    }
+}
 
 #[no_mangle]
 fn real_main() -> i32 {
