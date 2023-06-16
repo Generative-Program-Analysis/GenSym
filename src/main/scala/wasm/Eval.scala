@@ -171,310 +171,43 @@ case class Config(var frame: Frame, stackBudget: Int) {
     end > memory.size
   }
 
-  // def step: Config = {
-  //   val Code(stack, adminInstrs) = code
-  //   // adminInstrs.head.value match {
-  //   //   case Plain(instr) => println(stack, instr)
-  //   //   case _ => println(stack)
-  //   // }
-  //   val (newStack, newInstrs): (List[Value], List[AdminInstr])  = adminInstrs.head match {
-  //     case Plain(instr) => instr match {
-  //       // Parametric Instructions
-  //       case Drop => stack match {
-  //         case _ :: newStack => (newStack, adminInstrs.tail)
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       case Select(_) => stack match {
-  //         case I32(cond) :: v2 :: v1 :: newStack => {
-  //           val value = if (cond == 0) v1 else v2
-  //           (value :: newStack, adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       // Variable Instructions
-  //       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
-  //       case LocalGet(local) => (frame.locals(local) :: stack, adminInstrs.tail)
-  //       case LocalSet(local) => stack match {
-  //         case value :: newStack => {
-  //           frame.locals = frame.locals.updated(local, value)
-  //           (newStack, adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case LocalTee(local) => stack match {
-  //         case value :: newStack => {
-  //           frame.locals = frame.locals.updated(local, value)
-  //           (value :: newStack, adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case GlobalGet(global) => (frame.module.globals(global).value :: stack, adminInstrs.tail)
-  //       case GlobalSet(global) => stack match {
-  //         case value :: newStack => {
-  //           frame.module.globals(global).tipe match {
-  //             case GlobalType(tipe, true) if value.tipe == tipe => frame.module.globals(global).value = value
-  //             case GlobalType(_, true) => throw new Exception("Invalid type")
-  //             case _ => throw new Exception("Cannot set immutable global")
-  //           }
-  //           (newStack, adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       // Memory Instructions
-  //       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
-  //       case MemorySize => (I32(frame.module.memory.head.size) :: stack, adminInstrs.tail)
-
-  //       // https://github.com/WebAssembly/spec/blob/main/interpreter/exec/eval.ml#L406
-  //       // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
-  //       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
-  //       case MemoryGrow => stack match {
-  //         case I32(delta) :: newStack => {
-  //           val mem = frame.module.memory.head
-  //           val oldSize = mem.size
-  //           try {
-  //             mem.grow(delta)
-  //             (I32(oldSize) :: newStack, adminInstrs.tail)
-  //           } catch {
-  //             case _: Throwable => (I32(-1) :: newStack, adminInstrs.tail)
-  //           }
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       case MemoryFill => stack match {
-  //         case I32(value) :: I32(offset) :: I32(size) :: newStack => {
-  //           if (memOob(frame, 0, offset, size)) {
-  //             val trap: AdminInstr = Trapping("Out of bounds memory access")
-  //             (newStack, trap :: adminInstrs.tail)
-  //           } else {
-  //             val mem = frame.module.memory.head
-  //             mem.fill(offset, size, value.toByte)
-  //             (newStack, adminInstrs.tail)
-  //           }
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       case MemoryCopy => stack match {
-  //         case I32(n) :: I32(src) :: I32(dest) :: newStack => {
-  //           if (memOob(frame, 0, src, n) || memOob(frame, 0, dest, n)) {
-  //             val trap: AdminInstr = Trapping("Out of bounds memory access")
-  //             (newStack, trap :: adminInstrs.tail)
-  //           } else {
-  //             val mem = frame.module.memory.head
-  //             mem.copy(dest, src, n)
-  //             (newStack, adminInstrs.tail)
-  //           }
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       // Numeric Instructions
-  //       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
-  //       case Const(num) => (num :: stack, adminInstrs.tail)
-  //       case Binary(op) => stack match {
-  //         case v2 :: v1 :: rest => (evalBinOp(op, v1, v2) :: rest, adminInstrs.tail)
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Unary(op) => stack match {
-  //         case value :: rest => (evalUnaryOp(op, value) :: rest, adminInstrs.tail)
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Compare(op) => stack match {
-  //         case v2 :: v1 :: rest => (evalRelOp(op, v1, v2) :: rest, adminInstrs.tail)
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Test(testOp) => stack match {
-  //         case value :: rest => (evalTestOp(testOp, value) :: rest, adminInstrs.tail)
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Store(StoreOp(align, offset, tipe, None)) => stack match {
-  //         case I32(value) :: I32(addr) :: newStack => {
-  //           val mem = frame.module.memory(0)
-  //           mem.storeInt(addr + offset, value)
-  //           (newStack, adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Load(LoadOp(align, offset, tipe, None, None)) => stack match {
-  //         case I32(addr) :: newStack => {
-  //           val mem = frame.module.memory(0)
-  //           val value = mem.loadInt(addr + offset)
-  //           (I32(value) :: newStack, adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-
-  //       // Control Instructions
-  //       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
-  //       case Nop => (stack, adminInstrs.tail)
-  //       case Unreachable => throw new Exception("Unreachable")
-  //       case Block(blockTy, instrs) => {
-  //         val funcType = blockTy.toFuncType(frame.module)
-  //         val args = stack.take(funcType.inps.length)
-  //         val newStack = stack.drop(funcType.inps.length)
-  //         val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
-  //         val label: AdminInstr = Label(funcType.out.length, List(), Code(args, labelInstrs))
-  //         (newStack, label :: adminInstrs.tail)
-  //       }
-  //       case Loop(blockTy, instrs) => {
-  //         val funcType = blockTy.toFuncType(frame.module)
-  //         val args = stack.take(funcType.inps.length)
-  //         val newStack = stack.drop(funcType.inps.length)
-  //         val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
-  //         val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
-  //         (newStack, label :: adminInstrs.tail)
-  //       }
-  //       case If(blockTy, thenInstrs, elseInstrs) => stack match {
-  //         case I32(cond) :: newStack => {
-  //           val instrs = if (cond == 0) elseInstrs else thenInstrs
-  //           val block: AdminInstr = Plain(Block(blockTy, instrs))
-  //           (newStack, block :: adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Br(label) => {
-  //         val breaking: AdminInstr = Breaking(label, stack)
-  //         (List(), breaking :: adminInstrs.tail)
-  //       }
-  //       case BrIf(label) => stack match {
-  //         case I32(0) :: newStack => {
-  //           (newStack, adminInstrs.tail)
-  //         }
-  //         case I32(_) :: newStack => {
-  //           val branch: AdminInstr = Plain(Br(label))
-  //           (newStack, branch :: adminInstrs.tail)
-  //         }
-  //         case _ => throw new Exception("Invalid stack")
-  //       }
-  //       case Return => {
-  //         val returning: AdminInstr = Returning(stack)
-  //         (List(), returning :: adminInstrs.tail)
-  //       }
-  //       case Call(func) => {
-  //         val invoke: AdminInstr = Invoke(func)
-  //         (stack, invoke :: adminInstrs.tail)
-  //       }
-  //     }
-
-  //     // Administrative Instructions
-  //     // https://www.w3.org/TR/wasm-core-2/exec/runtime.html#administrative-instructions
-
-  //     case Trapping(msg) => throw new Exception(s"Trap: $msg")
-
-  //     case Invoke(_) if stackBudget == 0 => {
-  //       throw new Exception("Stack overflow")
-  //     }
-
-  //     case Invoke(func) => {
-  //       val FuncDef(_, tipe, fnLocals, body) = frame.module.funcs(func)
-  //       val args = stack.take(tipe.inps.length).reverse
-  //       val newStack = stack.drop(tipe.inps.length)
-
-  //       val locals = args ++ fnLocals.map(_ => I32(0)) // TODO: map locals to default value for type
-  //       val fnFrame = Frame(frame.module, locals)
-  //       val labelCode = Code(List(), body.map(Plain(_).asInstanceOf[AdminInstr]).toList)
-  //       val label = Label(tipe.out.length, List(), labelCode)
-  //       val code = Code(List(), List(label))
-  //       val frameInstr: AdminInstr = FrameInstr(tipe.out.length, fnFrame, code)
-  //       (newStack, frameInstr :: adminInstrs.tail)
-  //     }
-
-  //     case FrameInstr(n, innerFrame, Code(frameStack, List())) =>
-  //       (frameStack ++ stack, adminInstrs.tail)
-
-  //     case FrameInstr(n, innerFrame, Code(frameStack, Returning(retStack) :: rest)) =>
-  //       (retStack.take(n) ++ stack, adminInstrs.tail)
-
-  //     case Label(_, labelInstrs, Code(labelStack, trap@Trapping(_) :: rest)) =>
-  //       (stack, trap.asInstanceOf[AdminInstr] :: adminInstrs.tail)
-
-  //     case FrameInstr(n, innerFrame, code) => {
-  //       val frameConfig = Config(innerFrame, code, stackBudget - 1).step
-  //       val frameInstr: AdminInstr = FrameInstr(n, frameConfig.frame, frameConfig.code)
-  //       (stack, frameInstr :: adminInstrs.tail)
-  //     }
-
-  //     case Label(_, _, Code(labelStack, List())) =>
-  //       (labelStack ++ stack, adminInstrs.tail)
-
-  //     case Label(_, _, Code(_labelStack, Returning(retStack) :: rest)) => {
-  //       val returning: AdminInstr = Returning(retStack)
-  //       (stack, returning :: adminInstrs.tail)
-  //     }
-
-  //     case Label(n, labelInstrs, Code(labelStack, Breaking(0, breakStack) :: rest)) => {
-  //       val newInstrs = labelInstrs.map(instr => Plain(instr).asInstanceOf[AdminInstr])
-  //       (breakStack.take(n) ++ stack, newInstrs ++ adminInstrs.tail)
-  //     }
-
-  //     case Label(_, labelInstrs, Code(labelStack, Breaking(n, breakStack) :: rest)) => {
-  //       val breaking: AdminInstr = Breaking(n - 1, breakStack)
-  //       (stack, breaking :: adminInstrs.tail)
-  //     }
-
-  //     case Label(_, labelInstrs, Code(labelStack, trap@Trapping(_) :: rest)) => {
-  //       (stack, trap.asInstanceOf[AdminInstr] :: adminInstrs.tail)
-  //     }
-
-  //     case Label(n, instrs, labelCode) => {
-  //       val labelConfig = this.copy(code = labelCode).step
-  //       val label: AdminInstr = Label(n, instrs, labelConfig.code)
-  //       (stack, label :: adminInstrs.tail)
-  //     }
-
-  //     case instr => throw new Exception(s"Invalid admin instruction $instr")
-  //   }
-
-  //   this.copy(code = Code(newStack, newInstrs))
-  // }
-
-  // def eval: Config = this.code.adminInstrs match {
-  //   case Nil => this
-  //   case Trapping(msg) :: _ => throw new Exception(s"Trap: $msg")
-  //   case _ => this.step.eval
-  // }
-
-  def _eval(stack: List[Value], instrs: List[Instr]): EvalResult = {
+  def eval(stack: List[Value], instrs: List[Instr]): EvalResult = {
     if (instrs.isEmpty) return Continue(stack)
 
     println(s"Stack: $stack, instr: ${instrs.head}, locals: ${frame.locals}")
     instrs.head match {
       // Parametric Instructions
       case Drop => stack match {
-        case _ :: newStack => this._eval(newStack, instrs.tail)
+        case _ :: newStack => this.eval(newStack, instrs.tail)
         case _ => throw new Exception("Invalid stack")
       }
 
       case Select(_) => stack match {
         case I32(cond) :: v2 :: v1 :: newStack => {
           val value = if (cond == 0) v1 else v2
-          this._eval(value :: newStack, instrs.tail)
+          this.eval(value :: newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
 
       // Variable Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
-      case LocalGet(local) => this._eval(frame.locals(local) :: stack, instrs.tail)
+      case LocalGet(local) => this.eval(frame.locals(local) :: stack, instrs.tail)
       case LocalSet(local) => stack match {
         case value :: newStack => {
           frame.locals = frame.locals.updated(local, value)
-          this._eval(newStack, instrs.tail)
+          this.eval(newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
       case LocalTee(local) => stack match {
         case value :: newStack => {
           frame.locals = frame.locals.updated(local, value)
-          this._eval(value :: newStack, instrs.tail)
+          this.eval(value :: newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
-      case GlobalGet(global) => this._eval(frame.module.globals(global).value :: stack, instrs.tail)
+      case GlobalGet(global) => this.eval(frame.module.globals(global).value :: stack, instrs.tail)
       case GlobalSet(global) => stack match {
         case value :: newStack => {
           frame.module.globals(global).tipe match {
@@ -482,14 +215,14 @@ case class Config(var frame: Frame, stackBudget: Int) {
             case GlobalType(_, true) => throw new Exception("Invalid type")
             case _ => throw new Exception("Cannot set immutable global")
           }
-          this._eval(newStack, instrs.tail)
+          this.eval(newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
 
       // Memory Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
-      case MemorySize => this._eval(I32(frame.module.memory.head.size) :: stack, instrs.tail)
+      case MemorySize => this.eval(I32(frame.module.memory.head.size) :: stack, instrs.tail)
 
       // https://github.com/WebAssembly/spec/blob/main/interpreter/exec/eval.ml#L406
       // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
@@ -500,9 +233,9 @@ case class Config(var frame: Frame, stackBudget: Int) {
           val oldSize = mem.size
           try {
             mem.grow(delta)
-            this._eval(I32(oldSize) :: newStack, instrs.tail)
+            this.eval(I32(oldSize) :: newStack, instrs.tail)
           } catch {
-            case e: Exception => this._eval(I32(-1) :: newStack, instrs.tail)
+            case e: Exception => this.eval(I32(-1) :: newStack, instrs.tail)
           }
         }
         case _ => throw new Exception("Invalid stack")
@@ -515,7 +248,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
           } else {
             val mem = frame.module.memory.head
             mem.fill(offset, size, value.toByte)
-            this._eval(newStack, instrs.tail)
+            this.eval(newStack, instrs.tail)
           }
         }
         case _ => throw new Exception("Invalid stack")
@@ -528,7 +261,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
           } else {
             val mem = frame.module.memory.head
             mem.copy(dest, src, n)
-            this._eval(newStack, instrs.tail)
+            this.eval(newStack, instrs.tail)
           }
         }
         case _ => throw new Exception("Invalid stack")
@@ -536,28 +269,28 @@ case class Config(var frame: Frame, stackBudget: Int) {
 
       // Numeric Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
-      case Const(num) => this._eval(num :: stack, instrs.tail)
+      case Const(num) => this.eval(num :: stack, instrs.tail)
       case Binary(op) => stack match {
-        case v2 :: v1 :: rest => this._eval(evalBinOp(op, v1, v2) :: rest, instrs.tail)
+        case v2 :: v1 :: rest => this.eval(evalBinOp(op, v1, v2) :: rest, instrs.tail)
         case _ => throw new Exception("Invalid stack")
       }
       case Unary(op) => stack match {
-        case value :: rest => this._eval(evalUnaryOp(op, value) :: rest, instrs.tail)
+        case value :: rest => this.eval(evalUnaryOp(op, value) :: rest, instrs.tail)
         case _ => throw new Exception("Invalid stack")
       }
       case Compare(op) => stack match {
-        case v2 :: v1 :: rest => this._eval(evalRelOp(op, v1, v2) :: rest, instrs.tail)
+        case v2 :: v1 :: rest => this.eval(evalRelOp(op, v1, v2) :: rest, instrs.tail)
         case _ => throw new Exception("Invalid stack")
       }
       case Test(testOp) => stack match {
-        case value :: rest => this._eval(evalTestOp(testOp, value) :: rest, instrs.tail)
+        case value :: rest => this.eval(evalTestOp(testOp, value) :: rest, instrs.tail)
         case _ => throw new Exception("Invalid stack")
       }
       case Store(StoreOp(align, offset, tipe, None)) => stack match {
         case I32(value) :: I32(addr) :: newStack => {
           val mem = frame.module.memory(0)
           mem.storeInt(addr + offset, value)
-          this._eval(newStack, instrs.tail)
+          this.eval(newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
@@ -565,14 +298,14 @@ case class Config(var frame: Frame, stackBudget: Int) {
         case I32(addr) :: newStack => {
           val mem = frame.module.memory(0)
           val value = mem.loadInt(addr + offset)
-          this._eval(I32(value) :: newStack, instrs.tail)
+          this.eval(I32(value) :: newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
 
       // Control Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
-      case Nop => this._eval(stack, instrs.tail)
+      case Nop => this.eval(stack, instrs.tail)
       case Unreachable => throw new Exception("Unreachable")
       case Block(blockTy, blockInstrs) => {
         val funcType = blockTy.toFuncType(frame.module)
@@ -582,7 +315,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
         // val label: AdminInstr = Label(funcType.out.length, List(), Code(args, labelInstrs))
         // (newStack, label :: adminInstrs.tail)
         evalBlock(funcType.out.length, blockInstrs.toList).onContinue { retStack =>
-          this._eval(retStack ++ stack, instrs.tail)
+          this.eval(retStack ++ stack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
@@ -593,7 +326,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
         // val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
         // (newStack, label :: adminInstrs.tail)
         evalBlock(funcType.out.length, loopInstrs.toList).onContinue { retStack =>
-          this._eval(retStack ++ stack, instrs)
+          this.eval(retStack ++ stack, instrs)
         }
       }
       case If(blockTy, thenInstrs, elseInstrs) => stack match {
@@ -601,7 +334,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
           val condInstrs = if (cond == 0) elseInstrs else thenInstrs
           val funcType = blockTy.toFuncType(frame.module)
           evalBlock(funcType.out.length, condInstrs.toList).onContinue { retStack =>
-            this._eval(retStack ++ newStack, instrs.tail)
+            this.eval(retStack ++ newStack, instrs.tail)
           }
           // val block: AdminInstr = Plain(Block(blockTy, instrs))
           // (newStack, block :: adminInstrs.tail)
@@ -613,7 +346,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
       }
       case BrIf(label) => stack match {
         case I32(0) :: newStack => {
-          this._eval(newStack, instrs.tail)
+          this.eval(newStack, instrs.tail)
         }
         case I32(_) :: newStack => {
           Breaking(label, newStack)
@@ -632,7 +365,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
         val frameLocals = args ++ locals.map(_ => I32(0))
         val newFrame = Frame(frame.module, frameLocals)
         evalFunc(args, newFrame, funcType, body.toList).onContinue { retStack =>
-          this._eval(retStack ++ newStack, instrs.tail)
+          this.eval(retStack ++ newStack, instrs.tail)
         }
       }
     }
@@ -650,7 +383,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
 
   // basically equates to step with Label on top in the previous impl
   def evalBlock(outs: Int, instrs: List[Instr]): EvalResult = {
-    val ret = this.copy()._eval(List(), instrs)
+    val ret = this.copy().eval(List(), instrs)
     ret match {
       case Breaking(0, breakStack) => Continue(breakStack.take(outs))
       case Breaking(n, breakStack) => Breaking(n - 1, breakStack)

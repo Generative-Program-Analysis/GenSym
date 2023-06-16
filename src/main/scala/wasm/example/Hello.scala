@@ -23,7 +23,7 @@ object SimpleTest extends App {
       1000
     )
 
-    println(config._eval(List(), instrs))
+    println(config.eval(List(), instrs))
   }
 
   def fileTest() = {
@@ -52,7 +52,7 @@ object SimpleTest extends App {
       1000
     )
 
-    println(config._eval(List(), instrs))
+    println(config.eval(List(), instrs))
   }
 
   basicTest()
