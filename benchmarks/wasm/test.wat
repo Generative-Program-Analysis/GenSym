@@ -60,6 +60,14 @@
     local.get 0
     i32.const 1
     i32.add)
+  (func $opaque1 (type 1) (param i32) (result i32)
+    local.get 0
+    i32.const 5
+    i32.add)
+  (func $opaque2 (type 1) (param i32) (result i32)
+    local.get 0
+    i32.const 100
+    i32.add)
   (func $conditional (type 1) (param i32) (result i32)
     block  ;; label = @1
       local.get 0
@@ -70,5 +78,6 @@
     local.get 0
     call $opaque)
   (func $real_main (type 2) (result i32)
-    i32.const 0
+    i32.const 4
+    i32.const 4
     call $conditional))

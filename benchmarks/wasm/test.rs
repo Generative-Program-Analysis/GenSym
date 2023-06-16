@@ -44,6 +44,18 @@ fn opaque(x: i32) -> i32 {
 
 #[no_mangle]
 #[inline(never)]
+fn opaque1(x: i32) -> i32 {
+    x + 5
+}
+
+#[no_mangle]
+#[inline(never)]
+fn opaque2(x: i32) -> i32 {
+    x + 100
+}
+
+#[no_mangle]
+#[inline(never)]
 fn conditional(x: i32) -> i32 {
     if x == 0 {
         x + 10

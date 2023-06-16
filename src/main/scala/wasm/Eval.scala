@@ -45,13 +45,14 @@ case class Continue(stack: List[Value]) extends EvalResult
 case class Breaking(n: Int, stack: List[Value]) extends EvalResult
 case class Returning(stack: List[Value]) extends EvalResult
 abstract class EvalResult {
-  def andThen(f: List[Value] => EvalResult): EvalResult = this match {
-    case Continue(stack) => f(stack)
-    case Breaking(0, breakStack) => Continue(breakStack)
-    case Breaking(n, breakStack) => Breaking(n - 1, breakStack)
-    case Returning(retStack) => Returning(retStack)
+  def onContinue(f: List[Value] => EvalResult): EvalResult = {
+    this match {
+      case Continue(stack) => f(stack)
+      case _ => this
+    }
   }
 }
+
 case class Config(var frame: Frame, stackBudget: Int) {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value) = op match {
     case BinOp.Int(Add) => (lhs, rhs) match {
@@ -574,14 +575,14 @@ case class Config(var frame: Frame, stackBudget: Int) {
       case Nop => this._eval(stack, instrs.tail)
       case Unreachable => throw new Exception("Unreachable")
       case Block(blockTy, blockInstrs) => {
-        // val funcType = blockTy.toFuncType(frame.module)
+        val funcType = blockTy.toFuncType(frame.module)
         // val args = stack.take(funcType.inps.length)
         // val newStack = stack.drop(funcType.inps.length)
         // val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
         // val label: AdminInstr = Label(funcType.out.length, List(), Code(args, labelInstrs))
         // (newStack, label :: adminInstrs.tail)
-        evalBlock(blockTy, blockInstrs.toList).andThen { retStack =>
-          this._eval(retStack ++ stack, instrs.tail)
+        evalBlock(blockTy, blockInstrs.toList).onContinue { retStack =>
+          this._eval(retStack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
@@ -591,14 +592,15 @@ case class Config(var frame: Frame, stackBudget: Int) {
         // val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
         // val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
         // (newStack, label :: adminInstrs.tail)
-        evalBlock(blockTy, loopInstrs.toList).andThen { retStack =>
-          this._eval(retStack ++ stack, instrs.tail)
+        println(s"Before Loop: $stack")
+        evalLoop(stack, blockTy, loopInstrs.toList).onContinue { retStack =>
+          this._eval(retStack, instrs.tail)
         }
       }
       case If(blockTy, thenInstrs, elseInstrs) => stack match {
         case I32(cond) :: newStack => {
           val condInstrs = if (cond == 0) elseInstrs else thenInstrs
-          evalBlock(blockTy, condInstrs.toList).andThen { retStack =>
+          evalBlock(blockTy, condInstrs.toList).onContinue { retStack =>
             this._eval(retStack ++ stack, instrs.tail)
           }
           // val block: AdminInstr = Plain(Block(blockTy, instrs))
@@ -631,27 +633,47 @@ case class Config(var frame: Frame, stackBudget: Int) {
         
         val frameLocals = args ++ locals.map(_ => I32(0))
         val newFrame = Frame(frame.module, frameLocals)
-        evalFunc(args, newFrame, funcType, body.toList).andThen { retStack =>
+        println(s"Before Function: $stack")
+        evalFunc(args, newFrame, funcType, body.toList).onContinue { retStack =>
+          println(s"After Function: ${retStack ++ newStack}")
           this._eval(retStack ++ newStack, instrs.tail)
         }
       }
     }
   }
 
+  // basically equates to step with FrameInstr on top in the previous impl
   def evalFunc(args: List[Value], nframe: Frame, funcType: FuncType, instrs: List[Instr]): EvalResult = {
-    val ret = this.copy(frame = nframe)
-        ._eval(args, instrs)
+    val ret = this.copy(frame = nframe)._eval(args, instrs)
 
     ret match {
-      case Continue(cntStack) => Continue(cntStack.take(funcType.out.length))
-      case Returning(retStack) => Continue(retStack)
+      case Returning(retStack) => Continue(retStack.take(funcType.out.length))
+      case _ => ret
     }
   }
 
+  // evalBlock and evalLoop are similar to label, except loop
+  // re-executes the block
   def evalBlock(blockTy: BlockType, instrs: List[Instr]): EvalResult = {
     val funcType = blockTy.toFuncType(frame.module)
-    this.copy()._eval(List(), instrs).andThen { retStack =>
-      Continue(retStack.take(funcType.out.length)).asInstanceOf[EvalResult]
+    val ret = this.copy()._eval(List(), instrs)
+    ret match {
+      case Breaking(0, breakStack) => Continue(breakStack.take(funcType.out.length))
+      case Breaking(n, breakStack) => Breaking(n - 1, breakStack)
+      case _ => ret
+    }
+  }
+
+  def evalLoop(stack: List[Value], block: BlockType, instr: List[Instr]): EvalResult = {
+    val funcType = block.toFuncType(frame.module)
+    val ret = this.copy()._eval(List(), instr)
+    ret match {
+      case Breaking(0, breakStack) => {
+        val newStack = breakStack.take(funcType.out.length)
+        evalLoop(newStack, block, instr)
+      }
+      case Breaking(n, breakStack) => Breaking(n - 1, breakStack)
+      case _ => ret
     }
   }
 }
