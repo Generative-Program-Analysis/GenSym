@@ -78,6 +78,6 @@
     local.get 0
     call $opaque)
   (func $real_main (type 2) (result i32)
-    i32.const 4
-    i32.const 4
-    call $conditional))
+    i32.const 2
+    i32.const 2
+    call $ack))

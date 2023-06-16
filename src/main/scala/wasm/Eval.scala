@@ -581,27 +581,27 @@ case class Config(var frame: Frame, stackBudget: Int) {
         // val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
         // val label: AdminInstr = Label(funcType.out.length, List(), Code(args, labelInstrs))
         // (newStack, label :: adminInstrs.tail)
-        evalBlock(blockTy, blockInstrs.toList).onContinue { retStack =>
-          this._eval(retStack, instrs.tail)
+        evalBlock(funcType.out.length, blockInstrs.toList).onContinue { retStack =>
+          this._eval(retStack ++ stack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
-        // val funcType = blockTy.toFuncType(frame.module)
+        val funcType = blockTy.toFuncType(frame.module)
         // val args = stack.take(funcType.inps.length)
         // val newStack = stack.drop(funcType.inps.length)
         // val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
         // val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
         // (newStack, label :: adminInstrs.tail)
-        println(s"Before Loop: $stack")
-        evalLoop(stack, blockTy, loopInstrs.toList).onContinue { retStack =>
-          this._eval(retStack, instrs.tail)
+        evalBlock(funcType.out.length, loopInstrs.toList).onContinue { retStack =>
+          this._eval(retStack ++ stack, instrs)
         }
       }
       case If(blockTy, thenInstrs, elseInstrs) => stack match {
         case I32(cond) :: newStack => {
           val condInstrs = if (cond == 0) elseInstrs else thenInstrs
-          evalBlock(blockTy, condInstrs.toList).onContinue { retStack =>
-            this._eval(retStack ++ stack, instrs.tail)
+          val funcType = blockTy.toFuncType(frame.module)
+          evalBlock(funcType.out.length, condInstrs.toList).onContinue { retStack =>
+            this._eval(retStack ++ newStack, instrs.tail)
           }
           // val block: AdminInstr = Plain(Block(blockTy, instrs))
           // (newStack, block :: adminInstrs.tail)
@@ -621,21 +621,17 @@ case class Config(var frame: Frame, stackBudget: Int) {
         case _ => throw new Exception("Invalid stack")
       }
       case Return => {
-        // TODO: add a third return value to indicate the return signal
         // (List(), Some(0))
         Returning(stack)
       }
       case Call(func) => {
-        // TODO: conditionals work, but something is wrong with function calls
         val FuncDef(_, funcType, locals, body) = frame.module.funcs(func)
-        val args = stack.take(funcType.inps.length)
+        val args = stack.take(funcType.inps.length).reverse
         val newStack = stack.drop(funcType.inps.length)
         
         val frameLocals = args ++ locals.map(_ => I32(0))
         val newFrame = Frame(frame.module, frameLocals)
-        println(s"Before Function: $stack")
         evalFunc(args, newFrame, funcType, body.toList).onContinue { retStack =>
-          println(s"After Function: ${retStack ++ newStack}")
           this._eval(retStack ++ newStack, instrs.tail)
         }
       }
@@ -644,7 +640,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
 
   // basically equates to step with FrameInstr on top in the previous impl
   def evalFunc(args: List[Value], nframe: Frame, funcType: FuncType, instrs: List[Instr]): EvalResult = {
-    val ret = this.copy(frame = nframe)._eval(args, instrs)
+    val ret = this.copy(frame = nframe).evalBlock(funcType.out.length, instrs)
 
     ret match {
       case Returning(retStack) => Continue(retStack.take(funcType.out.length))
@@ -652,26 +648,11 @@ case class Config(var frame: Frame, stackBudget: Int) {
     }
   }
 
-  // evalBlock and evalLoop are similar to label, except loop
-  // re-executes the block
-  def evalBlock(blockTy: BlockType, instrs: List[Instr]): EvalResult = {
-    val funcType = blockTy.toFuncType(frame.module)
+  // basically equates to step with Label on top in the previous impl
+  def evalBlock(outs: Int, instrs: List[Instr]): EvalResult = {
     val ret = this.copy()._eval(List(), instrs)
     ret match {
-      case Breaking(0, breakStack) => Continue(breakStack.take(funcType.out.length))
-      case Breaking(n, breakStack) => Breaking(n - 1, breakStack)
-      case _ => ret
-    }
-  }
-
-  def evalLoop(stack: List[Value], block: BlockType, instr: List[Instr]): EvalResult = {
-    val funcType = block.toFuncType(frame.module)
-    val ret = this.copy()._eval(List(), instr)
-    ret match {
-      case Breaking(0, breakStack) => {
-        val newStack = breakStack.take(funcType.out.length)
-        evalLoop(newStack, block, instr)
-      }
+      case Breaking(0, breakStack) => Continue(breakStack.take(outs))
       case Breaking(n, breakStack) => Breaking(n - 1, breakStack)
       case _ => ret
     }
