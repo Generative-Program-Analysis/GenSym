@@ -309,24 +309,14 @@ case class Config(var frame: Frame, stackBudget: Int) {
       case Unreachable => throw new Exception("Unreachable")
       case Block(blockTy, blockInstrs) => {
         val funcType = blockTy.toFuncType(frame.module)
-        // val args = stack.take(funcType.inps.length)
-        // val newStack = stack.drop(funcType.inps.length)
-        // val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
-        // val label: AdminInstr = Label(funcType.out.length, List(), Code(args, labelInstrs))
-        // (newStack, label :: adminInstrs.tail)
         evalBlock(funcType.out.length, blockInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
         val funcType = blockTy.toFuncType(frame.module)
-        // val args = stack.take(funcType.inps.length)
-        // val newStack = stack.drop(funcType.inps.length)
-        // val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
-        // val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
-        // (newStack, label :: adminInstrs.tail)
         evalBlock(funcType.out.length, loopInstrs.toList).onContinue { retStack =>
-          this.eval(retStack ++ stack, instrs)
+          this.eval(retStack ++ stack, instrs) // instead of instrs.tail
         }
       }
       case If(blockTy, thenInstrs, elseInstrs) => stack match {
@@ -336,8 +326,6 @@ case class Config(var frame: Frame, stackBudget: Int) {
           evalBlock(funcType.out.length, condInstrs.toList).onContinue { retStack =>
             this.eval(retStack ++ newStack, instrs.tail)
           }
-          // val block: AdminInstr = Plain(Block(blockTy, instrs))
-          // (newStack, block :: adminInstrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
@@ -354,7 +342,6 @@ case class Config(var frame: Frame, stackBudget: Int) {
         case _ => throw new Exception("Invalid stack")
       }
       case Return => {
-        // (List(), Some(0))
         Returning(stack)
       }
       case Call(func) => {
