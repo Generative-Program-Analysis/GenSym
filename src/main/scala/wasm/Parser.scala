@@ -461,7 +461,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       if (ctx.callIndirectInstr() != null)
         List(visitCallIndirectInstr(ctx.callIndirectInstr()))
       else List()
-    val instrs = ctx.instr.asScala.map(visit(_)).asInstanceOf[List[Instr]]
+    val instrs = ctx.instr.asScala.map(visit(_)).map(_.asInstanceOf[Instr]).toList
     FuncBodyDef(null, null, null, instrs ++ last.asInstanceOf[List[Instr]])
   }
 

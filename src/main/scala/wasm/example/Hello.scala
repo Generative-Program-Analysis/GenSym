@@ -32,7 +32,9 @@ object SimpleTest extends App {
     val instrs = module.definitions.find({
       case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
       case _ => false
-    }).get.asInstanceOf[FuncBodyDef].body
+    }).map({
+      case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+    }).get
     .map(Plain(_))
     .toList
 
