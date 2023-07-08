@@ -8,13 +8,15 @@ case class MemoryType(min: Int, max: Option[Int])
 case class Memory(var memType: MemoryType, data: ArrayBuffer[Byte]) {
   def size: Int = (data.size / Memory.pageSize).toInt
 
-  def grow(delta: Int): Unit = {
+  def grow(delta: Int): Option[MemoryException] = {
     val oldSize = memType.min
     val newSize = oldSize + delta
-    if (newSize < oldSize) throw new MemoryException("SizeOverflow")
-    else {
+    if (newSize < oldSize) {
+      Some(MemoryException("SizeOverflow"))
+    } else {
       memType = MemoryType(newSize, memType.max)
       data ++= Array.fill[Byte](delta * Memory.pageSize.toInt)(0)
+      None
     }
   }
 
