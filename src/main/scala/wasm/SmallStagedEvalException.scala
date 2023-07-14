@@ -131,17 +131,35 @@ trait StagedEval extends SAIOps {
   }
 }
 
+trait CppStagedWasmGen extends CppSAICodeGenBase {
+  import lms.core.Backend._
+  // registerHeader("./headers", "<sai_imp_concrete.hpp>")
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "I32V", List(i), _) => emit(s"int($i)")
+    case Node(s, "I32V-proj", List(i), _) => emit(s"($i)")
+    case _ => super.shallow(n)
+  }
+}
+
+trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEval { q =>
+  override val codegen = new CGenBase with CppStagedWasmGen {
+    val IR: q.type = q
+    import IR._
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString.endsWith("$Value")) "int"
+      else super.remap(m)
+    }
+  }
+}
+
 object SmallStagedTest extends App {
   @virtualize
   def mkVMSnippet(instrs: List[Instr], module: ModuleInstance): CppSAIDriver[List[Int], List[Int]] with StagedEval = {
-    new CppSAIDriver[List[Int], List[Int]] with StagedEval {
+    new CppStagedWasmDriver[List[Int], List[Int]] with StagedEval {
       def snippet(stack: Rep[List[Int]]): Rep[List[Int]] = {
         val config = Config(Frame(module, List[Value]()), 1000)
         config.eval(stack.map(I32), instrs).map(repI32Proj)
-        // config.eval(stack.map(I32), instrs) match {
-        //   case Continue(s) => s.map(repI32Proj)
-        //   case _ => ???
-        // }
       }
     }
   }
@@ -166,6 +184,5 @@ object SmallStagedTest extends App {
   val snip = mkVMSnippet(instrs, module)
   val code = snip.code
   println(code)
-  // snip.eval(List(5))
+  snip.eval(List(5))
 }
-
