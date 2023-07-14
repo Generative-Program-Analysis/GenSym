@@ -118,7 +118,11 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     if (m == manifest[Int]) s"atoi($arg)"
     else if (m == manifest[String]) arg
     else if (m == manifest[Unit]) "0"
-    else ???
+    else if (m == manifest[List[Int]]) arg
+    else {
+      println(m)
+      ???
+    }
   }
 
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {

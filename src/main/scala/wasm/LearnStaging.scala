@@ -132,21 +132,21 @@ object ReTest extends App {
     }
   }
 
-  // def mkSnippet(re: String): DslDriver[String,Boolean] with StagedRegexpMatcher = {
-  //   new DslDriver[String,Boolean] with StagedRegexpMatcher {
-  //     def snippet(text: Rep[String]): Rep[Boolean] = {
-  //       matchsearch(re, text)
-  //     }
-  //   }
-  // }
+  def mkSnippet(re: String): DslDriver[String,Boolean] with StagedRegexpMatcher = {
+    new DslDriver[String,Boolean] with StagedRegexpMatcher {
+      def snippet(text: Rep[String]): Rep[Boolean] = {
+        matchsearch(re, text)
+      }
+    }
+  }
 
-  val instrs = List(PushConst(1), PushConst(2), Add)
-  val snippet = mkVMSnippet(instrs)
-  println(snippet.code)
-  // println(snippet.eval(Map()))
-  // val re = "a*b"
-  // val snippet = mkSnippet(re)
+  // val instrs = List(PushConst(1), PushConst(2), Add)
+  // val snippet = mkVMSnippet(instrs)
   // println(snippet.code)
+  // println(snippet.eval(Map()))
+  val re = "^$"
+  val snippet = mkSnippet(re)
+  println(snippet.code)
   // println(snippet.eval("aaab"))
   // println(snippet.eval("aaa"))
 }
