@@ -13,16 +13,21 @@ import gensym.lmsx._
 
 @virtualize
 trait StagedEval extends SAIOps {
-  trait Value
-  def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
-  def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
+  // TODO: hack because otherwise variable names get messed up
+  type Value = Int
+  def I32(i: Rep[Int]): Rep[Value] = i
+  def repI32Proj(i: Rep[Value]): Rep[Int] = i
 
-  implicit def repI32Proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
-    case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) =>
-      Wrap[Int](v)
-    case _ =>
-      Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
-  }
+  // trait Value
+  // def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
+  // def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
+
+  // implicit def repI32Proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
+  //   case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) =>
+  //     Wrap[Int](v)
+  //   case _ =>
+  //     Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
+  // }
 
   case class Frame(module: ModuleInstance, locals: Rep[List[Value]])
   case class Breaking(n: Int, stack: Rep[List[Value]]) extends Exception
@@ -42,6 +47,13 @@ trait StagedEval extends SAIOps {
 
       instrs.head match {
         case Drop => this.eval(stack.tail, instrs.tail)
+
+        case LocalGet(local) =>
+          this.eval(frame.locals(local) :: stack, instrs.tail)
+        case LocalSet(local) => {
+          val nFrame = frame.copy(locals = frame.locals.updated(local, stack.head))
+          this.copy(frame = nFrame).eval(stack.tail, instrs.tail)
+        }
 
         case Konst(I32C(n)) => this.eval(I32(n) :: stack, instrs.tail)
         case Binary(op) => {
@@ -110,11 +122,11 @@ trait StagedEval extends SAIOps {
     }
 
     // basically equates to step with Label on top in the previous impl
-    def evalBlock(outs: Int, instrs: List[Instr]): Rep[List[Value]] = {
+    def evalBlock(arity: Int, instrs: List[Instr]): Rep[List[Value]] = {
       try {
-        this.copy().eval(List[Value](), instrs)
+        this.copy().eval(List(), instrs)
       } catch {
-        case Breaking(0, stack) => stack.take(outs)
+        case Breaking(0, stack) => stack.take(arity)
         case Breaking(n, stack) => throw Breaking(n - 1, stack)
         case e: Exception => throw e
       }
@@ -158,8 +170,9 @@ object SmallStagedTest extends App {
   def mkVMSnippet(instrs: List[Instr], module: ModuleInstance): CppSAIDriver[List[Int], List[Int]] with StagedEval = {
     new CppStagedWasmDriver[List[Int], List[Int]] with StagedEval {
       def snippet(stack: Rep[List[Int]]): Rep[List[Int]] = {
-        val config = Config(Frame(module, List[Value]()), 1000)
-        config.eval(stack.map(I32), instrs).map(repI32Proj)
+        // stack.map(x => I32(x)).map(x => repI32Proj(x))
+        val config = Config(Frame(module, List[Value](0, 0, 0)), 1000)
+        config.eval(stack, instrs)
       }
     }
   }
@@ -175,10 +188,9 @@ object SmallStagedTest extends App {
   }
   val instrs = List(
     Konst(I32C(10)),
-    Loop(ValBlockType(None), Seq(
-      Konst(I32C(1)), Binary(BinOp.Int(Add))
-    ))
-    // Binary(BinOp.Int(Add)),
+    LocalSet(0),
+    Loop(ValBlockType(Some(NumType(I32Type))), Seq()),
+    Binary(BinOp.Int(Add)),
     // If(ValBlockType(Some(NumType(I32Type))), List(Konst(I32C(2999))), List(Br(0)))
   )
   val snip = mkVMSnippet(instrs, module)
