@@ -113,7 +113,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
       // TODO: pass by ref vs pass by val?
       //emitln(s"std::function<$retType(${argTypes})&> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      quoteTypedBlock(b, false, true, capture = "=")
+      quoteTypedBlock(b, false, true, capture = "&")
       emitln(";")
     case _ => super.traverse(n)
   }
@@ -122,7 +122,6 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     if (m == manifest[Int]) s"atoi($arg)"
     else if (m == manifest[String]) arg
     else if (m == manifest[Unit]) "0"
-    else if (m == manifest[List[Int]]) "immer::flex_vector<int>{ 5 }" //TODO
     else {
       println(m)
       ???

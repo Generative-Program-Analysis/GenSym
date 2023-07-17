@@ -82,21 +82,16 @@ trait StagedEval extends SAIOps {
     }
   }
 
-  // TODO: hack because otherwise variable names get messed up
-  type Value = Int
-  def I32(i: Rep[Int]): Rep[Value] = i
-  def repI32Proj(i: Rep[Value]): Rep[Int] = i
+  trait Value
+  def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
+  def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
 
-  // trait Value
-  // def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
-  // def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
-
-  // implicit def repI32Proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
-  //   case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) =>
-  //     Wrap[Int](v)
-  //   case _ =>
-  //     Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
-  // }
+  implicit def repI32Proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
+    case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) =>
+      Wrap[Int](v)
+    case _ =>
+      Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
+  }
 
   case class Config(module: ModuleInstance, stackBudget: Int) {
     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
@@ -109,6 +104,9 @@ trait StagedEval extends SAIOps {
         val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
         I32(lhs - rhs)
       }
+    }
+    def evalTestOp(op: TestOp, value: Rep[Value]): Rep[Value] = op match {
+      case TestOp.Int(Eqz) => if (repI32Proj(value) == 0) I32(1) else I32(0)
     }
 
     def eval(state: Rep[State], instrs: List[Instr]): Rep[EvalResult] = {
@@ -143,6 +141,11 @@ trait StagedEval extends SAIOps {
           val newStack = stack.drop(2)
           this.eval(state.withStack(evalBinOp(op, v1, v2) :: newStack), instrs.tail)
         }
+        case Test(testOp) => {
+          val value = stack.head
+          val newStack = stack.tail
+          this.eval(state.withStack(evalTestOp(testOp, value) :: newStack), instrs.tail)
+        }
 
         case If(blockTy, thenInstrs, elseInstrs) => {
           val cond: Rep[Int] = stack.head
@@ -162,13 +165,6 @@ trait StagedEval extends SAIOps {
         }
         case Block(blockTy, blockInstrs) => {
           val funcType = blockTy.toFuncType(Unit)
-          // val retStack = evalBlock(funcType.out.length, blockInstrs.toList)
-          // def block: Rep[State => EvalResult] = fun { inState =>
-          //   val outState = evalBlock(inState, funcType.out.length, blockInstrs.toList)
-          //   State(memory, globals, outState.frameLocals, inState.stack ++ outState.stack)
-          // }
-
-          // this.eval(block(state), instrs.tail)
           evalBlock(state, funcType.out.length, blockInstrs.toList).onContinue { s =>
             this.eval(s.withStack(state.stack ++ s.stack), instrs.tail)
           }
@@ -182,8 +178,8 @@ trait StagedEval extends SAIOps {
             }
           }
 
-          loop(state).onContinue { state =>
-            this.eval(state, instrs.tail)
+          loop(state).onContinue { loopState =>
+            this.eval(loopState, instrs.tail)
           }
         }
         case Br(label) => {
@@ -191,6 +187,7 @@ trait StagedEval extends SAIOps {
         }
         case BrIf(label) => {
           val cond: Rep[Int] = stack.head
+          printf("br-if cond: %d\n", cond)
           val newState = state.withStack(stack.tail)
           val zero: Rep[Int] = 0
           if (cond == zero) {
@@ -202,24 +199,26 @@ trait StagedEval extends SAIOps {
         case Return => {
           Returning(state)
         }
-        // case Call(func) => {
-        //    val FuncDef(_, funcType, locals, body) = frame.module.funcs(func)
-        //    // TODO: reverse args
-        //    val args = stack.take(funcType.inps.length)
-        //    val newStack = stack.drop(funcType.inps.length)
+        case Call(func) => {
+           val FuncDef(_, funcType, locals, body) = module.funcs(func)
+           // TODO: reverse args
+           val args = stack.take(funcType.inps.length)
+           val newStack = stack.drop(funcType.inps.length)
      
-        //    val initFrameLocals: Rep[List[Value]] = List.fill(locals.length)(I32(0))
-        //    val frameLocals: Rep[List[Value]] = args ++ initFrameLocals
-        //    val newFrame = Frame(frame.module, frameLocals)
-        //    val retState = evalFunc(args, newFrame, funcType, body.toList)
-        //    this.eval(retState.copy(stack = newStack ++ retState.stack, instrs.tail)
-        // }
+           val initFrameLocals: Rep[List[Value]] = List.fill(locals.length)(I32(0))
+           val frameLocals: Rep[List[Value]] = args ++ initFrameLocals
+           val inState = state.withStack(List[Value]()).withFrameLocals(frameLocals)
+           val retState = evalFunc(inState, funcType.out.length, body.toList)
+           retState.onContinue { s =>
+             this.eval(s.withStack(newStack ++ s.stack), instrs.tail)
+           }
+        }
       }
     }
 
     // basically equates to step with Label on top in the previous impl
     def evalBlock(state: Rep[State], arity: Int, instrs: List[Instr]): Rep[EvalResult] = {
-      val res = this.eval(state.withStack(List()), instrs)
+      val res = this.eval(state.withStack(List[Value]()), instrs)
 
       if (res.isBreaking) {
         val n = res.getBreakingN
@@ -234,6 +233,15 @@ trait StagedEval extends SAIOps {
       }
     }
 
+    def evalFunc(state: Rep[State], arity: Int, instrs: List[Instr]): Rep[EvalResult] = {
+      val ret = evalBlock(state, arity, instrs)
+      if (ret.isReturning) {
+        val retState = ret.getReturningState
+        Continue(retState.withStack(retState.stack.take(arity)))
+      } else {
+        ret
+      }
+    }
     // def evalFunc(args: Rep[List[Value]], nframe: Frame, funcType: FuncType, instrs: List[Instr]): Config = {
     //   try {
     //     this.copy(frame = nframe).evalBlock(funcType.out.length, instrs)
@@ -250,8 +258,8 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<wasm_state_continue.hpp>")
 
   override def shallow(n: Node): Unit = n match {
-    case Node(s, "I32V", List(i), _) => emit(s"int("); shallow(i); emit(")")
-    case Node(s, "I32V-proj", List(i), _) => shallow(i)
+    case Node(s, "I32V", List(i), _) => emit("I32V("); shallow(i); emit(")")
+    case Node(s, "I32V-proj", List(i), _) => shallow(i); emit(".i32")
     case Node(s, "state-new", List(memory, globals, locals, stack), _) => 
       emit("State("); 
       shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(locals); emit(", "); shallow(stack); 
@@ -290,7 +298,7 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEval { q =
     val IR: q.type = q
     import IR._
     override def remap(m: Manifest[_]): String = {
-      if (m.toString.endsWith("$Value")) "int"
+      if (m.toString.endsWith("$Value")) "Value"
       else if (m.toString.endsWith("$State")) "State"
       else if (m.toString.endsWith("Memory")) "Mem"
       else if (m.toString.endsWith("Global")) "Global"
@@ -305,16 +313,18 @@ object SmallStagedTest extends App {
   def mkVMSnippet(
     module: ModuleInstance,
     instrs: List[Instr],
-  ): CppSAIDriver[List[Int], List[Int]] with StagedEval = {
-    new CppStagedWasmDriver[List[Int], List[Int]] with StagedEval {
-      def snippet(locals: Rep[List[Int]]): Rep[List[Int]] = {
-        // stack.map(x => I32(x)).map(x => repI32Proj(x))
+  ): CppSAIDriver[Int, List[Int]] with StagedEval = {
+    new CppStagedWasmDriver[Int, List[Int]] with StagedEval {
+      def snippet(arg: Rep[Int]): Rep[List[Int]] = {
         val config = Config(module, 1000)
-        val realLocals = locals.map(x => I32(x))
-        val state = State(List(), List(), realLocals, List())
+        val state = State(List[Memory](), List[Global](), List[Value](I32(0)), List[Value]())
         val retState = config.eval(state, instrs)
         if (retState.isContinue) {
-          retState.getContinue.stack.map(x => repI32Proj(x))
+          val res = retState.getContinue.stack.map(x => repI32Proj(x))
+          for (i <- 0 until res.size) {
+            printf("%d ", res(i))
+          }
+          res
         } else {
           List()
         }
@@ -326,7 +336,7 @@ object SmallStagedTest extends App {
     val types = List()
     val funcs = List(
       FuncDef("add5", FuncType(Seq(NumType(I32Type)), Seq(NumType(I32Type))), Seq(NumType(I32Type)), Seq(
-        Konst(I32C(5)), Binary(BinOp.Int(Add))
+        LocalGet(0), Konst(I32C(5)), Binary(BinOp.Int(Add))
       ))
     )
     ModuleInstance(types, funcs)
@@ -345,19 +355,24 @@ object SmallStagedTest extends App {
   //   // If(ValBlockType(Some(NumType(I32Type))), List(Konst(I32C(111))), List(Konst(I32C(222))))
   // )
   val instrs = List(
+    Konst(I32C(10)),
+    LocalSet(0),
+    // Call(0),
     Block(ValBlockType(Some(NumType(I32Type))), Seq(
       Loop(ValBlockType(Some(NumType(I32Type))), Seq(
         LocalGet(0),
-        // BrIf(1),
-        // Konst(I32C(1)),
-        // Binary(BinOp.Int(Sub)),
-        // LocalTee(0),
-        // If(ValBlockType(None), List(), List(Br(2))),
+        Test(TestOp.Int(Eqz)),
+        BrIf(1),
+        LocalGet(0),
+        Konst(I32C(1)),
+        Binary(BinOp.Int(Sub)),
+        LocalTee(0),
       )),
-    ))
+    )),
+    LocalGet(0)
   )
   val snip = mkVMSnippet(module, instrs)
   val code = snip.code
   println(code)
-  // snip.eval(List(5))
+  snip.eval(0)
 }
