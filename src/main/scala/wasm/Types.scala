@@ -23,15 +23,15 @@ case class RefType(kind: RefKind) extends ValueType
 case class FuncType(inps: Seq[ValueType], out: Seq[ValueType]) extends ValueType
 
 abstract class BlockType {
-  def toFuncType(moduleInst: ModuleInstance): FuncType
+  def toFuncType[T](moduleInst: T): FuncType
 }
 
 case class VarBlockType(vR: Int) extends BlockType {
-  def toFuncType(moduleInst: ModuleInstance): FuncType = ???
+  def toFuncType[T](moduleInst: T): FuncType = ???
 }
 
 case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
-  def toFuncType(moduleInst: ModuleInstance): FuncType = tipe match {
+  def toFuncType[T](moduleInst: T): FuncType = tipe match {
     case Some(t) => FuncType(Seq(), Seq(t))
     case None => FuncType(Seq(), Seq())
   }

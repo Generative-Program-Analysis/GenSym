@@ -48,11 +48,23 @@ object SimpleTest extends App {
 
     val moduleInst = ModuleInstance(types, funcs)
     val config = Config(
-      Frame(moduleInst, List()),
+      Frame(moduleInst, List(I32(0))),
       1000
     )
 
-    println(config.eval(List(), instrs))
+    val testInstrs = List(
+      Const(I32(5)),
+      Block(ValBlockType(Some(NumType(I32Type))), Seq(
+        Block(ValBlockType(Some(NumType(I32Type))), Seq(
+          Block(ValBlockType(Some(NumType(I32Type))), Seq(
+            LocalGet(0),
+            BrIf(2),
+            Const(I32(1)),
+          ))
+        ))
+      ))
+    )
+    println(config.eval(List(), testInstrs))
   }
 
   basicTest()
