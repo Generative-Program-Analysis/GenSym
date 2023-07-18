@@ -3,6 +3,15 @@
 
 #include <immer/flex_vector.hpp>
 
+template <typename T>
+immer::flex_vector<T> flex_vector_reverse(immer::flex_vector<T> v) {
+    immer::flex_vector<T> result = immer::flex_vector<T>();
+    for (auto it = v.rbegin(); it != v.rend(); it++) {
+        result = result.push_back(*it);
+    }
+    return result;
+}
+
 enum ValueTy {
     I32,
 };

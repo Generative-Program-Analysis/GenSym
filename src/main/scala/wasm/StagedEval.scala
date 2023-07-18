@@ -52,6 +52,26 @@ trait StagedEval extends SAIOps {
       Wrap[State](Adapter.g.reflect("state-update-stack", Unwrap(state), Unwrap(stack)))
   }
 
+  // TODO: can probably replace Global with Value since we assume validation
+  implicit class GlobalOps(global: Rep[Global]) {
+    def value: Rep[Value] = Wrap[Value](Adapter.g.reflect("global-value", Unwrap(global)))
+    def withValue(value: Rep[Value]): Rep[Global] =
+      Wrap[Global](Adapter.g.reflect("global-update-value", Unwrap(global), Unwrap(value)))
+  }
+
+  implicit class MemoryOps(memory: Rep[Memory]) {
+    def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("memory-size", Unwrap(memory)))
+    def grow(n: Rep[Int]): Rep[Memory] = Wrap[Memory](Adapter.g.reflect("memory-grow", Unwrap(memory), Unwrap(n)))
+    def fill(offset: Rep[Int], size: Rep[Int], value: Rep[Int]): Rep[Memory] =
+      Wrap[Memory](Adapter.g.reflect("memory-fill", Unwrap(memory), Unwrap(offset), Unwrap(size), Unwrap(value)))
+    def copy(srcOffset: Rep[Int], dstOffset: Rep[Int], size: Rep[Int]): Rep[Memory] =
+      Wrap[Memory](Adapter.g.reflect("memory-copy", Unwrap(memory), Unwrap(srcOffset), Unwrap(dstOffset), Unwrap(size)))
+    def storeInt(addr: Rep[Int], value: Rep[Int]) =
+      Wrap[Memory](Adapter.g.reflect("memory-store-int", Unwrap(memory), Unwrap(addr), Unwrap(value)))
+    def loadInt(addr: Rep[Int]) =
+      Wrap[Int](Adapter.g.reflect("memory-load-int", Unwrap(memory), Unwrap(addr)))
+  }
+
   // case class Continue(state: Rep[State]) extends EvalResult
   // case class Breaking(n: Rep[Int], state: Rep[State]) extends EvalResult
   // case class Returning(state: Rep[State]) extends EvalResult
@@ -82,6 +102,9 @@ trait StagedEval extends SAIOps {
     }
   }
 
+  def reverse[M: Manifest](ls: Rep[List[M]]): Rep[List[M]] =
+    Wrap[List[M]](Adapter.g.reflect("reverse-ls", Unwrap(ls)))
+
   trait Value
   def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
   def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
@@ -105,6 +128,8 @@ trait StagedEval extends SAIOps {
         I32(lhs - rhs)
       }
     }
+    def evalUnaryOp(op: UnaryOp, value: Rep[Value]): Rep[Value] = ???
+    def evalRelOp(op: RelOp, lhs: Rep[Value], rhs: Rep[Value]): Rep[Value] = ???
     def evalTestOp(op: TestOp, value: Rep[Value]): Rep[Value] = op match {
       case TestOp.Int(Eqz) => if (repI32Proj(value) == 0) I32(1) else I32(0)
     }
@@ -117,8 +142,17 @@ trait StagedEval extends SAIOps {
       val frameLocals = state.frameLocals
       val stack = state.stack
       instrs.head match {
+        // Parametric Instructions
         case Drop => this.eval(state.withStack(stack.tail), instrs.tail)
+        case Select(_) => {
+          val (cond, v2, v1) = (stack(0), stack(1), stack(2))
+          val newStack = stack.drop(3)
+          val value = if (repI32Proj(cond) == 0) v1 else v2
+          this.eval(state.withStack(value :: newStack), instrs.tail)
+        }
 
+        // Variable Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
         case LocalGet(local) =>
           this.eval(state.withStack(frameLocals(local) :: stack), instrs.tail)
         case LocalSet(local) => {
@@ -134,19 +168,92 @@ trait StagedEval extends SAIOps {
 
           this.eval(nState, instrs.tail)
         }
+        case GlobalGet(global) => {
+          val newState = state.withStack(globals(global).value :: stack)
+          this.eval(newState, instrs.tail)
+        }
+        case GlobalSet(global) => {
+          val v = stack.head
+          val newGlobal = globals(global).withValue(v)
+          val newState = state.withStack(stack.tail).withGlobals(globals.updated(global, newGlobal))
+          this.eval(newState, instrs.tail)
+        }
 
+        // Memory Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
+        case MemorySize =>
+          this.eval(state.withStack(I32(state.memory.head.size) :: stack), instrs.tail)
+
+        case MemoryGrow => {
+          val delta = stack.head
+          val memInstance = state.memory.head
+          val oldSize = memInstance.size
+          val newMemInstance = memInstance.grow(repI32Proj(delta))
+          if (newMemInstance.size > oldSize) {
+            val newState = state.withStack(I32(oldSize) :: stack.tail).withMemory(newMemInstance :: state.memory.tail)
+            this.eval(newState, instrs.tail)
+          } else {
+            this.eval(state.withStack(I32(-1) :: stack.tail), instrs.tail)
+          }
+        }
+        case MemoryFill => {
+          val (value, offset, length) = (stack(0), stack(1), stack(2))
+          val memInstance = state.memory.head
+          // TODO when implementing Memory.fill, check out of bounds
+          val newMemInstance = memInstance.fill(repI32Proj(offset), repI32Proj(length), repI32Proj(value))
+          val newState = state.withStack(stack.drop(3)).withMemory(newMemInstance :: state.memory.tail)
+          this.eval(newState, instrs.tail)
+        }
+        case MemoryCopy => {
+          val (src, dst, length) = (stack(0), stack(1), stack(2))
+          val memInstance = state.memory.head
+          // TODO when implementing Memory.copy, check out of bounds
+          val newMemInstance = memInstance.copy(repI32Proj(src), repI32Proj(dst), repI32Proj(length))
+          val newState = state.withStack(stack.drop(3)).withMemory(newMemInstance :: state.memory.tail)
+          this.eval(newState, instrs.tail)
+        }
+
+        // Numeric Instructions
         case Konst(I32C(n)) => this.eval(state.withStack(I32(n) :: stack), instrs.tail)
         case Binary(op) => {
           val (v2, v1) = (stack(0), stack(1))
           val newStack = stack.drop(2)
           this.eval(state.withStack(evalBinOp(op, v1, v2) :: newStack), instrs.tail)
         }
+        case Unary(op) => {
+          val v = stack.head
+          val newStack = stack.tail
+          this.eval(state.withStack(evalUnaryOp(op, v) :: newStack), instrs.tail)
+        }
+        case Compare(op) => {
+          val (v2, v1) = (stack(0), stack(1))
+          val newStack = stack.drop(2)
+          this.eval(state.withStack(evalRelOp(op, v1, v2) :: newStack), instrs.tail)
+        }
         case Test(testOp) => {
           val value = stack.head
           val newStack = stack.tail
           this.eval(state.withStack(evalTestOp(testOp, value) :: newStack), instrs.tail)
         }
+        case Store(StoreOp(align, offset, tipe, None)) => {
+          val (value, address) = (repI32Proj(stack(0)), repI32Proj(stack(1)))
+          val newStack = stack.drop(2)
+          val mem = memory.head
+          val newMem = mem.storeInt(address + offset, value)
+          this.eval(state.withStack(newStack).withMemory(newMem :: memory.tail), instrs.tail)
+        }
+        case Load(LoadOp(align, offset, tipe, None, None)) => {
+          val address = repI32Proj(stack.head)
+          val newStack = stack.tail
+          val mem = memory.head
+          val value = mem.loadInt(address + offset)
+          this.eval(state.withStack(I32(value) :: newStack), instrs.tail)
+        }
 
+        // Control Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
+        case Nop => this.eval(state, instrs.tail)
+        case Unreachable => ???
         case If(blockTy, thenInstrs, elseInstrs) => {
           val cond: Rep[Int] = stack.head
           val newStack = stack.tail
@@ -187,7 +294,6 @@ trait StagedEval extends SAIOps {
         }
         case BrIf(label) => {
           val cond: Rep[Int] = stack.head
-          printf("br-if cond: %d\n", cond)
           val newState = state.withStack(stack.tail)
           val zero: Rep[Int] = 0
           if (cond == zero) {
@@ -201,8 +307,7 @@ trait StagedEval extends SAIOps {
         }
         case Call(func) => {
            val FuncDef(_, funcType, locals, body) = module.funcs(func)
-           // TODO: reverse args
-           val args = stack.take(funcType.inps.length)
+           val args = reverse(stack.take(funcType.inps.length))
            val newStack = stack.drop(funcType.inps.length)
      
            val initFrameLocals: Rep[List[Value]] = List.fill(locals.length)(I32(0))
@@ -242,14 +347,6 @@ trait StagedEval extends SAIOps {
         ret
       }
     }
-    // def evalFunc(args: Rep[List[Value]], nframe: Frame, funcType: FuncType, instrs: List[Instr]): Config = {
-    //   try {
-    //     this.copy(frame = nframe).evalBlock(funcType.out.length, instrs)
-    //   } catch {
-    //     case Returning(retStack) => retStack.take(funcType.out.length)
-    //     case e: Exception => throw e
-    //   }
-    // }
   }
 }
 
@@ -289,6 +386,19 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
     case Node(s, "get-breaking-n", List(res), _) => shallow(res); emit(".n")
     case Node(s, "get-breaking-state", List(res), _) => shallow(res); emit(".state")
     case Node(s, "get-returning", List(res), _) => shallow(res); emit(".state")
+    case Node(s, "reverse-ls", List(ls), _) => emit("flex_vector_reverse("); shallow(ls); emit(")")
+    case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
+    case Node(s, "memory-grow", List(memory, delta), _) => 
+      shallow(memory); emit(".grow("); shallow(delta); emit(")")
+    case Node(s, "memory-fill", List(memory, offset, size, value), _) =>
+      shallow(memory); emit(".fill("); shallow(offset); emit(", "); shallow(size); emit(", "); shallow(value); emit(")")
+    case Node(s, "memory-copy", List(memory, srcOffset, dstOffset, size), _) =>
+      shallow(memory); emit(".copy("); 
+      shallow(srcOffset); emit(", "); shallow(dstOffset); emit(", "); shallow(size); emit(")")
+    case Node(s, "memory-store-int", List(memory, offset, value), _) =>
+      shallow(memory); emit(".storeInt("); shallow(offset); emit(", "); shallow(value); emit(")")
+    case Node(s, "memory-load-int", List(memory, offset), _) =>
+      shallow(memory); emit(".loadInt("); shallow(offset); emit(")")
     case _ => super.shallow(n)
   }
 }
@@ -369,7 +479,8 @@ object SmallStagedTest extends App {
         LocalTee(0),
       )),
     )),
-    LocalGet(0)
+    LocalGet(0),
+    Call(0),
   )
   val snip = mkVMSnippet(module, instrs)
   val code = snip.code
