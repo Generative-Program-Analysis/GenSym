@@ -1,4 +1,4 @@
-package gensym.wasm.smallstagedeval
+package gensym.wasm.stagedeval
 
 import gensym.wasm.ast.{Const => Konst, _}
 import gensym.wasm.values.{I32 => I32C}

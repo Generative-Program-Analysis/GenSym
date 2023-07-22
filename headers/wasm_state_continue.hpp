@@ -47,6 +47,24 @@ class State {
                 immer::flex_vector<Value> stack
             ) : memory(memory), globals(globals), locals(locals), stack(stack) {}
 
+        void push_stack(Value v) {
+            stack = stack.push_back(v);
+        }
+
+        Value pop_stack() {
+            Value v = stack.back();
+            // TODO: better stack impl
+            stack = stack.take(stack.size() - 1);
+            return v;
+        }
+
+        void print_stack() {
+            for (auto it = stack.begin(); it != stack.end(); it++) {
+                printf("%d ", it->i32);
+            }
+            printf("\n");
+        }
+
         State withMemory(immer::flex_vector<Mem> newMemory) {
             return State(newMemory, globals, stack, locals);
         }
