@@ -132,22 +132,39 @@ trait StagedEvalCPS extends SAIOps {
         val cont = ss.labels(label)
         cont(())
       }
+      case BrIf(label) => {
+        val cond: Rep[Int] = state.popStack
+        val zero: Rep[Int] = 0
+        if (cond == zero) {
+          k(kk)
+        } else {
+          val cont = ss.labels(label)
+          cont(())
+        }
+      }
     }
 
     def execInstrs(instrs: List[Instr], k: Rep[Cont])(implicit ss: StaticState): Rep[Unit] = instrs match {
       case Nil => k(())
       case Block(blockTy, blockInstrs) :: rest => {
+        // continuation for after the block ends
         val blockK = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
+
         execInstrs(blockInstrs.toList, blockK)(ss.copy(blockK :: ss.labels))
+      }
+      case Loop(blockTy, loopInstrs) :: rest => {
+        // continuation for after the loop breaks
+        val loopK = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
+
+        // the actual loop function
+        def loopFn: Rep[Cont] = fun { (u: Rep[Unit]) =>
+          execInstrs(loopInstrs.toList, loopFn)(ss.copy(loopK :: ss.labels))
+        }
+        loopFn(())
       }
       case instr :: rest =>
         execInst(instr, k1 => execInstrs(rest, k1))(k)
     }
-
-    // def repBlockFun(instrs: List[Instr])(implicit ss: StaticState): Rep[Cont => Unit] = {
-    //   def runBlock(k: Rep[Cont]): Rep[Unit] = execInstrs(instrs, k)
-    //   topFun(runBlock(_))
-    // }
   }
 }
 
@@ -225,12 +242,17 @@ object StagedEvalCPSTest extends App {
     ModuleInstance(types, funcs)
   }
   val instrs = List(
-    Block(ValBlockType(None), Seq(
-      Konst(I32C(10)),
-      Konst(I32C(11)),
-      Br(0),
-      Binary(BinOp.Int(Add)),
+    Loop(ValBlockType(None), Seq(
+      Konst(I32C(1)),
+      BrIf(0),
     )),
+    // Block(ValBlockType(None), Seq(
+    //   Konst(I32C(10)),
+    //   Konst(I32C(-10)),
+    //   Binary(BinOp.Int(Add)),
+    //   BrIf(0),
+    //   Konst(I32C(1)),
+    // )),
     Konst(I32C(12)),
   )
   val snip = mkVMSnippet(module, instrs)
