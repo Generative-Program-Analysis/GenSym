@@ -95,6 +95,8 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
   }
 
+  case class StaticState(labels: List[Rep[Cont]])
+
   case class Config(state: Rep[State], module: ModuleInstance, stackBudget: Int) {
     def stack(i: Int): Rep[Value] = state.stack(i)
 
@@ -115,7 +117,8 @@ trait StagedEvalCPS extends SAIOps {
       case TestOp.Int(Eqz) => if (repI32Proj(value) == 0) I32(1) else I32(0)
     }
 
-    def execInst(instr: Instr, k: Rep[Cont] => Rep[Unit])(kk: Rep[Cont]): Rep[Unit] = instr match {
+    def execInst(instr: Instr, k: Rep[Cont] => Rep[Unit])(kk: Rep[Cont])(implicit ss: StaticState): Rep[Unit]
+    = instr match {
       case Konst(I32C(n)) => 
         state.pushStack(I32(n))
         k(kk)
@@ -125,13 +128,26 @@ trait StagedEvalCPS extends SAIOps {
         state.pushStack(res)
         k(kk)
       }
+      case Br(label) => {
+        val cont = ss.labels(label)
+        cont(())
+      }
     }
 
-    def execInstrs(instrs: List[Instr], k: Rep[Cont]): Rep[Unit] = instrs match {
+    def execInstrs(instrs: List[Instr], k: Rep[Cont])(implicit ss: StaticState): Rep[Unit] = instrs match {
       case Nil => k(())
+      case Block(blockTy, blockInstrs) :: rest => {
+        val blockK = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
+        execInstrs(blockInstrs.toList, blockK)(ss.copy(blockK :: ss.labels))
+      }
       case instr :: rest =>
-        execInst(instr, (k1: Rep[Cont]) => execInstrs(rest, k1))(k)
+        execInst(instr, k1 => execInstrs(rest, k1))(k)
     }
+
+    // def repBlockFun(instrs: List[Instr])(implicit ss: StaticState): Rep[Cont => Unit] = {
+    //   def runBlock(k: Rep[Cont]): Rep[Unit] = execInstrs(instrs, k)
+    //   topFun(runBlock(_))
+    // }
   }
 }
 
@@ -194,7 +210,7 @@ object StagedEvalCPSTest extends App {
       def snippet(arg: Rep[Int]): Rep[Unit] = {
         val state = State(List[Memory](), List[Global](), List[Value](I32(0)), List[Value]())
         val config = Config(state, module, 1000)
-        config.execInstrs(instrs, fun { _ => config.state.printStack(); () })
+        config.execInstrs(instrs, fun { _ => config.state.printStack(); () })(StaticState(Nil))
       }
     }
   }
@@ -209,9 +225,13 @@ object StagedEvalCPSTest extends App {
     ModuleInstance(types, funcs)
   }
   val instrs = List(
-    Konst(I32C(10)),
-    Konst(I32C(11)),
-    Binary(BinOp.Int(Add)),
+    Block(ValBlockType(None), Seq(
+      Konst(I32C(10)),
+      Konst(I32C(11)),
+      Br(0),
+      Binary(BinOp.Int(Add)),
+    )),
+    Konst(I32C(12)),
   )
   val snip = mkVMSnippet(module, instrs)
   val code = snip.code
