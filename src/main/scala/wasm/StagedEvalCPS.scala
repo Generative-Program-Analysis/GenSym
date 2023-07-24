@@ -1,5 +1,7 @@
 package gensym.wasm.stagedevalcps
 
+import scala.collection.mutable.HashMap
+
 import gensym.wasm.ast.{Const => Konst, _}
 import gensym.wasm.values.{I32 => I32C}
 import gensym.wasm.types._
@@ -12,10 +14,7 @@ import lms.macros.SourceContext
 import lms.core.virtualize
 import gensym.lmsx._
 
-case class ModuleInstance(
-  types: List[FuncType],
-  funcs: List[FuncDef],
-)
+case class ModuleInstance(types: List[FuncType], funcs: List[FuncDef])
 
 @virtualize
 trait StagedEvalCPS extends SAIOps {
@@ -95,9 +94,14 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
   }
 
-  case class StaticState(labels: List[Rep[Cont]])
+  case class StaticState(labels: List[Rep[Cont]], returnLabel: Option[Rep[Cont]])
 
-  case class Config(state: Rep[State], module: ModuleInstance, stackBudget: Int) {
+  case class Config(
+    state: Rep[State],
+    module: ModuleInstance,
+    funcConts: HashMap[String, (Rep[List[Value]], Rep[Cont]) => Rep[Cont]],
+    stackBudget: Int
+  ) {
     def stack(i: Int): Rep[Value] = state.stack(i)
 
     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
@@ -149,7 +153,6 @@ trait StagedEvalCPS extends SAIOps {
       case Block(blockTy, blockInstrs) :: rest => {
         // continuation for after the block ends
         val blockK = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
-
         execInstrs(blockInstrs.toList, blockK)(ss.copy(blockK :: ss.labels))
       }
       case Loop(blockTy, loopInstrs) :: rest => {
@@ -161,6 +164,27 @@ trait StagedEvalCPS extends SAIOps {
           execInstrs(loopInstrs.toList, loopFn)(ss.copy(loopK :: ss.labels))
         }
         loopFn(())
+      }
+      case Call(func) :: rest => {
+        val FuncDef(name, funcType, locals, body) = module.funcs(func)
+        val args = reverse(state.stack.take(funcType.inps.length))
+
+        def compileFun(body: List[Instr])(args: Rep[List[Value]], k: Rep[Cont]): Rep[Cont] = fun { (_: Rep[Unit]) =>
+          // 1. init new locals
+          // 2. push new locals
+          execInstrs(body, k)(ss.copy(returnLabel = Some(k)))
+          // 4. pop locals
+        }
+
+        val funcCont = funcConts.get(name) match {
+          case Some(f) => f
+          case None => {
+            val f: (Rep[List[Value]], Rep[Cont]) => Rep[Cont] = compileFun(body.toList)(_, _)
+            funcConts += (name -> f)
+            f
+          }
+        }
+        funcCont(args, k)(())
       }
       case instr :: rest =>
         execInst(instr, k1 => execInstrs(rest, k1))(k)
@@ -226,8 +250,8 @@ object StagedEvalCPSTest extends App {
     new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
       def snippet(arg: Rep[Int]): Rep[Unit] = {
         val state = State(List[Memory](), List[Global](), List[Value](I32(0)), List[Value]())
-        val config = Config(state, module, 1000)
-        config.execInstrs(instrs, fun { _ => config.state.printStack(); () })(StaticState(Nil))
+        val config = Config(state, module, HashMap(), 1000)
+        config.execInstrs(instrs, fun { _ => config.state.printStack(); () })(StaticState(Nil, None))
       }
     }
   }
