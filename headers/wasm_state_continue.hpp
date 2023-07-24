@@ -37,15 +37,13 @@ class State {
     public:
         immer::flex_vector<Mem> memory;
         immer::flex_vector<Global> globals;
-        immer::flex_vector<Value> locals;
         immer::flex_vector<Value> stack;
 
         State(
                 immer::flex_vector<Mem> memory,
                 immer::flex_vector<Global> globals,
-                immer::flex_vector<Value> locals,
                 immer::flex_vector<Value> stack
-            ) : memory(memory), globals(globals), locals(locals), stack(stack) {}
+            ) : memory(memory), globals(globals), stack(stack) {}
 
         void push_stack(Value v) {
             stack = stack.push_back(v);
@@ -65,21 +63,10 @@ class State {
             printf("\n");
         }
 
-        State withMemory(immer::flex_vector<Mem> newMemory) {
-            return State(newMemory, globals, stack, locals);
+        Value get_local(int i) {
+            return stack[stack.size() - i - 1];
         }
 
-        State withGlobals(immer::flex_vector<Global> newGlobals) {
-            return State(memory, newGlobals, stack, locals);
-        }
-
-        State withLocals(immer::flex_vector<Value> newLocals) {
-            return State(memory, globals, newLocals, stack);
-        }
-
-        State withStack(immer::flex_vector<Value> newStack) {
-            return State(memory, globals, locals, newStack);
-        }
 };
 
 enum EvalTag {

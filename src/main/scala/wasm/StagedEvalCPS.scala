@@ -21,15 +21,14 @@ trait StagedEvalCPS extends SAIOps {
   class State(
     memory: List[Memory],
     globals: List[Global],
-    frameLocals: List[Value],
     stack: List[Value],
   )
 
   object State {
     def apply(
-      memory: Rep[List[Memory]], globals: Rep[List[Global]], frameLocals: Rep[List[Value]], stack: Rep[List[Value]]
+      memory: Rep[List[Memory]], globals: Rep[List[Global]], stack: Rep[List[Value]]
     ): Rep[State] =
-      Wrap[State](Adapter.g.reflect("state-new", Unwrap(memory), Unwrap(globals), Unwrap(frameLocals), Unwrap(stack)))
+      Wrap[State](Adapter.g.reflect("state-new", Unwrap(memory), Unwrap(globals), Unwrap(stack)))
   }
 
   implicit class StateOps(state: Rep[State]) {
@@ -37,10 +36,11 @@ trait StagedEvalCPS extends SAIOps {
       Adapter.g.reflectWrite("state-push-stack", Unwrap(state), Unwrap(value))(Adapter.CTRL)
     def popStack: Rep[Value] =
       Wrap[Value](Adapter.g.reflectWrite("state-pop-stack", Unwrap(state))(Adapter.CTRL))
+    def getLocal(i: Rep[Int]): Rep[Value] =
+      Wrap[Value](Adapter.g.reflectWrite("state-get-local", Unwrap(state), Unwrap(i))(Adapter.CTRL))
 
     def memory: Rep[List[Memory]] = Wrap[List[Memory]](Adapter.g.reflect("state-memory", Unwrap(state)))
     def globals: Rep[List[Global]] = Wrap[List[Global]](Adapter.g.reflect("state-globals", Unwrap(state)))
-    def frameLocals: Rep[List[Value]] = Wrap[List[Value]](Adapter.g.reflect("state-frameLocals", Unwrap(state)))
     def stack: Rep[List[Value]] = Wrap[List[Value]](Adapter.g.reflect("state-stack", Unwrap(state)))
 
     def printStack() = Adapter.g.reflectWrite("state-print-stack", Unwrap(state))(Adapter.CTRL)
@@ -50,9 +50,6 @@ trait StagedEvalCPS extends SAIOps {
 
     def withGlobals(globals: Rep[List[Global]]): Rep[State] =
       Wrap[State](Adapter.g.reflect("state-update-globals", Unwrap(state), Unwrap(globals)))
-
-    def withFrameLocals(frameLocals: Rep[List[Value]]): Rep[State] =
-      Wrap[State](Adapter.g.reflect("state-update-frameLocals", Unwrap(state), Unwrap(frameLocals)))
 
     def withStack(stack: Rep[List[Value]]): Rep[State] =
       Wrap[State](Adapter.g.reflect("state-update-stack", Unwrap(state), Unwrap(stack)))
@@ -94,16 +91,14 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
   }
 
-  case class StaticState(labels: List[Rep[Cont]], returnLabel: Option[Rep[Cont]])
+  case class StaticState(labels: List[Rep[Cont]], returnLabel: Option[Rep[Cont]], stackPtr: Int)
 
   case class Config(
     state: Rep[State],
     module: ModuleInstance,
-    funcConts: HashMap[String, (Rep[List[Value]], Rep[Cont]) => Rep[Cont]],
+    funFuns: HashMap[String, Rep[Cont] => Rep[Unit]],
     stackBudget: Int
   ) {
-    def stack(i: Int): Rep[Value] = state.stack(i)
-
     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
       case BinOp.Int(Add) => {
         // assume I32
@@ -130,6 +125,11 @@ trait StagedEvalCPS extends SAIOps {
         val (v2, v1) = (state.popStack, state.popStack)
         val res = evalBinOp(op, v1, v2)
         state.pushStack(res)
+        k(kk)
+      }
+      case LocalGet(local) => {
+        val v = state.getLocal(local)
+        state.pushStack(v)
         k(kk)
       }
       case Br(label) => {
@@ -167,24 +167,24 @@ trait StagedEvalCPS extends SAIOps {
       }
       case Call(func) :: rest => {
         val FuncDef(name, funcType, locals, body) = module.funcs(func)
-        val args = reverse(state.stack.take(funcType.inps.length))
 
-        def compileFun(body: List[Instr])(args: Rep[List[Value]], k: Rep[Cont]): Rep[Cont] = fun { (_: Rep[Unit]) =>
-          // 1. init new locals
-          // 2. push new locals
-          execInstrs(body, k)(ss.copy(returnLabel = Some(k)))
-          // 4. pop locals
+        // can't use topFun because of state scoping, could probably be fixed just by making
+        // all the state methods global in cpp even if they're methods in scala
+        def compileFun(argNum: Int, body: List[Instr]): Rep[Cont => Unit] = fun { (k: Rep[Cont]) =>
+          execInstrs(body, k)(ss.copy(returnLabel = Some(k), stackPtr = argNum))
         }
 
-        val funcCont = funcConts.get(name) match {
+        val funFun = funFuns.get(name) match {
           case Some(f) => f
           case None => {
-            val f: (Rep[List[Value]], Rep[Cont]) => Rep[Cont] = compileFun(body.toList)(_, _)
-            funcConts += (name -> f)
+            val f: Rep[Cont] => Rep[Unit] = compileFun(funcType.inps.length, body.toList)(_)
+            funFuns += (name -> f)
             f
           }
         }
-        funcCont(args, k)(())
+
+        val evalRest = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
+        funFun(evalRest)
       }
       case instr :: rest =>
         execInst(instr, k1 => execInstrs(rest, k1))(k)
@@ -197,19 +197,23 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<wasm_state_continue.hpp>")
 
   override def shallow(n: Node): Unit = n match {
+    case Node(s, "reverse-ls", List(ls), _) => emit("flex_vector_reverse("); shallow(ls); emit(")")
     case Node(s, "I32V", List(i), _) => emit("I32V("); shallow(i); emit(")")
     case Node(s, "I32V-proj", List(i), _) => shallow(i); emit(".i32")
-    case Node(s, "state-new", List(memory, globals, locals, stack), _) => 
+    case Node(s, "state-new", List(memory, globals, stack), _) => 
       emit("State("); 
-      shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(locals); emit(", "); shallow(stack); 
+      shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(stack); 
       emit(")")
     case Node(s, "state-memory", List(state), _) => shallow(state); emit(".memory")
     case Node(s, "state-globals", List(state), _) => shallow(state); emit(".globals")
-    case Node(s, "state-frameLocals", List(state), _) => shallow(state); emit(".locals")
+    case Node(s, "state-push-locals", List(state, locals), _) => 
+      shallow(state); emit(".push_locals("); shallow(locals); emit(")")
+    case Node(s, "state-pop-locals", List(state), _) => shallow(state); emit(".pop_locals()")
     case Node(s, "state-stack", List(state), _) => shallow(state); emit(".stack")
     case Node(s, "state-push-stack", List(state, v), _) => shallow(state); emit(".push_stack("); shallow(v); emit(")")
     case Node(s, "state-pop-stack", List(state), _) => shallow(state); emit(".pop_stack("); emit(")")
     case Node(s, "state-print-stack", List(state), _) => shallow(state); emit(".print_stack()")
+    case Node(s, "state-get-local", List(state, i), _) => shallow(state); emit(".get_local("); shallow(i); emit(")")
     case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
     case Node(s, "memory-grow", List(memory, delta), _) => 
       shallow(memory); emit(".grow("); shallow(delta); emit(")")
@@ -249,9 +253,9 @@ object StagedEvalCPSTest extends App {
   ): CppSAIDriver[Int, Unit] with StagedEvalCPS = {
     new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
       def snippet(arg: Rep[Int]): Rep[Unit] = {
-        val state = State(List[Memory](), List[Global](), List[Value](I32(0)), List[Value]())
+        val state = State(List[Memory](), List[Global](), List[Value]())
         val config = Config(state, module, HashMap(), 1000)
-        config.execInstrs(instrs, fun { _ => config.state.printStack(); () })(StaticState(Nil, None))
+        config.execInstrs(instrs, fun { _ => config.state.printStack(); () })(StaticState(Nil, None, 0))
       }
     }
   }
@@ -266,10 +270,10 @@ object StagedEvalCPSTest extends App {
     ModuleInstance(types, funcs)
   }
   val instrs = List(
-    Loop(ValBlockType(None), Seq(
-      Konst(I32C(1)),
-      BrIf(0),
-    )),
+    // Loop(ValBlockType(None), Seq(
+    //   Konst(I32C(1)),
+    //   BrIf(0),
+    // )),
     // Block(ValBlockType(None), Seq(
     //   Konst(I32C(10)),
     //   Konst(I32C(-10)),
@@ -278,6 +282,8 @@ object StagedEvalCPSTest extends App {
     //   Konst(I32C(1)),
     // )),
     Konst(I32C(12)),
+    Call(0),
+    Call(0),
   )
   val snip = mkVMSnippet(module, instrs)
   val code = snip.code
