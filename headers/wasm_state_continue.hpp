@@ -74,11 +74,11 @@ class State {
         // get_local(0) = stack(0) -> stack.size() - stackPtr - 1 + 0
         // get_local(1) = stack(3) -> stack.size() - stackPtr - 1 + 1
         Value get_local(int i) {
-            return stack[stack.size() - i];
+            return stack[i];
         }
 
         void set_local(int i, Value v) {
-            stack = stack.set(stack.size() - i, v);
+            stack = stack.set(i, v);
         }
 
         void remove_stack_range(int start, int end) {
@@ -86,6 +86,16 @@ class State {
             stack = stack.take(start) + stack.drop(end);
         }
 };
+static State global_state = State(
+        immer::flex_vector<Mem>(),
+        immer::flex_vector<Global>(),
+        immer::flex_vector<Value>()
+    );
+
+State& init_state(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals, immer::flex_vector<Value> stack) {
+    global_state = State(memory, globals, stack);
+    return global_state;
+}
 
 enum EvalTag {
     CONTINUE,
