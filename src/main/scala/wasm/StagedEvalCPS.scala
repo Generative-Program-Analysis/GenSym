@@ -77,8 +77,10 @@ trait StagedEvalCPS extends SAIOps {
     Wrap[List[M]](Adapter.g.reflect("reverse-ls", Unwrap(ls)))
 
   trait Value
-  def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
-  def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
+  // def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
+  // def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
+  def I32(i: Rep[Int]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("I32V", Unwrap(i))(Adapter.CTRL))
+  def I64(i: Rep[Long]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("I64V", Unwrap(i))(Adapter.CTRL))
 
   type Cont = Unit => Unit
 
@@ -126,8 +128,8 @@ trait StagedEvalCPS extends SAIOps {
     def execInst
     (instr: Instr, k: (StaticState, Rep[Cont]) => Rep[Unit])(kk: Rep[Cont])(implicit ss: StaticState): Rep[Unit]
     = {
-      print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
-      State.printStack()
+      // print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
+      // State.printStack()
       instr match {
         case Konst(I32C(n)) => 
           State.pushStack(I32(n))
@@ -186,15 +188,15 @@ trait StagedEvalCPS extends SAIOps {
       case Nil => k(())
       case Block(blockTy, blockInstrs) :: rest => {
         // continuation for after the block ends
-        val blockK = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
+        val blockK = topFun { (_: Rep[Unit]) => execInstrs(rest, k) }
         execInstrs(blockInstrs.toList, blockK)(ss.copy(blockK :: ss.labels))
       }
       case Loop(blockTy, loopInstrs) :: rest => {
         // continuation for after the loop breaks
-        val loopK = fun { (_: Rep[Unit]) => execInstrs(rest, k) }
+        val loopK = topFun { (_: Rep[Unit]) => execInstrs(rest, k) }
 
         // the actual loop function
-        def loopFn: Rep[Cont] = fun { (_: Rep[Unit]) =>
+        def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
           execInstrs(loopInstrs.toList, loopFn)(ss.copy(loopK :: ss.labels))
         }
         loopFn(())
@@ -204,7 +206,7 @@ trait StagedEvalCPS extends SAIOps {
 
         // can't use topFun because of state scoping, could probably be fixed just by making
         // all the state methods global in cpp even if they're methods in scala
-        def compileFun(argNum: Int, retNum: Int, body: List[Instr]): Rep[Cont => Unit] = fun { (k: Rep[Cont]) =>
+        def compileFun(argNum: Int, retNum: Int, body: List[Instr]): Rep[Cont => Unit] = topFun { (k: Rep[Cont]) =>
           for (local <- locals) {
             State.pushStack(I32(0)) // TODO: default values for other types
           }
@@ -224,7 +226,7 @@ trait StagedEvalCPS extends SAIOps {
           }
         }
 
-        val evalRest = fun { (_: Rep[Unit]) => 
+        val evalRest = topFun { (_: Rep[Unit]) => 
           State.removeStackRange(ss.stackPtr - funcType.inps.length, ss.stackPtr)
           execInstrs(rest, k) 
         }
@@ -320,7 +322,7 @@ object StagedEvalCPSTest extends App {
         // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
         initState(List[Memory](), List[Global](), List[Value](I32(0)))
         val config = Config(module, HashMap(), 1000)
-        config.execInstrs(instrs, fun { _ => State.printStack(); () })(StaticState(Nil, None, 1, 0, None))
+        config.execInstrs(instrs, topFun { _ => State.printStack(); () })(StaticState(Nil, None, 1, 0, None))
       }
     }
   }
@@ -334,38 +336,38 @@ object StagedEvalCPSTest extends App {
     )
     ModuleInstance(types, funcs)
   }
-  // val instrs = {
-  //   val file = scala.io.Source.fromFile("./benchmarks/wasm/iter.wat").mkString
-  //   val module = gensym.wasm.parser.Parser.parseString(file)
-  //   module.definitions.find({
-  //     case FuncDef("$real_main", _, _, _) => true
-  //     case _ => false
-  //   }).get.asInstanceOf[FuncDef].body.toList
-  // }
-  val instrs = List(
-    Konst(I32C(10)),
-    LocalSet(0),
-    Loop(ValBlockType(None), Seq(
-      LocalGet(0),
-      Konst(I32C(1)),
-      Binary(BinOp.Int(Sub)),
-      LocalTee(0),
-      Konst(I32C(5)),
-      Binary(BinOp.Int(Sub)),
-      Test(TestOp.Int(Eqz)),
-      BrIf(0),
-    )),
-    // Block(ValBlockType(None), Seq(
-    //   Konst(I32C(10)),
-    //   Konst(I32C(-10)),
-    //   Binary(BinOp.Int(Add)),
-    //   BrIf(0),
-    //   Konst(I32C(1)),
-    // )),
-    // Konst(I32C(12)),
-    Call(0),
-    Call(0),
-  )
+  val instrs = {
+    val file = scala.io.Source.fromFile("./benchmarks/wasm/iter.wat").mkString
+    val module = gensym.wasm.parser.Parser.parseString(file)
+    module.definitions.find({
+      case FuncDef("$real_main", _, _, _) => true
+      case _ => false
+    }).get.asInstanceOf[FuncDef].body.toList
+  }
+  // val instrs = List(
+  //   Konst(I32C(10)),
+  //   LocalSet(0),
+  //   Loop(ValBlockType(None), Seq(
+  //     LocalGet(0),
+  //     Konst(I32C(1)),
+  //     Binary(BinOp.Int(Sub)),
+  //     LocalTee(0),
+  //     Konst(I32C(5)),
+  //     Binary(BinOp.Int(Sub)),
+  //     Test(TestOp.Int(Eqz)),
+  //     BrIf(0),
+  //   )),
+  //   // Block(ValBlockType(None), Seq(
+  //   //   Konst(I32C(10)),
+  //   //   Konst(I32C(-10)),
+  //   //   Binary(BinOp.Int(Add)),
+  //   //   BrIf(0),
+  //   //   Konst(I32C(1)),
+  //   // )),
+  //   // Konst(I32C(12)),
+  //   Call(0),
+  //   Call(0),
+  // )
   val snip = mkVMSnippet(module, instrs)
   val code = snip.code
   println(code)
