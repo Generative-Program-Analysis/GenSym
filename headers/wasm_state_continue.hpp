@@ -56,17 +56,35 @@ class State {
             return v;
         }
 
+        Value peek_stack() {
+            return stack.back();
+        }
+
         void print_stack() {
+            printf("Stack:\n");
             for (auto it = stack.begin(); it != stack.end(); it++) {
                 printf("%d ", it->i32);
             }
             printf("\n");
         }
 
+        // [0, 1 | 2, 3, 4]
+        //         0  1
+        // stackPtr = 5
+        // get_local(0) = stack(0) -> stack.size() - stackPtr - 1 + 0
+        // get_local(1) = stack(3) -> stack.size() - stackPtr - 1 + 1
         Value get_local(int i) {
-            return stack[stack.size() - i - 1];
+            return stack[stack.size() - i];
         }
 
+        void set_local(int i, Value v) {
+            stack = stack.set(stack.size() - i, v);
+        }
+
+        void remove_stack_range(int start, int end) {
+            // 1 2 3 4 5
+            stack = stack.take(start) + stack.drop(end);
+        }
 };
 
 enum EvalTag {
