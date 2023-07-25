@@ -121,14 +121,18 @@ trait StagedEvalCPS extends SAIOps {
     def evalUnaryOp(op: UnaryOp, value: Rep[Value]): Rep[Value] = ???
     def evalRelOp(op: RelOp, lhs: Rep[Value], rhs: Rep[Value]): Rep[Value] = ???
     def evalTestOp(op: TestOp, value: Rep[Value]): Rep[Value] = op match {
-      case TestOp.Int(Eqz) => if (repI32Proj(value) == 0) I32(1) else I32(0)
+      case TestOp.Int(Eqz) => {
+        val v: Rep[Int] = repI32Proj(value)
+        val zero: Rep[Int] = 0
+        if (v == zero) I32(1) else I32(0)
+      }
     }
 
     def execInst
     (instr: Instr, k: (StaticState, Rep[Cont]) => Rep[Unit])(kk: Rep[Cont])(implicit ss: StaticState): Rep[Unit]
     = {
-      // print(s"Instr: $instr ")
-      // state.printStack()
+      print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
+      state.printStack()
       instr match {
         case Konst(I32C(n)) => 
           state.pushStack(I32(n))
@@ -137,7 +141,7 @@ trait StagedEvalCPS extends SAIOps {
           val (v2, v1) = (state.popStack, state.popStack)
           val res = evalBinOp(op, v1, v2)
           state.pushStack(res)
-          k(ss, kk)
+          k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
         }
         case Test(testOp) => {
           val v = state.popStack
@@ -316,6 +320,14 @@ object StagedEvalCPSTest extends App {
     )
     ModuleInstance(types, funcs)
   }
+  // val instrs = {
+  //   val file = scala.io.Source.fromFile("./benchmarks/wasm/iter.wat").mkString
+  //   val module = gensym.wasm.parser.Parser.parseString(file)
+  //   module.definitions.find({
+  //     case FuncDef("$real_main", _, _, _) => true
+  //     case _ => false
+  //   }).get.asInstanceOf[FuncDef].body.toList
+  // }
   val instrs = List(
     Konst(I32C(10)),
     LocalSet(0),
