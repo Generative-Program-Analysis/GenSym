@@ -18,19 +18,8 @@ case class ModuleInstance(types: List[FuncType], funcs: List[FuncDef])
 
 @virtualize
 trait StagedEvalCPS extends SAIOps {
-  class State(
-    memory: List[Memory],
-    globals: List[Global],
-    stack: List[Value],
-  )
-
+  trait State
   object State {
-    // def apply(
-    //   memory: Rep[List[Memory]], globals: Rep[List[Global]], stack: Rep[List[Value]]
-    // ): Rep[State] =
-    //   Wrap[State](Adapter.g.reflect("state-new", Unwrap(memory), Unwrap(globals), Unwrap(stack)))
-    // def stackLength: Rep[Int] =
-    //   Wrap[Int](Adapter.g.reflect("static-state-stack-length"))
     def pushStack(value: Rep[Value])(implicit ss: StaticState) =
       Adapter.g.reflectWrite("static-state-push-stack", Unwrap(value), Unwrap(ss.stackPtr))(Adapter.CTRL)
     def stackAt(i: Int)(implicit ss: StaticState): Rep[Value] = 
@@ -46,36 +35,32 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Value](
         Adapter.g.reflectWrite("static-state-get-local", Unwrap(ss.localPtr + i))(Adapter.CTRL)
       )
-
     def setLocal(i: Rep[Int], v: Rep[Value])(implicit ss: StaticState) =
       Adapter.g.reflectWrite("static-state-set-local", Unwrap(ss.localPtr + i), Unwrap(v))(Adapter.CTRL)
 
     def printStack(implicit ss: StaticState) = 
       Adapter.g.reflectWrite("static-state-print-stack", Unwrap(ss.stackPtr))(Adapter.CTRL)
+
+    def getGlobal(i: Int): Rep[Value] =
+      Wrap[Value](Adapter.g.reflectWrite("static-state-get-global", Unwrap(i))(Adapter.CTRL))
+    def setGlobal(i: Int, v: Rep[Value]) =
+      Adapter.g.reflectWrite("static-state-set-global", Unwrap(i), Unwrap(v))(Adapter.CTRL)
+
+    def memorySize: Rep[Int] =
+      Wrap[Int](Adapter.g.reflect("static-state-memory-size"))
+    def memoryGrow(n: Rep[Int]): Rep[Int] =
+      Wrap[Int](Adapter.g.reflect("static-state-memory-grow", Unwrap(n)))
+    def memoryFill(offset: Rep[Int], size: Rep[Int], value: Rep[Int]) =
+      Adapter.g.reflectWrite("static-state-memory-fill", Unwrap(offset), Unwrap(size), Unwrap(value))(Adapter.CTRL)
+    def memoryCopy(srcOffset: Rep[Int], dstOffset: Rep[Int], size: Rep[Int]) =
+      Adapter.g.reflectWrite("static-state-memory-copy", Unwrap(srcOffset), Unwrap(dstOffset), Unwrap(size))(Adapter.CTRL)
   }
 
   def initState(memory: Rep[List[Memory]], globals: Rep[List[Global]]): Rep[State] =
     Wrap[State](Adapter.g.reflectWrite("state-init", Unwrap(memory), Unwrap(globals))(Adapter.CTRL))
 
-  // TODO: can probably replace Global with Value since we assume validation
-  implicit class GlobalOps(global: Rep[Global]) {
-    def value: Rep[Value] = Wrap[Value](Adapter.g.reflect("global-value", Unwrap(global)))
-    def withValue(value: Rep[Value]): Rep[Global] =
-      Wrap[Global](Adapter.g.reflect("global-update-value", Unwrap(global), Unwrap(value)))
-  }
-
-  implicit class MemoryOps(memory: Rep[Memory]) {
-    def size: Rep[Int] = Wrap[Int](Adapter.g.reflect("memory-size", Unwrap(memory)))
-    def grow(n: Rep[Int]): Rep[Memory] = Wrap[Memory](Adapter.g.reflect("memory-grow", Unwrap(memory), Unwrap(n)))
-    def fill(offset: Rep[Int], size: Rep[Int], value: Rep[Int]): Rep[Memory] =
-      Wrap[Memory](Adapter.g.reflect("memory-fill", Unwrap(memory), Unwrap(offset), Unwrap(size), Unwrap(value)))
-    def copy(srcOffset: Rep[Int], dstOffset: Rep[Int], size: Rep[Int]): Rep[Memory] =
-      Wrap[Memory](Adapter.g.reflect("memory-copy", Unwrap(memory), Unwrap(srcOffset), Unwrap(dstOffset), Unwrap(size)))
-    def storeInt(addr: Rep[Int], value: Rep[Int]) =
-      Wrap[Memory](Adapter.g.reflect("memory-store-int", Unwrap(memory), Unwrap(addr), Unwrap(value)))
-    def loadInt(addr: Rep[Int]) =
-      Wrap[Int](Adapter.g.reflect("memory-load-int", Unwrap(memory), Unwrap(addr)))
-  }
+  def panic(msg: Rep[String]): Rep[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite("panic", Unwrap(msg))(Adapter.CTRL))
 
   def reverse[M: Manifest](ls: Rep[List[M]]): Rep[List[M]] =
     Wrap[List[M]](Adapter.g.reflect("reverse-ls", Unwrap(ls)))
@@ -109,6 +94,7 @@ trait StagedEvalCPS extends SAIOps {
     funFuns: HashMap[String, Rep[Cont] => Rep[Unit]],
     stackBudget: Int
   ) {
+    // TODO: pass precise type to operations
     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
       case BinOp.Int(Add) => {
         // assume I32
@@ -118,6 +104,10 @@ trait StagedEvalCPS extends SAIOps {
       case BinOp.Int(Sub) => {
         val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
         I32(lhs - rhs)
+      }
+      case BinOp.Int(Mul) => {
+        val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
+        I32(lhs * rhs)
       }
     }
     def evalUnaryOp(op: UnaryOp, value: Rep[Value]): Rep[Value] = ???
@@ -134,8 +124,8 @@ trait StagedEvalCPS extends SAIOps {
     def execInst
     (instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
-      // print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
-      // State.printStack(ss)
+      print(s"Instr: $instr, sp: ${ss.stackPtr}, lp: ${ss.localPtr} ")
+      State.printStack(ss)
       instr match {
         // Parametric Instructions
         case Drop => k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
@@ -163,15 +153,46 @@ trait StagedEvalCPS extends SAIOps {
           State.setLocal(local, v)
           k(ss, kk)
         }
-        case GlobalGet(global) => ???
-        case GlobalSet(global) => ???
+        case GlobalGet(global) => {
+          val v = State.getGlobal(global)
+          State.pushStack(v)
+          k(ss.copy(stackPtr = ss.stackPtr + 1), kk)
+        }
+        case GlobalSet(global) => {
+          val v = State.popStack
+          State.setGlobal(global, v)
+          k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
+        }
 
         // Memory Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
-        case MemorySize => ???
-        case MemoryGrow => ???
-        case MemoryFill => ???
-        case MemoryCopy => ???
+        case MemorySize => {
+          val size = State.memorySize
+          State.pushStack(I32(size))
+          k(ss.copy(stackPtr = ss.stackPtr + 1), kk)
+        }
+        case MemoryGrow => {
+          val delta = State.popStack
+          val oldSize = State.memorySize
+          State.memoryGrow(delta)
+          val newSize = State.memorySize
+          if (newSize == oldSize + delta) {
+            State.pushStack(I32(oldSize))
+          } else {
+            State.pushStack(I32(-1))
+          }
+          k(ss, kk)
+        }
+        case MemoryFill => {
+          val (value, offset, length) = (State.stackAt(0), State.stackAt(1), State.stackAt(2))
+          State.memoryFill(value, offset, length)
+          k(ss.copy(stackPtr = ss.stackPtr - 3), kk)
+        }
+        case MemoryCopy => {
+          val (src, dst, length) = (State.stackAt(0), State.stackAt(1), State.stackAt(2))
+          State.memoryCopy(src, dst, length)
+          k(ss.copy(stackPtr = ss.stackPtr - 3), kk)
+        }
 
         // Numeric Instructions
         case Konst(I32C(n)) => 
@@ -200,13 +221,21 @@ trait StagedEvalCPS extends SAIOps {
           State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 2))
           k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
         }
-        case Store(StoreOp(align, offset, tipe, packSize)) => ???
-        case Load(LoadOp(align, offset, tipe, packSize, extension)) => ???
+        case Store(StoreOp(align, offset, tipe, packSize)) => {
+          val (value, addr) = (State.stackAt(0), State.stackAt(1))
+          ???
+          k(ss.copy(stackPtr = ss.stackPtr - 2), kk)
+        }
+        case Load(LoadOp(align, offset, tipe, packSize, extension)) => {
+          val addr: Rep[Int] = State.stackAt(0)
+          ???
+          k(ss.copy(stackPtr = ss.stackPtr + 1), kk)
+        }
 
         // Control Instructions
         // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
         case Nop => k(ss, kk)
-        case Unreachable => ???
+        case Unreachable => panic("unreachable")
 
         case Return => {
           // TODO: update sp depending on retN
@@ -268,14 +297,14 @@ trait StagedEvalCPS extends SAIOps {
 
         // the actual loop function
         def loopFn: SSCont = (loopSS: StaticState) => topFun { (_: Rep[Unit]) =>
-          execInstrs(loopInstrs.toList, loopFn)(ss.copy(loopK :: ss.labels))
+          execInstrs(loopInstrs.toList, loopFn)(ss.copy(loopFn :: loopK :: ss.labels))
         }
         loopFn(ss)(())
       }
       case Call(func) :: rest => {
         val FuncDef(name, funcType, locals, body) = module.funcs(func)
 
-        // can't use topFun because of state scoping, could probably be fixed just by making
+        // can't use fun because of state scoping, could probably be fixed just by making
         // all the state methods global in cpp even if they're methods in scala
         def compileFun(argNum: Int, retNum: Int, body: List[Instr]): Rep[Cont => Unit] = topFun { (k: Rep[Cont]) =>
           for (local <- locals) {
@@ -283,9 +312,9 @@ trait StagedEvalCPS extends SAIOps {
           }
           val newSP = ss.stackPtr + locals.length
           val newSS = ss.copy(
-            returnLabel = Some(k), stackPtr = newSP, localPtr = newSP - funcType.inps.length, retN = Some(retNum)
+            returnLabel = Some(k), stackPtr = newSP, localPtr = ss.stackPtr - funcType.inps.length, retN = Some(retNum)
           )
-          val finK = (funSS: StaticState) => fun { (_: Rep[Unit]) =>
+          val finK = (funSS: StaticState) => topFun { (_: Rep[Unit]) =>
             if (ss.stackPtr + funcType.out.length != funSS.stackPtr) {
               State.removeStackRange(ss.stackPtr + funcType.out.length, funSS.stackPtr)(funSS)
             }
@@ -397,22 +426,22 @@ object StagedEvalCPSTest extends App {
   }
 
   val module = {
-    val types = List()
-    val funcs = List(
-      FuncDef("add5", FuncType(Seq(NumType(I32Type)), Seq(NumType(I32Type))), Seq(), Seq(
-        LocalGet(0), Konst(I32C(5)), Binary(BinOp.Int(Add))
-      ))
-    )
-    ModuleInstance(types, funcs)
+    val file = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
+    gensym.wasm.parser.Parser.parseString(file)
   }
-  val instrs = {
-    val file = scala.io.Source.fromFile("./benchmarks/wasm/iter.wat").mkString
-    val module = gensym.wasm.parser.Parser.parseString(file)
+
+  val moduleInst = {
+    val types = List()
+    val funcs = module.definitions.collect({
+      case fndef@FuncDef(_, _, _, _) => fndef
+    }).toList
+    ModuleInstance(List(), funcs)
+  }
+  val instrs =
     module.definitions.find({
       case FuncDef("$real_main", _, _, _) => true
       case _ => false
     }).get.asInstanceOf[FuncDef].body.toList
-  }
   // val instrs = List(
   //   Konst(I32C(10)),
   //   LocalSet(0),
@@ -437,7 +466,7 @@ object StagedEvalCPSTest extends App {
   //   // Call(0),
   //   // Call(0),
   // )
-  val snip = mkVMSnippet(module, instrs)
+  val snip = mkVMSnippet(moduleInst, instrs)
   val code = snip.code
   println(code)
   snip.eval(0)
