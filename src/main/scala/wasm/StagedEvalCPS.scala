@@ -130,26 +130,24 @@ trait StagedEvalCPS extends SAIOps {
       }
     }
 
+    // TODO: probably use a monad for ss
     def execInst
     (instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
       // print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
       // State.printStack(ss)
       instr match {
-        case Konst(I32C(n)) => 
-          State.pushStack(I32(n))
-          k(ss.copy(stackPtr = ss.stackPtr + 1), kk)
-        case Binary(op) => {
-          val (v2, v1) = (State.stackAt(0), State.stackAt(1))
-          val res = evalBinOp(op, v1, v2)
-          State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 2))
-          k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
+        // Parametric Instructions
+        case Drop => k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
+        case Select(_) => {
+          val (cond, v2, v1) = (State.stackAt(0), State.stackAt(1), State.stackAt(2))
+          val res = if (cond == I32(0)) v2 else v1
+          State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 3))
+          k(ss.copy(stackPtr = ss.stackPtr - 2), kk)
         }
-        case Test(testOp) => {
-          val v = State.popStack
-          State.pushStack(evalTestOp(testOp, v))(ss.copy(stackPtr = ss.stackPtr - 1))
-          k(ss, kk)
-        }
+
+        // Variable Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
         case LocalGet(local) => {
           val v = State.getLocal(local)
           State.pushStack(v)
@@ -165,8 +163,53 @@ trait StagedEvalCPS extends SAIOps {
           State.setLocal(local, v)
           k(ss, kk)
         }
+        case GlobalGet(global) => ???
+        case GlobalSet(global) => ???
+
+        // Memory Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
+        case MemorySize => ???
+        case MemoryGrow => ???
+        case MemoryFill => ???
+        case MemoryCopy => ???
+
+        // Numeric Instructions
+        case Konst(I32C(n)) => 
+          State.pushStack(I32(n))
+          k(ss.copy(stackPtr = ss.stackPtr + 1), kk)
+        case Binary(op) => {
+          val (v2, v1) = (State.stackAt(0), State.stackAt(1))
+          val res = evalBinOp(op, v1, v2)
+          State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 2))
+          k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
+        }
+        case Unary(op) => {
+          val v = State.popStack
+          val res = evalUnaryOp(op, v)
+          State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 1))
+          k(ss, kk)
+        }
+        case Test(testOp) => {
+          val v = State.popStack
+          State.pushStack(evalTestOp(testOp, v))(ss.copy(stackPtr = ss.stackPtr - 1))
+          k(ss, kk)
+        }
+        case Compare(op) => {
+          val (v2, v1) = (State.stackAt(0), State.stackAt(1))
+          val res = evalRelOp(op, v1, v2)
+          State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 2))
+          k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
+        }
+        case Store(StoreOp(align, offset, tipe, packSize)) => ???
+        case Load(LoadOp(align, offset, tipe, packSize, extension)) => ???
+
+        // Control Instructions
+        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
+        case Nop => k(ss, kk)
+        case Unreachable => ???
+
         case Return => {
-          // TODO: update sp
+          // TODO: update sp depending on retN
           State.removeStackRange(ss.stackPtr - ss.retN.get, ss.stackPtr)
           ss.returnLabel match {
             case Some(cont) => cont(())
@@ -192,6 +235,21 @@ trait StagedEvalCPS extends SAIOps {
 
     def execInstrs(instrs: List[Instr], k: SSCont)(implicit ss: StaticState): Rep[Unit] = instrs match {
       case Nil => k(ss)(())
+      case If(blockTy, thenInstrs, elseInstrs) :: rest => {
+        val cond: Rep[Int] = State.popStack
+        val zero: Rep[Int] = 0
+
+        // TODO: sp should be updated somehow based on blockTy
+        val endK = (endSS: StaticState) => topFun { (_: Rep[Unit]) => 
+          execInstrs(rest, k)(ss.copy(stackPtr = endSS.stackPtr))
+        }
+
+        if (cond == zero) {
+          execInstrs(elseInstrs, k)(ss.copy(labels = endK :: ss.labels))
+        } else {
+          execInstrs(thenInstrs, k)(ss.copy(labels = endK :: ss.labels))
+        }
+      }
       case Block(blockTy, blockInstrs) :: rest => {
         // continuation for after the block ends
         // TODO: sp should be updated somehow based on blockTy
