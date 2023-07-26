@@ -29,16 +29,19 @@ trait StagedEvalCPS extends SAIOps {
     //   memory: Rep[List[Memory]], globals: Rep[List[Global]], stack: Rep[List[Value]]
     // ): Rep[State] =
     //   Wrap[State](Adapter.g.reflect("state-new", Unwrap(memory), Unwrap(globals), Unwrap(stack)))
-    def stackLength: Rep[Int] =
-      Wrap[Int](Adapter.g.reflect("static-state-stack-length"))
-    def pushStack(value: Rep[Value]) =
-      Adapter.g.reflectWrite("static-state-push-stack", Unwrap(value))(Adapter.CTRL)
-    def popStack: Rep[Value] =
-      Wrap[Value](Adapter.g.reflectWrite("static-state-pop-stack")(Adapter.CTRL))
-    def peekStack: Rep[Value] =
-      Wrap[Value](Adapter.g.reflectWrite("static-state-peek-stack")(Adapter.CTRL))
-    def removeStackRange(start: Rep[Int], end: Rep[Int]) =
-      Adapter.g.reflectWrite("static-state-remove-stack-range", Unwrap(start), Unwrap(end))(Adapter.CTRL)
+    // def stackLength: Rep[Int] =
+    //   Wrap[Int](Adapter.g.reflect("static-state-stack-length"))
+    def pushStack(value: Rep[Value])(implicit ss: StaticState) =
+      Adapter.g.reflectWrite("static-state-push-stack", Unwrap(value), Unwrap(ss.stackPtr))(Adapter.CTRL)
+    def stackAt(i: Int)(implicit ss: StaticState): Rep[Value] = 
+      Wrap[Value](Adapter.g.reflectWrite("static-state-stack-at", Unwrap(ss.stackPtr - 1 - i))(Adapter.CTRL))
+    def popStack(implicit ss: StaticState): Rep[Value] = peekStack
+    def peekStack(implicit ss: StaticState): Rep[Value] =
+      Wrap[Value](Adapter.g.reflectWrite("static-state-peek-stack", Unwrap(ss.stackPtr))(Adapter.CTRL))
+    def removeStackRange(start: Rep[Int], end: Rep[Int])(implicit ss: StaticState) =
+      Adapter.g.reflectWrite(
+        "static-state-remove-stack-range", Unwrap(start), Unwrap(end), Unwrap(ss.stackPtr))(Adapter.CTRL
+      )
     def getLocal(i: Rep[Int])(implicit ss: StaticState): Rep[Value] =
       Wrap[Value](
         Adapter.g.reflectWrite("static-state-get-local", Unwrap(ss.localPtr + i))(Adapter.CTRL)
@@ -47,11 +50,12 @@ trait StagedEvalCPS extends SAIOps {
     def setLocal(i: Rep[Int], v: Rep[Value])(implicit ss: StaticState) =
       Adapter.g.reflectWrite("static-state-set-local", Unwrap(ss.localPtr + i), Unwrap(v))(Adapter.CTRL)
 
-    def printStack() = Adapter.g.reflectWrite("static-state-print-stack")(Adapter.CTRL)
+    def printStack(implicit ss: StaticState) = 
+      Adapter.g.reflectWrite("static-state-print-stack", Unwrap(ss.stackPtr))(Adapter.CTRL)
   }
 
-  def initState(memory: Rep[List[Memory]], globals: Rep[List[Global]], stack: Rep[List[Value]]): Rep[State] =
-    Wrap[State](Adapter.g.reflectWrite("state-init", Unwrap(memory), Unwrap(globals), Unwrap(stack))(Adapter.CTRL))
+  def initState(memory: Rep[List[Memory]], globals: Rep[List[Global]]): Rep[State] =
+    Wrap[State](Adapter.g.reflectWrite("state-init", Unwrap(memory), Unwrap(globals))(Adapter.CTRL))
 
   // TODO: can probably replace Global with Value since we assume validation
   implicit class GlobalOps(global: Rep[Global]) {
@@ -130,20 +134,20 @@ trait StagedEvalCPS extends SAIOps {
     (instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
       // print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
-      // State.printStack()
+      // State.printStack(ss)
       instr match {
         case Konst(I32C(n)) => 
           State.pushStack(I32(n))
           k(ss.copy(stackPtr = ss.stackPtr + 1), kk)
         case Binary(op) => {
-          val (v2, v1) = (State.popStack, State.popStack)
+          val (v2, v1) = (State.stackAt(0), State.stackAt(1))
           val res = evalBinOp(op, v1, v2)
-          State.pushStack(res)
+          State.pushStack(res)(ss.copy(stackPtr = ss.stackPtr - 2))
           k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
         }
         case Test(testOp) => {
           val v = State.popStack
-          State.pushStack(evalTestOp(testOp, v))
+          State.pushStack(evalTestOp(testOp, v))(ss.copy(stackPtr = ss.stackPtr - 1))
           k(ss, kk)
         }
         case LocalGet(local) => {
@@ -153,7 +157,7 @@ trait StagedEvalCPS extends SAIOps {
         }
         case LocalSet(local) => {
           val v = State.popStack
-          State.setLocal(local, v)
+          State.setLocal(local, v)(ss.copy(stackPtr = ss.stackPtr - 1))
           k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
         }
         case LocalTee(local) => {
@@ -163,7 +167,7 @@ trait StagedEvalCPS extends SAIOps {
         }
         case Return => {
           // TODO: update sp
-          State.removeStackRange(State.stackLength - ss.retN.get, State.stackLength)
+          State.removeStackRange(ss.stackPtr - ss.retN.get, ss.stackPtr)
           ss.returnLabel match {
             case Some(cont) => cont(())
             case None => throw new Exception("return outside function")
@@ -180,7 +184,7 @@ trait StagedEvalCPS extends SAIOps {
             k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
           } else {
             val cont = ss.labels(label)
-            cont(ss)(())
+            cont(ss.copy(stackPtr = ss.stackPtr - 1))(())
           }
         }
       }
@@ -190,7 +194,7 @@ trait StagedEvalCPS extends SAIOps {
       case Nil => k(ss)(())
       case Block(blockTy, blockInstrs) :: rest => {
         // continuation for after the block ends
-        // TODO: sp should be updated somehow
+        // TODO: sp should be updated somehow based on blockTy
         val blockK = (blockSS: StaticState) => topFun { (_: Rep[Unit]) => 
           execInstrs(rest, k)(ss.copy(stackPtr = blockSS.stackPtr))
         }
@@ -199,7 +203,7 @@ trait StagedEvalCPS extends SAIOps {
       }
       case Loop(blockTy, loopInstrs) :: rest => {
         // continuation for after the loop breaks
-        // TODO: sp should be updated somehow
+        // TODO: sp should be updated somehow based on blockTy
         val loopK = (loopDoneSS: StaticState) => topFun { (_: Rep[Unit]) => 
           execInstrs(rest, k)(ss)
         }
@@ -223,7 +227,14 @@ trait StagedEvalCPS extends SAIOps {
           val newSS = ss.copy(
             returnLabel = Some(k), stackPtr = newSP, localPtr = newSP - funcType.inps.length, retN = Some(retNum)
           )
-          execInstrs(body, _ => k)(newSS)
+          val finK = (funSS: StaticState) => fun { (_: Rep[Unit]) =>
+            if (ss.stackPtr + funcType.out.length != funSS.stackPtr) {
+              State.removeStackRange(ss.stackPtr + funcType.out.length, funSS.stackPtr)(funSS)
+            }
+            State.removeStackRange(ss.stackPtr - funcType.inps.length, ss.stackPtr)(funSS)
+            k(())
+          }
+          execInstrs(body, finK)(newSS)
         }
 
         val funFun = funFuns.get(name) match {
@@ -236,7 +247,6 @@ trait StagedEvalCPS extends SAIOps {
         }
 
         val evalRest = topFun { (_: Rep[Unit]) => 
-          State.removeStackRange(ss.stackPtr - funcType.inps.length, ss.stackPtr)
           execInstrs(rest, k)(ss.copy(stackPtr = ss.stackPtr - funcType.inps.length + funcType.out.length))
         }
         funFun(evalRest)
@@ -259,36 +269,27 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
       emit("State("); 
       shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(stack); 
       emit(")")
-    case Node(s, "state-init", List(memory, globals, stack), _) => 
+    case Node(s, "state-init", List(memory, globals), _) => 
       emit("init_state("); 
-      shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(stack); 
+      shallow(memory); emit(", "); shallow(globals)
       emit(")")
     case Node(s, "state-memory", List(state), _) => shallow(state); emit(".memory")
     case Node(s, "state-globals", List(state), _) => shallow(state); emit(".globals")
-    case Node(s, "state-push-locals", List(state, locals), _) => 
-      shallow(state); emit(".push_locals("); shallow(locals); emit(")")
-    case Node(s, "state-pop-locals", List(state), _) => shallow(state); emit(".pop_locals()")
     case Node(s, "state-stack", List(state), _) => shallow(state); emit(".stack")
-    case Node(s, "state-stack-length", List(state), _) => shallow(state); emit(".stack.size()")
-    case Node(s, "static-state-stack-length", List(), _) => emit("global_state.stack.size()")
-    case Node(s, "state-push-stack", List(state, v), _) => shallow(state); emit(".push_stack("); shallow(v); emit(")")
-    case Node(s, "static-state-push-stack", List(v), _) => emit("global_state.push_stack("); shallow(v); emit(")")
-    case Node(s, "state-pop-stack", List(state), _) => shallow(state); emit(".pop_stack("); emit(")")
-    case Node(s, "static-state-pop-stack", List(), _) => emit("global_state.pop_stack()")
-    case Node(s, "state-peek-stack", List(state), _) => shallow(state); emit(".peek_stack("); emit(")")
-    case Node(s, "static-state-peek-stack", List(), _) => emit("global_state.peek_stack()")
-    case Node(s, "state-print-stack", List(state), _) => shallow(state); emit(".print_stack()")
-    case Node(s, "static-state-print-stack", List(), _) => emit("global_state.print_stack()")
-    case Node(s, "state-get-local", List(state, i), _) => shallow(state); emit(".get_local("); shallow(i); emit(")")
-    case Node(s, "static-state-get-local", List(i), _) => emit("global_state.get_local("); shallow(i); emit(")")
-    case Node(s, "state-set-local", List(state, i, v), _) => 
-      shallow(state); emit(".set_local("); shallow(i); emit(", "); shallow(v); emit(")")
+    case Node(s, "static-state-stack-at", List(i), _) =>
+      emit("global_state.stack_at("); shallow(i); emit(")")
+    case Node(s, "static-state-push-stack", List(v, sp), _) => 
+      emit("global_state.push_stack("); shallow(v); emit(", "); shallow(sp); emit(")")
+    case Node(s, "static-state-peek-stack", List(sp), _) => 
+      emit("global_state.peek_stack("); shallow(sp); emit(")")
+    case Node(s, "static-state-print-stack", List(sp), _) =>
+      emit("global_state.print_stack("); shallow(sp); emit(")")
+    case Node(s, "static-state-get-local", List(i), _) =>
+      emit("global_state.get_local("); shallow(i); emit(")")
     case Node(s, "static-state-set-local", List(i, v), _) => 
       emit("global_state.set_local("); shallow(i); emit(", "); shallow(v); emit(")")
-    case Node(s, "state-remove-stack-range", List(state, st, ed), _) => 
-      shallow(state); emit(".remove_stack_range("); shallow(st); emit(", "); shallow(ed); emit(")")
-    case Node(s, "static-state-remove-stack-range", List(st, ed), _) => 
-      emit("global_state.remove_stack_range("); shallow(st); emit(", "); shallow(ed); emit(")")
+    case Node(s, "static-state-remove-stack-range", List(st, ed, sp), _) => 
+      emit("global_state.remove_stack_range("); shallow(st); emit(", "); shallow(ed); emit(", "); shallow(sp); emit(")")
     case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
     case Node(s, "memory-grow", List(memory, delta), _) => 
       shallow(memory); emit(".grow("); shallow(delta); emit(")")
@@ -329,9 +330,9 @@ object StagedEvalCPSTest extends App {
     new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
       def snippet(arg: Rep[Int]): Rep[Unit] = {
         // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
-        initState(List[Memory](), List[Global](), List[Value](I32(0)))
+        initState(List[Memory](), List[Global]())
         val config = Config(module, HashMap(), 1000)
-        val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.stackPtr); State.printStack(); () }
+        val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.localPtr); State.printStack(ss); () }
         config.execInstrs(instrs, fin)(StaticState(Nil, None, 1, 0, None))
       }
     }
@@ -356,17 +357,17 @@ object StagedEvalCPSTest extends App {
   }
   // val instrs = List(
   //   Konst(I32C(10)),
-  //   // LocalSet(0),
-  //   // Loop(ValBlockType(None), Seq(
-  //   //   LocalGet(0),
-  //   //   Konst(I32C(1)),
-  //   //   Binary(BinOp.Int(Sub)),
-  //   //   LocalTee(0),
-  //   //   Konst(I32C(5)),
-  //   //   Binary(BinOp.Int(Sub)),
-  //   //   Test(TestOp.Int(Eqz)),
-  //   //   BrIf(0),
-  //   // )),
+  //   LocalSet(0),
+  //   Loop(ValBlockType(None), Seq(
+  //     LocalGet(0),
+  //     Konst(I32C(1)),
+  //     Binary(BinOp.Int(Sub)),
+  //     LocalTee(0),
+  //     Konst(I32C(5)),
+  //     Binary(BinOp.Int(Sub)),
+  //     Test(TestOp.Int(Eqz)),
+  //     BrIf(0),
+  //   )),
   //   // Block(ValBlockType(None), Seq(
   //   //   Konst(I32C(10)),
   //   //   Konst(I32C(-10)),
@@ -375,8 +376,8 @@ object StagedEvalCPSTest extends App {
   //   //   Konst(I32C(1)),
   //   // )),
   //   // Konst(I32C(12)),
-  //   Call(0),
-  //   Call(0),
+  //   // Call(0),
+  //   // Call(0),
   // )
   val snip = mkVMSnippet(module, instrs)
   val code = snip.code

@@ -38,32 +38,33 @@ class State {
     public:
         immer::flex_vector<Mem> memory;
         immer::flex_vector<Global> globals;
-        immer::vector_transient<Value> stack;
+        Value stack[1000];
 
         State(
                 immer::flex_vector<Mem> memory,
-                immer::flex_vector<Global> globals,
-                immer::vector_transient<Value> stack
-            ) : memory(memory), globals(globals), stack(stack) {}
-
-        void push_stack(Value v) {
-            stack.push_back(v);
+                immer::flex_vector<Global> globals
+            ) : memory(memory), globals(globals) {
+            for (int i = 0; i < 1000; i++) {
+                stack[i] = I32V(0);
+            }
         }
 
-        Value pop_stack() {
-            Value v = stack[stack.size() - 1];
-            stack.take(stack.size() - 1);
-            return v;
+        Value stack_at(int i) {
+            return stack[i];
         }
 
-        Value peek_stack() {
-            return stack[stack.size() - 1];
+        void push_stack(Value v, int sp) {
+            stack[sp] = v;
         }
 
-        void print_stack() {
+        Value peek_stack(int sp) {
+            return stack[sp - 1];
+        }
+
+        void print_stack(int sp) {
             printf("Stack:\n");
-            for (auto it = stack.begin(); it != stack.end(); it++) {
-                printf("%d ", it->i32);
+            for (int i = 0; i < sp; i++) {
+                printf("%d ", stack[i].i32);
             }
             printf("\n");
         }
@@ -78,33 +79,25 @@ class State {
         }
 
         void set_local(int i, Value v) {
-            stack.set(i, v);
+            stack[i] = v;
         }
 
-        void remove_stack_range(int start, int end) {
-            int size = stack.size();
+        void remove_stack_range(int start, int end, int sp) {
             for (int i = start; i < end; i++) {
-                if (i + (end - start) < size) {
-                    stack.set(i, stack[i + (end - start)]);
+                int j = end + (i - start);
+                if (j < sp) {
+                    stack[i] = stack[j];
                 } else {
-                    stack.set(i, I32V(0));
+                    stack[i] = I32V(0);
                 }
             }
-            stack.take(size - (end - start));
         }
 };
-static State global_state = State(
-        immer::flex_vector<Mem>(),
-        immer::flex_vector<Global>(),
-        immer::vector_transient<Value>()
-    );
 
-State& init_state(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals, immer::flex_vector<Value> stack) {
-    immer::vector_transient<Value> s;
-    for (auto it = stack.begin(); it != stack.end(); it++) {
-        s.push_back(*it);
-    }
-    global_state = State(memory, globals, s);
+static State global_state = State(immer::flex_vector<Mem>(), immer::flex_vector<Global>());
+
+State& init_state(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals) {
+    global_state = State(memory, globals);
     return global_state;
 }
 
