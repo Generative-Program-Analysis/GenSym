@@ -83,6 +83,7 @@ trait StagedEvalCPS extends SAIOps {
   def I64(i: Rep[Long]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("I64V", Unwrap(i))(Adapter.CTRL))
 
   type Cont = Unit => Unit
+  type SSCont = StaticState => Rep[Cont]
 
   implicit def repI32Proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
     case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) =>
@@ -92,7 +93,7 @@ trait StagedEvalCPS extends SAIOps {
   }
 
   case class StaticState(
-    labels: List[Rep[Cont]],
+    labels: List[SSCont],
     returnLabel: Option[Rep[Cont]],
     stackPtr: Int,
     localPtr: Int,
@@ -126,7 +127,7 @@ trait StagedEvalCPS extends SAIOps {
     }
 
     def execInst
-    (instr: Instr, k: (StaticState, Rep[Cont]) => Rep[Unit])(kk: Rep[Cont])(implicit ss: StaticState): Rep[Unit]
+    (instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
       // print(s"Instr: $instr, sp: ${ss.stackPtr}, ")
       // State.printStack()
@@ -161,6 +162,7 @@ trait StagedEvalCPS extends SAIOps {
           k(ss, kk)
         }
         case Return => {
+          // TODO: update sp
           State.removeStackRange(State.stackLength - ss.retN.get, State.stackLength)
           ss.returnLabel match {
             case Some(cont) => cont(())
@@ -169,7 +171,7 @@ trait StagedEvalCPS extends SAIOps {
         }
         case Br(label) => {
           val cont = ss.labels(label)
-          cont(())
+          cont(ss)(())
         }
         case BrIf(label) => {
           val cond: Rep[Int] = State.popStack
@@ -178,28 +180,35 @@ trait StagedEvalCPS extends SAIOps {
             k(ss.copy(stackPtr = ss.stackPtr - 1), kk)
           } else {
             val cont = ss.labels(label)
-            cont(())
+            cont(ss)(())
           }
         }
       }
     }
 
-    def execInstrs(instrs: List[Instr], k: Rep[Cont])(implicit ss: StaticState): Rep[Unit] = instrs match {
-      case Nil => k(())
+    def execInstrs(instrs: List[Instr], k: SSCont)(implicit ss: StaticState): Rep[Unit] = instrs match {
+      case Nil => k(ss)(())
       case Block(blockTy, blockInstrs) :: rest => {
         // continuation for after the block ends
-        val blockK = topFun { (_: Rep[Unit]) => execInstrs(rest, k) }
+        // TODO: sp should be updated somehow
+        val blockK = (blockSS: StaticState) => topFun { (_: Rep[Unit]) => 
+          execInstrs(rest, k)(ss.copy(stackPtr = blockSS.stackPtr))
+        }
+
         execInstrs(blockInstrs.toList, blockK)(ss.copy(blockK :: ss.labels))
       }
       case Loop(blockTy, loopInstrs) :: rest => {
         // continuation for after the loop breaks
-        val loopK = topFun { (_: Rep[Unit]) => execInstrs(rest, k) }
+        // TODO: sp should be updated somehow
+        val loopK = (loopDoneSS: StaticState) => topFun { (_: Rep[Unit]) => 
+          execInstrs(rest, k)(ss)
+        }
 
         // the actual loop function
-        def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
+        def loopFn: SSCont = (loopSS: StaticState) => topFun { (_: Rep[Unit]) =>
           execInstrs(loopInstrs.toList, loopFn)(ss.copy(loopK :: ss.labels))
         }
-        loopFn(())
+        loopFn(ss)(())
       }
       case Call(func) :: rest => {
         val FuncDef(name, funcType, locals, body) = module.funcs(func)
@@ -214,7 +223,7 @@ trait StagedEvalCPS extends SAIOps {
           val newSS = ss.copy(
             returnLabel = Some(k), stackPtr = newSP, localPtr = newSP - funcType.inps.length, retN = Some(retNum)
           )
-          execInstrs(body, k)(newSS)
+          execInstrs(body, _ => k)(newSS)
         }
 
         val funFun = funFuns.get(name) match {
@@ -228,7 +237,7 @@ trait StagedEvalCPS extends SAIOps {
 
         val evalRest = topFun { (_: Rep[Unit]) => 
           State.removeStackRange(ss.stackPtr - funcType.inps.length, ss.stackPtr)
-          execInstrs(rest, k) 
+          execInstrs(rest, k)(ss.copy(stackPtr = ss.stackPtr - funcType.inps.length + funcType.out.length))
         }
         funFun(evalRest)
       }
@@ -322,7 +331,8 @@ object StagedEvalCPSTest extends App {
         // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
         initState(List[Memory](), List[Global](), List[Value](I32(0)))
         val config = Config(module, HashMap(), 1000)
-        config.execInstrs(instrs, topFun { _ => State.printStack(); () })(StaticState(Nil, None, 1, 0, None))
+        val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.stackPtr); State.printStack(); () }
+        config.execInstrs(instrs, fin)(StaticState(Nil, None, 1, 0, None))
       }
     }
   }
@@ -346,17 +356,17 @@ object StagedEvalCPSTest extends App {
   }
   // val instrs = List(
   //   Konst(I32C(10)),
-  //   LocalSet(0),
-  //   Loop(ValBlockType(None), Seq(
-  //     LocalGet(0),
-  //     Konst(I32C(1)),
-  //     Binary(BinOp.Int(Sub)),
-  //     LocalTee(0),
-  //     Konst(I32C(5)),
-  //     Binary(BinOp.Int(Sub)),
-  //     Test(TestOp.Int(Eqz)),
-  //     BrIf(0),
-  //   )),
+  //   // LocalSet(0),
+  //   // Loop(ValBlockType(None), Seq(
+  //   //   LocalGet(0),
+  //   //   Konst(I32C(1)),
+  //   //   Binary(BinOp.Int(Sub)),
+  //   //   LocalTee(0),
+  //   //   Konst(I32C(5)),
+  //   //   Binary(BinOp.Int(Sub)),
+  //   //   Test(TestOp.Int(Eqz)),
+  //   //   BrIf(0),
+  //   // )),
   //   // Block(ValBlockType(None), Seq(
   //   //   Konst(I32C(10)),
   //   //   Konst(I32C(-10)),

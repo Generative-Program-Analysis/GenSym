@@ -2,6 +2,7 @@
 #define WASM_STATE_CONTINUE_HPP
 
 #include <immer/flex_vector.hpp>
+#include <immer/vector_transient.hpp>
 
 template <typename T>
 immer::flex_vector<T> flex_vector_reverse(immer::flex_vector<T> v) {
@@ -37,27 +38,26 @@ class State {
     public:
         immer::flex_vector<Mem> memory;
         immer::flex_vector<Global> globals;
-        immer::flex_vector<Value> stack;
+        immer::vector_transient<Value> stack;
 
         State(
                 immer::flex_vector<Mem> memory,
                 immer::flex_vector<Global> globals,
-                immer::flex_vector<Value> stack
+                immer::vector_transient<Value> stack
             ) : memory(memory), globals(globals), stack(stack) {}
 
         void push_stack(Value v) {
-            stack = stack.push_back(v);
+            stack.push_back(v);
         }
 
         Value pop_stack() {
-            Value v = stack.back();
-            // TODO: better stack impl
-            stack = stack.take(stack.size() - 1);
+            Value v = stack[stack.size() - 1];
+            stack.take(stack.size() - 1);
             return v;
         }
 
         Value peek_stack() {
-            return stack.back();
+            return stack[stack.size() - 1];
         }
 
         void print_stack() {
@@ -78,22 +78,33 @@ class State {
         }
 
         void set_local(int i, Value v) {
-            stack = stack.set(i, v);
+            stack.set(i, v);
         }
 
         void remove_stack_range(int start, int end) {
-            // 1 2 3 4 5
-            stack = stack.take(start) + stack.drop(end);
+            int size = stack.size();
+            for (int i = start; i < end; i++) {
+                if (i + (end - start) < size) {
+                    stack.set(i, stack[i + (end - start)]);
+                } else {
+                    stack.set(i, I32V(0));
+                }
+            }
+            stack.take(size - (end - start));
         }
 };
 static State global_state = State(
         immer::flex_vector<Mem>(),
         immer::flex_vector<Global>(),
-        immer::flex_vector<Value>()
+        immer::vector_transient<Value>()
     );
 
 State& init_state(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals, immer::flex_vector<Value> stack) {
-    global_state = State(memory, globals, stack);
+    immer::vector_transient<Value> s;
+    for (auto it = stack.begin(); it != stack.end(); it++) {
+        s.push_back(*it);
+    }
+    global_state = State(memory, globals, s);
     return global_state;
 }
 
