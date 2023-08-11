@@ -38,7 +38,10 @@ class State {
     public:
         immer::flex_vector<Mem> memory;
         immer::flex_vector<Global> globals;
+        int stack_ptr = 0;
+        int frame_ptr = 0;
         Value stack[1000];
+        immer::vector_transient<std::function<std::monostate(std::monostate)>> return_stack;
 
         State(
                 immer::flex_vector<Mem> memory,
@@ -47,23 +50,28 @@ class State {
             for (int i = 0; i < 1000; i++) {
                 stack[i] = I32V(0);
             }
+            return_stack = immer::vector_transient<std::function<std::monostate(std::monostate)>>();
         }
 
         Value stack_at(int i) {
             return stack[i];
         }
 
-        void push_stack(Value v, int sp) {
-            stack[sp] = v;
+        void push_stack(Value v) {
+            stack[stack_ptr++] = v;
         }
 
-        Value peek_stack(int sp) {
-            return stack[sp - 1];
+        Value pop_stack() {
+            return stack[--stack_ptr];
         }
 
-        void print_stack(int sp) {
-            printf("Stack:\n");
-            for (int i = 0; i < sp; i++) {
+        Value peek_stack() {
+            return stack[stack_ptr - 1];
+        }
+
+        void print_stack() {
+            printf("sp: %d, fp: %d, Stack: ", stack_ptr, frame_ptr);
+            for (int i = 0; i < stack_ptr; i++) {
                 printf("%d ", stack[i].i32);
             }
             printf("\n");
@@ -75,17 +83,27 @@ class State {
         // get_local(0) = stack(0) -> stack.size() - stackPtr - 1 + 0
         // get_local(1) = stack(3) -> stack.size() - stackPtr - 1 + 1
         Value get_local(int i) {
-            return stack[i];
+            return stack[frame_ptr + i];
         }
 
         void set_local(int i, Value v) {
-            stack[i] = v;
+            stack[frame_ptr + i] = v;
         }
 
-        void remove_stack_range(int start, int end, int sp) {
+        void return_from_fun(int num_locals, int ret_num) {
+            remove_stack_range(frame_ptr - num_locals, frame_ptr);
+            remove_stack_range(frame_ptr + ret_num, stack_ptr);
+            stack_ptr = frame_ptr - num_locals + ret_num;
+        }
+
+        void set_frame_ptr() {
+            frame_ptr = stack_ptr;
+        }
+
+        void remove_stack_range(int start, int end) {
             for (int i = start; i < end; i++) {
                 int j = end + (i - start);
-                if (j < sp) {
+                if (j < stack_ptr) {
                     stack[i] = stack[j];
                 } else {
                     stack[i] = I32V(0);
@@ -96,8 +114,10 @@ class State {
 
 static State global_state = State(immer::flex_vector<Mem>(), immer::flex_vector<Global>());
 
-State& init_state(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals) {
+State& init_state(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals, int num_locals) {
     global_state = State(memory, globals);
+    global_state.stack_ptr = num_locals;
+    global_state.frame_ptr = num_locals;
     return global_state;
 }
 

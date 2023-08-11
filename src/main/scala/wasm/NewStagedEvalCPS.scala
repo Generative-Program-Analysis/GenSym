@@ -58,10 +58,10 @@ trait StagedEvalCPS extends SAIOps {
       ))
     def getLocal(i: Rep[Int])(implicit ss: StaticState): Rep[Value] =
       Wrap[Value](
-        Adapter.g.reflectWrite("static-state-get-local", Unwrap(-ss.numLocals + i + 1))(Adapter.CTRL)
+        Adapter.g.reflectWrite("static-state-get-local", Unwrap(-ss.numLocals + i))(Adapter.CTRL)
       )
     def setLocal(i: Rep[Int], v: Rep[Value])(implicit ss: StaticState) =
-      Adapter.g.reflectWrite("static-state-set-local", Unwrap(-ss.numLocals + i + 1), Unwrap(v))(Adapter.CTRL)
+      Adapter.g.reflectWrite("static-state-set-local", Unwrap(-ss.numLocals + i), Unwrap(v))(Adapter.CTRL)
 
     def printStack = 
       Adapter.g.reflectWrite("static-state-print-stack")(Adapter.CTRL)
@@ -146,8 +146,35 @@ trait StagedEvalCPS extends SAIOps {
       }
     }
 
+    // def compileStuffIn(instrs: List[Instr], k: SSCont)(implicit ss: StaticState) = {
+    //   for ((instr, i) <- instrs.zipWithIndex) instr match {
+    //     case IdBlock(id, _, innerBody) => compileBlock(id, innerBody.toList, instrs.drop(i + 1), k)
+    //     case IdLoop(id, _, innerBody) => compileLoop(id, innerBody.toList, instrs.drop(i + 1), k)
+    //     case _ => ()
+    //   }
+    // }
+
+    def compileBlock(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
+      if (blockConts.contains(id)) return
+      val blockK = (nextSS: StaticState) => topFun { (_: Rep[Unit]) =>
+        execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
+      }
+      blockConts += (id -> blockK)
+    }
+
+    def compileLoop(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
+      if (loopFuns.contains(id)) return
+      compileBlock(id, body, nextInstrs, k)
+      def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
+        // discard ss on each iteration
+        execInstrs(body, _ => loopFn)(ss.copy(loopFn :: blockConts(id)(ss) :: ss.labels))
+      }
+      loopFuns += (id -> loopFn)
+    }
+
     def execInstr(instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
+      State.printStack
       instr match {
         case Konst(I32C(n)) => {
           State.pushStack(I32(n))
@@ -159,7 +186,16 @@ trait StagedEvalCPS extends SAIOps {
           State.pushStack(res)
           k(ss, kk)
         }
-        case _ => ???
+        case LocalGet(local) => {
+          val v = State.getLocal(local)
+          State.pushStack(v)
+          k(ss, kk)
+        }
+        case LocalSet(local) => {
+          val v = State.popStack
+          State.setLocal(local, v)
+          k(ss, kk)
+        }
       }
     }
 
@@ -167,21 +203,27 @@ trait StagedEvalCPS extends SAIOps {
       case Nil => k(ss)(())
       case Block(_, _) :: _ => ??? // should be IdBlock
       case IdBlock(id, blockTy, blockInstrs) :: rest => {
-        val blockSS = ss.copy(labels = k(ss) :: ss.labels)
-        val blockCont = (nextSS: StaticState) => topFun { (_: Rep[Unit]) => 
-          execInstrs(rest, k)(nextSS.copy(labels = ss.labels))
-        }
-        blockConts += (id -> blockCont)
-        execInstrs(blockInstrs.toList, blockCont)(blockSS)
+        compileBlock(id, blockInstrs.toList, rest, k)
+        val blockK = blockConts(id)
+        execInstrs(blockInstrs.toList, blockK)(ss.copy(labels = blockK(ss) :: ss.labels))
+        // val blockSS = ss.copy(labels = k(ss) :: ss.labels)
+        // val blockCont = (nextSS: StaticState) => topFun { (_: Rep[Unit]) => 
+        //   execInstrs(rest, k)(nextSS.copy(labels = ss.labels))
+        // }
+        // blockConts += (id -> blockCont)
+        // execInstrs(blockInstrs.toList, blockCont)(blockSS)
       }
       case Call(func) :: rest => {
         val funcDef@FuncDef(name, funcType, locals, body) = module.funcs(func)
+        // is retFun different depending on where it's called from?
         val retFun = topFun { (k1: Rep[Cont]) =>
           // return stuff
+          State.returnFromFun(funcType.out.length)(ss.copy(numLocals = funcType.inps.length + locals.length))
           k1(())
         }
         val funFun = topFun { (k1: Rep[Cont]) =>
           val retCont = fun { (_: Rep[Unit]) => retFun(k1) }
+          State.setFramePtr
           val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
           
           // discard the resulting static state
@@ -268,80 +310,85 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
   }
 }
 
-// object StagedEvalCPSTest extends App {
-//   @virtualize
-//   def mkVMSnippet(
-//     module: ModuleInstance,
-//     instrs: List[Instr],
-//   ): CppSAIDriver[Int, Unit] with StagedEvalCPS = {
-//     new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
-//       def snippet(arg: Rep[Int]): Rep[Unit] = {
-//         // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
-//         val config = Config(module, HashMap(), HashMap(), HashMap(), 1000)
-//         val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.numLocals); State.printStack; () }
-//         initState(List[Memory](), List[Global](), 1)
-//         val ss = StaticState(Nil, None, 1, None)
-//         config.compileStuffIn(instrs, fin)(ss)
-//         for (f <- module.funcs) config.compileStuffIn(f.body.toList, _ => topFun { (x: Rep[Unit]) => x })(ss)
-//         System.out.println(s"blockConts: ${config.blockConts}")
-//         config.execInstrs(instrs, fin)(ss)
-//       }
-//     }
-//   }
+object StagedEvalCPSTest extends App {
+  @virtualize
+  def mkVMSnippet(
+    module: ModuleInstance,
+    instrs: List[Instr],
+  ): CppSAIDriver[Int, Unit] with StagedEvalCPS = {
+    new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
+      def snippet(arg: Rep[Int]): Rep[Unit] = {
+        // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
+        val config = Config(module, HashMap(), HashMap(), HashMap(), 1000)
+        val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.numLocals); State.printStack; () }
+        initState(List[Memory](), List[Global](), 2)
+        val ss = StaticState(Nil, None, 0, 2)
+        System.out.println(s"blockConts: ${config.blockConts}")
+        config.execInstrs(instrs, fin)(ss)
+      }
+    }
+  }
 
-//   val module = {
-//     val file = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
-//     gensym.wasm.parser.Parser.parseString(file)
-//   }
+  // val module = {
+  //   val file = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
+  //   gensym.wasm.parser.Parser.parseString(file)
+  // }
 
-//   val moduleInst = {
-//     val types = List()
-//     val funcs = module.definitions.collect({
-//       case fndef@FuncDef(_, _, _, b) => fndef.copy(body = Preprocess.idBlocks(b.toList))
-//     }).toList
-//     ModuleInstance(List(), funcs)
-//   }
-//   // val moduleInst = {
-//   //   val types = List()
-//   //   val funcs = List(
-//   //     FuncDef("add5", FuncType(Seq(NumType(I32Type)), Seq(NumType(I32Type))), Seq(), Seq(
-//   //       LocalGet(0), Konst(I32C(5)), Binary(BinOp.Int(Add))
-//   //     ))
-//   //   )
-//   //   ModuleInstance(types, funcs)
-//   // }
-//   val instrs =
-//     module.definitions.find({
-//       case FuncDef("$real_main", _, _, _) => true
-//       case _ => false
-//     }).get.asInstanceOf[FuncDef].body.toList
-//   // val instrs = List(
-//   //   Konst(I32C(10)),
-//   //   LocalSet(0),
-//   //   Loop(ValBlockType(None), Seq(
-//   //     LocalGet(0),
-//   //     Konst(I32C(1)),
-//   //     Binary(BinOp.Int(Sub)),
-//   //     LocalTee(0),
-//   //     Konst(I32C(5)),
-//   //     Binary(BinOp.Int(Sub)),
-//   //     Test(TestOp.Int(Eqz)),
-//   //     BrIf(1),
-//   //   )),
-//   //   // Block(ValBlockType(None), Seq(
-//   //   //   Konst(I32C(10)),
-//   //   //   Konst(I32C(-10)),
-//   //   //   Binary(BinOp.Int(Add)),
-//   //   //   BrIf(0),
-//   //   //   Konst(I32C(1)),
-//   //   // )),
-//   //   // Konst(I32C(12)),
-//   //   Call(0),
-//   //   Call(0),
-//   // )
-//   System.out.println(s"funcs: ${moduleInst.funcs}")
-//   val snip = mkVMSnippet(moduleInst, Preprocess.idBlocks(instrs))
-//   val code = snip.code
-//   println(code)
-//   snip.eval(0)
-// }
+  // val moduleInst = {
+  //   val types = List()
+  //   val funcs = module.definitions.collect({
+  //     case fndef@FuncDef(_, _, _, b) => fndef.copy(body = Preprocess.idBlocks(b.toList))
+  //   }).toList
+  //   ModuleInstance(List(), funcs)
+  // }
+  val moduleInst = {
+    val types = List()
+    val funcs = List(
+      FuncDef("add5", FuncType(Seq(NumType(I32Type)), Seq(NumType(I32Type))), Seq(), Seq(
+        LocalGet(0), Konst(I32C(5)), Binary(BinOp.Int(Add))
+      ))
+    )
+    ModuleInstance(types, funcs)
+  }
+  // val instrs =
+  //   module.definitions.find({
+  //     case FuncDef("$real_main", _, _, _) => true
+  //     case _ => false
+  //   }).get.asInstanceOf[FuncDef].body.toList
+  val instrs = List(
+    Konst(I32C(10)),
+    // LocalSet(0),
+    // LocalGet(0),
+    // Konst(I32C(5)),
+    // Binary(BinOp.Int(Add)),
+    // LocalSet(1),
+    // Loop(ValBlockType(None), Seq(
+    //   LocalGet(0),
+    //   Konst(I32C(1)),
+    //   Binary(BinOp.Int(Sub)),
+    //   LocalTee(0),
+    //   Konst(I32C(5)),
+    //   Binary(BinOp.Int(Sub)),
+    //   Test(TestOp.Int(Eqz)),
+    //   BrIf(1),
+    // )),
+    Block(ValBlockType(None), Seq(
+      Konst(I32C(10)),
+      Konst(I32C(-15)),
+      Binary(BinOp.Int(Add)),
+      Block(ValBlockType(None), Seq(
+        Konst(I32C(10))
+      ))
+      // BrIf(0),
+      // Konst(I32C(1)),
+    )),
+    // Konst(I32C(12)),
+    // Call(0),
+    // Call(0),
+  )
+  System.out.println(s"funcs: ${moduleInst.funcs}")
+  val snip = mkVMSnippet(moduleInst, Preprocess.idBlocks(instrs))
+  val code = snip.code
+  println(code)
+  snip.eval(0)
+}
