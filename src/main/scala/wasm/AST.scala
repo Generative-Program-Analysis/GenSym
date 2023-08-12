@@ -16,8 +16,11 @@ case object Nop extends Instr
 case object Drop extends Instr
 case class Select(ty: Option[Seq[ValueType]]) extends Instr
 case class Block(ty: BlockType, instrs: Seq[Instr]) extends Instr
+case class IdBlock(id: Int, ty: BlockType, instrs: Seq[Instr]) extends Instr
 case class Loop(ty: BlockType, instrs: Seq[Instr]) extends Instr
+case class IdLoop(id: Int, ty: BlockType, instrs: Seq[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
+case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
 // case class BrTable(labels: Seq[Int], default: Int) extends Instr

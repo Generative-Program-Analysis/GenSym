@@ -48,8 +48,8 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Value](Adapter.g.reflectWrite("static-state-pop-stack")(Adapter.CTRL))
     def peekStack: Rep[Value] =
       Wrap[Value](Adapter.g.reflectWrite("static-state-peek-stack")(Adapter.CTRL))
-    def returnFromFun(numReturns: Int)(implicit ss: StaticState): Rep[Unit] =
-      Wrap[Unit](Adapter.g.reflectWrite("static-state-return", Unwrap(ss.numLocals), Unwrap(numReturns))(Adapter.CTRL))
+    def returnFromFun(numLocals: Int, numReturns: Int): Rep[Unit] =
+      Wrap[Unit](Adapter.g.reflectWrite("static-state-return", Unwrap(numLocals), Unwrap(numReturns))(Adapter.CTRL))
     def setFramePtr: Rep[Unit] =
       Wrap[Unit](Adapter.g.reflectWrite("static-state-set-frame-ptr")(Adapter.CTRL))
     def removeStackRange(start: Rep[Int], end: Rep[Int]): Rep[Unit] =
@@ -146,14 +146,6 @@ trait StagedEvalCPS extends SAIOps {
       }
     }
 
-    // def compileStuffIn(instrs: List[Instr], k: SSCont)(implicit ss: StaticState) = {
-    //   for ((instr, i) <- instrs.zipWithIndex) instr match {
-    //     case IdBlock(id, _, innerBody) => compileBlock(id, innerBody.toList, instrs.drop(i + 1), k)
-    //     case IdLoop(id, _, innerBody) => compileLoop(id, innerBody.toList, instrs.drop(i + 1), k)
-    //     case _ => ()
-    //   }
-    // }
-
     def compileBlock(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
       if (blockConts.contains(id)) return
       val blockK = (nextSS: StaticState) => topFun { (_: Rep[Unit]) =>
@@ -170,6 +162,23 @@ trait StagedEvalCPS extends SAIOps {
         execInstrs(body, _ => loopFn)(ss.copy(loopFn :: blockConts(id)(ss) :: ss.labels))
       }
       loopFuns += (id -> loopFn)
+    }
+
+    def compileFun(name: String, funcType: FuncType, locals: List[ValueType], body: List[Instr]): Unit = {
+        if (funFuns.contains(name)) return
+
+        val funFun = topFun { (k1: Rep[Cont]) =>
+          val retCont = fun { (_: Rep[Unit]) => 
+            State.returnFromFun(funcType.inps.length + locals.length, funcType.out.length)
+            k1(())
+          }
+          State.setFramePtr
+          val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
+          
+          // discard the resulting static state
+          execInstrs(body.toList, (_: StaticState) => retCont )(innerSS)
+        }
+        funFuns += (name -> funFun)
     }
 
     def execInstr(instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
@@ -215,23 +224,10 @@ trait StagedEvalCPS extends SAIOps {
       }
       case Call(func) :: rest => {
         val funcDef@FuncDef(name, funcType, locals, body) = module.funcs(func)
-        // is retFun different depending on where it's called from?
-        val retFun = topFun { (k1: Rep[Cont]) =>
-          // return stuff
-          State.returnFromFun(funcType.out.length)(ss.copy(numLocals = funcType.inps.length + locals.length))
-          k1(())
-        }
-        val funFun = topFun { (k1: Rep[Cont]) =>
-          val retCont = fun { (_: Rep[Unit]) => retFun(k1) }
-          State.setFramePtr
-          val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
-          
-          // discard the resulting static state
-          execInstrs(body.toList, (_: StaticState) => retCont )(innerSS)
-        }
 
-        funFuns += (name -> funFun)
-        val execRest = fun { (_: Rep[Unit]) => execInstrs(rest, k)(ss) }
+        compileFun(name, funcType, locals.toList, body.toList)
+        val funFun = funFuns(name)
+        val execRest = topFun { (_: Rep[Unit]) => execInstrs(rest, k)(ss) }
         funFun(execRest)
       }
       case instr :: rest =>
@@ -383,7 +379,7 @@ object StagedEvalCPSTest extends App {
       // Konst(I32C(1)),
     )),
     // Konst(I32C(12)),
-    // Call(0),
+    Call(0),
     // Call(0),
   )
   System.out.println(s"funcs: ${moduleInst.funcs}")
