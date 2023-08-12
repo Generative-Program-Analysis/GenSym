@@ -107,7 +107,7 @@ trait StagedEvalCPS extends SAIOps {
   }
 
   case class StaticState(
-    labels: List[Rep[Cont]],
+    labels: List[SSCont],
     returnLabel: Option[Rep[Cont]],
     frameStackPtr: Int,
     numLocals: Int,
@@ -159,7 +159,8 @@ trait StagedEvalCPS extends SAIOps {
       compileBlock(id, body, nextInstrs, k)
       def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
         // discard ss on each iteration
-        execInstrs(body, _ => loopFn)(ss.copy(loopFn :: blockConts(id)(ss) :: ss.labels))
+        val sscont = (_: StaticState) => loopFn
+        execInstrs(body, sscont)(ss.copy(sscont :: blockConts(id) :: ss.labels))
       }
       loopFuns += (id -> loopFn)
     }
@@ -178,12 +179,15 @@ trait StagedEvalCPS extends SAIOps {
           // discard the resulting static state
           execInstrs(body.toList, (_: StaticState) => retCont )(innerSS)
         }
+
+        val node = Unwrap(funFun).asInstanceOf[Backend.Sym]
+        funNameMap += (node -> name)
         funFuns += (name -> funFun)
     }
 
     def execInstr(instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
-      State.printStack
+      print(s"instr: $instr\t\t"); State.printStack
       instr match {
         case Konst(I32C(n)) => {
           State.pushStack(I32(n))
@@ -205,6 +209,20 @@ trait StagedEvalCPS extends SAIOps {
           State.setLocal(local, v)
           k(ss, kk)
         }
+        case Br(label) => {
+          val cont = ss.labels(label)
+          cont(ss)(())
+        }
+        case BrIf(label) => {
+          val cond: Rep[Int] = State.popStack
+          val zero: Rep[Int] = 0
+          if (cond == zero) {
+            k(ss, kk)
+          } else {
+            val cont = ss.labels(label)
+            cont(ss)(())
+          }
+        }
       }
     }
 
@@ -214,13 +232,12 @@ trait StagedEvalCPS extends SAIOps {
       case IdBlock(id, blockTy, blockInstrs) :: rest => {
         compileBlock(id, blockInstrs.toList, rest, k)
         val blockK = blockConts(id)
-        execInstrs(blockInstrs.toList, blockK)(ss.copy(labels = blockK(ss) :: ss.labels))
-        // val blockSS = ss.copy(labels = k(ss) :: ss.labels)
-        // val blockCont = (nextSS: StaticState) => topFun { (_: Rep[Unit]) => 
-        //   execInstrs(rest, k)(nextSS.copy(labels = ss.labels))
-        // }
-        // blockConts += (id -> blockCont)
-        // execInstrs(blockInstrs.toList, blockCont)(blockSS)
+        execInstrs(blockInstrs.toList, blockK)(ss.copy(labels = blockK :: ss.labels))
+      }
+      case IdLoop(id, blockTy, loopInstrs) :: rest => {
+        compileLoop(id, loopInstrs.toList, rest, k)
+        val loopFn = loopFuns(id)
+        loopFn(())
       }
       case Call(func) :: rest => {
         val funcDef@FuncDef(name, funcType, locals, body) = module.funcs(func)
@@ -368,16 +385,16 @@ object StagedEvalCPSTest extends App {
     //   Test(TestOp.Int(Eqz)),
     //   BrIf(1),
     // )),
-    Block(ValBlockType(None), Seq(
-      Konst(I32C(10)),
-      Konst(I32C(-15)),
-      Binary(BinOp.Int(Add)),
-      Block(ValBlockType(None), Seq(
-        Konst(I32C(10))
-      ))
-      // BrIf(0),
-      // Konst(I32C(1)),
-    )),
+    // Block(ValBlockType(None), Seq(
+    //   Konst(I32C(0)),
+    //   // Konst(I32C(-15)),
+    //   // Binary(BinOp.Int(Add)),
+    //   // Block(ValBlockType(None), Seq(
+    //   //   Konst(I32C(10))
+    //   // )),
+    //   BrIf(0),
+    //   Konst(I32C(20)),
+    // )),
     // Konst(I32C(12)),
     Call(0),
     // Call(0),
