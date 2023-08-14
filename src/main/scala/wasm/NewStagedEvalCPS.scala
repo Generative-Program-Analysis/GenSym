@@ -214,6 +214,8 @@ trait StagedEvalCPS extends SAIOps {
           // funRetConts(name) = retCont
           setFunRetCont(name, k1)
 
+          val range: Range = 0 until locals.length
+          for (i <- range) State.pushStack(I32(0))
           State.setFramePtr
           val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
           
@@ -229,7 +231,7 @@ trait StagedEvalCPS extends SAIOps {
 
     def execInstr(instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
-      print(s"instr: $instr\t\t"); State.printStack
+      print(s"instr: $instr, numLocals: ${ss.numLocals} \t\t"); State.printStack
       instr match {
         // Parametric Instructions
         case Drop => k(ss, kk)
