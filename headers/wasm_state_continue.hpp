@@ -77,11 +77,6 @@ class State {
             printf("\n");
         }
 
-        // [0, 1 | 2, 3, 4]
-        //         0  1
-        // stackPtr = 5
-        // get_local(0) = stack(0) -> stack.size() - stackPtr - 1 + 0
-        // get_local(1) = stack(3) -> stack.size() - stackPtr - 1 + 1
         Value get_local(int i) {
             return stack[frame_ptr + i];
         }
@@ -96,8 +91,16 @@ class State {
             stack_ptr = frame_ptr - num_locals + ret_num;
         }
 
-        void set_frame_ptr() {
+        void bump_frame_ptr() {
             frame_ptr = stack_ptr;
+        }
+
+        void set_frame_ptr(int fp) {
+            frame_ptr = fp;
+        }
+
+        int get_frame_ptr() {
+            return frame_ptr;
         }
 
         void remove_stack_range(int start, int end) {
@@ -108,6 +111,15 @@ class State {
                 } else {
                     stack[i] = I32V(0);
                 }
+            }
+        }
+
+        void reverse_top_n(int n) {
+            for (int i = stack_ptr - n; i < stack_ptr - n / 2; i++) {
+                int j = stack_ptr - (i - (stack_ptr - n)) - 1;
+                Value tmp = stack[i];
+                stack[i] = stack[j];
+                stack[j] = tmp;
             }
         }
 };

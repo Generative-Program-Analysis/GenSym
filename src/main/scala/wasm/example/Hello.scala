@@ -52,19 +52,19 @@ object SimpleTest extends App {
       1000
     )
 
-    val testInstrs = List(
-      Const(I32(5)),
-      Block(ValBlockType(Some(NumType(I32Type))), Seq(
-        Block(ValBlockType(Some(NumType(I32Type))), Seq(
-          Block(ValBlockType(Some(NumType(I32Type))), Seq(
-            LocalGet(0),
-            BrIf(2),
-            Const(I32(1)),
-          ))
-        ))
-      ))
-    )
-    println(config.eval(List(), testInstrs))
+    // val testInstrs = List(
+    //   Const(I32(5)),
+    //   Block(ValBlockType(Some(NumType(I32Type))), Seq(
+    //     Block(ValBlockType(Some(NumType(I32Type))), Seq(
+    //       Block(ValBlockType(Some(NumType(I32Type))), Seq(
+    //         LocalGet(0),
+    //         BrIf(2),
+    //         Const(I32(1)),
+    //       ))
+    //     ))
+    //   ))
+    // )
+    println(config.eval(List(), instrs))
   }
 
   basicTest()

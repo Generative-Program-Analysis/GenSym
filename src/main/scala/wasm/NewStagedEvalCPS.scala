@@ -50,8 +50,14 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Value](Adapter.g.reflectWrite("static-state-peek-stack")(Adapter.CTRL))
     def returnFromFun(numLocals: Int, numReturns: Int): Rep[Unit] =
       Wrap[Unit](Adapter.g.reflectWrite("static-state-return", Unwrap(numLocals), Unwrap(numReturns))(Adapter.CTRL))
-    def setFramePtr: Rep[Unit] =
-      Wrap[Unit](Adapter.g.reflectWrite("static-state-set-frame-ptr")(Adapter.CTRL))
+    def bumpFramePtr(): Rep[Unit] =
+      Wrap[Unit](Adapter.g.reflectWrite("static-state-bump-frame-ptr")(Adapter.CTRL))
+    def getFramePtr: Rep[Int] =
+      Wrap[Int](Adapter.g.reflectWrite("static-state-get-frame-ptr")(Adapter.CTRL))
+    def setFramePtr(fp: Rep[Int]): Rep[Unit] =
+      Wrap[Unit](Adapter.g.reflectWrite("static-state-set-frame-ptr", Unwrap(fp))(Adapter.CTRL))
+    def reverseTopN(n: Int): Rep[Unit] =
+      Wrap[Unit](Adapter.g.reflectWrite("static-state-reverse-top-n", Unwrap(n))(Adapter.CTRL))
     def removeStackRange(start: Rep[Int], end: Rep[Int]): Rep[Unit] =
       Wrap[Unit](Adapter.g.reflectWrite(
         "static-state-remove-stack-range", Unwrap(start), Unwrap(end))(Adapter.CTRL
@@ -113,6 +119,7 @@ trait StagedEvalCPS extends SAIOps {
     numLocals: Int,
   )
 
+  var funFunsGlobal: HashMap[String, Backend.Sym] = HashMap.empty
   var funRetConts: Set[String] = scala.collection.immutable.Set.empty
   def callFunRetCont(name: String): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-ret-cont", Unwrap(name))(Adapter.CTRL))
@@ -120,6 +127,9 @@ trait StagedEvalCPS extends SAIOps {
     funRetConts += name
     Adapter.g.reflectWrite("set-fun-ret-cont", Unwrap(name), Unwrap(cont))(Adapter.CTRL)
   }
+
+  def callFunFun(funName: String, k: Rep[Cont]): Rep[Unit] =
+    Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-fun", Unwrap(funName), Unwrap(k))(Adapter.CTRL))
 
   case class Config(
     module: ModuleInstance,
@@ -171,13 +181,15 @@ trait StagedEvalCPS extends SAIOps {
     def compileBlock(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
       if (blockConts.contains(id)) return
       System.out.println(s"Compiling block $id, ${nextInstrs.length} after")
-      compileStuffIn(nextInstrs, k)
-      val blockK = (nextSS: StaticState) => topFun { (_: Rep[Unit]) =>
-        System.out.println(s"started topFun for compileBlock $id")
-        execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
-        System.out.println(s"finished topFun for compileBlock $id")
+      val blockK = (nextSS: StaticState) => {
+        compileStuffIn(nextInstrs, k)(nextSS.copy(labels = ss.labels))
+        topFun { (_: Rep[Unit]) =>
+          System.out.println(s"started topFun for compileBlock $id")
+          execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
+          System.out.println(s"finished topFun for compileBlock $id")
+        }
       }
-      compileStuffIn(body, blockK)
+      compileStuffIn(body, blockK)(ss.copy(labels = blockK :: ss.labels))
       blockConts += (id -> blockK)
       System.out.println(s"Finished compiling block $id")
     }
@@ -185,13 +197,20 @@ trait StagedEvalCPS extends SAIOps {
     def compileLoop(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
       if (loopFuns.contains(id)) return
       System.out.println(s"Compiling loop $id")
-      compileBlock(id, body, nextInstrs, k)
-      compileStuffIn(body, blockConts(id))
+      // compileBlock(id, body, nextInstrs, _ => loopFn)
+      val blockK = (nextSS: StaticState) => {
+        compileStuffIn(nextInstrs, k)(nextSS.copy(labels = ss.labels))
+        topFun { (_: Rep[Unit]) =>
+          execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
+        }
+      }
+      blockConts(id) = blockK
+      compileStuffIn(body, _ => loopFn)(ss.copy(labels = ((_: StaticState) => loopFn) :: blockK :: ss.labels))
       def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
         System.out.println(s"started topFun for loop $id")
         // discard ss on each iteration
         val sscont = (_: StaticState) => loopFn
-        execInstrs(body, sscont)(ss.copy(sscont :: blockConts(id) :: ss.labels))
+        execInstrs(body, blockConts(id))(ss.copy(sscont :: blockConts(id) :: ss.labels))
         System.out.println(s"finished topFun for loop $id")
       }
       loopFuns += (id -> loopFn)
@@ -200,12 +219,13 @@ trait StagedEvalCPS extends SAIOps {
     def compileFun(name: String, funcType: FuncType, locals: List[ValueType], body: List[Instr]): Unit = {
         if (funFuns.contains(name)) return
 
-        val innerSS = StaticState(Nil, None, 0, funcType.inps.length + locals.length)
         val retCont = topFun { (_: Rep[Unit]) => 
+          print(s"Returning: inps: ${funcType.inps.length}, outs: ${funcType.out.length} \t\t"); State.printStack
           State.returnFromFun(funcType.inps.length + locals.length, funcType.out.length)
           callFunRetCont(name)
           // k1(())
         }
+        val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
         compileStuffIn(body, (_: StaticState) => retCont)(innerSS)
         val funFun = topFun { (k1: Rep[Cont]) =>
           System.out.println(s"started topFun for fun $name")
@@ -214,10 +234,10 @@ trait StagedEvalCPS extends SAIOps {
           // funRetConts(name) = retCont
           setFunRetCont(name, k1)
 
+          // State.reverseTopN(funcType.inps.length)
           val range: Range = 0 until locals.length
           for (i <- range) State.pushStack(I32(0))
-          State.setFramePtr
-          val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
+          State.bumpFramePtr
           
           // discard the resulting static state
           execInstrs(body.toList, (_: StaticState) => retCont )(innerSS)
@@ -225,7 +245,9 @@ trait StagedEvalCPS extends SAIOps {
         }
 
         val node = Unwrap(funFun).asInstanceOf[Backend.Sym]
+        Adapter.g.reflectWrite("register-fun", Unwrap(funFun))(Adapter.CTRL)
         funNameMap += (node -> name)
+        funFunsGlobal += (name -> node)
         funFuns += (name -> funFun)
     }
 
@@ -344,12 +366,18 @@ trait StagedEvalCPS extends SAIOps {
         loopFn(())
       }
       case Call(func) :: rest => {
+        print(s"instr: Call($func), numLocals: ${ss.numLocals} \t\t"); State.printStack
         val funcDef@FuncDef(name, funcType, locals, body) = module.funcs(func)
 
         // compileFun(name, funcType, locals.toList, body.toList)
-        val funFun = funFuns(name)
-        val execRest = topFun { (_: Rep[Unit]) => execInstrs(rest, k)(ss) }
-        funFun(execRest)
+        // val funFun = funFuns(name)
+        val oldFramePtr = State.getFramePtr
+        val execRest = fun { (_: Rep[Unit]) => 
+          State.setFramePtr(oldFramePtr)
+          execInstrs(rest, k)(ss) 
+        }
+        callFunFun(name, execRest)
+        // funFun(execRest)
       }
       case instr :: rest =>
         execInstr(instr, (nextSS, k1) => execInstrs(rest, k1)(nextSS))(k)
@@ -362,6 +390,10 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
   registerHeader("./headers", "<wasm_state_continue.hpp>")
 
   override def shallow(n: Node): Unit = n match {
+    case Node(s, "register-fun", _, _) => ()
+    case Node(s, "call-fun-fun", List(name, k), _) => {
+      emit(s"fun_fun_${name.toString.drop(1)}("); shallow(k); emit(")")
+    }
     case Node(s, "call-fun-ret-cont", List(name), _) => {
       emit(s"fun_ret_cont_${name.toString.drop(1)}(std::monostate{})")
     }
@@ -398,10 +430,16 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
       emit("global_state.set_local("); shallow(i); emit(", "); shallow(v); emit(")")
     case Node(s, "static-state-remove-stack-range", List(st, ed), _) => 
       emit("global_state.remove_stack_range("); shallow(st); emit(", "); shallow(ed); emit(")")
+    case Node(s, "static-state-reverse-top-n", List(n), _) => 
+      emit("global_state.reverse_top_n("); shallow(n); emit(")")
     case Node(s, "static-state-return", List(numLocals, retN), _) => 
       emit("global_state.return_from_fun("); shallow(numLocals); emit(", "); shallow(retN); emit(")")
-    case Node(s, "static-state-set-frame-ptr", List(), _) => 
-      emit("global_state.set_frame_ptr()")
+    case Node(s, "static-state-bump-frame-ptr", List(), _) => 
+      emit("global_state.bump_frame_ptr()")
+    case Node(s, "static-state-get-frame-ptr", List(), _) => 
+      emit("global_state.get_frame_ptr()")
+    case Node(s, "static-state-set-frame-ptr", List(fp), _) => 
+      emit("global_state.set_frame_ptr("); shallow(fp); emit(")")
     case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
     case Node(s, "memory-grow", List(memory, delta), _) => 
       shallow(memory); emit(".grow("); shallow(delta); emit(")")
@@ -449,6 +487,11 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
         emitln(s"std::function<std::monostate (std::monostate)> fun_ret_cont_${f.drop(1)};");
       }
       emitFunctionDecls(stream)
+      for ((n, f) <- q.funFunsGlobal) {
+        val innerType = "std::function<std::monostate (std::monostate)>"
+        emit(s"std::function<std::monostate ($innerType)> fun_fun_${n.drop(1)}");
+        emit("="); shallow(f); emitln(";")
+      }
       emitDatastructures(stream)
       emitFunctions(stream)
       emitInit(stream)

@@ -109,6 +109,7 @@ class Parser extends RegexParsers {
       "return" ^^ { _ => Return } |
       "local.get" ~> int ^^ { _.toInt } ^^ { LocalGet(_) } |
       "local.set" ~> int ^^ { _.toInt } ^^ { LocalSet(_) } |
+      "local.tee" ~> int ^^ { _.toInt } ^^ { LocalTee(_) } |
       "i32.const" ~> int ^^ { _.toInt } ^^ { x => Const(I32(x)) } |
       "i64.const" ~> int ^^ { _.toLong } ^^ { x => Const(I64(x)) } |
       "f32.const" ~> float ^^ { _.toFloat } ^^ { x => Const(F32(x)) } |
