@@ -121,6 +121,7 @@ trait StagedEvalCPS extends SAIOps {
 
   var funFunsGlobal: HashMap[String, Backend.Sym] = HashMap.empty
   var funRetConts: Set[String] = scala.collection.immutable.Set.empty
+
   def callFunRetCont(name: String): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-ret-cont", Unwrap(name))(Adapter.CTRL))
   def getFunRetCont(name: String): Rep[Cont] =
@@ -178,9 +179,11 @@ trait StagedEvalCPS extends SAIOps {
         case Nil => ()
         case IdBlock(id, blockTy, blockInstrs) :: rest => {
           compileBlock(id, blockInstrs.toList, rest, k)
+          // GW: should recur on compileStuffIn?
         }
         case IdLoop(id, blockTy, loopInstrs) :: rest => {
           compileLoop(id, loopInstrs.toList, rest, k)
+          // GW: should recur on compileStuffIn?
         }
         case _ :: rest => compileStuffIn(rest, k)
       }
@@ -191,6 +194,7 @@ trait StagedEvalCPS extends SAIOps {
       System.out.println(s"Compiling block $id, ${nextInstrs.length} after")
       val blockK = (nextSS: StaticState) => {
         compileStuffIn(nextInstrs, k)(nextSS.copy(labels = ss.labels))
+        // GW: topFun generated but not used?
         topFun { (_: Rep[Unit]) =>
           System.out.println(s"started topFun for compileBlock $id")
           execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
@@ -212,13 +216,14 @@ trait StagedEvalCPS extends SAIOps {
           execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
         }
       }
-      blockConts(id) = blockK
+      blockConts(id) = blockK // StaticState => Rep[Unit => Unit]
       compileStuffIn(body, _ => loopFn)(ss.copy(labels = ((_: StaticState) => loopFn) :: blockK :: ss.labels))
       def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
         System.out.println(s"started topFun for loop $id")
         // discard ss on each iteration
-        val sscont = (_: StaticState) => loopFn
-        execInstrs(body, blockConts(id))(ss.copy(sscont :: blockConts(id) :: ss.labels))
+        val sscont = (_: StaticState) => loopFn // -> break 0
+        // blockId -> rest
+        execInstrs(body, blockConts(id))(ss.copy(sscont :: blockConts(id) :: ss.labels)) // FIXME: break 1 should not be blockConsts(id)
         System.out.println(s"finished topFun for loop $id")
       }
       loopFuns += (id -> loopFn)
@@ -227,6 +232,7 @@ trait StagedEvalCPS extends SAIOps {
     def compileFun(name: String, funcType: FuncType, locals: List[ValueType], body: List[Instr]): Unit = {
         if (funFuns.contains(name)) return
 
+        // basically calling k1
         val retCont = topFun { (_: Rep[Unit]) => 
           // print(s"Returning: inps: ${funcType.inps.length}, outs: ${funcType.out.length} \t\t"); State.printStack
           State.returnFromFun(funcType.inps.length + locals.length, funcType.out.length)
@@ -250,7 +256,7 @@ trait StagedEvalCPS extends SAIOps {
           State.bumpFramePtr
           
           // discard the resulting static state
-          execInstrs(body.toList, (_: StaticState) => retCont )(innerSS)
+          execInstrs(body.toList, (_: StaticState) => retCont)(innerSS.copy(returnLabel = Some(retCont)))
           System.out.println(s"finished topFun for fun $name")
         }
 
@@ -362,6 +368,7 @@ trait StagedEvalCPS extends SAIOps {
       }
     }
 
+    // Note: k could be eliminated? using returnLabel
     def execInstrs(instrs: List[Instr], k: SSCont)(implicit ss: StaticState): Rep[Unit] = instrs match {
       case Nil => k(ss)(())
       case Block(_, _) :: _ => ??? // should be IdBlock
@@ -552,7 +559,7 @@ object StagedEvalCPSTest extends App {
         initState(List[Memory](), List[Global](), 0)
         val ss = StaticState(Nil, None, 0, 0)
         for (f <- module.funcs) { config.compileFun(f.name, f.tipe, f.locals.toList, f.body.toList) }
-        config.compileStuffIn(instrs, fin)(ss)
+        //config.compileStuffIn(instrs, fin)(ss) // not necessary
         System.out.println(s"blockConts: ${config.blockConts}")
         config.execInstrs(instrs, fin)(ss)
       }
