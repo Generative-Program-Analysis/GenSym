@@ -123,9 +123,17 @@ trait StagedEvalCPS extends SAIOps {
   var funRetConts: Set[String] = scala.collection.immutable.Set.empty
   def callFunRetCont(name: String): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-ret-cont", Unwrap(name))(Adapter.CTRL))
+  def getFunRetCont(name: String): Rep[Cont] =
+    Wrap[Cont](Adapter.g.reflect(s"get-fun-ret-cont", Unwrap(name)))
   def setFunRetCont(name: String, cont: Rep[Cont]) = {
     funRetConts += name
     Adapter.g.reflectWrite("set-fun-ret-cont", Unwrap(name), Unwrap(cont))(Adapter.CTRL)
+  }
+  def pushFunRetCont(cont: Rep[Cont]) = {
+    Adapter.g.reflectWrite("push-fun-ret-cont", Unwrap(cont))(Adapter.CTRL)
+  }
+  def popFunRetCont(): Rep[Unit] = {
+    Wrap[Unit](Adapter.g.reflectWrite("pop-fun-ret-cont")(Adapter.CTRL))
   }
 
   def callFunFun(funName: String, k: Rep[Cont]): Rep[Unit] =
@@ -220,9 +228,10 @@ trait StagedEvalCPS extends SAIOps {
         if (funFuns.contains(name)) return
 
         val retCont = topFun { (_: Rep[Unit]) => 
-          print(s"Returning: inps: ${funcType.inps.length}, outs: ${funcType.out.length} \t\t"); State.printStack
+          // print(s"Returning: inps: ${funcType.inps.length}, outs: ${funcType.out.length} \t\t"); State.printStack
           State.returnFromFun(funcType.inps.length + locals.length, funcType.out.length)
-          callFunRetCont(name)
+          popFunRetCont()
+          // callFunRetCont(name)
           // k1(())
         }
         val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
@@ -232,7 +241,8 @@ trait StagedEvalCPS extends SAIOps {
           // TODO: make some sort of compile time map of retCont and then
           // use LMS reflection to substitute in a direct identifier and static assignments
           // funRetConts(name) = retCont
-          setFunRetCont(name, k1)
+          // setFunRetCont(name, k1)
+          pushFunRetCont(k1)
 
           // State.reverseTopN(funcType.inps.length)
           val range: Range = 0 until locals.length
@@ -253,7 +263,7 @@ trait StagedEvalCPS extends SAIOps {
 
     def execInstr(instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
     = {
-      print(s"instr: $instr, numLocals: ${ss.numLocals} \t\t"); State.printStack
+      // print(s"instr: $instr, numLocals: ${ss.numLocals} \t\t"); State.printStack
       instr match {
         // Parametric Instructions
         case Drop => k(ss, kk)
@@ -366,7 +376,7 @@ trait StagedEvalCPS extends SAIOps {
         loopFn(())
       }
       case Call(func) :: rest => {
-        print(s"instr: Call($func), numLocals: ${ss.numLocals} \t\t"); State.printStack
+        // print(s"instr: Call($func), numLocals: ${ss.numLocals} \t\t"); State.printStack
         val funcDef@FuncDef(name, funcType, locals, body) = module.funcs(func)
 
         // compileFun(name, funcType, locals.toList, body.toList)
@@ -397,8 +407,17 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
     case Node(s, "call-fun-ret-cont", List(name), _) => {
       emit(s"fun_ret_cont_${name.toString.drop(1)}(std::monostate{})")
     }
+    case Node(s, "get-fun-ret-cont", List(name), _) => {
+      emit(s"fun_ret_cont_${name.toString.drop(1)}")
+    }
     case Node(s, "set-fun-ret-cont", List(name, cont), _) => {
       emit(s"fun_ret_cont_${name.toString.drop(1)} = "); shallow(cont); emit(";")
+    }
+    case Node(s, "push-fun-ret-cont", List(cont), _) => {
+      emit("fun_ret_cont_stack.push_back("); shallow(cont); emit(");")
+    }
+    case Node(s, "pop-fun-ret-cont", List(), _) => {
+      emit("pop_fun_ret_cont_stack()")
     }
     case Node(s, "reverse-ls", List(ls), _) => emit("flex_vector_reverse("); shallow(ls); emit(")")
     case Node(s, "I32V", List(i), _) => emit("I32V("); shallow(i); emit(")")
