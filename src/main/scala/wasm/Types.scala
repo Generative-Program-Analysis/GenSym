@@ -1,5 +1,6 @@
 package gensym.wasm.types
 
+/*
 import gensym.wasm.eval.ModuleInstance
 
 abstract class NumKind
@@ -36,3 +37,4 @@ case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
     case None => FuncType(Seq(), Seq())
   }
 }
+ */

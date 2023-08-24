@@ -1,8 +1,6 @@
 package gensym.wasm.example
 
 import gensym.wasm.ast._
-import gensym.wasm.types._
-import gensym.wasm.values._
 import gensym.wasm.source._
 import gensym.wasm.parser._
 import gensym.wasm.memory._
@@ -11,9 +9,9 @@ object SimpleTest extends App {
   import gensym.wasm.eval._
   def basicTest() = {
     val instrs = List(
-      Const(I32(1)),
-      Const(I32(5)),
-      Binary(BinOp.Int(Add)),
+      Const(I32V(1)),
+      Const(I32V(5)),
+      Binary(Add(NumType(I32Type))),
     )
     //.map(Plain(_))
 
@@ -27,15 +25,16 @@ object SimpleTest extends App {
   }
 
   def fileTest() = {
-    val code = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
-    val module = Parser.parseString(code)
+    val module = Parser.parseFile("./benchmarks/wasm/test.wat")
     println(module)
 
     val instrs = module.definitions.find({
-      case FuncDef("$real_main", _, _, _) => true
+      case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
       case _ => false
-    }).get.asInstanceOf[FuncDef].body
-    //.map(Plain(_))
+    }).map({
+      case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+    }).get
+    .map(Plain(_))
     .toList
 
     // val types = module.value.definitions.collect({
@@ -43,7 +42,7 @@ object SimpleTest extends App {
     // })
     val types = List()
     val funcs = module.definitions.collect({
-      case fndef@FuncDef(_, _, _, _) => fndef
+      case FuncDef(_, fndef@FuncBodyDef(_, _, _, _)) => fndef
     }).toList
 
     val moduleInst = ModuleInstance(types, funcs)
@@ -67,8 +66,8 @@ object SimpleTest extends App {
     println(config.eval(List(), instrs))
   }
 
-  basicTest()
-  println("====")
+  //basicTest()
+  //println("====")
   fileTest()
 }
 
