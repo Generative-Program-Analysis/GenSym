@@ -4,7 +4,7 @@ import scala.collection.mutable.HashMap
 
 import gensym.wasm.ast.{Const => Konst, _}
 //import gensym.wasm.values.{I32 => I32C}
-import gensym.wasm.types._
+//import gensym.wasm.types._
 import gensym.wasm.memory._
 //import gensym.wasm.globals._
 
