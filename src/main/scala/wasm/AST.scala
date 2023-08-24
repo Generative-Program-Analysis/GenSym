@@ -5,7 +5,7 @@ import gensym.wasm.source._
 
 abstract class WIR
 
-case class Module(name: Option[String], definitions: Seq[Definition]) extends WIR
+case class Module(name: Option[String], definitions: List[Definition]) extends WIR
  
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
@@ -13,22 +13,25 @@ case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class FuncField extends WIR
-case class FuncBodyDef(tipe: FuncType, localNames: Seq[String], locals: Seq[ValueType], body: Seq[Instr]) extends FuncField
+case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr]) extends FuncField
 case class InlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*FIXME*/) extends FuncField
-case class InlineExport(fd: Seq[FuncDef]) extends FuncField
+case class InlineExport(fd: List[FuncDef]) extends FuncField
+
+// Intermediate result
+case class InstrList(instrs: List[Instr]) extends WIR
 
 abstract class Instr extends WIR
 case object Unreachable extends Instr
 case object Nop extends Instr
 case object Drop extends Instr
-case class Select(ty: Option[Seq[ValueType]]) extends Instr
-case class Block(ty: BlockType, instrs: Seq[Instr]) extends Instr
-case class Loop(ty: BlockType, instrs: Seq[Instr]) extends Instr
-case class If(ty: BlockType, thenInstrs: Seq[Instr], elseInstrs: Seq[Instr]) extends Instr
+case class Select(ty: Option[List[ValueType]]) extends Instr
+case class Block(ty: Option[ValueType], instrs: List[Instr]) extends Instr
+case class Loop(ty: Option[ValueType], instrs: List[Instr]) extends Instr
+case class If(ty: Option[ValueType], thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
 // FIXME: labelId can be string?
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
-case class BrTable(labels: Seq[Int], default: Int) extends Instr
+case class BrTable(labels: List[Int], default: Int) extends Instr
 case object Return extends Instr
 case class Call(func: Int) extends Instr
 // case class CallIndirect(ty: Int, table: Int) extends Instr
@@ -187,22 +190,24 @@ case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
 case class RefType(kind: RefKind) extends ValueType
 
-case class FuncType(names/*optional*/: Seq[String], inps: Seq[ValueType], out: Seq[ValueType]) extends WasmType
+case class FuncType(argNames/*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
 
 abstract class BlockType extends WIR {
   def toFuncType(moduleInst: ModuleInstance): FuncType
 }
 
+/*
 case class VarBlockType(vR: Int) extends BlockType {
   def toFuncType(moduleInst: ModuleInstance): FuncType = ???
 }
 
 case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
   def toFuncType(moduleInst: ModuleInstance): FuncType = tipe match {
-    case Some(t) => FuncType(Seq(), Seq(), Seq(t))
-    case None => FuncType(Seq(), Seq(), Seq())
+    case Some(t) => FuncType(List(), List(), List(t))
+    case None => FuncType(List(), List(), List())
   }
-}
+ }
+ */
 
 // Globals
 

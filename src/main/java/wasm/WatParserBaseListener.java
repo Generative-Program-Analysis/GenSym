@@ -401,6 +401,18 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterParenExpr(WatParser.ParenExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitParenExpr(WatParser.ParenExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterExpr(WatParser.ExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -408,18 +420,6 @@ public class WatParserBaseListener implements WatParserListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitExpr(WatParser.ExprContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterExpr1(WatParser.Expr1Context ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitExpr1(WatParser.Expr1Context ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

@@ -203,17 +203,17 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitBlock(WatParser.BlockContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link WatParser#parenExpr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitParenExpr(WatParser.ParenExprContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link WatParser#expr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitExpr(WatParser.ExprContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#expr1}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitExpr1(WatParser.Expr1Context ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#callExprType}.
 	 * @param ctx the parse tree

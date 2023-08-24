@@ -298,7 +298,8 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         case Nop => (stack, adminInstrs.tail)
         case Unreachable => throw new Exception("Unreachable")
         case Block(blockTy, instrs) => {
-          val funcType = blockTy.toFuncType(frame.module)
+          // Note(GW): blockTy can only be a single valType?
+          val funcType: FuncType = FuncType(List(), List(), blockTy.toList)
           val args = stack.take(funcType.inps.length)
           val newStack = stack.drop(funcType.inps.length)
           val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
@@ -306,7 +307,8 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
           (newStack, label :: adminInstrs.tail)
         }
         case Loop(blockTy, instrs) => {
-          val funcType = blockTy.toFuncType(frame.module)
+          // Note(GW): blockTy can only be a single valType?
+          val funcType: FuncType = FuncType(List(), List(), blockTy.toList)
           val args = stack.take(funcType.inps.length)
           val newStack = stack.drop(funcType.inps.length)
           val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
