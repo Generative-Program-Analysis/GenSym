@@ -50,14 +50,6 @@ abstract class EvalResult {
   }
 }
 
-/*
-case class Config(var frame: Frame, stackBudget: Int) {
-  def evalBinOp(op: BinOp, lhs: Value, rhs: Value) = op match {
-    case BinOp.Int(Add) => (lhs, rhs) match {
-      case (I32(v1), I32(v2)) => I32(v1 + v2)
-      case (I64(v1), I64(v2)) => I64(v1 + v2)
- */
-
 case class Config(var frame: Frame, stackBudget: Int) {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case Add(_) => (lhs, rhs) match {

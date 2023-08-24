@@ -71,5 +71,5 @@
   (func $real_main (type 2) (result i32)
     i32.const 2
     i32.const 8
-    call $ack)
+    call $power)
   )
