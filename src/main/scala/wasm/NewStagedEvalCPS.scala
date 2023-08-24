@@ -112,8 +112,19 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
   }
 
+  trait Label {
+    def apply(ss: StaticState): Rep[Unit]
+  }
+  case class ContLabel(k: SSCont) extends Label {
+    def apply(ss: StaticState): Rep[Unit] = k(ss)(())
+  }
+  case class StringLabel(name: String) extends Label {
+    def apply(ss: StaticState): Rep[Unit] = 
+      Wrap[Unit](Adapter.g.reflectWrite("goto-label", Unwrap(name))(Adapter.CTRL))
+  }
+
   case class StaticState(
-    labels: List[SSCont],
+    labels: List[Label],
     returnLabel: Option[Rep[Cont]],
     frameStackPtr: Int,
     numLocals: Int,
@@ -135,6 +146,9 @@ trait StagedEvalCPS extends SAIOps {
   }
   def popFunRetCont(): Rep[Unit] = {
     Wrap[Unit](Adapter.g.reflectWrite("pop-fun-ret-cont")(Adapter.CTRL))
+  }
+  def addLabel(name: String) = {
+    Adapter.g.reflectWrite("add-label", Unwrap(name))(Adapter.CTRL)
   }
 
   def callFunFun(funName: String, k: Rep[Cont]): Rep[Unit] =
@@ -201,7 +215,7 @@ trait StagedEvalCPS extends SAIOps {
           System.out.println(s"finished topFun for compileBlock $id")
         }
       }
-      compileStuffIn(body, blockK)(ss.copy(labels = blockK :: ss.labels))
+      compileStuffIn(body, blockK)(ss.copy(labels = ContLabel(blockK) :: ss.labels))
       blockConts += (id -> blockK)
       System.out.println(s"Finished compiling block $id")
     }
@@ -217,14 +231,14 @@ trait StagedEvalCPS extends SAIOps {
         }
       }
       blockConts(id) = blockK // StaticState => Rep[Unit => Unit]
-      compileStuffIn(body, _ => loopFn)(ss.copy(labels = ((_: StaticState) => loopFn) :: blockK :: ss.labels))
+      compileStuffIn(body, _ => loopFn)(ss.copy(labels = ContLabel((_: StaticState) => loopFn) :: ss.labels))
       def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
+        addLabel(s"loop$id")
         System.out.println(s"started topFun for loop $id")
         // discard ss on each iteration
-        val sscont = (_: StaticState) => loopFn // -> break 0
-        // blockId -> rest
-        execInstrs(body, blockConts(id))(ss.copy(sscont :: blockConts(id) :: ss.labels)) // FIXME: break 1 should not be blockConsts(id)
-        System.out.println(s"finished topFun for loop $id")
+        val label = StringLabel(s"loop$id") // -> break 0
+        execInstrs(body, blockConts(id))(ss.copy(StringLabel(s"loop$id") :: ss.labels))
+        // System.out.println(s"finished topFun for loop $id")
       }
       loopFuns += (id -> loopFn)
     }
@@ -353,7 +367,7 @@ trait StagedEvalCPS extends SAIOps {
         }
         case Br(label) => {
           val cont = ss.labels(label)
-          cont(ss)(())
+          cont(ss)
         }
         case BrIf(label) => {
           val cond: Rep[Int] = State.popStack
@@ -362,7 +376,7 @@ trait StagedEvalCPS extends SAIOps {
             k(ss, kk)
           } else {
             val cont = ss.labels(label)
-            cont(ss)(())
+            cont(ss)
           }
         }
       }
@@ -375,7 +389,7 @@ trait StagedEvalCPS extends SAIOps {
       case IdBlock(id, blockTy, blockInstrs) :: rest => {
         // compileBlock(id, blockInstrs.toList, rest, k)
         val blockK = blockConts(id)
-        execInstrs(blockInstrs.toList, blockK)(ss.copy(labels = blockK :: ss.labels))
+        execInstrs(blockInstrs.toList, blockK)(ss.copy(labels = ContLabel(blockK) :: ss.labels))
       }
       case IdLoop(id, blockTy, loopInstrs) :: rest => {
         // compileLoop(id, loopInstrs.toList, rest, k)
@@ -422,10 +436,16 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
       emit(s"fun_ret_cont_${name.toString.drop(1)} = "); shallow(cont); emit(";")
     }
     case Node(s, "push-fun-ret-cont", List(cont), _) => {
-      emit("fun_ret_cont_stack.push_back("); shallow(cont); emit(");")
+      emit("push_fun_ret_cont_stack("); shallow(cont); emit(");")
     }
     case Node(s, "pop-fun-ret-cont", List(), _) => {
       emit("pop_fun_ret_cont_stack()")
+    }
+    case Node(s, "add-label", List(name), _) => {
+      emit(s"$name:\n")
+    }
+    case Node(s, "goto-label", List(name), _) => {
+      emit(s"goto $name; std::monostate{}")
     }
     case Node(s, "reverse-ls", List(ls), _) => emit("flex_vector_reverse("); shallow(ls); emit(")")
     case Node(s, "I32V", List(i), _) => emit("I32V("); shallow(i); emit(")")
@@ -502,6 +522,8 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
       val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
 
       emitln("""
+      #include <sys/resource.h>
+
       |/*****************************************
       |Emitting Generated Code
       |*******************************************/
@@ -530,6 +552,10 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
       |End of Generated Code
       |*******************************************/
       |int main(int argc, char *argv[]) {
+      |  struct rlimit rlim;
+      |  getrlimit(RLIMIT_STACK, &rlim);
+      |  rlim.rlim_cur = 1024L * 1024L * 1024L * 1024L;
+      |  setrlimit(RLIMIT_STACK, &rlim);
       |  //initRand();
       |  if (argc != 2) {
       |    printf("usage: %s <arg>\n", argv[0]);

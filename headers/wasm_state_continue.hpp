@@ -6,12 +6,16 @@
 #include <immer/flex_vector_transient.hpp>
 
 typedef std::function<std::monostate (std::monostate)> cont_t;
-static immer::flex_vector_transient<cont_t> fun_ret_cont_stack = immer::flex_vector_transient<cont_t>();
+
+static cont_t fun_ret_cont_stack[1000];
+static int fun_ret_cont_stack_ptr = 0;
+
+void push_fun_ret_cont_stack(cont_t cont) {
+    fun_ret_cont_stack[fun_ret_cont_stack_ptr++] = cont;
+}
 
 std::monostate pop_fun_ret_cont_stack() {
-    auto cont = fun_ret_cont_stack[fun_ret_cont_stack.size() - 1];
-    fun_ret_cont_stack.take(fun_ret_cont_stack.size() - 1);
-    return cont(std::monostate{});
+    return fun_ret_cont_stack[--fun_ret_cont_stack_ptr](std::monostate());
 }
 
 template <typename T>
