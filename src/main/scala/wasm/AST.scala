@@ -195,11 +195,11 @@ case class RefType(kind: RefKind) extends ValueType
 
 case class FuncType(argNames/*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
 
+/*
 abstract class BlockType extends WIR {
   def toFuncType(moduleInst: ModuleInstance): FuncType
 }
 
-/*
 case class VarBlockType(vR: Int) extends BlockType {
   def toFuncType(moduleInst: ModuleInstance): FuncType = ???
 }
