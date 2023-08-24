@@ -3,10 +3,10 @@ package gensym.wasm.newstagedevalcps
 import scala.collection.mutable.HashMap
 
 import gensym.wasm.ast.{Const => Konst, _}
-import gensym.wasm.values.{I32 => I32C}
+//import gensym.wasm.values.{I32 => I32C}
 import gensym.wasm.types._
 import gensym.wasm.memory._
-import gensym.wasm.globals._
+//import gensym.wasm.globals._
 
 import lms.core._
 import lms.core.stub._
@@ -26,13 +26,13 @@ object Preprocess {
   }
 
   def idBlocks(instrs: List[Instr]): List[Instr] = instrs.map {
-      case Block(ty, instrs) => IdBlock(BlockIds.next, ty, idBlocks(instrs.toList))
-      case Loop(ty, instrs) => IdLoop(BlockIds.next, ty, idBlocks(instrs.toList))
-      case If(ty, thenInstrs, elseInstrs) =>
-        val thenBlock = IdBlock(BlockIds.next, ty, idBlocks(thenInstrs))
-        val elseBlock = IdBlock(BlockIds.next, ty, idBlocks(elseInstrs))
-        IdIf(ty, thenBlock, elseBlock)
-      case instr => instr
+    case Block(ty, instrs) => IdBlock(BlockIds.next, ty, idBlocks(instrs.toList))
+    case Loop(ty, instrs) => IdLoop(BlockIds.next, ty, idBlocks(instrs.toList))
+    case If(ty, thenInstrs, elseInstrs) =>
+      val thenBlock = IdBlock(BlockIds.next, ty, idBlocks(thenInstrs))
+      val elseBlock = IdBlock(BlockIds.next, ty, idBlocks(elseInstrs))
+      IdIf(ty, thenBlock, elseBlock)
+    case instr => instr
   }
 }
 
@@ -149,16 +149,16 @@ trait StagedEvalCPS extends SAIOps {
   ) {
     // TODO: pass precise type to operations
     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
-      case BinOp.Int(Add) => {
+      case Add(_) => {
         // assume I32
         val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
         I32(lhs + rhs)
       }
-      case BinOp.Int(Sub) => {
+      case Sub(_) => {
         val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
         I32(lhs - rhs)
       }
-      case BinOp.Int(Mul) => {
+      case Mul(_) => {
         val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
         I32(lhs * rhs)
       }
@@ -166,7 +166,7 @@ trait StagedEvalCPS extends SAIOps {
     def evalUnaryOp(op: UnaryOp, value: Rep[Value]): Rep[Value] = ???
     def evalRelOp(op: RelOp, lhs: Rep[Value], rhs: Rep[Value]): Rep[Value] = ???
     def evalTestOp(op: TestOp, value: Rep[Value]): Rep[Value] = op match {
-      case TestOp.Int(Eqz) => {
+      case Eqz(_) => {
         val v: Rep[Int] = repI32Proj(value)
         val zero: Rep[Int] = 0
         if (v == zero) I32(1) else I32(0)
@@ -310,7 +310,7 @@ trait StagedEvalCPS extends SAIOps {
 
 
         // Numeric Instructions
-        case Konst(I32C(n)) => {
+        case gensym.wasm.ast.Const(I32V(n)) => {
           State.pushStack(I32(n))
           k(ss, kk)
         }
@@ -384,7 +384,7 @@ trait StagedEvalCPS extends SAIOps {
       }
       case Call(func) :: rest => {
         // print(s"instr: Call($func), numLocals: ${ss.numLocals} \t\t"); State.printStack
-        val funcDef@FuncDef(name, funcType, locals, body) = module.funcs(func)
+        val FuncDef(name, FuncBodyDef(funcType, _, locals, body)) = module.funcs(func)
 
         // compileFun(name, funcType, locals.toList, body.toList)
         // val funFun = funFuns(name)
@@ -393,7 +393,8 @@ trait StagedEvalCPS extends SAIOps {
           State.setFramePtr(oldFramePtr)
           execInstrs(rest, k)(ss) 
         }
-        callFunFun(name, execRest)
+        // XXX: name.get may fail
+        callFunFun(name.get, execRest)
         // funFun(execRest)
       }
       case instr :: rest =>
@@ -558,7 +559,9 @@ object StagedEvalCPSTest extends App {
         val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.numLocals); State.printStack; () }
         initState(List[Memory](), List[Global](), 0)
         val ss = StaticState(Nil, None, 0, 0)
-        for (f <- module.funcs) { config.compileFun(f.name, f.tipe, f.locals.toList, f.body.toList) }
+        for (FuncDef(name, FuncBodyDef(tipe, _, locals, body)) <- module.funcs) {
+          config.compileFun(name.get, tipe, locals, body)
+        }
         //config.compileStuffIn(instrs, fin)(ss) // not necessary
         System.out.println(s"blockConts: ${config.blockConts}")
         config.execInstrs(instrs, fin)(ss)
@@ -568,13 +571,14 @@ object StagedEvalCPSTest extends App {
 
   val module = {
     val file = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
-    gensym.wasm.parser.Parser.parseString(file)
+    gensym.wasm.parser.Parser.parse(file)
   }
 
   val moduleInst = {
     val types = List()
     val funcs = module.definitions.collect({
-      case fndef@FuncDef(_, _, _, b) => fndef.copy(body = Preprocess.idBlocks(b.toList))
+      case FuncDef(name, FuncBodyDef(ty, nms, locals, body)) =>
+        FuncDef(name, FuncBodyDef(ty, nms, locals, Preprocess.idBlocks(body)))
     }).toList
     ModuleInstance(List(), funcs)
   }
@@ -589,9 +593,9 @@ object StagedEvalCPSTest extends App {
   // }
   val instrs =
     module.definitions.find({
-      case FuncDef("$real_main", _, _, _) => true
+      case FuncDef(Some("$real_main"), _) => true
       case _ => false
-    }).get.asInstanceOf[FuncDef].body.toList
+    }).get.asInstanceOf[FuncDef].f.asInstanceOf[FuncBodyDef].body // Super unsafe...
   // val instrs = List(
   //   Konst(I32C(10)),
   //   // LocalSet(0),

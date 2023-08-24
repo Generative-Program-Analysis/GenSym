@@ -34,7 +34,7 @@ object SimpleTest extends App {
     }).map({
       case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
     }).get
-    .map(Plain(_))
+    //.map(Plain(_))
     .toList
 
     // val types = module.value.definitions.collect({
@@ -47,7 +47,7 @@ object SimpleTest extends App {
 
     val moduleInst = ModuleInstance(types, funcs)
     val config = Config(
-      Frame(moduleInst, List(I32(0))),
+      Frame(moduleInst, List(I32V(0))),
       1000
     )
 

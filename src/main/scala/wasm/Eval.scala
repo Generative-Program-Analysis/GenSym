@@ -58,7 +58,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
       case (I64(v1), I64(v2)) => I64(v1 + v2)
  */
 
-case class Config(var frame: Frame, code: Code, stackBudget: Int) {
+case class Config(var frame: Frame, stackBudget: Int) {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case Add(_) => (lhs, rhs) match {
       case (I32V(v1), I32V(v2)) => I32V(v1 + v2)
@@ -179,8 +179,6 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
   def eval(stack: List[Value], instrs: List[Instr]): EvalResult = {
     if (instrs.isEmpty) return Continue(stack)
-
-<<<<<<< HEAD
     println(s"Stack: $stack, instr: ${instrs.head}, locals: ${frame.locals}")
     instrs.head match {
       // Parametric Instructions
@@ -188,25 +186,15 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         case _ :: newStack => this.eval(newStack, instrs.tail)
         case _ => throw new Exception("Invalid stack")
       }
-=======
-        case Select(_) => stack match {
-          case I32V(cond) :: v2 :: v1 :: newStack => {
-            val value = if (cond == 0) v1 else v2
-            (value :: newStack, adminInstrs.tail)
-          }
-          case _ => throw new Exception("Invalid stack")
-        }
->>>>>>> wasm-parser
 
       case Select(_) => stack match {
-        case I32(cond) :: v2 :: v1 :: newStack => {
+        case I32V(cond) :: v2 :: v1 :: newStack => {
           val value = if (cond == 0) v1 else v2
           this.eval(value :: newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
 
-<<<<<<< HEAD
       // Variable Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
       case LocalGet(local) => this.eval(frame.locals(local) :: stack, instrs.tail)
@@ -239,84 +227,50 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
 
       // Memory Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
-      case MemorySize => this.eval(I32(frame.module.memory.head.size) :: stack, instrs.tail)
+      case MemorySize => this.eval(I32V(frame.module.memory.head.size) :: stack, instrs.tail)
 
       // https://github.com/WebAssembly/spec/blob/main/interpreter/exec/eval.ml#L406
       // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
       case MemoryGrow => stack match {
-        case I32(delta) :: newStack => {
+        case I32V(delta) :: newStack => {
           val mem = frame.module.memory.head
           val oldSize = mem.size
           try {
             mem.grow(delta)
-            this.eval(I32(oldSize) :: newStack, instrs.tail)
+            this.eval(I32V(oldSize) :: newStack, instrs.tail)
           } catch {
-            case e: Exception => this.eval(I32(-1) :: newStack, instrs.tail)
+            case e: Exception => this.eval(I32V(-1) :: newStack, instrs.tail)
           }
         }
         case _ => throw new Exception("Invalid stack")
       }
 
       case MemoryFill => stack match {
-        case I32(value) :: I32(offset) :: I32(size) :: newStack => {
+        case I32V(value) :: I32V(offset) :: I32V(size) :: newStack => {
           if (memOob(frame, 0, offset, size)) {
             throw new Exception("Out of bounds memory access")
           } else {
             val mem = frame.module.memory.head
             mem.fill(offset, size, value.toByte)
             this.eval(newStack, instrs.tail)
-=======
-        // Memory Instructions
-        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#memory-instructions
-        case MemorySize => (I32V(frame.module.memory.head.size) :: stack, adminInstrs.tail)
-
-        // https://github.com/WebAssembly/spec/blob/main/interpreter/exec/eval.ml#L406
-        // https://github.com/WebAssembly/spec/blob/main/interpreter/runtime/memory.ml#L50
-        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#xref-syntax-instructions-syntax-instr-memory-mathsf-memory-grow
-        case MemoryGrow => stack match {
-          case I32V(delta) :: newStack => {
-            val mem = frame.module.memory.head
-            val oldSize = mem.size
-            try {
-              mem.grow(delta)
-              (I32V(oldSize) :: newStack, adminInstrs.tail)
-            } catch {
-              case _: Throwable => (I32V(-1) :: newStack, adminInstrs.tail)
-            }
->>>>>>> wasm-parser
           }
         }
         case _ => throw new Exception("Invalid stack")
       }
 
-<<<<<<< HEAD
       case MemoryCopy => stack match {
-        case I32(n) :: I32(src) :: I32(dest) :: newStack => {
+        case I32V(n) :: I32V(src) :: I32V(dest) :: newStack => {
           if (memOob(frame, 0, src, n) || memOob(frame, 0, dest, n)) {
             throw new Exception("Out of bounds memory access")
           } else {
             val mem = frame.module.memory.head
             mem.copy(dest, src, n)
             this.eval(newStack, instrs.tail)
-=======
-        case MemoryFill => stack match {
-          case I32V(value) :: I32V(offset) :: I32V(size) :: newStack => {
-            if (memOob(frame, 0, offset, size)) {
-              val trap: AdminInstr = Trapping("Out of bounds memory access")
-              (newStack, trap :: adminInstrs.tail)
-            } else {
-              val mem = frame.module.memory.head
-              mem.fill(offset, size, value.toByte)
-              (newStack, adminInstrs.tail)
-            }
->>>>>>> wasm-parser
           }
         }
         case _ => throw new Exception("Invalid stack")
       }
-
-<<<<<<< HEAD
       // Numeric Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
       case Const(num) => this.eval(num :: stack, instrs.tail)
@@ -337,32 +291,18 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         case _ => throw new Exception("Invalid stack")
       }
       case Store(StoreOp(align, offset, tipe, None)) => stack match {
-        case I32(value) :: I32(addr) :: newStack => {
+        case I32V(value) :: I32V(addr) :: newStack => {
           val mem = frame.module.memory(0)
           mem.storeInt(addr + offset, value)
           this.eval(newStack, instrs.tail)
-=======
-        case MemoryCopy => stack match {
-          case I32V(n) :: I32V(src) :: I32V(dest) :: newStack => {
-            if (memOob(frame, 0, src, n) || memOob(frame, 0, dest, n)) {
-              val trap: AdminInstr = Trapping("Out of bounds memory access")
-              (newStack, trap :: adminInstrs.tail)
-            } else {
-              val mem = frame.module.memory.head
-              mem.copy(dest, src, n)
-              ??? // FIXME
-            }
-          }
-          case _ => throw new Exception("Invalid stack")
->>>>>>> wasm-parser
         }
         case _ => throw new Exception("Invalid stack")
       }
       case Load(LoadOp(align, offset, tipe, None, None)) => stack match {
-        case I32(addr) :: newStack => {
+        case I32V(addr) :: newStack => {
           val mem = frame.module.memory(0)
           val value = mem.loadInt(addr + offset)
-          this.eval(I32(value) :: newStack, instrs.tail)
+          this.eval(I32V(value) :: newStack, instrs.tail)
         }
         case _ => throw new Exception("Invalid stack")
       }
@@ -372,78 +312,26 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
       case Nop => this.eval(stack, instrs.tail)
       case Unreachable => throw new Exception("Unreachable")
       case Block(blockTy, blockInstrs) => {
-        val funcType = blockTy.toFuncType(frame.module)
+        //val funcType = blockTy.toFuncType(frame.module)
+        val funcType = FuncType(List(), List(), blockTy.toList)
         evalBlock(funcType.out.length, blockInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
-        val funcType = blockTy.toFuncType(frame.module)
+        //val funcType = blockTy.toFuncType(frame.module)
+        val funcType = FuncType(List(), List(), blockTy.toList)
         evalBlock(funcType.out.length, loopInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs) // instead of instrs.tail
         }
-<<<<<<< HEAD
       }
       case If(blockTy, thenInstrs, elseInstrs) => stack match {
-        case I32(cond) :: newStack => {
+        case I32V(cond) :: newStack => {
           val condInstrs = if (cond == 0) elseInstrs else thenInstrs
-          val funcType = blockTy.toFuncType(frame.module)
+          //val funcType = blockTy.toFuncType(frame.module)
+        val funcType = FuncType(List(), List(), blockTy.toList)
           evalBlock(funcType.out.length, condInstrs.toList).onContinue { retStack =>
             this.eval(retStack ++ newStack, instrs.tail)
-=======
-        case Compare(op) => stack match {
-          case v2 :: v1 :: rest => (evalRelOp(op, v1, v2) :: rest, adminInstrs.tail)
-          case _ => throw new Exception("Invalid stack")
-        }
-        case Test(testOp) => stack match {
-          case value :: rest => (evalTestOp(testOp, value) :: rest, adminInstrs.tail)
-          case _ => throw new Exception("Invalid stack")
-        }
-        case Store(StoreOp(align, offset, tipe, None)) => stack match {
-          case I32V(value) :: I32V(addr) :: newStack => {
-            val mem = frame.module.memory(0)
-            mem.storeInt(addr + offset, value)
-            (newStack, adminInstrs.tail)
-          }
-          case _ => throw new Exception("Invalid stack")
-        }
-        case Load(LoadOp(align, offset, tipe, None, None)) => stack match {
-          case I32V(addr) :: newStack => {
-            val mem = frame.module.memory(0)
-            val value = mem.loadInt(addr + offset)
-            (I32V(value) :: newStack, adminInstrs.tail)
-          }
-          case _ => throw new Exception("Invalid stack")
-        }
-
-        // Control Instructions
-        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
-        case Nop => (stack, adminInstrs.tail)
-        case Unreachable => throw new Exception("Unreachable")
-        case Block(blockTy, instrs) => {
-          // Note(GW): blockTy can only be a single valType?
-          val funcType: FuncType = FuncType(List(), List(), blockTy.toList)
-          val args = stack.take(funcType.inps.length)
-          val newStack = stack.drop(funcType.inps.length)
-          val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
-          val label: AdminInstr = Label(funcType.out.length, List(), Code(args, labelInstrs))
-          (newStack, label :: adminInstrs.tail)
-        }
-        case Loop(blockTy, instrs) => {
-          // Note(GW): blockTy can only be a single valType?
-          val funcType: FuncType = FuncType(List(), List(), blockTy.toList)
-          val args = stack.take(funcType.inps.length)
-          val newStack = stack.drop(funcType.inps.length)
-          val labelInstrs = instrs.map(instr => Plain(instr).asInstanceOf[AdminInstr]).toList
-          val label: AdminInstr = Label(funcType.inps.length, List(instr), Code(args, labelInstrs))
-          (newStack, label :: adminInstrs.tail)
-        }
-        case If(blockTy, thenInstrs, elseInstrs) => stack match {
-          case I32V(cond) :: newStack => {
-            val instrs = if (cond == 0) elseInstrs else thenInstrs
-            val block: AdminInstr = Plain(Block(blockTy, instrs))
-            (newStack, block :: adminInstrs.tail)
->>>>>>> wasm-parser
           }
         }
         case _ => throw new Exception("Invalid stack")
@@ -452,23 +340,11 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         Breaking(label, stack)
       }
       case BrIf(label) => stack match {
-        case I32(0) :: newStack => {
+        case I32V(0) :: newStack => {
           this.eval(newStack, instrs.tail)
         }
-<<<<<<< HEAD
-        case I32(_) :: newStack => {
+        case I32V(_) :: newStack => {
           Breaking(label, newStack)
-=======
-        case BrIf(label) => stack match {
-          case I32V(0) :: newStack => {
-            (newStack, adminInstrs.tail)
-          }
-          case I32V(_) :: newStack => {
-            val branch: AdminInstr = Plain(Br(label))
-            (newStack, branch :: adminInstrs.tail)
-          }
-          case _ => throw new Exception("Invalid stack")
->>>>>>> wasm-parser
         }
         case _ => throw new Exception("Invalid stack")
       }
@@ -476,19 +352,17 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
         Returning(stack)
       }
       case Call(func) => {
-        val FuncDef(_, funcType, locals, body) = frame.module.funcs(func)
+        val FuncBodyDef(funcType, _, locals, body) = frame.module.funcs(func)
         val args = stack.take(funcType.inps.length).reverse
         val newStack = stack.drop(funcType.inps.length)
         
-        val frameLocals = args ++ locals.map(_ => I32(0))
+        val frameLocals = args ++ locals.map(_ => I32V(0))
         val newFrame = Frame(frame.module, frameLocals)
         evalFunc(args, newFrame, funcType, body.toList).onContinue { retStack =>
           this.eval(retStack ++ newStack, instrs.tail)
         }
       }
-<<<<<<< HEAD
-=======
-
+        /*
       // Administrative Instructions
       // https://www.w3.org/TR/wasm-core-2/exec/runtime.html#administrative-instructions
 
@@ -556,7 +430,7 @@ case class Config(var frame: Frame, code: Code, stackBudget: Int) {
       }
 
       case instr => throw new Exception(s"Invalid admin instruction $instr")
->>>>>>> wasm-parser
+         */
     }
   }
 

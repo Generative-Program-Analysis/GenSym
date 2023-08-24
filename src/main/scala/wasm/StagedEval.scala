@@ -1,7 +1,9 @@
 package gensym.wasm.stagedeval
 
-import gensym.wasm.ast.{Const => Konst, _}
-import gensym.wasm.values.{I32 => I32C}
+/*
+
+//import gensym.wasm.ast.{Const => Konst, _}
+//import gensym.wasm.values.{I32 => I32C}
 import gensym.wasm.types._
 import gensym.wasm.memory._
 import gensym.wasm.globals._
@@ -214,7 +216,7 @@ trait StagedEval extends SAIOps {
         }
 
         // Numeric Instructions
-        case Konst(I32C(n)) => this.eval(state.withStack(I32(n) :: stack), instrs.tail)
+        case gensym.wasm.ast.Const(I32V(n)) => this.eval(state.withStack(I32(n) :: stack), instrs.tail)
         case Binary(op) => {
           val (v2, v1) = (stack(0), stack(1))
           val newStack = stack.drop(2)
@@ -487,3 +489,4 @@ object SmallStagedTest extends App {
   println(code)
   snip.eval(0)
 }
+ */
