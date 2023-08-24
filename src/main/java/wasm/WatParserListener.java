@@ -248,56 +248,6 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitStore(WatParser.StoreContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#test}.
-	 * @param ctx the parse tree
-	 */
-	void enterTest(WatParser.TestContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#test}.
-	 * @param ctx the parse tree
-	 */
-	void exitTest(WatParser.TestContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#compare}.
-	 * @param ctx the parse tree
-	 */
-	void enterCompare(WatParser.CompareContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#compare}.
-	 * @param ctx the parse tree
-	 */
-	void exitCompare(WatParser.CompareContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#unary}.
-	 * @param ctx the parse tree
-	 */
-	void enterUnary(WatParser.UnaryContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#unary}.
-	 * @param ctx the parse tree
-	 */
-	void exitUnary(WatParser.UnaryContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#binary}.
-	 * @param ctx the parse tree
-	 */
-	void enterBinary(WatParser.BinaryContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#binary}.
-	 * @param ctx the parse tree
-	 */
-	void exitBinary(WatParser.BinaryContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#convert}.
-	 * @param ctx the parse tree
-	 */
-	void enterConvert(WatParser.ConvertContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#convert}.
-	 * @param ctx the parse tree
-	 */
-	void exitConvert(WatParser.ConvertContext ctx);
-	/**
 	 * Enter a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 */

@@ -40,7 +40,7 @@ INT : Int ;
 FLOAT : Float ;
 STRING_ : String_ ;
 VALUE_TYPE : NXX ;
-CONST : '.const' ;
+CONST : NXX '.const' ;
 
 FUNCREF: 'funcref' ;
 EXTERNREF: 'externref' ;
@@ -76,11 +76,21 @@ UNDERSCORE : '_';
 OFFSET_EQ : 'offset=' ;
 ALIGN_EQ : 'align=' ;
 
-SIGN_POSTFIX : SIGN ;
+SIGN_POSTFIX : 's' | 'u';
 
 MEM_SIZE : '8' | '16' | '32' | '64';
 
+I32 : 'i32';
+I64 : 'i64';
+
+F32 : 'f32';
+F64 : 'f64';
+
+IXX : I32 | I64;
+FXX : F32 | F64;
+
 OP_EQZ : '.eqz';
+
 OP_EQ  : '.eq';
 OP_NE  : '.ne';
 OP_LT  : '.lt';
@@ -142,6 +152,79 @@ MEMORY_FILL : 'memory.fill' ;
 MEMORY_COPY : 'memory.copy' ;
 MEMORY_INIT : 'memory.init' ;
 
+TEST : IXX OP_EQZ;
+
+COMPARE :
+    IXX '.eq'
+  | IXX '.ne'
+  | IXX '.lt_s'
+  | IXX '.lt_u'
+  | IXX '.le_s'
+  | IXX '.le_u'
+  | IXX '.gt_s'
+  | IXX '.gt_u'
+  | IXX '.ge_s'
+  | IXX '.ge_u'
+  | FXX '.eq'
+  | FXX '.ne'
+  | FXX '.lt'
+  | FXX '.le'
+  | FXX '.gt'
+  | FXX '.ge'
+  ;
+
+UNARY
+  : IXX '.clz'
+  | IXX '.ctz'
+  | IXX '.popcnt'
+  | FXX '.neg'
+  | FXX '.abs'
+  | FXX '.sqrt'
+  | FXX '.ceil'
+  | FXX '.floor'
+  | FXX '.trunc'
+  | FXX '.nearest'
+  ;
+
+BINARY
+  : IXX '.add'
+  | IXX '.sub'
+  | IXX '.mul'
+  | IXX '.div_s'
+  | IXX '.div_u'
+  | IXX '.rem_s'
+  | IXX '.rem_u'
+  | IXX '.and'
+  | IXX '.or'
+  | IXX '.xor'
+  | IXX '.shl'
+  | IXX '.shr_s'
+  | IXX '.shr_u'
+  | IXX '.rotl'
+  | IXX '.rotr'
+  | FXX '.add'
+  | FXX '.sub'
+  | FXX '.mul'
+  | FXX '.div'
+  | FXX '.min'
+  | FXX '.max'
+  | FXX '.copysign'
+  ;
+
+CONVERT
+  : I32 '.wrap_' I64
+  | IXX '.trunc_' FXX UNDERSCORE SIGN_POSTFIX
+  | IXX '.trunc_sat_' FXX UNDERSCORE SIGN_POSTFIX
+  | I64 '.extend_' I32 UNDERSCORE SIGN_POSTFIX
+  | FXX '.convert_' IXX UNDERSCORE SIGN_POSTFIX
+  | F32 '.demote_' F64
+  | F64 '.promote_' F32
+  | F32 '.reinterpret_' I32
+  | F64 '.reinterpret_' I64
+  | I32 '.reinterpret_' F32
+  | I64 '.reinterpret_' F64
+  ;
+
 TYPE: 'type' ;
 FUNC: 'func' ;
 EXTERN: 'extern' ;
@@ -189,15 +272,6 @@ COMMENT
   : ( '(;' .*? ';)'
   | ';;' .*? '\n')-> skip
   ;
-
-I32 : 'i32';
-I64 : 'i64';
-
-F32 : 'f32';
-F64 : 'f64';
-
-IXX : I32 | I64;
-FXX : F32 | F64;
 
 fragment Symbol
   : '.' | '+' | '-' | '*' | '/' | '\\' | '^' | '~' | '=' | '<' | '>' | '!' | '?' | '@' | '#' | '$' | '%' | '&' | '|' | ':' | '\'' | '`'
@@ -253,9 +327,9 @@ fragment Name
 fragment Escape : [nrt'"\\] ;
 
 fragment NXX : IXX | FXX ;
-fragment MIXX : 'i' ('8' | '16' | '32' | '64') ;
-fragment MFXX : 'f' ('32' | '64') ;
-fragment SIGN : 's' | 'u' ;
+/* fragment MIXX : 'i' ('8' | '16' | '32' | '64') ; */
+/* fragment MFXX : 'f' ('32' | '64') ; */
+/* fragment SIGN : 's' | 'u' ; */
 
 fragment Char : ~["'\\\u0000-\u001f\u007f-\u00ff] ;
 fragment Ascii : [\u0000-\u007f] ;

@@ -143,12 +143,12 @@ plainInstr
   | MEMORY_FILL
   | MEMORY_COPY
   | MEMORY_INIT idx
-  | numType CONST literal
-  | test
-  | compare
-  | unary
-  | binary
-  | convert
+  | CONST literal
+  | TEST
+  | COMPARE
+  | UNARY
+  | BINARY
+  | CONVERT
   ;
 
 offsetEq : OFFSET_EQ NAT ;
@@ -162,79 +162,6 @@ load :
 store :
   numType STORE (MEM_SIZE)?
 ;
-
-test : IXX '.eqz';
-
-compare :
-    IXX '.eq'
-  | IXX '.ne'
-  | IXX '.lt_s'
-  | IXX '.lt_u'
-  | IXX '.le_s'
-  | IXX '.le_u'
-  | IXX '.gt_s'
-  | IXX '.gt_u'
-  | IXX '.ge_s'
-  | IXX '.ge_u'
-  | FXX '.eq'
-  | FXX '.ne'
-  | FXX '.lt'
-  | FXX '.le'
-  | FXX '.gt'
-  | FXX '.ge'
-  ;
-
-unary
-  : IXX '.clz'
-  | IXX '.ctz'
-  | IXX '.popcnt'
-  | FXX '.neg'
-  | FXX '.abs'
-  | FXX '.sqrt'
-  | FXX '.ceil'
-  | FXX '.floor'
-  | FXX '.trunc'
-  | FXX '.nearest'
-  ;
-
-binary
-  : IXX '.add'
-  | IXX '.sub'
-  | IXX '.mul'
-  | IXX '.div_s'
-  | IXX '.div_u'
-  | IXX '.rem_s'
-  | IXX '.rem_u'
-  | IXX '.and'
-  | IXX '.or'
-  | IXX '.xor'
-  | IXX '.shl'
-  | IXX '.shr_s'
-  | IXX '.shr_u'
-  | IXX '.rotl'
-  | IXX '.rotr'
-  | FXX '.add'
-  | FXX '.sub'
-  | FXX '.mul'
-  | FXX '.div'
-  | FXX '.min'
-  | FXX '.max'
-  | FXX '.copysign'
-  ;
-
-convert
-  : I32 '.wrap_' I64
-  | IXX '.trunc_' FXX UNDERSCORE SIGN_POSTFIX
-  | IXX '.trunc_sat_' FXX UNDERSCORE SIGN_POSTFIX
-  | I64 '.extend_' I32 UNDERSCORE SIGN_POSTFIX
-  | FXX '.convert_' IXX UNDERSCORE SIGN_POSTFIX
-  | F32 '.demote_' F64
-  | F64 '.promote_' F32
-  | F32 '.reinterpret_' I32
-  | F64 '.reinterpret_' I64
-  | I32 '.reinterpret_' F32
-  | I64 '.reinterpret_' F64
-  ;
 
 callIndirectInstr
   : CALL_INDIRECT typeUse? callInstrParams

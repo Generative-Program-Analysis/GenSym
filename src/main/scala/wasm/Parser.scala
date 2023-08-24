@@ -11,6 +11,7 @@ import scala.language.postfixOps
 import scala.annotation.tailrec
 import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
+import collection.mutable.HashMap
 
 import gensym.wasm._
 
@@ -18,13 +19,6 @@ import gensym.wasm._
 class Parser extends RegexParsers {
   override def skipWhitespace = true
   // override val whiteSpace: Regex = "(\\s|.*|\\(.*\\))+".r
-
-  def resolveCalls(instr: Instr): Instr = instr match {
-    case CallUnresolved(name) => Call(fnMap(name))
-    case Block(label, instrs) => Block(label, instrs.map(resolveCalls))
-    case Loop(label, instrs) => Loop(label, instrs.map(resolveCalls))
-    case _ => instr
-  }
 
   def isValid(instrs: Seq[Instr]): Boolean = {
     def isValidInstr(instr: Instr): Boolean = instr match {
@@ -154,6 +148,8 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   /* Some helper functions */
 
+  val fnMap: HashMap[String, Int] = HashMap()
+
   def error = throw new RuntimeException("Unspported")
 
   def getVar(ctx: BindVarContext): Option[String] =
@@ -257,7 +253,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitFunction(ctx: FunctionContext): WIR = {
     val name = getVar(ctx.bindVar())
-    FuncDef(name, visit(ctx.funcFields).asInstanceOf[FuncField])
+    name match {
+      case Some(realName) => fnMap(realName) = fnMap.size
+      case _ => println(s"Warning: unnamed function")
+    }
+    val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]
+    FuncDef(name, funcField)
   }
 
   def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
@@ -268,13 +269,13 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       }
     } else if (ctx.INT != null) {
       ty.kind match {
-        case I32Type => I32V(ctx.NAT.getText.toInt)
-        case I64Type => I64V(ctx.NAT.getText.toLong)
+        case I32Type => I32V(ctx.INT.getText.toInt)
+        case I64Type => I64V(ctx.INT.getText.toLong)
       }
     } else if (ctx.FLOAT != null) {
       ty.kind match {
-        case F32Type => F32V(ctx.NAT.getText.toFloat)
-        case F64Type => F64V(ctx.NAT.getText.toDouble)
+        case F32Type => F32V(ctx.FLOAT.getText.toFloat)
+        case F64Type => F64V(ctx.FLOAT.getText.toDouble)
       }
     } else error
   }
@@ -291,7 +292,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       BrTable(labels.dropRight(1), labels.last)
     }
     else if (ctx.RETURN() != null) Return
-    else if (ctx.CALL() != null) Call(getVar(ctx.idx(0)).toInt)
+    else if (ctx.CALL() != null) {
+      val id = getVar(ctx.idx(0))
+      try Call(id.toInt) catch { case _: java.lang.NumberFormatException => CallUnresolved(id) }
+    }
     else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_TEE() != null) LocalTee(getVar(ctx.idx(0)).toInt)
@@ -329,130 +333,118 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.MEMORY_FILL() != null) MemoryFill
     else if (ctx.MEMORY_COPY() != null) MemoryCopy
     else if (ctx.MEMORY_INIT() != null) MemoryInit(getVar(ctx.idx(0)).toInt)
-    else if (ctx.CONST() != null) {
-      val ty = visitNumType(ctx.numType)
-      Const(visitLiteralWithType(ctx.literal, ty))
+    else if (ctx.CONST != null) {
+      val Array(ty, _) = ctx.CONST.getText.split("\\.")
+      Const(visitLiteralWithType(ctx.literal, toNumType(ty)))
     }
-    else if (ctx.test() != null) {
-      val ty = toNumType(ctx.test.IXX.getText)
-      val op =
-        if (ctx.test.OP_EQZ != null) Eqz(ty)
-        else error
-      Test(op)
+    else if (ctx.TEST != null) {
+      val Array(ty, _) = ctx.TEST.getText.split("\\.")
+      Test(Eqz(toNumType(ty)))
     }
-    else if (ctx.compare() != null) {
-      val ty =
-        if (ctx.compare.IXX != null) toNumType(ctx.compare.IXX.getText)
-        else if (ctx.compare.FXX != null) toNumType(ctx.compare.FXX.getText)
-        else error
-      val op =
-        if (ctx.compare.OP_EQ != null) Eq(ty)
-        else if (ctx.compare.OP_NE != null) Ne(ty)
-        else if (ctx.compare.OP_LTS != null) LtS(ty)
-        else if (ctx.compare.OP_LTU != null) LtU(ty)
-        else if (ctx.compare.OP_LEU != null) LeU(ty)
-        else if (ctx.compare.OP_LES != null) LeS(ty)
-        else if (ctx.compare.OP_GTS != null) GtS(ty)
-        else if (ctx.compare.OP_GTU != null) GtU(ty)
-        else if (ctx.compare.OP_GEU != null) GeU(ty)
-        else if (ctx.compare.OP_GES != null) GeS(ty)
+    else if (ctx.COMPARE != null) {
+      val Array(tyStr, opStr) = ctx.COMPARE.getText.split("\\.")
+      val ty = toNumType(tyStr)
+      val op = opStr match {
+        case "eq" => Eq(ty)
+        case "ne" => Ne(ty)
+        case "lt_s" => LtS(ty)
+        case "lt_u" => LtU(ty)
+        case "le_u" => LeU(ty)
+        case "le_s" => LeS(ty)
+        case "gt_s" => GtS(ty)
+        case "gt_u" => GtU(ty)
+        case "ge_u" => GeU(ty)
+        case "ge_s" => GeS(ty)
         // Those only defined for floating numbers
-        else if (ctx.compare.OP_LT != null) Lt(ty)
-        else if (ctx.compare.OP_LE != null) Le(ty)
-        else if (ctx.compare.OP_GT != null) Gt(ty)
-        else if (ctx.compare.OP_GE != null) Ge(ty)
-        else error
+        case "lt" => Lt(ty)
+        case "le" => Le(ty)
+        case "gt" => Gt(ty)
+        case "ge" => Ge(ty)
+        case _ => error
+      }
       Compare(op)
     }
-    else if (ctx.unary() != null) {
-      val ty =
-        if (ctx.unary.IXX != null) toNumType(ctx.unary.IXX.getText)
-        else if (ctx.unary.FXX != null) toNumType(ctx.unary.FXX.getText)
-        else error
-      val op =
-        if (ctx.unary.OP_CLZ != null) Clz(ty)
-        else if (ctx.unary.OP_CTZ != null) Ctz(ty)
-        else if (ctx.unary.OP_POPCNT != null) Popcnt(ty)
-        else if (ctx.unary.OP_NEG != null) Neg(ty)
-        else if (ctx.unary.OP_ABS != null) Abs(ty)
-        else if (ctx.unary.OP_SQRT != null) Sqrt(ty)
-        else if (ctx.unary.OP_CEIL != null) Ceil(ty)
-        else if (ctx.unary.OP_FLOOR != null) Floor(ty)
-        else if (ctx.unary.OP_TRUNC != null) Trunc(ty)
-        else if (ctx.unary.OP_NEAREST != null) Nearest(ty)
-        else error
+    else if (ctx.UNARY != null) {
+      val Array(tyStr, opStr) = ctx.COMPARE.getText.split("\\.")
+      val ty = toNumType(tyStr)
+      val op = opStr match {
+        case "clz" => Clz(ty)
+        case "ctz" => Ctz(ty)
+        case "popcnt" => Popcnt(ty)
+        case "neg" => Neg(ty)
+        case "abs" => Abs(ty)
+        case "sqrt" => Sqrt(ty)
+        case "ceil" => Ceil(ty)
+        case "floor" => Floor(ty)
+        case "trunc" => Trunc(ty)
+        case "nearest" => Nearest(ty)
+        case _ => error
+      }
       Unary(op)
     }
-    else if (ctx.binary() != null) {
-      val ty =
-        if (ctx.binary.IXX != null) toNumType(ctx.binary.IXX.getText)
-        else if (ctx.binary.FXX != null) toNumType(ctx.binary.FXX.getText)
-        else error
-      val op =
-        if (ctx.binary.OP_ADD != null) Add(ty)
-        else if (ctx.binary.OP_SUB != null) Sub(ty)
-        else if (ctx.binary.OP_MUL != null) Mul(ty)
-        else if (ctx.binary.OP_DIV != null) Div(ty)
-        else if (ctx.binary.OP_DIV_S != null) DivS(ty)
-        else if (ctx.binary.OP_DIV_U != null) DivU(ty)
-        else if (ctx.binary.OP_REM_S != null) RemS(ty)
-        else if (ctx.binary.OP_REM_U != null) RemU(ty)
-        else if (ctx.binary.OP_AND != null) And(ty)
-        else if (ctx.binary.OP_OR != null) Or(ty)
-        else if (ctx.binary.OP_XOR != null) Xor(ty)
-        else if (ctx.binary.OP_SHL != null) Shl(ty)
-        else if (ctx.binary.OP_SHR_S != null) ShrS(ty)
-        else if (ctx.binary.OP_SHR_U != null) ShrU(ty)
-        else if (ctx.binary.OP_ROTL != null) Rotl(ty)
-        else if (ctx.binary.OP_ROTR != null) Rotr(ty)
-        else if (ctx.binary.OP_MIN != null) Min(ty)
-        else if (ctx.binary.OP_MAX != null) Max(ty)
-        else if (ctx.binary.OP_COPYSIGN != null) Copysign(ty)
-        else error
+    else if (ctx.BINARY != null) {
+      val Array(tyStr, opStr) = ctx.BINARY.getText.split("\\.")
+      val ty = toNumType(tyStr)
+      val op = opStr match {
+        case "add" => Add(ty)
+        case "sub" => Sub(ty)
+        case "mul" => Mul(ty)
+        case "div" => Div(ty)
+        case "div_s" => DivS(ty)
+        case "div_u" => DivU(ty)
+        case "rem_s" => RemS(ty)
+        case "rem_u" => RemU(ty)
+        case "and" => And(ty)
+        case "or" => Or(ty)
+        case "xor" => Xor(ty)
+        case "shl" => Shl(ty)
+        case "shr_s" => ShrS(ty)
+        case "shr_u" => ShrU(ty)
+        case "rotl" => Rotl(ty)
+        case "rotr" => Rotr(ty)
+        case "min" => Min(ty)
+        case "max" => Max(ty)
+        case "copysign" => Copysign(ty)
+        case _ => error
+      }
       Binary(op)
     }
-    else if (ctx.convert() != null) {
-      val op =
-        if (ctx.convert.OP_WRAP != null) {
-          val from = toNumType(ctx.convert.I64.getText)
-          val to = toNumType(ctx.convert.I32.getText)
-          Wrap(from, to)
-        } else if (ctx.convert.OP_TRUNC_ != null) {
-          val from = toNumType(ctx.convert.FXX.getText)
-          val to = toNumType(ctx.convert.IXX.getText)
-          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
-          TruncTo(from, to, sign)
-        } else if (ctx.convert.OP_TRUNC_SAT != null) {
-          val from = toNumType(ctx.convert.FXX.getText)
-          val to = toNumType(ctx.convert.IXX.getText)
-          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
-          TruncSat(from, to, sign)
-        } else if (ctx.convert.OP_EXTEND != null) {
-          val from = toNumType(ctx.convert.I32.getText)
-          val to = toNumType(ctx.convert.I64.getText)
-          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
-          Extend(from, to, sign)
-        } else if (ctx.convert.OP_CONVERT != null) {
-          val from = toNumType(ctx.convert.IXX.getText)
-          val to = toNumType(ctx.convert.FXX.getText)
-          val sign = visitSignExt(ctx.convert.SIGN_POSTFIX.getText)
-          ConvertTo(from, to, sign)
-        } else if (ctx.convert.OP_DEMOTE != null) {
-          val from = toNumType(ctx.convert.F64.getText)
-          val to = toNumType(ctx.convert.F32.getText)
-          Demote(from, to)
-        } else if (ctx.convert.OP_PROMOTE != null) {
-          val from = toNumType(ctx.convert.F32.getText)
-          val to = toNumType(ctx.convert.F64.getText)
-          Promote(from, to)
-        } else if (ctx.convert.OP_REINTER != null) {
-          // TODO: test this
-          val from = ctx.convert.getChild(2).accept[WIR](this).asInstanceOf[NumType]
-          val to = ctx.convert.getChild(0).accept[WIR](this).asInstanceOf[NumType]
-          Promote(from, to)
-        } else error
+    else if (ctx.CONVERT != null) {
+      val Array(toTyStr, rest) = ctx.CONVERT.getText.split("\\.")
+      val toTy = toNumType(toTyStr)
+      val Array(opStr, fromTySign) = rest.split("_")
+      val op = opStr match {
+        case "wrap" =>
+          val fromTy = toNumType(fromTySign)
+          Wrap(fromTy, toTy)
+        case "trunc" =>
+          // TODO: handle trunc_sat instr, split by "_" current not work for that
+          val Array(fromTyStr, signStr) = fromTySign.split("\\.")
+          val fromTy = toNumType(fromTyStr)
+          val sign = visitSignExt(signStr)
+          TruncTo(fromTy, toTy, sign)
+        case "extend" =>
+          val Array(fromTyStr, signStr) = fromTySign.split("\\.")
+          val fromTy = toNumType(fromTyStr)
+          val sign = visitSignExt(signStr)
+          Extend(fromTy, toTy, sign)
+        case "convert" =>
+          val Array(fromTyStr, signStr) = fromTySign.split("\\.")
+          val fromTy = toNumType(fromTyStr)
+          val sign = visitSignExt(signStr)
+          ConvertTo(fromTy, toTy, sign)
+        case "demote" =>
+          val fromTy = toNumType(fromTySign)
+          Demote(fromTy, toTy)
+        case "promote" =>
+          val fromTy = toNumType(fromTySign)
+          Promote(fromTy, toTy)
+        case "reinterpret" =>
+          val fromTy = toNumType(fromTySign)
+          Reinterpret(fromTy, toTy)
+      }
       Convert(op)
-    }
+     }
     else error
   }
 
@@ -468,7 +460,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   override def visitFuncBody(ctx: FuncBodyContext): WIR = {
     val names = ctx.bindVar().asScala.map(getVar(_)).map {
       case Some(s) => s
-      case None => ""
+      case None => "?"
     }
     val types = ctx.valType().asScala.map(visitValType(_)).toSeq
     val FuncBodyDef(_, _, _, instrs) = visit(ctx.instrList())
@@ -492,6 +484,27 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ???
     } else error
   }
+
+  def resolveCall(m: Module): Module =
+    Module(m.name, m.definitions.map {
+      case FuncDef(name, f) =>
+        f match {
+          case FuncBodyDef(ty, nms, locals, body) =>
+            FuncDef(name, FuncBodyDef(ty, nms, locals, body.map(resolveCall)))
+          case f => FuncDef(name, f)
+        }
+      case d => d
+    })
+
+  def resolveCall(instr: Instr): Instr = instr match {
+    case CallUnresolved(name) => Call(fnMap(name))
+    case Block(label, instrs) => Block(label, instrs.map(resolveCall))
+    case Loop(label, instrs) => Loop(label, instrs.map(resolveCall))
+    case _ => instr
+  }
+}
+
+object PostProcess {
 }
 
 object Parser {
@@ -502,7 +515,9 @@ object Parser {
     val parser = new WatParser(tokens)
     val visitor = new GSWasmVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    res
+    println(visitor.fnMap)
+    val mod = visitor.resolveCall(res)
+    mod
   }
 
   def parseFile(filepath: String): Module = parse(scala.io.Source.fromFile(filepath).mkString)
