@@ -138,7 +138,7 @@ object Evaluator {
   type Cont = List[Value] => Unit
 
   def eval(insts: List[Instr], stack: List[Value], frame: Frame, ret: RetCont, trail: List[Cont]): Unit = {
-    if (insts.isEmpty) return ret(stack)
+    if (insts.isEmpty) return trail.head(stack)
 
     val inst = insts.head
     val rest = insts.tail
@@ -159,12 +159,40 @@ object Evaluator {
         val value :: newStack = stack
         frame.locals(i) = value
         eval(rest, stack, frame, ret, trail)
-      case GlobalGet(i) => ???
-      case GlobalSet(i) => ???
-      case MemorySize => ???
-      case MemoryGrow => ???
-      case MemoryFill => ???
-      case MemoryCopy => ???
+      case GlobalGet(i) =>
+        eval(rest, frame.module.globals(i).value::stack, frame, ret, trail)
+      case GlobalSet(i) =>
+        val value :: newStack = stack
+        frame.module.globals(i).tipe match {
+          case GlobalType(tipe, true) if value.tipe == tipe => frame.module.globals(i).value = value
+          case GlobalType(_, true) => throw new Exception("Invalid type")
+          case _ => throw new Exception("Cannot set immutable global")
+        }
+        eval(rest, newStack, frame, ret, trail)
+      case MemorySize =>
+        eval(rest, I32V(frame.module.memory.head.size)::stack, frame, ret, trail)
+      case MemoryGrow =>
+        val I32V(delta)::newStack = stack
+        val mem = frame.module.memory.head
+        val oldSize = mem.size
+        mem.grow(delta) match {
+          case Some(e) => eval(rest, I32V(-1) :: newStack, frame, ret, trail)
+          case _ => eval(rest, I32V(oldSize) :: newStack, frame, ret, trail)
+        }
+      case MemoryFill =>
+        val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = stack
+        if (memOutOfBound(frame, 0, offset, size)) throw new Exception("Out of bounds memory access") // GW: turn this into a `trap`?
+        else {
+          frame.module.memory.head.fill(offset, size, value.toByte)
+          eval(rest, newStack, frame, ret, trail)
+        }
+      case MemoryCopy => 
+        val I32V(n) :: I32V(src) :: I32V(dest) :: newStack = stack
+        if (memOutOfBound(frame, 0, src, n) || memOutOfBound(frame, 0, dest, n)) throw new Exception("Out of bounds memory access")
+        else {
+          frame.module.memory.head.copy(dest, src, n)
+          eval(rest, newStack, frame, ret, trail)
+        }
       case Const(n) => eval(rest, n :: stack, frame, ret, trail)
       case Binary(op) =>
         val v2 :: v1 :: newStack = stack
@@ -178,16 +206,22 @@ object Evaluator {
       case Test(op) =>
         val v :: newStack = stack
         eval(rest, evalTestOp(op, v)::newStack, frame, ret, trail)
+      case Store(StoreOp(align, offset, ty, None)) =>
+        val I32V(v)::I32V(addr)::newStack = stack
+        frame.module.memory(0).storeInt(addr + offset, v)
+        eval(rest, newStack, frame, ret, trail)
+      case Load(LoadOp(align, offset, ty, None, None)) =>
+        val I32V(addr)::newStack = stack
+        val value = frame.module.memory(0).loadInt(addr + offset)
+        eval(rest, I32V(value)::newStack, frame, ret, trail)
       case Nop =>
         eval(rest, stack, frame, ret, trail)
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
-        val k: Cont = (retStack) =>
-          eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
+        val k: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
         eval(inner, List(), frame, ret, k::trail)
       case Loop(ty, inner) =>
-        val k: Cont = (retStack) =>
-          eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
+        val k: Cont = (retStack) => eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
         eval(inner, List(), frame, ret, k::trail)
       case If(ty, thn, els) =>
         val I32V(cond)::newStack = stack
@@ -200,8 +234,7 @@ object Evaluator {
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
         if (cond == 0) eval(rest, newStack, frame, ret, trail)
-        else if (cond == 1) trail(label)(newStack)
-        else ???
+        else trail(label)(newStack)
       case Return => ret(stack)
       case Call(f) =>
         val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
@@ -209,9 +242,10 @@ object Evaluator {
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        val newRet: RetCont = (newStack) =>
-          eval(rest, newStack.take(ty.out.size) ++ newStack, frame, ret, trail)
-        eval(body, List(), newFrame, newRet, trail) // GW: should we install new trail cont?
+        val newRet: RetCont = (retStack) => eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
+        val k: Cont = (retStack) =>
+          eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
+        eval(body, List(), newFrame, newRet, k::trail) // GW: should we install new trail cont?
       case _ => ???
     }
   }

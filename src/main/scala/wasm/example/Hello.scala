@@ -66,9 +66,36 @@ object SimpleTest extends App {
     println(config.eval(List(), instrs))
   }
 
+  def fileTestNewEval() = {
+    import gensym.wasm.miniwasm._
+    import collection.mutable.ArrayBuffer
+    val module = Parser.parseFile("./benchmarks/wasm/test.wat")
+    println(module)
+
+    val instrs = module.definitions.find({
+      case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
+      case _ => false
+    }).map({
+      case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+    }).get
+    .toList
+
+    val types = List()
+    val funcs = module.definitions.collect({
+      case FuncDef(_, fndef@FuncBodyDef(_, _, _, _)) => fndef
+    }).toList
+
+    val moduleInst = ModuleInstance(types, funcs)
+
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))),
+      newStack => println(s"retCont: $newStack"),
+      List(newStack => println(s"trail: $newStack")))
+  }
+
   //basicTest()
   //println("====")
-  fileTest()
+  //fileTest()
+  fileTestNewEval()
 }
 
 //object SimpleStagedTest extends App {
