@@ -14,6 +14,35 @@
 //     }
 // }
 
+/*
+#[no_mangle]
+#[inline(never)]
+fn test_ret(a: i32) -> i32 {
+  let mut n = 1;
+
+  // Loop while `n` is less than 101
+  while n < 101 {
+    if n % 15 == 0 {
+      //println!("fizzbuzz");
+      return 1;
+    } else if n % 3 == 0 {
+      return 2;
+      //println!("fizz");
+    } else if n % 5 == 0 {
+      return 3;
+      //println!("buzz");
+    } else {
+      n += 1;
+      return 4;
+      //println!("{}", n);
+    }
+    // Increment counter
+  }
+
+  return -1;
+}
+*/
+
 #[no_mangle]
 #[inline(never)]
 fn power(a: i32, b: i32) -> i32 {
@@ -70,4 +99,5 @@ fn real_main() -> i32 {
     // factorial(5)
     // power(3, 3)
     ack(2, 2)
+    //test_ret(11)
 }

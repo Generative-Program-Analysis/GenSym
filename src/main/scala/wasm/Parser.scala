@@ -152,7 +152,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     } else error
   }
 
-  override def visitPlainInstr(ctx: PlainInstrContext): WIR = {
+  override def visitPlainInstr(ctx: PlainInstrContext): Instr = {
     if (ctx.UNREACHABLE() != null) Unreachable
     else if (ctx.NOP() != null) Nop
     else if (ctx.DROP() != null) Drop
@@ -331,7 +331,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitBlockInstr(ctx: BlockInstrContext): WIR = {
-    // Note: ignoring all bindVar...
+    // Note: ignoring all bindVar/label...
     if (ctx.BLOCK != null) {
       visit(ctx.block)
     } else if (ctx.LOOP != null) {
@@ -339,21 +339,62 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       Loop(ty, instrs)
     } else if (ctx.IF != null) {
       val Block(ty, thn) = visit(ctx.block)
-      val InstrList(els) = visit(ctx.instrList)
+      // Note(GW): `else` branch seems mandatory?
+      // https://webassembly.github.io/spec/core/text/instructions.html#control-instructions
+      val els = if (ctx.ELSE != null) {
+        val InstrList(elsInstr) = visit(ctx.instrList)
+        elsInstr
+      } else List()
       If(ty, thn, els)
     } else error
   }
 
-  override def visitParenExpr(ctx: ParenExprContext): WIR = visit(ctx.expr)
+  override def visitFoldedInstr(ctx: FoldedInstrContext): WIR = visit(ctx.expr)
 
-  override def visitExpr(ctx: ExprContext): WIR = ???
+  override def visitExpr(ctx: ExprContext): WIR = {
+    if (ctx.plainInstr != null) {
+      val inst = visitPlainInstr(ctx.plainInstr)
+      val rest = ctx.expr.asScala.map(visitExpr).toList.asInstanceOf[List[Instr]]
+      // Could desugar to sequence of instructions
+      // XXX: is it right?
+      // https://webassembly.github.io/spec/core/text/instructions.html#folded-instructions
+      InstrList(rest ++ List(inst))
+    } else if (ctx.CALL_INDIRECT != null) {
+      // Seems not included in the current WASM spec?
+      ???
+    } else if (ctx.BLOCK != null) {
+      // Note: ignoring all bindVar/label
+      visit(ctx.block)
+    } else if (ctx.LOOP != null) {
+      val Block(ty, instrs) = visit(ctx.block)
+      Loop(ty, instrs)
+    } else if (ctx.IF != null) {
+      val cnd = ctx.foldedInstr.asScala.map(visit).foldLeft(List[Instr]()) {
+        case (acc, inst: Instr) => acc ++ List(inst)
+        case (acc, InstrList(instrs)) => acc ++ instrs
+      }
+      val ty =
+        if (ctx.blockType != null) Some(visitValType(ctx.blockType.valType).asInstanceOf[ValueType])
+        else None
+      val InstrList(thn) = visit(ctx.instrList(0))
+      val els = if (ctx.ELSE != null) {
+        val InstrList(elsInstr) = visit(ctx.instrList(1))
+        elsInstr
+      } else List() 
+      InstrList(cnd ++ List(If(ty, thn, els)))
+    } else error
+  }
 
   override def visitInstrList(ctx: InstrListContext): WIR = {
     val last =
       if (ctx.callIndirectInstr() != null)
         List(visitCallIndirectInstr(ctx.callIndirectInstr()))
       else List()
-    val instrs = ctx.instr.asScala.map(visit(_)).map(_.asInstanceOf[Instr]).toList
+    val instrs = ctx.instr.asScala.map(visit(_)).foldLeft(List[Instr]()) {
+      case (acc, inst: Instr) => acc ++ List(inst)
+      case (acc, InstrList(instrs)) => acc ++ instrs
+    }
+    // Note: callIndirectInstr has not been handled (should it?)
     InstrList(instrs ++ last.asInstanceOf[List[Instr]])
   }
 
@@ -384,6 +425,8 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ???
     } else error
   }
+
+  //////////////////////////////////////////////////////////////
 
   def resolveCall(m: Module): Module =
     Module(m.name, m.definitions.map {

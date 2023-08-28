@@ -118,7 +118,7 @@ instr
   : plainInstr
   | callInstrInstr
   | blockInstr
-  | parenExpr
+  | foldedInstr
   ;
 
 plainInstr
@@ -197,7 +197,7 @@ block
   : blockType? instrList
   ;
 
-parenExpr
+foldedInstr
   : LPAR expr RPAR
   ;
 
@@ -206,7 +206,8 @@ expr
   | CALL_INDIRECT callExprType
   | BLOCK bindVar? block
   | LOOP bindVar? block
-  | IF bindVar? ifBlock
+  // | IF bindVar? ifBlock
+  | IF bindVar? blockType? foldedInstr* LPAR THEN instrList (LPAR ELSE instrList RPAR)?
   ;
 
 callExprType
@@ -221,10 +222,12 @@ callExprResults
   : (LPAR RESULT valType* RPAR)* expr*
   ;
 
+/*
 ifBlock
   : blockType ifBlock
   | expr* LPAR THEN instrList RPAR (LPAR ELSE instrList RPAR)?
   ;
+*/
 
 instrList
   : instr* callIndirectInstr?

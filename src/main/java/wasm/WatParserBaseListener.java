@@ -401,13 +401,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterParenExpr(WatParser.ParenExprContext ctx) { }
+	@Override public void enterFoldedInstr(WatParser.FoldedInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitParenExpr(WatParser.ParenExprContext ctx) { }
+	@Override public void exitFoldedInstr(WatParser.FoldedInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -456,18 +456,6 @@ public class WatParserBaseListener implements WatParserListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitCallExprResults(WatParser.CallExprResultsContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterIfBlock(WatParser.IfBlockContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitIfBlock(WatParser.IfBlockContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

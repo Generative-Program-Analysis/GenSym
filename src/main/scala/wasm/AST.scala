@@ -37,7 +37,7 @@ case class BrIf(labelId: Int) extends Instr
 case class BrTable(labels: List[Int], default: Int) extends Instr
 case object Return extends Instr
 case class Call(func: Int) extends Instr
-// case class CallIndirect(ty: Int, table: Int) extends Instr
+case class CallIndirect(ty: Int, table: Int) extends Instr
 case class LocalGet(local: Int) extends Instr
 case class LocalSet(local: Int) extends Instr
 case class LocalTee(local: Int) extends Instr

@@ -328,15 +328,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitBlock(WatParser.BlockContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#parenExpr}.
+	 * Enter a parse tree produced by {@link WatParser#foldedInstr}.
 	 * @param ctx the parse tree
 	 */
-	void enterParenExpr(WatParser.ParenExprContext ctx);
+	void enterFoldedInstr(WatParser.FoldedInstrContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#parenExpr}.
+	 * Exit a parse tree produced by {@link WatParser#foldedInstr}.
 	 * @param ctx the parse tree
 	 */
-	void exitParenExpr(WatParser.ParenExprContext ctx);
+	void exitFoldedInstr(WatParser.FoldedInstrContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#expr}.
 	 * @param ctx the parse tree
@@ -377,16 +377,6 @@ public interface WatParserListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitCallExprResults(WatParser.CallExprResultsContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#ifBlock}.
-	 * @param ctx the parse tree
-	 */
-	void enterIfBlock(WatParser.IfBlockContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#ifBlock}.
-	 * @param ctx the parse tree
-	 */
-	void exitIfBlock(WatParser.IfBlockContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#instrList}.
 	 * @param ctx the parse tree
