@@ -138,7 +138,8 @@ object Evaluator {
   type Cont = List[Value] => Unit
 
   def eval(insts: List[Instr], stack: List[Value], frame: Frame, ret: RetCont, trail: List[Cont]): Unit = {
-    if (insts.isEmpty) return trail.head(stack)
+    //if (insts.isEmpty) return trail.head(stack)
+    if (insts.isEmpty) return ret(stack)
 
     val inst = insts.head
     val rest = insts.tail
@@ -219,10 +220,10 @@ object Evaluator {
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
         val k: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
-        eval(inner, List(), frame, ret, k::trail)
+        eval(inner, List(), frame, /*ret*/ k, k::trail)
       case Loop(ty, inner) =>
         val k: Cont = (retStack) => eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
-        eval(inner, List(), frame, ret, k::trail)
+        eval(inner, List(), frame, /*ret*/ k, k::trail)
       case If(ty, thn, els) =>
         val I32V(cond)::newStack = stack
         val inner = if (cond == 0) thn else els
