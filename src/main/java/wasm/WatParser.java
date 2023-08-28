@@ -54,7 +54,7 @@ public class WatParser extends Parser {
 		RULE_callExprParams = 35, RULE_callExprResults = 36, RULE_instrList = 37, 
 		RULE_constExpr = 38, RULE_function = 39, RULE_funcFields = 40, RULE_funcFieldsBody = 41, 
 		RULE_funcBody = 42, RULE_offset = 43, RULE_elem = 44, RULE_table = 45, 
-		RULE_tableFields = 46, RULE_data = 47, RULE_memory = 48, RULE_memoryFields = 49, 
+		RULE_tableField = 46, RULE_data = 47, RULE_memory = 48, RULE_memoryFields = 49, 
 		RULE_sglobal = 50, RULE_globalFields = 51, RULE_importDesc = 52, RULE_simport = 53, 
 		RULE_inlineImport = 54, RULE_exportDesc = 55, RULE_export_ = 56, RULE_inlineExport = 57, 
 		RULE_typeDef = 58, RULE_start_ = 59, RULE_moduleField = 60, RULE_module_ = 61, 
@@ -71,7 +71,7 @@ public class WatParser extends Parser {
 			"blockInstr", "blockType", "block", "foldedInstr", "expr", "callExprType", 
 			"callExprParams", "callExprResults", "instrList", "constExpr", "function", 
 			"funcFields", "funcFieldsBody", "funcBody", "offset", "elem", "table", 
-			"tableFields", "data", "memory", "memoryFields", "sglobal", "globalFields", 
+			"tableField", "data", "memory", "memoryFields", "sglobal", "globalFields", 
 			"importDesc", "simport", "inlineImport", "exportDesc", "export_", "inlineExport", 
 			"typeDef", "start_", "moduleField", "module_", "scriptModule", "action_", 
 			"assertion", "cmd", "meta", "wconst", "constList", "script", "module"
@@ -3917,8 +3917,8 @@ public class WatParser extends Parser {
 	public static class TableContext extends ParserRuleContext {
 		public TerminalNode LPAR() { return getToken(WatParser.LPAR, 0); }
 		public TerminalNode TABLE() { return getToken(WatParser.TABLE, 0); }
-		public TableFieldsContext tableFields() {
-			return getRuleContext(TableFieldsContext.class,0);
+		public TableFieldContext tableField() {
+			return getRuleContext(TableFieldContext.class,0);
 		}
 		public TerminalNode RPAR() { return getToken(WatParser.RPAR, 0); }
 		public BindVarContext bindVar() {
@@ -3965,7 +3965,7 @@ public class WatParser extends Parser {
 			}
 
 			setState(601);
-			tableFields();
+			tableField();
 			setState(602);
 			match(RPAR);
 			}
@@ -3982,7 +3982,7 @@ public class WatParser extends Parser {
 	}
 
 	@SuppressWarnings("CheckReturnValue")
-	public static class TableFieldsContext extends ParserRuleContext {
+	public static class TableFieldContext extends ParserRuleContext {
 		public TableTypeContext tableType() {
 			return getRuleContext(TableTypeContext.class,0);
 		}
@@ -3992,8 +3992,8 @@ public class WatParser extends Parser {
 		public InlineExportContext inlineExport() {
 			return getRuleContext(InlineExportContext.class,0);
 		}
-		public TableFieldsContext tableFields() {
-			return getRuleContext(TableFieldsContext.class,0);
+		public TableFieldContext tableField() {
+			return getRuleContext(TableFieldContext.class,0);
 		}
 		public RefTypeContext refType() {
 			return getRuleContext(RefTypeContext.class,0);
@@ -4007,28 +4007,28 @@ public class WatParser extends Parser {
 		public IdxContext idx(int i) {
 			return getRuleContext(IdxContext.class,i);
 		}
-		public TableFieldsContext(ParserRuleContext parent, int invokingState) {
+		public TableFieldContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_tableFields; }
+		@Override public int getRuleIndex() { return RULE_tableField; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterTableFields(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterTableField(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTableFields(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTableField(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTableFields(this);
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTableField(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final TableFieldsContext tableFields() throws RecognitionException {
-		TableFieldsContext _localctx = new TableFieldsContext(_ctx, getState());
-		enterRule(_localctx, 92, RULE_tableFields);
+	public final TableFieldContext tableField() throws RecognitionException {
+		TableFieldContext _localctx = new TableFieldContext(_ctx, getState());
+		enterRule(_localctx, 92, RULE_tableField);
 		int _la;
 		try {
 			setState(622);
@@ -4056,7 +4056,7 @@ public class WatParser extends Parser {
 				setState(608);
 				inlineExport();
 				setState(609);
-				tableFields();
+				tableField();
 				}
 				break;
 			case 4:

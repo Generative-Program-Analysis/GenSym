@@ -468,15 +468,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitTable(WatParser.TableContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#tableFields}.
+	 * Enter a parse tree produced by {@link WatParser#tableField}.
 	 * @param ctx the parse tree
 	 */
-	void enterTableFields(WatParser.TableFieldsContext ctx);
+	void enterTableField(WatParser.TableFieldContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#tableFields}.
+	 * Exit a parse tree produced by {@link WatParser#tableField}.
 	 * @param ctx the parse tree
 	 */
-	void exitTableFields(WatParser.TableFieldsContext ctx);
+	void exitTableField(WatParser.TableFieldContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#data}.
 	 * @param ctx the parse tree

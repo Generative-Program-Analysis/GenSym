@@ -10,12 +10,18 @@ case class Module(name: Option[String], definitions: List[Definition]) extends W
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
 case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
+case class Table(id: Option[String], f: TableField) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class FuncField extends WIR
 case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr]) extends FuncField
-case class InlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*FIXME*/) extends FuncField
-case class InlineExport(fd: List[FuncDef]) extends FuncField
+case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*FIXME*/) extends FuncField
+case class FunInlineExport(fd: List[FuncDef]) extends FuncField
+
+abstract class TableField extends WIR
+case class TableType(min: Int, max: Option[Int], ty: RefType) extends TableField
+case class TabInlineImport(ty: TableType) extends TableField
+case class TabInlineExport(fields: List[TableField]) extends TableField
 
 // Intermediate result
 case class InstrList(instrs: List[Instr]) extends WIR

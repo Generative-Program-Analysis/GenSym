@@ -287,11 +287,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitTable(WatParser.TableContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#tableFields}.
+	 * Visit a parse tree produced by {@link WatParser#tableField}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitTableFields(WatParser.TableFieldsContext ctx);
+	T visitTableField(WatParser.TableFieldContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#data}.
 	 * @param ctx the parse tree

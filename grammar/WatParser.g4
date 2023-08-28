@@ -269,13 +269,13 @@ elem
   ;
 
 table
-  : LPAR TABLE bindVar? tableFields RPAR
+  : LPAR TABLE bindVar? tableField RPAR
   ;
 
-tableFields
+tableField
   : tableType
   | inlineImport tableType
-  | inlineExport tableFields
+  | inlineExport tableField
   | refType LPAR ELEM idx* RPAR
   ;
 

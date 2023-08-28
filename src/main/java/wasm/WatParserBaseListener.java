@@ -569,13 +569,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterTableFields(WatParser.TableFieldsContext ctx) { }
+	@Override public void enterTableField(WatParser.TableFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitTableFields(WatParser.TableFieldsContext ctx) { }
+	@Override public void exitTableField(WatParser.TableFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

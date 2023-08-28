@@ -31,7 +31,8 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     if (ctx == null) None
     else Some(getVar(ctx.idx()))
 
-  // Note(GW): in some downstream uses of `getVar`, we cast the value to int. This is not complete wrt the spec.
+  // Note(GW): in some downstream uses of `getVar`, we cast the value to int.
+  // This is not complete wrt the spec.
   def getVar(ctx: IdxContext): String =
     if (ctx.VAR() != null) ctx.VAR().getText
     else ctx.NAT().getText.toString
@@ -123,7 +124,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
   }
 
-  override def visitFunction(ctx: FunctionContext): WIR = {
+  override def visitFunction(ctx: FunctionContext): FuncDef = {
     val name = getVar(ctx.bindVar())
     name match {
       case Some(realName) => fnMap(realName) = fnMap.size
@@ -424,6 +425,31 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     } else if (ctx.inlineExport() != null) {
       ???
     } else error
+  }
+
+  override def visitTableType(ctx: TableTypeContext): TableType = {
+    val (n, m) =
+      if (ctx.NAT.size == 1) (ctx.NAT(0).getText.toInt, None)
+      else (ctx.NAT(0).getText.toInt, Some(ctx.NAT(1).getText.toInt))
+    val ty = visitRefType(ctx.refType)
+    TableType(n, m, ty)
+  }
+
+  override def visitTableField(ctx: TableFieldContext): TableField = {
+    if (ctx.tableType != null) visitTableType(ctx.tableType)
+    else if (ctx.inlineImport != null) {
+      ???
+    } else if (ctx.inlineExport != null) {
+      ???
+    } else if (ctx.refType != null) {
+      ???
+    } else error
+  }
+
+  override def visitTable(ctx: TableContext): Table = {
+    val name: Option[String] = getVar(ctx.bindVar)
+    val field = visitTableField(ctx.tableField)
+    Table(name, field)
   }
 
   //////////////////////////////////////////////////////////////
