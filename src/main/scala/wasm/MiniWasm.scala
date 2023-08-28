@@ -9,8 +9,8 @@ import scala.collection.mutable.ArrayBuffer
 case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
-  memory: List[Memory] = List(Memory()),
-  globals: List[Global] = List(),
+  memory: List[RTMemory] = List(RTMemory()),
+  globals: List[RTGlobal] = List(),
 )
 
 object Primtives {
@@ -164,7 +164,7 @@ object Evaluator {
         eval(rest, frame.module.globals(i).value::stack, frame, ret, trail)
       case GlobalSet(i) =>
         val value :: newStack = stack
-        frame.module.globals(i).tipe match {
+        frame.module.globals(i).ty match {
           case GlobalType(tipe, true) if value.tipe == tipe => frame.module.globals(i).value = value
           case GlobalType(_, true) => throw new Exception("Invalid type")
           case _ => throw new Exception("Cannot set immutable global")

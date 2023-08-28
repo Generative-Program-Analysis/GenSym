@@ -472,6 +472,28 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     Memory(name, field)
   }
 
+  override def visitGlobalType(ctx: GlobalTypeContext): GlobalType = {
+    val ty = visitValType(ctx.valType).asInstanceOf[ValueType]
+    val mut = ctx.MUT != null
+    GlobalType(ty, mut)
+  }
+
+  override def visitGlobalField(ctx: GlobalFieldContext): GlobalField = {
+    if (ctx.constExpr != null) {
+      val ty = visitGlobalType(ctx.globalType)
+      val InstrList(instrs) = visit(ctx.constExpr)
+      GlobalValue(ty, instrs)
+    } else if (ctx.inlineImport != null) ???
+    else if (ctx.inlineExport != null) ???
+    else error
+  }
+
+  override def visitGlobal(ctx: GlobalContext): Global = {
+    val name: Option[String] = getVar(ctx.bindVar)
+    val field = visitGlobalField(ctx.globalField)
+    Global(name, field)
+  }
+
   //////////////////////////////////////////////////////////////
 
   def resolveCall(m: Module): Module =

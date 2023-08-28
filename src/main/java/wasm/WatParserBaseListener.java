@@ -617,25 +617,25 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterSglobal(WatParser.SglobalContext ctx) { }
+	@Override public void enterGlobal(WatParser.GlobalContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitSglobal(WatParser.SglobalContext ctx) { }
+	@Override public void exitGlobal(WatParser.GlobalContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterGlobalFields(WatParser.GlobalFieldsContext ctx) { }
+	@Override public void enterGlobalField(WatParser.GlobalFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitGlobalFields(WatParser.GlobalFieldsContext ctx) { }
+	@Override public void exitGlobalField(WatParser.GlobalFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

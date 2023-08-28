@@ -87,7 +87,7 @@ trait StagedEvalCPS extends SAIOps {
       Adapter.g.reflectWrite("static-state-memory-copy", Unwrap(srcOffset), Unwrap(dstOffset), Unwrap(size))(Adapter.CTRL)
   }
 
-  def initState(memory: Rep[List[Memory]], globals: Rep[List[Global]], numLocals: Int): Rep[State] =
+  def initState(memory: Rep[List[Memory]], globals: Rep[List[RTGlobal]], numLocals: Int): Rep[State] =
     Wrap[State](Adapter.g.reflectWrite("state-init", Unwrap(memory), Unwrap(globals), Unwrap(numLocals))(Adapter.CTRL))
 
   def panic(msg: Rep[String]): Rep[Unit] =
@@ -583,7 +583,7 @@ object StagedEvalCPSTest extends App {
         // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
         val config = Config(module, HashMap(), HashMap(), HashMap(), 1000)
         val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.numLocals); State.printStack; () }
-        initState(List[Memory](), List[Global](), 0)
+        initState(List[Memory](), List[RTGlobal](), 0)
         val ss = StaticState(Nil, None, 0, 0)
         for (FuncDef(name, FuncBodyDef(tipe, _, locals, body)) <- module.funcs) {
           config.compileFun(name.get, tipe, locals, body)

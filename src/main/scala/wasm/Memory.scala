@@ -2,31 +2,31 @@ package gensym.wasm.memory
 
 import scala.collection.mutable.ArrayBuffer
 
-case class MemoryException(message: String) extends Exception(message)
-case class MemoryType(min: Int, max: Option[Int])
+case class RTMemoryException(message: String) extends Exception(message)
+case class RTMemoryType(min: Int, max: Option[Int])
 
-case class Memory(var memType: MemoryType, data: ArrayBuffer[Byte]) {
-  def size: Int = (data.size / Memory.pageSize).toInt
+case class RTMemory(var memType: RTMemoryType, data: ArrayBuffer[Byte]) {
+  def size: Int = (data.size / RTMemory.pageSize).toInt
 
-  def grow(delta: Int): Option[MemoryException] = {
+  def grow(delta: Int): Option[RTMemoryException] = {
     val oldSize = memType.min
     val newSize = oldSize + delta
     if (newSize < oldSize) {
-      Some(MemoryException("SizeOverflow"))
+      Some(RTMemoryException("SizeOverflow"))
     } else {
-      memType = MemoryType(newSize, memType.max)
-      data ++= Array.fill[Byte](delta * Memory.pageSize.toInt)(0)
+      memType = RTMemoryType(newSize, memType.max)
+      data ++= Array.fill[Byte](delta * RTMemory.pageSize.toInt)(0)
       None
     }
   }
 
   def loadByte(a: Long): Byte = {
-    if (a >= data.size) throw new MemoryException("Bounds")
+    if (a >= data.size) throw new RTMemoryException("Bounds")
     data(a.toInt)
   }
 
   def storeByte(a: Long, b: Byte): Unit = {
-    if (a >= data.size) throw new MemoryException("Bounds")
+    if (a >= data.size) throw new RTMemoryException("Bounds")
     data(a.toInt) = b
   }
 
@@ -81,11 +81,11 @@ case class Memory(var memType: MemoryType, data: ArrayBuffer[Byte]) {
   }
 }
 
-object Memory {
+object RTMemory {
   val pageSize = 65536 // https://www.w3.org/TR/wasm-core-2/exec/runtime.html#memory-instances
-  def apply(): Memory = this.apply(1024)
-  def apply(size: Int): Memory = this.apply(size, None)
-  def apply(size: Int, maxSize: Option[Int]): Memory = {
-    new Memory(MemoryType(size, maxSize), ArrayBuffer.fill[Byte](size * pageSize.toInt)(0))
+  def apply(): RTMemory = this.apply(1024)
+  def apply(size: Int): RTMemory = this.apply(size, None)
+  def apply(size: Int, maxSize: Option[Int]): RTMemory = {
+    new RTMemory(RTMemoryType(size, maxSize), ArrayBuffer.fill[Byte](size * pageSize.toInt)(0))
   }
 }

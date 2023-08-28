@@ -55,7 +55,7 @@ public class WatParser extends Parser {
 		RULE_constExpr = 38, RULE_function = 39, RULE_funcFields = 40, RULE_funcFieldsBody = 41, 
 		RULE_funcBody = 42, RULE_offset = 43, RULE_elem = 44, RULE_table = 45, 
 		RULE_tableField = 46, RULE_data = 47, RULE_memory = 48, RULE_memoryField = 49, 
-		RULE_sglobal = 50, RULE_globalFields = 51, RULE_importDesc = 52, RULE_simport = 53, 
+		RULE_global = 50, RULE_globalField = 51, RULE_importDesc = 52, RULE_simport = 53, 
 		RULE_inlineImport = 54, RULE_exportDesc = 55, RULE_export_ = 56, RULE_inlineExport = 57, 
 		RULE_typeDef = 58, RULE_start_ = 59, RULE_moduleField = 60, RULE_module_ = 61, 
 		RULE_scriptModule = 62, RULE_action_ = 63, RULE_assertion = 64, RULE_cmd = 65, 
@@ -71,7 +71,7 @@ public class WatParser extends Parser {
 			"blockInstr", "blockType", "block", "foldedInstr", "expr", "callExprType", 
 			"callExprParams", "callExprResults", "instrList", "constExpr", "function", 
 			"funcFields", "funcFieldsBody", "funcBody", "offset", "elem", "table", 
-			"tableField", "data", "memory", "memoryField", "sglobal", "globalFields", 
+			"tableField", "data", "memory", "memoryField", "global", "globalField", 
 			"importDesc", "simport", "inlineImport", "exportDesc", "export_", "inlineExport", 
 			"typeDef", "start_", "moduleField", "module_", "scriptModule", "action_", 
 			"assertion", "cmd", "meta", "wconst", "constList", "script", "module"
@@ -4365,38 +4365,38 @@ public class WatParser extends Parser {
 	}
 
 	@SuppressWarnings("CheckReturnValue")
-	public static class SglobalContext extends ParserRuleContext {
+	public static class GlobalContext extends ParserRuleContext {
 		public TerminalNode LPAR() { return getToken(WatParser.LPAR, 0); }
 		public TerminalNode GLOBAL() { return getToken(WatParser.GLOBAL, 0); }
-		public GlobalFieldsContext globalFields() {
-			return getRuleContext(GlobalFieldsContext.class,0);
+		public GlobalFieldContext globalField() {
+			return getRuleContext(GlobalFieldContext.class,0);
 		}
 		public TerminalNode RPAR() { return getToken(WatParser.RPAR, 0); }
 		public BindVarContext bindVar() {
 			return getRuleContext(BindVarContext.class,0);
 		}
-		public SglobalContext(ParserRuleContext parent, int invokingState) {
+		public GlobalContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_sglobal; }
+		@Override public int getRuleIndex() { return RULE_global; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterSglobal(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterGlobal(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitSglobal(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitGlobal(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitSglobal(this);
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitGlobal(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final SglobalContext sglobal() throws RecognitionException {
-		SglobalContext _localctx = new SglobalContext(_ctx, getState());
-		enterRule(_localctx, 100, RULE_sglobal);
+	public final GlobalContext global() throws RecognitionException {
+		GlobalContext _localctx = new GlobalContext(_ctx, getState());
+		enterRule(_localctx, 100, RULE_global);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
@@ -4416,7 +4416,7 @@ public class WatParser extends Parser {
 			}
 
 			setState(669);
-			globalFields();
+			globalField();
 			setState(670);
 			match(RPAR);
 			}
@@ -4433,7 +4433,7 @@ public class WatParser extends Parser {
 	}
 
 	@SuppressWarnings("CheckReturnValue")
-	public static class GlobalFieldsContext extends ParserRuleContext {
+	public static class GlobalFieldContext extends ParserRuleContext {
 		public GlobalTypeContext globalType() {
 			return getRuleContext(GlobalTypeContext.class,0);
 		}
@@ -4446,31 +4446,31 @@ public class WatParser extends Parser {
 		public InlineExportContext inlineExport() {
 			return getRuleContext(InlineExportContext.class,0);
 		}
-		public GlobalFieldsContext globalFields() {
-			return getRuleContext(GlobalFieldsContext.class,0);
+		public GlobalFieldContext globalField() {
+			return getRuleContext(GlobalFieldContext.class,0);
 		}
-		public GlobalFieldsContext(ParserRuleContext parent, int invokingState) {
+		public GlobalFieldContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_globalFields; }
+		@Override public int getRuleIndex() { return RULE_globalField; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterGlobalFields(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterGlobalField(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitGlobalFields(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitGlobalField(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitGlobalFields(this);
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitGlobalField(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final GlobalFieldsContext globalFields() throws RecognitionException {
-		GlobalFieldsContext _localctx = new GlobalFieldsContext(_ctx, getState());
-		enterRule(_localctx, 102, RULE_globalFields);
+	public final GlobalFieldContext globalField() throws RecognitionException {
+		GlobalFieldContext _localctx = new GlobalFieldContext(_ctx, getState());
+		enterRule(_localctx, 102, RULE_globalField);
 		try {
 			setState(681);
 			_errHandler.sync(this);
@@ -4499,7 +4499,7 @@ public class WatParser extends Parser {
 				setState(678);
 				inlineExport();
 				setState(679);
-				globalFields();
+				globalField();
 				}
 				break;
 			}
@@ -5161,8 +5161,8 @@ public class WatParser extends Parser {
 		public TypeDefContext typeDef() {
 			return getRuleContext(TypeDefContext.class,0);
 		}
-		public SglobalContext sglobal() {
-			return getRuleContext(SglobalContext.class,0);
+		public GlobalContext global() {
+			return getRuleContext(GlobalContext.class,0);
 		}
 		public TableContext table() {
 			return getRuleContext(TableContext.class,0);
@@ -5225,7 +5225,7 @@ public class WatParser extends Parser {
 				enterOuterAlt(_localctx, 2);
 				{
 				setState(785);
-				sglobal();
+				global();
 				}
 				break;
 			case 3:

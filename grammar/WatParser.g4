@@ -294,14 +294,14 @@ memoryField
   | LPAR DATA STRING_* RPAR
   ;
 
-sglobal
-  : LPAR GLOBAL bindVar? globalFields RPAR
+global
+  : LPAR GLOBAL bindVar? globalField RPAR
   ;
 
-globalFields
+globalField
   : globalType constExpr
   | inlineImport globalType
-  | inlineExport globalFields
+  | inlineExport globalField
   ;
 
 /* Imports & Exports */
@@ -349,7 +349,7 @@ start_
 
 moduleField
   : typeDef
-  | sglobal
+  | global
   | table
   | memory
   | function

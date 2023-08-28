@@ -508,25 +508,25 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitMemoryField(WatParser.MemoryFieldContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#sglobal}.
+	 * Enter a parse tree produced by {@link WatParser#global}.
 	 * @param ctx the parse tree
 	 */
-	void enterSglobal(WatParser.SglobalContext ctx);
+	void enterGlobal(WatParser.GlobalContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#sglobal}.
+	 * Exit a parse tree produced by {@link WatParser#global}.
 	 * @param ctx the parse tree
 	 */
-	void exitSglobal(WatParser.SglobalContext ctx);
+	void exitGlobal(WatParser.GlobalContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#globalFields}.
+	 * Enter a parse tree produced by {@link WatParser#globalField}.
 	 * @param ctx the parse tree
 	 */
-	void enterGlobalFields(WatParser.GlobalFieldsContext ctx);
+	void enterGlobalField(WatParser.GlobalFieldContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#globalFields}.
+	 * Exit a parse tree produced by {@link WatParser#globalField}.
 	 * @param ctx the parse tree
 	 */
-	void exitGlobalFields(WatParser.GlobalFieldsContext ctx);
+	void exitGlobalField(WatParser.GlobalFieldContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#importDesc}.
 	 * @param ctx the parse tree

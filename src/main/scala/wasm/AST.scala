@@ -12,6 +12,7 @@ case class FuncDef(name: Option[String], f: FuncField) extends Definition
 case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
+case class Global(id: Option[String], f: GlobalField) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class FuncField extends WIR
@@ -28,6 +29,11 @@ abstract class MemoryField extends WIR
 case class MemoryType(min: Int, max: Option[Int]) extends MemoryField
 case class MemInlineImport(ty: MemoryType) extends MemoryField
 case class MemInlineExprot(field: MemoryField) extends MemoryField
+
+abstract class GlobalField extends WIR
+case class GlobalValue(ty: GlobalType, e: List[Instr]) extends GlobalField
+case class GloInlineImport(ty: GlobalType) extends GlobalField
+case class GloInlineExprot(field: GlobalField) extends GlobalField
 
 // Intermediate result
 case class InstrList(instrs: List[Instr]) extends WIR
@@ -207,6 +213,8 @@ case class RefType(kind: RefKind) extends ValueType
 
 case class FuncType(argNames/*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
 
+case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
+
 /*
 abstract class BlockType extends WIR {
   def toFuncType(moduleInst: ModuleInstance): FuncType
@@ -224,10 +232,9 @@ case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
  }
  */
 
-// Globals
 
-case class GlobalType(valueType: ValueType, mutable: Boolean)
-case class Global(tipe: GlobalType, var value: Value)
+// Globals
+case class RTGlobal(ty: GlobalType, var value: Value)
 
 // Values
 

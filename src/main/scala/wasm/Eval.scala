@@ -9,8 +9,8 @@ import scala.collection.mutable.ArrayBuffer
 case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
-  memory: List[Memory],
-  globals: List[Global],
+  memory: List[RTMemory],
+  globals: List[RTGlobal],
   // data: List[DataInstance]
 
   // tables are used for JS interop, and elem is used for table initialization
@@ -20,7 +20,7 @@ case class ModuleInstance(
 )
 object ModuleInstance {
   def apply(types: List[FuncType], funcs: List[FuncBodyDef]): ModuleInstance = {
-    ModuleInstance(types, funcs, List(Memory()), List())
+    ModuleInstance(types, funcs, List(RTMemory()), List())
   }
 }
 
@@ -207,7 +207,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
       case GlobalGet(global) => this.eval(frame.module.globals(global).value :: stack, instrs.tail)
       case GlobalSet(global) => stack match {
         case value :: newStack => {
-          frame.module.globals(global).tipe match {
+          frame.module.globals(global).ty match {
             case GlobalType(tipe, true) if value.tipe == tipe => frame.module.globals(global).value = value
             case GlobalType(_, true) => throw new Exception("Invalid type")
             case _ => throw new Exception("Cannot set immutable global")
