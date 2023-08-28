@@ -605,13 +605,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterMemoryFields(WatParser.MemoryFieldsContext ctx) { }
+	@Override public void enterMemoryField(WatParser.MemoryFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitMemoryFields(WatParser.MemoryFieldsContext ctx) { }
+	@Override public void exitMemoryField(WatParser.MemoryFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

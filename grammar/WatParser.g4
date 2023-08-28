@@ -284,13 +284,13 @@ data
   ;
 
 memory
-  : LPAR MEMORY bindVar? memoryFields RPAR
+  : LPAR MEMORY bindVar? memoryField RPAR
   ;
 
-memoryFields
+memoryField
   : memoryType
   | inlineImport memoryType
-  | inlineExport memoryFields
+  | inlineExport memoryField
   | LPAR DATA STRING_* RPAR
   ;
 

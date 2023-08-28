@@ -305,11 +305,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitMemory(WatParser.MemoryContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#memoryFields}.
+	 * Visit a parse tree produced by {@link WatParser#memoryField}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitMemoryFields(WatParser.MemoryFieldsContext ctx);
+	T visitMemoryField(WatParser.MemoryFieldContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#sglobal}.
 	 * @param ctx the parse tree

@@ -54,7 +54,7 @@ public class WatParser extends Parser {
 		RULE_callExprParams = 35, RULE_callExprResults = 36, RULE_instrList = 37, 
 		RULE_constExpr = 38, RULE_function = 39, RULE_funcFields = 40, RULE_funcFieldsBody = 41, 
 		RULE_funcBody = 42, RULE_offset = 43, RULE_elem = 44, RULE_table = 45, 
-		RULE_tableField = 46, RULE_data = 47, RULE_memory = 48, RULE_memoryFields = 49, 
+		RULE_tableField = 46, RULE_data = 47, RULE_memory = 48, RULE_memoryField = 49, 
 		RULE_sglobal = 50, RULE_globalFields = 51, RULE_importDesc = 52, RULE_simport = 53, 
 		RULE_inlineImport = 54, RULE_exportDesc = 55, RULE_export_ = 56, RULE_inlineExport = 57, 
 		RULE_typeDef = 58, RULE_start_ = 59, RULE_moduleField = 60, RULE_module_ = 61, 
@@ -71,7 +71,7 @@ public class WatParser extends Parser {
 			"blockInstr", "blockType", "block", "foldedInstr", "expr", "callExprType", 
 			"callExprParams", "callExprResults", "instrList", "constExpr", "function", 
 			"funcFields", "funcFieldsBody", "funcBody", "offset", "elem", "table", 
-			"tableField", "data", "memory", "memoryFields", "sglobal", "globalFields", 
+			"tableField", "data", "memory", "memoryField", "sglobal", "globalFields", 
 			"importDesc", "simport", "inlineImport", "exportDesc", "export_", "inlineExport", 
 			"typeDef", "start_", "moduleField", "module_", "scriptModule", "action_", 
 			"assertion", "cmd", "meta", "wconst", "constList", "script", "module"
@@ -4189,8 +4189,8 @@ public class WatParser extends Parser {
 	public static class MemoryContext extends ParserRuleContext {
 		public TerminalNode LPAR() { return getToken(WatParser.LPAR, 0); }
 		public TerminalNode MEMORY() { return getToken(WatParser.MEMORY, 0); }
-		public MemoryFieldsContext memoryFields() {
-			return getRuleContext(MemoryFieldsContext.class,0);
+		public MemoryFieldContext memoryField() {
+			return getRuleContext(MemoryFieldContext.class,0);
 		}
 		public TerminalNode RPAR() { return getToken(WatParser.RPAR, 0); }
 		public BindVarContext bindVar() {
@@ -4237,7 +4237,7 @@ public class WatParser extends Parser {
 			}
 
 			setState(643);
-			memoryFields();
+			memoryField();
 			setState(644);
 			match(RPAR);
 			}
@@ -4254,7 +4254,7 @@ public class WatParser extends Parser {
 	}
 
 	@SuppressWarnings("CheckReturnValue")
-	public static class MemoryFieldsContext extends ParserRuleContext {
+	public static class MemoryFieldContext extends ParserRuleContext {
 		public MemoryTypeContext memoryType() {
 			return getRuleContext(MemoryTypeContext.class,0);
 		}
@@ -4264,8 +4264,8 @@ public class WatParser extends Parser {
 		public InlineExportContext inlineExport() {
 			return getRuleContext(InlineExportContext.class,0);
 		}
-		public MemoryFieldsContext memoryFields() {
-			return getRuleContext(MemoryFieldsContext.class,0);
+		public MemoryFieldContext memoryField() {
+			return getRuleContext(MemoryFieldContext.class,0);
 		}
 		public TerminalNode LPAR() { return getToken(WatParser.LPAR, 0); }
 		public TerminalNode DATA() { return getToken(WatParser.DATA, 0); }
@@ -4274,28 +4274,28 @@ public class WatParser extends Parser {
 		public TerminalNode STRING_(int i) {
 			return getToken(WatParser.STRING_, i);
 		}
-		public MemoryFieldsContext(ParserRuleContext parent, int invokingState) {
+		public MemoryFieldContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_memoryFields; }
+		@Override public int getRuleIndex() { return RULE_memoryField; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterMemoryFields(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).enterMemoryField(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitMemoryFields(this);
+			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitMemoryField(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitMemoryFields(this);
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitMemoryField(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final MemoryFieldsContext memoryFields() throws RecognitionException {
-		MemoryFieldsContext _localctx = new MemoryFieldsContext(_ctx, getState());
-		enterRule(_localctx, 98, RULE_memoryFields);
+	public final MemoryFieldContext memoryField() throws RecognitionException {
+		MemoryFieldContext _localctx = new MemoryFieldContext(_ctx, getState());
+		enterRule(_localctx, 98, RULE_memoryField);
 		int _la;
 		try {
 			setState(662);
@@ -4323,7 +4323,7 @@ public class WatParser extends Parser {
 				setState(650);
 				inlineExport();
 				setState(651);
-				memoryFields();
+				memoryField();
 				}
 				break;
 			case 4:

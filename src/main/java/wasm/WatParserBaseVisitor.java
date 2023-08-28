@@ -361,7 +361,7 @@ public class WatParserBaseVisitor<T> extends AbstractParseTreeVisitor<T> impleme
 	 * <p>The default implementation returns the result of calling
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
-	@Override public T visitMemoryFields(WatParser.MemoryFieldsContext ctx) { return visitChildren(ctx); }
+	@Override public T visitMemoryField(WatParser.MemoryFieldContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *

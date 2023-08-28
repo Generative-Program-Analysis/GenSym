@@ -436,7 +436,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitTableField(ctx: TableFieldContext): TableField = {
-    if (ctx.tableType != null) visitTableType(ctx.tableType)
+    if (ctx.tableType != null && ctx.inlineImport == null) visitTableType(ctx.tableType)
     else if (ctx.inlineImport != null) {
       ???
     } else if (ctx.inlineExport != null) {
@@ -450,6 +450,26 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     val name: Option[String] = getVar(ctx.bindVar)
     val field = visitTableField(ctx.tableField)
     Table(name, field)
+  }
+
+  override def visitMemoryType(ctx: MemoryTypeContext): MemoryType = {
+    val (n, m) =
+      if (ctx.NAT.size == 1) (ctx.NAT(0).getText.toInt, None)
+      else (ctx.NAT(0).getText.toInt, Some(ctx.NAT(1).getText.toInt))
+    MemoryType(n, m)
+  }
+
+  override def visitMemoryField(ctx: MemoryFieldContext): MemoryField = {
+    if (ctx.memoryType != null && ctx.inlineImport == null) visitMemoryType(ctx.memoryType)
+    else if (ctx.inlineImport != null) ???
+    else if (ctx.inlineExport != null) ???
+    else error
+  }
+
+  override def visitMemory(ctx: MemoryContext): Memory = {
+    val name: Option[String] = getVar(ctx.bindVar)
+    val field = visitMemoryField(ctx.memoryField)
+    Memory(name, field)
   }
 
   //////////////////////////////////////////////////////////////

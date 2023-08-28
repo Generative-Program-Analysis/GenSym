@@ -11,6 +11,7 @@ abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
 case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
+case class Memory(id: Option[String], f: MemoryField) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class FuncField extends WIR
@@ -21,7 +22,12 @@ case class FunInlineExport(fd: List[FuncDef]) extends FuncField
 abstract class TableField extends WIR
 case class TableType(min: Int, max: Option[Int], ty: RefType) extends TableField
 case class TabInlineImport(ty: TableType) extends TableField
-case class TabInlineExport(fields: List[TableField]) extends TableField
+case class TabInlineExport(field: TableField) extends TableField
+
+abstract class MemoryField extends WIR
+case class MemoryType(min: Int, max: Option[Int]) extends MemoryField
+case class MemInlineImport(ty: MemoryType) extends MemoryField
+case class MemInlineExprot(field: MemoryField) extends MemoryField
 
 // Intermediate result
 case class InstrList(instrs: List[Instr]) extends WIR
