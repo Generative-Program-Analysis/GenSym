@@ -244,9 +244,7 @@ object Evaluator {
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
         val newRet: RetCont = (retStack) =>
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
-        val k: Cont = (retStack) =>
-          eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
-        eval(body, List(), newFrame, newRet, k::trail) // GW: should we install new trail cont?
+        eval(body, List(), newFrame, newRet, newRet::trail)
       case _ => ???
     }
   }
