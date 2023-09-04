@@ -219,6 +219,7 @@ object Evaluator {
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
         val k: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
+        // TODO: block can take inputs too
         eval(inner, List(), frame, ret, k::trail)
       case Loop(ty, inner) =>
         val k: Cont = (retStack) => eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)

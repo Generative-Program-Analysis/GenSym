@@ -1,4 +1,4 @@
-package gensym.wasm.newstagedevalcps
+package gensym.wasm.miniwasm.staged
 
 import scala.collection.mutable.HashMap
 
@@ -38,10 +38,15 @@ object Preprocess {
 
 @virtualize
 trait StagedEvalCPS extends SAIOps {
+  object StaticState {
+    var numLocals: Int = 0
+    var frameStackPtr: Int = 0
+  }
+
   trait State
   object State {
     def pushStack(value: Rep[Value]) =
-      Adapter.g.reflectWrite("static-state-push-stack", Unwrap(value))(Adapter.CTRL)
+      "static-state-push-stack".reflectWriteWith(value)(Adapter.CTRL)
     def stackAt(i: Int): Rep[Value] = 
       Wrap[Value](Adapter.g.reflectWrite("static-state-stack-at", Unwrap(i))(Adapter.CTRL))
     def popStack: Rep[Value] =
@@ -62,12 +67,10 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Unit](Adapter.g.reflectWrite(
         "static-state-remove-stack-range", Unwrap(start), Unwrap(end))(Adapter.CTRL
       ))
-    def getLocal(i: Rep[Int])(implicit ss: StaticState): Rep[Value] =
-      Wrap[Value](
-        Adapter.g.reflectWrite("static-state-get-local", Unwrap(-ss.numLocals + i))(Adapter.CTRL)
-      )
-    def setLocal(i: Rep[Int], v: Rep[Value])(implicit ss: StaticState) =
-      Adapter.g.reflectWrite("static-state-set-local", Unwrap(-ss.numLocals + i), Unwrap(v))(Adapter.CTRL)
+    def getLocal(i: Rep[Int]): Rep[Value] =
+      Wrap[Value](Adapter.g.reflectWrite("static-state-get-local", Unwrap(-StaticState.numLocals + i))(Adapter.CTRL))
+    def setLocal(i: Rep[Int], v: Rep[Value]) =
+      Adapter.g.reflectWrite("static-state-set-local", Unwrap(-StaticState.numLocals + i), Unwrap(v))(Adapter.CTRL)
 
     def printStack = 
       Adapter.g.reflectWrite("static-state-print-stack")(Adapter.CTRL)
@@ -93,24 +96,126 @@ trait StagedEvalCPS extends SAIOps {
   def panic(msg: Rep[String]): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("panic", Unwrap(msg))(Adapter.CTRL))
 
-  def reverse[M: Manifest](ls: Rep[List[M]]): Rep[List[M]] =
-    Wrap[List[M]](Adapter.g.reflect("reverse-ls", Unwrap(ls)))
+  def reverse[M: Manifest](ls: Rep[List[M]]): Rep[List[M]] = Wrap[List[M]](Adapter.g.reflect("reverse-ls", Unwrap(ls)))
 
   trait Value
-  // def I32(i: Rep[Int]): Rep[Value] = "I32V".reflectWith[Value](i)
-  // def I64(i: Rep[Long]): Rep[Value] = "I64V".reflectWith[Value](i)
   def I32(i: Rep[Int]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("I32V", Unwrap(i))(Adapter.CTRL))
   def I64(i: Rep[Long]): Rep[Value] = Wrap[Value](Adapter.g.reflectWrite("I64V", Unwrap(i))(Adapter.CTRL))
 
-  type Cont = Unit => Unit
-  type SSCont = StaticState => Rep[Cont]
-
-  implicit def repI32Proj(i: Rep[Value]): Rep[Int] = Unwrap(i) match {
-    case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) =>
-      Wrap[Int](v)
-    case _ =>
-      Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
+  implicit class IValueOps(i: Rep[Value]) {
+    def int: Rep[Int] = Unwrap(i) match {
+      case Adapter.g.Def("I32V", scala.collection.immutable.List(v: Backend.Exp)) => Wrap[Int](v)
+      case _ => Wrap[Int](Adapter.g.reflect("I32V-proj", Unwrap(i)))
+    }
   }
+
+  def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
+    // assume I32
+    case Add(_) => I32(lhsV.int + rhsV.int)
+    case Sub(_) => I32(lhsV.int - rhsV.int)
+    case Mul(_) => I32(lhsV.int * rhsV.int)
+  }
+  def evalUnaryOp(op: UnaryOp, value: Rep[Value]): Rep[Value] = ???
+  def evalRelOp(op: RelOp, lhs: Rep[Value], rhs: Rep[Value]): Rep[Value] = ???
+  def evalTestOp(op: TestOp, value: Rep[Value]): Rep[Value] = op match {
+    case Eqz(_) => if (value.int == 0) I32(1) else I32(0)
+  }
+
+  type Cont = Unit => Unit
+
+  def evalInsts(insts: List[Instr], ret: Rep[Cont], trail: List[Rep[Cont]]): Unit = {
+    if (insts.isEmpty) return trail.head()
+    
+    val inst = insts.head
+    val rest = insts.tail
+
+    inst match {
+      case Drop =>
+        State.popStack
+        evalInsts(rest, ret, trail)
+      case Select(_) =>
+        val (cond, v2, v1) = (State.popStack, State.popStack, State.popStack)
+        State.pushStack(if (cond.int == 0) v2 else v1)
+        evalInsts(rest, ret, trail)
+      case LocalGet(i) =>
+        val v = State.getLocal(i)
+        State.pushStack(v)
+        evalInsts(rest, ret, trail)
+      case LocalSet(i) =>
+        val v = State.popStack
+        State.setLocal(i, v)
+        evalInsts(rest, ret, trail)
+      case LocalTee(i) =>
+        val v = State.peekStack
+        State.setLocal(i, v)
+        evalInsts(rest, ret, trail)
+      case GlobalGet(i) => 
+        val v = State.getGlobal(i)
+        State.pushStack(v)
+        evalInsts(rest, ret, trail)
+      case GlobalSet(i) =>
+        val v = State.popStack
+        State.setGlobal(i, v)
+        evalInsts(rest, ret, trail)
+      case MemorySize => ???
+      case MemoryGrow => ???
+      case MemoryFill => ???
+      case MemoryCopy => ???
+      case Konst(I32V(n)) => // FIXME: could be other const
+        State.pushStack(I32(n))
+        evalInsts(rest, ret, trail)
+      case Binary(op) => 
+        val (v2, v1) = (State.popStack, State.popStack)
+        State.pushStack(evalBinOp(op, v1, v2))
+        evalInsts(rest, ret, trail)
+      case Unary(op) =>
+        val v = State.popStack
+        State.pushStack(evalUnaryOp(op, v))
+        evalInsts(rest, ret, trail)
+      case Compare(op) =>
+        val (v2, v1) = (State.popStack, State.popStack)
+        State.pushStack(evalRelOp(op, v1, v2))
+        evalInsts(rest, ret, trail)
+      case Test(op) =>
+        val v = State.popStack
+        State.pushStack(evalTestOp(op, v))
+        evalInsts(rest, ret, trail)
+      case Store(StoreOp(align, offset, ty, None)) => ???
+      case Load(LoadOp(align, offset, ty, None, None)) => ???
+      case Nop => evalInsts(rest, ret, trail)
+      case Unreachable => panic("unreachable")
+      case Block(ty, inner) => ???
+      case Loop(ty, inner) => ???
+      case If(ty, thn, els) => ???
+      case IdBlock(id, ty, inner) =>
+        val thunk: Rep[Unit] => Rep[Unit] = (u: Rep[Unit]) => {
+          //retStack.take(ty.toList.size) ++ stack,
+          evalInsts(rest, ret, trail)
+        }
+        val repThunk = topFun(thunk)
+        // TODO: block can take inputs too
+        val blockFun = (u: Rep[Unit]) => {
+          evalInsts(inner, ret, repThunk::trail)
+        }
+        ???
+      case IdLoop(id, ty, inner) => ???
+      case IdIf(ty, thn, els) => ???
+      case Br(label) =>
+        trail(label)()
+      case BrIf(label) =>
+        if (State.popStack.int == 0) evalInsts(rest, ret, trail)
+        else trail(label)()
+      case Return => ret()
+      case Call(f) => ???
+      case _ => ???
+    }
+  }
+
+
+
+
+
+  type SSCont = StaticState => Rep[Cont]
 
   trait Label {
     def apply(ss: StaticState): Rep[Unit]
@@ -150,270 +255,9 @@ trait StagedEvalCPS extends SAIOps {
   def addLabel(name: String) = {
     Adapter.g.reflectWrite("add-label", Unwrap(name))(Adapter.CTRL)
   }
-
   def callFunFun(funName: String, k: Rep[Cont]): Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-fun", Unwrap(funName), Unwrap(k))(Adapter.CTRL))
 
-  case class Config(
-    module: ModuleInstance,
-    funFuns: HashMap[String, Rep[Cont => Unit]],
-    blockConts: HashMap[Int, SSCont],
-    loopFuns: HashMap[Int, Rep[Cont]],
-    stackBudget: Int
-  ) {
-    // TODO: pass precise type to operations
-    def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
-      case Add(_) => {
-        // assume I32
-        val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
-        I32(lhs + rhs)
-      }
-      case Sub(_) => {
-        val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
-        I32(lhs - rhs)
-      }
-      case Mul(_) => {
-        val (lhs, rhs) = (repI32Proj(lhsV), repI32Proj(rhsV))
-        I32(lhs * rhs)
-      }
-    }
-    def evalUnaryOp(op: UnaryOp, value: Rep[Value]): Rep[Value] = ???
-    def evalRelOp(op: RelOp, lhs: Rep[Value], rhs: Rep[Value]): Rep[Value] = ???
-    def evalTestOp(op: TestOp, value: Rep[Value]): Rep[Value] = op match {
-      case Eqz(_) => {
-        val v: Rep[Int] = repI32Proj(value)
-        val zero: Rep[Int] = 0
-        if (v == zero) I32(1) else I32(0)
-      }
-    }
-
-    def compileStuffIn(instrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
-      if (instrs != Nil) System.out.println(s"Compiling ${instrs.head}, ${instrs.tail.length} more")
-      instrs match {
-        case Nil => ()
-        case IdBlock(id, blockTy, blockInstrs) :: rest => {
-          compileBlock(id, blockInstrs.toList, rest, k)
-          // GW: should recur on compileStuffIn?
-        }
-        case IdLoop(id, blockTy, loopInstrs) :: rest => {
-          compileLoop(id, loopInstrs.toList, rest, k)
-          // GW: should recur on compileStuffIn?
-        }
-        case _ :: rest => compileStuffIn(rest, k)
-      }
-    }
-
-    def compileBlock(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
-      if (blockConts.contains(id)) return
-      System.out.println(s"Compiling block $id, ${nextInstrs.length} after")
-      val blockK = (nextSS: StaticState) => {
-        compileStuffIn(nextInstrs, k)(nextSS.copy(labels = ss.labels))
-        // GW: topFun generated but not used?
-        topFun { (_: Rep[Unit]) =>
-          System.out.println(s"started topFun for compileBlock $id")
-          execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
-          System.out.println(s"finished topFun for compileBlock $id")
-        }
-      }
-      compileStuffIn(body, blockK)(ss.copy(labels = ContLabel(blockK) :: ss.labels))
-      blockConts += (id -> blockK)
-      System.out.println(s"Finished compiling block $id")
-    }
-
-    def compileLoop(id: Int, body: List[Instr], nextInstrs: List[Instr], k: SSCont)(implicit ss: StaticState): Unit = {
-      if (loopFuns.contains(id)) return
-      System.out.println(s"Compiling loop $id")
-      // compileBlock(id, body, nextInstrs, _ => loopFn)
-      val blockK = (nextSS: StaticState) => {
-        compileStuffIn(nextInstrs, k)(nextSS.copy(labels = ss.labels))
-        topFun { (_: Rep[Unit]) =>
-          execInstrs(nextInstrs, k)(nextSS.copy(labels = ss.labels))
-        }
-      }
-      blockConts(id) = blockK // StaticState => Rep[Unit => Unit]
-      compileStuffIn(body, _ => loopFn)(ss.copy(labels = ContLabel((_: StaticState) => loopFn) :: ss.labels))
-      def loopFn: Rep[Cont] = topFun { (_: Rep[Unit]) =>
-        addLabel(s"loop$id")
-        System.out.println(s"started topFun for loop $id")
-        // discard ss on each iteration
-        val label = StringLabel(s"loop$id") // -> break 0
-        execInstrs(body, blockConts(id))(ss.copy(StringLabel(s"loop$id") :: ss.labels))
-        // System.out.println(s"finished topFun for loop $id")
-      }
-      loopFuns += (id -> loopFn)
-    }
-
-    def compileFun(name: String, funcType: FuncType, locals: List[ValueType], body: List[Instr]): Unit = {
-        if (funFuns.contains(name)) return
-
-        // basically calling k1
-        val retCont = topFun { (_: Rep[Unit]) => 
-          // print(s"Returning: inps: ${funcType.inps.length}, outs: ${funcType.out.length} \t\t"); State.printStack
-          State.returnFromFun(funcType.inps.length + locals.length, funcType.out.length)
-          popFunRetCont()
-          // callFunRetCont(name)
-          // k1(())
-        }
-        val innerSS = StaticState(Nil, Some(retCont), 0, funcType.inps.length + locals.length)
-        compileStuffIn(body, (_: StaticState) => retCont)(innerSS)
-        val funFun = topFun { (k1: Rep[Cont]) =>
-          System.out.println(s"started topFun for fun $name")
-          // TODO: make some sort of compile time map of retCont and then
-          // use LMS reflection to substitute in a direct identifier and static assignments
-          // funRetConts(name) = retCont
-          // setFunRetCont(name, k1)
-          pushFunRetCont(k1)
-
-          // State.reverseTopN(funcType.inps.length)
-          val range: Range = 0 until locals.length
-          for (i <- range) State.pushStack(I32(0))
-          State.bumpFramePtr
-          
-          // discard the resulting static state
-          execInstrs(body.toList, (_: StaticState) => retCont)(innerSS.copy(returnLabel = Some(retCont)))
-          System.out.println(s"finished topFun for fun $name")
-        }
-
-        val node = Unwrap(funFun).asInstanceOf[Backend.Sym]
-        Adapter.g.reflectWrite("register-fun", Unwrap(funFun))(Adapter.CTRL)
-        funNameMap += (node -> name)
-        funFunsGlobal += (name -> node)
-        funFuns += (name -> funFun)
-    }
-
-    def execInstr(instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
-    = {
-      // print(s"instr: $instr, numLocals: ${ss.numLocals} \t\t"); State.printStack
-      instr match {
-        // Parametric Instructions
-        case Drop => k(ss, kk)
-        case Select(_) => {
-          val (cond, v2, v1) = (State.popStack, State.popStack, State.popStack)
-          val res = if (cond == I32(0)) v2 else v1
-          State.pushStack(res)
-          k(ss, kk)
-        }
-
-        // Variable Instructions
-        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#variable-instructions
-        case LocalGet(local) => {
-          val v = State.getLocal(local)
-          State.pushStack(v)
-          k(ss, kk)
-        }
-        case LocalSet(local) => {
-          val v = State.popStack
-          State.setLocal(local, v)
-          k(ss, kk)
-        }
-        case LocalTee(local) => {
-          val v = State.peekStack
-          State.setLocal(local, v)
-          k(ss, kk)
-        }
-        case GlobalGet(global) => {
-          val v = State.getGlobal(global)
-          State.pushStack(v)
-          k(ss, kk)
-        }
-        case GlobalSet(global) => {
-          val v = State.popStack
-          State.setGlobal(global, v)
-          k(ss, kk)
-        }
-
-        // Numeric Instructions
-        case gensym.wasm.ast.Const(I32V(n)) => {
-          State.pushStack(I32(n))
-          k(ss, kk)
-        }
-        case Binary(op) => {
-          val (v2, v1) = (State.popStack, State.popStack)
-          val res = evalBinOp(op, v1, v2)
-          State.pushStack(res)
-          k(ss, kk)
-        }
-        case Unary(op) => {
-          val v = State.popStack
-          val res = evalUnaryOp(op, v)
-          State.pushStack(res)
-          k(ss, kk)
-        }
-        case Test(testOp) => {
-          val v = State.popStack
-          State.pushStack(evalTestOp(testOp, v))
-          k(ss, kk)
-        }
-        case Compare(op) => {
-          val (v2, v1) = (State.popStack, State.popStack)
-          val res = evalRelOp(op, v1, v2)
-          State.pushStack(res)
-          k(ss, kk)
-        }
-
-        // Control Instructions
-        // https://www.w3.org/TR/wasm-core-2/exec/instructions.html#numeric-instructions
-        case Nop => k(ss, kk)
-        case Unreachable => panic("unreachable")
-
-        case Return => {
-          // State.returnFromFun
-          // State.printStack
-          ss.returnLabel match {
-            case Some(cont) => cont(())
-            case None => throw new Exception("return outside function")
-          }
-        }
-        case Br(label) => {
-          val cont = ss.labels(label)
-          cont(ss)
-        }
-        case BrIf(label) => {
-          val cond: Rep[Int] = State.popStack
-          val zero: Rep[Int] = 0
-          if (cond == zero) {
-            k(ss, kk)
-          } else {
-            val cont = ss.labels(label)
-            cont(ss)
-          }
-        }
-      }
-    }
-
-    // Note: k could be eliminated? using returnLabel
-    def execInstrs(instrs: List[Instr], k: SSCont)(implicit ss: StaticState): Rep[Unit] = instrs match {
-      case Nil => k(ss)(())
-      case Block(_, _) :: _ => ??? // should be IdBlock
-      case IdBlock(id, blockTy, blockInstrs) :: rest => {
-        // compileBlock(id, blockInstrs.toList, rest, k)
-        val blockK = blockConts(id)
-        execInstrs(blockInstrs.toList, blockK)(ss.copy(labels = ContLabel(blockK) :: ss.labels))
-      }
-      case IdLoop(id, blockTy, loopInstrs) :: rest => {
-        // compileLoop(id, loopInstrs.toList, rest, k)
-        val loopFn = loopFuns(id)
-        loopFn(())
-      }
-      case Call(func) :: rest => {
-        // print(s"instr: Call($func), numLocals: ${ss.numLocals} \t\t"); State.printStack
-        val FuncDef(name, FuncBodyDef(funcType, _, locals, body)) = module.funcs(func)
-
-        // compileFun(name, funcType, locals.toList, body.toList)
-        // val funFun = funFuns(name)
-        val oldFramePtr = State.getFramePtr
-        val execRest = fun { (_: Rep[Unit]) => 
-          State.setFramePtr(oldFramePtr)
-          execInstrs(rest, k)(ss) 
-        }
-        // XXX: name.get may fail
-        callFunFun(name.get, execRest)
-        // funFun(execRest)
-      }
-      case instr :: rest =>
-        execInstr(instr, (nextSS, k1) => execInstrs(rest, k1)(nextSS))(k)
-    }
-  }
 }
 
 trait CppStagedWasmGen extends CppSAICodeGenBase {
@@ -579,6 +423,7 @@ object StagedEvalCPSTest extends App {
   ): CppSAIDriver[Int, Unit] with StagedEvalCPS = {
     new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
       def snippet(arg: Rep[Int]): Rep[Unit] = {
+        /*
         // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
         val config = Config(module, HashMap(), HashMap(), HashMap(), 1000)
         val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.numLocals); State.printStack; () }
@@ -590,6 +435,8 @@ object StagedEvalCPSTest extends App {
         //config.compileStuffIn(instrs, fin)(ss) // not necessary
         System.out.println(s"blockConts: ${config.blockConts}")
         config.execInstrs(instrs, fin)(ss)
+         */
+        ???
       }
     }
   }
@@ -621,37 +468,6 @@ object StagedEvalCPSTest extends App {
       case FuncDef(Some("$real_main"), _) => true
       case _ => false
     }).get.asInstanceOf[FuncDef].f.asInstanceOf[FuncBodyDef].body // Super unsafe...
-  // val instrs = List(
-  //   Konst(I32C(10)),
-  //   // LocalSet(0),
-  //   // LocalGet(0),
-  //   // Konst(I32C(5)),
-  //   // Binary(BinOp.Int(Add)),
-  //   // LocalSet(1),
-  //   // Loop(ValBlockType(None), Seq(
-  //   //   LocalGet(0),
-  //   //   Konst(I32C(1)),
-  //   //   Binary(BinOp.Int(Sub)),
-  //   //   LocalTee(0),
-  //   //   Konst(I32C(5)),
-  //   //   Binary(BinOp.Int(Sub)),
-  //   //   Test(TestOp.Int(Eqz)),
-  //   //   BrIf(1),
-  //   // )),
-  //   // Block(ValBlockType(None), Seq(
-  //   //   Konst(I32C(0)),
-  //   //   // Konst(I32C(-15)),
-  //   //   // Binary(BinOp.Int(Add)),
-  //   //   // Block(ValBlockType(None), Seq(
-  //   //   //   Konst(I32C(10))
-  //   //   // )),
-  //   //   BrIf(0),
-  //   //   Konst(I32C(20)),
-  //   // )),
-  //   // Konst(I32C(12)),
-  //   // Call(0),
-  //   // Call(0),
-  // )
   System.out.println(s"funcs: ${moduleInst.funcs}")
   val snip = mkVMSnippet(moduleInst, Preprocess.idBlocks(instrs))
   val code = snip.code
