@@ -1,6 +1,7 @@
 package gensym.wasm.miniwasm.staged
 
 import scala.collection.mutable.HashMap
+import scala.collection.immutable.{List => StaticList}
 
 import gensym.wasm.ast.{Const => Konst, _}
 //import gensym.wasm.values.{I32 => I32C}
@@ -14,7 +15,8 @@ import lms.macros.SourceContext
 import lms.core.virtualize
 import gensym.lmsx._
 
-case class ModuleInstance(types: List[FuncType], funcs: List[FuncDef])
+
+case class ModuleInstance(types: List[FuncType], funcs: List[FuncBodyDef])
 
 object Preprocess {
   object BlockIds {
@@ -38,10 +40,7 @@ object Preprocess {
 
 @virtualize
 trait StagedEvalCPS extends SAIOps {
-  object StaticState {
-    var numLocals: Int = 0
-    var frameStackPtr: Int = 0
-  }
+  val module: ModuleInstance
 
   trait State
   object State {
@@ -59,6 +58,11 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Unit](Adapter.g.reflectWrite("static-state-bump-frame-ptr")(Adapter.CTRL))
     def getFramePtr: Rep[Int] =
       Wrap[Int](Adapter.g.reflectWrite("static-state-get-frame-ptr")(Adapter.CTRL))
+    def saveFramePtr: Rep[Unit] =
+      Wrap[Unit](Adapter.g.reflectWrite("static-state-save-frame-ptr")(Adapter.CTRL))
+    def restoreFramePtr: Rep[Unit] =
+      Wrap[Unit](Adapter.g.reflectWrite("static-state-restore-frame-ptr")(Adapter.CTRL))
+
     def setFramePtr(fp: Rep[Int]): Rep[Unit] =
       Wrap[Unit](Adapter.g.reflectWrite("static-state-set-frame-ptr", Unwrap(fp))(Adapter.CTRL))
     def reverseTopN(n: Int): Rep[Unit] =
@@ -67,10 +71,10 @@ trait StagedEvalCPS extends SAIOps {
       Wrap[Unit](Adapter.g.reflectWrite(
         "static-state-remove-stack-range", Unwrap(start), Unwrap(end))(Adapter.CTRL
       ))
-    def getLocal(i: Rep[Int]): Rep[Value] =
-      Wrap[Value](Adapter.g.reflectWrite("static-state-get-local", Unwrap(-StaticState.numLocals + i))(Adapter.CTRL))
-    def setLocal(i: Rep[Int], v: Rep[Value]) =
-      Adapter.g.reflectWrite("static-state-set-local", Unwrap(-StaticState.numLocals + i), Unwrap(v))(Adapter.CTRL)
+    def getLocal(i: Rep[Int])(implicit frameSize: Int): Rep[Value] =
+      Wrap[Value](Adapter.g.reflectWrite("static-state-get-local", Unwrap(-frameSize + i))(Adapter.CTRL))
+    def setLocal(i: Rep[Int], v: Rep[Value])(implicit frameSize: Int) =
+      Adapter.g.reflectWrite("static-state-set-local", Unwrap(-frameSize + i), Unwrap(v))(Adapter.CTRL)
 
     def printStack = 
       Adapter.g.reflectWrite("static-state-print-stack")(Adapter.CTRL)
@@ -123,7 +127,7 @@ trait StagedEvalCPS extends SAIOps {
 
   type Cont = Unit => Unit
 
-  def evalInsts(insts: List[Instr], ret: Rep[Cont], trail: List[Rep[Cont]]): Unit = {
+  def evalInsts(insts: List[Instr], ret: Rep[Cont], trail: List[Rep[Cont]])(implicit frameSize: Int): Unit = {
     if (insts.isEmpty) return trail.head()
     
     val inst = insts.head
@@ -188,17 +192,14 @@ trait StagedEvalCPS extends SAIOps {
       case Loop(ty, inner) => ???
       case If(ty, thn, els) => ???
       case IdBlock(id, ty, inner) =>
-        val thunk: Rep[Unit] => Rep[Unit] = (u: Rep[Unit]) => {
-          //retStack.take(ty.toList.size) ++ stack,
-          evalInsts(rest, ret, trail)
-        }
-        val repThunk = topFun(thunk)
+        val repCont: Rep[Unit => Unit] = topFun { (u: Rep[Unit]) => evalInsts(rest, ret, trail) }
         // TODO: block can take inputs too
-        val blockFun = (u: Rep[Unit]) => {
-          evalInsts(inner, ret, repThunk::trail)
-        }
-        ???
-      case IdLoop(id, ty, inner) => ???
+        evalInsts(inner, ret, repCont::trail)
+      case IdLoop(id, ty, inner) =>
+        System.out.println("Loop")
+        def repCont: Rep[Unit => Unit] = topFun { (_: Rep[Unit]) => evalInsts(insts, ret, trail) }
+        def repBody: Rep[Unit => Unit] = topFun { (_: Rep[Unit]) => evalInsts(inner, ret, repCont::trail) }
+        repBody()
       case IdIf(ty, thn, els) => ???
       case Br(label) =>
         trail(label)()
@@ -206,63 +207,32 @@ trait StagedEvalCPS extends SAIOps {
         if (State.popStack.int == 0) evalInsts(rest, ret, trail)
         else trail(label)()
       case Return => ret()
-      case Call(f) => ???
+      case Call(f) =>
+        val FuncBodyDef(ty, _, locals, body) = module.funcs(f)
+        System.out.println("Call")
+        State.saveFramePtr
+        def repCont: Rep[Unit => Unit] = topFun { (_: Rep[Unit]) =>
+          State.returnFromFun(ty.inps.length + locals.length, ty.out.length)
+          State.restoreFramePtr
+          evalInsts(rest, ret, trail)
+        }
+        def bodyFun: Rep[Unit => Unit] = topFun { (_: Rep[Unit]) =>
+          val range: Range = 0 until locals.length
+          for (i <- range) State.pushStack(I32(0))
+          State.bumpFramePtr
+          evalInsts(body, repCont, repCont::trail)(ty.inps.length + locals.length)
+        }
+        bodyFun()
       case _ => ???
     }
   }
-
-
-
-
-
-  type SSCont = StaticState => Rep[Cont]
-
-  trait Label {
-    def apply(ss: StaticState): Rep[Unit]
-  }
-  case class ContLabel(k: SSCont) extends Label {
-    def apply(ss: StaticState): Rep[Unit] = k(ss)(())
-  }
-  case class StringLabel(name: String) extends Label {
-    def apply(ss: StaticState): Rep[Unit] = 
-      Wrap[Unit](Adapter.g.reflectWrite("goto-label", Unwrap(name))(Adapter.CTRL))
-  }
-
-  case class StaticState(
-    labels: List[Label],
-    returnLabel: Option[Rep[Cont]],
-    frameStackPtr: Int,
-    numLocals: Int,
-  )
-
-  var funFunsGlobal: HashMap[String, Backend.Sym] = HashMap.empty
-  var funRetConts: Set[String] = scala.collection.immutable.Set.empty
-
-  def callFunRetCont(name: String): Rep[Unit] =
-    Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-ret-cont", Unwrap(name))(Adapter.CTRL))
-  def getFunRetCont(name: String): Rep[Cont] =
-    Wrap[Cont](Adapter.g.reflect(s"get-fun-ret-cont", Unwrap(name)))
-  def setFunRetCont(name: String, cont: Rep[Cont]) = {
-    funRetConts += name
-    Adapter.g.reflectWrite("set-fun-ret-cont", Unwrap(name), Unwrap(cont))(Adapter.CTRL)
-  }
-  def pushFunRetCont(cont: Rep[Cont]) = {
-    Adapter.g.reflectWrite("push-fun-ret-cont", Unwrap(cont))(Adapter.CTRL)
-  }
-  def popFunRetCont(): Rep[Unit] = {
-    Wrap[Unit](Adapter.g.reflectWrite("pop-fun-ret-cont")(Adapter.CTRL))
-  }
-  def addLabel(name: String) = {
-    Adapter.g.reflectWrite("add-label", Unwrap(name))(Adapter.CTRL)
-  }
-  def callFunFun(funName: String, k: Rep[Cont]): Rep[Unit] =
-    Wrap[Unit](Adapter.g.reflectWrite(s"call-fun-fun", Unwrap(funName), Unwrap(k))(Adapter.CTRL))
 
 }
 
 trait CppStagedWasmGen extends CppSAICodeGenBase {
   import lms.core.Backend._
   registerHeader("./headers", "<wasm_state_continue.hpp>")
+  registerHeader("<sys/resource.h>")
 
   override def shallow(n: Node): Unit = n match {
     case Node(s, "register-fun", _, _) => ()
@@ -330,6 +300,10 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
       emit("global_state.get_frame_ptr()")
     case Node(s, "static-state-set-frame-ptr", List(fp), _) => 
       emit("global_state.set_frame_ptr("); shallow(fp); emit(")")
+    case Node(s, "static-state-save-frame-ptr", _, _) =>
+      es"global_state.save_frame_ptr()"
+    case Node(s, "static-state-restore-frame-ptr", _, _) =>
+      es"global_state.restore_frame_ptr()"
     case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
     case Node(s, "memory-grow", List(memory, delta), _) => 
       shallow(memory); emit(".grow("); shallow(delta); emit(")")
@@ -365,8 +339,6 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
       val stt = dce.statics.toList.map(quoteStatic).mkString(", ")
 
       emitln("""
-      #include <sys/resource.h>
-
       |/*****************************************
       |Emitting Generated Code
       |*******************************************/
@@ -374,16 +346,7 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
 
       val src = run(name, ng)
       emitHeaders(stream)
-      //emitln("using namespace immer;")
-      for (f <- q.funRetConts) {
-        emitln(s"std::function<std::monostate (std::monostate)> fun_ret_cont_${f.drop(1)};");
-      }
       emitFunctionDecls(stream)
-      for ((n, f) <- q.funFunsGlobal) {
-        val innerType = "std::function<std::monostate (std::monostate)>"
-        emit(s"std::function<std::monostate ($innerType)> fun_fun_${n.drop(1)}");
-        emit("="); shallow(f); emitln(";")
-      }
       emitDatastructures(stream)
       emitFunctions(stream)
       emitInit(stream)
@@ -418,25 +381,15 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
 object StagedEvalCPSTest extends App {
   @virtualize
   def mkVMSnippet(
-    module: ModuleInstance,
+    _module: ModuleInstance,
     instrs: List[Instr],
   ): CppSAIDriver[Int, Unit] with StagedEvalCPS = {
     new CppStagedWasmDriver[Int, Unit] with StagedEvalCPS {
+      val module = _module
       def snippet(arg: Rep[Int]): Rep[Unit] = {
-        /*
-        // val state = State(List[Memory](), List[Global](), List[Value](I32(0)))
-        val config = Config(module, HashMap(), HashMap(), HashMap(), 1000)
-        val fin = (ss: StaticState) => topFun { (_: Rep[Unit]) => println(ss.numLocals); State.printStack; () }
+        val repCont: Rep[Unit => Unit] = topFun { (_: Rep[Unit]) => State.printStack; () }
         initState(List[Memory](), List[RTGlobal](), 0)
-        val ss = StaticState(Nil, None, 0, 0)
-        for (FuncDef(name, FuncBodyDef(tipe, _, locals, body)) <- module.funcs) {
-          config.compileFun(name.get, tipe, locals, body)
-        }
-        //config.compileStuffIn(instrs, fin)(ss) // not necessary
-        System.out.println(s"blockConts: ${config.blockConts}")
-        config.execInstrs(instrs, fin)(ss)
-         */
-        ???
+        evalInsts(instrs, repCont, StaticList(repCont))(0)
       }
     }
   }
@@ -445,30 +398,21 @@ object StagedEvalCPSTest extends App {
     val file = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
     gensym.wasm.parser.Parser.parse(file)
   }
-
   val moduleInst = {
     val types = List()
     val funcs = module.definitions.collect({
-      case FuncDef(name, FuncBodyDef(ty, nms, locals, body)) =>
-        FuncDef(name, FuncBodyDef(ty, nms, locals, Preprocess.idBlocks(body)))
+      case FuncDef(name, fndef@FuncBodyDef(ty, nms, locals, body)) =>
+        FuncBodyDef(ty, nms, locals, Preprocess.idBlocks(body))
     }).toList
     ModuleInstance(List(), funcs)
   }
-  // val moduleInst = {
-  //   val types = List()
-  //   val funcs = List(
-  //     FuncDef("add5", FuncType(Seq(NumType(I32Type)), Seq(NumType(I32Type))), Seq(), Seq(
-  //       LocalGet(0), Konst(I32C(5)), Binary(BinOp.Int(Add))
-  //     ))
-  //   )
-  //   ModuleInstance(types, funcs)
-  // }
   val instrs =
     module.definitions.find({
       case FuncDef(Some("$real_main"), _) => true
       case _ => false
     }).get.asInstanceOf[FuncDef].f.asInstanceOf[FuncBodyDef].body // Super unsafe...
   System.out.println(s"funcs: ${moduleInst.funcs}")
+
   val snip = mkVMSnippet(moduleInst, Preprocess.idBlocks(instrs))
   val code = snip.code
   println(code)

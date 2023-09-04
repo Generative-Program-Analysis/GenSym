@@ -52,10 +52,12 @@ class State {
   public:
     immer::flex_vector<Mem> memory;
     immer::flex_vector<Global> globals;
-    int stack_ptr = 0;
-    int frame_ptr = 0;
+    size_t stack_ptr = 0;
+    size_t frame_ptr = 0;
     Value stack[1000];
     immer::vector_transient<std::function<std::monostate(std::monostate)>> return_stack;
+
+    size_t tmp_frame_ptr = 0;
 
     State(immer::flex_vector<Mem> memory, immer::flex_vector<Global> globals) : memory(memory), globals(globals) {
       for (int i = 0; i < 1000; i++) {
@@ -81,7 +83,7 @@ class State {
     }
 
     void print_stack() {
-      printf("sp: %d, fp: %d, Stack: ", stack_ptr, frame_ptr);
+      printf("sp: %ld, fp: %ld, Stack: ", stack_ptr, frame_ptr);
       for (int i = 0; i < stack_ptr; i++) {
         printf("%d ", stack[i].i32);
       }
@@ -112,6 +114,13 @@ class State {
 
     int get_frame_ptr() {
       return frame_ptr;
+    }
+
+    void save_frame_ptr() {
+      tmp_frame_ptr = frame_ptr;
+    }
+    void restore_frame_ptr() {
+      frame_ptr = tmp_frame_ptr;
     }
 
     void remove_stack_range(int start, int end) {

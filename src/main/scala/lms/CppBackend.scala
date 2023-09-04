@@ -18,7 +18,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName
-    println(s"name: $name")
+    //println(s"name: $name")
     if (name.startsWith("scala.Function")) {
       val ret = remap(m.typeArguments.last)
       val params = m.typeArguments.dropRight(1).map(remap(_)).mkString(", ")
@@ -42,7 +42,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     case "java.lang.String" => "std::string"
     case "Long" => "int64_t"
     case _ => {
-      println(s"t: $t")
+      //println(s"t: $t")
       super.primitive(t)
     }
   }

@@ -68,31 +68,10 @@
     local.get 1
     i32.const 1
     i32.add)
-  (func $opaque (type 1) (param i32) (result i32)
-    local.get 0
-    i32.const 1
-    i32.add)
-  (func $opaque1 (type 1) (param i32) (result i32)
-    local.get 0
-    i32.const 5
-    i32.add)
-  (func $opaque2 (type 1) (param i32) (result i32)
-    local.get 0
-    i32.const 100
-    i32.add)
-  (func $conditional (type 1) (param i32) (result i32)
-    block  ;; label = @1
-      local.get 0
-      br_if 0 (;@1;)
-      i32.const 10
-      return
-    end
-    local.get 0
-    call $opaque)
   (func $real_main (type 2) (result i32)
     i32.const 2
     i32.const 8
-    call $ack)
+    call $power)
   (table (;0;) 1 1 funcref)
   (memory (;0;) 16)
   (global $__stack_pointer (mut i32) (i32.const 1048576))
