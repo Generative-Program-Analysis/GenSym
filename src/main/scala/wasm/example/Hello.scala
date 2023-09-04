@@ -114,7 +114,7 @@ object SimpleTest extends App {
     val moduleInst = ModuleInstance(types, funcs)
 
     Evaluator.eval(
-      PushSym("x", I32V(2)) :: instrs, 
+      Const(I32V(2)) :: PushSym("x", I32V(8)) :: instrs, 
       List(), 
       List(), 
       Frame(moduleInst, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),

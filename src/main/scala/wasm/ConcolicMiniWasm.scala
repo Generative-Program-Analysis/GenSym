@@ -10,7 +10,7 @@ case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
   memory: List[RTMemory] = List(RTMemory()),
-  globals: List[Global] = List(),
+  globals: List[RTGlobal] = List(),
 )
 
 object Primtives {
@@ -140,6 +140,7 @@ abstract class SymVal
 case class SymV(name: String) extends SymVal
 case class SymBinary(op: BinOp, lhs: SymVal, rhs: SymVal) extends SymVal
 case class SymUnary(op: UnaryOp, v: SymVal) extends SymVal
+case class SymIte(cond: Cond, thn: SymVal, els: SymVal) extends SymVal
 case class Concrete(v: Value) extends SymVal
 
 abstract class Cond
@@ -163,10 +164,12 @@ object Evaluator {
       case PushSym(name, v) =>
         eval(rest, v :: concStack, SymV(name) :: symStack, frame, ret, trail)
       case Drop => eval(rest, concStack.tail, symStack.tail, frame, ret, trail)
-      case Select(_) => ???
-        // val I32V(cond) :: v2 :: v1 :: newStack = concStack
-        // val value = if (cond == 0) v1 else v2
-        // eval(rest, value :: newStack, frame, ret, trail)
+      case Select(_) =>
+        val I32V(cond) :: v2 :: v1 :: newStack = concStack
+        val symCond :: symV2 :: symV1 :: newSymStack = symStack
+        val value = if (cond == 0) v1 else v2
+        val symVal = SymIte(CondEqz(symCond), symV1, symV2)
+        eval(rest, value :: newStack, symVal :: newSymStack, frame, ret, trail)
       case LocalGet(i) =>
         eval(rest, frame.locals(i)::concStack, frame.symLocals(i)::symStack, frame, ret, trail)
       case LocalSet(i) =>
@@ -236,7 +239,8 @@ object Evaluator {
           case Concrete(_) => pathConds
           case _ => if (test == I32V(1)) CondEqz(sv) :: pathConds else Not(CondEqz(sv)) :: pathConds
         }
-        eval(rest, test::newStack, Concrete(test)::newSymStack, frame, ret, trail)(newPathConds)
+        val symTest = SymIte(CondEqz(sv), Concrete(I32V(1)), Concrete(I32V(0)))
+        eval(rest, test::newStack, symTest::newSymStack, frame, ret, trail)(newPathConds)
       case Store(StoreOp(align, offset, ty, None)) => ???
         // val I32V(v)::I32V(addr)::newStack = concStack
         // frame.module.memory(0).storeInt(addr + offset, v)
@@ -257,7 +261,7 @@ object Evaluator {
         val k: Cont = (retStack, retSymStack, newPathConds) => 
           eval(insts, concStack ++ retStack, symStack ++ retSymStack, frame, ret, trail)(newPathConds)
         eval(inner, List(), List(), frame, k, k::trail)
-      case If(ty, thn, els) => ???
+      case If(ty, thn, els) =>
         val scnd :: newSymStack = symStack
         val I32V(cond)::newStack = concStack
         val inner = if (cond == 0) thn else els
