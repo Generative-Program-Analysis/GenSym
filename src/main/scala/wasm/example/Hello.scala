@@ -92,10 +92,46 @@ object SimpleTest extends App {
       List(newStack => println(s"trail: $newStack")))
   }
 
+  def fileTestConcolicEval() = {
+    import gensym.wasm.concolicminiwasm._
+    import collection.mutable.ArrayBuffer
+    val module = Parser.parseFile("./benchmarks/wasm/test.wat")
+    println(module)
+
+    val instrs = module.definitions.find({
+      case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
+      case _ => false
+    }).map({
+      case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+    }).get
+    .toList
+
+    val types = List()
+    val funcs = module.definitions.collect({
+      case FuncDef(_, fndef@FuncBodyDef(_, _, _, _)) => fndef
+    }).toList
+
+    val moduleInst = ModuleInstance(types, funcs)
+
+    Evaluator.eval(
+      PushSym("x", I32V(2)) :: instrs, 
+      List(), 
+      List(), 
+      Frame(moduleInst, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
+      (newStack, newSymStack, pathCnds) => {
+        println(s"retCont: $newStack")
+        println(s"symStack: $newSymStack")
+        println(s"pathCnds: $pathCnds")
+      },
+      List((newStack, _, _) => println(s"trail: $newStack"))
+    )(List())
+  }
+
   //basicTest()
   //println("====")
   //fileTest()
-  fileTestNewEval()
+  // fileTestNewEval()
+  fileTestConcolicEval()
 }
 
 //object SimpleStagedTest extends App {
