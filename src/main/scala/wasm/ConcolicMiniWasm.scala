@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
-  memory: List[Memory] = List(Memory()),
+  memory: List[RTMemory] = List(RTMemory()),
   globals: List[Global] = List(),
 )
 

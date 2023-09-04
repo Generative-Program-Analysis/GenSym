@@ -71,7 +71,7 @@
   (func $real_main (type 2) (result i32)
     i32.const 2
     i32.const 8
-    call $power)
+    call $ack)
   (table (;0;) 1 1 funcref)
   (memory (;0;) 16)
   (global $__stack_pointer (mut i32) (i32.const 1048576))
