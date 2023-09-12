@@ -85,6 +85,7 @@ case class MemoryInit(seg: Int) extends Instr
 // case class RefFunc(func: Int) extends Instr
 // case object RefIsNull extends Instr
 case class PushSym(name: String, concreteVal: Num) extends Instr
+case class Symbolic(ty: ValueType) extends Instr
 case class Const(num: Num) extends Instr
 case class Test(op: TestOp) extends Instr
 case class Compare(op: RelOp) extends Instr

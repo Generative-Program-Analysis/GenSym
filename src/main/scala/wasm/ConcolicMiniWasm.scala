@@ -4,7 +4,9 @@ import gensym.wasm.ast._
 import gensym.wasm.source._
 import gensym.wasm.memory._
 
-import scala.collection.mutable.ArrayBuffer
+import scala.util.Random
+
+import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 case class ModuleInstance(
   types: List[FuncType],
@@ -13,7 +15,7 @@ case class ModuleInstance(
   globals: List[RTGlobal] = List(),
 )
 
-object Primtives {
+object Primitives {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case Add(_) => (lhs, rhs) match {
       case (I32V(v1), I32V(v2)) => I32V(v1 + v2)
@@ -128,9 +130,23 @@ object Primtives {
     case _ => SymBinary(op, lhs, rhs)
   }
 
+  def evalSymTestOp(op: TestOp, sv: SymVal): SymVal = sv match {
+    case Concrete(v) => Concrete(evalTestOp(op, v))
+    case _ => op match {
+      case Eqz(_) => SymIte(CondEqz(sv), Concrete(I32V(1)), Concrete(I32V(0)))
+    }
+  }
+
   def memOutOfBound(frame: Frame, memoryIndex: Int, offset: Int, size: Int) = {
     val memory = frame.module.memory(memoryIndex)
     offset + size > memory.size
+  }
+
+  def randomOfTy(ty: ValueType): Value = ty match {
+    case NumType(I32Type) => I32V(Random.nextInt())
+    case NumType(I64Type) => I64V(Random.nextLong())
+    case NumType(F32Type) => F32V(Random.nextFloat())
+    case NumType(F64Type) => F64V(Random.nextDouble())
   }
 }
 
@@ -148,10 +164,12 @@ case class CondEqz(v: SymVal) extends Cond
 case class Not(cond: Cond) extends Cond
 
 object Evaluator {
-  import Primtives._
+  import Primitives._
 
   type RetCont = (List[Value], List[SymVal], List[Cond]) => Unit
   type Cont = (List[Value], List[SymVal], List[Cond]) => Unit
+
+  val symEnv = HashMap[Int, Value]()
 
   def eval(insts: List[Instr], concStack: List[Value], symStack: List[SymVal], 
            frame: Frame, ret: RetCont, trail: List[Cont])(implicit pathConds: List[Cond]): Unit = {
@@ -163,6 +181,14 @@ object Evaluator {
     inst match {
       case PushSym(name, v) =>
         eval(rest, v :: concStack, SymV(name) :: symStack, frame, ret, trail)
+      case Symbolic(ty) =>
+        val I32V(symIndex) :: newStack = concStack
+        val symVal = SymV(s"sym_$symIndex")
+        if (!symEnv.contains(symIndex)) {
+          symEnv(symIndex) = Primitives.randomOfTy(ty)
+        }
+        val v = symEnv(symIndex)
+        eval(rest, v :: concStack, symVal :: symStack, frame, ret, trail)
       case Drop => eval(rest, concStack.tail, symStack.tail, frame, ret, trail)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = concStack
@@ -234,13 +260,8 @@ object Evaluator {
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
         val test = evalTestOp(op, v)
-        // asuming op is Eqz for now
-        val newPathConds = sv match {
-          case Concrete(_) => pathConds
-          case _ => if (test == I32V(1)) CondEqz(sv) :: pathConds else Not(CondEqz(sv)) :: pathConds
-        }
-        val symTest = SymIte(CondEqz(sv), Concrete(I32V(1)), Concrete(I32V(0)))
-        eval(rest, test::newStack, symTest::newSymStack, frame, ret, trail)(newPathConds)
+        val symTest = evalSymTestOp(op, sv)
+        eval(rest, test::newStack, symTest::newSymStack, frame, ret, trail)
       case Store(StoreOp(align, offset, ty, None)) => ???
         // val I32V(v)::I32V(addr)::newStack = concStack
         // frame.module.memory(0).storeInt(addr + offset, v)
@@ -270,7 +291,7 @@ object Evaluator {
           case _ => if (cond == 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
         }
         val k: Cont = (retStack, retSymStack, newPathConds) =>
-          eval(rest, newStack ++ retStack, newSymStack ++ retSymStack, frame, ret, trail)(newPathConds)
+          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
         eval(inner, List(), List(), frame, ret, k::trail)(newPathConds)
       case Br(label) =>
         trail(label)(concStack, symStack, pathConds)
@@ -294,7 +315,7 @@ object Evaluator {
         val symFrameLocals = symArgs ++ locals.map(_ => Concrete(I32V(0)))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*), ArrayBuffer(symFrameLocals: _*))
         val newRet: RetCont = (retStack, retSymStack, newPathConds) => 
-          eval(rest, newStack ++ retStack, newSymStack ++ retSymStack, frame, ret, trail)(newPathConds)
+          eval(rest,  retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
         // val k: Cont = (retStack, symStack) =>
         //   eval(rest, retStack, frame, ret, trail)
         eval(body, List(), List(), newFrame, newRet, newRet::trail) // GW: should we install new trail cont?
