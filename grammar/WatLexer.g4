@@ -41,12 +41,16 @@ FLOAT : Float ;
 STRING_ : String_ ;
 VALUE_TYPE : NXX ;
 CONST : NXX '.const' ;
+SYMBOLIC : NXX '.symbolic' ;
 
 FUNCREF: 'funcref' ;
 EXTERNREF: 'externref' ;
 MUT: 'mut' ;
 
 NOP: 'nop' ;
+SYM_ASSERT: 'sym_assert' ;
+ALLOC: 'alloc' ;
+FREE: 'free' ;
 UNREACHABLE: 'unreachable' ;
 DROP: 'drop' ;
 BLOCK: 'block' ;

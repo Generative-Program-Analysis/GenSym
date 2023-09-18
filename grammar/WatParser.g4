@@ -144,6 +144,10 @@ plainInstr
   | MEMORY_COPY
   | MEMORY_INIT idx
   | CONST literal
+  | SYMBOLIC
+  | SYM_ASSERT
+  | ALLOC
+  | FREE
   | TEST
   | COMPARE
   | UNARY
