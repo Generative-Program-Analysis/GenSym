@@ -4,6 +4,7 @@ import gensym.wasm.ast._
 import gensym.wasm.source._
 import gensym.wasm.parser._
 import gensym.wasm.memory._
+import gensym.wasm.symbolic._
 
 object ConcolicWasmTest {
   def fileTestConcolicEval(file: String, mainFun: String) = {
