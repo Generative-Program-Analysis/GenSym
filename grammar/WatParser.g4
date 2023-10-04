@@ -4,6 +4,8 @@ All rights reserved.
 
 Modified by Guannan Wei (2023).
 
+Modified by Mikail Khan (2023).
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
@@ -159,12 +161,12 @@ offsetEq : OFFSET_EQ NAT ;
 
 alignEq: ALIGN_EQ NAT ;
 
-load :
-  numType LOAD (MEM_SIZE UNDERSCORE SIGN_POSTFIX)?
+load 
+    : numType LOAD (MEM_SIZE UNDERSCORE SIGN_POSTFIX)?
 ;
 
-store :
-  numType STORE (MEM_SIZE)?
+store
+  : numType STORE (MEM_SIZE)?
 ;
 
 callIndirectInstr
@@ -269,7 +271,8 @@ offset
   ;
 
 elem
-  : LPAR ELEM idx? offset idx* RPAR
+  : LPAR ELEM idx? LPAR instr RPAR idx* RPAR
+  | LPAR ELEM idx? offset idx* RPAR
   ;
 
 table
@@ -284,7 +287,8 @@ tableField
   ;
 
 data
-  : LPAR DATA idx? offset STRING_* RPAR
+  : LPAR DATA idx? LPAR instr RPAR STRING_* RPAR
+  | LPAR DATA idx? offset STRING_* RPAR
   ;
 
 memory

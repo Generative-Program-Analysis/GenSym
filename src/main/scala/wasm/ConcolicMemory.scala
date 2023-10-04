@@ -2,9 +2,11 @@ package gensym.wasm.concolicmemory
 
 import gensym.wasm.symbolic._
 
-case class ConcolicMemory(map: Map[Int, (Byte, SymVal)], parent: Option[ConcolicMemory]) {
+import scala.collection.mutable.HashMap
+
+case class ConcolicMemory(map: Map[Int, (Byte, SymVal)], parent: Option[ConcolicMemory], chunktable: HashMap[Int, Int]) {
   def storeByte(addr: Int, value: (Byte, SymVal)): ConcolicMemory = {
-    ConcolicMemory(map + (addr -> value), parent)
+    ConcolicMemory(map + (addr -> value), parent, chunktable)
   }
 
   def loadByte(addr: Int): (Byte, SymVal) = {
@@ -15,7 +17,7 @@ case class ConcolicMemory(map: Map[Int, (Byte, SymVal)], parent: Option[Concolic
 
     aux(this) match {
       case Some(value) => value
-      case None => ???
+      case None => ??? // wasp returns (0, 0)
     }
   }
 
@@ -30,5 +32,14 @@ case class ConcolicMemory(map: Map[Int, (Byte, SymVal)], parent: Option[Concolic
     bytes.zipWithIndex.foldLeft(this) { case (mem, (byte, i)) =>
       mem.storeByte(addr + i, (byte, symval))
     }
+  }
+
+  def checkAccess(base: Int, ptr: Int, offset: Int): Boolean = this.chunktable.get(base) match {
+    case Some(chunkSize) => {
+      val (lowBound, highBound) = (base, base + chunkSize)
+      val ptrOffset = ptr + offset
+      (lowBound <= ptrOffset) && (ptrOffset < highBound)
+    }
+    case None => false
   }
 }

@@ -12,7 +12,7 @@ case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
   memory: List[RTMemory] = List(RTMemory()),
-  globals: List[RTGlobal] = List(),
+  globals: Array[(RTGlobal, SymVal)] = Array(),
 )
 
 object Primitives {
@@ -210,26 +210,29 @@ object Evaluator {
         frame.locals(i) = value
         frame.symLocals(i) = symVal
         eval(rest, concStack, symStack, frame, ret, trail)
-      case GlobalGet(i) => ???
-        // eval(rest, frame.module.globals(i).value::concStack, frame, ret, trail)
-      case GlobalSet(i) => ???
-        // val value :: newStack = concStack
-        // frame.module.globals(i).tipe match {
-        //   case GlobalType(tipe, true) if value.tipe == tipe => frame.module.globals(i).value = value
-        //   case GlobalType(_, true) => throw new Exception("Invalid type")
-        //   case _ => throw new Exception("Cannot set immutable global")
-        // }
-        // eval(rest, newStack, frame, ret, trail)
-      case MemorySize => ???
-        // eval(rest, I32V(frame.module.memory.head.size)::concStack, frame, ret, trail)
-      case MemoryGrow => ???
-        // val I32V(delta)::newStack = concStack
-        // val mem = frame.module.memory.head
-        // val oldSize = mem.size
-        // mem.grow(delta) match {
-        //   case Some(e) => eval(rest, I32V(-1) :: newStack, frame, ret, trail)
-        //   case _ => eval(rest, I32V(oldSize) :: newStack, frame, ret, trail)
-        // }
+      case GlobalGet(i) =>
+        val (conc, sym) = frame.module.globals(i)
+        eval(rest, conc.value::concStack, sym::symStack, frame, ret, trail)
+      case GlobalSet(i) =>
+        val value :: newStack = concStack
+        val symVal :: newSymStack = symStack
+        val oldConc = frame.module.globals(i)._1
+        frame.module.globals(i) = (oldConc.copy(value = value), symVal)
+        eval(rest, newStack, newSymStack, frame, ret, trail)
+      case MemorySize =>
+        val cv = I32V(frame.module.memory.head.size)
+        val sv = Concrete(cv)
+        eval(rest, cv::concStack, sv::symStack, frame, ret, trail)
+      case MemoryGrow =>
+        val I32V(delta)::newStack = concStack
+        val mem = frame.module.memory.head
+        val oldSize = mem.size
+        val cv = mem.grow(delta) match {
+          case Some(e) => I32V(-1)
+          case _ => I32V(-1)
+        }
+        eval(rest, cv :: newStack, Concrete(cv) :: symStack.tail, frame, ret, trail)
+      // WASP doesn't implement these
       case MemoryFill => ???
         // val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = concStack
         // if (memOutOfBound(frame, 0, offset, size)) throw new Exception("Out of bounds memory access") // GW: turn this into a `trap`?

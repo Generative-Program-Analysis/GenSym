@@ -4,6 +4,8 @@ All rights reserved.
 
 Modified by Guannan Wei (2023).
 
+Modified by Mikail Khan (2023).
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
@@ -73,8 +75,9 @@ LOCAL_TEE: 'local.tee' ;
 GLOBAL_GET: 'global.get' ;
 GLOBAL_SET: 'global.set' ;
 
-LOAD : '.load' ;
-STORE : '.store' ;
+LOAD : '.load' (MEM_SIZE UNDERSCORE SIGN_POSTFIX)?;
+
+STORE : '.store' MEM_SIZE? ;
 UNDERSCORE : '_';
 
 OFFSET_EQ : 'offset=' ;
