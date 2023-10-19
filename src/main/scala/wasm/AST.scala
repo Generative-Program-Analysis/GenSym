@@ -42,6 +42,8 @@ abstract class Instr extends WIR
 case object Unreachable extends Instr
 case object Nop extends Instr
 case object Drop extends Instr
+case object Alloc extends Instr
+case object Free extends Instr
 case class Select(ty: Option[List[ValueType]]) extends Instr
 case class Block(ty: Option[ValueType], instrs: List[Instr]) extends Instr
 case class IdBlock(id: Int, ty: Option[ValueType], instrs: List[Instr]) extends Instr
@@ -86,6 +88,7 @@ case class MemoryInit(seg: Int) extends Instr
 // case object RefIsNull extends Instr
 case class PushSym(name: String, concreteVal: Num) extends Instr
 case class Symbolic(ty: ValueType) extends Instr
+case object SymAssert extends Instr
 case class Const(num: Num) extends Instr
 case class Test(op: TestOp) extends Instr
 case class Compare(op: RelOp) extends Instr

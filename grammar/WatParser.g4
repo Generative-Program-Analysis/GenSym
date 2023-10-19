@@ -118,7 +118,7 @@ bindVar
 
 instr
   : plainInstr
-  | callInstrInstr
+  /* | callInstrInstr */
   | blockInstr
   | foldedInstr
   ;
@@ -155,6 +155,7 @@ plainInstr
   | UNARY
   | BINARY
   | CONVERT
+  | callIndirectInstr
   ;
 
 offsetEq : OFFSET_EQ NAT ;
@@ -170,16 +171,19 @@ store
 ;
 
 callIndirectInstr
-  : CALL_INDIRECT typeUse? callInstrParams
+  /* : CALL_INDIRECT typeUse? callInstrParams */
+  : CALL_INDIRECT idx? typeUse
   ;
 
 callInstrParams
   : (LPAR PARAM valType* RPAR)* (LPAR RESULT valType* RPAR)*
   ;
 
+/*
 callInstrInstr
   : CALL_INDIRECT typeUse? callInstrParamsInstr
   ;
+*/
 
 callInstrParamsInstr
   : (LPAR PARAM valType* RPAR)* callInstrResultsInstr

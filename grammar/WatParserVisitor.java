@@ -167,12 +167,6 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCallInstrParams(WatParser.CallInstrParamsContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#callInstrInstr}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitCallInstrInstr(WatParser.CallInstrInstrContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link WatParser#callInstrParamsInstr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

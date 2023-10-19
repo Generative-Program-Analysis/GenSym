@@ -189,9 +189,9 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       Load(LoadOp(align, offset, ty, memSize, sign))
     }
     else if (ctx.store() != null) {
-      val ty = visitNumType(ctx.load.numType)
-      val memSize = if (ctx.load.MEM_SIZE() != null) {
-        Some(visitMemSize(ctx.load.MEM_SIZE.getText))
+      val ty = visitNumType(ctx.store.numType)
+      val memSize = if (ctx.store.MEM_SIZE() != null) {
+        Some(visitMemSize(ctx.store.MEM_SIZE.getText))
       } else None
       val offset = if (ctx.offsetEq() != null) {
         ctx.offsetEq.NAT.getText.toInt
@@ -285,24 +285,24 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.CONVERT != null) {
       val Array(toTyStr, rest) = ctx.CONVERT.getText.split("\\.")
       val toTy = toNumType(toTyStr)
-      val Array(opStr, fromTySign) = rest.split("_")
+      val Array(opStr, fromTySign) = rest.split("_", 2)
       val op = opStr match {
         case "wrap" =>
           val fromTy = toNumType(fromTySign)
           Wrap(fromTy, toTy)
         case "trunc" =>
           // TODO: handle trunc_sat instr, split by "_" current not work for that
-          val Array(fromTyStr, signStr) = fromTySign.split("\\.")
+          val Array(fromTyStr, signStr) = fromTySign.split("_")
           val fromTy = toNumType(fromTyStr)
           val sign = visitSignExt(signStr)
           TruncTo(fromTy, toTy, sign)
         case "extend" =>
-          val Array(fromTyStr, signStr) = fromTySign.split("\\.")
+          val Array(fromTyStr, signStr) = fromTySign.split("_")
           val fromTy = toNumType(fromTyStr)
           val sign = visitSignExt(signStr)
           Extend(fromTy, toTy, sign)
         case "convert" =>
-          val Array(fromTyStr, signStr) = fromTySign.split("\\.")
+          val Array(fromTyStr, signStr) = fromTySign.split("_")
           val fromTy = toNumType(fromTyStr)
           val sign = visitSignExt(signStr)
           ConvertTo(fromTy, toTy, sign)
@@ -317,11 +317,31 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           Reinterpret(fromTy, toTy)
       }
       Convert(op)
+     } else if (ctx.SYM_ASSERT != null) {
+       SymAssert
+     } else if (ctx.SYMBOLIC != null) {
+       val Array(ty, _) = ctx.SYMBOLIC.getText.split("\\.")
+       Symbolic(toNumType(ty))
+     } else if (ctx.callIndirectInstr() != null) {
+       val instr = ctx.callIndirectInstr()
+       val idx = if (instr.idx != null) instr.idx.getText.toInt else 0
+       val typeUse = getVar(instr.typeUse).get.toInt
+       CallIndirect(typeUse, idx)
+     } else if (ctx.ALLOC != null) {
+       Alloc
+     } else if (ctx.FREE != null) {
+       Free
      }
-    else error
+    else {
+      println(s"unimplemented parser for: ${ctx.getText}")
+      error
+    }
   }
 
-  override def visitCallInstrInstr(ctx: CallInstrInstrContext): WIR = ???
+  // override def visitCallInstrInstr(ctx: CallInstrInstrContext): WIR = {
+  //   println(s"unimplemented parser for: ${ctx.getText}")
+  //   ???
+  // }
 
   override def visitBlock(ctx: BlockContext): WIR = {
     val ty =
