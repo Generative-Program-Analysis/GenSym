@@ -13,7 +13,13 @@ case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
+case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList) extends Definition
+case class Data(id: Option[String], value: String) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
+
+abstract class ElemList extends WIR
+case class ElemListFunc(funcs: List[String]) extends ElemList
+case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 
 abstract class FuncField extends WIR
 case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr]) extends FuncField

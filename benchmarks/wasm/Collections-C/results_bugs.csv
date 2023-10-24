@@ -1,0 +1,3 @@
+category,ni,sum-paths,Twasp,Tloop,Tsolver
+list_test_zipIterAdd,1,1,0.086,0.062,0.024
+array_test_remove,1,7,0.094,0.054,0.021

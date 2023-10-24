@@ -66,12 +66,12 @@ def execute_wasp(test: str, output_dir: str):
 
     def _cmd(test, output_dir, instr_limit):
         return [
-            'wasp', test,
-            '-u',
+            'wasp-ce', test,
+            # '-u',
             '-e', '(invoke \"__original_main\")',
-            '-m', str(instr_limit),
+            # '-m', str(instr_limit),
             '--workspace', output_dir,
-            '-static'
+            # '-static'
         ]
 
     try:

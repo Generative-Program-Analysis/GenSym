@@ -3,6 +3,7 @@ package gensym.wasm.concolicminiwasm
 import gensym.wasm.ast._
 import gensym.wasm.source._
 import gensym.wasm.memory._
+import gensym.wasm.parser._
 
 import scala.util.Random
 
@@ -12,7 +13,7 @@ case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
   memory: List[RTMemory] = List(RTMemory()),
-  globals: Array[(RTGlobal, SymVal)] = Array(),
+  globals: ArrayBuffer[(RTGlobal, SymVal)] = ArrayBuffer[(RTGlobal, SymVal)]()
 )
 
 object Primitives {
@@ -324,5 +325,65 @@ object Evaluator {
         eval(body, List(), List(), newFrame, newRet, newRet::trail) // GW: should we install new trail cont?
       case _ => ???
     }
+  }
+
+  // seems bad
+  def evalExpr(expr: List[Instr]): (Value, SymVal) = {
+    var cv = null.asInstanceOf[Value]
+    var sv = null.asInstanceOf[SymVal]
+    eval(expr, List(), List(), null, (concStack, symStack, pathConds) => {
+      cv = concStack.head
+      sv = symStack.head
+    }, List())(List())
+    (cv, sv)
+  }
+
+  def execWholeProgram(module: Module, mainFun: String) = {
+    import collection.mutable.ArrayBuffer
+    val module = Parser.parseFile("./benchmarks/wasm/test.wat")
+    // println(module)
+
+    val instrs = module.definitions.find({
+      case FuncDef(Some(mainFun), FuncBodyDef(_, _, _, _)) => true
+      case _ => false
+    }).map({
+      case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+    }).get
+    .toList
+
+    val types = List()
+    val funcs = module.definitions.collect({
+      case FuncDef(_, fndef@FuncBodyDef(_, _, _, _)) => fndef
+    }).toList
+
+    val moduleInst = ModuleInstance(types, funcs)
+
+    val globals = module.definitions.collect({ case g@Global(_, _) => g })
+    val memories = module.definitions.collect({ case m@Memory(_, _) => m })
+    val elems = module.definitions.collect({ case e@Elem(_, _, _) => e })
+    val data = module.definitions.collect({ case d@Data(_, _) => d })
+
+    for (global <- globals) {
+      global.f match {
+        case GlobalValue(ty, e) => {
+          val (cv, sv) = evalExpr(e)
+          moduleInst.globals.append((RTGlobal(ty, cv), sv))
+        }
+        case _ => ???
+      }
+    }
+
+    Evaluator.eval(
+      Const(I32V(2)) :: PushSym("x", I32V(8)) :: instrs, 
+      List(), 
+      List(), 
+      Frame(moduleInst, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
+      (newStack, newSymStack, pathCnds) => {
+        println(s"retCont: $newStack")
+        println(s"symStack: $newSymStack")
+        println(s"pathCnds: $pathCnds")
+      },
+      List((newStack, _, _) => println(s"trail: $newStack"))
+    )(List())
   }
 }
