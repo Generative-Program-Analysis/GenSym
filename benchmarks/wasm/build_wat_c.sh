@@ -15,3 +15,7 @@ sudo docker run --rm \
 
 wasm2wat "$2.temp" > "$2"
 rm "$2.temp"
+./Collections-C/scripts/patch_wat.py "$2"
+# wasp "$2" -e '(invoke "__original_main")' -o "$2.wasp.wat"
+# ./Collections-C/scripts/patch_wat.py "$2.wasp.wat"
+# mv "$2.wasp.wat" "$2"
