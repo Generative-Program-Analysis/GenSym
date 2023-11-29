@@ -11,6 +11,7 @@ case class Concrete(v: Value) extends SymVal
 abstract class Cond extends SymVal
 case class CondEqz(v: SymVal) extends Cond
 case class Not(cond: Cond) extends Cond
+case class RelCond(op: RelOp, lhs: SymVal, rhs: SymVal) extends Cond
 
 case class InitMem(min: Int, max: Option[Int]) extends SymVal
 case class MemConcat(lhs: SymVal, rhs: SymVal) extends SymVal

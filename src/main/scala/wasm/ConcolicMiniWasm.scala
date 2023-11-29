@@ -2,7 +2,9 @@ package gensym.wasm.concolicminiwasm
 
 import gensym.wasm.ast._
 import gensym.wasm.source._
-import gensym.wasm.memory._
+// import gensym.wasm.memory._
+import gensym.wasm.concolicmemory._
+import gensym.wasm.symbolic._
 import gensym.wasm.parser._
 
 import scala.util.Random
@@ -12,7 +14,7 @@ import scala.collection.mutable.{ArrayBuffer, HashMap}
 case class ModuleInstance(
   types: List[FuncType],
   funcs: List[FuncBodyDef],
-  memory: List[RTMemory] = List(RTMemory()),
+  memory: List[ConcolicMemory] = List(ConcolicMemory()),
   globals: ArrayBuffer[(RTGlobal, SymVal)] = ArrayBuffer[(RTGlobal, SymVal)]()
 )
 
@@ -43,7 +45,15 @@ object Primitives {
       case (I64V(v1), I64V(v2)) => I64V(v1 >>> v2)
       case _ => throw new Exception("Invalid types")
     }
-    case _ => ???
+    case And(_) => (lhs, rhs) match {
+      case (I32V(v1), I32V(v2)) => I32V(v1 & v2)
+      case (I64V(v1), I64V(v2)) => I64V(v1 & v2)
+      case _ => throw new Exception("Invalid types")
+    }
+    case _ => {
+      println(s"unimplemented binop: $op")
+      ???
+    }
   }
   def evalUnaryOp(op: UnaryOp, value: Value) = op match {
     case Clz(_) => value match {
@@ -138,9 +148,17 @@ object Primitives {
     }
   }
 
+  def evalSymRelOp(op: RelOp, lhs: SymVal, rhs: SymVal): SymVal = (lhs, rhs) match {
+    case (Concrete(lhs), Concrete(rhs)) => Concrete(evalRelOp(op, lhs, rhs))
+    case _ => SymIte(RelCond(op, lhs, rhs), Concrete(I32V(1)), Concrete(I32V(0)))
+  }
+
   def memOutOfBound(frame: Frame, memoryIndex: Int, offset: Int, size: Int) = {
-    val memory = frame.module.memory(memoryIndex)
-    offset + size > memory.size
+    // TODO
+    false
+    // val memory = frame.module.memory(memoryIndex)
+    // offset + size > memory.size
+    // offset + size > memory.size
   }
 
   def randomOfTy(ty: ValueType): Value = ty match {
@@ -152,17 +170,6 @@ object Primitives {
 }
 
 case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: ArrayBuffer[SymVal])
-
-abstract class SymVal
-case class SymV(name: String) extends SymVal
-case class SymBinary(op: BinOp, lhs: SymVal, rhs: SymVal) extends SymVal
-case class SymUnary(op: UnaryOp, v: SymVal) extends SymVal
-case class SymIte(cond: Cond, thn: SymVal, els: SymVal) extends SymVal
-case class Concrete(v: Value) extends SymVal
-
-abstract class Cond
-case class CondEqz(v: SymVal) extends Cond
-case class Not(cond: Cond) extends Cond
 
 object Evaluator {
   import Primitives._
@@ -176,8 +183,12 @@ object Evaluator {
            frame: Frame, ret: RetCont, trail: List[Cont])(implicit pathConds: List[Cond]): Unit = {
     if (insts.isEmpty) return ret(concStack, symStack, pathConds)
 
+    println(s"pathConds: $pathConds")
+
     val inst = insts.head
     val rest = insts.tail
+
+    println(s"inst: $inst, concStack: $concStack")
 
     inst match {
       case PushSym(name, v) =>
@@ -220,19 +231,24 @@ object Evaluator {
         val oldConc = frame.module.globals(i)._1
         frame.module.globals(i) = (oldConc.copy(value = value), symVal)
         eval(rest, newStack, newSymStack, frame, ret, trail)
+      // I think these are essentially dummies in WASP
+      // to more accurately replace them, we should probably
+      // add a dummy memory size field to ConcolicMemory
       case MemorySize =>
-        val cv = I32V(frame.module.memory.head.size)
-        val sv = Concrete(cv)
-        eval(rest, cv::concStack, sv::symStack, frame, ret, trail)
+        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, ret, trail)
+        // val cv = I32V(frame.module.memory.head.size)
+        // val sv = Concrete(cv)
+        // eval(rest, cv::concStack, sv::symStack, frame, ret, trail)
       case MemoryGrow =>
-        val I32V(delta)::newStack = concStack
-        val mem = frame.module.memory.head
-        val oldSize = mem.size
-        val cv = mem.grow(delta) match {
-          case Some(e) => I32V(-1)
-          case _ => I32V(-1)
-        }
-        eval(rest, cv :: newStack, Concrete(cv) :: symStack.tail, frame, ret, trail)
+        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, ret, trail)
+        // val I32V(delta)::newStack = concStack
+        // val mem = frame.module.memory.head
+        // val oldSize = mem.size
+        // val cv = mem.grow(delta) match {
+        //   case Some(e) => I32V(-1)
+        //   case _ => I32V(-1)
+        // }
+        // eval(rest, cv :: newStack, Concrete(cv) :: symStack.tail, frame, ret, trail)
       // WASP doesn't implement these
       case MemoryFill => ???
         // val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = concStack
@@ -257,23 +273,28 @@ object Evaluator {
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
         eval(rest, evalUnaryOp(op, v)::newStack, SymUnary(op, sv)::newSymStack, frame, ret, trail)
-      case Compare(op) => ???
-        // val v2 :: v1 :: newStack = concStack
-        // eval(rest, evalRelOp(op, v1, v2)::newStack, frame, ret, trail)
+      case Compare(op) =>
+        val v2 :: v1 :: newStack = concStack
+        val sv2 :: sv1 :: newSymStack = symStack
+        eval(rest, evalRelOp(op, v1, v2)::newStack, evalSymRelOp(op, sv1, sv2)::newSymStack, frame, ret, trail)
       case Test(op) =>
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
         val test = evalTestOp(op, v)
         val symTest = evalSymTestOp(op, sv)
         eval(rest, test::newStack, symTest::newSymStack, frame, ret, trail)
-      case Store(StoreOp(align, offset, ty, None)) => ???
-        // val I32V(v)::I32V(addr)::newStack = concStack
-        // frame.module.memory(0).storeInt(addr + offset, v)
-        // eval(rest, newStack, frame, ret, trail)
-      case Load(LoadOp(align, offset, ty, None, None)) => ???
-        // val I32V(addr)::newStack = concStack
-        // val value = frame.module.memory(0).loadInt(addr + offset)
-        // eval(rest, I32V(value)::newStack, frame, ret, trail)
+      case Store(StoreOp(align, offset, ty, None)) =>
+        val I32V(v)::I32V(addr)::newStack = concStack
+        val sv :: sa :: newSymStack = symStack
+        // need to concretize sa and then checkAccess
+        frame.module.memory(0).storeInt(addr + offset, (v, sv))
+        eval(rest, newStack, symStack.drop(2), frame, ret, trail)
+      case Load(LoadOp(align, offset, ty, None, None)) =>
+        val I32V(addr)::newStack = concStack
+        val sa :: newSymStack = symStack
+        // need to concretize sv and then checkAccess
+        val (value, sv) = frame.module.memory(0).loadInt(addr + offset)
+        eval(rest, I32V(value)::newStack, sv::newSymStack, frame, ret, trail)
       case Nop =>
         eval(rest, concStack, symStack, frame, ret, trail)
       case Unreachable => throw new RuntimeException("Unreachable")
@@ -311,6 +332,7 @@ object Evaluator {
       case Return => ret(concStack, symStack, pathConds)
       case Call(f) =>
         val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
+        println(s"call $f: locals: ${locals}")
         val args = concStack.take(ty.inps.size).reverse
         val symArgs = symStack.take(ty.inps.size).reverse
         val newStack = concStack.drop(ty.inps.size)
@@ -338,23 +360,39 @@ object Evaluator {
     (cv, sv)
   }
 
-  def execWholeProgram(module: Module, mainFun: String) = {
+  private def printRetCont(concStack: List[Value], symStack: List[SymVal], pathConds: List[Cond]) = {
+    println(s"retCont: $concStack")
+    println(s"symStack: $symStack")
+    println(s"pathCnds: $pathConds")
+  }
+
+  def execWholeProgram(
+    module: Module, mainFun: String, symEnv: HashMap[Int, Value] = HashMap(), k: RetCont = printRetCont
+  ) = {
     import collection.mutable.ArrayBuffer
-    val module = Parser.parseFile("./benchmarks/wasm/test.wat")
+    // val module = Parser.parseFile("./benchmarks/wasm/test.wat")
     // println(module)
 
-    val instrs = module.definitions.find({
-      case FuncDef(Some(mainFun), FuncBodyDef(_, _, _, _)) => true
-      case _ => false
-    }).map({
-      case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
-    }).get
-    .toList
+    // val instrs = module.definitions.find({
+    //   case FuncDef(Some(fname), FuncBodyDef(_, _, _, _)) if fname == mainFun => true
+    //   case _ => false
+    // }).map({
+    //   case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+    // }).get
+    // .toList
+
+    this.symEnv.clear()
+    this.symEnv ++= symEnv
 
     val types = List()
-    val funcs = module.definitions.collect({
-      case FuncDef(_, fndef@FuncBodyDef(_, _, _, _)) => fndef
-    }).toList
+    val funcDefs = module.definitions.collect({ case f@FuncDef(_, _) => f })
+    val funcs = funcDefs.map({ case FuncDef(_, body@FuncBodyDef(_, _, _, _)) => body })
+
+    val funcId = funcDefs.indexWhere({
+      case FuncDef(name, _) => name == Some(mainFun)
+    })
+
+    val instrs = List(Call(funcId))
 
     val moduleInst = ModuleInstance(types, funcs)
 
@@ -374,15 +412,11 @@ object Evaluator {
     }
 
     Evaluator.eval(
-      Const(I32V(2)) :: PushSym("x", I32V(8)) :: instrs, 
+      instrs, 
       List(), 
       List(), 
       Frame(moduleInst, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
-      (newStack, newSymStack, pathCnds) => {
-        println(s"retCont: $newStack")
-        println(s"symStack: $newSymStack")
-        println(s"pathCnds: $pathCnds")
-      },
+      k,
       List((newStack, _, _) => println(s"trail: $newStack"))
     )(List())
   }

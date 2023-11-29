@@ -145,7 +145,7 @@ case class Copysign(ty: NumType) extends BinOp
 abstract class TestOp 
 case class Eqz(ty: NumType) extends TestOp
 
-abstract class RelOp 
+abstract class RelOp
 case class Eq(ty: NumType)  extends RelOp
 case class Ne(ty: NumType)  extends RelOp
 case class LtS(ty: NumType) extends RelOp

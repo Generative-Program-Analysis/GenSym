@@ -9,7 +9,7 @@ sudo docker run --rm \
     --volume "$(pwd):/home/wasp/tmp" \
     -w "/home/wasp/tmp" \
     ghcr.io/wasp-platform/wasp:latest \
-    clang --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry -o "$2.temp" $1
+    clang --target=wasm32 -O0 --no-standard-libraries -Wl,--export-all -Wl,--no-entry -o "$2.temp" $1
 
 # clang-15 --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry -o $2.temp $1
 
