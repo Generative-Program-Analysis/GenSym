@@ -1,0 +1,5 @@
+- [ ] sym_assert
+- [ ] symbolic
+- [ ] Somewhere on this line (array_test_add.wat:120): `(func $array_new (type 1) (param i32) (result i32)`
+- [ ] alloc
+- [ ] free

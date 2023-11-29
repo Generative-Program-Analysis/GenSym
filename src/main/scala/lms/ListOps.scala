@@ -34,6 +34,8 @@ trait ListOps { b: Base =>
     def isEmpty: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("list-isEmpty", Unwrap(xs)))
     def take(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-take", Unwrap(xs), Unwrap(i)))
     def drop(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-drop", Unwrap(xs), Unwrap(i)))
+    def updated(i: Rep[Int], x: Rep[A]) = 
+      Wrap[List[A]](Adapter.g.reflect("list-updated", Unwrap(xs), Unwrap(i), Unwrap(x)))
     def ::(x: Rep[A]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-prepend", Unwrap(xs), Unwrap(x)))
     def ++(ys: Rep[List[A]]): Rep[List[A]] =
@@ -319,6 +321,8 @@ trait CppCodeGen_List extends ExtendedCCodeGen {
       shallow(xs); emit(".take("); shallow(i); emit(")")
     case Node(s, "list-drop", List(xs, i), _) =>
       shallow(xs); emit(".drop("); shallow(i); emit(")")
+    case Node(s, "list-updated", List(xs, i, x), _) =>
+      shallow(xs); emit(".set("); shallow(i); emit(","); shallow(x); emit(")")
     case Node(s, "list-prepend", List(xs, x), _) =>
       shallow(xs); emit(".push_front("); shallow(x); emit(")")
     case Node(s, "list-concat", List(xs, ys), _) =>
