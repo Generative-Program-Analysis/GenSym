@@ -6,7 +6,7 @@
   (type (;4;) (func (param i32 i32) (result i32)))
   (func $__wasm_call_ctors (type 0))
   (func $sym_int (type 1) (param i32) (result i32)
-    (local i32 i32 i32 i32)
+    (local i32 i32 i32 i32 i32 i32 i32 i32)
     global.get 0
     local.set 1
     i32.const 16
@@ -18,10 +18,23 @@
     local.get 3
     local.get 0
     i32.store offset=12
-    local.get 3
-    i32.load offset=12
+    i32.const 0
     local.set 4
     local.get 4
+    i32.load offset=1028
+    local.set 5
+    i32.const 1
+    local.set 6
+    local.get 5
+    local.get 6
+    i32.add
+    local.set 7
+    i32.const 0
+    local.set 8
+    local.get 8
+    local.get 7
+    i32.store offset=1028
+    local.get 5
     return)
   (func $assert (type 2) (param i32)
     (local i32 i32 i32)
@@ -131,7 +144,7 @@
   (memory (;0;) 2)
   (global (;0;) (mut i32) (i32.const 66576))
   (global (;1;) i32 (i32.const 1024))
-  (global (;2;) i32 (i32.const 1028))
+  (global (;2;) i32 (i32.const 1032))
   (global (;3;) i32 (i32.const 1024))
   (global (;4;) i32 (i32.const 66576))
   (global (;5;) i32 (i32.const 0))

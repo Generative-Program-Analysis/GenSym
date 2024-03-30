@@ -129,6 +129,7 @@ object Primitives {
   }
 
   def evalTestOp(op: TestOp, value: Value) = op match {
+    // TODO: add path cond here
     case Eqz(_) => value match {
       case I32V(v) => I32V(if (v == 0) 1 else 0)
       case I64V(v) => I32V(if (v == 0) 1 else 0)
@@ -188,7 +189,7 @@ object Evaluator {
     val inst = insts.head
     val rest = insts.tail
 
-    println(s"inst: $inst, concStack: $concStack")
+    println(s"inst: $inst, concStack: $concStack, symStack: $symStack")
 
     inst match {
       case PushSym(name, v) =>
@@ -200,7 +201,7 @@ object Evaluator {
           symEnv(symIndex) = Primitives.randomOfTy(ty)
         }
         val v = symEnv(symIndex)
-        eval(rest, v :: concStack, symVal :: symStack, frame, ret, trail)
+        eval(rest, v :: newStack, symVal :: symStack, frame, ret, trail)
       case Drop => eval(rest, concStack.tail, symStack.tail, frame, ret, trail)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = concStack

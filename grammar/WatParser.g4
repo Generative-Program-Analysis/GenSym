@@ -127,7 +127,7 @@ plainInstr
   : UNREACHABLE
   | NOP
   | DROP
-  | SELECT
+  | selectInstr
   | BR idx
   | BR_IF idx
   | BR_TABLE idx+
@@ -168,6 +168,10 @@ load
 
 store
   : numType STORE (MEM_SIZE)?
+;
+
+selectInstr
+  : numType SELECT
 ;
 
 callIndirectInstr

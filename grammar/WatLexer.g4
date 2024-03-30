@@ -65,7 +65,7 @@ RETURN: 'return' ;
 IF: 'if' ;
 THEN: 'then' ;
 ELSE: 'else' ;
-SELECT: 'select' ;
+SELECT: '.select' ;
 CALL: 'call' ;
 CALL_INDIRECT: 'call_indirect' ;
 

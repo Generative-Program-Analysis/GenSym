@@ -15,9 +15,9 @@ object ConcolicWasmTest {
   }
 
   def main(args: Array[String]) = {
-    fileTestConcolicEval("./benchmarks/wasm/test.wat", "$main")
+    fileTestConcolicEval("./benchmarks/wasm/test_basic.wat", "$main")
     // fileTestConcolicEval("./benchmarks/wasm/unit/loop.wat", "$main")
-    fileTestConcolicEval("./benchmarks/wasm/unit/br.wat", "$main")
+    // fileTestConcolicEval("./benchmarks/wasm/unit/br.wat", "$main")
     // fileTestConcolicEval(
     //   "./benchmarks/wasm/Collections-C/_build/for-wasp/normal/array/array_test_add.wat",
     //   "$__original_main"

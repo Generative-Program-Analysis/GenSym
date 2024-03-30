@@ -1,7 +1,8 @@
 package gensym.wasm.symbolic
 import gensym.wasm.ast._
 
-abstract class SymVal
+import z3.scala._
+
 case class SymV(name: String) extends SymVal
 case class SymBinary(op: BinOp, lhs: SymVal, rhs: SymVal) extends SymVal
 case class SymUnary(op: UnaryOp, v: SymVal) extends SymVal
@@ -16,3 +17,9 @@ case class RelCond(op: RelOp, lhs: SymVal, rhs: SymVal) extends Cond
 case class InitMem(min: Int, max: Option[Int]) extends SymVal
 case class MemConcat(lhs: SymVal, rhs: SymVal) extends SymVal
 case class MemExtract(mem: SymVal, offset: Int, size: Int) extends SymVal
+abstract class SymVal {
+  def toZ3AST(implicit ctx: Z3Context): Z3AST = this match {
+    case SymV(name) => ctx.mkConst(ctx.mkStringSymbol(name), ctx.mkIntSort())
+    case _ => ???
+  }
+}

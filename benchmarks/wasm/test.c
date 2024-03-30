@@ -1,4 +1,6 @@
-int sym_int(char* name) { return (int) name; }
+static int cnt = 0;
+
+int sym_int(char* name) { return cnt++; }
 void assert(int expr) {}
 
 int main() {

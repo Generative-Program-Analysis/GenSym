@@ -157,7 +157,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     if (ctx.UNREACHABLE() != null) Unreachable
     else if (ctx.NOP() != null) Nop
     else if (ctx.DROP() != null) Drop
-    else if (ctx.SELECT() != null) Select(None)
+    else if (ctx.selectInstr() != null) Select(None)
     else if (ctx.BR() != null) Br(getVar(ctx.idx(0)).toInt)
     else if (ctx.BR_IF() != null) BrIf(getVar(ctx.idx(0)).toInt)
     else if (ctx.BR_TABLE() != null) {
