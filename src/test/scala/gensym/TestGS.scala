@@ -68,7 +68,7 @@ abstract class TestGS extends FunSuite {
     val TestPrg(m, name, f, config, cliArg, exp, runCode) = tst
     val outname = if (gs.insName == "ImpCPSGS_lib") name
                   else gs.insName + "_" + name
-    
+
     testWithGlobalConfig(name) {
       val code = gs.run(m, outname, f, config, libPath)
       val mkRet = code.makeWithAllCores
