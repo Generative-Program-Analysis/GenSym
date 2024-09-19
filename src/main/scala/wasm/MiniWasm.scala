@@ -292,7 +292,7 @@ object Evaluator {
         eval(body, List(), newFrame, 0, newK :: trail)
       case _ =>
         println(inst)
-        throw new Exception("instruction $inst not implemented")
+        throw new Exception(s"instruction $inst not implemented")
     }
   }
 }
