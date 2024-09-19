@@ -51,7 +51,7 @@ class TestEval extends FunSuite {
       }
     }
 
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), retK, List(trailK))
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), 0/*retK*/, List(trailK))
   }
 
   // XXX (GW): remove this and just using testFile?
@@ -91,7 +91,7 @@ class TestEval extends FunSuite {
     Evaluator.eval(instrs,
                    List(),
                    Frame(moduleInst, ArrayBuffer(I32V(0))),
-                   newStack => println(s"retCont: $newStack"),
+                   0, //newStack => println(s"retCont: $newStack"),
                    List(newStack => println(s"trail: $newStack")))
 
   }

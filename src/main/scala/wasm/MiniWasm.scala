@@ -164,11 +164,10 @@ object Evaluator {
   type RetCont = List[Value] => Unit
   type Cont = List[Value] => Unit
 
-  // TODO: is there a way to merge the RetCont and trail
   def eval(insts: List[Instr],
            stack: List[Value],
            frame: Frame,
-           ret: RetCont,
+           ret: Int, // Indicate the number of contexts/continuations to pop
            trail: List[Cont]): Unit = {
     if (insts.isEmpty) return trail.head(stack)
 
@@ -260,11 +259,11 @@ object Evaluator {
         val k: Cont = (retStack) =>
           eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
         // TODO: block can take inputs too
-        eval(inner, List(), frame, ret, k :: trail)
+        eval(inner, List(), frame, ret+1, k :: trail)
       case Loop(ty, inner) =>
         val k: Cont = (retStack) =>
           eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
-        eval(inner, List(), frame, ret, k :: trail)
+        eval(inner, List(), frame, ret+1, k :: trail)
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond == 0) thn else els
@@ -274,23 +273,23 @@ object Evaluator {
                frame,
                ret,
                trail)
-        eval(inner, List(), frame, ret, k :: trail)
+        eval(inner, List(), frame, ret+1, k :: trail)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
         if (cond == 0) eval(rest, newStack, frame, ret, trail)
         else trail(label)(newStack)
-      case Return => ret(stack)
+      case Return => trail(ret)(stack)
       case Call(f) =>
         val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        val newRet: RetCont = (retStack) =>
+        val newK: RetCont = (retStack) =>
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
-        eval(body, List(), newFrame, newRet, newRet :: trail)
+        eval(body, List(), newFrame, 0, newK :: trail)
       case _ =>
         println(inst)
         throw new Exception("instruction $inst not implemented")
