@@ -2,3 +2,6 @@
 *.wat
 !test_pow.wat
 !test_ack.wat
+!2o1u.wat
+!2o1u-no-label.wat
+
