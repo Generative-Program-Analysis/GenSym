@@ -66,4 +66,8 @@ jobs:
     - name: Generate models
       run: sbt 'runMain gensym.GenerateExternal'
     - name: Run tests
-      run: sbt testOnly gensym.wasm.TestEval
+      run: |
+        sbt 'testOnly gensym.TestImpCPSGS'
+        sbt 'testOnly gensym.TestImpCPSGS_Z3'
+        sbt 'testOnly gensym.TestLibrary'
+        sbt 'testOnly gensym.wasm.TestEval'
