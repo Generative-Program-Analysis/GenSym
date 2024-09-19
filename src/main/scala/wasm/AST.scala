@@ -37,6 +37,7 @@ case class MemInlineImport(ty: MemoryType) extends MemoryField
 case class MemInlineExprot(field: MemoryField) extends MemoryField
 
 abstract class GlobalField extends WIR
+// e is constant expression
 case class GlobalValue(ty: GlobalType, e: List[Instr]) extends GlobalField
 case class GloInlineImport(ty: GlobalType) extends GlobalField
 case class GloInlineExprot(field: GlobalField) extends GlobalField

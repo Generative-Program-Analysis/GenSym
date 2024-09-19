@@ -543,7 +543,6 @@ object Parser {
     val parser = new WatParser(tokens)
     val visitor = new GSWasmVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    println(visitor.fnMap)
     val mod = visitor.resolveCall(res)
     mod
   }
