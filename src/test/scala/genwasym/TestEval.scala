@@ -8,27 +8,21 @@ import gensym.wasm.source._
 import gensym.wasm.parser._
 import gensym.wasm.memory._
 import gensym.wasm.symbolic._
+import gensym.wasm.miniwasm._
+import collection.mutable.ArrayBuffer
 
 import org.scalatest.FunSuite
 
 class TestEval extends FunSuite {
 
   // Mostly testing the files generated form `benchmarks/wasm/test.rs`
-  def testfile(filename: String) = {
-    import gensym.wasm.miniwasm._
-    import collection.mutable.ArrayBuffer
+  def testFile(filename: String, main: String, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
 
-    val instrs = module.definitions
-      .find({
-        case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
-        case _                                                    => false
-      })
-      .map({
-        case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
-      })
-      .get
-      .toList
+    val instrs = module.definitions.flatMap({
+        case FuncDef(Some(`main`), FuncBodyDef(_, _, _, body)) => body
+        case _ => List()
+    })
 
     val types = List()
     val funcs = module.definitions
@@ -48,24 +42,25 @@ class TestEval extends FunSuite {
       .toList
 
     val moduleInst = ModuleInstance(types, funcs, List(RTMemory()), globals)
+    val retK: Evaluator.RetCont = newStack => println(s"retCont: $newStack")
+    val trailK: Evaluator.Cont = newStack => {
+      println(s"trail: $newStack")
+      expected match {
+        case Some(e) => assert(newStack(0) == I32V(e))
+        case None    => ()
+      }
+    }
 
-    Evaluator.eval(instrs,
-                   List(),
-                   Frame(moduleInst, ArrayBuffer(I32V(0))),
-                   newStack => println(s"retCont: $newStack"),
-                   List(newStack => println(s"trail: $newStack")))
-
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), 0/*retK*/, List(trailK))
   }
 
-  // Mostly testing the files generated form `benchmarks/wasm/test.rs`
-  def test_btree(filename: String) = {
-    import gensym.wasm.miniwasm._
-    import collection.mutable.ArrayBuffer
+  // XXX (GW): remove this and just using testFile?
+  def test_btree(filename: String, main: String) = {
     val module = Parser.parseFile(filename)
 
     val instrs = module.definitions
       .find({
-        case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
+        case FuncDef(Some(`main`), FuncBodyDef(_, _, _, _)) => true
         case _                                                    => false
       })
       .map({
@@ -105,7 +100,7 @@ class TestEval extends FunSuite {
     Evaluator.eval(instrs,
                    List(),
                    Frame(moduleInst, ArrayBuffer(I32V(0))),
-                   newStack => println(s"retCont: $newStack"),
+                   0, //newStack => println(s"retCont: $newStack"),
                    List(newStack => println(s"trail: $newStack")))
 
   }
@@ -117,6 +112,6 @@ class TestEval extends FunSuite {
   // test("power") { testfile("./benchmarks/wasm/test_pow.wat") }
 
   // TODO: fix this, this should fail at unreachable!
-  test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat") }
+  test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
 
 }
