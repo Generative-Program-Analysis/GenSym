@@ -20,6 +20,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   /* Some helper functions */
 
+  // TODO: see TODO in 2o1u-no-label.wat
   val fnMap: HashMap[String, Int] = HashMap()
 
   def error = throw new RuntimeException("Unspported")

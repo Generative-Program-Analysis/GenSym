@@ -180,7 +180,6 @@ object Evaluator {
     val inst = insts.head
     val rest = insts.tail
 
-    println(inst)
     inst match {
       case Drop => eval(rest, stack.tail, frame, ret, trail)
       case Select(_) =>
@@ -273,7 +272,7 @@ object Evaluator {
         eval(inner, List(), frame, ret+1, k :: trail)
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
-        val inner = if (cond == 0) thn else els
+        val inner = if (cond != 0) thn else els
         val k: Cont = (retStack) =>
           eval(rest,
                retStack.take(ty.toList.size) ++ newStack,

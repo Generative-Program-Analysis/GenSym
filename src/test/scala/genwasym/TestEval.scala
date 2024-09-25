@@ -90,12 +90,12 @@ class TestEval extends FunSuite {
     // TODO: correct the behavior for memory
     val memory = module.definitions
       .collect({
-        case Memory(id, MemoryType(a, b)) =>
-          new RTMemory(RTMemoryType(a, b), ArrayBuffer[Byte]())
+        case Memory(id, MemoryType(min, max_opt)) =>
+          RTMemory(min, max_opt)
       })
       .toList
 
-    val moduleInst = ModuleInstance(types, funcs, List(RTMemory()), globals)
+    val moduleInst = ModuleInstance(types, funcs, memory, globals)
 
     Evaluator.eval(instrs,
                    List(),
@@ -107,11 +107,14 @@ class TestEval extends FunSuite {
 
   // test("ackermann") { testfile("./benchmarks/wasm/test_ack.wat") }
   // TODO: the power test can be used to test the stack
-  // For now: 2^10 works, 2^100 results in 0 (why?),
+  // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
   // and 2^1000 results in a stack overflow
-  // test("power") { testfile("./benchmarks/wasm/test_pow.wat") }
+  test("power") { testFile("./benchmarks/wasm/test_pow.wat", "$real_main") }
 
-  // TODO: fix this, this should fail at unreachable!
-  test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
+  // test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
+
+  // TODO: add more wasm spec tests?
+  // test("memory") { test_btree("./benchmarks/wasm/spectest/test.wat", "$real_main") }
+
 
 }
