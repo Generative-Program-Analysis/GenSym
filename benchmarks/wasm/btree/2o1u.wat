@@ -2744,13 +2744,13 @@
         (local $btree i32)
         (local.get $a)
         (local.get $b)
-        (i32.gt_s)
+        (i32.gt_s)      ;; a > b
         (local.get $a)
         (local.get $h)
-        (i32.ne)
+        (i32.ne)      ;; a != h
         (local.get $b)
         (local.get $h)
-        (i32.ne)
+        (i32.ne)    ;; b != h
         (i32.and)
         (i32.and)
         (i32.eqz)
@@ -2810,4 +2810,12 @@
         (drop)
         )
   (export "main" (func $main))
+  (func $real_main
+    i32.const 1
+    i32.const 2
+    i32.const 1
+    call $main
+  )
+  (start $real_main)
+  (start $real_main)
   )

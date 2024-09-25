@@ -2624,5 +2624,12 @@
     i32.and
     i32.and
     drop)
+  (func $real_main
+    i32.const 1
+    i32.const 2
+    i32.const 1
+    call 6 ;; $main ;; TODO: FIXME: $main is parsed as 0!
+  )
+  (start $real_main)
   (memory (;0;) 2)
   (export "main" (func 6)))

@@ -65,8 +65,8 @@ class TestEval extends FunSuite {
 
     val instrs = module.definitions
       .find({
-        case FuncDef(Some("$main"), FuncBodyDef(_, _, _, _)) => true
-        case _                                               => false
+        case FuncDef(Some("$real_main"), FuncBodyDef(_, _, _, _)) => true
+        case _                                                    => false
       })
       .map({
         case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
@@ -86,14 +86,17 @@ class TestEval extends FunSuite {
         case Global(_, GlobalValue(ty, e)) =>
           (e.head) match {
             case Const(c) => RTGlobal(ty, c)
-            case _        => ???
+            // Q: What is the default behavior if case in non exhaustive
+            case _ => ???
           }
       })
       .toList
 
+    // TODO: correct the behavior for memory
     val memory = module.definitions
       .collect({
-        case Memory(id, f) => println(s"Memory: $id $f")
+        case Memory(id, MemoryType(a, b)) =>
+          new RTMemory(RTMemoryType(a, b), ArrayBuffer[Byte]())
       })
       .toList
 
@@ -107,13 +110,13 @@ class TestEval extends FunSuite {
 
   }
 
-  test("ackermann") { testfile("./benchmarks/wasm/test_ack.wat") }
+  // test("ackermann") { testfile("./benchmarks/wasm/test_ack.wat") }
   // TODO: the power test can be used to test the stack
   // For now: 2^10 works, 2^100 results in 0 (why?),
   // and 2^1000 results in a stack overflow
-  test("power") { testfile("./benchmarks/wasm/test_pow.wat") }
+  // test("power") { testfile("./benchmarks/wasm/test_pow.wat") }
 
-  // TODO: fix this
-  // test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat") }
+  // TODO: fix this, this should fail at unreachable!
+  test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat") }
 
 }

@@ -5,15 +5,17 @@ import gensym.wasm.source._
 
 abstract class WIR
 
-case class Module(name: Option[String], definitions: List[Definition]) extends WIR
- 
+case class Module(name: Option[String], definitions: List[Definition])
+    extends WIR
+
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
 case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
-case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList) extends Definition
+case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList)
+    extends Definition
 case class Data(id: Option[String], value: String) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
@@ -22,8 +24,16 @@ case class ElemListFunc(funcs: List[String]) extends ElemList
 case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 
 abstract class FuncField extends WIR
-case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr]) extends FuncField
-case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any/*FIXME*/) extends FuncField
+case class FuncBodyDef(tipe: FuncType,
+                       localNames: List[String],
+                       locals: List[ValueType],
+                       body: List[Instr])
+    extends FuncField
+case class FunInlineImport(mod: String,
+                           name: String,
+                           typeUse: Option[Int],
+                           imports: Any /*FIXME*/ )
+    extends FuncField
 case class FunInlineExport(fd: List[FuncDef]) extends FuncField
 
 abstract class TableField extends WIR
@@ -53,11 +63,17 @@ case object Alloc extends Instr
 case object Free extends Instr
 case class Select(ty: Option[List[ValueType]]) extends Instr
 case class Block(ty: Option[ValueType], instrs: List[Instr]) extends Instr
-case class IdBlock(id: Int, ty: Option[ValueType], instrs: List[Instr]) extends Instr
+case class IdBlock(id: Int, ty: Option[ValueType], instrs: List[Instr])
+    extends Instr
 case class Loop(ty: Option[ValueType], instrs: List[Instr]) extends Instr
-case class IdLoop(id: Int, ty: Option[ValueType], instrs: List[Instr]) extends Instr
-case class If(ty: Option[ValueType], thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
-case class IdIf(ty: Option[ValueType], thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
+case class IdLoop(id: Int, ty: Option[ValueType], instrs: List[Instr])
+    extends Instr
+case class If(ty: Option[ValueType],
+              thenInstrs: List[Instr],
+              elseInstrs: List[Instr])
+    extends Instr
+case class IdIf(ty: Option[ValueType], thenInstrs: IdBlock, elseInstrs: IdBlock)
+    extends Instr
 // FIXME: labelId can be string?
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
@@ -120,8 +136,9 @@ case class Convert(op: CvtOp) extends Instr
 
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
+case class BrUnresolved(name: String) extends Instr with Unresolved
 
-abstract class BinOp 
+abstract class BinOp
 case class Add(ty: NumType) extends BinOp
 case class Sub(ty: NumType) extends BinOp
 case class Mul(ty: NumType) extends BinOp
@@ -143,12 +160,12 @@ case class Min(ty: NumType) extends BinOp
 case class Max(ty: NumType) extends BinOp
 case class Copysign(ty: NumType) extends BinOp
 
-abstract class TestOp 
+abstract class TestOp
 case class Eqz(ty: NumType) extends TestOp
 
 abstract class RelOp
-case class Eq(ty: NumType)  extends RelOp
-case class Ne(ty: NumType)  extends RelOp
+case class Eq(ty: NumType) extends RelOp
+case class Ne(ty: NumType) extends RelOp
 case class LtS(ty: NumType) extends RelOp
 case class LeS(ty: NumType) extends RelOp
 case class LtU(ty: NumType) extends RelOp
@@ -198,8 +215,17 @@ case object SX extends Extension
 case object ZX extends Extension
 
 abstract class MemOp(align: Int, offset: Int) extends WIR
-case class StoreOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize]) extends MemOp(align, offset)
-case class LoadOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize], extension: Option[Extension]) extends MemOp(align, offset)
+case class StoreOp(align: Int,
+                   offset: Int,
+                   tipe: NumType,
+                   pack_size: Option[PackSize])
+    extends MemOp(align, offset)
+case class LoadOp(align: Int,
+                  offset: Int,
+                  tipe: NumType,
+                  pack_size: Option[PackSize],
+                  extension: Option[Extension])
+    extends MemOp(align, offset)
 
 // Types
 
@@ -223,7 +249,10 @@ case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
 case class RefType(kind: RefKind) extends ValueType
 
-case class FuncType(argNames/*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
+case class FuncType(argNames /*optional*/: List[String],
+                    inps: List[ValueType],
+                    out: List[ValueType])
+    extends WasmType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 
@@ -244,7 +273,6 @@ case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
  }
  */
 
-
 // Globals
 case class RTGlobal(ty: GlobalType, var value: Value)
 
@@ -255,12 +283,13 @@ abstract class Value extends WIR {
 }
 
 abstract class Num extends Value {
-  def tipe: ValueType = NumType(this match {
-    case I32V(_) => I32Type
-    case I64V(_) => I64Type
-    case F32V(_) => F32Type
-    case F64V(_) => F64Type
-  })
+  def tipe: ValueType =
+    NumType(this match {
+      case I32V(_) => I32Type
+      case I64V(_) => I64Type
+      case F32V(_) => F32Type
+      case F64V(_) => F64Type
+    })
 }
 
 case class I32V(value: Int) extends Num

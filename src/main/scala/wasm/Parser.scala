@@ -158,7 +158,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.NOP() != null) Nop
     else if (ctx.DROP() != null) Drop
     else if (ctx.selectInstr() != null) Select(None)
-    else if (ctx.BR() != null) Br(getVar(ctx.idx(0)).toInt)
+    else if (ctx.BR() != null) {
+      var id = getVar(ctx.idx(0))
+      Br(id.toInt)
+      // try Br(id.toInt) catch { case _: java.lang.NumberFormatException => BrUnresolved(id) }
+    }
     else if (ctx.BR_IF() != null) BrIf(getVar(ctx.idx(0)).toInt)
     else if (ctx.BR_TABLE() != null) {
       val labels = ctx.idx().asScala.map(getVar(_).toInt).toList
@@ -401,7 +405,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       val els = if (ctx.ELSE != null) {
         val InstrList(elsInstr) = visit(ctx.instrList(1))
         elsInstr
-      } else List() 
+      } else List()
       InstrList(cnd ++ List(If(ty, thn, els)))
     } else error
   }
@@ -528,9 +532,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     })
 
   def resolveCall(instr: Instr): Instr = instr match {
+    // case BrUnresolved(name) => Br()
     case CallUnresolved(name) => Call(fnMap(name))
-    case Block(label, instrs) => Block(label, instrs.map(resolveCall))
-    case Loop(label, instrs) => Loop(label, instrs.map(resolveCall))
+    case Block(ty, instrs) => Block(ty, instrs.map(resolveCall))
+    case Loop(ty, instrs) => Loop(ty, instrs.map(resolveCall))
     case _ => instr
   }
 }

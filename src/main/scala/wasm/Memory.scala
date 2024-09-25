@@ -86,6 +86,7 @@ object RTMemory {
   def apply(): RTMemory = this.apply(1024)
   def apply(size: Int): RTMemory = this.apply(size, None)
   def apply(size: Int, maxSize: Option[Int]): RTMemory = {
-    new RTMemory(RTMemoryType(size, maxSize), ArrayBuffer.fill[Byte](size * pageSize.toInt)(0))
+    new RTMemory(RTMemoryType(size, maxSize),
+                 ArrayBuffer.fill[Byte](size * pageSize.toInt)(0))
   }
 }
