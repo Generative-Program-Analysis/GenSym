@@ -1,5 +1,5 @@
 package gensym.wasm;
-// Generated from WatParser.g4 by ANTLR 4.12.0
+// Generated from WatParser.g4 by ANTLR 4.13.0
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -28,85 +28,135 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitName(WatParser.NameContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#value_type}.
+	 * Enter a parse tree produced by {@link WatParser#numType}.
 	 * @param ctx the parse tree
 	 */
-	void enterValue_type(WatParser.Value_typeContext ctx);
+	void enterNumType(WatParser.NumTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#value_type}.
+	 * Exit a parse tree produced by {@link WatParser#numType}.
 	 * @param ctx the parse tree
 	 */
-	void exitValue_type(WatParser.Value_typeContext ctx);
+	void exitNumType(WatParser.NumTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#elem_type}.
+	 * Enter a parse tree produced by {@link WatParser#refType}.
 	 * @param ctx the parse tree
 	 */
-	void enterElem_type(WatParser.Elem_typeContext ctx);
+	void enterRefType(WatParser.RefTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#elem_type}.
+	 * Exit a parse tree produced by {@link WatParser#refType}.
 	 * @param ctx the parse tree
 	 */
-	void exitElem_type(WatParser.Elem_typeContext ctx);
+	void exitRefType(WatParser.RefTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#global_type}.
+	 * Enter a parse tree produced by {@link WatParser#vecType}.
 	 * @param ctx the parse tree
 	 */
-	void enterGlobal_type(WatParser.Global_typeContext ctx);
+	void enterVecType(WatParser.VecTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#global_type}.
+	 * Exit a parse tree produced by {@link WatParser#vecType}.
 	 * @param ctx the parse tree
 	 */
-	void exitGlobal_type(WatParser.Global_typeContext ctx);
+	void exitVecType(WatParser.VecTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#def_type}.
+	 * Enter a parse tree produced by {@link WatParser#valType}.
 	 * @param ctx the parse tree
 	 */
-	void enterDef_type(WatParser.Def_typeContext ctx);
+	void enterValType(WatParser.ValTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#def_type}.
+	 * Exit a parse tree produced by {@link WatParser#valType}.
 	 * @param ctx the parse tree
 	 */
-	void exitDef_type(WatParser.Def_typeContext ctx);
+	void exitValType(WatParser.ValTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#func_type}.
+	 * Enter a parse tree produced by {@link WatParser#heapType}.
 	 * @param ctx the parse tree
 	 */
-	void enterFunc_type(WatParser.Func_typeContext ctx);
+	void enterHeapType(WatParser.HeapTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#func_type}.
+	 * Exit a parse tree produced by {@link WatParser#heapType}.
 	 * @param ctx the parse tree
 	 */
-	void exitFunc_type(WatParser.Func_typeContext ctx);
+	void exitHeapType(WatParser.HeapTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#table_type}.
+	 * Enter a parse tree produced by {@link WatParser#globalType}.
 	 * @param ctx the parse tree
 	 */
-	void enterTable_type(WatParser.Table_typeContext ctx);
+	void enterGlobalType(WatParser.GlobalTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#table_type}.
+	 * Exit a parse tree produced by {@link WatParser#globalType}.
 	 * @param ctx the parse tree
 	 */
-	void exitTable_type(WatParser.Table_typeContext ctx);
+	void exitGlobalType(WatParser.GlobalTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#memory_type}.
+	 * Enter a parse tree produced by {@link WatParser#defType}.
 	 * @param ctx the parse tree
 	 */
-	void enterMemory_type(WatParser.Memory_typeContext ctx);
+	void enterDefType(WatParser.DefTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#memory_type}.
+	 * Exit a parse tree produced by {@link WatParser#defType}.
 	 * @param ctx the parse tree
 	 */
-	void exitMemory_type(WatParser.Memory_typeContext ctx);
+	void exitDefType(WatParser.DefTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#type_use}.
+	 * Enter a parse tree produced by {@link WatParser#funcParamType}.
 	 * @param ctx the parse tree
 	 */
-	void enterType_use(WatParser.Type_useContext ctx);
+	void enterFuncParamType(WatParser.FuncParamTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#type_use}.
+	 * Exit a parse tree produced by {@link WatParser#funcParamType}.
 	 * @param ctx the parse tree
 	 */
-	void exitType_use(WatParser.Type_useContext ctx);
+	void exitFuncParamType(WatParser.FuncParamTypeContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#funcResType}.
+	 * @param ctx the parse tree
+	 */
+	void enterFuncResType(WatParser.FuncResTypeContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#funcResType}.
+	 * @param ctx the parse tree
+	 */
+	void exitFuncResType(WatParser.FuncResTypeContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#funcType}.
+	 * @param ctx the parse tree
+	 */
+	void enterFuncType(WatParser.FuncTypeContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#funcType}.
+	 * @param ctx the parse tree
+	 */
+	void exitFuncType(WatParser.FuncTypeContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#tableType}.
+	 * @param ctx the parse tree
+	 */
+	void enterTableType(WatParser.TableTypeContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#tableType}.
+	 * @param ctx the parse tree
+	 */
+	void exitTableType(WatParser.TableTypeContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#memoryType}.
+	 * @param ctx the parse tree
+	 */
+	void enterMemoryType(WatParser.MemoryTypeContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#memoryType}.
+	 * @param ctx the parse tree
+	 */
+	void exitMemoryType(WatParser.MemoryTypeContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#typeUse}.
+	 * @param ctx the parse tree
+	 */
+	void enterTypeUse(WatParser.TypeUseContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#typeUse}.
+	 * @param ctx the parse tree
+	 */
+	void exitTypeUse(WatParser.TypeUseContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#literal}.
 	 * @param ctx the parse tree
@@ -118,25 +168,25 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitLiteral(WatParser.LiteralContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#var_}.
+	 * Enter a parse tree produced by {@link WatParser#idx}.
 	 * @param ctx the parse tree
 	 */
-	void enterVar_(WatParser.Var_Context ctx);
+	void enterIdx(WatParser.IdxContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#var_}.
+	 * Exit a parse tree produced by {@link WatParser#idx}.
 	 * @param ctx the parse tree
 	 */
-	void exitVar_(WatParser.Var_Context ctx);
+	void exitIdx(WatParser.IdxContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#bind_var}.
+	 * Enter a parse tree produced by {@link WatParser#bindVar}.
 	 * @param ctx the parse tree
 	 */
-	void enterBind_var(WatParser.Bind_varContext ctx);
+	void enterBindVar(WatParser.BindVarContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#bind_var}.
+	 * Exit a parse tree produced by {@link WatParser#bindVar}.
 	 * @param ctx the parse tree
 	 */
-	void exitBind_var(WatParser.Bind_varContext ctx);
+	void exitBindVar(WatParser.BindVarContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#instr}.
 	 * @param ctx the parse tree
@@ -148,85 +198,125 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitInstr(WatParser.InstrContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#plain_instr}.
+	 * Enter a parse tree produced by {@link WatParser#plainInstr}.
 	 * @param ctx the parse tree
 	 */
-	void enterPlain_instr(WatParser.Plain_instrContext ctx);
+	void enterPlainInstr(WatParser.PlainInstrContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#plain_instr}.
+	 * Exit a parse tree produced by {@link WatParser#plainInstr}.
 	 * @param ctx the parse tree
 	 */
-	void exitPlain_instr(WatParser.Plain_instrContext ctx);
+	void exitPlainInstr(WatParser.PlainInstrContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_instr}.
+	 * Enter a parse tree produced by {@link WatParser#offsetEq}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_instr(WatParser.Call_instrContext ctx);
+	void enterOffsetEq(WatParser.OffsetEqContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_instr}.
+	 * Exit a parse tree produced by {@link WatParser#offsetEq}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_instr(WatParser.Call_instrContext ctx);
+	void exitOffsetEq(WatParser.OffsetEqContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_instr_params}.
+	 * Enter a parse tree produced by {@link WatParser#alignEq}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_instr_params(WatParser.Call_instr_paramsContext ctx);
+	void enterAlignEq(WatParser.AlignEqContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_instr_params}.
+	 * Exit a parse tree produced by {@link WatParser#alignEq}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_instr_params(WatParser.Call_instr_paramsContext ctx);
+	void exitAlignEq(WatParser.AlignEqContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_instr_instr}.
+	 * Enter a parse tree produced by {@link WatParser#load}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_instr_instr(WatParser.Call_instr_instrContext ctx);
+	void enterLoad(WatParser.LoadContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_instr_instr}.
+	 * Exit a parse tree produced by {@link WatParser#load}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_instr_instr(WatParser.Call_instr_instrContext ctx);
+	void exitLoad(WatParser.LoadContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_instr_params_instr}.
+	 * Enter a parse tree produced by {@link WatParser#store}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_instr_params_instr(WatParser.Call_instr_params_instrContext ctx);
+	void enterStore(WatParser.StoreContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_instr_params_instr}.
+	 * Exit a parse tree produced by {@link WatParser#store}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_instr_params_instr(WatParser.Call_instr_params_instrContext ctx);
+	void exitStore(WatParser.StoreContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_instr_results_instr}.
+	 * Enter a parse tree produced by {@link WatParser#selectInstr}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_instr_results_instr(WatParser.Call_instr_results_instrContext ctx);
+	void enterSelectInstr(WatParser.SelectInstrContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_instr_results_instr}.
+	 * Exit a parse tree produced by {@link WatParser#selectInstr}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_instr_results_instr(WatParser.Call_instr_results_instrContext ctx);
+	void exitSelectInstr(WatParser.SelectInstrContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#block_instr}.
+	 * Enter a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 */
-	void enterBlock_instr(WatParser.Block_instrContext ctx);
+	void enterCallIndirectInstr(WatParser.CallIndirectInstrContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#block_instr}.
+	 * Exit a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 */
-	void exitBlock_instr(WatParser.Block_instrContext ctx);
+	void exitCallIndirectInstr(WatParser.CallIndirectInstrContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#block_type}.
+	 * Enter a parse tree produced by {@link WatParser#callInstrParams}.
 	 * @param ctx the parse tree
 	 */
-	void enterBlock_type(WatParser.Block_typeContext ctx);
+	void enterCallInstrParams(WatParser.CallInstrParamsContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#block_type}.
+	 * Exit a parse tree produced by {@link WatParser#callInstrParams}.
 	 * @param ctx the parse tree
 	 */
-	void exitBlock_type(WatParser.Block_typeContext ctx);
+	void exitCallInstrParams(WatParser.CallInstrParamsContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#callInstrParamsInstr}.
+	 * @param ctx the parse tree
+	 */
+	void enterCallInstrParamsInstr(WatParser.CallInstrParamsInstrContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#callInstrParamsInstr}.
+	 * @param ctx the parse tree
+	 */
+	void exitCallInstrParamsInstr(WatParser.CallInstrParamsInstrContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#callInstrResultsInstr}.
+	 * @param ctx the parse tree
+	 */
+	void enterCallInstrResultsInstr(WatParser.CallInstrResultsInstrContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#callInstrResultsInstr}.
+	 * @param ctx the parse tree
+	 */
+	void exitCallInstrResultsInstr(WatParser.CallInstrResultsInstrContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#blockInstr}.
+	 * @param ctx the parse tree
+	 */
+	void enterBlockInstr(WatParser.BlockInstrContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#blockInstr}.
+	 * @param ctx the parse tree
+	 */
+	void exitBlockInstr(WatParser.BlockInstrContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#blockType}.
+	 * @param ctx the parse tree
+	 */
+	void enterBlockType(WatParser.BlockTypeContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#blockType}.
+	 * @param ctx the parse tree
+	 */
+	void exitBlockType(WatParser.BlockTypeContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#block}.
 	 * @param ctx the parse tree
@@ -238,6 +328,16 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitBlock(WatParser.BlockContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#foldedInstr}.
+	 * @param ctx the parse tree
+	 */
+	void enterFoldedInstr(WatParser.FoldedInstrContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#foldedInstr}.
+	 * @param ctx the parse tree
+	 */
+	void exitFoldedInstr(WatParser.FoldedInstrContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#expr}.
 	 * @param ctx the parse tree
 	 */
@@ -248,145 +348,95 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitExpr(WatParser.ExprContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#expr1}.
+	 * Enter a parse tree produced by {@link WatParser#callExprType}.
 	 * @param ctx the parse tree
 	 */
-	void enterExpr1(WatParser.Expr1Context ctx);
+	void enterCallExprType(WatParser.CallExprTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#expr1}.
+	 * Exit a parse tree produced by {@link WatParser#callExprType}.
 	 * @param ctx the parse tree
 	 */
-	void exitExpr1(WatParser.Expr1Context ctx);
+	void exitCallExprType(WatParser.CallExprTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_expr_type}.
+	 * Enter a parse tree produced by {@link WatParser#callExprParams}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_expr_type(WatParser.Call_expr_typeContext ctx);
+	void enterCallExprParams(WatParser.CallExprParamsContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_expr_type}.
+	 * Exit a parse tree produced by {@link WatParser#callExprParams}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_expr_type(WatParser.Call_expr_typeContext ctx);
+	void exitCallExprParams(WatParser.CallExprParamsContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_expr_params}.
+	 * Enter a parse tree produced by {@link WatParser#callExprResults}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_expr_params(WatParser.Call_expr_paramsContext ctx);
+	void enterCallExprResults(WatParser.CallExprResultsContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_expr_params}.
+	 * Exit a parse tree produced by {@link WatParser#callExprResults}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_expr_params(WatParser.Call_expr_paramsContext ctx);
+	void exitCallExprResults(WatParser.CallExprResultsContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#call_expr_results}.
+	 * Enter a parse tree produced by {@link WatParser#instrList}.
 	 * @param ctx the parse tree
 	 */
-	void enterCall_expr_results(WatParser.Call_expr_resultsContext ctx);
+	void enterInstrList(WatParser.InstrListContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#call_expr_results}.
+	 * Exit a parse tree produced by {@link WatParser#instrList}.
 	 * @param ctx the parse tree
 	 */
-	void exitCall_expr_results(WatParser.Call_expr_resultsContext ctx);
+	void exitInstrList(WatParser.InstrListContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#if_block}.
+	 * Enter a parse tree produced by {@link WatParser#constExpr}.
 	 * @param ctx the parse tree
 	 */
-	void enterIf_block(WatParser.If_blockContext ctx);
+	void enterConstExpr(WatParser.ConstExprContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#if_block}.
+	 * Exit a parse tree produced by {@link WatParser#constExpr}.
 	 * @param ctx the parse tree
 	 */
-	void exitIf_block(WatParser.If_blockContext ctx);
+	void exitConstExpr(WatParser.ConstExprContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#instr_list}.
+	 * Enter a parse tree produced by {@link WatParser#function}.
 	 * @param ctx the parse tree
 	 */
-	void enterInstr_list(WatParser.Instr_listContext ctx);
+	void enterFunction(WatParser.FunctionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#instr_list}.
+	 * Exit a parse tree produced by {@link WatParser#function}.
 	 * @param ctx the parse tree
 	 */
-	void exitInstr_list(WatParser.Instr_listContext ctx);
+	void exitFunction(WatParser.FunctionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#const_expr}.
+	 * Enter a parse tree produced by {@link WatParser#funcFields}.
 	 * @param ctx the parse tree
 	 */
-	void enterConst_expr(WatParser.Const_exprContext ctx);
+	void enterFuncFields(WatParser.FuncFieldsContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#const_expr}.
+	 * Exit a parse tree produced by {@link WatParser#funcFields}.
 	 * @param ctx the parse tree
 	 */
-	void exitConst_expr(WatParser.Const_exprContext ctx);
+	void exitFuncFields(WatParser.FuncFieldsContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#func_}.
+	 * Enter a parse tree produced by {@link WatParser#funcFieldsBody}.
 	 * @param ctx the parse tree
 	 */
-	void enterFunc_(WatParser.Func_Context ctx);
+	void enterFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#func_}.
+	 * Exit a parse tree produced by {@link WatParser#funcFieldsBody}.
 	 * @param ctx the parse tree
 	 */
-	void exitFunc_(WatParser.Func_Context ctx);
+	void exitFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#func_fields}.
+	 * Enter a parse tree produced by {@link WatParser#funcBody}.
 	 * @param ctx the parse tree
 	 */
-	void enterFunc_fields(WatParser.Func_fieldsContext ctx);
+	void enterFuncBody(WatParser.FuncBodyContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#func_fields}.
+	 * Exit a parse tree produced by {@link WatParser#funcBody}.
 	 * @param ctx the parse tree
 	 */
-	void exitFunc_fields(WatParser.Func_fieldsContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#func_fields_import}.
-	 * @param ctx the parse tree
-	 */
-	void enterFunc_fields_import(WatParser.Func_fields_importContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#func_fields_import}.
-	 * @param ctx the parse tree
-	 */
-	void exitFunc_fields_import(WatParser.Func_fields_importContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#func_fields_import_result}.
-	 * @param ctx the parse tree
-	 */
-	void enterFunc_fields_import_result(WatParser.Func_fields_import_resultContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#func_fields_import_result}.
-	 * @param ctx the parse tree
-	 */
-	void exitFunc_fields_import_result(WatParser.Func_fields_import_resultContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#func_fields_body}.
-	 * @param ctx the parse tree
-	 */
-	void enterFunc_fields_body(WatParser.Func_fields_bodyContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#func_fields_body}.
-	 * @param ctx the parse tree
-	 */
-	void exitFunc_fields_body(WatParser.Func_fields_bodyContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#func_result_body}.
-	 * @param ctx the parse tree
-	 */
-	void enterFunc_result_body(WatParser.Func_result_bodyContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#func_result_body}.
-	 * @param ctx the parse tree
-	 */
-	void exitFunc_result_body(WatParser.Func_result_bodyContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#func_body}.
-	 * @param ctx the parse tree
-	 */
-	void enterFunc_body(WatParser.Func_bodyContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#func_body}.
-	 * @param ctx the parse tree
-	 */
-	void exitFunc_body(WatParser.Func_bodyContext ctx);
+	void exitFuncBody(WatParser.FuncBodyContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#offset}.
 	 * @param ctx the parse tree
@@ -418,15 +468,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitTable(WatParser.TableContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#table_fields}.
+	 * Enter a parse tree produced by {@link WatParser#tableField}.
 	 * @param ctx the parse tree
 	 */
-	void enterTable_fields(WatParser.Table_fieldsContext ctx);
+	void enterTableField(WatParser.TableFieldContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#table_fields}.
+	 * Exit a parse tree produced by {@link WatParser#tableField}.
 	 * @param ctx the parse tree
 	 */
-	void exitTable_fields(WatParser.Table_fieldsContext ctx);
+	void exitTableField(WatParser.TableFieldContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#data}.
 	 * @param ctx the parse tree
@@ -448,45 +498,45 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitMemory(WatParser.MemoryContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#memory_fields}.
+	 * Enter a parse tree produced by {@link WatParser#memoryField}.
 	 * @param ctx the parse tree
 	 */
-	void enterMemory_fields(WatParser.Memory_fieldsContext ctx);
+	void enterMemoryField(WatParser.MemoryFieldContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#memory_fields}.
+	 * Exit a parse tree produced by {@link WatParser#memoryField}.
 	 * @param ctx the parse tree
 	 */
-	void exitMemory_fields(WatParser.Memory_fieldsContext ctx);
+	void exitMemoryField(WatParser.MemoryFieldContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#sglobal}.
+	 * Enter a parse tree produced by {@link WatParser#global}.
 	 * @param ctx the parse tree
 	 */
-	void enterSglobal(WatParser.SglobalContext ctx);
+	void enterGlobal(WatParser.GlobalContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#sglobal}.
+	 * Exit a parse tree produced by {@link WatParser#global}.
 	 * @param ctx the parse tree
 	 */
-	void exitSglobal(WatParser.SglobalContext ctx);
+	void exitGlobal(WatParser.GlobalContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#global_fields}.
+	 * Enter a parse tree produced by {@link WatParser#globalField}.
 	 * @param ctx the parse tree
 	 */
-	void enterGlobal_fields(WatParser.Global_fieldsContext ctx);
+	void enterGlobalField(WatParser.GlobalFieldContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#global_fields}.
+	 * Exit a parse tree produced by {@link WatParser#globalField}.
 	 * @param ctx the parse tree
 	 */
-	void exitGlobal_fields(WatParser.Global_fieldsContext ctx);
+	void exitGlobalField(WatParser.GlobalFieldContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#import_desc}.
+	 * Enter a parse tree produced by {@link WatParser#importDesc}.
 	 * @param ctx the parse tree
 	 */
-	void enterImport_desc(WatParser.Import_descContext ctx);
+	void enterImportDesc(WatParser.ImportDescContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#import_desc}.
+	 * Exit a parse tree produced by {@link WatParser#importDesc}.
 	 * @param ctx the parse tree
 	 */
-	void exitImport_desc(WatParser.Import_descContext ctx);
+	void exitImportDesc(WatParser.ImportDescContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#simport}.
 	 * @param ctx the parse tree
@@ -498,25 +548,25 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitSimport(WatParser.SimportContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#inline_import}.
+	 * Enter a parse tree produced by {@link WatParser#inlineImport}.
 	 * @param ctx the parse tree
 	 */
-	void enterInline_import(WatParser.Inline_importContext ctx);
+	void enterInlineImport(WatParser.InlineImportContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#inline_import}.
+	 * Exit a parse tree produced by {@link WatParser#inlineImport}.
 	 * @param ctx the parse tree
 	 */
-	void exitInline_import(WatParser.Inline_importContext ctx);
+	void exitInlineImport(WatParser.InlineImportContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#export_desc}.
+	 * Enter a parse tree produced by {@link WatParser#exportDesc}.
 	 * @param ctx the parse tree
 	 */
-	void enterExport_desc(WatParser.Export_descContext ctx);
+	void enterExportDesc(WatParser.ExportDescContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#export_desc}.
+	 * Exit a parse tree produced by {@link WatParser#exportDesc}.
 	 * @param ctx the parse tree
 	 */
-	void exitExport_desc(WatParser.Export_descContext ctx);
+	void exitExportDesc(WatParser.ExportDescContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#export_}.
 	 * @param ctx the parse tree
@@ -528,35 +578,25 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitExport_(WatParser.Export_Context ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#inline_export}.
+	 * Enter a parse tree produced by {@link WatParser#inlineExport}.
 	 * @param ctx the parse tree
 	 */
-	void enterInline_export(WatParser.Inline_exportContext ctx);
+	void enterInlineExport(WatParser.InlineExportContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#inline_export}.
+	 * Exit a parse tree produced by {@link WatParser#inlineExport}.
 	 * @param ctx the parse tree
 	 */
-	void exitInline_export(WatParser.Inline_exportContext ctx);
+	void exitInlineExport(WatParser.InlineExportContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#type_}.
+	 * Enter a parse tree produced by {@link WatParser#typeDef}.
 	 * @param ctx the parse tree
 	 */
-	void enterType_(WatParser.Type_Context ctx);
+	void enterTypeDef(WatParser.TypeDefContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#type_}.
+	 * Exit a parse tree produced by {@link WatParser#typeDef}.
 	 * @param ctx the parse tree
 	 */
-	void exitType_(WatParser.Type_Context ctx);
-	/**
-	 * Enter a parse tree produced by {@link WatParser#type_def}.
-	 * @param ctx the parse tree
-	 */
-	void enterType_def(WatParser.Type_defContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link WatParser#type_def}.
-	 * @param ctx the parse tree
-	 */
-	void exitType_def(WatParser.Type_defContext ctx);
+	void exitTypeDef(WatParser.TypeDefContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#start_}.
 	 * @param ctx the parse tree
@@ -568,15 +608,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitStart_(WatParser.Start_Context ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#module_field}.
+	 * Enter a parse tree produced by {@link WatParser#moduleField}.
 	 * @param ctx the parse tree
 	 */
-	void enterModule_field(WatParser.Module_fieldContext ctx);
+	void enterModuleField(WatParser.ModuleFieldContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#module_field}.
+	 * Exit a parse tree produced by {@link WatParser#moduleField}.
 	 * @param ctx the parse tree
 	 */
-	void exitModule_field(WatParser.Module_fieldContext ctx);
+	void exitModuleField(WatParser.ModuleFieldContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#module_}.
 	 * @param ctx the parse tree
@@ -588,15 +628,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitModule_(WatParser.Module_Context ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#script_module}.
+	 * Enter a parse tree produced by {@link WatParser#scriptModule}.
 	 * @param ctx the parse tree
 	 */
-	void enterScript_module(WatParser.Script_moduleContext ctx);
+	void enterScriptModule(WatParser.ScriptModuleContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#script_module}.
+	 * Exit a parse tree produced by {@link WatParser#scriptModule}.
 	 * @param ctx the parse tree
 	 */
-	void exitScript_module(WatParser.Script_moduleContext ctx);
+	void exitScriptModule(WatParser.ScriptModuleContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#action_}.
 	 * @param ctx the parse tree
@@ -648,15 +688,15 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitWconst(WatParser.WconstContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link WatParser#const_list}.
+	 * Enter a parse tree produced by {@link WatParser#constList}.
 	 * @param ctx the parse tree
 	 */
-	void enterConst_list(WatParser.Const_listContext ctx);
+	void enterConstList(WatParser.ConstListContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link WatParser#const_list}.
+	 * Exit a parse tree produced by {@link WatParser#constList}.
 	 * @param ctx the parse tree
 	 */
-	void exitConst_list(WatParser.Const_listContext ctx);
+	void exitConstList(WatParser.ConstListContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#script}.
 	 * @param ctx the parse tree

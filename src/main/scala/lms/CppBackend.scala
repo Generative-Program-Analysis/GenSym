@@ -18,6 +18,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
 
   override def remap(m: Manifest[_]): String = {
     val name = m.runtimeClass.getName
+    //println(s"name: $name")
     if (name.startsWith("scala.Function")) {
       val ret = remap(m.typeArguments.last)
       val params = m.typeArguments.dropRight(1).map(remap(_)).mkString(", ")
@@ -40,7 +41,10 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     case "Unit" => "std::monostate"
     case "java.lang.String" => "std::string"
     case "Long" => "int64_t"
-    case _ => super.primitive(t)
+    case _ => {
+      //println(s"t: $t")
+      super.primitive(t)
+    }
   }
 
   override def mayInline(n: Node): Boolean = n match {
@@ -118,7 +122,10 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     if (m == manifest[Int]) s"atoi($arg)"
     else if (m == manifest[String]) arg
     else if (m == manifest[Unit]) "0"
-    else ???
+    else {
+      println(m)
+      ???
+    }
   }
 
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {

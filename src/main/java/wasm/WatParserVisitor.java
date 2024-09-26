@@ -1,5 +1,5 @@
 package gensym.wasm;
-// Generated from WatParser.g4 by ANTLR 4.12.0
+// Generated from WatParser.g4 by ANTLR 4.13.0
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 /**
@@ -23,53 +23,83 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitName(WatParser.NameContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#value_type}.
+	 * Visit a parse tree produced by {@link WatParser#numType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitValue_type(WatParser.Value_typeContext ctx);
+	T visitNumType(WatParser.NumTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#elem_type}.
+	 * Visit a parse tree produced by {@link WatParser#refType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitElem_type(WatParser.Elem_typeContext ctx);
+	T visitRefType(WatParser.RefTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#global_type}.
+	 * Visit a parse tree produced by {@link WatParser#vecType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitGlobal_type(WatParser.Global_typeContext ctx);
+	T visitVecType(WatParser.VecTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#def_type}.
+	 * Visit a parse tree produced by {@link WatParser#valType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitDef_type(WatParser.Def_typeContext ctx);
+	T visitValType(WatParser.ValTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#func_type}.
+	 * Visit a parse tree produced by {@link WatParser#heapType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitFunc_type(WatParser.Func_typeContext ctx);
+	T visitHeapType(WatParser.HeapTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#table_type}.
+	 * Visit a parse tree produced by {@link WatParser#globalType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitTable_type(WatParser.Table_typeContext ctx);
+	T visitGlobalType(WatParser.GlobalTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#memory_type}.
+	 * Visit a parse tree produced by {@link WatParser#defType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitMemory_type(WatParser.Memory_typeContext ctx);
+	T visitDefType(WatParser.DefTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#type_use}.
+	 * Visit a parse tree produced by {@link WatParser#funcParamType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitType_use(WatParser.Type_useContext ctx);
+	T visitFuncParamType(WatParser.FuncParamTypeContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#funcResType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFuncResType(WatParser.FuncResTypeContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#funcType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFuncType(WatParser.FuncTypeContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#tableType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTableType(WatParser.TableTypeContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#memoryType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMemoryType(WatParser.MemoryTypeContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#typeUse}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTypeUse(WatParser.TypeUseContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#literal}.
 	 * @param ctx the parse tree
@@ -77,17 +107,17 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitLiteral(WatParser.LiteralContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#var_}.
+	 * Visit a parse tree produced by {@link WatParser#idx}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitVar_(WatParser.Var_Context ctx);
+	T visitIdx(WatParser.IdxContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#bind_var}.
+	 * Visit a parse tree produced by {@link WatParser#bindVar}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitBind_var(WatParser.Bind_varContext ctx);
+	T visitBindVar(WatParser.BindVarContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#instr}.
 	 * @param ctx the parse tree
@@ -95,53 +125,77 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitInstr(WatParser.InstrContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#plain_instr}.
+	 * Visit a parse tree produced by {@link WatParser#plainInstr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitPlain_instr(WatParser.Plain_instrContext ctx);
+	T visitPlainInstr(WatParser.PlainInstrContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_instr}.
+	 * Visit a parse tree produced by {@link WatParser#offsetEq}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_instr(WatParser.Call_instrContext ctx);
+	T visitOffsetEq(WatParser.OffsetEqContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_instr_params}.
+	 * Visit a parse tree produced by {@link WatParser#alignEq}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_instr_params(WatParser.Call_instr_paramsContext ctx);
+	T visitAlignEq(WatParser.AlignEqContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_instr_instr}.
+	 * Visit a parse tree produced by {@link WatParser#load}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_instr_instr(WatParser.Call_instr_instrContext ctx);
+	T visitLoad(WatParser.LoadContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_instr_params_instr}.
+	 * Visit a parse tree produced by {@link WatParser#store}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_instr_params_instr(WatParser.Call_instr_params_instrContext ctx);
+	T visitStore(WatParser.StoreContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_instr_results_instr}.
+	 * Visit a parse tree produced by {@link WatParser#selectInstr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_instr_results_instr(WatParser.Call_instr_results_instrContext ctx);
+	T visitSelectInstr(WatParser.SelectInstrContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#block_instr}.
+	 * Visit a parse tree produced by {@link WatParser#callIndirectInstr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitBlock_instr(WatParser.Block_instrContext ctx);
+	T visitCallIndirectInstr(WatParser.CallIndirectInstrContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#block_type}.
+	 * Visit a parse tree produced by {@link WatParser#callInstrParams}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitBlock_type(WatParser.Block_typeContext ctx);
+	T visitCallInstrParams(WatParser.CallInstrParamsContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#callInstrParamsInstr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitCallInstrParamsInstr(WatParser.CallInstrParamsInstrContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#callInstrResultsInstr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitCallInstrResultsInstr(WatParser.CallInstrResultsInstrContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#blockInstr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBlockInstr(WatParser.BlockInstrContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#blockType}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBlockType(WatParser.BlockTypeContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#block}.
 	 * @param ctx the parse tree
@@ -149,95 +203,71 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitBlock(WatParser.BlockContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link WatParser#foldedInstr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFoldedInstr(WatParser.FoldedInstrContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link WatParser#expr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitExpr(WatParser.ExprContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#expr1}.
+	 * Visit a parse tree produced by {@link WatParser#callExprType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitExpr1(WatParser.Expr1Context ctx);
+	T visitCallExprType(WatParser.CallExprTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_expr_type}.
+	 * Visit a parse tree produced by {@link WatParser#callExprParams}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_expr_type(WatParser.Call_expr_typeContext ctx);
+	T visitCallExprParams(WatParser.CallExprParamsContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_expr_params}.
+	 * Visit a parse tree produced by {@link WatParser#callExprResults}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_expr_params(WatParser.Call_expr_paramsContext ctx);
+	T visitCallExprResults(WatParser.CallExprResultsContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#call_expr_results}.
+	 * Visit a parse tree produced by {@link WatParser#instrList}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitCall_expr_results(WatParser.Call_expr_resultsContext ctx);
+	T visitInstrList(WatParser.InstrListContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#if_block}.
+	 * Visit a parse tree produced by {@link WatParser#constExpr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitIf_block(WatParser.If_blockContext ctx);
+	T visitConstExpr(WatParser.ConstExprContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#instr_list}.
+	 * Visit a parse tree produced by {@link WatParser#function}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitInstr_list(WatParser.Instr_listContext ctx);
+	T visitFunction(WatParser.FunctionContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#const_expr}.
+	 * Visit a parse tree produced by {@link WatParser#funcFields}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitConst_expr(WatParser.Const_exprContext ctx);
+	T visitFuncFields(WatParser.FuncFieldsContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#func_}.
+	 * Visit a parse tree produced by {@link WatParser#funcFieldsBody}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitFunc_(WatParser.Func_Context ctx);
+	T visitFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#func_fields}.
+	 * Visit a parse tree produced by {@link WatParser#funcBody}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitFunc_fields(WatParser.Func_fieldsContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#func_fields_import}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFunc_fields_import(WatParser.Func_fields_importContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#func_fields_import_result}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFunc_fields_import_result(WatParser.Func_fields_import_resultContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#func_fields_body}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFunc_fields_body(WatParser.Func_fields_bodyContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#func_result_body}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFunc_result_body(WatParser.Func_result_bodyContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#func_body}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFunc_body(WatParser.Func_bodyContext ctx);
+	T visitFuncBody(WatParser.FuncBodyContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#offset}.
 	 * @param ctx the parse tree
@@ -257,11 +287,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitTable(WatParser.TableContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#table_fields}.
+	 * Visit a parse tree produced by {@link WatParser#tableField}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitTable_fields(WatParser.Table_fieldsContext ctx);
+	T visitTableField(WatParser.TableFieldContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#data}.
 	 * @param ctx the parse tree
@@ -275,29 +305,29 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitMemory(WatParser.MemoryContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#memory_fields}.
+	 * Visit a parse tree produced by {@link WatParser#memoryField}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitMemory_fields(WatParser.Memory_fieldsContext ctx);
+	T visitMemoryField(WatParser.MemoryFieldContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#sglobal}.
+	 * Visit a parse tree produced by {@link WatParser#global}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitSglobal(WatParser.SglobalContext ctx);
+	T visitGlobal(WatParser.GlobalContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#global_fields}.
+	 * Visit a parse tree produced by {@link WatParser#globalField}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitGlobal_fields(WatParser.Global_fieldsContext ctx);
+	T visitGlobalField(WatParser.GlobalFieldContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#import_desc}.
+	 * Visit a parse tree produced by {@link WatParser#importDesc}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitImport_desc(WatParser.Import_descContext ctx);
+	T visitImportDesc(WatParser.ImportDescContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#simport}.
 	 * @param ctx the parse tree
@@ -305,17 +335,17 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitSimport(WatParser.SimportContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#inline_import}.
+	 * Visit a parse tree produced by {@link WatParser#inlineImport}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitInline_import(WatParser.Inline_importContext ctx);
+	T visitInlineImport(WatParser.InlineImportContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#export_desc}.
+	 * Visit a parse tree produced by {@link WatParser#exportDesc}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitExport_desc(WatParser.Export_descContext ctx);
+	T visitExportDesc(WatParser.ExportDescContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#export_}.
 	 * @param ctx the parse tree
@@ -323,23 +353,17 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitExport_(WatParser.Export_Context ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#inline_export}.
+	 * Visit a parse tree produced by {@link WatParser#inlineExport}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitInline_export(WatParser.Inline_exportContext ctx);
+	T visitInlineExport(WatParser.InlineExportContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#type_}.
+	 * Visit a parse tree produced by {@link WatParser#typeDef}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitType_(WatParser.Type_Context ctx);
-	/**
-	 * Visit a parse tree produced by {@link WatParser#type_def}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitType_def(WatParser.Type_defContext ctx);
+	T visitTypeDef(WatParser.TypeDefContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#start_}.
 	 * @param ctx the parse tree
@@ -347,11 +371,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitStart_(WatParser.Start_Context ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#module_field}.
+	 * Visit a parse tree produced by {@link WatParser#moduleField}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitModule_field(WatParser.Module_fieldContext ctx);
+	T visitModuleField(WatParser.ModuleFieldContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#module_}.
 	 * @param ctx the parse tree
@@ -359,11 +383,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitModule_(WatParser.Module_Context ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#script_module}.
+	 * Visit a parse tree produced by {@link WatParser#scriptModule}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitScript_module(WatParser.Script_moduleContext ctx);
+	T visitScriptModule(WatParser.ScriptModuleContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#action_}.
 	 * @param ctx the parse tree
@@ -395,11 +419,11 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitWconst(WatParser.WconstContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link WatParser#const_list}.
+	 * Visit a parse tree produced by {@link WatParser#constList}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitConst_list(WatParser.Const_listContext ctx);
+	T visitConstList(WatParser.ConstListContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#script}.
 	 * @param ctx the parse tree

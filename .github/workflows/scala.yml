@@ -29,7 +29,7 @@ jobs:
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex libboost-all-dev python
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales clang-11 wget
-    - name: Generate test files
+    - name: Generate test files (LLVM IR)
       run: |
         cd benchmarks/llvm
         make gensym
@@ -70,3 +70,4 @@ jobs:
         sbt 'testOnly gensym.TestImpCPSGS'
         sbt 'testOnly gensym.TestImpCPSGS_Z3'
         sbt 'testOnly gensym.TestLibrary'
+        sbt 'testOnly gensym.wasm.TestEval'

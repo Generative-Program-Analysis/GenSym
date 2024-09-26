@@ -11,5 +11,6 @@
 # rust makes a clean wat file
 rustc -C opt-level=1 --crate-type cdylib "$1" -o "$2.temp" --target wasm32-unknown-unknown
 
+# wasm-tools print will print all the dwarf info
 wasm2wat "$2.temp" > "$2"
 rm "$2.temp"

@@ -1,5 +1,5 @@
 package gensym.wasm;
-// Generated from WatParser.g4 by ANTLR 4.12.0
+// Generated from WatParser.g4 by ANTLR 4.13.0
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
@@ -41,97 +41,157 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterValue_type(WatParser.Value_typeContext ctx) { }
+	@Override public void enterNumType(WatParser.NumTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitValue_type(WatParser.Value_typeContext ctx) { }
+	@Override public void exitNumType(WatParser.NumTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterElem_type(WatParser.Elem_typeContext ctx) { }
+	@Override public void enterRefType(WatParser.RefTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitElem_type(WatParser.Elem_typeContext ctx) { }
+	@Override public void exitRefType(WatParser.RefTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterGlobal_type(WatParser.Global_typeContext ctx) { }
+	@Override public void enterVecType(WatParser.VecTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitGlobal_type(WatParser.Global_typeContext ctx) { }
+	@Override public void exitVecType(WatParser.VecTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterDef_type(WatParser.Def_typeContext ctx) { }
+	@Override public void enterValType(WatParser.ValTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitDef_type(WatParser.Def_typeContext ctx) { }
+	@Override public void exitValType(WatParser.ValTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFunc_type(WatParser.Func_typeContext ctx) { }
+	@Override public void enterHeapType(WatParser.HeapTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitFunc_type(WatParser.Func_typeContext ctx) { }
+	@Override public void exitHeapType(WatParser.HeapTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterTable_type(WatParser.Table_typeContext ctx) { }
+	@Override public void enterGlobalType(WatParser.GlobalTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitTable_type(WatParser.Table_typeContext ctx) { }
+	@Override public void exitGlobalType(WatParser.GlobalTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterMemory_type(WatParser.Memory_typeContext ctx) { }
+	@Override public void enterDefType(WatParser.DefTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitMemory_type(WatParser.Memory_typeContext ctx) { }
+	@Override public void exitDefType(WatParser.DefTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterType_use(WatParser.Type_useContext ctx) { }
+	@Override public void enterFuncParamType(WatParser.FuncParamTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitType_use(WatParser.Type_useContext ctx) { }
+	@Override public void exitFuncParamType(WatParser.FuncParamTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterFuncResType(WatParser.FuncResTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFuncResType(WatParser.FuncResTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterFuncType(WatParser.FuncTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFuncType(WatParser.FuncTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterTableType(WatParser.TableTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTableType(WatParser.TableTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterMemoryType(WatParser.MemoryTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitMemoryType(WatParser.MemoryTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterTypeUse(WatParser.TypeUseContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTypeUse(WatParser.TypeUseContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -149,25 +209,25 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterVar_(WatParser.Var_Context ctx) { }
+	@Override public void enterIdx(WatParser.IdxContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitVar_(WatParser.Var_Context ctx) { }
+	@Override public void exitIdx(WatParser.IdxContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterBind_var(WatParser.Bind_varContext ctx) { }
+	@Override public void enterBindVar(WatParser.BindVarContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitBind_var(WatParser.Bind_varContext ctx) { }
+	@Override public void exitBindVar(WatParser.BindVarContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -185,97 +245,145 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterPlain_instr(WatParser.Plain_instrContext ctx) { }
+	@Override public void enterPlainInstr(WatParser.PlainInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitPlain_instr(WatParser.Plain_instrContext ctx) { }
+	@Override public void exitPlainInstr(WatParser.PlainInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_instr(WatParser.Call_instrContext ctx) { }
+	@Override public void enterOffsetEq(WatParser.OffsetEqContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_instr(WatParser.Call_instrContext ctx) { }
+	@Override public void exitOffsetEq(WatParser.OffsetEqContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_instr_params(WatParser.Call_instr_paramsContext ctx) { }
+	@Override public void enterAlignEq(WatParser.AlignEqContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_instr_params(WatParser.Call_instr_paramsContext ctx) { }
+	@Override public void exitAlignEq(WatParser.AlignEqContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_instr_instr(WatParser.Call_instr_instrContext ctx) { }
+	@Override public void enterLoad(WatParser.LoadContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_instr_instr(WatParser.Call_instr_instrContext ctx) { }
+	@Override public void exitLoad(WatParser.LoadContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_instr_params_instr(WatParser.Call_instr_params_instrContext ctx) { }
+	@Override public void enterStore(WatParser.StoreContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_instr_params_instr(WatParser.Call_instr_params_instrContext ctx) { }
+	@Override public void exitStore(WatParser.StoreContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_instr_results_instr(WatParser.Call_instr_results_instrContext ctx) { }
+	@Override public void enterSelectInstr(WatParser.SelectInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_instr_results_instr(WatParser.Call_instr_results_instrContext ctx) { }
+	@Override public void exitSelectInstr(WatParser.SelectInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterBlock_instr(WatParser.Block_instrContext ctx) { }
+	@Override public void enterCallIndirectInstr(WatParser.CallIndirectInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitBlock_instr(WatParser.Block_instrContext ctx) { }
+	@Override public void exitCallIndirectInstr(WatParser.CallIndirectInstrContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterBlock_type(WatParser.Block_typeContext ctx) { }
+	@Override public void enterCallInstrParams(WatParser.CallInstrParamsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitBlock_type(WatParser.Block_typeContext ctx) { }
+	@Override public void exitCallInstrParams(WatParser.CallInstrParamsContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterCallInstrParamsInstr(WatParser.CallInstrParamsInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitCallInstrParamsInstr(WatParser.CallInstrParamsInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterCallInstrResultsInstr(WatParser.CallInstrResultsInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitCallInstrResultsInstr(WatParser.CallInstrResultsInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterBlockInstr(WatParser.BlockInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitBlockInstr(WatParser.BlockInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterBlockType(WatParser.BlockTypeContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitBlockType(WatParser.BlockTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -293,6 +401,18 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterFoldedInstr(WatParser.FoldedInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFoldedInstr(WatParser.FoldedInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterExpr(WatParser.ExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -305,169 +425,109 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterExpr1(WatParser.Expr1Context ctx) { }
+	@Override public void enterCallExprType(WatParser.CallExprTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitExpr1(WatParser.Expr1Context ctx) { }
+	@Override public void exitCallExprType(WatParser.CallExprTypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_expr_type(WatParser.Call_expr_typeContext ctx) { }
+	@Override public void enterCallExprParams(WatParser.CallExprParamsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_expr_type(WatParser.Call_expr_typeContext ctx) { }
+	@Override public void exitCallExprParams(WatParser.CallExprParamsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_expr_params(WatParser.Call_expr_paramsContext ctx) { }
+	@Override public void enterCallExprResults(WatParser.CallExprResultsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_expr_params(WatParser.Call_expr_paramsContext ctx) { }
+	@Override public void exitCallExprResults(WatParser.CallExprResultsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCall_expr_results(WatParser.Call_expr_resultsContext ctx) { }
+	@Override public void enterInstrList(WatParser.InstrListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCall_expr_results(WatParser.Call_expr_resultsContext ctx) { }
+	@Override public void exitInstrList(WatParser.InstrListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterIf_block(WatParser.If_blockContext ctx) { }
+	@Override public void enterConstExpr(WatParser.ConstExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitIf_block(WatParser.If_blockContext ctx) { }
+	@Override public void exitConstExpr(WatParser.ConstExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterInstr_list(WatParser.Instr_listContext ctx) { }
+	@Override public void enterFunction(WatParser.FunctionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitInstr_list(WatParser.Instr_listContext ctx) { }
+	@Override public void exitFunction(WatParser.FunctionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterConst_expr(WatParser.Const_exprContext ctx) { }
+	@Override public void enterFuncFields(WatParser.FuncFieldsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitConst_expr(WatParser.Const_exprContext ctx) { }
+	@Override public void exitFuncFields(WatParser.FuncFieldsContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFunc_(WatParser.Func_Context ctx) { }
+	@Override public void enterFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitFunc_(WatParser.Func_Context ctx) { }
+	@Override public void exitFuncFieldsBody(WatParser.FuncFieldsBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFunc_fields(WatParser.Func_fieldsContext ctx) { }
+	@Override public void enterFuncBody(WatParser.FuncBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitFunc_fields(WatParser.Func_fieldsContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterFunc_fields_import(WatParser.Func_fields_importContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFunc_fields_import(WatParser.Func_fields_importContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterFunc_fields_import_result(WatParser.Func_fields_import_resultContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFunc_fields_import_result(WatParser.Func_fields_import_resultContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterFunc_fields_body(WatParser.Func_fields_bodyContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFunc_fields_body(WatParser.Func_fields_bodyContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterFunc_result_body(WatParser.Func_result_bodyContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFunc_result_body(WatParser.Func_result_bodyContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterFunc_body(WatParser.Func_bodyContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFunc_body(WatParser.Func_bodyContext ctx) { }
+	@Override public void exitFuncBody(WatParser.FuncBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -509,13 +569,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterTable_fields(WatParser.Table_fieldsContext ctx) { }
+	@Override public void enterTableField(WatParser.TableFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitTable_fields(WatParser.Table_fieldsContext ctx) { }
+	@Override public void exitTableField(WatParser.TableFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -545,49 +605,49 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterMemory_fields(WatParser.Memory_fieldsContext ctx) { }
+	@Override public void enterMemoryField(WatParser.MemoryFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitMemory_fields(WatParser.Memory_fieldsContext ctx) { }
+	@Override public void exitMemoryField(WatParser.MemoryFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterSglobal(WatParser.SglobalContext ctx) { }
+	@Override public void enterGlobal(WatParser.GlobalContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitSglobal(WatParser.SglobalContext ctx) { }
+	@Override public void exitGlobal(WatParser.GlobalContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterGlobal_fields(WatParser.Global_fieldsContext ctx) { }
+	@Override public void enterGlobalField(WatParser.GlobalFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitGlobal_fields(WatParser.Global_fieldsContext ctx) { }
+	@Override public void exitGlobalField(WatParser.GlobalFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterImport_desc(WatParser.Import_descContext ctx) { }
+	@Override public void enterImportDesc(WatParser.ImportDescContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitImport_desc(WatParser.Import_descContext ctx) { }
+	@Override public void exitImportDesc(WatParser.ImportDescContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -605,25 +665,25 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterInline_import(WatParser.Inline_importContext ctx) { }
+	@Override public void enterInlineImport(WatParser.InlineImportContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitInline_import(WatParser.Inline_importContext ctx) { }
+	@Override public void exitInlineImport(WatParser.InlineImportContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterExport_desc(WatParser.Export_descContext ctx) { }
+	@Override public void enterExportDesc(WatParser.ExportDescContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitExport_desc(WatParser.Export_descContext ctx) { }
+	@Override public void exitExportDesc(WatParser.ExportDescContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -641,37 +701,25 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterInline_export(WatParser.Inline_exportContext ctx) { }
+	@Override public void enterInlineExport(WatParser.InlineExportContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitInline_export(WatParser.Inline_exportContext ctx) { }
+	@Override public void exitInlineExport(WatParser.InlineExportContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterType_(WatParser.Type_Context ctx) { }
+	@Override public void enterTypeDef(WatParser.TypeDefContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitType_(WatParser.Type_Context ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterType_def(WatParser.Type_defContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitType_def(WatParser.Type_defContext ctx) { }
+	@Override public void exitTypeDef(WatParser.TypeDefContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -689,13 +737,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterModule_field(WatParser.Module_fieldContext ctx) { }
+	@Override public void enterModuleField(WatParser.ModuleFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitModule_field(WatParser.Module_fieldContext ctx) { }
+	@Override public void exitModuleField(WatParser.ModuleFieldContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -713,13 +761,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterScript_module(WatParser.Script_moduleContext ctx) { }
+	@Override public void enterScriptModule(WatParser.ScriptModuleContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitScript_module(WatParser.Script_moduleContext ctx) { }
+	@Override public void exitScriptModule(WatParser.ScriptModuleContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -785,13 +833,13 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterConst_list(WatParser.Const_listContext ctx) { }
+	@Override public void enterConstList(WatParser.ConstListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitConst_list(WatParser.Const_listContext ctx) { }
+	@Override public void exitConstList(WatParser.ConstListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
