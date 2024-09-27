@@ -267,9 +267,15 @@ object Evaluator {
         // TODO: block can take inputs too
         eval(inner, List(), frame, ret+1, k :: trail)
       case Loop(ty, inner) =>
-        val k: Cont = (retStack) =>
-          eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
-        eval(inner, List(), frame, ret+1, k :: trail)
+        //val k: Cont = (retStack) =>
+        //  eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
+        //eval(inner, List(), frame, ret+1, k :: trail)
+        // XXX(GW): do we need to take arguments from the stack when re-entering the loop?
+        def loop(): Unit = {
+          val k: Cont = (retStack) => loop()
+          eval(inner, List(), frame, ret+1, k :: trail)
+        }
+        loop()
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els

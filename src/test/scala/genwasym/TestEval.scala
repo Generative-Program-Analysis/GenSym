@@ -42,7 +42,7 @@ class TestEval extends FunSuite {
       .toList
 
     val moduleInst = ModuleInstance(types, funcs, List(RTMemory()), globals)
-    val retK: Evaluator.RetCont = newStack => println(s"retCont: $newStack")
+    //val retK: Evaluator.RetCont = newStack => println(s"retCont: $newStack")
     val trailK: Evaluator.Cont = newStack => {
       println(s"trail: $newStack")
       expected match {
@@ -109,7 +109,8 @@ class TestEval extends FunSuite {
   // TODO: the power test can be used to test the stack
   // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
   // and 2^1000 results in a stack overflow
-  test("power") { testFile("./benchmarks/wasm/test_pow.wat", "$real_main") }
+  test("ack") { testFile("./benchmarks/wasm/ack.wat", "$real_main", Some(7)) }
+  test("power") { testFile("./benchmarks/wasm/pow.wat", "$real_main", Some(1024)) }
 
   // test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
 
