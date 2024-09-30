@@ -91,6 +91,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     visitChildren(ctx)
   }
 
+  override def visitStart_(ctx: Start_Context): WIR = {
+    val id = getVar(ctx.idx())
+    Start(id.toInt)
+  }
+
   override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE().getText)
 
   override def visitVecType(ctx: VecTypeContext): VecType = VecType(V128Type)

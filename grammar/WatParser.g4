@@ -162,7 +162,7 @@ offsetEq : OFFSET_EQ NAT ;
 
 alignEq: ALIGN_EQ NAT ;
 
-load 
+load
     : numType LOAD (MEM_SIZE UNDERSCORE SIGN_POSTFIX)?
 ;
 

@@ -17,6 +17,7 @@ case class Global(id: Option[String], f: GlobalField) extends Definition
 case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList)
     extends Definition
 case class Data(id: Option[String], value: String) extends Definition
+case class Start(id: Int) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class ElemList extends WIR

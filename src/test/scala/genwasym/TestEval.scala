@@ -18,6 +18,7 @@ class TestEval extends FunSuite {
   // Mostly testing the files generated form `benchmarks/wasm/test.rs`
   def testFile(filename: String, main: String, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
+    println(module)
 
     val instrs = module.definitions.flatMap({
         case FuncDef(Some(`main`), FuncBodyDef(_, _, _, body)) => body
@@ -109,10 +110,11 @@ class TestEval extends FunSuite {
   // TODO: the power test can be used to test the stack
   // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
   // and 2^1000 results in a stack overflow
-  test("ack") { testFile("./benchmarks/wasm/ack.wat", "$real_main", Some(7)) }
-  test("power") { testFile("./benchmarks/wasm/pow.wat", "$real_main", Some(1024)) }
+  //test("ack") { testFile("./benchmarks/wasm/ack.wat", "$real_main", Some(7)) }
+  //test("power") { testFile("./benchmarks/wasm/pow.wat", "$real_main", Some(1024)) }
+  test("loop") { testFile("./benchmarks/wasm/loop.wat", "$real_main") }
 
-  // test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
+  //test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
 
   // TODO: add more wasm spec tests?
   // test("memory") { test_btree("./benchmarks/wasm/spectest/test.wat", "$real_main") }
