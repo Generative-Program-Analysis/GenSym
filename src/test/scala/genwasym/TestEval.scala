@@ -21,13 +21,17 @@ class TestEval extends FunSuite {
 
     val instrs = main match {
       case Some(_) => module.definitions.flatMap({
-          case FuncDef(`main`, FuncBodyDef(_, _, _, body)) => body
+          case FuncDef(`main`, FuncBodyDef(_, _, _, body)) =>
+            println(s"Entering function $main")
+            body
           case _ => List()
         })
       case None => module.definitions.flatMap({
         case Start(id) =>
           module.definitions.filter(_.isInstanceOf[FuncDef]).asInstanceOf[List[FuncDef]](id) match {
-            case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+            case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
+              println(s"Entering unnamed function $id")
+              body
           }
         case _ => List()
       })
@@ -78,12 +82,9 @@ class TestEval extends FunSuite {
   test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("$real_main"), Some(7)) }
   test("power") { testFile("./benchmarks/wasm/pow.wat", Some("$real_main"), Some(1024)) }
   test("start") { testFile("./benchmarks/wasm/start.wat") }
-  //test("loop") { testFile("./benchmarks/wasm/loop.wat") }
-
-  //test("btree") { test_btree("./benchmarks/wasm/btree/2o1u-no-label.wat", "$real_main") }
+  test("loop") { testFile("./benchmarks/wasm/loop.wat") }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
 
   // TODO: add more wasm spec tests?
   // test("memory") { test_btree("./benchmarks/wasm/spectest/test.wat", "$real_main") }
-
-
 }
