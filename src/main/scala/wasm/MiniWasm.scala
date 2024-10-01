@@ -5,10 +5,11 @@ import gensym.wasm.source._
 import gensym.wasm.memory._
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
 case class ModuleInstance(
     types: List[FuncType],
-    funcs: List[FuncBodyDef],
+    funcs: HashMap[Int, WIR],
     memory: List[RTMemory] = List(RTMemory()),
     globals: List[RTGlobal] = List(),
 )
@@ -293,11 +294,8 @@ object Evaluator {
         if (cond == 0) eval(rest, newStack, frame, ret, trail)
         else trail(label)(newStack)
       case Return => trail(ret)(stack)
-      case Call(f) =>
-        // Note (GW): here we assume function callee is specified
-        // by an index, but some opaque functions are omitted when
-        // generating the indices...
-        val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
+      case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
+        val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
@@ -305,6 +303,14 @@ object Evaluator {
         val newK: RetCont = (retStack) =>
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
         eval(body, List(), newFrame, 0, newK :: trail)
+      case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
+        frame.module.funcs(f) match {
+          case Import("console", "log", _) =>
+            val I32V(v) :: newStack = stack
+            println(v)
+            eval(rest, newStack, frame, ret, trail)
+          case f => throw new Exception(s"Unknown import $f")
+        }
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")

@@ -1,12 +1,12 @@
 package gensym.wasm.ast
 
+import scala.collection.mutable.HashMap
 import gensym.wasm.eval.ModuleInstance
 import gensym.wasm.source._
 
 abstract class WIR
 
-case class Module(name: Option[String], definitions: List[Definition])
-    extends WIR
+case class Module(name: Option[String], definitions: List[Definition], funcEnv: HashMap[Int, WIR]) extends WIR
 
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition

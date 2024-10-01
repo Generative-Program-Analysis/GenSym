@@ -18,6 +18,7 @@ class TestEval extends FunSuite {
   // Mostly testing the files generated form `benchmarks/wasm/test.rs`
   def testFile(filename: String, main: Option[String] = None, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
+    println(module)
 
     val instrs = main match {
       case Some(_) => module.definitions.flatMap({
@@ -27,12 +28,12 @@ class TestEval extends FunSuite {
           case _ => List()
         })
       case None => module.definitions.flatMap({
-        case Start(id) =>
-          module.definitions.filter(_.isInstanceOf[FuncDef]).asInstanceOf[List[FuncDef]](id) match {
-            case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
-              println(s"Entering unnamed function $id")
-              body
-          }
+        case Start(id) => module.funcEnv(id) match {
+          case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
+            println(s"Entering unnamed function $id")
+            body
+          case _ => throw new Exception("Start function has no concrete definition")
+        }
         case _ => List()
       })
     }
@@ -63,7 +64,7 @@ class TestEval extends FunSuite {
       })
       .toList
 
-    val moduleInst = ModuleInstance(types, funcs, memory, globals)
+    val moduleInst = ModuleInstance(types, module.funcEnv, memory, globals)
 
     val trailK: Evaluator.Cont = newStack => {
       println(s"trail: $newStack")
