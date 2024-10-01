@@ -143,6 +143,31 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     FuncDef(name, funcField)
   }
 
+  override def visitSimport(ctx: SimportContext): WIR = {
+    val module = ctx.name(0).getText.substring(1).dropRight(1)
+    val name = ctx.name(1).getText.substring(1).dropRight(1)
+    val desc = visitImportDesc(ctx.importDesc).asInstanceOf[ImportDesc]
+    Import(module, name, desc)
+  }
+
+  override def visitImportDesc(ctx: ImportDescContext): WIR = {
+    val name: Option[String] = getVar(ctx.bindVar)
+    if (ctx.typeUse != null) {
+      val typeUse = getVar(ctx.typeUse).get.toInt
+      ImportFuncTyUse(name, typeUse)
+    } else if (ctx.funcType != null) {
+      val t = visit(ctx.funcType).asInstanceOf[FuncType]
+      ImportFuncTy(name, t)
+    } else if (ctx.tableType != null) {
+      ???
+    } else if (ctx.memoryType != null) {
+      ???
+    } else if (ctx.globalType != null) {
+      ???
+    } else
+      ???
+  }
+
   def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
     if (ctx.NAT != null) {
       ty.kind match {

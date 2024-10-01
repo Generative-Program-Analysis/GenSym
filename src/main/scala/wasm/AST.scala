@@ -18,7 +18,12 @@ case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList)
     extends Definition
 case class Data(id: Option[String], value: String) extends Definition
 case class Start(id: Int) extends Definition
+case class Import(mod: String, name: String, desc: ImportDesc) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
+
+abstract class ImportDesc extends WIR
+case class ImportFuncTy(name: Option[String], t: FuncType) extends ImportDesc
+case class ImportFuncTyUse(name: Option[String], u: Int) extends ImportDesc
 
 abstract class ElemList extends WIR
 case class ElemListFunc(funcs: List[String]) extends ElemList
