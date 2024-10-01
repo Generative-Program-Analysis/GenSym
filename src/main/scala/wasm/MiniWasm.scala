@@ -274,6 +274,7 @@ object Evaluator {
         // XXX(GW): do we need to take arguments from the stack when re-entering the loop?
         def loop(): Unit = {
           val k: Cont = (retStack) => loop()
+          // FIXME: need a control path that continues to `rest`
           eval(inner, List(), frame, ret+1, k :: trail)
         }
         loop()
@@ -291,8 +292,8 @@ object Evaluator {
         trail(label)(stack)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
-        if (cond == 0) eval(rest, newStack, frame, ret, trail)
-        else trail(label)(newStack)
+        if (cond != 0) trail(label)(newStack)
+        else eval(rest, newStack, frame, ret, trail)
       case Return => trail(ret)(stack)
       case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
         val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
