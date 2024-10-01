@@ -21,6 +21,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   /* Some helper functions */
 
   // TODO: see TODO in 2o1u-no-label.wat
+
   val fnMap: HashMap[String, Int] = HashMap()
 
   def error = throw new RuntimeException("Unspported")
@@ -91,6 +92,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     visitChildren(ctx)
   }
 
+  override def visitStart_(ctx: Start_Context): WIR = {
+    val id = getVar(ctx.idx())
+    Start(id.toInt)
+  }
+
   override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE().getText)
 
   override def visitVecType(ctx: VecTypeContext): VecType = VecType(V128Type)
@@ -129,7 +135,9 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     val name = getVar(ctx.bindVar())
     name match {
       case Some(realName) => fnMap(realName) = fnMap.size
-      case _ => println(s"Warning: unnamed function")
+      case _ =>
+        println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
+        fnMap(s"UNNAMED_${fnMap.size}") = fnMap.size
     }
     val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]
     FuncDef(name, funcField)

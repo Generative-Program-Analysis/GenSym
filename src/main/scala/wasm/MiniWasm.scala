@@ -294,6 +294,9 @@ object Evaluator {
         else trail(label)(newStack)
       case Return => trail(ret)(stack)
       case Call(f) =>
+        // Note (GW): here we assume function callee is specified
+        // by an index, but some opaque functions are omitted when
+        // generating the indices...
         val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
