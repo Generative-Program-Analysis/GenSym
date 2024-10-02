@@ -75,24 +75,24 @@ class TestEval extends FunSuite {
     }
 
     implicit val restK: Evaluator.Cont = newStack => {
-      println(s"trail: $newStack")
+      println(s"restK trail: $newStack")
       expected match {
         case Some(e) => assert(newStack(0) == I32V(e))
         case None    => ()
       }
 
     }
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), 0/*retK*/, List(trailK))
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK))
   }
 
   // TODO: the power test can be used to test the stack
   // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
   // and 2^1000 results in a stack overflow
-  // test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("$real_main"), Some(7)) }
-  // test("power") { testFile("./benchmarks/wasm/pow.wat", Some("$real_main"), Some(1024)) }
+  test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("$real_main"), Some(7)) }
+  test("power") { testFile("./benchmarks/wasm/pow.wat", Some("$real_main"), Some(1024)) }
   //test("start") { testFile("./benchmarks/wasm/start.wat") }
   // test("loop") { testFile("./benchmarks/wasm/loop.wat") }
-  test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
+  //test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
 
   // Parser works, but the memory issue remains
   //test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
