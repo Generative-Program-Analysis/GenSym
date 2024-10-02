@@ -82,7 +82,7 @@ class TestEval extends FunSuite {
       }
 
     }
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK))
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK), restK)
   }
 
   // TODO: the power test can be used to test the stack
@@ -93,6 +93,7 @@ class TestEval extends FunSuite {
   test("start") { testFile("./benchmarks/wasm/start.wat") }
   test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
   test("loop") { testFile("./benchmarks/wasm/loop.wat", None, Some(10)) }
+  //test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
 
   // Parser works, but the memory issue remains
   //test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
