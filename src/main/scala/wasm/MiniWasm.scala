@@ -290,7 +290,7 @@ object Evaluator {
                retStack.take(ty.toList.size) ++ newStack,
                frame,
                trail)
-        eval(inner, List(), frame, k :: trail)
+        eval(inner, List(), frame, k :: trail)(k)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>
