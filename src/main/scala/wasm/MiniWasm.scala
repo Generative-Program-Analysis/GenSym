@@ -5,10 +5,11 @@ import gensym.wasm.source._
 import gensym.wasm.memory._
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
 case class ModuleInstance(
     types: List[FuncType],
-    funcs: List[FuncBodyDef],
+    funcs: HashMap[Int, WIR],
     memory: List[RTMemory] = List(RTMemory()),
     globals: List[RTGlobal] = List(),
 )
@@ -173,31 +174,33 @@ object Evaluator {
   def eval(insts: List[Instr],
            stack: List[Value],
            frame: Frame,
-           ret: Int, // Indicate the number of contexts/continuations to pop
-           trail: List[Cont]): Unit = {
-    if (insts.isEmpty) return trail.head(stack)
+           trail: List[Cont])
+           (implicit kont: Cont): Unit = {
+    if (insts.isEmpty) return kont(stack)
 
     val inst = insts.head
     val rest = insts.tail
 
+    //println(f"stack size: ${stack.size}")
+    //println(s"eval: $inst")
     inst match {
-      case Drop => eval(rest, stack.tail, frame, ret, trail)
+      case Drop => eval(rest, stack.tail, frame, trail)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = stack
         val value = if (cond == 0) v1 else v2
-        eval(rest, value :: newStack, frame, ret, trail)
+        eval(rest, value :: newStack, frame, trail)
       case LocalGet(i) =>
-        eval(rest, frame.locals(i) :: stack, frame, ret, trail)
+        eval(rest, frame.locals(i) :: stack, frame, trail)
       case LocalSet(i) =>
         val value :: newStack = stack
         frame.locals(i) = value
-        eval(rest, newStack, frame, ret, trail)
+        eval(rest, newStack, frame, trail)
       case LocalTee(i) =>
         val value :: newStack = stack
         frame.locals(i) = value
-        eval(rest, stack, frame, ret, trail)
+        eval(rest, stack, frame, trail)
       case GlobalGet(i) =>
-        eval(rest, frame.module.globals(i).value :: stack, frame, ret, trail)
+        eval(rest, frame.module.globals(i).value :: stack, frame, trail)
       case GlobalSet(i) =>
         val value :: newStack = stack
         frame.module.globals(i).ty match {
@@ -206,20 +209,19 @@ object Evaluator {
           case GlobalType(_, true) => throw new Exception("Invalid type")
           case _                   => throw new Exception("Cannot set immutable global")
         }
-        eval(rest, newStack, frame, ret, trail)
+        eval(rest, newStack, frame, trail)
       case MemorySize =>
         eval(rest,
              I32V(frame.module.memory.head.size) :: stack,
              frame,
-             ret,
              trail)
       case MemoryGrow =>
         val I32V(delta) :: newStack = stack
         val mem = frame.module.memory.head
         val oldSize = mem.size
         mem.grow(delta) match {
-          case Some(e) => eval(rest, I32V(-1) :: newStack, frame, ret, trail)
-          case _       => eval(rest, I32V(oldSize) :: newStack, frame, ret, trail)
+          case Some(e) => eval(rest, I32V(-1) :: newStack, frame, trail)
+          case _       => eval(rest, I32V(oldSize) :: newStack, frame, trail)
         }
       case MemoryFill =>
         val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = stack
@@ -227,7 +229,7 @@ object Evaluator {
           throw new Exception("Out of bounds memory access") // GW: turn this into a `trap`?
         else {
           frame.module.memory.head.fill(offset, size, value.toByte)
-          eval(rest, newStack, frame, ret, trail)
+          eval(rest, newStack, frame, trail)
         }
       case MemoryCopy =>
         val I32V(n) :: I32V(src) :: I32V(dest) :: newStack = stack
@@ -235,76 +237,80 @@ object Evaluator {
           throw new Exception("Out of bounds memory access")
         else {
           frame.module.memory.head.copy(dest, src, n)
-          eval(rest, newStack, frame, ret, trail)
+          eval(rest, newStack, frame, trail)
         }
-      case Const(n) => eval(rest, n :: stack, frame, ret, trail)
+      case Const(n) => eval(rest, n :: stack, frame, trail)
       case Binary(op) =>
         val v2 :: v1 :: newStack = stack
-        eval(rest, evalBinOp(op, v1, v2) :: newStack, frame, ret, trail)
+        eval(rest, evalBinOp(op, v1, v2) :: newStack, frame, trail)
       case Unary(op) =>
         val v :: newStack = stack
-        eval(rest, evalUnaryOp(op, v) :: newStack, frame, ret, trail)
+        eval(rest, evalUnaryOp(op, v) :: newStack, frame, trail)
       case Compare(op) =>
         val v2 :: v1 :: newStack = stack
-        eval(rest, evalRelOp(op, v1, v2) :: newStack, frame, ret, trail)
+        eval(rest, evalRelOp(op, v1, v2) :: newStack, frame, trail)
       case Test(op) =>
         val v :: newStack = stack
-        eval(rest, evalTestOp(op, v) :: newStack, frame, ret, trail)
+        eval(rest, evalTestOp(op, v) :: newStack, frame, trail)
       case Store(StoreOp(align, offset, ty, None)) =>
         val I32V(v) :: I32V(addr) :: newStack = stack
         frame.module.memory(0).storeInt(addr + offset, v)
-        eval(rest, newStack, frame, ret, trail)
+        eval(rest, newStack, frame, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val I32V(addr) :: newStack = stack
         val value = frame.module.memory(0).loadInt(addr + offset)
-        eval(rest, I32V(value) :: newStack, frame, ret, trail)
+        eval(rest, I32V(value) :: newStack, frame, trail)
       case Nop =>
-        eval(rest, stack, frame, ret, trail)
+        eval(rest, stack, frame, trail)
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
         val k: Cont = (retStack) =>
-          eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
+          eval(rest, retStack.take(ty.toList.size) ++ stack, frame, trail)
         // TODO: block can take inputs too
-        eval(inner, List(), frame, ret+1, k :: trail)
+        eval(inner, List(), frame, k :: trail)(k)
       case Loop(ty, inner) =>
-        //val k: Cont = (retStack) =>
-        //  eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
-        //eval(inner, List(), frame, ret+1, k :: trail)
-        // XXX(GW): do we need to take arguments from the stack when re-entering the loop?
-        def loop(): Unit = {
-          val k: Cont = (retStack) => loop()
-          eval(inner, List(), frame, ret+1, k :: trail)
+        // We construct two continuations, one for the break (to the begining of the loop),
+        // and one for fall-through to the next instruction following the syntactic structure
+        // of the program.
+        val restK: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, trail)
+        def loop(stack: List[Value]): Unit = {
+          val k: Cont = (retStack) => loop(retStack.take(ty.toList.size))
+          eval(inner, stack, frame, k :: trail)(restK)
         }
-        loop()
+        loop(List())
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val k: Cont = (retStack) =>
-          eval(rest,
-               retStack.take(ty.toList.size) ++ newStack,
-               frame,
-               ret,
-               trail)
-        eval(inner, List(), frame, ret+1, k :: trail)
+          eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, trail)
+        eval(inner, List(), frame, k :: trail)(k)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
-        if (cond == 0) eval(rest, newStack, frame, ret, trail)
-        else trail(label)(newStack)
-      case Return => trail(ret)(stack)
-      case Call(f) =>
-        // Note (GW): here we assume function callee is specified
-        // by an index, but some opaque functions are omitted when
-        // generating the indices...
-        val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
+        if (cond != 0) trail(label)(newStack)
+        else eval(rest, newStack, frame, trail)
+      case Return => kont(stack)
+      case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
+        val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
         val newK: RetCont = (retStack) =>
-          eval(rest, retStack.take(ty.out.size) ++ newStack, frame, ret, trail)
-        eval(body, List(), newFrame, 0, newK :: trail)
+          eval(rest, retStack.take(ty.out.size) ++ newStack, frame, trail)
+        // We push newK on the trail since function creates a new block to escape
+        // (more or less like `return`)
+        eval(body, List(), newFrame, newK :: trail)(newK)
+      case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
+        frame.module.funcs(f) match {
+          case Import("console", "log", _) =>
+            //println(s"[DEBUG] current stack: $stack")
+            val I32V(v) :: newStack = stack
+            println(v)
+            eval(rest, newStack, frame, trail)
+          case f => throw new Exception(s"Unknown import $f")
+        }
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")

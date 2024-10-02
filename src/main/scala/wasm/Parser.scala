@@ -24,6 +24,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   val fnMap: HashMap[String, Int] = HashMap()
 
+  // Note: we construct a mapping from indices to function-like definitions, which helps
+  // function call resolution in the later phase.
+  // TODO: instead of using WIR, define a trait for function-like definitions
+  val fnMapInv: HashMap[Int, WIR] = HashMap()
+
   def error = throw new RuntimeException("Unspported")
 
   def getVar(ctx: BindVarContext): Option[String] =
@@ -80,12 +85,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitModule(ctx: ModuleContext): WIR = {
     if (ctx.module_() != null) return visit(ctx.module_())
-    Module(None, ctx.moduleField.asScala.toList.map(visitModuleField(_)).asInstanceOf[List[Definition]])
+    Module(None, ctx.moduleField.asScala.toList.map(visitModuleField(_)).asInstanceOf[List[Definition]], fnMapInv)
   }
 
   override def visitModule_(ctx: Module_Context): WIR = {
     val name = if (ctx.VAR() != null) Some(ctx.VAR().getText) else None
-    Module(name, ctx.moduleField.asScala.toList.map(visitModuleField(_)).asInstanceOf[List[Definition]])
+    Module(name, ctx.moduleField.asScala.toList.map(visitModuleField(_)).asInstanceOf[List[Definition]], fnMapInv)
   }
 
   override def visitModuleField(ctx: ModuleFieldContext): WIR = {
@@ -140,7 +145,38 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         fnMap(s"UNNAMED_${fnMap.size}") = fnMap.size
     }
     val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]
-    FuncDef(name, funcField)
+    val f = FuncDef(name, funcField)
+    fnMapInv(fnMapInv.size) = f
+    f
+  }
+
+  override def visitSimport(ctx: SimportContext): WIR = {
+    val module = ctx.name(0).getText.substring(1).dropRight(1)
+    val name = ctx.name(1).getText.substring(1).dropRight(1)
+    val desc = visitImportDesc(ctx.importDesc).asInstanceOf[ImportDesc]
+    val im = Import(module, name, desc)
+    if (desc.isInstanceOf[ImportFuncTyUse] || desc.isInstanceOf[ImportFuncTy]) {
+      fnMapInv(fnMapInv.size) = im
+    }
+    im
+  }
+
+  override def visitImportDesc(ctx: ImportDescContext): WIR = {
+    val name: Option[String] = getVar(ctx.bindVar)
+    if (ctx.typeUse != null) {
+      val typeUse = getVar(ctx.typeUse).get.toInt
+      ImportFuncTyUse(name, typeUse)
+    } else if (ctx.funcType != null) {
+      val t = visit(ctx.funcType).asInstanceOf[FuncType]
+      ImportFuncTy(name, t)
+    } else if (ctx.tableType != null) {
+      ???
+    } else if (ctx.memoryType != null) {
+      ???
+    } else if (ctx.globalType != null) {
+      ???
+    } else
+      ???
   }
 
   def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
@@ -180,7 +216,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.RETURN() != null) Return
     else if (ctx.CALL() != null) {
       val id = getVar(ctx.idx(0))
-      try Call(id.toInt) catch { case _: java.lang.NumberFormatException => CallUnresolved(id) }
+      try Call(id.toInt) catch {
+        case _: java.lang.NumberFormatException =>
+          if (fnMap.contains(id)) Call(fnMap(id))
+          else CallUnresolved(id)
+      }
     }
     else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.idx(0)).toInt)
@@ -526,27 +566,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     val field = visitGlobalField(ctx.globalField)
     Global(name, field)
   }
-
-  //////////////////////////////////////////////////////////////
-
-  def resolveCall(m: Module): Module =
-    Module(m.name, m.definitions.map {
-      case FuncDef(name, f) =>
-        f match {
-          case FuncBodyDef(ty, nms, locals, body) =>
-            FuncDef(name, FuncBodyDef(ty, nms, locals, body.map(resolveCall)))
-          case f => FuncDef(name, f)
-        }
-      case d => d
-    })
-
-  def resolveCall(instr: Instr): Instr = instr match {
-    // case BrUnresolved(name) => Br()
-    case CallUnresolved(name) => Call(fnMap(name))
-    case Block(ty, instrs) => Block(ty, instrs.map(resolveCall))
-    case Loop(ty, instrs) => Loop(ty, instrs.map(resolveCall))
-    case _ => instr
-  }
 }
 
 object Parser {
@@ -557,8 +576,7 @@ object Parser {
     val parser = new WatParser(tokens)
     val visitor = new GSWasmVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    val mod = visitor.resolveCall(res)
-    mod
+    res
   }
 
   def parseFile(filepath: String): Module = parse(scala.io.Source.fromFile(filepath).mkString)

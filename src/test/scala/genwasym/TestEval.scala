@@ -18,6 +18,7 @@ class TestEval extends FunSuite {
   // Mostly testing the files generated form `benchmarks/wasm/test.rs`
   def testFile(filename: String, main: Option[String] = None, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
+    //println(module)
 
     val instrs = main match {
       case Some(_) => module.definitions.flatMap({
@@ -27,12 +28,12 @@ class TestEval extends FunSuite {
           case _ => List()
         })
       case None => module.definitions.flatMap({
-        case Start(id) =>
-          module.definitions.filter(_.isInstanceOf[FuncDef]).asInstanceOf[List[FuncDef]](id) match {
-            case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
-              println(s"Entering unnamed function $id")
-              body
-          }
+        case Start(id) => module.funcEnv(id) match {
+          case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
+            println(s"Entering unnamed function $id")
+            body
+          case _ => throw new Exception("Start function has no concrete definition")
+        }
         case _ => List()
       })
     }
@@ -63,7 +64,7 @@ class TestEval extends FunSuite {
       })
       .toList
 
-    val moduleInst = ModuleInstance(types, funcs, memory, globals)
+    val moduleInst = ModuleInstance(types, module.funcEnv, memory, globals)
 
     val trailK: Evaluator.Cont = newStack => {
       println(s"trail: $newStack")
@@ -73,7 +74,15 @@ class TestEval extends FunSuite {
       }
     }
 
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), 0/*retK*/, List(trailK))
+    implicit val restK: Evaluator.Cont = newStack => {
+      println(s"restK trail: $newStack")
+      expected match {
+        case Some(e) => assert(newStack(0) == I32V(e))
+        case None    => ()
+      }
+
+    }
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK))
   }
 
   // TODO: the power test can be used to test the stack
@@ -82,7 +91,8 @@ class TestEval extends FunSuite {
   test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("$real_main"), Some(7)) }
   test("power") { testFile("./benchmarks/wasm/pow.wat", Some("$real_main"), Some(1024)) }
   test("start") { testFile("./benchmarks/wasm/start.wat") }
-  //test("loop") { testFile("./benchmarks/wasm/loop.wat") }
+  test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
+  test("loop") { testFile("./benchmarks/wasm/loop.wat", None, Some(10)) }
 
   // Parser works, but the memory issue remains
   //test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
