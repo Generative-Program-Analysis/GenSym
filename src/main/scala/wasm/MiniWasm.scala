@@ -175,8 +175,8 @@ object Evaluator {
            stack: List[Value],
            frame: Frame,
            trail: List[Cont])
-           (implicit fall_thru: Cont): Unit = {
-    if (insts.isEmpty) return fall_thru(stack)
+           (implicit kont: Cont): Unit = {
+    if (insts.isEmpty) return kont(stack)
 
     val inst = insts.head
     val rest = insts.tail
@@ -269,13 +269,9 @@ object Evaluator {
         // TODO: block can take inputs too
         eval(inner, List(), frame, k :: trail)(k)
       case Loop(ty, inner) =>
-        // you want to put two continuations in loop
-        // one is the continuation of the start of the loop, the other is the
-        // fallthru continuation
-
-        // val k: Cont = (retStack) =>
-        //   eval(insts, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
-        // eval(inner, List(), frame, ret+1, k :: trail)
+        // We construct two continuations, one for the break (to the begining of the loop),
+        // and one for fall-through to the next instruction following the syntactic structure
+        // of the program.
         val restK: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, trail)
         def loop(stack: List[Value]): Unit = {
           val k: Cont = (retStack) => loop(retStack.take(ty.toList.size))
@@ -286,10 +282,7 @@ object Evaluator {
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val k: Cont = (retStack) =>
-          eval(rest,
-               retStack.take(ty.toList.size) ++ newStack,
-               frame,
-               trail)
+          eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, trail)
         eval(inner, List(), frame, k :: trail)(k)
       case Br(label) =>
         trail(label)(stack)
@@ -297,7 +290,7 @@ object Evaluator {
         val I32V(cond) :: newStack = stack
         if (cond != 0) trail(label)(newStack)
         else eval(rest, newStack, frame, trail)
-      case Return => fall_thru(stack)
+      case Return => kont(stack)
       case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
         val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
         val args = stack.take(ty.inps.size).reverse
@@ -306,7 +299,7 @@ object Evaluator {
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
         val newK: RetCont = (retStack) =>
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, trail)
-        // we push newK on the trail since function creates a new block to escape
+        // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
         eval(body, List(), newFrame, newK :: trail)(newK)
       case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
