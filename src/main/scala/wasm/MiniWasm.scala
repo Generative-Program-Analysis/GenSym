@@ -182,7 +182,6 @@ object Evaluator {
     val inst = insts.head
     val rest = insts.tail
     
-    println(f"stack size: ${stack.size}")
     println(s"eval: $inst")
     inst match {
       case Drop => eval(rest, stack.tail, frame, ret, trail)
@@ -284,7 +283,7 @@ object Evaluator {
           val k: Cont = (retStack) => loop()
           val restK: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, ret, trail)
           // FIXME: need a control path that continues to `rest`
-          eval(inner ++ rest, List(), frame, ret+1, k :: trail)(restK)
+          eval(inner, List(), frame, ret+1, k :: trail)(restK)
         }
         loop()
       case If(ty, thn, els) =>

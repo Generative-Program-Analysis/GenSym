@@ -92,6 +92,7 @@ class TestEval extends FunSuite {
   // test("power") { testFile("./benchmarks/wasm/pow.wat", Some("$real_main"), Some(1024)) }
   //test("start") { testFile("./benchmarks/wasm/start.wat") }
   // test("loop") { testFile("./benchmarks/wasm/loop.wat") }
+  test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
 
   // Parser works, but the memory issue remains
   //test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
