@@ -16,5 +16,6 @@
       i32.const 10
       i32.lt_s
       br_if 0 (;@1;)
-    end)
+    end
+    local.get 0)
   (start 1))

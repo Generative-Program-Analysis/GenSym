@@ -181,8 +181,8 @@ object Evaluator {
     val inst = insts.head
     val rest = insts.tail
 
-    println(f"stack size: ${stack.size}")
-    println(s"eval: $inst")
+    //println(f"stack size: ${stack.size}")
+    //println(s"eval: $inst")
     inst match {
       case Drop => eval(rest, stack.tail, frame, trail)
       case Select(_) =>
@@ -312,6 +312,7 @@ object Evaluator {
       case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
         frame.module.funcs(f) match {
           case Import("console", "log", _) =>
+            //println(s"[DEBUG] current stack: $stack")
             val I32V(v) :: newStack = stack
             println(v)
             eval(rest, newStack, frame, trail)
