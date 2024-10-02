@@ -26,7 +26,7 @@
           local.get 1
           i32.const -1
           i32.add
-          call 0
+          call $ack
           local.set 1
         end
         local.get 0
@@ -44,7 +44,7 @@
   (func $real_main (type 1) (result i32)
     i32.const 2
     i32.const 2
-    call 0)
+    call $ack)
   (table (;0;) 1 1 funcref)
   (memory (;0;) 16)
   (global $__stack_pointer (mut i32) (i32.const 1048576))

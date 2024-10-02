@@ -216,7 +216,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.RETURN() != null) Return
     else if (ctx.CALL() != null) {
       val id = getVar(ctx.idx(0))
-      try Call(id.toInt) catch { case _: java.lang.NumberFormatException => CallUnresolved(id) }
+      try Call(id.toInt) catch {
+        case _: java.lang.NumberFormatException =>
+          if (fnMap.contains(id)) Call(fnMap(id))
+          else CallUnresolved(id)
+      }
     }
     else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.idx(0)).toInt)
@@ -562,27 +566,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     val field = visitGlobalField(ctx.globalField)
     Global(name, field)
   }
-
-  //////////////////////////////////////////////////////////////
-
-  def resolveCall(m: Module): Module =
-    Module(m.name, m.definitions.map {
-      case FuncDef(name, f) =>
-        f match {
-          case FuncBodyDef(ty, nms, locals, body) =>
-            FuncDef(name, FuncBodyDef(ty, nms, locals, body.map(resolveCall)))
-          case f => FuncDef(name, f)
-        }
-      case d => d
-    }, m.funcEnv)
-
-  def resolveCall(instr: Instr): Instr = instr match {
-    // case BrUnresolved(name) => Br()
-    case CallUnresolved(name) => Call(fnMap(name))
-    case Block(ty, instrs) => Block(ty, instrs.map(resolveCall))
-    case Loop(ty, instrs) => Loop(ty, instrs.map(resolveCall))
-    case _ => instr
-  }
 }
 
 object Parser {
@@ -593,8 +576,7 @@ object Parser {
     val parser = new WatParser(tokens)
     val visitor = new GSWasmVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
-    val mod = visitor.resolveCall(res)
-    mod
+    res
   }
 
   def parseFile(filepath: String): Module = parse(scala.io.Source.fromFile(filepath).mkString)
