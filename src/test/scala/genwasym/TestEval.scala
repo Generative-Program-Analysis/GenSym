@@ -82,7 +82,7 @@ class TestEval extends FunSuite {
       }
 
     }
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK), restK)
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK), restK)(0)
   }
 
   // TODO: the power test can be used to test the stack
