@@ -24,12 +24,8 @@
     i32.add
     call 0)
   (func (;2;) (type 1) (result i32)
-    i32.const 0
+    i32.const 13
     call 1)
   (start 2)
-  (table (;0;) 1 1 funcref)
   (memory (;0;) 16)
-  (export "memory" (memory 0))
-  (export "is_even" (func 0))
-  (export "is_odd" (func 1))
-  (export "real_main" (func 2)))
+)

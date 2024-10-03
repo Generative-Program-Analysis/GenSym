@@ -175,7 +175,8 @@ object Evaluator {
            stack: List[Value],
            frame: Frame,
            trail: List[Cont],
-           kont: Cont): Unit = {
+           kont: Cont)
+           (implicit retKont: Cont): Unit = {
     if (insts.isEmpty) return kont(stack)
 
     val inst = insts.head
@@ -291,7 +292,7 @@ object Evaluator {
           println(s"br if rest $rest")
           eval(rest, newStack, frame, trail, kont)
         }
-      case Return => kont(stack)
+      case Return => retKont(stack)
       case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
         val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
         println(s"calling $f")
@@ -303,7 +304,7 @@ object Evaluator {
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, trail, kont)
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
-        eval(body, List(), newFrame, newK :: trail, newK)
+        eval(body, List(), newFrame, newK :: trail, newK)(newK)
       case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
         frame.module.funcs(f) match {
           case Import("console", "log", _) =>
