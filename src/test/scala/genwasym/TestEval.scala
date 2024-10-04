@@ -19,70 +19,14 @@ class TestEval extends FunSuite {
   def testFile(filename: String, main: Option[String] = None, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
     //println(module)
-
-    val instrs = main match {
-      case Some(_) => module.definitions.flatMap({
-          case FuncDef(`main`, FuncBodyDef(_, _, _, body)) =>
-            println(s"Entering function $main")
-            body
-          case _ => List()
-        })
-      case None => module.definitions.flatMap({
-        case Start(id) => module.funcEnv(id) match {
-          case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
-            println(s"Entering unnamed function $id")
-            body
-          case _ => throw new Exception("Start function has no concrete definition")
-        }
-        case _ => List()
-      })
-    }
-
-    val types = List()
-    val funcs = module.definitions
-      .collect({
-        case FuncDef(_, fndef @ FuncBodyDef(_, _, _, _)) => fndef
-      })
-      .toList
-
-    val globals = module.definitions
-      .collect({
-        case Global(_, GlobalValue(ty, e)) =>
-          (e.head) match {
-            case Const(c) => RTGlobal(ty, c)
-            // Q: What is the default behavior if case in non exhaustive
-            case _        => ???
-          }
-      })
-      .toList
-
-    // TODO: correct the behavior for memory
-    val memory = module.definitions
-      .collect({
-        case Memory(id, MemoryType(min, max_opt)) =>
-          RTMemory(min, max_opt)
-      })
-      .toList
-
-    val moduleInst = ModuleInstance(types, module.funcEnv, memory, globals)
-
-    val trailK: Evaluator.Cont = newStack => {
-      println(s"trail: $newStack")
+    val haltK: Evaluator.Cont[Unit] = stack => {
+      println(s"halt cont: $stack")
       expected match {
-        case Some(e) => assert(newStack(0) == I32V(e))
+        case Some(e) => assert(stack(0) == I32V(e))
         case None    => ()
       }
     }
-
-    implicit val restK: Evaluator.Cont = newStack => {
-      println(s"restK trail: $newStack")
-      expected match {
-        case Some(e) => assert(newStack(0) == I32V(e))
-        case None    => ()
-      }
-
-    }
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), List(trailK))
+    Evaluator.evalTop(module, haltK, main)
   }
 
   // TODO: the power test can be used to test the stack
@@ -93,9 +37,11 @@ class TestEval extends FunSuite {
   test("start") { testFile("./benchmarks/wasm/start.wat") }
   test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
   test("loop") { testFile("./benchmarks/wasm/loop.wat", None, Some(10)) }
+  test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
+  test("return") { testFile("./benchmarks/wasm/return.wat", None, None) }
 
   // Parser works, but the memory issue remains
-  //test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
+  // test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
 
   // TODO: add more wasm spec tests?
   // test("memory") { test_btree("./benchmarks/wasm/spectest/test.wat", "$real_main") }
