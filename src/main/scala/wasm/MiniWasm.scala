@@ -168,15 +168,14 @@ case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value])
 object Evaluator {
   import Primtives._
 
-  type RetCont = List[Value] => Unit
-  type Cont = List[Value] => Unit
+  type Cont[A] = List[Value] => A
 
-  def eval(insts: List[Instr],
-           stack: List[Value],
-           frame: Frame,
-           kont: Cont,
-           trail: List[Cont],
-           ret: Int): Unit = {
+  def eval[Ans](insts: List[Instr],
+                stack: List[Value],
+                frame: Frame,
+                kont: Cont[Ans],
+                trail: List[Cont[Ans]],
+                ret: Int): Ans = {
     if (insts.isEmpty) return kont(stack)
 
     val inst = insts.head
@@ -262,7 +261,7 @@ object Evaluator {
         eval(rest, stack, frame, kont, trail, ret)
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
-        val k: Cont = (retStack) =>
+        val k: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
         // TODO: block can take inputs too
         eval(inner, List(), frame, k, k :: trail, ret+1)
@@ -270,16 +269,16 @@ object Evaluator {
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val restK: Cont = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
-        def loop(stack: List[Value]): Unit = {
-          val k: Cont = (retStack) => loop(retStack.take(ty.toList.size))
+        val restK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
+        def loop(stack: List[Value]): Ans = {
+          val k: Cont[Ans] = (retStack) => loop(retStack.take(ty.toList.size))
           eval(inner, stack, frame, restK, k :: trail, ret+1)
         }
         loop(List())
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
-        val k: Cont = (retStack) =>
+        val k: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, kont, trail, ret)
         eval(inner, List(), frame, k, k :: trail, ret+1)
       case Br(label) =>
@@ -295,7 +294,7 @@ object Evaluator {
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        val newK: RetCont = (retStack) =>
+        val newK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
@@ -317,7 +316,7 @@ object Evaluator {
 
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
-  def evalTop(module: Module, halt: Cont, main: Option[String]): Unit = {
+  def evalTop[Ans](module: Module, halt: Cont[Ans], main: Option[String] = None): Ans = {
     val instrs = main match {
       case Some(_) => module.definitions.flatMap({
           case FuncDef(`main`, FuncBodyDef(_, _, _, body)) =>
@@ -366,4 +365,6 @@ object Evaluator {
 
     Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), halt, List(halt), 0)
   }
+
+  def evalTop(m: Module): Unit = evalTop(m, stack => ())
 }

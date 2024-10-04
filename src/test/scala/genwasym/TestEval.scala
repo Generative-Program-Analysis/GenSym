@@ -19,10 +19,10 @@ class TestEval extends FunSuite {
   def testFile(filename: String, main: Option[String] = None, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
     //println(module)
-    val haltK: Evaluator.Cont = newStack => {
-      println(s"halt cont: $newStack")
+    val haltK: Evaluator.Cont[Unit] = stack => {
+      println(s"halt cont: $stack")
       expected match {
-        case Some(e) => assert(newStack(0) == I32V(e))
+        case Some(e) => assert(stack(0) == I32V(e))
         case None    => ()
       }
     }
