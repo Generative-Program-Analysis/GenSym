@@ -287,6 +287,10 @@ object Evaluator {
         val I32V(cond) :: newStack = stack
         if (cond != 0) trail(label)(newStack)
         else eval(rest, newStack, frame, kont, trail, ret)
+      case BrTable(labels, default) =>
+        val I32V(cond) :: newStack = stack
+        val goto = if (cond < labels.length) labels(cond) else default
+        trail(goto)(newStack)
       case Return => trail(ret)(stack)
       case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
         val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
