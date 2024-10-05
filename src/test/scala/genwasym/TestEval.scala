@@ -41,7 +41,7 @@ class TestEval extends FunSuite {
   test("return") { testFile("./benchmarks/wasm/return.wat", None, None) }
 
   // Parser works, but the memory issue remains
-  // test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-tee.wat") }
 
   // TODO: add more wasm spec tests?
   // test("memory") { test_btree("./benchmarks/wasm/spectest/test.wat", "$real_main") }

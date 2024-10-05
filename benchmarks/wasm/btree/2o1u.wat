@@ -1,5 +1,5 @@
 (module
-  (import "env" "log" (func $log (param i32)))
+  ;; (import "env" "log" (func $log (param i32)))
   (memory $0 2)
   (func $createBtree (param i32) (result i32) ;; createBtree(t), where t: degree of the btree
         (i32.const 0)
@@ -528,9 +528,10 @@
         (local.set 2)     ;; i = x.n -1
         (local.get 0)     ;; x
         (i32.load)        ;; get first i32 --> isLeaf
-        (local.tee $tmp)
-        (local.get $tmp)
-        (call $log)
+        ;; (local.tee $tmp)
+        ;; (local.get $tmp)
+        ;; (call $log)
+        (unreachable)
         (i32.const 1)
         (i32.eq)        ;; is leaf?
         (if
@@ -2813,7 +2814,7 @@
         (i32.and)
         (drop)
         )
-  (export "main" (func $main))
+  (export "main" (func $real_main))
   (func $real_main
     i32.const 3
     i32.const 2

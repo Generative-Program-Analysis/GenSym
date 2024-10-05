@@ -1,9 +1,12 @@
 (module
-  (type (;0;) (func (param i32) (result i32)))
-  (type (;1;) (func (param i32 i32) (result i32)))
-  (type (;2;) (func (param i32 i32)))
-  (type (;3;) (func (param i32 i32 i32)))
-  (func (;0;) (type 0) (param i32) (result i32)
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func (param i32) (result i32)))
+  (type (;2;) (func (param i32 i32) (result i32)))
+  (type (;3;) (func (param i32 i32)))
+  (type (;4;) (func (param i32 i32 i32)))
+  (type (;5;) (func))
+  (import "console" "log" (func (;0;) (type 0)))
+  (func (;1;) (type 1) (param i32) (result i32)
     i32.const 0
     local.get 0
     i32.store
@@ -26,7 +29,7 @@
       i32.store offset=4
     end
     i32.const 65536)
-  (func (;1;) (type 1) (param i32 i32) (result i32)
+  (func (;2;) (type 2) (param i32 i32) (result i32)
     (local i32)
     i32.const 0
     local.set 2
@@ -106,7 +109,7 @@
           i32.add
           i32.load offset=8
           local.get 1
-          call 1
+          call 2
         end
       end
     else
@@ -131,10 +134,10 @@
         i32.add
         i32.load offset=8
         local.get 1
-        call 1
+        call 2
       end
     end)
-  (func (;2;) (type 2) (param i32 i32)
+  (func (;3;) (type 3) (param i32 i32)
     (local i32 i32)
     i32.const 1
     memory.grow
@@ -477,8 +480,8 @@
       i32.add
       i32.store offset=4
     end)
-  (func (;3;) (type 2) (param i32 i32)
-    (local i32)
+  (func (;4;) (type 3) (param i32 i32)
+    (local i32 i32)
     local.get 0
     i32.load offset=4
     i32.const 1
@@ -486,6 +489,10 @@
     local.set 2
     local.get 0
     i32.load
+    local.tee 3
+    local.get 3
+    call 0
+    unreachable
     i32.const 1
     i32.eq
     if  ;; label = @1
@@ -605,7 +612,7 @@
       if  ;; label = @2
         local.get 0
         local.get 2
-        call 2
+        call 3
         local.get 1
         local.get 0
         i32.const 4
@@ -635,9 +642,9 @@
       i32.add
       i32.load offset=8
       local.get 1
-      call 3
+      call 4
     end)
-  (func (;4;) (type 0) (param i32) (result i32)
+  (func (;5;) (type 1) (param i32) (result i32)
     (local i32 i32)
     i32.const 0
     i32.load offset=8
@@ -692,10 +699,10 @@
         i32.store offset=8
         local.get 1
         i32.const 0
-        call 2
+        call 3
         local.get 1
         local.get 0
-        call 3
+        call 4
         local.get 1
       else
         i32.const -1
@@ -703,10 +710,10 @@
     else
       local.get 2
       local.get 0
-      call 3
+      call 4
       local.get 2
     end)
-  (func (;5;) (type 1) (param i32 i32) (result i32)
+  (func (;6;) (type 2) (param i32 i32) (result i32)
     (local i32 i32 i32 i32)
     local.get 0
     i32.load
@@ -887,7 +894,7 @@
           i32.mul
           i32.add
           i32.load offset=8
-          call 5
+          call 6
           drop
           i32.store offset=8
         else
@@ -932,7 +939,7 @@
             i32.mul
             i32.add
             i32.load offset=8
-            call 5
+            call 6
             drop
             i32.store offset=8
           else
@@ -1223,7 +1230,7 @@
             i32.store offset=4
             local.get 5
             local.get 1
-            call 5
+            call 6
             drop
           end
         end
@@ -2524,12 +2531,12 @@
           i32.add
           i32.load offset=8
           local.get 1
-          call 5
+          call 6
           drop
         else
           local.get 5
           local.get 1
-          call 5
+          call 6
           drop
         end
       end
@@ -2559,7 +2566,7 @@
     end
     i32.const 0
     i32.load offset=8)
-  (func $main (;6;) (type 3) (param i32 i32 i32)
+  (func (;7;) (type 4) (param i32 i32 i32)
     (local i32)
     local.get 0
     local.get 1
@@ -2577,59 +2584,58 @@
       unreachable
     end
     i32.const 4
-    call 0
-    local.set 3
-    local.get 0
-    call 4
-    local.set 3
-    local.get 1
-    call 4
-    local.set 3
-    local.get 2
-    call 4
-    local.set 3
-    local.get 3
-    local.get 0
     call 1
-    i32.const -1
-    i32.ne
-    local.get 3
-    local.get 1
-    call 1
-    i32.const -1
-    i32.ne
-    local.get 3
-    local.get 2
-    call 1
-    i32.const -1
-    i32.ne
-    i32.and
-    i32.and
-    local.get 3
+    local.set 3
     local.get 0
     call 5
+    local.set 3
+    local.get 1
+    call 5
+    local.set 3
+    local.get 2
+    call 5
+    local.set 3
+    local.get 3
+    local.get 0
+    call 2
+    i32.const -1
+    i32.ne
+    local.get 3
+    local.get 1
+    call 2
+    i32.const -1
+    i32.ne
+    local.get 3
+    local.get 2
+    call 2
+    i32.const -1
+    i32.ne
+    i32.and
+    i32.and
+    local.get 3
+    local.get 0
+    call 6
     local.tee 3
     local.get 0
-    call 1
+    call 2
     i32.const -1
     i32.eq
     local.get 3
     local.get 1
-    call 5
+    call 6
     local.tee 3
     local.get 1
-    call 1
+    call 2
     i32.const -1
     i32.eq
     i32.and
     i32.and
     drop)
-  (func $real_main
+  (func (;8;) (type 5)
     i32.const 3
     i32.const 2
     i32.const 1
-    call 6 ;; $main ;; TODO: FIXME: $main is parsed as 0!
-  )
-  (start $real_main)
+    call 7)
   (memory (;0;) 2)
-  (export "main" (func 6)))
+  (start 8)
+)
