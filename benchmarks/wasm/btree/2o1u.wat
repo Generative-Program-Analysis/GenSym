@@ -528,10 +528,6 @@
         (local.set 2)     ;; i = x.n -1
         (local.get 0)     ;; x
         (i32.load)        ;; get first i32 --> isLeaf
-        ;; (local.tee $tmp)
-        ;; (local.get $tmp)
-        ;; (call $log)
-        (unreachable)
         (i32.const 1)
         (i32.eq)        ;; is leaf?
         (if
@@ -708,6 +704,10 @@
         (i32.const 0)
         (i32.load offset=8)     ;; root addr
         (local.tee 2)   ;; set r
+        ;; FIXME: first divergence
+        ;; tos should be 65536, but we got 256
+        ;; (call $log)
+        (unreachable)
         (i32.load offset=4)   ;; r.n
         (i32.const 0)
         (i32.load)            ;; t
@@ -2822,5 +2822,4 @@
     call $main
   )
   (start $real_main)
-  (export "real_main" (func $real_main))
-  )
+)

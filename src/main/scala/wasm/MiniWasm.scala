@@ -181,8 +181,8 @@ object Evaluator {
     val inst = insts.head
     val rest = insts.tail
 
-    //println(f"stack size: ${stack.size}")
-    //println(s"eval: $inst")
+    // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
+
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, trail, ret)
       case Select(_) =>
