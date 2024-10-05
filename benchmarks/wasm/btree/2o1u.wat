@@ -704,10 +704,6 @@
         (i32.const 0)
         (i32.load offset=8)     ;; root addr
         (local.tee 2)   ;; set r
-        ;; FIXME: first divergence
-        ;; tos should be 65536, but we got 256
-        ;; (call $log)
-        (unreachable)
         (i32.load offset=4)   ;; r.n
         (i32.const 0)
         (i32.load)            ;; t

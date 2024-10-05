@@ -643,7 +643,6 @@
     i32.const 0
     i32.load offset=8
     local.tee 2
-    unreachable
     i32.load offset=4
     i32.const 0
     i32.load

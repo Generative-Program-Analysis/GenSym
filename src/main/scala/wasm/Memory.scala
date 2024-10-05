@@ -33,7 +33,7 @@ case class RTMemory(var memType: RTMemoryType, data: ArrayBuffer[Byte]) {
   def loadn(a: Long, o: Int, n: Int): Long = {
     assert(n > 0 && n <= 8)
     var result: Long = 0
-    for (i <- 0 until n) {
+    for (i <- (n - 1) to 0 by -1) { // Little-endian: start from least significant byte
       result = (result << 8) | (loadByte(a + i) & 0xff)
     }
     result
@@ -43,7 +43,7 @@ case class RTMemory(var memType: RTMemoryType, data: ArrayBuffer[Byte]) {
     assert(n > 0 && n <= 8)
     var temp = x
     for (i <- 0 until n) {
-      storeByte(a + i, (temp & 0xff).toByte)
+      storeByte(a + i, (temp & 0xff).toByte) // Little-endian: store least significant byte first
       temp = temp >> 8
     }
   }
