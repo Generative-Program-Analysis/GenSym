@@ -40,6 +40,8 @@ class TestEval extends FunSuite {
   test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
   test("return") { testFile("./benchmarks/wasm/return.wat", None, None) }
 
+  test("fib") { testFile("./benchmarks/wasm/fib.wat", None, Some(144)) }
+
   // Parser works, but the memory issue remains
   // test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
 
