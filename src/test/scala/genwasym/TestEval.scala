@@ -16,7 +16,9 @@ import org.scalatest.FunSuite
 class TestEval extends FunSuite {
 
   // Mostly testing the files generated form `benchmarks/wasm/test.rs`
-  def testFile(filename: String, main: Option[String] = None, expected: Option[Int] = None) = {
+  def testFile(filename: String,
+               main: Option[String] = None,
+               expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
     //println(module)
     val haltK: Evaluator.Cont[Unit] = stack => {
@@ -39,12 +41,9 @@ class TestEval extends FunSuite {
   test("loop") { testFile("./benchmarks/wasm/loop.wat", None, Some(10)) }
   test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
   test("return") { testFile("./benchmarks/wasm/return.wat", None, None) }
-
+  test("load") { testFile("./benchmarks/wasm/load.wat", None, Some(1)) }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib") { testFile("./benchmarks/wasm/fib.wat", None, Some(144)) }
 
-  // Parser works, but the memory issue remains
-  // test("btree") { testFile("./benchmarks/wasm/btree/2o1u-no-label-for-real.wat") }
-
-  // TODO: add more wasm spec tests?
-  // test("memory") { test_btree("./benchmarks/wasm/spectest/test.wat", "$real_main") }
+  // TODO: add wasm spec tests? How to utilize wast files?
 }

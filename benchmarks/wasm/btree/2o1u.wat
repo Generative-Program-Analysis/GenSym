@@ -1,4 +1,5 @@
 (module
+  ;; (import "env" "log" (func $log (param i32)))
   (memory $0 2)
   (func $createBtree (param i32) (result i32) ;; createBtree(t), where t: degree of the btree
         (i32.const 0)
@@ -519,7 +520,7 @@
           )
         )
   ;; btreeInsertNonFull(x, k), where x: addr of a non full internal node; k: the key to insert
-  (func $btreeInsertNonFull (param i32) (param i32) (local i32)
+  (func $btreeInsertNonFull (param i32) (param i32) (local i32) (local $tmp i32)
         (local.get 0)     ;; x
         (i32.load offset=4)   ;; x.n
         (i32.const 1)
@@ -2809,13 +2810,12 @@
         (i32.and)
         (drop)
         )
-  (export "main" (func $main))
+  (export "main" (func $real_main))
   (func $real_main
-    i32.const 1
+    i32.const 3
     i32.const 2
     i32.const 1
     call $main
   )
   (start $real_main)
-  (start $real_main)
-  )
+)

@@ -3,6 +3,7 @@
   (type (;1;) (func (param i32 i32) (result i32)))
   (type (;2;) (func (param i32 i32)))
   (type (;3;) (func (param i32 i32 i32)))
+  (type (;4;) (func))
   (func (;0;) (type 0) (param i32) (result i32)
     i32.const 0
     local.get 0
@@ -478,7 +479,7 @@
       i32.store offset=4
     end)
   (func (;3;) (type 2) (param i32 i32)
-    (local i32)
+    (local i32 i32)
     local.get 0
     i32.load offset=4
     i32.const 1
@@ -2559,7 +2560,7 @@
     end
     i32.const 0
     i32.load offset=8)
-  (func $main (;6;) (type 3) (param i32 i32 i32)
+  (func (;6;) (type 3) (param i32 i32 i32)
     (local i32)
     local.get 0
     local.get 1
@@ -2624,12 +2625,11 @@
     i32.and
     i32.and
     drop)
-  (func $real_main
+  (func (;7;) (type 4)
     i32.const 3
     i32.const 2
     i32.const 1
-    call 6 ;; $main ;; TODO: FIXME: $main is parsed as 0!
-  )
-  (start $real_main)
+    call 6)
   (memory (;0;) 2)
-  (export "main" (func 6)))
+  (export "main" (func 7))
+  (start 7))
