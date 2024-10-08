@@ -2,11 +2,10 @@
   (type (;0;) (func (result i32)))
   (type (;1;) (func))
   (func (;0;) (type 0) (result i32)
-    i32.const 0
-    i32.const 1
-    i32.store 
-    i32.const 0
-    i32.load
+    i32.const 12
+    i32.const -5
+
+    i32.div_s ;; divide one number by the other
   )
   (func (;1;) (type 1)
     call 0

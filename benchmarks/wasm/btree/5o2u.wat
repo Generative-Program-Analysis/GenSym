@@ -1,5 +1,4 @@
 (module
-  ;; (import "env" "log" (func $log (param i32)))
   (memory $0 2)
   (func $createBtree (param i32) (result i32) ;; createBtree(t), where t: degree of the btree
         (i32.const 0)
@@ -33,28 +32,28 @@
         (local.set 2)                   ;; i = 0
         (block $loop_break
                (loop $loop
-                     (local.get 2)                 ;; i
-                     (local.get 0)                 ;; x
-                     (i32.load offset=4)               ;; x.children
+                     (local.get 2)                  ;; i
+                     (local.get 0)                  ;; x
+                     (i32.load offset=4)                ;; x.children
                      (i32.const 1)
-                     (i32.sub)                   ;; x.n -1
-                     (i32.le_s)                    ;; i <= x.children-1
+                     (i32.sub)                    ;; x.n -1
+                     (i32.le_s)                   ;; i <= x.children-1
                      (if
                        (then
-                         (local.get 1)             ;; k
-                         (local.get 0)             ;; x
+                         (local.get 1)              ;; k
+                         (local.get 0)              ;; x
                          (i32.const 4)
-                         (local.get 2)             ;; i
-                         (i32.mul)               ;; i*4
-                         (i32.add)               ;; x + i*4
-                         (i32.load offset=8)           ;; x.keys[i]
-                         (i32.gt_s)                ;; k > x.keys[i]
+                         (local.get 2)              ;; i
+                         (i32.mul)                ;; i*4
+                         (i32.add)                ;; x + i*4
+                         (i32.load offset=8)            ;; x.keys[i]
+                         (i32.gt_s)               ;; k > x.keys[i]
                          (if
                            (then
                              (i32.const 1)
                              (local.get 2)
                              (i32.add)
-                             (local.set 2)         ;; i = i+1
+                             (local.set 2)          ;; i = i+1
                              (br $loop)
                              )
                            (else
@@ -217,48 +216,48 @@
             (local.set 3)           ;; counter = 0
             (block $loop_break
                    (loop $loop
-                         (local.get 3)         ;; counter
+                         (local.get 3)          ;; counter
                          (i32.const 0)
-                         (i32.load)            ;; t
+                         (i32.load)           ;; t
                          (i32.const 2)
-                         (i32.div_s)           ;; t/2
+                         (i32.div_s)            ;; t/2
                          (i32.const 1)
-                         (i32.sub)           ;; (t/2)-1
-                         (i32.eq)            ;; counter == (t/2)-1
+                         (i32.sub)            ;; (t/2)-1
+                         (i32.eq)           ;; counter == (t/2)-1
                          (if
                            (then
                              (br $loop_break)
                              )
                            (else
-                             (local.get 2)         ;; addr of z ;; we will store in the new node's address. z.keys[counter]
+                             (local.get 2)          ;; addr of z ;; we will store in the new node's address. z.keys[counter]
                              (i32.const 4)
-                             (local.get 3)         ;; counter
-                             (i32.mul)           ;; counter * 4
-                             (i32.add)           ;; addr + counter * 4 -> where the key is goint to be located
+                             (local.get 3)          ;; counter
+                             (i32.mul)            ;; counter * 4
+                             (i32.add)            ;; addr + counter * 4 -> where the key is goint to be located
                              (i32.const 0)   ;; get x.children[i]
-                             (i32.load)            ;; t
+                             (i32.load)           ;; t
                              (i32.const 1)
-                             (i32.sub)           ;; t-1
+                             (i32.sub)            ;; t-1
                              (i32.const 4)
-                             (i32.mul)           ;; (t-1)*4
-                             (local.get 1)         ;; i
+                             (i32.mul)            ;; (t-1)*4
+                             (local.get 1)          ;; i
                              (i32.const 4)
-                             (i32.mul)           ;; i*4
-                             (i32.add)           ;; (t-1)*4 + i*4
-                             (local.get 0)         ;; x
-                             (i32.add)           ;; x + (t-1)*4 + i*4
-                             (i32.load offset=8)       ;; load the address of the child in index i = y
+                             (i32.mul)            ;; i*4
+                             (i32.add)            ;; (t-1)*4 + i*4
+                             (local.get 0)          ;; x
+                             (i32.add)            ;; x + (t-1)*4 + i*4
+                             (i32.load offset=8)        ;; load the address of the child in index i = y
                              (i32.const 4)  ;; now get x.children[i].keys[counter+(t/2)]
-                             (local.get 3)             ;; counter
+                             (local.get 3)              ;; counter
                              (i32.const 0)
-                             (i32.load)                ;; t
+                             (i32.load)               ;; t
                              (i32.const 2)
-                             (i32.div_s)               ;; t/2
-                             (i32.add)               ;; counter + (t/2)
-                             (i32.mul)               ;; counter + (t/2) *4
-                             (i32.add)               ;; y + counter + (t/2) *4
-                             (i32.load offset=8)           ;; y.keys[counter + (t/2)]
-                             (i32.store offset=8)          ;; z.keys[counter] = y.keys[counter + (t/2)]
+                             (i32.div_s)                ;; t/2
+                             (i32.add)                ;; counter + (t/2)
+                             (i32.mul)                ;; counter + (t/2) *4
+                             (i32.add)                ;; y + counter + (t/2) *4
+                             (i32.load offset=8)            ;; y.keys[counter + (t/2)]
+                             (i32.store offset=8)         ;; z.keys[counter] = y.keys[counter + (t/2)]
                              (local.get 3)   ;; increment counter
                              (i32.const 1)
                              (i32.add)
@@ -290,60 +289,60 @@
               (then ;; not leaf so we have to update the children
                 (block $loop_break
                        (loop $loop
-                             (local.get 3)         ;; counter
+                             (local.get 3)          ;; counter
                              (i32.const 0)
-                             (i32.load)            ;; t
+                             (i32.load)           ;; t
                              (i32.const 2)
-                             (i32.div_s)           ;; t/2
-                             (i32.eq)            ;; counter == (t/2)
+                             (i32.div_s)            ;; t/2
+                             (i32.eq)           ;; counter == (t/2)
                              (if
                                (then
                                  (br $loop_break)
                                  )
                                (else
-                                 (i32.const 0)     ;; now get z.children[counter]
-                                 (i32.load)            ;; t
+                                 (i32.const 0)      ;; now get z.children[counter]
+                                 (i32.load)           ;; t
                                  (i32.const 1)
-                                 (i32.sub)           ;; t-1
+                                 (i32.sub)            ;; t-1
                                  (i32.const 4)
-                                 (i32.mul)           ;; (t-1)*4
-                                 (local.get 3)         ;; counter
+                                 (i32.mul)            ;; (t-1)*4
+                                 (local.get 3)          ;; counter
                                  (i32.const 4)
-                                 (i32.mul)           ;; counter*4
-                                 (i32.add)           ;; (t-1)*4 + counter*4
-                                 (local.get 2)         ;; z
-                                 (i32.add)           ;; z + (t-1)*4 + counter*4 --> address where addr of child is stored
-                                 (i32.const 0)         ;; get x.children[i]
-                                 (i32.load)            ;; t
+                                 (i32.mul)            ;; counter*4
+                                 (i32.add)            ;; (t-1)*4 + counter*4
+                                 (local.get 2)          ;; z
+                                 (i32.add)            ;; z + (t-1)*4 + counter*4 --> address where addr of child is stored
+                                 (i32.const 0)          ;; get x.children[i]
+                                 (i32.load)           ;; t
                                  (i32.const 1)
-                                 (i32.sub)           ;; t-1
+                                 (i32.sub)            ;; t-1
                                  (i32.const 4)
-                                 (i32.mul)           ;; (t-1)*4
-                                 (local.get 1)         ;; i
+                                 (i32.mul)            ;; (t-1)*4
+                                 (local.get 1)          ;; i
                                  (i32.const 4)
-                                 (i32.mul)           ;; i*4
-                                 (i32.add)           ;; (t-1)*4 + i*4
-                                 (local.get 0)         ;; x
-                                 (i32.add)           ;; x + (t-1)*4
-                                 (i32.load offset=8)       ;; load the address of the child in index i = y
-                                 (i32.const 0)     ;; get x.children[i].children[counter+(t/2)]
-                                 (i32.load)            ;; t
+                                 (i32.mul)            ;; i*4
+                                 (i32.add)            ;; (t-1)*4 + i*4
+                                 (local.get 0)          ;; x
+                                 (i32.add)            ;; x + (t-1)*4
+                                 (i32.load offset=8)        ;; load the address of the child in index i = y
+                                 (i32.const 0)      ;; get x.children[i].children[counter+(t/2)]
+                                 (i32.load)           ;; t
                                  (i32.const 1)
-                                 (i32.sub)           ;; t-1
+                                 (i32.sub)            ;; t-1
                                  (i32.const 4)
-                                 (i32.mul)           ;; (t-1)*4
-                                 (local.get 3)         ;; counter
+                                 (i32.mul)            ;; (t-1)*4
+                                 (local.get 3)          ;; counter
                                  (i32.const 0)
-                                 (i32.load)            ;; t
+                                 (i32.load)           ;; t
                                  (i32.const 2)
-                                 (i32.div_s)           ;; t/2
-                                 (i32.add)           ;; counter + t/2
+                                 (i32.div_s)            ;; t/2
+                                 (i32.add)            ;; counter + t/2
                                  (i32.const 4)
-                                 (i32.mul)           ;; counter+t/2  * 4
-                                 (i32.add)           ;; (t-1)*4 + (counter+(t/2))*4
-                                 (i32.add)           ;; x.children[i] + (t-1)*4 + (counter + (t/2))*4
-                                 (i32.load offset=8)       ;; load the address of the child in index counter + t/2
-                                 (i32.store offset=8)  ;; z.children[counter] = x.children[i].children[counter]
+                                 (i32.mul)            ;; counter+t/2  * 4
+                                 (i32.add)            ;; (t-1)*4 + (counter+(t/2))*4
+                                 (i32.add)            ;; x.children[i] + (t-1)*4 + (counter + (t/2))*4
+                                 (i32.load offset=8)        ;; load the address of the child in index counter + t/2
+                                 (i32.store offset=8) ;; z.children[counter] = x.children[i].children[counter]
                                  (local.get 3) ;; increment counter
                                  (i32.const 1)
                                  (i32.add)
@@ -380,43 +379,43 @@
             (local.set 3)         ;; counter = x.n
             (block $loop_break
                    (loop $loop
-                         (local.get 1)       ;; i
-                         (local.get 3)       ;; counter
+                         (local.get 1)        ;; i
+                         (local.get 3)        ;; counter
                          (i32.eq)
                          (if
                            (then
                              (br $loop_break)
                              )
                            (else
-                             (i32.const 0)       ;; get x.children[counter + 1]
-                             (i32.load)            ;; t
+                             (i32.const 0)        ;; get x.children[counter + 1]
+                             (i32.load)           ;; t
                              (i32.const 1)
-                             (i32.sub)           ;; t-1
+                             (i32.sub)            ;; t-1
                              (i32.const 4)
-                             (i32.mul)           ;; (t-1)*4
-                             (local.get 3)         ;; counter
+                             (i32.mul)            ;; (t-1)*4
+                             (local.get 3)          ;; counter
                              (i32.const 1)
-                             (i32.add)           ;; counter + 1
+                             (i32.add)            ;; counter + 1
                              (i32.const 4)
-                             (i32.mul)           ;; (counter + 1)*4
-                             (i32.add)           ;; (t-1)*4 + (counter + 1)*4
-                             (local.get 0)         ;; x
-                             (i32.add)           ;; x + (t-1)*4 + (counter + 1)*4 -->address where addr of child is stored
-                             (i32.const 0)         ;; get x.children[counter]
-                             (i32.load)            ;; t
+                             (i32.mul)            ;; (counter + 1)*4
+                             (i32.add)            ;; (t-1)*4 + (counter + 1)*4
+                             (local.get 0)          ;; x
+                             (i32.add)            ;; x + (t-1)*4 + (counter + 1)*4 -->address where addr of child is stored
+                             (i32.const 0)          ;; get x.children[counter]
+                             (i32.load)           ;; t
                              (i32.const 1)
-                             (i32.sub)           ;; t-1
+                             (i32.sub)            ;; t-1
                              (i32.const 4)
-                             (i32.mul)           ;; (t-1)*4
-                             (local.get 3)         ;; counter
+                             (i32.mul)            ;; (t-1)*4
+                             (local.get 3)          ;; counter
                              (i32.const 4)
-                             (i32.mul)           ;; (counter)*4
-                             (i32.add)           ;; (t-1)*4 + (counter)*4
-                             (local.get 0)         ;; x
-                             (i32.add)           ;; x + (t-1)*4 + (counter)*4
-                             (i32.load offset=8)       ;; load the addr of the child in index (counter)
-                             (i32.store offset=8)            ;; x.children[counter+1] = x.children[counter]
-                             (local.get 3)   ;; decrement counter
+                             (i32.mul)            ;; (counter)*4
+                             (i32.add)            ;; (t-1)*4 + (counter)*4
+                             (local.get 0)          ;; x
+                             (i32.add)            ;; x + (t-1)*4 + (counter)*4
+                             (i32.load offset=8)        ;; load the addr of the child in index (counter)
+                             (i32.store offset=8)           ;; x.children[counter+1] = x.children[counter]
+                             (local.get 3)    ;; decrement counter
                              (i32.const 1)
                              (i32.sub)
                              (local.set 3)
@@ -448,30 +447,30 @@
             (local.set 3)         ;; counter = x.n -1
             (block $loop_break
                    (loop $loop
-                         (local.get 1)       ;; i
+                         (local.get 1)        ;; i
                          (i32.const 1)
-                         (i32.sub)         ;; i-1
-                         (local.get 3)       ;; counter
-                         (i32.eq)          ;; counter == i-1
+                         (i32.sub)          ;; i-1
+                         (local.get 3)        ;; counter
+                         (i32.eq)         ;; counter == i-1
                          (if
                            (then
                              (br $loop_break)
                              )
                            (else
-                             (local.get 3)         ;; get x.keys[counter + 1] ;; counter
+                             (local.get 3)          ;; get x.keys[counter + 1] ;; counter
                              (i32.const 1)
-                             (i32.add)           ;; counter + 1
+                             (i32.add)            ;; counter + 1
                              (i32.const 4)
-                             (i32.mul)           ;; (counter + 1)*4
-                             (local.get 0)         ;; x
-                             (i32.add)           ;; x +(counter + 1)*4 --> addr where we will store the new key
-                             (local.get 3)         ;; counter
+                             (i32.mul)            ;; (counter + 1)*4
+                             (local.get 0)          ;; x
+                             (i32.add)            ;; x +(counter + 1)*4 --> addr where we will store the new key
+                             (local.get 3)          ;; counter
                              (i32.const 4)
-                             (i32.mul)           ;; (counter)*4
-                             (local.get 0)         ;; x
-                             (i32.add)           ;; x +(counter)*4
-                             (i32.load offset=8)       ;; load the key in index (counter)
-                             (i32.store offset=8)            ;; x.keys[counter+1] = x.keys[counter]
+                             (i32.mul)            ;; (counter)*4
+                             (local.get 0)          ;; x
+                             (i32.add)            ;; x +(counter)*4
+                             (i32.load offset=8)        ;; load the key in index (counter)
+                             (i32.store offset=8)           ;; x.keys[counter+1] = x.keys[counter]
                              (local.get 3)  ;; decrement counter
                              (i32.const 1)
                              (i32.sub)
@@ -520,7 +519,7 @@
           )
         )
   ;; btreeInsertNonFull(x, k), where x: addr of a non full internal node; k: the key to insert
-  (func $btreeInsertNonFull (param i32) (param i32) (local i32) (local $tmp i32)
+  (func $btreeInsertNonFull (param i32) (param i32) (local i32)
         (local.get 0)     ;; x
         (i32.load offset=4)   ;; x.n
         (i32.const 1)
@@ -534,49 +533,49 @@
           (then   ;; x is leaf
             (block $loop_break
                    (loop $loop
-                         (local.get 2) ;; i
+                         (local.get 2)  ;; i
                          (i32.const 0)
-                         (i32.ge_s)    ;; i <= 0?
+                         (i32.ge_s)   ;; i <= 0?
                          (if (result i32)
                            (then
-                             (local.get 1)             ;; k
-                             (local.get 0)             ;; x
+                             (local.get 1)              ;; k
+                             (local.get 0)              ;; x
                              ;; x+4*i
                              (i32.const 4)
-                             (local.get 2)             ;; i
-                             (i32.mul)               ;; i*4
-                             (i32.add)               ;; x + i*4
-                             (i32.load offset=8)           ;; x.keys[i]
-                             (i32.lt_s)                ;; k < x.keys[i]
+                             (local.get 2)              ;; i
+                             (i32.mul)                ;; i*4
+                             (i32.add)                ;; x + i*4
+                             (i32.load offset=8)            ;; x.keys[i]
+                             (i32.lt_s)               ;; k < x.keys[i]
                              )
                            (else
                              (i32.const 0)
                              )
                            )
-                         (local.get 2) ;; i
+                         (local.get 2)  ;; i
                          (i32.const 0)
-                         (i32.ge_s)    ;; i <= 0?
+                         (i32.ge_s)   ;; i <= 0?
                          (i32.and)
                          (if
                            (then
-                             (local.get 0)             ;; x
+                             (local.get 0)              ;; x
                              (i32.const 4)
-                             (local.get 2)             ;; i
+                             (local.get 2)              ;; i
                              (i32.const 1)
-                             (i32.add)               ;; i+1
-                             (i32.mul)               ;; i+1 *4
-                             (i32.add)               ;; x + i+1 *4 --> addr of x.keys[i+1]
-                             (local.get 0)             ;; x
+                             (i32.add)                ;; i+1
+                             (i32.mul)                ;; i+1 *4
+                             (i32.add)                ;; x + i+1 *4 --> addr of x.keys[i+1]
+                             (local.get 0)              ;; x
                              (i32.const 4)
-                             (local.get 2)             ;; i
-                             (i32.mul)               ;; i *4
-                             (i32.add)               ;; x + i *4 --> addr of x.keys[i]
-                             (i32.load offset=8)           ;; x.keys[i]
-                             (i32.store offset=8)          ;; x.keys[i+1] = x.keys[i]
-                             (local.get 2)             ;; i
+                             (local.get 2)              ;; i
+                             (i32.mul)                ;; i *4
+                             (i32.add)                ;; x + i *4 --> addr of x.keys[i]
+                             (i32.load offset=8)            ;; x.keys[i]
+                             (i32.store offset=8)         ;; x.keys[i+1] = x.keys[i]
+                             (local.get 2)              ;; i
                              (i32.const 1)
                              (i32.sub)
-                             (local.set 2)             ;; i = i-1
+                             (local.set 2)              ;; i = i-1
                              (br $loop)
                              )
                            (else
@@ -604,25 +603,25 @@
           (else ;; x is not leaf
             (block $loop_break
                    (loop $loop
-                         (local.get 2) ;; i
+                         (local.get 2)  ;; i
                          (i32.const 0)
-                         (i32.ge_s)    ;; i >= 0
+                         (i32.ge_s)   ;; i >= 0
                          (if
                            (then
-                             (local.get 1)             ;; k
-                             (local.get 0)             ;; x
+                             (local.get 1)              ;; k
+                             (local.get 0)              ;; x
                              (i32.const 4)
-                             (local.get 2)             ;; i
-                             (i32.mul)               ;; i*4
-                             (i32.add)               ;; x + i*4
-                             (i32.load offset=8)           ;; x.keys[i]
-                             (i32.lt_s)                ;; k < x.keys[i]
+                             (local.get 2)              ;; i
+                             (i32.mul)                ;; i*4
+                             (i32.add)                ;; x + i*4
+                             (i32.load offset=8)            ;; x.keys[i]
+                             (i32.lt_s)               ;; k < x.keys[i]
                              (if
                                (then
-                                 (local.get 2) ;; i
+                                 (local.get 2)  ;; i
                                  (i32.const 1)
-                                 (i32.sub)   ;; i -1
-                                 (local.set 2) ;; i = i-1
+                                 (i32.sub)    ;; i -1
+                                 (local.set 2)  ;; i = i-1
                                  (br $loop)
                                  )
                                (else
@@ -787,27 +786,27 @@
             (local.set 2) ;; i = 0
             (block $loop_break
                    (loop $loop
-                         (local.get 0)     ;; x
-                         (i32.load offset=4)   ;; x.n
-                         (local.get 2)     ;; i
-                         (i32.eq)        ;; i == x.n
+                         (local.get 0)      ;; x
+                         (i32.load offset=4)    ;; x.n
+                         (local.get 2)      ;; i
+                         (i32.eq)       ;; i == x.n
                          (if
                            (then
-                             (br $loop_break)  ;; break from loop
+                             (br $loop_break) ;; break from loop
                              )
                            (else
-                             (local.get 0)             ;; x
+                             (local.get 0)              ;; x
                              (i32.const 4)
-                             (local.get 2)             ;; i
-                             (i32.mul)               ;; i*4
-                             (i32.add)               ;; x + i*4
-                             (i32.load offset=8)           ;; x.keys[i]
-                             (local.get 1)   ;; k
-                             (i32.eq)      ;; k == x.keys[i]
+                             (local.get 2)              ;; i
+                             (i32.mul)                ;; i*4
+                             (i32.add)                ;; x + i*4
+                             (i32.load offset=8)            ;; x.keys[i]
+                             (local.get 1)    ;; k
+                             (i32.eq)     ;; k == x.keys[i]
                              (if
                                (then
-                                 (local.get 2) ;; i
-                                 (local.set 3) ;; j = i
+                                 (local.get 2)  ;; i
+                                 (local.set 3)  ;; j = i
                                  (block $while_break
                                         (loop $while
                                               (local.get 3)     ;; j
@@ -844,12 +843,12 @@
                                                 )
                                               )
                                         )
-                                 (local.get 0)     ;; x
-                                 (local.get 0)     ;; x
-                                 (i32.load offset=4)   ;; x.n
+                                 (local.get 0)      ;; x
+                                 (local.get 0)      ;; x
+                                 (i32.load offset=4)    ;; x.n
                                  (i32.const 1)
                                  (i32.sub)
-                                 (i32.store offset=4)  ;; x.n = x.n -1
+                                 (i32.store offset=4) ;; x.n = x.n -1
                                  (br $loop_break)
                                  )
                                )
@@ -858,8 +857,8 @@
                          (i32.const 1)
                          (local.get 2)
                          (i32.add)
-                         (local.set 2) ;; i = i+1
-                         (br $loop)    ;; continue
+                         (local.set 2)  ;; i = i+1
+                         (br $loop)   ;; continue
                          )
                    )
             )
@@ -868,40 +867,40 @@
             (local.set 2)     ;; i = 0
             (block $loop_break
                    (loop $loop
-                         (local.get 2) ;; i
-                         (local.get 0)     ;; x
-                         (i32.load offset=4)   ;; x.n
+                         (local.get 2)  ;; i
+                         (local.get 0)      ;; x
+                         (i32.load offset=4)    ;; x.n
                          (i32.const 1)
                          (i32.sub)
-                         (i32.le_s)    ;; i <= x.n - 1
+                         (i32.le_s)   ;; i <= x.n - 1
                          (if (result i32)
                            (then
-                             (local.get 1) ;; k
-                             (local.get 0)             ;; x
+                             (local.get 1)  ;; k
+                             (local.get 0)              ;; x
                              (i32.const 4)
-                             (local.get 2)             ;; i
-                             (i32.mul)               ;; i*4
-                             (i32.add)               ;; x + i*4
-                             (i32.load offset=8)           ;; x.keys[i]
-                             (i32.gt_s)    ;; k > x.keys[i]
+                             (local.get 2)              ;; i
+                             (i32.mul)                ;; i*4
+                             (i32.add)                ;; x + i*4
+                             (i32.load offset=8)            ;; x.keys[i]
+                             (i32.gt_s)   ;; k > x.keys[i]
                              )
                            (else
                              (i32.const 0)
                              )
                            )
-                         (local.get 2) ;; i
-                         (local.get 0)     ;; x
-                         (i32.load offset=4)   ;; x.n
+                         (local.get 2)  ;; i
+                         (local.get 0)      ;; x
+                         (i32.load offset=4)    ;; x.n
                          (i32.const 1)
                          (i32.sub)
-                         (i32.le_s)    ;; i <= x.n - 1
-                         (i32.and)     ;; i <= x.n - 1 && k > x.keys[i]
+                         (i32.le_s)   ;; i <= x.n - 1
+                         (i32.and)    ;; i <= x.n - 1 && k > x.keys[i]
                          (if
                            (then
-                             (local.get 2) ;; i
+                             (local.get 2)  ;; i
                              (i32.const 1)
                              (i32.add)
-                             (local.set 2) ;; i = i + 1
+                             (local.set 2)  ;; i = i + 1
                              (br $loop)
                              )
                            (else
@@ -1055,64 +1054,64 @@
                         (local.set 3) ;; j = 0
                         (block $loop_break
                                (loop $loop
-                                     (local.get 3)  ;; j
-                                     (i32.const 0) ;;get x.c[i+1]
-                                     (i32.load)            ;; t
+                                     (local.get 3)   ;; j
+                                     (i32.const 0)  ;;get x.c[i+1]
+                                     (i32.load)           ;; t
                                      (i32.const 1)
-                                     (i32.sub)           ;; t-1
+                                     (i32.sub)            ;; t-1
                                      (i32.const 4)
-                                     (i32.mul)           ;; (t-1)*4
-                                     (local.get 2)         ;; i
+                                     (i32.mul)            ;; (t-1)*4
+                                     (local.get 2)          ;; i
                                      (i32.const 1)
-                                     (i32.add)           ;; i+1
+                                     (i32.add)            ;; i+1
                                      (i32.const 4)
-                                     (i32.mul)           ;; i+1 *4
-                                     (i32.add)           ;; (t-1)*4 + i+1 *4
-                                     (local.get 0)         ;; x
-                                     (i32.add)           ;; x + (t-1)*4
-                                     (i32.load offset=8)       ;; x.c[i+1]
-                                     (i32.load offset=4)       ;; x.c[i+1].n
+                                     (i32.mul)            ;; i+1 *4
+                                     (i32.add)            ;; (t-1)*4 + i+1 *4
+                                     (local.get 0)          ;; x
+                                     (i32.add)            ;; x + (t-1)*4
+                                     (i32.load offset=8)        ;; x.c[i+1]
+                                     (i32.load offset=4)        ;; x.c[i+1].n
                                      (i32.eq)
-                                     (if       ;; j == x.c[i+1].n
+                                     (if      ;; j == x.c[i+1].n
                                        (then
                                          (br $loop_break)
                                          )
                                        (else
-                                         (local.get 5) ;; x.c[i]
+                                         (local.get 5)  ;; x.c[i]
                                          (i32.const 4)
                                          (local.get 5)
                                          (i32.load offset=4)
                                          (local.get 3)
                                          (i32.add)
                                          (i32.const 1)
-                                         (i32.add)       ;; index = x.c[i].n + j + 1
-                                         (i32.mul)       ;; i*4
-                                         (i32.add)       ;; x + i*4 ;; addr of x.c[i].keys[index]
-                                         (i32.const 0) ;;get x.c[i+1]
-                                         (i32.load)            ;; t
+                                         (i32.add)        ;; index = x.c[i].n + j + 1
+                                         (i32.mul)        ;; i*4
+                                         (i32.add)        ;; x + i*4 ;; addr of x.c[i].keys[index]
+                                         (i32.const 0)  ;;get x.c[i+1]
+                                         (i32.load)           ;; t
                                          (i32.const 1)
-                                         (i32.sub)           ;; t-1
+                                         (i32.sub)            ;; t-1
                                          (i32.const 4)
-                                         (i32.mul)           ;; (t-1)*4
-                                         (local.get 2)         ;; i
+                                         (i32.mul)            ;; (t-1)*4
+                                         (local.get 2)          ;; i
                                          (i32.const 1)
-                                         (i32.add)           ;; i+1
+                                         (i32.add)            ;; i+1
                                          (i32.const 4)
-                                         (i32.mul)           ;; i+1 *4
-                                         (i32.add)           ;; (t-1)*4 + i+1 *4
-                                         (local.get 0)       ;; x
-                                         (i32.add)         ;; x + (t-1)*4
-                                         (i32.load offset=8)     ;; x.c[i+1]
+                                         (i32.mul)            ;; i+1 *4
+                                         (i32.add)            ;; (t-1)*4 + i+1 *4
+                                         (local.get 0)        ;; x
+                                         (i32.add)          ;; x + (t-1)*4
+                                         (i32.load offset=8)      ;; x.c[i+1]
                                          (i32.const 4)
-                                         (local.get 3)     ;; index = j
-                                         (i32.mul)       ;; i*4
-                                         (i32.add)       ;; x.c[i+1] + i*4 ;; addr of x.c[i+1].keys[j]
-                                         (i32.load offset=8)   ;; x.c[i+1].keys[j]
-                                         (i32.store offset=8)  ;; x.c[i].keys[index] = x.c[i+1].keys[j]
+                                         (local.get 3)      ;; index = j
+                                         (i32.mul)        ;; i*4
+                                         (i32.add)        ;; x.c[i+1] + i*4 ;; addr of x.c[i+1].keys[j]
+                                         (i32.load offset=8)    ;; x.c[i+1].keys[j]
+                                         (i32.store offset=8) ;; x.c[i].keys[index] = x.c[i+1].keys[j]
                                          (local.get 3)
                                          (i32.const 1)
                                          (i32.add)
-                                         (local.set 3) ;; j = j+1
+                                         (local.set 3)  ;; j = j+1
                                          (br $loop)
                                          )
                                        )
@@ -1151,23 +1150,23 @@
                             (local.set 3) ;; j = 0
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3)     ;; j
-                                         (i32.const 0) ;;get x.c[i+1]
-                                         (i32.load)            ;; t
+                                         (local.get 3)      ;; j
+                                         (i32.const 0)  ;;get x.c[i+1]
+                                         (i32.load)           ;; t
                                          (i32.const 1)
-                                         (i32.sub)           ;; t-1
+                                         (i32.sub)            ;; t-1
                                          (i32.const 4)
-                                         (i32.mul)           ;; (t-1)*4
-                                         (local.get 2)         ;; i
+                                         (i32.mul)            ;; (t-1)*4
+                                         (local.get 2)          ;; i
                                          (i32.const 1)
-                                         (i32.add)           ;; i+1
+                                         (i32.add)            ;; i+1
                                          (i32.const 4)
-                                         (i32.mul)           ;; i+1 *4
-                                         (i32.add)           ;; (t-1)*4 + i+1 *4
-                                         (local.get 0)       ;; x
-                                         (i32.add)         ;; x + (t-1)*4
-                                         (i32.load offset=8)     ;; x.c[i+1]
-                                         (i32.load offset=4)     ;; x.c[i+1].n
+                                         (i32.mul)            ;; i+1 *4
+                                         (i32.add)            ;; (t-1)*4 + i+1 *4
+                                         (local.get 0)        ;; x
+                                         (i32.add)          ;; x + (t-1)*4
+                                         (i32.load offset=8)      ;; x.c[i+1]
+                                         (i32.load offset=4)      ;; x.c[i+1].n
                                          (i32.const 1)
                                          (i32.add)
                                          (i32.eq)
@@ -1176,55 +1175,55 @@
                                              (br $loop_break)
                                              )
                                            (else
-                                             (i32.const 0) ;;get x.c[i].c[x.c[i].n+j]
-                                             (i32.load)            ;; t
+                                             (i32.const 0)  ;;get x.c[i].c[x.c[i].n+j]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
+                                             (i32.mul)            ;; (t-1)*4
                                              (local.get 5)
-                                             (i32.load offset=4)     ;; x.c[i].n
-                                             (local.get 3)       ;; j
-                                             (i32.add)         ;; index = x.c[i].n+j
+                                             (i32.load offset=4)      ;; x.c[i].n
+                                             (local.get 3)        ;; j
+                                             (i32.add)          ;; index = x.c[i].n+j
                                              (i32.const 1)
-                                             (i32.add)           ;; i+1
+                                             (i32.add)            ;; i+1
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 5)       ;; x.c[i]
-                                             (i32.add)         ;; x.c[i] + (t-1)*4 --> address where x.c[i].c[x.c[i].n+j] is stored
-                                             (i32.const 0) ;;get x.c[i+1].c[j]
-                                             (i32.load)            ;; t
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 5)        ;; x.c[i]
+                                             (i32.add)          ;; x.c[i] + (t-1)*4 --> address where x.c[i].c[x.c[i].n+j] is stored
+                                             (i32.const 0)  ;;get x.c[i+1].c[j]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 3)         ;; j
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 3)          ;; j
                                              (i32.const 4)
-                                             (i32.mul)           ;; j *4
-                                             (i32.add)           ;; (t-1)*4 + j *4
-                                             (i32.const 0) ;;get x.c[i+1]
-                                             (i32.load)            ;; t
+                                             (i32.mul)            ;; j *4
+                                             (i32.add)            ;; (t-1)*4 + j *4
+                                             (i32.const 0)  ;;get x.c[i+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
-                                             (i32.add)           ;; i+1
+                                             (i32.add)            ;; i+1
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1]
-                                             (i32.add)         ;; x.c[i+1] + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1].c[j]
-                                             (i32.store offset=8)  ;; x.c[i].c[x.c[i].n+j] = x.c[i+1].c[j]
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1]
+                                             (i32.add)          ;; x.c[i+1] + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1].c[j]
+                                             (i32.store offset=8) ;; x.c[i].c[x.c[i].n+j] = x.c[i+1].c[j]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3) ;; j = j+1
+                                             (local.set 3)  ;; j = j+1
                                              (br $loop)
                                              )
                                            )
@@ -1247,24 +1246,24 @@
                                          (br $loop_break)
                                          )
                                        (else
-                                         (local.get 0)             ;; x
+                                         (local.get 0)              ;; x
                                          (i32.const 4)
-                                         (local.get 3)             ;; j
-                                         (i32.mul)               ;; j*4
-                                         (i32.add)               ;; x + j*4 ;; addr of x.keys[j]
-                                         (local.get 0)             ;; x
+                                         (local.get 3)              ;; j
+                                         (i32.mul)                ;; j*4
+                                         (i32.add)                ;; x + j*4 ;; addr of x.keys[j]
+                                         (local.get 0)              ;; x
                                          (i32.const 4)
-                                         (local.get 3)             ;; j
+                                         (local.get 3)              ;; j
                                          (i32.const 1)
                                          (i32.add)
-                                         (i32.mul)               ;; j+1*4
-                                         (i32.add)               ;; x + j+1*4 ;; addr of x.keys[j+1]
+                                         (i32.mul)                ;; j+1*4
+                                         (i32.add)                ;; x + j+1*4 ;; addr of x.keys[j+1]
                                          (i32.load offset=8)
-                                         (i32.store offset=8)    ;; x.keys[j] = x.keys[j+1]
+                                         (i32.store offset=8)   ;; x.keys[j] = x.keys[j+1]
                                          (local.get 3)
                                          (i32.const 1)
                                          (i32.add)
-                                         (local.set 3) ;; j = j+1
+                                         (local.set 3)  ;; j = j+1
                                          (br $loop)
                                          )
                                        )
@@ -1286,37 +1285,37 @@
                                          )
                                        (else
                                          (i32.const 0) ;;get x.c[j]
-                                         (i32.load)            ;; t
+                                         (i32.load)           ;; t
                                          (i32.const 1)
-                                         (i32.sub)           ;; t-1
+                                         (i32.sub)            ;; t-1
                                          (i32.const 4)
-                                         (i32.mul)           ;; (t-1)*4
-                                         (local.get 3)         ;; j
+                                         (i32.mul)            ;; (t-1)*4
+                                         (local.get 3)          ;; j
                                          (i32.const 4)
-                                         (i32.mul)           ;; j *4
-                                         (i32.add)           ;; (t-1)*4 + j+1 *4
-                                         (local.get 0)       ;; x
-                                         (i32.add)         ;; x + (t-1)*4 --> addr of x.c[j]
-                                         (i32.const 0) ;;get x.c[j+1]
-                                         (i32.load)            ;; t
+                                         (i32.mul)            ;; j *4
+                                         (i32.add)            ;; (t-1)*4 + j+1 *4
+                                         (local.get 0)        ;; x
+                                         (i32.add)          ;; x + (t-1)*4 --> addr of x.c[j]
+                                         (i32.const 0)  ;;get x.c[j+1]
+                                         (i32.load)           ;; t
                                          (i32.const 1)
-                                         (i32.sub)           ;; t-1
+                                         (i32.sub)            ;; t-1
                                          (i32.const 4)
-                                         (i32.mul)           ;; (t-1)*4
-                                         (local.get 3)         ;; j
+                                         (i32.mul)            ;; (t-1)*4
+                                         (local.get 3)          ;; j
                                          (i32.const 1)
-                                         (i32.add)           ;; j+1
+                                         (i32.add)            ;; j+1
                                          (i32.const 4)
-                                         (i32.mul)           ;; i+1 *4
-                                         (i32.add)           ;; (t-1)*4 + i+1 *4
-                                         (local.get 0)       ;; x
-                                         (i32.add)         ;; x + (t-1)*4 --> addr of x.c[j+1]
+                                         (i32.mul)            ;; i+1 *4
+                                         (i32.add)            ;; (t-1)*4 + i+1 *4
+                                         (local.get 0)        ;; x
+                                         (i32.add)          ;; x + (t-1)*4 --> addr of x.c[j+1]
                                          (i32.load offset=8)
-                                         (i32.store offset=8)    ;; x.c[j] = x.c[j+1]
+                                         (i32.store offset=8)   ;; x.c[j] = x.c[j+1]
                                          (local.get 3)
                                          (i32.const 1)
                                          (i32.add)
-                                         (local.set 3) ;; j = j+1
+                                         (local.set 3)  ;; j = j+1
                                          (br $loop)
                                          )
                                        )
@@ -1506,23 +1505,23 @@
                             (local.set 3)   ;; j = 0
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3)   ;; j
-                                         (i32.const 0) ;;get x.c[i+1]
-                                         (i32.load)            ;; t
+                                         (local.get 3)    ;; j
+                                         (i32.const 0)  ;;get x.c[i+1]
+                                         (i32.load)           ;; t
                                          (i32.const 1)
-                                         (i32.sub)           ;; t-1
+                                         (i32.sub)            ;; t-1
                                          (i32.const 4)
-                                         (i32.mul)           ;; (t-1)*4
-                                         (local.get 2)         ;; i
+                                         (i32.mul)            ;; (t-1)*4
+                                         (local.get 2)          ;; i
                                          (i32.const 1)
                                          (i32.add)
                                          (i32.const 4)
-                                         (i32.mul)           ;; i+1 *4
-                                         (i32.add)           ;; (t-1)*4 + i+1 *4
-                                         (local.get 0)       ;; x
-                                         (i32.add)         ;; x + (t-1)*4
-                                         (i32.load offset=8)     ;; x.c[i+1]
-                                         (i32.load offset=4)     ;; x.c[i+1].n
+                                         (i32.mul)            ;; i+1 *4
+                                         (i32.add)            ;; (t-1)*4 + i+1 *4
+                                         (local.get 0)        ;; x
+                                         (i32.add)          ;; x + (t-1)*4
+                                         (i32.load offset=8)      ;; x.c[i+1]
+                                         (i32.load offset=4)      ;; x.c[i+1].n
                                          (i32.const 1)
                                          (i32.sub)
                                          (i32.eq)
@@ -1531,52 +1530,52 @@
                                              (br $loop_break)
                                              )
                                            (else
-                                             (i32.const 0) ;;get x.c[i+1]
-                                             (i32.load)            ;; t
+                                             (i32.const 0)  ;;get x.c[i+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
-                                             (i32.const 1)
-                                             (i32.add)
-                                             (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1]
-                                             (i32.const 4)
-                                             (local.get 3)     ;; index = j
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 --> address where x.c[i+1].keys[j] is located
-                                             (i32.const 0) ;;get x.c[i+1]
-                                             (i32.load)            ;; t
-                                             (i32.const 1)
-                                             (i32.sub)           ;; t-1
-                                             (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
                                              (i32.add)
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1]
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1]
+                                             (i32.const 4)
+                                             (local.get 3)      ;; index = j
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 --> address where x.c[i+1].keys[j] is located
+                                             (i32.const 0)  ;;get x.c[i+1]
+                                             (i32.load)           ;; t
+                                             (i32.const 1)
+                                             (i32.sub)            ;; t-1
+                                             (i32.const 4)
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
+                                             (i32.const 1)
+                                             (i32.add)
+                                             (i32.const 4)
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1]
                                              (i32.const 4)
                                              (local.get 3)
                                              (i32.const 1)
-                                             (i32.add)       ;; index = j+1
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4
-                                             (i32.load offset=8)   ;; x.c[i+1].keys[j+1]
+                                             (i32.add)        ;; index = j+1
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4
+                                             (i32.load offset=8)    ;; x.c[i+1].keys[j+1]
                                              (i32.store offset=8) ;; x.c[i+1].keys[j] = x.c[i+1].keys[j+1]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3) ;; j = j+1
+                                             (local.set 3)  ;; j = j+1
                                              (br $loop)
                                              )
                                            )
@@ -1592,89 +1591,89 @@
                                 (local.set 3)   ;; j = 0
                                 (block $loop_break
                                        (loop $loop
-                                             (local.get 3)   ;; j
-                                             (i32.const 0) ;;get x.c[i+1]
-                                             (i32.load)            ;; t
+                                             (local.get 3)    ;; j
+                                             (i32.const 0)  ;;get x.c[i+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
                                              (i32.add)
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1]
-                                             (i32.load offset=4)     ;; x.c[i+1].n
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1]
+                                             (i32.load offset=4)      ;; x.c[i+1].n
                                              (i32.eq)
                                              (if
                                                (then
                                                  (br $loop_break)
                                                  )
                                                (else
-                                                 (i32.const 0) ;;get x.c[i+1]
-                                                 (i32.load)            ;; t
+                                                 (i32.const 0)  ;;get x.c[i+1]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 3)         ;; index = j
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 3)          ;; index = j
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i+1 *4
-                                                 (i32.const 0) ;;get x.c[i+1]
-                                                 (i32.load)            ;; t
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i+1 *4
+                                                 (i32.const 0)  ;;get x.c[i+1]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 2)         ;; i
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 2)          ;; i
                                                  (i32.const 1)
                                                  (i32.add)
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i+1 *4
-                                                 (local.get 0)       ;; x
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i+1]
-                                                 (i32.add)         ;; x + (t-1)*4 --> address where x.c[i+1].c[j] is located
-                                                 (i32.const 0) ;;get x.c[i+1]
-                                                 (i32.load)            ;; t
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i+1 *4
+                                                 (local.get 0)        ;; x
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i+1]
+                                                 (i32.add)          ;; x + (t-1)*4 --> address where x.c[i+1].c[j] is located
+                                                 (i32.const 0)  ;;get x.c[i+1]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
+                                                 (i32.mul)            ;; (t-1)*4
                                                  (local.get 3)
                                                  (i32.const 1)
-                                                 (i32.add)           ;; index = j+1
+                                                 (i32.add)            ;; index = j+1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i+1 *4
-                                                 (i32.const 0) ;;get x.c[i+1]
-                                                 (i32.load)            ;; t
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i+1 *4
+                                                 (i32.const 0)  ;;get x.c[i+1]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 2)         ;; i
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 2)          ;; i
                                                  (i32.const 1)
                                                  (i32.add)
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i+1 *4
-                                                 (local.get 0)       ;; x
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i+1]
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i+1].c[j+1]
-                                                 (i32.store offset=8)  ;; x.c[i+1].c[j] = x.c[i+1].c[j+1]
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i+1 *4
+                                                 (local.get 0)        ;; x
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i+1]
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)    ;; x.c[i+1].c[j+1]
+                                                 (i32.store offset=8) ;; x.c[i+1].c[j] = x.c[i+1].c[j+1]
                                                  (local.get 3)
                                                  (i32.const 1)
                                                  (i32.add)
-                                                 (local.set 3) ;; j = j+1
+                                                 (local.set 3)  ;; j = j+1
                                                  (br $loop)
                                                  )
                                                )
@@ -1761,7 +1760,7 @@
                             (local.set 3)       ;; j = x.c[i].n
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3)   ;; j
+                                         (local.get 3)    ;; j
                                          (i32.const 0)
                                          (i32.eq)
                                          (if
@@ -1769,24 +1768,24 @@
                                              (br $loop_break)
                                              )
                                            (else
-                                             (local.get 5)     ;; x.c[i]
+                                             (local.get 5)      ;; x.c[i]
                                              (i32.const 4)
-                                             (local.get 3)     ;; j
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 ;; addr of x.c[i].keys[j]
-                                             (local.get 5)     ;; x.c[i]
+                                             (local.get 3)      ;; j
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 ;; addr of x.c[i].keys[j]
+                                             (local.get 5)      ;; x.c[i]
                                              (i32.const 4)
-                                             (local.get 3)     ;; j
+                                             (local.get 3)      ;; j
                                              (i32.const 1)
-                                             (i32.sub)       ;; j-1
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 ;; addr of x.c[i].keys[j-1]
-                                             (i32.load offset=8)   ;; x.c[i].keys[j-1]
-                                             (i32.store offset=8)  ;; x.c[i].keys[j] = x.c[i].keys[j-1]
+                                             (i32.sub)        ;; j-1
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 ;; addr of x.c[i].keys[j-1]
+                                             (i32.load offset=8)    ;; x.c[i].keys[j-1]
+                                             (i32.store offset=8) ;; x.c[i].keys[j] = x.c[i].keys[j-1]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.sub)
-                                             (local.set 3) ;; j = j-1
+                                             (local.set 3)  ;; j = j-1
                                              (br $loop)
                                              )
                                            )
@@ -1805,7 +1804,7 @@
                                 (local.set 3)       ;; j = x.c[i].n + 1
                                 (block $loop_break
                                        (loop $loop
-                                             (local.get 3)   ;; j
+                                             (local.get 3)    ;; j
                                              (i32.const 0)
                                              (i32.eq)
                                              (if
@@ -1813,38 +1812,38 @@
                                                  (br $loop_break)
                                                  )
                                                (else
-                                                 (i32.const 0) ;;get x.c[i].c[j]
-                                                 (i32.load)            ;; t
+                                                 (i32.const 0)  ;;get x.c[i].c[j]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 3)         ;; j
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 3)          ;; j
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; j *4
-                                                 (i32.add)           ;; (t-1)*4 + j *4
-                                                 (local.get 5)       ;; x.c[i]
-                                                 (i32.add)         ;; x + (t-1)*4 --> address where x.c[i].c[j] is located
-                                                 (i32.const 0) ;;get x.c[i].c[j-1]
-                                                 (i32.load)            ;; t
+                                                 (i32.mul)            ;; j *4
+                                                 (i32.add)            ;; (t-1)*4 + j *4
+                                                 (local.get 5)        ;; x.c[i]
+                                                 (i32.add)          ;; x + (t-1)*4 --> address where x.c[i].c[j] is located
+                                                 (i32.const 0)  ;;get x.c[i].c[j-1]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 3)         ;; j
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 3)          ;; j
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; j-1
+                                                 (i32.sub)            ;; j-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; j *4
-                                                 (i32.add)           ;; (t-1)*4 + j *4
-                                                 (local.get 5)       ;; x.c[i]
+                                                 (i32.mul)            ;; j *4
+                                                 (i32.add)            ;; (t-1)*4 + j *4
+                                                 (local.get 5)        ;; x.c[i]
                                                  (i32.add)
-                                                 (i32.load offset=8)     ;; x.c[i].c[j-1]
-                                                 (i32.store offset=8)    ;; x.c[i].c[j] = x.c[i].c[j-1]
+                                                 (i32.load offset=8)      ;; x.c[i].c[j-1]
+                                                 (i32.store offset=8)   ;; x.c[i].c[j] = x.c[i].c[j-1]
                                                  (local.get 3)
                                                  (i32.const 1)
                                                  (i32.sub)
-                                                 (local.set 3) ;; j = j-1
+                                                 (local.set 3)  ;; j = j-1
                                                  (br $loop)
                                                  )
                                                )
@@ -2050,64 +2049,64 @@
                             (local.set 3)   ;; j = 0
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3) ;; j
-                                         (i32.const 0) ;;get x.c[i+1]
-                                         (i32.load)            ;; t
+                                         (local.get 3)  ;; j
+                                         (i32.const 0)  ;;get x.c[i+1]
+                                         (i32.load)           ;; t
                                          (i32.const 1)
-                                         (i32.sub)           ;; t-1
+                                         (i32.sub)            ;; t-1
                                          (i32.const 4)
-                                         (i32.mul)           ;; (t-1)*4
-                                         (local.get 2)         ;; i
+                                         (i32.mul)            ;; (t-1)*4
+                                         (local.get 2)          ;; i
                                          (i32.const 1)
                                          (i32.add)
                                          (i32.const 4)
-                                         (i32.mul)           ;; i+1 *4
-                                         (i32.add)           ;; (t-1)*4 + i+1 *4
-                                         (local.get 0)       ;; x
-                                         (i32.add)         ;; x + (t-1)*4
-                                         (i32.load offset=8)     ;; x.c[i+1]
-                                         (i32.load offset=4)     ;; x.c[i+1].n
+                                         (i32.mul)            ;; i+1 *4
+                                         (i32.add)            ;; (t-1)*4 + i+1 *4
+                                         (local.get 0)        ;; x
+                                         (i32.add)          ;; x + (t-1)*4
+                                         (i32.load offset=8)      ;; x.c[i+1]
+                                         (i32.load offset=4)      ;; x.c[i+1].n
                                          (i32.eq)
                                          (if
                                            (then
                                              (br $loop_break)
                                              )
                                            (else
-                                             (local.get 5)     ;; x.c[i]
+                                             (local.get 5)      ;; x.c[i]
                                              (i32.const 4)
                                              (local.get 5)
                                              (i32.load offset=4)
                                              (local.get 3)
                                              (i32.add)
                                              (i32.const 1)
-                                             (i32.add)       ;; index = x.c[i].n+j+1
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 ;; addr of x.c[i].keys[x.c[i].n+j]
-                                             (i32.const 0) ;;get x.c[i+1]
-                                             (i32.load)            ;; t
+                                             (i32.add)        ;; index = x.c[i].n+j+1
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 ;; addr of x.c[i].keys[x.c[i].n+j]
+                                             (i32.const 0)  ;;get x.c[i+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
                                              (i32.add)
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1]
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1]
                                              (i32.const 4)
-                                             (local.get 3)       ;; index = j
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4
-                                             (i32.load offset=8)   ;; x.c[i+1].keys[j]
-                                             (i32.store offset=8)  ;; x.c[i].keys[x.c[i].n+j] = x.c[i+1].keys[j]
+                                             (local.get 3)        ;; index = j
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4
+                                             (i32.load offset=8)    ;; x.c[i+1].keys[j]
+                                             (i32.store offset=8) ;; x.c[i].keys[x.c[i].n+j] = x.c[i+1].keys[j]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3)   ;; j = j + 1
+                                             (local.set 3)    ;; j = j + 1
                                              (br $loop)
                                              )
                                            )
@@ -2123,80 +2122,80 @@
                                 (local.set 3)   ;; j = 0
                                 (block $loop_break
                                        (loop $loop
-                                             (local.get 3) ;; j
-                                             (i32.const 0) ;;get x.c[i+1]
-                                             (i32.load)            ;; t
+                                             (local.get 3)  ;; j
+                                             (i32.const 0)  ;;get x.c[i+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
                                              (i32.add)
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i+1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i+1]
-                                             (i32.load offset=4)     ;; x.c[i+1].n
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i+1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i+1]
+                                             (i32.load offset=4)      ;; x.c[i+1].n
                                              (i32.const 1)
-                                             (i32.add)         ;; x.c[i+1].n + 1
+                                             (i32.add)          ;; x.c[i+1].n + 1
                                              (i32.eq)
                                              (if
                                                (then
                                                  (br $loop_break)
                                                  )
                                                (else
-                                                 (i32.const 0) ;;get x.c[i].c[x.c[i].n+j]
-                                                 (i32.load)            ;; t
+                                                 (i32.const 0)  ;;get x.c[i].c[x.c[i].n+j]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
+                                                 (i32.mul)            ;; (t-1)*4
                                                  (local.get 5)
                                                  (i32.load offset=4)
                                                  (local.get 3)
                                                  (i32.add)
                                                  (i32.const 1)
-                                                 (i32.add)           ;; index = x.c[i].n+j+1
+                                                 (i32.add)            ;; index = x.c[i].n+j+1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i-1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i-1 *4
-                                                 (local.get 5)       ;; x.c[i]
-                                                 (i32.add)         ;; x + (t-1)*4  --> addr of x.c[i].c[x.c[i].n+j]
-                                                 (i32.const 0) ;;get x.c[i].c[x.c[i].n+j]
-                                                 (i32.load)            ;; t
+                                                 (i32.mul)            ;; i-1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i-1 *4
+                                                 (local.get 5)        ;; x.c[i]
+                                                 (i32.add)          ;; x + (t-1)*4  --> addr of x.c[i].c[x.c[i].n+j]
+                                                 (i32.const 0)  ;;get x.c[i].c[x.c[i].n+j]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 3)         ;; index = j
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 3)          ;; index = j
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i-1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i-1 *4
-                                                 (i32.const 0) ;;get x.c[i+1]
-                                                 (i32.load)            ;; t
+                                                 (i32.mul)            ;; i-1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i-1 *4
+                                                 (i32.const 0)  ;;get x.c[i+1]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 2)         ;; i
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 2)          ;; i
                                                  (i32.const 1)
                                                  (i32.add)
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i+1 *4
-                                                 (local.get 0)       ;; x
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i+1]
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i+1].c[j]
-                                                 (i32.store offset=8)    ;; x.c[i].c[x.c[i].n+j] = x.c[i+1].c[j]
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i+1 *4
+                                                 (local.get 0)        ;; x
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i+1]
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i+1].c[j]
+                                                 (i32.store offset=8)   ;; x.c[i].c[x.c[i].n+j] = x.c[i+1].c[j]
                                                  (local.get 3)
                                                  (i32.const 1)
                                                  (i32.add)
-                                                 (local.set 3)   ;; j = j + 1
+                                                 (local.set 3)    ;; j = j + 1
                                                  (br $loop)
                                                  )
                                                )
@@ -2235,45 +2234,45 @@
                                    (loop $loop
                                          (local.get 3)
                                          (local.get 0)
-                                         (i32.load offset=4) ;; x.n
+                                         (i32.load offset=4)  ;; x.n
                                          (i32.eq)
                                          (if
                                            (then
                                              (br $loop_break)
                                              )
                                            (else
-                                             (i32.const 0) ;;get x.c[j]
-                                             (i32.load)            ;; t
+                                             (i32.const 0)  ;;get x.c[j]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 3)         ;; index = j
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 3)          ;; index = j
                                              (i32.const 4)
-                                             (i32.mul)           ;; i-1 *4
-                                             (i32.add)           ;; (t-1)*4 + i-1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4  --> addr of x.c[j]
-                                             (i32.const 0) ;;get x.c[j+1]
-                                             (i32.load)            ;; t
+                                             (i32.mul)            ;; i-1 *4
+                                             (i32.add)            ;; (t-1)*4 + i-1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4  --> addr of x.c[j]
+                                             (i32.const 0)  ;;get x.c[j+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
+                                             (i32.mul)            ;; (t-1)*4
                                              (local.get 3)
                                              (i32.const 1)
-                                             (i32.add)           ;; index = j + 1
+                                             (i32.add)            ;; index = j + 1
                                              (i32.const 4)
-                                             (i32.mul)           ;; i-1 *4
-                                             (i32.add)           ;; (t-1)*4 + i-1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4  --> addr of x.c[j+1]
-                                             (i32.load offset=8)     ;; x.c[j+1]
-                                             (i32.store offset=8)    ;; x.c[j] = x.c[j+1]
+                                             (i32.mul)            ;; i-1 *4
+                                             (i32.add)            ;; (t-1)*4 + i-1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4  --> addr of x.c[j+1]
+                                             (i32.load offset=8)      ;; x.c[j+1]
+                                             (i32.store offset=8)   ;; x.c[j] = x.c[j+1]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3)   ;; j = j + 1
+                                             (local.set 3)    ;; j = j + 1
                                              (br $loop)
                                              )
                                            )
@@ -2283,9 +2282,9 @@
                             (local.set 3)   ;; j = i
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3)   ;; j
+                                         (local.get 3)    ;; j
                                          (local.get 0)
-                                         (i32.load offset=4) ;; x.n
+                                         (i32.load offset=4)  ;; x.n
                                          (i32.const 1)
                                          (i32.sub)
                                          (i32.eq)
@@ -2294,24 +2293,24 @@
                                              (br $loop_break)
                                              )
                                            (else
-                                             (local.get 0)     ;; x
+                                             (local.get 0)      ;; x
                                              (i32.const 4)
-                                             (local.get 3)     ;; index = j
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 ;; addr of x.keys[j]
-                                             (local.get 0)     ;; x
+                                             (local.get 3)      ;; index = j
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 ;; addr of x.keys[j]
+                                             (local.get 0)      ;; x
                                              (i32.const 4)
                                              (local.get 3)
                                              (i32.const 1)
-                                             (i32.add)       ;; index = j + 1
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4
-                                             (i32.load offset=8)   ;; x.keys[j+1]
-                                             (i32.store offset=8)  ;; x.keys[j] = x.keys[j+1]
+                                             (i32.add)        ;; index = j + 1
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4
+                                             (i32.load offset=8)    ;; x.keys[j+1]
+                                             (i32.store offset=8) ;; x.keys[j] = x.keys[j+1]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3)   ;; j = j + 1
+                                             (local.set 3)    ;; j = j + 1
                                              (br $loop)
                                              )
                                            )
@@ -2385,64 +2384,64 @@
                             (local.set 3)   ;; j = 0
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3) ;; j
-                                         (local.get 5)     ;; x.c[i]
-                                         (i32.load offset=4)   ;; x.c[i].n
+                                         (local.get 3)  ;; j
+                                         (local.get 5)      ;; x.c[i]
+                                         (i32.load offset=4)    ;; x.c[i].n
                                          (i32.eq)
                                          (if
                                            (then
                                              (br $loop_break)
                                              )
                                            (else
-                                             (i32.const 0) ;; x.c[i-1]
-                                             (i32.load)            ;; t
+                                             (i32.const 0)  ;; x.c[i-1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
                                              (i32.sub)
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i-1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i-1]
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i-1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i-1]
                                              (i32.const 4)
                                              (i32.const 0)
-                                             (i32.load)            ;; t
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 2)         ;; i
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 2)          ;; i
                                              (i32.const 1)
                                              (i32.sub)
                                              (i32.const 4)
-                                             (i32.mul)           ;; i+1 *4
-                                             (i32.add)           ;; (t-1)*4 + i-1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4
-                                             (i32.load offset=8)     ;; x.c[i-1]
-                                             (i32.load offset=4)     ;; x.c[i-1].n
+                                             (i32.mul)            ;; i+1 *4
+                                             (i32.add)            ;; (t-1)*4 + i-1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4
+                                             (i32.load offset=8)      ;; x.c[i-1]
+                                             (i32.load offset=4)      ;; x.c[i-1].n
                                              (local.get 3)
                                              (i32.add)
                                              (i32.const 1)
-                                             (i32.add)       ;; index = x.c[i-1].n+j+1
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 ;; addr of x.c[i-1].keys[x.c[i-1].n+j]
-                                             (local.get 5)     ;; x.c[i]
+                                             (i32.add)        ;; index = x.c[i-1].n+j+1
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 ;; addr of x.c[i-1].keys[x.c[i-1].n+j]
+                                             (local.get 5)      ;; x.c[i]
                                              (i32.const 4)
-                                             (local.get 3)     ;; index = j
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4
-                                             (i32.load offset=8)   ;; x.c[i].keys[j]
-                                             (i32.store offset=8)  ;; x.c[i-1].keys[x.c[i-1].n+j] = x.c[i].keys[j]
+                                             (local.get 3)      ;; index = j
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4
+                                             (i32.load offset=8)    ;; x.c[i].keys[j]
+                                             (i32.store offset=8) ;; x.c[i-1].keys[x.c[i-1].n+j] = x.c[i].keys[j]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3)   ;; j = j + 1
+                                             (local.set 3)    ;; j = j + 1
                                              (br $loop)
                                              )
                                            )
@@ -2458,80 +2457,80 @@
                                 (local.set 3)   ;; j = 0
                                 (block $loop_break
                                        (loop $loop
-                                             (local.get 3) ;; j
-                                             (local.get 5)     ;; x.c[i]
-                                             (i32.load offset=4)   ;; x.c[i].n
+                                             (local.get 3)  ;; j
+                                             (local.get 5)      ;; x.c[i]
+                                             (i32.load offset=4)    ;; x.c[i].n
                                              (i32.const 1)
-                                             (i32.add)       ;; x.c[i].n + 1
+                                             (i32.add)        ;; x.c[i].n + 1
                                              (i32.eq)
                                              (if
                                                (then
                                                  (br $loop_break)
                                                  )
                                                (else
-                                                 (i32.const 0) ;;get x.c[i-1].c[x.c[i-1].n+j]
-                                                 (i32.load)            ;; t
+                                                 (i32.const 0)  ;;get x.c[i-1].c[x.c[i-1].n+j]
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
+                                                 (i32.mul)            ;; (t-1)*4
                                                  (i32.const 0)
-                                                 (i32.load)            ;; t
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 2)         ;; i
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 2)          ;; i
                                                  (i32.const 1)
                                                  (i32.sub)
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i-1 *4
-                                                 (local.get 0)       ;; x
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i-1]
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i-1 *4
+                                                 (local.get 0)        ;; x
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i-1]
                                                  (i32.load offset=4)
                                                  (local.get 3)
                                                  (i32.add)
                                                  (i32.const 1)
-                                                 (i32.add)           ;; index = x.c[i-1].n+j+1
+                                                 (i32.add)            ;; index = x.c[i-1].n+j+1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i-1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i-1 *4
+                                                 (i32.mul)            ;; i-1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i-1 *4
                                                  (i32.const 0)
-                                                 (i32.load)            ;; t
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 2)         ;; i
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 2)          ;; i
                                                  (i32.const 1)
                                                  (i32.sub)
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i+1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i-1 *4
-                                                 (local.get 0)       ;; x
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i-1]
-                                                 (i32.add)         ;; x + (t-1)*4  --> addr of x.c[i-1].c[x.c[i-1].n+j]
+                                                 (i32.mul)            ;; i+1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i-1 *4
+                                                 (local.get 0)        ;; x
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i-1]
+                                                 (i32.add)          ;; x + (t-1)*4  --> addr of x.c[i-1].c[x.c[i-1].n+j]
                                                  (i32.const 0)
-                                                 (i32.load)            ;; t
+                                                 (i32.load)           ;; t
                                                  (i32.const 1)
-                                                 (i32.sub)           ;; t-1
+                                                 (i32.sub)            ;; t-1
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; (t-1)*4
-                                                 (local.get 3)         ;; index = j
+                                                 (i32.mul)            ;; (t-1)*4
+                                                 (local.get 3)          ;; index = j
                                                  (i32.const 4)
-                                                 (i32.mul)           ;; i-1 *4
-                                                 (i32.add)           ;; (t-1)*4 + i-1 *4
-                                                 (local.get 5)       ;; x.c[i]
-                                                 (i32.add)         ;; x + (t-1)*4
-                                                 (i32.load offset=8)     ;; x.c[i].c[j]
-                                                 (i32.store offset=8)    ;; x.c[i-1].c[x.c[i-1].n+j] = x.c[i].c[j]
+                                                 (i32.mul)            ;; i-1 *4
+                                                 (i32.add)            ;; (t-1)*4 + i-1 *4
+                                                 (local.get 5)        ;; x.c[i]
+                                                 (i32.add)          ;; x + (t-1)*4
+                                                 (i32.load offset=8)      ;; x.c[i].c[j]
+                                                 (i32.store offset=8)   ;; x.c[i-1].c[x.c[i-1].n+j] = x.c[i].c[j]
                                                  (local.get 3)
                                                  (i32.const 1)
                                                  (i32.add)
-                                                 (local.set 3)   ;; j = j + 1
+                                                 (local.set 3)    ;; j = j + 1
                                                  (br $loop)
                                                  )
                                                )
@@ -2582,45 +2581,45 @@
                                    (loop $loop
                                          (local.get 3)
                                          (local.get 0)
-                                         (i32.load offset=4) ;; x.n
+                                         (i32.load offset=4)  ;; x.n
                                          (i32.eq)
                                          (if
                                            (then
                                              (br $loop_break)
                                              )
                                            (else
-                                             (i32.const 0) ;;get x.c[j]
-                                             (i32.load)            ;; t
+                                             (i32.const 0)  ;;get x.c[j]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
-                                             (local.get 3)         ;; index = j
+                                             (i32.mul)            ;; (t-1)*4
+                                             (local.get 3)          ;; index = j
                                              (i32.const 4)
-                                             (i32.mul)           ;; i-1 *4
-                                             (i32.add)           ;; (t-1)*4 + i-1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4  --> addr of x.c[j]
-                                             (i32.const 0) ;;get x.c[j+1]
-                                             (i32.load)            ;; t
+                                             (i32.mul)            ;; i-1 *4
+                                             (i32.add)            ;; (t-1)*4 + i-1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4  --> addr of x.c[j]
+                                             (i32.const 0)  ;;get x.c[j+1]
+                                             (i32.load)           ;; t
                                              (i32.const 1)
-                                             (i32.sub)           ;; t-1
+                                             (i32.sub)            ;; t-1
                                              (i32.const 4)
-                                             (i32.mul)           ;; (t-1)*4
+                                             (i32.mul)            ;; (t-1)*4
                                              (local.get 3)
                                              (i32.const 1)
-                                             (i32.add)           ;; index = j + 1
+                                             (i32.add)            ;; index = j + 1
                                              (i32.const 4)
-                                             (i32.mul)           ;; i-1 *4
-                                             (i32.add)           ;; (t-1)*4 + i-1 *4
-                                             (local.get 0)       ;; x
-                                             (i32.add)         ;; x + (t-1)*4  --> addr of x.c[j]
-                                             (i32.load offset=8)     ;; x.c[j+1]
-                                             (i32.store offset=8)    ;; x.c[j] = x.c[j+1]
+                                             (i32.mul)            ;; i-1 *4
+                                             (i32.add)            ;; (t-1)*4 + i-1 *4
+                                             (local.get 0)        ;; x
+                                             (i32.add)          ;; x + (t-1)*4  --> addr of x.c[j]
+                                             (i32.load offset=8)      ;; x.c[j+1]
+                                             (i32.store offset=8)   ;; x.c[j] = x.c[j+1]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3)   ;; j = j + 1
+                                             (local.set 3)    ;; j = j + 1
                                              (br $loop)
                                              )
                                            )
@@ -2632,9 +2631,9 @@
                             (local.set 3)   ;; j = i - 1
                             (block $loop_break
                                    (loop $loop
-                                         (local.get 3)   ;; j
+                                         (local.get 3)    ;; j
                                          (local.get 0)
-                                         (i32.load offset=4) ;; x.n
+                                         (i32.load offset=4)  ;; x.n
                                          (i32.const 1)
                                          (i32.sub)
                                          (i32.eq)
@@ -2643,24 +2642,24 @@
                                              (br $loop_break)
                                              )
                                            (else
-                                             (local.get 0)     ;; x
+                                             (local.get 0)      ;; x
                                              (i32.const 4)
-                                             (local.get 3)     ;; index = j
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4 ;; addr of x.keys[j]
-                                             (local.get 0)     ;; x
+                                             (local.get 3)      ;; index = j
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4 ;; addr of x.keys[j]
+                                             (local.get 0)      ;; x
                                              (i32.const 4)
                                              (local.get 3)
                                              (i32.const 1)
-                                             (i32.add)       ;; index = j + 1
-                                             (i32.mul)       ;; i*4
-                                             (i32.add)       ;; x + i*4
-                                             (i32.load offset=8)   ;; x.keys[j+1]
-                                             (i32.store offset=8)  ;; x.keys[j] = x.keys[j+1]
+                                             (i32.add)        ;; index = j + 1
+                                             (i32.mul)        ;; i*4
+                                             (i32.add)        ;; x + i*4
+                                             (i32.load offset=8)    ;; x.keys[j+1]
+                                             (i32.store offset=8) ;; x.keys[j] = x.keys[j+1]
                                              (local.get 3)
                                              (i32.const 1)
                                              (i32.add)
-                                             (local.set 3)   ;; j = j + 1
+                                             (local.set 3)    ;; j = j + 1
                                              (br $loop)
                                              )
                                            )
@@ -2741,83 +2740,209 @@
         (i32.const 0)
         (i32.load offset=8)   ;; root addr
         )
-  (func $main (param $a i32) (param $b i32) (param $h i32)
-        (local $btree i32)
+  (func $main
+        (param $a i32)
+        (param $b i32)
+        (param $c i32)
+        (param $d i32)
+        (param $e i32)
+        (param $h i32)
+        (param $i i32)
+        (local i32)
         (local.get $a)
         (local.get $b)
-        (i32.gt_s)      ;; a > b
-        (local.get $a)
-        (local.get $h)
-        (i32.ne)      ;; a != h
+        (i32.gt_s)
         (local.get $b)
+        (local.get $c)
+        (i32.gt_s)
+        (local.get $c)
+        (local.get $d)
+        (i32.gt_s)
+        (local.get $d)
+        (local.get $e)
+        (i32.gt_s)
         (local.get $h)
-        (i32.ne)    ;; b != h
+        (local.get $a)
+        (i32.ne)
+        (local.get $h)
+        (local.get $b)
+        (i32.ne)
+        (local.get $h)
+        (local.get $c)
+        (i32.ne)
+        (local.get $h)
+        (local.get $d)
+        (i32.ne)
+        (local.get $h)
+        (local.get $e)
+        (i32.ne)
+        (local.get $i)
+        (local.get $a)
+        (i32.ne)
+        (local.get $i)
+        (local.get $b)
+        (i32.ne)
+        (local.get $i)
+        (local.get $c)
+        (i32.ne)
+        (local.get $i)
+        (local.get $d)
+        (i32.ne)
+        (local.get $i)
+        (local.get $e)
+        (i32.ne)
+        (local.get $i)
+        (local.get $h)
+        (i32.ne)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
         (i32.and)
         (i32.and)
         (i32.eqz)
         (if (then (unreachable)))
         (i32.const 4) ;;create a tree with degree 4
         (call $createBtree)
-        (local.set $btree)
+        (local.set 7)
         ;; insert variables
         (local.get $a)
         (call $btreeInsert)
-        (local.set $btree)
+        (local.set 7)
         (local.get $b)
         (call $btreeInsert)
-        (local.set $btree)
+        (local.set 7)
+        (local.get $c)
+        (call $btreeInsert)
+        (local.set 7)
+        (local.get $d)
+        (call $btreeInsert)
+        (local.set 7)
+        (local.get $e)
+        (call $btreeInsert)
+        (local.set 7)
         (local.get $h)
         (call $btreeInsert)
-        (local.set $btree)
+        (local.set 7)
+        (local.get $i)
+        (call $btreeInsert)
+        (local.set 7)
         ;; search for variables & check that they were inserted
-        (local.get $btree)
+        (local.get 7)
         (local.get $a)
         (call $btreeSearch)
         (i32.const -1)
         (i32.ne)
-        (local.get $btree)
+        (local.get 7)
         (local.get $b)
         (call $btreeSearch)
         (i32.const -1)
         (i32.ne)
-        (local.get $btree)
+        (local.get 7)
+        (local.get $c)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.ne)
+        (local.get 7)
+        (local.get $d)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.ne)
+        (local.get 7)
+        (local.get $e)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.ne)
+        (local.get 7)
         (local.get $h)
         (call $btreeSearch)
         (i32.const -1)
         (i32.ne)
+        (local.get 7)
+        (local.get $i)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.ne)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
         (i32.and)
         (i32.and)
         ;; delete & check that it was deleted
         ;; a
-        (local.get $btree)
+        (local.get 7)
         (local.get $a)
         (call $btreeDelete)
-        (local.tee $btree)
+        (local.set 7)
+        (local.get 7)
         (local.get $a)
         (call $btreeSearch)
         (i32.const -1)
         (i32.eq)
         ;; b
-        (local.get $btree)
+        (local.get 7)
         (local.get $b)
         (call $btreeDelete)
-        (local.tee $btree)
+        (local.set 7)
+        (local.get 7)
         (local.get $b)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.eq)
+        ;; c
+        (local.get 7)
+        (local.get $c)
+        (call $btreeDelete)
+        (local.set 7)
+        (local.get 7)
+        (local.get $c)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.eq)
+        ;; d
+        (local.get 7)
+        (local.get $d)
+        (call $btreeDelete)
+        (local.set 7)
+        (local.get 7)
+        (local.get $d)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.eq)
+        ;; e
+        (local.get 7)
+        (local.get $e)
+        (call $btreeDelete)
+        (local.set 7)
+        (local.get 7)
+        (local.get $e)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.eq)
+        ;; h
+        (local.get 7)
+        (local.get $h)
+        (call $btreeDelete)
+        (local.set 7)
+        (local.get 7)
+        (local.get $h)
         (call $btreeSearch)
         (i32.const -1)
         (i32.eq)
         (i32.and)
         (i32.and)
-        ;; last functional check
-        (i32.eqz)
-        (if (then (unreachable)))
-        )
-  (export "main" (func $real_main))
-  (func $real_main
-    i32.const 3
-    i32.const 2
-    i32.const 1
-    call $main
-  )
-  (start $real_main)
-)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (i32.and)
+        (drop))
+  (export "main" (func $main)))

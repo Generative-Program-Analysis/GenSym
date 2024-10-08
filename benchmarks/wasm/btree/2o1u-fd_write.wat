@@ -1,7 +1,18 @@
 (module
-  ;; (import "env" "log" (func $log (param i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
   (memory $0 2)
+  (export "memory" (memory 0))
+  (data (i32.const 1024) "hello world\n")
   (func $createBtree (param i32) (result i32) ;; createBtree(t), where t: degree of the btree
+        ;; (i32.store (i32.const 0) (i32.const 1024))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+        ;; (i32.store (i32.const 4) (i32.const 12))  ;; iov.iov_len - The length of the 'hello world\n' string
+        ;; (call $fd_write
+        ;;     (i32.const 1) ;; file_descriptor - 1 for stdout
+        ;;     (i32.const 0) ;; *iovs - The pointer to the iov array, which is stored at memory location 0
+        ;;     (i32.const 1) ;; iovs_len - We're printing 1 string stored in an iov - so one.
+        ;;     (i32.const 20) ;; nwritten - A place in memory to store the number of bytes written
+        ;; )
+        ;; drop
         (i32.const 0)
         (local.get 0)
         (i32.store)                     ;; store t at address 0
@@ -29,6 +40,15 @@
         )
   ;; btreeSearch(x, k), where x: node address; k: key to search. Returns address of the key or -1 if key is not in tree.
   (func $btreeSearch (param i32) (param i32) (result i32) (local i32)
+        ;; (i32.store (i32.const 0) (i32.const 8))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+        ;; (i32.store (i32.const 4) (i32.const 12))  ;; iov.iov_len - The length of the 'hello world\n' string
+        ;; (call $fd_write
+        ;;     (i32.const 1) ;; file_descriptor - 1 for stdout
+        ;;     (i32.const 0) ;; *iovs - The pointer to the iov array, which is stored at memory location 0
+        ;;     (i32.const 1) ;; iovs_len - We're printing 1 string stored in an iov - so one.
+        ;;     (i32.const 20) ;; nwritten - A place in memory to store the number of bytes written
+        ;; )
+        ;; drop
         (i32.const 0)
         (local.set 2)                   ;; i = 0
         (block $loop_break
@@ -158,6 +178,15 @@
         )
   ;; btreeSplitChild(x, i), where x: addr of a non full internal node; i: index such that x.children[i] is a full child of x
   (func $btreeSplitChild (param i32) (param i32) (local i32) (local i32)
+        ;; (i32.store (i32.const 0) (i32.const 8))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+        ;; (i32.store (i32.const 4) (i32.const 12))  ;; iov.iov_len - The length of the 'hello world\n' string
+        ;; (call $fd_write
+        ;;     (i32.const 1) ;; file_descriptor - 1 for stdout
+        ;;     (i32.const 0) ;; *iovs - The pointer to the iov array, which is stored at memory location 0
+        ;;     (i32.const 1) ;; iovs_len - We're printing 1 string stored in an iov - so one.
+        ;;     (i32.const 20) ;; nwritten - A place in memory to store the number of bytes written
+        ;; )
+        ;; drop
         (i32.const 1) ;; create a new node
         (memory.grow)                   ;; create new page
         (i32.const -1)
@@ -520,7 +549,7 @@
           )
         )
   ;; btreeInsertNonFull(x, k), where x: addr of a non full internal node; k: the key to insert
-  (func $btreeInsertNonFull (param i32) (param i32) (local i32) (local $tmp i32)
+  (func $btreeInsertNonFull (param i32) (param i32) (local i32)
         (local.get 0)     ;; x
         (i32.load offset=4)   ;; x.n
         (i32.const 1)
@@ -530,6 +559,15 @@
         (i32.load)        ;; get first i32 --> isLeaf
         (i32.const 1)
         (i32.eq)        ;; is leaf?
+        ;; (i32.store (i32.const 0) (i32.const 1024))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+        ;; (i32.store (i32.const 4) (i32.const 12))  ;; iov.iov_len - The length of the 'hello world\n' string
+        ;; (call $fd_write
+        ;;     (i32.const 1) ;; file_descriptor - 1 for stdout
+        ;;     (i32.const 0) ;; *iovs - The pointer to the iov array, which is stored at memory location 0
+        ;;     (i32.const 1) ;; iovs_len - We're printing 1 string stored in an iov - so one.
+        ;;     (i32.const 20) ;; nwritten - A place in memory to store the number of bytes written
+        ;; )
+        ;; drop
         (if
           (then   ;; x is leaf
             (block $loop_break
@@ -701,6 +739,15 @@
           )
         )
   (func $btreeInsert (param i32) (result i32) (local i32) (local i32)
+        ;; (i32.store (i32.const 0) (i32.const 1024))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+        ;; (i32.store (i32.const 4) (i32.const 12))  ;; iov.iov_len - The length of the 'hello world\n' string
+        ;; (call $fd_write
+        ;;     (i32.const 1) ;; file_descriptor - 1 for stdout
+        ;;     (i32.const 0) ;; *iovs - The pointer to the iov array, which is stored at memory location 0
+        ;;     (i32.const 1) ;; iovs_len - We're printing 1 string stored in an iov - so one.
+        ;;     (i32.const 20) ;; nwritten - A place in memory to store the number of bytes written
+        ;; )
+        ;; drop
         (i32.const 0)
         (i32.load offset=8)     ;; root addr
         (local.tee 2)   ;; set r
@@ -777,6 +824,15 @@
         )
   ;; Returns the address of the new root (if applicable, otherwise returns the addres of the root)
   (func $btreeDelete (param i32) (param i32) (result i32) (local i32) (local i32) (local i32) (local i32)
+        ;; (i32.store (i32.const 0) (i32.const 8))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+        ;; (i32.store (i32.const 4) (i32.const 12))  ;; iov.iov_len - The length of the 'hello world\n' string
+        ;; (call $fd_write
+        ;;     (i32.const 1) ;; file_descriptor - 1 for stdout
+        ;;     (i32.const 0) ;; *iovs - The pointer to the iov array, which is stored at memory location 0
+        ;;     (i32.const 1) ;; iovs_len - We're printing 1 string stored in an iov - so one.
+        ;;     (i32.const 20) ;; nwritten - A place in memory to store the number of bytes written
+        ;; )
+        ;; drop
         (local.get 0)     ;; x
         (i32.load)        ;; get first i32 --> isLeaf
         (i32.const 1)
@@ -2808,11 +2864,9 @@
         (i32.eq)
         (i32.and)
         (i32.and)
-        ;; last functional check
-        (i32.eqz)
-        (if (then (unreachable)))
+        (drop)
         )
-  (export "main" (func $real_main))
+  (export "main" (func $main))
   (func $real_main
     i32.const 3
     i32.const 2
@@ -2820,4 +2874,4 @@
     call $main
   )
   (start $real_main)
-)
+  )
