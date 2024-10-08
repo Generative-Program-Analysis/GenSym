@@ -2,7 +2,7 @@
   (type (;0;) (func (param i32) (result i32)))
   (type (;1;) (func (param i32 i32) (result i32)))
   (type (;2;) (func (param i32 i32)))
-  (type (;3;) (func (param i32 i32 i32)))
+  (type (;3;) (func (param i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)))
   (type (;4;) (func))
   (func (;0;) (type 0) (param i32) (result i32)
     i32.const 0
@@ -479,7 +479,7 @@
       i32.store offset=4
     end)
   (func (;3;) (type 2) (param i32 i32)
-    (local i32 i32)
+    (local i32)
     local.get 0
     i32.load offset=4
     i32.const 1
@@ -2560,17 +2560,113 @@
     end
     i32.const 0
     i32.load offset=8)
-  (func (;6;) (type 3) (param i32 i32 i32)
+  (func (;6;) (type 3) (param i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)
     (local i32)
     local.get 0
     local.get 1
     i32.gt_s
-    local.get 0
-    local.get 2
-    i32.ne
     local.get 1
     local.get 2
+    i32.gt_s
+    local.get 2
+    local.get 3
+    i32.gt_s
+    local.get 3
+    local.get 4
+    i32.gt_s
+    local.get 4
+    local.get 5
+    i32.gt_s
+    local.get 5
+    local.get 6
+    i32.gt_s
+    local.get 6
+    local.get 7
+    i32.gt_s
+    local.get 7
+    local.get 8
+    i32.gt_s
+    local.get 9
+    local.get 0
     i32.ne
+    local.get 9
+    local.get 1
+    i32.ne
+    local.get 9
+    local.get 2
+    i32.ne
+    local.get 9
+    local.get 3
+    i32.ne
+    local.get 9
+    local.get 4
+    i32.ne
+    local.get 9
+    local.get 5
+    i32.ne
+    local.get 9
+    local.get 6
+    i32.ne
+    local.get 9
+    local.get 7
+    i32.ne
+    local.get 9
+    local.get 8
+    i32.ne
+    local.get 10
+    local.get 0
+    i32.ne
+    local.get 10
+    local.get 1
+    i32.ne
+    local.get 10
+    local.get 2
+    i32.ne
+    local.get 10
+    local.get 3
+    i32.ne
+    local.get 10
+    local.get 4
+    i32.ne
+    local.get 10
+    local.get 5
+    i32.ne
+    local.get 10
+    local.get 6
+    i32.ne
+    local.get 10
+    local.get 7
+    i32.ne
+    local.get 10
+    local.get 8
+    i32.ne
+    local.get 10
+    local.get 9
+    i32.ne
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
     i32.and
     i32.and
     i32.eqz
@@ -2579,49 +2675,203 @@
     end
     i32.const 4
     call 0
-    local.set 3
+    local.set 11
     local.get 0
     call 4
-    local.set 3
+    local.set 11
     local.get 1
     call 4
-    local.set 3
+    local.set 11
     local.get 2
     call 4
-    local.set 3
+    local.set 11
     local.get 3
+    call 4
+    local.set 11
+    local.get 4
+    call 4
+    local.set 11
+    local.get 5
+    call 4
+    local.set 11
+    local.get 6
+    call 4
+    local.set 11
+    local.get 7
+    call 4
+    local.set 11
+    local.get 8
+    call 4
+    local.set 11
+    local.get 9
+    call 4
+    local.set 11
+    local.get 10
+    call 4
+    local.set 11
+    local.get 11
     local.get 0
     call 1
     i32.const -1
     i32.ne
-    local.get 3
+    local.get 11
     local.get 1
     call 1
     i32.const -1
     i32.ne
-    local.get 3
+    local.get 11
     local.get 2
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 3
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 4
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 5
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 6
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 7
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 8
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 9
+    call 1
+    i32.const -1
+    i32.ne
+    local.get 11
+    local.get 10
     call 1
     i32.const -1
     i32.ne
     i32.and
     i32.and
-    local.get 3
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    local.get 11
     local.get 0
     call 5
-    local.tee 3
+    local.set 11
+    local.get 11
     local.get 0
     call 1
     i32.const -1
     i32.eq
-    local.get 3
+    local.get 11
     local.get 1
     call 5
-    local.tee 3
+    local.set 11
+    local.get 11
     local.get 1
     call 1
     i32.const -1
     i32.eq
+    local.get 11
+    local.get 2
+    call 5
+    local.set 11
+    local.get 11
+    local.get 2
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 3
+    call 5
+    local.set 11
+    local.get 11
+    local.get 3
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 4
+    call 5
+    local.set 11
+    local.get 11
+    local.get 4
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 5
+    call 5
+    local.set 11
+    local.get 11
+    local.get 5
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 6
+    call 5
+    local.set 11
+    local.get 11
+    local.get 6
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 7
+    call 5
+    local.set 11
+    local.get 11
+    local.get 7
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 8
+    call 5
+    local.set 11
+    local.get 11
+    local.get 8
+    call 1
+    i32.const -1
+    i32.eq
+    local.get 11
+    local.get 9
+    call 5
+    local.set 11
+    local.get 11
+    local.get 9
+    call 1
+    i32.const -1
+    i32.eq
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
+    i32.and
     i32.and
     i32.and
     i32.eqz
@@ -2629,10 +2879,18 @@
       unreachable
     end)
   (func (;7;) (type 4)
+    i32.const 11
+    i32.const 10
+    i32.const 9
+    i32.const 8
+    i32.const 7
+    i32.const 6
+    i32.const 5
+    i32.const 4
     i32.const 3
-    i32.const 2
+    i32.const -100
     i32.const 1
     call 6)
-  (memory (;0;) 2)
+  (memory (;0;) 1)
   (export "main" (func 7))
   (start 7))

@@ -52,6 +52,12 @@ object Primtives {
         case (I64V(v1), I64V(v2)) => I64V(v1 & v2)
         case _                    => throw new Exception("Invalid types")
       }
+    case DivS(_) =>
+      (lhs, rhs) match {
+        case (I32V(v1), I32V(v2)) => I32V(v1 / v2)
+        case (I64V(v1), I64V(v2)) => I64V(v1 / v2)
+        case _                    => throw new Exception("Invalid types")        
+      }
     case _ => ???
   }
   def evalUnaryOp(op: UnaryOp, value: Value) = op match {

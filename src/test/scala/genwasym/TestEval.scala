@@ -42,8 +42,19 @@ class TestEval extends FunSuite {
   test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
   test("return") { testFile("./benchmarks/wasm/return.wat", None, None) }
   test("load") { testFile("./benchmarks/wasm/load.wat", None, Some(1)) }
-  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib") { testFile("./benchmarks/wasm/fib.wat", None, Some(144)) }
+  test("div_s") { testFile("./benchmarks/wasm/div_s.wat", None, Some(-2)) }
+
+  // for btree, the `main` function already did the checks
+  test("2o1u") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  test("2o2u") { testFile("./benchmarks/wasm/btree/2o2u-unlabeled.wat") }
+  test("2o3u") { testFile("./benchmarks/wasm/btree/2o3u-unlabeled.wat") }
+  
+  test("3o1u") { testFile("./benchmarks/wasm/btree/3o1u-unlabeled.wat") }
+  test("3o2u") { testFile("./benchmarks/wasm/btree/3o2u-unlabeled.wat") }
+  test("3o3u") { testFile("./benchmarks/wasm/btree/3o3u-unlabeled.wat") }
+
+  test("9o2u") { testFile("./benchmarks/wasm/btree/9o2u-unlabeled.wat") }
 
   // TODO: add wasm spec tests? How to utilize wast files?
 }

@@ -1,5 +1,4 @@
 (module
-  ;; (import "env" "log" (func $log (param i32)))
   (memory $0 2)
   (func $createBtree (param i32) (result i32) ;; createBtree(t), where t: degree of the btree
         (i32.const 0)
@@ -520,7 +519,7 @@
           )
         )
   ;; btreeInsertNonFull(x, k), where x: addr of a non full internal node; k: the key to insert
-  (func $btreeInsertNonFull (param i32) (param i32) (local i32) (local $tmp i32)
+  (func $btreeInsertNonFull (param i32) (param i32) (local i32)
         (local.get 0)     ;; x
         (i32.load offset=4)   ;; x.n
         (i32.const 1)
@@ -2741,17 +2740,29 @@
         (i32.const 0)
         (i32.load offset=8)   ;; root addr
         )
-  (func $main (param $a i32) (param $b i32) (param $h i32)
+  (func $main
+        (param $a i32)
+        (param $b i32)
+        (param $c i32)
+        (param $h i32)
         (local $btree i32)
         (local.get $a)
         (local.get $b)
-        (i32.gt_s)      ;; a > b
+        (i32.gt_s)
+        (local.get $b)
+        (local.get $c)
+        (i32.gt_s)
         (local.get $a)
         (local.get $h)
-        (i32.ne)      ;; a != h
+        (i32.ne)
         (local.get $b)
         (local.get $h)
-        (i32.ne)    ;; b != h
+        (i32.ne)
+        (local.get $c)
+        (local.get $h)
+        (i32.ne)
+        (i32.and)
+        (i32.and)
         (i32.and)
         (i32.and)
         (i32.eqz)
@@ -2764,6 +2775,9 @@
         (call $btreeInsert)
         (local.set $btree)
         (local.get $b)
+        (call $btreeInsert)
+        (local.set $btree)
+        (local.get $c)
         (call $btreeInsert)
         (local.set $btree)
         (local.get $h)
@@ -2781,10 +2795,16 @@
         (i32.const -1)
         (i32.ne)
         (local.get $btree)
+        (local.get $c)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.ne)
+        (local.get $btree)
         (local.get $h)
         (call $btreeSearch)
         (i32.const -1)
         (i32.ne)
+        (i32.and)
         (i32.and)
         (i32.and)
         ;; delete & check that it was deleted
@@ -2792,7 +2812,8 @@
         (local.get $btree)
         (local.get $a)
         (call $btreeDelete)
-        (local.tee $btree)
+        (local.set $btree)
+        (local.get $btree)
         (local.get $a)
         (call $btreeSearch)
         (i32.const -1)
@@ -2801,11 +2822,23 @@
         (local.get $btree)
         (local.get $b)
         (call $btreeDelete)
-        (local.tee $btree)
+        (local.set $btree)
+        (local.get $btree)
         (local.get $b)
         (call $btreeSearch)
         (i32.const -1)
         (i32.eq)
+        ;; c
+        (local.get $btree)
+        (local.get $c)
+        (call $btreeDelete)
+        (local.set $btree)
+        (local.get $btree)
+        (local.get $c)
+        (call $btreeSearch)
+        (i32.const -1)
+        (i32.eq)
+        (i32.and)
         (i32.and)
         (i32.and)
         ;; last functional check
@@ -2814,6 +2847,7 @@
         )
   (export "main" (func $real_main))
   (func $real_main
+    i32.const 4
     i32.const 3
     i32.const 2
     i32.const 1
@@ -2821,3 +2855,4 @@
   )
   (start $real_main)
 )
+
