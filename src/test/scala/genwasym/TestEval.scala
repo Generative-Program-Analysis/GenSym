@@ -44,6 +44,7 @@ class TestEval extends FunSuite {
   test("load") { testFile("./benchmarks/wasm/load.wat", None, Some(1)) }
   test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib") { testFile("./benchmarks/wasm/fib.wat", None, Some(144)) }
+  test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, Some(504)) }
 
   // TODO: add wasm spec tests? How to utilize wast files?
 }
