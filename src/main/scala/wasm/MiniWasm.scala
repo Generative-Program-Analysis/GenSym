@@ -7,6 +7,8 @@ import gensym.wasm.memory._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 
+case class Trap() extends Exception
+
 case class ModuleInstance(
     types: List[FuncType],
     funcs: HashMap[Int, WIR],
@@ -259,7 +261,7 @@ object Evaluator {
         eval(rest, I32V(value) :: newStack, frame, kont, trail, ret)
       case Nop =>
         eval(rest, stack, frame, kont, trail, ret)
-      case Unreachable => throw new RuntimeException("Unreachable")
+      case Unreachable => throw Trap()
       case Block(ty, inner) =>
         val k: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
@@ -302,7 +304,7 @@ object Evaluator {
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
-        eval(body, List(), newFrame, newK, newK :: trail, ret+1)
+        eval(body, List(), newFrame, newK, newK :: trail, 0)
       case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
         frame.module.funcs(f) match {
           case Import("console", "log", _) =>
