@@ -1,13 +1,16 @@
 (module
   (type (;0;) (func))
-  (func (;0;) (type 0)
-    block ;; label = @1
+  (type (;1;) (func (result i32)))
+  (func (type 1)
+    block
+      i32.const 42
       return
     end
-    unreachable
+    i32.const 100
   )
-  (func (;1;) (type 0)
+  (func (type 0)
     call 0
+    unreachable
   )
   (start 1)
 )
