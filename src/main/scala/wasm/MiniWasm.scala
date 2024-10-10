@@ -304,7 +304,7 @@ object Evaluator {
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
-        eval(body, List(), newFrame, newK, newK :: trail, 0)
+        eval(body, List(), newFrame, newK, List(newK), 0)
       case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
         frame.module.funcs(f) match {
           case Import("console", "log", _) =>
