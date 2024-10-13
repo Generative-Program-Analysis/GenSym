@@ -19,6 +19,7 @@ case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList)
 case class Data(id: Option[String], value: String) extends Definition
 case class Start(id: Int) extends Definition
 case class Import(mod: String, name: String, desc: ImportDesc) extends Definition
+case class Export(name: String, desc: ExportDesc) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class ImportDesc extends WIR
@@ -302,3 +303,10 @@ case class I32V(value: Int) extends Num
 case class I64V(value: Long) extends Num
 case class F32V(value: Float) extends Num
 case class F64V(value: Double) extends Num
+
+// Exports
+abstract class ExportDesc extends WIR
+case class ExportFunc(i: Int) extends ExportDesc
+case class ExportTable(i: Int) extends ExportDesc
+case class ExportMemory(i: Int) extends ExportDesc
+case class ExportGlobal(i: Int) extends ExportDesc

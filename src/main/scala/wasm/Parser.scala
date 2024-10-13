@@ -566,6 +566,19 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     val field = visitGlobalField(ctx.globalField)
     Global(name, field)
   }
+
+  override def visitExport(ctx: ExportContext): WIR = {
+    val name = ctx.name
+    val desc = visitExportDesc(ctx.exportDesc).asInstanceOf[ExportDesc]
+    Export(name, desc)
+  }
+
+  override def visitExportDesc(ctx: ExportDescContext): WIR = {
+    val fid = ctx.idx
+
+    ExportFunc(getVar(fid).toInt)
+  }
+
 }
 
 object Parser {

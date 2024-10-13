@@ -353,7 +353,7 @@ object Evaluator {
         case Global(_, GlobalValue(ty, e)) =>
           (e.head) match {
             case Const(c) => RTGlobal(ty, c)
-            // Q: What is the default behavior if case in non exhaustive
+            // Q: What is the default behavior if case in non-exhaustive
             case _        => ???
           }
       })
