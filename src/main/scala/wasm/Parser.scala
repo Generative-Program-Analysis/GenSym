@@ -126,7 +126,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     FuncType(List(), List(), types)
   }
 
-  override def visitFuncType(ctx: FuncTypeContext): WIR = {
+  override def visitFuncType(ctx: FuncTypeContext): FuncType = {
     val FuncType(names, args, _) = visitFuncParamType(ctx.funcParamType())
     val FuncType(_, _, rets) = visitFuncResType(ctx.funcResType())
     FuncType(names, args, rets)
@@ -397,9 +397,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   // }
 
   override def visitBlock(ctx: BlockContext): WIR = {
-    val ty =
-      if (ctx.blockType != null) Some(visitValType(ctx.blockType.valType).asInstanceOf[ValueType])
-      else None
+    val ty = visitFuncType(ctx.blockType().funcType())
     val InstrList(instrs) = visit(ctx.instrList)
     Block(ty, instrs)
   }
@@ -447,9 +445,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         case (acc, inst: Instr) => acc ++ List(inst)
         case (acc, InstrList(instrs)) => acc ++ instrs
       }
-      val ty =
-        if (ctx.blockType != null) Some(visitValType(ctx.blockType.valType).asInstanceOf[ValueType])
-        else None
+      val ty = visitFuncType(ctx.blockType().funcType())
       val InstrList(thn) = visit(ctx.instrList(0))
       val els = if (ctx.ELSE != null) {
         val InstrList(elsInstr) = visit(ctx.instrList(1))

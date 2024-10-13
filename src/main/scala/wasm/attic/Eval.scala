@@ -305,15 +305,13 @@ case class Config(var frame: Frame, stackBudget: Int) {
       case Unreachable => throw new Exception("Unreachable")
       case Block(blockTy, blockInstrs) => {
         //val funcType = blockTy.toFuncType(frame.module)
-        val funcType = FuncType(List(), List(), blockTy.toList)
-        evalBlock(funcType.out.length, blockInstrs.toList).onContinue { retStack =>
+        evalBlock(blockTy.out.length, blockInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
         //val funcType = blockTy.toFuncType(frame.module)
-        val funcType = FuncType(List(), List(), blockTy.toList)
-        evalBlock(funcType.out.length, loopInstrs.toList).onContinue { retStack =>
+        evalBlock(blockTy.out.length, loopInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs) // instead of instrs.tail
         }
       }
@@ -321,8 +319,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
         case I32V(cond) :: newStack => {
           val condInstrs = if (cond == 0) elseInstrs else thenInstrs
           //val funcType = blockTy.toFuncType(frame.module)
-        val funcType = FuncType(List(), List(), blockTy.toList)
-          evalBlock(funcType.out.length, condInstrs.toList).onContinue { retStack =>
+          evalBlock(blockTy.out.length, condInstrs.toList).onContinue { retStack =>
             this.eval(retStack ++ newStack, instrs.tail)
           }
         }

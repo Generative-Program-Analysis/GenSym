@@ -277,24 +277,27 @@ object Evaluator {
         eval(rest, stack, frame, kont, trail, ret)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
-        // TODO: block can take inputs too
-        eval(inner, List(), frame, k, k :: trail, ret + 1)
+        // TODO: When directly use the retStack, ty is unused. Verify this is correct
+        val k: Cont[Ans] = (retStack) => eval(rest, retStack, frame, kont, trail, ret)
+        eval(inner, stack, frame, k, k :: trail, ret+1)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val restK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
-        def loop(stack: List[Value]): Ans = {
-          val k: Cont[Ans] = (retStack) => loop(retStack.take(ty.toList.size))
-          eval(inner, stack, frame, restK, k :: trail, ret + 1)
+        // TODO: When directly use the retStack, ty is unused. Verify this is correct
+        val restK: Cont[Ans] = (retStack) => eval(rest, retStack, frame, kont, trail, ret)
+        def loopK(retStack: List[Value]): Ans = {
+          val k: Cont[Ans] = (retStack) => loopK(retStack)
+          eval(inner, retStack, frame, restK, k::trail, ret+1)
         }
-        loop(List())
+        eval(inner, stack, frame, restK, (loopK(_))::trail, ret+1)
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
-        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, kont, trail, ret)
-        eval(inner, List(), frame, k, k :: trail, ret + 1)
+        // TODO: When directly use the retStack, ty is unused. Verify this is correct
+        val k: Cont[Ans] = (retStack) =>
+          eval(rest, retStack, frame, kont, trail, ret)
+        eval(inner, stack, frame, k, k :: trail, ret+1)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>

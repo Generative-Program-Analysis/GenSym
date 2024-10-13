@@ -203,12 +203,13 @@ blockInstr
   | IF bindVar? block (ELSE bindVar? instrList)? END bindVar?
   ;
 
+// treat blockType as an alias to function type
 blockType
-  : LPAR RESULT valType RPAR
+  : funcType
   ;
 
 block
-  : blockType? instrList
+  : blockType instrList
   ;
 
 foldedInstr
@@ -221,7 +222,7 @@ expr
   | BLOCK bindVar? block
   | LOOP bindVar? block
   // | IF bindVar? ifBlock
-  | IF bindVar? blockType? foldedInstr* LPAR THEN instrList (LPAR ELSE instrList RPAR)?
+  | IF bindVar? blockType foldedInstr* LPAR THEN instrList (LPAR ELSE instrList RPAR)?
   ;
 
 callExprType
