@@ -47,6 +47,8 @@ class TestEval extends FunSuite {
     }
   }
 
+  test("block") { testFile("./benchmarks/wasm/block.wat", Some("$real_main"), Some(9)) }
+
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
 
