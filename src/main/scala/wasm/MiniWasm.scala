@@ -297,7 +297,7 @@ object Evaluator {
         // TODO: When directly use the retStack, ty is unused. Verify this is correct
         val k: Cont[Ans] = (retStack) =>
           eval(rest, retStack, frame, kont, trail, ret)
-        eval(inner, stack, frame, k, k :: trail, ret+1)
+        eval(inner, newStack, frame, k, k :: trail, ret+1)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>
