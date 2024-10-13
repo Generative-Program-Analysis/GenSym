@@ -203,7 +203,7 @@ blockInstr
   | IF bindVar? block (ELSE bindVar? instrList)? END bindVar?
   ;
 
-// treat blockType as an alias to function type
+// treat blockType as an alias to funcType
 blockType
   : funcType
   ;
