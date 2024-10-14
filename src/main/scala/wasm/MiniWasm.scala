@@ -279,18 +279,19 @@ object Evaluator {
       case Block(ty, inner) =>
         val (inputs, restStack) = stack.splitAt(ty.inps.size)
         val restK: Cont[Ans] = (retStack) =>
-          eval(rest, retStack ++ restStack, frame, kont, trail, ret)
+          eval(rest, retStack.take(ty.out.size) ++ restStack, frame, kont, trail, ret)
         eval(inner, inputs, frame, restK, restK :: trail, ret + 1)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
         val (inputs, restStack) = stack.splitAt(ty.inps.size)
-        val restK: Cont[Ans] = (retStack) => eval(rest, retStack ++ restStack, frame, kont, trail, ret)
+        val restK: Cont[Ans] = (retStack) =>
+          eval(rest, retStack.take(ty.out.size) ++ restStack, frame, kont, trail, ret)
 
         def loop(retStack: List[Value]): Ans = {
           val k: Cont[Ans] = (retStack) => loop(retStack) // k is just same as loop
-          eval(inner, retStack, frame, restK, k :: trail, ret + 1)
+          eval(inner, retStack.take(ty.inps.size), frame, restK, k :: trail, ret + 1)
         }
 
         loop(inputs)
@@ -299,7 +300,7 @@ object Evaluator {
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(ty.inps.size)
         val restK: Cont[Ans] = (retStack) =>
-          eval(rest, retStack ++ restStack, frame, kont, trail, ret)
+          eval(rest, retStack.take(ty.out.size) ++ restStack, frame, kont, trail, ret)
         eval(inner, inputs, frame, restK, restK :: trail, ret + 1)
       case Br(label) =>
         trail(label)(stack)

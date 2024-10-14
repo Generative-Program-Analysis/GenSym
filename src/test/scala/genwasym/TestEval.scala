@@ -56,6 +56,9 @@ class TestEval extends FunSuite {
   test("input_block.if") {
     testFile("./benchmarks/wasm/block.wat", Some("$test_if_input"), Some(25))
   }
+  test("input_block.poly_br") {
+    testFile("./benchmarks/wasm/block.wat", Some("$test_poly_br"), Some(0))
+  }
 
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }

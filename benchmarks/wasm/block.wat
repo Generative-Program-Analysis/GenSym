@@ -44,7 +44,27 @@
     end
     i32.add
   )
+  (func $test_poly_br (result i32)
+    i32.const -30
+    i32.const 0 ;; unused
+    i32.const 0 ;; unused
+    i32.const 0 ;; unused
+    block (param i32 i32 i32) (result i32 i32)
+      i32.const 0 ;; truncated
+      i32.const 10000 ;; truncated
+      i32.const 10
+      i32.const 20
+      br 0
+      i32.add
+    end
+    i32.add
+    i32.add ;; add value -30 and 30
+    ;; i32.add
+    ;; We can't use i32.add instruction here, because the overflowed value has been truncted
+    ;; when block exited.
+  )
   (export "real_main" (func $real_main))
   (export "test_loop_input" (func $test_loop_input))
   (export "test_if_input" (func $test_if_input))
+  (export "test_poly_br" (func $test_poly_br))
 )
