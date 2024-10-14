@@ -288,12 +288,12 @@ object Evaluator {
         val (inputs, restStack) = stack.splitAt(ty.inps.size)
         val restK: Cont[Ans] = (retStack) => eval(rest, retStack ++ restStack, frame, kont, trail, ret)
 
-        def loopK(retStack: List[Value]): Ans = {
-          val k: Cont[Ans] = (retStack) => loopK(retStack) // k is just same as loopK
+        def loop(retStack: List[Value]): Ans = {
+          val k: Cont[Ans] = (retStack) => loop(retStack) // k is just same as loop
           eval(inner, retStack, frame, restK, k :: trail, ret + 1)
         }
 
-        loopK(inputs)
+        loop(inputs)
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
