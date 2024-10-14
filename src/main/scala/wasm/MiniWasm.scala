@@ -14,6 +14,7 @@ case class ModuleInstance(
     funcs: HashMap[Int, WIR],
     memory: List[RTMemory] = List(RTMemory()),
     globals: List[RTGlobal] = List(),
+    exports: List[Export] = List()
 )
 
 object Primtives {
@@ -230,8 +231,10 @@ object Evaluator {
         val mem = frame.module.memory.head
         val oldSize = mem.size
         mem.grow(delta) match {
-          case Some(e) => eval(rest, I32V(-1) :: newStack, frame, kont, trail, ret)
-          case _       => eval(rest, I32V(oldSize) :: newStack, frame, kont, trail, ret)
+          case Some(e) =>
+            eval(rest, I32V(-1) :: newStack, frame, kont, trail, ret)
+          case _ =>
+            eval(rest, I32V(oldSize) :: newStack, frame, kont, trail, ret)
         }
       case MemoryFill =>
         val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = stack
@@ -274,10 +277,9 @@ object Evaluator {
         eval(rest, stack, frame, kont, trail, ret)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val k: Cont[Ans] = (retStack) =>
-          eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
+        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
         // TODO: block can take inputs too
-        eval(inner, List(), frame, k, k :: trail, ret+1)
+        eval(inner, List(), frame, k, k :: trail, ret + 1)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
@@ -285,15 +287,14 @@ object Evaluator {
         val restK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
         def loop(stack: List[Value]): Ans = {
           val k: Cont[Ans] = (retStack) => loop(retStack.take(ty.toList.size))
-          eval(inner, stack, frame, restK, k :: trail, ret+1)
+          eval(inner, stack, frame, restK, k :: trail, ret + 1)
         }
         loop(List())
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
-        val k: Cont[Ans] = (retStack) =>
-          eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, kont, trail, ret)
-        eval(inner, List(), frame, k, k :: trail, ret+1)
+        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, kont, trail, ret)
+        eval(inner, List(), frame, k, k :: trail, ret + 1)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>
@@ -311,8 +312,7 @@ object Evaluator {
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        val newK: Cont[Ans] = (retStack) =>
-          eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
+        val newK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
         eval(body, List(), newFrame, newK, List(newK), 0)
@@ -335,21 +335,32 @@ object Evaluator {
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
   def evalTop[Ans](module: Module, halt: Cont[Ans], main: Option[String] = None): Ans = {
     val instrs = main match {
-      case Some(_) => module.definitions.flatMap({
-          case FuncDef(`main`, FuncBodyDef(_, _, _, body)) =>
+      case Some(func_name) =>
+        module.definitions.flatMap({
+          case Export(`func_name`, ExportFunc(fid)) =>
             println(s"Entering function $main")
-            body
+            module.funcEnv(fid) match {
+              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case _ =>
+                throw new Exception("Entry function has no concrete body")
+            }
           case _ => List()
         })
-      case None => module.definitions.flatMap({
-        case Start(id) => module.funcEnv(id) match {
-          case FuncDef(_, FuncBodyDef(_, _, _, body)) =>
+      case None =>
+        module.definitions.flatMap({
+          case Start(id) =>
             println(s"Entering unnamed function $id")
-            body
-          case _ => throw new Exception("Start function has no concrete definition")
-        }
-        case _ => List()
-      })
+            module.funcEnv(id) match {
+              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case _ =>
+                throw new Exception("Entry function has no concrete body")
+            }
+          case _ => List()
+        })
+    }
+
+    if (instrs.isEmpty) {
+      println("Warning: nothing is executed")
     }
 
     val types = List()
@@ -364,8 +375,8 @@ object Evaluator {
         case Global(_, GlobalValue(ty, e)) =>
           (e.head) match {
             case Const(c) => RTGlobal(ty, c)
-            // Q: What is the default behavior if case in non exhaustive
-            case _        => ???
+            // Q: What is the default behavior if case in non-exhaustive
+            case _ => ???
           }
       })
       .toList

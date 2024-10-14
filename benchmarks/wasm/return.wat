@@ -12,5 +12,5 @@
     call 0
     unreachable
   )
-  (start 1)
+  (export "$real_main" (func 1))
 )
