@@ -163,6 +163,17 @@ object Primtives {
     val memory = frame.module.memory(memoryIndex)
     offset + size > memory.size
   }
+
+  def zero(t: ValueType): Value = t match {
+    case NumType(kind) => kind match {
+      case I32Type => I32V(0)
+      case I64Type => I64V(0)
+      case F32Type => F32V(0)
+      case F64Type => F64V(0)
+    }
+    case VecType(kind) => ???
+    case RefType(kind) => ???
+  }
 }
 
 case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value])
@@ -298,7 +309,7 @@ object Evaluator {
         val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
-        val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
+        val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
         val newK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
