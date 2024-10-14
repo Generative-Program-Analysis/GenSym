@@ -277,30 +277,33 @@ object Evaluator {
         eval(rest, stack, frame, kont, trail, ret)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val (inputs, restStack) = stack.splitAt(ty.inps.size)
+        val funcTy = ty.toFuncType(frame.module)
+        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
-          eval(rest, retStack.take(ty.out.size) ++ restStack, frame, kont, trail, ret)
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
         eval(inner, inputs, frame, restK, restK :: trail, ret + 1)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val (inputs, restStack) = stack.splitAt(ty.inps.size)
+        val funcTy = ty.toFuncType(frame.module)
+        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
-          eval(rest, retStack.take(ty.out.size) ++ restStack, frame, kont, trail, ret)
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
 
         def loop(retStack: List[Value]): Ans = {
           val k: Cont[Ans] = (retStack) => loop(retStack) // k is just same as loop
-          eval(inner, retStack.take(ty.inps.size), frame, restK, k :: trail, ret + 1)
+          eval(inner, retStack.take(funcTy.inps.size), frame, restK, k :: trail, ret + 1)
         }
 
         loop(inputs)
       case If(ty, thn, els) =>
+        val funcTy = ty.toFuncType(frame.module)
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
-        val (inputs, restStack) = newStack.splitAt(ty.inps.size)
+        val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
-          eval(rest, retStack.take(ty.out.size) ++ restStack, frame, kont, trail, ret)
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
         eval(inner, inputs, frame, restK, restK :: trail, ret + 1)
       case Br(label) =>
         trail(label)(stack)

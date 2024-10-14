@@ -203,9 +203,10 @@ blockInstr
   | IF bindVar? block (ELSE bindVar? instrList)? END bindVar?
   ;
 
-// treat blockType as an alias to funcType
 blockType
-  : funcType
+  : (LPAR RESULT valType RPAR)?
+  | typeUse funcType
+  | funcType // abbreviation
   ;
 
 block

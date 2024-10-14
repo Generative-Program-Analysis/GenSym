@@ -7,13 +7,14 @@ import scala.util.parsing.combinator._
 import scala.util.parsing.input.Positional
 import scala.util.matching.Regex
 import scala.language.postfixOps
-
 import scala.annotation.tailrec
 import org.antlr.v4.runtime._
-import scala.collection.JavaConverters._
-import collection.mutable.HashMap
 
+import scala.collection.JavaConverters._
+import collection.mutable.{HashMap, ListBuffer}
 import gensym.wasm._
+
+import scala.collection.mutable
 
 class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   import WatParser._
@@ -28,6 +29,8 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   // function call resolution in the later phase.
   // TODO: instead of using WIR, define a trait for function-like definitions
   val fnMapInv: HashMap[Int, WIR] = HashMap()
+
+  val tyList: ListBuffer[WasmType] = ListBuffer()
 
   def error = throw new RuntimeException("Unspported")
 
@@ -396,8 +399,37 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   //   ???
   // }
 
+
+  override def visitBlockType(ctx: BlockTypeContext): BlockType = {
+    if (ctx.typeUse != null) {
+      // explicit type use
+      val tyIndex = getVar(ctx.typeUse).get.toInt
+      // TODO: Verify the indexed type is same as the inline declared type
+      VarBlockType(tyIndex)
+    } else if (ctx.funcType != null){
+      // abbreviation form
+      val ty = visitFuncType(ctx.funcType)
+      // add ty to the global type list when it not exist.
+      val tyIndex = tyList.indexOf(ty)
+      if (tyIndex == -1) {
+        tyList += ty
+        VarBlockType(tyList.size - 1)
+      } else {
+        VarBlockType(tyList.indexOf(ty))
+      }
+    }
+    else {
+      // just one explicit stated result type
+      if (ctx.valType != null) {
+        ValBlockType(Some(visitValType(ctx.valType()).asInstanceOf[ValueType]))
+      } else {
+        ValBlockType(None)
+      }
+    }
+  }
+
   override def visitBlock(ctx: BlockContext): WIR = {
-    val ty = visitFuncType(ctx.blockType().funcType())
+    val ty = visitBlockType(ctx.blockType())
     val InstrList(instrs) = visit(ctx.instrList)
     Block(ty, instrs)
   }
@@ -445,7 +477,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         case (acc, inst: Instr) => acc ++ List(inst)
         case (acc, InstrList(instrs)) => acc ++ instrs
       }
-      val ty = visitFuncType(ctx.blockType().funcType())
+      val ty = visitBlockType(ctx.blockType())
       val InstrList(thn) = visit(ctx.instrList(0))
       val els = if (ctx.ELSE != null) {
         val InstrList(elsInstr) = visit(ctx.instrList(1))
