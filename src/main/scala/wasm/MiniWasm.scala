@@ -203,12 +203,7 @@ object Evaluator {
         frame.locals(i) = value
         eval(rest, stack, frame, kont, trail, ret)
       case GlobalGet(i) =>
-        eval(rest,
-             frame.module.globals(i).value :: stack,
-             frame,
-             kont,
-             trail,
-             ret)
+        eval(rest, frame.module.globals(i).value :: stack, frame, kont, trail, ret)
       case GlobalSet(i) =>
         val value :: newStack = stack
         frame.module.globals(i).ty match {
@@ -219,12 +214,7 @@ object Evaluator {
         }
         eval(rest, newStack, frame, kont, trail, ret)
       case MemorySize =>
-        eval(rest,
-             I32V(frame.module.memory.head.size) :: stack,
-             frame,
-             kont,
-             trail,
-             ret)
+        eval(rest, I32V(frame.module.memory.head.size) :: stack, frame, kont, trail, ret)
       case MemoryGrow =>
         val I32V(delta) :: newStack = stack
         val mem = frame.module.memory.head
@@ -276,26 +266,14 @@ object Evaluator {
         eval(rest, stack, frame, kont, trail, ret)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val k: Cont[Ans] = (retStack) =>
-          eval(rest,
-               retStack.take(ty.toList.size) ++ stack,
-               frame,
-               kont,
-               trail,
-               ret)
+        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
         // TODO: block can take inputs too
         eval(inner, List(), frame, k, k :: trail, ret + 1)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val restK: Cont[Ans] = (retStack) =>
-          eval(rest,
-               retStack.take(ty.toList.size) ++ stack,
-               frame,
-               kont,
-               trail,
-               ret)
+        val restK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
         def loop(stack: List[Value]): Ans = {
           val k: Cont[Ans] = (retStack) => loop(retStack.take(ty.toList.size))
           eval(inner, stack, frame, restK, k :: trail, ret + 1)
@@ -304,13 +282,7 @@ object Evaluator {
       case If(ty, thn, els) =>
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
-        val k: Cont[Ans] = (retStack) =>
-          eval(rest,
-               retStack.take(ty.toList.size) ++ newStack,
-               frame,
-               kont,
-               trail,
-               ret)
+        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, kont, trail, ret)
         eval(inner, List(), frame, k, k :: trail, ret + 1)
       case Br(label) =>
         trail(label)(stack)
@@ -329,13 +301,7 @@ object Evaluator {
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        val newK: Cont[Ans] = (retStack) =>
-          eval(rest,
-               retStack.take(ty.out.size) ++ newStack,
-               frame,
-               kont,
-               trail,
-               ret)
+        val newK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail, ret)
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
         eval(body, List(), newFrame, newK, List(newK), 0)
@@ -356,9 +322,7 @@ object Evaluator {
 
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
-  def evalTop[Ans](module: Module,
-                   halt: Cont[Ans],
-                   main: Option[String] = None): Ans = {
+  def evalTop[Ans](module: Module, halt: Cont[Ans], main: Option[String] = None): Ans = {
     val instrs = main match {
       case Some(func_name) =>
         module.definitions.flatMap({
@@ -416,12 +380,7 @@ object Evaluator {
 
     val moduleInst = ModuleInstance(types, module.funcEnv, memory, globals)
 
-    Evaluator.eval(instrs,
-                   List(),
-                   Frame(moduleInst, ArrayBuffer(I32V(0))),
-                   halt,
-                   List(halt),
-                   0)
+    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0))), halt, List(halt), 0)
   }
 
   def evalTop(m: Module): Unit = evalTop(m, stack => ())

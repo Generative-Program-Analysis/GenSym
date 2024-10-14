@@ -14,9 +14,7 @@ import collection.mutable.ArrayBuffer
 import org.scalatest.FunSuite
 
 class TestEval extends FunSuite {
-  def testFile(filename: String,
-               main: Option[String] = None,
-               expected: Option[Int] = None) = {
+  def testFile(filename: String, main: Option[String] = None, expected: Option[Int] = None) = {
     val module = Parser.parseFile(filename)
     //println(module)
     val haltK: Evaluator.Cont[Unit] = stack => {

@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 #
-ANTLR4=antlr-4.13.2-complete.jar
+ANTLR4=antlr-4.13.0-complete.jar
 
 java -jar $ANTLR4 WatLexer.g4
 java -jar $ANTLR4 -visitor WatParser.g4

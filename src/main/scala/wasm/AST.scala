@@ -14,8 +14,7 @@ case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
-case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList)
-    extends Definition
+case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList) extends Definition
 case class Data(id: Option[String], value: String) extends Definition
 case class Start(id: Int) extends Definition
 case class Import(mod: String, name: String, desc: ImportDesc) extends Definition
@@ -31,16 +30,9 @@ case class ElemListFunc(funcs: List[String]) extends ElemList
 case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 
 abstract class FuncField extends WIR
-case class FuncBodyDef(tipe: FuncType,
-                       localNames: List[String],
-                       locals: List[ValueType],
-                       body: List[Instr])
+case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr])
     extends FuncField
-case class FunInlineImport(mod: String,
-                           name: String,
-                           typeUse: Option[Int],
-                           imports: Any /*FIXME*/ )
-    extends FuncField
+case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any /*FIXME*/ ) extends FuncField
 case class FunInlineExport(fd: List[FuncDef]) extends FuncField
 
 abstract class TableField extends WIR
@@ -70,17 +62,11 @@ case object Alloc extends Instr
 case object Free extends Instr
 case class Select(ty: Option[List[ValueType]]) extends Instr
 case class Block(ty: Option[ValueType], instrs: List[Instr]) extends Instr
-case class IdBlock(id: Int, ty: Option[ValueType], instrs: List[Instr])
-    extends Instr
+case class IdBlock(id: Int, ty: Option[ValueType], instrs: List[Instr]) extends Instr
 case class Loop(ty: Option[ValueType], instrs: List[Instr]) extends Instr
-case class IdLoop(id: Int, ty: Option[ValueType], instrs: List[Instr])
-    extends Instr
-case class If(ty: Option[ValueType],
-              thenInstrs: List[Instr],
-              elseInstrs: List[Instr])
-    extends Instr
-case class IdIf(ty: Option[ValueType], thenInstrs: IdBlock, elseInstrs: IdBlock)
-    extends Instr
+case class IdLoop(id: Int, ty: Option[ValueType], instrs: List[Instr]) extends Instr
+case class If(ty: Option[ValueType], thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
+case class IdIf(ty: Option[ValueType], thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
 // FIXME: labelId can be string?
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
@@ -222,16 +208,8 @@ case object SX extends Extension
 case object ZX extends Extension
 
 abstract class MemOp(align: Int, offset: Int) extends WIR
-case class StoreOp(align: Int,
-                   offset: Int,
-                   tipe: NumType,
-                   pack_size: Option[PackSize])
-    extends MemOp(align, offset)
-case class LoadOp(align: Int,
-                  offset: Int,
-                  tipe: NumType,
-                  pack_size: Option[PackSize],
-                  extension: Option[Extension])
+case class StoreOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize]) extends MemOp(align, offset)
+case class LoadOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize], extension: Option[Extension])
     extends MemOp(align, offset)
 
 // Types
@@ -256,10 +234,7 @@ case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
 case class RefType(kind: RefKind) extends ValueType
 
-case class FuncType(argNames /*optional*/: List[String],
-                    inps: List[ValueType],
-                    out: List[ValueType])
-    extends WasmType
+case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 
