@@ -32,16 +32,16 @@ class TestEval extends FunSuite {
   // TODO: the power test can be used to test the stack
   // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
   // and 2^1000 results in a stack overflow
-  // test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("$real_main"), Some(7)) }
-  // test("power") { testFile("./benchmarks/wasm/pow.wat", Some("$real_main"), Some(1024)) }
-  // test("start") { testFile("./benchmarks/wasm/start.wat") }
-  // test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
-  // test("loop") { testFile("./benchmarks/wasm/loop.wat", None, Some(10)) }
-  // test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
-  // test("load") { testFile("./benchmarks/wasm/load.wat", None, Some(1)) }
-  // test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
-  // test("fib") { testFile("./benchmarks/wasm/fib.wat", None, Some(144)) }
-  // test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, Some(504)) }
+  test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), Some(7)) }
+  test("power") { testFile("./benchmarks/wasm/pow.wat", Some("real_main"), Some(1024)) }
+  test("start") { testFile("./benchmarks/wasm/start.wat") }
+  test("fact") { testFile("./benchmarks/wasm/fact.wat", None, Some(120)) }
+  test("loop") { testFile("./benchmarks/wasm/loop.wat", None, Some(10)) }
+  test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, Some(1)) }
+  test("load") { testFile("./benchmarks/wasm/load.wat", None, Some(1)) }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  test("fib") { testFile("./benchmarks/wasm/fib.wat", None, Some(144)) }
+  test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, Some(504)) }
 
   test("return") {
     intercept[gensym.wasm.miniwasm.Trap] {

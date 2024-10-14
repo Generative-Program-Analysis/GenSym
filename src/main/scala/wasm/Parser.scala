@@ -567,16 +567,25 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     Global(name, field)
   }
 
-  override def visitExport(ctx: ExportContext): WIR = {
-    val name = ctx.name
+  override def visitExport_(ctx: Export_Context): WIR = {
+    val name: String  = ctx.name.getText.substring(1).dropRight(1)
     val desc = visitExportDesc(ctx.exportDesc).asInstanceOf[ExportDesc]
     Export(name, desc)
   }
 
   override def visitExportDesc(ctx: ExportDescContext): WIR = {
-    val fid = ctx.idx
+    val id = if (ctx.idx.VAR() != null) {
+      println(s"Warning: we don't support labeling yet")
+      throw new RuntimeException("Unsupported")
+    } else {
+      getVar(ctx.idx()).toInt
+    }
+    if (ctx.FUNC != null) ExportFunc(id)
+    else if (ctx.TABLE != null)  ExportTable(id)
+    else if (ctx.MEMORY != null)  ExportMemory(id)
+    else if (ctx.GLOBAL != null) ExportGlobal(id)
+    else error
 
-    ExportFunc(getVar(fid).toInt)
   }
 
 }
