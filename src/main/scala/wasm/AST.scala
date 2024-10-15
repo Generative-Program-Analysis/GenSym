@@ -244,20 +244,9 @@ case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], 
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 
-abstract class BlockType extends WIR {
-  def toFuncType(moduleInst: ModuleInstance): FuncType
-}
-
-case class VarBlockType(index: Int) extends BlockType {
-  def toFuncType(moduleInst: ModuleInstance): FuncType = moduleInst.types(index)
-}
-
-case class ValBlockType(tipe: Option[ValueType]) extends BlockType {
-  def toFuncType(moduleInst: ModuleInstance): FuncType = tipe match {
-    case Some(t) => FuncType(List(), List(), List(t))
-    case None => FuncType(List(), List(), List())
-  }
-}
+abstract class BlockType extends WIR
+case class VarBlockType(index: Int, tipe: Option[FuncType]) extends BlockType
+case class ValBlockType(tipe: Option[ValueType]) extends BlockType;
 
 // Globals
 case class RTGlobal(ty: GlobalType, var value: Value)

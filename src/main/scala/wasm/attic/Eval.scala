@@ -169,6 +169,16 @@ case class Config(var frame: Frame, stackBudget: Int) {
     end > memory.size
   }
 
+  // TODO: remove duplication with definition at MiniWasm.scala 
+  def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
+    ty match {
+      case VarBlockType(_, None) => ???
+      case VarBlockType(_, Some(tipe)) => tipe
+      case ValBlockType(Some(tipe)) => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None) => FuncType(List(), List(), List())
+    }
+  }
+
   def eval(stack: List[Value], instrs: List[Instr]): EvalResult = {
     if (instrs.isEmpty) return Continue(stack)
     println(s"Stack: $stack, instr: ${instrs.head}, locals: ${frame.locals}")
@@ -304,22 +314,22 @@ case class Config(var frame: Frame, stackBudget: Int) {
       case Nop => this.eval(stack, instrs.tail)
       case Unreachable => throw new Exception("Unreachable")
       case Block(blockTy, blockInstrs) => {
-        //val funcType = blockTy.toFuncType(frame.module)
-        evalBlock(blockTy.out.length, blockInstrs.toList).onContinue { retStack =>
+        val funcType = getFuncType(frame.module, blockTy)
+        evalBlock(funcType.out.length, blockInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs.tail)
         }
       }
       case Loop(blockTy, loopInstrs) => {
-        //val funcType = blockTy.toFuncType(frame.module)
-        evalBlock(blockTy.out.length, loopInstrs.toList).onContinue { retStack =>
+        val funcType = getFuncType(frame.module, blockTy)
+        evalBlock(funcType.out.length, loopInstrs.toList).onContinue { retStack =>
           this.eval(retStack ++ stack, instrs) // instead of instrs.tail
         }
       }
       case If(blockTy, thenInstrs, elseInstrs) => stack match {
         case I32V(cond) :: newStack => {
+          val funcType = getFuncType(frame.module, blockTy)
           val condInstrs = if (cond == 0) elseInstrs else thenInstrs
-          //val funcType = blockTy.toFuncType(frame.module)
-          evalBlock(blockTy.out.length, condInstrs.toList).onContinue { retStack =>
+          evalBlock(funcType.out.length, condInstrs.toList).onContinue { retStack =>
             this.eval(retStack ++ newStack, instrs.tail)
           }
         }

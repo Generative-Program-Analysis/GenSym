@@ -30,8 +30,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   // TODO: instead of using WIR, define a trait for function-like definitions
   val fnMapInv: HashMap[Int, WIR] = HashMap()
 
-  val tyList: ListBuffer[WasmType] = ListBuffer()
-
   def error = throw new RuntimeException("Unspported")
 
   def getVar(ctx: BindVarContext): Option[String] =
@@ -402,24 +400,17 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitBlockType(ctx: BlockTypeContext): BlockType = {
     if (ctx.typeUse != null) {
-      // explicit type use
-      val tyIndex = getVar(ctx.typeUse).get.toInt
-      // TODO: Verify the indexed type is same as the inline declared type
-      VarBlockType(tyIndex)
+      // TODO: explicit type use
+      val tyIndex = -1
+      VarBlockType(tyIndex, None)
     } else if (ctx.funcType != null){
       // abbreviation form
       val ty = visitFuncType(ctx.funcType)
-      // add ty to the global type list when it not exist.
-      val tyIndex = tyList.indexOf(ty)
-      if (tyIndex == -1) {
-        tyList += ty
-        VarBlockType(tyList.size - 1)
-      } else {
-        VarBlockType(tyList.indexOf(ty))
-      }
+      // TODO: append ty to the type definition list of parsing context, when necessarily
+      VarBlockType(-1, Some(ty))
     }
     else {
-      // just one explicit stated result type
+      // just one explicit result type
       if (ctx.valType != null) {
         ValBlockType(Some(visitValType(ctx.valType()).asInstanceOf[ValueType]))
       } else {
