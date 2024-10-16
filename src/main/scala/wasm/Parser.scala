@@ -402,7 +402,8 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     if (ctx.typeUse != null) {
       // TODO: explicit type use
       val tyIndex = -1
-      VarBlockType(tyIndex, None)
+      val funcType = visitFuncType(ctx.funcType)
+      VarBlockType(tyIndex, Some(funcType))
     } else if (ctx.funcType != null){
       // abbreviation form
       val ty = visitFuncType(ctx.funcType)

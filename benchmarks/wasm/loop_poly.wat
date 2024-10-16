@@ -6,6 +6,7 @@
     i32.const 0
     block (param i32 i32) (result i32 i32)
         loop (type 1) (param i32) (result i32) ;; label = @1
+        ;; this type use will be ignored for now
         i32.const 1
         i32.const 2
         br 1 (;@1;)
