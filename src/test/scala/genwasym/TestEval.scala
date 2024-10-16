@@ -60,6 +60,10 @@ class TestEval extends FunSuite {
     testFile("./benchmarks/wasm/block.wat", Some("$test_poly_br"), Some(0))
   }
 
+  test("poly loop") {
+    testFile("./benchmarks/wasm/loop_poly.wat", None , None)
+  }
+
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
 
