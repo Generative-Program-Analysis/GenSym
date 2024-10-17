@@ -184,6 +184,15 @@ object Evaluator {
 
   type Cont[A] = List[Value] => A
 
+  def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
+    ty match {
+      case VarBlockType(_, None) => ??? // TODO: fill this branch until we handle type index correctly 
+      case VarBlockType(_, Some(tipe)) => tipe
+      case ValBlockType(Some(tipe)) => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None) => FuncType(List(), List(), List())
+    }
+  }
+
   def eval[Ans](insts: List[Instr],
                 stack: List[Value],
                 frame: Frame,
@@ -277,24 +286,34 @@ object Evaluator {
         eval(rest, stack, frame, kont, trail, ret)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
-        // TODO: block can take inputs too
-        eval(inner, List(), frame, k, k :: trail, ret + 1)
+        val funcTy = getFuncType(frame.module, ty)
+        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
+        val restK: Cont[Ans] = (retStack) =>
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
+        eval(inner, inputs, frame, restK, restK :: trail, ret + 1)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val restK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ stack, frame, kont, trail, ret)
-        def loop(stack: List[Value]): Ans = {
-          val k: Cont[Ans] = (retStack) => loop(retStack.take(ty.toList.size))
-          eval(inner, stack, frame, restK, k :: trail, ret + 1)
+        val funcTy = getFuncType(frame.module, ty)
+        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
+        val restK: Cont[Ans] = (retStack) =>
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
+
+        def loop(retStack: List[Value]): Ans = {
+          val k: Cont[Ans] = (retStack) => loop(retStack) // k is just same as loop
+          eval(inner, retStack.take(funcTy.inps.size), frame, restK, k :: trail, ret + 1)
         }
-        loop(List())
+
+        loop(inputs)
       case If(ty, thn, els) =>
+        val funcTy = getFuncType(frame.module, ty)
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
-        val k: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.toList.size) ++ newStack, frame, kont, trail, ret)
-        eval(inner, List(), frame, k, k :: trail, ret + 1)
+        val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
+        val restK: Cont[Ans] = (retStack) =>
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
+        eval(inner, inputs, frame, restK, restK :: trail, ret + 1)
       case Br(label) =>
         trail(label)(stack)
       case BrIf(label) =>

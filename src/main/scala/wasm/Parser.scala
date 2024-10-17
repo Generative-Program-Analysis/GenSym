@@ -7,13 +7,14 @@ import scala.util.parsing.combinator._
 import scala.util.parsing.input.Positional
 import scala.util.matching.Regex
 import scala.language.postfixOps
-
 import scala.annotation.tailrec
 import org.antlr.v4.runtime._
-import scala.collection.JavaConverters._
-import collection.mutable.HashMap
 
+import scala.collection.JavaConverters._
+import collection.mutable.{HashMap, ListBuffer}
 import gensym.wasm._
+
+import scala.collection.mutable
 
 class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   import WatParser._
@@ -126,7 +127,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     FuncType(List(), List(), types)
   }
 
-  override def visitFuncType(ctx: FuncTypeContext): WIR = {
+  override def visitFuncType(ctx: FuncTypeContext): FuncType = {
     val FuncType(names, args, _) = visitFuncParamType(ctx.funcParamType())
     val FuncType(_, _, rets) = visitFuncResType(ctx.funcResType())
     FuncType(names, args, rets)
@@ -396,10 +397,31 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   //   ???
   // }
 
+
+  override def visitBlockType(ctx: BlockTypeContext): BlockType = {
+    if (ctx.typeUse != null) {
+      // TODO: explicit type use
+      val tyIndex = -1
+      val funcType = visitFuncType(ctx.funcType)
+      VarBlockType(tyIndex, Some(funcType))
+    } else if (ctx.funcType != null){
+      // abbreviation form
+      val ty = visitFuncType(ctx.funcType)
+      // TODO: append ty to the type definition list of parsing context, when necessarily
+      VarBlockType(-1, Some(ty))
+    }
+    else {
+      // just one explicit result type
+      if (ctx.valType != null) {
+        ValBlockType(Some(visitValType(ctx.valType()).asInstanceOf[ValueType]))
+      } else {
+        ValBlockType(None)
+      }
+    }
+  }
+
   override def visitBlock(ctx: BlockContext): WIR = {
-    val ty =
-      if (ctx.blockType != null) Some(visitValType(ctx.blockType.valType).asInstanceOf[ValueType])
-      else None
+    val ty = visitBlockType(ctx.blockType())
     val InstrList(instrs) = visit(ctx.instrList)
     Block(ty, instrs)
   }
@@ -447,9 +469,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         case (acc, inst: Instr) => acc ++ List(inst)
         case (acc, InstrList(instrs)) => acc ++ instrs
       }
-      val ty =
-        if (ctx.blockType != null) Some(visitValType(ctx.blockType.valType).asInstanceOf[ValueType])
-        else None
+      val ty = visitBlockType(ctx.blockType())
       val InstrList(thn) = visit(ctx.instrList(0))
       val els = if (ctx.ELSE != null) {
         val InstrList(elsInstr) = visit(ctx.instrList(1))
