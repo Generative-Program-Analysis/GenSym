@@ -5,18 +5,16 @@
     i32.const 42
     i32.const 0
     block (param i32 i32) (result i32 i32)
-        loop (type 1) (param i32) (result i32) ;; label = @1
-        ;; this type use will be ignored for now
+      loop (type 1) (param i32) (result i32) ;; label = @1
         i32.const 1
         i32.const 2
         br 1 (;@1;)
-        end
+      end
     end
-    ;; - [return, 0 ]
-    i32.add
-    drop
+    ;; this is not a valid wasm program due to the mismatch of stack shape,
+    ;; we only do this for testing purposes.
+    ;; i32.add
+    ;; drop
   )
-
-;;   (export "main" (func $test_poly_loop))
-(start 0)
+  (start 0)
 )
