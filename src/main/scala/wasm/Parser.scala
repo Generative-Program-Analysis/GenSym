@@ -21,8 +21,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   /* Some helper functions */
 
-  // TODO: see TODO in 2o1u-no-label.wat
-
   val fnMap: HashMap[String, Int] = HashMap()
 
   // Note: we construct a mapping from indices to function-like definitions, which helps
@@ -391,12 +389,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       error
     }
   }
-
-  // override def visitCallInstrInstr(ctx: CallInstrInstrContext): WIR = {
-  //   println(s"unimplemented parser for: ${ctx.getText}")
-  //   ???
-  // }
-
 
   override def visitBlockType(ctx: BlockTypeContext): BlockType = {
     if (ctx.typeUse != null) {

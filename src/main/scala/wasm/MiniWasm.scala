@@ -186,7 +186,7 @@ object Evaluator {
 
   def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
     ty match {
-      case VarBlockType(_, None) => ??? // TODO: fill this branch until we handle type index correctly 
+      case VarBlockType(_, None) => ??? // TODO: fill this branch until we handle type index correctly
       case VarBlockType(_, Some(tipe)) => tipe
       case ValBlockType(Some(tipe)) => FuncType(List(), List(), List(tipe))
       case ValBlockType(None) => FuncType(List(), List(), List())
@@ -299,12 +299,8 @@ object Evaluator {
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail, ret)
-
-        def loop(retStack: List[Value]): Ans = {
-          val k: Cont[Ans] = (retStack) => loop(retStack) // k is just same as loop
-          eval(inner, retStack.take(funcTy.inps.size), frame, restK, k :: trail, ret + 1)
-        }
-
+        def loop(retStack: List[Value]): Ans =
+          eval(inner, retStack.take(funcTy.inps.size), frame, restK, loop _ :: trail, ret + 1)
         loop(inputs)
       case If(ty, thn, els) =>
         val funcTy = getFuncType(frame.module, ty)
@@ -378,9 +374,7 @@ object Evaluator {
         })
     }
 
-    if (instrs.isEmpty) {
-      println("Warning: nothing is executed")
-    }
+    if (instrs.isEmpty) println("Warning: nothing is executed")
 
     val types = List()
     val funcs = module.definitions
