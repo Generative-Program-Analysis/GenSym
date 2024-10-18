@@ -62,17 +62,11 @@ case object Alloc extends Instr
 case object Free extends Instr
 case class Select(ty: Option[List[ValueType]]) extends Instr
 case class Block(ty: BlockType, instrs: List[Instr]) extends Instr
-case class IdBlock(id: Int, ty: BlockType, instrs: List[Instr])
-    extends Instr
+case class IdBlock(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr
-case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr])
-    extends Instr
-case class If(ty: BlockType,
-              thenInstrs: List[Instr],
-              elseInstrs: List[Instr])
-    extends Instr
-case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock)
-    extends Instr
+case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
+case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
+case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
 // FIXME: labelId can be string?
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
