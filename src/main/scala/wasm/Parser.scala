@@ -221,6 +221,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           else CallUnresolved(id)
       }
     }
+    else if (ctx.RETURN_CALL() != null) {
+      val id = getVar(ctx.idx(0))
+      try Call(id.toInt) catch {
+        case _: java.lang.NumberFormatException =>
+          if (fnMap.contains(id)) ReturnCall(fnMap(id))
+          else CallUnresolved(id)
+      }
+    }
     else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_TEE() != null) LocalTee(getVar(ctx.idx(0)).toInt)
