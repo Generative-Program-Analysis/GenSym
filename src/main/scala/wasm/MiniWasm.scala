@@ -210,7 +210,7 @@ object Evaluator {
         // We push newK on the trail since function creates a new block to escape
         // (more or less like `return`)
         if (isTail) 
-          eval(body, List(), newFrame, newK, List(newK))
+          eval(body, List(), newFrame, kont, List(kont))
         else
           eval(body, List(), newFrame, newK, List(newK))
       case Import("console", "log", _) =>
