@@ -13,12 +13,12 @@
       local.get 1
       local.get 0
       i32.add
-      (call 1)
+      (return_call 1)
     end
   )
   (func (result i32)
     i32.const 10
     i32.const 0
-    (call 1))
+    (return_call 1))
   (export "sum10" (func 2))
 )
