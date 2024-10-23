@@ -23,3 +23,4 @@ project/.bloop/bloop.settings.json
 conc_gen/*
 ccbse_gen/*
 headers/gensym/external.hpp
+grammar/.antlr/
