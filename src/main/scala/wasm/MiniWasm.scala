@@ -193,6 +193,39 @@ object Evaluator {
     }
   }
 
+  def evalCall[Ans](rest: List[Instr],
+                    stack: List[Value],
+                    frame: Frame,
+                    kont: Cont[Ans],
+                    trail: List[Cont[Ans]],
+                    funcIndex: Int,
+                    isTail: Boolean): Ans = {
+    frame.module.funcs(funcIndex) match {
+      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>     
+        val args = stack.take(ty.inps.size).reverse
+        val newStack = stack.drop(ty.inps.size)
+        val frameLocals = args ++ locals.map(zero(_))
+        val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
+        if (isTail) 
+          // when tail call, share the continuation for returning with the callee
+          eval(body, List(), newFrame, kont, List(kont))
+        else {
+          val restK: Cont[Ans] = (retStack) =>
+            eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)
+          // We make a new trail by `restK`, since function creates a new block to escape
+          // (more or less like `return`)
+          eval(body, List(), newFrame, restK, List(restK))
+        }
+      case Import("console", "log", _) =>
+            //println(s"[DEBUG] current stack: $stack")
+            val I32V(v) :: newStack = stack
+            println(v)
+            eval(rest, newStack, frame, kont, trail)
+      case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
+      case _ => throw new Exception(s"Definition at $funcIndex is not callable")
+    }
+  }
+
   def eval[Ans](insts: List[Instr],
                 stack: List[Value],
                 frame: Frame,
@@ -320,25 +353,8 @@ object Evaluator {
         val goto = if (cond < labels.length) labels(cond) else default
         trail(goto)(newStack)
       case Return => trail.last(stack)
-      case Call(f) if frame.module.funcs(f).isInstanceOf[FuncDef] =>
-        val FuncDef(_, FuncBodyDef(ty, _, locals, body)) = frame.module.funcs(f)
-        val args = stack.take(ty.inps.size).reverse
-        val newStack = stack.drop(ty.inps.size)
-        val frameLocals = args ++ locals.map(zero(_))
-        val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        val newK: Cont[Ans] = (retStack) => eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)
-        // We push newK on the trail since function creates a new block to escape
-        // (more or less like `return`)
-        eval(body, List(), newFrame, newK, List(newK))
-      case Call(f) if frame.module.funcs(f).isInstanceOf[Import] =>
-        frame.module.funcs(f) match {
-          case Import("console", "log", _) =>
-            //println(s"[DEBUG] current stack: $stack")
-            val I32V(v) :: newStack = stack
-            println(v)
-            eval(rest, newStack, frame, kont, trail)
-          case f => throw new Exception(s"Unknown import $f")
-        }
+      case Call(f) => evalCall(rest, stack, frame, kont, trail, f, false)
+      case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")

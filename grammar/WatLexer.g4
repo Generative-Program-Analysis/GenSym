@@ -68,6 +68,8 @@ ELSE: 'else' ;
 SELECT: '.select' ;
 CALL: 'call' ;
 CALL_INDIRECT: 'call_indirect' ;
+RETURN_CALL: 'return_call' ;
+RETURN_CALL_INDIRECT: 'return_call_indirect' ;
 
 LOCAL_GET: 'local.get' ;
 LOCAL_SET: 'local.set' ;

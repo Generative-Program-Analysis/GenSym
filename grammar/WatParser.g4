@@ -133,6 +133,7 @@ plainInstr
   | BR_TABLE idx+
   | RETURN
   | CALL idx
+  | RETURN_CALL idx
   | LOCAL_GET idx
   | LOCAL_SET idx
   | LOCAL_TEE idx
@@ -177,6 +178,7 @@ selectInstr
 callIndirectInstr
   /* : CALL_INDIRECT typeUse? callInstrParams */
   : CALL_INDIRECT idx? typeUse
+  | RETURN_CALL_INDIRECT idx? typeUse
   ;
 
 callInstrParams
@@ -220,6 +222,7 @@ foldedInstr
 expr
   : plainInstr expr*
   | CALL_INDIRECT callExprType
+  | RETURN_CALL_INDIRECT callExprType
   | BLOCK bindVar? block
   | LOOP bindVar? block
   // | IF bindVar? ifBlock

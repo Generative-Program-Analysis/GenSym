@@ -54,6 +54,9 @@ class TestEval extends FunSuite {
       testFile("./benchmarks/wasm/return.wat", Some("$real_main"))
     }
   }
+  test("return_call") {
+    testFile("./benchmarks/wasm/sum.wat", Some("sum10"), ExpInt(55))
+  }
 
   test("block input") {
     testFile("./benchmarks/wasm/block.wat", Some("real_main"), ExpInt(9))
