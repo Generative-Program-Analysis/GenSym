@@ -1,17 +1,43 @@
 package gensym.wasm.miniwasmscript
 
 import gensym.wasm.miniwasm._
-import gensym.wasm.ast.{Script, Cmd}
-import gensym.wasm.ast.AssertReturn
-import gensym.wasm.ast.AssertTrap
+import gensym.wasm.ast._
+import scala.collection.mutable
 
 sealed class ScriptRunner {
-  val instances: List[ModuleInstance] = List()
+  val instances: mutable.ListBuffer[ModuleInstance] = mutable.ListBuffer()
+  val instanceMap: mutable.Map[String, ModuleInstance] = mutable.Map()
+
+  def getInstance(instName: Option[String]): ModuleInstance = {
+    instName match {
+	  case Some(name) => instanceMap(name)
+      case None => instances.head
+    }
+  }
+
+  def assertReturn(action: Action, expect: List[Value]): Unit = {
+    action match {
+      case Invoke(instName, name, args) =>
+        val module = getInstance(instName)
+        val func = module.exports.collectFirst({
+          case Export(`name`, ExportFunc(index)) =>
+            module.funcs(index)
+          case _ => throw new RuntimeException("Not Supported")
+        }).get
+        val instrs = func match {
+          case FuncDef(_, FuncBodyDef(ty, _, locals, body)) => body
+        }
+        val k = (retStack: List[Value]) => retStack
+        val actual = Evaluator.eval(instrs, List(), Frame(module, mutable.ArrayBuffer(args: _*)), k, List(k))
+        assert(actual == expect)
+    }
+  }
 
   def runCmd(cmd: Cmd): Unit = {
     cmd match {
-      case AssertReturn(action, results) =>
-      case AssertTrap(action, message) =>
+      case CmdModule(module) => instances.+=(ModuleInstance(module))
+      case AssertReturn(action, expect) => assertReturn(action, expect)
+      case AssertTrap(action, message) => ???
     }
   }
 

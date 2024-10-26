@@ -283,7 +283,7 @@ abstract class Cmd extends WIR
 case class CmdModule(module: Module) extends Cmd
 
 abstract class Action extends WIR
-case class Invoke(instName: Option[String], name: String, args: List[Num]) extends Action
+case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
 
 abstract class Assertion extends Cmd
 case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
