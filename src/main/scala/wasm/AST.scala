@@ -64,6 +64,7 @@ case class Select(ty: Option[List[ValueType]]) extends Instr
 case class Block(ty: BlockType, instrs: List[Instr]) extends Instr
 case class IdBlock(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr
+case class ForLoop(init:List[Instr], cond: List[Instr], post: List[Instr], body: List[Instr]) extends Instr
 case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
 case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr

@@ -73,6 +73,9 @@ class TestEval extends FunSuite {
   test("loop block - poly br") {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
+  test("for loop") {
+    testFile("./benchmarks/wasm/for_loop.wat", Some("for_loop"), ExpInt(10))
+  }
 
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
