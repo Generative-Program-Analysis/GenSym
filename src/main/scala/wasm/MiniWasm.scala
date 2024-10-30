@@ -334,6 +334,21 @@ object Evaluator {
         def loop(retStack: List[Value]): Ans =
           eval(inner, retStack.take(funcTy.inps.size), frame, restK, loop _ :: trail)
         loop(inputs)
+        case ForLoop(init, cond, post, body) =>
+        val restK: Cont[Ans] = retStack =>
+          eval(rest, retStack, frame, kont, trail)
+
+        def loopContinuation(retStack: List[Value]): Ans = {
+          eval(cond, retStack, frame, {
+            case I32V(0) :: _ => restK(retStack)
+            case _ =>
+              eval(body, retStack, frame, newStack =>
+                eval(post, newStack, frame, loopContinuation, trail)
+                , trail)
+          }, trail)
+        }
+
+        eval(init, stack, frame, loopContinuation, trail)
       case If(ty, thn, els) =>
         val funcTy = getFuncType(frame.module, ty)
         val I32V(cond) :: newStack = stack
