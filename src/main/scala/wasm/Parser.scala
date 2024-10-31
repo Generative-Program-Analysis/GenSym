@@ -14,11 +14,7 @@ import scala.collection.JavaConverters._
 import collection.mutable.{HashMap, ListBuffer}
 import gensym.wasm._
 
-import scala.io.Source
-import java.io._
-import java.io.FileOutputStream
 import java.io.OutputStream
-import java.nio.file.{Files, Paths, StandardOpenOption}
 
 
 import scala.collection.mutable
