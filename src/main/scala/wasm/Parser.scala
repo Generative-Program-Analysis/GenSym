@@ -81,6 +81,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   def toNumType(t: String): NumType = NumType(toNumKind(t))
 
   /* Overriding visitors */
+  override def visitForLoop(ctx:ForLoopContext): Instr = {
+    val InstrList(init) = visit(ctx.instrList(0))
+    val InstrList(cond) = visit(ctx.instrList(1))
+    val InstrList(post) = visit(ctx.instrList(2))
+    val InstrList(body) = visit(ctx.instrList(3))
+    ForLoop(init,cond,post,body)
+
+  }
 
   override def visitModule(ctx: ModuleContext): WIR = {
     if (ctx.module_() != null) return visit(ctx.module_())

@@ -1,4 +1,3 @@
-package gensym.wasm;
 // Generated from WatParser.g4 by ANTLR 4.13.2
 
 import org.antlr.v4.runtime.ParserRuleContext;
