@@ -627,7 +627,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitScriptModule(ctx: ScriptModuleContext): Module = {
-    if (ctx.module_() != null) {
+    if (ctx.module_ != null) {
       visitModule_(ctx.module_).asInstanceOf[Module]
     }
     else if (ctx.BIN != null) {
@@ -671,8 +671,8 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitAction_(ctx: Action_Context): Action = {
-    if (ctx.INVOKE() != null) {
-      val instName = if (ctx.VAR() != null) Some(ctx.VAR().getText) else None
+    if (ctx.INVOKE != null) {
+      val instName = if (ctx.VAR != null) Some(ctx.VAR().getText) else None
       var name = ctx.name.getText.substring(1).dropRight(1)
       var args = for (constCtx <- ctx.constList.wconst.asScala) yield {
         val Array(ty, _) = constCtx.CONST.getText.split("\\.")
@@ -685,7 +685,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitAssertion(ctx: AssertionContext): Assertion = {
-    if (ctx.ASSERT_RETURN() != null) {
+    if (ctx.ASSERT_RETURN != null) {
       val action = visitAction_(ctx.action_)
       val expect = for (constCtx <- ctx.constList.wconst.asScala) yield {
         val Array(ty, _) = constCtx.CONST.getText.split("\\.")
@@ -693,20 +693,17 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       }
       println(s"expect = $expect")
       AssertReturn(action, expect.toList)
-    }
-    else {
+    } else {
       throw new RuntimeException("Unsupported")
     }
   }
 
   override def visitCmd(ctx: CmdContext): Cmd = {
-    if (ctx.assertion() != null) {
+    if (ctx.assertion != null) {
       visitAssertion(ctx.assertion)
-    }
-    else if (ctx.scriptModule() != null) {
+    } else if (ctx.scriptModule != null) {
       CmdModule(visitScriptModule(ctx.scriptModule))
-    }
-    else {
+    } else {
       throw new RuntimeException("Unsupported")
     }
   }
@@ -731,7 +728,7 @@ object Parser {
   def parse(input: String): Module = {
     val parser = makeWatVisitor(input)
     val visitor = new GSWasmVisitor()
-    val res: Module  = visitor.visit(parser.module()).asInstanceOf[Module]
+    val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
     res
   }
 
@@ -743,8 +740,7 @@ object Parser {
     val visitor = new GSWasmVisitor()
     val tree = parser.script()
     val errorNumer = parser.getNumberOfSyntaxErrors()
-    if (errorNumer != 0)
-      None
+    if (errorNumer != 0) None
     else {
       val res: Script = visitor.visitScript(tree).asInstanceOf[Script]
       Some(res)

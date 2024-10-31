@@ -2,11 +2,11 @@ package gensym.wasm.miniwasmscript
 
 import gensym.wasm.miniwasm._
 import gensym.wasm.ast._
-import scala.collection.mutable
+import scala.collection.mutable.{ListBuffer, Map, ArrayBuffer}
 
 sealed class ScriptRunner {
-  val instances: mutable.ListBuffer[ModuleInstance] = mutable.ListBuffer()
-  val instanceMap: mutable.Map[String, ModuleInstance] = mutable.Map()
+  val instances: ListBuffer[ModuleInstance] = ListBuffer()
+  val instanceMap: Map[String, ModuleInstance] = Map()
 
   def getInstance(instName: Option[String]): ModuleInstance = {
     instName match {
@@ -28,14 +28,14 @@ sealed class ScriptRunner {
           case FuncDef(_, FuncBodyDef(ty, _, locals, body)) => body
         }
         val k = (retStack: List[Value]) => retStack
-        val actual = Evaluator.eval(instrs, List(), Frame(module, mutable.ArrayBuffer(args: _*)), k, List(k))
+        val actual = Evaluator.eval(instrs, List(), Frame(module, ArrayBuffer(args: _*)), k, List(k))
         assert(actual == expect)
     }
   }
 
   def runCmd(cmd: Cmd): Unit = {
     cmd match {
-      case CmdModule(module) => instances.+=(ModuleInstance(module))
+      case CmdModule(module) => instances += ModuleInstance(module)
       case AssertReturn(action, expect) => assertReturn(action, expect)
       case AssertTrap(action, message) => ???
     }
