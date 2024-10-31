@@ -5,7 +5,6 @@ import gensym.wasm.miniwasmscript.ScriptRunner
 
 import org.scalatest.FunSuite
 
-
 class TestScriptRun extends FunSuite {
   def testFile(filename: String): Unit = {
     val script = Parser.parseScriptFile(filename).get
@@ -15,5 +14,9 @@ class TestScriptRun extends FunSuite {
 
   test("simple script") {
     testFile("./benchmarks/wasm/script/script_basic.wast")
+  }
+
+  test("simple bin script") {
+    testFile("./benchmarks/wasm/script/script_basic.bin.wast")
   }
 }

@@ -14,6 +14,12 @@ import scala.collection.JavaConverters._
 import collection.mutable.{HashMap, ListBuffer}
 import gensym.wasm._
 
+import scala.io.Source
+import java.io._
+import java.io.FileOutputStream
+import java.nio.file.{Files, Paths, StandardOpenOption}
+
+
 import scala.collection.mutable
 
 class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
@@ -608,9 +614,56 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   }
 
+  // Function to convert a hex string representation to an Array[Byte]
+  def hexStringToByteArray(hex: String): Array[Byte] = {
+    // Split the input string by '\' and filter out empty strings
+    val byteStrings = hex.split("\\\\").filter(_.nonEmpty)
+
+    // Convert each byte string to a byte
+    byteStrings.map { byteStr =>
+      // Parse the hex value to a byte
+      Integer.parseInt(byteStr, 16).toByte
+    }
+  }
+
   override def visitScriptModule(ctx: ScriptModuleContext): Module = {
     if (ctx.module_() != null) {
       visitModule_(ctx.module_).asInstanceOf[Module]
+    }
+    else if (ctx.BIN != null) {
+      // we first get the binary string
+      val bin = ctx.STRING_
+      val hexString = bin.asScala.toList.map(_.getText.substring(1).dropRight(1)).mkString
+      println(s"binStr = $hexString")
+
+      // Convert the hex string to a byte array
+      val byteArray: Array[Byte] = hexStringToByteArray(hexString)
+
+      // Specify the file path where you want to write the byte array
+      val filePath = "temp.bin" // You can change this to your desired path
+
+      // Write the byte array to the file
+      Files.write(Paths.get(filePath), byteArray, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+
+      // Process builder to use `wasmfx-tools` to convert the binary file to a text file
+      val processBuilder = new ProcessBuilder("./third-party/wasmfx-tools/target/release/wasm-tools", "print", filePath)
+      val process = processBuilder.start()
+      // capture stdout
+
+      // Optionally, capture output and error output if needed
+      val output = scala.io.Source.fromInputStream(process.getInputStream).mkString
+      val errorOutput = scala.io.Source.fromInputStream(process.getErrorStream).mkString
+
+    // Wait for the process to complete
+      val exitCode = process.waitFor()
+
+      println(s"Exit code: $exitCode")
+      println(s"Output:\n$output")
+      println(s"Error Output:\n$errorOutput")
+
+      // reparse output as module
+      val module = Parser.parse(output)
+      module
     }
     else {
       throw new RuntimeException("Unsupported")
@@ -665,6 +718,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     Script(cmds.toList)
   }
 }
+
 
 object Parser {
   private def makeWatVisitor(input: String) = {
