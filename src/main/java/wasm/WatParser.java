@@ -1,5 +1,5 @@
 package gensym.wasm;
-// Generated from WatParser.g4 by ANTLR 4.13.2
+// Generated from WatParser.g4 by ANTLR 4.13.0
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Iterator;
 import java.util.ArrayList;
 
-@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue", "this-escape"})
+@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue"})
 public class WatParser extends Parser {
-	static { RuntimeMetaData.checkVersion("4.13.2", RuntimeMetaData.VERSION); }
+	static { RuntimeMetaData.checkVersion("4.13.0", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
 	protected static final PredictionContextCache _sharedContextCache =
@@ -203,6 +203,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitValue(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitValue(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final ValueContext value() throws RecognitionException {
@@ -250,6 +255,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitName(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitName(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final NameContext name() throws RecognitionException {
@@ -287,6 +297,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitNumType(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitNumType(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -326,6 +341,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitRefType(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitRefType(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -374,6 +394,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitVecType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitVecType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final VecTypeContext vecType() throws RecognitionException {
@@ -419,6 +444,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitValType(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitValType(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -482,6 +512,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitHeapType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitHeapType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final HeapTypeContext heapType() throws RecognitionException {
@@ -533,6 +568,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitGlobalType(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitGlobalType(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -601,6 +641,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitDefType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitDefType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final DefTypeContext defType() throws RecognitionException {
@@ -667,6 +712,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFuncParamType(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFuncParamType(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -779,6 +829,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFuncResType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFuncResType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final FuncResTypeContext funcResType() throws RecognitionException {
@@ -856,6 +911,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFuncType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFuncType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final FuncTypeContext funcType() throws RecognitionException {
@@ -901,6 +961,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTableType(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTableType(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -956,6 +1021,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitMemoryType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitMemoryType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final MemoryTypeContext memoryType() throws RecognitionException {
@@ -1010,6 +1080,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTypeUse(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTypeUse(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final TypeUseContext typeUse() throws RecognitionException {
@@ -1055,6 +1130,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitLiteral(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitLiteral(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -1104,6 +1184,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitIdx(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitIdx(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final IdxContext idx() throws RecognitionException {
@@ -1150,6 +1235,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitBindVar(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitBindVar(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -1199,6 +1289,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitInstr(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitInstr(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -1312,6 +1407,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitForLoop(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitForLoop(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final ForLoopContext forLoop() throws RecognitionException {
@@ -1420,6 +1520,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitPlainInstr(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitPlainInstr(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -1774,6 +1879,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitOffsetEq(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitOffsetEq(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final OffsetEqContext offsetEq() throws RecognitionException {
@@ -1814,6 +1924,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitAlignEq(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitAlignEq(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -1860,6 +1975,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitLoad(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitLoad(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -1920,6 +2040,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitStore(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitStore(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final StoreContext store() throws RecognitionException {
@@ -1974,6 +2099,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitSelectInstr(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitSelectInstr(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final SelectInstrContext selectInstr() throws RecognitionException {
@@ -2020,6 +2150,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallIndirectInstr(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallIndirectInstr(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -2119,6 +2254,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallInstrParams(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallInstrParams(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -2244,6 +2384,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallInstrParamsInstr(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallInstrParamsInstr(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final CallInstrParamsInstrContext callInstrParamsInstr() throws RecognitionException {
@@ -2338,6 +2483,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallInstrResultsInstr(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallInstrResultsInstr(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final CallInstrResultsInstrContext callInstrResultsInstr() throws RecognitionException {
@@ -2427,6 +2577,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitBlockInstr(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitBlockInstr(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -2594,6 +2749,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitBlockType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitBlockType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final BlockTypeContext blockType() throws RecognitionException {
@@ -2673,6 +2833,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitBlock(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitBlock(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final BlockContext block() throws RecognitionException {
@@ -2716,6 +2881,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFoldedInstr(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFoldedInstr(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -2802,6 +2972,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitExpr(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitExpr(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -2983,6 +3158,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallExprType(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallExprType(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final CallExprTypeContext callExprType() throws RecognitionException {
@@ -3050,6 +3230,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallExprParams(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallExprParams(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -3148,6 +3333,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCallExprResults(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCallExprResults(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final CallExprResultsContext callExprResults() throws RecognitionException {
@@ -3242,6 +3432,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitInstrList(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitInstrList(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final InstrListContext instrList() throws RecognitionException {
@@ -3307,6 +3502,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitConstExpr(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitConstExpr(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final ConstExprContext constExpr() throws RecognitionException {
@@ -3352,6 +3552,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFunction(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFunction(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -3424,6 +3629,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFuncFields(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFuncFields(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -3512,6 +3722,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFuncFieldsBody(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFuncFieldsBody(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final FuncFieldsBodyContext funcFieldsBody() throws RecognitionException {
@@ -3577,6 +3792,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitFuncBody(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitFuncBody(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -3681,6 +3901,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitOffset(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitOffset(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -3794,6 +4019,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitElem(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitElem(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -3919,6 +4149,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTable(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTable(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final TableContext table() throws RecognitionException {
@@ -3996,6 +4231,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTableField(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTableField(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -4107,6 +4347,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitData(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitData(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -4232,6 +4477,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitMemory(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitMemory(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final MemoryContext memory() throws RecognitionException {
@@ -4304,6 +4554,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitMemoryField(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitMemoryField(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -4401,6 +4656,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitGlobal(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitGlobal(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final GlobalContext global() throws RecognitionException {
@@ -4469,6 +4729,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitGlobalField(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitGlobalField(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -4556,6 +4821,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitImportDesc(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitImportDesc(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -4721,6 +4991,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitSimport(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitSimport(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final SimportContext simport() throws RecognitionException {
@@ -4777,6 +5052,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitInlineImport(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitInlineImport(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final InlineImportContext inlineImport() throws RecognitionException {
@@ -4830,6 +5110,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitExportDesc(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitExportDesc(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -4928,6 +5213,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitExport_(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitExport_(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final Export_Context export_() throws RecognitionException {
@@ -4978,6 +5268,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitInlineExport(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitInlineExport(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5030,6 +5325,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitTypeDef(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitTypeDef(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5090,6 +5390,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitStart_(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitStart_(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5163,6 +5468,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitModuleField(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitModuleField(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5280,6 +5590,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitModule_(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitModule_(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final Module_Context module_() throws RecognitionException {
@@ -5358,6 +5673,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitScriptModule(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitScriptModule(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5458,6 +5778,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitAction_(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitAction_(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5563,6 +5888,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitAssertion(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitAssertion(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5750,6 +6080,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitCmd(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitCmd(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final CmdContext cmd() throws RecognitionException {
@@ -5850,6 +6185,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitMeta(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitMeta(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -5996,6 +6336,11 @@ public class WatParser extends Parser {
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitWconst(this);
 		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitWconst(this);
+			else return visitor.visitChildren(this);
+		}
 	}
 
 	public final WconstContext wconst() throws RecognitionException {
@@ -6044,6 +6389,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitConstList(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitConstList(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -6107,6 +6457,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitScript(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitScript(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 
@@ -6196,6 +6551,11 @@ public class WatParser extends Parser {
 		@Override
 		public void exitRule(ParseTreeListener listener) {
 			if ( listener instanceof WatParserListener ) ((WatParserListener)listener).exitModule(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof WatParserVisitor ) return ((WatParserVisitor<? extends T>)visitor).visitModule(this);
+			else return visitor.visitChildren(this);
 		}
 	}
 

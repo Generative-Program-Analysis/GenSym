@@ -1,5 +1,5 @@
 package gensym.wasm;
-// Generated from WatParser.g4 by ANTLR 4.13.2
+// Generated from WatParser.g4 by ANTLR 4.13.0
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
