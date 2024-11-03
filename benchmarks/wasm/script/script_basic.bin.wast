@@ -4,4 +4,4 @@
   "\00\01\03\6f\6e\65\00\00\0a\8a\80\80\80\00\01\84"
   "\80\80\80\00\00\41\01\0b"
 )
-(assert_return (invoke "one") (i32.const 1))
+(assert_return (invoke "one") (i32.const 0x1))
