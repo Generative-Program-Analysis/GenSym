@@ -61,6 +61,8 @@ object Primtives {
       (lhs, rhs) match {
         case (I32V(v1), I32V(v2)) => I32V(v1 + v2)
         case (I64V(v1), I64V(v2)) => I64V(v1 + v2)
+        case (F32V(v1), F32V(v2)) => F32V(v1 + v2)
+        case (F64V(v1), F64V(v2)) => F64V(v1 + v2)
         case _                    => throw new Exception("Invalid types")
       }
     case Mul(_) =>

@@ -3,6 +3,7 @@ package gensym.wasm.parser
 import gensym.wasm.ast._
 import gensym.wasm.source._
 
+import scala.util.Try
 import scala.util.parsing.combinator._
 import scala.util.parsing.input.Positional
 import scala.util.matching.Regex
@@ -181,23 +182,78 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ???
   }
 
+  // TODO: This doesn't seems quite correct
+  def parseHexFloat(text: String): Float = {
+    if (text.startsWith("0x") || text.startsWith("-0x") || text.startsWith("+0x")) {
+      // Remove optional sign and "0x" prefix
+      val cleanText = text.replaceFirst("^[+-]?0x", "")
+      // why removing the seemling irrelevant following two lines will effect
+      // the value being parsed?
+      val value: Float =  BigDecimal(text).floatValue
+      print(f"cleanText = $cleanText, value = $value\n")
+
+      val Array(mantissa, exponent) = cleanText.split("p", 2)
+
+      // Convert mantissa and exponent
+      val mantissaValue = java.lang.Float.intBitsToFloat(java.lang.Integer.parseUnsignedInt(mantissa.replace(".", ""), 16))
+      val exponentValue = Math.pow(2, exponent.toInt).toFloat
+      // print(s"mantissaValue = $mantissaValue, exponentValue = $exponentValue\n")
+      mantissaValue * exponentValue
+    } else {
+      text.toFloat // Fall back to regular decimal parsing
+    }
+  }
+
+
   def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
     if (ctx.NAT != null) {
       ty.kind match {
-        case I32Type => I32V(ctx.NAT.getText.toInt)
-        case I64Type => I64V(ctx.NAT.getText.toLong)
+        case I32Type => {
+          if (ctx.NAT.getText.startsWith("0x")) {
+            I32V(Integer.parseInt(ctx.NAT.getText.substring(2), 16))
+          } else {
+            I32V(ctx.NAT.getText.toInt)
+          }
+        }
+        case I64Type => {
+          if (ctx.NAT.getText.startsWith("0x")) {
+            I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2), 16))
+          } else {
+            I64V(ctx.NAT.getText.toLong)
+          }
+        }
       }
     } else if (ctx.INT != null) {
       ty.kind match {
-        case I32Type => I32V(ctx.INT.getText.toInt)
-        case I64Type => I64V(ctx.INT.getText.toLong)
+        case I32Type => {
+          if (ctx.INT.getText.startsWith("0x")) {
+            I32V(Integer.parseInt(ctx.INT.getText.substring(2), 16))
+          } else {
+            I32V(ctx.INT.getText.toInt)
+          }
+        }
+        case I64Type => {
+          if (ctx.INT.getText.startsWith("0x")) {
+            I64V(java.lang.Long.parseLong(ctx.INT.getText.substring(2), 16))
+          } else {
+            I64V(ctx.INT.getText.toLong)
+          }
+        }
       }
+    // TODO: parsing support for hex representation for f32/f64 not quite there yet
     } else if (ctx.FLOAT != null) {
       ty.kind match {
-        case F32Type => F32V(ctx.FLOAT.getText.toFloat)
-        case F64Type => F64V(ctx.FLOAT.getText.toDouble)
+        case F32Type => 
+          val parsedValue = Try(parseHexFloat(ctx.FLOAT.getText).toFloat).getOrElse(ctx.FLOAT.getText.toFloat)
+          F32V(parsedValue)
+          
+        case F64Type => 
+          // TODO: not processed at all
+          val parsedValue = ctx.FLOAT.getText.toDouble
+          F64V(parsedValue)
       }
-    } else error
+    }
+    else error
   }
 
   override def visitPlainInstr(ctx: PlainInstrContext): Instr = {
