@@ -208,6 +208,26 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitPlainInstr(WatParser.PlainInstrContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#resumeInstr}.
+	 * @param ctx the parse tree
+	 */
+	void enterResumeInstr(WatParser.ResumeInstrContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#resumeInstr}.
+	 * @param ctx the parse tree
+	 */
+	void exitResumeInstr(WatParser.ResumeInstrContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#handlerInstr}.
+	 * @param ctx the parse tree
+	 */
+	void enterHandlerInstr(WatParser.HandlerInstrContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#handlerInstr}.
+	 * @param ctx the parse tree
+	 */
+	void exitHandlerInstr(WatParser.HandlerInstrContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#offsetEq}.
 	 * @param ctx the parse tree
 	 */
@@ -587,6 +607,16 @@ public interface WatParserListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitInlineExport(WatParser.InlineExportContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link WatParser#tag}.
+	 * @param ctx the parse tree
+	 */
+	void enterTag(WatParser.TagContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#tag}.
+	 * @param ctx the parse tree
+	 */
+	void exitTag(WatParser.TagContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link WatParser#typeDef}.
 	 * @param ctx the parse tree

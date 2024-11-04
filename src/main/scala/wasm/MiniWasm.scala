@@ -6,6 +6,7 @@ import gensym.wasm.memory._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
+import Console.{GREEN, RED, RESET, YELLOW_B, UNDERLINED}
 
 case class Trap() extends Exception
 
@@ -166,12 +167,13 @@ object Primtives {
   }
 
   def zero(t: ValueType): Value = t match {
-    case NumType(kind) => kind match {
-      case I32Type => I32V(0)
-      case I64Type => I64V(0)
-      case F32Type => F32V(0)
-      case F64Type => F64V(0)
-    }
+    case NumType(kind) =>
+      kind match {
+        case I32Type => I32V(0)
+        case I64Type => I64V(0)
+        case F32Type => F32V(0)
+        case F64Type => F64V(0)
+      }
     case VecType(kind) => ???
     case RefType(kind) => ???
   }
@@ -186,10 +188,11 @@ object Evaluator {
 
   def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
     ty match {
-      case VarBlockType(_, None) => ??? // TODO: fill this branch until we handle type index correctly
+      case VarBlockType(_, None) =>
+        ??? // TODO: fill this branch until we handle type index correctly
       case VarBlockType(_, Some(tipe)) => tipe
-      case ValBlockType(Some(tipe)) => FuncType(List(), List(), List(tipe))
-      case ValBlockType(None) => FuncType(List(), List(), List())
+      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None)          => FuncType(List(), List(), List())
     }
   }
 
@@ -201,12 +204,12 @@ object Evaluator {
                     funcIndex: Int,
                     isTail: Boolean): Ans = {
     frame.module.funcs(funcIndex) match {
-      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>     
+      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        if (isTail) 
+        if (isTail)
           // when tail call, share the continuation for returning with the callee
           eval(body, List(), newFrame, kont, List(kont))
         else {
@@ -217,12 +220,12 @@ object Evaluator {
           eval(body, List(), newFrame, restK, List(restK))
         }
       case Import("console", "log", _) =>
-            //println(s"[DEBUG] current stack: $stack")
-            val I32V(v) :: newStack = stack
-            println(v)
-            eval(rest, newStack, frame, kont, trail)
+        //println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
-      case _ => throw new Exception(s"Definition at $funcIndex is not callable")
+      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
   }
 
@@ -352,9 +355,27 @@ object Evaluator {
         val I32V(cond) :: newStack = stack
         val goto = if (cond < labels.length) labels(cond) else default
         trail(goto)(newStack)
-      case Return => trail.last(stack)
-      case Call(f) => evalCall(rest, stack, frame, kont, trail, f, false)
+      case Return        => trail.last(stack)
+      case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
+      // TODO: implement the following
+      // case Suspend(tag_id) => {
+      //   println(s"${RED}Unimplimented Suspending tag $tag_id")
+      //   eval(rest, stack, frame, kont, trail)
+      // }
+      // case RefFunc(ty_id) => {
+      //   println(s"${RED}Unimplimented REFFUNC $ty_id")
+      //   eval(rest, stack, frame, kont, trail)
+      // }
+      // case ContNew(ty_id) => {
+      //   println(s"${RED}Unimplimented CONTNEW $ty_id")
+      //   eval(rest, stack, frame, kont, trail)
+      // }
+      // case Resume(tag_id, handlers) => {
+      //   println(s"${RED}Unimplimented RESUME $tag_id")
+      //   eval(rest, stack, frame, kont, trail)
+      // }
+
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")

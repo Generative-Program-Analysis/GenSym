@@ -52,9 +52,14 @@ numType
   : VALUE_TYPE
   ;
 
+// exception handling and function references seems to have different definitions
+// for refType, which is probably going to be unified in wasm 3.0
+// https://webassembly.github.io/function-references/core/_download/WebAssembly.pdf
+// https://webassembly.github.io/exception-handling/core/_download/WebAssembly.pdf
 refType
   : FUNCREF
   | EXTERNREF
+  | LPAR REF idx RPAR // here idx must be a heap type
   ;
 
 vecType
@@ -66,6 +71,7 @@ valType : numType | vecType | refType ;
 heapType
   : FUNC
   | EXTERN
+  | funcType
   ;
 
 globalType
@@ -74,6 +80,7 @@ globalType
 
 defType
   : LPAR FUNC funcType RPAR
+  | LPAR CONT idx RPAR
   ;
 
 funcParamType
@@ -121,6 +128,7 @@ instr
   /* | callInstrInstr */
   | blockInstr
   | foldedInstr
+  | resumeInstr
   ;
 
 plainInstr
@@ -157,6 +165,17 @@ plainInstr
   | BINARY
   | CONVERT
   | callIndirectInstr
+  | CONTNEW idx
+  | REFFUNC idx
+  | SUSPEND idx
+  ;
+
+resumeInstr
+  : RESUME idx handlerInstr*
+  ;
+
+handlerInstr
+  : LPAR ON idx idx RPAR
   ;
 
 offsetEq : OFFSET_EQ NAT ;
@@ -358,6 +377,17 @@ inlineExport
   : LPAR EXPORT name RPAR
   ;
 
+/* Tags */
+
+// Note: this seems slightly off from
+// https://webassembly.github.io/exception-handling/core/_download/WebAssembly.pdf
+// based on the exception handling proposal, the funcType here is not required
+// but output from `wasmfx-tools print` seems to leave the funcType in
+tag
+  : LPAR TAG bindVar? typeUse funcType RPAR
+  ;
+
+
 /* Modules */
 
 typeDef
@@ -379,6 +409,7 @@ moduleField
   | start_
   | simport
   | export_
+  | tag
   ;
 
 module_

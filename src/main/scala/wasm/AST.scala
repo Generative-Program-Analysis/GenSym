@@ -10,7 +10,7 @@ case class Module(name: Option[String], definitions: List[Definition], funcEnv: 
 
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
-case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
+case class TypeDef(id: Option[String], tipe: ExtendedFuncType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
@@ -19,6 +19,7 @@ case class Data(id: Option[String], value: String) extends Definition
 case class Start(id: Int) extends Definition
 case class Import(mod: String, name: String, desc: ImportDesc) extends Definition
 case class Export(name: String, desc: ExportDesc) extends Definition
+case class Tag(id: Option[String], tipe: FuncType) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class ImportDesc extends WIR
@@ -131,6 +132,18 @@ case class Convert(op: CvtOp) extends Instr
 // case class VecExtract(op: VecExtractOp) extends Instr
 // case class VecReplace(op: VecReplaceOp) extends Instr
 
+// TODO: add wasmfx instructions
+// TODO: should I take care of the unresolved cases?
+case class Suspend(tag_id: Int) extends Instr
+// note that cont.new can only be called with a func type
+case class ContNew(ty_id: Int) extends Instr
+// note that ref.func can be called with any of the extended function type
+case class RefFunc(ty_id: Int) extends Instr
+
+case class Resume(ty_id: Int, ons: List[Handler]) extends Instr
+// TODO: make sure this class wants to extend WIR
+case class Handler(tag_id: Int, label_id: Int) extends WIR
+
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
 case class BrUnresolved(name: String) extends Instr with Unresolved
@@ -230,6 +243,7 @@ case object V128Type extends VecKind
 abstract class RefKind extends WIR
 case object FuncRefType extends RefKind
 case object ExternRefType extends RefKind
+case class RefFuncType(ft_id: Int) extends RefKind
 
 abstract class WasmType extends WIR
 
@@ -238,7 +252,9 @@ case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
 case class RefType(kind: RefKind) extends ValueType
 
-case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
+abstract class ExtendedFuncType extends WasmType
+case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends ExtendedFuncType
+case class ContType(ft_id: Int) extends ExtendedFuncType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 

@@ -108,6 +108,9 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   override def visitRefType(ctx: RefTypeContext): RefType = {
     if (ctx.FUNCREF != null) RefType(FuncRefType)
     else if (ctx.EXTERNREF != null) RefType(ExternRefType)
+    else if (ctx.REF != null) {
+      RefType(RefFuncType(getVar(ctx.idx).toInt))
+    }
     else error
   }
 
@@ -132,7 +135,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitTypeDef(ctx: TypeDefContext): WIR = {
-    TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
+    if (ctx.defType.FUNC != null) {
+      TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
+    } else if (ctx.defType.CONT != null) {
+      // TODO: here, the getVar is more link the typeUse one, although it uses the IdxContext one
+       TypeDef(getVar(ctx.bindVar()), ContType(getVar(ctx.defType.idx).toInt))
+    } else {
+      error
+    }
   }
 
   override def visitFunction(ctx: FunctionContext): FuncDef = {
@@ -391,6 +401,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
        Alloc
      } else if (ctx.FREE != null) {
        Free
+     } else if (ctx.SUSPEND != null) {
+        Suspend(getVar(ctx.idx(0)).toInt)
+     } else if (ctx.CONTNEW != null) {
+        ContNew(getVar(ctx.idx(0)).toInt)
+     } else if (ctx.REFFUNC != null) {
+        RefFunc(getVar(ctx.idx(0)).toInt)
      }
     else {
       println(s"unimplemented parser for: ${ctx.getText}")
@@ -418,6 +434,25 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         ValBlockType(None)
       }
     }
+  }
+
+  override def visitHandlerInstr(ctx: HandlerInstrContext): Handler = {
+    if (ctx.ON != null) {
+      val tag_id = getVar(ctx.idx(0)).toInt
+      val on_yield_block_id = getVar(ctx.idx(1)).toInt
+      Handler(tag_id, on_yield_block_id)
+    }
+    else error
+  }
+
+  override def visitResumeInstr(ctx: ResumeInstrContext): WIR = {
+    if (ctx.RESUME != null) {
+      val ft_id = getVar(ctx.idx).toInt
+      // parse all the handlers
+      val handlers = ctx.handlerInstr().asScala.map(visitHandlerInstr).toList
+      Resume(ft_id, handlers)
+    }
+    else error
   }
 
   override def visitBlock(ctx: BlockContext): WIR = {
@@ -606,6 +641,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.GLOBAL != null) ExportGlobal(id)
     else error
 
+  }
+
+  override def visitTag(ctx: TagContext): WIR = {
+    val name = getVar(ctx.bindVar)
+    val ty = visitFuncType(ctx.funcType)
+    Tag(name, ty)
   }
 
 }
