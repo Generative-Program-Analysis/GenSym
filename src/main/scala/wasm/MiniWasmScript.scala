@@ -10,7 +10,7 @@ sealed class ScriptRunner {
 
   def getInstance(instName: Option[String]): ModuleInstance = {
     instName match {
-	  case Some(name) => instanceMap(name)
+	    case Some(name) => instanceMap(name)
       case None => instances.head
     }
   }
@@ -28,7 +28,8 @@ sealed class ScriptRunner {
           case FuncDef(_, FuncBodyDef(ty, _, locals, body)) => body
         }
         val k = (retStack: List[Value]) => retStack
-        val actual = Evaluator.eval(instrs, List(), Frame(module, ArrayBuffer(args: _*)), k, List(k))
+        val evaluator = Evaluator(module)
+        val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List(k))
         assert(actual == expect)
     }
   }

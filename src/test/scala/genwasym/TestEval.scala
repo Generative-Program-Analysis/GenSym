@@ -24,7 +24,8 @@ class TestEval extends FunSuite {
   def testFile(filename: String, main: Option[String] = None, expected: ExpResult = Ignore) = {
     val module = Parser.parseFile(filename)
     //println(module)
-    val haltK: Evaluator.Cont[Unit] = stack => {
+    val evaluator = Evaluator(ModuleInstance(module))
+    val haltK: evaluator.Cont[Unit] = stack => {
       println(s"halt cont: $stack")
       expected match {
         case ExpInt(e) => assert(stack(0) == I32V(e))
@@ -32,7 +33,7 @@ class TestEval extends FunSuite {
         case Ignore    => ()
       }
     }
-    Evaluator.evalTop(module, haltK, main)
+    evaluator.evalTop(haltK, main)
   }
 
   // TODO: the power test can be used to test the stack
@@ -79,7 +80,7 @@ class TestEval extends FunSuite {
     testFile("./benchmarks/wasm/wasmfx/cont1-stripped.wat")
   }
 
-  // can parse this file, 
+  // can parse this file,
   // but there's no support for ref.func, cont.new, suspend, resume to run it yet
   // test("gen") {
   //   testFile("./benchmarks/wasm/wasmfx/gen-stripped.wat")
