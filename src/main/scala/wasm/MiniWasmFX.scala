@@ -176,17 +176,18 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Return        => trail.last(stack)
       case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
+      // XXX (GW): consider implementing call_ref too
+      case RefFunc(f) =>
+        // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
+        eval(rest, RefFuncV(f) :: stack, frame, kont, trail)
+      case ContNew(ty) =>
+        val RefFuncV(f) :: newStack = stack
+        val addr = module.funcs.size
+        module.funcs += (addr -> RefFuncV(f))
+        eval(rest, RefContV(addr) :: newStack, frame, kont, trail)
       // TODO: implement the following
       // case Suspend(tag_id) => {
       //   println(s"${RED}Unimplimented Suspending tag $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
-      //case RefFunc(f) => {
-      //   println(s"${RED}Unimplimented REFFUNC $f")
-      //   eval(rest, stack, frame, kont, trail)
-      //}
-      // case ContNew(ty_id) => {
-      //   println(s"${RED}Unimplimented CONTNEW $ty_id")
       //   eval(rest, stack, frame, kont, trail)
       // }
       // case Resume(tag_id, handlers) => {

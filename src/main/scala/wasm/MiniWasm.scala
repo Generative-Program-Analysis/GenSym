@@ -13,7 +13,7 @@ case class Trap() extends Exception
 case class ModuleInstance(
   defs: List[Definition],
   types: List[FuncType],
-  funcs: HashMap[Int, WIR],
+  funcs: HashMap[Int, Callable],
   memory: List[RTMemory] = List(RTMemory()),
   globals: List[RTGlobal] = List(),
   exports: List[Export] = List()

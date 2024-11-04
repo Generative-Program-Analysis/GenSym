@@ -25,8 +25,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   // Note: we construct a mapping from indices to function-like definitions, which helps
   // function call resolution in the later phase.
-  // TODO: instead of using WIR, define a trait for function-like definitions
-  val fnMapInv: HashMap[Int, WIR] = HashMap()
+  val fnMapInv: HashMap[Int, Callable] = HashMap()
 
   def error = throw new RuntimeException("Unspported")
 

@@ -6,10 +6,10 @@ import gensym.wasm.source._
 
 abstract class WIR
 
-case class Module(name: Option[String], definitions: List[Definition], funcEnv: HashMap[Int, WIR]) extends WIR
+case class Module(name: Option[String], definitions: List[Definition], funcEnv: HashMap[Int, Callable]) extends WIR
 
 abstract class Definition extends WIR
-case class FuncDef(name: Option[String], f: FuncField) extends Definition
+case class FuncDef(name: Option[String], f: FuncField) extends Definition with Callable
 case class TypeDef(id: Option[String], tipe: FuncLikeType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
@@ -17,7 +17,7 @@ case class Global(id: Option[String], f: GlobalField) extends Definition
 case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList) extends Definition
 case class Data(id: Option[String], value: String) extends Definition
 case class Start(id: Int) extends Definition
-case class Import(mod: String, name: String, desc: ImportDesc) extends Definition
+case class Import(mod: String, name: String, desc: ImportDesc) extends Definition with Callable
 case class Export(name: String, desc: ExportDesc) extends Definition
 case class Tag(id: Option[String], tipe: FuncType) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
@@ -304,8 +304,10 @@ case class I64V(value: Long) extends Num
 case class F32V(value: Float) extends Num
 case class F64V(value: Double) extends Num
 
+trait Callable
+
 // https://webassembly.github.io/function-references/core/exec/runtime.html
-abstract class Ref extends Value
+abstract class Ref extends Value with Callable
 case class RefNullV(t: HeapType) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = RefType(t)
 }
@@ -314,6 +316,9 @@ case class RefFuncV(funcAddr: Int) extends Ref {
     m.funcs(funcAddr) match {
       case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
     }
+}
+case class RefContV(funcAddr: Int) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = ???
 }
 case class RefExternV(externAddr: Int) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = ???
