@@ -694,10 +694,45 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else error
   }
 
-  override def visitScriptModule(ctx: ScriptModuleContext): Module = {
+ override def visitScriptModule(ctx: ScriptModuleContext): Module = {
     if (ctx.module_ != null) {
       visitModule_(ctx.module_).asInstanceOf[Module]
-    } else {
+    }
+    else if (ctx.BIN != null) {
+
+      val bin = ctx.STRING_
+      val hexString = bin.asScala.toList.map(_.getText.substring(1).dropRight(1)).mkString
+
+      val byteArray: Array[Byte] = hexStringToByteArray(hexString)
+
+      // just for fact checking
+      // val filePath = "temp.bin"
+      // Files.write(Paths.get(filePath), byteArray)
+
+      // use `wasmfx-tools` to convert the binary file to a text file
+      val processBuilder = new ProcessBuilder("./third-party/wasmfx-tools/target/release/wasm-tools", "print")
+
+      val process = processBuilder.start()
+      val outputStream: OutputStream = process.getOutputStream
+      try {
+        outputStream.write(byteArray)
+        outputStream.flush()
+      } finally {
+        outputStream.close() // Close the stream to signal end of input
+      }
+
+      val output = scala.io.Source.fromInputStream(process.getInputStream).mkString
+      val errorOutput = scala.io.Source.fromInputStream(process.getErrorStream).mkString
+      val exitCode = process.waitFor()
+
+      // println(s"Exit code: $exitCode")
+      // println(s"Output:\n$output")
+      // println(s"Error Output:\n$errorOutput")
+
+      val module = Parser.parse(output)
+      module
+    }
+    else {
       throw new RuntimeException("Unsupported")
     }
   }
@@ -745,12 +780,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       visitCmd(cmd)
     }
     Script(cmds.toList)
-  }
-
-  override def visitTag(ctx: TagContext): WIR = {
-    val name = getVar(ctx.bindVar)
-    val ty = visitFuncType(ctx.funcType)
-    Tag(name, ty)
   }
 
   // Function to convert a hex string representation to an Array[Byte]
