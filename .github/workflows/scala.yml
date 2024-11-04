@@ -71,3 +71,4 @@ jobs:
         sbt 'testOnly gensym.TestImpCPSGS_Z3'
         sbt 'testOnly gensym.TestLibrary'
         sbt 'testOnly gensym.wasm.TestEval'
+        sbt 'testOnly gensym.wasm.TestScriptRun'

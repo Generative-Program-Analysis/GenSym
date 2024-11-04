@@ -633,7 +633,59 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.MEMORY != null)  ExportMemory(id)
     else if (ctx.GLOBAL != null) ExportGlobal(id)
     else error
+  }
 
+  override def visitScriptModule(ctx: ScriptModuleContext): Module = {
+    if (ctx.module_ != null) {
+      visitModule_(ctx.module_).asInstanceOf[Module]
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitAction_(ctx: Action_Context): Action = {
+    if (ctx.INVOKE != null) {
+      val instName = if (ctx.VAR != null) Some(ctx.VAR().getText) else None
+      var name = ctx.name.getText.substring(1).dropRight(1)
+      var args = for (constCtx <- ctx.constList.wconst.asScala) yield {
+        val Array(ty, _) = constCtx.CONST.getText.split("\\.")
+        visitLiteralWithType(constCtx.literal, toNumType(ty))
+      }
+      Invoke(instName, name, args.toList)
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitAssertion(ctx: AssertionContext): Assertion = {
+    if (ctx.ASSERT_RETURN != null) {
+      val action = visitAction_(ctx.action_)
+      val expect = for (constCtx <- ctx.constList.wconst.asScala) yield {
+        val Array(ty, _) = constCtx.CONST.getText.split("\\.")
+        visitLiteralWithType(constCtx.literal, toNumType(ty))
+      }
+      println(s"expect = $expect")
+      AssertReturn(action, expect.toList)
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitCmd(ctx: CmdContext): Cmd = {
+    if (ctx.assertion != null) {
+      visitAssertion(ctx.assertion)
+    } else if (ctx.scriptModule != null) {
+      CmdModule(visitScriptModule(ctx.scriptModule))
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitScript(ctx: ScriptContext): WIR = {
+    val cmds = for (cmd <- ctx.cmd.asScala) yield {
+      visitCmd(cmd)
+    }
+    Script(cmds.toList)
   }
 
   override def visitTag(ctx: TagContext): WIR = {
@@ -645,15 +697,35 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 }
 
 object Parser {
-  def parse(input: String): Module = {
+  private def makeWatVisitor(input: String) = {
     val charStream = new ANTLRInputStream(input)
     val lexer = new WatLexer(charStream)
     val tokens = new CommonTokenStream(lexer)
-    val parser = new WatParser(tokens)
+    new WatParser(tokens)
+  }
+
+  def parse(input: String): Module = {
+    val parser = makeWatVisitor(input)
     val visitor = new GSWasmVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
     res
   }
 
   def parseFile(filepath: String): Module = parse(scala.io.Source.fromFile(filepath).mkString)
+
+  // parse extended webassembly script language
+  def parseScript(input: String): Option[Script] = {
+    val parser = makeWatVisitor(input)
+    val visitor = new GSWasmVisitor()
+    val tree = parser.script()
+    val errorNumer = parser.getNumberOfSyntaxErrors()
+    if (errorNumer != 0) None
+    else {
+      val res: Script = visitor.visitScript(tree).asInstanceOf[Script]
+      Some(res)
+    }
+  }
+
+  def parseScriptFile(filepath: String): Option[Script] =
+    parseScript(scala.io.Source.fromFile(filepath).mkString)
 }

@@ -292,3 +292,17 @@ case class ExportFunc(i: Int) extends ExportDesc
 case class ExportTable(i: Int) extends ExportDesc
 case class ExportMemory(i: Int) extends ExportDesc
 case class ExportGlobal(i: Int) extends ExportDesc
+
+case class Script(cmds: List[Cmd]) extends WIR
+abstract class Cmd extends WIR
+// TODO: can we turn abstract class sealed?
+case class CmdModule(module: Module) extends Cmd
+
+abstract class Action extends WIR
+case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
+
+abstract class Assertion extends Cmd
+case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
+    extends Assertion
+case class AssertTrap(action: Action, message: String) extends Assertion
+
