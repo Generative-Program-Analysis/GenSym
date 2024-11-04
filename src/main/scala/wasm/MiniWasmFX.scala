@@ -14,15 +14,6 @@ case class EvaluatorFX(module: ModuleInstance) {
 
   type Cont[A] = List[Value] => A
 
-  def getFuncType(ty: BlockType): FuncType =
-    ty match {
-      case VarBlockType(_, None) =>
-        ??? // TODO: fill this branch until we handle type index correctly
-      case VarBlockType(_, Some(tipe)) => tipe
-      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
-      case ValBlockType(None)          => FuncType(List(), List(), List())
-    }
-
   def evalCall[Ans](rest: List[Instr],
                     stack: List[Value],
                     frame: Frame,

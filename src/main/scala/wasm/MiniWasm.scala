@@ -216,15 +216,6 @@ object Primtives {
     case VecType(kind) => ???
     case RefType(kind) => ???
   }
-}
-
-case class Frame(locals: ArrayBuffer[Value])
-
-case class Evaluator(module: ModuleInstance) {
-  import Primtives._
-  implicit val m: ModuleInstance = module
-
-  type Cont[A] = List[Value] => A
 
   def getFuncType(ty: BlockType): FuncType =
     ty match {
@@ -234,6 +225,15 @@ case class Evaluator(module: ModuleInstance) {
       case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
       case ValBlockType(None)          => FuncType(List(), List(), List())
     }
+}
+
+case class Frame(locals: ArrayBuffer[Value])
+
+case class Evaluator(module: ModuleInstance) {
+  import Primtives._
+  implicit val m: ModuleInstance = module
+
+  type Cont[A] = List[Value] => A
 
   def evalCall[Ans](rest: List[Instr],
                     stack: List[Value],
