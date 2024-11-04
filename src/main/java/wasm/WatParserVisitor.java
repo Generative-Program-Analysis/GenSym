@@ -131,6 +131,18 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitPlainInstr(WatParser.PlainInstrContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link WatParser#resumeInstr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitResumeInstr(WatParser.ResumeInstrContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#handlerInstr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitHandlerInstr(WatParser.HandlerInstrContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link WatParser#offsetEq}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -358,6 +370,12 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitInlineExport(WatParser.InlineExportContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link WatParser#tag}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTag(WatParser.TagContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link WatParser#typeDef}.
 	 * @param ctx the parse tree
