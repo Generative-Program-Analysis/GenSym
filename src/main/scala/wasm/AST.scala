@@ -139,7 +139,7 @@ case class ContNew(ty: Int) extends Instr
 // case class RefNull(ty: RefType) extends Instr
 // case object RefIsNull extends Instr
 // note that ref.func can be called with any of the extended function type
-case class RefFunc(ty: Int) extends Instr
+case class RefFunc(func: Int) extends Instr
 case class Resume(ty: Int, ons: List[Handler]) extends Instr
 // TODO: make sure this class wants to extend WIR
 case class Handler(tag: Int, label: Int) extends WIR
