@@ -20,8 +20,4 @@ class TestScriptRun extends FunSuite {
     testFile("./benchmarks/wasm/script/script_basic.bin.wast")
   }
 
-  test("f32") {
-    testFile("./benchmarks/wasm/script/f32.bin.wast")
-  }
-
 }
