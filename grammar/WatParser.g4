@@ -306,10 +306,12 @@ offset
 // fow now, I only extend it to support declarative mode for ref.func
 // like (elem declarative func 1)
 // TBH I'm not even sure what the `func 1` should count as
+// TODO: align with the rules here:
+// https://webassembly.github.io/function-references/core/_download/WebAssembly.pdf
 elem
   : LPAR ELEM idx? LPAR instr RPAR idx* RPAR
   | LPAR ELEM idx? offset idx* RPAR
-  | LPAR ELEM DECLARE FUNC idx RPAR
+  | LPAR ELEM idx? DECLARE FUNC idx RPAR
   ;
 
 table

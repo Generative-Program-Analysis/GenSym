@@ -225,8 +225,8 @@ case object SX extends Extension
 case object ZX extends Extension
 
 abstract class MemOp(align: Int, offset: Int) extends WIR
-case class StoreOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize]) extends MemOp(align, offset)
-case class LoadOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize], extension: Option[Extension])
+case class StoreOp(align: Int, offset: Int, tipe: NumType, packSize: Option[PackSize]) extends MemOp(align, offset)
+case class LoadOp(align: Int, offset: Int, tipe: NumType, packSize: Option[PackSize], extension: Option[Extension])
     extends MemOp(align, offset)
 
 // Types
@@ -243,7 +243,7 @@ case object V128Type extends VecKind
 abstract class RefKind extends WIR
 case object FuncRefType extends RefKind
 case object ExternRefType extends RefKind
-case class RefFuncType(ft_id: Int) extends RefKind
+case class RefFuncType(funcTypeId: Int) extends RefKind
 
 abstract class WasmType extends WIR
 
@@ -254,7 +254,7 @@ case class RefType(kind: RefKind) extends ValueType
 
 abstract class ExtendedFuncType extends WasmType
 case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends ExtendedFuncType
-case class ContType(ft_id: Int) extends ExtendedFuncType
+case class ContType(funcTypeId: Int) extends ExtendedFuncType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 

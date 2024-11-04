@@ -437,22 +437,15 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitHandlerInstr(ctx: HandlerInstrContext): Handler = {
-    if (ctx.ON != null) {
-      val tag_id = getVar(ctx.idx(0)).toInt
-      val on_yield_block_id = getVar(ctx.idx(1)).toInt
-      Handler(tag_id, on_yield_block_id)
-    }
-    else error
+    val tagId = getVar(ctx.idx(0)).toInt
+    val onYieldBlockId = getVar(ctx.idx(1)).toInt
+    Handler(tagId, onYieldBlockId)
   }
 
   override def visitResumeInstr(ctx: ResumeInstrContext): WIR = {
-    if (ctx.RESUME != null) {
-      val ft_id = getVar(ctx.idx).toInt
-      // parse all the handlers
-      val handlers = ctx.handlerInstr().asScala.map(visitHandlerInstr).toList
-      Resume(ft_id, handlers)
-    }
-    else error
+    val funcTypeId = getVar(ctx.idx).toInt
+    val handlers = ctx.handlerInstr().asScala.map(visitHandlerInstr).toList
+    Resume(funcTypeId, handlers)
   }
 
   override def visitBlock(ctx: BlockContext): WIR = {
