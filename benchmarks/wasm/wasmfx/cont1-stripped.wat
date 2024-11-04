@@ -1,0 +1,11 @@
+(module
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func (param i64)))
+  (type (;2;) (func (param f32)))
+  (type (;3;) (func (param f64)))
+  (type (;4;) (cont 0))
+  (type (;5;) (cont 1))
+  (type (;6;) (cont 2))
+  (type (;7;) (cont 3))
+  (tag (;0;) (type 0) (param i32))
+)

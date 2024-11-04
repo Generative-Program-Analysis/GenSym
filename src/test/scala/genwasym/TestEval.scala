@@ -74,6 +74,17 @@ class TestEval extends FunSuite {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
 
+  // just for parsing
+  test("fx types") {
+    testFile("./benchmarks/wasm/wasmfx/cont1-stripped.wat")
+  }
+
+  // can parse this file, 
+  // but there's no support for ref.func, cont.new, suspend, resume to run it yet
+  // test("gen") {
+  //   testFile("./benchmarks/wasm/wasmfx/gen-stripped.wat")
+  // }
+
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
 
