@@ -10,7 +10,7 @@ case class Module(name: Option[String], definitions: List[Definition], funcEnv: 
 
 abstract class Definition extends WIR
 case class FuncDef(name: Option[String], f: FuncField) extends Definition
-case class TypeDef(id: Option[String], tipe: ExtendedFuncType) extends Definition
+case class TypeDef(id: Option[String], tipe: FuncLikeType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
@@ -240,50 +240,27 @@ case object F64Type extends NumKind
 abstract class VecKind extends WIR
 case object V128Type extends VecKind
 
-abstract class RefKind extends WIR
-case object FuncRefType extends RefKind
-case object ExternRefType extends RefKind
-case class RefFuncType(funcTypeId: Int) extends RefKind
+trait FuncLikeType
+
+abstract class HeapType extends WIR
+case object FuncRefType extends HeapType
+case object ExternRefType extends HeapType
+case class RefFuncType(tyId: Int) extends HeapType
+case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends HeapType with FuncLikeType
+case class ContType(funcTypeId: Int) extends HeapType with FuncLikeType
 
 abstract class WasmType extends WIR
 
 abstract class ValueType extends WasmType
 case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
-case class RefType(kind: RefKind) extends ValueType
-
-abstract class ExtendedFuncType extends WasmType
-case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends ExtendedFuncType
-case class ContType(funcTypeId: Int) extends ExtendedFuncType
+case class RefType(kind: HeapType) extends ValueType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 
 abstract class BlockType extends WIR
 case class VarBlockType(index: Int, tipe: Option[FuncType]) extends BlockType
 case class ValBlockType(tipe: Option[ValueType]) extends BlockType;
-
-// Globals
-case class RTGlobal(ty: GlobalType, var value: Value)
-
-// Values
-abstract class Value extends WIR {
-  def tipe: ValueType
-}
-
-abstract class Num extends Value {
-  def tipe: ValueType =
-    NumType(this match {
-      case I32V(_) => I32Type
-      case I64V(_) => I64Type
-      case F32V(_) => F32Type
-      case F64V(_) => F64Type
-    })
-}
-
-case class I32V(value: Int) extends Num
-case class I64V(value: Long) extends Num
-case class F32V(value: Float) extends Num
-case class F64V(value: Double) extends Num
 
 // Exports
 abstract class ExportDesc extends WIR
@@ -304,4 +281,43 @@ abstract class Assertion extends Cmd
 case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
     extends Assertion
 case class AssertTrap(action: Action, message: String) extends Assertion
+
+/* Runtime structures */
+
+// Values
+abstract class Value {
+  def tipe(implicit m: ModuleInstance): ValueType
+}
+
+abstract class Num extends Value {
+  def tipe(implicit m: ModuleInstance): ValueType =
+    NumType(this match {
+      case I32V(_) => I32Type
+      case I64V(_) => I64Type
+      case F32V(_) => F32Type
+      case F64V(_) => F64Type
+    })
+}
+
+case class I32V(value: Int) extends Num
+case class I64V(value: Long) extends Num
+case class F32V(value: Float) extends Num
+case class F64V(value: Double) extends Num
+
+// https://webassembly.github.io/function-references/core/exec/runtime.html
+abstract class Ref extends Value
+case class RefNullV(t: HeapType) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = RefType(t)
+}
+case class RefFuncV(funcAddr: Int) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType =
+    m.funcs(funcAddr) match {
+      case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
+    }
+}
+case class RefExternV(externAddr: Int) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = ???
+}
+
+case class RTGlobal(ty: GlobalType, var value: Value)
 

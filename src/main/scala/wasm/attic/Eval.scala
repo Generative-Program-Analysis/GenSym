@@ -1,3 +1,4 @@
+/*
 package gensym.wasm.eval
 
 import gensym.wasm.ast._
@@ -169,7 +170,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
     end > memory.size
   }
 
-  // TODO: remove duplication with definition at MiniWasm.scala 
+  // TODO: remove duplication with definition at MiniWasm.scala
   def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
     ty match {
       case VarBlockType(_, None) => ???
@@ -354,7 +355,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
         val FuncBodyDef(funcType, _, locals, body) = frame.module.funcs(func)
         val args = stack.take(funcType.inps.length).reverse
         val newStack = stack.drop(funcType.inps.length)
-        
+
         val frameLocals = args ++ locals.map(_ => I32V(0))
         val newFrame = Frame(frame.module, frameLocals)
         evalFunc(args, newFrame, funcType, body.toList).onContinue { retStack =>
@@ -453,3 +454,4 @@ case class Config(var frame: Frame, stackBudget: Int) {
     }
   }
 }
+*/

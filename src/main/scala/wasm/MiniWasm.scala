@@ -222,6 +222,7 @@ case class Frame(locals: ArrayBuffer[Value])
 
 case class Evaluator(module: ModuleInstance) {
   import Primtives._
+  implicit val m: ModuleInstance = module
 
   type Cont[A] = List[Value] => A
 

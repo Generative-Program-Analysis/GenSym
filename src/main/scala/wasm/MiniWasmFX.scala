@@ -10,6 +10,7 @@ import Console.{GREEN, RED, RESET, YELLOW_B, UNDERLINED}
 
 case class EvaluatorFX(module: ModuleInstance) {
   import Primtives._
+  implicit val m: ModuleInstance = module
 
   type Cont[A] = List[Value] => A
 
