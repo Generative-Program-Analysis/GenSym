@@ -302,9 +302,14 @@ offset
   | expr
   ;
 
+// TODO: not sure about the the parsing rules here
+// fow now, I only extend it to support declarative mode for ref.func
+// like (elem declarative func 1)
+// TBH I'm not even sure what the `func 1` should count as
 elem
   : LPAR ELEM idx? LPAR instr RPAR idx* RPAR
   | LPAR ELEM idx? offset idx* RPAR
+  | LPAR ELEM DECLARE FUNC idx RPAR
   ;
 
 table

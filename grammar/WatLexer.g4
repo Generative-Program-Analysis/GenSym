@@ -258,6 +258,8 @@ IMPORT: 'import' ;
 EXPORT: 'export' ;
 TAG: 'tag' ;
 
+DECLARE: 'declare' ;
+
 MODULE : 'module' ;
 BIN : 'binary' ;
 QUOTE : 'quote' ;

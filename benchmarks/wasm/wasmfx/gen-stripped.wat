@@ -6,7 +6,7 @@
   (import "spectest" "print_i32" (func (;0;) (type 2)))
   (tag (;0;) (type 2) (param i32))
   (start 2)
-  ;; (elem (;0;) declare func 1)
+  (elem (;0;) declare func 1)
   (func (;1;) (type 0)
     (local i32)
     i32.const 100
