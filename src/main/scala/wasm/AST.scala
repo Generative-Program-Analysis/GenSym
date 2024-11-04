@@ -104,12 +104,6 @@ case object MemoryFill extends Instr
 case object MemoryCopy extends Instr
 case class MemoryInit(seg: Int) extends Instr
 // case class DataDrop(seg: Int) extends Instr
-// case class RefNull(ty: RefType) extends Instr
-// case class RefFunc(func: Int) extends Instr
-// case object RefIsNull extends Instr
-case class PushSym(name: String, concreteVal: Num) extends Instr
-case class Symbolic(ty: ValueType) extends Instr
-case object SymAssert extends Instr
 case class Const(num: Num) extends Instr
 case class Test(op: TestOp) extends Instr
 case class Compare(op: RelOp) extends Instr
@@ -132,17 +126,23 @@ case class Convert(op: CvtOp) extends Instr
 // case class VecExtract(op: VecExtractOp) extends Instr
 // case class VecReplace(op: VecReplaceOp) extends Instr
 
+// Instructions for symbolic execution
+case class PushSym(name: String, concreteVal: Num) extends Instr
+case class Symbolic(ty: ValueType) extends Instr
+case object SymAssert extends Instr
+
 // TODO: add wasmfx instructions
 // TODO: should I take care of the unresolved cases?
-case class Suspend(tag_id: Int) extends Instr
+case class Suspend(tag: Int) extends Instr
 // note that cont.new can only be called with a func type
-case class ContNew(ty_id: Int) extends Instr
+case class ContNew(ty: Int) extends Instr
+// case class RefNull(ty: RefType) extends Instr
+// case object RefIsNull extends Instr
 // note that ref.func can be called with any of the extended function type
-case class RefFunc(ty_id: Int) extends Instr
-
-case class Resume(ty_id: Int, ons: List[Handler]) extends Instr
+case class RefFunc(ty: Int) extends Instr
+case class Resume(ty: Int, ons: List[Handler]) extends Instr
 // TODO: make sure this class wants to extend WIR
-case class Handler(tag_id: Int, label_id: Int) extends WIR
+case class Handler(tag: Int, label: Int) extends WIR
 
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
@@ -266,7 +266,6 @@ case class ValBlockType(tipe: Option[ValueType]) extends BlockType;
 case class RTGlobal(ty: GlobalType, var value: Value)
 
 // Values
-
 abstract class Value extends WIR {
   def tipe: ValueType
 }

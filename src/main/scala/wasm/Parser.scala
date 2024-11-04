@@ -101,7 +101,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     Start(id.toInt)
   }
 
-  override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE().getText)
+  override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE.getText)
 
   override def visitVecType(ctx: VecTypeContext): VecType = VecType(V128Type)
 
@@ -402,11 +402,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
      } else if (ctx.FREE != null) {
        Free
      } else if (ctx.SUSPEND != null) {
-        Suspend(getVar(ctx.idx(0)).toInt)
+       Suspend(getVar(ctx.idx(0)).toInt)
      } else if (ctx.CONTNEW != null) {
-        ContNew(getVar(ctx.idx(0)).toInt)
+       ContNew(getVar(ctx.idx(0)).toInt)
      } else if (ctx.REFFUNC != null) {
-        RefFunc(getVar(ctx.idx(0)).toInt)
+       RefFunc(getVar(ctx.idx(0)).toInt)
      }
     else {
       println(s"unimplemented parser for: ${ctx.getText}")
@@ -444,12 +444,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitResumeInstr(ctx: ResumeInstrContext): WIR = {
     val funcTypeId = getVar(ctx.idx).toInt
-    val handlers = ctx.handlerInstr().asScala.map(visitHandlerInstr).toList
+    val handlers = ctx.handlerInstr.asScala.map(visitHandlerInstr).toList
     Resume(funcTypeId, handlers)
   }
 
   override def visitBlock(ctx: BlockContext): WIR = {
-    val ty = visitBlockType(ctx.blockType())
+    val ty = visitBlockType(ctx.blockType)
     val InstrList(instrs) = visit(ctx.instrList)
     Block(ty, instrs)
   }
