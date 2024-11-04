@@ -63,6 +63,10 @@ jobs:
         make
         sudo make install
         sudo ldconfig
+    - name: Install wasmfx-tools
+      run: |
+        cd third-party/wasmfx-tools
+        cargo build --release
     - name: Generate models
       run: sbt 'runMain gensym.GenerateExternal'
     - name: Run tests
