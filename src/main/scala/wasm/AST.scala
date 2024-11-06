@@ -136,10 +136,13 @@ case object SymAssert extends Instr
 case class Suspend(tag: Int) extends Instr
 // note that cont.new can only be called with a func type
 case class ContNew(ty: Int) extends Instr
+case class ContBind(OldContTy: Int, NewContTy: Int) extends Instr
 // case class RefNull(ty: RefType) extends Instr
 // case object RefIsNull extends Instr
 // note that ref.func can be called with any of the extended function type
 case class RefFunc(func: Int) extends Instr
+case class CallRef(ty: Int) extends Instr
+
 case class Resume(ty: Int, ons: List[Handler]) extends Instr
 // TODO: make sure this class wants to extend WIR
 case class Handler(tag: Int, label: Int) extends WIR

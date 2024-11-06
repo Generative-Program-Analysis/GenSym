@@ -28,7 +28,8 @@ sealed class ScriptRunner {
           case FuncDef(_, FuncBodyDef(ty, _, locals, body)) => body
         }
         val k = (retStack: List[Value]) => retStack
-        val evaluator = Evaluator(module)
+        // TODO: change this back to Evaluator if we are just testing original stuff
+        val evaluator = EvaluatorFX(module)
         val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List(k))
         assert(actual == expect)
     }

@@ -42,6 +42,11 @@ case class EvaluatorFX(module: ModuleInstance) {
         val I32V(v) :: newStack = stack
         println(v)
         eval(rest, newStack, frame, kont, trail)
+      case Import("spectest", "print_i32", _) =>
+        //println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -194,6 +199,9 @@ case class EvaluatorFX(module: ModuleInstance) {
       //   println(s"${RED}Unimplimented RESUME $tag_id")
       //   eval(rest, stack, frame, kont, trail)
       // }
+      case CallRef(ty) =>
+        val RefFuncV(f) :: newStack = stack
+        evalCall(rest, newStack, frame, kont, trail, f, false)
 
       case _ =>
         println(inst)

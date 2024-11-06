@@ -168,6 +168,8 @@ plainInstr
   | CONTNEW idx
   | REFFUNC idx
   | SUSPEND idx
+  | CONTBIND idx idx
+  | CALLREF idx
   ;
 
 resumeInstr

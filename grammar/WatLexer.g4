@@ -73,9 +73,11 @@ CALL_INDIRECT: 'call_indirect' ;
 RETURN_CALL: 'return_call' ;
 RETURN_CALL_INDIRECT: 'return_call_indirect' ;
 REFFUNC: 'ref.func' ;
+CALLREF: 'call_ref' ;
 RESUME: 'resume' ;
 ON: 'on' ;
 CONTNEW: 'cont.new' ;
+CONTBIND: 'cont.bind' ;
 SUSPEND: 'suspend' ;
 
 LOCAL_GET: 'local.get' ;

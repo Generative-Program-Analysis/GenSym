@@ -265,6 +265,11 @@ case class Evaluator(module: ModuleInstance) {
         val I32V(v) :: newStack = stack
         println(v)
         eval(rest, newStack, frame, kont, trail)
+      case Import("spectest", "print_i32", _) =>
+        //println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
