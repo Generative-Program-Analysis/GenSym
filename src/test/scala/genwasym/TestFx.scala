@@ -43,7 +43,7 @@ class TestFx extends FunSuite {
     runner.run(script)
   }
 
-
+  // TODO: test after implemented cont_bind3
   // test("simple script") {
   //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
   // }
@@ -51,5 +51,13 @@ class TestFx extends FunSuite {
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
+
+  test("resume w/o suspend") {
+    testWastFile("./benchmarks/wasm/wasmfx/resume1.bin.wast")
+  }
+
+  // test("test_cont") {
+  //   testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
+  // }
 
 }

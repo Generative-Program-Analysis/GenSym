@@ -45,7 +45,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
         val I32V(v) :: newStack = stack
-        println(v)
+        println(s"$v : i32")
         eval(rest, newStack, frame, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
@@ -195,10 +195,47 @@ case class EvaluatorFX(module: ModuleInstance) {
       //   println(s"${RED}Unimplimented Suspending tag $tag_id")
       //   eval(rest, stack, frame, kont, trail)
       // }
-      // case Resume(tag_id, handlers) => {
-      //   println(s"${RED}Unimplimented RESUME $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
+      
+      // TODO: resume should create a list of handlers to capture suspend
+      // TODO: The current implementation doesn't not deal with suspend at all
+      case Resume(ty, handlers) => {
+        val RefContV(contAddr) :: newStack = stack
+        val cont = module.funcs(contAddr) match {
+          case RefFuncV(f) => f
+          case _           => throw new Exception("Continuation is not a function")
+        }
+        
+        val tyId =  module.types(ty) match {
+          case ContType(id) => id
+          case _ => throw new Exception("Continuation type is not a function")
+        }
+        val (inps, out) = module.types(tyId) match {
+          case FuncType(_, inps, out) => (inps, out)
+          case _ => throw new Exception("Continuation type is not a function")
+        }
+
+        val (inputs, restStack) = newStack.splitAt(inps.size)
+        
+        val restK: Cont[Ans] = (retStack) =>
+          eval(rest, retStack.take(out.size) ++ restStack, frame, kont, trail)
+        evalCall(rest, inputs, frame, restK, List(restK), cont, false)
+      }
+      // // TODO: the following implementation is not tested
+      // case ContBind(oldContTy, newConTy) =>
+      //   val RefContV(oldContAddr) :: newStack = stack
+      //   // use oldParamTy - newParamTy to get how many values to pop from the stack
+      //   val oldParamTy = module.types(oldContTy).inps
+      //   val newParamTy = module.types(newConTy).inps
+      //   // TODO: I'm very tempted to do type checking here
+      //   val (inputs, restStack) = newStack.splitAt(oldParamTy.size)
+      //   // partially apply the old continuation
+      //   val oldCont = module.funcs(oldContAddr) match {
+      //     case RefContV(f) => f
+      //     case _           => throw new Exception("Continuation is not a function")
+      //   }
+      //   // TODO: finish this
+        
+        
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall(rest, newStack, frame, kont, trail, f, false)

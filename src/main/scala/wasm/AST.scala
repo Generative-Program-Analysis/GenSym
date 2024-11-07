@@ -320,6 +320,9 @@ case class RefFuncV(funcAddr: Int) extends Ref {
       case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
     }
 }
+
+// RefContV only refer to an adresss
+// but this should contain a scala function
 case class RefContV(funcAddr: Int) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = ???
 }
