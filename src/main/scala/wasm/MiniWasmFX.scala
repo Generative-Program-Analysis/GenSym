@@ -188,7 +188,8 @@ case class EvaluatorFX(module: ModuleInstance) {
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
         val addr = module.funcs.size
-        module.funcs += (addr -> RefFuncV(f))
+        // module.funcs += (addr -> RefFuncV(f))
+        // DH(review needed): I think the treatment here is not right
         eval(rest, RefContV(addr) :: newStack, frame, kont, trail)
       // TODO: implement the following
       // case Suspend(tag_id) => {
@@ -200,10 +201,10 @@ case class EvaluatorFX(module: ModuleInstance) {
       // TODO: The current implementation doesn't not deal with suspend at all
       case Resume(ty, handlers) => {
         val RefContV(contAddr) :: newStack = stack
-        val cont = module.funcs(contAddr) match {
-          case RefFuncV(f) => f
-          case _           => throw new Exception("Continuation is not a function")
-        }
+        // val cont = module.funcs(contAddr) match {
+        //   case FuncDef(_, f) => f
+        //   case _           => throw new Exception("Continuation is not a function")
+        // }
         
         val tyId =  module.types(ty) match {
           case ContType(id) => id
@@ -218,7 +219,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(out.size) ++ restStack, frame, kont, trail)
-        evalCall(rest, inputs, frame, restK, List(restK), cont, false)
+        evalCall(rest, inputs, frame, restK, List(restK), contAddr, false)
       }
       // // TODO: the following implementation is not tested
       // case ContBind(oldContTy, newConTy) =>
