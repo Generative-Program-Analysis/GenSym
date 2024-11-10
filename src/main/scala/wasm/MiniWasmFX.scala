@@ -52,6 +52,10 @@ case class EvaluatorFX(module: ModuleInstance) {
     }
   }
 
+  def evalResume[Ans](stack: List[Value], cont: List[Value] => List[Value], mk: List[Value] => Ans): Ans = {
+    mk(cont(stack))
+  }
+
   def eval[Ans](insts: List[Instr],
                 stack: List[Value],
                 frame: Frame,
@@ -187,10 +191,12 @@ case class EvaluatorFX(module: ModuleInstance) {
         eval(rest, RefFuncV(f) :: stack, frame, kont, trail)
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-        val addr = module.funcs.size
-        // module.funcs += (addr -> RefFuncV(f))
-        // DH(review needed): I think the treatment here is not right
-        eval(rest, RefContV(addr) :: newStack, frame, kont, trail)
+        // DH(calling for a review):
+        //    create a function works like a delimited continuation,
+        //    but it's still a function in essensial, make our interpreter not in pure CPS
+        val cont: List[Value] => List[Value] =
+          (stack) => evalCall(List(), stack, frame, (s) => s, List(), f, false)
+        eval(rest, RefContV(cont) :: newStack, frame, kont, trail)
       // TODO: implement the following
       // case Suspend(tag_id) => {
       //   println(s"${RED}Unimplimented Suspending tag $tag_id")
@@ -199,27 +205,29 @@ case class EvaluatorFX(module: ModuleInstance) {
       
       // TODO: resume should create a list of handlers to capture suspend
       // TODO: The current implementation doesn't not deal with suspend at all
-      case Resume(ty, handlers) => {
-        val RefContV(contAddr) :: newStack = stack
+      case Resume(ty, _handlers) => {
+        val RefContV(cont) :: newStack = stack
         // val cont = module.funcs(contAddr) match {
         //   case FuncDef(_, f) => f
         //   case _           => throw new Exception("Continuation is not a function")
         // }
-        
-        val tyId =  module.types(ty) match {
+
+        val tyId = module.types(ty) match {
           case ContType(id) => id
           case _ => throw new Exception("Continuation type is not a function")
         }
+
         val (inps, out) = module.types(tyId) match {
           case FuncType(_, inps, out) => (inps, out)
           case _ => throw new Exception("Continuation type is not a function")
         }
 
         val (inputs, restStack) = newStack.splitAt(inps.size)
-        
+
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(out.size) ++ restStack, frame, kont, trail)
-        evalCall(rest, inputs, frame, restK, List(restK), contAddr, false)
+        // DH(calling for a review): Here introduce a mix between direct-style and cps
+        evalResume(inputs, cont, restK)
       }
       // // TODO: the following implementation is not tested
       // case ContBind(oldContTy, newConTy) =>

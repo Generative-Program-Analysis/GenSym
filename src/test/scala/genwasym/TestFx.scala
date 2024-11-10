@@ -52,6 +52,10 @@ class TestFx extends FunSuite {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
 
+  test("cont") {
+    testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
+  }
+
   test("resume w/o suspend") {
     testWastFile("./benchmarks/wasm/wasmfx/resume1.bin.wast")
   }
