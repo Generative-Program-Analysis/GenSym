@@ -425,6 +425,12 @@ public interface WatParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCmd(WatParser.CmdContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link WatParser#instance}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitInstance(WatParser.InstanceContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link WatParser#meta}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

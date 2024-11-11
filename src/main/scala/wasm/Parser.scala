@@ -700,7 +700,9 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else error
   }
 
- override def visitScriptModule(ctx: ScriptModuleContext): Module = {
+  // TODO: we instantiate the module no matter what, might want to change the
+  // behavior in the future
+  override def visitScriptModule(ctx: ScriptModuleContext): Module = {
     if (ctx.module_ != null) {
       visitModule_(ctx.module_).asInstanceOf[Module]
     }
@@ -776,7 +778,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       visitAssertion(ctx.assertion)
     } else if (ctx.scriptModule != null) {
       CmdModule(visitScriptModule(ctx.scriptModule))
-    } else {
+    } else if (ctx.instance != null) {
+      CMdInstnace()
+    }
+    else {
       throw new RuntimeException("Unsupported")
     }
   }

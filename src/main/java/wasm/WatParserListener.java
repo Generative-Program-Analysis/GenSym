@@ -698,6 +698,16 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitCmd(WatParser.CmdContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#instance}.
+	 * @param ctx the parse tree
+	 */
+	void enterInstance(WatParser.InstanceContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#instance}.
+	 * @param ctx the parse tree
+	 */
+	void exitInstance(WatParser.InstanceContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#meta}.
 	 * @param ctx the parse tree
 	 */

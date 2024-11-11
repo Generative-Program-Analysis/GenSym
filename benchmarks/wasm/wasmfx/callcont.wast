@@ -9,18 +9,18 @@
     i32.add
   )
 
-  (func (param)
+  (elem declare func 1)
+
+  (func (export "main") (result i32)
     i32.const 10
     ref.func 1
     cont.new 1
-    resume 1
+    (resume 1)
   )
 
   (type (;0;) (func (param i32) (result i32)))
   (type (;1;) (cont 0))
 
-  (start 2)
 )
 
-
-
+(assert_return (invoke "main") (i32.const 11))
