@@ -265,6 +265,8 @@ DECLARE: 'declare' ;
 MODULE : 'module' ;
 BIN : 'binary' ;
 QUOTE : 'quote' ;
+DEFINITION : 'definition' ;
+INSTANCE : 'instance' ;
 
 SCRIPT: 'script' ;
 REGISTER: 'register' ;
