@@ -93,6 +93,10 @@ class TestFx extends FunSuite {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
 
+  test("effect-handler") {
+    testFile("./benchmarks/wasm/wasmfx/cont_new.wat")
+  }
+
   test("try-catch") {
     // expect output: 1 2 3 4 5
     testFile("./benchmarks/wasm/trycatch/try_catch.wat")

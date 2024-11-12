@@ -12,7 +12,7 @@ case class Trap() extends Exception
 
 case class ModuleInstance(
   defs: List[Definition],
-  types: List[FuncType],
+  types: List[FuncLikeType],
   funcs: HashMap[Int, Callable],
   memory: List[RTMemory] = List(RTMemory()),
   globals: List[RTGlobal] = List(),
@@ -21,7 +21,11 @@ case class ModuleInstance(
 
 object ModuleInstance {
   def apply(module: Module): ModuleInstance = {
-    val types = List()
+    val types = module.definitions
+      .collect({
+        case TypeDef(_, ft) => ft
+      })
+      .toList
     val funcs = module.definitions
       .collect({
         case FuncDef(_, fndef @ FuncBodyDef(_, _, _, _)) => fndef

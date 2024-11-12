@@ -199,18 +199,25 @@ case class EvaluatorFX(module: ModuleInstance) {
         eval(rest, RefFuncV(f) :: stack, frame, kont, mkont, trail, h)
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-        val addr = module.funcs.size
-        module.funcs += (addr -> RefFuncV(f))
-        eval(rest, RefContV(addr) :: newStack, frame, kont, mkont, trail, h)
+        // create a continuation which only performs a function call
+        val idK: Cont[Ans] = (s, m) => m(s)
+        val k: Cont[Ans] = (s, mk) => evalCall(f, List(), s, frame, idK, mk, trail, h, false)
+        eval(rest, TCContV(k) :: newStack, frame, kont, mkont, trail, h)
       // TODO: implement the following
       // case Suspend(tag_id) => {
       //   println(s"${RED}Unimplimented Suspending tag $tag_id")
       //   eval(rest, stack, frame, kont, trail)
       // }
-      // case Resume(tag_id, handlers) => {
-      //   println(s"${RED}Unimplimented RESUME $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
+      case Resume(kty_id, handlers) => {
+        val (resume: TCContV[Ans]) :: newStack = stack
+        val contTy = module.types(kty_id)
+        val ContType(funcTypeId) = contTy
+        val FuncType(_, inps, out) = module.types(funcTypeId)
+        val (inputs, restStack) = newStack.splitAt(inps.size)
+
+        val m: MCont[Ans] = (s) => eval(rest, s ++ restStack, frame, kont, mkont, trail, h)
+        resume.k(inputs, m)
+      }
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
