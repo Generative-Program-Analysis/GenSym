@@ -148,6 +148,15 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
   }
 
+  override def visitTag(ctx: TagContext): WIR = {
+    val ft = visit(ctx.funcType).asInstanceOf[FuncType]
+    if (ctx.bindVar() != null) {
+      Tag(getVar(ctx.bindVar()), ft)
+    } else {
+      Tag(None, ft)
+    }
+  }
+
   override def visitFunction(ctx: FunctionContext): FuncDef = {
     val name = getVar(ctx.bindVar())
     name match {

@@ -13,6 +13,7 @@ case class Trap() extends Exception
 case class ModuleInstance(
   defs: List[Definition],
   types: List[FuncLikeType],
+  tags: List[FuncType],
   funcs: HashMap[Int, Callable],
   memory: List[RTMemory] = List(RTMemory()),
   globals: List[RTGlobal] = List(),
@@ -24,6 +25,11 @@ object ModuleInstance {
     val types = module.definitions
       .collect({
         case TypeDef(_, ft) => ft
+      })
+      .toList
+    val tags = module.definitions
+      .collect({
+        case Tag(id, ty) => ty
       })
       .toList
     val funcs = module.definitions
@@ -57,7 +63,7 @@ object ModuleInstance {
       })
       .toList
 
-    ModuleInstance(module.definitions, types, module.funcEnv, memory, globals, exports)
+    ModuleInstance(module.definitions, types, tags, module.funcEnv, memory, globals, exports)
   }
 }
 
@@ -220,7 +226,7 @@ object Primtives {
         case F64Type => F64V(0)
       }
     case VecType(kind) => ???
-    case RefType(kind) => ???
+    case RefType(kind) => I32V(0) // for now, use a zero to represent a null reference
   }
 
   def getFuncType(ty: BlockType): FuncType =

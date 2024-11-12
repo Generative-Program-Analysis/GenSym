@@ -28,7 +28,7 @@ class TestFx extends FunSuite {
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = (stack, m) => m(stack)
+    val haltK: Cont = (stack, ehs, m) => m(stack)
     val haltMK: MCont = (stack) => {
       println(s"halt cont: $stack")
       expected match {
@@ -93,8 +93,13 @@ class TestFx extends FunSuite {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
 
-  test("effect-handler") {
+  test("cont_new") {
     testFile("./benchmarks/wasm/wasmfx/cont_new.wat")
+  }
+
+  test("cont_suspend") {
+    // expect output: 
+    testFile("./benchmarks/wasm/wasmfx/cont_suspend.wat")
   }
 
   test("try-catch") {
