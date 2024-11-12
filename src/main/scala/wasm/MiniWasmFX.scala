@@ -18,7 +18,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type Handler[A] = Stack => A
 
   // Only used for resumable try-catch (need refactoring):
-  case class TCContV[A](k: Cont[A]) extends Value {
+  case class TCContV[A](k: (Stack, Cont[A], MCont[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
 
@@ -222,11 +222,14 @@ case class EvaluatorFX(module: ModuleInstance) {
         eval(es1, List(), frame, idK, join, trail, newHandler)
       case Resume0() =>
         val (resume: TCContV[Ans]) :: newStack = stack
-        val m: MCont[Ans] = (s) => eval(rest, newStack/*!*/, frame, kont, mkont, trail, h)
-        resume.k(List(), m)
+        val k: Cont[Ans] = (s, m) => eval(rest, newStack/*!*/, frame, kont, m, trail, h)
+        resume.k(List(), k, mkont)
       case Throw() =>
         val err :: newStack = stack
-        val kr: Cont[Ans] = (s, m) => eval(rest, newStack/*!*/, frame, kont, m/*!*/, trail, h)
+        def kr(s: Stack, k: Cont[Ans], m: MCont[Ans]): Ans = {
+          val k1: Cont[Ans] = (s1, m1) => kont(s1, s2 => k(s2, m1))
+          eval(rest, newStack/*!*/, frame, k1, m/*vs mkont?*/, trail, h)
+        }
         h(List(err, TCContV(kr)))
       case _ =>
         println(inst)

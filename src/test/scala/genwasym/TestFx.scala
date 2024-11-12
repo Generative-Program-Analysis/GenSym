@@ -98,11 +98,6 @@ class TestFx extends FunSuite {
     testFile("./benchmarks/wasm/trycatch/try_catch.wat")
   }
 
-  test("try-catch-block") {
-    // expect output: 1 2 3 4 5
-    testFile("./benchmarks/wasm/trycatch/try_catch_block.wat")
-  }
-
   test("try-catch-succ") {
     // no exception was thrown
     // expect output: 1 3 5
@@ -118,6 +113,21 @@ class TestFx extends FunSuite {
   test("nested-try-catch") {
     // expect output: 1 2 3 4 5 6 7 8 9
     testFile("./benchmarks/wasm/trycatch/nested_try_catch.wat")
+  }
+
+  test("try-catch-multishot") {
+    // expect output: 1 2 3 4 3 5
+    testFile("./benchmarks/wasm/trycatch/multishot.wat")
+  }
+
+  test("try-catch-deep-handler") {
+    // expect output: 1 2 3 2 4 4 5
+    testFile("./benchmarks/wasm/trycatch/deep.wat")
+  }
+
+  test("try-catch-block") {
+    // expect output: 1 2 3 4 5
+    testFile("./benchmarks/wasm/trycatch/try_catch_block.wat")
   }
 
 }
