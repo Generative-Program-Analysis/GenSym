@@ -24,9 +24,12 @@ class TestFx extends FunSuite {
 
   def testFile(filename: String, main: Option[String] = None, expected: ExpResult = Ignore) = {
     val module = Parser.parseFile(filename)
-    //println(module)
+    println(module)
     val evaluator = EvaluatorFX(ModuleInstance(module))
-    val haltK: evaluator.Cont[Unit] = stack => {
+    type Cont = evaluator.Cont[Unit]
+    type MCont = evaluator.MCont[Unit]
+    val haltK: Cont = (stack, m) => m(stack)
+    val haltMK: MCont = (stack) => {
       println(s"halt cont: $stack")
       expected match {
         case ExpInt(e) => assert(stack(0) == I32V(e))
@@ -34,7 +37,7 @@ class TestFx extends FunSuite {
         case Ignore    => ()
       }
     }
-    evaluator.evalTop(haltK, main)
+    evaluator.evalTop(haltK, haltMK, main)
   }
 
   def testWastFile(filename: String): Unit = {
@@ -43,6 +46,44 @@ class TestFx extends FunSuite {
     runner.run(script)
   }
 
+  // non-effect tests should still pass:
+  test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), ExpInt(7)) }
+  test("power") { testFile("./benchmarks/wasm/pow.wat", Some("real_main"), ExpInt(1024)) }
+  test("start") { testFile("./benchmarks/wasm/start.wat") }
+  test("fact") { testFile("./benchmarks/wasm/fact.wat", None, ExpInt(120)) }
+  test("loop") { testFile("./benchmarks/wasm/loop.wat", None, ExpInt(10)) }
+  test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, ExpInt(1)) }
+  test("load") { testFile("./benchmarks/wasm/load.wat", None, ExpInt(1)) }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  test("fib") { testFile("./benchmarks/wasm/fib.wat", None, ExpInt(144)) }
+  test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, ExpInt(504)) }
+
+  test("return") {
+    intercept[gensym.wasm.miniwasm.Trap] {
+      testFile("./benchmarks/wasm/return.wat", Some("$real_main"))
+    }
+  }
+  test("return_call") {
+    testFile("./benchmarks/wasm/sum.wat", Some("sum10"), ExpInt(55))
+  }
+
+  test("block input") {
+    testFile("./benchmarks/wasm/block.wat", Some("real_main"), ExpInt(9))
+  }
+  test("loop block input") {
+    testFile("./benchmarks/wasm/block.wat", Some("test_loop_input"), ExpInt(55))
+  }
+  test("if block input") {
+    testFile("./benchmarks/wasm/block.wat", Some("test_if_input"), ExpInt(25))
+  }
+  test("block input - poly br") {
+    testFile("./benchmarks/wasm/block.wat", Some("test_poly_br"), ExpInt(0))
+  }
+  test("loop block - poly br") {
+    testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
+  }
+
+  // New effect handler tests:
 
   // test("simple script") {
   //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
@@ -50,6 +91,10 @@ class TestFx extends FunSuite {
 
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
+  }
+
+  test("try-catch") {
+    testFile("./benchmarks/wasm/try_catch.wat")
   }
 
 }

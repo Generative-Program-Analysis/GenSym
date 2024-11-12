@@ -147,6 +147,11 @@ case class Resume(ty: Int, ons: List[Handler]) extends Instr
 // TODO: make sure this class wants to extend WIR
 case class Handler(tag: Int, label: Int) extends WIR
 
+// resumable try-catch:
+case class TryCatch(e1: List[Instr], e2: List[Instr]) extends Instr
+case class Resume0() extends Instr
+case class Throw() extends Instr
+
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
 case class BrUnresolved(name: String) extends Instr with Unresolved
