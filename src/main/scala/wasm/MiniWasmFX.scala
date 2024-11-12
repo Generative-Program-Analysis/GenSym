@@ -17,6 +17,11 @@ case class EvaluatorFX(module: ModuleInstance) {
   type MCont[A] = Stack => A
   type Handler[A] = Stack => A
 
+  // Only used for resumable try-catch (need refactoring):
+  case class TCContV[A](k: Cont[A]) extends Value {
+    def tipe(implicit m: ModuleInstance): ValueType = ???
+  }
+
   def evalCall[Ans](funcIndex: Int,
                     rest: List[Instr],
                     stack: List[Value],
@@ -210,9 +215,19 @@ case class EvaluatorFX(module: ModuleInstance) {
         val RefFuncV(f) :: newStack = stack
         evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
       // resumable try-catch exception handling:
-      case TryCatch(es1, es2) => ???
-      case Resume0() => ???
-      case Throw() => ???
+      case TryCatch(es1, es2) =>
+        val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, mkont, trail, h)
+        val idK: Cont[Ans] = (s, m) => m(s)
+        val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, idK, join, trail, h)
+        eval(es1, List(), frame, idK, join, trail, newHandler)
+      case Resume0() =>
+        val (resume: TCContV[Ans]) :: newStack = stack
+        val m: MCont[Ans] = (s) => eval(rest, newStack/*!*/, frame, kont, mkont, trail, h)
+        resume.k(List(), m)
+      case Throw() =>
+        val err :: newStack = stack
+        val kr: Cont[Ans] = (s, m) => eval(rest, newStack/*!*/, frame, kont, m/*!*/, trail, h)
+        h(List(err, TCContV(kr)))
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")

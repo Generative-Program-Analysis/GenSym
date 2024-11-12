@@ -7,11 +7,21 @@
     try
       i32.const 1
       call 0
+      i32.const 42
+      ;; [42]
       throw
-      i32.const 2
-      call 0
-    catch
       i32.const 3
       call 0
-    end)
+    catch
+      ;; [42, resume]
+      i32.const 2
+      call 0
+      drop
+      resume0
+      i32.const 4
+      call 0
+    end
+    i32.const 5
+    call 0
+    )
   (start 1))
