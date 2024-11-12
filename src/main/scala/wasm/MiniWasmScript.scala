@@ -30,10 +30,12 @@ sealed class ScriptRunner {
         val evaluator = EvaluatorFX(module)
         type Cont = evaluator.Cont[evaluator.Stack]
         type MCont = evaluator.MCont[evaluator.Stack]
+        type Handler = evaluator.Handler[evaluator.Stack]
         val k: Cont = (retStack, m) => m(retStack)
         val mk: MCont = (retStack) => retStack
+        val h0: Handler = stack => throw new Exception(s"Uncaught exception: $stack")
         // TODO: change this back to Evaluator if we are just testing original stuff
-        val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, mk, List(k))
+        val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, mk, List(k), h0)
         assert(actual == expect)
     }
   }
