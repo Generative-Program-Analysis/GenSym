@@ -244,7 +244,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Some(func_name) =>
         module.defs.flatMap({
           case Export(`func_name`, ExportFunc(fid)) =>
-            println(s"Entering function $main")
+            System.err.println(s"Entering function $main")
             module.funcs(fid) match {
               case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
               case _ => throw new Exception("Entry function has no concrete body")
@@ -254,7 +254,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       case None =>
         module.defs.flatMap({
           case Start(id) =>
-            println(s"Entering unnamed function $id")
+            System.err.println(s"Entering unnamed function $id")
             module.funcs(id) match {
               case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
               case _ =>

@@ -153,7 +153,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     name match {
       case Some(realName) => fnMap(realName) = fnMap.size
       case _ =>
-        println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
+        System.err.println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
         fnMap(s"UNNAMED_${fnMap.size}") = fnMap.size
     }
     val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]
@@ -696,7 +696,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitExportDesc(ctx: ExportDescContext): WIR = {
     val id = if (ctx.idx.VAR() != null) {
-      println(s"Warning: we don't support labeling yet")
+      System.err.println(s"[Parser] Warning: we don't support labeling yet")
       throw new RuntimeException("Unsupported")
     } else {
       getVar(ctx.idx()).toInt

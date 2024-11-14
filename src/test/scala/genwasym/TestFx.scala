@@ -11,7 +11,7 @@ import gensym.wasm.symbolic._
 import gensym.wasm.miniwasm._
 import collection.mutable.ArrayBuffer
 
-
+import java.io.{ByteArrayOutputStream, StringReader}
 import org.scalatest.FunSuite
 
 class TestFx extends FunSuite {
@@ -24,13 +24,13 @@ class TestFx extends FunSuite {
 
   def testFile(filename: String, main: Option[String] = None, expected: ExpResult = Ignore) = {
     val module = Parser.parseFile(filename)
-    println(module)
+    //println(module)
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
     val haltK: Cont = (stack, m) => m(stack)
     val haltMK: MCont = (stack) => {
-      println(s"halt cont: $stack")
+      //println(s"halt cont: $stack")
       expected match {
         case ExpInt(e) => assert(stack(0) == I32V(e))
         case ExpStack(e) => assert(stack == e)
@@ -38,6 +38,15 @@ class TestFx extends FunSuite {
       }
     }
     evaluator.evalTop(haltK, haltMK, main)
+  }
+
+  // So far it assumes that the output is multi-line integers
+  def testFileOutput(filename: String, exp: List[Int], main: Option[String] = None) = {
+    val out = new ByteArrayOutputStream()
+    Console.withOut(out) {
+      testFile(filename, main)
+    }
+    assert(out.toString.split("\n").toList.map(_.toInt) == exp)
   }
 
   def testWastFile(filename: String): Unit = {
@@ -94,40 +103,38 @@ class TestFx extends FunSuite {
   }
 
   test("try-catch") {
-    // expect output: 1 2 3 4 5
-    testFile("./benchmarks/wasm/trycatch/try_catch.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch.wat", List(1, 2, 3, 4, 5))
   }
 
   test("try-catch-succ") {
     // no exception was thrown
-    // expect output: 1 3 5
-    testFile("./benchmarks/wasm/trycatch/try_catch_succ.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_succ.wat", List(1, 3, 5))
   }
 
   test("try-catch-discard") {
     // discard the resumption in the catch block
-    // expect output: 1 42 4 5
-    testFile("./benchmarks/wasm/trycatch/try_catch_discard.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_discard.wat", List(1, 42, 4, 5))
   }
 
   test("nested-try-catch") {
-    // expect output: 1 2 3 4 5 6 7 8 9
-    testFile("./benchmarks/wasm/trycatch/nested_try_catch.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/nested_try_catch.wat", List(1, 2, 3, 4, 5, 6, 7, 8, 9))
   }
 
   test("try-catch-multishot") {
-    // expect output: 1 2 3 4 3 5
-    testFile("./benchmarks/wasm/trycatch/multishot.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/multishot.wat", List(1, 2, 3, 4, 3, 5))
   }
 
   test("try-catch-deep-handler") {
-    // expect output: 1 2 3 2 4 4 5
-    testFile("./benchmarks/wasm/trycatch/deep.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/deep.wat", List(1, 2, 3, 2, 4, 4, 5))
   }
 
   test("try-catch-block") {
-    // expect output: 1 2 3 4 5
-    testFile("./benchmarks/wasm/trycatch/try_catch_block.wat")
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_block.wat", List(1, 2, 3, 4, 5))
+  }
+
+  test("try-catch-br") {
+    // expect output:
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br.wat", List(1, 2, 6))
   }
 
 }
