@@ -158,8 +158,10 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Block(ty, inner) =>
         val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        val restK: Cont[Ans] = (retStack, mkont) =>
-          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont, trail, h)
+        val restK: Cont[Ans] = (retStack, mkont1) => {
+          // kont -> mkont -> mkont1
+          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont1, trail, h)
+        }
         eval(inner, inputs, frame, restK, mkont, restK :: trail, h)
       case Loop(ty, inner) =>
         // We construct two continuations, one for the break (to the begining of the loop),
@@ -181,7 +183,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont, trail, h)
         eval(inner, inputs, frame, restK, mkont, restK :: trail, h)
       case Br(label) =>
-        trail(label)(stack, mkont)
+        trail(label)(stack, mkont) //s => ().asInstanceOf[Ans]) //mkont)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
         if (cond != 0) trail(label)(newStack, mkont)

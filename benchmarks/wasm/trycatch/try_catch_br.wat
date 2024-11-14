@@ -17,6 +17,7 @@
         ;; [42, resume]
         i32.const 2
         call 0
+        ;;drop
         br 0
         resume0
         i32.const 4
