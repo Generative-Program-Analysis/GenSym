@@ -1,7 +1,8 @@
 (module
   (func $for_loop (result i32)
-     (local i32)  ;; local 0:
-     (local i32)  ;; local 1:
+    (local i32)
+    (local i32)
+
     for
        (
         ;; init
@@ -13,7 +14,7 @@
         ;; cond
         local.get 1
         i32.const 10
-        i32.lt_s
+        i32.gt_s
         i32.eqz
         |
         ;; post
@@ -25,13 +26,16 @@
 
         ;; es
         local.get 0
-        i32.const 1
+        local.get 1
         i32.add
         local.set 0
-        (local.get 0)
-    )
+
+     local.get 0
+
+
+     )
+
+     (export "for_loop" (func 0))
 
   )
-
-
 
