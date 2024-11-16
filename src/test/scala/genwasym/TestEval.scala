@@ -35,6 +35,7 @@ class TestEval extends FunSuite {
     Evaluator.evalTop(module, haltK, main)
   }
 
+
   // TODO: the power test can be used to test the stack
   // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
   // and 2^1000 results in a stack overflow
@@ -74,11 +75,13 @@ class TestEval extends FunSuite {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
   test("for loop") {
-    testFile("./benchmarks/wasm/for_loop.wat", Some("for_loop"), ExpInt(10))
+    testFile("./benchmarks/wasm/for_loop.wat", Some("for_loop"), ExpInt(55))
   }
 
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
 
   // TODO: add wasm spec tests? How to utilize wast files?
+
 }
+
