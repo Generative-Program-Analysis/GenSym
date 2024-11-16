@@ -219,6 +219,9 @@ case class EvaluatorFX(module: ModuleInstance) {
       // resumable try-catch exception handling:
       case TryCatch(es1, es2) =>
         val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, mkont, trail, h)
+        // the `restK` for catch block (es2) is the join point
+        // the restK simply applies the meta-continuation, this is the same the [nil] case
+        // where we fall back to join point
         val idK: Cont[Ans] = (s, m) => m(s)
         val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, idK, join, trail, h)
         eval(es1, List(), frame, idK, join, trail, newHandler)
@@ -228,9 +231,12 @@ case class EvaluatorFX(module: ModuleInstance) {
         resume.k(List(), k, mkont)
       case Throw() =>
         val err :: newStack = stack
-        def kr(s: Stack, k: Cont[Ans], m: MCont[Ans]): Ans = {
-          val k1: Cont[Ans] = (s1, m1) => kont(s1, s2 => k(s2, m1))
-          eval(rest, newStack/*!*/, frame, k1, m/*vs mkont?*/, trail, h)
+        // kont composed with k
+        // note that kr doesn't use the stack at all
+        // it only takes the err value
+        def kr(s: Stack, k1: Cont[Ans], m: MCont[Ans]): Ans = {
+          val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
+          eval(rest, newStack/*!*/, frame, kontK, m/*vs mkont?*/, trail, h)
         }
         h(List(err, TCContV(kr)))
       case _ =>
