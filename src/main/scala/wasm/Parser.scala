@@ -29,8 +29,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   // Note: we construct a mapping from indices to function-like definitions, which helps
   // function call resolution in the later phase.
-  // TODO: instead of using WIR, define a trait for function-like definitions
-  val fnMapInv: HashMap[Int, WIR] = HashMap()
+  val fnMapInv: HashMap[Int, Callable] = HashMap()
 
   def error = throw new RuntimeException("Unspported")
 
@@ -154,7 +153,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     name match {
       case Some(realName) => fnMap(realName) = fnMap.size
       case _ =>
-        println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
+        System.err.println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
         fnMap(s"UNNAMED_${fnMap.size}") = fnMap.size
     }
     val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]
@@ -220,7 +219,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ty.kind match {
         case I32Type => {
           if (ctx.NAT.getText.startsWith("0x")) {
-            I32V(Integer.parseInt(ctx.NAT.getText.substring(2), 16))
+            val parsedValue = java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16)
+            // Convert to signed 32-bit integer if it exceeds the max 32-bit signed integer range
+            val intValue = if (parsedValue > Int.MaxValue) (parsedValue - (1L << 32)).toInt else parsedValue.toInt
+            I32V(intValue)
           } else {
             I32V(ctx.NAT.getText.toInt)
           }
@@ -253,11 +255,11 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     // TODO: parsing support for hex representation for f32/f64 not quite there yet
     } else if (ctx.FLOAT != null) {
       ty.kind match {
-        case F32Type => 
+        case F32Type =>
           val parsedValue = Try(parseHexFloat(ctx.FLOAT.getText).toFloat).getOrElse(ctx.FLOAT.getText.toFloat)
           F32V(parsedValue)
-          
-        case F64Type => 
+
+        case F64Type =>
           // TODO: not processed at all
           val parsedValue = ctx.FLOAT.getText.toDouble
           F64V(parsedValue)
@@ -446,27 +448,35 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           Reinterpret(fromTy, toTy)
       }
       Convert(op)
-     } else if (ctx.SYM_ASSERT != null) {
-       SymAssert
-     } else if (ctx.SYMBOLIC != null) {
-       val Array(ty, _) = ctx.SYMBOLIC.getText.split("\\.")
-       Symbolic(toNumType(ty))
-     } else if (ctx.callIndirectInstr() != null) {
-       val instr = ctx.callIndirectInstr()
-       val idx = if (instr.idx != null) instr.idx.getText.toInt else 0
-       val typeUse = getVar(instr.typeUse).get.toInt
-       CallIndirect(typeUse, idx)
-     } else if (ctx.ALLOC != null) {
-       Alloc
-     } else if (ctx.FREE != null) {
-       Free
-     } else if (ctx.SUSPEND != null) {
-       Suspend(getVar(ctx.idx(0)).toInt)
-     } else if (ctx.CONTNEW != null) {
-       ContNew(getVar(ctx.idx(0)).toInt)
-     } else if (ctx.REFFUNC != null) {
-       RefFunc(getVar(ctx.idx(0)).toInt)
-     }
+    } else if (ctx.SYM_ASSERT != null) {
+      SymAssert
+    } else if (ctx.SYMBOLIC != null) {
+      val Array(ty, _) = ctx.SYMBOLIC.getText.split("\\.")
+      Symbolic(toNumType(ty))
+    } else if (ctx.callIndirectInstr() != null) {
+      val instr = ctx.callIndirectInstr()
+      val idx = if (instr.idx != null) instr.idx.getText.toInt else 0
+      val typeUse = getVar(instr.typeUse).get.toInt
+      CallIndirect(typeUse, idx)
+    } else if (ctx.ALLOC != null) {
+      Alloc
+    } else if (ctx.FREE != null) {
+      Free
+    } else if (ctx.SUSPEND != null) {
+      Suspend(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CONTNEW != null) {
+      ContNew(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.REFFUNC != null) {
+      RefFunc(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CALLREF != null) {
+      CallRef(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CONTBIND != null) {
+      ContBind(getVar(ctx.idx(0)).toInt, getVar(ctx.idx(1)).toInt)
+    } else if (ctx.RESUME0 != null) {
+      Resume0()
+    } else if (ctx.THROW != null) {
+      Throw()
+    }
     else {
       println(s"unimplemented parser for: ${ctx.getText}")
       error
@@ -516,12 +526,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   override def visitBlockInstr(ctx: BlockInstrContext): WIR = {
     // Note: ignoring all bindVar/label...
     if (ctx.BLOCK != null) {
-      visit(ctx.block)
+      visit(ctx.block(0))
     } else if (ctx.LOOP != null) {
-      val Block(ty, instrs) = visit(ctx.block)
+      val Block(ty, instrs) = visit(ctx.block(0))
       Loop(ty, instrs)
     } else if (ctx.IF != null) {
-      val Block(ty, thn) = visit(ctx.block)
+      val Block(ty, thn) = visit(ctx.block(0))
       // Note(GW): `else` branch seems mandatory?
       // https://webassembly.github.io/spec/core/text/instructions.html#control-instructions
       val els = if (ctx.ELSE != null) {
@@ -529,6 +539,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         elsInstr
       } else List()
       If(ty, thn, els)
+    } else if (ctx.TRY != null && ctx.CATCH != null) {
+      val Block(ty1, e1) = visit(ctx.block(0))
+      val Block(ty2, e2) = visit(ctx.block(1))
+      TryCatch(e1, e2)
     } else error
   }
 
@@ -682,7 +696,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitExportDesc(ctx: ExportDescContext): WIR = {
     val id = if (ctx.idx.VAR() != null) {
-      println(s"Warning: we don't support labeling yet")
+      System.err.println(s"[Parser] Warning: we don't support labeling yet")
       throw new RuntimeException("Unsupported")
     } else {
       getVar(ctx.idx()).toInt

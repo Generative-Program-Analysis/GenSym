@@ -54,11 +54,11 @@ numType
 
 // exception handling and function references seems to have different definitions
 // for refType, which is probably going to be unified in wasm 3.0
-// https://webassembly.github.io/function-references/core/_download/WebAssembly.pdf
+// https://webassembly.github.io/function-references/core/text/types.html
 // https://webassembly.github.io/exception-handling/core/_download/WebAssembly.pdf
 refType
-  : FUNCREF
-  | EXTERNREF
+  : FUNCREF           // equivalent to (ref null func)
+  | EXTERNREF         // equivalent to (ref null extern)
   | LPAR REF idx RPAR // here idx must be a heap type
   ;
 
@@ -168,6 +168,11 @@ plainInstr
   | CONTNEW idx
   | REFFUNC idx
   | SUSPEND idx
+  | CONTBIND idx idx
+  | CALLREF idx
+  // resumable try-catch extension:
+  | RESUME0
+  | THROW
   ;
 
 resumeInstr
@@ -222,6 +227,8 @@ blockInstr
   : BLOCK bindVar? block END bindVar?
   | LOOP bindVar? block END bindVar?
   | IF bindVar? block (ELSE bindVar? instrList)? END bindVar?
+  // resumable try-catch extension:
+  | TRY block CATCH block END
   ;
 
 blockType

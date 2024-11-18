@@ -13,7 +13,7 @@ case class Trap() extends Exception
 case class ModuleInstance(
   defs: List[Definition],
   types: List[FuncType],
-  funcs: HashMap[Int, WIR],
+  funcs: HashMap[Int, Callable],
   memory: List[RTMemory] = List(RTMemory()),
   globals: List[RTGlobal] = List(),
   exports: List[Export] = List()
@@ -218,14 +218,6 @@ object Primtives {
     case VecType(kind) => ???
     case RefType(kind) => ???
   }
-}
-
-case class Frame(locals: ArrayBuffer[Value])
-
-case class Evaluator(module: ModuleInstance) {
-  import Primtives._
-
-  type Cont[A] = List[Value] => A
 
   def getFuncType(ty: BlockType): FuncType =
     ty match {
@@ -235,6 +227,15 @@ case class Evaluator(module: ModuleInstance) {
       case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
       case ValBlockType(None)          => FuncType(List(), List(), List())
     }
+}
+
+case class Frame(locals: ArrayBuffer[Value])
+
+case class Evaluator(module: ModuleInstance) {
+  import Primtives._
+  implicit val m: ModuleInstance = module
+
+  type Cont[A] = List[Value] => A
 
   def evalCall[Ans](rest: List[Instr],
                     stack: List[Value],
@@ -260,6 +261,11 @@ case class Evaluator(module: ModuleInstance) {
           eval(body, List(), newFrame, restK, List(restK))
         }
       case Import("console", "log", _) =>
+        //println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
+      case Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
         val I32V(v) :: newStack = stack
         println(v)
@@ -398,24 +404,6 @@ case class Evaluator(module: ModuleInstance) {
       case Return        => trail.last(stack)
       case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
-      // TODO: implement the following
-      // case Suspend(tag_id) => {
-      //   println(s"${RED}Unimplimented Suspending tag $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
-      // case RefFunc(ty_id) => {
-      //   println(s"${RED}Unimplimented REFFUNC $ty_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
-      // case ContNew(ty_id) => {
-      //   println(s"${RED}Unimplimented CONTNEW $ty_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
-      // case Resume(tag_id, handlers) => {
-      //   println(s"${RED}Unimplimented RESUME $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
-
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")
