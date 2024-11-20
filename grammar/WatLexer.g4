@@ -59,6 +59,8 @@ UNREACHABLE: 'unreachable' ;
 DROP: 'drop' ;
 BLOCK: 'block' ;
 LOOP: 'loop' ;
+FOR : 'for';
+VBAR: '|';
 END: 'end' ;
 BR: 'br' ;
 BR_IF: 'br_if' ;

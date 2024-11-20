@@ -282,8 +282,11 @@ case class Evaluator(module: ModuleInstance) {
                 trail: List[Cont[Ans]]): Ans = {
     if (insts.isEmpty) return kont(stack)
 
+
+
     val inst = insts.head
     val rest = insts.tail
+
 
     // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
@@ -383,6 +386,30 @@ case class Evaluator(module: ModuleInstance) {
         def loop(retStack: List[Value]): Ans =
           eval(inner, retStack.take(funcTy.inps.size), frame, restK, loop _ :: trail)
         loop(inputs)
+
+        case ForLoop(init, cond, post, body) =>
+        val restK: Cont[Ans] = retStack =>
+          eval(rest, retStack, frame, kont, trail)
+
+        def forloop(retStack: List[Value]): Ans = {
+
+          eval(cond, retStack, frame, {
+
+            case I32V(0) :: _ =>
+
+              restK(retStack)
+            case (_: I32V) :: _ =>
+              eval(body, retStack, frame, newStack => {
+                eval(post, newStack, frame, postStack => {
+                  forloop(postStack)
+                }, trail)
+              } , trail)
+            case _ =>
+              throw new RuntimeException("Condition did not return I32V as expected")
+          }, trail)
+        }
+          eval(init, stack, frame, forloop, trail)
+
       case If(ty, thn, els) =>
         val funcTy = getFuncType(ty)
         val I32V(cond) :: newStack = stack
@@ -437,7 +464,8 @@ case class Evaluator(module: ModuleInstance) {
         })
     }
     if (instrs.isEmpty) println("Warning: nothing is executed")
-    eval(instrs, List(), Frame(ArrayBuffer(I32V(0))), halt, List(halt))
+
+    eval(instrs, List(), Frame(ArrayBuffer(I32V(0),I32V(0))), halt, List(halt))
   }
 
   def evalTop(m: ModuleInstance): Unit = evalTop(stack => ())

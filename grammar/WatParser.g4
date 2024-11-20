@@ -129,6 +129,11 @@ instr
   | blockInstr
   | foldedInstr
   | resumeInstr
+  | forLoop
+  ;
+
+forLoop
+  : 'for' '(' instrList '|' instrList '|' instrList ')' instrList
   ;
 
 plainInstr
