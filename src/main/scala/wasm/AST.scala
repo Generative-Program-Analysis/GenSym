@@ -328,9 +328,9 @@ case class RefFuncV(funcAddr: Int) extends Ref {
     }
 }
 // RefContV refers to a delimited continuation
-case class RefContV(cont: List[Value] => List[Value]) extends Ref {
-  def tipe(implicit m: ModuleInstance): ValueType = ???
-}
+// case class RefContV(cont: List[Value] => List[Value]) extends Ref {
+//   def tipe(implicit m: ModuleInstance): ValueType = ???
+// }
 case class RefExternV(externAddr: Int) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = ???
 }

@@ -74,6 +74,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     val inst = insts.head
     val rest = insts.tail
 
+    // TODO: uncommenting this will fail try-catch
     // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
     inst match {
@@ -195,30 +196,13 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Return        => trail.last(stack, mkont)
       case Call(f)       => evalCall(f, rest, stack, frame, kont, mkont, trail, h, false)
       case ReturnCall(f) => evalCall(f, rest, stack, frame, kont, mkont, trail, h, true)
-      // XXX (GW): consider implementing call_ref too
       case RefFunc(f) =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
         eval(rest, RefFuncV(f) :: stack, frame, kont, mkont, trail, h)
-      case ContNew(ty) =>
-        // val RefFuncV(f) :: newStack = stack
-        // DH(calling for a review):
-        //    create a function works like a delimited continuation,
-        //    but it's still a function in essensial, make our interpreter not in pure CPS
-        // val cont: List[Value] => List[Value] =
-        //   (stack) => evalCall(List(), stack, frame, (s) => s, List(), f, false)
-        // eval(rest, RefContV(cont) :: newStack, frame, kont, trail)
-        throw new Exception("Unimplemented")
-      // TODO: implement the following
-      // case Suspend(tag_id) => {
-      //   println(s"${RED}Unimplimented Suspending tag $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
-
-      // TODO: resume should create a list of handlers to capture suspend
-      // TODO: The current implementation doesn't not deal with suspend at all
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
+
       // resumable try-catch exception handling:
       case TryCatch(es1, es2) =>
         val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, mkont, trail, h)
@@ -242,29 +226,61 @@ case class EvaluatorFX(module: ModuleInstance) {
           eval(rest, newStack/*!*/, frame, kontK, m/*vs mkont?*/, trail, h)
         }
         h(List(err, TCContV(kr)))
-      // XXX (GW): consider implementing call_ref too
-      case RefFunc(f) =>
-        // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
-        eval(rest, RefFuncV(f) :: stack, frame, kont, mkont, trail, h)
+
+      // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-        // DH(calling for a review):
-        //    create a function works like a delimited continuation,
-        //    but it's still a function in essensial, make our interpreter not in pure CPS
-        // val cont: List[Value] => List[Value] =
-        //   (stack) => evalCall(f, List(), stack, frame, mkont, (s) => s, List(), h, false)
-        // eval(rest, RefContV(cont) :: newStack, frame, kont, mkont, trail, h)
-        throw new Exception("Unimplemented")
+        //  should be similar to the contiuantion thrown by `throw`
+
+        // TODO: what is the justification for idK here?
+        val idK: Cont[Ans] = (s, m) => m(s)
+        // val k: Cont[Ans] = (s, mk) => evalCall(f, List(), s, frame, idK, mk, trail, h, false)
+
+        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans]): Ans = {
+          val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
+          eval(rest, s, frame, kontK, mk, trail, h)
+        }
+
+        eval(rest, TCContV(kr) :: newStack, frame, kont, mkont, trail, h)
       // TODO: implement the following
-      // case Suspend(tag_id) => {
-      //   println(s"${RED}Unimplimented Suspending tag $tag_id")
-      //   eval(rest, stack, frame, kont, trail)
-      // }
+      case Suspend(tag_id) => {
+        // println(s"${RED}Unimplimented Suspending tag $tag_id")
+        // eval(rest, stack, frame, kont, mkont, trail, h)
+        h(stack)
+      }
       
       // TODO: resume should create a list of handlers to capture suspend
       // TODO: The current implementation doesn't not deal with suspend at all
-      case Resume(ty, _handlers) => {
-        val RefContV(cont) :: newStack = stack
+      case Resume(kty_id, handler) => {
+        val (resume: TCContV[Ans]) :: newStack = stack
+        val contTy = module.types(kty_id)
+        val ContType(funcTypeId) = contTy
+        val FuncType(_, inps, out) = module.types(funcTypeId)
+        val (inputs, restStack) = newStack.splitAt(inps.size)
+
+        if (handler.length == 0) {
+          val k: Cont[Ans] = (s, m) => eval(rest, newStack, frame, kont, m, trail, h)
+          resume.k(inputs, k, mkont)
+        } else {
+
+          handler(0) match {
+            case Handler(tag_id, hanblk) => {
+              val newHandler: Handler[Ans] = (newStack) => {
+                // TODO: make sure this hanblk id is actually in the scope of resume
+                trail(hanblk)(newStack, mkont)
+              }
+              val m: MCont[Ans] = (s) => eval(rest, s ++ restStack, frame, kont, mkont, trail, h)
+              resume.k(inputs, kont, m)
+            }
+          }
+
+        }
+        
+        // val newEhs: List[(Int, Handler[Ans])] = handlers.map {
+        //   case Handler(tag_id, handler) => (tag_id, (s) => trail(handler)(s, ehs, mkont))
+        // }
+        // resume with new effect handlers installed each time
+
         // val cont = module.funcs(contAddr) match {
         //   case FuncDef(_, f) => f
         //   case _           => throw new Exception("Continuation is not a function")
@@ -281,7 +297,6 @@ case class EvaluatorFX(module: ModuleInstance) {
         // }
 
         // val (inputs, restStack) = newStack.splitAt(inps.size)
-        throw new Exception("Unimplemented")
         // val restK: Cont[Ans] = (retStack) =>
         //   eval(rest, retStack.take(out.size) ++ restStack, frame, kont, mkont, trail, h)
         // // DH(calling for a review): Here introduce a mix between direct-style and cps
@@ -302,6 +317,12 @@ case class EvaluatorFX(module: ModuleInstance) {
       //   }
       //   // TODO: finish this
         
+        
+        
+      case CallRef(ty) =>
+        val RefFuncV(f) :: newStack = stack
+        evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
+
         
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
