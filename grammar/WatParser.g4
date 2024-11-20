@@ -170,6 +170,9 @@ plainInstr
   | SUSPEND idx
   | CONTBIND idx idx
   | CALLREF idx
+  // resumable try-catch extension:
+  | RESUME0
+  | THROW
   ;
 
 resumeInstr
@@ -224,6 +227,8 @@ blockInstr
   : BLOCK bindVar? block END bindVar?
   | LOOP bindVar? block END bindVar?
   | IF bindVar? block (ELSE bindVar? instrList)? END bindVar?
+  // resumable try-catch extension:
+  | TRY block CATCH block END
   ;
 
 blockType

@@ -1,14 +1,61 @@
 package gensym.wasm.miniwasm
 
 import gensym.wasm.ast._
-import gensym.wasm.memory._
 import gensym.wasm.source._
+import gensym.wasm.memory._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import Console.{GREEN, RED, RESET, YELLOW_B, UNDERLINED}
 
 case class Trap() extends Exception
+
+case class ModuleInstance(
+  defs: List[Definition],
+  types: List[FuncType],
+  funcs: HashMap[Int, Callable],
+  memory: List[RTMemory] = List(RTMemory()),
+  globals: List[RTGlobal] = List(),
+  exports: List[Export] = List()
+)
+
+object ModuleInstance {
+  def apply(module: Module): ModuleInstance = {
+    val types = List()
+    val funcs = module.definitions
+      .collect({
+        case FuncDef(_, fndef @ FuncBodyDef(_, _, _, _)) => fndef
+      })
+      .toList
+
+    val globals = module.definitions
+      .collect({
+        case Global(_, GlobalValue(ty, e)) =>
+          (e.head) match {
+            case Const(c) => RTGlobal(ty, c)
+            // Q: What is the default behavior if case in non-exhaustive
+            case _ => ???
+          }
+      })
+      .toList
+
+    // TODO: correct the behavior for memory
+    val memory = module.definitions
+      .collect({
+        case Memory(id, MemoryType(min, max_opt)) =>
+          RTMemory(min, max_opt)
+      })
+      .toList
+
+    val exports = module.definitions
+      .collect({
+        case e @ Export(_, ExportFunc(_)) => e
+      })
+      .toList
+
+    ModuleInstance(module.definitions, types, module.funcEnv, memory, globals, exports)
+  }
+}
 
 object Primtives {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {

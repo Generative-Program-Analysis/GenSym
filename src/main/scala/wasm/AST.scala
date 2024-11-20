@@ -1,9 +1,8 @@
 package gensym.wasm.ast
 
-import gensym.wasm.memory._
-import gensym.wasm.source._
-
 import scala.collection.mutable.HashMap
+import gensym.wasm.miniwasm.ModuleInstance
+import gensym.wasm.source._
 
 abstract class WIR
 
@@ -148,6 +147,11 @@ case class Resume(ty: Int, ons: List[Handler]) extends Instr
 // TODO: make sure this class wants to extend WIR
 case class Handler(tag: Int, label: Int) extends WIR
 
+// resumable try-catch:
+case class TryCatch(e1: List[Instr], e2: List[Instr]) extends Instr
+case class Resume0() extends Instr
+case class Throw() extends Instr
+
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
 case class BrUnresolved(name: String) extends Instr with Unresolved
@@ -288,8 +292,6 @@ case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multi
     extends Assertion
 case class AssertTrap(action: Action, message: String) extends Assertion
 
-trait Callable
-
 /* Runtime structures */
 
 // Values
@@ -312,8 +314,10 @@ case class I64V(value: Long) extends Num
 case class F32V(value: Float) extends Num
 case class F64V(value: Double) extends Num
 
+trait Callable
+
 // https://webassembly.github.io/function-references/core/exec/runtime.html
-abstract class Ref extends Value
+abstract class Ref extends Value with Callable
 case class RefNullV(t: HeapType) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = RefType(t)
 }
@@ -323,7 +327,6 @@ case class RefFuncV(funcAddr: Int) extends Ref {
       case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
     }
 }
-
 // RefContV refers to a delimited continuation
 case class RefContV(cont: List[Value] => List[Value]) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = ???
@@ -333,55 +336,4 @@ case class RefExternV(externAddr: Int) extends Ref {
 }
 
 case class RTGlobal(ty: GlobalType, var value: Value)
-
-case class ModuleInstance(
-  defs: List[Definition],
-  types: List[FuncLikeType],
-  funcs: HashMap[Int, Callable],
-  memory: List[RTMemory] = List(RTMemory()),
-  globals: List[RTGlobal] = List(),
-  exports: List[Export] = List()
-)
-
-object ModuleInstance {
-  def apply(module: Module): ModuleInstance = {
-    val types = module.definitions
-      .collect({
-        case TypeDef(_, tipe) => tipe
-      })
-      .toList
-    val funcs = module.definitions
-      .collect({
-        case FuncDef(_, fndef @ FuncBodyDef(_, _, _, _)) => fndef
-      })
-      .toList
-
-    val globals = module.definitions
-      .collect({
-        case Global(_, GlobalValue(ty, e)) =>
-          (e.head) match {
-            case Const(c) => RTGlobal(ty, c)
-            // Q: What is the default behavior if case in non-exhaustive
-            case _ => ???
-          }
-      })
-      .toList
-
-    // TODO: correct the behavior for memory
-    val memory = module.definitions
-      .collect({
-        case Memory(id, MemoryType(min, max_opt)) =>
-          RTMemory(min, max_opt)
-      })
-      .toList
-
-    val exports = module.definitions
-      .collect({
-        case e @ Export(_, ExportFunc(_)) => e
-      })
-      .toList
-
-    ModuleInstance(module.definitions, types, module.funcEnv, memory, globals, exports)
-  }
-}
 

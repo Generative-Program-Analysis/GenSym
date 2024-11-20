@@ -80,6 +80,12 @@ CONTNEW: 'cont.new' ;
 CONTBIND: 'cont.bind' ;
 SUSPEND: 'suspend' ;
 
+// resumable try-catch extension:
+TRY: 'try' ;
+CATCH: 'catch' ;
+THROW: 'throw' ;
+RESUME0: 'resume0' ;
+
 LOCAL_GET: 'local.get' ;
 LOCAL_SET: 'local.set' ;
 LOCAL_TEE: 'local.tee' ;
