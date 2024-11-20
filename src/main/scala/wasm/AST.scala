@@ -6,19 +6,20 @@ import gensym.wasm.source._
 
 abstract class WIR
 
-case class Module(name: Option[String], definitions: List[Definition], funcEnv: HashMap[Int, WIR]) extends WIR
+case class Module(name: Option[String], definitions: List[Definition], funcEnv: HashMap[Int, Callable]) extends WIR
 
 abstract class Definition extends WIR
-case class FuncDef(name: Option[String], f: FuncField) extends Definition
-case class TypeDef(id: Option[String], tipe: FuncType) extends Definition
+case class FuncDef(name: Option[String], f: FuncField) extends Definition with Callable
+case class TypeDef(id: Option[String], tipe: FuncLikeType) extends Definition
 case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
 case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList) extends Definition
 case class Data(id: Option[String], value: String) extends Definition
 case class Start(id: Int) extends Definition
-case class Import(mod: String, name: String, desc: ImportDesc) extends Definition
+case class Import(mod: String, name: String, desc: ImportDesc) extends Definition with Callable
 case class Export(name: String, desc: ExportDesc) extends Definition
+case class Tag(id: Option[String], tipe: FuncType) extends Definition
 // FIXME: missing top-level module fields, see WatParser.g4
 
 abstract class ImportDesc extends WIR
@@ -104,12 +105,6 @@ case object MemoryFill extends Instr
 case object MemoryCopy extends Instr
 case class MemoryInit(seg: Int) extends Instr
 // case class DataDrop(seg: Int) extends Instr
-// case class RefNull(ty: RefType) extends Instr
-// case class RefFunc(func: Int) extends Instr
-// case object RefIsNull extends Instr
-case class PushSym(name: String, concreteVal: Num) extends Instr
-case class Symbolic(ty: ValueType) extends Instr
-case object SymAssert extends Instr
 case class Const(num: Num) extends Instr
 case class Test(op: TestOp) extends Instr
 case class Compare(op: RelOp) extends Instr
@@ -131,6 +126,32 @@ case class Convert(op: CvtOp) extends Instr
 // case class VecSplat(op: VecSplatOp) extends Instr
 // case class VecExtract(op: VecExtractOp) extends Instr
 // case class VecReplace(op: VecReplaceOp) extends Instr
+
+// Instructions for symbolic execution
+case class PushSym(name: String, concreteVal: Num) extends Instr
+case class Symbolic(ty: ValueType) extends Instr
+case object SymAssert extends Instr
+
+// TODO: add wasmfx instructions
+// TODO: should I take care of the unresolved cases?
+case class Suspend(tag: Int) extends Instr
+// note that cont.new can only be called with a func type
+case class ContNew(ty: Int) extends Instr
+case class ContBind(OldContTy: Int, NewContTy: Int) extends Instr
+// case class RefNull(ty: RefType) extends Instr
+// case object RefIsNull extends Instr
+// note that ref.func can be called with any of the extended function type
+case class RefFunc(func: Int) extends Instr
+case class CallRef(ty: Int) extends Instr
+
+case class Resume(ty: Int, ons: List[Handler]) extends Instr
+// TODO: make sure this class wants to extend WIR
+case class Handler(tag: Int, label: Int) extends WIR
+
+// resumable try-catch:
+case class TryCatch(e1: List[Instr], e2: List[Instr]) extends Instr
+case class Resume0() extends Instr
+case class Throw() extends Instr
 
 trait Unresolved
 case class CallUnresolved(name: String) extends Instr with Unresolved
@@ -213,8 +234,8 @@ case object SX extends Extension
 case object ZX extends Extension
 
 abstract class MemOp(align: Int, offset: Int) extends WIR
-case class StoreOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize]) extends MemOp(align, offset)
-case class LoadOp(align: Int, offset: Int, tipe: NumType, pack_size: Option[PackSize], extension: Option[Extension])
+case class StoreOp(align: Int, offset: Int, tipe: NumType, packSize: Option[PackSize]) extends MemOp(align, offset)
+case class LoadOp(align: Int, offset: Int, tipe: NumType, packSize: Option[PackSize], extension: Option[Extension])
     extends MemOp(align, offset)
 
 // Types
@@ -228,18 +249,21 @@ case object F64Type extends NumKind
 abstract class VecKind extends WIR
 case object V128Type extends VecKind
 
-abstract class RefKind extends WIR
-case object FuncRefType extends RefKind
-case object ExternRefType extends RefKind
+trait FuncLikeType
+
+abstract class HeapType extends WIR
+case object FuncRefType extends HeapType
+case object ExternRefType extends HeapType
+case class RefFuncType(tyId: Int) extends HeapType
+case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends HeapType with FuncLikeType
+case class ContType(funcTypeId: Int) extends HeapType with FuncLikeType
 
 abstract class WasmType extends WIR
 
 abstract class ValueType extends WasmType
 case class NumType(kind: NumKind) extends ValueType
 case class VecType(kind: VecKind) extends ValueType
-case class RefType(kind: RefKind) extends ValueType
-
-case class FuncType(argNames /*optional*/: List[String], inps: List[ValueType], out: List[ValueType]) extends WasmType
+case class RefType(kind: HeapType) extends ValueType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 
@@ -247,17 +271,35 @@ abstract class BlockType extends WIR
 case class VarBlockType(index: Int, tipe: Option[FuncType]) extends BlockType
 case class ValBlockType(tipe: Option[ValueType]) extends BlockType;
 
-// Globals
-case class RTGlobal(ty: GlobalType, var value: Value)
+// Exports
+abstract class ExportDesc extends WIR
+case class ExportFunc(i: Int) extends ExportDesc
+case class ExportTable(i: Int) extends ExportDesc
+case class ExportMemory(i: Int) extends ExportDesc
+case class ExportGlobal(i: Int) extends ExportDesc
+
+case class Script(cmds: List[Cmd]) extends WIR
+abstract class Cmd extends WIR
+// TODO: can we turn abstract class sealed?
+case class CmdModule(module: Module) extends Cmd
+
+abstract class Action extends WIR
+case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
+
+abstract class Assertion extends Cmd
+case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
+    extends Assertion
+case class AssertTrap(action: Action, message: String) extends Assertion
+
+/* Runtime structures */
 
 // Values
-
-abstract class Value extends WIR {
-  def tipe: ValueType
+abstract class Value {
+  def tipe(implicit m: ModuleInstance): ValueType
 }
 
 abstract class Num extends Value {
-  def tipe: ValueType =
+  def tipe(implicit m: ModuleInstance): ValueType =
     NumType(this match {
       case I32V(_) => I32Type
       case I64V(_) => I64Type
@@ -271,9 +313,25 @@ case class I64V(value: Long) extends Num
 case class F32V(value: Float) extends Num
 case class F64V(value: Double) extends Num
 
-// Exports
-abstract class ExportDesc extends WIR
-case class ExportFunc(i: Int) extends ExportDesc
-case class ExportTable(i: Int) extends ExportDesc
-case class ExportMemory(i: Int) extends ExportDesc
-case class ExportGlobal(i: Int) extends ExportDesc
+trait Callable
+
+// https://webassembly.github.io/function-references/core/exec/runtime.html
+abstract class Ref extends Value with Callable
+case class RefNullV(t: HeapType) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = RefType(t)
+}
+case class RefFuncV(funcAddr: Int) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType =
+    m.funcs(funcAddr) match {
+      case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
+    }
+}
+case class RefContV(funcAddr: Int) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = ???
+}
+case class RefExternV(externAddr: Int) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = ???
+}
+
+case class RTGlobal(ty: GlobalType, var value: Value)
+

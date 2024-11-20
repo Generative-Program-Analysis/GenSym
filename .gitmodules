@@ -24,3 +24,6 @@
 	path = third-party/lms-clean
 	url = https://github.com/TiarkRompf/lms-clean
   ignore = dirty
+[submodule "third-party/wasmfx-tools"]
+	path = third-party/wasmfx-tools
+	url = git@github.com:wasmfx/wasmfx-tools.git

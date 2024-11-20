@@ -6,16 +6,56 @@ import gensym.wasm.memory._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
+import Console.{GREEN, RED, RESET, YELLOW_B, UNDERLINED}
 
 case class Trap() extends Exception
 
 case class ModuleInstance(
-    types: List[FuncType],
-    funcs: HashMap[Int, WIR],
-    memory: List[RTMemory] = List(RTMemory()),
-    globals: List[RTGlobal] = List(),
-    exports: List[Export] = List()
+  defs: List[Definition],
+  types: List[FuncType],
+  funcs: HashMap[Int, Callable],
+  memory: List[RTMemory] = List(RTMemory()),
+  globals: List[RTGlobal] = List(),
+  exports: List[Export] = List()
 )
+
+object ModuleInstance {
+  def apply(module: Module): ModuleInstance = {
+    val types = List()
+    val funcs = module.definitions
+      .collect({
+        case FuncDef(_, fndef @ FuncBodyDef(_, _, _, _)) => fndef
+      })
+      .toList
+
+    val globals = module.definitions
+      .collect({
+        case Global(_, GlobalValue(ty, e)) =>
+          (e.head) match {
+            case Const(c) => RTGlobal(ty, c)
+            // Q: What is the default behavior if case in non-exhaustive
+            case _ => ???
+          }
+      })
+      .toList
+
+    // TODO: correct the behavior for memory
+    val memory = module.definitions
+      .collect({
+        case Memory(id, MemoryType(min, max_opt)) =>
+          RTMemory(min, max_opt)
+      })
+      .toList
+
+    val exports = module.definitions
+      .collect({
+        case e @ Export(_, ExportFunc(_)) => e
+      })
+      .toList
+
+    ModuleInstance(module.definitions, types, module.funcEnv, memory, globals, exports)
+  }
+}
 
 object Primtives {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
@@ -23,6 +63,8 @@ object Primtives {
       (lhs, rhs) match {
         case (I32V(v1), I32V(v2)) => I32V(v1 + v2)
         case (I64V(v1), I64V(v2)) => I64V(v1 + v2)
+        case (F32V(v1), F32V(v2)) => F32V(v1 + v2)
+        case (F64V(v1), F64V(v2)) => F64V(v1 + v2)
         case _                    => throw new Exception("Invalid types")
       }
     case Mul(_) =>
@@ -160,38 +202,40 @@ object Primtives {
       }
   }
 
-  def memOutOfBound(frame: Frame, memoryIndex: Int, offset: Int, size: Int) = {
-    val memory = frame.module.memory(memoryIndex)
+  def memOutOfBound(module: ModuleInstance, memoryIndex: Int, offset: Int, size: Int) = {
+    val memory = module.memory(memoryIndex)
     offset + size > memory.size
   }
 
   def zero(t: ValueType): Value = t match {
-    case NumType(kind) => kind match {
-      case I32Type => I32V(0)
-      case I64Type => I64V(0)
-      case F32Type => F32V(0)
-      case F64Type => F64V(0)
-    }
+    case NumType(kind) =>
+      kind match {
+        case I32Type => I32V(0)
+        case I64Type => I64V(0)
+        case F32Type => F32V(0)
+        case F64Type => F64V(0)
+      }
     case VecType(kind) => ???
     case RefType(kind) => ???
   }
+
+  def getFuncType(ty: BlockType): FuncType =
+    ty match {
+      case VarBlockType(_, None) =>
+        ??? // TODO: fill this branch until we handle type index correctly
+      case VarBlockType(_, Some(tipe)) => tipe
+      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None)          => FuncType(List(), List(), List())
+    }
 }
 
-case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value])
+case class Frame(locals: ArrayBuffer[Value])
 
-object Evaluator {
+case class Evaluator(module: ModuleInstance) {
   import Primtives._
+  implicit val m: ModuleInstance = module
 
   type Cont[A] = List[Value] => A
-
-  def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
-    ty match {
-      case VarBlockType(_, None) => ??? // TODO: fill this branch until we handle type index correctly
-      case VarBlockType(_, Some(tipe)) => tipe
-      case ValBlockType(Some(tipe)) => FuncType(List(), List(), List(tipe))
-      case ValBlockType(None) => FuncType(List(), List(), List())
-    }
-  }
 
   def evalCall[Ans](rest: List[Instr],
                     stack: List[Value],
@@ -200,13 +244,13 @@ object Evaluator {
                     trail: List[Cont[Ans]],
                     funcIndex: Int,
                     isTail: Boolean): Ans = {
-    frame.module.funcs(funcIndex) match {
-      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>     
+    module.funcs(funcIndex) match {
+      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(zero(_))
-        val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*))
-        if (isTail) 
+        val newFrame = Frame(ArrayBuffer(frameLocals: _*))
+        if (isTail)
           // when tail call, share the continuation for returning with the callee
           eval(body, List(), newFrame, kont, List(kont))
         else {
@@ -217,12 +261,17 @@ object Evaluator {
           eval(body, List(), newFrame, restK, List(restK))
         }
       case Import("console", "log", _) =>
-            //println(s"[DEBUG] current stack: $stack")
-            val I32V(v) :: newStack = stack
-            println(v)
-            eval(rest, newStack, frame, kont, trail)
+        //println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
+      case Import("spectest", "print_i32", _) =>
+        //println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
-      case _ => throw new Exception(s"Definition at $funcIndex is not callable")
+      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
   }
 
@@ -258,21 +307,21 @@ object Evaluator {
         frame.locals(i) = value
         eval(rest, stack, frame, kont, trail)
       case GlobalGet(i) =>
-        eval(rest, frame.module.globals(i).value :: stack, frame, kont, trail)
+        eval(rest, module.globals(i).value :: stack, frame, kont, trail)
       case GlobalSet(i) =>
         val value :: newStack = stack
-        frame.module.globals(i).ty match {
+        module.globals(i).ty match {
           case GlobalType(tipe, true) if value.tipe == tipe =>
-            frame.module.globals(i).value = value
+            module.globals(i).value = value
           case GlobalType(_, true) => throw new Exception("Invalid type")
           case _                   => throw new Exception("Cannot set immutable global")
         }
         eval(rest, newStack, frame, kont, trail)
       case MemorySize =>
-        eval(rest, I32V(frame.module.memory.head.size) :: stack, frame, kont, trail)
+        eval(rest, I32V(module.memory.head.size) :: stack, frame, kont, trail)
       case MemoryGrow =>
         val I32V(delta) :: newStack = stack
-        val mem = frame.module.memory.head
+        val mem = module.memory.head
         val oldSize = mem.size
         mem.grow(delta) match {
           case Some(e) =>
@@ -282,18 +331,18 @@ object Evaluator {
         }
       case MemoryFill =>
         val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = stack
-        if (memOutOfBound(frame, 0, offset, size))
+        if (memOutOfBound(module, 0, offset, size))
           throw new Exception("Out of bounds memory access") // GW: turn this into a `trap`?
         else {
-          frame.module.memory.head.fill(offset, size, value.toByte)
+          module.memory.head.fill(offset, size, value.toByte)
           eval(rest, newStack, frame, kont, trail)
         }
       case MemoryCopy =>
         val I32V(n) :: I32V(src) :: I32V(dest) :: newStack = stack
-        if (memOutOfBound(frame, 0, src, n) || memOutOfBound(frame, 0, dest, n))
+        if (memOutOfBound(module, 0, src, n) || memOutOfBound(module, 0, dest, n))
           throw new Exception("Out of bounds memory access")
         else {
-          frame.module.memory.head.copy(dest, src, n)
+          module.memory.head.copy(dest, src, n)
           eval(rest, newStack, frame, kont, trail)
         }
       case Const(n) => eval(rest, n :: stack, frame, kont, trail)
@@ -311,17 +360,17 @@ object Evaluator {
         eval(rest, evalTestOp(op, v) :: newStack, frame, kont, trail)
       case Store(StoreOp(align, offset, ty, None)) =>
         val I32V(v) :: I32V(addr) :: newStack = stack
-        frame.module.memory(0).storeInt(addr + offset, v)
+        module.memory(0).storeInt(addr + offset, v)
         eval(rest, newStack, frame, kont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val I32V(addr) :: newStack = stack
-        val value = frame.module.memory(0).loadInt(addr + offset)
+        val value = module.memory(0).loadInt(addr + offset)
         eval(rest, I32V(value) :: newStack, frame, kont, trail)
       case Nop =>
         eval(rest, stack, frame, kont, trail)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val funcTy = getFuncType(frame.module, ty)
+        val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
@@ -330,7 +379,7 @@ object Evaluator {
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val funcTy = getFuncType(frame.module, ty)
+        val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
@@ -362,7 +411,7 @@ object Evaluator {
           eval(init, stack, frame, forloop, trail)
 
       case If(ty, thn, els) =>
-        val funcTy = getFuncType(frame.module, ty)
+        val funcTy = getFuncType(ty)
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
@@ -379,8 +428,8 @@ object Evaluator {
         val I32V(cond) :: newStack = stack
         val goto = if (cond < labels.length) labels(cond) else default
         trail(goto)(newStack)
-      case Return => trail.last(stack)
-      case Call(f) => evalCall(rest, stack, frame, kont, trail, f, false)
+      case Return        => trail.last(stack)
+      case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
       case _ =>
         println(inst)
@@ -390,24 +439,23 @@ object Evaluator {
 
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
-  def evalTop[Ans](module: Module, halt: Cont[Ans], main: Option[String] = None): Ans = {
+  def evalTop[Ans](halt: Cont[Ans], main: Option[String] = None): Ans = {
     val instrs = main match {
       case Some(func_name) =>
-        module.definitions.flatMap({
+        module.defs.flatMap({
           case Export(`func_name`, ExportFunc(fid)) =>
             println(s"Entering function $main")
-            module.funcEnv(fid) match {
+            module.funcs(fid) match {
               case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
-              case _ =>
-                throw new Exception("Entry function has no concrete body")
+              case _ => throw new Exception("Entry function has no concrete body")
             }
           case _ => List()
         })
       case None =>
-        module.definitions.flatMap({
+        module.defs.flatMap({
           case Start(id) =>
             println(s"Entering unnamed function $id")
-            module.funcEnv(id) match {
+            module.funcs(id) match {
               case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
               case _ =>
                 throw new Exception("Entry function has no concrete body")
@@ -415,39 +463,10 @@ object Evaluator {
           case _ => List()
         })
     }
-
     if (instrs.isEmpty) println("Warning: nothing is executed")
 
-    val types = List()
-    val funcs = module.definitions
-      .collect({
-        case FuncDef(_, fndef @ FuncBodyDef(_, _, _, _)) => fndef
-      })
-      .toList
-
-    val globals = module.definitions
-      .collect({
-        case Global(_, GlobalValue(ty, e)) =>
-          (e.head) match {
-            case Const(c) => RTGlobal(ty, c)
-            // Q: What is the default behavior if case in non-exhaustive
-            case _ => ???
-          }
-      })
-      .toList
-
-    // TODO: correct the behavior for memory
-    val memory = module.definitions
-      .collect({
-        case Memory(id, MemoryType(min, max_opt)) =>
-          RTMemory(min, max_opt)
-      })
-      .toList
-
-    val moduleInst = ModuleInstance(types, module.funcEnv, memory, globals)
-
-    Evaluator.eval(instrs, List(), Frame(moduleInst, ArrayBuffer(I32V(0),I32V(0))), halt, List(halt))
+    eval(instrs, List(), Frame(ArrayBuffer(I32V(0),I32V(0))), halt, List(halt))
   }
 
-  def evalTop(m: Module): Unit = evalTop(m, stack => ())
+  def evalTop(m: ModuleInstance): Unit = evalTop(stack => ())
 }

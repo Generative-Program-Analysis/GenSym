@@ -48,6 +48,8 @@ SYMBOLIC : NXX '.symbolic' ;
 FUNCREF: 'funcref' ;
 EXTERNREF: 'externref' ;
 MUT: 'mut' ;
+REF: 'ref' ;
+CONT: 'cont' ;
 
 NOP: 'nop' ;
 SYM_ASSERT: 'sym_assert' ;
@@ -72,6 +74,19 @@ CALL: 'call' ;
 CALL_INDIRECT: 'call_indirect' ;
 RETURN_CALL: 'return_call' ;
 RETURN_CALL_INDIRECT: 'return_call_indirect' ;
+REFFUNC: 'ref.func' ;
+CALLREF: 'call_ref' ;
+RESUME: 'resume' ;
+ON: 'on' ;
+CONTNEW: 'cont.new' ;
+CONTBIND: 'cont.bind' ;
+SUSPEND: 'suspend' ;
+
+// resumable try-catch extension:
+TRY: 'try' ;
+CATCH: 'catch' ;
+THROW: 'throw' ;
+RESUME0: 'resume0' ;
 
 LOCAL_GET: 'local.get' ;
 LOCAL_SET: 'local.set' ;
@@ -251,6 +266,9 @@ DATA: 'data' ;
 OFFSET: 'offset' ;
 IMPORT: 'import' ;
 EXPORT: 'export' ;
+TAG: 'tag' ;
+
+DECLARE: 'declare' ;
 
 MODULE : 'module' ;
 BIN : 'binary' ;

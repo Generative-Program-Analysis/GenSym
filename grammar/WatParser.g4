@@ -52,9 +52,14 @@ numType
   : VALUE_TYPE
   ;
 
+// exception handling and function references seems to have different definitions
+// for refType, which is probably going to be unified in wasm 3.0
+// https://webassembly.github.io/function-references/core/text/types.html
+// https://webassembly.github.io/exception-handling/core/_download/WebAssembly.pdf
 refType
-  : FUNCREF
-  | EXTERNREF
+  : FUNCREF           // equivalent to (ref null func)
+  | EXTERNREF         // equivalent to (ref null extern)
+  | LPAR REF idx RPAR // here idx must be a heap type
   ;
 
 vecType
@@ -66,6 +71,7 @@ valType : numType | vecType | refType ;
 heapType
   : FUNC
   | EXTERN
+  | funcType
   ;
 
 globalType
@@ -74,6 +80,7 @@ globalType
 
 defType
   : LPAR FUNC funcType RPAR
+  | LPAR CONT idx RPAR
   ;
 
 funcParamType
@@ -121,6 +128,7 @@ instr
   /* | callInstrInstr */
   | blockInstr
   | foldedInstr
+  | resumeInstr
   | forLoop
   ;
 
@@ -162,6 +170,22 @@ plainInstr
   | BINARY
   | CONVERT
   | callIndirectInstr
+  | CONTNEW idx
+  | REFFUNC idx
+  | SUSPEND idx
+  | CONTBIND idx idx
+  | CALLREF idx
+  // resumable try-catch extension:
+  | RESUME0
+  | THROW
+  ;
+
+resumeInstr
+  : RESUME idx handlerInstr*
+  ;
+
+handlerInstr
+  : LPAR ON idx idx RPAR
   ;
 
 offsetEq : OFFSET_EQ NAT ;
@@ -208,6 +232,8 @@ blockInstr
   : BLOCK bindVar? block END bindVar?
   | LOOP bindVar? block END bindVar?
   | IF bindVar? block (ELSE bindVar? instrList)? END bindVar?
+  // resumable try-catch extension:
+  | TRY block CATCH block END
   ;
 
 blockType
@@ -288,9 +314,16 @@ offset
   | expr
   ;
 
+// TODO: not sure about the the parsing rules here
+// fow now, I only extend it to support declarative mode for ref.func
+// like (elem declarative func 1)
+// TBH I'm not even sure what the `func 1` should count as
+// TODO: align with the rules here:
+// https://webassembly.github.io/function-references/core/_download/WebAssembly.pdf
 elem
   : LPAR ELEM idx? LPAR instr RPAR idx* RPAR
   | LPAR ELEM idx? offset idx* RPAR
+  | LPAR ELEM idx? DECLARE FUNC idx RPAR
   ;
 
 table
@@ -363,6 +396,17 @@ inlineExport
   : LPAR EXPORT name RPAR
   ;
 
+/* Tags */
+
+// Note: this seems slightly off from
+// https://webassembly.github.io/exception-handling/core/_download/WebAssembly.pdf
+// based on the exception handling proposal, the funcType here is not required
+// but output from `wasmfx-tools print` seems to leave the funcType in
+tag
+  : LPAR TAG bindVar? typeUse funcType RPAR
+  ;
+
+
 /* Modules */
 
 typeDef
@@ -384,6 +428,7 @@ moduleField
   | start_
   | simport
   | export_
+  | tag
   ;
 
 module_

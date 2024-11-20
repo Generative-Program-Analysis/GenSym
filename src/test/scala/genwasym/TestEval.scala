@@ -24,7 +24,8 @@ class TestEval extends FunSuite {
   def testFile(filename: String, main: Option[String] = None, expected: ExpResult = Ignore) = {
     val module = Parser.parseFile(filename)
     //println(module)
-    val haltK: Evaluator.Cont[Unit] = stack => {
+    val evaluator = Evaluator(ModuleInstance(module))
+    val haltK: evaluator.Cont[Unit] = stack => {
       println(s"halt cont: $stack")
       expected match {
         case ExpInt(e) => assert(stack(0) == I32V(e))
@@ -32,7 +33,7 @@ class TestEval extends FunSuite {
         case Ignore    => ()
       }
     }
-    Evaluator.evalTop(module, haltK, main)
+    evaluator.evalTop(haltK, main)
   }
 
 
@@ -77,6 +78,17 @@ class TestEval extends FunSuite {
   test("for loop") {
     testFile("./benchmarks/wasm/for_loop.wat", Some("for_loop"), ExpInt(55))
   }
+
+  // just for parsing
+  test("fx types") {
+    testFile("./benchmarks/wasm/wasmfx/cont1-stripped.wat")
+  }
+
+  // can parse this file,
+  // but there's no support for ref.func, cont.new, suspend, resume to run it yet
+  // test("gen") {
+  //   testFile("./benchmarks/wasm/wasmfx/gen-stripped.wat")
+  // }
 
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }

@@ -3,6 +3,7 @@ package gensym.wasm.parser
 import gensym.wasm.ast._
 import gensym.wasm.source._
 
+import scala.util.Try
 import scala.util.parsing.combinator._
 import scala.util.parsing.input.Positional
 import scala.util.matching.Regex
@@ -13,6 +14,9 @@ import org.antlr.v4.runtime._
 import scala.collection.JavaConverters._
 import collection.mutable.{HashMap, ListBuffer}
 import gensym.wasm._
+
+import java.io.OutputStream
+
 
 import scala.collection.mutable
 
@@ -25,8 +29,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   // Note: we construct a mapping from indices to function-like definitions, which helps
   // function call resolution in the later phase.
-  // TODO: instead of using WIR, define a trait for function-like definitions
-  val fnMapInv: HashMap[Int, WIR] = HashMap()
+  val fnMapInv: HashMap[Int, Callable] = HashMap()
 
   def error = throw new RuntimeException("Unspported")
 
@@ -109,13 +112,16 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     Start(id.toInt)
   }
 
-  override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE().getText)
+  override def visitNumType(ctx: NumTypeContext): NumType = toNumType(ctx.VALUE_TYPE.getText)
 
   override def visitVecType(ctx: VecTypeContext): VecType = VecType(V128Type)
 
   override def visitRefType(ctx: RefTypeContext): RefType = {
     if (ctx.FUNCREF != null) RefType(FuncRefType)
     else if (ctx.EXTERNREF != null) RefType(ExternRefType)
+    else if (ctx.REF != null) {
+      RefType(RefFuncType(getVar(ctx.idx).toInt))
+    }
     else error
   }
 
@@ -140,7 +146,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   }
 
   override def visitTypeDef(ctx: TypeDefContext): WIR = {
-    TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
+    if (ctx.defType.FUNC != null) {
+      TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
+    } else if (ctx.defType.CONT != null) {
+      // TODO: here, the getVar is more link the typeUse one, although it uses the IdxContext one
+       TypeDef(getVar(ctx.bindVar()), ContType(getVar(ctx.defType.idx).toInt))
+    } else {
+      error
+    }
   }
 
   override def visitFunction(ctx: FunctionContext): FuncDef = {
@@ -148,7 +161,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     name match {
       case Some(realName) => fnMap(realName) = fnMap.size
       case _ =>
-        println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
+        System.err.println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
         fnMap(s"UNNAMED_${fnMap.size}") = fnMap.size
     }
     val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]
@@ -186,23 +199,81 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ???
   }
 
+  // TODO: This doesn't seems quite correct
+  def parseHexFloat(text: String): Float = {
+    if (text.startsWith("0x") || text.startsWith("-0x") || text.startsWith("+0x")) {
+      // Remove optional sign and "0x" prefix
+      val cleanText = text.replaceFirst("^[+-]?0x", "")
+      // why removing the seemling irrelevant following two lines will effect
+      // the value being parsed?
+      val value: Float =  BigDecimal(text).floatValue
+      print(f"cleanText = $cleanText, value = $value\n")
+
+      val Array(mantissa, exponent) = cleanText.split("p", 2)
+
+      // Convert mantissa and exponent
+      val mantissaValue = java.lang.Float.intBitsToFloat(java.lang.Integer.parseUnsignedInt(mantissa.replace(".", ""), 16))
+      val exponentValue = Math.pow(2, exponent.toInt).toFloat
+      // print(s"mantissaValue = $mantissaValue, exponentValue = $exponentValue\n")
+      mantissaValue * exponentValue
+    } else {
+      text.toFloat // Fall back to regular decimal parsing
+    }
+  }
+
+
   def visitLiteralWithType(ctx: LiteralContext, ty: NumType): Num = {
     if (ctx.NAT != null) {
       ty.kind match {
-        case I32Type => I32V(ctx.NAT.getText.toInt)
-        case I64Type => I64V(ctx.NAT.getText.toLong)
+        case I32Type => {
+          if (ctx.NAT.getText.startsWith("0x")) {
+            val parsedValue = java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16)
+            // Convert to signed 32-bit integer if it exceeds the max 32-bit signed integer range
+            val intValue = if (parsedValue > Int.MaxValue) (parsedValue - (1L << 32)).toInt else parsedValue.toInt
+            I32V(intValue)
+          } else {
+            I32V(ctx.NAT.getText.toInt)
+          }
+        }
+        case I64Type => {
+          if (ctx.NAT.getText.startsWith("0x")) {
+            I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2), 16))
+          } else {
+            I64V(ctx.NAT.getText.toLong)
+          }
+        }
       }
     } else if (ctx.INT != null) {
       ty.kind match {
-        case I32Type => I32V(ctx.INT.getText.toInt)
-        case I64Type => I64V(ctx.INT.getText.toLong)
+        case I32Type => {
+          if (ctx.INT.getText.startsWith("0x")) {
+            I32V(Integer.parseInt(ctx.INT.getText.substring(2), 16))
+          } else {
+            I32V(ctx.INT.getText.toInt)
+          }
+        }
+        case I64Type => {
+          if (ctx.INT.getText.startsWith("0x")) {
+            I64V(java.lang.Long.parseLong(ctx.INT.getText.substring(2), 16))
+          } else {
+            I64V(ctx.INT.getText.toLong)
+          }
+        }
       }
+    // TODO: parsing support for hex representation for f32/f64 not quite there yet
     } else if (ctx.FLOAT != null) {
       ty.kind match {
-        case F32Type => F32V(ctx.FLOAT.getText.toFloat)
-        case F64Type => F64V(ctx.FLOAT.getText.toDouble)
+        case F32Type =>
+          val parsedValue = Try(parseHexFloat(ctx.FLOAT.getText).toFloat).getOrElse(ctx.FLOAT.getText.toFloat)
+          F32V(parsedValue)
+
+        case F64Type =>
+          // TODO: not processed at all
+          val parsedValue = ctx.FLOAT.getText.toDouble
+          F64V(parsedValue)
       }
-    } else error
+    }
+    else error
   }
 
   override def visitPlainInstr(ctx: PlainInstrContext): Instr = {
@@ -385,21 +456,35 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           Reinterpret(fromTy, toTy)
       }
       Convert(op)
-     } else if (ctx.SYM_ASSERT != null) {
-       SymAssert
-     } else if (ctx.SYMBOLIC != null) {
-       val Array(ty, _) = ctx.SYMBOLIC.getText.split("\\.")
-       Symbolic(toNumType(ty))
-     } else if (ctx.callIndirectInstr() != null) {
-       val instr = ctx.callIndirectInstr()
-       val idx = if (instr.idx != null) instr.idx.getText.toInt else 0
-       val typeUse = getVar(instr.typeUse).get.toInt
-       CallIndirect(typeUse, idx)
-     } else if (ctx.ALLOC != null) {
-       Alloc
-     } else if (ctx.FREE != null) {
-       Free
-     }
+    } else if (ctx.SYM_ASSERT != null) {
+      SymAssert
+    } else if (ctx.SYMBOLIC != null) {
+      val Array(ty, _) = ctx.SYMBOLIC.getText.split("\\.")
+      Symbolic(toNumType(ty))
+    } else if (ctx.callIndirectInstr() != null) {
+      val instr = ctx.callIndirectInstr()
+      val idx = if (instr.idx != null) instr.idx.getText.toInt else 0
+      val typeUse = getVar(instr.typeUse).get.toInt
+      CallIndirect(typeUse, idx)
+    } else if (ctx.ALLOC != null) {
+      Alloc
+    } else if (ctx.FREE != null) {
+      Free
+    } else if (ctx.SUSPEND != null) {
+      Suspend(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CONTNEW != null) {
+      ContNew(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.REFFUNC != null) {
+      RefFunc(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CALLREF != null) {
+      CallRef(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CONTBIND != null) {
+      ContBind(getVar(ctx.idx(0)).toInt, getVar(ctx.idx(1)).toInt)
+    } else if (ctx.RESUME0 != null) {
+      Resume0()
+    } else if (ctx.THROW != null) {
+      Throw()
+    }
     else {
       println(s"unimplemented parser for: ${ctx.getText}")
       error
@@ -428,8 +513,20 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
   }
 
+  override def visitHandlerInstr(ctx: HandlerInstrContext): Handler = {
+    val tagId = getVar(ctx.idx(0)).toInt
+    val onYieldBlockId = getVar(ctx.idx(1)).toInt
+    Handler(tagId, onYieldBlockId)
+  }
+
+  override def visitResumeInstr(ctx: ResumeInstrContext): WIR = {
+    val funcTypeId = getVar(ctx.idx).toInt
+    val handlers = ctx.handlerInstr.asScala.map(visitHandlerInstr).toList
+    Resume(funcTypeId, handlers)
+  }
+
   override def visitBlock(ctx: BlockContext): WIR = {
-    val ty = visitBlockType(ctx.blockType())
+    val ty = visitBlockType(ctx.blockType)
     val InstrList(instrs) = visit(ctx.instrList)
     Block(ty, instrs)
   }
@@ -437,12 +534,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   override def visitBlockInstr(ctx: BlockInstrContext): WIR = {
     // Note: ignoring all bindVar/label...
     if (ctx.BLOCK != null) {
-      visit(ctx.block)
+      visit(ctx.block(0))
     } else if (ctx.LOOP != null) {
-      val Block(ty, instrs) = visit(ctx.block)
+      val Block(ty, instrs) = visit(ctx.block(0))
       Loop(ty, instrs)
     } else if (ctx.IF != null) {
-      val Block(ty, thn) = visit(ctx.block)
+      val Block(ty, thn) = visit(ctx.block(0))
       // Note(GW): `else` branch seems mandatory?
       // https://webassembly.github.io/spec/core/text/instructions.html#control-instructions
       val els = if (ctx.ELSE != null) {
@@ -450,6 +547,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         elsInstr
       } else List()
       If(ty, thn, els)
+    } else if (ctx.TRY != null && ctx.CATCH != null) {
+      val Block(ty1, e1) = visit(ctx.block(0))
+      val Block(ty2, e2) = visit(ctx.block(1))
+      TryCatch(e1, e2)
     } else error
   }
 
@@ -603,7 +704,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitExportDesc(ctx: ExportDescContext): WIR = {
     val id = if (ctx.idx.VAR() != null) {
-      println(s"Warning: we don't support labeling yet")
+      System.err.println(s"[Parser] Warning: we don't support labeling yet")
       throw new RuntimeException("Unsupported")
     } else {
       getVar(ctx.idx()).toInt
@@ -613,21 +714,140 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.MEMORY != null)  ExportMemory(id)
     else if (ctx.GLOBAL != null) ExportGlobal(id)
     else error
+  }
 
+ override def visitScriptModule(ctx: ScriptModuleContext): Module = {
+    if (ctx.module_ != null) {
+      visitModule_(ctx.module_).asInstanceOf[Module]
+    }
+    else if (ctx.BIN != null) {
+
+      val bin = ctx.STRING_
+      val hexString = bin.asScala.toList.map(_.getText.substring(1).dropRight(1)).mkString
+
+      val byteArray: Array[Byte] = hexStringToByteArray(hexString)
+
+      // just for fact checking
+      // val filePath = "temp.bin"
+      // Files.write(Paths.get(filePath), byteArray)
+
+      // use `wasmfx-tools` to convert the binary file to a text file
+      val processBuilder = new ProcessBuilder("./third-party/wasmfx-tools/target/release/wasm-tools", "print")
+
+      val process = processBuilder.start()
+      val outputStream: OutputStream = process.getOutputStream
+      try {
+        outputStream.write(byteArray)
+        outputStream.flush()
+      } finally {
+        outputStream.close() // Close the stream to signal end of input
+      }
+
+      val output = scala.io.Source.fromInputStream(process.getInputStream).mkString
+      val errorOutput = scala.io.Source.fromInputStream(process.getErrorStream).mkString
+      val exitCode = process.waitFor()
+
+      // println(s"Exit code: $exitCode")
+      // println(s"Output:\n$output")
+      // println(s"Error Output:\n$errorOutput")
+
+      val module = Parser.parse(output)
+      module
+    }
+    else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitAction_(ctx: Action_Context): Action = {
+    if (ctx.INVOKE != null) {
+      val instName = if (ctx.VAR != null) Some(ctx.VAR().getText) else None
+      var name = ctx.name.getText.substring(1).dropRight(1)
+      var args = for (constCtx <- ctx.constList.wconst.asScala) yield {
+        val Array(ty, _) = constCtx.CONST.getText.split("\\.")
+        visitLiteralWithType(constCtx.literal, toNumType(ty))
+      }
+      Invoke(instName, name, args.toList)
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitAssertion(ctx: AssertionContext): Assertion = {
+    if (ctx.ASSERT_RETURN != null) {
+      val action = visitAction_(ctx.action_)
+      val expect = for (constCtx <- ctx.constList.wconst.asScala) yield {
+        val Array(ty, _) = constCtx.CONST.getText.split("\\.")
+        visitLiteralWithType(constCtx.literal, toNumType(ty))
+      }
+      println(s"expect = $expect")
+      AssertReturn(action, expect.toList)
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitCmd(ctx: CmdContext): Cmd = {
+    if (ctx.assertion != null) {
+      visitAssertion(ctx.assertion)
+    } else if (ctx.scriptModule != null) {
+      CmdModule(visitScriptModule(ctx.scriptModule))
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
+  }
+
+  override def visitScript(ctx: ScriptContext): WIR = {
+    val cmds = for (cmd <- ctx.cmd.asScala) yield {
+      visitCmd(cmd)
+    }
+    Script(cmds.toList)
+  }
+
+  // Function to convert a hex string representation to an Array[Byte]
+  def hexStringToByteArray(hex: String): Array[Byte] = {
+    // Split the input string by '\' and filter out empty strings
+    val byteStrings = hex.split("\\\\").filter(_.nonEmpty)
+
+    byteStrings.map { byteStr =>
+      // Parse the hex value to a byte
+      Integer.parseInt(byteStr, 16).toByte
+    }
   }
 
 }
 
+
 object Parser {
-  def parse(input: String): Module = {
+  private def makeWatVisitor(input: String) = {
     val charStream = new ANTLRInputStream(input)
     val lexer = new WatLexer(charStream)
     val tokens = new CommonTokenStream(lexer)
-    val parser = new WatParser(tokens)
+    new WatParser(tokens)
+  }
+
+  def parse(input: String): Module = {
+    val parser = makeWatVisitor(input)
     val visitor = new GSWasmVisitor()
     val res: Module  = visitor.visit(parser.module).asInstanceOf[Module]
     res
   }
 
   def parseFile(filepath: String): Module = parse(scala.io.Source.fromFile(filepath).mkString)
+
+  // parse extended webassembly script language
+  def parseScript(input: String): Option[Script] = {
+    val parser = makeWatVisitor(input)
+    val visitor = new GSWasmVisitor()
+    val tree = parser.script()
+    val errorNumer = parser.getNumberOfSyntaxErrors()
+    if (errorNumer != 0) None
+    else {
+      val res: Script = visitor.visitScript(tree).asInstanceOf[Script]
+      Some(res)
+    }
+  }
+
+  def parseScriptFile(filepath: String): Option[Script] =
+    parseScript(scala.io.Source.fromFile(filepath).mkString)
 }

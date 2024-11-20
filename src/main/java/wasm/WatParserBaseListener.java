@@ -269,6 +269,30 @@ public class WatParserBaseListener implements WatParserListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterResumeInstr(WatParser.ResumeInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitResumeInstr(WatParser.ResumeInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterHandlerInstr(WatParser.HandlerInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitHandlerInstr(WatParser.HandlerInstrContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterOffsetEq(WatParser.OffsetEqContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -720,6 +744,18 @@ public class WatParserBaseListener implements WatParserListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitInlineExport(WatParser.InlineExportContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterTag(WatParser.TagContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTag(WatParser.TagContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
