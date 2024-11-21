@@ -180,6 +180,19 @@ class TestFx extends FunSuite {
 
   test("cont_bind_5") {
     testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
+  // test("test_cont") {
+  //   testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
+  // }
+  test("try-catch-throw-twice") {
+    testFileOutput("./benchmarks/wasm/trycatch/throw_twice.wat", List(1, 2, 6, 2, 3, 4, 4, 5))
+  }
+
+  test("try-catch-throw-twice2") {
+    testFileOutput("./benchmarks/wasm/trycatch/throw_twice2.wat", List(1, 2, 6, 2, 3, 4, 4, 5))
+  }
+
+  test("try-catch-br3") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br3.wat", List(1, 2, 3, 5))
   }
 
 }
