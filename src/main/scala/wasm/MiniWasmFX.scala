@@ -74,7 +74,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     val inst = insts.head
     val rest = insts.tail
 
-    // TODO: uncommenting this will fail try-catch
+    // TODO: uncommenting this will fail tests that uses `testFileOutput` 
     // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
     inst match {
@@ -232,27 +232,26 @@ case class EvaluatorFX(module: ModuleInstance) {
         val RefFuncV(f) :: newStack = stack
         //  should be similar to the contiuantion thrown by `throw`
 
-        // TODO: what is the justification for idK here?
-        val idK: Cont[Ans] = (s, m) => m(s)
         // val k: Cont[Ans] = (s, mk) => evalCall(f, List(), s, frame, idK, mk, trail, h, false)
-
+        // TODO: where should kont go?
+        // TODO: this implementation is not right
         def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans]): Ans = {
           val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-          eval(rest, s, frame, kontK, mk, trail, h)
+          evalCall(f, List(), s, frame, kontK, mk, trail, h, false)
         }
 
         eval(rest, TCContV(kr) :: newStack, frame, kont, mkont, trail, h)
       // TODO: implement the following
       case Suspend(tag_id) => {
         // println(s"${RED}Unimplimented Suspending tag $tag_id")
-        // eval(rest, stack, frame, kont, mkont, trail, h)
-        h(stack)
+        throw new Exception("Suspend not implemented")
+        // h(stack)
       }
       
       // TODO: resume should create a list of handlers to capture suspend
       // TODO: The current implementation doesn't not deal with suspend at all
       case Resume(kty_id, handler) => {
-        val (resume: TCContV[Ans]) :: newStack = stack
+        val (f: TCContV[Ans]) :: newStack = stack
         val contTy = module.types(kty_id)
         val ContType(funcTypeId) = contTy
         val FuncType(_, inps, out) = module.types(funcTypeId)
@@ -260,61 +259,26 @@ case class EvaluatorFX(module: ModuleInstance) {
 
         if (handler.length == 0) {
           val k: Cont[Ans] = (s, m) => eval(rest, newStack, frame, kont, m, trail, h)
-          resume.k(inputs, k, mkont)
+          f.k(inputs, k, mkont)
         } else {
-
-          handler(0) match {
-            case Handler(tag_id, hanblk) => {
-              val newHandler: Handler[Ans] = (newStack) => {
-                // TODO: make sure this hanblk id is actually in the scope of resume
-                trail(hanblk)(newStack, mkont)
-              }
-              val m: MCont[Ans] = (s) => eval(rest, s ++ restStack, frame, kont, mkont, trail, h)
-              resume.k(inputs, kont, m)
-            }
-          }
-
-        }
+          // TODO: attempt single tag first
+          throw new Exception("tags not supported")
         
-        // val newEhs: List[(Int, Handler[Ans])] = handlers.map {
-        //   case Handler(tag_id, handler) => (tag_id, (s) => trail(handler)(s, ehs, mkont))
-        // }
-        // resume with new effect handlers installed each time
+        }
 
-        // val cont = module.funcs(contAddr) match {
-        //   case FuncDef(_, f) => f
-        //   case _           => throw new Exception("Continuation is not a function")
-        // }
-
-        // val tyId = module.types(ty) match {
-        //   case ContType(id) => id
-        //   case _ => throw new Exception("Continuation type is not a function")
-        // }
-
-        // val (inps, out) = module.types(tyId) match {
-        //   case FuncType(_, inps, out) => (inps, out)
-        //   case _ => throw new Exception("Continuation type is not a function")
-        // }
-
-        // val (inputs, restStack) = newStack.splitAt(inps.size)
-        // val restK: Cont[Ans] = (retStack) =>
-        //   eval(rest, retStack.take(out.size) ++ restStack, frame, kont, mkont, trail, h)
-        // // DH(calling for a review): Here introduce a mix between direct-style and cps
-        // evalResume(inputs, cont, restK)
       }
-      // // TODO: the following implementation is not tested
-      // case ContBind(oldContTy, newConTy) =>
+      case ContBind(oldContTy, newConTy) =>
       //   val RefContV(oldContAddr) :: newStack = stack
       //   // use oldParamTy - newParamTy to get how many values to pop from the stack
       //   val oldParamTy = module.types(oldContTy).inps
       //   val newParamTy = module.types(newConTy).inps
-      //   // TODO: I'm very tempted to do type checking here
       //   val (inputs, restStack) = newStack.splitAt(oldParamTy.size)
       //   // partially apply the old continuation
       //   val oldCont = module.funcs(oldContAddr) match {
       //     case RefContV(f) => f
       //     case _           => throw new Exception("Continuation is not a function")
       //   }
+      throw new Exception("ContBind unimplemented")
       //   // TODO: finish this
         
         
