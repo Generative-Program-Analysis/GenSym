@@ -144,4 +144,24 @@ class TestFx extends FunSuite {
   }
   */
 
+  /* REAL WASMFX STUFF */
+
+  // TODO: test after implemented cont_bind3
+  // test("simple script") {
+  //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
+  // }
+
+  // test("cont") {
+  //   // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
+  //   testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
+  // }
+
+  test("resume w/o suspend") {
+    testWastFile("./benchmarks/wasm/wasmfx/resume1.bin.wast")
+  }
+
+  // test("test_cont") {
+  //   testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
+  // }
+
 }

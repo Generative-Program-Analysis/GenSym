@@ -281,6 +281,8 @@ case class Script(cmds: List[Cmd]) extends WIR
 abstract class Cmd extends WIR
 // TODO: can we turn abstract class sealed?
 case class CmdModule(module: Module) extends Cmd
+// TODO: extend if needed
+case class CMdInstnace() extends Cmd
 
 abstract class Action extends WIR
 case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
@@ -325,9 +327,10 @@ case class RefFuncV(funcAddr: Int) extends Ref {
       case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
     }
 }
-case class RefContV(funcAddr: Int) extends Ref {
-  def tipe(implicit m: ModuleInstance): ValueType = ???
-}
+// RefContV refers to a delimited continuation
+// case class RefContV(cont: List[Value] => List[Value]) extends Ref {
+//   def tipe(implicit m: ModuleInstance): ValueType = ???
+// }
 case class RefExternV(externAddr: Int) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = ???
 }

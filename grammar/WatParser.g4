@@ -435,6 +435,7 @@ module_
 scriptModule
   : module_
   | LPAR MODULE VAR? (BIN | QUOTE) STRING_* RPAR
+  | LPAR MODULE DEFINITION VAR? BIN STRING_* RPAR
   ;
 
 action_
@@ -460,6 +461,11 @@ cmd
   | scriptModule
   | LPAR REGISTER name VAR? RPAR
   | meta
+  | instance
+  ;
+
+instance
+  : LPAR MODULE INSTANCE VAR? VAR? RPAR
   ;
 
 meta
