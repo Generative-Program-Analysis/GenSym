@@ -48,12 +48,12 @@ case class EvaluatorFX(module: ModuleInstance) {
           eval(body, List(), newFrame, restK, mkont, List(restK), h)
         }
       case Import("console", "log", _) =>
-        //println(s"[DEBUG] current stack: $stack")
+        // println(s"[DEBUG] current stack: $stack")
         val I32V(v) :: newStack = stack
         println(v)
         eval(rest, newStack, frame, kont, mkont, trail, h)
       case Import("spectest", "print_i32", _) =>
-        //println(s"[DEBUG] current stack: $stack")
+        // println(s"[DEBUG] current stack: $stack")
         val I32V(v) :: newStack = stack
         println(v)
         eval(rest, newStack, frame, kont, mkont, trail, h)
@@ -74,7 +74,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     val inst = insts.head
     val rest = insts.tail
 
-    // TODO: uncommenting this will fail tests that uses `testFileOutput` 
+    // TODO: uncommenting this will fail tests that uses `testFileOutput`
     // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
     inst match {
@@ -184,7 +184,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont, trail, h)
         eval(inner, inputs, frame, restK, mkont, restK :: trail, h)
       case Br(label) =>
-        trail(label)(stack, mkont) //s => ().asInstanceOf[Ans]) //mkont)
+        trail(label)(stack, mkont) // s => ().asInstanceOf[Ans]) //mkont)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
         if (cond != 0) trail(label)(newStack, mkont)
@@ -196,7 +196,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Return        => trail.last(stack, mkont)
       case Call(f)       => evalCall(f, rest, stack, frame, kont, mkont, trail, h, false)
       case ReturnCall(f) => evalCall(f, rest, stack, frame, kont, mkont, trail, h, true)
-      case RefFunc(f) =>
+      case RefFunc(f)    =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
         eval(rest, RefFuncV(f) :: stack, frame, kont, mkont, trail, h)
       case CallRef(ty) =>
@@ -214,7 +214,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         eval(es1, List(), frame, idK, join, trail, newHandler)
       case Resume0() =>
         val (resume: TCContV[Ans]) :: newStack = stack
-        val k: Cont[Ans] = (s, m) => eval(rest, newStack/*!*/, frame, kont, m, trail, h)
+        val k: Cont[Ans] = (s, m) => eval(rest, newStack /*!*/, frame, kont, m, trail, h)
         resume.k(List(), k, mkont)
       case Throw() =>
         val err :: newStack = stack
@@ -223,7 +223,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         // it only takes the err value
         def kr(s: Stack, k1: Cont[Ans], m: MCont[Ans]): Ans = {
           val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-          eval(rest, newStack/*!*/, frame, kontK, m/*vs mkont?*/, trail, h)
+          eval(rest, newStack /*!*/, frame, kontK, m /*vs mkont?*/, trail, h)
         }
         h(List(err, TCContV(kr)))
 
@@ -247,7 +247,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         throw new Exception("Suspend not implemented")
         // h(stack)
       }
-      
+
       // TODO: resume should create a list of handlers to capture suspend
       // TODO: The current implementation doesn't not deal with suspend at all
       case Resume(kty_id, handler) => {
@@ -263,31 +263,28 @@ case class EvaluatorFX(module: ModuleInstance) {
         } else {
           // TODO: attempt single tag first
           throw new Exception("tags not supported")
-        
+
         }
 
       }
+
       case ContBind(oldContTy, newConTy) =>
-      //   val RefContV(oldContAddr) :: newStack = stack
-      //   // use oldParamTy - newParamTy to get how many values to pop from the stack
-      //   val oldParamTy = module.types(oldContTy).inps
-      //   val newParamTy = module.types(newConTy).inps
-      //   val (inputs, restStack) = newStack.splitAt(oldParamTy.size)
-      //   // partially apply the old continuation
-      //   val oldCont = module.funcs(oldContAddr) match {
-      //     case RefContV(f) => f
-      //     case _           => throw new Exception("Continuation is not a function")
-      //   }
-      throw new Exception("ContBind unimplemented")
-      //   // TODO: finish this
-        
-        
+        //   val RefContV(oldContAddr) :: newStack = stack
+        //   // use oldParamTy - newParamTy to get how many values to pop from the stack
+        //   val oldParamTy = module.types(oldContTy).inps
+        //   val newParamTy = module.types(newConTy).inps
+        //   val (inputs, restStack) = newStack.splitAt(oldParamTy.size)
+        //   // partially apply the old continuation
+        //   val oldCont = module.funcs(oldContAddr) match {
+        //     case RefContV(f) => f
+        //     case _           => throw new Exception("Continuation is not a function")
+        //   }
+        throw new Exception("ContBind unimplemented")
         
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
 
-        
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
@@ -308,7 +305,7 @@ case class EvaluatorFX(module: ModuleInstance) {
             System.err.println(s"Entering function $main")
             module.funcs(fid) match {
               case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
-              case _ => throw new Exception("Entry function has no concrete body")
+              case _                                      => throw new Exception("Entry function has no concrete body")
             }
           case _ => List()
         })
