@@ -94,10 +94,6 @@ class TestFx extends FunSuite {
 
   // New effect handler tests:
 
-  test("simple script") {
-    TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
-  }
-
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
@@ -148,7 +144,7 @@ class TestFx extends FunSuite {
 
   // TODO: test after implemented cont_bind3
   // test("simple script") {
-  //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
+  //   testWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
   // }
 
   // test("cont") {
