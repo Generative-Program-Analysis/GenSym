@@ -170,4 +170,8 @@ class TestFx extends FunSuite {
     // testFileOutput("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat", List(0))
   }
 
+  test("gen") {
+    testFile("./benchmarks/wasm/wasmfx/gen-stripped.wast")
+  }
+
 }
