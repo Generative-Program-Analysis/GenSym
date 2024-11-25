@@ -17,6 +17,10 @@ case class EvaluatorFX(module: ModuleInstance) {
   type MCont[A] = Stack => A
   type Handler[A] = Stack => A
 
+  case class ContV[A](k: (Stack, Cont[A], MCont[A], Handler[A]) => A) extends Value {
+    def tipe(implicit m: ModuleInstance): ValueType = ???
+  }
+
   // Only used for resumable try-catch (need refactoring):
   case class TCContV[A](k: (Stack, Cont[A], MCont[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
@@ -238,26 +242,26 @@ case class EvaluatorFX(module: ModuleInstance) {
         //  should be similar to the contiuantion thrown by `throw`
 
         // TODO: this implementation is not right
-        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans]): Ans = {
+        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handler[Ans]): Ans = {
           // k1 is rest for `resume`
           // mk holds the handler for `suspend`
           val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-          evalCall(f, List(), s, frame, kontK, mk, trail, h, false)
+          evalCall(f, List(), s, frame, kontK, mk, trail, handler, false)
         }
 
-        eval(rest, TCContV(kr) :: newStack, frame, kont, mkont, trail, h)
+        eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
       // TODO: implement the following
       case Suspend(tag_id) => {
         // println(s"${RED}Unimplimented Suspending tag $tag_id")
         // add the continuation on the stack
 
-        val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans]) => {
+        val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handler[Ans]) => {
           // k1 is the default handler
           // so it should be konk ++ k1
-          eval(rest, s, frame, kont, m, trail, h)
+          eval(rest, s, frame, kont, m, trail, handler)
         }
-        val newStack = TCContV(k) :: stack
-        mkont(newStack)
+        val newStack = ContV(k) :: stack
+        h(newStack)
         // throw new Exception("Suspend not implemented")
         // h(stack)
       }
@@ -265,7 +269,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       // TODO: resume should create a list of handlers to capture suspend
       // TODO: The current implementation doesn't not deal with suspend at all
       case Resume(kty_id, handler) => {
-        val (f: TCContV[Ans]) :: newStack = stack
+        val (f: ContV[Ans]) :: newStack = stack
         val contTy = module.types(kty_id)
         val ContType(funcTypeId) = contTy
         val FuncType(_, inps, out) = module.types(funcTypeId)
@@ -273,7 +277,7 @@ case class EvaluatorFX(module: ModuleInstance) {
 
         if (handler.length == 0) {
           val k: Cont[Ans] = (s, m) => eval(rest, newStack, frame, kont, m, trail, h)
-          f.k(inputs, k, mkont)
+          f.k(inputs, k, mkont, h)
         } else {
           // TODO: attempt single tag first
           if (handler.length > 1) {
@@ -286,7 +290,8 @@ case class EvaluatorFX(module: ModuleInstance) {
 
           // f might be handled by the default handler (namely kont), or by the
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
-          f.k(inputs, kont, newHandler)
+          val k: Cont[Ans] = (s, m) => eval(rest, newStack, frame, kont, m, trail, h)
+          f.k(inputs, k, mkont, newHandler)
 
           // throw new Exception("tags not supported")
 
