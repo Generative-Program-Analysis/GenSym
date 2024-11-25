@@ -56,81 +56,81 @@ class TestFx extends FunSuite {
   }
 
   // non-effect tests should still pass:
-  // test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), ExpInt(7)) }
-  // test("power") { testFile("./benchmarks/wasm/pow.wat", Some("real_main"), ExpInt(1024)) }
-  // test("start") { testFile("./benchmarks/wasm/start.wat") }
-  // test("fact") { testFile("./benchmarks/wasm/fact.wat", None, ExpInt(120)) }
-  // test("loop") { testFile("./benchmarks/wasm/loop.wat", None, ExpInt(10)) }
-  // test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, ExpInt(1)) }
-  // test("load") { testFile("./benchmarks/wasm/load.wat", None, ExpInt(1)) }
-  // test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
-  // test("fib") { testFile("./benchmarks/wasm/fib.wat", None, ExpInt(144)) }
-  // test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, ExpInt(504)) }
+  test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), ExpInt(7)) }
+  test("power") { testFile("./benchmarks/wasm/pow.wat", Some("real_main"), ExpInt(1024)) }
+  test("start") { testFile("./benchmarks/wasm/start.wat") }
+  test("fact") { testFile("./benchmarks/wasm/fact.wat", None, ExpInt(120)) }
+  test("loop") { testFile("./benchmarks/wasm/loop.wat", None, ExpInt(10)) }
+  test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, ExpInt(1)) }
+  test("load") { testFile("./benchmarks/wasm/load.wat", None, ExpInt(1)) }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  test("fib") { testFile("./benchmarks/wasm/fib.wat", None, ExpInt(144)) }
+  test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, ExpInt(504)) }
 
-  // test("return") {
-  //   intercept[gensym.wasm.miniwasm.Trap] {
-  //     testFile("./benchmarks/wasm/return.wat", Some("$real_main"))
-  //   }
-  // }
-  // test("return_call") {
-  //   testFile("./benchmarks/wasm/sum.wat", Some("sum10"), ExpInt(55))
-  // }
+  test("return") {
+    intercept[gensym.wasm.miniwasm.Trap] {
+      testFile("./benchmarks/wasm/return.wat", Some("$real_main"))
+    }
+  }
+  test("return_call") {
+    testFile("./benchmarks/wasm/sum.wat", Some("sum10"), ExpInt(55))
+  }
 
-  // test("block input") {
-  //   testFile("./benchmarks/wasm/block.wat", Some("real_main"), ExpInt(9))
-  // }
-  // test("loop block input") {
-  //   testFile("./benchmarks/wasm/block.wat", Some("test_loop_input"), ExpInt(55))
-  // }
-  // test("if block input") {
-  //   testFile("./benchmarks/wasm/block.wat", Some("test_if_input"), ExpInt(25))
-  // }
-  // test("block input - poly br") {
-  //   testFile("./benchmarks/wasm/block.wat", Some("test_poly_br"), ExpInt(0))
-  // }
-  // test("loop block - poly br") {
-  //   testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
-  // }
+  test("block input") {
+    testFile("./benchmarks/wasm/block.wat", Some("real_main"), ExpInt(9))
+  }
+  test("loop block input") {
+    testFile("./benchmarks/wasm/block.wat", Some("test_loop_input"), ExpInt(55))
+  }
+  test("if block input") {
+    testFile("./benchmarks/wasm/block.wat", Some("test_if_input"), ExpInt(25))
+  }
+  test("block input - poly br") {
+    testFile("./benchmarks/wasm/block.wat", Some("test_poly_br"), ExpInt(0))
+  }
+  test("loop block - poly br") {
+    testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
+  }
 
   // New effect handler tests:
 
-  // test("simple script") {
-  //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
-  // }
+  test("simple script") {
+    TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
+  }
 
-  // test("call_ref") {
-  //   testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
-  // }
+  test("call_ref") {
+    testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
+  }
 
-  // test("try-catch") {
-  //   testFileOutput("./benchmarks/wasm/trycatch/try_catch.wat", List(1, 2, 3, 4, 5))
-  // }
+  test("try-catch") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch.wat", List(1, 2, 3, 4, 5))
+  }
 
-  // test("try-catch-succ") {
-  //   // no exception was thrown
-  //   testFileOutput("./benchmarks/wasm/trycatch/try_catch_succ.wat", List(1, 3, 5))
-  // }
+  test("try-catch-succ") {
+    // no exception was thrown
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_succ.wat", List(1, 3, 5))
+  }
 
-  // test("try-catch-discard") {
-  //   // discard the resumption in the catch block
-  //   testFileOutput("./benchmarks/wasm/trycatch/try_catch_discard.wat", List(1, 42, 4, 5))
-  // }
+  test("try-catch-discard") {
+    // discard the resumption in the catch block
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_discard.wat", List(1, 42, 4, 5))
+  }
 
-  // test("nested-try-catch") {
-  //   testFileOutput("./benchmarks/wasm/trycatch/nested_try_catch.wat", List(1, 2, 3, 4, 5, 6, 7, 8, 9))
-  // }
+  test("nested-try-catch") {
+    testFileOutput("./benchmarks/wasm/trycatch/nested_try_catch.wat", List(1, 2, 3, 4, 5, 6, 7, 8, 9))
+  }
 
-  // test("try-catch-multishot") {
-  //   testFileOutput("./benchmarks/wasm/trycatch/multishot.wat", List(1, 2, 3, 4, 3, 5))
-  // }
+  test("try-catch-multishot") {
+    testFileOutput("./benchmarks/wasm/trycatch/multishot.wat", List(1, 2, 3, 4, 3, 5))
+  }
 
-  // test("try-catch-deep-handler") {
-  //   testFileOutput("./benchmarks/wasm/trycatch/deep.wat", List(1, 2, 3, 2, 4, 4, 5))
-  // }
+  test("try-catch-deep-handler") {
+    testFileOutput("./benchmarks/wasm/trycatch/deep.wat", List(1, 2, 3, 2, 4, 4, 5))
+  }
 
-  // test("try-catch-block") {
-  //   testFileOutput("./benchmarks/wasm/trycatch/try_catch_block.wat", List(1, 2, 3, 4, 5))
-  // }
+  test("try-catch-block") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_block.wat", List(1, 2, 3, 4, 5))
+  }
 
   // Note: the interaction between try-catch and block is not well-defined yet
 

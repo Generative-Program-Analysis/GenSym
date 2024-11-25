@@ -80,7 +80,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     val rest = insts.tail
 
     // TODO: uncommenting this will fail tests that uses `testFileOutput`
-    println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
+    // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, mkont, trail, h)
