@@ -80,7 +80,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     val rest = insts.tail
 
     // TODO: uncommenting this will fail tests that uses `testFileOutput`
-    println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
+    // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, mkont, trail, h)
@@ -168,6 +168,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         // I feel like we will almost never need to change the mkont for a block
         val restK: Cont[Ans] = (retStack, mkont1) => {
           // kont -> mkont -> mkont1
+          // println(s"inner: $inner")
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont1, trail, h)
         }
         eval(inner, inputs, frame, restK, mkont, restK :: trail, h)
@@ -245,8 +246,14 @@ case class EvaluatorFX(module: ModuleInstance) {
         def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handler[Ans]): Ans = {
           // k1 is rest for `resume`
           // mk holds the handler for `suspend`
-          val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-          evalCall(f, List(), s, frame, kontK, mk, trail, handler, false)
+
+          // TODO: Do we need to care about kont here??
+          // Possible answer: we don't, because continuation is only activated by `resume`
+          // and it must be handled by the default handler (k1) or the handler associated
+          // to `suspend`
+
+          // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
+          evalCall(f, List(), s, frame, k1, mk, trail, handler, false)
         }
 
         eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
