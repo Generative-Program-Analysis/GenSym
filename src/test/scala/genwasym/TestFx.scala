@@ -160,4 +160,8 @@ class TestFx extends FunSuite {
     testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
   }
 
+  test("resume_chain1") {
+    testWastFile("./benchmarks/wasm/wasmfx/resume_chain1-strip.wast")
+  }
+
 }

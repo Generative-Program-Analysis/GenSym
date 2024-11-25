@@ -80,7 +80,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     val rest = insts.tail
 
     // TODO: uncommenting this will fail tests that uses `testFileOutput`
-    // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
+    println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
 
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, mkont, trail, h)
@@ -276,7 +276,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = newStack.splitAt(inps.size)
 
         if (handler.length == 0) {
-          val k: Cont[Ans] = (s, m) => eval(rest, newStack, frame, kont, m, trail, h)
+          val k: Cont[Ans] = (s, m) => eval(rest, s, frame, kont, m, trail, h)
           f.k(inputs, k, mkont, h)
         } else {
           // TODO: attempt single tag first
@@ -290,7 +290,7 @@ case class EvaluatorFX(module: ModuleInstance) {
 
           // f might be handled by the default handler (namely kont), or by the
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
-          val k: Cont[Ans] = (s, m) => eval(rest, newStack, frame, kont, m, trail, h)
+          val k: Cont[Ans] = (s, m) => eval(rest, s, frame, kont, m, trail, h)
           f.k(inputs, k, mkont, newHandler)
 
           // throw new Exception("tags not supported")
