@@ -227,7 +227,7 @@ object Primtives {
         case F64Type => F64V(0)
       }
     case VecType(kind) => ???
-    case RefType(kind) => ???
+    case RefType(kind) => RefNullV()
   }
 
   def getFuncType(ty: BlockType): FuncType =
