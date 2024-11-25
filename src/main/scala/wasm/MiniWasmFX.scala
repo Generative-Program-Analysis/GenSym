@@ -17,6 +17,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type MCont[A] = Stack => A
   type Handler[A] = Stack => A
 
+  // TODO: is MCont and Handler together redundant?
   case class ContV[A](k: (Stack, Cont[A], MCont[A], Handler[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
@@ -240,9 +241,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-        //  should be similar to the contiuantion thrown by `throw`
 
-        // TODO: this implementation is not right
         def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handler[Ans]): Ans = {
           // k1 is rest for `resume`
           // mk holds the handler for `suspend`
@@ -257,7 +256,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         }
 
         eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
-      // TODO: implement the following
+
       case Suspend(tag_id) => {
         // println(s"${RED}Unimplimented Suspending tag $tag_id")
         // add the continuation on the stack
@@ -265,6 +264,8 @@ case class EvaluatorFX(module: ModuleInstance) {
         val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handler[Ans]) => {
           // k1 is the default handler
           // so it should be konk ++ k1
+
+          // TODO: is it okay to forget `k1` and `mkont` here?
           eval(rest, s, frame, kont, m, trail, handler)
         }
         val newStack = ContV(k) :: stack
@@ -274,7 +275,6 @@ case class EvaluatorFX(module: ModuleInstance) {
       }
 
       // TODO: resume should create a list of handlers to capture suspend
-      // TODO: The current implementation doesn't not deal with suspend at all
       case Resume(kty_id, handler) => {
         val (f: ContV[Ans]) :: newStack = stack
         val contTy = module.types(kty_id)
@@ -286,13 +286,12 @@ case class EvaluatorFX(module: ModuleInstance) {
           val k: Cont[Ans] = (s, m) => eval(rest, s, frame, kont, m, trail, h)
           f.k(inputs, k, mkont, h)
         } else {
-          // TODO: attempt single tag first
           if (handler.length > 1) {
             throw new Exception("only single tag is supported")
           }
           val Handler(tagId, labelId) = handler.head
           // if suspend happens, the label id holds the handler
-          // TODO: should handler be passed in an mkont??
+
           val newHandler: Handler[Ans] = (newStack) => trail(labelId)(newStack, mkont)
 
           // f might be handled by the default handler (namely kont), or by the
@@ -318,7 +317,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         //     case _           => throw new Exception("Continuation is not a function")
         //   }
         throw new Exception("ContBind unimplemented")
-        
+
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
@@ -343,7 +342,7 @@ case class EvaluatorFX(module: ModuleInstance) {
             System.err.println(s"Entering function $main")
             module.funcs(fid) match {
               case FuncDef(_, FuncBodyDef(_, _, locals, body)) => body
-              case _                                      => throw new Exception("Entry function has no concrete body")
+              case _ => throw new Exception("Entry function has no concrete body")
             }
           case _ => List()
         })
@@ -366,7 +365,7 @@ case class EvaluatorFX(module: ModuleInstance) {
             System.err.println(s"Entering function $main")
             module.funcs(fid) match {
               case FuncDef(_, FuncBodyDef(_, _, locals, _)) => locals
-              case _                                      => throw new Exception("Entry function has no concrete body")
+              case _ => throw new Exception("Entry function has no concrete body")
             }
           case _ => List()
         })
