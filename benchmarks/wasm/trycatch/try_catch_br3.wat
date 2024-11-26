@@ -1,7 +1,8 @@
 ;; ignored example
 (module
-  ;; output: 1, 2, 3, 5
-  ;;         4 is not printed, because the delimited continuation is dropped by break instruction
+  ;; output: 1, 2, 3, 4, 5
+  ;;         4 is printed, because the delimited continuation is kept when breaking out of the block, 
+  ;;         it's inside the trail1
   (type (;0;) (func (param i32)))
   (type (;1;) (func))
   (import "console" "log" (func (;0;) (type 0)))
