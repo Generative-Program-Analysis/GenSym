@@ -28,7 +28,7 @@ class TestFx extends FunSuite {
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = (stack, m) => m(stack)
+    val haltK: Cont = evaluator.init;
     val haltMK: MCont = (stack) => {
       // println(s"halt cont: $stack")
       expected match {
@@ -180,6 +180,7 @@ class TestFx extends FunSuite {
 
   test("cont_bind_5") {
     testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
+  }
   // test("test_cont") {
   //   testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
   // }
