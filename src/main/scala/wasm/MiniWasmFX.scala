@@ -17,7 +17,6 @@ case class EvaluatorFX(module: ModuleInstance) {
   type MCont[A] = Stack => A
   type Handler[A] = Stack => A
 
-  // TODO: is MCont and Handler together redundant?
   case class ContV[A](k: (Stack, Cont[A], MCont[A], Handler[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
