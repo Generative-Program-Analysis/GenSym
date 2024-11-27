@@ -318,8 +318,8 @@ trait Callable
 
 // https://webassembly.github.io/function-references/core/exec/runtime.html
 abstract class Ref extends Value with Callable
-case class RefNullV() extends Ref {
-  def tipe(implicit m: ModuleInstance): ValueType = ???
+case class RefNullV(t: HeapType) extends Ref {
+  def tipe(implicit m: ModuleInstance): ValueType = RefType(t)
 }
 case class RefFuncV(funcAddr: Int) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType =
