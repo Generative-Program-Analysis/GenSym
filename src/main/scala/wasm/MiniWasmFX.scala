@@ -246,13 +246,14 @@ case class EvaluatorFX(module: ModuleInstance) {
           // k1 is rest for `resume`
           // mk holds the handler for `suspend`
 
-          // TODO: Do we need to care about kont here??
-          // Possible answer: we don't, because continuation is only activated by `resume`
+          // Q: Do we need to care about kont here??
+          // Answer: we don't, because continuation is only activated by `resume`
           // and it must be handled by the default handler (k1) or the handler associated
           // to `suspend`
 
-          // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-          evalCall(f, List(), s, frame, k1, mk, trail, handler, false)
+          // we can discard trail since it is a new function call (similar to `kont`)
+          val empty: Cont[Ans] = (s1, m1) => m1(s1)
+          evalCall(f, List(), s, frame, empty, mk, List(), handler, false)
         }
 
         eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
@@ -262,11 +263,16 @@ case class EvaluatorFX(module: ModuleInstance) {
         // add the continuation on the stack
 
         val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handler[Ans]) => {
+          // the 3 lines below doens't work
           // k1 is the default handler
           // so it should be konk ++ k1
+          // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))          
 
-          // TODO: is it okay to forget `k1` and `mkont` here?
-          eval(rest, s, frame, kont, m, trail, handler)
+          // Q: is it okay to forget `k1` and `mkont` here?
+          // Ans: No! Because the resumable continuation might be install by
+          // a different `resume` with a different set of handlers
+          val newMk: MCont[Ans] = (s) => k1(s, m)
+          eval(rest, s, frame, kont, newMk, trail, handler)
         }
         val newStack = ContV(k) :: stack
         h(newStack)
@@ -283,23 +289,24 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = newStack.splitAt(inps.size)
 
         if (handler.length == 0) {
-          val k: Cont[Ans] = (s, m) => eval(rest, s, frame, kont, m, trail, h)
-          f.k(inputs, k, mkont, h)
+          // the metacontinuation contains the default handler
+          val mk: MCont[Ans] = (s) =>  eval(rest, s, frame, kont, mkont, trail, h)
+          val emptyK: Cont[Ans] = (s, m) => m(s)
+          f.k(inputs, emptyK, mk, h)
         } else {
           if (handler.length > 1) {
             throw new Exception("only single tag is supported")
           }
-          val Handler(tagId, labelId) = handler.head
           // if suspend happens, the label id holds the handler
+          val Handler(tagId, labelId) = handler.head
 
           val newHandler: Handler[Ans] = (newStack) => trail(labelId)(newStack, mkont)
 
           // f might be handled by the default handler (namely kont), or by the
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
-          val k: Cont[Ans] = (s, m) => eval(rest, s, frame, kont, m, trail, h)
-          f.k(inputs, k, mkont, newHandler)
-
-          // throw new Exception("tags not supported")
+          val mk: MCont[Ans] = (s) =>  eval(rest, s, frame, kont, mkont, trail, h)
+          val emptyK: Cont[Ans] = (s, m) => m(s)
+          f.k(inputs, emptyK, mk, newHandler)
 
         }
 
