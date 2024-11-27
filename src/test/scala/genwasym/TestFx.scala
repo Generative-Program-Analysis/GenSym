@@ -147,15 +147,16 @@ class TestFx extends FunSuite {
   //   testWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
   // }
 
-  // test("cont") {
-  //   // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
-  //   testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
-  // }
+  test("cont") {
+    // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
+    testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
+  }
 
   test("resume w/o suspend") {
     testWastFile("./benchmarks/wasm/wasmfx/resume1.bin.wast")
   }
 
+  // wasmfx sec 2.3 like example
   test("test_cont") {
     testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
   }
@@ -164,14 +165,20 @@ class TestFx extends FunSuite {
     testWastFile("./benchmarks/wasm/wasmfx/resume_chain1-strip.wast")
   }
 
+  // printing 0 not 1
   test("nested suspend") {
     testFile("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat")
 
     // testFileOutput("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat", List(0))
   }
 
+  // going to print 100 to 1 and then print 42
   test("gen") {
     testFile("./benchmarks/wasm/wasmfx/gen-stripped.wast")
+  }
+
+  test("diff resume") {
+    testFileOutput("./benchmarks/wasm/wasmfx/diff_resume-strip.wat", List(10, 11, 42))
   }
 
 }
