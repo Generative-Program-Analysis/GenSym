@@ -32,10 +32,6 @@ case class EvaluatorFX(module: ModuleInstance) {
     }
   }
 
-  def +[Ans](k1: Cont[Ans], k2: Cont[Ans]): Cont[Ans] = {
-    (s, trail1, mkont) => k1(s, k2 :: trail1, mkont)
-  }
-
   // Only used for resumable try-catch (need refactoring):
   case class TCContV[A](k: (Stack, Cont[A], List[Cont[A]], MCont[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
