@@ -24,17 +24,17 @@ class TestFx extends FunSuite {
 
   def testFile(filename: String, main: Option[String] = None, expected: ExpResult = Ignore) = {
     val module = Parser.parseFile(filename)
-    //println(module)
+    // println(module)
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
     val haltK: Cont = (stack, m) => m(stack)
     val haltMK: MCont = (stack) => {
-      //println(s"halt cont: $stack")
+      // println(s"halt cont: $stack")
       expected match {
-        case ExpInt(e) => assert(stack(0) == I32V(e))
+        case ExpInt(e)   => assert(stack(0) == I32V(e))
         case ExpStack(e) => assert(stack == e)
-        case Ignore    => ()
+        case Ignore      => ()
       }
     }
     evaluator.evalTop(haltK, haltMK, main)
@@ -94,10 +94,6 @@ class TestFx extends FunSuite {
 
   // New effect handler tests:
 
-  // test("simple script") {
-  //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
-  // }
-
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
@@ -146,22 +142,44 @@ class TestFx extends FunSuite {
 
   /* REAL WASMFX STUFF */
 
-  // TODO: test after implemented cont_bind3
-  // test("simple script") {
-  //   TestWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
-  // }
-
-  // test("cont") {
-  //   // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
-  //   testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
-  // }
+  test("cont") {
+    // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
+    testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
+  }
 
   test("resume w/o suspend") {
     testWastFile("./benchmarks/wasm/wasmfx/resume1.bin.wast")
   }
 
-  // test("test_cont") {
-  //   testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
-  // }
+  // wasmfx sec 2.3 like example
+  test("test_cont") {
+    testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
+  }
+
+  test("resume_chain1") {
+    testWastFile("./benchmarks/wasm/wasmfx/resume_chain1-strip.wast")
+  }
+
+  // printing 0 not 1
+  test("nested suspend") {
+    testFileOutput("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat", List(0))
+  }
+
+  // going to print 100 to 1 and then print 42
+  test("gen") {
+    testFile("./benchmarks/wasm/wasmfx/gen-stripped.wast")
+  }
+
+  test("diff resume") {
+    testFileOutput("./benchmarks/wasm/wasmfx/diff_resume-strip.wat", List(10, 11, 42))
+  }
+
+  test("cont_bind_4") {
+    testWastFile("./benchmarks/wasm/wasmfx/cont_bind4.bin.wast")
+  }
+
+  test("cont_bind_5") {
+    testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
+  }
 
 }
