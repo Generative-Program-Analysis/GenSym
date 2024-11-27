@@ -778,7 +778,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         val Array(ty, _) = constCtx.CONST.getText.split("\\.")
         visitLiteralWithType(constCtx.literal, toNumType(ty))
       }
-      println(s"expect = $expect")
       AssertReturn(action, expect.toList)
     } else {
       throw new RuntimeException("Unsupported")

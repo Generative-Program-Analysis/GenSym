@@ -30,11 +30,11 @@ class TestFx extends FunSuite {
     type MCont = evaluator.MCont[Unit]
     val haltK: Cont = (stack, m) => m(stack)
     val haltMK: MCont = (stack) => {
-      //println(s"halt cont: $stack")
+      // println(s"halt cont: $stack")
       expected match {
-        case ExpInt(e) => assert(stack(0) == I32V(e))
+        case ExpInt(e)   => assert(stack(0) == I32V(e))
         case ExpStack(e) => assert(stack == e)
-        case Ignore    => ()
+        case Ignore      => ()
       }
     }
     evaluator.evalTop(haltK, haltMK, main)
@@ -142,11 +142,6 @@ class TestFx extends FunSuite {
 
   /* REAL WASMFX STUFF */
 
-  // TODO: test after implemented cont_bind3
-  // test("simple script") {
-  //   testWastFile("./benchmarks/wasm/wasmfx/cont_bind3.bin.wast")
-  // }
-
   test("cont") {
     // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
     testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
@@ -167,9 +162,7 @@ class TestFx extends FunSuite {
 
   // printing 0 not 1
   test("nested suspend") {
-    testFile("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat")
-
-    // testFileOutput("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat", List(0))
+    testFileOutput("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat", List(0))
   }
 
   // going to print 100 to 1 and then print 42
@@ -179,6 +172,14 @@ class TestFx extends FunSuite {
 
   test("diff resume") {
     testFileOutput("./benchmarks/wasm/wasmfx/diff_resume-strip.wat", List(10, 11, 42))
+  }
+
+  test("cont_bind_4") {
+    testWastFile("./benchmarks/wasm/wasmfx/cont_bind4.bin.wast")
+  }
+
+  test("cont_bind_5") {
+    testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
   }
 
 }

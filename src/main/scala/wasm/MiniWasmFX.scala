@@ -263,10 +263,8 @@ case class EvaluatorFX(module: ModuleInstance) {
         // add the continuation on the stack
 
         val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handler[Ans]) => {
-          // the 3 lines below doens't work
-          // k1 is the default handler
-          // so it should be konk ++ k1
-          // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))          
+          // TODO: does the following work?
+          // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
 
           // Q: is it okay to forget `k1` and `mkont` here?
           // Ans: No! Because the resumable continuation might be install by
@@ -290,7 +288,7 @@ case class EvaluatorFX(module: ModuleInstance) {
 
         if (handler.length == 0) {
           // the metacontinuation contains the default handler
-          val mk: MCont[Ans] = (s) =>  eval(rest, s, frame, kont, mkont, trail, h)
+          val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
           val emptyK: Cont[Ans] = (s, m) => m(s)
           f.k(inputs, emptyK, mk, h)
         } else {
@@ -304,7 +302,7 @@ case class EvaluatorFX(module: ModuleInstance) {
 
           // f might be handled by the default handler (namely kont), or by the
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
-          val mk: MCont[Ans] = (s) =>  eval(rest, s, frame, kont, mkont, trail, h)
+          val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
           val emptyK: Cont[Ans] = (s, m) => m(s)
           f.k(inputs, emptyK, mk, newHandler)
 
@@ -312,18 +310,25 @@ case class EvaluatorFX(module: ModuleInstance) {
 
       }
 
-      case ContBind(oldContTy, newConTy) =>
-        //   val RefContV(oldContAddr) :: newStack = stack
-        //   // use oldParamTy - newParamTy to get how many values to pop from the stack
-        //   val oldParamTy = module.types(oldContTy).inps
-        //   val newParamTy = module.types(newConTy).inps
-        //   val (inputs, restStack) = newStack.splitAt(oldParamTy.size)
-        //   // partially apply the old continuation
-        //   val oldCont = module.funcs(oldContAddr) match {
-        //     case RefContV(f) => f
-        //     case _           => throw new Exception("Continuation is not a function")
-        //   }
-        throw new Exception("ContBind unimplemented")
+      case ContBind(oldContTyId, newConTyId) =>
+        val (f: ContV[Ans]) :: newStack = stack
+        // use oldParamTy - newParamTy to get how many values to pop from the stack
+        val ContType(oldId) = module.types(oldContTyId)
+        val FuncType(_, oldParamTy, _) = module.types(oldId)
+        val ContType(newId) = module.types(newConTyId)
+        val FuncType(_, newParamTy, _) = module.types(newId)
+
+        // get oldParamTy - newParamTy (there's no type checking at all)
+        val inputSize = oldParamTy.size - newParamTy.size
+
+        val (inputs, restStack) = newStack.splitAt(inputSize)
+        
+        // partially apply the old continuation
+        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handler[Ans]): Ans = {
+          f.k(s ++ inputs, k1, mk, handler)
+        }
+
+        eval(rest, ContV(kr) :: restStack, frame, kont, mkont, trail, h)
 
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack

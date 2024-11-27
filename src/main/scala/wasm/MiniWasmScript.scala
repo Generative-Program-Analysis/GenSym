@@ -10,8 +10,8 @@ sealed class ScriptRunner {
 
   def getInstance(instName: Option[String]): ModuleInstance = {
     instName match {
-	    case Some(name) => instanceMap(name)
-      case None => instances.head
+      case Some(name) => instanceMap(name)
+      case None       => instances.head
     }
   }
 
@@ -19,11 +19,13 @@ sealed class ScriptRunner {
     action match {
       case Invoke(instName, name, args) =>
         val module = getInstance(instName)
-        val func = module.exports.collectFirst({
-          case Export(`name`, ExportFunc(index)) =>
-            module.funcs(index)
-          case _ => throw new RuntimeException("Not Supported")
-        }).get
+        val func = module.exports
+          .collectFirst({
+            case Export(`name`, ExportFunc(index)) =>
+              module.funcs(index)
+            case _ => throw new RuntimeException("Not Supported")
+          })
+          .get
         val instrs = func match {
           case FuncDef(_, FuncBodyDef(ty, _, locals, body)) => body
         }
@@ -36,16 +38,18 @@ sealed class ScriptRunner {
         val h0: Handler = stack => throw new Exception(s"Uncaught exception: $stack")
         // TODO: change this back to Evaluator if we are just testing original stuff
         val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, mk, List(k), h0)
+        println(s"expect = $expect")
+        println(s"actual = $actual")
         assert(actual == expect)
     }
   }
 
   def runCmd(cmd: Cmd): Unit = {
     cmd match {
-      case CmdModule(module) => instances += ModuleInstance(module)
+      case CmdModule(module)            => instances += ModuleInstance(module)
       case AssertReturn(action, expect) => assertReturn(action, expect)
-      case CMdInstnace() => ()
-      case AssertTrap(action, message) => ???
+      case CMdInstnace()                => ()
+      case AssertTrap(action, message)  => ???
     }
   }
 
