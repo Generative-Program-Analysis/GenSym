@@ -273,8 +273,6 @@ case class EvaluatorFX(module: ModuleInstance) {
         }
         val newStack = ContV(k) :: stack
         h(newStack)
-        // throw new Exception("Suspend not implemented")
-        // h(stack)
       }
 
       // TODO: resume should create a list of handlers to capture suspend
