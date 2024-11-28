@@ -131,14 +131,12 @@ case class PushSym(name: String, concreteVal: Num) extends Instr
 case class Symbolic(ty: ValueType) extends Instr
 case object SymAssert extends Instr
 
-// TODO: add wasmfx instructions
-// TODO: should I take care of the unresolved cases?
 case class Suspend(tag: Int) extends Instr
 // note that cont.new can only be called with a func type
 case class ContNew(ty: Int) extends Instr
 case class ContBind(OldContTy: Int, NewContTy: Int) extends Instr
-// case class RefNull(ty: RefType) extends Instr
-// case object RefIsNull extends Instr
+case class RefNull(ty: RefType) extends Instr
+case class RefIsNull() extends Instr
 // note that ref.func can be called with any of the extended function type
 case class RefFunc(func: Int) extends Instr
 case class CallRef(ty: Int) extends Instr

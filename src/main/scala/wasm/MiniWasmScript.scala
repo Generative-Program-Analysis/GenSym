@@ -37,7 +37,7 @@ sealed class ScriptRunner {
         val mk: MCont = (retStack) => retStack
         val h0: Handler = stack => throw new Exception(s"Uncaught exception: $stack")
         // TODO: change this back to Evaluator if we are just testing original stuff
-        val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, mk, List(k), h0)
+        val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, mk, List(k), List((0, h0)))
         println(s"expect = $expect")
         println(s"actual = $actual")
         assert(actual == expect)

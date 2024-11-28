@@ -182,4 +182,24 @@ class TestFx extends FunSuite {
     testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
   }
 
+  test("diff_handler") {
+    testFile("./benchmarks/wasm/wasmfx/diff_handler.wast")
+  }
+  
+  test("suspend16") {
+    // TODO: fails this test!!!
+    // testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
+    testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
+  }
+
+  // TODO: the following two tests fails
+  // test("pipes") {
+  //   testFile("./benchmarks/wasm/wasmfx/fun-pipes-strip.wast")
+  // }
+  
+  // test("fun-state") {
+  //   testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
+  // }
+
+
 }

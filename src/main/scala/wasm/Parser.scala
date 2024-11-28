@@ -19,6 +19,7 @@ import java.io.OutputStream
 
 
 import scala.collection.mutable
+import java.sql.Ref
 
 class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   import WatParser._
@@ -135,6 +136,13 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     val FuncType(names, args, _) = visitFuncParamType(ctx.funcParamType())
     val FuncType(_, _, rets) = visitFuncResType(ctx.funcResType())
     FuncType(names, args, rets)
+  }
+
+  override def visitTag(ctx: TagContext): Tag = {
+    val fty = visitFuncType(ctx.funcType)
+    
+    Tag(None, fty)
+
   }
 
   override def visitTypeDef(ctx: TypeDefContext): WIR = {
@@ -476,10 +484,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       Resume0()
     } else if (ctx.THROW != null) {
       Throw()
-     } else if (ctx.CALLREF != null) {
-       CallRef(getVar(ctx.idx(0)).toInt)
-     } else if (ctx.CONTBIND != null) {
-       ContBind(getVar(ctx.idx(0)).toInt, getVar(ctx.idx(1)).toInt)
+    } else if (ctx.CALLREF != null) {
+      CallRef(getVar(ctx.idx(0)).toInt)
+    } else if (ctx.CONTBIND != null) {
+      ContBind(getVar(ctx.idx(0)).toInt, getVar(ctx.idx(1)).toInt)
+    } else if (ctx.REFNULL != null) {
+      RefNull(RefType(RefFuncType(getVar(ctx.idx(0)).toInt)))
+    } else if (ctx.REFISNULL != null) {
+      RefIsNull()
     }
     else {
       println(s"unimplemented parser for: ${ctx.getText}")
