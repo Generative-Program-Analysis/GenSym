@@ -272,7 +272,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           // Ans: No! Because the resumable continuation might be install by
           // a different `resume` with a different set of handlers
           val newMk: MCont[Ans] = (s) => k1(s, m)
-          eval(rest, s ++ stack, frame, kont, m, trail, handler)
+          eval(rest, s ++ stack, frame, kont, newMk, trail, handler)
         }
 
         val (inputs, restStack) = stack.splitAt(inps.size)
