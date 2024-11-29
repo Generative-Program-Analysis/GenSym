@@ -13,14 +13,13 @@
   (func (;1;) (type 0)
     i32.const 111
     call 0
-    ;; suspend 0
+    suspend 0
     i32.const 333
     call 0
   )
   (func (;2;) (type 0)
     i32.const 0
     call 0
-    suspend 0
     ref.func 1
     cont.new 1
     resume 1
