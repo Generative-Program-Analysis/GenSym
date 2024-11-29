@@ -25,6 +25,7 @@
   (func $main (export "main")
     (block (result (ref null $cb))
       (resume $c (on $fetch 0) (cont.new $c (ref.func $func_a)))
+      (call $print_i32 (i32.const 404))
       (return)
     )
     (call $print_i32 (i32.const 222))
