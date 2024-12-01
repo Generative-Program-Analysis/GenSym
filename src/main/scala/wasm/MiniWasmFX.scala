@@ -222,7 +222,8 @@ case class EvaluatorFX(module: ModuleInstance) {
         // where we fall back to join point
         val idK: Cont[Ans] = (s, m) => m(s)
         val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, idK, join, trail, h)
-        eval(es1, List(), frame, idK, join, trail, List((0, newHandler)))
+        // Note: tagId -1 reserved for legacy try-catch
+        eval(es1, List(), frame, idK, join, trail, List((-1, newHandler)))
       case Resume0() =>
         val (resume: TCContV[Ans]) :: newStack = stack
         val k: Cont[Ans] = (s, m) => eval(rest, newStack /*!*/, frame, kont, m, trail, h)
@@ -236,64 +237,47 @@ case class EvaluatorFX(module: ModuleInstance) {
           val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
           eval(rest, newStack /*!*/, frame, kontK, m /*vs mkont?*/, trail, h)
         }
-        // in try-catch-resume we assum h is a singleton list
+        // in try-catch-resume we assume h is a singleton list
         h.head._2(List(err, TCContV(kr)))
 
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-
         def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handlers[Ans]): Ans = {
           // k1 is rest for `resume`
           // mk holds the handler for `suspend`
-
           // Q: Do we need to care about kont here??
           // Answer: we don't, because continuation is only activated by `resume`
           // and it must be handled by the default handler (k1) or the handler associated
           // to `suspend`
-
           // we can discard trail since it is a new function call (similar to `kont`)
-          val empty: Cont[Ans] = (s1, m1) => m1(s1)
-          evalCall(f, List(), s, frame, empty, mk, List(), handler, false)
+          // val empty: Cont[Ans] = (s1, m1) => m1(s1)
+          evalCall(f, List(), s, frame, k1, mk, List(), handler, false)
         }
-
         eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
-
-      case Suspend(tag_id) => {
-
+      case Suspend(tagId) =>
         // get the type from tag_id
-        val FuncType(_, inps, out) = module.tags(tag_id)
-
+        val FuncType(_, inps, out) = module.tags(tagId)
         val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handlers[Ans]) => {
           // TODO: does the following work?
           // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-
           // Q: is it okay to forget `k1` and `mkont` here?
           // Ans: No! Because the resumable continuation might be install by
           // a different `resume` with a different set of handlers
           val newMk: MCont[Ans] = (s) => k1(s, m)
           eval(rest, s ++ stack, frame, kont, newMk, trail, handler)
         }
-
         val (inputs, restStack) = stack.splitAt(inps.size)
-
         val newStack = ContV(k) :: inputs
-        // val newStack = ContV(k) :: stack
-
-        // TODO: Why can't I compose it like `(h.toMap)(1)(newStack)`
-        val hmap = h.toMap
-        hmap(tag_id)(newStack)
-        // h.head._2(newStack)
-      }
-
-      // TODO: resume should create a list of handlers to capture suspend
-      case Resume(kty_id, handler) => {
+        h.find(_._1 == tagId) match {
+          case Some((_, handler)) => handler(newStack)
+          case None               => throw new Exception(s"no handler for tag $tagId")
+        }
+      case Resume(tyId, handler) =>
         val (f: ContV[Ans]) :: newStack = stack
-        val contTy = module.types(kty_id)
-        val ContType(funcTypeId) = contTy
+        val ContType(funcTypeId) = module.types(tyId)
         val FuncType(_, inps, out) = module.types(funcTypeId)
         val (inputs, restStack) = newStack.splitAt(inps.size)
-
         if (handler.length == 0) {
           // the metacontinuation contains the default handler
           val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
@@ -304,27 +288,18 @@ case class EvaluatorFX(module: ModuleInstance) {
           //   throw new Exception("only single tag is supported")
           // }
           // if suspend happens, the label id holds the handler
-
           val newEhs: List[(Int, Handler[Ans])] = handler.map { case Handler(tag_id, labelId) =>
             (tag_id, (newStack) => trail(labelId)(newStack, mkont))
           }
-          // merge the handlers
-
-          val mergedEhs = (h ++ newEhs).toMap.toList
-
           // val Handler(tagId, labelId) = handler.head
           // val newHandler: Handler[Ans] = (newStack) => trail(labelId)(newStack, mkont)
-
           // f might be handled by the default handler (namely kont), or by the
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
           // The meta-continuation has the original handlers
           val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
           val emptyK: Cont[Ans] = (s, m) => m(s)
-          f.k(inputs, emptyK, mk, mergedEhs)
+          f.k(inputs, emptyK, mk, newEhs ++ h)
         }
-
-      }
-
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
         // use oldParamTy - newParamTy to get how many values to pop from the stack
@@ -332,17 +307,13 @@ case class EvaluatorFX(module: ModuleInstance) {
         val FuncType(_, oldParamTy, _) = module.types(oldId)
         val ContType(newId) = module.types(newConTyId)
         val FuncType(_, newParamTy, _) = module.types(newId)
-
         // get oldParamTy - newParamTy (there's no type checking at all)
         val inputSize = oldParamTy.size - newParamTy.size
-
         val (inputs, restStack) = newStack.splitAt(inputSize)
-
         // partially apply the old continuation
         def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], hs: Handlers[Ans]): Ans = {
           f.k(s ++ inputs, k1, mk, hs)
         }
-
         eval(rest, ContV(kr) :: restStack, frame, kont, mkont, trail, h)
 
       case CallRef(ty) =>
@@ -409,11 +380,10 @@ case class EvaluatorFX(module: ModuleInstance) {
         })
     }
     if (instrs.isEmpty) println("Warning: nothing is executed")
-    val handler0: Handler[Ans] = stack => throw new Exception(s"Uncaught exception: $stack")
     // initialized locals
     val frame = Frame(ArrayBuffer(locals.map(zero(_)): _*))
     // in try-catch-resume, tagId is default to 0
-    eval(instrs, List(), frame, halt, mhalt, List(halt), List((0, handler0)))
+    eval(instrs, List(), frame, halt, mhalt, List(halt), List())
   }
 
   def evalTop(m: ModuleInstance): Unit = {

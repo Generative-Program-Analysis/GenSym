@@ -153,7 +153,7 @@ class TestFx extends FunSuite {
 
   // wasmfx sec 2.3 like example
   test("test_cont") {
-    testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
+    testFileOutput("./benchmarks/wasm/wasmfx/test_cont-strip.wast", List(10, -1, 11, 11, -1, 12, 12, -1, 13, 13, -1, 14, -2))
   }
 
   test("resume_chain1") {
@@ -167,7 +167,7 @@ class TestFx extends FunSuite {
 
   // going to print 100 to 1 and then print 42
   test("gen") {
-    testFile("./benchmarks/wasm/wasmfx/gen-stripped.wast")
+    testFileOutput("./benchmarks/wasm/wasmfx/gen-stripped.wast", (100 to 1 by -1).toList ++ List(42))
   }
 
   test("diff resume") {
@@ -183,9 +183,9 @@ class TestFx extends FunSuite {
   }
 
   test("diff_handler") {
-    testFile("./benchmarks/wasm/wasmfx/diff_handler.wast")
+    testFileOutput("./benchmarks/wasm/wasmfx/diff_handler.wast", List(0, 1))
   }
-  
+
   test("nested_resume") {
     testFile("./benchmarks/wasm/wasmfx/nested_resume-strip.wast")
   }
@@ -200,7 +200,7 @@ class TestFx extends FunSuite {
   // test("pipes") {
   //   testFile("./benchmarks/wasm/wasmfx/fun-pipes-strip.wast")
   // }
-  
+
   // test("fun-state") {
   //   testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
   // }
