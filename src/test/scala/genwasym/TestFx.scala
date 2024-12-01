@@ -28,7 +28,7 @@ class TestFx extends FunSuite {
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = (stack, m) => m(stack)
+    val haltK: Cont = evaluator.initK
     val haltMK: MCont = (stack) => {
       // println(s"halt cont: $stack")
       expected match {
