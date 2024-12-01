@@ -187,7 +187,7 @@ class TestFx extends FunSuite {
   }
 
   test("nested_resume") {
-    testFile("./benchmarks/wasm/wasmfx/nested_resume-strip.wast")
+    testFileOutput("./benchmarks/wasm/wasmfx/nested_resume-strip.wast", List(0, 111, 222, 333, 444, 555))
   }
 
   // test("suspend16") {

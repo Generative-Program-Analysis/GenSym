@@ -25,7 +25,7 @@
     ref.func 1
     cont.new 1
     resume 1
-    i32.const 444
+    i32.const 444 ;; output buffer [0, 111, 222, 333, 444]
     call 0
     return
   )
@@ -40,7 +40,7 @@
     i32.const 222
     call 0 ;; output buffer [0, 111, 222]
     resume 3
-    i32.const 555
+    i32.const 555 ;; output buffer [0, 111, 222, 333, 444, 555]
     call 0
   )
 )

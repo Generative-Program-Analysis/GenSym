@@ -256,8 +256,8 @@ case class EvaluatorFX(module: ModuleInstance) {
         }
         eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
       case Suspend(tagId) =>
-        // get the type from tag_id
         val FuncType(_, inps, out) = module.tags(tagId)
+        val (inputs, restStack) = stack.splitAt(inps.size)
         val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handlers[Ans]) => {
           // TODO: does the following work?
           // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
@@ -265,9 +265,8 @@ case class EvaluatorFX(module: ModuleInstance) {
           // Ans: No! Because the resumable continuation might be install by
           // a different `resume` with a different set of handlers
           val newMk: MCont[Ans] = (s) => k1(s, m)
-          eval(rest, s ++ stack, frame, kont, newMk, trail, handler)
+          eval(rest, s ++ restStack, frame, kont, newMk, trail, handler)
         }
-        val (inputs, restStack) = stack.splitAt(inps.size)
         val newStack = ContV(k) :: inputs
         h.find(_._1 == tagId) match {
           case Some((_, handler)) => handler(newStack)
