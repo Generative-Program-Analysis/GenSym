@@ -228,9 +228,8 @@ case class EvaluatorFX(module: ModuleInstance) {
 
       // resumable try-catch exception handling:
       case TryCatch(es1, es2) =>
-        // push trail1 to join point
+        // put trail1 into join point
         val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, trail1, mkont, trail2, h)
-        // todo: update comment here
         // here we clear the trail2, to forbid breaking out of the try-catch block
         val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, init: Cont[Ans], List(), join, List(), h)
         eval(es1, List(), frame, init: Cont[Ans], List(), join, List(), newHandler)
