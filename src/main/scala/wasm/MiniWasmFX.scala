@@ -25,6 +25,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
 
+  // init is a continuation that simply returns the inputed stack
   def init[Ans](s: Stack, trail1: List[Cont[Ans]], mkont: MCont[Ans]): Ans = {
     trail1 match {
       case k1 :: trail1 => k1(s, trail1, mkont)
@@ -229,12 +230,10 @@ case class EvaluatorFX(module: ModuleInstance) {
       case TryCatch(es1, es2) =>
         // push trail1 to join point
         val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, trail1, mkont, trail2, h)
-        // the `restK` for catch block (es2) is the join point
-        // the restK simply applies the meta-continuation, this is the same the [nil] case
-        // where we fall back to join point
-        // val idK: Cont[Ans] = (s, m) => m(s)
-        val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, init: Cont[Ans], List(), join, trail2, h)
-        eval(es1, List(), frame, init: Cont[Ans], List(), join, trail2, newHandler)
+        // todo: update comment here
+        // here we clear the trail2, to forbid breaking out of the try-catch block
+        val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, init: Cont[Ans], List(), join, List(), h)
+        eval(es1, List(), frame, init: Cont[Ans], List(), join, List(), newHandler)
       case Resume0() =>
         val (resume: TCContV[Ans]) :: newStack = stack
         val k: Cont[Ans] = (s, trail1, m) => eval(rest, newStack /*!*/, frame, kont, trail1, m, trail2, h)

@@ -130,15 +130,6 @@ class TestFx extends FunSuite {
 
   // Note: the interaction between try-catch and block is not well-defined yet
 
-  /*
-  test("try-catch-br") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br.wat", List(1, 2, 6))
-  }
-
-  test("try-catch-br2") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br2.wat", List(1, 2, 6, 4, 5))
-  }
-  */
 
   /* REAL WASMFX STUFF */
 
@@ -184,6 +175,18 @@ class TestFx extends FunSuite {
   // test("test_cont") {
   //   testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
   // }
+
+  test("try-catch-br2") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br2.wat", List(1, 2, 6, 4, 5))
+  }
+
+  test("try-catch-br") {
+    // break out of try block is not allowed
+    assertThrows[IndexOutOfBoundsException] {
+      testFileOutput("./benchmarks/wasm/trycatch/try_catch_br.wat", List(1, 2, 6))
+    }
+  }
+
   test("try-catch-throw-twice") {
     testFileOutput("./benchmarks/wasm/trycatch/throw_twice.wat", List(1, 2, 6, 2, 3, 4, 4, 5))
   }
