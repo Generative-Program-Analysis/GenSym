@@ -251,8 +251,8 @@ case class EvaluatorFX(module: ModuleInstance) {
           // and it must be handled by the default handler (k1) or the handler associated
           // to `suspend`
           // we can discard trail since it is a new function call (similar to `kont`)
-          // val empty: Cont[Ans] = (s1, m1) => m1(s1)
-          evalCall(f, List(), s, frame, k1, mk, List(), handler, false)
+          val empty: Cont[Ans] = (s1, m1) => m1(s1)
+          evalCall(f, List(), s, frame, empty, mk, List(), handler, false)
         }
         eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
       case Suspend(tagId) =>
