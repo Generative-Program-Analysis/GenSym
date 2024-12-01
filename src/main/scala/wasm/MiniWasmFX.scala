@@ -18,7 +18,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type Handler[A] = Stack => A
   type Handlers[A] = List[(Int, Handler[A])]
 
-  case class ContV[A](k: (Stack, Cont[A], MCont[A], Handlers[A]) => A) extends Value {
+  case class ContV[A](k: (Stack, MCont[A], Handlers[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
 
@@ -243,7 +243,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
 
-        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handlers[Ans]): Ans = {
+        def kr(s: Stack, mk: MCont[Ans], handler: Handlers[Ans]): Ans = {
           // k1 is rest for `resume`
           // mk holds the handler for `suspend`
 
@@ -264,15 +264,17 @@ case class EvaluatorFX(module: ModuleInstance) {
         // get the type from tag_id
         val FuncType(_, inps, out) = module.tags(tag_id)
 
-        val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handlers[Ans]) => {
+        val k = (s: Stack, m: MCont[Ans], handler: Handlers[Ans]) => {
           // TODO: does the following work?
           // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
 
           // Q: is it okay to forget `k1` and `mkont` here?
           // Ans: No! Because the resumable continuation might be install by
           // a different `resume` with a different set of handlers
-          val newMk: MCont[Ans] = (s) => k1(s, m)
-          eval(rest, s ++ stack, frame, kont, newMk, trail, handler)
+
+          // Customize delimited continuation here is unnecessary, since we have
+          // only passed the `idK` and List() to ContV's payloaded function.
+          eval(rest, s ++ stack, frame, kont, m, trail, handler)
         }
 
         val (inputs, restStack) = stack.splitAt(inps.size)
@@ -297,8 +299,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         if (handler.length == 0) {
           // the metacontinuation contains the default handler
           val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
-          val emptyK: Cont[Ans] = (s, m) => m(s)
-          f.k(inputs, emptyK, mk, h)
+          f.k(inputs, mk, h)
         } else {
           // if (handler.length > 1) {
           //   throw new Exception("only single tag is supported")
@@ -319,8 +320,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
           // The meta-continuation has the original handlers
           val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
-          val emptyK: Cont[Ans] = (s, m) => m(s)
-          f.k(inputs, emptyK, mk, mergedEhs)
+          f.k(inputs, mk, mergedEhs)
         }
 
       }
@@ -339,8 +339,8 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = newStack.splitAt(inputSize)
 
         // partially apply the old continuation
-        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], hs: Handlers[Ans]): Ans = {
-          f.k(s ++ inputs, k1, mk, hs)
+        def kr(s: Stack, mk: MCont[Ans], hs: Handlers[Ans]): Ans = {
+          f.k(s ++ inputs, mk, hs)
         }
 
         eval(rest, ContV(kr) :: restStack, frame, kont, mkont, trail, h)
