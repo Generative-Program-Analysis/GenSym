@@ -303,7 +303,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           // if suspend happens, the label id holds the handler
           val Handler(tagId, labelId) = handler.head
 
-          val newHandler: Handler[Ans] = (newStack) => trail2(labelId)(newStack, List(), mkont)
+          val newHandler: Handler[Ans] = (newStack) => trail2(labelId)(newStack, trail1, mkont)
 
           // f might be handled by the default handler (namely kont), or by the
           // handler specified by tags (newhandler, which has the same type as meta-continuation)
