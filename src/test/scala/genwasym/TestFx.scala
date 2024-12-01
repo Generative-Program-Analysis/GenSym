@@ -190,11 +190,11 @@ class TestFx extends FunSuite {
     testFileOutput("./benchmarks/wasm/wasmfx/nested_resume-strip.wast", List(0, 111, 222, 333, 444, 555))
   }
 
-  // test("suspend16") {
-  //   // TODO: fails this test!!!
-  //   // testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
-  //   testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
-  // }
+  test("suspend16") {
+    // TODO: fails this test!!!
+    testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
+    //testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
+  }
 
   // TODO: the following two tests fails
   // test("pipes") {

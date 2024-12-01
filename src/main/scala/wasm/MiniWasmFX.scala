@@ -251,16 +251,14 @@ case class EvaluatorFX(module: ModuleInstance) {
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
         def kr(s: Stack, k1: Cont[Ans], trail1: List[Cont[Ans]], mk: MCont[Ans], hs: Handlers[Ans]): Ans = {
-          evalCall(f, List(), s, frame, initK: Cont[Ans], List(), mk, List(), hs, false)
+          evalCall(f, List(), s, frame/*?*/, k1, trail1, mk, List(), hs, false)
         }
         eval(rest, ContV(kr) :: newStack, frame, kont, trail1, mkont, trail2, h)
-
       case Suspend(tagId) =>
         val FuncType(_, inps, out) = module.tags(tagId)
         val (inputs, restStack) = stack.splitAt(inps.size)
-        val k = (s: Stack, k1: Cont[Ans], trail1: List[Cont[Ans]], m: MCont[Ans], hs: Handlers[Ans]) => {
-          val newMk: MCont[Ans] = (s) => k1(s, trail1, m)
-          eval(rest, s ++ restStack, frame, kont, trail1, newMk, trail2, hs)
+        val k = (s: Stack, k1: Cont[Ans], newTrail1: List[Cont[Ans]], mk: MCont[Ans], hs: Handlers[Ans]) => {
+          eval(rest, s ++ restStack, frame, kont, trail1 ++ (k1 :: newTrail1), mk, trail2, hs)
         }
         val newStack = ContV(k) :: inputs
         h.find(_._1 == tagId) match {
@@ -273,18 +271,11 @@ case class EvaluatorFX(module: ModuleInstance) {
         val FuncType(_, inps, out) = module.types(funcTypeId)
         val (inputs, restStack) = newStack.splitAt(inps.size)
 
-        if (handler.length == 0) {
-          // the metacontinuation contains the default handler
-          val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, trail1, mkont, trail2, h)
-          f.k(inputs, initK, List(), mk, h)
-        } else {
-          val newEhs: List[(Int, Handler[Ans])] = handler.map { case Handler(tagId, labelId) =>
-            (tagId, (newStack) => trail2(labelId)(newStack, trail1, mkont))
-          }
-
-          val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, trail1, mkont, trail2, h)
-          f.k(inputs, initK, List(), mk, newEhs ++ h)
+        val newHs: List[(Int, Handler[Ans])] = handler.map { case Handler(tagId, labelId) =>
+          (tagId, (newStack) => trail2(labelId)(newStack, trail1, mkont))
         }
+        val newMk: MCont[Ans] = (s) => eval(rest, s, frame, kont, trail1, mkont, trail2, h)
+        f.k(inputs, initK, List(), newMk, newHs ++ h)
 
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
