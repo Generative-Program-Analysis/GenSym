@@ -12,13 +12,14 @@ case class EvaluatorFX(module: ModuleInstance) {
   import Primtives._
   implicit val m: ModuleInstance = module
 
-  trait ContTrail[A] {
-    def apply(stack: Stack, trail: List[ContTrail[A]], mcont: MCont[A]): A
-  }
-
   type Stack = List[Value]
-  type Cont[A] = ContTrail[A]
+
+  trait Cont[A] {
+    def apply(stack: Stack, trail: Trail[A], mcont: MCont[A]): A
+  }
+  type Trail[A] = List[Cont[A]]
   type MCont[A] = Stack => A
+
   type Handler[A] = Stack => A
   type Handlers[A] = List[(Int, Handler[A])]
 
@@ -257,8 +258,8 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Suspend(tagId) =>
         val FuncType(_, inps, out) = module.tags(tagId)
         val (inputs, restStack) = stack.splitAt(inps.size)
-        val kr = (s: Stack, k1: Cont[Ans], newtrail: List[Cont[Ans]], mk: MCont[Ans], hs: Handlers[Ans]) => {
-          eval(rest, s ++ restStack, frame, kont, trail ++ (k1 :: newtrail), mk, brTable, hs)
+        val kr = (s: Stack, k1: Cont[Ans], newTrail: List[Cont[Ans]], mk: MCont[Ans], hs: Handlers[Ans]) => {
+          eval(rest, s ++ restStack, frame, kont, trail ++ (k1 :: newTrail), mk, brTable, hs)
         }
         val newStack = ContV(kr) :: inputs
         h.find(_._1 == tagId) match {

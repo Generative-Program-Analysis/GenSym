@@ -35,7 +35,6 @@ sealed class ScriptRunner {
         type Handler = evaluator.Handler[evaluator.Stack]
         val k: Cont = evaluator.initK
         val mk: MCont = (retStack) => retStack
-        val h0: Handler = stack => throw new Exception(s"Uncaught exception: $stack")
         // TODO: change this back to Evaluator if we are just testing original stuff
         val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List(), mk, List(k), List())
         println(s"expect = $expect")
