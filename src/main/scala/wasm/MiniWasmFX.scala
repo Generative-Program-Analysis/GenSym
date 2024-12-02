@@ -20,7 +20,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type Trail[A] = List[Cont[A]]
   type MCont[A] = Stack => A
 
-  type Handler[A] = Stack => A
+  type Handler[A] = (Stack, Trail[A], MCont[A]) => A
   type Handlers[A] = List[(Int, Handler[A])]
 
   case class ContV[A](k: (Stack, Cont[A], List[Cont[A]], MCont[A], Handlers[A]) => A) extends Value {
@@ -232,7 +232,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         // put trail into join point
         val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, trail, mkont, brTable, h)
         // here we clear the brTable, to forbid breaking out of the try-catch block
-        val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, initK: Cont[Ans], List(), join, List(), h)
+        val newHandler: Handler[Ans] = (newStack, t, m) => eval(es2, newStack, frame, initK: Cont[Ans], List(), join, List(), h)
         eval(es1, List(), frame, initK: Cont[Ans], List(), join, List(), List((-1, newHandler)) ++ h)
       case Resume0() =>
         val (resume: TCContV[Ans]) :: newStack = stack
@@ -246,7 +246,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         def kr(s: Stack, k1: Cont[Ans], newtrail: List[Cont[Ans]], m: MCont[Ans]): Ans = {
           eval(rest, newStack /*!*/, frame, kont, trail ++ List(k1) ++ newtrail, m /*vs mkont?*/, brTable, h)
         }
-        h.head._2(List(err, TCContV(kr)))
+        h.head._2(List(err, TCContV(kr)), trail, mkont)
 
       // WasmFX effect handlers:
       case ContNew(ty) =>
@@ -263,7 +263,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         }
         val newStack = ContV(kr) :: inputs
         h.find(_._1 == tagId) match {
-          case Some((_, handler)) => handler(newStack)
+          case Some((_, handler)) => handler(newStack, trail, mkont)
           case None               => throw new Exception(s"no handler for tag $tagId")
         }
       case Resume(tyId, handler) =>
@@ -272,7 +272,9 @@ case class EvaluatorFX(module: ModuleInstance) {
         val FuncType(_, inps, out) = module.types(funcTypeId)
         val (inputs, restStack) = newStack.splitAt(inps.size)
         val newHs: List[(Int, Handler[Ans])] = handler.map {
-          case Handler(tagId, labelId) => (tagId, (newStack) => brTable(labelId)(newStack, trail, mkont))
+          case Handler(tagId, labelId) =>
+            val hh: Handler[Ans] = (newStack, _, _) => brTable(labelId)(newStack, trail, mkont)
+            (tagId, hh)
         }
         val newCont: Cont[Ans] = (s, trail, mk) => eval(rest, s, frame, kont, trail, mk, brTable, h)
         val newMk: MCont[Ans] = (s) => eval(rest, s, frame, kont, trail, mkont, brTable, h)

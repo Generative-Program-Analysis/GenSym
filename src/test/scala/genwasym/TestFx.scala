@@ -205,5 +205,4 @@ class TestFx extends FunSuite {
   //   testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
   // }
 
-
 }
