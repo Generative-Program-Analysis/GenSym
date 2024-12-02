@@ -35,7 +35,7 @@
       ref.func 2
       cont.new 1
       resume 1 (on 0 0 (;@1;))
-      return
+      trap
     end
     i32.const 222
     call 0 ;; output buffer [0, 111, 222]

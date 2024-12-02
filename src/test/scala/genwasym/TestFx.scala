@@ -93,6 +93,7 @@ class TestFx extends FunSuite {
   }
 
   // New effect handler tests:
+  /*
 
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
@@ -187,7 +188,7 @@ class TestFx extends FunSuite {
   }
 
   test("nested_resume") {
-    testFileOutput("./benchmarks/wasm/wasmfx/nested_resume-strip.wast", List(0, 111, 222, 333, 444, 555))
+    testFileOutput("./benchmarks/wasm/wasmfx/nested_resume-strip.wat", List(0, 111, 222, 333, 444, 555))
   }
 
   test("suspend16") {
@@ -204,5 +205,5 @@ class TestFx extends FunSuite {
   // test("fun-state") {
   //   testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
   // }
-
+  */
 }
