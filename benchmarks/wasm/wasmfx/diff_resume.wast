@@ -19,8 +19,8 @@
     (local.set $i (i32.const 10))
     (block $h
         (block $on_yield (result (ref $cont))
-          (resume $cont 
-            (on $yield $on_yield) 
+          (resume $cont
+            (on $yield $on_yield)
             (local.get $i)
             (local.get $k)
           )
