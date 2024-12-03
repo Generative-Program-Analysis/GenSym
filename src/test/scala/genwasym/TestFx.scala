@@ -93,8 +93,6 @@ class TestFx extends FunSuite {
   }
 
   // New effect handler tests:
-  /*
-
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
@@ -140,9 +138,8 @@ class TestFx extends FunSuite {
     testFileOutput("./benchmarks/wasm/trycatch/try_catch_br2.wat", List(1, 2, 6, 4, 5))
   }
   */
-
   /* REAL WASMFX STUFF */
-
+  /*
   test("cont") {
     // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
     testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")

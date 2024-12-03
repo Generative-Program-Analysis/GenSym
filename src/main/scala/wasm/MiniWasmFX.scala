@@ -20,7 +20,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type Trail[A] = List[Cont[A]]
   type MCont[A] = Stack => A
 
-  type Handler[A] = (Stack, Trail[A], MCont[A]) => A
+  type Handler[A] = (Stack, Cont[A], Trail[A], MCont[A]) => A
   type Handlers[A] = List[(Int, Handler[A])]
 
   case class ContV[A](k: (Stack, Cont[A], List[Cont[A]], MCont[A], Handlers[A]) => A) extends Value {
@@ -136,7 +136,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
         val escape: Cont[Ans] = (s1, t1, m1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1)
-        eval(inner, inputs, frame, escape, trail, mkont, escape::brTable, hs)
+        evalList(inner, inputs, frame, escape, trail, mkont, escape::brTable, hs)
       case Br(label) =>
         brTable(label)(stack, trail, mkont)
       case BrIf(label) =>
@@ -156,28 +156,20 @@ case class EvaluatorFX(module: ModuleInstance) {
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         kont(newStack, trail, mkont)
-      /*
       // resumable try-catch exception handling:
       case TryCatch(es1, es2) =>
-        // put trail1 into join point
-        val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, trail1, mkont, trail2, h)
-        // here we clear the trail2, to forbid breaking out of the try-catch block
-        val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, initK: Cont[Ans], List(), join, List(), h)
-        eval(es1, List(), frame, initK: Cont[Ans], List(), join, List(), List((-1, newHandler)) ++ h)
+        val newHandler: Handler[Ans] = (s1, k1, t1, m1) => evalList(es2, s1, frame, initK[Ans], t1, m1, List(), hs)
+        val m1: MCont[Ans] = (s1) => kont(s1, trail, mkont)
+        evalList(es1, List(), frame, initK[Ans], trail, m1, List(), List((-1, newHandler)) ++ hs)
       case Resume0() =>
         val (resume: TCContV[Ans]) :: newStack = stack
-        val k: Cont[Ans] = (s, trail1, m) => eval(rest, newStack /*!*/, frame, kont, trail1, m, trail2, h)
-        resume.k(List(), k, trail1, mkont)
+        resume.k(List(), kont, trail, mkont)
       case Throw() =>
         val err :: newStack = stack
-        // kont composed with k1 and trail1
-        // note that kr doesn't use the stack at all
-        // it only takes the err value
-        def kr(s: Stack, k1: Cont[Ans], newTrail1: List[Cont[Ans]], m: MCont[Ans]): Ans = {
-          eval(rest, newStack /*!*/, frame, kont, trail1 ++ List(k1) ++ newTrail1, m /*vs mkont?*/, trail2, h)
-        }
-        h.head._2(List(err, TCContV(kr)))
+        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans]): Ans = kont(s, trail, s1 => k1(s1, t1, m1))
+        hs.head._2(List(err, TCContV(kr)), kont, trail, mkont)
 
+      /*
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
@@ -269,12 +261,12 @@ case class EvaluatorFX(module: ModuleInstance) {
         val newFrame = Frame(ArrayBuffer(frameLocals: _*))
         if (isTail)
           // when tail call, share the continuation for returning with the callee
-          eval(body, List(), newFrame, kont, trail, mkont, List(kont), h)
+          evalList(body, List(), newFrame, kont, trail, mkont, List(kont), h)
         else {
           val restK: Cont[Ans] = (s1, t1, m1) => kont(s1.take(ty.out.size) ++ newStack, t1, m1)
           // We make a new brTable by `restK`, since function creates a new block to escape
           // (more or less like `return`)
-          eval(body, List(), newFrame, restK, trail, mkont, List(restK), h)
+          evalList(body, List(), newFrame, restK, trail, mkont, List(restK), h)
         }
       case Import("console", "log", _) =>
         // println(s"[DEBUG] current stack: $stack")
@@ -290,6 +282,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
 
+  /*
   def evalCall[Ans](funcIndex: Int,
                     rest: List[Instr],
                     stack: List[Value],
@@ -330,7 +323,9 @@ case class EvaluatorFX(module: ModuleInstance) {
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
   }
+  */
 
+  /*
   def eval[Ans](insts: List[Instr],
                 stack: List[Value],
                 frame: Frame,
@@ -563,6 +558,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         throw new Exception(s"instruction $inst not implemented")
     }
   }
+  */
 
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.

@@ -36,7 +36,7 @@ sealed class ScriptRunner {
         val k: Cont = evaluator.initK
         val mk: MCont = (retStack) => retStack
         // TODO: change this back to Evaluator if we are just testing original stuff
-        val actual = evaluator.eval(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List(), mk, List(k), List())
+        val actual = evaluator.evalList(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List(), mk, List(k), List())
         println(s"expect = $expect")
         println(s"actual = $actual")
         assert(actual == expect)
