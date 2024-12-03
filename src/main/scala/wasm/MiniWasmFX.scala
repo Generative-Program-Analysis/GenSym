@@ -34,11 +34,6 @@ case class EvaluatorFX(module: ModuleInstance) {
       case Nil => mkont(s)
     }
 
-  // Only used for resumable try-catch (need refactoring):
-  case class TCContV[A](k: (Stack, Cont[A], List[Cont[A]], MCont[A]) => A) extends Value {
-    def tipe(implicit m: ModuleInstance): ValueType = ???
-  }
-
   def eval1[Ans](inst: Instr, stack: Stack, frame: Frame,
                  kont: Cont[Ans], trail: List[Cont[Ans]], mkont: MCont[Ans],
                  brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans =
@@ -164,12 +159,13 @@ case class EvaluatorFX(module: ModuleInstance) {
         val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont)
         evalList(es1, List(), frame, initK[Ans], List(), m1, List(), List((-1, newHandler)) ++ hs)
       case Resume0() =>
-        val (resume: TCContV[Ans]) :: newStack = stack
-        resume.k(List(), kont, List(), mkont)
+        val (resume: ContV[Ans]) :: newStack = stack
+        resume.k(List(), kont, List(), mkont, List())
       case Throw() =>
         val err :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans]): Ans = kont(s, List(), s1 => k1(s1, List(), m1))
-        hs.head._2(List(err, TCContV(kr)), kont, List(), mkont)
+        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]): Ans =
+          kont(s, List(), s1 => k1(s1, List(), m1))
+        hs.head._2(List(err, ContV(kr)), kont, List(), mkont)
 
       /*
       // WasmFX effect handlers:
