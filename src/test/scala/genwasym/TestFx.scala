@@ -150,6 +150,10 @@ class TestFx extends FunSuite {
     testFileOutput("./benchmarks/wasm/trycatch/try_catch_br3.wat", List(1, 2, 3, 4, 5))
   }
 
+  test("try-catch-br4") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br4.wat", List(1, 2, 6, 2, 7, 4, 4, 5))
+  }
+
   test("try-catch-catch-br") {
     testFileOutput("./benchmarks/wasm/trycatch/try_catch_catch_br.wat", List(1, 2, 6, 4, 6, 5))
   }
