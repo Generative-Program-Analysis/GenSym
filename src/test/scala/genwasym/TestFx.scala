@@ -159,7 +159,6 @@ class TestFx extends FunSuite {
   }
 
   /* REAL WASMFX STUFF */
-  /*
   test("cont") {
     // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
     testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
@@ -214,6 +213,7 @@ class TestFx extends FunSuite {
     //testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
   }
 
+  /*
   // TODO: the following two tests fails
   // test("pipes") {
   //   testFile("./benchmarks/wasm/wasmfx/fun-pipes-strip.wast")

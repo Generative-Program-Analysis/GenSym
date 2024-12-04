@@ -155,7 +155,7 @@ case class EvaluatorFX(module: ModuleInstance) {
       // resumable try-catch exception handling:
       // NOTE(GW): so far we haven't use trail at all, could consider removing it
       case TryCatch(es1, es2) =>
-        val newHandler: Handler[Ans] = (s1, k1, _, m1) => evalList(es2, s1, frame, initK[Ans], List(), m1, List(), hs)
+        val newHandler: Handler[Ans] = (s1, k1, _, m1) => evalList(es2, s1, frame, k1, List(), m1, List(), hs)
         val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont)
         evalList(es1, List(), frame, initK[Ans], List(), m1, List(), List((-1, newHandler)) ++ hs)
       case Resume0() =>
@@ -165,25 +165,25 @@ case class EvaluatorFX(module: ModuleInstance) {
         val err :: newStack = stack
         def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]): Ans =
           kont(s, List(), s1 => k1(s1, List(), m1))
-        hs.head._2(List(err, ContV(kr)), kont, List(), mkont)
+        hs.head._2(List(err, ContV(kr)), initK[Ans], List(), mkont)
 
-      /*
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], trail1: List[Cont[Ans]], mk: MCont[Ans], hs: Handlers[Ans]): Ans = {
-          evalCall(f, List(), s, frame/*?*/, k1, trail1, mk, List(), hs, false)
+        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]): Ans = {
+          evalCall1(f, s, frame/*?*/, k1, List(), m1, List(), hs, false)
         }
-        eval(rest, ContV(kr) :: newStack, frame, kont, trail1, mkont, trail2, h)
+        kont(ContV(kr) :: newStack, List(), mkont)
       case Suspend(tagId) =>
         val FuncType(_, inps, out) = module.tags(tagId)
         val (inputs, restStack) = stack.splitAt(inps.size)
-        val k = (s: Stack, k1: Cont[Ans], newTrail1: List[Cont[Ans]], mk: MCont[Ans], hs: Handlers[Ans]) => {
-          eval(rest, s ++ restStack, frame, kont, trail1 ++ (k1 :: newTrail1), mk, trail2, hs)
+        val kr = (s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]) => {
+          // FIXME: handlers are lost here
+          kont(s ++ restStack, List(), s1 => k1(s1, List(), m1)) // mkont lost here
         }
-        val newStack = ContV(k) :: inputs
-        h.find(_._1 == tagId) match {
-          case Some((_, handler)) => handler(newStack)
+        val newStack = ContV(kr) :: inputs
+        hs.find(_._1 == tagId) match {
+          case Some((_, handler)) => handler(newStack, initK[Ans], List(), mkont)
           case None               => throw new Exception(s"no handler for tag $tagId")
         }
       case Resume(tyId, handler) =>
@@ -192,11 +192,13 @@ case class EvaluatorFX(module: ModuleInstance) {
         val FuncType(_, inps, out) = module.types(funcTypeId)
         val (inputs, restStack) = newStack.splitAt(inps.size)
         val newHs: List[(Int, Handler[Ans])] = handler.map {
-          case Handler(tagId, labelId) => (tagId, (newStack) => trail2(labelId)(newStack, trail1, mkont))
+          case Handler(tagId, labelId) =>
+            val hh: Handler[Ans] = (s1, k1, t1, m1) => brTable(labelId)(s1, t1, mkont/*???*/)
+            (tagId, hh)
         }
-        //val newCont: Cont[Ans] = (s, trail1, mk) => eval(rest, s, frame, kont, trail1, mk, trail2, h)
-        val newMk: MCont[Ans] = (s) => eval(rest, s, frame, kont, trail1, mkont, trail2, h)
-        f.k(inputs, initK, List(), newMk, newHs ++ h)
+        // from the meeting, m1 is the return clause, and should be invoked only when `f.k` returns without suspend
+        val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont)
+        f.k(inputs, initK, List(), m1, newHs ++ hs)
 
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
@@ -205,27 +207,23 @@ case class EvaluatorFX(module: ModuleInstance) {
         val FuncType(_, oldParamTy, _) = module.types(oldId)
         val ContType(newId) = module.types(newConTyId)
         val FuncType(_, newParamTy, _) = module.types(newId)
-
         // get oldParamTy - newParamTy (there's no type checking at all)
         val inputSize = oldParamTy.size - newParamTy.size
-
         val (inputs, restStack) = newStack.splitAt(inputSize)
-
         // partially apply the old continuation
-        def kr(s: Stack, k1: Cont[Ans], trail1: List[Cont[Ans]], mk: MCont[Ans], handlers: Handlers[Ans]): Ans = {
-          f.k(s ++ inputs, k1, trail1, mk, handlers)
+        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], mk: MCont[Ans], handlers: Handlers[Ans]): Ans = {
+          f.k(s ++ inputs, k1, t1, mk, handlers)
         }
-
-        eval(rest, ContV(kr) :: restStack, frame, kont, trail1, mkont, trail2, h)
-
-      case CallRef(ty) =>
-        val RefFuncV(f) :: newStack = stack
-        evalCall(f, rest, newStack, frame, kont, trail1, mkont, trail2, h, false)
+        kont(ContV(kr) :: restStack, trail, mkont)
 
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
-        evalCall(f, rest, newStack, frame, kont, trail1, mkont, trail2, h, false)
-      */
+        evalCall1(f, newStack, frame, kont, trail, mkont, brTable, hs, false)
+
+      case CallRef(ty) =>
+        val RefFuncV(f) :: newStack = stack
+        evalCall1(f, newStack, frame, kont, trail, mkont, brTable, hs, false)
+
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")
