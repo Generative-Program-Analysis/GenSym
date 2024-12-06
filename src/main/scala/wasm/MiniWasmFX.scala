@@ -220,10 +220,6 @@ case class EvaluatorFX(module: ModuleInstance) {
         val RefFuncV(f) :: newStack = stack
         evalCall1(f, newStack, frame, kont, trail, mkont, brTable, hs, false)
 
-      case CallRef(ty) =>
-        val RefFuncV(f) :: newStack = stack
-        evalCall1(f, newStack, frame, kont, trail, mkont, brTable, hs, false)
-
       case _ =>
         println(inst)
         throw new Exception(s"instruction $inst not implemented")
