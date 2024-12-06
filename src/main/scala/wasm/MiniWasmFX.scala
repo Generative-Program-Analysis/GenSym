@@ -148,9 +148,6 @@ case class EvaluatorFX(module: ModuleInstance) {
       case RefFunc(f)    =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
         kont(RefFuncV(f) :: stack, trail, mkont)
-      case CallRef(ty) =>
-        val RefFuncV(f) :: newStack = stack
-        kont(newStack, trail, mkont)
 
       // resumable try-catch exception handling:
       // NOTE(GW): so far we haven't use trail at all, could consider removing it
