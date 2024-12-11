@@ -209,8 +209,8 @@ class TestFx extends FunSuite {
 
   test("suspend16") {
     // TODO: fails this test!!!
-    testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
-    //testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
+    // testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
+    testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
   }
 
   /*

@@ -168,15 +168,15 @@ case class EvaluatorFX(module: ModuleInstance) {
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
         def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]): Ans = {
-          evalCall1(f, s, frame/*?*/, k1, List(), m1, List(), hs, false)
+          evalCall1(f, s, frame/*?*/, k1, t1, m1, List(), hs, false)
         }
-        kont(ContV(kr) :: newStack, List(), mkont)
+        kont(ContV(kr) :: newStack, trail, mkont)
       case Suspend(tagId) =>
         val FuncType(_, inps, out) = module.tags(tagId)
         val (inputs, restStack) = stack.splitAt(inps.size)
         val kr = (s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]) => {
           // FIXME: handlers are lost here
-          kont(s ++ restStack, List(), s1 => k1(s1, List(), m1)) // mkont lost here
+          kont(s ++ restStack, trail.dropRight(1) ++ List(k1) ++ t1, m1) // mkont lost here, and maybe it's safe if we never modify it?
         }
         val newStack = ContV(kr) :: inputs
         hs.find(_._1 == tagId) match {
@@ -190,12 +190,11 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = newStack.splitAt(inps.size)
         val newHs: List[(Int, Handler[Ans])] = handler.map {
           case Handler(tagId, labelId) =>
-            val hh: Handler[Ans] = (s1, k1, t1, m1) => brTable(labelId)(s1, t1, mkont/*???*/)
+            val hh: Handler[Ans] = (s1, _k1, _t1, m1) => brTable(labelId)(s1, trail, mkont/*???*/)
             (tagId, hh)
         }
-        // from the meeting, m1 is the return clause, and should be invoked only when `f.k` returns without suspend
-        val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont)
-        f.k(inputs, initK, List(), m1, newHs ++ hs)
+        // rather than push `kont` to meta-continuation, maybe we can push it to `trail`?
+        f.k(inputs, initK, List(kont) ++ trail, mkont, newHs ++ hs)
 
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
@@ -239,7 +238,7 @@ case class EvaluatorFX(module: ModuleInstance) {
                      kont: Cont[Ans],
                      trail: List[Cont[Ans]],
                      mkont: MCont[Ans],
-                     brTable: List[Cont[Ans]],
+                     brTable: List[Cont[Ans]], // can be removed
                      h: Handlers[Ans],
                      isTail: Boolean): Ans =
     module.funcs(funcIndex) match {
