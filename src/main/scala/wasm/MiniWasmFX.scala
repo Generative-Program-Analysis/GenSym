@@ -177,12 +177,15 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = stack.splitAt(inps.size)
         val kr = (s: Stack, _: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]) => {
           // FIXME: handlers are lost here
-          // todo: drop by tagid
-          kont(s ++ restStack, trail.dropRight(1) ++ t1, m1) // mkont lost here, and maybe it's safe if we never modify it?
+          val index = trail.indexWhere { case (_, tags) => tags.contains(tagId) }
+          val newTrail = if (index >= 0) trail.take(index) else trail
+          kont(s ++ restStack, newTrail ++ t1, m1) // mkont lost here, and it's safe if we never modify it
         }
         val newStack = ContV(kr) :: inputs
         hs.find(_._1 == tagId) match {
-          case Some((_, handler)) => handler(newStack, initK[Ans], List(), mkont)
+          case Some((_, handler)) => 
+            // we don't need to pass trail here, because handler's trail was determined when resuming
+            handler(newStack, initK[Ans], List(), mkont)
           case None               => throw new Exception(s"no handler for tag $tagId")
         }
       case Resume(tyId, handler) =>
