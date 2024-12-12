@@ -17,25 +17,26 @@ case class EvaluatorFX(module: ModuleInstance) {
   trait Cont[A] {
     def apply(stack: Stack, trail: Trail[A], mcont: MCont[A]): A
   }
-  type Trail[A] = List[Cont[A]]
+  type Trail[A] = List[(Cont[A], List[Int])] // trail items are pairs of continuation and tags
   type MCont[A] = Stack => A
 
   type Handler[A] = (Stack, Cont[A], Trail[A], MCont[A]) => A
   type Handlers[A] = List[(Int, Handler[A])]
 
-  case class ContV[A](k: (Stack, Cont[A], List[Cont[A]], MCont[A], Handlers[A]) => A) extends Value {
+  case class ContV[A](k: (Stack, Cont[A], Trail[A], MCont[A], Handlers[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
 
+
   // initK is a continuation that simply returns the inputed stack
-  def initK[Ans](s: Stack, trail: List[Cont[Ans]], mkont: MCont[Ans]): Ans =
+  def initK[Ans](s: Stack, trail: Trail[Ans], mkont: MCont[Ans]): Ans =
     trail match {
-      case k1 :: trail => k1(s, trail, mkont)
+      case (k1, _) :: trail => k1(s, trail, mkont)
       case Nil => mkont(s)
     }
 
   def eval1[Ans](inst: Instr, stack: Stack, frame: Frame,
-                 kont: Cont[Ans], trail: List[Cont[Ans]], mkont: MCont[Ans],
+                 kont: Cont[Ans], trail: Trail[Ans], mkont: MCont[Ans],
                  brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans =
     inst match {
       case Drop => kont(stack.tail, trail, mkont)
@@ -122,7 +123,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val escape: Cont[Ans] = (s1, t1, m1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1)
-        def loop(retStack: List[Value], trail1: List[Cont[Ans]], mkont: MCont[Ans]): Ans =
+        def loop(retStack: List[Value], trail1: Trail[Ans], mkont: MCont[Ans]): Ans =
           evalList(inner, retStack.take(funcTy.inps.size), frame, escape, trail, mkont, (loop _ : Cont[Ans])::brTable, hs)
         loop(inputs, trail, mkont)
       case If(ty, thn, els) =>
@@ -160,23 +161,24 @@ case class EvaluatorFX(module: ModuleInstance) {
         resume.k(List(), kont, List(), mkont, List())
       case Throw() =>
         val err :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]): Ans =
+        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]): Ans =
           kont(s, List(), s1 => k1(s1, List(), m1))
         hs.head._2(List(err, ContV(kr)), initK[Ans], List(), mkont)
 
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]): Ans = {
+        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]): Ans = {
           evalCall1(f, s, frame/*?*/, k1, t1, m1, List(), hs, false)
         }
         kont(ContV(kr) :: newStack, trail, mkont)
       case Suspend(tagId) =>
         val FuncType(_, inps, out) = module.tags(tagId)
         val (inputs, restStack) = stack.splitAt(inps.size)
-        val kr = (s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], m1: MCont[Ans], hs: Handlers[Ans]) => {
+        val kr = (s: Stack, _: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]) => {
           // FIXME: handlers are lost here
-          kont(s ++ restStack, trail.dropRight(1) ++ List(k1) ++ t1, m1) // mkont lost here, and maybe it's safe if we never modify it?
+          // todo: drop by tagid
+          kont(s ++ restStack, trail.dropRight(1) ++ t1, m1) // mkont lost here, and maybe it's safe if we never modify it?
         }
         val newStack = ContV(kr) :: inputs
         hs.find(_._1 == tagId) match {
@@ -193,8 +195,9 @@ case class EvaluatorFX(module: ModuleInstance) {
             val hh: Handler[Ans] = (s1, _k1, _t1, m1) => brTable(labelId)(s1, trail, mkont/*???*/)
             (tagId, hh)
         }
+        val tags = handler.map(_.tag)
         // rather than push `kont` to meta-continuation, maybe we can push it to `trail`?
-        f.k(inputs, initK, List(kont) ++ trail, mkont, newHs ++ hs)
+        f.k(inputs, initK, List((kont,tags)) ++ trail, mkont, newHs ++ hs)
 
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
@@ -207,7 +210,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val inputSize = oldParamTy.size - newParamTy.size
         val (inputs, restStack) = newStack.splitAt(inputSize)
         // partially apply the old continuation
-        def kr(s: Stack, k1: Cont[Ans], t1: List[Cont[Ans]], mk: MCont[Ans], handlers: Handlers[Ans]): Ans = {
+        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], mk: MCont[Ans], handlers: Handlers[Ans]): Ans = {
           f.k(s ++ inputs, k1, t1, mk, handlers)
         }
         kont(ContV(kr) :: restStack, trail, mkont)
@@ -222,7 +225,7 @@ case class EvaluatorFX(module: ModuleInstance) {
     }
 
   def evalList[Ans](insts: List[Instr], stack: Stack, frame: Frame,
-                 kont: Cont[Ans], trail1: List[Cont[Ans]], mkont: MCont[Ans],
+                 kont: Cont[Ans], trail1: Trail[Ans], mkont: MCont[Ans],
                  brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
     insts match {
       case Nil => kont(stack, trail1, mkont)
@@ -236,7 +239,7 @@ case class EvaluatorFX(module: ModuleInstance) {
                      stack: List[Value],
                      frame: Frame,
                      kont: Cont[Ans],
-                     trail: List[Cont[Ans]],
+                     trail: Trail[Ans],
                      mkont: MCont[Ans],
                      brTable: List[Cont[Ans]], // can be removed
                      h: Handlers[Ans],
