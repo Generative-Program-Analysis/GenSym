@@ -302,7 +302,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
     else if (ctx.RETURN_CALL() != null) {
       val id = getVar(ctx.idx(0))
-      try Call(id.toInt) catch {
+      try ReturnCall(id.toInt) catch {
         case _: java.lang.NumberFormatException =>
           if (fnMap.contains(id)) ReturnCall(fnMap(id))
           else CallUnresolved(id)

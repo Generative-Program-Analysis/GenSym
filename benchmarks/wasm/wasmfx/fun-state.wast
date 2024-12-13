@@ -58,4 +58,4 @@
   )
 )
 
-;; (assert_return (invoke "run") (i32.const 19))
+(assert_return (invoke "run") (i32.const 19))

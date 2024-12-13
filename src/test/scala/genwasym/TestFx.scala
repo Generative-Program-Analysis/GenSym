@@ -208,19 +208,17 @@ class TestFx extends FunSuite {
   }
 
   test("suspend16") {
-    // TODO: fails this test!!!
-    // testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
-    testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
+    testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
+    // testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
+  }
+  
+  test("fun-state") {
+    testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
   }
 
-  /*
-  // TODO: the following two tests fails
-  // test("pipes") {
-  //   testFile("./benchmarks/wasm/wasmfx/fun-pipes-strip.wast")
-  // }
-
-  // test("fun-state") {
-  //   testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
-  // }
-  */
+  // TOOD: FIXME
+  test("pipes") {
+    testFile("./benchmarks/wasm/wasmfx/fun-pipes-strip.wast")
+  }
+  
 }
