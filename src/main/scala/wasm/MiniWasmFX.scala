@@ -15,7 +15,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type Stack = List[Value]
 
   trait Cont[A] {
-    def apply(stack: Stack, trail: Trail[A], mcont: MCont[A]): A
+    def apply(stack: Stack, trail: Trail[A], mcont: MCont[A], handler: Handlers[A]): A
   }
   type Trail[A] = List[(Cont[A], List[Int])] // trail items are pairs of continuation and tags
   type MCont[A] = Stack => A
@@ -25,37 +25,40 @@ case class EvaluatorFX(module: ModuleInstance) {
 
   case class ContV[A](k: (Stack, Cont[A], Trail[A], MCont[A], Handlers[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
+
+    // override def toString: String = "ContV"
   }
 
-
   // initK is a continuation that simply returns the inputed stack
-  def initK[Ans](s: Stack, trail: Trail[Ans], mkont: MCont[Ans]): Ans =
+  def initK[Ans](s: Stack, trail: Trail[Ans], mkont: MCont[Ans], hs: Handlers[Ans]): Ans =
     trail match {
-      case (k1, _) :: trail => k1(s, trail, mkont)
+      case (k1, _) :: trail => k1(s, trail, mkont, hs)
       case Nil => mkont(s)
     }
 
   def eval1[Ans](inst: Instr, stack: Stack, frame: Frame,
                  kont: Cont[Ans], trail: Trail[Ans], mkont: MCont[Ans],
-                 brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans =
+                 brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
+    System.err.println(f"[DEBUG] ${inst} | ${frame} | ${stack.reverse}");
+    // System.err.println(f"[DEBUG] brTable: ${brTable} ");
     inst match {
-      case Drop => kont(stack.tail, trail, mkont)
+      case Drop => kont(stack.tail, trail, mkont, hs)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = stack
         val value = if (cond == 0) v1 else v2
-        kont(value :: newStack, trail, mkont)
+        kont(value :: newStack, trail, mkont, hs)
       case LocalGet(i) =>
-        kont(frame.locals(i) :: stack, trail, mkont)
+        kont(frame.locals(i) :: stack, trail, mkont, hs)
       case LocalSet(i) =>
         val value :: newStack = stack
         frame.locals(i) = value
-        kont(newStack, trail, mkont)
+        kont(newStack, trail, mkont, hs)
       case LocalTee(i) =>
         val value :: newStack = stack
         frame.locals(i) = value
-        kont(stack, trail, mkont)
+        kont(stack, trail, mkont, hs)
       case GlobalGet(i) =>
-        kont(module.globals(i).value :: stack, trail, mkont)
+        kont(module.globals(i).value :: stack, trail, mkont, hs)
       case GlobalSet(i) =>
         val value :: newStack = stack
         module.globals(i).ty match {
@@ -64,16 +67,16 @@ case class EvaluatorFX(module: ModuleInstance) {
           case GlobalType(_, true) => throw new Exception("Invalid type")
           case _                   => throw new Exception("Cannot set immutable global")
         }
-        kont(newStack, trail, mkont)
+        kont(newStack, trail, mkont, hs)
       case MemorySize =>
-        kont(I32V(module.memory.head.size) :: stack, trail, mkont)
+        kont(I32V(module.memory.head.size) :: stack, trail, mkont, hs)
       case MemoryGrow =>
         val I32V(delta) :: newStack = stack
         val mem = module.memory.head
         val oldSize = mem.size
         mem.grow(delta) match {
-          case Some(e) => kont(I32V(-1) :: newStack, trail, mkont)
-          case _ => kont(I32V(oldSize) :: newStack, trail, mkont)
+          case Some(e) => kont(I32V(-1) :: newStack, trail, mkont, hs)
+          case _ => kont(I32V(oldSize) :: newStack, trail, mkont, hs)
         }
       case MemoryFill =>
         val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = stack
@@ -81,7 +84,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           throw new Exception("Out of bounds memory access") // GW: turn this into a `trap`?
         else {
           module.memory.head.fill(offset, size, value.toByte)
-          kont(newStack, trail, mkont)
+          kont(newStack, trail, mkont, hs)
         }
       case MemoryCopy =>
         val I32V(n) :: I32V(src) :: I32V(dest) :: newStack = stack
@@ -89,80 +92,83 @@ case class EvaluatorFX(module: ModuleInstance) {
           throw new Exception("Out of bounds memory access")
         else {
           module.memory.head.copy(dest, src, n)
-          kont(newStack, trail, mkont)
+          kont(newStack, trail, mkont, hs)
         }
-      case Const(n) => kont(n :: stack, trail, mkont)
+      case Const(n) => kont(n :: stack, trail, mkont, hs)
       case Binary(op) =>
         val v2 :: v1 :: newStack = stack
-        kont(evalBinOp(op, v1, v2) :: newStack, trail, mkont)
+        kont(evalBinOp(op, v1, v2) :: newStack, trail, mkont, hs)
       case Unary(op) =>
         val v :: newStack = stack
-        kont(evalUnaryOp(op, v) :: newStack, trail, mkont)
+        kont(evalUnaryOp(op, v) :: newStack, trail, mkont, hs)
       case Compare(op) =>
         val v2 :: v1 :: newStack = stack
-        kont(evalRelOp(op, v1, v2) :: newStack, trail, mkont)
+        kont(evalRelOp(op, v1, v2) :: newStack, trail, mkont, hs)
       case Test(op) =>
         val v :: newStack = stack
-        kont(evalTestOp(op, v) :: newStack, trail, mkont)
+        kont(evalTestOp(op, v) :: newStack, trail, mkont, hs)
       case Store(StoreOp(align, offset, ty, None)) =>
         val I32V(v) :: I32V(addr) :: newStack = stack
         module.memory(0).storeInt(addr + offset, v)
-        kont(newStack, trail, mkont)
+        kont(newStack, trail, mkont, hs)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val I32V(addr) :: newStack = stack
         val value = module.memory(0).loadInt(addr + offset)
-        kont(I32V(value) :: newStack, trail, mkont)
-      case Nop => kont(stack, trail, mkont)
+        kont(I32V(value) :: newStack, trail, mkont, hs)
+      case Nop => kont(stack, trail, mkont, hs)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
         val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        val escape: Cont[Ans] = (s1, t1, m1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1)
+        val escape: Cont[Ans] = (s1, t1, m1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1, h1)
         evalList(inner, inputs, frame, escape, trail, mkont, escape::brTable, hs)
       case Loop(ty, inner) =>
         val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        val escape: Cont[Ans] = (s1, t1, m1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1)
-        def loop(retStack: List[Value], trail1: Trail[Ans], mkont: MCont[Ans]): Ans =
+        val escape: Cont[Ans] = (s1, t1, m1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1, h1)
+        def loop(retStack: List[Value], trail1: Trail[Ans], mkont: MCont[Ans], h1: Handlers[Ans]): Ans =
           evalList(inner, retStack.take(funcTy.inps.size), frame, escape, trail, mkont, (loop _ : Cont[Ans])::brTable, hs)
-        loop(inputs, trail, mkont)
+        loop(inputs, trail, mkont, hs)
       case If(ty, thn, els) =>
         val funcTy = getFuncType(ty)
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
-        val escape: Cont[Ans] = (s1, t1, m1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1)
+        val escape: Cont[Ans] = (s1, t1, m1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1, h1)
         evalList(inner, inputs, frame, escape, trail, mkont, escape::brTable, hs)
       case Br(label) =>
-        brTable(label)(stack, trail, mkont)
+        brTable(label)(stack, trail, mkont, hs)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
-        if (cond != 0) brTable(label)(newStack, trail, mkont)
-        else kont(newStack, trail, mkont)
+        if (cond != 0) brTable(label)(newStack, trail, mkont, hs)
+        else kont(newStack, trail, mkont, hs)
       case BrTable(labels, default) =>
         val I32V(cond) :: newStack = stack
         val goto = if (cond < labels.length) labels(cond) else default
-        brTable(goto)(newStack, trail, mkont)
-      case Return        => brTable.last(stack, trail, mkont)
+        brTable(goto)(newStack, trail, mkont, hs)
+      case Return        => 
+        brTable.last(stack, trail, mkont, hs)
       case Call(f)       => evalCall1(f, stack, frame, kont, trail, mkont, brTable, hs, false)
-      case ReturnCall(f) => evalCall1(f, stack, frame, kont, trail, mkont, brTable, hs, true)
+      case ReturnCall(f) => 
+        // System.err.println(s"[DEBUG] return call: $f")
+        evalCall1(f, stack, frame, kont, trail, mkont, brTable, hs, true)
       case RefFunc(f)    =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
-        kont(RefFuncV(f) :: stack, trail, mkont)
+        kont(RefFuncV(f) :: stack, trail, mkont, hs)
 
       // resumable try-catch exception handling:
       // NOTE(GW): so far we haven't use trail at all, could consider removing it
       case TryCatch(es1, es2) =>
         val newHandler: Handler[Ans] = (s1, k1, _, m1) => evalList(es2, s1, frame, k1, List(), m1, List(), hs)
-        val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont)
+        val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont, hs)
         evalList(es1, List(), frame, initK[Ans], List(), m1, List(), List((-1, newHandler)) ++ hs)
       case Resume0() =>
         val (resume: ContV[Ans]) :: newStack = stack
         resume.k(List(), kont, List(), mkont, List())
       case Throw() =>
         val err :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]): Ans =
-          kont(s, List(), s1 => k1(s1, List(), m1))
+        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], h1: Handlers[Ans]): Ans =
+          kont(s, List(), s1 => k1(s1, List(), m1, hs), hs)
         hs.head._2(List(err, ContV(kr)), initK[Ans], List(), mkont)
 
       // WasmFX effect handlers:
@@ -171,15 +177,16 @@ case class EvaluatorFX(module: ModuleInstance) {
         def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]): Ans = {
           evalCall1(f, s, frame/*?*/, k1, t1, m1, List(), hs, false)
         }
-        kont(ContV(kr) :: newStack, trail, mkont)
+        kont(ContV(kr) :: newStack, trail, mkont, hs)
       case Suspend(tagId) =>
         val FuncType(_, inps, out) = module.tags(tagId)
         val (inputs, restStack) = stack.splitAt(inps.size)
-        val kr = (s: Stack, _: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs: Handlers[Ans]) => {
-          // FIXME: handlers are lost here
+        // System.err.println(s"[DEBUG] handlers: $hs")
+        // System.err.println(s"[DEBUG] trail: $trail")
+        val kr = (s: Stack, _: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs1: Handlers[Ans]) => {
           val index = trail.indexWhere { case (_, tags) => tags.contains(tagId) }
           val newTrail = if (index >= 0) trail.take(index) else trail
-          kont(s ++ restStack, newTrail ++ t1, m1) // mkont lost here, and it's safe if we never modify it
+          kont(s ++ restStack, newTrail ++ t1, m1, hs1) // mkont lost here, and it's safe if we never modify it
         }
         val newStack = ContV(kr) :: inputs
         hs.find(_._1 == tagId) match {
@@ -195,7 +202,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = newStack.splitAt(inps.size)
         val newHs: List[(Int, Handler[Ans])] = handler.map {
           case Handler(tagId, labelId) =>
-            val hh: Handler[Ans] = (s1, _k1, _t1, m1) => brTable(labelId)(s1, trail, mkont/*???*/)
+            val hh: Handler[Ans] = (s1, _k1, _t1, m1) => brTable(labelId)(s1, trail, mkont/*???*/, hs)
             (tagId, hh)
         }
         val tags = handler.map(_.tag)
@@ -216,7 +223,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], mk: MCont[Ans], handlers: Handlers[Ans]): Ans = {
           f.k(s ++ inputs, k1, t1, mk, handlers)
         }
-        kont(ContV(kr) :: restStack, trail, mkont)
+        kont(ContV(kr) :: restStack, trail, mkont, hs)
 
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
@@ -226,14 +233,15 @@ case class EvaluatorFX(module: ModuleInstance) {
         println(inst)
         throw new Exception(s"instruction $inst not implemented")
     }
+  }
 
   def evalList[Ans](insts: List[Instr], stack: Stack, frame: Frame,
                  kont: Cont[Ans], trail1: Trail[Ans], mkont: MCont[Ans],
                  brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
     insts match {
-      case Nil => kont(stack, trail1, mkont)
+      case Nil => kont(stack, trail1, mkont, hs)
       case inst :: rest =>
-        val newKont: Cont[Ans] = (s1, t1, m1) => evalList(rest, s1, frame, kont, t1, m1, brTable, hs)
+        val newKont: Cont[Ans] = (s1, t1, m1, h1) => evalList(rest, s1, frame, kont, t1, m1, brTable, h1)
         eval1(inst, stack, frame, newKont, trail1, mkont, brTable, hs)
     }
   }
@@ -253,11 +261,12 @@ case class EvaluatorFX(module: ModuleInstance) {
         val newStack = stack.drop(ty.inps.size)
         val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(ArrayBuffer(frameLocals: _*))
-        if (isTail)
+        if (isTail) {
           // when tail call, share the continuation for returning with the callee
-          evalList(body, List(), newFrame, kont, trail, mkont, List(kont), h)
+          evalList(body, List(), newFrame, brTable.last, trail, mkont, List(brTable.last), h)
+        }
         else {
-          val restK: Cont[Ans] = (s1, t1, m1) => kont(s1.take(ty.out.size) ++ newStack, t1, m1)
+          val restK: Cont[Ans] = (s1, t1, m1, h1) => kont(s1.take(ty.out.size) ++ newStack, t1, m1, h1)
           // We make a new brTable by `restK`, since function creates a new block to escape
           // (more or less like `return`)
           evalList(body, List(), newFrame, restK, trail, mkont, List(restK), h)
@@ -266,12 +275,12 @@ case class EvaluatorFX(module: ModuleInstance) {
         // println(s"[DEBUG] current stack: $stack")
         val I32V(v) :: newStack = stack
         println(v)
-        kont(newStack, trail, mkont)
+        kont(newStack, trail, mkont, h)
       case Import("spectest", "print_i32", _) =>
         // println(s"[DEBUG] current stack: $stack")
         val I32V(v) :: newStack = stack
         println(v)
-        kont(newStack, trail, mkont)
+        kont(newStack, trail, mkont, h)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -333,3 +342,4 @@ case class EvaluatorFX(module: ModuleInstance) {
 
   def evalTop(m: ModuleInstance): Unit = evalTop(initK[Unit], stack => ())
 }
+
