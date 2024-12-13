@@ -66,7 +66,9 @@ case class Block(ty: BlockType, instrs: List[Instr]) extends Instr {
   override def toString: String = s"Block(...)"
 }
 case class IdBlock(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
-case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr
+case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr {
+  override def toString: String = s"Loop(...)"
+}
 case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
 case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr

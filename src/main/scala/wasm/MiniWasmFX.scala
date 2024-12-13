@@ -26,7 +26,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   case class ContV[A](k: (Stack, Cont[A], Trail[A], MCont[A], Handlers[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
 
-    override def toString: String = "ContV"
+    // override def toString: String = "ContV"
   }
 
   // initK is a continuation that simply returns the inputed stack
@@ -39,7 +39,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   def eval1[Ans](inst: Instr, stack: Stack, frame: Frame,
                  kont: Cont[Ans], trail: Trail[Ans], mkont: MCont[Ans],
                  brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
-    // System.err.println(f"[DEBUG] ${inst} | ${frame} | ${stack.reverse}");
+    System.err.println(f"[DEBUG] ${inst} | ${frame} | ${stack.reverse}");
     // System.err.println(f"[DEBUG] brTable: ${brTable} ");
     inst match {
       case Drop => kont(stack.tail, trail, mkont, hs)

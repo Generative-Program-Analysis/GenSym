@@ -9,13 +9,18 @@
   (type (;7;) (func (result i32 (ref 2))))
   (type (;8;) (func (param (ref 2) (ref 3))))
   (type (;9;) (func))
-  (import "spectest" "print_i32" (func (;0;) (type 4)))
+  ;; (import "spectest" "print_i32" (func (;0;) (type 4)))
+
   (tag (;0;) (type 4) (param i32))
   (tag (;1;) (type 0) (result i32))
   (export "pipe" (func 3))
   (export "run" (func 6))
   (start 7)
+  (export "main" (func 7))
   (elem (;0;) declare func 4 5)
+  (func (type 4) (param i32)
+  )
+  
   (func (;1;) (type 5) (param i32 (ref 2) (ref 3))
     block (result (ref 3)) ;; label = @1
       local.get 0
@@ -68,7 +73,7 @@
   )
   (func (;5;) (type 1) (param i32) (result i32)
     (local i32 i32)
-    i32.const 10
+    i32.const 3
     local.set 1
     i32.const 0
     local.set 2
@@ -105,7 +110,7 @@
     call 3
   )
   (func (;7;) (type 9)
-    i32.const 0
+    i32.const 1
     call 6
   )
 )
