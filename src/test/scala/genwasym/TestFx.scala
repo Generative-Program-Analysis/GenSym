@@ -216,9 +216,10 @@ class TestFx extends FunSuite {
     testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
   }
 
-  // TOOD: FIXME
+  // having -1 printing from (nats generator) 0 to 9
+  // and -2 summing up the the nats generated
   test("pipes") {
-    testFile("./benchmarks/wasm/wasmfx/fun-pipes-strip.wast")
+    testWastFile("./benchmarks/wasm/wasmfx/fun-pipes.bin.wast")
   }
   
 }

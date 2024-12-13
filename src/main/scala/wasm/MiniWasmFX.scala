@@ -39,8 +39,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   def eval1[Ans](inst: Instr, stack: Stack, frame: Frame,
                  kont: Cont[Ans], trail: Trail[Ans], mkont: MCont[Ans],
                  brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
-    System.err.println(f"[DEBUG] ${inst} | ${frame} | ${stack.reverse}");
-    // System.err.println(f"[DEBUG] brTable: ${brTable} ");
+    // System.err.println(f"[DEBUG] ${inst} | ${frame} | ${stack.reverse} | handlers: ${hs}");
     inst match {
       case Drop => kont(stack.tail, trail, mkont, hs)
       case Select(_) =>
@@ -127,7 +126,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val escape: Cont[Ans] = (s1, t1, m1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, m1, h1)
         def loop(retStack: List[Value], trail1: Trail[Ans], mkont: MCont[Ans], h1: Handlers[Ans]): Ans =
-          evalList(inner, retStack.take(funcTy.inps.size), frame, escape, trail, mkont, (loop _ : Cont[Ans])::brTable, hs)
+          evalList(inner, retStack.take(funcTy.inps.size), frame, escape, trail, mkont, (loop _ : Cont[Ans])::brTable, h1)
         loop(inputs, trail, mkont, hs)
       case If(ty, thn, els) =>
         val funcTy = getFuncType(ty)
