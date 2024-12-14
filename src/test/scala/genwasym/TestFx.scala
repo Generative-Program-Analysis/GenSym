@@ -207,6 +207,11 @@ class TestFx extends FunSuite {
     testFileOutput("./benchmarks/wasm/wasmfx/nested_resume-strip.wat", List(0, 111, 222, 333, 444, 555))
   }
 
+
+  test("nested") {
+    testFileOutput("./benchmarks/wasm/wasmfx/nested-strip.wat", List(0, 0, 111, 222, 333, 444, 555, 666))
+  }
+
   test("suspend16") {
     testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
     // testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
