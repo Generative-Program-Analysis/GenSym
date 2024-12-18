@@ -183,9 +183,15 @@ case class EvaluatorFX(module: ModuleInstance) {
         // System.err.println(s"[DEBUG] handlers: $hs")
         // System.err.println(s"[DEBUG] trail: $trail")
         val kr = (s: Stack, _: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], hs1: Handlers[Ans]) => {
+          // construct a new trail by ignoring the default handler
           val index = trail.indexWhere { case (_, tags) => tags.contains(tagId) }
           val newTrail = if (index >= 0) trail.take(index) else trail
-          kont(s ++ restStack, newTrail ++ t1, m1, hs1) // mkont lost here, and it's safe if we never modify it
+          // Q: `hs` are ignored here, don't we need prepend some thing from `hs` to `hs1`?
+          // A: No, according to fig.3 in the paper, solely using the new handlers is just engough.
+          // Q: Should we clear tags in the `newTrail`? Is that possible suspend target tag in hs1 but also in newTrail?
+          // A: Yes, we should maintain the consistency between `hs1` and `newTrail + t1`. 
+          // mkont lost here, and it's safe if we never modify it
+          kont(s ++ restStack, newTrail.map({ case (c, _) => (c, List()) }) ++ t1, m1, hs1)
         }
         val newStack = ContV(kr) :: inputs
         hs.find(_._1 == tagId) match {
