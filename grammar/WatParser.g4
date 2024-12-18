@@ -57,9 +57,10 @@ numType
 // https://webassembly.github.io/function-references/core/text/types.html
 // https://webassembly.github.io/exception-handling/core/_download/WebAssembly.pdf
 refType
-  : FUNCREF           // equivalent to (ref null func)
-  | EXTERNREF         // equivalent to (ref null extern)
-  | LPAR REF idx RPAR // here idx must be a heap type
+  : FUNCREF                // equivalent to (ref null func)
+  | EXTERNREF              // equivalent to (ref null extern)
+  | LPAR REF idx RPAR      // here idx must be a heap type
+  | LPAR REF NULL idx RPAR // here idx must be a heap type
   ;
 
 vecType
@@ -170,6 +171,8 @@ plainInstr
   | SUSPEND idx
   | CONTBIND idx idx
   | CALLREF idx
+  | REFNULL idx
+  | REFISNULL
   // resumable try-catch extension:
   | RESUME0
   | THROW
@@ -318,7 +321,7 @@ offset
 elem
   : LPAR ELEM idx? LPAR instr RPAR idx* RPAR
   | LPAR ELEM idx? offset idx* RPAR
-  | LPAR ELEM idx? DECLARE FUNC idx RPAR
+  | LPAR ELEM idx? DECLARE FUNC idx* RPAR
   ;
 
 table

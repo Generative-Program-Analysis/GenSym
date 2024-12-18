@@ -62,9 +62,13 @@ case object Drop extends Instr
 case object Alloc extends Instr
 case object Free extends Instr
 case class Select(ty: Option[List[ValueType]]) extends Instr
-case class Block(ty: BlockType, instrs: List[Instr]) extends Instr
+case class Block(ty: BlockType, instrs: List[Instr]) extends Instr {
+  override def toString: String = s"Block(...)"
+}
 case class IdBlock(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
-case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr
+case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr {
+  override def toString: String = s"Loop(...)"
+}
 case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
 case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
@@ -131,14 +135,12 @@ case class PushSym(name: String, concreteVal: Num) extends Instr
 case class Symbolic(ty: ValueType) extends Instr
 case object SymAssert extends Instr
 
-// TODO: add wasmfx instructions
-// TODO: should I take care of the unresolved cases?
 case class Suspend(tag: Int) extends Instr
 // note that cont.new can only be called with a func type
 case class ContNew(ty: Int) extends Instr
 case class ContBind(OldContTy: Int, NewContTy: Int) extends Instr
-// case class RefNull(ty: RefType) extends Instr
-// case object RefIsNull extends Instr
+case class RefNull(ty: RefType) extends Instr
+case class RefIsNull() extends Instr
 // note that ref.func can be called with any of the extended function type
 case class RefFunc(func: Int) extends Instr
 case class CallRef(ty: Int) extends Instr
@@ -284,7 +286,7 @@ case class CmdModule(module: Module) extends Cmd
 // TODO: extend if needed
 case class CMdInstnace() extends Cmd
 
-abstract class Action extends WIR
+abstract class Action extends Cmd
 case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
 
 abstract class Assertion extends Cmd
@@ -327,10 +329,7 @@ case class RefFuncV(funcAddr: Int) extends Ref {
       case FuncDef(_, FuncBodyDef(ty, _, _, _)) => RefType(ty)
     }
 }
-// RefContV refers to a delimited continuation
-// case class RefContV(cont: List[Value] => List[Value]) extends Ref {
-//   def tipe(implicit m: ModuleInstance): ValueType = ???
-// }
+
 case class RefExternV(externAddr: Int) extends Ref {
   def tipe(implicit m: ModuleInstance): ValueType = ???
 }
