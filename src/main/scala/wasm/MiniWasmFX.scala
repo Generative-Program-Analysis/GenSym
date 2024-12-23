@@ -20,7 +20,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   type Trail[A] = List[(Cont[A], List[Int])] // trail items are pairs of continuation and tags
   type MCont[A] = Stack => A
 
-  type Handler[A] = (Stack, Cont[A], Trail[A], MCont[A]) => A
+  type Handler[A] = Stack => A
   type Handlers[A] = List[(Int, Handler[A])]
 
   case class ContV[A](k: (Stack, Cont[A], Trail[A], MCont[A], Handlers[A]) => A) extends Value {
@@ -154,22 +154,6 @@ case class EvaluatorFX(module: ModuleInstance) {
       case RefFunc(f)    =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
         kont(RefFuncV(f) :: stack, trail, mkont, hs)
-
-      // resumable try-catch exception handling:
-      // NOTE(GW): so far we haven't use trail at all, could consider removing it
-      case TryCatch(es1, es2) =>
-        val newHandler: Handler[Ans] = (s1, k1, _, m1) => evalList(es2, s1, frame, k1, List(), m1, List(), hs)
-        val m1: MCont[Ans] = (s1) => kont(s1, List(), mkont, hs)
-        evalList(es1, List(), frame, initK[Ans], List(), m1, List(), List((-1, newHandler)) ++ hs)
-      case Resume0() =>
-        val (resume: ContV[Ans]) :: newStack = stack
-        resume.k(List(), kont, List(), mkont, List())
-      case Throw() =>
-        val err :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], m1: MCont[Ans], h1: Handlers[Ans]): Ans =
-          kont(s, List(), s1 => k1(s1, List(), m1, hs), hs)
-        hs.head._2(List(err, ContV(kr)), initK[Ans], List(), mkont)
-
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
@@ -197,7 +181,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         hs.find(_._1 == tagId) match {
           case Some((_, handler)) => 
             // we don't need to pass trail here, because handler's trail was determined when resuming
-            handler(newStack, initK[Ans], List(), mkont)
+            handler(newStack)
           case None               => throw new Exception(s"no handler for tag $tagId")
         }
       case Resume(tyId, handler) =>
@@ -207,7 +191,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         val (inputs, restStack) = newStack.splitAt(inps.size)
         val newHs: List[(Int, Handler[Ans])] = handler.map {
           case Handler(tagId, labelId) =>
-            val hh: Handler[Ans] = (s1, _k1, _t1, m1) => brTable(labelId)(s1, trail, mkont/*???*/, hs)
+            val hh: Handler[Ans] = s1 => brTable(labelId)(s1, trail, mkont/*???*/, hs)
             (tagId, hh)
         }
         val tags = handler.map(_.tag)
