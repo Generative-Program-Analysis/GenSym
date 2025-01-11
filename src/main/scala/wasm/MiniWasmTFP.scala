@@ -17,10 +17,11 @@ case class EvaluatorTFP(module: ModuleInstance) {
   type Cont[A] = (Stack, MCont[A]) => A
   type MCont[A] = Stack => A
 
+  // ZDH TODO: Maybe we can delete the `Cont[A]` type because only `initK` is passed in
+  // (the kont for catch block is in the metacontinuation)
   type Handler[A] = (Stack, Cont[A], MCont[A]) => A
-//   type Handlers[A] = List[(Int, Handler[A])]
 
-  case class ContV[A](k: (Stack, Cont[A], MCont[A], Handler[A]) => A) extends Value {
+  case class ContV[A](k: (Stack, MCont[A], Handler[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
   }
 
@@ -150,11 +151,11 @@ case class EvaluatorTFP(module: ModuleInstance) {
       case Resume0() =>
         val (resume: ContV[Ans]) :: newStack = stack
         // no test fail if we pass in 
-        resume.k(List(), kont, mkont, hs)
+        resume.k(List(), s => kont(s, mkont), hs)
       case Throw() =>
         val err :: newStack = stack
-        def kr(s: Stack, k1: Cont[Ans], m1: MCont[Ans], hs: Handler[Ans]): Ans =
-          kont(s, s1 => k1(s1, m1))
+        // the handlers for kr is at the capture site
+        def kr(s: Stack, m1: MCont[Ans], hs: Handler[Ans]): Ans = kont(s, m1)
         hs(List(err, ContV(kr)), initK[Ans], mkont)
 
       case CallRef(ty) =>
