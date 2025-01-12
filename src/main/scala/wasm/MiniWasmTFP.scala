@@ -155,7 +155,7 @@ case class EvaluatorTFP(module: ModuleInstance) {
       case Throw() =>
         val err :: newStack = stack
         // the handlers for kr is at the capture site
-        def kr(s: Stack, m1: MCont[Ans], hs: Handler[Ans]): Ans = kont(s, m1)
+        def kr(s1: Stack, m1: MCont[Ans], hs: Handler[Ans]): Ans = kont(s1, m1)
         hs(List(err, ContV(kr)), initK[Ans], mkont)
 
       case CallRef(ty) =>
