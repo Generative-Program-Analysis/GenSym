@@ -194,7 +194,7 @@ case class EvaluatorTFP(module: ModuleInstance) {
         val newFrame = Frame(ArrayBuffer(frameLocals: _*))
         if (isTail)
           // when tail call, share the continuation for returning with the callee
-          evalList(body, List(), newFrame, kont, mkont, List(kont), h)
+          evalList(body, List(), newFrame, brTable.last, mkont, List(brTable.last), h)
         else {
           val restK: Cont[Ans] = (s1, m1) => kont(s1.take(ty.out.size) ++ newStack, m1)
           // We make a new brTable by `restK`, since function creates a new block to escape
