@@ -148,16 +148,31 @@ case class EvaluatorTFP(module: ModuleInstance) {
         val newHandler: Handler[Ans] = (s1, k1, m1) => evalList(es2, s1, frame, k1, m1, List(), hs)
         val m1: MCont[Ans] = (s1) => kont(s1, mkont)
         evalList(es1, List(), frame, initK[Ans], m1, List(), newHandler)
+        /*
+        val newHandler: Handler[Ans] = (s1, k1, m1) => eval(es2, s1, frame, k1, m1, List(), hs)
+        val m1: MCont[Ans] = (s1) => eval(rest, s1, frame, kont, mkont, brTable, hs)
+        eval(es1, List(), frame, initK[Ans], m1, List(), newHandler)
+        */
       case Resume0() =>
         val (resume: ContV[Ans]) :: newStack = stack
-        // no test fail if we pass in 
+        // no test fail if we pass in
         resume.k(List(), s => kont(s, mkont), hs)
+        /*
+        val (resume: ContV[Ans]) :: newStack = stack
+        val m1: MCont[Ans] = s => eval(rest, s, frame, kont, mkont, brTable, hs)
+        resume.k(List(), m1, hs)
+        */
       case Throw() =>
         val err :: newStack = stack
         // the handlers for kr is at the capture site
         def kr(s1: Stack, m1: MCont[Ans], hs: Handler[Ans]): Ans = kont(s1, m1)
         hs(List(err, ContV(kr)), initK[Ans], mkont)
-
+        /*
+        val err :: newStack = stack
+        def kr(s1: Stack, m1: MCont[Ans], hs1: Handler[Ans]): Ans =
+          eval(rest, s1, frame, kont, m1, brTable, hs)
+        hs(List(err, ContV(kr)), initK[Ans], mkont)
+        */
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
         evalCall1(f, newStack, frame, kont, mkont, brTable, hs, false)
