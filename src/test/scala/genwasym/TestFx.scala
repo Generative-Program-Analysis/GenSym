@@ -28,8 +28,7 @@ class TestFx extends FunSuite {
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = evaluator.initK
-    val haltMK: MCont = (stack) => {
+    val haltK: Cont = (stack, _trail, _hs) => {
       // println(s"halt cont: $stack")
       expected match {
         case ExpInt(e)   => assert(stack(0) == I32V(e))
@@ -37,7 +36,7 @@ class TestFx extends FunSuite {
         case Ignore      => ()
       }
     }
-    evaluator.evalTop(haltK, haltMK, main)
+    evaluator.evalTop(haltK, main)
   }
 
   // So far it assumes that the output is multi-line integers

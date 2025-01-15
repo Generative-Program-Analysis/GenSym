@@ -42,9 +42,9 @@ sealed class ScriptRunner {
     type MCont = evaluator.MCont[evaluator.Stack]
     type Handler = evaluator.Handler[evaluator.Stack]
     val k: Cont = evaluator.initK
-    val mk: MCont = (retStack) => retStack
+    val halt: Cont = (retStack, _, _) => retStack
     // Note: change this back to Evaluator if we are just testing original stuff
-    evaluator.evalList(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List(), mk, List(k), List())
+    evaluator.evalList(instrs, List(), Frame(ArrayBuffer(args: _*)), k, List((halt, List())), List(k), List())
   }
 
   def runCmd(cmd: Cmd): Unit = {
