@@ -28,7 +28,12 @@ class TestFx extends FunSuite {
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = (stack, _trail, _hs) => {
+    val haltK: Cont = (stack, trail, _hs) => {
+      if (!trail.isEmpty) {
+        // TODO: this throw will fail the test, we should redesign our trail composition rather than list append
+        System.err.println(s"[Debug]: $trail")
+        throw new Exception("Trail is not empty")
+      }
       // println(s"halt cont: $stack")
       expected match {
         case ExpInt(e)   => assert(stack(0) == I32V(e))

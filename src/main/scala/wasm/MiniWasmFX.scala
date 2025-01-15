@@ -329,6 +329,7 @@ case class EvaluatorFX(module: ModuleInstance) {
   def evalTop(m: ModuleInstance): Unit =
     evalTop(((stack, trail, _hs) => {
       if (!trail.isEmpty) {
+        // this assertion is wrong
         throw new Exception("Composing something after halt continuation")
       }
     }): Cont[Unit])
