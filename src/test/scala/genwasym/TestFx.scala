@@ -30,7 +30,7 @@ class TestFx extends FunSuite {
     type MCont = evaluator.MCont[Unit]
     val haltK: Cont = (stack, trail, _hs) => {
       if (!trail.isEmpty) {
-        // TODO: this throw will fail the test, we should redesign our trail composition rather than list append
+        // this throw will never reach, trail will never been appended
         System.err.println(s"[Debug]: $trail")
         throw new Exception("Trail is not empty")
       }

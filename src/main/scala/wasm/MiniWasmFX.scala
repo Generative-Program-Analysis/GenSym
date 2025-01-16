@@ -323,13 +323,12 @@ case class EvaluatorFX(module: ModuleInstance) {
     if (instrs.isEmpty) println("Warning: nothing is executed")
     // initialized locals
     val frame = Frame(ArrayBuffer(locals.map(zero(_)): _*))
-    evalList(instrs, List(), frame, initK[Ans], List((halt, List())), List(halt), List())
+    evalList(instrs, List(), frame, initK[Ans], List((halt, List())), List(initK: Cont[Ans]), List())
   }
 
   def evalTop(m: ModuleInstance): Unit =
     evalTop(((stack, trail, _hs) => {
       if (!trail.isEmpty) {
-        // this assertion is wrong
         throw new Exception("Composing something after halt continuation")
       }
     }): Cont[Unit])
