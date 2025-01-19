@@ -155,7 +155,6 @@ case class EvaluatorTFP(module: ModuleInstance) {
         */
       case Resume0() =>
         val (resume: ContV[Ans]) :: newStack = stack
-        // no test fail if we pass in
         resume.k(List(), s => kont(s, mkont), hs)
         /*
         val (resume: ContV[Ans]) :: newStack = stack
