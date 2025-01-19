@@ -198,6 +198,16 @@ public interface WatParserListener extends ParseTreeListener {
 	 */
 	void exitInstr(WatParser.InstrContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link WatParser#forLoop}.
+	 * @param ctx the parse tree
+	 */
+	void enterForLoop(WatParser.ForLoopContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link WatParser#forLoop}.
+	 * @param ctx the parse tree
+	 */
+	void exitForLoop(WatParser.ForLoopContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link WatParser#plainInstr}.
 	 * @param ctx the parse tree
 	 */

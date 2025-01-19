@@ -533,6 +533,15 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     Resume(funcTypeId, handlers)
   }
 
+  override def visitForLoop(ctx:ForLoopContext): Instr = {
+    val InstrList(init) = visit(ctx.instrList(0))
+    val InstrList(cond) = visit(ctx.instrList(1))
+    val InstrList(post) = visit(ctx.instrList(2))
+    val InstrList(body) = visit(ctx.instrList(3))
+    ForLoop(init,cond,post,body)
+
+  }
+
   override def visitBlock(ctx: BlockContext): WIR = {
     val ty = visitBlockType(ctx.blockType)
     val InstrList(instrs) = visit(ctx.instrList)

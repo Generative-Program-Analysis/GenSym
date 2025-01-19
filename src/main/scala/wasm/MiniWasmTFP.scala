@@ -138,6 +138,20 @@ case class EvaluatorTFP(module: ModuleInstance) {
         brTable(goto)(newStack, mkont)
       case Return        => brTable.last(stack, mkont)
       case Call(f)       => evalCall1(f, stack, frame, kont, mkont, brTable, hs, false)
+      // `for` is a syntactic construct only introduced for TFP
+      case ForLoop(init, cond, post, body) => 
+        def forloop(s1: List[Value], m1: MCont[Ans]): Ans = {
+          val cont = (s2: List[Value], m2: MCont[Ans]) => {
+            val I32V(v) :: newStack = s2
+            if (v == 0) kont(newStack, m2)
+            else {
+              val postK = (s3: List[Value], m3: MCont[Ans]) => evalList(post, s3, frame, forloop, m3, brTable, hs)
+              evalList(body, List(), frame, postK, m2, brTable, hs)
+            }
+          }
+          evalList(cond, s1, frame, cont, m1, brTable, hs)
+        }
+        evalList(init, stack, frame, forloop, mkont, brTable, hs)
       case ReturnCall(f) => evalCall1(f, stack, frame, kont, mkont, brTable, hs, true)
       case RefFunc(f)    =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure

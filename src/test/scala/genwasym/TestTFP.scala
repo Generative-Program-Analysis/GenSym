@@ -92,6 +92,11 @@ class TestTFP extends FunSuite {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
 
+  // `for`` is a syntactic construct only introduced for TFP
+  test("for loop") {
+    testFile("./benchmarks/wasm/for_loop.wat", Some("for_loop"), ExpInt(55))
+  }
+
   // New effect handler tests:
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
