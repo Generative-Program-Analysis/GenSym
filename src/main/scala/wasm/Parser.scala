@@ -237,7 +237,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         }
         case I64Type => {
           if (ctx.NAT.getText.startsWith("0x")) {
-            I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2), 16))
+            // println(s"parsing hex: ${ctx.NAT.getText.substring(2)}")
+            // also skip underscore
+            I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16))
+            // I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2), 16))
           } else {
             I64V(ctx.NAT.getText.toLong)
           }
@@ -800,6 +803,9 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         visitLiteralWithType(constCtx.literal, toNumType(ty))
       }
       AssertReturn(action, expect.toList)
+    } else if (ctx.ASSERT_INVALID != null ) {
+      // we simply ignore assert_invalid for now
+      AssertInvalid()
     } else {
       throw new RuntimeException("Unsupported")
     }

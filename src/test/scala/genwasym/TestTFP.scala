@@ -163,4 +163,9 @@ class TestTFP extends FunSuite {
     testFileOutput("./benchmarks/wasm/trycatch/try_catch_catch_br.wat", List(1, 2, 6, 4, 6, 5))
   }
 
+  // SpecTest
+  test("spectest_return_call") {
+    testWastFile("./benchmarks/wasm/spectest/return_call.bin.wast")
+  }
+
 }
