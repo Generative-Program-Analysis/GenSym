@@ -32,6 +32,8 @@ case class EvaluatorFX(module: ModuleInstance) {
   // initK is a continuation that simply returns the inputed stack
   def initK[Ans](s: Stack, trail: Trail[Ans], hs: Handlers[Ans]): Ans =
     trail match {
+      // Currently, the last element of the Trail is the halt continuation
+      // the exception will never be thrown
       case (k1, _) :: trail => k1(s, trail, hs)
       case Nil => throw new Exception("No halting continuation in trail")
     }
