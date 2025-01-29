@@ -46,6 +46,7 @@ sealed class ScriptRunner {
     cmd match {
       case CmdModule(module)            => instances += ModuleInstance(module)
       case AssertReturn(action, expect) => assertReturn(action, expect)
+      case AssertInvalid()              => ()
       case CMdInstnace()                => ()
       case AssertTrap(action, message)  => ???
     }
