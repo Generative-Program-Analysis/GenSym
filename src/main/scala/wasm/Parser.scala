@@ -305,7 +305,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
     else if (ctx.RETURN_CALL() != null) {
       val id = getVar(ctx.idx(0))
-      try Call(id.toInt) catch {
+      try ReturnCall(id.toInt) catch {
         case _: java.lang.NumberFormatException =>
           if (fnMap.contains(id)) ReturnCall(fnMap(id))
           else CallUnresolved(id)
@@ -811,6 +811,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
   }
 
+
   override def visitCmd(ctx: CmdContext): Cmd = {
     if (ctx.assertion != null) {
       visitAssertion(ctx.assertion)
@@ -818,7 +819,10 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       CmdModule(visitScriptModule(ctx.scriptModule))
     } else if (ctx.instance != null) {
       CMdInstnace()
+    } else if (ctx.action_ != null) {
+      visitAction_(ctx.action_)
     }
+    
     else {
       throw new RuntimeException("Unsupported")
     }

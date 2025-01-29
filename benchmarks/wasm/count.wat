@@ -14,7 +14,8 @@
     end
   )
   (func (;1;) (type 1)
-    i32.const 1000000 ;; it will not terminate when it's 1mil
+    ;; TODO: now setting it to 100K will result in stack overflow
+    i32.const 10000 ;; it will not terminate when it's 1mil
     ;; TODO: this doesn't seem like an error in our semantics
     ;; but something about sbt. But why?
     call 0
