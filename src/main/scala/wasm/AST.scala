@@ -287,6 +287,7 @@ abstract class Action extends WIR
 case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
 
 abstract class Assertion extends Cmd
+case class AssertInvalid() extends Assertion
 case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
     extends Assertion
 case class AssertTrap(action: Action, message: String) extends Assertion

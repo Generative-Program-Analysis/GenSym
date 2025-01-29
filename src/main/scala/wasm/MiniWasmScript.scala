@@ -23,7 +23,6 @@ sealed class ScriptRunner {
           .collectFirst({
             case Export(`name`, ExportFunc(index)) =>
               module.funcs(index)
-            case _ => throw new RuntimeException("Not Supported")
           })
           .get
         val instrs = func match {
