@@ -73,7 +73,8 @@
 )
 (assert_return (invoke "count" (i64.const 0x0)) (i64.const 0x0))
 (assert_return (invoke "count" (i64.const 0x3e8)) (i64.const 0x0))
-(assert_return (invoke "count" (i64.const 0xf_4240)) (i64.const 0x0))
+;; See `count.wat` for why this is commented out
+;; (assert_return (invoke "count" (i64.const 0xf_4240)) (i64.const 0x0))
 (assert_return (invoke "even" (i64.const 0x0)) (i32.const 0x2c))
 (assert_return (invoke "even" (i64.const 0x1)) (i32.const 0x63))
 (assert_return (invoke "even" (i64.const 0x64)) (i32.const 0x2c))

@@ -168,4 +168,9 @@ class TestTFP extends FunSuite {
     testWastFile("./benchmarks/wasm/spectest/return_call.bin.wast")
   }
 
+  // one of the failing test cases
+  test("count") {
+    testFile("./benchmarks/wasm/count.wat", None, ExpInt(0))
+  }
+
 }
