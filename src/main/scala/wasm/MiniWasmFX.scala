@@ -17,7 +17,12 @@ case class EvaluatorFX(module: ModuleInstance) {
   trait Cont[A] {
     def apply(stack: Stack, trail: Trail[A], handler: Handlers[A]): A
   }
-  type Trail[A] = List[(Cont[A], List[Int])] // trail items are pairs of continuation and tags
+
+  trait Trail[A]
+  case class Singleton(k: Cont[A],s: List[Int]) extends Trail[A]
+  case class TCons(r: (Cont[A], List[Int]), rs: Trail[A]) extends Trail[A]
+
+  // type Trail[A] = List[(Cont[A], List[Int])] // trail items are pairs of continuation and tags
   type MCont[A] = Stack => A
 
   type Handler[A] = Stack => A
@@ -32,8 +37,11 @@ case class EvaluatorFX(module: ModuleInstance) {
   // initK is a continuation that simply returns the inputed stack
   def initK[Ans](s: Stack, trail: Trail[Ans], hs: Handlers[Ans]): Ans =
     trail match {
-      case (k1, _) :: trail => k1(s, trail, hs)
-      case Nil => throw new Exception("No halting continuation in trail")
+      case TCons((k1, _), trail) => k1(s, trail, hs)
+      // in this case, s is always empty list, and k is always halt
+      // TODO: passing `trail` to `k` just looks wrong, is there a better way
+      // for the terminating case?
+      case Singleton(k, s) => k(s, trail, hs)
     }
 
   def eval1[Ans](inst: Instr, stack: Stack, frame: Frame, kont: Cont[Ans],
@@ -195,7 +203,7 @@ case class EvaluatorFX(module: ModuleInstance) {
         }
         val tags = handler.map(_.tag)
         // rather than push `kont` to meta-continuation, maybe we can push it to `trail`?
-        f.k(inputs, initK, List((kont,tags)) ++ trail, newHs ++ hs)
+        f.k(inputs, initK, TCons((kont,tags), trail), newHs ++ hs)
 
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
