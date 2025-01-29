@@ -804,7 +804,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       }
       AssertReturn(action, expect.toList)
     } else if (ctx.ASSERT_INVALID != null ) {
-      // we simply ignore assert_invalid for now
+      // TODO: we simply ignore assert_invalid for now
       AssertInvalid()
     } else {
       throw new RuntimeException("Unsupported")
