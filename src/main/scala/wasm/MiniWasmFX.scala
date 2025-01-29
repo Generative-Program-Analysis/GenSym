@@ -13,93 +13,52 @@ case class EvaluatorFX(module: ModuleInstance) {
   implicit val m: ModuleInstance = module
 
   type Stack = List[Value]
-  type Cont[A] = (Stack, MCont[A]) => A
+
+  trait Cont[A] {
+    def apply(stack: Stack, trail: Trail[A], handler: Handlers[A]): A
+  }
+  type Trail[A] = List[(Cont[A], List[Int])] // trail items are pairs of continuation and tags
   type MCont[A] = Stack => A
+
   type Handler[A] = Stack => A
+  type Handlers[A] = List[(Int, Handler[A])]
 
-  case class ContV[A](k: (Stack, Cont[A], MCont[A], Handler[A]) => A) extends Value {
+  case class ContV[A](k: (Stack, Cont[A], Trail[A], Handlers[A]) => A) extends Value {
     def tipe(implicit m: ModuleInstance): ValueType = ???
+
+    // override def toString: String = "ContV"
   }
 
-  // Only used for resumable try-catch (need refactoring):
-  case class TCContV[A](k: (Stack, Cont[A], MCont[A]) => A) extends Value {
-    def tipe(implicit m: ModuleInstance): ValueType = ???
-  }
-
-  def evalCall[Ans](funcIndex: Int,
-                    rest: List[Instr],
-                    stack: List[Value],
-                    frame: Frame,
-                    kont: Cont[Ans],
-                    mkont: MCont[Ans],
-                    trail: List[Cont[Ans]],
-                    h: Handler[Ans],
-                    isTail: Boolean): Ans = {
-    module.funcs(funcIndex) match {
-      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
-        val args = stack.take(ty.inps.size).reverse
-        val newStack = stack.drop(ty.inps.size)
-        val frameLocals = args ++ locals.map(zero(_))
-        val newFrame = Frame(ArrayBuffer(frameLocals: _*))
-        if (isTail)
-          // when tail call, share the continuation for returning with the callee
-          eval(body, List(), newFrame, kont, mkont, List(kont), h)
-        else {
-          val restK: Cont[Ans] = (retStack, mkont) =>
-            eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, mkont, trail, h)
-          // We make a new trail by `restK`, since function creates a new block to escape
-          // (more or less like `return`)
-          eval(body, List(), newFrame, restK, mkont, List(restK), h)
-        }
-      case Import("console", "log", _) =>
-        // println(s"[DEBUG] current stack: $stack")
-        val I32V(v) :: newStack = stack
-        println(v)
-        eval(rest, newStack, frame, kont, mkont, trail, h)
-      case Import("spectest", "print_i32", _) =>
-        // println(s"[DEBUG] current stack: $stack")
-        val I32V(v) :: newStack = stack
-        println(v)
-        eval(rest, newStack, frame, kont, mkont, trail, h)
-      case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
-      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
+  // initK is a continuation that simply returns the inputed stack
+  def initK[Ans](s: Stack, trail: Trail[Ans], hs: Handlers[Ans]): Ans =
+    trail match {
+      // Currently, the last element of the Trail is the halt continuation
+      // the exception will never be thrown
+      case (k1, _) :: trail => k1(s, trail, hs)
+      case Nil => throw new Exception("No halting continuation in trail")
     }
-  }
 
-  def eval[Ans](insts: List[Instr],
-                stack: List[Value],
-                frame: Frame,
-                kont: Cont[Ans],
-                mkont: MCont[Ans],
-                trail: List[Cont[Ans]],
-                h: Handler[Ans]): Ans = {
-    // Note kont is only used in the base case, or when we are appending k and k1
-    if (insts.isEmpty) return kont(stack, mkont)
-
-    val inst = insts.head
-    val rest = insts.tail
-
-    // TODO: uncommenting this will fail tests that uses `testFileOutput`
-    // println(s"inst: ${inst} \t | ${frame.locals} | ${stack.reverse}" )
-
+  def eval1[Ans](inst: Instr, stack: Stack, frame: Frame, kont: Cont[Ans],
+                 trail: Trail[Ans], brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
+    // System.err.println(f"[DEBUG] ${inst} | ${frame} | ${stack.reverse} | handlers: ${hs}");
     inst match {
-      case Drop => eval(rest, stack.tail, frame, kont, mkont, trail, h)
+      case Drop => kont(stack.tail, trail, hs)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = stack
         val value = if (cond == 0) v1 else v2
-        eval(rest, value :: newStack, frame, kont, mkont, trail, h)
+        kont(value :: newStack, trail, hs)
       case LocalGet(i) =>
-        eval(rest, frame.locals(i) :: stack, frame, kont, mkont, trail, h)
+        kont(frame.locals(i) :: stack, trail, hs)
       case LocalSet(i) =>
         val value :: newStack = stack
         frame.locals(i) = value
-        eval(rest, newStack, frame, kont, mkont, trail, h)
+        kont(newStack, trail, hs)
       case LocalTee(i) =>
         val value :: newStack = stack
         frame.locals(i) = value
-        eval(rest, stack, frame, kont, mkont, trail, h)
+        kont(stack, trail, hs)
       case GlobalGet(i) =>
-        eval(rest, module.globals(i).value :: stack, frame, kont, mkont, trail, h)
+        kont(module.globals(i).value :: stack, trail, hs)
       case GlobalSet(i) =>
         val value :: newStack = stack
         module.globals(i).ty match {
@@ -108,18 +67,16 @@ case class EvaluatorFX(module: ModuleInstance) {
           case GlobalType(_, true) => throw new Exception("Invalid type")
           case _                   => throw new Exception("Cannot set immutable global")
         }
-        eval(rest, newStack, frame, kont, mkont, trail, h)
+        kont(newStack, trail, hs)
       case MemorySize =>
-        eval(rest, I32V(module.memory.head.size) :: stack, frame, kont, mkont, trail, h)
+        kont(I32V(module.memory.head.size) :: stack, trail, hs)
       case MemoryGrow =>
         val I32V(delta) :: newStack = stack
         val mem = module.memory.head
         val oldSize = mem.size
         mem.grow(delta) match {
-          case Some(e) =>
-            eval(rest, I32V(-1) :: newStack, frame, kont, mkont, trail, h)
-          case _ =>
-            eval(rest, I32V(oldSize) :: newStack, frame, kont, mkont, trail, h)
+          case Some(e) => kont(I32V(-1) :: newStack, trail, hs)
+          case _ => kont(I32V(oldSize) :: newStack, trail, hs)
         }
       case MemoryFill =>
         val I32V(value) :: I32V(offset) :: I32V(size) :: newStack = stack
@@ -127,7 +84,7 @@ case class EvaluatorFX(module: ModuleInstance) {
           throw new Exception("Out of bounds memory access") // GW: turn this into a `trap`?
         else {
           module.memory.head.fill(offset, size, value.toByte)
-          eval(rest, newStack, frame, kont, mkont, trail, h)
+          kont(newStack, trail, hs)
         }
       case MemoryCopy =>
         val I32V(n) :: I32V(src) :: I32V(dest) :: newStack = stack
@@ -135,177 +92,112 @@ case class EvaluatorFX(module: ModuleInstance) {
           throw new Exception("Out of bounds memory access")
         else {
           module.memory.head.copy(dest, src, n)
-          eval(rest, newStack, frame, kont, mkont, trail, h)
+          kont(newStack, trail, hs)
         }
-      case Const(n) => eval(rest, n :: stack, frame, kont, mkont, trail, h)
+      case Const(n) => kont(n :: stack, trail, hs)
       case Binary(op) =>
         val v2 :: v1 :: newStack = stack
-        eval(rest, evalBinOp(op, v1, v2) :: newStack, frame, kont, mkont, trail, h)
+        kont(evalBinOp(op, v1, v2) :: newStack, trail, hs)
       case Unary(op) =>
         val v :: newStack = stack
-        eval(rest, evalUnaryOp(op, v) :: newStack, frame, kont, mkont, trail, h)
+        kont(evalUnaryOp(op, v) :: newStack, trail, hs)
       case Compare(op) =>
         val v2 :: v1 :: newStack = stack
-        eval(rest, evalRelOp(op, v1, v2) :: newStack, frame, kont, mkont, trail, h)
+        kont(evalRelOp(op, v1, v2) :: newStack, trail, hs)
       case Test(op) =>
         val v :: newStack = stack
-        eval(rest, evalTestOp(op, v) :: newStack, frame, kont, mkont, trail, h)
+        kont(evalTestOp(op, v) :: newStack, trail, hs)
       case Store(StoreOp(align, offset, ty, None)) =>
         val I32V(v) :: I32V(addr) :: newStack = stack
         module.memory(0).storeInt(addr + offset, v)
-        eval(rest, newStack, frame, kont, mkont, trail, h)
+        kont(newStack, trail, hs)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val I32V(addr) :: newStack = stack
         val value = module.memory(0).loadInt(addr + offset)
-        eval(rest, I32V(value) :: newStack, frame, kont, mkont, trail, h)
-      case Nop =>
-        eval(rest, stack, frame, kont, mkont, trail, h)
+        kont(I32V(value) :: newStack, trail, hs)
+      case Nop => kont(stack, trail, hs)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
         val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        // why a block is introducing a new mknot1
-        // I feel like we will almost never need to change the mkont for a block
-        val restK: Cont[Ans] = (retStack, mkont1) => {
-          // kont -> mkont -> mkont1
-          // println(s"inner: $inner")
-          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont1, trail, h)
-        }
-        eval(inner, inputs, frame, restK, mkont, restK :: trail, h)
+        val escape: Cont[Ans] = (s1, t1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, h1)
+        evalList(inner, inputs, frame, escape, trail, escape::brTable, hs)
       case Loop(ty, inner) =>
-        // We construct two continuations, one for the break (to the begining of the loop),
-        // and one for fall-through to the next instruction following the syntactic structure
-        // of the program.
         val funcTy = getFuncType(ty)
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        val restK: Cont[Ans] = (retStack, mkont) =>
-          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont, trail, h)
-        def loop(retStack: List[Value], mkont: MCont[Ans]): Ans =
-          eval(inner, retStack.take(funcTy.inps.size), frame, restK, mkont, loop _ :: trail, h)
-        // for example, loop here doesn't change the meta-continuation at all
-        // compare with block
-        loop(inputs, mkont)
+        val escape: Cont[Ans] = (s1, t1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, h1)
+        def loop(retStack: List[Value], trail1: Trail[Ans], h1: Handlers[Ans]): Ans =
+          evalList(inner, retStack.take(funcTy.inps.size), frame, escape, trail, (loop _ : Cont[Ans])::brTable, h1)
+        loop(inputs, trail, hs)
       case If(ty, thn, els) =>
         val funcTy = getFuncType(ty)
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
-        val restK: Cont[Ans] = (retStack, mkont) =>
-          eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, mkont, trail, h)
-        eval(inner, inputs, frame, restK, mkont, restK :: trail, h)
+        val escape: Cont[Ans] = (s1, t1, h1) => kont(s1.take(funcTy.out.size) ++ restStack, t1, h1)
+        evalList(inner, inputs, frame, escape, trail, escape::brTable, hs)
       case Br(label) =>
-        trail(label)(stack, mkont) // s => ().asInstanceOf[Ans]) //mkont)
+        brTable(label)(stack, trail, hs)
       case BrIf(label) =>
         val I32V(cond) :: newStack = stack
-        if (cond != 0) trail(label)(newStack, mkont)
-        else eval(rest, newStack, frame, kont, mkont, trail, h)
+        if (cond != 0) brTable(label)(newStack, trail, hs)
+        else kont(newStack, trail, hs)
       case BrTable(labels, default) =>
         val I32V(cond) :: newStack = stack
         val goto = if (cond < labels.length) labels(cond) else default
-        trail(goto)(newStack, mkont)
-      case Return        => trail.last(stack, mkont)
-      case Call(f)       => evalCall(f, rest, stack, frame, kont, mkont, trail, h, false)
-      case ReturnCall(f) => evalCall(f, rest, stack, frame, kont, mkont, trail, h, true)
+        brTable(goto)(newStack, trail, hs)
+      case Return        => 
+        brTable.last(stack, trail, hs)
+      case Call(f)       => evalCall1(f, stack, frame, kont, trail, brTable, hs, false)
+      case ReturnCall(f) => 
+        // System.err.println(s"[DEBUG] return call: $f")
+        evalCall1(f, stack, frame, kont, trail, brTable, hs, true)
       case RefFunc(f)    =>
         // TODO: RefFuncV stores an applicable function, instead of a syntactic structure
-        eval(rest, RefFuncV(f) :: stack, frame, kont, mkont, trail, h)
-      case CallRef(ty) =>
-        val RefFuncV(f) :: newStack = stack
-        evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
-
-      // resumable try-catch exception handling:
-      case TryCatch(es1, es2) =>
-        val join: MCont[Ans] = (newStack) => eval(rest, stack, frame, kont, mkont, trail, h)
-        // the `restK` for catch block (es2) is the join point
-        // the restK simply applies the meta-continuation, this is the same the [nil] case
-        // where we fall back to join point
-        val idK: Cont[Ans] = (s, m) => m(s)
-        val newHandler: Handler[Ans] = (newStack) => eval(es2, newStack, frame, idK, join, trail, h)
-        eval(es1, List(), frame, idK, join, trail, newHandler)
-      case Resume0() =>
-        val (resume: TCContV[Ans]) :: newStack = stack
-        val k: Cont[Ans] = (s, m) => eval(rest, newStack /*!*/, frame, kont, m, trail, h)
-        resume.k(List(), k, mkont)
-      case Throw() =>
-        val err :: newStack = stack
-        // kont composed with k
-        // note that kr doesn't use the stack at all
-        // it only takes the err value
-        def kr(s: Stack, k1: Cont[Ans], m: MCont[Ans]): Ans = {
-          val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-          eval(rest, newStack /*!*/, frame, kontK, m /*vs mkont?*/, trail, h)
-        }
-        h(List(err, TCContV(kr)))
-
+        kont(RefFuncV(f) :: stack, trail, hs)
       // WasmFX effect handlers:
       case ContNew(ty) =>
         val RefFuncV(f) :: newStack = stack
-
-        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handler[Ans]): Ans = {
-          // k1 is rest for `resume`
-          // mk holds the handler for `suspend`
-
-          // Q: Do we need to care about kont here??
-          // Answer: we don't, because continuation is only activated by `resume`
-          // and it must be handled by the default handler (k1) or the handler associated
-          // to `suspend`
-
-          // we can discard trail since it is a new function call (similar to `kont`)
-          val empty: Cont[Ans] = (s1, m1) => m1(s1)
-          evalCall(f, List(), s, frame, empty, mk, List(), handler, false)
+        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], hs: Handlers[Ans]): Ans = {
+          evalCall1(f, s, frame/*?*/, k1, t1, List(), hs, false)
         }
-
-        eval(rest, ContV(kr) :: newStack, frame, kont, mkont, trail, h)
-
-      case Suspend(tag_id) => {
-        // println(s"${RED}Unimplimented Suspending tag $tag_id")
-        // add the continuation on the stack
-
-        val k = (s: Stack, k1: Cont[Ans], m: MCont[Ans], handler: Handler[Ans]) => {
-          // TODO: does the following work?
-          // val kontK: Cont[Ans] = (s1, m1) => kont(s1, s2 => k1(s2, m1))
-
-          // Q: is it okay to forget `k1` and `mkont` here?
-          // Ans: No! Because the resumable continuation might be install by
-          // a different `resume` with a different set of handlers
-          val newMk: MCont[Ans] = (s) => k1(s, m)
-          eval(rest, s, frame, kont, newMk, trail, handler)
+        kont(ContV(kr) :: newStack, trail, hs)
+      case Suspend(tagId) =>
+        val FuncType(_, inps, out) = module.tags(tagId)
+        val (inputs, restStack) = stack.splitAt(inps.size)
+        // System.err.println(s"[DEBUG] handlers: $hs")
+        // System.err.println(s"[DEBUG] trail: $trail")
+        val kr = (s: Stack, _: Cont[Ans], t1: Trail[Ans], hs1: Handlers[Ans]) => {
+          // construct a new trail by ignoring the default handler
+          val index = trail.indexWhere { case (_, tags) => tags.contains(tagId) }
+          val newTrail = if (index >= 0) trail.take(index) else trail
+          // Q: `hs` are ignored here, don't we need prepend some thing from `hs` to `hs1`?
+          // A: No, according to fig.3 in the paper, solely using the new handlers is just engough.
+          // Q: Should we clear tags in the `newTrail`? Is that possible suspend target tag in hs1 but also in newTrail?
+          // A: Yes, we should maintain the consistency between `hs1` and `newTrail + t1`. 
+          // mkont lost here, and it's safe if we never modify it
+          kont(s ++ restStack, newTrail.map({ case (c, _) => (c, List()) }) ++ t1, hs1)
         }
-        val newStack = ContV(k) :: stack
-        h(newStack)
-      }
-
-      // TODO: resume should create a list of handlers to capture suspend
-      case Resume(kty_id, handler) => {
+        val newStack = ContV(kr) :: inputs
+        hs.find(_._1 == tagId) match {
+          case Some((_, handler)) => 
+            // we don't need to pass trail here, because handler's trail was determined when resuming
+            handler(newStack)
+          case None               => throw new Exception(s"no handler for tag $tagId")
+        }
+      case Resume(tyId, handler) =>
         val (f: ContV[Ans]) :: newStack = stack
-        val contTy = module.types(kty_id)
-        val ContType(funcTypeId) = contTy
+        val ContType(funcTypeId) = module.types(tyId)
         val FuncType(_, inps, out) = module.types(funcTypeId)
         val (inputs, restStack) = newStack.splitAt(inps.size)
-
-        if (handler.length == 0) {
-          // the metacontinuation contains the default handler
-          val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
-          val emptyK: Cont[Ans] = (s, m) => m(s)
-          f.k(inputs, emptyK, mk, h)
-        } else {
-          if (handler.length > 1) {
-            throw new Exception("only single tag is supported")
-          }
-          // if suspend happens, the label id holds the handler
-          val Handler(tagId, labelId) = handler.head
-
-          val newHandler: Handler[Ans] = (newStack) => trail(labelId)(newStack, mkont)
-
-          // f might be handled by the default handler (namely kont), or by the
-          // handler specified by tags (newhandler, which has the same type as meta-continuation)
-          val mk: MCont[Ans] = (s) => eval(rest, s, frame, kont, mkont, trail, h)
-          val emptyK: Cont[Ans] = (s, m) => m(s)
-          f.k(inputs, emptyK, mk, newHandler)
-
+        val newHs: List[(Int, Handler[Ans])] = handler.map {
+          case Handler(tagId, labelId) =>
+            val hh: Handler[Ans] = s1 => brTable(labelId)(s1, trail, hs)
+            (tagId, hh)
         }
-
-      }
+        val tags = handler.map(_.tag)
+        // rather than push `kont` to meta-continuation, maybe we can push it to `trail`?
+        f.k(inputs, initK, List((kont,tags)) ++ trail, newHs ++ hs)
 
       case ContBind(oldContTyId, newConTyId) =>
         val (f: ContV[Ans]) :: newStack = stack
@@ -314,26 +206,18 @@ case class EvaluatorFX(module: ModuleInstance) {
         val FuncType(_, oldParamTy, _) = module.types(oldId)
         val ContType(newId) = module.types(newConTyId)
         val FuncType(_, newParamTy, _) = module.types(newId)
-
         // get oldParamTy - newParamTy (there's no type checking at all)
         val inputSize = oldParamTy.size - newParamTy.size
-
         val (inputs, restStack) = newStack.splitAt(inputSize)
-        
         // partially apply the old continuation
-        def kr(s: Stack, k1: Cont[Ans], mk: MCont[Ans], handler: Handler[Ans]): Ans = {
-          f.k(s ++ inputs, k1, mk, handler)
+        def kr(s: Stack, k1: Cont[Ans], t1: Trail[Ans], handlers: Handlers[Ans]): Ans = {
+          f.k(s ++ inputs, k1, t1, handlers)
         }
-
-        eval(rest, ContV(kr) :: restStack, frame, kont, mkont, trail, h)
-
-      case CallRef(ty) =>
-        val RefFuncV(f) :: newStack = stack
-        evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
+        kont(ContV(kr) :: restStack, trail, hs)
 
       case CallRef(ty) =>
         val RefFuncV(f) :: newStack = stack
-        evalCall(f, rest, newStack, frame, kont, mkont, trail, h, false)
+        evalCall1(f, newStack, frame, kont, trail, brTable, hs, false)
 
       case _ =>
         println(inst)
@@ -341,9 +225,57 @@ case class EvaluatorFX(module: ModuleInstance) {
     }
   }
 
+  def evalList[Ans](insts: List[Instr], stack: Stack, frame: Frame, kont: Cont[Ans],
+                    trail1: Trail[Ans], brTable: List[Cont[Ans]], hs: Handlers[Ans]): Ans = {
+    insts match {
+      case Nil => kont(stack, trail1, hs)
+      case inst :: rest =>
+        val newKont: Cont[Ans] = (s1, t1, h1) => evalList(rest, s1, frame, kont, t1, brTable, h1)
+        eval1(inst, stack, frame, newKont, trail1, brTable, hs)
+    }
+  }
+
+  def evalCall1[Ans](funcIndex: Int,
+                     stack: List[Value],
+                     frame: Frame,
+                     kont: Cont[Ans],
+                     trail: Trail[Ans],
+                     brTable: List[Cont[Ans]], // can be removed
+                     h: Handlers[Ans],
+                     isTail: Boolean): Ans =
+    module.funcs(funcIndex) match {
+      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
+        val args = stack.take(ty.inps.size).reverse
+        val newStack = stack.drop(ty.inps.size)
+        val frameLocals = args ++ locals.map(zero(_))
+        val newFrame = Frame(ArrayBuffer(frameLocals: _*))
+        if (isTail) {
+          // when tail call, share the continuation for returning with the callee
+          evalList(body, List(), newFrame, brTable.last, trail, List(brTable.last), h)
+        }
+        else {
+          val restK: Cont[Ans] = (s1, t1, h1) => kont(s1.take(ty.out.size) ++ newStack, t1, h1)
+          // We make a new brTable by `restK`, since function creates a new block to escape
+          // (more or less like `return`)
+          evalList(body, List(), newFrame, restK, trail, List(restK), h)
+        }
+      case Import("console", "log", _) =>
+        // println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        kont(newStack, trail, h)
+      case Import("spectest", "print_i32", _) =>
+        // println(s"[DEBUG] current stack: $stack")
+        val I32V(v) :: newStack = stack
+        println(v)
+        kont(newStack, trail, h)
+      case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
+      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
+    }
+
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
-  def evalTop[Ans](halt: Cont[Ans], mhalt: MCont[Ans], main: Option[String] = None): Ans = {
+  def evalTop[Ans](halt: Cont[Ans], main: Option[String] = None): Ans = {
     val instrs = main match {
       case Some(func_name) =>
         module.defs.flatMap({
@@ -391,14 +323,16 @@ case class EvaluatorFX(module: ModuleInstance) {
         })
     }
     if (instrs.isEmpty) println("Warning: nothing is executed")
-    val handler0: Handler[Ans] = stack => throw new Exception(s"Uncaught exception: $stack")
     // initialized locals
     val frame = Frame(ArrayBuffer(locals.map(zero(_)): _*))
-    eval(instrs, List(), frame, halt, mhalt, List(halt), handler0)
+    evalList(instrs, List(), frame, initK[Ans], List((halt, List())), List(initK: Cont[Ans]), List())
   }
 
-  def evalTop(m: ModuleInstance): Unit = {
-    val halt: Cont[Unit] = (stack, m) => m(stack)
-    evalTop(halt, stack => ())
-  }
+  def evalTop(m: ModuleInstance): Unit =
+    evalTop(((stack, trail, _hs) => {
+      if (!trail.isEmpty) {
+        throw new Exception("Composing something after halt continuation")
+      }
+    }): Cont[Unit])
 }
+

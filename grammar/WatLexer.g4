@@ -50,6 +50,7 @@ EXTERNREF: 'externref' ;
 MUT: 'mut' ;
 REF: 'ref' ;
 CONT: 'cont' ;
+NULL: 'null' ;
 
 NOP: 'nop' ;
 SYM_ASSERT: 'sym_assert' ;
@@ -79,6 +80,8 @@ ON: 'on' ;
 CONTNEW: 'cont.new' ;
 CONTBIND: 'cont.bind' ;
 SUSPEND: 'suspend' ;
+REFNULL: 'ref.null' ;
+REFISNULL: 'ref.is_null' ;
 
 // resumable try-catch extension:
 TRY: 'try' ;

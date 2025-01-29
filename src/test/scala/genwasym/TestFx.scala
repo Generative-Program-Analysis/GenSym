@@ -28,8 +28,12 @@ class TestFx extends FunSuite {
     val evaluator = EvaluatorFX(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = (stack, m) => m(stack)
-    val haltMK: MCont = (stack) => {
+    val haltK: Cont = (stack, trail, _hs) => {
+      if (!trail.isEmpty) {
+        // this throw will never reach, trail will never been appended
+        System.err.println(s"[Debug]: $trail")
+        throw new Exception("Trail is not empty")
+      }
       // println(s"halt cont: $stack")
       expected match {
         case ExpInt(e)   => assert(stack(0) == I32V(e))
@@ -37,7 +41,7 @@ class TestFx extends FunSuite {
         case Ignore      => ()
       }
     }
-    evaluator.evalTop(haltK, haltMK, main)
+    evaluator.evalTop(haltK, main)
   }
 
   // So far it assumes that the output is multi-line integers
@@ -93,55 +97,11 @@ class TestFx extends FunSuite {
   }
 
   // New effect handler tests:
-
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
   }
 
-  test("try-catch") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch.wat", List(1, 2, 3, 4, 5))
-  }
-
-  test("try-catch-succ") {
-    // no exception was thrown
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_succ.wat", List(1, 3, 5))
-  }
-
-  test("try-catch-discard") {
-    // discard the resumption in the catch block
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_discard.wat", List(1, 42, 4, 5))
-  }
-
-  test("nested-try-catch") {
-    testFileOutput("./benchmarks/wasm/trycatch/nested_try_catch.wat", List(1, 2, 3, 4, 5, 6, 7, 8, 9))
-  }
-
-  test("try-catch-multishot") {
-    testFileOutput("./benchmarks/wasm/trycatch/multishot.wat", List(1, 2, 3, 4, 3, 5))
-  }
-
-  test("try-catch-deep-handler") {
-    testFileOutput("./benchmarks/wasm/trycatch/deep.wat", List(1, 2, 3, 2, 4, 4, 5))
-  }
-
-  test("try-catch-block") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_block.wat", List(1, 2, 3, 4, 5))
-  }
-
-  // Note: the interaction between try-catch and block is not well-defined yet
-
-  /*
-  test("try-catch-br") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br.wat", List(1, 2, 6))
-  }
-
-  test("try-catch-br2") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br2.wat", List(1, 2, 6, 4, 5))
-  }
-  */
-
   /* REAL WASMFX STUFF */
-
   test("cont") {
     // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
     testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
@@ -153,7 +113,7 @@ class TestFx extends FunSuite {
 
   // wasmfx sec 2.3 like example
   test("test_cont") {
-    testFile("./benchmarks/wasm/wasmfx/test_cont-strip.wast")
+    testFileOutput("./benchmarks/wasm/wasmfx/test_cont-strip.wast", List(10, -1, 11, 11, -1, 12, 12, -1, 13, 13, -1, 14, -2))
   }
 
   test("resume_chain1") {
@@ -167,7 +127,7 @@ class TestFx extends FunSuite {
 
   // going to print 100 to 1 and then print 42
   test("gen") {
-    testFile("./benchmarks/wasm/wasmfx/gen-stripped.wast")
+    testFileOutput("./benchmarks/wasm/wasmfx/gen-stripped.wast", (100 to 1 by -1).toList ++ List(42))
   }
 
   test("diff resume") {
@@ -182,4 +142,32 @@ class TestFx extends FunSuite {
     testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
   }
 
+  test("diff_handler") {
+    testFileOutput("./benchmarks/wasm/wasmfx/diff_handler.wast", List(0, 1))
+  }
+
+  test("nested_resume") {
+    testFileOutput("./benchmarks/wasm/wasmfx/nested_resume-strip.wat", List(0, 111, 222, 333, 444, 555))
+  }
+
+
+  test("nested") {
+    testFileOutput("./benchmarks/wasm/wasmfx/nested-strip.wat", List(0, 0, 111, 222, 333, 444, 555, 666))
+  }
+
+  test("suspend16") {
+    testWastFile("./benchmarks/wasm/wasmfx/suspend16.bin.wast")
+    // testFile("./benchmarks/wasm/wasmfx/suspend16-strip.wast")
+  }
+  
+  test("fun-state") {
+    testWastFile("./benchmarks/wasm/wasmfx/fun-state.bin.wast")
+  }
+
+  // having -1 printing from (nats generator) 0 to 9
+  // and -2 summing up the the nats generated
+  test("pipes") {
+    testWastFile("./benchmarks/wasm/wasmfx/fun-pipes.bin.wast")
+  }
+  
 }
