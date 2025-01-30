@@ -69,6 +69,7 @@ case class IdBlock(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class Loop(ty: BlockType, instrs: List[Instr]) extends Instr {
   override def toString: String = s"Loop(...)"
 }
+case class ForLoop(init:List[Instr], cond: List[Instr], post: List[Instr], body: List[Instr]) extends Instr
 case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
 case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
@@ -290,6 +291,7 @@ abstract class Action extends Cmd
 case class Invoke(instName: Option[String], name: String, args: List[Value]) extends Action
 
 abstract class Assertion extends Cmd
+case class AssertInvalid() extends Assertion
 case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
     extends Assertion
 case class AssertTrap(action: Action, message: String) extends Assertion

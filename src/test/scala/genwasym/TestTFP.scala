@@ -14,7 +14,7 @@ import collection.mutable.ArrayBuffer
 import java.io.{ByteArrayOutputStream, StringReader}
 import org.scalatest.FunSuite
 
-class TestFx extends FunSuite {
+class TestTFP extends FunSuite {
   abstract class ExpResult
   case class ExpInt(i: Int) extends ExpResult
   case class ExpStack(stack: List[Value]) extends ExpResult
@@ -25,15 +25,11 @@ class TestFx extends FunSuite {
   def testFile(filename: String, main: Option[String] = None, expected: ExpResult = Ignore) = {
     val module = Parser.parseFile(filename)
     // println(module)
-    val evaluator = EvaluatorFX(ModuleInstance(module))
+    val evaluator = EvaluatorTFP(ModuleInstance(module))
     type Cont = evaluator.Cont[Unit]
     type MCont = evaluator.MCont[Unit]
-    val haltK: Cont = (stack, trail, _hs) => {
-      if (!trail.isEmpty) {
-        // this throw will never reach, trail will never been appended
-        System.err.println(s"[Debug]: $trail")
-        throw new Exception("Trail is not empty")
-      }
+    val haltK: Cont = evaluator.initK
+    val haltMK: MCont = (stack) => {
       // println(s"halt cont: $stack")
       expected match {
         case ExpInt(e)   => assert(stack(0) == I32V(e))
@@ -41,7 +37,7 @@ class TestFx extends FunSuite {
         case Ignore      => ()
       }
     }
-    evaluator.evalTop(haltK, main)
+    evaluator.evalTop(haltK, haltMK, main)
   }
 
   // So far it assumes that the output is multi-line integers
@@ -96,6 +92,11 @@ class TestFx extends FunSuite {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
 
+  // `for`` is a syntactic construct only introduced for TFP
+  test("for loop") {
+    testFile("./benchmarks/wasm/for_loop.wat", Some("for_loop"), ExpInt(55))
+  }
+
   // New effect handler tests:
   test("call_ref") {
     testFile("./benchmarks/wasm/wasmfx/callref-strip.wast")
@@ -131,56 +132,48 @@ class TestFx extends FunSuite {
     testFileOutput("./benchmarks/wasm/trycatch/try_catch_block.wat", List(1, 2, 3, 4, 5))
   }
 
-  // Note: the interaction between try-catch and block is not well-defined yet
-
-  /*
-  test("try-catch-br") {
-    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br.wat", List(1, 2, 6))
-  }
-
   test("try-catch-br2") {
     testFileOutput("./benchmarks/wasm/trycatch/try_catch_br2.wat", List(1, 2, 6, 4, 5))
   }
-  */
 
-  /* REAL WASMFX STUFF */
-  test("cont") {
-    // testFile("./benchmarks/wasm/wasmfx/callcont.wast", None, ExpInt(11))
-    testWastFile("./benchmarks/wasm/wasmfx/callcont.bin.wast")
+  test("try-catch-br") {
+    // break out of try block is not allowed
+    assertThrows[IndexOutOfBoundsException] {
+      testFileOutput("./benchmarks/wasm/trycatch/try_catch_br.wat", List(1, 2, 6))
+    }
   }
 
-  test("resume w/o suspend") {
-    testWastFile("./benchmarks/wasm/wasmfx/resume1.bin.wast")
+  test("try-catch-throw-twice") {
+    testFileOutput("./benchmarks/wasm/trycatch/throw_twice.wat", List(1, 2, 6, 2, 3, 4, 4, 5))
   }
 
-  // wasmfx sec 2.3 like example
-  test("test_cont") {
-    testFileOutput("./benchmarks/wasm/wasmfx/test_cont-strip.wast", List(10, -1, 11, 11, -1, 12, 12, -1, 13, 13, -1, 14, -2))
+  test("try-catch-throw-twice2") {
+    testFileOutput("./benchmarks/wasm/trycatch/throw_twice2.wat", List(1, 2, 6, 2, 3, 4, 4, 5))
   }
 
-  test("resume_chain1") {
-    testWastFile("./benchmarks/wasm/wasmfx/resume_chain1-strip.wast")
+  test("try-catch-br3") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br3.wat", List(1, 2, 3, 4, 5))
   }
 
-  // printing 0 not 1
-  test("nested suspend") {
-    testFileOutput("./benchmarks/wasm/wasmfx/nested_suspend-strip.wat", List(0))
+  test("try-catch-br4") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_br4.wat", List(1, 2, 6, 2, 7, 4, 4, 5))
   }
 
-  // going to print 100 to 1 and then print 42
-  test("gen") {
-    testFileOutput("./benchmarks/wasm/wasmfx/gen-stripped.wast", (100 to 1 by -1).toList ++ List(42))
+  test("try-catch-catch-br") {
+    testFileOutput("./benchmarks/wasm/trycatch/try_catch_catch_br.wat", List(1, 2, 6, 4, 6, 5))
   }
 
-  test("diff resume") {
-    testFileOutput("./benchmarks/wasm/wasmfx/diff_resume-strip.wat", List(10, 11, 42))
+  // SpecTest
+  test("spectest_return_call") {
+    testWastFile("./benchmarks/wasm/spectest/return_call.bin.wast")
   }
 
-  test("cont_bind_4") {
-    testWastFile("./benchmarks/wasm/wasmfx/cont_bind4.bin.wast")
+  // some of the failing test cases
+  test("count") {
+    testFile("./benchmarks/wasm/count.wat", None, ExpInt(0))
+  }
+  test("even_odd") {
+    testFile("./benchmarks/wasm/return_call.wat", None, ExpInt(44))
   }
 
-  test("cont_bind_5") {
-    testWastFile("./benchmarks/wasm/wasmfx/cont_bind5.bin.wast")
-  }
 }
