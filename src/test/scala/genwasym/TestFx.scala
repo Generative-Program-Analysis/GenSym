@@ -14,7 +14,7 @@ import collection.mutable.ArrayBuffer
 import java.io.{ByteArrayOutputStream, StringReader}
 import org.scalatest.FunSuite
 
-class TestFx extends FunSuite {
+class TestFX extends FunSuite {
   abstract class ExpResult
   case class ExpInt(i: Int) extends ExpResult
   case class ExpStack(stack: List[Value]) extends ExpResult
