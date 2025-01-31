@@ -89,5 +89,7 @@ class TestEval extends FunSuite {
   // FIXME:
   //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
 
+  test("data") { testFile("./benchmarks/wasm/data.wat", None, Some(72)) }
+
   // TODO: add wasm spec tests? How to utilize wast files?
 }
