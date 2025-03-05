@@ -246,13 +246,15 @@ case class Evaluator(module: ModuleInstance) {
   import Primtives._
   implicit val m: ModuleInstance = module
 
-  type Cont[A] = List[Value] => A
+  type Stack = List[Value]
+  type Cont[A] = Stack => A
+  type Trail[A] = List[Cont[A]]
 
   def evalCall[Ans](rest: List[Instr],
-                    stack: List[Value],
+                    stack: Stack,
                     frame: Frame,
                     kont: Cont[Ans],
-                    trail: List[Cont[Ans]],
+                    trail: Trail[Ans],
                     funcIndex: Int,
                     isTail: Boolean): Ans = {
     module.funcs(funcIndex) match {
@@ -287,10 +289,10 @@ case class Evaluator(module: ModuleInstance) {
   }
 
   def eval[Ans](insts: List[Instr],
-                stack: List[Value],
+                stack: Stack,
                 frame: Frame,
                 kont: Cont[Ans],
-                trail: List[Cont[Ans]]): Ans = {
+                trail: Trail[Ans]): Ans = {
     if (insts.isEmpty) return kont(stack)
 
     val inst = insts.head
@@ -391,7 +393,7 @@ case class Evaluator(module: ModuleInstance) {
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
-        def loop(retStack: List[Value]): Ans =
+        def loop(retStack: Stack): Ans =
           eval(inner, retStack.take(funcTy.inps.size), frame, restK, loop _ :: trail)
         loop(inputs)
       case If(ty, thn, els) =>

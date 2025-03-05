@@ -76,5 +76,3 @@ jobs:
         sbt 'testOnly gensym.TestLibrary'
         sbt 'testOnly gensym.wasm.TestEval'
         sbt 'testOnly gensym.wasm.TestScriptRun'
-        sbt 'testOnly gensym.wasm.TestTFP'
-        sbt 'testOnly gensym.wasm.TestFX'

@@ -9,6 +9,7 @@ import gensym.wasm.parser._
 import gensym.wasm.memory._
 import gensym.wasm.symbolic._
 import gensym.wasm.miniwasm._
+import gensym.wasm.miniwasmscript.ScriptRunner
 import collection.mutable.ArrayBuffer
 
 import org.scalatest.FunSuite
@@ -34,6 +35,12 @@ class TestEval extends FunSuite {
       }
     }
     evaluator.evalTop(haltK, main)
+  }
+
+  def testWastFile(filename: String): Unit = {
+    val script = Parser.parseScriptFile(filename).get
+    val runner = new ScriptRunner()
+    runner.run(script)
   }
 
   // TODO: the power test can be used to test the stack
@@ -75,19 +82,9 @@ class TestEval extends FunSuite {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
 
-  // just for parsing
-  test("fx types") {
-    testFile("./benchmarks/wasm/wasmfx/cont1-stripped.wat")
-  }
+  // just a test for .bin.wast utility
+  // the complete tests can be seen at https://github.com/Generative-Program-Analysis/wasm-cps/
+  testWastFile("./benchmarks/wasm/spectest/br.bin.wast")
 
-  // can parse this file,
-  // but there's no support for ref.func, cont.new, suspend, resume to run it yet
-  // test("gen") {
-  //   testFile("./benchmarks/wasm/wasmfx/gen-stripped.wat")
-  // }
-
-  // FIXME:
-  //test("tribonacci-ret") { testFile("./benchmarks/wasm/tribonacci_ret.wat", None, Some(504)) }
-
-  // TODO: add wasm spec tests? How to utilize wast files?
+  
 }
