@@ -12,11 +12,25 @@ import scala.util.Random
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 case class ModuleInstance(
-  types: List[FuncType],
-  funcs: List[FuncBodyDef],
+  // TODO: expand definition of this?
+  defs: List[Definition],
+  types: List[FuncLikeType],
+  funcs: HashMap[Int, Callable],
   memory: List[ConcolicMemory] = List(ConcolicMemory()),
   globals: ArrayBuffer[(RTGlobal, SymVal)] = ArrayBuffer[(RTGlobal, SymVal)]()
 )
+
+object ModuleInstance {
+  def apply(module: Module): ModuleInstance = {
+    val types = module.definitions
+      .collect({
+        case TypeDef(_, ft) => ft
+      })
+      .toList
+
+    ModuleInstance(module.definitions, types, module.funcEnv)
+  }
+}
 
 object Primitives {
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
@@ -162,6 +176,18 @@ object Primitives {
     // offset + size > memory.size
   }
 
+    def zero(t: ValueType): Value = t match {
+    case NumType(kind) =>
+      kind match {
+        case I32Type => I32V(0)
+        case I64Type => I64V(0)
+        case F32Type => F32V(0)
+        case F64Type => F64V(0)
+      }
+    case VecType(kind) => ???
+    case RefType(kind) => RefNullV(kind)
+  }
+  
   def randomOfTy(ty: ValueType): Value = ty match {
     case NumType(I32Type) => I32V(Random.nextInt())
     case NumType(I64Type) => I64V(Random.nextLong())
@@ -172,7 +198,7 @@ object Primitives {
 
 case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: ArrayBuffer[SymVal])
 
-object Evaluator {
+case class Evaluator(module: ModuleInstance) {
   import Primitives._
 
   type RetCont = (List[Value], List[SymVal], List[Cond]) => Unit
@@ -180,6 +206,7 @@ object Evaluator {
 
   val symEnv = HashMap[Int, Value]()
 
+  // TODO: should this have a uniform return type like Wasm?
   def eval(insts: List[Instr], concStack: List[Value], symStack: List[SymVal], 
            frame: Frame, ret: RetCont, trail: List[Cont])(implicit pathConds: List[Cond]): Unit = {
     if (insts.isEmpty) return ret(concStack, symStack, pathConds)
@@ -332,8 +359,25 @@ object Evaluator {
         else trail(label)(newStack, newSymStack, newPathConds)
       case Return => ret(concStack, symStack, pathConds)
       case Call(f) =>
-        val FuncBodyDef(ty, _, locals, body) = frame.module.funcs(f)
-        println(s"call $f: locals: ${locals}")
+        evalCall(rest, concStack, symStack, frame, ret, trail, f, false)
+      case _ => ???
+    }
+  }
+
+  // def eval(insts: List[Instr], concStack: List[Value], symStack: List[SymVal], 
+  //          frame: Frame, ret: RetCont, trail: List[Cont])(implicit pathConds: List[Cond])
+  
+  def evalCall(rest: List[Instr],
+               concStack: List[Value],
+               symStack: List[SymVal],
+               frame: Frame,
+               ret: RetCont,
+               trail: List[Cont],
+               funcIndex: Int,
+               isTail: Boolean)(implicit pathConds: List[Cond]): Unit =
+    module.funcs(funcIndex) match {
+      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
+        println(s"call $funcIndex: locals: ${locals}")
         val args = concStack.take(ty.inps.size).reverse
         val symArgs = symStack.take(ty.inps.size).reverse
         val newStack = concStack.drop(ty.inps.size)
@@ -342,15 +386,25 @@ object Evaluator {
         val symFrameLocals = symArgs ++ locals.map(_ => Concrete(I32V(0)))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*), ArrayBuffer(symFrameLocals: _*))
         val newRet: RetCont = (retStack, retSymStack, newPathConds) => 
-          eval(rest,  retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
+          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
         // val k: Cont = (retStack, symStack) =>
         //   eval(rest, retStack, frame, ret, trail)
         eval(body, List(), List(), newFrame, newRet, newRet::trail) // GW: should we install new trail cont?
-      case _ => ???
-    }
-  }
 
-  // seems bad
+      // TODO: clean up the other cases
+      // case Import("console", "log", _) =>
+      //   val I32V(v) :: newStack = stack
+      //   println(v)
+      //   eval(rest, newStack, frame, kont, trail)
+      // case Import("spectest", "print_i32", _) =>
+      //   val I32V(v) :: newStack = stack
+      //   println(v)
+      //   eval(rest, newStack, frame, kont, trail)
+      // case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
+      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
+    }
+
+  // TODO: seems bad, global might have an expression to evaluate (maybe only constants?)
   def evalExpr(expr: List[Instr]): (Value, SymVal) = {
     var cv = null.asInstanceOf[Value]
     var sv = null.asInstanceOf[SymVal]
@@ -368,57 +422,103 @@ object Evaluator {
   }
 
   def execWholeProgram(
-    module: Module, mainFun: String, symEnv: HashMap[Int, Value] = HashMap(), k: RetCont = printRetCont
+    main: Option[String] = None,
+    symEnv: HashMap[Int, Value] = HashMap(), k: RetCont = printRetCont,
   ) = {
     import collection.mutable.ArrayBuffer
-    // val module = Parser.parseFile("./benchmarks/wasm/test.wat")
-    // println(module)
-
-    // val instrs = module.definitions.find({
-    //   case FuncDef(Some(fname), FuncBodyDef(_, _, _, _)) if fname == mainFun => true
-    //   case _ => false
-    // }).map({
-    //   case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
-    // }).get
-    // .toList
 
     this.symEnv.clear()
     this.symEnv ++= symEnv
 
-    val types = List()
-    val funcDefs = module.definitions.collect({ case f@FuncDef(_, _) => f })
-    val funcs = funcDefs.map({ case FuncDef(_, body@FuncBodyDef(_, _, _, _)) => body })
+    val instrs = main match {
+      case Some(func_name) =>
+        module.defs.flatMap({
+          case Export(`func_name`, ExportFunc(fid)) =>
+            println(s"Entering function $main")
+            module.funcs(fid) match {
+              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case _ => throw new Exception("Entry function has no concrete body")
+            }
+          case _ => List()
+        })
+      case None =>
+        module.defs.flatMap({
+          case Start(id) =>
+            println(s"Entering unnamed function $id")
+            module.funcs(id) match {
+              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case _ =>
+                throw new Exception("Entry function has no concrete body")
+            }
+          case _ => List()
+        })
+    }
+    val funcDefs = module.defs.collect({ case f@FuncDef(_, _) => f })
 
     val funcId = funcDefs.indexWhere({
-      case FuncDef(name, _) => name == Some(mainFun)
+      case FuncDef(name, _) => name == Some(main)
     })
 
-    val instrs = List(Call(funcId))
+    print(s"instrs: $instrs")
 
-    val moduleInst = ModuleInstance(types, funcs)
+    // val instrs = List(Call(funcId))
 
-    val globals = module.definitions.collect({ case g@Global(_, _) => g })
-    val memories = module.definitions.collect({ case m@Memory(_, _) => m })
-    val elems = module.definitions.collect({ case e@Elem(_, _, _) => e })
-    val data = module.definitions.collect({ case d@Data(_, _) => d })
+    // TODO: what are we tryign to do with globals here
+    // does global values allow general expressions?
+    // val globals = module.definitions.collect({ case g@Global(_, _) => g })
 
-    for (global <- globals) {
-      global.f match {
-        case GlobalValue(ty, e) => {
-          val (cv, sv) = evalExpr(e)
-          moduleInst.globals.append((RTGlobal(ty, cv), sv))
-        }
-        case _ => ???
-      }
-    }
+    // for (global <- globals) {
+    //   global.f match {
+    //     case GlobalValue(ty, e) => {
+    //       val (cv, sv) = evalExpr(e)
+    //       moduleInst.globals.append((RTGlobal(ty, cv), sv))
+    //     }
+    //     case _ => ???
+    //   }
+    // }
+    
+    val locals = extractLocals(module, main)
 
-    Evaluator.eval(
+    val concreteLocals = locals.map(zero(_))
+    val symLocals = locals.map(zero(_)).map(Concrete(_))
+    val frame = Frame(module, ArrayBuffer(concreteLocals: _*), ArrayBuffer(symLocals: _*))
+
+    // val frame = Frame(module, ArrayBuffer(locals.map(zero(_)): _*), ArrayBuffer(locals.map(zero(_)): _*))
+
+    eval(
       instrs, 
       List(), 
       List(), 
-      Frame(moduleInst, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
+      // frame,
+      Frame(module, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
       k,
       List((newStack, _, _) => println(s"trail: $newStack"))
     )(List())
+
   }
+
+  def extractLocals(module: ModuleInstance, main: Option[String]): List[ValueType] =
+    main match {
+      case Some(func_name) =>
+        module.defs.flatMap({
+          case Export(`func_name`, ExportFunc(fid)) =>
+            System.err.println(s"Entering function $main")
+            module.funcs(fid) match {
+              case FuncDef(_, FuncBodyDef(_, _, locals, _)) => locals
+              case _ => throw new Exception("Entry function has no concrete body")
+            }
+          case _ => List()
+        })
+      case None =>
+        module.defs.flatMap({
+          case Start(id) =>
+            System.err.println(s"Entering unnamed function $id")
+            module.funcs(id) match {
+              case FuncDef(_, FuncBodyDef(_, _, locals, body)) => locals
+              case _ => throw new Exception("Entry function has no concrete body")
+            }
+          case _ => List()
+        })
+    }
+
 }

@@ -85,7 +85,8 @@ object ConcolicDriver {
     def loop(worklist: Queue[HashMap[Int, Value]]): Unit = worklist match {
       case Queue() => ()
       case env +: rest => {
-        Evaluator.execWholeProgram(module, mainFun, env, (_endStack, _endSymStack, pathConds) => {
+        val moduleInst = ModuleInstance(module)
+        Evaluator(moduleInst).execWholeProgram(Some(mainFun), env, (_endStack, _endSymStack, pathConds) => {
           println(s"env: $env")
           val newEnv = condsToEnv(pathConds)
           val newWork = for (i <- 0 until pathConds.length) yield {

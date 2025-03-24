@@ -7,13 +7,14 @@ import gensym.wasm.memory._
 import gensym.wasm.symbolic._
 
 import org.scalatest.FunSuite
-class TestWasmConcolic extends FunSuite {
+class TestConcolic extends FunSuite {
 
   // TODO: actually test this
   def fileTestConcolicEval() = {
     import gensym.wasm.concolicminiwasm._
-    val module = Parser.parseFile("./benchmarks/wasm/test_rs.wat")
-    Evaluator.execWholeProgram(module, "$real_main")
+    val module = Parser.parseFile("./benchmarks/wasm/pow.wat")
+    val moduleInst = ModuleInstance(module)
+    Evaluator(moduleInst).execWholeProgram(Some("real_main"))
   }
 
   test("fileTestConcolicEval") {

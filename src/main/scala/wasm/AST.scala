@@ -33,6 +33,7 @@ case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 abstract class FuncField extends WIR
 case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr])
     extends FuncField
+// TODO: FunInline was never used
 case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any /*FIXME*/ ) extends FuncField
 case class FunInlineExport(fd: List[FuncDef]) extends FuncField
 
