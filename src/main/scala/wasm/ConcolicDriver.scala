@@ -19,25 +19,28 @@ object ConcolicDriver {
 
     def symVToZ3(symV: SymVal): Z3AST = symV match {
       case SymV(name) => z3Ctx.mkConst(name, intSort) // might not be an int?
-      case SymBinary(op, lhs, rhs) => op match {
-        case Add(_) => z3Ctx.mkAdd(symVToZ3(lhs), symVToZ3(rhs)) // does numtype matter?
-        case Sub(_) => z3Ctx.mkSub(symVToZ3(lhs), symVToZ3(rhs))
-        case Mul(_) => z3Ctx.mkMul(symVToZ3(lhs), symVToZ3(rhs))
-        case _ => ???
-      }
-      case SymUnary(op, v) => op match {
-        case _ => ???
-      }
+      case SymBinary(op, lhs, rhs) =>
+        op match {
+          case Add(_) => z3Ctx.mkAdd(symVToZ3(lhs), symVToZ3(rhs)) // does numtype matter?
+          case Sub(_) => z3Ctx.mkSub(symVToZ3(lhs), symVToZ3(rhs))
+          case Mul(_) => z3Ctx.mkMul(symVToZ3(lhs), symVToZ3(rhs))
+          case _      => ???
+        }
+      case SymUnary(op, v) =>
+        op match {
+          case _ => ???
+        }
       case SymIte(cond, thenV, elseV) => z3Ctx.mkITE(condToZ3(cond), symVToZ3(thenV), symVToZ3(elseV))
-      case Concrete(v) => ???
-      case _ => ???
+      case Concrete(v)                => ???
+      case _                          => ???
     }
     def condToZ3(cond: Cond): Z3AST = cond match {
       case CondEqz(v) => z3Ctx.mkEq(symVToZ3(v), z3Ctx.mkInt(0, intSort))
-      case Not(cond) => z3Ctx.mkNot(condToZ3(cond))
-      case RelCond(op, lhs, rhs) => op match {
-        case _ => ???
-      }
+      case Not(cond)  => z3Ctx.mkNot(condToZ3(cond))
+      case RelCond(op, lhs, rhs) =>
+        op match {
+          case _ => ???
+        }
     }
 
     val solver = z3Ctx.mkSolver()
@@ -85,16 +88,21 @@ object ConcolicDriver {
     def loop(worklist: Queue[HashMap[Int, Value]]): Unit = worklist match {
       case Queue() => ()
       case env +: rest => {
-        Evaluator.execWholeProgram(module, mainFun, env, (_endStack, _endSymStack, pathConds) => {
-          println(s"env: $env")
-          val newEnv = condsToEnv(pathConds)
-          val newWork = for (i <- 0 until pathConds.length) yield {
-            val newConds = negateCond(pathConds, i)
-            checkPCToFile(newConds)
-            condsToEnv(newConds)
+        val moduleInst = ModuleInstance(module)
+        Evaluator(moduleInst).execWholeProgram(
+          Some(mainFun),
+          env,
+          (_endStack, _endSymStack, pathConds) => {
+            println(s"env: $env")
+            val newEnv = condsToEnv(pathConds)
+            val newWork = for (i <- 0 until pathConds.length) yield {
+              val newConds = negateCond(pathConds, i)
+              checkPCToFile(newConds)
+              condsToEnv(newConds)
+            }
+            loop(rest ++ newWork)
           }
-          loop(rest ++ newWork)
-        })
+        )
       }
     }
 
@@ -110,6 +118,5 @@ object DriverSimpleTest {
     ConcolicDriver.exec(module, mainFun, startEnv)(new Z3Context())
   }
 
-  def main(args: Array[String]) = {
-  }
+  def main(args: Array[String]) = {}
 }
