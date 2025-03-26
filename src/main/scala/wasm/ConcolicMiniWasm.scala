@@ -70,6 +70,12 @@ object Primitives {
         case (I64V(v1), I64V(v2)) => I64V(v1 & v2)
         case _                    => throw new Exception("Invalid types")
       }
+    case Or(_) =>
+      (lhs, rhs) match {
+        case (I32V(v1), I32V(v2)) => I32V(v1 | v2)
+        case (I64V(v1), I64V(v2)) => I64V(v1 | v2)
+        case _                    => throw new Exception("Invalid types")
+      }
     case _ => {
       println(s"unimplemented binop: $op")
       ???
@@ -180,13 +186,18 @@ object Primitives {
     case Concrete(v) => Concrete(evalTestOp(op, v))
     case _ =>
       op match {
-        case Eqz(_) => SymIte(CondEqz(sv), Concrete(I32V(1)), Concrete(I32V(0)))
+        case Eqz(ty) => RelCond(Eq(ty), sv, Concrete(zero(ty)))
       }
   }
 
   def evalSymRelOp(op: RelOp, lhs: SymVal, rhs: SymVal): SymVal = (lhs, rhs) match {
     case (Concrete(lhs), Concrete(rhs)) => Concrete(evalRelOp(op, lhs, rhs))
-    case _                              => SymIte(RelCond(op, lhs, rhs), Concrete(I32V(1)), Concrete(I32V(0)))
+    case _ =>
+      RelCond(
+        op,
+        lhs,
+        rhs
+      ) // TODO: it was SymIte(RelCond(op, lhs, rhs), Concrete(I32V(1)), Concrete(I32V(0))) before, but why??
   }
 
   def memOutOfBound(frame: Frame, memoryIndex: Int, offset: Int, size: Int) = {
@@ -365,10 +376,10 @@ case class Evaluator(module: ModuleInstance) {
       case If(ty, thn, els) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val inner = if (cond == 0) thn else els
+        val inner = if (cond != 0) thn else els
         val newPathConds = scnd match {
           case Concrete(_) => pathConds
-          case _           => if (cond == 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
+          case _           => if (cond != 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
         }
         val k: Cont = (retStack, retSymStack, newPathConds) =>
           eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
@@ -380,7 +391,7 @@ case class Evaluator(module: ModuleInstance) {
         val I32V(cond) :: newStack = concStack
         val newPathConds = scnd match {
           case Concrete(_) => pathConds
-          case _           => if (cond == 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
+          case _           => if (cond != 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
         }
         if (cond == 0) eval(rest, newStack, newSymStack, frame, ret, trail)(newPathConds)
         else trail(label)(newStack, newSymStack, newPathConds)
@@ -497,22 +508,19 @@ case class Evaluator(module: ModuleInstance) {
     })
 
     print(s"instrs: $instrs")
-
     // val instrs = List(Call(funcId))
 
-    // TODO: what are we tryign to do with globals here
-    // does global values allow general expressions?
-    // val globals = module.definitions.collect({ case g@Global(_, _) => g })
+    val globals = module.defs.collect({ case g @ Global(_, _) => g })
 
-    // for (global <- globals) {
-    //   global.f match {
-    //     case GlobalValue(ty, e) => {
-    //       val (cv, sv) = evalExpr(e)
-    //       moduleInst.globals.append((RTGlobal(ty, cv), sv))
-    //     }
-    //     case _ => ???
-    //   }
-    // }
+    for (global <- globals) {
+      global.f match {
+        case GlobalValue(ty, e) => {
+          val (cv, sv) = evalExpr(e)
+          module.globals.append((RTGlobal(ty, cv), sv))
+        }
+        case _ => ???
+      }
+    }
 
     val locals = extractLocals(module, main)
 
@@ -542,7 +550,7 @@ case class Evaluator(module: ModuleInstance) {
             System.err.println(s"Entering function $main")
             module.funcs(fid) match {
               case FuncDef(_, FuncBodyDef(_, _, locals, _)) => locals
-              case _ => throw new Exception("Entry function has no concrete body")
+              case _                                        => throw new Exception("Entry function has no concrete body")
             }
           case _ => List()
         })
@@ -552,7 +560,7 @@ case class Evaluator(module: ModuleInstance) {
             System.err.println(s"Entering unnamed function $id")
             module.funcs(id) match {
               case FuncDef(_, FuncBodyDef(_, _, locals, body)) => locals
-              case _ => throw new Exception("Entry function has no concrete body")
+              case _                                           => throw new Exception("Entry function has no concrete body")
             }
           case _ => List()
         })

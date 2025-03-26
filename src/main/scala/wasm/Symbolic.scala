@@ -9,6 +9,7 @@ case class SymUnary(op: UnaryOp, v: SymVal) extends SymVal
 case class SymIte(cond: Cond, thn: SymVal, els: SymVal) extends SymVal
 case class Concrete(v: Value) extends SymVal
 
+// The following should be encoded to boolean in SMT
 abstract class Cond extends SymVal
 case class CondEqz(v: SymVal) extends Cond
 case class Not(cond: Cond) extends Cond
@@ -20,6 +21,6 @@ case class MemExtract(mem: SymVal, offset: Int, size: Int) extends SymVal
 abstract class SymVal {
   def toZ3AST(implicit ctx: Z3Context): Z3AST = this match {
     case SymV(name) => ctx.mkConst(ctx.mkStringSymbol(name), ctx.mkIntSort())
-    case _ => ???
+    case _          => ???
   }
 }
