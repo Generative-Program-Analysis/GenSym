@@ -12,7 +12,7 @@ import z3.scala._
 import scala.tools.nsc.doc.model.Val
 
 object ConcolicDriver {
-  def condsToEnv(conds: List[Cond])(implicit z3Ctx: Z3Context): HashMap[Int, Value] = {
+  def condsToEnv(conds: List[Cond])(implicit z3Ctx: Z3Context): Option[HashMap[Int, Value]] = {
     val intSort = z3Ctx.mkIntSort()
     val boolSort = z3Ctx.mkBoolSort()
 
@@ -109,9 +109,10 @@ object ConcolicDriver {
           }
           env += (getIndexOfSym(name.toString) -> intValue)
         }
-        env
+        println(s"solved env: $env")
+        Some(env)
       }
-      case _ => ???
+      case _ => None
     }
   }
 
@@ -138,10 +139,11 @@ object ConcolicDriver {
           (_endStack, _endSymStack, pathConds) => {
             println(s"env: $env")
             val newEnv = condsToEnv(pathConds) // maybe this line is actually not needed?
-            val newWork = for (i <- 0 until pathConds.length) yield {
-              val newConds = negateCond(pathConds, i)
-              // checkPCToFile(newConds)
-              condsToEnv(newConds)
+            val newWork = for {i <- 0 until pathConds.length
+                               env <- condsToEnv(negateCond(pathConds, i))} yield {
+              // val newConds = negateCond(pathConds, i)
+              // checkPCToFile(newConds) // TODO: what this function for?
+              env
             }
             loop(rest ++ newWork)
           }
