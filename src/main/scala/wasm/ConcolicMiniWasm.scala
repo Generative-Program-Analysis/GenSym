@@ -33,6 +33,9 @@ object ModuleInstance {
 }
 
 object Primitives {
+  // a random number generator with fixed seed
+  val rng = new Random(0)
+
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case Add(_) =>
       (lhs, rhs) match {
@@ -221,10 +224,10 @@ object Primitives {
   }
 
   def randomOfTy(ty: ValueType): Value = ty match {
-    case NumType(I32Type) => I32V(Random.nextInt())
-    case NumType(I64Type) => I64V(Random.nextLong())
-    case NumType(F32Type) => F32V(Random.nextFloat())
-    case NumType(F64Type) => F64V(Random.nextDouble())
+    case NumType(I32Type) => I32V(rng.nextInt())
+    case NumType(I64Type) => I64V(rng.nextLong())
+    case NumType(F32Type) => F32V(rng.nextFloat())
+    case NumType(F64Type) => F64V(rng.nextDouble())
   }
 }
 

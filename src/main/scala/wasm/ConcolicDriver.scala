@@ -9,6 +9,7 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable.{HashMap, HashSet}
 
 import z3.scala._
+import scala.tools.nsc.doc.model.Val
 
 object ConcolicDriver {
   def condsToEnv(conds: List[Cond])(implicit z3Ctx: Z3Context): HashMap[Int, Value] = {
@@ -24,16 +25,56 @@ object ConcolicDriver {
           case Add(_) => z3Ctx.mkAdd(symVToZ3(lhs), symVToZ3(rhs)) // does numtype matter?
           case Sub(_) => z3Ctx.mkSub(symVToZ3(lhs), symVToZ3(rhs))
           case Mul(_) => z3Ctx.mkMul(symVToZ3(lhs), symVToZ3(rhs))
-          case _      => ???
+          case Or(_)  => 
+            var result = z3Ctx.mkBVOr(
+              z3Ctx.mkInt2BV(32, symVToZ3(lhs)), 
+              z3Ctx.mkInt2BV(32, symVToZ3(rhs))
+            )
+            z3Ctx.mkBV2Int(result, false)
+          case _      => throw new NotImplementedError(s"Unsupported binary operation: $op")
         }
       case SymUnary(op, v) =>
         op match {
           case _ => ???
         }
       case SymIte(cond, thenV, elseV) => z3Ctx.mkITE(condToZ3(cond), symVToZ3(thenV), symVToZ3(elseV))
-      case Concrete(v)                => ???
-      case _                          => ???
+      case Concrete(v) => 
+        v match {
+          case I32V(i) => z3Ctx.mkInt(i, intSort)
+          case I64V(i) => z3Ctx.mkInt(i.toInt, intSort)
+          // TODO: Float
+          case _       => ???
+        }
+      case RelCond(op, lhs, rhs) => 
+        val res = op match {
+          case GeS(_) => z3Ctx.mkGE(symVToZ3(lhs), symVToZ3(rhs))
+          case GtS(_) => z3Ctx.mkGT(symVToZ3(lhs), symVToZ3(rhs))
+          case LtS(_) => z3Ctx.mkLT(symVToZ3(lhs), symVToZ3(rhs))
+          case LeS(_) => z3Ctx.mkLE(symVToZ3(lhs), symVToZ3(rhs))
+          case GtU(_) => z3Ctx.mkGT(symVToZ3(lhs), symVToZ3(rhs))
+          case GeU(_) => z3Ctx.mkGE(symVToZ3(lhs), symVToZ3(rhs))
+          case LtU(_) => z3Ctx.mkLT(symVToZ3(lhs), symVToZ3(rhs))
+          case LeU(_) => z3Ctx.mkLE(symVToZ3(lhs), symVToZ3(rhs))
+          case Eq(_)  => z3Ctx.mkEq(symVToZ3(lhs), symVToZ3(rhs))
+          case Ne(_)  => z3Ctx.mkNot(z3Ctx.mkEq(symVToZ3(lhs), symVToZ3(rhs)))
+          case Ge(_)  => z3Ctx.mkGE(symVToZ3(lhs), symVToZ3(rhs))
+          case Gt(_)  => z3Ctx.mkGT(symVToZ3(lhs), symVToZ3(rhs))
+          case Le(_)  => z3Ctx.mkLE(symVToZ3(lhs), symVToZ3(rhs))
+          case Lt(_)  => z3Ctx.mkLT(symVToZ3(lhs), symVToZ3(rhs))
+        }
+        // convert resutl to int
+        z3Ctx.mkITE(res, z3Ctx.mkInt(1, intSort), z3Ctx.mkInt(0, intSort))
+      case _                          => throw new NotImplementedError(s"Unsupported SymVal: $symV")
     }
+
+    def getIndexOfSym(sym: String): Int = {
+      val pattern = ".*_(\\d+)$".r
+      sym match {
+        case pattern(index) => index.toInt
+        case _              => throw new IllegalArgumentException(s"Invalid symbol format: $sym")
+      }
+    }
+
     def condToZ3(cond: Cond): Z3AST = cond match {
       case CondEqz(v) => z3Ctx.mkEq(symVToZ3(v), z3Ctx.mkInt(0, intSort))
       case Not(cond)  => z3Ctx.mkNot(condToZ3(cond))
@@ -49,35 +90,37 @@ object ConcolicDriver {
     }
 
     // solve for all vars
+    println(s"solving for: ${conds.map(_.toString)}")
     solver.check() match {
       case Some(true) => {
         val model = solver.getModel()
         val vars = model.getConsts
-        val env = HashMap()
+        val env = HashMap[Int, Value]()
         for (v <- vars) {
           val name = v.getName
           val ast = z3Ctx.mkConst(name, intSort)
           val value = model.eval(ast)
+          println(s"name: $name")
+          println(s"value: $value")
           val intValue = if (value.isDefined && value.get.getSort.isIntSort) {
-            I32V(value.toString.toInt)
+            I32V(value.get.toString.toInt)
           } else {
             ???
           }
-          // env += (name.toString -> intValue)
-          ???
+          env += (getIndexOfSym(name.toString) -> intValue)
         }
-        ???
-        // env
+        env
       }
       case _ => ???
     }
   }
 
   def negateCond(conds: List[Cond], i: Int): List[Cond] = {
-    ???
+    conds(i).negated :: conds.drop(i + 1)
   }
 
   def checkPCToFile(pc: List[Cond]): Unit = {
+    // TODO: what this function for?
     ???
   }
 
@@ -94,10 +137,10 @@ object ConcolicDriver {
           env,
           (_endStack, _endSymStack, pathConds) => {
             println(s"env: $env")
-            val newEnv = condsToEnv(pathConds)
+            val newEnv = condsToEnv(pathConds) // maybe this line is actually not needed?
             val newWork = for (i <- 0 until pathConds.length) yield {
               val newConds = negateCond(pathConds, i)
-              checkPCToFile(newConds)
+              // checkPCToFile(newConds)
               condsToEnv(newConds)
             }
             loop(rest ++ newWork)

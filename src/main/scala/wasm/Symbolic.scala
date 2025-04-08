@@ -10,7 +10,12 @@ case class SymIte(cond: Cond, thn: SymVal, els: SymVal) extends SymVal
 case class Concrete(v: Value) extends SymVal
 
 // The following should be encoded to boolean in SMT
-abstract class Cond extends SymVal
+abstract class Cond extends SymVal {
+  def negated: Cond = this match {
+    case Not(cond)  => cond
+    case _ => Not(this)
+  }
+}
 case class CondEqz(v: SymVal) extends Cond
 case class Not(cond: Cond) extends Cond
 case class RelCond(op: RelOp, lhs: SymVal, rhs: SymVal) extends Cond
