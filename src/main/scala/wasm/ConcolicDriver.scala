@@ -90,7 +90,7 @@ object ConcolicDriver {
     }
 
     // solve for all vars
-    println(s"solving for: ${conds.map(_.toString)}")
+    println(s"solving for: ${solver.toString()}")
     solver.check() match {
       case Some(true) => {
         val model = solver.getModel()
@@ -128,7 +128,7 @@ object ConcolicDriver {
   def exec(module: Module, mainFun: String, startEnv: HashMap[Int, Value])(implicit z3Ctx: Z3Context) = {
     val worklist = Queue(startEnv)
     // val visited = ??? // how to avoid re-execution
-
+    var pathCount = 0 // TODO: replace this with accurate path exploration
     def loop(worklist: Queue[HashMap[Int, Value]]): Unit = worklist match {
       case Queue() => ()
       case env +: rest => {
@@ -145,7 +145,10 @@ object ConcolicDriver {
               // checkPCToFile(newConds) // TODO: what this function for?
               env
             }
-            loop(rest ++ newWork)
+            // Currently, the path exploration is actually wrong. It neither explore all paths nor guarantee termination.
+            val addedNewWork = newWork.take(10 - pathCount)
+            pathCount += addedNewWork.length
+            loop(rest ++ addedNewWork)
           }
         )
       }

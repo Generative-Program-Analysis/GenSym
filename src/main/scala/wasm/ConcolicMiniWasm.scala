@@ -269,7 +269,7 @@ case class Evaluator(module: ModuleInstance) {
           symEnv(symIndex) = Primitives.randomOfTy(ty)
         }
         val v = symEnv(symIndex)
-        eval(rest, v :: newStack, symVal :: symStack, frame, ret, trail)
+        eval(rest, v :: newStack, symVal :: symStack.tail, frame, ret, trail)
       case Drop => eval(rest, concStack.tail, symStack.tail, frame, ret, trail)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = concStack
