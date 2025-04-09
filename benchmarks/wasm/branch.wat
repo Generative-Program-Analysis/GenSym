@@ -2,9 +2,10 @@
   (func $f (param $x i32) (param $y i32) (result i32)
     ;; if (x <= 0 || y <= 0)
     (if (result i32)
-      (i32.or
+      (if (result i32)
         (i32.le_s (local.get $x) (i32.const 0))
-        (i32.le_s (local.get $y) (i32.const 0))
+        (then (i32.const 1))
+        (else (i32.le_s (local.get $y) (i32.const 0)))
       )
       (then (i32.const -1)) ;; return -1
       (else
