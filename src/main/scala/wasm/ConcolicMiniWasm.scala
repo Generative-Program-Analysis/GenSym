@@ -252,12 +252,16 @@ case class Evaluator(module: ModuleInstance) {
   )(implicit tree: ExploreTree): Unit = {
     if (insts.isEmpty) return ret(concStack, symStack, tree)
 
-    println(s"pathConds: ${tree.collectConds()}")
 
     val inst = insts.head
     val rest = insts.tail
 
-    println(s"inst: $inst, concStack: $concStack, symStack: $symStack")
+    println(
+      s"""|inst: $inst
+          |rest: $rest
+          |concStack: $concStack
+          |symStack: $symStack
+          |pathConds: ${tree.collectConds()}""".stripMargin)
 
     inst match {
       case PushSym(name, v) =>
@@ -383,9 +387,9 @@ case class Evaluator(module: ModuleInstance) {
         val k: Cont = (retStack, retSymStack, tree) =>
           eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(tree)
         if (cond != 0)
-          eval(thn, List(), List(), frame, ret, k :: trail)(ifElseNode.thenNode)
+          eval(thn, List(), List(), frame, k, k :: trail)(ifElseNode.thenNode)
         else
-          eval(els, List(), List(), frame, ret, k :: trail)(ifElseNode.elseNode)
+          eval(els, List(), List(), frame, k, k :: trail)(ifElseNode.elseNode)
       case Br(label) =>
         trail(label)(concStack, symStack, tree)
       case BrIf(label) =>

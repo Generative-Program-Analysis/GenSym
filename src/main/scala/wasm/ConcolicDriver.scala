@@ -91,7 +91,7 @@ object ConcolicDriver {
     }
 
     // solve for all vars
-    println(s"solving for: ${solver.toString()}")
+    println(s"solving constrains: ${solver.toString()}")
     solver.check() match {
       case Some(true) => {
         val model = solver.getModel()
@@ -103,8 +103,16 @@ object ConcolicDriver {
           val value = model.eval(ast)
           println(s"name: $name")
           println(s"value: $value")
+          // TODO: support other types of symbolic values(currently only i32)
           val intValue = if (value.isDefined && value.get.getSort.isIntSort) {
-            I32V(value.get.toString.toInt)
+            val negPattern = """\(\-\s*(\d+)\)""".r
+            val plainPattern = """(-?\d+)""".r
+            val num = value.get.toString match {
+              case negPattern(digits) => -digits.toInt
+              case plainPattern(number)  => number.toInt
+              case _ => throw new IllegalArgumentException("Invalid format")
+            }
+            I32V(num)
           } else {
             ???
           }
@@ -151,7 +159,8 @@ object ConcolicDriver {
           (_endStack, _endSymStack, tree) => {
             println(s"env: $env")
             println(s"visited: $visited")
-            val unexploredTrees = collectUnexploredTrees(tree)
+            // TODO: use a clever way to avoid re-iteration of the whole tree
+            val unexploredTrees = collectUnexploredTrees(root)
             val addedNewWork = unexploredTrees.filterNot(visited.keySet().contains).flatMap { tree =>
               val conds = tree.collectConds()
               val newEnv = condsToEnv(conds)
