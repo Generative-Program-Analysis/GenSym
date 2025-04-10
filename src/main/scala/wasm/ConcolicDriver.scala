@@ -40,8 +40,9 @@ object ConcolicDriver {
       case SymIte(cond, thenV, elseV) => z3Ctx.mkITE(condToZ3(cond), symVToZ3(thenV), symVToZ3(elseV))
       case Concrete(v) => 
         v match {
+          // todo: replace with bitvector
           case I32V(i) => z3Ctx.mkInt(i, intSort)
-          case I64V(i) => z3Ctx.mkInt(i.toInt, intSort)
+          case I64V(i) => z3Ctx.mkNumeral(i.toString(), intSort)
           // TODO: Float
           case _       => ???
         }
@@ -129,6 +130,16 @@ object ConcolicDriver {
     val worklist = Queue(startEnv)
     // val visited = ??? // how to avoid re-execution
     var pathCount = 0 // TODO: replace this with accurate path exploration
+    val visited = new java.util.IdentityHashMap[ExploreTree, Unit]()
+    val root = new ExploreTree()
+    def collectUnexploredTrees(tree: ExploreTree): List[ExploreTree] = {
+      tree.node match {
+        case UnExplored() => List(tree)
+        case IfElse(_, thenNode, elseNode) =>
+          collectUnexploredTrees(thenNode) ++ collectUnexploredTrees(elseNode)
+        case _ => Nil
+      }
+    }
     def loop(worklist: Queue[HashMap[Int, Value]]): Unit = worklist match {
       case Queue() => ()
       case env +: rest => {
@@ -136,18 +147,22 @@ object ConcolicDriver {
         Evaluator(moduleInst).execWholeProgram(
           Some(mainFun),
           env,
-          (_endStack, _endSymStack, pathConds) => {
+          root,
+          (_endStack, _endSymStack, tree) => {
             println(s"env: $env")
-            val newEnv = condsToEnv(pathConds) // maybe this line is actually not needed?
-            val newWork = for {i <- 0 until pathConds.length
-                               env <- condsToEnv(negateCond(pathConds, i))} yield {
-              // val newConds = negateCond(pathConds, i)
-              // checkPCToFile(newConds) // TODO: what this function for?
-              env
+            println(s"visited: $visited")
+            val unexploredTrees = collectUnexploredTrees(tree)
+            val addedNewWork = unexploredTrees.filterNot(visited.keySet().contains).flatMap { tree =>
+              val conds = tree.collectConds()
+              val newEnv = condsToEnv(conds)
+              newEnv match {
+                case Some(env) => {
+                  visited.put(tree, ())
+                  Some(env)
+                }
+                case None => None
+              }
             }
-            // Currently, the path exploration is actually wrong. It neither explore all paths nor guarantee termination.
-            val addedNewWork = newWork.take(10 - pathCount)
-            pathCount += addedNewWork.length
             loop(rest ++ addedNewWork)
           }
         )

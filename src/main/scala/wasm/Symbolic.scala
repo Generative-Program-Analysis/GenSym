@@ -29,3 +29,63 @@ abstract class SymVal {
     case _          => ???
   }
 }
+
+// consider using zipper to simplify mutations
+class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree] = None) {
+  def collectConds(): List[Cond] = {
+    def collectCondsAux(tree: ExploreTree): List[Cond] = {
+      tree.parent match {
+        case Some(parent) => parent.node match {
+          case IfElse(cond, thenNode, elseNode) =>
+            if (this eq thenNode) {
+              cond :: collectCondsAux(parent)
+            } else if (this eq elseNode) {
+              cond.negated :: collectCondsAux(parent)
+            } else {
+              throw new Exception("Internal Error: a tree is note pointed by its parent!")
+            }
+          case _ => throw new Exception(s"Internal Error: ${parent.node} is not a valid parent node!")
+        }
+        case None => Nil
+      }
+    }
+    collectCondsAux(this)
+  }
+
+  def fillWithIfElse(cond: Cond): IfElse = {
+    node match {
+      case UnExplored() => {
+        var newNode = IfElse(cond, new ExploreTree(parent = Some(this)), new ExploreTree(parent = Some(this)))
+        node = newNode
+        newNode
+      }
+      case node@IfElse(_, _, _) => node
+      case _ => throw new Exception("Internal Error: Some exploration paths are not compatible!")
+    }
+  }
+
+}
+
+sealed abstract class Node {
+  def cond: Option[Cond]
+}
+
+case class IfElse(
+  _cond: Cond,
+  thenNode: ExploreTree,
+  elseNode: ExploreTree
+) extends Node {
+  // subnodes' parent should point to current tree
+
+  def cond: Option[Cond] = Some(_cond)
+}
+
+
+case class UnExplored() extends Node {
+  def cond = None
+}
+
+case class Finished() extends Node {
+  def cond = None
+}
+
