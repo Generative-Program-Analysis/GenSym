@@ -33,23 +33,20 @@ abstract class SymVal {
 // consider using zipper to simplify mutations
 class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree] = None) {
   def collectConds(): List[Cond] = {
-    def collectCondsAux(tree: ExploreTree): List[Cond] = {
-      tree.parent match {
-        case Some(parent) => parent.node match {
-          case IfElse(cond, thenNode, elseNode) =>
-            if (tree eq thenNode) {
-              cond :: collectCondsAux(parent)
-            } else if (tree eq elseNode) {
-              cond.negated :: collectCondsAux(parent)
-            } else {
-              throw new Exception("Internal Error: a tree is not pointed by its parent!")
-            }
-          case _ => throw new Exception(s"Internal Error: ${parent.node} is not a valid parent node!")
-        }
-        case None => Nil
+    this.parent match {
+      case Some(parent) => parent.node match {
+        case IfElse(cond, thenNode, elseNode) =>
+          if (this eq thenNode) {
+            cond :: parent.collectConds()
+          } else if (this eq elseNode) {
+            cond.negated :: parent.collectConds()
+          } else {
+            throw new Exception("Internal Error: a tree is not pointed by its parent!")
+          }
+        case _ => throw new Exception(s"Internal Error: ${parent.node} is not a valid parent node!")
       }
+      case None => Nil
     }
-    collectCondsAux(this)
   }
 
   def fillWithIfElse(cond: Cond): IfElse = {
