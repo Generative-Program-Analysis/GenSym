@@ -140,14 +140,6 @@ object ConcolicDriver {
     val visited = new java.util.IdentityHashMap[ExploreTree, Unit]()
     // the root node of exploration tree
     val root = new ExploreTree()
-    def collectUnexploredTrees(tree: ExploreTree): List[ExploreTree] = {
-      tree.node match {
-        case UnExplored() => List(tree)
-        case IfElse(_, thenNode, elseNode) =>
-          collectUnexploredTrees(thenNode) ++ collectUnexploredTrees(elseNode)
-        case _ => Nil
-      }
-    }
     def loop(worklist: Queue[HashMap[Int, Value]]): Unit = worklist match {
       case Queue() => ()
       case env +: rest => {
@@ -158,7 +150,7 @@ object ConcolicDriver {
           root,
           (_endStack, _endSymStack, tree) => {
             tree.fillWithFinished()
-            val unexploredTrees = collectUnexploredTrees(root)
+            val unexploredTrees = root.unexploredTrees()
             // if a node is already visited or marked as unreachable, don't try to explore it
             val addedNewWork = unexploredTrees.filterNot(unreachables.containsKey)
                                               .filterNot(visited.containsKey)
@@ -180,6 +172,7 @@ object ConcolicDriver {
 
     loop(worklist)
     println(s"unreachable trees number: ${unreachables.size()}")
+    println(s"explored paths number: ${root.finishedTrees().size}")
   }
 }
 

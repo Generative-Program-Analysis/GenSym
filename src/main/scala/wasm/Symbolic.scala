@@ -70,6 +70,24 @@ class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree]
         throw new Exception("Internal Error: Some exploration paths are not compatible!")
     }
   }
+
+  def unexploredTrees(): List[ExploreTree] = {
+    node match {
+      case UnExplored() => List(this)
+      case IfElse(_, thenNode, elseNode) =>
+        thenNode.unexploredTrees() ++ elseNode.unexploredTrees()
+      case _ => Nil
+    }
+  }
+
+  def finishedTrees(): List[ExploreTree] = {
+    node match {
+      case Finished() => List(this)
+      case IfElse(_, thenNode, elseNode) =>
+        thenNode.finishedTrees() ++ elseNode.finishedTrees()
+      case _ => Nil
+    }
+  }
 }
 
 sealed abstract class Node {
