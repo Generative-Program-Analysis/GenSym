@@ -61,6 +61,15 @@ class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree]
     }
   }
 
+  def fillWithFinished(): Unit = {
+    node match {
+      case UnExplored() => node = Finished()
+      case Finished() => 
+        println(s"Warning: path to ${this} has been re-executed!")
+      case _ => 
+        throw new Exception("Internal Error: Some exploration paths are not compatible!")
+    }
+  }
 }
 
 sealed abstract class Node {

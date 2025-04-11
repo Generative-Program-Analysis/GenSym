@@ -136,9 +136,9 @@ object ConcolicDriver {
 
   def exec(module: Module, mainFun: String, startEnv: HashMap[Int, Value])(implicit z3Ctx: Z3Context) = {
     val worklist = Queue(startEnv)
-    // val visited = ??? // how to avoid re-execution
-    var pathCount = 0 // TODO: replace this with accurate path exploration
+    val unreachables = new java.util.IdentityHashMap[ExploreTree, Unit]()
     val visited = new java.util.IdentityHashMap[ExploreTree, Unit]()
+    // the root node of exploration tree
     val root = new ExploreTree()
     def collectUnexploredTrees(tree: ExploreTree): List[ExploreTree] = {
       tree.node match {
@@ -157,20 +157,20 @@ object ConcolicDriver {
           env,
           root,
           (_endStack, _endSymStack, tree) => {
-            println(s"env: $env")
-            println(s"visited: $visited")
-            // TODO: use a clever way to avoid re-iteration of the whole tree
+            tree.fillWithFinished()
             val unexploredTrees = collectUnexploredTrees(root)
-            val addedNewWork = unexploredTrees.filterNot(visited.keySet().contains).flatMap { tree =>
+            // if a node is already visited or marked as unreachable, don't try to explore it
+            val addedNewWork = unexploredTrees.filterNot(unreachables.containsKey)
+                                              .filterNot(visited.containsKey)
+                                              .flatMap { tree =>
               val conds = tree.collectConds()
               val newEnv = condsToEnv(conds)
-              newEnv match {
-                case Some(env) => {
-                  visited.put(tree, ())
-                  Some(env)
-                }
-                case None => None
-              }
+              // if the path conditions to reach this node are unsatisfiable, mark it as unreachable.
+              if (newEnv.isEmpty) unreachables.put(tree, ())
+              newEnv
+            }
+            for (tree <- unexploredTrees) {
+              visited.put(tree, ())
             }
             loop(rest ++ addedNewWork)
           }
@@ -179,6 +179,7 @@ object ConcolicDriver {
     }
 
     loop(worklist)
+    println(s"unreachable trees number: ${unreachables.size()}")
   }
 }
 
