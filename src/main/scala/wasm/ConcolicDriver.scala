@@ -173,6 +173,7 @@ object ConcolicDriver {
     loop(worklist)
     println(s"unreachable trees number: ${unreachables.size()}")
     println(s"explored paths number: ${root.finishedTrees().size}")
+    println(s"exploration tree: ${root.toString}")
   }
 }
 

@@ -88,6 +88,10 @@ class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree]
       case _ => Nil
     }
   }
+
+  // parent node will not affect the sub-tree's structure. 
+  // we ignore it when printing for now
+  override def toString(): String = node.toString()
 }
 
 sealed abstract class Node {
