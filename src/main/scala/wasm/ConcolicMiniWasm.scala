@@ -383,7 +383,7 @@ case class Evaluator(module: ModuleInstance) {
       case If(ty, thn, els) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val ifElseNode = tree.fillWithIfElse(CondEqz(scnd))
+        val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
         val k: Cont = (retStack, retSymStack, tree) =>
           eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(tree)
         if (cond != 0)
@@ -395,7 +395,7 @@ case class Evaluator(module: ModuleInstance) {
       case BrIf(label) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val ifElseNode = tree.fillWithIfElse(CondEqz(scnd))
+        val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
         if (cond == 0) eval(rest, newStack, newSymStack, frame, ret, trail)(ifElseNode.thenNode)
         else trail(label)(newStack, newSymStack, ifElseNode.elseNode)
       case Return => ret(concStack, symStack, tree)
