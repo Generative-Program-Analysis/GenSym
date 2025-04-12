@@ -492,7 +492,7 @@ case class Evaluator(module: ModuleInstance) {
       main: Option[String] = None,
       symEnv: HashMap[Int, Value] = HashMap(),
       root: ExploreTree = new ExploreTree(),
-      k: RetCont = printRetCont
+      retCont: RetCont = printRetCont
   ) = {
     import collection.mutable.ArrayBuffer
 
@@ -557,8 +557,8 @@ case class Evaluator(module: ModuleInstance) {
       List(),
       // frame,
       Frame(module, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
-      k,
-      List((newStack, _, _) => println(s"trail: $newStack"))
+      retCont,
+      List(retCont)
     )(root)
 
   }
