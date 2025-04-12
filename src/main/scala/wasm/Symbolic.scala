@@ -2,6 +2,7 @@ package gensym.wasm.symbolic
 import gensym.wasm.ast._
 
 import z3.scala._
+import scala.collection.mutable.HashMap
 
 case class SymV(name: String) extends SymVal
 case class SymBinary(op: BinOp, lhs: SymVal, rhs: SymVal) extends SymVal
@@ -71,6 +72,14 @@ class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree]
     }
   }
 
+  def fillWithFail(env: HashMap[Int, Value]): Unit = {
+    node match {
+      case UnExplored() => node = Fail(env)
+      case _ =>
+        throw new Exception("Internal Error: Some exploration paths are not compatible!")
+    }
+  }
+
   def unexploredTrees(): List[ExploreTree] = {
     node match {
       case UnExplored() => List(this)
@@ -85,6 +94,15 @@ class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree]
       case Finished() => List(this)
       case IfElse(_, thenNode, elseNode) =>
         thenNode.finishedTrees() ++ elseNode.finishedTrees()
+      case _ => Nil
+    }
+  }
+
+  def failedTrees(): List[ExploreTree] = {
+    node match {
+      case Fail(_) => List(this)
+      case IfElse(_, thenNode, elseNode) =>
+        thenNode.failedTrees() ++ elseNode.failedTrees()
       case _ => Nil
     }
   }
@@ -114,6 +132,10 @@ case class UnExplored() extends Node {
 }
 
 case class Finished() extends Node {
+  def cond = None
+}
+
+case class Fail(env: HashMap[Int, Value]) extends Node {
   def cond = None
 }
 

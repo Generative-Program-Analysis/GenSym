@@ -450,7 +450,15 @@ case class Evaluator(module: ModuleInstance) {
         // val k: Cont = (retStack, symStack) =>
         //   eval(rest, retStack, frame, ret, trail)
         eval(body, List(), List(), newFrame, restK, List(restK)) // GW: should we install new trail cont?
-
+      case Import("console", "assert", _) =>
+        val I32V(v) :: newStack = concStack
+        val sv :: newSymStack = symStack
+        if (v == 0) {
+          println(s"Assertion failed: find a bug with input $symEnv")
+          tree.fillWithFail(symEnv)
+          return
+        }
+        eval(rest, newStack, newSymStack, frame, ret, trail)
       // TODO: clean up the other cases
       // case Import("console", "log", _) =>
       //   val I32V(v) :: newStack = stack
@@ -461,7 +469,7 @@ case class Evaluator(module: ModuleInstance) {
       //   println(v)
       //   eval(rest, newStack, frame, kont, trail)
       // case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
-      case _ => throw new Exception(s"Definition at $funcIndex is not callable")
+      case _ => throw new Exception(s"Definition ${module.funcs(funcIndex)} at $funcIndex is not callable")
     }
 
   // TODO: seems bad, global might have an expression to evaluate (maybe only constants?)

@@ -172,7 +172,12 @@ object ConcolicDriver {
 
     loop(worklist)
     println(s"unreachable trees number: ${unreachables.size()}")
-    println(s"explored paths number: ${root.finishedTrees().size}")
+    println(s"number of normal explored paths: ${root.finishedTrees().size}")
+    val failedTrees = root.failedTrees()
+    println(s"number of failed explored paths: ${failedTrees.size}")
+    for (tree <- failedTrees) {
+      println(s"find a failed endpoint: ${tree}")
+    }
     println(s"exploration tree: ${root.toString}")
   }
 }
