@@ -229,6 +229,15 @@ object Primitives {
     case NumType(F32Type) => F32V(rng.nextFloat())
     case NumType(F64Type) => F64V(rng.nextDouble())
   }
+
+  def getFuncType(ty: BlockType): FuncType =
+    ty match {
+      case VarBlockType(_, None) =>
+        ??? // TODO: fill this branch until we handle type index correctly
+      case VarBlockType(_, Some(tipe)) => tipe
+      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None)          => FuncType(List(), List(), List())
+    }
 }
 
 case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: ArrayBuffer[SymVal])
@@ -247,10 +256,10 @@ case class Evaluator(module: ModuleInstance) {
       concStack: List[Value],
       symStack: List[SymVal],
       frame: Frame,
-      ret: RetCont,
+      kont: RetCont,
       trail: List[Cont]
   )(implicit tree: ExploreTree): Unit = {
-    if (insts.isEmpty) return ret(concStack, symStack, tree)
+    if (insts.isEmpty) return kont(concStack, symStack, tree)
 
 
     val inst = insts.head
@@ -265,7 +274,7 @@ case class Evaluator(module: ModuleInstance) {
 
     inst match {
       case PushSym(name, v) =>
-        eval(rest, v :: concStack, SymV(name) :: symStack, frame, ret, trail)
+        eval(rest, v :: concStack, SymV(name) :: symStack, frame, kont, trail)
       case Symbolic(ty) =>
         val I32V(symIndex) :: newStack = concStack
         val symVal = SymV(s"sym_$symIndex")
@@ -273,47 +282,47 @@ case class Evaluator(module: ModuleInstance) {
           symEnv(symIndex) = Primitives.randomOfTy(ty)
         }
         val v = symEnv(symIndex)
-        eval(rest, v :: newStack, symVal :: symStack.tail, frame, ret, trail)
-      case Drop => eval(rest, concStack.tail, symStack.tail, frame, ret, trail)
+        eval(rest, v :: newStack, symVal :: symStack.tail, frame, kont, trail)
+      case Drop => eval(rest, concStack.tail, symStack.tail, frame, kont, trail)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = concStack
         val symCond :: symV2 :: symV1 :: newSymStack = symStack
         val value = if (cond == 0) v1 else v2
         val symVal = SymIte(CondEqz(symCond), symV1, symV2)
-        eval(rest, value :: newStack, symVal :: newSymStack, frame, ret, trail)
+        eval(rest, value :: newStack, symVal :: newSymStack, frame, kont, trail)
       case LocalGet(i) =>
-        eval(rest, frame.locals(i) :: concStack, frame.symLocals(i) :: symStack, frame, ret, trail)
+        eval(rest, frame.locals(i) :: concStack, frame.symLocals(i) :: symStack, frame, kont, trail)
       case LocalSet(i) =>
         val value :: newStack = concStack
         val symVal :: newSymStack = symStack
         frame.locals(i) = value
         frame.symLocals(i) = symVal
-        eval(rest, newStack, newSymStack, frame, ret, trail)
+        eval(rest, newStack, newSymStack, frame, kont, trail)
       case LocalTee(i) =>
         val value :: _ = concStack
         val symVal :: _ = symStack
         frame.locals(i) = value
         frame.symLocals(i) = symVal
-        eval(rest, concStack, symStack, frame, ret, trail)
+        eval(rest, concStack, symStack, frame, kont, trail)
       case GlobalGet(i) =>
         val (conc, sym) = frame.module.globals(i)
-        eval(rest, conc.value :: concStack, sym :: symStack, frame, ret, trail)
+        eval(rest, conc.value :: concStack, sym :: symStack, frame, kont, trail)
       case GlobalSet(i) =>
         val value :: newStack = concStack
         val symVal :: newSymStack = symStack
         val oldConc = frame.module.globals(i)._1
         frame.module.globals(i) = (oldConc.copy(value = value), symVal)
-        eval(rest, newStack, newSymStack, frame, ret, trail)
+        eval(rest, newStack, newSymStack, frame, kont, trail)
       // I think these are essentially dummies in WASP
       // to more accurately replace them, we should probably
       // add a dummy memory size field to ConcolicMemory
       case MemorySize =>
-        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, ret, trail)
+        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, kont, trail)
       // val cv = I32V(frame.module.memory.head.size)
       // val sv = Concrete(cv)
       // eval(rest, cv::concStack, sv::symStack, frame, ret, trail)
       case MemoryGrow =>
-        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, ret, trail)
+        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, kont, trail)
       // val I32V(delta)::newStack = concStack
       // val mem = frame.module.memory.head
       // val oldSize = mem.size
@@ -337,70 +346,78 @@ case class Evaluator(module: ModuleInstance) {
       //   frame.module.memory.head.copy(dest, src, n)
       //   eval(rest, newStack, frame, ret, trail)
       // }
-      case Const(n) => eval(rest, n :: concStack, Concrete(n) :: symStack, frame, ret, trail)
+      case Const(n) => eval(rest, n :: concStack, Concrete(n) :: symStack, frame, kont, trail)
       case Binary(op) =>
         val v2 :: v1 :: newStack = concStack
         val sv2 :: sv1 :: newSymStack = symStack
-        eval(rest, evalBinOp(op, v1, v2) :: newStack, evalSymBinOp(op, sv1, sv2) :: newSymStack, frame, ret, trail)
+        eval(rest, evalBinOp(op, v1, v2) :: newStack, evalSymBinOp(op, sv1, sv2) :: newSymStack, frame, kont, trail)
       case Unary(op) =>
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
-        eval(rest, evalUnaryOp(op, v) :: newStack, SymUnary(op, sv) :: newSymStack, frame, ret, trail)
+        eval(rest, evalUnaryOp(op, v) :: newStack, SymUnary(op, sv) :: newSymStack, frame, kont, trail)
       case Compare(op) =>
         val v2 :: v1 :: newStack = concStack
         val sv2 :: sv1 :: newSymStack = symStack
-        eval(rest, evalRelOp(op, v1, v2) :: newStack, evalSymRelOp(op, sv1, sv2) :: newSymStack, frame, ret, trail)
+        eval(rest, evalRelOp(op, v1, v2) :: newStack, evalSymRelOp(op, sv1, sv2) :: newSymStack, frame, kont, trail)
       case Test(op) =>
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
         val test = evalTestOp(op, v)
         val symTest = evalSymTestOp(op, sv)
-        eval(rest, test :: newStack, symTest :: newSymStack, frame, ret, trail)
+        eval(rest, test :: newStack, symTest :: newSymStack, frame, kont, trail)
       case Store(StoreOp(align, offset, ty, None)) =>
         val I32V(v) :: I32V(addr) :: newStack = concStack
         val sv :: sa :: newSymStack = symStack
         // need to concretize sa and then checkAccess
         frame.module.memory(0).storeInt(addr + offset, (v, sv))
-        eval(rest, newStack, symStack.drop(2), frame, ret, trail)
+        eval(rest, newStack, symStack.drop(2), frame, kont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val I32V(addr) :: newStack = concStack
         val sa :: newSymStack = symStack
         // need to concretize sv and then checkAccess
         val (value, sv) = frame.module.memory(0).loadInt(addr + offset)
-        eval(rest, I32V(value) :: newStack, sv :: newSymStack, frame, ret, trail)
+        eval(rest, I32V(value) :: newStack, sv :: newSymStack, frame, kont, trail)
       case Nop =>
-        eval(rest, concStack, symStack, frame, ret, trail)
+        eval(rest, concStack, symStack, frame, kont, trail)
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
-        val k: Cont = (retStack, retSymStack, newPathConds) =>
-          eval(rest, concStack ++ retStack, symStack ++ retSymStack, frame, ret, trail)(newPathConds)
-
-        eval(inner, List(), List(), frame, k, k :: trail)
+        val funcTy = getFuncType(ty)
+        val (inputSize, outputSize) = (funcTy.inps.size, funcTy.out.size)
+        val (inputs, restStack) = concStack.splitAt(inputSize)
+        val (symInputs, restSymStack) = symStack.splitAt(inputSize)
+        val restK: Cont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack.take(outputSize) ++ restStack, retSymStack.take(outputSize) ++ restSymStack, frame, kont, trail)(tree)
+        eval(inner, inputs, symInputs, frame, restK, restK :: trail)
       case Loop(ty, inner) =>
-        val k: Cont = (retStack, retSymStack, newPathConds) =>
-          eval(insts, concStack ++ retStack, symStack ++ retSymStack, frame, ret, trail)(newPathConds)
-        eval(inner, List(), List(), frame, k, k :: trail)
+        val funcTy = getFuncType(ty)
+        val (inputSize, outputSize) = (funcTy.inps.size, funcTy.out.size)
+        val (inputs, restStack) = concStack.splitAt(inputSize)
+        val (symInputs, restSymStack) = symStack.splitAt(inputSize)
+        val restK: Cont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack.take(outputSize) ++ restStack, retSymStack.take(outputSize) ++ restSymStack, frame, kont, trail)(tree)
+        def loop(retStack: List[Value], retSymStack: List[SymVal], tree: ExploreTree): Unit =
+          eval(inner, retStack.take(inputSize), retSymStack.take(inputSize), frame, restK, loop _ :: trail)(tree)
+        loop(inputs, symInputs, tree)
       case If(ty, thn, els) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
         val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
-        val k: Cont = (retStack, retSymStack, tree) =>
-          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(tree)
+        val restK: Cont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, kont, trail)(tree)
         if (cond != 0)
-          eval(thn, List(), List(), frame, k, k :: trail)(ifElseNode.thenNode)
+          eval(thn, List(), List(), frame, restK, restK :: trail)(ifElseNode.thenNode)
         else
-          eval(els, List(), List(), frame, k, k :: trail)(ifElseNode.elseNode)
+          eval(els, List(), List(), frame, restK, restK :: trail)(ifElseNode.elseNode)
       case Br(label) =>
         trail(label)(concStack, symStack, tree)
       case BrIf(label) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
         val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
-        if (cond == 0) eval(rest, newStack, newSymStack, frame, ret, trail)(ifElseNode.thenNode)
+        if (cond == 0) eval(rest, newStack, newSymStack, frame, kont, trail)(ifElseNode.thenNode)
         else trail(label)(newStack, newSymStack, ifElseNode.elseNode)
-      case Return => ret(concStack, symStack, tree)
-      case Call(f) =>
-        evalCall(rest, concStack, symStack, frame, ret, trail, f, false)
+      case Return => trail.last(concStack, symStack, tree)
+      case Call(f) => evalCall(rest, concStack, symStack, frame, kont, trail, f, false)
       case _ => ???
     }
   }
@@ -428,11 +445,11 @@ case class Evaluator(module: ModuleInstance) {
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val symFrameLocals = symArgs ++ locals.map(_ => Concrete(I32V(0)))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*), ArrayBuffer(symFrameLocals: _*))
-        val newRet: RetCont = (retStack, retSymStack, tree) =>
+        val restK: RetCont = (retStack, retSymStack, tree) =>
           eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(tree)
         // val k: Cont = (retStack, symStack) =>
         //   eval(rest, retStack, frame, ret, trail)
-        eval(body, List(), List(), newFrame, newRet, newRet :: trail) // GW: should we install new trail cont?
+        eval(body, List(), List(), newFrame, restK, List(restK)) // GW: should we install new trail cont?
 
       // TODO: clean up the other cases
       // case Import("console", "log", _) =>
