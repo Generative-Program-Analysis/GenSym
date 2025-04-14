@@ -77,3 +77,4 @@ jobs:
         sbt 'testOnly gensym.wasm.TestEval'
         sbt 'testOnly gensym.wasm.TestScriptRun'
         sbt 'testOnly gensym.wasm.TestConcolic'
+        sbt 'testOnly gensym.wasm.TestDriver'
