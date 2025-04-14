@@ -136,8 +136,8 @@ object ConcolicDriver {
 
   def exec(module: Module, mainFun: String, startEnv: HashMap[Int, Value])(implicit z3Ctx: Z3Context) = {
     val worklist = Queue(startEnv)
-    val unreachables = new java.util.IdentityHashMap[ExploreTree, Unit]()
-    val visited = new java.util.IdentityHashMap[ExploreTree, Unit]()
+    val unreachables = HashSet[ExploreTree]()
+    val visited = HashSet[ExploreTree]()
     // the root node of exploration tree
     val root = new ExploreTree()
     def loop(worklist: Queue[HashMap[Int, Value]]): Unit = worklist match {
@@ -152,17 +152,17 @@ object ConcolicDriver {
             tree.fillWithFinished()
             val unexploredTrees = root.unexploredTrees()
             // if a node is already visited or marked as unreachable, don't try to explore it
-            val addedNewWork = unexploredTrees.filterNot(unreachables.containsKey)
-                                              .filterNot(visited.containsKey)
+            val addedNewWork = unexploredTrees.filterNot(unreachables.contains)
+                                              .filterNot(visited.contains)
                                               .flatMap { tree =>
               val conds = tree.collectConds()
               val newEnv = condsToEnv(conds)
               // if the path conditions to reach this node are unsatisfiable, mark it as unreachable.
-              if (newEnv.isEmpty) unreachables.put(tree, ())
+              if (newEnv.isEmpty) unreachables.add(tree)
               newEnv
             }
             for (tree <- unexploredTrees) {
-              visited.put(tree, ())
+              visited.add(tree)
             }
             loop(rest ++ addedNewWork)
           }
@@ -171,7 +171,7 @@ object ConcolicDriver {
     }
 
     loop(worklist)
-    println(s"unreachable trees number: ${unreachables.size()}")
+    println(s"unreachable trees number: ${unreachables.size}")
     println(s"number of normal explored paths: ${root.finishedTrees().size}")
     val failedTrees = root.failedTrees()
     println(s"number of failed explored paths: ${failedTrees.size}")
