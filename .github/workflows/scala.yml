@@ -28,7 +28,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex libboost-all-dev 2to3 python-is-python3
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales clang-11 wget
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales wget
+        sudo apt-get install -y wget software-properties-common
+        # install clang-11
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+        sudo add-apt-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main"
+        sudo apt-get update
+        sudo apt-get install -y clang-11
     - name: Generate test files (LLVM IR)
       run: |
         cd benchmarks/llvm
