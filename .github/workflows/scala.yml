@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     defaults:
       run:
         working-directory: ./
@@ -27,7 +27,7 @@ jobs:
     - name: Set up dependencies
       run: |
         sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex libboost-all-dev python
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git g++ cmake bison flex libboost-all-dev 2to3 python-is-python3
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y perl minisat curl gnupg2 locales clang-11 wget
     - name: Generate test files (LLVM IR)
       run: |
@@ -77,3 +77,4 @@ jobs:
         sbt 'testOnly gensym.wasm.TestEval'
         sbt 'testOnly gensym.wasm.TestScriptRun'
         sbt 'testOnly gensym.wasm.TestConcolic'
+        sbt 'testOnly gensym.wasm.TestDriver'

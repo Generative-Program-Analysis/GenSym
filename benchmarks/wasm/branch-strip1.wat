@@ -4,14 +4,11 @@
     local.get 0
     i32.const 0
     i32.le_s
-    if (result i32)  ;; label = @1
-      i32.const 1
-    else
-      local.get 1
-      i32.const 0
-      i32.le_s
-    end
-    if (result i32)  ;; label = @1
+    local.get 1
+    i32.const 0
+    i32.le_s
+    i32.or
+    if (result i32) ;; label = @1
       i32.const -1
     else
       local.get 0
@@ -23,7 +20,7 @@
       i32.add
       i32.const 25
       i32.eq
-      if (result i32)  ;; label = @2
+      if (result i32) ;; label = @2
         i32.const 1
       else
         i32.const 0

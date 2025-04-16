@@ -43,7 +43,12 @@ class TestDriver extends FunSuite {
 
   // TODO: fix this
   test("driver") {
-    fileTestDriver("./benchmarks/wasm/branch-strip.wat", "real_main", new HashMap[Int, Value]())
+    fileTestDriver("./benchmarks/wasm/branch-strip.wat", "real_main", HashMap())
+    fileTestDriver("./benchmarks/wasm/branch-strip1.wat", "real_main", HashMap())
+  }
+
+  test("bug-finding") {
+    fileTestDriver("./benchmarks/wasm/branch-strip-buggy.wat", "real_main", HashMap())
   }
 
 }

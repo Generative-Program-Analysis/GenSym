@@ -33,6 +33,9 @@ object ModuleInstance {
 }
 
 object Primitives {
+  // a random number generator with fixed seed
+  val rng = new Random(0)
+
   def evalBinOp(op: BinOp, lhs: Value, rhs: Value): Value = op match {
     case Add(_) =>
       (lhs, rhs) match {
@@ -221,11 +224,20 @@ object Primitives {
   }
 
   def randomOfTy(ty: ValueType): Value = ty match {
-    case NumType(I32Type) => I32V(Random.nextInt())
-    case NumType(I64Type) => I64V(Random.nextLong())
-    case NumType(F32Type) => F32V(Random.nextFloat())
-    case NumType(F64Type) => F64V(Random.nextDouble())
+    case NumType(I32Type) => I32V(rng.nextInt())
+    case NumType(I64Type) => I64V(rng.nextLong())
+    case NumType(F32Type) => F32V(rng.nextFloat())
+    case NumType(F64Type) => F64V(rng.nextDouble())
   }
+
+  def getFuncType(ty: BlockType): FuncType =
+    ty match {
+      case VarBlockType(_, None) =>
+        ??? // TODO: fill this branch until we handle type index correctly
+      case VarBlockType(_, Some(tipe)) => tipe
+      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None)          => FuncType(List(), List(), List())
+    }
 }
 
 case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: ArrayBuffer[SymVal])
@@ -233,8 +245,10 @@ case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: 
 case class Evaluator(module: ModuleInstance) {
   import Primitives._
 
-  type RetCont = (List[Value], List[SymVal], List[Cond]) => Unit
-  type Cont = (List[Value], List[SymVal], List[Cond]) => Unit
+  type Cont = (List[Value], List[SymVal], ExploreTree) => Unit
+  type RetCont = Cont
+
+  var driverCont: Cont = null;
 
   val symEnv = HashMap[Int, Value]()
 
@@ -244,21 +258,25 @@ case class Evaluator(module: ModuleInstance) {
       concStack: List[Value],
       symStack: List[SymVal],
       frame: Frame,
-      ret: RetCont,
+      kont: RetCont,
       trail: List[Cont]
-  )(implicit pathConds: List[Cond]): Unit = {
-    if (insts.isEmpty) return ret(concStack, symStack, pathConds)
+  )(implicit tree: ExploreTree): Unit = {
+    if (insts.isEmpty) return kont(concStack, symStack, tree)
 
-    println(s"pathConds: $pathConds")
 
     val inst = insts.head
     val rest = insts.tail
 
-    println(s"inst: $inst, concStack: $concStack, symStack: $symStack")
+    println(
+      s"""|inst: $inst
+          |rest: $rest
+          |concStack: $concStack
+          |symStack: $symStack
+          |pathConds: ${tree.collectConds()}""".stripMargin)
 
     inst match {
       case PushSym(name, v) =>
-        eval(rest, v :: concStack, SymV(name) :: symStack, frame, ret, trail)
+        eval(rest, v :: concStack, SymV(name) :: symStack, frame, kont, trail)
       case Symbolic(ty) =>
         val I32V(symIndex) :: newStack = concStack
         val symVal = SymV(s"sym_$symIndex")
@@ -266,47 +284,47 @@ case class Evaluator(module: ModuleInstance) {
           symEnv(symIndex) = Primitives.randomOfTy(ty)
         }
         val v = symEnv(symIndex)
-        eval(rest, v :: newStack, symVal :: symStack, frame, ret, trail)
-      case Drop => eval(rest, concStack.tail, symStack.tail, frame, ret, trail)
+        eval(rest, v :: newStack, symVal :: symStack.tail, frame, kont, trail)
+      case Drop => eval(rest, concStack.tail, symStack.tail, frame, kont, trail)
       case Select(_) =>
         val I32V(cond) :: v2 :: v1 :: newStack = concStack
         val symCond :: symV2 :: symV1 :: newSymStack = symStack
         val value = if (cond == 0) v1 else v2
         val symVal = SymIte(CondEqz(symCond), symV1, symV2)
-        eval(rest, value :: newStack, symVal :: newSymStack, frame, ret, trail)
+        eval(rest, value :: newStack, symVal :: newSymStack, frame, kont, trail)
       case LocalGet(i) =>
-        eval(rest, frame.locals(i) :: concStack, frame.symLocals(i) :: symStack, frame, ret, trail)
+        eval(rest, frame.locals(i) :: concStack, frame.symLocals(i) :: symStack, frame, kont, trail)
       case LocalSet(i) =>
         val value :: newStack = concStack
         val symVal :: newSymStack = symStack
         frame.locals(i) = value
         frame.symLocals(i) = symVal
-        eval(rest, newStack, newSymStack, frame, ret, trail)
+        eval(rest, newStack, newSymStack, frame, kont, trail)
       case LocalTee(i) =>
         val value :: _ = concStack
         val symVal :: _ = symStack
         frame.locals(i) = value
         frame.symLocals(i) = symVal
-        eval(rest, concStack, symStack, frame, ret, trail)
+        eval(rest, concStack, symStack, frame, kont, trail)
       case GlobalGet(i) =>
         val (conc, sym) = frame.module.globals(i)
-        eval(rest, conc.value :: concStack, sym :: symStack, frame, ret, trail)
+        eval(rest, conc.value :: concStack, sym :: symStack, frame, kont, trail)
       case GlobalSet(i) =>
         val value :: newStack = concStack
         val symVal :: newSymStack = symStack
         val oldConc = frame.module.globals(i)._1
         frame.module.globals(i) = (oldConc.copy(value = value), symVal)
-        eval(rest, newStack, newSymStack, frame, ret, trail)
+        eval(rest, newStack, newSymStack, frame, kont, trail)
       // I think these are essentially dummies in WASP
       // to more accurately replace them, we should probably
       // add a dummy memory size field to ConcolicMemory
       case MemorySize =>
-        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, ret, trail)
+        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, kont, trail)
       // val cv = I32V(frame.module.memory.head.size)
       // val sv = Concrete(cv)
       // eval(rest, cv::concStack, sv::symStack, frame, ret, trail)
       case MemoryGrow =>
-        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, ret, trail)
+        eval(rest, I32V(100) :: concStack, Concrete(I32V(100)) :: symStack, frame, kont, trail)
       // val I32V(delta)::newStack = concStack
       // val mem = frame.module.memory.head
       // val oldSize = mem.size
@@ -330,80 +348,93 @@ case class Evaluator(module: ModuleInstance) {
       //   frame.module.memory.head.copy(dest, src, n)
       //   eval(rest, newStack, frame, ret, trail)
       // }
-      case Const(n) => eval(rest, n :: concStack, Concrete(n) :: symStack, frame, ret, trail)
+      case Const(n) => eval(rest, n :: concStack, Concrete(n) :: symStack, frame, kont, trail)
       case Binary(op) =>
         val v2 :: v1 :: newStack = concStack
         val sv2 :: sv1 :: newSymStack = symStack
-        eval(rest, evalBinOp(op, v1, v2) :: newStack, evalSymBinOp(op, sv1, sv2) :: newSymStack, frame, ret, trail)
+        eval(rest, evalBinOp(op, v1, v2) :: newStack, evalSymBinOp(op, sv1, sv2) :: newSymStack, frame, kont, trail)
       case Unary(op) =>
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
-        eval(rest, evalUnaryOp(op, v) :: newStack, SymUnary(op, sv) :: newSymStack, frame, ret, trail)
+        eval(rest, evalUnaryOp(op, v) :: newStack, SymUnary(op, sv) :: newSymStack, frame, kont, trail)
       case Compare(op) =>
         val v2 :: v1 :: newStack = concStack
         val sv2 :: sv1 :: newSymStack = symStack
-        eval(rest, evalRelOp(op, v1, v2) :: newStack, evalSymRelOp(op, sv1, sv2) :: newSymStack, frame, ret, trail)
+        eval(rest, evalRelOp(op, v1, v2) :: newStack, evalSymRelOp(op, sv1, sv2) :: newSymStack, frame, kont, trail)
       case Test(op) =>
         val v :: newStack = concStack
         val sv :: newSymStack = symStack
         val test = evalTestOp(op, v)
         val symTest = evalSymTestOp(op, sv)
-        eval(rest, test :: newStack, symTest :: newSymStack, frame, ret, trail)
+        eval(rest, test :: newStack, symTest :: newSymStack, frame, kont, trail)
       case Store(StoreOp(align, offset, ty, None)) =>
         val I32V(v) :: I32V(addr) :: newStack = concStack
         val sv :: sa :: newSymStack = symStack
         // need to concretize sa and then checkAccess
         frame.module.memory(0).storeInt(addr + offset, (v, sv))
-        eval(rest, newStack, symStack.drop(2), frame, ret, trail)
+        eval(rest, newStack, symStack.drop(2), frame, kont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val I32V(addr) :: newStack = concStack
         val sa :: newSymStack = symStack
         // need to concretize sv and then checkAccess
         val (value, sv) = frame.module.memory(0).loadInt(addr + offset)
-        eval(rest, I32V(value) :: newStack, sv :: newSymStack, frame, ret, trail)
+        eval(rest, I32V(value) :: newStack, sv :: newSymStack, frame, kont, trail)
       case Nop =>
-        eval(rest, concStack, symStack, frame, ret, trail)
+        eval(rest, concStack, symStack, frame, kont, trail)
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
-        val k: Cont = (retStack, retSymStack, newPathConds) =>
-          eval(rest, concStack ++ retStack, symStack ++ retSymStack, frame, ret, trail)(newPathConds)
-
-        eval(inner, List(), List(), frame, k, k :: trail)
+        val funcTy = getFuncType(ty)
+        val (inputSize, outputSize) = (funcTy.inps.size, funcTy.out.size)
+        val (inputs, restStack) = concStack.splitAt(inputSize)
+        val (symInputs, restSymStack) = symStack.splitAt(inputSize)
+        val restK: Cont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack.take(outputSize) ++ restStack, retSymStack.take(outputSize) ++ restSymStack, frame, kont, trail)(tree)
+        eval(inner, inputs, symInputs, frame, restK, restK :: trail)
       case Loop(ty, inner) =>
-        val k: Cont = (retStack, retSymStack, newPathConds) =>
-          eval(insts, concStack ++ retStack, symStack ++ retSymStack, frame, ret, trail)(newPathConds)
-        eval(inner, List(), List(), frame, k, k :: trail)
+        val funcTy = getFuncType(ty)
+        val (inputSize, outputSize) = (funcTy.inps.size, funcTy.out.size)
+        val (inputs, restStack) = concStack.splitAt(inputSize)
+        val (symInputs, restSymStack) = symStack.splitAt(inputSize)
+        val restK: Cont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack.take(outputSize) ++ restStack, retSymStack.take(outputSize) ++ restSymStack, frame, kont, trail)(tree)
+        def loop(retStack: List[Value], retSymStack: List[SymVal], tree: ExploreTree): Unit =
+          eval(inner, retStack.take(inputSize), retSymStack.take(inputSize), frame, restK, loop _ :: trail)(tree)
+        loop(inputs, symInputs, tree)
       case If(ty, thn, els) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val inner = if (cond != 0) thn else els
-        val newPathConds = scnd match {
-          case Concrete(_) => pathConds
-          case _           => if (cond != 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
+        val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
+          // if this is a concrete value, we don't need to put 
+          (tree, tree)
+        } else { 
+          val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
+          (ifElseNode.thenNode, ifElseNode.elseNode)
         }
-        val k: Cont = (retStack, retSymStack, newPathConds) =>
-          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
-        eval(inner, List(), List(), frame, ret, k :: trail)(newPathConds)
+        val restK: Cont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, kont, trail)(tree)
+        if (cond != 0)
+          eval(thn, List(), List(), frame, restK, restK :: trail)(ifNode)
+        else
+          eval(els, List(), List(), frame, restK, restK :: trail)(elseNode)
       case Br(label) =>
-        trail(label)(concStack, symStack, pathConds)
+        trail(label)(concStack, symStack, tree)
       case BrIf(label) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val newPathConds = scnd match {
-          case Concrete(_) => pathConds
-          case _           => if (cond != 0) CondEqz(scnd) :: pathConds else Not(CondEqz(scnd)) :: pathConds
+        val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
+          // if this is a concrete value, we don't need to put 
+          (tree, tree)
+        } else { 
+          val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
+          (ifElseNode.thenNode, ifElseNode.elseNode)
         }
-        if (cond == 0) eval(rest, newStack, newSymStack, frame, ret, trail)(newPathConds)
-        else trail(label)(newStack, newSymStack, newPathConds)
-      case Return => ret(concStack, symStack, pathConds)
-      case Call(f) =>
-        evalCall(rest, concStack, symStack, frame, ret, trail, f, false)
+        if (cond == 0) eval(rest, newStack, newSymStack, frame, kont, trail)(ifNode)
+        else trail(label)(newStack, newSymStack, elseNode)
+      case Return => trail.last(concStack, symStack, tree)
+      case Call(f) => evalCall(rest, concStack, symStack, frame, kont, trail, f, false)
       case _ => ???
     }
   }
-
-  // def eval(insts: List[Instr], concStack: List[Value], symStack: List[SymVal],
-  //          frame: Frame, ret: RetCont, trail: List[Cont])(implicit pathConds: List[Cond])
 
   def evalCall(
       rest: List[Instr],
@@ -414,7 +445,7 @@ case class Evaluator(module: ModuleInstance) {
       trail: List[Cont],
       funcIndex: Int,
       isTail: Boolean
-  )(implicit pathConds: List[Cond]): Unit =
+  )(implicit tree: ExploreTree): Unit =
     module.funcs(funcIndex) match {
       case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
         println(s"call $funcIndex: locals: ${locals}")
@@ -425,12 +456,20 @@ case class Evaluator(module: ModuleInstance) {
         val frameLocals = args ++ locals.map(_ => I32V(0)) // GW: always I32? or depending on their types?
         val symFrameLocals = symArgs ++ locals.map(_ => Concrete(I32V(0)))
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*), ArrayBuffer(symFrameLocals: _*))
-        val newRet: RetCont = (retStack, retSymStack, newPathConds) =>
-          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(newPathConds)
-        // val k: Cont = (retStack, symStack) =>
-        //   eval(rest, retStack, frame, ret, trail)
-        eval(body, List(), List(), newFrame, newRet, newRet :: trail) // GW: should we install new trail cont?
-
+        val restK: RetCont = (retStack, retSymStack, tree) =>
+          eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(tree)
+        eval(body, List(), List(), newFrame, restK, List(restK)) // GW: should we install new trail cont?
+      case Import("console", "assert", _) =>
+        val I32V(v) :: newStack = concStack
+        val sv :: newSymStack = symStack
+        if (v == 0) {
+          println(s"Assertion failed: find a bug with input $symEnv")
+          tree.fillWithFail(symEnv)
+          // go to toplevel halt continuation
+          driverCont(concStack, symStack, tree)
+        } else {
+          eval(rest, newStack, newSymStack, frame, ret, trail)
+        }
       // TODO: clean up the other cases
       // case Import("console", "log", _) =>
       //   val I32V(v) :: newStack = stack
@@ -441,7 +480,7 @@ case class Evaluator(module: ModuleInstance) {
       //   println(v)
       //   eval(rest, newStack, frame, kont, trail)
       // case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
-      case _ => throw new Exception(s"Definition at $funcIndex is not callable")
+      case _ => throw new Exception(s"Definition ${module.funcs(funcIndex)} at $funcIndex is not callable")
     }
 
   // TODO: seems bad, global might have an expression to evaluate (maybe only constants?)
@@ -458,22 +497,25 @@ case class Evaluator(module: ModuleInstance) {
         sv = symStack.head
       },
       List()
-    )(List())
+    )(new ExploreTree()) // TODO: Should the execution path of global expressions be ignored like this?
     (cv, sv)
   }
 
-  private def printRetCont(concStack: List[Value], symStack: List[SymVal], pathConds: List[Cond]) = {
+  private def printRetCont(concStack: List[Value], symStack: List[SymVal], tree: ExploreTree) = {
     println(s"retCont: $concStack")
     println(s"symStack: $symStack")
-    println(s"pathCnds: $pathConds")
+    println(s"pathConds: ${tree.collectConds()}")
   }
 
   def execWholeProgram(
       main: Option[String] = None,
       symEnv: HashMap[Int, Value] = HashMap(),
-      k: RetCont = printRetCont
+      root: ExploreTree = new ExploreTree(),
+      retCont: RetCont = printRetCont
   ) = {
     import collection.mutable.ArrayBuffer
+
+    driverCont = retCont
 
     this.symEnv.clear()
     this.symEnv ++= symEnv
@@ -507,7 +549,7 @@ case class Evaluator(module: ModuleInstance) {
       name == Some(main)
     })
 
-    print(s"instrs: $instrs")
+    println(s"instrs: $instrs")
     // val instrs = List(Call(funcId))
 
     val globals = module.defs.collect({ case g @ Global(_, _) => g })
@@ -536,9 +578,9 @@ case class Evaluator(module: ModuleInstance) {
       List(),
       // frame,
       Frame(module, ArrayBuffer(I32V(0)), ArrayBuffer(Concrete(I32V(0)))),
-      k,
-      List((newStack, _, _) => println(s"trail: $newStack"))
-    )(List())
+      retCont,
+      List(retCont)
+    )(root)
 
   }
 
