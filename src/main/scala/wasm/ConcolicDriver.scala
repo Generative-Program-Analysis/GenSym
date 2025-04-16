@@ -91,7 +91,7 @@ object ConcolicDriver {
     }
 
     // solve for all vars
-    println(s"solving constrains: ${solver.toString()}")
+    println(s"solving constraints: ${solver.toString()}")
     solver.check() match {
       case Some(true) => {
         val model = solver.getModel()
@@ -180,15 +180,4 @@ object ConcolicDriver {
     }
     println(s"exploration tree: ${root.toString}")
   }
-}
-
-object DriverSimpleTest {
-  def fileTestDriver(file: String, mainFun: String, startEnv: HashMap[Int, Value]) = {
-    import gensym.wasm.concolicminiwasm._
-    import collection.mutable.ArrayBuffer
-    val module = Parser.parseFile(file)
-    ConcolicDriver.exec(module, mainFun, startEnv)(new Z3Context())
-  }
-
-  def main(args: Array[String]) = {}
 }

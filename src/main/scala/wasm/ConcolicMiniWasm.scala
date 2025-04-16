@@ -401,21 +401,33 @@ case class Evaluator(module: ModuleInstance) {
       case If(ty, thn, els) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
+        val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
+          // if this is a concrete value, we don't need to put 
+          (tree, tree)
+        } else { 
+          val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
+          (ifElseNode.thenNode, ifElseNode.elseNode)
+        }
         val restK: Cont = (retStack, retSymStack, tree) =>
           eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, kont, trail)(tree)
         if (cond != 0)
-          eval(thn, List(), List(), frame, restK, restK :: trail)(ifElseNode.thenNode)
+          eval(thn, List(), List(), frame, restK, restK :: trail)(ifNode)
         else
-          eval(els, List(), List(), frame, restK, restK :: trail)(ifElseNode.elseNode)
+          eval(els, List(), List(), frame, restK, restK :: trail)(elseNode)
       case Br(label) =>
         trail(label)(concStack, symStack, tree)
       case BrIf(label) =>
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
-        val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
-        if (cond == 0) eval(rest, newStack, newSymStack, frame, kont, trail)(ifElseNode.thenNode)
-        else trail(label)(newStack, newSymStack, ifElseNode.elseNode)
+        val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
+          // if this is a concrete value, we don't need to put 
+          (tree, tree)
+        } else { 
+          val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
+          (ifElseNode.thenNode, ifElseNode.elseNode)
+        }
+        if (cond == 0) eval(rest, newStack, newSymStack, frame, kont, trail)(ifNode)
+        else trail(label)(newStack, newSymStack, elseNode)
       case Return => trail.last(concStack, symStack, tree)
       case Call(f) => evalCall(rest, concStack, symStack, frame, kont, trail, f, false)
       case _ => ???
