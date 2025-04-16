@@ -67,6 +67,7 @@ class ExploreTree(var node: Node = UnExplored(), val parent: Option[ExploreTree]
       case UnExplored() => node = Finished()
       case Finished() => 
         println(s"Warning: path to ${this} has been re-executed!")
+      case Fail(_) => ()
       case _ => 
         throw new Exception("Internal Error: Some exploration paths are not compatible!")
     }
