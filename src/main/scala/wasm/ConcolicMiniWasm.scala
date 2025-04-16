@@ -245,8 +245,10 @@ case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: 
 case class Evaluator(module: ModuleInstance) {
   import Primitives._
 
-  type RetCont = (List[Value], List[SymVal], ExploreTree) => Unit
   type Cont = (List[Value], List[SymVal], ExploreTree) => Unit
+  type RetCont = Cont
+
+  var driverCont: Cont = null;
 
   val symEnv = HashMap[Int, Value]()
 
@@ -434,9 +436,6 @@ case class Evaluator(module: ModuleInstance) {
     }
   }
 
-  // def eval(insts: List[Instr], concStack: List[Value], symStack: List[SymVal],
-  //          frame: Frame, ret: RetCont, trail: List[Cont])(implicit pathConds: List[Cond])
-
   def evalCall(
       rest: List[Instr],
       concStack: List[Value],
@@ -459,8 +458,6 @@ case class Evaluator(module: ModuleInstance) {
         val newFrame = Frame(frame.module, ArrayBuffer(frameLocals: _*), ArrayBuffer(symFrameLocals: _*))
         val restK: RetCont = (retStack, retSymStack, tree) =>
           eval(rest, retStack ++ newStack, retSymStack ++ newSymStack, frame, ret, trail)(tree)
-        // val k: Cont = (retStack, symStack) =>
-        //   eval(rest, retStack, frame, ret, trail)
         eval(body, List(), List(), newFrame, restK, List(restK)) // GW: should we install new trail cont?
       case Import("console", "assert", _) =>
         val I32V(v) :: newStack = concStack
@@ -468,9 +465,11 @@ case class Evaluator(module: ModuleInstance) {
         if (v == 0) {
           println(s"Assertion failed: find a bug with input $symEnv")
           tree.fillWithFail(symEnv)
-          return
+          // go to toplevel halt continuation
+          driverCont(concStack, symStack, tree)
+        } else {
+          eval(rest, newStack, newSymStack, frame, ret, trail)
         }
-        eval(rest, newStack, newSymStack, frame, ret, trail)
       // TODO: clean up the other cases
       // case Import("console", "log", _) =>
       //   val I32V(v) :: newStack = stack
@@ -515,6 +514,8 @@ case class Evaluator(module: ModuleInstance) {
       retCont: RetCont = printRetCont
   ) = {
     import collection.mutable.ArrayBuffer
+
+    driverCont = retCont
 
     this.symEnv.clear()
     this.symEnv ++= symEnv
