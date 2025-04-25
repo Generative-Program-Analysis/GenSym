@@ -25,6 +25,8 @@ trait StagedWasmEvaluator extends SAIOps {
   type Cont[A] = Rep[Stack => A]
   type Trail[A] = List[Cont[A]]
 
+  trait Frame
+
   // Ans should be instantiated to something like Int, Unit, etc, which is the result type of staged program
   def eval(insts: List[Instr],
            stack: Rep[Stack],
@@ -35,9 +37,9 @@ trait StagedWasmEvaluator extends SAIOps {
     val (inst, rest) = (insts.head, insts.tail)
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, trail)
-      case ConstInstr(num) => eval(rest, (num: Rep[Num]) :: stack, frame, kont, trail)
-      // case LocalGet(i) =>
-      //   eval(rest, frame.locals(i) :: stack, frame, kont, trail)
+      case ConstInstr(num) => eval(rest, num :: stack, frame, kont, trail)
+      case LocalGet(i) =>
+        eval(rest, frame.locals(i) :: stack, frame, kont, trail)
       case _ => 
         val noOp = "todo-op".reflectCtrlWith()
         eval(rest, noOp :: stack, frame, kont, trail)
@@ -69,8 +71,8 @@ trait StagedWasmEvaluator extends SAIOps {
         }
     }
     val (instrs, localSize) = (funBody.body, funBody.locals.size)
-    val frame = Frame(ArrayBuffer.fill(localSize)(I32V(0)))
-    eval(instrs, emptyStack, unit(frame), kont, kont::Nil) // NOTE: simply use List(kont) here will cause compilation error
+    val frame = frameOf(localSize)
+    eval(instrs, emptyStack, frame, kont, kont::Nil) // NOTE: simply use List(kont) here will cause compilation error
   }
 
   def evalTop(main: Option[String]): Rep[Unit] = {
@@ -80,6 +82,8 @@ trait StagedWasmEvaluator extends SAIOps {
     evalTop(fun(haltK), main)
   }
 
+
+  // stack creation and operations
   def emptyStack: Rep[Stack] = {
     "empty-stack".reflectWith()
   }
@@ -92,6 +96,18 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def ::[A](v: Rep[A]): Rep[Stack] = {
       "stack-cons".reflectCtrlWith(v, stack)
+    }
+  }
+
+  // frame creation and operations
+  def frameOf(size: Int): Rep[Frame] = {
+    "frame-of".reflectWith(size)
+  }
+
+  implicit class FrameOps(frame: Rep[Frame]) {
+
+    def locals(i: Int): Rep[Num] = {
+      "frame-locals".reflectCtrlWith(frame, i)
     }
   }
 }
