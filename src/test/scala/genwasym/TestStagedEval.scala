@@ -9,11 +9,9 @@ import gensym.wasm.miniwasm._
 
 class TestStagedEval extends FunSuite {
   def testFile(filename: String, main: Option[String] = None) = {
-    val module = Parser.parseFile(filename)
-    val partialEvaluator = StagedEvaluator(ModuleInstance(module))
-    val block = partialEvaluator.codegen(main)
-    println(Adapter.g)
-    println(block)
+    val moduleInst = ModuleInstance(Parser.parseFile(filename))
+    val code = PartialEvaluator(moduleInst, None)
+    println(code)
   }
 
   test("push-drop") {
