@@ -1,6 +1,6 @@
 name := "GenSym"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.12.15"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
@@ -43,21 +43,20 @@ val commonJavaOptions = Seq(
 run / javaOptions ++= commonJavaOptions
 Test / javaOptions ++= commonJavaOptions
 
-val paradiseVersion = "2.1.0"
+val paradiseVersion = "2.1.1"
 addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)
-addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.3" cross CrossVersion.full)
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.2" cross CrossVersion.full)
 addCompilerPlugin("com.github.tomasmikula" %% "pascal" % "0.3.5")
 addCompilerPlugin("org.scala-lang.plugins" % "scala-continuations-plugin_2.12.0" % "1.0.3")
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4")
 
 lazy val Bench = config("bench").extend(Test)
 
-fork in Bench := false
-parallelExecution in Test := false
-parallelExecution in Bench := false
+Bench / fork := false
+Test / parallelExecution := false
+Bench / parallelExecution := false
 
-lazy val lms = ProjectRef(file("./third-party/lms-clean"), "lms-clean")
-  // .settings(fork := true)
+lazy val lms = (project in file("./third-party/lms-clean"))
 
 lazy val gensym = (project in file(".")).dependsOn(lms % "test->test; compile->compile")
                                         .configs(Bench)
