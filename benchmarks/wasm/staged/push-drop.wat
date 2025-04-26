@@ -7,7 +7,16 @@
     local.get 1
     drop
     drop
-    (call 1))
+    (call 1)
+    i32.const 3
+    if (result i32)  ;; label = @1
+      i32.const 1
+    else
+      local.get 1
+    end
+    (loop
+      i32.const 4)
+  )
   (func (;1;) (type 1) (param i32 i32) (result i32)
     (local i32 i32)
     local.get 0

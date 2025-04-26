@@ -10,7 +10,7 @@ import lms.core.Backend._
 import lms.core.Backend.{Block => LMSBlock}
 
 import gensym.wasm.ast._
-import gensym.wasm.ast.{Const => ConstInstr}
+import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase}
 
 @virtualize
@@ -40,9 +40,41 @@ trait StagedWasmEvaluator extends SAIOps {
     val (inst, rest) = (insts.head, insts.tail)
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, trail)
-      case ConstInstr(num) => eval(rest, num :: stack, frame, kont, trail)
+      case WasmConst(num) => eval(rest, num :: stack, frame, kont, trail)
       case LocalGet(i) =>
         eval(rest, frame.locals(i) :: stack, frame, kont, trail)
+      case WasmBlock(ty, inner) =>
+        val funcTy = ty.funcType
+        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
+        val restK = fun(
+          (retStack: Rep[Stack]) =>
+            eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
+        )
+        eval(inner, inputs, frame, restK, restK :: trail)
+      case Loop(ty, inner) =>
+        val funcTy = ty.funcType
+        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
+        val restK = fun(
+          (retStack: Rep[Stack]) =>
+            eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
+        )
+        def loop(retStack: Rep[Stack]): Rep[Unit] =
+          eval(inner, retStack.take(funcTy.inps.size), frame, restK, fun(loop _) :: trail)
+        loop(inputs)
+      case If(ty, thn, els) =>
+        val funcTy = ty.funcType
+        val (cond, newStack) = (stack.head, stack.tail)
+        val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
+        // TODO: can we avoid code duplication here?
+        val restK = fun(
+          (retStack: Rep[Stack]) =>
+            eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
+        )
+        if (cond != 0) {
+          eval(thn, inputs, frame, restK, restK :: trail)
+        } else {
+          eval(els, inputs, frame, restK, restK :: trail)
+        }
       case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
       case _ =>
@@ -148,7 +180,11 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // TODO: The stack should be allocated on the stack to get optimal performance
   implicit class StackOps(stack: Rep[Stack]) {
-    def tail(): Rep[Stack] = {
+    def head: Rep[Num] = {
+      "stack-head".reflectCtrlWith(stack)
+    }
+
+    def tail: Rep[Stack] = {
       "stack-tail".reflectCtrlWith(stack)
     }
 
@@ -170,6 +206,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def reverse: Rep[Stack] = {
       "stack-reverse".reflectWith(stack)
+    }
+
+    def splitAt(n: Int): (Rep[Stack], Rep[Stack]) = {
+      (take(n), drop(n))
     }
   }
 
