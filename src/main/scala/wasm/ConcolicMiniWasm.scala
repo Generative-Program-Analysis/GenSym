@@ -229,15 +229,6 @@ object Primitives {
     case NumType(F32Type) => F32V(rng.nextFloat())
     case NumType(F64Type) => F64V(rng.nextDouble())
   }
-
-  def getFuncType(ty: BlockType): FuncType =
-    ty match {
-      case VarBlockType(_, None) =>
-        ??? // TODO: fill this branch until we handle type index correctly
-      case VarBlockType(_, Some(tipe)) => tipe
-      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
-      case ValBlockType(None)          => FuncType(List(), List(), List())
-    }
 }
 
 case class Frame(module: ModuleInstance, locals: ArrayBuffer[Value], symLocals: ArrayBuffer[SymVal])
@@ -383,7 +374,7 @@ case class Evaluator(module: ModuleInstance) {
         eval(rest, concStack, symStack, frame, kont, trail)
       case Unreachable => throw new RuntimeException("Unreachable")
       case Block(ty, inner) =>
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val (inputSize, outputSize) = (funcTy.inps.size, funcTy.out.size)
         val (inputs, restStack) = concStack.splitAt(inputSize)
         val (symInputs, restSymStack) = symStack.splitAt(inputSize)
@@ -391,7 +382,7 @@ case class Evaluator(module: ModuleInstance) {
           eval(rest, retStack.take(outputSize) ++ restStack, retSymStack.take(outputSize) ++ restSymStack, frame, kont, trail)(tree)
         eval(inner, inputs, symInputs, frame, restK, restK :: trail)
       case Loop(ty, inner) =>
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val (inputSize, outputSize) = (funcTy.inps.size, funcTy.out.size)
         val (inputs, restStack) = concStack.splitAt(inputSize)
         val (symInputs, restSymStack) = symStack.splitAt(inputSize)
@@ -404,9 +395,9 @@ case class Evaluator(module: ModuleInstance) {
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
         val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
-          // if this is a concrete value, we don't need to put 
+          // if this is a concrete value, we don't need to put
           (tree, tree)
-        } else { 
+        } else {
           val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
           (ifElseNode.thenNode, ifElseNode.elseNode)
         }
@@ -422,9 +413,9 @@ case class Evaluator(module: ModuleInstance) {
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
         val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
-          // if this is a concrete value, we don't need to put 
+          // if this is a concrete value, we don't need to put
           (tree, tree)
-        } else { 
+        } else {
           val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
           (ifElseNode.thenNode, ifElseNode.elseNode)
         }
