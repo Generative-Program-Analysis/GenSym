@@ -75,6 +75,22 @@ trait StagedWasmEvaluator extends SAIOps {
         } else {
           eval(els, inputs, frame, restK, restK :: trail)
         }
+      case Br(label) =>
+        trail(label)(stack)
+      case BrIf(label) =>
+        val (cond, newStack) = (stack.head, stack.tail)
+        if (cond != 0) trail(label)(newStack)
+        else eval(rest, newStack, frame, kont, trail)
+      case BrTable(labels, default) =>
+        val (cond, newStack) = (stack.head, stack.tail)
+        if (cond.toInt < labels.length) {
+          var targets: Rep[List[Cont[Unit]]] = List(labels.map(i => trail(i)): _*)
+          val goto: Rep[Cont[Unit]] = targets(cond.toInt)
+          goto(newStack) // TODO: this line will trigger an exception
+        } else {
+          trail(default)(newStack)
+        }
+      case Return        => trail.last(stack)
       case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
       case _ =>
@@ -228,6 +244,13 @@ trait StagedWasmEvaluator extends SAIOps {
       "frame-put".reflectCtrlWith(frame, args)
     }
 
+  }
+
+  // runtime Num type
+  implicit class NumOps(num: Rep[Num]) {
+    def toInt: Rep[Int] = {
+      "num-to-int".reflectWith(num)
+    }
   }
 }
 trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {

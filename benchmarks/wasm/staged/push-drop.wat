@@ -14,8 +14,19 @@
     else
       local.get 1
     end
+    (block
+      (block
+        i32.const 4
+        i32.const 2
+        ;; br_table 0 0 ;; the compilation of br_table is problematic now
+      )
+    )
+
     (loop
-      i32.const 4)
+      i32.const 5
+      br 0)
+    return
+    i32.const 6
   )
   (func (;1;) (type 1) (param i32 i32) (result i32)
     (local i32 i32)
