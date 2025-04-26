@@ -85,7 +85,7 @@ trait StagedWasmEvaluator extends SAIOps {
           )
           // We make a new trail by `restK`, since function creates a new block to escape
           // (more or less like `return`)
-          callee(emptyStack, newFrame, kont)
+          callee(emptyStack, newFrame, restK)
         }
       // TODO: Support imported functions
       // case Import("console", "log", _) =>
