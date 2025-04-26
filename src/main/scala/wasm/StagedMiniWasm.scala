@@ -1,6 +1,6 @@
 package gensym.wasm.miniwasm
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 import lms.core.stub.Adapter
 import lms.core.virtualize
@@ -22,16 +22,19 @@ trait StagedWasmEvaluator extends SAIOps {
   // Adapter.g = Adapter.mkGraphBuilder
 
   trait Stack
-  type Cont[A] = Rep[Stack => A]
-  type Trail[A] = List[Cont[A]]
+  type Cont[A] = Stack => A
+  type Trail[A] = List[Rep[Cont[A]]]
 
   trait Frame
 
-  // Ans should be instantiated to something like Int, Unit, etc, which is the result type of staged program
+  // a cache storing the compiled code for each function, to reduce re-compilation
+  val compileCache = new HashMap[Int, Rep[(Stack, Frame, Cont[Unit]) => Unit]]
+
+  // NOTE: We don't support Ans type polymorphism yet
   def eval(insts: List[Instr],
            stack: Rep[Stack],
            frame: Rep[Frame],
-           kont: Cont[Unit],
+           kont: Rep[Cont[Unit]],
            trail: Trail[Unit]): Rep[Unit] = {
     if (insts.isEmpty) return kont(stack)
     val (inst, rest) = (insts.head, insts.tail)
@@ -40,13 +43,68 @@ trait StagedWasmEvaluator extends SAIOps {
       case ConstInstr(num) => eval(rest, num :: stack, frame, kont, trail)
       case LocalGet(i) =>
         eval(rest, frame.locals(i) :: stack, frame, kont, trail)
-      case _ => 
+      case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
+      case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
+      case _ =>
         val noOp = "todo-op".reflectCtrlWith()
         eval(rest, noOp :: stack, frame, kont, trail)
     }
   }
 
-  def evalTop(kont: Cont[Unit], main: Option[String]): Rep[Unit] = {
+  def evalCall(rest: List[Instr],
+               stack: Rep[Stack],
+               frame: Rep[Frame],
+               kont: Rep[Cont[Unit]],
+               trail: Trail[Unit],
+               funcIndex: Int,
+               isTail: Boolean): Rep[Unit] = {
+    module.funcs(funcIndex) match {
+      case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
+        val args = stack.take(ty.inps.size).reverse
+        val newStack = stack.drop(ty.inps.size)
+        val newFrame = frameOf(ty.inps.size + locals.size).put(args)
+        val callee =
+          if (compileCache.contains(funcIndex)) {
+            compileCache(funcIndex)
+          } else {
+            val callee = fun(
+              (stack: Rep[Stack], frame: Rep[Frame], kont: Rep[Cont[Unit]]) => {
+                eval(body, stack, frame, kont, kont::Nil):Rep[Unit]
+              }
+            )
+            compileCache(funcIndex) = callee
+            callee
+          }
+        if (isTail)
+          // when tail call, share the continuation for returning with the callee
+          callee(emptyStack, newFrame, kont)
+        else {
+          val restK = fun(
+            (retStack: Rep[Stack]) =>
+              eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)
+          )
+          // We make a new trail by `restK`, since function creates a new block to escape
+          // (more or less like `return`)
+          callee(emptyStack, newFrame, kont)
+        }
+      // TODO: Support imported functions
+      // case Import("console", "log", _) =>
+      //   //println(s"[DEBUG] current stack: $stack")
+      //   val I32V(v) :: newStack = stack
+      //   println(v)
+      //   eval(rest, newStack, frame, kont, trail)
+      // case Import("spectest", "print_i32", _) =>
+      //   //println(s"[DEBUG] current stack: $stack")
+      //   val I32V(v) :: newStack = stack
+      //   println(v)
+      //   eval(rest, newStack, frame, kont, trail)
+      case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
+      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
+    }
+  }
+
+
+  def evalTop(kont: Rep[Cont[Unit]], main: Option[String]): Rep[Unit] = {
     val funBody: FuncBodyDef = main match {
       case Some(func_name) =>
         module.defs.flatMap({
@@ -97,6 +155,22 @@ trait StagedWasmEvaluator extends SAIOps {
     def ::[A](v: Rep[A]): Rep[Stack] = {
       "stack-cons".reflectCtrlWith(v, stack)
     }
+
+    def ++(v: Rep[Stack]): Rep[Stack] = {
+      "stack-append".reflectCtrlWith(stack, v)
+    }
+
+    def take(n: Int): Rep[Stack] = {
+      "stack-take".reflectWith(stack, n)
+    }
+
+    def drop(n: Int): Rep[Stack] = {
+      "stack-drop".reflectWith(stack, n)
+    }
+
+    def reverse: Rep[Stack] = {
+      "stack-reverse".reflectWith(stack)
+    }
   }
 
   // frame creation and operations
@@ -107,8 +181,13 @@ trait StagedWasmEvaluator extends SAIOps {
   implicit class FrameOps(frame: Rep[Frame]) {
 
     def locals(i: Int): Rep[Num] = {
-      "frame-locals".reflectCtrlWith(frame, i)
+      "frame-get".reflectCtrlWith(frame, i)
     }
+
+    def put(args: Rep[Stack]): Rep[Frame] = {
+      "frame-put".reflectCtrlWith(frame, args)
+    }
+
   }
 }
 trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
@@ -134,6 +213,7 @@ trait WasmCompilerDriver[A, B]
     import IR._
     override def remap(m: Manifest[_]): String = {
       if (m.toString.endsWith("Stack")) "Stack"
+      else if(m.toString.endsWith("Frame")) "Frame"
       else super.remap(m)
     }
   }
