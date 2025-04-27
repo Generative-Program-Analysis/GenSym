@@ -145,7 +145,8 @@ trait StagedWasmEvaluator extends SAIOps {
       case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
         val args = stack.take(ty.inps.size).reverse
         val newStack = stack.drop(ty.inps.size)
-        val newFrame = frameOf(ty.inps.size + locals.size).put(args)
+        val newFrame = frameOf(ty.inps.size + locals.size)
+        newFrame.putAll(args)
         val callee =
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
@@ -333,8 +334,8 @@ trait StagedWasmEvaluator extends SAIOps {
       "frame-get".reflectCtrlWith(frame, i)
     }
 
-    def put(args: Rep[Stack]): Rep[Frame] = {
-      "frame-put".reflectCtrlWith(frame, args)
+    def putAll(args: Rep[Stack]) = {
+      "frame-putAll".reflectCtrlWith(frame, args)
     }
 
     def update(i: Int, value: Rep[Num]) = {
@@ -422,8 +423,8 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
       emit("new Frame("); shallow(size); emit(")")
     case Node(_, "frame-get", List(frame, i), _) =>
       shallow(frame); emit("("); shallow(i); emit(")")
-    case Node(_, "frame-put", List(frame, args), _) =>
-      shallow(frame); emit(".put("); shallow(args); emit(")")
+    case Node(_, "frame-putAll", List(frame, args), _) =>
+      shallow(frame); emit(".putAll("); shallow(args); emit(")")
     case Node(_, "global-get", List(i), _) =>
       emit("Global.globalGet("); shallow(i); emit(")")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
