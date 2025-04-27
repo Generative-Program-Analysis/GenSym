@@ -43,6 +43,14 @@ trait StagedWasmEvaluator extends SAIOps {
       case WasmConst(num) => eval(rest, num :: stack, frame, kont, trail)
       case LocalGet(i) =>
         eval(rest, frame.locals(i) :: stack, frame, kont, trail)
+      case LocalSet(i) =>
+        val (v, newStack) = (stack.head, stack.tail)
+        frame(i) = v
+        eval(rest, newStack, frame, kont, trail)
+      case LocalTee(i) =>
+        val (v, _) = (stack.head, stack.tail)
+        frame(i) = v
+        eval(rest, stack, frame, kont, trail)
       case WasmBlock(ty, inner) =>
         val funcTy = ty.funcType
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
@@ -244,6 +252,9 @@ trait StagedWasmEvaluator extends SAIOps {
       "frame-put".reflectCtrlWith(frame, args)
     }
 
+    def update(i: Int, value: Rep[Num]) = {
+      "frame-update".reflectCtrlWith(frame, i, value)
+    }
   }
 
   // runtime Num type

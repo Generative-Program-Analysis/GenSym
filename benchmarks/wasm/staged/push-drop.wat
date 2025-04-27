@@ -5,6 +5,8 @@
     i32.const 2
     local.get 0
     local.get 1
+    local.set 0
+    local.tee 1
     drop
     drop
     (call 1)
