@@ -40,7 +40,7 @@ trait StagedWasmEvaluator extends SAIOps {
     val (inst, rest) = (insts.head, insts.tail)
     inst match {
       case Drop => eval(rest, stack.tail, frame, kont, trail)
-      case WasmConst(num) => eval(rest, num :: stack, frame, kont, trail)
+      case WasmConst(num) => eval(rest, Values.lift(num) :: stack, frame, kont, trail)
       case LocalGet(i) =>
         eval(rest, frame.get(i) :: stack, frame, kont, trail)
       case LocalSet(i) =>
@@ -105,7 +105,7 @@ trait StagedWasmEvaluator extends SAIOps {
           (retStack: Rep[Stack]) =>
             eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
         )
-        if (cond != 0) {
+        if (cond != Values.I32(0)) {
           eval(thn, inputs, frame, restK, restK :: trail)
         } else {
           eval(els, inputs, frame, restK, restK :: trail)
@@ -268,6 +268,13 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // runtime values
   object Values {
+    def lift(num: Num): Rep[Num] = {
+      num match {
+        case I32V(i) => I32(i)
+        case I64V(i) => I64(i)
+      }
+    }
+
     def I32(i: Rep[Int]): Rep[Num] = {
       "I32V".reflectWith(i)
     }
@@ -298,7 +305,7 @@ trait StagedWasmEvaluator extends SAIOps {
       "stack-tail".reflectCtrlWith(stack)
     }
 
-    def ::[A](v: Rep[A]): Rep[Stack] = {
+    def ::[A](v: Rep[Num]): Rep[Stack] = {
       "stack-cons".reflectCtrlWith(v, stack)
     }
 
@@ -416,11 +423,11 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
     case Node(_, "stack-reverse", List(stack), _) =>
       shallow(stack); emit(".reverse")
     case Node(_, "stack-cons", List(v, stack), _) =>
-      shallow(stack); emit(".push("); shallow(v); emit(")")
+      shallow(stack); emit(".::("); shallow(v); emit(")")
     case Node(_, "stack-tail", List(stack), _) =>
-      shallow(stack); emit(".pop()")
+      shallow(stack); emit(".tail")
     case Node(_, "empty-stack", _, _) =>
-      emit("new Stack()")
+      emit("Nil")
     case Node(_, "frame-of", List(size), _) =>
       emit("new Frame("); shallow(size); emit(")")
     case Node(_, "frame-get", List(frame, i), _) =>
@@ -480,11 +487,60 @@ trait WasmCompilerDriver[A, B]
   }
 
    override val prelude =
- """
- object Prelude {
- }
- import Prelude._
- """
+  """
+object Prelude {
+  sealed abstract class Num {
+    def +(that: Num): Num = (this, that) match {
+      case (I32V(x), I32V(y)) => I32V(x + y)
+      case (I64V(x), I64V(y)) => I64V(x + y)
+      case _ => throw new RuntimeException("Invalid addition")
+    }
+
+    def -(that: Num): Num = (this, that) match {
+      case (I32V(x), I32V(y)) => I32V(x - y)
+      case (I64V(x), I64V(y)) => I64V(x - y)
+      case _ => throw new RuntimeException("Invalid subtraction")
+    }
+
+    def !=(that: Num): Num = (this, that) match {
+      case (I32V(x), I32V(y)) => I32V(if (x != y) 1 else 0)
+      case (I64V(x), I64V(y)) => I32V(if (x != y) 1 else 0)
+      case _ => throw new RuntimeException("Invalid inequality")
+    }
+  }
+  case class I32V(i: Int) extends Num
+  case class I64V(i: Long) extends Num
+
+
+  type Stack = List[Num]
+
+  class Frame(val size: Int) {
+    private val data = new Array[Num](size)
+    def apply(i: Int): Num = data(i)
+    def update(i: Int, v: Num): Unit = data(i) = v
+    def putAll(xs: List[Num]): Unit = {
+      for (i <- 0 until xs.size) {
+        data(i) = xs(i)
+      }
+    }
+  }
+
+  object Global {
+    // TODO: create global with specific size
+    private val globals = new Array[Num](10)
+    def globalGet(i: Int): Num = globals(i)
+    def globalSet(i: Int, v: Num): Unit = globals(i) = v
+  }
+}
+import Prelude._
+
+object Main {
+  def main(args: Array[String]): Unit = {
+    val snippet = new Snippet()
+    snippet(())
+  }
+}
+"""
 }
 
 object PartialEvaluator {
