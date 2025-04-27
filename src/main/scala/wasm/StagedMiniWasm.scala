@@ -170,17 +170,12 @@ trait StagedWasmEvaluator extends SAIOps {
           // (more or less like `return`)
           callee(emptyStack, newFrame, restK)
         }
-      // TODO: Support imported functions
-      // case Import("console", "log", _) =>
-      //   //println(s"[DEBUG] current stack: $stack")
-      //   val I32V(v) :: newStack = stack
-      //   println(v)
-      //   eval(rest, newStack, frame, kont, trail)
-      // case Import("spectest", "print_i32", _) =>
-      //   //println(s"[DEBUG] current stack: $stack")
-      //   val I32V(v) :: newStack = stack
-      //   println(v)
-      //   eval(rest, newStack, frame, kont, trail)
+      case Import("console", "log", _)
+         | Import("spectest", "print_i32", _) =>
+        //println(s"[DEBUG] current stack: $stack")
+        val (v, newStack) = (stack.head, stack.tail)
+        println(v)
+        eval(rest, newStack, frame, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
