@@ -9,6 +9,8 @@
     local.tee 1
     drop
     drop
+    i32.add
+    nop
     (call 1)
     i32.const 3
     if (result i32)  ;; label = @1

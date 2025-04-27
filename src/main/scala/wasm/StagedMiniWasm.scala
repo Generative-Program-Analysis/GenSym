@@ -51,6 +51,21 @@ trait StagedWasmEvaluator extends SAIOps {
         val (v, _) = (stack.head, stack.tail)
         frame(i) = v
         eval(rest, stack, frame, kont, trail)
+      case Nop =>
+        eval(rest, stack, frame, kont, trail)
+      case Unreachable => unreachable()
+      case Test(op) =>
+        val (v, newStack) = (stack.head, stack.tail)
+        eval(rest, evalTestOp(op, v) :: newStack, frame, kont, trail)
+      case Unary(op) =>
+        val (v, newStack) = (stack.head, stack.tail)
+        eval(rest, evalUnaryOp(op, v) :: newStack, frame, kont, trail)
+      case Binary(op) =>
+        val (v2, v1, newStack) = (stack.head, stack.tail.head, stack.tail.tail)
+        eval(rest, evalBinOp(op, v1, v2) :: newStack, frame, kont, trail)
+      case Compare(op) =>
+        val (v2, v1, newStack) = (stack.head, stack.tail.head, stack.tail.tail)
+        eval(rest, evalRelOp(op, v1, v2) :: newStack, frame, kont, trail)
       case WasmBlock(ty, inner) =>
         val funcTy = ty.funcType
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
@@ -159,6 +174,41 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
+  def evalTestOp(op: TestOp, value: Rep[Num]): Rep[Num] = op match {
+    case Eqz(_) => if (value.toInt == 0) I32(1) else I32(0)
+  }
+
+  def evalUnaryOp(op: UnaryOp, value: Rep[Num]): Rep[Num] = op match {
+    case Clz(_) => value.clz()
+    case Ctz(_) => value.ctz()
+    case Popcnt(_) => value.popcnt()
+    case _ => ???
+  }
+
+  def evalBinOp(op: BinOp, v1: Rep[Num], v2: Rep[Num]): Rep[Num] = op match {
+    case Add(_) => v1 + v2
+    case Mul(_) => v1 * v2
+    case Sub(_) => v1 - v2
+    case Shl(_) => v1 << v2
+    // case ShrS(_) => v1 >> v2 // TODO: signed shift right
+    case ShrU(_) => v1 >> v2
+    case And(_) => v1 & v2
+    case _ => ???
+  }
+
+  def evalRelOp(op: RelOp, v1: Rep[Num], v2: Rep[Num]): Rep[Num] = op match {
+    case Eq(_) => v1 numEq v2
+    case Ne(_) => v1 numNe v2
+    case LtS(_) => v1 < v2
+    case LtU(_) => v1 ltu v2
+    case GtS(_) => v1 > v2
+    case GtU(_) => v1 gtu v2
+    case LeS(_) => v1 <= v2
+    case LeU(_) => v1 leu v2
+    case GeS(_) => v1 >= v2
+    case GeU(_) => v1 geu v2
+    case _ => ???
+  }
 
   def evalTop(kont: Rep[Cont[Unit]], main: Option[String]): Rep[Unit] = {
     val funBody: FuncBodyDef = main match {
@@ -200,6 +250,19 @@ trait StagedWasmEvaluator extends SAIOps {
   // stack creation and operations
   def emptyStack: Rep[Stack] = {
     "empty-stack".reflectWith()
+  }
+
+  // call unreachable
+  def unreachable(): Rep[Unit] = {
+    "unreachable".reflectCtrlWith()
+  }
+
+  def I32(i: Rep[Int]): Rep[Num] = {
+    "I32V".reflectWith(i)
+  }
+
+  def I64(i: Rep[Long]): Rep[Num] = {
+    "I64V".reflectWith(i)
   }
 
   // TODO: The stack should be allocated on the stack to get optimal performance
@@ -255,13 +318,54 @@ trait StagedWasmEvaluator extends SAIOps {
     def update(i: Int, value: Rep[Num]) = {
       "frame-update".reflectCtrlWith(frame, i, value)
     }
+
   }
 
   // runtime Num type
   implicit class NumOps(num: Rep[Num]) {
-    def toInt: Rep[Int] = {
-      "num-to-int".reflectWith(num)
-    }
+
+    def toInt: Rep[Int] = "num-to-int".reflectWith(num)
+
+    def clz(): Rep[Num] = "unary-clz".reflectWith(num)
+
+    def ctz(): Rep[Num] = "unary-ctz".reflectWith(num)
+
+    def popcnt(): Rep[Num] = "unary-popcnt".reflectWith(num)
+
+    def +(rhs: Rep[Num]): Rep[Num] = "binary-add".reflectWith(num, rhs)
+
+    def -(rhs: Rep[Num]): Rep[Num] = "binary-sub".reflectWith(num, rhs)
+
+    def *(rhs: Rep[Num]): Rep[Num] = "binary-mul".reflectWith(num, rhs)
+
+    def /(rhs: Rep[Num]): Rep[Num] = "binary-div".reflectWith(num, rhs)
+
+    def <<(rhs: Rep[Num]): Rep[Num] = "binary-shl".reflectWith(num, rhs)
+
+    def >>(rhs: Rep[Num]): Rep[Num] = "binary-shr".reflectWith(num, rhs)
+
+    def &(rhs: Rep[Num]): Rep[Num] = "binary-and".reflectWith(num, rhs)
+
+    def numEq(rhs: Rep[Num]): Rep[Num] = "relation-eq".reflectWith(num, rhs)
+
+    def numNe(rhs: Rep[Num]): Rep[Num] = "relation-ne".reflectWith(num, rhs)
+
+    def <(rhs: Rep[Num]): Rep[Num] = "relation-lt".reflectWith(num, rhs)
+
+    def ltu(rhs: Rep[Num]): Rep[Num] = "relation-ltu".reflectWith(num, rhs)
+
+    def >(rhs: Rep[Num]): Rep[Num] = "relation-gt".reflectWith(num, rhs)
+
+    def gtu(rhs: Rep[Num]): Rep[Num] = "relation-gtu".reflectWith(num, rhs)
+
+    def <=(rhs: Rep[Num]): Rep[Num] = "relation-le".reflectWith(num, rhs)
+
+    def leu(rhs: Rep[Num]): Rep[Num] = "relation-leu".reflectWith(num, rhs)
+
+    def >=(rhs: Rep[Num]): Rep[Num] = "relation-ge".reflectWith(num, rhs)
+
+    def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectWith(num, rhs)
+
   }
 }
 trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
