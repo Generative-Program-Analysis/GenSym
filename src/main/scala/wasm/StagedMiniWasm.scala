@@ -51,6 +51,15 @@ trait StagedWasmEvaluator extends SAIOps {
         val (v, _) = (stack.head, stack.tail)
         frame(i) = v
         eval(rest, stack, frame, kont, trail)
+      case GlobalGet(i) =>
+        eval(rest, Global.globalGet(i) :: stack, frame, kont, trail)
+      case GlobalSet(i) =>
+        val (value, newStack) = (stack.head, stack.tail)
+        module.globals(i).ty match {
+          case GlobalType(tipe, true) => Global.globalSet(i, value)
+          case _ => throw new Exception("Cannot set immutable global")
+        }
+        eval(rest, newStack, frame, kont, trail)
       case Nop =>
         eval(rest, stack, frame, kont, trail)
       case Unreachable => unreachable()
@@ -263,6 +272,17 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def I64(i: Rep[Long]): Rep[Num] = {
     "I64V".reflectWith(i)
+  }
+
+  // global read/write
+  object Global{
+    def globalGet(i: Int): Rep[Num] = {
+      "global-get".reflectWith(i)
+    }
+
+    def globalSet(i: Int, value: Rep[Num]): Rep[Unit] = {
+      "global-set".reflectCtrlWith(i, value)
+    }
   }
 
   // TODO: The stack should be allocated on the stack to get optimal performance

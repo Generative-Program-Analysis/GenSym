@@ -1,4 +1,5 @@
 (module $push-drop
+  (global (;0;) (mut i32) (i32.const 1048576))
   (func (;0;) (type 1) (result i32)
     (local i32 i32)
     i32.const 2
@@ -12,7 +13,10 @@
     i32.add
     nop
     (call 1)
+    global.get 1
     i32.const 3
+    global.set 2 ;; TODO: this line was compiled to global.get, fix the parser!
+
     if (result i32)  ;; label = @1
       i32.const 1
     else
