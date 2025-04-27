@@ -15,6 +15,6 @@ class TestStagedEval extends FunSuite {
   }
 
   test("push-drop") {
-    testFile("./benchmarks/wasm/staged/push-drop.wat")
+    testFile("./benchmarks/wasm/staged/scratch.wat")
   }
 }

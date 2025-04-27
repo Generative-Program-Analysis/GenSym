@@ -160,7 +160,7 @@ trait StagedWasmEvaluator extends SAIOps {
           }
         if (isTail)
           // when tail call, share the continuation for returning with the callee
-          callee(emptyStack, newFrame, kont)
+          callee(Stack.emptyStack, newFrame, kont)
         else {
           val restK = fun(
             (retStack: Rep[Stack]) =>
@@ -168,7 +168,7 @@ trait StagedWasmEvaluator extends SAIOps {
           )
           // We make a new trail by `restK`, since function creates a new block to escape
           // (more or less like `return`)
-          callee(emptyStack, newFrame, restK)
+          callee(Stack.emptyStack, newFrame, restK)
         }
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
@@ -182,7 +182,7 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   def evalTestOp(op: TestOp, value: Rep[Num]): Rep[Num] = op match {
-    case Eqz(_) => if (value.toInt == 0) I32(1) else I32(0)
+    case Eqz(_) => if (value.toInt == 0) Values.I32(1) else Values.I32(0)
   }
 
   def evalUnaryOp(op: UnaryOp, value: Rep[Num]): Rep[Num] = op match {
@@ -243,7 +243,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
     val (instrs, localSize) = (funBody.body, funBody.locals.size)
     val frame = frameOf(localSize)
-    eval(instrs, emptyStack, frame, kont, kont::Nil) // NOTE: simply use List(kont) here will cause compilation error
+    eval(instrs, Stack.emptyStack, frame, kont, kont::Nil) // NOTE: simply use List(kont) here will cause compilation error
   }
 
   def evalTop(main: Option[String]): Rep[Unit] = {
@@ -253,10 +253,11 @@ trait StagedWasmEvaluator extends SAIOps {
     evalTop(fun(haltK), main)
   }
 
-
   // stack creation and operations
-  def emptyStack: Rep[Stack] = {
-    "empty-stack".reflectWith()
+  object Stack {
+    def emptyStack: Rep[Stack] = {
+      "empty-stack".reflectWith()
+    }
   }
 
   // call unreachable
@@ -264,12 +265,15 @@ trait StagedWasmEvaluator extends SAIOps {
     "unreachable".reflectCtrlWith()
   }
 
-  def I32(i: Rep[Int]): Rep[Num] = {
-    "I32V".reflectWith(i)
-  }
+  // runtime values
+  object Values {
+    def I32(i: Rep[Int]): Rep[Num] = {
+      "I32V".reflectWith(i)
+    }
 
-  def I64(i: Rep[Long]): Rep[Num] = {
-    "I64V".reflectWith(i)
+    def I64(i: Rep[Long]): Rep[Num] = {
+      "I64V".reflectWith(i)
+    }
   }
 
   // global read/write
@@ -383,9 +387,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def >=(rhs: Rep[Num]): Rep[Num] = "relation-ge".reflectWith(num, rhs)
 
     def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectWith(num, rhs)
-
   }
 }
+
 trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   override def traverse(n: Node): Unit = n match {
     case Node(_, "frame-update", List(frame, i, value), _) =>
@@ -459,6 +463,7 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
     case _ => super.shallow(n)
   }
 }
+
 trait WasmCompilerDriver[A, B]
   extends SAIDriver[A, B] with StagedWasmEvaluator { q =>
   override val codegen = new StagedWasmScalaGen {

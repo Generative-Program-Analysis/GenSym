@@ -395,9 +395,9 @@ case class Evaluator(module: ModuleInstance) {
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
         val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
-          // if this is a concrete value, we don't need to put
+          // if this is a concrete value, we don't need to put 
           (tree, tree)
-        } else {
+        } else { 
           val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
           (ifElseNode.thenNode, ifElseNode.elseNode)
         }
@@ -413,9 +413,9 @@ case class Evaluator(module: ModuleInstance) {
         val scnd :: newSymStack = symStack
         val I32V(cond) :: newStack = concStack
         val (ifNode, elseNode) = if (scnd.isInstanceOf[Concrete]) {
-          // if this is a concrete value, we don't need to put
+          // if this is a concrete value, we don't need to put 
           (tree, tree)
-        } else {
+        } else { 
           val ifElseNode = tree.fillWithIfElse(Not(CondEqz(scnd)))
           (ifElseNode.thenNode, ifElseNode.elseNode)
         }
