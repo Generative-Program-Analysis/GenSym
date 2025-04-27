@@ -42,7 +42,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case Drop => eval(rest, stack.tail, frame, kont, trail)
       case WasmConst(num) => eval(rest, num :: stack, frame, kont, trail)
       case LocalGet(i) =>
-        eval(rest, frame.locals(i) :: stack, frame, kont, trail)
+        eval(rest, frame.get(i) :: stack, frame, kont, trail)
       case LocalSet(i) =>
         val (v, newStack) = (stack.head, stack.tail)
         frame(i) = v
@@ -330,7 +330,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
   implicit class FrameOps(frame: Rep[Frame]) {
 
-    def locals(i: Int): Rep[Num] = {
+    def get(i: Int): Rep[Num] = {
       "frame-get".reflectCtrlWith(frame, i)
     }
 
@@ -393,17 +393,74 @@ trait StagedWasmEvaluator extends SAIOps {
 }
 trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   override def traverse(n: Node): Unit = n match {
+    case Node(_, "frame-update", List(frame, i, value), _) =>
+      // TODO: what is the protocol of automatic new line insertion?
+      shallow(frame); emit(".update("); shallow(i); emit(", "); shallow(value); emit(")\n")
+    case Node(_, "global-set", List(i, value), _) =>
+      shallow(i); emit(".globalSet("); shallow(value); emit(")")
     case _ => super.traverse(n)
   }
 
   // code generation for pure nodes
   override def shallow(n: Node): Unit = n match {
+    case Node(_, "stack-take", List(stack, n), _) =>
+      shallow(stack); emit(".take("); shallow(n); emit(")")
+    case Node(_, "stack-drop", List(stack, n), _) =>
+      shallow(stack); emit(".drop("); shallow(n); emit(")")
+    case Node(_, "stack-append", List(stack1, stack2), _) =>
+      shallow(stack1); emit(".++("); shallow(stack2); emit(")")
+    case Node(_, "stack-head", List(stack), _) =>
+      shallow(stack); emit(".head")
+    case Node(_, "stack-reverse", List(stack), _) =>
+      shallow(stack); emit(".reverse")
     case Node(_, "stack-cons", List(v, stack), _) =>
       shallow(stack); emit(".push("); shallow(v); emit(")")
     case Node(_, "stack-tail", List(stack), _) =>
       shallow(stack); emit(".pop()")
     case Node(_, "empty-stack", _, _) =>
       emit("new Stack()")
+    case Node(_, "frame-of", List(size), _) =>
+      emit("new Frame("); shallow(size); emit(")")
+    case Node(_, "frame-get", List(frame, i), _) =>
+      shallow(frame); emit("("); shallow(i); emit(")")
+    case Node(_, "frame-put", List(frame, args), _) =>
+      shallow(frame); emit(".put("); shallow(args); emit(")")
+    case Node(_, "global-get", List(i), _) =>
+      emit("Global.globalGet("); shallow(i); emit(")")
+    case Node(_, "binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" + "); shallow(rhs)
+    case Node(_, "binary-sub", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" - "); shallow(rhs)
+    case Node(_, "binary-mul", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" * "); shallow(rhs)
+    case Node(_, "binary-div", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" / "); shallow(rhs)
+    case Node(_, "binary-shl", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" << "); shallow(rhs)
+    case Node(_, "binary-shr", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" >> "); shallow(rhs)
+    case Node(_, "binary-and", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" & "); shallow(rhs)
+    case Node(_, "relation-eq", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" == "); shallow(rhs)
+    case Node(_, "relation-ne", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" != "); shallow(rhs)
+    case Node(_, "relation-lt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" < "); shallow(rhs)
+    case Node(_, "relation-ltu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" < "); shallow(rhs)
+    case Node(_, "relation-gt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" > "); shallow(rhs)
+    case Node(_, "relation-gtu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" > "); shallow(rhs)
+    case Node(_, "relation-le", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" <= "); shallow(rhs)
+    case Node(_, "relation-leu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" <= "); shallow(rhs)
+    case Node(_, "relation-ge", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" >= "); shallow(rhs)
+    case Node(_, "relation-geu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" >= "); shallow(rhs)
     case _ => super.shallow(n)
   }
 }
