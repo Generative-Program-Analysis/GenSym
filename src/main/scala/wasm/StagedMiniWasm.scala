@@ -307,11 +307,13 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def take(n: Int): Rep[Stack] = {
-      "stack-take".reflectWith(stack, n)
+      if (n == 0) Stack.emptyStack
+      else "stack-take".reflectWith(stack, n)
     }
 
     def drop(n: Int): Rep[Stack] = {
-      "stack-drop".reflectWith(stack, n)
+      if (n == 0) stack
+      else "stack-drop".reflectWith(stack, n)
     }
 
     def reverse: Rep[Stack] = {
