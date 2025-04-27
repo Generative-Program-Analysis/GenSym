@@ -60,6 +60,9 @@ trait StagedWasmEvaluator extends SAIOps {
           case _ => throw new Exception("Cannot set immutable global")
         }
         eval(rest, newStack, frame, kont, trail)
+      case MemorySize => ???
+      case MemoryGrow => ???
+      case MemoryFill => ???
       case Nop =>
         eval(rest, stack, frame, kont, trail)
       case Unreachable => unreachable()
