@@ -20,6 +20,13 @@ Compile / unmanagedJars += {
   baseDirectory.value / "third-party" / s"scalaz3_2.12-4.7.1.jar"
 }
 
+Compile / unmanagedJars += {
+  baseDirectory.value / "third-party" / s"com.microsoft.z3.jar"
+}
+
+Compile / run / javaOptions += "-Djava.library.path=/Library/Java/Extensions"
+Compile / run / fork := true
+
 scalacOptions ++= Seq(
   "-Xcheckinit",
   "-deprecation",
@@ -38,10 +45,12 @@ val commonJavaOptions = Seq(
   "-Xmx32G",
   "-Xss1024M",
   "-XX:MaxMetaspaceSize=8G",
-  "-XX:ReservedCodeCacheSize=2048M"
+  "-XX:ReservedCodeCacheSize=2048M",
+  "-Djava.library.path=/Library/Java/Extensions"
 )
 run / javaOptions ++= commonJavaOptions
 Test / javaOptions ++= commonJavaOptions
+Test / fork := true
 
 val paradiseVersion = "2.1.1"
 addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)
