@@ -48,7 +48,7 @@ trait StagedWasmEvaluator extends SAIOps {
         frame(i) = v
         eval(rest, newStack, frame, kont, trail)
       case LocalTee(i) =>
-        val (v, _) = (stack.head, stack.tail)
+        val v = stack.head
         frame(i) = v
         eval(rest, stack, frame, kont, trail)
       case GlobalGet(i) =>
@@ -111,11 +111,19 @@ trait StagedWasmEvaluator extends SAIOps {
           eval(els, inputs, frame, restK, restK :: trail)
         }
       case Br(label) =>
+        info(s"Jump to $label")
         trail(label)(stack)
       case BrIf(label) =>
         val (cond, newStack) = (stack.head, stack.tail)
-        if (cond != Values.I32(0)) trail(label)(newStack)
-        else eval(rest, newStack, frame, kont, trail)
+        if (cond != Values.I32(0)) {
+          info("The br_if's condition is ", cond)
+          info(s"Jump to $label")
+          trail(label)(newStack)
+        } else {
+          info("The br_if's condition is ",cond)
+          info(s"Continue")
+          eval(rest, newStack, frame, kont, trail)
+        }
       case BrTable(labels, default) =>
         val (cond, newStack) = (stack.head, stack.tail)
         if (cond.toInt < labels.length) {
@@ -147,12 +155,14 @@ trait StagedWasmEvaluator extends SAIOps {
         val newStack = stack.drop(ty.inps.size)
         val newFrame = frameOf(ty.inps.size + locals.size)
         newFrame.putAll(args)
+        info("New frame:", newFrame)
         val callee =
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
           } else {
             val callee = fun(
               (stack: Rep[Stack], frame: Rep[Frame], kont: Rep[Cont[Unit]]) => {
+                info(s"Entered the function at $funcIndex, stack =", stack, ", frame =", frame)
                 eval(body, stack, frame, kont, kont::Nil):Rep[Unit]
               }
             )
@@ -223,7 +233,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case Some(func_name) =>
         module.defs.flatMap({
           case Export(`func_name`, ExportFunc(fid)) =>
-            println(s"Entering function $main")
+            Predef.println(s"Now compiling start with function $main")
             module.funcs(fid) match {
               case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => Some(body)
               case _ => throw new Exception("Entry function has no concrete body")
@@ -247,8 +257,12 @@ trait StagedWasmEvaluator extends SAIOps {
     eval(instrs, Stack.emptyStack, frame, kont, kont::Nil) // NOTE: simply use List(kont) here will cause compilation error
   }
 
-  def evalTop(main: Option[String]): Rep[Unit] = {
+  def evalTop(main: Option[String], printRes: Boolean = false): Rep[Unit] = {
     val haltK: Rep[Stack] => Rep[Unit] = stack => {
+      if (printRes) {
+        print("Final stack: ")
+        println(stack)
+      }
       "no-op".reflectCtrlWith[Unit]()
     }
     evalTop(fun(haltK), main)
@@ -264,6 +278,10 @@ trait StagedWasmEvaluator extends SAIOps {
   // call unreachable
   def unreachable(): Rep[Unit] = {
     "unreachable".reflectCtrlWith()
+  }
+
+  def info(xs: Rep[_]*): Rep[Unit] = {
+    "info".reflectCtrlWith(xs: _*)
   }
 
   // runtime values
@@ -334,7 +352,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // frame creation and operations
   def frameOf(size: Int): Rep[Frame] = {
-    "frame-of".reflectWith(size)
+    "frame-of".reflectCtrlWith(size)
   }
 
   implicit class FrameOps(frame: Rep[Frame]) {
@@ -408,6 +426,11 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
     case Node(_, "global-set", List(i, value), _) =>
       shallow(i); emit(".globalSet("); shallow(value); emit(")")
     case _ => super.traverse(n)
+    case Node(_, "info", xs, _) =>
+      emit("println("); xs.foreach { x =>
+        shallow(x); emit(", ")
+      }; emit(")")
+
   }
 
   // code generation for pure nodes
@@ -525,12 +548,18 @@ object Prelude {
 
   class Frame(val size: Int) {
     private val data = new Array[Num](size)
-    def apply(i: Int): Num = data(i)
+    def apply(i: Int): Num = {
+      info(s"frame(${i}) = ${data(i)}")
+      data(i)
+    }
     def update(i: Int, v: Num): Unit = data(i) = v
     def putAll(xs: List[Num]): Unit = {
       for (i <- 0 until xs.size) {
         data(i) = xs(i)
       }
+    }
+    override def toString: String = {
+      "Frame(" + data.mkString(", ") + ")"
     }
   }
 
@@ -539,6 +568,12 @@ object Prelude {
     private val globals = new Array[Num](10)
     def globalGet(i: Int): Num = globals(i)
     def globalSet(i: Int, v: Num): Unit = globals(i) = v
+  }
+
+  def info(xs: Any*): Unit = {
+    if (System.getenv("DEBUG") != null) {
+      println("[INFO] " + xs.mkString(" "))
+    }
   }
 }
 import Prelude._
@@ -553,12 +588,12 @@ object Main {
 }
 
 object PartialEvaluator {
-  def apply(moduleInst: ModuleInstance, main: Option[String]): String = {
+  def apply(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
     println(s"Now compiling wasm module with entry function $main")
     val code = new WasmCompilerDriver[Unit, Unit] {
       def module: ModuleInstance = moduleInst
       def snippet(x: Rep[Unit]): Rep[Unit] = {
-        evalTop(main)
+        evalTop(main, printRes)
       }
     }
     code.code
