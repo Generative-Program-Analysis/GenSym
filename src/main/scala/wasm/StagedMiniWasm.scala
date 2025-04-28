@@ -114,7 +114,7 @@ trait StagedWasmEvaluator extends SAIOps {
         trail(label)(stack)
       case BrIf(label) =>
         val (cond, newStack) = (stack.head, stack.tail)
-        if (cond != 0) trail(label)(newStack)
+        if (cond != Values.I32(0)) trail(label)(newStack)
         else eval(rest, newStack, frame, kont, trail)
       case BrTable(labels, default) =>
         val (cond, newStack) = (stack.head, stack.tail)
@@ -129,8 +129,8 @@ trait StagedWasmEvaluator extends SAIOps {
       case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
       case _ =>
-        val noOp = "todo-op".reflectCtrlWith()
-        eval(rest, noOp :: stack, frame, kont, trail)
+        val todo = "todo-op".reflectCtrlWith()
+        eval(rest, todo :: stack, frame, kont, trail)
     }
   }
 
@@ -249,7 +249,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def evalTop(main: Option[String]): Rep[Unit] = {
     val haltK: Rep[Stack] => Rep[Unit] = stack => {
-      "no-op".reflectCtrlWith()
+      "no-op".reflectCtrlWith[Unit]()
     }
     evalTop(fun(haltK), main)
   }
@@ -470,6 +470,10 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(" >= "); shallow(rhs)
+    case Node(_, "num-to-int", List(num), _) =>
+      shallow(num); emit(".toInt")
+    case Node(_, "no-op", _, _) =>
+      emit("()")
     case _ => super.shallow(n)
   }
 }
@@ -506,6 +510,11 @@ object Prelude {
       case (I32V(x), I32V(y)) => I32V(if (x != y) 1 else 0)
       case (I64V(x), I64V(y)) => I32V(if (x != y) 1 else 0)
       case _ => throw new RuntimeException("Invalid inequality")
+    }
+
+    def toInt: Int = this match {
+      case I32V(i) => i
+      case I64V(i) => i.toInt
     }
   }
   case class I32V(i: Int) extends Num
