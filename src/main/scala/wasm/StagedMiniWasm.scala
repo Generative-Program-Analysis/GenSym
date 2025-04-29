@@ -445,7 +445,7 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
       // TODO: what is the protocol of automatic new line insertion?
       shallow(frame); emit(".update("); shallow(i); emit(", "); shallow(value); emit(")\n")
     case Node(_, "global-set", List(i, value), _) =>
-      shallow(i); emit(".globalSet("); shallow(value); emit(")")
+      emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(")\n")
     case _ => super.traverse(n)
     case Node(_, "info", xs, _) =>
       emit("println("); xs.foreach { x =>
