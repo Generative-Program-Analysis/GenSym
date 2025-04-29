@@ -28,7 +28,7 @@
       (block
         i32.const 4
         i32.const 2
-        ;; br_table 0 0 ;; the compilation of br_table is problematic now
+        br_table 0 1 0 ;; the compilation of br_table is problematic now
       )
     )
 

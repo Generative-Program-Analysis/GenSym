@@ -126,10 +126,31 @@ trait StagedWasmEvaluator extends SAIOps {
         }
       case BrTable(labels, default) =>
         val (cond, newStack) = (stack.head, stack.tail)
-        if (cond.toInt < labels.length) {
-          var targets: Rep[List[Cont[Unit]]] = List(labels.map(i => trail(i)): _*)
-          val goto: Rep[Cont[Unit]] = targets(cond.toInt)
-          goto(newStack) // TODO: this line will trigger an exception
+        if (cond.toInt < unit(labels.length)) {
+          // Implementation 1(trigger runtime exception):
+          // var targets: Rep[List[Cont[Unit]]] = List(labels.map(i => trail(i)): _*)
+          // val goto: Rep[Cont[Unit]] = targets(cond.toInt)
+          // goto(newStack) // TODO: confirm why this line will trigger an exception
+
+          // Implementation 2(if-expression is not generated at all):
+          // var goto: Rep[Cont[Unit]] = null
+          // for (i <- Range(0, labels.length)) {
+          //   if (i != cond.toInt) {
+          //     info(s"Jump(br_table) to ${labels(i)}")
+          //     return trail(labels(i))(newStack)
+          //   }
+          // }
+
+          // Implementation 3(assignment to `goto` is not generated):
+          var goto: Rep[Cont[Unit]] = null
+          for (i <- Range(0, labels.length)) {
+            if (i != cond.toInt) {
+              info(s"Jump(br_table) to ${labels(i)}")
+              goto = trail(labels(i))
+            }
+          }
+          info(s"Jump to goto target")
+          goto(newStack)
         } else {
           trail(default)(newStack)
         }
