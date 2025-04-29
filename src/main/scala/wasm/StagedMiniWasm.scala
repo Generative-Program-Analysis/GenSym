@@ -101,8 +101,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (cond, newStack) = (stack.head, stack.tail)
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
         // TODO: can we avoid code duplication here?
-        val restK = fun(
-          (retStack: Rep[Stack]) =>
+        val restK = fun((retStack: Rep[Stack]) =>
             eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
         )
         if (cond != Values.I32(0)) {
@@ -126,6 +125,15 @@ trait StagedWasmEvaluator extends SAIOps {
         }
       case BrTable(labels, default) =>
         val (cond, newStack) = (stack.head, stack.tail)
+        def aux(choices: List[Int], idx: Int): Rep[Unit] = {
+          if (choices.isEmpty) trail(default)(newStack)
+          else {
+            if (cond.toInt == idx) trail(choices.head)(newStack)
+            else aux(choices.tail, idx + 1)
+          }
+        }
+        aux(labels, 0)
+        /*
         if (cond.toInt < unit(labels.length)) {
           // Implementation 1(trigger runtime exception):
           // var targets: Rep[List[Cont[Unit]]] = List(labels.map(i => trail(i)): _*)
@@ -154,6 +162,7 @@ trait StagedWasmEvaluator extends SAIOps {
         } else {
           trail(default)(newStack)
         }
+        */
       case Return        => trail.last(stack)
       case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)

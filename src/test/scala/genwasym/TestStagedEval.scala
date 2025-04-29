@@ -14,9 +14,15 @@ class TestStagedEval extends FunSuite {
     println(code)
   }
 
+  /*
   test("scratch") {
     testFile("./benchmarks/wasm/staged/scratch.wat")
   }
 
   test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), printRes = true) }
+  */
+
+  test("brtable") {
+    testFile("./benchmarks/wasm/staged/brtable.wat")
+  }
 }
