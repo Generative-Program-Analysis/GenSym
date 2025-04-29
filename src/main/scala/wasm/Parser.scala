@@ -314,7 +314,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.LOCAL_GET() != null) LocalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_SET() != null) LocalSet(getVar(ctx.idx(0)).toInt)
     else if (ctx.LOCAL_TEE() != null) LocalTee(getVar(ctx.idx(0)).toInt)
-    else if (ctx.GLOBAL_SET() != null) GlobalGet(getVar(ctx.idx(0)).toInt)
+    else if (ctx.GLOBAL_SET() != null) GlobalSet(getVar(ctx.idx(0)).toInt)
     else if (ctx.GLOBAL_GET() != null) GlobalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.load() != null) {
       val ty = visitNumType(ctx.load.numType)

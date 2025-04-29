@@ -15,9 +15,9 @@
     i32.add
     nop
     (call 1)
-    global.get 1
+    global.get 0
     i32.const 3
-    global.set 2 ;; TODO: this line was compiled to global.get, fix the parser!
+    global.set 0
 
     if (result i32)  ;; label = @1
       i32.const 1
