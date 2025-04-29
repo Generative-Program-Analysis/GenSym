@@ -255,8 +255,8 @@ case class Evaluator(module: ModuleInstance) {
         val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(ArrayBuffer(frameLocals: _*))
         if (isTail)
-          // when tail call, share the continuation for returning with the callee
-          eval(body, List(), newFrame, kont, List(kont))
+          // when tail call, return to the caller's return continuation
+          eval(body, List(), newFrame, trail.last, List(trail.last))
         else {
           val restK: Cont[Ans] = (retStack) =>
             eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)

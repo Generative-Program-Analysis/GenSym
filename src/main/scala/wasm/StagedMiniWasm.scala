@@ -191,8 +191,8 @@ trait StagedWasmEvaluator extends SAIOps {
             callee
           }
         if (isTail)
-          // when tail call, share the continuation for returning with the callee
-          callee(Stack.emptyStack, newFrame, kont)
+          // when tail call, return to the caller's return continuation
+          callee(Stack.emptyStack, newFrame, trail.last)
         else {
           val restK = fun(
             (retStack: Rep[Stack]) =>
