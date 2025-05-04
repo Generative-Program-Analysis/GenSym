@@ -21,202 +21,186 @@ trait StagedWasmEvaluator extends SAIOps {
   // Adapter.resetState
   // Adapter.g = Adapter.mkGraphBuilder
 
-  trait Stack
-  type Cont[A] = Stack => A
-  type Trail[A] = List[Rep[Cont[A]]]
+  trait Slice
 
   trait Frame
 
+  type Cont[A] = Unit => A
+  type Trail[A] = List[Rep[Cont[A]]]
+
   // a cache storing the compiled code for each function, to reduce re-compilation
-  val compileCache = new HashMap[Int, Rep[(Stack, Frame, Cont[Unit]) => Unit]]
+  val compileCache = new HashMap[Int, Rep[(Cont[Unit]) => Unit]]
 
   // NOTE: We don't support Ans type polymorphism yet
   def eval(insts: List[Instr],
-           stack: Rep[Stack],
-           frame: Rep[Frame],
            kont: Rep[Cont[Unit]],
            trail: Trail[Unit]): Rep[Unit] = {
-    if (insts.isEmpty) return kont(stack)
+    if (insts.isEmpty) return kont()
     val (inst, rest) = (insts.head, insts.tail)
     inst match {
-      case Drop => eval(rest, stack.tail, frame, kont, trail)
-      case WasmConst(num) => eval(rest, Values.lift(num) :: stack, frame, kont, trail)
+      case Drop =>
+        Stack.pop()
+        eval(rest, kont, trail)
+      case WasmConst(num) =>
+        Stack.push(num)
+        eval(rest, kont, trail)
       case LocalGet(i) =>
-        eval(rest, frame.get(i) :: stack, frame, kont, trail)
+        Stack.push(Frames.get(i))
+        eval(rest, kont, trail)
       case LocalSet(i) =>
-        val (v, newStack) = (stack.head, stack.tail)
-        frame(i) = v
-        eval(rest, newStack, frame, kont, trail)
+        Frames.set(i, Stack.pop())
+        eval(rest, kont, trail)
       case LocalTee(i) =>
-        val v = stack.head
-        frame(i) = v
-        eval(rest, stack, frame, kont, trail)
+        Frames.set(i, Stack.peek)
+        eval(rest, kont, trail)
       case GlobalGet(i) =>
-        eval(rest, Global.globalGet(i) :: stack, frame, kont, trail)
+        Stack.push(Global.globalGet(i))
+        eval(rest, kont, trail)
       case GlobalSet(i) =>
-        val (value, newStack) = (stack.head, stack.tail)
+        val value = Stack.pop()
         module.globals(i).ty match {
           case GlobalType(tipe, true) => Global.globalSet(i, value)
           case _ => throw new Exception("Cannot set immutable global")
         }
-        eval(rest, newStack, frame, kont, trail)
+        eval(rest, kont, trail)
       case MemorySize => ???
       case MemoryGrow => ???
       case MemoryFill => ???
       case Nop =>
-        eval(rest, stack, frame, kont, trail)
+        eval(rest, kont, trail)
       case Unreachable => unreachable()
       case Test(op) =>
-        val (v, newStack) = (stack.head, stack.tail)
-        eval(rest, evalTestOp(op, v) :: newStack, frame, kont, trail)
+        val v = Stack.pop()
+        Stack.push(evalTestOp(op, v))
+        eval(rest, kont, trail)
       case Unary(op) =>
-        val (v, newStack) = (stack.head, stack.tail)
-        eval(rest, evalUnaryOp(op, v) :: newStack, frame, kont, trail)
+        val v = Stack.pop()
+        Stack.push(evalUnaryOp(op, v))
+        eval(rest, kont, trail)
       case Binary(op) =>
-        val (v2, v1, newStack) = (stack.head, stack.tail.head, stack.tail.tail)
-        eval(rest, evalBinOp(op, v1, v2) :: newStack, frame, kont, trail)
+        val v2 = Stack.pop()
+        val v1 = Stack.pop()
+        Stack.push(evalBinOp(op, v1, v2))
+        eval(rest, kont, trail)
       case Compare(op) =>
-        val (v2, v1, newStack) = (stack.head, stack.tail.head, stack.tail.tail)
-        eval(rest, evalRelOp(op, v1, v2) :: newStack, frame, kont, trail)
+        val v2 = Stack.pop()
+        val v1 = Stack.pop()
+        Stack.push(evalRelOp(op, v1, v2))
+        eval(rest, kont, trail)
       case WasmBlock(ty, inner) =>
+        // no need to modify the stack when entering a block
+        // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
-        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        val restK = fun(
-          (retStack: Rep[Stack]) =>
-            eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
-        )
-        eval(inner, inputs, frame, restK, restK :: trail)
+        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
+        val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+          Stack.reset(exitSize)
+          eval(rest, kont, trail)
+        })
+        eval(inner, restK, restK :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
-        val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
-        val restK = fun(
-          (retStack: Rep[Stack]) =>
-            eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
-        )
-        def loop(retStack: Rep[Stack]): Rep[Unit] =
-          eval(inner, retStack.take(funcTy.inps.size), frame, restK, fun(loop _) :: trail)
-        loop(inputs)
+        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
+        val restK = fun((_: Rep[Unit]) => {
+          Stack.reset(exitSize)
+          eval(rest, kont, trail)
+        })
+        def loop(_u: Rep[Unit]): Rep[Unit] =
+          eval(inner, restK, fun(loop _) :: trail)
+        loop(())
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
-        val (cond, newStack) = (stack.head, stack.tail)
-        val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
+        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
+        val cond = Stack.pop()
         // TODO: can we avoid code duplication here?
-        val restK = fun((retStack: Rep[Stack]) =>
-            eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
-        )
+        val restK = fun((_: Rep[Unit]) => {
+          Stack.reset(exitSize)
+          eval(rest, kont, trail)
+        })
         if (cond != Values.I32(0)) {
-          eval(thn, inputs, frame, restK, restK :: trail)
+          eval(thn, restK, restK :: trail)
         } else {
-          eval(els, inputs, frame, restK, restK :: trail)
+          eval(els, restK, restK :: trail)
         }
       case Br(label) =>
         info(s"Jump to $label")
-        trail(label)(stack)
+        trail(label)(())
       case BrIf(label) =>
-        val (cond, newStack) = (stack.head, stack.tail)
+        val cond = Stack.pop()
+        info(s"The br_if(${label})'s condition is ", cond)
         if (cond != Values.I32(0)) {
-          info("The br_if's condition is ", cond)
           info(s"Jump to $label")
-          trail(label)(newStack)
+          trail(label)(())
         } else {
-          info("The br_if's condition is ",cond)
           info(s"Continue")
-          eval(rest, newStack, frame, kont, trail)
+          eval(rest, kont, trail)
         }
       case BrTable(labels, default) =>
-        val (cond, newStack) = (stack.head, stack.tail)
+        val cond = Stack.pop()
         def aux(choices: List[Int], idx: Int): Rep[Unit] = {
-          if (choices.isEmpty) trail(default)(newStack)
+          if (choices.isEmpty) trail(default)(())
           else {
-            if (cond.toInt == idx) trail(choices.head)(newStack)
+            if (cond.toInt == idx) trail(choices.head)(())
             else aux(choices.tail, idx + 1)
           }
         }
         aux(labels, 0)
-        /*
-        if (cond.toInt < unit(labels.length)) {
-          // Implementation 1(trigger runtime exception):
-          // var targets: Rep[List[Cont[Unit]]] = List(labels.map(i => trail(i)): _*)
-          // val goto: Rep[Cont[Unit]] = targets(cond.toInt)
-          // goto(newStack) // TODO: confirm why this line will trigger an exception
-
-          // Implementation 2(if-expression is not generated at all):
-          // var goto: Rep[Cont[Unit]] = null
-          // for (i <- Range(0, labels.length)) {
-          //   if (i != cond.toInt) {
-          //     info(s"Jump(br_table) to ${labels(i)}")
-          //     return trail(labels(i))(newStack)
-          //   }
-          // }
-
-          // Implementation 3(assignment to `goto` is not generated):
-          var goto: Rep[Cont[Unit]] = null
-          for (i <- Range(0, labels.length)) {
-            if (i != cond.toInt) {
-              info(s"Jump(br_table) to ${labels(i)}")
-              goto = trail(labels(i))
-            }
-          }
-          info(s"Jump to goto target")
-          goto(newStack)
-        } else {
-          trail(default)(newStack)
-        }
-        */
-      case Return        => trail.last(stack)
-      case Call(f)       => evalCall(rest, stack, frame, kont, trail, f, false)
-      case ReturnCall(f) => evalCall(rest, stack, frame, kont, trail, f, true)
+      case Return        => trail.last(())
+      case Call(f)       => evalCall(rest, kont, trail, f, false)
+      case ReturnCall(f) => evalCall(rest, kont, trail, f, true)
       case _ =>
         val todo = "todo-op".reflectCtrlWith()
-        eval(rest, todo :: stack, frame, kont, trail)
+        eval(rest, kont, trail)
     }
   }
 
   def evalCall(rest: List[Instr],
-               stack: Rep[Stack],
-               frame: Rep[Frame],
                kont: Rep[Cont[Unit]],
                trail: Trail[Unit],
                funcIndex: Int,
                isTail: Boolean): Rep[Unit] = {
     module.funcs(funcIndex) match {
       case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
-        val args = stack.take(ty.inps.size).reverse
-        val newStack = stack.drop(ty.inps.size)
-        val newFrame = frameOf(ty.inps.size + locals.size)
-        newFrame.putAll(args)
-        info("New frame:", newFrame)
+        val returnSize = Stack.size - ty.inps.size + ty.out.size
+        val args = Stack.take(ty.inps.size)
+        info("New frame:", Frames.top)
         val callee =
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
           } else {
-            val callee = fun(
-              (stack: Rep[Stack], frame: Rep[Frame], kont: Rep[Cont[Unit]]) => {
-                info(s"Entered the function at $funcIndex, stack =", stack, ", frame =", frame)
-                eval(body, stack, frame, kont, kont::Nil):Rep[Unit]
+            val callee = topFun(
+              (kont: Rep[Cont[Unit]]) => {
+                info(s"Entered the function at $funcIndex, stackSize =", Stack.size, ", frame =", Frames.top)
+                eval(body, kont, kont::Nil): Rep[Unit]
               }
             )
             compileCache(funcIndex) = callee
             callee
           }
-        if (isTail)
+        val frameSize = ty.inps.size + locals.size
+        if (isTail) {
           // when tail call, return to the caller's return continuation
-          callee(Stack.emptyStack, newFrame, trail.last)
-        else {
-          val restK = fun(
-            (retStack: Rep[Stack]) =>
-              eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)
-          )
+          Frames.popFrame()
+          Frames.pushFrame(frameSize)
+          Frames.putAll(args)
+          callee(trail.last)
+        } else {
+          val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+            Stack.reset(returnSize)
+            Frames.popFrame()
+            eval(rest, kont, trail)
+          })
           // We make a new trail by `restK`, since function creates a new block to escape
           // (more or less like `return`)
-          callee(Stack.emptyStack, newFrame, restK)
+          Frames.pushFrame(frameSize)
+          Frames.putAll(args)
+          callee(restK)
         }
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
-        val (v, newStack) = (stack.head, stack.tail)
+        val v = Stack.pop()
         println(v)
-        eval(rest, newStack, frame, kont, trail)
+        eval(rest, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -283,27 +267,88 @@ trait StagedWasmEvaluator extends SAIOps {
         }
     }
     val (instrs, localSize) = (funBody.body, funBody.locals.size)
-    val frame = frameOf(localSize)
-    eval(instrs, Stack.emptyStack, frame, kont, kont::Nil) // NOTE: simply use List(kont) here will cause compilation error
+    Stack.initialize()
+    Frames.pushFrame(localSize)
+    eval(instrs, kont, kont::Nil)
+    Frames.popFrame()
   }
 
   def evalTop(main: Option[String], printRes: Boolean = false): Rep[Unit] = {
-    val haltK: Rep[Stack] => Rep[Unit] = stack => {
+    val haltK: Rep[Unit] => Rep[Unit] = (_) => {
       if (printRes) {
-        print("Final stack: ")
-        println(stack)
+        Stack.print()
       }
       "no-op".reflectCtrlWith[Unit]()
     }
-    evalTop(fun(haltK), main)
+    val temp: Rep[Cont[Unit]] = fun(haltK)
+    evalTop(temp, main)
   }
 
   // stack creation and operations
   object Stack {
-    def emptyStack: Rep[Stack] = {
-      "empty-stack".reflectWith()
+    def initialize(): Rep[Unit] = {
+      "stack-init".reflectCtrlWith()
+    }
+
+    def pop(): Rep[Num] = {
+      "stack-pop".reflectCtrlWith()
+    }
+
+    def peek: Rep[Num] = {
+      "stack-peek".reflectCtrlWith()
+    }
+
+    def push(v: Rep[Num]): Rep[Unit] = {
+      "stack-push".reflectCtrlWith(v)
+    }
+
+    def drop(n: Int): Rep[Unit] = {
+      "stack-drop".reflectCtrlWith(n)
+    }
+
+    def print(): Rep[Unit] = {
+      "stack-print".reflectCtrlWith()
+    }
+
+    def size: Rep[Int] = {
+      "stack-size".reflectCtrlWith()
+    }
+
+    def reset(x: Rep[Int]): Rep[Unit] = {
+      "stack-reset".reflectCtrlWith(x)
+    }
+
+    def take(n: Int): Rep[Slice] = {
+      "stack-take".reflectCtrlWith(n)
     }
   }
+
+  object Frames {
+    def get(i: Int): Rep[Num] = {
+      "frame-get".reflectCtrlWith(i)
+    }
+
+    def set(i: Int, v: Rep[Num]): Rep[Unit] = {
+      "frame-set".reflectCtrlWith(i, v)
+    }
+
+    def pushFrame(i: Int): Rep[Unit] = {
+      "frame-push".reflectCtrlWith(i)
+    }
+
+    def popFrame(): Rep[Unit] = {
+      "frame-pop".reflectCtrlWith()
+    }
+
+    def putAll(args: Rep[Slice]): Rep[Unit] = {
+      "frame-putAll".reflectCtrlWith(args)
+    }
+
+    def top: Rep[Frame] = {
+      "frame-top".reflectCtrlWith()
+    }
+  }
+
 
   // call unreachable
   def unreachable(): Rep[Unit] = {
@@ -341,64 +386,6 @@ trait StagedWasmEvaluator extends SAIOps {
     def globalSet(i: Int, value: Rep[Num]): Rep[Unit] = {
       "global-set".reflectCtrlWith(i, value)
     }
-  }
-
-  // TODO: The stack should be allocated on the stack to get optimal performance
-  implicit class StackOps(stack: Rep[Stack]) {
-    def head: Rep[Num] = {
-      "stack-head".reflectCtrlWith(stack)
-    }
-
-    def tail: Rep[Stack] = {
-      "stack-tail".reflectCtrlWith(stack)
-    }
-
-    def ::[A](v: Rep[Num]): Rep[Stack] = {
-      "stack-cons".reflectCtrlWith(v, stack)
-    }
-
-    def ++(v: Rep[Stack]): Rep[Stack] = {
-      "stack-append".reflectCtrlWith(stack, v)
-    }
-
-    def take(n: Int): Rep[Stack] = {
-      if (n == 0) Stack.emptyStack
-      else "stack-take".reflectWith(stack, n)
-    }
-
-    def drop(n: Int): Rep[Stack] = {
-      if (n == 0) stack
-      else "stack-drop".reflectWith(stack, n)
-    }
-
-    def reverse: Rep[Stack] = {
-      "stack-reverse".reflectWith(stack)
-    }
-
-    def splitAt(n: Int): (Rep[Stack], Rep[Stack]) = {
-      (take(n), drop(n))
-    }
-  }
-
-  // frame creation and operations
-  def frameOf(size: Int): Rep[Frame] = {
-    "frame-of".reflectCtrlWith(size)
-  }
-
-  implicit class FrameOps(frame: Rep[Frame]) {
-
-    def get(i: Int): Rep[Num] = {
-      "frame-get".reflectCtrlWith(frame, i)
-    }
-
-    def putAll(args: Rep[Stack]) = {
-      "frame-putAll".reflectCtrlWith(frame, args)
-    }
-
-    def update(i: Int, value: Rep[Num]) = {
-      "frame-update".reflectCtrlWith(frame, i, value)
-    }
-
   }
 
   // runtime Num type
@@ -446,49 +433,56 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectWith(num, rhs)
   }
+  implicit class SliceOps(slice: Rep[Slice]) {
+    def reverse: Rep[Slice] = "slice-reverse".reflectWith(slice)
+  }
 }
 
 trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   override def traverse(n: Node): Unit = n match {
-    case Node(_, "frame-update", List(frame, i, value), _) =>
-      // TODO: what is the protocol of automatic new line insertion?
-      shallow(frame); emit(".update("); shallow(i); emit(", "); shallow(value); emit(")\n")
+    case Node(_, "stack-push", List(value), _) =>
+      emit("Stack.push("); shallow(value); emit(")\n")
+    case Node(_, "stack-drop", List(n), _) =>
+      emit("Stack.drop("); shallow(n); emit(")\n")
+    case Node(_, "stack-reset", List(n), _) =>
+      emit("Stack.reset("); shallow(n); emit(")\n")
+    case Node(_, "stack-init", _, _) =>
+      emit("Stack.initialize()\n")
+    case Node(_, "stack-print", _, _) =>
+      emit("Stack.print()\n")
+    case Node(_, "frame-push", List(i), _) =>
+      emit("Frames.pushFrame("); shallow(i); emit(")\n")
+    case Node(_, "frame-pop", _, _) =>
+      emit("Frames.popFrame()\n")
+    case Node(_, "frame-putAll", List(args), _) =>
+      emit("Frames.putAll("); shallow(args); emit(")\n")
+    case Node(_, "frame-set", List(i, value), _) =>
+      emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(")\n")
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(")\n")
     case _ => super.traverse(n)
-    case Node(_, "info", xs, _) =>
-      emit("println("); xs.foreach { x =>
-        shallow(x); emit(", ")
-      }; emit(")")
-
   }
 
   // code generation for pure nodes
   override def shallow(n: Node): Unit = n match {
-    case Node(_, "stack-take", List(stack, n), _) =>
-      shallow(stack); emit(".take("); shallow(n); emit(")")
-    case Node(_, "stack-drop", List(stack, n), _) =>
-      shallow(stack); emit(".drop("); shallow(n); emit(")")
-    case Node(_, "stack-append", List(stack1, stack2), _) =>
-      shallow(stack1); emit(".++("); shallow(stack2); emit(")")
-    case Node(_, "stack-head", List(stack), _) =>
-      shallow(stack); emit(".head")
-    case Node(_, "stack-reverse", List(stack), _) =>
-      shallow(stack); emit(".reverse")
-    case Node(_, "stack-cons", List(v, stack), _) =>
-      shallow(stack); emit(".::("); shallow(v); emit(")")
-    case Node(_, "stack-tail", List(stack), _) =>
-      shallow(stack); emit(".tail")
-    case Node(_, "empty-stack", _, _) =>
-      emit("Nil")
-    case Node(_, "frame-of", List(size), _) =>
-      emit("new Frame("); shallow(size); emit(")")
-    case Node(_, "frame-get", List(frame, i), _) =>
-      shallow(frame); emit("("); shallow(i); emit(")")
-    case Node(_, "frame-putAll", List(frame, args), _) =>
-      shallow(frame); emit(".putAll("); shallow(args); emit(")")
+    case Node(_, "frame-get", List(i), _) =>
+      emit("Frames.get("); shallow(i); emit(")")
+    case Node(_, "stack-pop", _, _) =>
+      emit("Stack.pop()")
+    case Node(_, "frame-pop", _, _) =>
+      emit("Frames.popFrame()")
+    case Node(_, "stack-peek", _, _) =>
+      emit("Stack.peek\n")
+    case Node(_, "stack-take", List(n), _) =>
+      emit("Stack.take("); shallow(n); emit(")")
+    case Node(_, "slice-reverse", List(slice), _) =>
+      shallow(slice); emit(".reverse")
+    case Node(_, "stack-size", _, _) =>
+      emit("Stack.size")
     case Node(_, "global-get", List(i), _) =>
       emit("Global.globalGet("); shallow(i); emit(")")
+    case Node(_, "frame-top", _, _) =>
+      emit("Frames.top")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(" + "); shallow(rhs)
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
@@ -573,16 +567,48 @@ object Prelude {
   case class I32V(i: Int) extends Num
   case class I64V(i: Long) extends Num
 
+object Stack {
+  private val buffer = new scala.collection.mutable.ArrayBuffer[Num]()
+  def push(v: Num): Unit = buffer.append(v)
+  def pop(): Num = {
+    buffer.remove(buffer.size - 1)
+  }
+  def peek: Num = {
+    buffer.last
+  }
+  def size: Int = buffer.size
+  def drop(n: Int): Unit = {
+    buffer.remove(buffer.size - n, n)
+  }
+  def take(n: Int): List[Num] = {
+    val xs = buffer.takeRight(n).toList
+    drop(n)
+    xs
+  }
+  def reset(size: Int): Unit = {
+    info(s"Reset stack to size $size")
+    while (buffer.size > size) {
+      buffer.remove(buffer.size - 1)
+    }
+  }
+  def initialize(): Unit = buffer.clear()
+  def print(): Unit = {
+    println("Stack: " + buffer.mkString(", "))
+  }
+}
 
-  type Stack = List[Num]
+  type Slice = List[Num]
 
   class Frame(val size: Int) {
     private val data = new Array[Num](size)
     def apply(i: Int): Num = {
-      info(s"frame(${i}) = ${data(i)}")
+      info(s"frame(${i}) is ${data(i)}")
       data(i)
     }
-    def update(i: Int, v: Num): Unit = data(i) = v
+    def update(i: Int, v: Num): Unit = {
+      info(s"set frame(${i}) to ${v}")
+      data(i) = v
+    }
     def putAll(xs: List[Num]): Unit = {
       for (i <- 0 until xs.size) {
         data(i) = xs(i)
@@ -590,6 +616,28 @@ object Prelude {
     }
     override def toString: String = {
       "Frame(" + data.mkString(", ") + ")"
+    }
+  }
+
+  object Frames {
+    private var frames = List[Frame]()
+    def pushFrame(size: Int): Unit = {
+      frames = new Frame(size) :: frames
+    }
+    def popFrame(): Unit = {
+      frames = frames.tail
+    }
+    def top: Frame = frames.head
+    def set(i: Int, v: Num): Unit = {
+      top(i) = v
+    }
+    def get(i: Int): Num = {
+      top(i)
+    }
+    def putAll(xs: Slice) = {
+      for (i <- 0 until xs.size) {
+        top(i) = xs(i)
+      }
     }
   }
 
@@ -607,6 +655,7 @@ object Prelude {
   }
 }
 import Prelude._
+
 
 object Main {
   def main(args: Array[String]): Unit = {
