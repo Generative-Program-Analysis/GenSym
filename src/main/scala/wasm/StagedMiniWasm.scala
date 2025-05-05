@@ -5,13 +5,13 @@ import scala.collection.mutable.{ArrayBuffer, HashMap}
 import lms.core.stub.Adapter
 import lms.core.virtualize
 import lms.macros.SourceContext
-import lms.core.stub.{Base, ScalaGenBase}
+import lms.core.stub.{Base, ScalaGenBase, CGenBase}
 import lms.core.Backend._
 import lms.core.Backend.{Block => LMSBlock}
 
 import gensym.wasm.ast._
 import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
-import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase}
+import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
 
 @virtualize
 trait StagedWasmEvaluator extends SAIOps {
@@ -472,7 +472,7 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
     case Node(_, "frame-pop", _, _) =>
       emit("Frames.popFrame()")
     case Node(_, "stack-peek", _, _) =>
-      emit("Stack.peek\n")
+      emit("Stack.peek")
     case Node(_, "stack-take", List(n), _) =>
       emit("Stack.take("); shallow(n); emit(")")
     case Node(_, "slice-reverse", List(slice), _) =>
@@ -525,7 +525,7 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   }
 }
 
-trait WasmCompilerDriver[A, B]
+trait WasmToScalaCompilerDriver[A, B]
   extends SAIDriver[A, B] with StagedWasmEvaluator { q =>
   override val codegen = new StagedWasmScalaGen {
     val IR: q.type = q
@@ -533,6 +533,7 @@ trait WasmCompilerDriver[A, B]
     override def remap(m: Manifest[_]): String = {
       if (m.toString.endsWith("Stack")) "Stack"
       else if(m.toString.endsWith("Frame")) "Frame"
+      else if(m.toString.endsWith("Slice")) "Slice"
       else super.remap(m)
     }
   }
@@ -666,10 +667,12 @@ object Main {
 """
 }
 
-object PartialEvaluator {
+
+
+object WasmToScalaCompiler {
   def apply(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
     println(s"Now compiling wasm module with entry function $main")
-    val code = new WasmCompilerDriver[Unit, Unit] {
+    val code = new WasmToScalaCompilerDriver[Unit, Unit] {
       def module: ModuleInstance = moduleInst
       def snippet(x: Rep[Unit]): Rep[Unit] = {
         evalTop(main, printRes)
@@ -678,3 +681,117 @@ object PartialEvaluator {
     code.code
   }
 }
+
+trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
+  // for now, the traverse/shallow is same as the scala backend's
+  override def traverse(n: Node): Unit = n match {
+    case Node(_, "stack-push", List(value), _) =>
+      emit("Stack.push("); shallow(value); emit(")\n")
+    case Node(_, "stack-drop", List(n), _) =>
+      emit("Stack.drop("); shallow(n); emit(")\n")
+    case Node(_, "stack-reset", List(n), _) =>
+      emit("Stack.reset("); shallow(n); emit(")\n")
+    case Node(_, "stack-init", _, _) =>
+      emit("Stack.initialize()\n")
+    case Node(_, "stack-print", _, _) =>
+      emit("Stack.print()\n")
+    case Node(_, "frame-push", List(i), _) =>
+      emit("Frames.pushFrame("); shallow(i); emit(")\n")
+    case Node(_, "frame-pop", _, _) =>
+      emit("Frames.popFrame()\n")
+    case Node(_, "frame-putAll", List(args), _) =>
+      emit("Frames.putAll("); shallow(args); emit(")\n")
+    case Node(_, "frame-set", List(i, value), _) =>
+      emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(")\n")
+    case Node(_, "global-set", List(i, value), _) =>
+      emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(")\n")
+    case _ => super.traverse(n)
+  }
+
+  // code generation for pure nodes
+  override def shallow(n: Node): Unit = n match {
+    case Node(_, "frame-get", List(i), _) =>
+      emit("Frames.get("); shallow(i); emit(")")
+    case Node(_, "stack-pop", _, _) =>
+      emit("Stack.pop()")
+    case Node(_, "frame-pop", _, _) =>
+      emit("Frames.popFrame()")
+    case Node(_, "stack-peek", _, _) =>
+      emit("Stack.peek")
+    case Node(_, "stack-take", List(n), _) =>
+      emit("Stack.take("); shallow(n); emit(")")
+    case Node(_, "slice-reverse", List(slice), _) =>
+      shallow(slice); emit(".reverse")
+    case Node(_, "stack-size", _, _) =>
+      emit("Stack.size")
+    case Node(_, "global-get", List(i), _) =>
+      emit("Global.globalGet("); shallow(i); emit(")")
+    case Node(_, "frame-top", _, _) =>
+      emit("Frames.top")
+    case Node(_, "binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" + "); shallow(rhs)
+    case Node(_, "binary-sub", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" - "); shallow(rhs)
+    case Node(_, "binary-mul", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" * "); shallow(rhs)
+    case Node(_, "binary-div", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" / "); shallow(rhs)
+    case Node(_, "binary-shl", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" << "); shallow(rhs)
+    case Node(_, "binary-shr", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" >> "); shallow(rhs)
+    case Node(_, "binary-and", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" & "); shallow(rhs)
+    case Node(_, "relation-eq", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" == "); shallow(rhs)
+    case Node(_, "relation-ne", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" != "); shallow(rhs)
+    case Node(_, "relation-lt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" < "); shallow(rhs)
+    case Node(_, "relation-ltu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" < "); shallow(rhs)
+    case Node(_, "relation-gt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" > "); shallow(rhs)
+    case Node(_, "relation-gtu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" > "); shallow(rhs)
+    case Node(_, "relation-le", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" <= "); shallow(rhs)
+    case Node(_, "relation-leu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" <= "); shallow(rhs)
+    case Node(_, "relation-ge", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" >= "); shallow(rhs)
+    case Node(_, "relation-geu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" >= "); shallow(rhs)
+    case Node(_, "num-to-int", List(num), _) =>
+      shallow(num); emit(".toInt")
+    case Node(_, "no-op", _, _) =>
+      emit("()")
+    case _ => super.shallow(n)
+  }
+}
+
+
+trait WasmToCppCompilerDriver[A, B] extends CppSAIDriver[A, B] with StagedWasmEvaluator { q =>
+  override val codegen = new StagedWasmCppGen {
+    val IR: q.type = q
+    import IR._
+    override def remap(m: Manifest[_]): String = {
+      if (m.toString.endsWith("Num")) "Num"
+      else super.remap(m)
+    }
+  }
+}
+
+object WasmToCppCompiler {
+  def apply(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
+    println(s"Now compiling wasm module with entry function $main")
+    val code = new WasmToCppCompilerDriver[Unit, Unit] {
+      def module: ModuleInstance = moduleInst
+      def snippet(x: Rep[Unit]): Rep[Unit] = {
+        evalTop(main, printRes)
+      }
+    }
+    code.code
+  }
+}
+
