@@ -91,6 +91,7 @@ trait StagedWasmEvaluator extends SAIOps {
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
+        // TODO: somehow the type of exitSize in residual program is nothing
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
           Stack.reset(exitSize)
@@ -686,25 +687,25 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   // for now, the traverse/shallow is same as the scala backend's
   override def traverse(n: Node): Unit = n match {
     case Node(_, "stack-push", List(value), _) =>
-      emit("Stack.push("); shallow(value); emit(")\n")
+      emit("Stack.push("); shallow(value); emit(");\n")
     case Node(_, "stack-drop", List(n), _) =>
-      emit("Stack.drop("); shallow(n); emit(")\n")
+      emit("Stack.drop("); shallow(n); emit(");\n")
     case Node(_, "stack-reset", List(n), _) =>
-      emit("Stack.reset("); shallow(n); emit(")\n")
+      emit("Stack.reset("); shallow(n); emit(");\n")
     case Node(_, "stack-init", _, _) =>
-      emit("Stack.initialize()\n")
+      emit("Stack.initialize();\n")
     case Node(_, "stack-print", _, _) =>
-      emit("Stack.print()\n")
+      emit("Stack.print();\n")
     case Node(_, "frame-push", List(i), _) =>
-      emit("Frames.pushFrame("); shallow(i); emit(")\n")
+      emit("Frames.pushFrame("); shallow(i); emit(");\n")
     case Node(_, "frame-pop", _, _) =>
-      emit("Frames.popFrame()\n")
+      emit("Frames.popFrame();\n")
     case Node(_, "frame-putAll", List(args), _) =>
-      emit("Frames.putAll("); shallow(args); emit(")\n")
+      emit("Frames.putAll("); shallow(args); emit(");\n")
     case Node(_, "frame-set", List(i, value), _) =>
-      emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(")\n")
+      emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case Node(_, "global-set", List(i, value), _) =>
-      emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(")\n")
+      emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case _ => super.traverse(n)
   }
 
@@ -723,11 +724,11 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "slice-reverse", List(slice), _) =>
       shallow(slice); emit(".reverse")
     case Node(_, "stack-size", _, _) =>
-      emit("Stack.size")
+      emit("Stack.size()")
     case Node(_, "global-get", List(i), _) =>
       emit("Global.globalGet("); shallow(i); emit(")")
     case Node(_, "frame-top", _, _) =>
-      emit("Frames.top")
+      emit("Frames.top()")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(" + "); shallow(rhs)
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
@@ -777,6 +778,12 @@ trait WasmToCppCompilerDriver[A, B] extends CppSAIDriver[A, B] with StagedWasmEv
     import IR._
     override def remap(m: Manifest[_]): String = {
       if (m.toString.endsWith("Num")) "Num"
+      else if (m.toString.endsWith("Slice")) "Slice"
+      else if (m.toString.endsWith("Frame")) "Frame"
+      else if (m.toString.endsWith("Stack")) "Stack"
+      else if (m.toString.endsWith("Global")) "Global"
+      else if (m.toString.endsWith("I32V")) "I32V"
+      else if (m.toString.endsWith("I64V")) "I64V"
       else super.remap(m)
     }
   }
