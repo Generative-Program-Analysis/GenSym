@@ -229,15 +229,6 @@ object Primtives {
     case VecType(kind) => ???
     case RefType(kind) => RefNullV(kind)
   }
-
-  def getFuncType(ty: BlockType): FuncType =
-    ty match {
-      case VarBlockType(_, None) =>
-        ??? // TODO: fill this branch until we handle type index correctly
-      case VarBlockType(_, Some(tipe)) => tipe
-      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
-      case ValBlockType(None)          => FuncType(List(), List(), List())
-    }
 }
 
 case class Frame(locals: ArrayBuffer[Value])
@@ -264,8 +255,8 @@ case class Evaluator(module: ModuleInstance) {
         val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(ArrayBuffer(frameLocals: _*))
         if (isTail)
-          // when tail call, share the continuation for returning with the callee
-          eval(body, List(), newFrame, kont, List(kont))
+          // when tail call, return to the caller's return continuation
+          eval(body, List(), newFrame, trail.last, List(trail.last))
         else {
           val restK: Cont[Ans] = (retStack) =>
             eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)
@@ -380,7 +371,7 @@ case class Evaluator(module: ModuleInstance) {
         eval(rest, stack, frame, kont, trail)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
@@ -389,7 +380,7 @@ case class Evaluator(module: ModuleInstance) {
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
@@ -397,7 +388,7 @@ case class Evaluator(module: ModuleInstance) {
           eval(inner, retStack.take(funcTy.inps.size), frame, restK, loop _ :: trail)
         loop(inputs)
       case If(ty, thn, els) =>
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
