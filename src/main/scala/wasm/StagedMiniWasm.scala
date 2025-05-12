@@ -292,7 +292,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def pop(): Rep[Num] = {
-      "stack-pop".reflectCtrlWith()
+      "stack-pop".reflectCtrlWith[Num]()
     }
 
     def peek: Rep[Num] = {
@@ -312,7 +312,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def size: Rep[Int] = {
-      "stack-size".reflectCtrlWith()
+      "stack-size".reflectCtrlWith[Int]()
     }
 
     def reset(x: Rep[Int]): Rep[Unit] = {
@@ -392,7 +392,7 @@ trait StagedWasmEvaluator extends SAIOps {
   // runtime Num type
   implicit class NumOps(num: Rep[Num]) {
 
-    def toInt: Rep[Int] = "num-to-int".reflectWith(num)
+    def toInt: Rep[Int] = "num-to-int".reflectWith[Int](num)
 
     def clz(): Rep[Num] = "unary-clz".reflectWith(num)
 
@@ -684,6 +684,17 @@ object WasmToScalaCompiler {
 }
 
 trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
+  override def remap(m: Manifest[_]): String = {
+    if (m.toString.endsWith("Num")) "Num"
+    else if (m.toString.endsWith("Slice")) "Slice"
+    else if (m.toString.endsWith("Frame")) "Frame"
+    else if (m.toString.endsWith("Stack")) "Stack"
+    else if (m.toString.endsWith("Global")) "Global"
+    else if (m.toString.endsWith("I32V")) "I32V"
+    else if (m.toString.endsWith("I64V")) "I64V"
+    else super.remap(m)
+  }
+
   // for now, the traverse/shallow is same as the scala backend's
   override def traverse(n: Node): Unit = n match {
     case Node(_, "stack-push", List(value), _) =>
@@ -776,16 +787,6 @@ trait WasmToCppCompilerDriver[A, B] extends CppSAIDriver[A, B] with StagedWasmEv
   override val codegen = new StagedWasmCppGen {
     val IR: q.type = q
     import IR._
-    override def remap(m: Manifest[_]): String = {
-      if (m.toString.endsWith("Num")) "Num"
-      else if (m.toString.endsWith("Slice")) "Slice"
-      else if (m.toString.endsWith("Frame")) "Frame"
-      else if (m.toString.endsWith("Stack")) "Stack"
-      else if (m.toString.endsWith("Global")) "Global"
-      else if (m.toString.endsWith("I32V")) "I32V"
-      else if (m.toString.endsWith("I64V")) "I64V"
-      else super.remap(m)
-    }
   }
 }
 
