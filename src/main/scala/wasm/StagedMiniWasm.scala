@@ -149,7 +149,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case Call(f)       => evalCall(rest, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, kont, trail, f, true)
       case _ =>
-        val todo = "todo-op".reflectCtrlWith()
+        val todo = "todo-op".reflectCtrlWith[Unit]()
         eval(rest, kont, trail)
     }
   }
@@ -288,7 +288,7 @@ trait StagedWasmEvaluator extends SAIOps {
   // stack creation and operations
   object Stack {
     def initialize(): Rep[Unit] = {
-      "stack-init".reflectCtrlWith()
+      "stack-init".reflectCtrlWith[Unit]()
     }
 
     def pop(): Rep[Num] = {
@@ -296,19 +296,19 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def peek: Rep[Num] = {
-      "stack-peek".reflectCtrlWith()
+      "stack-peek".reflectCtrlWith[Num]()
     }
 
     def push(v: Rep[Num]): Rep[Unit] = {
-      "stack-push".reflectCtrlWith(v)
+      "stack-push".reflectCtrlWith[Unit](v)
     }
 
     def drop(n: Int): Rep[Unit] = {
-      "stack-drop".reflectCtrlWith(n)
+      "stack-drop".reflectCtrlWith[Unit](n)
     }
 
     def print(): Rep[Unit] = {
-      "stack-print".reflectCtrlWith()
+      "stack-print".reflectCtrlWith[Unit]()
     }
 
     def size: Rep[Int] = {
@@ -316,17 +316,17 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def reset(x: Rep[Int]): Rep[Unit] = {
-      "stack-reset".reflectCtrlWith(x)
+      "stack-reset".reflectCtrlWith[Unit](x)
     }
 
     def take(n: Int): Rep[Slice] = {
-      "stack-take".reflectCtrlWith(n)
+      "stack-take".reflectCtrlWith[Slice](n)
     }
   }
 
   object Frames {
     def get(i: Int): Rep[Num] = {
-      "frame-get".reflectCtrlWith(i)
+      "frame-get".reflectCtrlWith[Num](i)
     }
 
     def set(i: Int, v: Rep[Num]): Rep[Unit] = {
@@ -334,30 +334,30 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def pushFrame(i: Int): Rep[Unit] = {
-      "frame-push".reflectCtrlWith(i)
+      "frame-push".reflectCtrlWith[Unit](i)
     }
 
     def popFrame(): Rep[Unit] = {
-      "frame-pop".reflectCtrlWith()
+      "frame-pop".reflectCtrlWith[Unit]()
     }
 
     def putAll(args: Rep[Slice]): Rep[Unit] = {
-      "frame-putAll".reflectCtrlWith(args)
+      "frame-putAll".reflectCtrlWith[Unit](args)
     }
 
     def top: Rep[Frame] = {
-      "frame-top".reflectCtrlWith()
+      "frame-top".reflectCtrlWith[Frame]()
     }
   }
 
 
   // call unreachable
   def unreachable(): Rep[Unit] = {
-    "unreachable".reflectCtrlWith()
+    "unreachable".reflectCtrlWith[Unit]()
   }
 
   def info(xs: Rep[_]*): Rep[Unit] = {
-    "info".reflectCtrlWith(xs: _*)
+    "info".reflectCtrlWith[Unit](xs: _*)
   }
 
   // runtime values
@@ -370,22 +370,22 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def I32(i: Rep[Int]): Rep[Num] = {
-      "I32V".reflectWith(i)
+      "I32V".reflectWith[Num](i)
     }
 
     def I64(i: Rep[Long]): Rep[Num] = {
-      "I64V".reflectWith(i)
+      "I64V".reflectWith[Num](i)
     }
   }
 
   // global read/write
   object Global{
     def globalGet(i: Int): Rep[Num] = {
-      "global-get".reflectWith(i)
+      "global-get".reflectWith[Num](i)
     }
 
     def globalSet(i: Int, value: Rep[Num]): Rep[Unit] = {
-      "global-set".reflectCtrlWith(i, value)
+      "global-set".reflectCtrlWith[Unit](i, value)
     }
   }
 
@@ -394,48 +394,48 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def toInt: Rep[Int] = "num-to-int".reflectWith[Int](num)
 
-    def clz(): Rep[Num] = "unary-clz".reflectWith(num)
+    def clz(): Rep[Num] = "unary-clz".reflectWith[Num](num)
 
-    def ctz(): Rep[Num] = "unary-ctz".reflectWith(num)
+    def ctz(): Rep[Num] = "unary-ctz".reflectWith[Num](num)
 
-    def popcnt(): Rep[Num] = "unary-popcnt".reflectWith(num)
+    def popcnt(): Rep[Num] = "unary-popcnt".reflectWith[Num](num)
 
-    def +(rhs: Rep[Num]): Rep[Num] = "binary-add".reflectWith(num, rhs)
+    def +(rhs: Rep[Num]): Rep[Num] = "binary-add".reflectWith[Num](num, rhs)
 
-    def -(rhs: Rep[Num]): Rep[Num] = "binary-sub".reflectWith(num, rhs)
+    def -(rhs: Rep[Num]): Rep[Num] = "binary-sub".reflectWith[Num](num, rhs)
 
-    def *(rhs: Rep[Num]): Rep[Num] = "binary-mul".reflectWith(num, rhs)
+    def *(rhs: Rep[Num]): Rep[Num] = "binary-mul".reflectWith[Num](num, rhs)
 
-    def /(rhs: Rep[Num]): Rep[Num] = "binary-div".reflectWith(num, rhs)
+    def /(rhs: Rep[Num]): Rep[Num] = "binary-div".reflectWith[Num](num, rhs)
 
-    def <<(rhs: Rep[Num]): Rep[Num] = "binary-shl".reflectWith(num, rhs)
+    def <<(rhs: Rep[Num]): Rep[Num] = "binary-shl".reflectWith[Num](num, rhs)
 
-    def >>(rhs: Rep[Num]): Rep[Num] = "binary-shr".reflectWith(num, rhs)
+    def >>(rhs: Rep[Num]): Rep[Num] = "binary-shr".reflectWith[Num](num, rhs)
 
-    def &(rhs: Rep[Num]): Rep[Num] = "binary-and".reflectWith(num, rhs)
+    def &(rhs: Rep[Num]): Rep[Num] = "binary-and".reflectWith[Num](num, rhs)
 
-    def numEq(rhs: Rep[Num]): Rep[Num] = "relation-eq".reflectWith(num, rhs)
+    def numEq(rhs: Rep[Num]): Rep[Num] = "relation-eq".reflectWith[Num](num, rhs)
 
-    def numNe(rhs: Rep[Num]): Rep[Num] = "relation-ne".reflectWith(num, rhs)
+    def numNe(rhs: Rep[Num]): Rep[Num] = "relation-ne".reflectWith[Num](num, rhs)
 
-    def <(rhs: Rep[Num]): Rep[Num] = "relation-lt".reflectWith(num, rhs)
+    def <(rhs: Rep[Num]): Rep[Num] = "relation-lt".reflectWith[Num](num, rhs)
 
-    def ltu(rhs: Rep[Num]): Rep[Num] = "relation-ltu".reflectWith(num, rhs)
+    def ltu(rhs: Rep[Num]): Rep[Num] = "relation-ltu".reflectWith[Num](num, rhs)
 
-    def >(rhs: Rep[Num]): Rep[Num] = "relation-gt".reflectWith(num, rhs)
+    def >(rhs: Rep[Num]): Rep[Num] = "relation-gt".reflectWith[Num](num, rhs)
 
-    def gtu(rhs: Rep[Num]): Rep[Num] = "relation-gtu".reflectWith(num, rhs)
+    def gtu(rhs: Rep[Num]): Rep[Num] = "relation-gtu".reflectWith[Num](num, rhs)
 
-    def <=(rhs: Rep[Num]): Rep[Num] = "relation-le".reflectWith(num, rhs)
+    def <=(rhs: Rep[Num]): Rep[Num] = "relation-le".reflectWith[Num](num, rhs)
 
-    def leu(rhs: Rep[Num]): Rep[Num] = "relation-leu".reflectWith(num, rhs)
+    def leu(rhs: Rep[Num]): Rep[Num] = "relation-leu".reflectWith[Num](num, rhs)
 
-    def >=(rhs: Rep[Num]): Rep[Num] = "relation-ge".reflectWith(num, rhs)
+    def >=(rhs: Rep[Num]): Rep[Num] = "relation-ge".reflectWith[Num](num, rhs)
 
-    def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectWith(num, rhs)
+    def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectWith[Num](num, rhs)
   }
   implicit class SliceOps(slice: Rep[Slice]) {
-    def reverse: Rep[Slice] = "slice-reverse".reflectWith(slice)
+    def reverse: Rep[Slice] = "slice-reverse".reflectWith[Slice](slice)
   }
 }
 
