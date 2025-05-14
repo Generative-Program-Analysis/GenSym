@@ -16,10 +16,6 @@ import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, 
 @virtualize
 trait StagedWasmEvaluator extends SAIOps {
   def module: ModuleInstance
-  // NOTE: we don't need the following statements anymore, but where are they initialized?
-  // reset and initialize the internal state of Adapter
-  // Adapter.resetState
-  // Adapter.g = Adapter.mkGraphBuilder
 
   trait Slice
 
@@ -93,7 +89,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val funcTy = ty.funcType
         // TODO: somehow the type of exitSize in residual program is nothing
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
-        val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+        def restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
           Stack.reset(exitSize)
           eval(rest, kont, trail)
         })
@@ -101,19 +97,20 @@ trait StagedWasmEvaluator extends SAIOps {
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
-        val restK = fun((_: Rep[Unit]) => {
+        def restK = topFun((_: Rep[Unit]) => {
           Stack.reset(exitSize)
           eval(rest, kont, trail)
         })
-        def loop(_u: Rep[Unit]): Rep[Unit] =
-          eval(inner, restK, fun(loop _) :: trail)
+        def loop : Rep[Unit => Unit] = topFun((_u: Rep[Unit]) => {
+          eval(inner, restK, loop :: trail)
+        })
         loop(())
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         val cond = Stack.pop()
         // TODO: can we avoid code duplication here?
-        val restK = fun((_: Rep[Unit]) => {
+        def restK = topFun((_: Rep[Unit]) => {
           Stack.reset(exitSize)
           eval(rest, kont, trail)
         })
@@ -185,7 +182,7 @@ trait StagedWasmEvaluator extends SAIOps {
           Frames.putAll(args)
           callee(trail.last)
         } else {
-          val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+          val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
             Stack.reset(returnSize)
             Frames.popFrame()
             eval(rest, kont, trail)
@@ -281,7 +278,7 @@ trait StagedWasmEvaluator extends SAIOps {
       }
       "no-op".reflectCtrlWith[Unit]()
     }
-    val temp: Rep[Cont[Unit]] = fun(haltK)
+    val temp: Rep[Cont[Unit]] = topFun(haltK)
     evalTop(temp, main)
   }
 
@@ -370,18 +367,18 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def I32(i: Rep[Int]): Rep[Num] = {
-      "I32V".reflectWith[Num](i)
+      "I32V".reflectCtrlWith[Num](i)
     }
 
     def I64(i: Rep[Long]): Rep[Num] = {
-      "I64V".reflectWith[Num](i)
+      "I64V".reflectCtrlWith[Num](i)
     }
   }
 
   // global read/write
   object Global{
     def globalGet(i: Int): Rep[Num] = {
-      "global-get".reflectWith[Num](i)
+      "global-get".reflectCtrlWith[Num](i)
     }
 
     def globalSet(i: Int, value: Rep[Num]): Rep[Unit] = {
@@ -392,50 +389,50 @@ trait StagedWasmEvaluator extends SAIOps {
   // runtime Num type
   implicit class NumOps(num: Rep[Num]) {
 
-    def toInt: Rep[Int] = "num-to-int".reflectWith[Int](num)
+    def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num)
 
-    def clz(): Rep[Num] = "unary-clz".reflectWith[Num](num)
+    def clz(): Rep[Num] = "unary-clz".reflectCtrlWith[Num](num)
 
-    def ctz(): Rep[Num] = "unary-ctz".reflectWith[Num](num)
+    def ctz(): Rep[Num] = "unary-ctz".reflectCtrlWith[Num](num)
 
-    def popcnt(): Rep[Num] = "unary-popcnt".reflectWith[Num](num)
+    def popcnt(): Rep[Num] = "unary-popcnt".reflectCtrlWith[Num](num)
 
-    def +(rhs: Rep[Num]): Rep[Num] = "binary-add".reflectWith[Num](num, rhs)
+    def +(rhs: Rep[Num]): Rep[Num] = "binary-add".reflectCtrlWith[Num](num, rhs)
 
-    def -(rhs: Rep[Num]): Rep[Num] = "binary-sub".reflectWith[Num](num, rhs)
+    def -(rhs: Rep[Num]): Rep[Num] = "binary-sub".reflectCtrlWith[Num](num, rhs)
 
-    def *(rhs: Rep[Num]): Rep[Num] = "binary-mul".reflectWith[Num](num, rhs)
+    def *(rhs: Rep[Num]): Rep[Num] = "binary-mul".reflectCtrlWith[Num](num, rhs)
 
-    def /(rhs: Rep[Num]): Rep[Num] = "binary-div".reflectWith[Num](num, rhs)
+    def /(rhs: Rep[Num]): Rep[Num] = "binary-div".reflectCtrlWith[Num](num, rhs)
 
-    def <<(rhs: Rep[Num]): Rep[Num] = "binary-shl".reflectWith[Num](num, rhs)
+    def <<(rhs: Rep[Num]): Rep[Num] = "binary-shl".reflectCtrlWith[Num](num, rhs)
 
-    def >>(rhs: Rep[Num]): Rep[Num] = "binary-shr".reflectWith[Num](num, rhs)
+    def >>(rhs: Rep[Num]): Rep[Num] = "binary-shr".reflectCtrlWith[Num](num, rhs)
 
-    def &(rhs: Rep[Num]): Rep[Num] = "binary-and".reflectWith[Num](num, rhs)
+    def &(rhs: Rep[Num]): Rep[Num] = "binary-and".reflectCtrlWith[Num](num, rhs)
 
-    def numEq(rhs: Rep[Num]): Rep[Num] = "relation-eq".reflectWith[Num](num, rhs)
+    def numEq(rhs: Rep[Num]): Rep[Num] = "relation-eq".reflectCtrlWith[Num](num, rhs)
 
-    def numNe(rhs: Rep[Num]): Rep[Num] = "relation-ne".reflectWith[Num](num, rhs)
+    def numNe(rhs: Rep[Num]): Rep[Num] = "relation-ne".reflectCtrlWith[Num](num, rhs)
 
-    def <(rhs: Rep[Num]): Rep[Num] = "relation-lt".reflectWith[Num](num, rhs)
+    def <(rhs: Rep[Num]): Rep[Num] = "relation-lt".reflectCtrlWith[Num](num, rhs)
 
-    def ltu(rhs: Rep[Num]): Rep[Num] = "relation-ltu".reflectWith[Num](num, rhs)
+    def ltu(rhs: Rep[Num]): Rep[Num] = "relation-ltu".reflectCtrlWith[Num](num, rhs)
 
-    def >(rhs: Rep[Num]): Rep[Num] = "relation-gt".reflectWith[Num](num, rhs)
+    def >(rhs: Rep[Num]): Rep[Num] = "relation-gt".reflectCtrlWith[Num](num, rhs)
 
-    def gtu(rhs: Rep[Num]): Rep[Num] = "relation-gtu".reflectWith[Num](num, rhs)
+    def gtu(rhs: Rep[Num]): Rep[Num] = "relation-gtu".reflectCtrlWith[Num](num, rhs)
 
-    def <=(rhs: Rep[Num]): Rep[Num] = "relation-le".reflectWith[Num](num, rhs)
+    def <=(rhs: Rep[Num]): Rep[Num] = "relation-le".reflectCtrlWith[Num](num, rhs)
 
-    def leu(rhs: Rep[Num]): Rep[Num] = "relation-leu".reflectWith[Num](num, rhs)
+    def leu(rhs: Rep[Num]): Rep[Num] = "relation-leu".reflectCtrlWith[Num](num, rhs)
 
-    def >=(rhs: Rep[Num]): Rep[Num] = "relation-ge".reflectWith[Num](num, rhs)
+    def >=(rhs: Rep[Num]): Rep[Num] = "relation-ge".reflectCtrlWith[Num](num, rhs)
 
-    def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectWith[Num](num, rhs)
+    def geu(rhs: Rep[Num]): Rep[Num] = "relation-geu".reflectCtrlWith[Num](num, rhs)
   }
   implicit class SliceOps(slice: Rep[Slice]) {
-    def reverse: Rep[Slice] = "slice-reverse".reflectWith[Slice](slice)
+    def reverse: Rep[Slice] = "slice-reverse".reflectCtrlWith[Slice](slice)
   }
 }
 
@@ -729,7 +726,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "frame-pop", _, _) =>
       emit("Frames.popFrame()")
     case Node(_, "stack-peek", _, _) =>
-      emit("Stack.peek")
+      emit("Stack.peek()")
     case Node(_, "stack-take", List(n), _) =>
       emit("Stack.take("); shallow(n); emit(")")
     case Node(_, "slice-reverse", List(slice), _) =>
@@ -775,10 +772,25 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "num-to-int", List(num), _) =>
-      shallow(num); emit(".toInt")
+      shallow(num); emit(".toInt()")
     case Node(_, "no-op", _, _) =>
-      emit("()")
+      emit("std::monostate()")
     case _ => super.shallow(n)
+  }
+
+  override def registerTopLevelFunction(id: String, streamId: String = "general")(f: => Unit) =
+  if (!registeredFunctions(id)) {
+    //if (ongoingFun(streamId)) ???
+    //ongoingFun += streamId
+    registeredFunctions += id
+    withStream(functionsStreams.getOrElseUpdate(id, {
+      val functionsStream = new java.io.ByteArrayOutputStream()
+      val functionsWriter = new java.io.PrintStream(functionsStream)
+      (functionsWriter, functionsStream)
+    })._1)(f)
+    //ongoingFun -= streamId
+  } else {
+    withStream(functionsStreams(id)._1)(f)
   }
 }
 
