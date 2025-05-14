@@ -442,6 +442,8 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
       emit("Stack.push("); shallow(value); emit(")\n")
     case Node(_, "stack-drop", List(n), _) =>
       emit("Stack.drop("); shallow(n); emit(")\n")
+    case Node(_, "stack-pop", _, _) =>
+      emit("Stack.pop()\n")
     case Node(_, "stack-reset", List(n), _) =>
       emit("Stack.reset("); shallow(n); emit(")\n")
     case Node(_, "stack-init", _, _) =>
@@ -465,8 +467,6 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(_, "frame-get", List(i), _) =>
       emit("Frames.get("); shallow(i); emit(")")
-    case Node(_, "stack-pop", _, _) =>
-      emit("Stack.pop()")
     case Node(_, "frame-pop", _, _) =>
       emit("Frames.popFrame()")
     case Node(_, "stack-peek", _, _) =>

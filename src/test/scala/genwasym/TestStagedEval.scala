@@ -20,6 +20,10 @@ class TestStagedEval extends FunSuite {
     testFileToScala("./benchmarks/wasm/staged/brtable.wat")
   }
 
+  test("drop-scala") {
+    testFileToScala("./benchmarks/wasm/staged/pop.wat")
+  }
+
   def testFileToCpp(filename: String, main: Option[String] = None, printRes: Boolean = false) = {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val code = WasmToCppCompiler(moduleInst, main, true)
