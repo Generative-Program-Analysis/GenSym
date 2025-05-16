@@ -4,7 +4,8 @@
     i32.const 2
     (block
      (block
-      br_table 0 1 0
+      i32.const 1
+      br_table 0 1 0 ;; br_table will consume an element from the stack
      )
     )
   )
