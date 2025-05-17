@@ -8,6 +8,7 @@ import lms.macros.SourceContext
 import lms.core.stub.{Base, ScalaGenBase, CGenBase}
 import lms.core.Backend._
 import lms.core.Backend.{Block => LMSBlock}
+import lms.core.Graph
 
 import gensym.wasm.ast._
 import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
@@ -88,20 +89,17 @@ trait StagedWasmEvaluator extends SAIOps {
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
         // TODO: somehow the type of exitSize in residual program is nothing
-        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
-        def restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          Stack.reset(exitSize)
+        def restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
           eval(rest, kont, trail)
         })
         eval(inner, restK, restK :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
-        def restK = topFun((_: Rep[Unit]) => {
-          Stack.reset(exitSize)
+        def restK = fun((_: Rep[Unit]) => {
           eval(rest, kont, trail)
         })
-        def loop : Rep[Unit => Unit] = topFun((_u: Rep[Unit]) => {
+        def loop : Rep[Unit => Unit] = fun((_u: Rep[Unit]) => {
           eval(inner, restK, loop :: trail)
         })
         loop(())
@@ -110,8 +108,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         val cond = Stack.pop()
         // TODO: can we avoid code duplication here?
-        def restK = topFun((_: Rep[Unit]) => {
-          Stack.reset(exitSize)
+        def restK = fun((_: Rep[Unit]) => {
           eval(rest, kont, trail)
         })
         if (cond != Values.I32(0)) {
@@ -182,8 +179,7 @@ trait StagedWasmEvaluator extends SAIOps {
           Frames.putAll(args)
           callee(trail.last)
         } else {
-          val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-            Stack.reset(returnSize)
+          val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
             Frames.popFrame()
             eval(rest, kont, trail)
           })
@@ -278,7 +274,7 @@ trait StagedWasmEvaluator extends SAIOps {
       }
       "no-op".reflectCtrlWith[Unit]()
     }
-    val temp: Rep[Cont[Unit]] = topFun(haltK)
+    val temp: Rep[Cont[Unit]] = fun(haltK)
     evalTop(temp, main)
   }
 
@@ -796,6 +792,310 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   } else {
     withStream(functionsStreams(id)._1)(f)
   }
+
+  override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
+    val ng = init(g)
+    emitln(prelude)
+    emitln("""
+    |/*****************************************
+    |Emitting Generated Code
+    |*******************************************/
+    """.stripMargin)
+    emitln("""
+#include <functional>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string>
+#include <variant>""")
+    val src = run(name, ng)
+    emit(src)
+    emitln("""
+    |/*****************************************
+    |End of Generated Code
+    |*******************************************/
+    |int main(int argc, char *argv[]) {
+    |  Snippet(std::monostate{});
+    |  return 0;
+    |}""".stripMargin)
+  }
+
+  val prelude = """
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <ostream>
+#include <variant>
+#include <vector>
+
+#define info(x, ...)
+
+class Num_t {
+public:
+  virtual std::unique_ptr<Num_t> clone() const = 0;
+
+  virtual void display() = 0;
+  virtual int32_t toInt() = 0;
+  virtual int64_t toLong() = 0;
+};
+
+class I32V_t : public Num_t {
+public:
+  I32V_t(int32_t value) : value_(value) {}
+
+  std::unique_ptr<Num_t> clone() const override {
+    return std::make_unique<I32V_t>(*this);
+  }
+
+  void display() override { std::cout << value_ << std::endl; }
+
+  int32_t toInt() override { return value_; }
+
+  int64_t toLong() override { return static_cast<int64_t>(value_); }
+
+private:
+  int32_t value_;
+};
+
+class I64V_t : public Num_t {
+public:
+  I64V_t(int64_t value) : value_(value) {}
+
+  std::unique_ptr<Num_t> clone() const override {
+    return std::make_unique<I64V_t>(*this);
+  }
+
+  void display() override { std::cout << value_ << std::endl; }
+
+  int32_t toInt() override { return static_cast<int32_t>(value_); }
+
+  int64_t toLong() override { return value_; }
+
+private:
+  int64_t value_;
+};
+
+struct Num {
+  std::unique_ptr<Num_t> num_ptr;
+
+  // Constructions and destruction
+  Num() : num_ptr(nullptr) {}
+
+  Num(std::unique_ptr<Num_t> num_ptr_) : num_ptr(std::move(num_ptr_)) {}
+
+  Num &operator=(const Num &other) {
+    if (this != &other) {
+      num_ptr = other.num_ptr ? other.num_ptr->clone() : nullptr;
+    }
+    return *this;
+  }
+
+  Num(const Num &other) {
+    num_ptr = other.num_ptr ? other.num_ptr->clone() : nullptr;
+  }
+
+  Num(Num &&other) noexcept = default;
+
+  Num &operator=(Num &&other) noexcept = default;
+
+  ~Num() = default;
+
+  int32_t toInt() const { return num_ptr->toInt(); }
+
+  int32_t toLong() const { return num_ptr->toLong(); }
+
+  void display() const { num_ptr->display(); }
+
+  Num operator+(const Num &other) const {
+    if (dynamic_cast<I32V_t *>(num_ptr.get()) &&
+        dynamic_cast<I32V_t *>(other.num_ptr.get())) {
+      return Num(
+          std::make_unique<I32V_t>(I32V_t(this->toInt() + other.toInt())));
+    } else if (dynamic_cast<I64V_t *>(num_ptr.get()) &&
+               dynamic_cast<I64V_t *>(other.num_ptr.get())) {
+      return Num(
+          std::make_unique<I64V_t>(I64V_t(this->toLong() + other.toLong())));
+    } else {
+      throw std::runtime_error("Operands are of different types");
+    }
+  }
+
+  Num operator-(const Num &other) const {
+    if (dynamic_cast<I32V_t *>(num_ptr.get()) &&
+        dynamic_cast<I32V_t *>(other.num_ptr.get())) {
+      return Num(
+          std::make_unique<I32V_t>(I32V_t(this->toInt() - other.toInt())));
+    } else if (dynamic_cast<I64V_t *>(num_ptr.get()) &&
+               dynamic_cast<I64V_t *>(other.num_ptr.get())) {
+      return Num(
+          std::make_unique<I64V_t>(I64V_t(this->toLong() - other.toLong())));
+    } else {
+      throw std::runtime_error("Operands are of different types");
+    }
+  }
+
+  bool operator==(const Num &other) const {
+    if (dynamic_cast<I32V_t *>(num_ptr.get()) &&
+        dynamic_cast<I32V_t *>(other.num_ptr.get())) {
+      return this->toInt() == other.toInt();
+    } else if (dynamic_cast<I64V_t *>(num_ptr.get()) &&
+               dynamic_cast<I64V_t *>(other.num_ptr.get())) {
+      return this->toLong() == other.toLong();
+    } else {
+      throw std::runtime_error("Operands are of different types");
+    }
+  }
+
+  bool operator!=(const Num &other) const { return !(this->operator==(other)); }
+};
+
+static Num I32V(int v) { return Num(std::make_unique<I32V_t>(v)); }
+
+static Num I64V(int64_t v) { return Num(std::make_unique<I64V_t>(v)); }
+
+// struct Slice {
+//   int32_t start;
+//   int32_t end;
+//   Slice(int32_t start_, int32_t end_) : start(start_), end(end_) {}
+// };
+
+using Slice = std::vector<Num>;
+
+class Stack_t {
+public:
+  void push(Num &&num) {
+    assert(num.num_ptr != nullptr);
+    stack_.push_back(std::move(num));
+  }
+
+  void push(Num &num) {
+    assert(num.num_ptr != nullptr);
+    stack_.push_back(num);
+  }
+
+  Num pop() {
+    if (stack_.empty()) {
+      throw std::runtime_error("Stack underflow");
+    }
+    Num num = std::move(stack_.back());
+    assert(num.num_ptr != nullptr);
+    stack_.pop_back();
+    return num;
+  }
+
+  Num peek() {
+    if (stack_.empty()) {
+      throw std::runtime_error("Stack underflow");
+    }
+    return stack_.back();
+  }
+
+  Num get(int32_t index) {
+    assert(index >= 0);
+    assert(index < stack_.size());
+    return stack_[index];
+}
+
+  int32_t size() { return stack_.size(); }
+
+  void reset(int32_t size) {
+    if (size > stack_.size()) {
+      throw std::out_of_range("Invalid size");
+    }
+    while (stack_.size() > size) {
+      stack_.pop_back();
+    }
+  }
+
+  Slice take(int32_t size) {
+    if (size > stack_.size()) {
+      throw std::out_of_range("Invalid size");
+    }
+    // todo: avoid re-allocation
+    Slice slice(stack_.end() - size, stack_.end());
+    stack_.resize(stack_.size() - size);
+    return slice;
+  }
+
+  void print() {
+    std::cout << "Stack contents: " << std::endl;
+    for (const auto &num : stack_) {
+      num.display();
+    }
+  }
+
+  void initialize() { stack_.clear(); }
+
+private:
+  std::vector<Num> stack_;
+};
+static Stack_t Stack;
+
+struct Frame_t {
+  std::vector<Num> locals;
+
+  Frame_t(std::int32_t size) : locals() { locals.resize(size); }
+  Num &operator[](std::int32_t index) {
+    assert(index >= 0);
+    if (index >= locals.size()) {
+      throw std::out_of_range("Index out of range");
+    }
+    return locals[index];
+  }
+  void putAll(Slice slice) {
+    for (std::int32_t i = 0; i < slice.size(); ++i) {
+      locals[i] = slice[i];
+    }
+  }
+};
+
+class Frames_t {
+public:
+  std::monostate popFrame() {
+    if (!frames.empty()) {
+      frames.pop_back();
+      return std::monostate{};
+    } else {
+      std::cout << "No frames to pop." << std::endl;
+      throw std::runtime_error("No frames to pop.");
+    }
+  }
+
+  Num get(std::int32_t index) {
+    auto ret = top()[index];
+    assert(ret.num_ptr != nullptr);
+    return ret;
+  }
+
+  void set(std::int32_t index, Num num) { frames.back()[index] = num; }
+
+  Frame_t &top() {
+    if (frames.empty()) {
+      throw std::runtime_error("No frames available");
+    }
+    return frames.back();
+  }
+
+  void pushFrame(std::int32_t size) {
+    Frame_t frame(size);
+    frames.push_back(frame);
+  }
+
+  void putAll(Slice slice) {
+    top().putAll(slice);
+  }
+
+private:
+  std::vector<Frame_t> frames;
+};
+
+static Frames_t Frames;
+
+static void initRand() {
+  // for now, just do nothing
+}
+  """
 }
 
 
@@ -817,5 +1117,6 @@ object WasmToCppCompiler {
     }
     code.code
   }
+
 }
 
