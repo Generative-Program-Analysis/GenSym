@@ -801,6 +801,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     |Emitting Generated Code
     |*******************************************/
     """.stripMargin)
+
     emitln("""
 #include <functional>
 #include <stdbool.h>
@@ -808,6 +809,9 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
 #include <string>
 #include <variant>""")
     val src = run(name, ng)
+    emitFunctionDecls(stream)
+    emitDatastructures(stream)
+    emitFunctions(stream)
     emit(src)
     emitln("""
     |/*****************************************
