@@ -88,18 +88,26 @@ trait StagedWasmEvaluator extends SAIOps {
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
+        val dummy = "dummy".reflectCtrlWith[Unit]()
         // TODO: somehow the type of exitSize in residual program is nothing
         def restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+          info(s"Exiting the block, stackSize =", Stack.size)
+          "dummy-op".reflectCtrlWith[Unit](dummy)
           eval(rest, kont, trail)
         })
         eval(inner, restK, restK :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
+        val dummy = "dummy".reflectCtrlWith[Unit]()
         def restK = fun((_: Rep[Unit]) => {
+          "dummy-op".reflectCtrlWith[Unit](dummy)
+          info(s"Exiting the loop, stackSize =", Stack.size)
           eval(rest, kont, trail)
         })
         def loop : Rep[Unit => Unit] = fun((_u: Rep[Unit]) => {
+          "dummy-op".reflectCtrlWith[Unit](dummy)
+          info(s"Entered the loop, stackSize =", Stack.size)
           eval(inner, restK, loop :: trail)
         })
         loop(())
@@ -107,8 +115,11 @@ trait StagedWasmEvaluator extends SAIOps {
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         val cond = Stack.pop()
+        val dummy = "dummy".reflectCtrlWith[Unit]()
         // TODO: can we avoid code duplication here?
         def restK = fun((_: Rep[Unit]) => {
+          "dummy-op".reflectCtrlWith[Unit](dummy)
+          info(s"Exiting the if, stackSize =", Stack.size)
           eval(rest, kont, trail)
         })
         if (cond != Values.I32(0)) {
@@ -121,7 +132,7 @@ trait StagedWasmEvaluator extends SAIOps {
         trail(label)(())
       case BrIf(label) =>
         val cond = Stack.pop()
-        info(s"The br_if(${label})'s condition is ", cond)
+        info(s"The br_if(${label})'s condition is ", cond.toInt)
         if (cond != Values.I32(0)) {
           info(s"Jump to $label")
           trail(label)(())
@@ -157,14 +168,14 @@ trait StagedWasmEvaluator extends SAIOps {
       case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
         val returnSize = Stack.size - ty.inps.size + ty.out.size
         val args = Stack.take(ty.inps.size)
-        info("New frame:", Frames.top)
+        // info("New frame:", Frames.top)
         val callee =
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
           } else {
             val callee = topFun(
               (kont: Rep[Cont[Unit]]) => {
-                info(s"Entered the function at $funcIndex, stackSize =", Stack.size, ", frame =", Frames.top)
+                info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
                 eval(body, kont, kont::Nil): Rep[Unit]
               }
             )
@@ -180,6 +191,7 @@ trait StagedWasmEvaluator extends SAIOps {
           callee(trail.last)
         } else {
           val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+            info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
             Frames.popFrame()
             eval(rest, kont, trail)
           })
@@ -269,6 +281,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def evalTop(main: Option[String], printRes: Boolean = false): Rep[Unit] = {
     val haltK: Rep[Unit] => Rep[Unit] = (_) => {
+      info("Exiting the program...")
       if (printRes) {
         Stack.print()
       }
@@ -773,6 +786,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
+    case Node(_, "dummy", _, _) => emit("std::monostate()")
+    case Node(_, "dummy-op", _, _) => emit("std::monostate()")
     case Node(_, "no-op", _, _) =>
       emit("std::monostate()")
     case _ => super.shallow(n)
@@ -833,7 +848,19 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
 #include <variant>
 #include <vector>
 
-#define info(x, ...)
+void info() {
+#ifdef DEBUG
+  std::cout << std::endl;
+#endif
+}
+
+template <typename T, typename... Args>
+void info(const T &first, const Args &...args) {
+#ifdef DEBUG
+  std::cout << first << " ";
+  info(args...);
+#endif
+}
 
 class Num_t {
 public:
