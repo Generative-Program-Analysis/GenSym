@@ -727,6 +727,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
+    case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
+      // Node: This code is copied from the traverse of CppSAICodeGenBase.scala, try to avoid code duplication
+      val retType = remap(typeBlockRes(b.res))
+      val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
+      emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
+      emit(quote(f)); emit(" = ")
+      quoteTypedBlock(b, false, true, capture = "&")
+      emitln(";")
     case _ => super.traverse(n)
   }
 
