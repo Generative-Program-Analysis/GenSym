@@ -10,7 +10,7 @@ import gensym.wasm.miniwasm._
 class TestStagedEval extends FunSuite {
   def testFileToScala(filename: String, main: Option[String] = None, printRes: Boolean = false) = {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
-    val code = WasmToScalaCompiler(moduleInst, main, true)
+    val code = WasmToScalaCompiler.compile(moduleInst, main, true)
     println(code)
   }
 
@@ -26,7 +26,15 @@ class TestStagedEval extends FunSuite {
 
   def testFileToCpp(filename: String, main: Option[String] = None, printRes: Boolean = false) = {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
-    val code = WasmToCppCompiler(moduleInst, main, true)
+    val code = WasmToCppCompiler.compile(moduleInst, main, true)
+    if (printRes) {
+      val writer = new java.io.PrintWriter(new java.io.File(s"$filename.cpp"))
+      try {
+        writer.write(code)
+      } finally {
+        writer.close()
+      }
+    }
     println(code)
   }
 

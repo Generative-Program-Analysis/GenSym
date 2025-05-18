@@ -681,7 +681,7 @@ object Main {
 
 
 object WasmToScalaCompiler {
-  def apply(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
+  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
     println(s"Now compiling wasm module with entry function $main")
     val code = new WasmToScalaCompilerDriver[Unit, Unit] {
       def module: ModuleInstance = moduleInst
@@ -1146,7 +1146,7 @@ trait WasmToCppCompilerDriver[A, B] extends CppSAIDriver[A, B] with StagedWasmEv
 }
 
 object WasmToCppCompiler {
-  def apply(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
+  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
     println(s"Now compiling wasm module with entry function $main")
     val code = new WasmToCppCompilerDriver[Unit, Unit] {
       def module: ModuleInstance = moduleInst
