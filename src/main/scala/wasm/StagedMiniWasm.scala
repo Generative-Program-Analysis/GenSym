@@ -28,6 +28,14 @@ trait StagedWasmEvaluator extends SAIOps {
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[(Cont[Unit]) => Unit]]
 
+  def funHere[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], dummy: Rep[Unit] = "dummy".reflectCtrlWith[Unit]()): Rep[A => B] = {
+    // to avoid LMS lifting a function, we create a dummy node and read it inside function
+    fun((x: Rep[A]) => {
+      "dummy-op".reflectCtrlWith[Unit](dummy)
+      f(x)
+    })
+  }
+
   // NOTE: We don't support Ans type polymorphism yet
   def eval(insts: List[Instr],
            kont: Rep[Cont[Unit]],
@@ -88,37 +96,31 @@ trait StagedWasmEvaluator extends SAIOps {
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
-        val dummy = "dummy".reflectCtrlWith[Unit]()
         // TODO: somehow the type of exitSize in residual program is nothing
-        def restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+        def restK: Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
-          "dummy-op".reflectCtrlWith[Unit](dummy)
           eval(rest, kont, trail)
         })
         eval(inner, restK, restK :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
-        val dummy = "dummy".reflectCtrlWith[Unit]()
-        def restK = fun((_: Rep[Unit]) => {
-          "dummy-op".reflectCtrlWith[Unit](dummy)
+        def restK = funHere((_: Rep[Unit]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
           eval(rest, kont, trail)
         })
-        def loop : Rep[Unit => Unit] = fun((_u: Rep[Unit]) => {
-          "dummy-op".reflectCtrlWith[Unit](dummy)
+        val dummy = "dummy".reflectCtrlWith[Unit]()
+        def loop : Rep[Unit => Unit] = funHere((_u: Rep[Unit]) => {
           info(s"Entered the loop, stackSize =", Stack.size)
           eval(inner, restK, loop :: trail)
-        })
+        }, dummy) // <-- if we don't pass this dummy argument, lots of code will be generated
         loop(())
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
         val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         val cond = Stack.pop()
-        val dummy = "dummy".reflectCtrlWith[Unit]()
         // TODO: can we avoid code duplication here?
-        def restK = fun((_: Rep[Unit]) => {
-          "dummy-op".reflectCtrlWith[Unit](dummy)
+        def restK = funHere((_: Rep[Unit]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           eval(rest, kont, trail)
         })
