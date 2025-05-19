@@ -28,14 +28,14 @@ class TestStagedEval extends FunSuite {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val code = WasmToCppCompiler.compile(moduleInst, main, true)
     if (printRes) {
-      val writer = new java.io.PrintWriter(new java.io.File(s"$filename.cpp"))
-      try {
-        writer.write(code)
-      } finally {
-        writer.close()
-      }
+      println(code)
     }
-    println(code)
+    val writer = new java.io.PrintWriter(new java.io.File(s"$filename.cpp"))
+    try {
+      writer.write(code)
+    } finally {
+      writer.close()
+    }
   }
 
   test("ack-cpp") { testFileToCpp("./benchmarks/wasm/ack.wat", Some("real_main"), printRes = true) }
