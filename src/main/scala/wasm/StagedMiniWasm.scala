@@ -696,6 +696,11 @@ object WasmToScalaCompiler {
 }
 
 trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
+  override def mayInline(n: Node): Boolean = n match {
+    case Node(s, "stack-pop", _, _) => false
+    case _ => super.mayInline(n)
+  }
+
   override def remap(m: Manifest[_]): String = {
     if (m.toString.endsWith("Num")) "Num"
     else if (m.toString.endsWith("Slice")) "Slice"
