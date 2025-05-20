@@ -926,82 +926,20 @@ private:
 };
 
 struct Num {
-  std::unique_ptr<Num_t> num_ptr;
+  Num(int64_t value) : value(value) {}
+  Num() : value(0) {}
+  int64_t value;
+  int32_t toInt() { return static_cast<int32_t>(value); }
 
-  // Constructions and destruction
-  Num() : num_ptr(nullptr) {}
-
-  Num(std::unique_ptr<Num_t> num_ptr_) : num_ptr(std::move(num_ptr_)) {}
-
-  Num &operator=(const Num &other) {
-    if (this != &other) {
-      num_ptr = other.num_ptr ? other.num_ptr->clone() : nullptr;
-    }
-    return *this;
-  }
-
-  Num(const Num &other) {
-    num_ptr = other.num_ptr ? other.num_ptr->clone() : nullptr;
-  }
-
-  Num(Num &&other) noexcept = default;
-
-  Num &operator=(Num &&other) noexcept = default;
-
-  ~Num() = default;
-
-  int32_t toInt() const { return num_ptr->toInt(); }
-
-  int32_t toLong() const { return num_ptr->toLong(); }
-
-  void display() const { num_ptr->display(); }
-
-  Num operator+(const Num &other) const {
-    if (dynamic_cast<I32V_t *>(num_ptr.get()) &&
-        dynamic_cast<I32V_t *>(other.num_ptr.get())) {
-      return Num(
-          std::make_unique<I32V_t>(I32V_t(this->toInt() + other.toInt())));
-    } else if (dynamic_cast<I64V_t *>(num_ptr.get()) &&
-               dynamic_cast<I64V_t *>(other.num_ptr.get())) {
-      return Num(
-          std::make_unique<I64V_t>(I64V_t(this->toLong() + other.toLong())));
-    } else {
-      throw std::runtime_error("Operands are of different types");
-    }
-  }
-
-  Num operator-(const Num &other) const {
-    if (dynamic_cast<I32V_t *>(num_ptr.get()) &&
-        dynamic_cast<I32V_t *>(other.num_ptr.get())) {
-      return Num(
-          std::make_unique<I32V_t>(I32V_t(this->toInt() - other.toInt())));
-    } else if (dynamic_cast<I64V_t *>(num_ptr.get()) &&
-               dynamic_cast<I64V_t *>(other.num_ptr.get())) {
-      return Num(
-          std::make_unique<I64V_t>(I64V_t(this->toLong() - other.toLong())));
-    } else {
-      throw std::runtime_error("Operands are of different types");
-    }
-  }
-
-  bool operator==(const Num &other) const {
-    if (dynamic_cast<I32V_t *>(num_ptr.get()) &&
-        dynamic_cast<I32V_t *>(other.num_ptr.get())) {
-      return this->toInt() == other.toInt();
-    } else if (dynamic_cast<I64V_t *>(num_ptr.get()) &&
-               dynamic_cast<I64V_t *>(other.num_ptr.get())) {
-      return this->toLong() == other.toLong();
-    } else {
-      throw std::runtime_error("Operands are of different types");
-    }
-  }
-
-  bool operator!=(const Num &other) const { return !(this->operator==(other)); }
+  bool operator==(const Num &other) const { return value == other.value; }
+  bool operator!=(const Num &other) const { return !(*this == other); }
+  Num operator+(const Num &other) const { return Num(value + other.value); }
+  Num operator-(const Num &other) const { return Num(value - other.value); }
 };
 
-static Num I32V(int v) { return Num(std::make_unique<I32V_t>(v)); }
+static Num I32V(int v) { return v; }
 
-static Num I64V(int64_t v) { return Num(std::make_unique<I64V_t>(v)); }
+static Num I64V(int64_t v) { return v; }
 
 // struct Slice {
 //   int32_t start;
@@ -1013,22 +951,15 @@ using Slice = std::vector<Num>;
 
 class Stack_t {
 public:
-  void push(Num &&num) {
-    assert(num.num_ptr != nullptr);
-    stack_.push_back(std::move(num));
-  }
+  void push(Num &&num) { stack_.push_back(std::move(num)); }
 
-  void push(Num &num) {
-    assert(num.num_ptr != nullptr);
-    stack_.push_back(num);
-  }
+  void push(Num &num) { stack_.push_back(num); }
 
   Num pop() {
     if (stack_.empty()) {
       throw std::runtime_error("Stack underflow");
     }
     Num num = std::move(stack_.back());
-    assert(num.num_ptr != nullptr);
     stack_.pop_back();
     return num;
   }
@@ -1044,7 +975,7 @@ public:
     assert(index >= 0);
     assert(index < stack_.size());
     return stack_[index];
-}
+  }
 
   int32_t size() { return stack_.size(); }
 
@@ -1070,7 +1001,7 @@ public:
   void print() {
     std::cout << "Stack contents: " << std::endl;
     for (const auto &num : stack_) {
-      num.display();
+      std::cout << num.value << " ";
     }
   }
 
@@ -1113,7 +1044,6 @@ public:
 
   Num get(std::int32_t index) {
     auto ret = top()[index];
-    assert(ret.num_ptr != nullptr);
     return ret;
   }
 
@@ -1131,9 +1061,7 @@ public:
     frames.push_back(frame);
   }
 
-  void putAll(Slice slice) {
-    top().putAll(slice);
-  }
+  void putAll(Slice slice) { top().putAll(slice); }
 
 private:
   std::vector<Frame_t> frames;
