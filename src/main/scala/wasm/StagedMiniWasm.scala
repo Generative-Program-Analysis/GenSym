@@ -68,8 +68,16 @@ trait StagedWasmEvaluator extends SAIOps {
           case _ => throw new Exception("Cannot set immutable global")
         }
         eval(rest, kont, trail)
-      case Store(op) => ???
-      case Load(op) => ???
+      case Store(StoreOp(align, offset, ty, None)) =>
+        val value = Stack.pop()
+        val addr = Stack.pop()
+        Memory.storeInt(addr.toInt, offset, value.toInt)
+        eval(rest, kont, trail)
+      case Load(LoadOp(align, offset, ty, None, None)) =>
+        val addr = Stack.pop()
+        val value = Memory.loadInt(addr.toInt, offset)
+        Stack.push(Values.I32(value))
+        eval(rest, kont, trail)
       case MemorySize => ???
       case MemoryGrow => ???
       case MemoryFill => ???
@@ -361,6 +369,15 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
+  object Memory {
+    def storeInt(base: Rep[Int], offset: Int, value: Rep[Int]): Rep[Unit] = {
+      "memory-store-int".reflectCtrlWith[Unit](base, offset, value)
+    }
+
+    def loadInt(base: Rep[Int], offset: Int): Rep[Int] = {
+      "memory-load-int".reflectCtrlWith[Int](base, offset)
+    }
+  }
 
   // call unreachable
   def unreachable(): Rep[Unit] = {
@@ -765,6 +782,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.take("); shallow(n); emit(")")
     case Node(_, "slice-reverse", List(slice), _) =>
       shallow(slice); emit(".reverse")
+    case Node(_, "memory-store-int", List(base, offset, value), _) =>
+      emit("Memory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(")")
+    case Node(_, "memory-load-int", List(base, offset), _) =>
+      emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "stack-size", _, _) =>
       emit("Stack.size()")
     case Node(_, "global-get", List(i), _) =>
@@ -1040,6 +1061,30 @@ static std::monostate unreachable() {
   std::cout << "Unreachable code reached!" << std::endl;
   throw std::runtime_error("Unreachable code reached");
 }
+
+struct Memory_t {
+  void *memory;
+  Memory_t(size_t size) {
+    memory = malloc(size);
+    if (!memory) {
+      throw std::runtime_error("Memory allocation failed");
+    }
+  }
+  ~Memory_t() { free(memory); }
+
+  int32_t loadInt(int32_t base, int32_t offset) {
+    return *reinterpret_cast<int32_t *>(static_cast<int8_t *>(memory) + base +
+                                        offset);
+  }
+
+  std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
+    *reinterpret_cast<int32_t *>(static_cast<int8_t *>(memory) + base +
+                                 offset) = value;
+    return std::monostate{};
+  }
+};
+
+static Memory_t Memory(1024 * 1024); // 1MB memory
   """
 }
 
