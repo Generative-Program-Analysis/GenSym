@@ -79,7 +79,9 @@ trait StagedWasmEvaluator extends SAIOps {
         Stack.push(Values.I32(value))
         eval(rest, kont, trail)
       case MemorySize => ???
-      case MemoryGrow => ???
+      case MemoryGrow =>
+        val delta = Stack.pop()
+        Stack.push(Values.I32(Memory.grow(delta.toInt)))
       case MemoryFill => ???
       case Nop =>
         eval(rest, kont, trail)
@@ -244,7 +246,10 @@ trait StagedWasmEvaluator extends SAIOps {
     // case ShrS(_) => v1 >> v2 // TODO: signed shift right
     case ShrU(_) => v1 >> v2
     case And(_) => v1 & v2
-    case _ => ???
+    case DivS(_) => v1 / v2
+    case DivU(_) => v1 / v2
+    case _ =>
+      throw new Exception(s"Unknown binary operation $op")
   }
 
   def evalRelOp(op: RelOp, v1: Rep[Num], v2: Rep[Num]): Rep[Num] = op match {
@@ -377,6 +382,10 @@ trait StagedWasmEvaluator extends SAIOps {
     def loadInt(base: Rep[Int], offset: Int): Rep[Int] = {
       "memory-load-int".reflectCtrlWith[Int](base, offset)
     }
+
+    def grow(delta: Rep[Int]): Rep[Int] = {
+      "memory-grow".reflectCtrlWith[Int](delta)
+    }
   }
 
   // call unreachable
@@ -474,8 +483,6 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   }
 
   override def traverse(n: Node): Unit = n match {
-    case Node(_, "stack-push", List(value), _) =>
-      emit("Stack.push("); shallow(value); emit(")\n")
     case Node(_, "stack-drop", List(n), _) =>
       emit("Stack.drop("); shallow(n); emit(")\n")
     case Node(_, "stack-reset", List(n), _) =>
@@ -503,6 +510,8 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
       emit("Frames.get("); shallow(i); emit(")")
     case Node(_, "frame-pop", _, _) =>
       emit("Frames.popFrame()")
+    case Node(_, "stack-push", List(value), _) =>
+      emit("Stack.push("); shallow(value); emit(")\n")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
     case Node(_, "stack-peek", _, _) =>
@@ -734,10 +743,6 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
 
   // for now, the traverse/shallow is same as the scala backend's
   override def traverse(n: Node): Unit = n match {
-    case Node(_, "stack-push", List(value), _) =>
-      emit("Stack.push("); shallow(value); emit(");\n")
-    case Node(_, "stack-drop", List(n), _) =>
-      emit("Stack.drop("); shallow(n); emit(");\n")
     case Node(_, "stack-reset", List(n), _) =>
       emit("Stack.reset("); shallow(n); emit(");\n")
     case Node(_, "stack-init", _, _) =>
@@ -755,16 +760,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
     // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
-    case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
-      // TODO: Is a leading block followed by 0 a hint for top function?
-      super.traverse(n)
-    case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
-      val retType = remap(typeBlockRes(b.res))
-      val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
-      emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
-      emit(quote(f)); emit(" = ")
-      quoteTypedBlock(b, false, true, capture = "&")
-      emitln(";")
+    // case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
+    //   // TODO: Is a leading block followed by 0 a hint for top function?
+    //   super.traverse(n)
+    // case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
+    //   val retType = remap(typeBlockRes(b.res))
+    //   val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
+    //   emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
+    //   emit(quote(f)); emit(" = ")
+    //   quoteTypedBlock(b, false, true, capture = "&")
+    //   emitln(";")
     case _ => super.traverse(n)
   }
 
@@ -772,6 +777,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(_, "frame-get", List(i), _) =>
       emit("Frames.get("); shallow(i); emit(")")
+    case Node(_, "stack-drop", List(n), _) =>
+      emit("Stack.drop("); shallow(n); emit(")")
+    case Node(_, "stack-push", List(value), _) =>
+      emit("Stack.push("); shallow(value); emit(")")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
     case Node(_, "frame-pop", _, _) =>
@@ -786,6 +795,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Memory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(")")
     case Node(_, "memory-load-int", List(base, offset), _) =>
       emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-grow", List(delta), _) =>
+      emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
       emit("Stack.size()")
     case Node(_, "global-get", List(i), _) =>
@@ -935,9 +946,15 @@ using Slice = std::vector<Num>;
 
 class Stack_t {
 public:
-  void push(Num &&num) { stack_.push_back(std::move(num)); }
+  std::monostate push(Num &&num) {
+    stack_.push_back(std::move(num));
+    return std::monostate{};
+  }
 
-  void push(Num &num) { stack_.push_back(num); }
+  std::monostate push(Num &num) {
+    stack_.push_back(num);
+    return std::monostate{};
+  }
 
   Num pop() {
     if (stack_.empty()) {
@@ -1063,26 +1080,36 @@ static std::monostate unreachable() {
 }
 
 struct Memory_t {
-  void *memory;
-  Memory_t(size_t size) {
-    memory = malloc(size);
-    if (!memory) {
-      throw std::runtime_error("Memory allocation failed");
-    }
-  }
-  ~Memory_t() { free(memory); }
+  std::vector<uint8_t> memory;
+  Memory_t(size_t size) : memory(size) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
-    return *reinterpret_cast<int32_t *>(static_cast<int8_t *>(memory) + base +
-                                        offset);
+    return *reinterpret_cast<int32_t *>(static_cast<uint8_t *>(memory.data()) +
+                                        base + offset);
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
-    *reinterpret_cast<int32_t *>(static_cast<int8_t *>(memory) + base +
+    *reinterpret_cast<int32_t *>(static_cast<uint8_t *>(memory.data()) + base +
                                  offset) = value;
     return std::monostate{};
   }
+
+  // grow memory by delta bytes when bytes > 0. return -1 if failed, return old
+  // size when success
+  int32_t grow(int32_t delta) {
+    if (delta <= 0) {
+      return memory.size();
+    }
+
+    try {
+      memory.resize(memory.size() + delta);
+      return memory.size();
+    } catch (const std::bad_alloc &e) {
+      return -1;
+    }
+  }
 };
+
 
 static Memory_t Memory(1024 * 1024); // 1MB memory
   """

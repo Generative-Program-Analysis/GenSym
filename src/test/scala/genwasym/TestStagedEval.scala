@@ -65,7 +65,8 @@ class TestStagedEval extends FunSuite {
   test("loop") { testFileToCpp("./benchmarks/wasm/loop.wat", None, expect=Some(List(10))) }
   test("even-odd") { testFileToCpp("./benchmarks/wasm/even_odd.wat", None, expect=Some(List(1))) }
   test("load") { testFileToCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
-  // test("btree") { testFileToCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  // TODO: this case will fail because of some undefined variables
+  test("btree") { testFileToCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib") { testFileToCpp("./benchmarks/wasm/fib.wat", None, expect=Some(List(144))) }
   test("tribonacci") { testFileToCpp("./benchmarks/wasm/tribonacci.wat", None, expect=Some(List(504))) }
 
