@@ -7,7 +7,7 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{Base, ScalaGenBase, CGenBase}
 import lms.core.Backend._
-import lms.core.Backend.{Block => LMSBlock}
+import lms.core.Backend.{Block => LMSBlock, Const => LMSConst}
 import lms.core.Graph
 
 import gensym.wasm.ast._
@@ -734,8 +734,11 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
+    // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
+    case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
+      // TODO: Is a leading block followed by 0 a hint for top function?
+      super.traverse(n)
     case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
-      // Node: This code is copied from the traverse of CppSAICodeGenBase.scala, try to avoid code duplication
       val retType = remap(typeBlockRes(b.res))
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
       emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
