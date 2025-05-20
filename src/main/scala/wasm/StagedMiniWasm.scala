@@ -68,6 +68,8 @@ trait StagedWasmEvaluator extends SAIOps {
           case _ => throw new Exception("Cannot set immutable global")
         }
         eval(rest, kont, trail)
+      case Store(op) => ???
+      case Load(op) => ???
       case MemorySize => ???
       case MemoryGrow => ???
       case MemoryFill => ???
@@ -156,6 +158,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case Call(f)       => evalCall(rest, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, kont, trail, f, true)
       case _ =>
+        ???
         val todo = "todo-op".reflectCtrlWith[Unit]()
         eval(rest, kont, trail)
     }
@@ -192,7 +195,7 @@ trait StagedWasmEvaluator extends SAIOps {
           Frames.putAll(args)
           callee(trail.last)
         } else {
-          val restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
+          val restK: Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
             info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
             Frames.popFrame()
             eval(rest, kont, trail)
@@ -207,7 +210,7 @@ trait StagedWasmEvaluator extends SAIOps {
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
         val v = Stack.pop()
-        println(v)
+        println(v.toInt)
         eval(rest, kont, trail)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
@@ -880,51 +883,6 @@ void info(const T &first, const Args &...args) {
 #endif
 }
 
-class Num_t {
-public:
-  virtual std::unique_ptr<Num_t> clone() const = 0;
-
-  virtual void display() = 0;
-  virtual int32_t toInt() = 0;
-  virtual int64_t toLong() = 0;
-};
-
-class I32V_t : public Num_t {
-public:
-  I32V_t(int32_t value) : value_(value) {}
-
-  std::unique_ptr<Num_t> clone() const override {
-    return std::make_unique<I32V_t>(*this);
-  }
-
-  void display() override { std::cout << value_ << std::endl; }
-
-  int32_t toInt() override { return value_; }
-
-  int64_t toLong() override { return static_cast<int64_t>(value_); }
-
-private:
-  int32_t value_;
-};
-
-class I64V_t : public Num_t {
-public:
-  I64V_t(int64_t value) : value_(value) {}
-
-  std::unique_ptr<Num_t> clone() const override {
-    return std::make_unique<I64V_t>(*this);
-  }
-
-  void display() override { std::cout << value_ << std::endl; }
-
-  int32_t toInt() override { return static_cast<int32_t>(value_); }
-
-  int64_t toLong() override { return value_; }
-
-private:
-  int64_t value_;
-};
-
 struct Num {
   Num(int64_t value) : value(value) {}
   Num() : value(0) {}
@@ -935,17 +893,22 @@ struct Num {
   bool operator!=(const Num &other) const { return !(*this == other); }
   Num operator+(const Num &other) const { return Num(value + other.value); }
   Num operator-(const Num &other) const { return Num(value - other.value); }
+  Num operator*(const Num &other) const { return Num(value * other.value); }
+  Num operator/(const Num &other) const {
+    if (other.value == 0) {
+      throw std::runtime_error("Division by zero");
+    }
+    return Num(value / other.value);
+  }
+  Num operator<(const Num &other) const { return Num(value < other.value); }
+  Num operator<=(const Num &other) const { return Num(value <= other.value); }
+  Num operator>(const Num &other) const { return Num(value > other.value); }
+  Num operator>=(const Num &other) const { return Num(value >= other.value); }
 };
 
 static Num I32V(int v) { return v; }
 
 static Num I64V(int64_t v) { return v; }
-
-// struct Slice {
-//   int32_t start;
-//   int32_t end;
-//   Slice(int32_t start_, int32_t end_) : start(start_), end(end_) {}
-// };
 
 using Slice = std::vector<Num>;
 
@@ -1000,8 +963,8 @@ public:
 
   void print() {
     std::cout << "Stack contents: " << std::endl;
-    for (const auto &num : stack_) {
-      std::cout << num.value << " ";
+    for (auto it = stack_.rbegin(); it != stack_.rend(); ++it) {
+      std::cout << it->value << std::endl;
     }
   }
 
@@ -1071,6 +1034,11 @@ static Frames_t Frames;
 
 static void initRand() {
   // for now, just do nothing
+}
+
+static std::monostate unreachable() {
+  std::cout << "Unreachable code reached!" << std::endl;
+  throw std::runtime_error("Unreachable code reached");
 }
   """
 }
