@@ -40,7 +40,7 @@ trait StagedWasmEvaluator extends SAIOps {
   def eval(insts: List[Instr],
            kont: Rep[Cont[Unit]],
            trail: Trail[Unit]): Rep[Unit] = {
-    if (insts.isEmpty) return kont()
+    if (insts.isEmpty) return kont(())
     val (inst, rest) = (insts.head, insts.tail)
     inst match {
       case Drop =>
@@ -82,10 +82,13 @@ trait StagedWasmEvaluator extends SAIOps {
       case MemoryGrow =>
         val delta = Stack.pop()
         Stack.push(Values.I32(Memory.grow(delta.toInt)))
+        eval(rest, kont, trail)
       case MemoryFill => ???
       case Nop =>
         eval(rest, kont, trail)
-      case Unreachable => unreachable()
+      case Unreachable =>
+        unreachable()
+        eval(rest, kont, trail)
       case Test(op) =>
         val v = Stack.pop()
         Stack.push(evalTestOp(op, v))
@@ -108,7 +111,6 @@ trait StagedWasmEvaluator extends SAIOps {
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
-        // TODO: somehow the type of exitSize in residual program is nothing
         def restK: Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
           eval(rest, kont, trail)
@@ -116,7 +118,6 @@ trait StagedWasmEvaluator extends SAIOps {
         eval(inner, restK, restK :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
-        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         def restK = funHere((_: Rep[Unit]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
           eval(rest, kont, trail)
@@ -129,10 +130,10 @@ trait StagedWasmEvaluator extends SAIOps {
         loop(())
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
-        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         val cond = Stack.pop()
         // TODO: can we avoid code duplication here?
-        def restK = funHere((_: Rep[Unit]) => {
+        // NOTE: if we define restK by `def` rather than val, some errors will be triggered
+        val restK = funHere((_: Rep[Unit]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           eval(rest, kont, trail)
         })
@@ -141,6 +142,7 @@ trait StagedWasmEvaluator extends SAIOps {
         } else {
           eval(els, restK, restK :: trail)
         }
+        ()
       case Br(label) =>
         info(s"Jump to $label")
         trail(label)(())
@@ -760,16 +762,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
     // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
-    // case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
-    //   // TODO: Is a leading block followed by 0 a hint for top function?
-    //   super.traverse(n)
-    // case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
-    //   val retType = remap(typeBlockRes(b.res))
-    //   val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
-    //   emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
-    //   emit(quote(f)); emit(" = ")
-    //   quoteTypedBlock(b, false, true, capture = "&")
-    //   emitln(";")
+    case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
+      // TODO: Is a leading block followed by 0 a hint for top function?
+      super.traverse(n)
+    case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
+      val retType = remap(typeBlockRes(b.res))
+      val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
+      emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
+      emit(quote(f)); emit(" = ")
+      quoteTypedBlock(b, false, true, capture = "&")
+      emitln(";")
     case _ => super.traverse(n)
   }
 
@@ -936,6 +938,7 @@ struct Num {
   Num operator<=(const Num &other) const { return Num(value <= other.value); }
   Num operator>(const Num &other) const { return Num(value > other.value); }
   Num operator>=(const Num &other) const { return Num(value >= other.value); }
+  Num operator&(const Num &other) const { return Num(value & other.value); }
 };
 
 static Num I32V(int v) { return v; }
@@ -991,7 +994,7 @@ public:
 
   Slice take(int32_t size) {
     if (size > stack_.size()) {
-      throw std::out_of_range("Invalid size");
+      throw std::out_of_range("Invalid size: requested " + std::to_string(size) + ", stack size is " + std::to_string(stack_.size()));
     }
     // todo: avoid re-allocation
     Slice slice(stack_.end() - size, stack_.end());
@@ -1079,9 +1082,12 @@ static std::monostate unreachable() {
   throw std::runtime_error("Unreachable code reached");
 }
 
+static int32_t pagesize = 65536;
+static int32_t page_count = 0;
+
 struct Memory_t {
   std::vector<uint8_t> memory;
-  Memory_t(size_t size) : memory(size) {}
+  Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
     return *reinterpret_cast<int32_t *>(static_cast<uint8_t *>(memory.data()) +
@@ -1102,7 +1108,9 @@ struct Memory_t {
     }
 
     try {
-      memory.resize(memory.size() + delta);
+      memory.resize(memory.size() + delta * pagesize);
+      auto old_page_count = page_count;
+      page_count += delta;
       return memory.size();
     } catch (const std::bad_alloc &e) {
       return -1;
@@ -1111,8 +1119,8 @@ struct Memory_t {
 };
 
 
-static Memory_t Memory(1024 * 1024); // 1MB memory
-  """
+static Memory_t Memory(1); // 1 page memory
+"""
 }
 
 
