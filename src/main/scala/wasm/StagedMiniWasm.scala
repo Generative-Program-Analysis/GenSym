@@ -84,11 +84,8 @@ trait StagedWasmEvaluator extends SAIOps {
         Stack.push(Values.I32(Memory.grow(delta.toInt)))
         eval(rest, kont, trail)
       case MemoryFill => ???
-      case Nop =>
-        eval(rest, kont, trail)
-      case Unreachable =>
-        unreachable()
-        eval(rest, kont, trail)
+      case Nop => eval(rest, kont, trail)
+      case Unreachable => unreachable()
       case Test(op) =>
         val v = Stack.pop()
         Stack.push(evalTestOp(op, v))
@@ -132,7 +129,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val funcTy = ty.funcType
         val cond = Stack.pop()
         // TODO: can we avoid code duplication here?
-        // NOTE: if we define restK by `def` rather than val, some errors will be triggered
+        // NOTE: if we define restK by `def` rather than val, the generated code will contain some undefined variables
         val restK = funHere((_: Rep[Unit]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           eval(rest, kont, trail)
@@ -170,7 +167,6 @@ trait StagedWasmEvaluator extends SAIOps {
       case Call(f)       => evalCall(rest, kont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, kont, trail, f, true)
       case _ =>
-        ???
         val todo = "todo-op".reflectCtrlWith[Unit]()
         eval(rest, kont, trail)
     }
@@ -185,7 +181,6 @@ trait StagedWasmEvaluator extends SAIOps {
       case FuncDef(_, FuncBodyDef(ty, _, locals, body)) =>
         val returnSize = Stack.size - ty.inps.size + ty.out.size
         val args = Stack.take(ty.inps.size)
-        // info("New frame:", Frames.top)
         val callee =
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
@@ -220,7 +215,6 @@ trait StagedWasmEvaluator extends SAIOps {
         }
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
-        //println(s"[DEBUG] current stack: $stack")
         val v = Stack.pop()
         println(v.toInt)
         eval(rest, kont, trail)
@@ -311,7 +305,7 @@ trait StagedWasmEvaluator extends SAIOps {
     evalTop(temp, main)
   }
 
-  // stack creation and operations
+  // stack operations
   object Stack {
     def initialize(): Rep[Unit] = {
       "stack-init".reflectCtrlWith[Unit]()
