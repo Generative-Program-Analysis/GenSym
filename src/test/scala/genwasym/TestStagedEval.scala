@@ -88,12 +88,12 @@ class TestStagedEval extends FunSuite {
   test("if block input") {
     testFileToCpp("./benchmarks/wasm/block.wat", Some("test_if_input"), expect=Some(List(25)))
   }
-  // test("block input - poly br") {
-  //   testFileToCpp("./benchmarks/wasm/block.wat", Some("test_poly_br"), expect=Some(List(0)))
-  // }
-  // test("loop block - poly br") {
-  //   testFileToCpp("./benchmarks/wasm/loop_poly.wat", None, expect=Some(List(2, 1)))
-  // }
+  test("block input - poly br") {
+    testFileToCpp("./benchmarks/wasm/block.wat", Some("test_poly_br"), expect=Some(List(0)))
+  }
+  test("loop block - poly br") {
+    testFileToCpp("./benchmarks/wasm/loop_poly.wat", None, expect=Some(List(2, 1)))
+  }
 
   test("brtable-cpp") {
     testFileToCpp("./benchmarks/wasm/staged/brtable.wat")

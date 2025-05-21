@@ -108,29 +108,41 @@ trait StagedWasmEvaluator extends SAIOps {
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
-        def restK: Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
+        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
+        def restK: Rep[Cont[Unit]] = fun((_: Rep[Unit]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
+          val offset = Stack.size - exitSize
+          Stack.shift(offset, funcTy.out.size)
           eval(rest, kont, trail)
         })
         eval(inner, restK, restK :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
+        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         def restK = funHere((_: Rep[Unit]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
+          val offset = Stack.size - exitSize
+          Stack.shift(offset, funcTy.out.size)
           eval(rest, kont, trail)
         })
+        val enterSize = Stack.size
         val dummy = "dummy".reflectCtrlWith[Unit]()
         def loop : Rep[Unit => Unit] = funHere((_u: Rep[Unit]) => {
           info(s"Entered the loop, stackSize =", Stack.size)
+          val offset = Stack.size - enterSize
+          Stack.shift(offset, funcTy.inps.size)
           eval(inner, restK, loop :: trail)
         }, dummy) // <-- if we don't pass this dummy argument, lots of code will be generated
         loop(())
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
         val cond = Stack.pop()
+        val exitSize = Stack.size - funcTy.inps.size + funcTy.out.size
         // TODO: can we avoid code duplication here?
         // NOTE: if we define restK by `def` rather than val, the generated code will contain some undefined variables
         val restK = funHere((_: Rep[Unit]) => {
+          val offset = Stack.size - exitSize
+          Stack.shift(offset, funcTy.out.size)
           info(s"Exiting the if, stackSize =", Stack.size)
           eval(rest, kont, trail)
         })
@@ -325,6 +337,12 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def drop(n: Int): Rep[Unit] = {
       "stack-drop".reflectCtrlWith[Unit](n)
+    }
+
+    def shift(offset: Rep[Int], size: Rep[Int]): Rep[Unit] = {
+      if (offset > 0) {
+        "stack-shift".reflectCtrlWith[Unit](offset, size)
+      }
     }
 
     def print(): Rep[Unit] = {
@@ -777,6 +795,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.drop("); shallow(n); emit(")")
     case Node(_, "stack-push", List(value), _) =>
       emit("Stack.push("); shallow(value); emit(")")
+    case Node(_, "stack-shift", List(offset, size), _) =>
+      emit("Stack.shift("); shallow(offset); emit(", "); shallow(size); emit(")")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
     case Node(_, "frame-pop", _, _) =>
@@ -977,13 +997,18 @@ public:
 
   int32_t size() { return stack_.size(); }
 
-  void reset(int32_t size) {
-    if (size > stack_.size()) {
-      throw std::out_of_range("Invalid size");
+  void shift(int32_t offset, int32_t size) {
+    if (offset < 0) {
+      throw std::out_of_range("Invalid offset: " + std::to_string(offset));
     }
-    while (stack_.size() > size) {
-      stack_.pop_back();
+    if (size < 0) {
+      throw std::out_of_range("Invalid size: " + std::to_string(size));
     }
+    // shift last `size` of numbers forward of `offset`
+    for (int32_t i = stack_.size() - size; i < stack_.size(); ++i) {
+      stack_[i - offset] = stack_[i];
+    }
+    stack_.resize(stack_.size() - offset);
   }
 
   Slice take(int32_t size) {
