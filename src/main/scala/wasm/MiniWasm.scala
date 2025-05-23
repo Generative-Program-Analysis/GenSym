@@ -417,31 +417,42 @@ case class Evaluator(module: ModuleInstance) {
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
   def evalTop[Ans](halt: Cont[Ans], main: Option[String] = None): Ans = {
-    val instrs = main match {
+    val entryFuncDefs = main match {
       case Some(func_name) =>
         module.defs.flatMap({
           case Export(`func_name`, ExportFunc(fid)) =>
             println(s"Entering function $main")
             module.funcs(fid) match {
-              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case FuncDef(_, funcDef @ FuncBodyDef(_, _, _, _)) => Some(funcDef)
               case _ => throw new Exception("Entry function has no concrete body")
             }
-          case _ => List()
+          case _ => None
         })
       case None =>
         module.defs.flatMap({
           case Start(id) =>
             println(s"Entering unnamed function $id")
             module.funcs(id) match {
-              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case FuncDef(_, funcDef @ FuncBodyDef(_, _, _, _)) => Some(funcDef)
               case _ =>
                 throw new Exception("Entry function has no concrete body")
             }
-          case _ => List()
+          case _ => None
         })
     }
-    if (instrs.isEmpty) println("Warning: nothing is executed")
-    eval(instrs, List(), Frame(ArrayBuffer(I32V(0))), halt, List(halt))
+
+    entryFuncDefs match {
+      case FuncBodyDef(_, _, locals, body) :: Nil =>
+        val frame = Frame(ArrayBuffer(locals.map(zero(_)): _*))
+        if (body.isEmpty) println("Warning: nothing is executed")
+        eval(body, List(), frame, halt, List(halt))
+      case Nil =>
+        println("Warning: no entry point found")
+        halt(List())
+      case _ =>
+        println("Warning: multiple entry points found")
+        halt(List())
+    }
   }
 
   def evalTop(m: ModuleInstance): Unit = evalTop(stack => ())
