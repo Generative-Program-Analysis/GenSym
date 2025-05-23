@@ -142,7 +142,7 @@ object Benchmark extends App {
     }
 
     println(s"Running $exe")
-    bench { s"./$exe".! }
+    bench { assert(s"./$exe".! == 0, s"Execution of $exe failed") }
   }
 
   case class BenchmarkResult(filePath: String, interpretExecutionTime: Double, compiledExecutionTime: Double)
