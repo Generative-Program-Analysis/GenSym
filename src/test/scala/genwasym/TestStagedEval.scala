@@ -100,3 +100,66 @@ class TestStagedEval extends FunSuite {
   }
 
 }
+
+object Benchmark extends App {
+
+  def bench(f: => Unit): Double = {
+    import gensym.utils.Utils._
+    // run a function f 20 times and return the average time taken
+    val times = for (i <- 1 to 20) yield {
+      time(f)._2
+    }
+    times.sum / times.size.toDouble
+  }
+
+  def benchmarkWasmInterpreter(filePath: String, main: Option[String] = None): Double = {
+    val moduleInst = ModuleInstance(Parser.parseFile(filePath))
+    val evaluator = Evaluator(moduleInst)
+    val haltK: evaluator.Cont[Unit] = stack => ()
+    bench { evaluator.evalTop(haltK, main) }
+  }
+
+  def benchmarkWasmToCpp(filePath: String, main: Option[String] = None): Double = {
+    val moduleInst = ModuleInstance(Parser.parseFile(filePath))
+    val code = WasmToCppCompiler.compile(moduleInst, main, false)
+
+    val cppFile = s"$filePath.cpp"
+
+    val writer = new java.io.PrintWriter(new java.io.File(cppFile))
+    try {
+      writer.write(code)
+    } finally {
+      writer.close()
+    }
+    import sys.process._
+
+    val exe = s"$cppFile.exe"
+    // use -O0 optimization to more accurately inspect the interpretation overhead that we reduced by compilation
+    val command = s"g++ -o $exe $cppFile -O0"
+
+    if (command.! != 0) {
+      throw new RuntimeException(s"Compilation failed for $cppFile")
+    }
+
+    println(s"Running $exe")
+    bench { s"./$exe".! }
+  }
+
+  case class BenchmarkResult(filePath: String, interpretExecutionTime: Double, compiledExecutionTime: Double)
+
+  def benchmarkFile(filePath: String, main: Option[String] = None): Unit = {
+    val interpretExecutionTime = benchmarkWasmInterpreter(filePath, main)
+    val compiledExecutionTime = benchmarkWasmToCpp(filePath, main)
+    val result = BenchmarkResult(filePath, interpretExecutionTime, compiledExecutionTime)
+    println(s"Benchmark result for $filePath:")
+    println(s"  Average interpreter execution time: $interpretExecutionTime ms")
+    println(s"  Average compiled execution time: $compiledExecutionTime ms")
+    println(s"  Speedup: ${interpretExecutionTime / compiledExecutionTime}x")
+    println()
+  }
+
+  override def main(args: Array[String]): Unit = {
+    benchmarkFile("./benchmarks/wasm/performance/ack.wat", Some("real_main"))
+    benchmarkFile("./benchmarks/wasm/performance/pow.wat", Some("real_main"))
+  }
+}
