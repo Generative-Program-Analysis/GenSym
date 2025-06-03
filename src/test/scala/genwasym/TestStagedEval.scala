@@ -39,7 +39,7 @@ class TestStagedEval extends FunSuite {
     import sys.process._
 
     val exe = s"$cppFile.exe"
-    val command = s"g++ -o $exe $cppFile"
+    val command = s"g++ -std=c++17 -o $exe $cppFile"
 
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $cppFile")
