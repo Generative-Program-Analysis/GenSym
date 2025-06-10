@@ -135,7 +135,7 @@ object Benchmark extends App {
 
     val exe = s"$cppFile.exe"
     // use -O0 optimization to more accurately inspect the interpretation overhead that we reduced by compilation
-    val command = s"g++ -std=c++17 -o $exe $cppFile -O0"
+    val command = s"g++ -std=c++17 -o $exe $cppFile -O3"
 
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $cppFile")
