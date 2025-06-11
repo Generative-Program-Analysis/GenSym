@@ -79,11 +79,12 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  type Cont[A] = Unit => A
+  type MCont[A] = Unit => A
+  type Cont[A] = (MCont[A]) => A
   type Trail[A] = List[Context => Rep[Cont[A]]]
 
   // a cache storing the compiled code for each function, to reduce re-compilation
-  val compileCache = new HashMap[Int, Rep[(Cont[Unit]) => Unit]]
+  val compileCache = new HashMap[Int, Rep[(MCont[Unit]) => Unit]]
 
   def makeDummy: Rep[Unit] = "dummy".reflectCtrlWith[Unit]()
 
@@ -98,9 +99,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def eval(insts: List[Instr],
            kont: Context => Rep[Cont[Unit]],
+           mkont: Rep[MCont[Unit]],
            trail: Trail[Unit])
           (implicit ctx: Context): Rep[Unit] = {
-    if (insts.isEmpty) return kont(ctx)(())
+    if (insts.isEmpty) return kont(ctx)(mkont)
 
     // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
     // Predef.println(s"[DEBUG] Current context: $ctx")
@@ -109,152 +111,155 @@ trait StagedWasmEvaluator extends SAIOps {
     inst match {
       case Drop =>
         val (_, newCtx) = Stack.pop()
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case WasmConst(num) =>
         val newCtx = Stack.push(num)
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case LocalGet(i) =>
         val newCtx = Stack.push(Frames.get(i))
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case LocalSet(i) =>
         val (num, newCtx) = Stack.pop()
         Frames.set(i, num)(newCtx)
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case LocalTee(i) =>
         val (num, newCtx) = Stack.peek
         Frames.set(i, num)
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case GlobalGet(i) =>
         val newCtx = Stack.push(Globals(i))
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case GlobalSet(i) =>
         val (value, newCtx) = Stack.pop()
         module.globals(i).ty match {
           case GlobalType(tipe, true) => Globals(i) = value
           case _ => throw new Exception("Cannot set immutable global")
         }
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case Store(StoreOp(align, offset, ty, None)) =>
         val (value, newCtx1) = Stack.pop()
         val (addr, newCtx2) = Stack.pop()(newCtx1)
         Memory.storeInt(addr.toInt, offset, value.toInt)
-        eval(rest, kont, trail)(newCtx2)
-      case Nop => eval(rest, kont, trail)
+        eval(rest, kont, mkont, trail)(newCtx2)
+      case Nop => eval(rest, kont, mkont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val (addr, newCtx1) = Stack.pop()
         val value = Memory.loadInt(addr.toInt, offset)
         val newCtx2 = Stack.push(Values.I32V(value))(newCtx1)
-        eval(rest, kont, trail)(newCtx2)
+        eval(rest, kont, mkont, trail)(newCtx2)
       case MemorySize => ???
       case MemoryGrow =>
         val (delta, newCtx1) = Stack.pop()
         val newCtx2 = Stack.push(Values.I32V(Memory.grow(delta.toInt)))(newCtx1)
-        eval(rest, kont, trail)(newCtx2)
+        eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
-      case Nop => eval(rest, kont, trail)
       case Unreachable => unreachable()
       case Test(op) =>
         val (v, newCtx1) = Stack.pop()
         val newCtx2 = Stack.push(evalTestOp(op, v))(newCtx1)
-        eval(rest, kont, trail)(newCtx2)
+        eval(rest, kont, mkont, trail)(newCtx2)
       case Unary(op) =>
         val (v, newCtx1) = Stack.pop()
         val newCtx2 = Stack.push(evalUnaryOp(op, v))(newCtx1)
-        eval(rest, kont, trail)(newCtx2)
+        eval(rest, kont, mkont, trail)(newCtx2)
       case Binary(op) =>
         val (v2, newCtx1) = Stack.pop()
         val (v1, newCtx2) = Stack.pop()(newCtx1)
         val newCtx3 = Stack.push(evalBinOp(op, v1, v2))(newCtx2)
-        eval(rest, kont, trail)(newCtx3)
+        eval(rest, kont, mkont, trail)(newCtx3)
       case Compare(op) =>
         val (v2, newCtx1) = Stack.pop()
         val (v1, newCtx2) = Stack.pop()(newCtx1)
         val newCtx3 = Stack.push(evalRelOp(op, v1, v2))(newCtx2)
-        eval(rest, kont, trail)(newCtx3)
+        eval(rest, kont, mkont, trail)(newCtx3)
       case WasmBlock(ty, inner) =>
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
         val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         val dummy = makeDummy
-        def restK(restCtx: Context): Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
+        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
           val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
-          eval(rest, kont, trail)(newRestCtx)
-        }, dummy)
-        eval(inner, restK _, restK _ :: trail)
+          eval(rest, kont, mk, trail)(newRestCtx)
+        })
+        eval(inner, restK _, mkont, restK _ :: trail)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         val dummy = makeDummy
-        def restK(restCtx: Context): Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
+        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
           val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
-          eval(rest, kont, trail)(newRestCtx)
-        }, dummy)
+          eval(rest, kont, mk, trail)(newRestCtx)
+        })
         val enterSize = ctx.stackTypes.size
-        def loop(restCtx: Context): Rep[Unit => Unit] = funHere((_u: Rep[Unit]) => {
+        def loop(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - enterSize
           val newRestCtx = Stack.shift(offset, funcTy.inps.size)(restCtx)
-          eval(inner, restK _, loop _ :: trail)(newRestCtx)
-        }, dummy) // <-- if we don't pass this dummy argument, lots of code will be generated
-        loop(ctx)(())
+          eval(inner, restK _, mk, loop _ :: trail)(newRestCtx)
+        })
+        loop(ctx)(mkont)
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
         val (cond, newCtx) = Stack.pop()
         val exitSize = newCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         // TODO: can we avoid code duplication here?
         val dummy = makeDummy
-        def restK(restCtx: Context): Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
+        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
           val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
-          eval(rest, kont, trail)(newRestCtx)
-        }, dummy)
+          eval(rest, kont, mk, trail)(newRestCtx)
+        })
         if (cond.toInt != 0) {
-          eval(thn, restK _, restK _ :: trail)(newCtx)
+          eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
         } else {
-          eval(els, restK _, restK _ :: trail)(newCtx)
+          eval(els, restK _, mkont, restK _ :: trail)(newCtx)
         }
         ()
       case Br(label) =>
         info(s"Jump to $label")
-        trail(label)(ctx)(())
+        trail(label)(ctx)(mkont)
       case BrIf(label) =>
         val (cond, newCtx) = Stack.pop()
         info(s"The br_if(${label})'s condition is ", cond.toInt)
         if (cond.toInt != 0) {
           info(s"Jump to $label")
-          trail(label)(newCtx)(())
+          trail(label)(newCtx)(mkont)
         } else {
           info(s"Continue")
-          eval(rest, kont, trail)(newCtx)
+          eval(rest, kont, mkont, trail)(newCtx)
         }
         ()
       case BrTable(labels, default) =>
         val (cond, newCtx) = Stack.pop()
         def aux(choices: List[Int], idx: Int): Rep[Unit] = {
-          if (choices.isEmpty) trail(default)(newCtx)(())
+          if (choices.isEmpty) trail(default)(newCtx)(mkont)
           else {
-            if (cond.toInt == idx) trail(choices.head)(newCtx)(())
+            if (cond.toInt == idx) trail(choices.head)(newCtx)(mkont)
             else aux(choices.tail, idx + 1)
           }
         }
         aux(labels, 0)
-      case Return        => trail.last(ctx)(())
-      case Call(f)       => evalCall(rest, kont, trail, f, false)
-      case ReturnCall(f) => evalCall(rest, kont, trail, f, true)
+      case Return        => trail.last(ctx)(mkont)
+      case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)
+      case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
-        eval(rest, kont, trail)
+        eval(rest, kont, mkont, trail)
     }
   }
 
+  def forwardKont: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => mk(()))
+
+
   def evalCall(rest: List[Instr],
                kont: Context => Rep[Cont[Unit]],
+               mkont: Rep[MCont[Unit]],
                trail: Trail[Unit],
                funcIndex: Int,
                isTail: Boolean)
@@ -266,10 +271,10 @@ trait StagedWasmEvaluator extends SAIOps {
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
           } else {
-            val callee = topFun((kont: Rep[Cont[Unit]]) => {
+            val callee = topFun((mk: Rep[MCont[Unit]]) => {
               info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
               // we can do some check here to ensure the function returns correct size of stack
-              eval(body, (_: Context) => kont, ((_: Context) => kont)::Nil)(Context(Nil, locals))
+              eval(body, (_: Context) => forwardKont, mk, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
             })
             compileCache(funcIndex) = callee
             callee
@@ -281,26 +286,29 @@ trait StagedWasmEvaluator extends SAIOps {
           Frames.popFrame()
           Frames.pushFrame(locals)
           Frames.putAll(args)
-          callee(trail.last(ctx))
+          callee(mkont)
         } else {
-          val dummy = makeDummy
-          val restK: Rep[Cont[Unit]] = funHere((_: Rep[Unit]) => {
-            info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-            Frames.popFrame()
-            eval(rest, kont, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
-          }, dummy)
           // We make a new trail by `restK`, since function creates a new block to escape
           // (more or less like `return`)
+          val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+            info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+            Frames.popFrame()
+            eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
+          })
+          val dummy = makeDummy
+          val newMKont: Rep[MCont[Unit]] = funHere((_u: Rep[Unit]) => {
+            restK(mkont)
+          }, dummy)
           Frames.pushFrame(locals)
           Frames.putAll(args)
-          callee(restK)
+          callee(newMKont)
         }
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
         val (v, newCtx) = Stack.pop()
         println(v.toInt)
-        eval(rest, kont, trail)(newCtx)
+        eval(rest, kont, mkont, trail)(newCtx)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -345,7 +353,7 @@ trait StagedWasmEvaluator extends SAIOps {
     case _ => ???
   }
 
-  def evalTop(kont: Rep[Cont[Unit]], main: Option[String]): Rep[Unit] = {
+  def evalTop(mkont: Rep[MCont[Unit]], main: Option[String]): Rep[Unit] = {
     val funBody: FuncBodyDef = main match {
       case Some(func_name) =>
         module.defs.flatMap({
@@ -372,7 +380,7 @@ trait StagedWasmEvaluator extends SAIOps {
     val (instrs, locals) = (funBody.body, funBody.locals)
     Stack.initialize()
     Frames.pushFrame(locals)
-    eval(instrs, (_: Context) => kont, ((_: Context) => kont)::Nil)(Context(Nil, locals))
+    eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
     Frames.popFrame()
   }
 
@@ -384,7 +392,7 @@ trait StagedWasmEvaluator extends SAIOps {
       }
       "no-op".reflectCtrlWith[Unit]()
     }
-    val temp: Rep[Cont[Unit]] = fun(haltK)
+    val temp: Rep[MCont[Unit]] = topFun(haltK)
     evalTop(temp, main)
   }
 
