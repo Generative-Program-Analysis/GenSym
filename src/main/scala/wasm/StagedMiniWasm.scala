@@ -1083,7 +1083,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     })._1)(f)
     //ongoingFun -= streamId
   } else {
-    withStream(functionsStreams(id)._1)(f)
+    // If a function is registered, don't re-register it.
+    // withStream(functionsStreams(id)._1)(f)
   }
 
   override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
