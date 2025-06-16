@@ -134,8 +134,7 @@ object Benchmark extends App {
     import sys.process._
 
     val exe = s"$cppFile.exe"
-    // use -O0 optimization to more accurately inspect the interpretation overhead that we reduced by compilation
-    val command = s"g++ -std=c++17 -o $exe $cppFile -O0"
+    val command = s"g++ -std=c++17 -o $exe $cppFile -O3"
 
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $cppFile")
@@ -149,6 +148,7 @@ object Benchmark extends App {
 
   def benchmarkFile(filePath: String, main: Option[String] = None): Unit = {
     val interpretExecutionTime = benchmarkWasmInterpreter(filePath, main)
+    // val interpretExecutionTime = 0.0
     val compiledExecutionTime = benchmarkWasmToCpp(filePath, main)
     val result = BenchmarkResult(filePath, interpretExecutionTime, compiledExecutionTime)
     println(s"Benchmark result for $filePath:")

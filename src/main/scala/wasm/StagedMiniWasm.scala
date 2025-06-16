@@ -283,7 +283,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (args, newCtx) = Stack.take(ty.inps.size)
         if (isTail) {
           // when tail call, return to the caller's return continuation
-          Frames.popFrame()
+          Frames.popFrame(ctx.frameTypes.size)
           Frames.pushFrame(locals)
           Frames.putAll(args)
           callee(mkont)
@@ -292,7 +292,7 @@ trait StagedWasmEvaluator extends SAIOps {
           // (more or less like `return`)
           val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
             info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-            Frames.popFrame()
+            Frames.popFrame(locals.size)
             eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
           })
           val dummy = makeDummy
@@ -381,7 +381,7 @@ trait StagedWasmEvaluator extends SAIOps {
     Stack.initialize()
     Frames.pushFrame(locals)
     eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
-    Frames.popFrame()
+    Frames.popFrame(locals.size)
   }
 
   def evalTop(main: Option[String], printRes: Boolean = false): Rep[Unit] = {
@@ -491,12 +491,12 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def pushFrame(locals: List[ValueType]): Rep[Unit] = {
       // Predef.println(s"[DEBUG] push frame: $locals")
-      val size = locals.map(_.size).sum
+      val size = locals.size
       "frame-push".reflectCtrlWith[Unit](size)
     }
 
-    def popFrame(): Rep[Unit] = {
-      "frame-pop".reflectCtrlWith[Unit]()
+    def popFrame(size: Int): Rep[Unit] = {
+      "frame-pop".reflectCtrlWith[Unit](size)
     }
 
     def putAll(args: List[StagedNum])(implicit ctx: Context): Rep[Unit] = {
@@ -727,8 +727,8 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
       emit("Stack.print()\n")
     case Node(_, "frame-push", List(i), _) =>
       emit("Frames.pushFrame("); shallow(i); emit(")\n")
-    case Node(_, "frame-pop", _, _) =>
-      emit("Frames.popFrame()\n")
+    case Node(_, "frame-pop", List(i), _) =>
+      emit("Frames.popFrame("); shallow(i); emit(")\n")
     case Node(_, "frame-putAll", List(args), _) =>
       emit("Frames.putAll("); shallow(args); emit(")\n")
     case Node(_, "frame-set", List(i, value), _) =>
@@ -742,8 +742,8 @@ trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
   override def shallow(n: Node): Unit = n match {
     case Node(_, "frame-get", List(i), _) =>
       emit("Frames.get("); shallow(i); emit(")")
-    case Node(_, "frame-pop", _, _) =>
-      emit("Frames.popFrame()")
+    case Node(_, "frame-pop", List(i), _) =>
+      emit("Frames.popFrame("); shallow(i); emit(")")
     case Node(_, "stack-push", List(value), _) =>
       emit("Stack.push("); shallow(value); emit(")")
     case Node(_, "stack-pop", _, _) =>
@@ -976,8 +976,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.print();\n")
     case Node(_, "frame-push", List(i), _) =>
       emit("Frames.pushFrame("); shallow(i); emit(");\n")
-    case Node(_, "frame-pop", _, _) =>
-      emit("Frames.popFrame();\n")
+    case Node(_, "frame-pop", List(i), _) =>
+      emit("Frames.popFrame("); shallow(i); emit(");\n")
     case Node(_, "frame-putAll", List(args), _) =>
       emit("Frames.putAll("); shallow(args); emit(");\n")
     case Node(_, "frame-set", List(i, value), _) =>
@@ -1010,8 +1010,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.shift("); shallow(offset); emit(", "); shallow(size); emit(")")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
-    case Node(_, "frame-pop", _, _) =>
-      emit("Frames.popFrame()")
+    case Node(_, "frame-pop", List(i), _) =>
+      emit("Frames.popFrame("); shallow(i); emit(")")
     case Node(_, "stack-peek", _, _) =>
       emit("Stack.peek()")
     case Node(_, "stack-take", List(n), _) =>
@@ -1171,133 +1171,106 @@ static Num I64V(int64_t v) { return v; }
 
 using Slice = std::vector<Num>;
 
+const int STACK_SIZE = 1024 * 64;
+
 class Stack_t {
 public:
+  Stack_t() : count(0), stack_ptr(new Num[STACK_SIZE]) {}
+
   std::monostate push(Num &&num) {
-    stack_.push_back(std::move(num));
+    stack_ptr[count] = num;
+    count++;
     return std::monostate{};
   }
 
   std::monostate push(Num &num) {
-    stack_.push_back(num);
+    stack_ptr[count] = num;
+    count++;
     return std::monostate{};
   }
 
   Num pop() {
-    if (stack_.empty()) {
+#ifdef DEBUG
+    if (count == 0) {
       throw std::runtime_error("Stack underflow");
     }
-    Num num = std::move(stack_.back());
-    stack_.pop_back();
+#endif
+    Num num = stack_ptr[count - 1];
+    count--;
     return num;
   }
 
   Num peek() {
-    if (stack_.empty()) {
+#ifdef DEBUG
+    if (count == 0) {
       throw std::runtime_error("Stack underflow");
     }
-    return stack_.back();
+#endif
+    return stack_ptr[count - 1];
   }
 
-  Num get(int32_t index) {
-    assert(index >= 0);
-    assert(index < stack_.size());
-    return stack_[index];
-  }
-
-  int32_t size() { return stack_.size(); }
+  int32_t size() { return count; }
 
   void shift(int32_t offset, int32_t size) {
+#ifdef DEBUG
     if (offset < 0) {
       throw std::out_of_range("Invalid offset: " + std::to_string(offset));
     }
     if (size < 0) {
       throw std::out_of_range("Invalid size: " + std::to_string(size));
     }
+#endif
     // shift last `size` of numbers forward of `offset`
-    for (int32_t i = stack_.size() - size; i < stack_.size(); ++i) {
-      stack_[i - offset] = stack_[i];
+    for (int32_t i = count - size; i < count; ++i) {
+      stack_ptr[i - offset] = stack_ptr[i];
     }
-    stack_.resize(stack_.size() - offset);
-  }
-
-  Slice take(int32_t size) {
-    if (size > stack_.size()) {
-      throw std::out_of_range("Invalid size: requested " + std::to_string(size) + ", stack size is " + std::to_string(stack_.size()));
-    }
-    // todo: avoid re-allocation
-    Slice slice(stack_.end() - size, stack_.end());
-    stack_.resize(stack_.size() - size);
-    return slice;
+    count -= offset;
   }
 
   void print() {
     std::cout << "Stack contents: " << std::endl;
-    for (auto it = stack_.rbegin(); it != stack_.rend(); ++it) {
-      std::cout << it->value << std::endl;
+    for (int32_t i = 0; i < count; ++i) {
+      std::cout << stack_ptr[count - i - 1].value << std::endl;
     }
   }
 
-  void initialize() { stack_.clear(); }
+  void initialize() {
+    // do nothing for now
+  }
 
 private:
-  std::vector<Num> stack_;
+  int32_t count;
+  Num *stack_ptr;
 };
 static Stack_t Stack;
 
-struct Frame_t {
-  std::vector<Num> locals;
-
-  Frame_t(std::int32_t size) : locals() { locals.resize(size); }
-  Num &operator[](std::int32_t index) {
-    assert(index >= 0);
-    if (index >= locals.size()) {
-      throw std::out_of_range("Index out of range");
-    }
-    return locals[index];
-  }
-  void putAll(Slice slice) {
-    for (std::int32_t i = 0; i < slice.size(); ++i) {
-      locals[i] = slice[i];
-    }
-  }
-};
+const int FRAME_SIZE = 1024;
 
 class Frames_t {
 public:
-  std::monostate popFrame() {
-    if (!frames.empty()) {
-      frames.pop_back();
-      return std::monostate{};
-    } else {
-      std::cout << "No frames to pop." << std::endl;
-      throw std::runtime_error("No frames to pop.");
-    }
+  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]) {}
+
+  std::monostate popFrame(std::int32_t size) {
+    assert(size >= 0);
+    count -= size;
+    return std::monostate{};
   }
 
   Num get(std::int32_t index) {
-    auto ret = top()[index];
+    auto ret = stack_ptr[count - 1 - index];
     return ret;
   }
 
-  void set(std::int32_t index, Num num) { frames.back()[index] = num; }
-
-  Frame_t &top() {
-    if (frames.empty()) {
-      throw std::runtime_error("No frames available");
-    }
-    return frames.back();
-  }
+  void set(std::int32_t index, Num num) { stack_ptr[count - 1 - index] = num; }
 
   void pushFrame(std::int32_t size) {
-    Frame_t frame(size);
-    frames.push_back(frame);
+    assert(size >= 0);
+    count += size;
   }
 
-  void putAll(Slice slice) { top().putAll(slice); }
-
 private:
-  std::vector<Frame_t> frames;
+  int32_t count;
+  Num *stack_ptr;
 };
 
 static Frames_t Frames;
