@@ -26,25 +26,11 @@ class TestStagedEval extends FunSuite {
 
   def testFileToCpp(filename: String, main: Option[String] = None, expect: Option[List[Float]]=None) = {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
-    val code = WasmToCppCompiler.compile(moduleInst, main, true)
-
     val cppFile = s"$filename.cpp"
-
-    val writer = new java.io.PrintWriter(new java.io.File(cppFile))
-    try {
-      writer.write(code)
-    } finally {
-      writer.close()
-    }
-    import sys.process._
-
     val exe = s"$cppFile.exe"
-    val command = s"g++ -o $exe $cppFile"
+    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true)
 
-    if (command.! != 0) {
-      throw new RuntimeException(s"Compilation failed for $cppFile")
-    }
-
+    import sys.process._
     val result = s"./$exe".!!
     println(result)
 
@@ -121,25 +107,11 @@ object Benchmark extends App {
 
   def benchmarkWasmToCpp(filePath: String, main: Option[String] = None): Double = {
     val moduleInst = ModuleInstance(Parser.parseFile(filePath))
-    val code = WasmToCppCompiler.compile(moduleInst, main, false)
-
     val cppFile = s"$filePath.cpp"
-
-    val writer = new java.io.PrintWriter(new java.io.File(cppFile))
-    try {
-      writer.write(code)
-    } finally {
-      writer.close()
-    }
-    import sys.process._
-
     val exe = s"$cppFile.exe"
-    val command = s"g++ -std=c++17 -o $exe $cppFile -O3"
+    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, false)
 
-    if (command.! != 0) {
-      throw new RuntimeException(s"Compilation failed for $cppFile")
-    }
-
+    import sys.process._
     println(s"Running $exe")
     bench { assert(s"./$exe".! == 0, s"Execution of $exe failed") }
   }
