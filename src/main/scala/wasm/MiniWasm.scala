@@ -229,15 +229,6 @@ object Primtives {
     case VecType(kind) => ???
     case RefType(kind) => RefNullV(kind)
   }
-
-  def getFuncType(ty: BlockType): FuncType =
-    ty match {
-      case VarBlockType(_, None) =>
-        ??? // TODO: fill this branch until we handle type index correctly
-      case VarBlockType(_, Some(tipe)) => tipe
-      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
-      case ValBlockType(None)          => FuncType(List(), List(), List())
-    }
 }
 
 case class Frame(locals: ArrayBuffer[Value])
@@ -264,8 +255,8 @@ case class Evaluator(module: ModuleInstance) {
         val frameLocals = args ++ locals.map(zero(_))
         val newFrame = Frame(ArrayBuffer(frameLocals: _*))
         if (isTail)
-          // when tail call, share the continuation for returning with the callee
-          eval(body, List(), newFrame, kont, List(kont))
+          // when tail call, return to the caller's return continuation
+          eval(body, List(), newFrame, trail.last, List(trail.last))
         else {
           val restK: Cont[Ans] = (retStack) =>
             eval(rest, retStack.take(ty.out.size) ++ newStack, frame, kont, trail)
@@ -380,7 +371,7 @@ case class Evaluator(module: ModuleInstance) {
         eval(rest, stack, frame, kont, trail)
       case Unreachable => throw Trap()
       case Block(ty, inner) =>
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
@@ -389,7 +380,7 @@ case class Evaluator(module: ModuleInstance) {
         // We construct two continuations, one for the break (to the begining of the loop),
         // and one for fall-through to the next instruction following the syntactic structure
         // of the program.
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val (inputs, restStack) = stack.splitAt(funcTy.inps.size)
         val restK: Cont[Ans] = (retStack) =>
           eval(rest, retStack.take(funcTy.out.size) ++ restStack, frame, kont, trail)
@@ -397,7 +388,7 @@ case class Evaluator(module: ModuleInstance) {
           eval(inner, retStack.take(funcTy.inps.size), frame, restK, loop _ :: trail)
         loop(inputs)
       case If(ty, thn, els) =>
-        val funcTy = getFuncType(ty)
+        val funcTy = ty.funcType
         val I32V(cond) :: newStack = stack
         val inner = if (cond != 0) thn else els
         val (inputs, restStack) = newStack.splitAt(funcTy.inps.size)
@@ -426,31 +417,42 @@ case class Evaluator(module: ModuleInstance) {
   // If `main` is given, then we use that function as the entry point of the program;
   // otherwise, we look up the top-level `start` instruction to locate the entry point.
   def evalTop[Ans](halt: Cont[Ans], main: Option[String] = None): Ans = {
-    val instrs = main match {
+    val entryFuncDefs = main match {
       case Some(func_name) =>
         module.defs.flatMap({
           case Export(`func_name`, ExportFunc(fid)) =>
-            println(s"Entering function $main")
+            // println(s"Entering function $main")
             module.funcs(fid) match {
-              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case FuncDef(_, funcDef @ FuncBodyDef(_, _, _, _)) => Some(funcDef)
               case _ => throw new Exception("Entry function has no concrete body")
             }
-          case _ => List()
+          case _ => None
         })
       case None =>
         module.defs.flatMap({
           case Start(id) =>
-            println(s"Entering unnamed function $id")
+            // println(s"Entering unnamed function $id")
             module.funcs(id) match {
-              case FuncDef(_, FuncBodyDef(_, _, _, body)) => body
+              case FuncDef(_, funcDef @ FuncBodyDef(_, _, _, _)) => Some(funcDef)
               case _ =>
                 throw new Exception("Entry function has no concrete body")
             }
-          case _ => List()
+          case _ => None
         })
     }
-    if (instrs.isEmpty) println("Warning: nothing is executed")
-    eval(instrs, List(), Frame(ArrayBuffer(I32V(0))), halt, List(halt))
+
+    entryFuncDefs match {
+      case FuncBodyDef(_, _, locals, body) :: Nil =>
+        val frame = Frame(ArrayBuffer(locals.map(zero(_)): _*))
+        if (body.isEmpty) println("Warning: nothing is executed")
+        eval(body, List(), frame, halt, List(halt))
+      case Nil =>
+        println("Warning: no entry point found")
+        halt(List())
+      case _ =>
+        println("Warning: multiple entry points found")
+        halt(List())
+    }
   }
 
   def evalTop(m: ModuleInstance): Unit = evalTop(stack => ())

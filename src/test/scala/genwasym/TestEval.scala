@@ -81,6 +81,9 @@ class TestEval extends FunSuite {
   test("loop block - poly br") {
     testFile("./benchmarks/wasm/loop_poly.wat", None, ExpStack(List(2, 1)))
   }
+  test("global") {
+    testFile("./benchmarks/wasm/global.wat", None, ExpInt(42))
+  }
 
   // just a test for .bin.wast utility
   // the complete tests can be seen at https://github.com/Generative-Program-Analysis/wasm-cps/

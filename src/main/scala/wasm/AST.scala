@@ -270,7 +270,16 @@ case class RefType(kind: HeapType) extends ValueType
 
 case class GlobalType(ty: ValueType, mut: Boolean) extends WasmType
 
-abstract class BlockType extends WIR
+abstract class BlockType extends WIR {
+  def funcType: FuncType =
+    this match {
+      case VarBlockType(_, None) =>
+        ??? // TODO: fill this branch until we handle type index correctly
+      case VarBlockType(_, Some(tipe)) => tipe
+      case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
+      case ValBlockType(None)          => FuncType(List(), List(), List())
+    }
+}
 case class VarBlockType(index: Int, tipe: Option[FuncType]) extends BlockType
 case class ValBlockType(tipe: Option[ValueType]) extends BlockType;
 
