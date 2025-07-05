@@ -433,10 +433,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def push(v: StagedNum)(implicit ctx: Context): Context = {
       v match {
-        case I32(v) => NumType(I32Type); "stack-push".reflectCtrlWith[Unit](v)
-        case I64(v) => NumType(I64Type); "stack-push".reflectCtrlWith[Unit](v)
-        case F32(v) => NumType(F32Type); "stack-push".reflectCtrlWith[Unit](v)
-        case F64(v) => NumType(F64Type); "stack-push".reflectCtrlWith[Unit](v)
+        case I32(v) => "stack-push".reflectCtrlWith[Unit](v)
+        case I64(v) => "stack-push".reflectCtrlWith[Unit](v)
+        case F32(v) => "stack-push".reflectCtrlWith[Unit](v)
+        case F64(v) => "stack-push".reflectCtrlWith[Unit](v)
       }
       ctx.push(v.tipe)
     }
