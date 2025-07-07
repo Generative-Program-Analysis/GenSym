@@ -40,7 +40,7 @@ trait StagedWasmEvaluator extends SAIOps {
   case class F32(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
   case class F64(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
 
-  implicit def toStagedNum(num: Num): StagedNum = {
+  def toStagedNum(num: Num): StagedNum = {
     num match {
       case I32V(_) => I32(num, Concrete(num))
       case I64V(_) => I64(num, Concrete(num))
@@ -118,7 +118,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (_, newCtx) = Stack.pop()
         eval(rest, kont, mkont, trail)(newCtx)
       case WasmConst(num) =>
-        val newCtx = Stack.push(num)
+        val newCtx = Stack.push(toStagedNum(num))
         eval(rest, kont, mkont, trail)(newCtx)
       case LocalGet(i) =>
         val newCtx = Stack.push(Frames.get(i))
@@ -155,7 +155,10 @@ trait StagedWasmEvaluator extends SAIOps {
       case MemorySize => ???
       case MemoryGrow =>
         val (delta, newCtx1) = Stack.pop()
-        val newCtx2 = Stack.push(Values.I32V(Memory.grow(delta.toInt)))(newCtx1)
+        val ret = Memory.grow(delta.toInt)
+        val retNum = Values.I32V(ret)
+        val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
+        val newCtx2 = Stack.push(I32(retNum, retSym))(newCtx1)
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
       case Unreachable => unreachable()
@@ -220,6 +223,7 @@ trait StagedWasmEvaluator extends SAIOps {
           val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
+        // TODO: put the cond.s to path condition
         if (cond.toInt != 0) {
           eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
         } else {
@@ -232,6 +236,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case BrIf(label) =>
         val (cond, newCtx) = Stack.pop()
         info(s"The br_if(${label})'s condition is ", cond.toInt)
+        // TODO: put the cond.s to path condition
         if (cond.toInt != 0) {
           info(s"Jump to $label")
           trail(label)(newCtx)(mkont)
@@ -320,7 +325,7 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   def evalTestOp(op: TestOp, value: StagedNum): StagedNum = op match {
-    case Eqz(_) => Values.I32V(if (value.toInt == 0) 1 else 0)
+    case Eqz(_) => value.isZero
   }
 
   def evalUnaryOp(op: UnaryOp, value: StagedNum): StagedNum = op match {
@@ -523,6 +528,7 @@ trait StagedWasmEvaluator extends SAIOps {
       I32("I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)), "sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
     }
 
+    // Returns the previous memory size on success, or -1 if the memory cannot be grown.
     def grow(delta: Rep[Int]): Rep[Int] = {
       "memory-grow".reflectCtrlWith[Int](delta)
     }
@@ -539,12 +545,12 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // runtime values
   object Values {
-    def I32V(i: Rep[Int]): StagedNum = {
-      I32("I32V".reflectCtrlWith[Num](i), "Concrete".reflectCtrlWith[SymVal]("I32V".reflectCtrlWith[Num](i)))
+    def I32V(i: Rep[Int]): Rep[Num] = {
+      "I32V".reflectCtrlWith[Num](i)
     }
 
-    def I64V(i: Rep[Long]): StagedNum = {
-      I64("I64V".reflectCtrlWith[Num](i), "Concrete".reflectCtrlWith[SymVal]("I64V".reflectCtrlWith[Num](i)))
+    def I64V(i: Rep[Long]): Rep[Num] = {
+      "I64V".reflectCtrlWith[Num](i)
     }
   }
 
@@ -573,6 +579,10 @@ trait StagedWasmEvaluator extends SAIOps {
   implicit class StagedNumOps(num: StagedNum) {
 
     def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num.i)
+
+    def isZero(): StagedNum = num match {
+      case I32(x_c, x_s) => I32(Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)), "sym-is-zero".reflectCtrlWith[SymVal](x_s))
+    }
 
     def clz(): StagedNum = num match {
       case I32(x_c, x_s) => I32("clz".reflectCtrlWith[Num](x_c), "sym-clz".reflectCtrlWith[SymVal](x_s))
@@ -750,13 +760,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     else if (m.toString.endsWith("Global")) "Global"
     else if (m.toString.endsWith("I32V")) "I32V"
     else if (m.toString.endsWith("I64V")) "I64V"
+    else if (m.toString.endsWith("SymVal")) "SymVal"
+    
     else super.remap(m)
   }
 
-  // for now, the traverse/shallow is same as the scala backend's
   override def traverse(n: Node): Unit = n match {
     case Node(_, "stack-push", List(value), _) =>
       emit("Stack.push("); shallow(value); emit(");\n")
+    case Node(_, "sym-stack-push", List(s_value), _) =>
+      emit("SymStack.push("); shallow(s_value); emit(");\n")
     case Node(_, "stack-drop", List(n), _) =>
       emit("Stack.drop("); shallow(n); emit(");\n")
     case Node(_, "stack-init", _, _) =>
@@ -765,12 +778,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.print();\n")
     case Node(_, "frame-push", List(i), _) =>
       emit("Frames.pushFrame("); shallow(i); emit(");\n")
+    case Node(_, "sym-frame-push", List(i), _) =>
+      emit("SymFrames.pushFrame("); shallow(i); emit(");\n")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(");\n")
-    case Node(_, "frame-putAll", List(args), _) =>
-      emit("Frames.putAll("); shallow(args); emit(");\n")
     case Node(_, "frame-set", List(i, value), _) =>
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
+    case Node(_, "sym-frame-set", List(i, s_value), _) =>
+      emit("SymFrames.set("); shallow(i); emit(", "); shallow(s_value); emit(");\n")
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
     // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
@@ -787,10 +802,11 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case _ => super.traverse(n)
   }
 
-  // code generation for pure nodes
   override def shallow(n: Node): Unit = n match {
     case Node(_, "frame-get", List(i), _) =>
       emit("Frames.get("); shallow(i); emit(")")
+    case Node(_, "sym-frame-get", List(i), _) =>
+      emit("SymFrames.get("); shallow(i); emit(")")
     case Node(_, "stack-drop", List(n), _) =>
       emit("Stack.drop("); shallow(n); emit(")")
     case Node(_, "stack-push", List(value), _) =>
@@ -799,10 +815,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.shift("); shallow(offset); emit(", "); shallow(size); emit(")")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
+    case Node(_, "sym-stack-pop", _, _) =>
+      emit("SymStack.pop()")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(")")
+    case Node(_, "sym-frame-pop", List(i), _) =>
+      emit("SymFrames.popFrame("); shallow(i); emit(")")
     case Node(_, "stack-peek", _, _) =>
       emit("Stack.peek()")
+    case Node(_, "sym-stack-peek", _, _) =>
+      emit("SymStack.peek()")
     case Node(_, "stack-take", List(n), _) =>
       emit("Stack.take("); shallow(n); emit(")")
     case Node(_, "slice-reverse", List(slice), _) =>
@@ -817,7 +839,13 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.size()")
     case Node(_, "global-get", List(i), _) =>
       emit("Global.globalGet("); shallow(i); emit(")")
+    case Node(_, "is-zero", List(num), _) =>
+      emit("(0 == "); shallow(num); emit(")")
+    case Node(_, "sym-is-zero", List(s_num), _) =>
+      shallow(s_num); emit(".is_zero()")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" + "); shallow(rhs)
+    case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(" + "); shallow(rhs)
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
       shallow(lhs); emit(" - "); shallow(rhs)
