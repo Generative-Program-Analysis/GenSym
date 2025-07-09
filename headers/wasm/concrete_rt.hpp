@@ -1,3 +1,6 @@
+#ifndef WASM_CONCRETE_RT_HPP
+#define WASM_CONCRETE_RT_HPP
+
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -201,3 +204,5 @@ struct Memory_t {
 };
 
 static Memory_t Memory(1); // 1 page memory
+
+#endif // WASM_CONCRETE_RT_HPP

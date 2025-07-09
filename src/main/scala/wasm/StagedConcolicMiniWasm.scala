@@ -1,4 +1,4 @@
-package gensym.wasm.miniwasm
+package gensym.wasm.stagedconcolicminiwasm
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
@@ -12,7 +12,10 @@ import lms.core.Graph
 
 import gensym.wasm.ast._
 import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
+import gensym.wasm.miniwasm.{ModuleInstance}
+import gensym.wasm.symbolic.{SymVal}
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
+import gensym.wasm.symbolic.Concrete
 
 @virtualize
 trait StagedWasmEvaluator extends SAIOps {
@@ -22,25 +25,27 @@ trait StagedWasmEvaluator extends SAIOps {
 
   trait StagedNum {
     def tipe: ValueType = this match {
-      case I32(_) => NumType(I32Type)
-      case I64(_) => NumType(I64Type)
-      case F32(_) => NumType(F32Type)
-      case F64(_) => NumType(F64Type)
+      case I32(_, _) => NumType(I32Type)
+      case I64(_, _) => NumType(I64Type)
+      case F32(_, _) => NumType(F32Type)
+      case F64(_, _) => NumType(F64Type)
     }
 
     def i: Rep[Num]
-  }
-  case class I32(i: Rep[Num]) extends StagedNum
-  case class I64(i: Rep[Num]) extends StagedNum
-  case class F32(i: Rep[Num]) extends StagedNum
-  case class F64(i: Rep[Num]) extends StagedNum
 
-  implicit def toStagedNum(num: Num): StagedNum = {
+    def s: Rep[SymVal]
+  }
+  case class I32(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
+  case class I64(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
+  case class F32(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
+  case class F64(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
+
+  def toStagedNum(num: Num): StagedNum = {
     num match {
-      case I32V(_) => I32(num)
-      case I64V(_) => I64(num)
-      case F32V(_) => F32(num)
-      case F64V(_) => F64(num)
+      case I32V(_) => I32(num, Concrete(num))
+      case I64V(_) => I64(num, Concrete(num))
+      case F32V(_) => F32(num, Concrete(num))
+      case F64V(_) => F64(num, Concrete(num))
     }
   }
 
@@ -113,7 +118,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (_, newCtx) = Stack.pop()
         eval(rest, kont, mkont, trail)(newCtx)
       case WasmConst(num) =>
-        val newCtx = Stack.push(num)
+        val newCtx = Stack.push(toStagedNum(num))
         eval(rest, kont, mkont, trail)(newCtx)
       case LocalGet(i) =>
         val newCtx = Stack.push(Frames.get(i))
@@ -145,12 +150,15 @@ trait StagedWasmEvaluator extends SAIOps {
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val (addr, newCtx1) = Stack.pop()
         val value = Memory.loadInt(addr.toInt, offset)
-        val newCtx2 = Stack.push(Values.I32V(value))(newCtx1)
+        val newCtx2 = Stack.push(value)(newCtx1)
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemorySize => ???
       case MemoryGrow =>
         val (delta, newCtx1) = Stack.pop()
-        val newCtx2 = Stack.push(Values.I32V(Memory.grow(delta.toInt)))(newCtx1)
+        val ret = Memory.grow(delta.toInt)
+        val retNum = Values.I32V(ret)
+        val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
+        val newCtx2 = Stack.push(I32(retNum, retSym))(newCtx1)
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
       case Unreachable => unreachable()
@@ -215,9 +223,13 @@ trait StagedWasmEvaluator extends SAIOps {
           val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
+        // TODO: put the cond.s to path condition
+        ExploreTree.fillWithIfElse(cond.s)
         if (cond.toInt != 0) {
+          ExploreTree.moveCursor(true)
           eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
         } else {
+          ExploreTree.moveCursor(false)
           eval(els, restK _, mkont, restK _ :: trail)(newCtx)
         }
         ()
@@ -227,11 +239,15 @@ trait StagedWasmEvaluator extends SAIOps {
       case BrIf(label) =>
         val (cond, newCtx) = Stack.pop()
         info(s"The br_if(${label})'s condition is ", cond.toInt)
+        // TODO: put the cond.s to path condition
+        ExploreTree.fillWithIfElse(cond.s)
         if (cond.toInt != 0) {
           info(s"Jump to $label")
+          ExploreTree.moveCursor(true)
           trail(label)(newCtx)(mkont)
         } else {
           info(s"Continue")
+          ExploreTree.moveCursor(false)
           eval(rest, kont, mkont, trail)(newCtx)
         }
         ()
@@ -315,7 +331,7 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   def evalTestOp(op: TestOp, value: StagedNum): StagedNum = op match {
-    case Eqz(_) => Values.I32V(if (value.toInt == 0) 1 else 0)
+    case Eqz(_) => value.isZero
   }
 
   def evalUnaryOp(op: UnaryOp, value: StagedNum): StagedNum = op match {
@@ -412,10 +428,10 @@ trait StagedWasmEvaluator extends SAIOps {
     def pop()(implicit ctx: Context): (StagedNum, Context) = {
       val (ty, newContext) = ctx.pop()
       val num = ty match {
-        case NumType(I32Type) => I32("stack-pop".reflectCtrlWith[Num]())
-        case NumType(I64Type) => I64("stack-pop".reflectCtrlWith[Num]())
-        case NumType(F32Type) => F32("stack-pop".reflectCtrlWith[Num]())
-        case NumType(F32Type) => F64("stack-pop".reflectCtrlWith[Num]())
+        case NumType(I32Type) => I32("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
+        case NumType(I64Type) => I64("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
+        case NumType(F32Type) => F32("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
+        case NumType(F32Type) => F64("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
       }
       (num, newContext)
     }
@@ -423,22 +439,22 @@ trait StagedWasmEvaluator extends SAIOps {
     def peek(implicit ctx: Context): (StagedNum, Context) = {
       val ty = ctx.stackTypes.head
       val num = ty match {
-        case NumType(I32Type) => I32("stack-peek".reflectCtrlWith[Num]())
-        case NumType(I64Type) => I64("stack-peek".reflectCtrlWith[Num]())
-        case NumType(F32Type) => F32("stack-peek".reflectCtrlWith[Num]())
-        case NumType(F32Type) => F64("stack-peek".reflectCtrlWith[Num]())
+        case NumType(I32Type) => I32("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
+        case NumType(I64Type) => I64("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
+        case NumType(F32Type) => F32("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
+        case NumType(F32Type) => F64("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
       }
       (num, ctx)
     }
 
-    def push(v: StagedNum)(implicit ctx: Context): Context = {
-      v match {
-        case I32(v) => "stack-push".reflectCtrlWith[Unit](v)
-        case I64(v) => "stack-push".reflectCtrlWith[Unit](v)
-        case F32(v) => "stack-push".reflectCtrlWith[Unit](v)
-        case F64(v) => "stack-push".reflectCtrlWith[Unit](v)
+    def push(num: StagedNum)(implicit ctx: Context): Context = {
+      num match {
+        case I32(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
+        case I64(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
+        case F32(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
+        case F64(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
       }
-      ctx.push(v.tipe)
+      ctx.push(num.tipe)
     }
 
     def take(n: Int)(implicit ctx: Context): (List[StagedNum], Context) = n match {
@@ -456,6 +472,7 @@ trait StagedWasmEvaluator extends SAIOps {
     def shift(offset: Rep[Int], size: Rep[Int]): Rep[Unit] = {
       if (offset > 0) {
         "stack-shift".reflectCtrlWith[Unit](offset, size)
+        "sym-stack-shift".reflectCtrlWith[Unit](offset, size)
       }
     }
 
@@ -472,20 +489,20 @@ trait StagedWasmEvaluator extends SAIOps {
     def get(i: Int)(implicit ctx: Context): StagedNum = {
       // val offset = ctx.frameTypes.take(i).map(_.size).sum
       ctx.frameTypes(i) match {
-        case NumType(I32Type) => I32("frame-get".reflectCtrlWith[Num](i))
-        case NumType(I64Type) => I64("frame-get".reflectCtrlWith[Num](i))
-        case NumType(F32Type) => F32("frame-get".reflectCtrlWith[Num](i))
-        case NumType(F64Type) => F64("frame-get".reflectCtrlWith[Num](i))
+        case NumType(I32Type) => I32("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(I64Type) => I64("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(F32Type) => F32("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(F64Type) => F64("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
       }
     }
 
     def set(i: Int, v: StagedNum)(implicit ctx: Context): Rep[Unit] = {
       // val offset = ctx.frameTypes.take(i).map(_.size).sum
       v match {
-        case I32(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-        case I64(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-        case F32(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-        case F64(v) => "frame-set".reflectCtrlWith[Unit](i, v)
+        case I32(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case I64(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case F32(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case F64(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
       }
     }
 
@@ -493,10 +510,12 @@ trait StagedWasmEvaluator extends SAIOps {
       // Predef.println(s"[DEBUG] push frame: $locals")
       val size = locals.size
       "frame-push".reflectCtrlWith[Unit](size)
+      "sym-frame-push".reflectCtrlWith[Unit](size)
     }
 
     def popFrame(size: Int): Rep[Unit] = {
       "frame-pop".reflectCtrlWith[Unit](size)
+      "sym-frame-pop".reflectCtrlWith[Unit](size)
     }
 
     def putAll(args: List[StagedNum])(implicit ctx: Context): Rep[Unit] = {
@@ -511,10 +530,11 @@ trait StagedWasmEvaluator extends SAIOps {
       "memory-store-int".reflectCtrlWith[Unit](base, offset, value)
     }
 
-    def loadInt(base: Rep[Int], offset: Int): Rep[Int] = {
-      "memory-load-int".reflectCtrlWith[Int](base, offset)
+    def loadInt(base: Rep[Int], offset: Int): StagedNum = {
+      I32("I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)), "sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
     }
 
+    // Returns the previous memory size on success, or -1 if the memory cannot be grown.
     def grow(delta: Rep[Int]): Rep[Int] = {
       "memory-grow".reflectCtrlWith[Int](delta)
     }
@@ -531,12 +551,12 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // runtime values
   object Values {
-    def I32V(i: Rep[Int]): StagedNum = {
-      I32("I32V".reflectCtrlWith[Num](i))
+    def I32V(i: Rep[Int]): Rep[Num] = {
+      "I32V".reflectCtrlWith[Num](i)
     }
 
-    def I64V(i: Rep[Long]): StagedNum = {
-      I64("I64V".reflectCtrlWith[Num](i))
+    def I64V(i: Rep[Long]): Rep[Num] = {
+      "I64V".reflectCtrlWith[Num](i)
     }
   }
 
@@ -544,20 +564,31 @@ trait StagedWasmEvaluator extends SAIOps {
   object Globals {
     def apply(i: Int): StagedNum = {
       module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => I32("global-get".reflectCtrlWith[Num](i))
-        case GlobalType(NumType(I64Type), _) => I64("global-get".reflectCtrlWith[Num](i))
-        case GlobalType(NumType(F32Type), _) => F32("global-get".reflectCtrlWith[Num](i))
-        case GlobalType(NumType(F64Type), _) => F64("global-get".reflectCtrlWith[Num](i))
+        case GlobalType(NumType(I32Type), _) => I32("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(I64Type), _) => I64("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(F32Type), _) => F32("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(F64Type), _) => F64("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
       }
     }
 
     def update(i: Int, v: StagedNum): Rep[Unit] = {
       module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => "global-set".reflectCtrlWith[Unit](i)
-        case GlobalType(NumType(I64Type), _) => "global-set".reflectCtrlWith[Unit](i)
-        case GlobalType(NumType(F32Type), _) => "global-set".reflectCtrlWith[Unit](i)
-        case GlobalType(NumType(F64Type), _) => "global-set".reflectCtrlWith[Unit](i)
+        case GlobalType(NumType(I32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
+        case GlobalType(NumType(I64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
+        case GlobalType(NumType(F32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
+        case GlobalType(NumType(F64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
       }
+    }
+  }
+
+  // Exploration tree, 
+  object ExploreTree {
+    def fillWithIfElse(s: Rep[SymVal]): Rep[Unit] = {
+      "tree-fill-if-else".reflectCtrlWith[Unit](s)
+    }
+
+    def moveCursor(branch: Boolean): Rep[Unit] = {
+      "tree-move-cursor".reflectCtrlWith[Unit](branch)
     }
   }
 
@@ -566,383 +597,164 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num.i)
 
+    def isZero(): StagedNum = num match {
+      case I32(x_c, x_s) => I32(Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)), "sym-is-zero".reflectCtrlWith[SymVal](x_s))
+    }
+
     def clz(): StagedNum = num match {
-      case I32(i) => I32("clz".reflectCtrlWith[Num](i))
-      case I64(i) => I64("clz".reflectCtrlWith[Num](i))
+      case I32(x_c, x_s) => I32("clz".reflectCtrlWith[Num](x_c), "sym-clz".reflectCtrlWith[SymVal](x_s))
+      case I64(x_c, x_s) => I64("clz".reflectCtrlWith[Num](x_c), "sym-clz".reflectCtrlWith[SymVal](x_s))
     }
 
     def ctz(): StagedNum = num match {
-      case I32(i) => I32("ctz".reflectCtrlWith[Num](i))
-      case I64(i) => I64("ctz".reflectCtrlWith[Num](i))
+      case I32(x_c, x_s) => I32("ctz".reflectCtrlWith[Num](x_c), "sym-ctz".reflectCtrlWith[SymVal](x_s))
+      case I64(x_c, x_s) => I64("ctz".reflectCtrlWith[Num](x_c), "sym-ctz".reflectCtrlWith[SymVal](x_s))
     }
 
     def popcnt(): StagedNum = num match {
-      case I32(i) => I32("popcnt".reflectCtrlWith[Num](i))
-      case I64(i) => I64("popcnt".reflectCtrlWith[Num](i))
+      case I32(x_c, x_s) => I32("popcnt".reflectCtrlWith[Num](x_c), "sym-popcnt".reflectCtrlWith[SymVal](x_s))
+      case I64(x_c, x_s) => I64("popcnt".reflectCtrlWith[Num](x_c), "sym-popcnt".reflectCtrlWith[SymVal](x_s))
     }
 
     def +(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-add".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-add".reflectCtrlWith[Num](x, y))
-        case (F32(x), F32(y)) => F32("binary-add".reflectCtrlWith[Num](x, y))
-        case (F64(x), F64(y)) => F64("binary-add".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
+
     def -(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-sub".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-sub".reflectCtrlWith[Num](x, y))
-        case (F32(x), F32(y)) => F32("binary-sub".reflectCtrlWith[Num](x, y))
-        case (F64(x), F64(y)) => F64("binary-sub".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def *(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-mul".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-mul".reflectCtrlWith[Num](x, y))
-        case (F32(x), F32(y)) => F32("binary-mul".reflectCtrlWith[Num](x, y))
-        case (F64(x), F64(y)) => F64("binary-mul".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def /(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-div".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-div".reflectCtrlWith[Num](x, y))
-        case (F32(x), F32(y)) => F32("binary-div".reflectCtrlWith[Num](x, y))
-        case (F64(x), F64(y)) => F64("binary-div".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def <<(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-shl".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-shl".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def >>(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-shr".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-shr".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def &(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("binary-and".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I64("binary-and".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
+        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def numEq(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-eq".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-eq".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-eq".reflectCtrlWith[Num](x_c, y_c), "sym-relation-eq".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-eq".reflectCtrlWith[Num](x_c, y_c), "sym-relation-eq".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def numNe(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-ne".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-ne".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-ne".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ne".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-ne".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ne".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def <(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-lt".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-lt".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-lt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-lt".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-lt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-lt".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def ltu(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-ltu".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-ltu".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-ltu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ltu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-ltu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ltu".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def >(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-gt".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-gt".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-gt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gt".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-gt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gt".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def gtu(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-gtu".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-gtu".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-gtu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gtu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-gtu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gtu".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def <=(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-le".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-le".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-le".reflectCtrlWith[Num](x_c, y_c), "sym-relation-le".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-le".reflectCtrlWith[Num](x_c, y_c), "sym-relation-le".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def leu(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-leu".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-leu".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-leu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-leu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-leu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-leu".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def >=(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-ge".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-ge".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-ge".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ge".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-ge".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ge".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
 
     def geu(rhs: StagedNum): StagedNum = {
       (num, rhs) match {
-        case (I32(x), I32(y)) => I32("relation-geu".reflectCtrlWith[Num](x, y))
-        case (I64(x), I64(y)) => I32("relation-geu".reflectCtrlWith[Num](x, y))
+        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-geu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-geu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-geu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-geu".reflectCtrlWith[SymVal](x_s, y_s))
       }
     }
   }
-}
 
-trait StagedWasmScalaGen extends ScalaGenBase with SAICodeGenBase {
-  override def mayInline(n: Node): Boolean = n match {
-    case Node(s, "stack-pop", _, _) => false
-    case _ => super.mayInline(n)
-  }
-
-  override def traverse(n: Node): Unit = n match {
-    case Node(_, "stack-drop", List(n), _) =>
-      emit("Stack.drop("); shallow(n); emit(")\n")
-    case Node(_, "stack-reset", List(n), _) =>
-      emit("Stack.reset("); shallow(n); emit(")\n")
-    case Node(_, "stack-init", _, _) =>
-      emit("Stack.initialize()\n")
-    case Node(_, "stack-print", _, _) =>
-      emit("Stack.print()\n")
-    case Node(_, "frame-push", List(i), _) =>
-      emit("Frames.pushFrame("); shallow(i); emit(")\n")
-    case Node(_, "frame-pop", List(i), _) =>
-      emit("Frames.popFrame("); shallow(i); emit(")\n")
-    case Node(_, "frame-putAll", List(args), _) =>
-      emit("Frames.putAll("); shallow(args); emit(")\n")
-    case Node(_, "frame-set", List(i, value), _) =>
-      emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(")\n")
-    case Node(_, "global-set", List(i, value), _) =>
-      emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(")\n")
-    case _ => super.traverse(n)
-  }
-
-  // code generation for pure nodes
-  override def shallow(n: Node): Unit = n match {
-    case Node(_, "frame-get", List(i), _) =>
-      emit("Frames.get("); shallow(i); emit(")")
-    case Node(_, "frame-pop", List(i), _) =>
-      emit("Frames.popFrame("); shallow(i); emit(")")
-    case Node(_, "stack-push", List(value), _) =>
-      emit("Stack.push("); shallow(value); emit(")")
-    case Node(_, "stack-pop", _, _) =>
-      emit("Stack.pop()")
-    case Node(_, "stack-peek", _, _) =>
-      emit("Stack.peek")
-    case Node(_, "stack-take", List(n), _) =>
-      emit("Stack.take("); shallow(n); emit(")")
-    case Node(_, "stack-size", _, _) =>
-      emit("Stack.size")
-    case Node(_, "global-get", List(i), _) =>
-      emit("Global.globalGet("); shallow(i); emit(")")
-    case Node(_, "binary-add", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" + "); shallow(rhs)
-    case Node(_, "binary-sub", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" - "); shallow(rhs)
-    case Node(_, "binary-mul", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" * "); shallow(rhs)
-    case Node(_, "binary-div", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" / "); shallow(rhs)
-    case Node(_, "binary-shl", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" << "); shallow(rhs)
-    case Node(_, "binary-shr", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" >> "); shallow(rhs)
-    case Node(_, "binary-and", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" & "); shallow(rhs)
-    case Node(_, "relation-eq", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" == "); shallow(rhs)
-    case Node(_, "relation-ne", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" != "); shallow(rhs)
-    case Node(_, "relation-lt", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" < "); shallow(rhs)
-    case Node(_, "relation-ltu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" < "); shallow(rhs)
-    case Node(_, "relation-gt", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" > "); shallow(rhs)
-    case Node(_, "relation-gtu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" > "); shallow(rhs)
-    case Node(_, "relation-le", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" <= "); shallow(rhs)
-    case Node(_, "relation-leu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" <= "); shallow(rhs)
-    case Node(_, "relation-ge", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" >= "); shallow(rhs)
-    case Node(_, "relation-geu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" >= "); shallow(rhs)
-    case Node(_, "num-to-int", List(num), _) =>
-      shallow(num); emit(".toInt")
-    case Node(_, "no-op", _, _) =>
-      emit("()")
-    case _ => super.shallow(n)
-  }
-}
-
-trait WasmToScalaCompilerDriver[A, B]
-  extends SAIDriver[A, B] with StagedWasmEvaluator { q =>
-  override val codegen = new StagedWasmScalaGen {
-    val IR: q.type = q
-    import IR._
-    override def remap(m: Manifest[_]): String = {
-      if (m.toString.endsWith("Stack")) "Stack"
-      else if(m.toString.endsWith("Frame")) "Frame"
-      else super.remap(m)
+  implicit class SymbolicOps(s: Rep[SymVal]) {
+    def not(): Rep[SymVal] = {
+      "sym-not".reflectCtrlWith(s)
     }
-  }
-
-   override val prelude =
-  """
-object Prelude {
-  sealed abstract class Num {
-    def +(that: Num): Num = (this, that) match {
-      case (I32V(x), I32V(y)) => I32V(x + y)
-      case (I64V(x), I64V(y)) => I64V(x + y)
-      case _ => throw new RuntimeException("Invalid addition")
-    }
-
-    def -(that: Num): Num = (this, that) match {
-      case (I32V(x), I32V(y)) => I32V(x - y)
-      case (I64V(x), I64V(y)) => I64V(x - y)
-      case _ => throw new RuntimeException("Invalid subtraction")
-    }
-
-    def !=(that: Num): Num = (this, that) match {
-      case (I32V(x), I32V(y)) => I32V(if (x != y) 1 else 0)
-      case (I64V(x), I64V(y)) => I32V(if (x != y) 1 else 0)
-      case _ => throw new RuntimeException("Invalid inequality")
-    }
-
-    def toInt: Int = this match {
-      case I32V(i) => i
-      case I64V(i) => i.toInt
-    }
-  }
-  case class I32V(i: Int) extends Num
-  case class I64V(i: Long) extends Num
-
-object Stack {
-  private val buffer = new scala.collection.mutable.ArrayBuffer[Num]()
-  def push(v: Num): Unit = buffer.append(v)
-  def pop(): Num = {
-    buffer.remove(buffer.size - 1)
-  }
-  def peek: Num = {
-    buffer.last
-  }
-  def size: Int = buffer.size
-  def drop(n: Int): Unit = {
-    buffer.remove(buffer.size - n, n)
-  }
-  def take(n: Int): List[Num] = {
-    val xs = buffer.takeRight(n).toList
-    drop(n)
-    xs
-  }
-  def reset(size: Int): Unit = {
-    info(s"Reset stack to size $size")
-    while (buffer.size > size) {
-      buffer.remove(buffer.size - 1)
-    }
-  }
-  def initialize(): Unit = buffer.clear()
-  def print(): Unit = {
-    println("Stack: " + buffer.mkString(", "))
-  }
-}
-
-  class Frame(val size: Int) {
-    private val data = new Array[Num](size)
-    def apply(i: Int): Num = {
-      info(s"frame(${i}) is ${data(i)}")
-      data(i)
-    }
-    def update(i: Int, v: Num): Unit = {
-      info(s"set frame(${i}) to ${v}")
-      data(i) = v
-    }
-    def putAll(xs: List[Num]): Unit = {
-      for (i <- 0 until xs.size) {
-        data(i) = xs(i)
-      }
-    }
-    override def toString: String = {
-      "Frame(" + data.mkString(", ") + ")"
-    }
-  }
-
-  object Frames {
-    private var frames = List[Frame]()
-    def pushFrame(size: Int): Unit = {
-      frames = new Frame(size) :: frames
-    }
-    def popFrame(): Unit = {
-      frames = frames.tail
-    }
-    def top: Frame = frames.head
-    def set(i: Int, v: Num): Unit = {
-      top(i) = v
-    }
-    def get(i: Int): Num = {
-      top(i)
-    }
-  }
-
-  object Global {
-    // TODO: create global with specific size
-    private val globals = new Array[Num](10)
-    def globalGet(i: Int): Num = globals(i)
-    def globalSet(i: Int, v: Num): Unit = globals(i) = v
-  }
-
-  def info(xs: Any*): Unit = {
-    if (System.getenv("DEBUG") != null) {
-      println("[INFO] " + xs.mkString(" "))
-    }
-  }
-}
-import Prelude._
-
-
-object Main {
-  def main(args: Array[String]): Unit = {
-    val snippet = new Snippet()
-    snippet(())
-  }
-}
-"""
-}
-
-
-object WasmToScalaCompiler {
-  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): String = {
-    println(s"Now compiling wasm module with entry function $main")
-    val code = new WasmToScalaCompilerDriver[Unit, Unit] {
-      def module: ModuleInstance = moduleInst
-      def snippet(x: Rep[Unit]): Rep[Unit] = {
-        evalTop(main, printRes)
-      }
-    }
-    code.code
   }
 }
 
@@ -971,13 +783,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     else if (m.toString.endsWith("Global")) "Global"
     else if (m.toString.endsWith("I32V")) "I32V"
     else if (m.toString.endsWith("I64V")) "I64V"
+    else if (m.toString.endsWith("SymVal")) "SymVal"
+    
     else super.remap(m)
   }
 
-  // for now, the traverse/shallow is same as the scala backend's
   override def traverse(n: Node): Unit = n match {
     case Node(_, "stack-push", List(value), _) =>
       emit("Stack.push("); shallow(value); emit(");\n")
+    case Node(_, "sym-stack-push", List(s_value), _) =>
+      emit("SymStack.push("); shallow(s_value); emit(");\n")
     case Node(_, "stack-drop", List(n), _) =>
       emit("Stack.drop("); shallow(n); emit(");\n")
     case Node(_, "stack-init", _, _) =>
@@ -986,12 +801,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.print();\n")
     case Node(_, "frame-push", List(i), _) =>
       emit("Frames.pushFrame("); shallow(i); emit(");\n")
+    case Node(_, "sym-frame-push", List(i), _) =>
+      emit("SymFrames.pushFrame("); shallow(i); emit(");\n")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(");\n")
-    case Node(_, "frame-putAll", List(args), _) =>
-      emit("Frames.putAll("); shallow(args); emit(");\n")
     case Node(_, "frame-set", List(i, value), _) =>
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
+    case Node(_, "sym-frame-set", List(i, s_value), _) =>
+      emit("SymFrames.set("); shallow(i); emit(", "); shallow(s_value); emit(");\n")
     case Node(_, "global-set", List(i, value), _) =>
       emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
     // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
@@ -1008,10 +825,11 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case _ => super.traverse(n)
   }
 
-  // code generation for pure nodes
   override def shallow(n: Node): Unit = n match {
     case Node(_, "frame-get", List(i), _) =>
       emit("Frames.get("); shallow(i); emit(")")
+    case Node(_, "sym-frame-get", List(i), _) =>
+      emit("SymFrames.get("); shallow(i); emit(")")
     case Node(_, "stack-drop", List(n), _) =>
       emit("Stack.drop("); shallow(n); emit(")")
     case Node(_, "stack-push", List(value), _) =>
@@ -1020,10 +838,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.shift("); shallow(offset); emit(", "); shallow(size); emit(")")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
+    case Node(_, "sym-stack-pop", _, _) =>
+      emit("SymStack.pop()")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(")")
+    case Node(_, "sym-frame-pop", List(i), _) =>
+      emit("SymFrames.popFrame("); shallow(i); emit(")")
     case Node(_, "stack-peek", _, _) =>
       emit("Stack.peek()")
+    case Node(_, "sym-stack-peek", _, _) =>
+      emit("SymStack.peek()")
     case Node(_, "stack-take", List(n), _) =>
       emit("Stack.take("); shallow(n); emit(")")
     case Node(_, "slice-reverse", List(slice), _) =>
@@ -1038,7 +862,13 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.size()")
     case Node(_, "global-get", List(i), _) =>
       emit("Global.globalGet("); shallow(i); emit(")")
+    case Node(_, "is-zero", List(num), _) =>
+      emit("(0 == "); shallow(num); emit(")")
+    case Node(_, "sym-is-zero", List(s_num), _) =>
+      shallow(s_num); emit(".is_zero()")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(" + "); shallow(rhs)
+    case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(" + "); shallow(rhs)
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
       shallow(lhs); emit(" - "); shallow(rhs)
@@ -1074,6 +904,12 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
+    case Node(_, "tree-fill-if-else", List(s), _) => 
+      emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
+    case Node(_, "tree-move-cursor", List(b), _) =>
+      emit("ExploreTree.moveCursor("); shallow(b); emit(")")
+    case Node(_, "sym-not", List(s), _) =>
+      shallow(s); emit(".negate()")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
     case Node(_, "dummy-op", _, _) => emit("std::monostate()")
     case Node(_, "no-op", _, _) =>
@@ -1165,4 +1001,5 @@ object WasmToCppCompiler {
   }
 
 }
+
 
