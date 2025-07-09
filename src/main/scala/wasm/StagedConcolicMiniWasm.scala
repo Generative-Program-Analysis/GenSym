@@ -225,8 +225,10 @@ trait StagedWasmEvaluator extends SAIOps {
         })
         // TODO: put the cond.s to path condition
         if (cond.toInt != 0) {
+          ExploreTree.fillWithIfElse(cond.s, true)
           eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
         } else {
+          ExploreTree.fillWithIfElse(cond.s.not, false)
           eval(els, restK _, mkont, restK _ :: trail)(newCtx)
         }
         ()
@@ -239,9 +241,11 @@ trait StagedWasmEvaluator extends SAIOps {
         // TODO: put the cond.s to path condition
         if (cond.toInt != 0) {
           info(s"Jump to $label")
+          ExploreTree.fillWithIfElse(cond.s, true)
           trail(label)(newCtx)(mkont)
         } else {
           info(s"Continue")
+          ExploreTree.fillWithIfElse(cond.s.not, false)
           eval(rest, kont, mkont, trail)(newCtx)
         }
         ()
@@ -575,6 +579,13 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
+  // Exploration tree, 
+  object ExploreTree {
+    def fillWithIfElse(s: Rep[SymVal], branch: Boolean): Rep[Unit] = {
+      "tree-fill-if-else".reflectCtrlWith[Unit](s, branch)
+    }
+  }
+
   // runtime Num type
   implicit class StagedNumOps(num: StagedNum) {
 
@@ -733,6 +744,12 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
   }
+
+  implicit class SymbolicOps(s: Rep[SymVal]) {
+    def not(): Rep[SymVal] = {
+      "sym-not".reflectCtrlWith(s)
+    }
+  }
 }
 
 trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
@@ -881,6 +898,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
+    case Node(_, "tree-fill-if-else", List(s, b), _) => 
+      emit("ExploreTree.fillIfElseNode("); shallow(s); emit(", "); shallow(b); emit(")")
+    case Node(_, "sym-not", List(s), _) =>
+      shallow(s); emit(".negate()")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
     case Node(_, "dummy-op", _, _) => emit("std::monostate()")
     case Node(_, "no-op", _, _) =>

@@ -17,6 +17,12 @@ public:
     // Not implemented yet
     return SymVal();
   }
+
+  SymVal negate() const {
+    // negate the symbolic condition by creating a new symbolic value
+    // not implemented yet
+    return SymVal();
+  }
 };
 
 class SymStack_t {
@@ -68,5 +74,17 @@ static SymVal Concrete(Num num) {
   // Not implemented yet
   return SymVal();
 }
+
+class ExploreTree_t {
+public:
+  std::monostate fillIfElseNode(SymVal s, bool branch) {
+    // fill the current node with the branch condition s
+    // parameter branch is redundant, to hint which branch we've entered
+    // Not implemented yet
+    return std::monostate();
+  }
+};
+
+static ExploreTree_t ExploreTree;
 
 #endif // WASM_SYMBOLIC_RT_HPP
