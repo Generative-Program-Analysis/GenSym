@@ -77,10 +77,14 @@ static SymVal Concrete(Num num) {
 
 class ExploreTree_t {
 public:
-  std::monostate fillIfElseNode(SymVal s, bool branch) {
+  std::monostate fillIfElseNode(SymVal s) {
     // fill the current node with the branch condition s
     // parameter branch is redundant, to hint which branch we've entered
     // Not implemented yet
+    return std::monostate();
+  }
+
+  std::monostate moveCursor(bool branch) {
     return std::monostate();
   }
 };

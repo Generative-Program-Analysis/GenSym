@@ -224,11 +224,12 @@ trait StagedWasmEvaluator extends SAIOps {
           eval(rest, kont, mk, trail)(newRestCtx)
         })
         // TODO: put the cond.s to path condition
+        ExploreTree.fillWithIfElse(cond.s)
         if (cond.toInt != 0) {
-          ExploreTree.fillWithIfElse(cond.s, true)
+          ExploreTree.moveCursor(true)
           eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
         } else {
-          ExploreTree.fillWithIfElse(cond.s.not, false)
+          ExploreTree.moveCursor(false)
           eval(els, restK _, mkont, restK _ :: trail)(newCtx)
         }
         ()
@@ -239,13 +240,14 @@ trait StagedWasmEvaluator extends SAIOps {
         val (cond, newCtx) = Stack.pop()
         info(s"The br_if(${label})'s condition is ", cond.toInt)
         // TODO: put the cond.s to path condition
+        ExploreTree.fillWithIfElse(cond.s)
         if (cond.toInt != 0) {
           info(s"Jump to $label")
-          ExploreTree.fillWithIfElse(cond.s, true)
+          ExploreTree.moveCursor(true)
           trail(label)(newCtx)(mkont)
         } else {
           info(s"Continue")
-          ExploreTree.fillWithIfElse(cond.s.not, false)
+          ExploreTree.moveCursor(false)
           eval(rest, kont, mkont, trail)(newCtx)
         }
         ()
@@ -581,8 +583,12 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // Exploration tree, 
   object ExploreTree {
-    def fillWithIfElse(s: Rep[SymVal], branch: Boolean): Rep[Unit] = {
-      "tree-fill-if-else".reflectCtrlWith[Unit](s, branch)
+    def fillWithIfElse(s: Rep[SymVal]): Rep[Unit] = {
+      "tree-fill-if-else".reflectCtrlWith[Unit](s)
+    }
+
+    def moveCursor(branch: Boolean): Rep[Unit] = {
+      "tree-move-cursor".reflectCtrlWith[Unit](branch)
     }
   }
 
@@ -898,8 +904,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
-    case Node(_, "tree-fill-if-else", List(s, b), _) => 
-      emit("ExploreTree.fillIfElseNode("); shallow(s); emit(", "); shallow(b); emit(")")
+    case Node(_, "tree-fill-if-else", List(s), _) => 
+      emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
+    case Node(_, "tree-move-cursor", List(b), _) =>
+      emit("ExploreTree.moveCursor("); shallow(b); emit(")")
     case Node(_, "sym-not", List(s), _) =>
       shallow(s); emit(".negate()")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
