@@ -16,6 +16,7 @@ import gensym.wasm.miniwasm.{ModuleInstance}
 import gensym.wasm.symbolic.{SymVal}
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
 import gensym.wasm.symbolic.Concrete
+import gensym.wasm.symbolic.ExploreTree
 
 @virtualize
 trait StagedWasmEvaluator extends SAIOps {
@@ -405,6 +406,7 @@ trait StagedWasmEvaluator extends SAIOps {
       info("Exiting the program...")
       if (printRes) {
         Stack.print()
+        ExploreTree.print()
       }
       "no-op".reflectCtrlWith[Unit]()
     }
@@ -589,6 +591,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def moveCursor(branch: Boolean): Rep[Unit] = {
       "tree-move-cursor".reflectCtrlWith[Unit](branch)
+    }
+
+    def print(): Rep[Unit] = {
+      "tree-print".reflectCtrlWith[Unit]()
     }
   }
 
@@ -908,6 +914,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
     case Node(_, "tree-move-cursor", List(b), _) =>
       emit("ExploreTree.moveCursor("); shallow(b); emit(")")
+    case Node(_, "tree-print", List(), _) =>
+      emit("ExploreTree.print()")
     case Node(_, "sym-not", List(s), _) =>
       shallow(s); emit(".negate()")
     case Node(_, "dummy", _, _) => emit("std::monostate()")

@@ -2,6 +2,9 @@
 #define WASM_SYMBOLIC_RT_HPP
 
 #include "concrete_rt.hpp"
+#include <cassert>
+#include <iterator>
+#include <memory>
 #include <variant>
 
 class SymVal {
@@ -75,18 +78,93 @@ static SymVal Concrete(Num num) {
   return SymVal();
 }
 
+struct Node;
+
+struct NodeBox {
+  explicit NodeBox();
+  std::unique_ptr<Node> node;
+  NodeBox *parent;
+};
+
+struct Node {
+  virtual ~Node(){};
+  virtual std::string to_string() = 0;
+};
+
+struct IfElseNode : Node {
+  SymVal cond;
+  std::unique_ptr<NodeBox> true_branch;
+  std::unique_ptr<NodeBox> false_branch;
+
+  IfElseNode(SymVal cond)
+      : cond(cond), true_branch(std::make_unique<NodeBox>()),
+        false_branch(std::make_unique<NodeBox>()) {}
+
+  std::string to_string() override {
+    std::string result = "IfElseNode {\n";
+    result += "  true_branch: ";
+    if (true_branch) {
+      result += true_branch->node->to_string();
+    } else {
+      result += "nullptr";
+    }
+    result += "\n";
+
+    result += "  false_branch: ";
+    if (false_branch) {
+      result += false_branch->node->to_string();
+    } else {
+      result += "nullptr";
+    }
+    result += "\n";
+    result += "}";
+    return result;
+  }
+};
+
+struct UnExploredNode : Node {
+  UnExploredNode() {}
+  std::string to_string() override { return "UnexploredNode"; }
+};
+
+static UnExploredNode unexplored;
+
+inline NodeBox::NodeBox()
+    : node(std::make_unique<
+           UnExploredNode>() /* TODO: avoid allocation of unexplored node */) {}
+
 class ExploreTree_t {
 public:
-  std::monostate fillIfElseNode(SymVal s) {
-    // fill the current node with the branch condition s
-    // parameter branch is redundant, to hint which branch we've entered
-    // Not implemented yet
+  explicit ExploreTree_t()
+      : root(std::make_unique<NodeBox>()), cursor(root.get()) {}
+  std::monostate fillIfElseNode(SymVal cond) {
+    // fill the current node with an ifelse branch node
+    cursor->node = std::make_unique<IfElseNode>(cond);
     return std::monostate();
   }
 
   std::monostate moveCursor(bool branch) {
+    assert(cursor != nullptr);
+    auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
+    assert(
+        if_else_node != nullptr &&
+        "Can't move cursor when the branch node is not initialized correctly!");
+    if (branch) {
+      cursor = if_else_node->true_branch.get();
+    } else {
+      cursor = if_else_node->false_branch.get();
+    }
     return std::monostate();
   }
+
+  std::monostate print() {
+    std::cout << root->node->to_string() << std::endl;
+    return std::monostate();
+  }
+
+private:
+  std::unique_ptr<NodeBox> root;
+  NodeBox *cursor;
 };
 
 static ExploreTree_t ExploreTree;
