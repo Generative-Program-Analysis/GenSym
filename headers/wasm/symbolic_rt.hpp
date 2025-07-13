@@ -3,8 +3,10 @@
 
 #include "concrete_rt.hpp"
 #include <cassert>
+#include <cstdio>
 #include <iterator>
 #include <memory>
+#include <ostream>
 #include <variant>
 
 class SymVal {
@@ -89,7 +91,28 @@ struct NodeBox {
 struct Node {
   virtual ~Node(){};
   virtual std::string to_string() = 0;
+  void to_graphviz(std::ostream &os) {
+    os << "digraph G {\n";
+    os << "  rankdir=TB;\n";
+    os << "  node [shape=box, style=filled, fillcolor=lightblue];\n";
+    current_id = 0;
+    generate_dot(os, -1, "");
+
+    os << "}\n";
+  }
+  int get_next_id(int &id_counter) { return id_counter++; }
+  virtual int generate_dot(std::ostream &os, int parent_dot_id,
+                           const std::string &edge_label) = 0;
+
+protected:
+  // Counter for unique node IDs across the entire graph, only for generating
+  // graphviz purpose
+  static int current_id;
 };
+
+// TODO: use this header file in multiple compilation units will cause problems
+// during linking
+int Node::current_id = 0;
 
 struct IfElseNode : Node {
   SymVal cond;
@@ -120,11 +143,56 @@ struct IfElseNode : Node {
     result += "}";
     return result;
   }
+
+  int generate_dot(std::ostream &os, int parent_dot_id,
+                   const std::string &edge_label) override {
+    int current_node_dot_id = current_id;
+    current_id += 1;
+
+    os << "  node" << current_node_dot_id << " [label=\"If\","
+       << "shape=diamond, fillcolor=lightyellow];\n";
+
+    // Draw edge from parent if this is not the root node
+    if (parent_dot_id != -1) {
+      os << "  node" << parent_dot_id << " -> node" << current_node_dot_id;
+      if (!edge_label.empty()) {
+        os << " [label=\"" << edge_label << "\"]";
+      }
+      os << ";\n";
+    }
+    assert(true_branch != nullptr);
+    assert(true_branch->node != nullptr);
+    true_branch->node->generate_dot(os, current_node_dot_id, "true");
+    assert(false_branch != nullptr);
+    assert(false_branch->node != nullptr);
+    false_branch->node->generate_dot(os, current_node_dot_id, "false");
+    return current_node_dot_id;
+  }
 };
 
 struct UnExploredNode : Node {
   UnExploredNode() {}
   std::string to_string() override { return "UnexploredNode"; }
+
+protected:
+  int generate_dot(std::ostream &os, int parent_dot_id,
+                   const std::string &edge_label) override {
+    int current_node_dot_id = current_id++;
+
+    os << "  node" << current_node_dot_id
+       << " [label=\"Unexplored\", shape=octagon, style=filled, "
+          "fillcolor=lightgrey];\n";
+
+    if (parent_dot_id != -1) {
+      os << "  node" << parent_dot_id << " -> node" << current_node_dot_id;
+      if (!edge_label.empty()) {
+        os << " [label=\"" << edge_label << "\"]";
+      }
+      os << ";\n";
+    }
+
+    return current_node_dot_id;
+  }
 };
 
 static UnExploredNode unexplored;
@@ -159,6 +227,11 @@ public:
 
   std::monostate print() {
     std::cout << root->node->to_string() << std::endl;
+    return std::monostate();
+  }
+
+  std::monostate to_graphviz(std::ostream &os) {
+    root->node->to_graphviz(os);
     return std::monostate();
   }
 
