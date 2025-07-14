@@ -8,42 +8,104 @@
 #include <memory>
 #include <ostream>
 #include <variant>
+#include <vector>
 
-class SymVal {
+class Symbolic {};
+
+class SymConcrete : public Symbolic {
 public:
-  SymVal operator+(const SymVal &other) const {
-    // Define how to add two symbolic values
-    // Not implemented yet
-    return SymVal();
-  }
-
-  SymVal is_zero() const {
-    // Check if the symbolic value is zero
-    // Not implemented yet
-    return SymVal();
-  }
-
-  SymVal negate() const {
-    // negate the symbolic condition by creating a new symbolic value
-    // not implemented yet
-    return SymVal();
-  }
+  Num value;
+  SymConcrete(Num num) : value(num) {}
 };
+
+struct SymBinary;
+
+struct SymVal {
+  std::shared_ptr<Symbolic> symptr;
+
+  SymVal() : symptr(nullptr) {}
+  SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
+
+  SymVal add(const SymVal &other) const;
+  SymVal minus(const SymVal &other) const;
+  SymVal mul(const SymVal &other) const;
+  SymVal div(const SymVal &other) const;
+  SymVal eq(const SymVal &other) const;
+  SymVal neq(const SymVal &other) const;
+  SymVal lt(const SymVal &other) const;
+  SymVal leq(const SymVal &other) const;
+  SymVal gt(const SymVal &other) const;
+  SymVal geq(const SymVal &other) const;
+};
+
+inline SymVal Concrete(Num num) {
+  return SymVal(std::make_shared<SymConcrete>(num));
+}
+
+enum Operation { ADD, SUB, MUL, DIV, EQ, NEQ, LT, LEQ, GT, GEQ };
+
+struct SymBinary : Symbolic {
+  Operation op;
+  SymVal lhs;
+  SymVal rhs;
+
+  SymBinary(Operation op, SymVal lhs, SymVal rhs)
+      : op(op), lhs(lhs), rhs(rhs) {}
+};
+
+inline SymVal SymVal::add(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(ADD, this, other));
+}
+
+inline SymVal SymVal::minus(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(SUB, this, other));
+}
+
+inline SymVal SymVal::mul(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(MUL, this, other));
+}
+
+inline SymVal SymVal::div(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(DIV, this, other));
+}
+
+inline SymVal SymVal::eq(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(EQ, this, other));
+}
+
+inline SymVal SymVal::neq(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(NEQ, this, other));
+}
+inline SymVal SymVal::lt(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(LT, this, other));
+}
+inline SymVal SymVal::leq(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(LEQ, this, other));
+}
+inline SymVal SymVal::gt(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(GT, this, other));
+}
+inline SymVal SymVal::geq(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(GEQ, this, other));
+}
 
 class SymStack_t {
 public:
   void push(SymVal val) {
     // Push a symbolic value to the stack
-    // Not implemented yet
+    stack.push_back(val);
   }
 
   SymVal pop() {
     // Pop a symbolic value from the stack
-    // Not implemented yet
-    return SymVal();
+    auto ret = stack.back();
+    stack.pop_back();
+    return ret;
   }
 
-  SymVal peek() { return SymVal(); }
+  SymVal peek() { return stack.back(); }
+
+  std::vector<SymVal> stack;
 };
 
 static SymStack_t SymStack;
@@ -52,33 +114,29 @@ class SymFrames_t {
 public:
   void pushFrame(int size) {
     // Push a new frame with the given size
-    // Not implemented yet
+    stack.resize(size + stack.size());
   }
   std::monostate popFrame(int size) {
     // Pop the frame of the given size
-    // Not implemented yet
+    stack.resize(stack.size() - size);
     return std::monostate();
   }
 
   SymVal get(int index) {
-    // Get the symbolic value at the given index
-    // Not implemented yet
-    return SymVal();
+    // Get the symbolic value at the given frame index
+    return stack[stack.size() - 1 - index];
   }
 
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
     // Not implemented yet
+    stack[stack.size() - 1 - index] = val;
   }
+
+  std::vector<SymVal> stack;
 };
 
 static SymFrames_t SymFrames;
-
-static SymVal Concrete(Num num) {
-  // Convert a concrete number to a symbolic value
-  // Not implemented yet
-  return SymVal();
-}
 
 struct Node;
 
@@ -115,11 +173,11 @@ protected:
 int Node::current_id = 0;
 
 struct IfElseNode : Node {
-  SymVal cond;
+  Symbolic cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
 
-  IfElseNode(SymVal cond)
+  IfElseNode(Symbolic cond)
       : cond(cond), true_branch(std::make_unique<NodeBox>()),
         false_branch(std::make_unique<NodeBox>()) {}
 
@@ -205,7 +263,7 @@ class ExploreTree_t {
 public:
   explicit ExploreTree_t()
       : root(std::make_unique<NodeBox>()), cursor(root.get()) {}
-  std::monostate fillIfElseNode(SymVal cond) {
+  std::monostate fillIfElseNode(Symbolic cond) {
     // fill the current node with an ifelse branch node
     cursor->node = std::make_unique<IfElseNode>(cond);
     return std::monostate();
