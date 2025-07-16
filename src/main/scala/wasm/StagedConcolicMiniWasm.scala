@@ -57,6 +57,15 @@ trait StagedWasmEvaluator extends SAIOps {
       case NumType(F32Type) => 4
       case NumType(F64Type) => 8
     }
+
+    def toTagger: (Rep[Num], Rep[SymVal]) => StagedNum = {
+      ty match {
+        case NumType(I32Type) => I32
+        case NumType(I64Type) => I64
+        case NumType(F32Type) => F32
+        case NumType(F64Type) => F64
+      }
+    }
   }
 
   case class Context(
@@ -121,6 +130,14 @@ trait StagedWasmEvaluator extends SAIOps {
       case WasmConst(num) =>
         val newCtx = Stack.push(toStagedNum(num))
         eval(rest, kont, mkont, trail)(newCtx)
+      case Symbolic(ty) =>
+        val (id, newCtx1) = Stack.pop()
+        val symVal = id.makeSymbolic()
+        val concVal = SymEnv.read(symVal)
+        val tagger = ty.toTagger
+        val value = tagger(concVal, symVal)
+        val newCtx2 = Stack.push(value)(newCtx1)
+        eval(rest, kont, mkont, trail)(newCtx2)
       case LocalGet(i) =>
         val newCtx = Stack.push(Frames.get(i))
         eval(rest, kont, mkont, trail)(newCtx)
@@ -326,6 +343,10 @@ trait StagedWasmEvaluator extends SAIOps {
         val (v, newCtx) = Stack.pop()
         println(v.toInt)
         eval(rest, kont, mkont, trail)(newCtx)
+      case Import("console", "assert", _) =>
+        val (v, newCtx) = Stack.pop()
+        runtimeAssert(v.toInt != 0)
+        eval(rest, kont, mkont, trail)(newCtx)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -412,6 +433,10 @@ trait StagedWasmEvaluator extends SAIOps {
     }
     val temp: Rep[MCont[Unit]] = topFun(haltK)
     evalTop(temp, main)
+  }
+
+  def runtimeAssert(b: Rep[Boolean]): Rep[Unit] = {
+    "assert-true".reflectCtrlWith[Unit](b)
   }
 
   // stack operations
@@ -598,6 +623,12 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
+  object SymEnv {
+    def read(sym: Rep[SymVal]): Rep[Num] = {
+      "sym-env-read".reflectCtrlWith[Num](sym)
+    }
+  }
+
   // runtime Num type
   implicit class StagedNumOps(num: StagedNum) {
 
@@ -620,6 +651,10 @@ trait StagedWasmEvaluator extends SAIOps {
     def popcnt(): StagedNum = num match {
       case I32(x_c, x_s) => I32("popcnt".reflectCtrlWith[Num](x_c), "sym-popcnt".reflectCtrlWith[SymVal](x_s))
       case I64(x_c, x_s) => I64("popcnt".reflectCtrlWith[Num](x_c), "sym-popcnt".reflectCtrlWith[SymVal](x_s))
+    }
+
+    def makeSymbolic(): Rep[SymVal] = {
+      "make-symbolic".reflectCtrlWith[SymVal](num.s)
     }
 
     def +(rhs: StagedNum): StagedNum = {
@@ -778,6 +813,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "stack-pop", _, _)
        | Node(_, "stack-peek", _, _)
+       | Node(_, "sym-stack-pop", _, _)
       => false
     case _ => super.mayInline(n)
   }
@@ -874,8 +910,6 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(s_num); emit(".is_zero()")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(" + "); shallow(rhs)
-    case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" + "); shallow(rhs)
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
       shallow(lhs); emit(" - "); shallow(rhs)
     case Node(_, "binary-mul", List(lhs, rhs), _) =>
@@ -908,8 +942,32 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(" >= "); shallow(rhs)
+    case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".add("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-mul", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".mul("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-div", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".div("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-le", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".leq("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-leu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-ge", List(lhs, rhs), _) => 
+      shallow(lhs); emit(".ge("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-geu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".geu("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-eq", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".eq("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-ne", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".neq("); shallow(rhs); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
+    case Node(_, "make-symbolic", List(num), _) =>
+      shallow(num); emit(".makeSymbolic()")
+    case Node(_, "sym-env-read", List(sym), _) =>
+      emit("SymEnv.read("); shallow(sym); emit(")")
+    case Node(_, "assert-true", List(cond), _) =>
+      emit("assert("); shallow(cond); emit(")")
     case Node(_, "tree-fill-if-else", List(s), _) => 
       emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
     case Node(_, "tree-move-cursor", List(b), _) =>

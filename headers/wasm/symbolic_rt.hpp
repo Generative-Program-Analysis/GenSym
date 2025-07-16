@@ -10,7 +10,19 @@
 #include <variant>
 #include <vector>
 
-class Symbolic {};
+class Symbolic {
+public:
+  Symbolic() {}                  // TODO: remove this default constructor later
+  virtual ~Symbolic() = default; // Make Symbolic polymorphic
+};
+
+class Symbol : public Symbolic {
+public:
+  Symbol(int id) : id(id) {}
+
+private:
+  int id;
+};
 
 class SymConcrete : public Symbolic {
 public:
@@ -26,6 +38,11 @@ struct SymVal {
   SymVal() : symptr(nullptr) {}
   SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
 
+  // data structure operations
+  SymVal makeSymbolic() const;
+
+  // arithmetic operations
+  SymVal is_zero() const;
   SymVal add(const SymVal &other) const;
   SymVal minus(const SymVal &other) const;
   SymVal mul(const SymVal &other) const;
@@ -54,39 +71,53 @@ struct SymBinary : Symbolic {
 };
 
 inline SymVal SymVal::add(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(ADD, this, other));
+  return SymVal(std::make_shared<SymBinary>(ADD, *this, other));
 }
 
 inline SymVal SymVal::minus(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(SUB, this, other));
+  return SymVal(std::make_shared<SymBinary>(SUB, *this, other));
 }
 
 inline SymVal SymVal::mul(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(MUL, this, other));
+  return SymVal(std::make_shared<SymBinary>(MUL, *this, other));
 }
 
 inline SymVal SymVal::div(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(DIV, this, other));
+  return SymVal(std::make_shared<SymBinary>(DIV, *this, other));
 }
 
 inline SymVal SymVal::eq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(EQ, this, other));
+  return SymVal(std::make_shared<SymBinary>(EQ, *this, other));
 }
 
 inline SymVal SymVal::neq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(NEQ, this, other));
+  return SymVal(std::make_shared<SymBinary>(NEQ, *this, other));
 }
 inline SymVal SymVal::lt(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(LT, this, other));
+  return SymVal(std::make_shared<SymBinary>(LT, *this, other));
 }
 inline SymVal SymVal::leq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(LEQ, this, other));
+  return SymVal(std::make_shared<SymBinary>(LEQ, *this, other));
 }
 inline SymVal SymVal::gt(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(GT, this, other));
+  return SymVal(std::make_shared<SymBinary>(GT, *this, other));
 }
 inline SymVal SymVal::geq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(GEQ, this, other));
+  return SymVal(std::make_shared<SymBinary>(GEQ, *this, other));
+}
+inline SymVal SymVal::is_zero() const {
+  return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
+}
+
+inline SymVal SymVal::makeSymbolic() const {
+  auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
+  if (concrete) {
+    // If the symbolic value is a concrete value, use it to create a symbol
+    return SymVal(std::make_shared<Symbol>(concrete->value.toInt()));
+  } else {
+    throw std::runtime_error(
+        "Cannot make symbolic a non-concrete symbolic value");
+  }
 }
 
 class SymStack_t {
@@ -173,11 +204,11 @@ protected:
 int Node::current_id = 0;
 
 struct IfElseNode : Node {
-  Symbolic cond;
+  SymVal cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
 
-  IfElseNode(Symbolic cond)
+  IfElseNode(SymVal cond)
       : cond(cond), true_branch(std::make_unique<NodeBox>()),
         false_branch(std::make_unique<NodeBox>()) {}
 
@@ -263,7 +294,7 @@ class ExploreTree_t {
 public:
   explicit ExploreTree_t()
       : root(std::make_unique<NodeBox>()), cursor(root.get()) {}
-  std::monostate fillIfElseNode(Symbolic cond) {
+  std::monostate fillIfElseNode(SymVal cond) {
     // fill the current node with an ifelse branch node
     cursor->node = std::make_unique<IfElseNode>(cond);
     return std::monostate();
@@ -299,5 +330,16 @@ private:
 };
 
 static ExploreTree_t ExploreTree;
+
+class SymEnv_t {
+public:
+  Num read(SymVal sym) {
+    // Read a symbolic value from the symbolic environment
+    // For now, we just return a zero
+    return Num(0);
+  }
+};
+
+static SymEnv_t SymEnv;
 
 #endif // WASM_SYMBOLIC_RT_HPP
