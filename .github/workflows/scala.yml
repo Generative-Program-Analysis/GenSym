@@ -79,3 +79,4 @@ jobs:
         sbt 'testOnly gensym.wasm.TestConcolic'
         sbt 'testOnly gensym.wasm.TestDriver'
         sbt 'testOnly gensym.wasm.TestStagedEval'
+        sbt 'testOnly gensym.wasm.TestStagedConcolicEval'
