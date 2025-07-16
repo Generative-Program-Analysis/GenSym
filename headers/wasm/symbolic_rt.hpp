@@ -4,6 +4,7 @@
 #include "concrete_rt.hpp"
 #include <cassert>
 #include <cstdio>
+#include <fstream>
 #include <iterator>
 #include <memory>
 #include <ostream>
@@ -321,6 +322,15 @@ public:
 
   std::monostate to_graphviz(std::ostream &os) {
     root->node->to_graphviz(os);
+    return std::monostate();
+  }
+
+  std::monostate dump_graphviz(std::string filepath) {
+    std::ofstream ofs(filepath);
+    if (!ofs.is_open()) {
+      throw std::runtime_error("Failed to open explore_tree.dot for writing");
+    }
+    to_graphviz(ofs);
     return std::monostate();
   }
 

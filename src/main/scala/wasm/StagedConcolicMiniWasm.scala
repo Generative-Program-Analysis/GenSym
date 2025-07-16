@@ -422,12 +422,15 @@ trait StagedWasmEvaluator extends SAIOps {
     Frames.popFrame(locals.size)
   }
 
-  def evalTop(main: Option[String], printRes: Boolean = false): Rep[Unit] = {
+  def evalTop(main: Option[String], printRes: Boolean, dumpTree: Option[String]): Rep[Unit] = {
     val haltK: Rep[Unit] => Rep[Unit] = (_) => {
       info("Exiting the program...")
       if (printRes) {
         Stack.print()
-        ExploreTree.print()
+      }
+      dumpTree match {
+        case Some(filePath) => ExploreTree.dumpGraphiviz(filePath)
+        case None => ()
       }
       "no-op".reflectCtrlWith[Unit]()
     }
@@ -620,6 +623,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def print(): Rep[Unit] = {
       "tree-print".reflectCtrlWith[Unit]()
+    }
+
+    def dumpGraphiviz(filePath: String): Rep[Unit] = {
+      "tree-dump-graphviz".reflectCtrlWith[Unit](filePath)
     }
   }
 
@@ -974,6 +981,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("ExploreTree.moveCursor("); shallow(b); emit(")")
     case Node(_, "tree-print", List(), _) =>
       emit("ExploreTree.print()")
+    case Node(_, "tree-dump-graphviz", List(f), _) =>
+      emit("ExploreTree.dump_graphviz("); shallow(f); emit(")")
     case Node(_, "sym-not", List(s), _) =>
       shallow(s); emit(".negate()")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
@@ -1033,12 +1042,12 @@ trait WasmToCppCompilerDriver[A, B] extends CppSAIDriver[A, B] with StagedWasmEv
 object WasmToCppCompiler {
   case class GeneratedCpp(source: String, headerFolders: List[String])
 
-  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean = false): GeneratedCpp = {
+  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean, dumpTree: Option[String]): GeneratedCpp = {
     println(s"Now compiling wasm module with entry function $main")
     val driver = new WasmToCppCompilerDriver[Unit, Unit] {
       def module: ModuleInstance = moduleInst
       def snippet(x: Rep[Unit]): Rep[Unit] = {
-        evalTop(main, printRes)
+        evalTop(main, printRes, dumpTree)
       }
     }
     GeneratedCpp(driver.code, driver.codegen.includePaths.toList)
@@ -1048,8 +1057,9 @@ object WasmToCppCompiler {
                    main: Option[String],
                    outputCpp: String,
                    outputExe: String,
-                   printRes: Boolean = false): Unit = {
-    val generated = compile(moduleInst, main, printRes)
+                   printRes: Boolean,
+                   dumpTree: Option[String]): Unit = {
+    val generated = compile(moduleInst, main, printRes, dumpTree)
     val code = generated.source
 
     val writer = new java.io.PrintWriter(new java.io.File(outputCpp))

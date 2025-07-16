@@ -13,7 +13,8 @@ class TestStagedConcolicEval extends FunSuite {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val cppFile = s"$filename.cpp"
     val exe = s"$cppFile.exe"
-    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true)
+    val exploreTreeFile = s"$filename.tree.dot"
+    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, Some(exploreTreeFile))
 
     import sys.process._
     val result = s"./$exe".!!
